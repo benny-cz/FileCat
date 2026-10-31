@@ -14,6 +14,7 @@ using FileCat.App.Services;
 using FileCat.App.Controls;
 using FileCat.App.ViewModels;
 using FileCat.Core.Commands;
+using FileCat.Core.Jobs;
 using FileCat.Core.State;
 
 namespace FileCat.App.Views;
@@ -66,7 +67,7 @@ public static class SettingsDialog
         var hidden = new CheckBox { Content = "Show hidden and system items (dimmed)", IsChecked = s.ShowHidden };
         var natural = new CheckBox { Content = "Natural sort (file2 before file10)", IsChecked = s.NaturalSort };
         var dirsFirst = new CheckBox { Content = "Folders before files", IsChecked = s.DirectoriesFirst };
-        var confirmRecycle = new CheckBox { Content = "Ask before moving items to the Recycle Bin", IsChecked = s.ConfirmRecycle };
+        var confirmRecycle = new CheckBox { Content = $"Ask before moving items to {RecycleText.Destination}", IsChecked = s.ConfirmRecycle };
         var sizeOnSpace = new CheckBox { Content = "Space computes the size of a marked folder", IsChecked = s.SizeFolderOnSpace };
         var sizeSlow = new CheckBox { Content = "…also on network, removable, and cloud locations", IsChecked = s.SizeFolderOnSlowLocations };
         BindDependentOption(sizeOnSpace, sizeSlow, supported: true,

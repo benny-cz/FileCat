@@ -378,15 +378,21 @@ public enum UndoKind
 public sealed record UndoStep(UndoKind Kind, string From, string To, long Size, long ModifiedTicks, string? RecycledId = null,
     RegistryChange? Registry = null);
 
-/// <summary>Plain-language reasons for items the Recycle Bin cannot take (plan §5.3).</summary>
+/// <summary>Plain-language names and refusal reasons for the current system's recycle/trash service.</summary>
 public static class RecycleText
 {
+    public static string Destination => OperatingSystem.IsWindows() ? "the Recycle Bin" : "Trash";
+    public static string BareDestination => OperatingSystem.IsWindows() ? "Recycle Bin" : "Trash";
+    public static string FromDestination => OperatingSystem.IsWindows() ? "the Recycle Bin" : "Trash";
+
     public static string Explain(FileSystem.RecycleClassification c) => c switch
     {
-        FileSystem.RecycleClassification.NoRecycleBin => "this location has no Recycle Bin (network shares and most removable drives).",
-        FileSystem.RecycleClassification.TooLarge => "the item is larger than the Recycle Bin accepts.",
-        FileSystem.RecycleClassification.NameTooLong => "the path is too long for the Recycle Bin.",
-        _ => "the Recycle Bin cannot take it.",
+        FileSystem.RecycleClassification.NoRecycleBin => OperatingSystem.IsWindows()
+            ? "this location has no Recycle Bin (network shares and most removable drives)."
+            : "this location has no usable Trash (some network and removable locations have none).",
+        FileSystem.RecycleClassification.TooLarge => $"the item is larger than {Destination} accepts.",
+        FileSystem.RecycleClassification.NameTooLong => $"the path is too long for {Destination}.",
+        _ => $"{Destination} cannot take it.",
     };
 }
 

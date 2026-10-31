@@ -126,7 +126,7 @@ public sealed partial class MainViewModel
         if (folders > 0) parts.Add(Formatters.Plural(folders, "folder", "folders") + " with everything in them");
         bool duplicates = items.Any(i => i.Ordinal > 0);
         if (!await Dialogs.ConfirmAsync("Delete from archive",
-                $"Delete {string.Join(" and ", parts)} from {Path.GetFileName(archive)}? This cannot be undone; archive members do not go to the Recycle Bin." +
+                $"Delete {string.Join(" and ", parts)} from {Path.GetFileName(archive)}? This cannot be undone; archive members do not go to {RecycleText.Destination}." +
                 (duplicates ? " Duplicate names are deleted one copy at a time, exactly as selected." : "") + prepared.Cost,
                 "Delete", danger: true))
             return;

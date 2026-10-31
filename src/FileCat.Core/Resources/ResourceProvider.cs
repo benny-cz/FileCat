@@ -128,7 +128,7 @@ public abstract class ResourceProvider
         LocationCapabilities.CreateDirectory => "creating folders",
         LocationCapabilities.CreateFile => "creating files",
         LocationCapabilities.Delete => "deleting",
-        LocationCapabilities.Recycle => "the Recycle Bin",
+        LocationCapabilities.Recycle => FileCat.Core.Jobs.RecycleText.Destination,
         LocationCapabilities.Rename => "renaming",
         LocationCapabilities.TransferTarget => "receiving copied or moved items",
         LocationCapabilities.ReadContent => "reading content",

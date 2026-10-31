@@ -6,6 +6,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using FileCat.App.Services;
 using FileCat.Core.Compare;
+using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 
 namespace FileCat.App.Views;
@@ -40,7 +41,7 @@ public sealed class SyncWindow : Window
     private readonly ComboBox _direction = new() { MinWidth = 320 };
     private readonly ComboBox _mode = new() { MinWidth = 300 };
     private readonly CheckBox _showAll = new() { Content = "Also show items left alone" };
-    private readonly CheckBox _permanent = new() { Content = "Delete permanently: the target has no Recycle Bin", IsVisible = false };
+    private readonly CheckBox _permanent = new() { Content = $"Delete permanently: the target has no {RecycleText.BareDestination}", IsVisible = false };
     private readonly TextBox _warning = new()
     {
         Classes = { "warning" }, IsReadOnly = true, AcceptsReturn = true,
@@ -254,7 +255,7 @@ public sealed class SyncWindow : Window
             ClearPermanentConsent();
         _permanent.Content = new TextBlock
         {
-            Text = $"Delete permanently from target \"{Formatters.SafeName(target)}\" (no Recycle Bin)",
+            Text = $"Delete permanently from target \"{Formatters.SafeName(target)}\" (no {RecycleText.BareDestination})",
             TextWrapping = TextWrapping.Wrap,
         };
         Avalonia.Automation.AutomationProperties.SetName(_permanent, "Allow permanent deletion from target " + target + " for the currently included removals");
@@ -262,10 +263,10 @@ public sealed class SyncWindow : Window
         var warnings = new List<string>();
         if (_planNotice.Length > 0) warnings.Add(_planNotice);
         if (Mode == SyncMode.Mirror)
-            warnings.Add($"Mirror changes the target \"{target}\": items only in this target are removed" + (TargetRecycles ? " (to the Recycle Bin)" : "") +
+            warnings.Add($"Mirror changes the target \"{target}\": items only in this target are removed" + (TargetRecycles ? $" (to {RecycleText.Destination})" : "") +
                          ", and differing files are replaced by the source's.");
         if (removals && !TargetRecycles && (_permanent.IsChecked != true || _acknowledgedRemovalScope != removalScope))
-            warnings.Add("The target has no Recycle Bin: removals run only if you choose to delete permanently.");
+            warnings.Add($"The target has no {RecycleText.BareDestination}: removals run only if you choose to delete permanently.");
         if (!_comparison.Complete) warnings.Add("The comparison did not finish: only what was compared is listed.");
         if (whyNot is not null) warnings.Add(whyNot);
         string warning = string.Join(" ", warnings);

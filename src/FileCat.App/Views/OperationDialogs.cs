@@ -381,7 +381,7 @@ public static class OperationDialogs
         string what = input.Items.Count == 1 ? $"\"{Formatters.SafeName(input.Items[0].Name)}\"" : input.Summary;
         body.Children.Add(Text(input.Permanent
             ? $"Delete {what} permanently? This cannot be undone."
-            : $"Move {what} to the Recycle Bin?", bold: true));
+            : $"Move {what} to {RecycleText.Destination}?", bold: true));
         if (input.Items.Count > 1) body.Children.Add(Muted(NameList(input.Items, 8)));
         if (input.FromResultSet) body.Children.Add(Text("These are the original items at their locations, not just entries of the result set. To only drop them from the set, use \"Remove from result set\"."));
         CheckBox? includeHidden = null;
@@ -395,7 +395,7 @@ public static class OperationDialogs
         if (unrecyclableCount > 0)
         {
             var warn = new StackPanel { Spacing = 4, Margin = new Thickness(0, 6, 0, 0) };
-            warn.Children.Add(new TextBlock { Text = $"{Formatters.Plural(unrecyclableCount, "item", "items")} cannot go to the Recycle Bin:", Classes = { "warning" }, FontWeight = FontWeight.SemiBold });
+            warn.Children.Add(new TextBlock { Text = $"{Formatters.Plural(unrecyclableCount, "item", "items")} cannot go to {RecycleText.Destination}:", Classes = { "warning" }, FontWeight = FontWeight.SemiBold });
             foreach (var (name, why) in input.Unrecyclable.Take(6)) warn.Children.Add(Muted($"• {Formatters.SafeName(name)} — {why}"));
             var skip = new RadioButton { Content = "Leave those items untouched", IsChecked = true, GroupName = "unrecyclable" };
             deletePermanently = new RadioButton { Content = "Delete those items permanently", GroupName = "unrecyclable" };

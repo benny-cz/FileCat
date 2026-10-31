@@ -5,6 +5,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using FileCat.App.Services;
 using FileCat.Core.Diagnostics;
+using FileCat.Core.Jobs;
 using FileCat.Core.State;
 using FileCat.Remote.Sftp;
 using Location = FileCat.Core.Resources.Location;
@@ -493,7 +494,7 @@ public sealed partial class MainViewModel
         var names = items.Take(8).Select(i => "• " + Formatters.SafeName(i.Name)).ToList();
         if (items.Count > 8) names.Add($"… and {items.Count - 8:N0} more");
         if (!await Dialogs.ConfirmAsync("Delete permanently?",
-                $"{(device ? "Phones and cameras" : "Servers")} have no Recycle Bin. Delete {summary} permanently from {server}?\n" + string.Join("\n", names),
+                $"{(device ? "Phones and cameras" : "Servers")} have no {RecycleText.BareDestination}. Delete {summary} permanently from {server}?\n" + string.Join("\n", names),
                 "Delete permanently", danger: true))
             return;
         var job = Services.Jobs.Submit(new Core.Jobs.JobRequest { Kind = Core.Jobs.JobKind.Delete, Sources = items });

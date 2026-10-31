@@ -232,7 +232,7 @@ public sealed partial class JobViewModel : ObservableObject
                 JobKind.Copy => "Copying",
                 JobKind.Move => "Moving",
                 JobKind.Undo => "Applying recorded inverse actions",
-                JobKind.Recycle => "Moving to the Recycle Bin",
+                JobKind.Recycle => $"Moving to {RecycleText.Destination}",
                 JobKind.Delete => "Deleting",
                 JobKind.Extract => "Extracting",
                 JobKind.Checksum => "Calculating checksums",

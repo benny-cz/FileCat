@@ -512,7 +512,7 @@ public sealed partial class MainViewModel
             bool confirmedPermanent = false;
             if (!permanent)
             {
-                if (items.Count > 10_000) Notify($"Checking {items.Count:N0} items for the Recycle Bin…");
+                if (items.Count > 10_000) Notify($"Checking {items.Count:N0} items for {RecycleText.Destination}…");
                 unrecyclable = await Task.Run(() =>
                 {
                     int count = 0;

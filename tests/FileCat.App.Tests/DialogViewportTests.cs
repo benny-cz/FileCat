@@ -337,6 +337,28 @@ public sealed class DialogViewportTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    [AvaloniaFact]
+    public async Task Delete_review_names_the_current_systems_actual_trash_service()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            ProductStyles(window);
+            var item = ItemRef.ForFileSystemPath(Path.Combine(root, "owned.txt"), EntryKind.File);
+            var pending = OperationDialogs.ShowDeleteAsync(vm,
+                new DeleteDialogInput([item], "1 item", false, 0, [], false));
+            Layout(window);
+            var text = Card(window).GetVisualDescendants().OfType<TextBlock>()
+                .Select(block => block.Text).ToArray();
+            Assert.Contains($"Move \"owned.txt\" to {RecycleText.Destination}?", text);
+            Assert.DoesNotContain(OperatingSystem.IsWindows() ? "Trash" : "Recycle Bin",
+                string.Join(" ", text));
+            ((OverlayDialogService)vm.Dialogs).CancelAll();
+            Assert.Null(await pending);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaTheory]
     [InlineData("copy", 14)]
     [InlineData("copy", 21)]

@@ -510,7 +510,7 @@ public sealed class JobManager
                 AddDestinationScopes();
                 break;
             case JobKind.Recycle:
-                title = $"Move {What()} to the Recycle Bin";
+                title = $"Move {What()} to {RecycleText.Destination}";
                 AddSourceScopes(writes);
                 break;
             case JobKind.Delete:

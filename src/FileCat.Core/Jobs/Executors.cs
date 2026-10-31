@@ -2035,7 +2035,9 @@ internal sealed class RecycleExecutor(Job job, IFileSystemOperations fs, JobJour
                     Job.ItemSkipped();
                     Job.RootFailed(i);
                     Issue(IssueSeverity.Warning, p,
-                        "Not recycled: this file system cannot bind the Recycle Bin operation to the exact compared object.",
+                        OperatingSystem.IsWindows()
+                            ? "Not recycled: this file system cannot bind the Recycle Bin operation to the exact compared object."
+                            : "Not moved to Trash: this file system cannot bind the Trash operation to the exact compared object.",
                         StepOutcome.CanceledBeforeChange);
                     continue;
                 }
@@ -2084,7 +2086,7 @@ internal sealed class RecycleExecutor(Job job, IFileSystemOperations fs, JobJour
                     Job.ItemDone();
                     if (root >= 0) Job.RootCompleted(root);
                     if (r.RecycledId is not null) Job.AddUndo(new UndoStep(UndoKind.RestoreRecycled, r.RecycledId, r.Path, 0, 0, r.RecycledId));
-                    else Job.RecordUndoRemainder(r.Path, "The item was recycled, but the platform did not provide an identity FileCat can restore. Use the Recycle Bin to review it.");
+                    else Job.RecordUndoRemainder(r.Path, $"The item was moved to {RecycleText.Destination}, but the platform did not provide an identity FileCat can restore. Review it in {RecycleText.Destination}.");
                     break;
                 case RecycleOutcome.PermanentlyDeleted:
                     Job.RecordUndoRemainder(r.Path, "The platform permanently deleted this item instead of recycling it; its data was not retained for Undo.");

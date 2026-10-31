@@ -218,7 +218,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
             or LocationCapabilities.ExternalEdit when WhyReadOnly(location) is { } reason => reason,
         LocationCapabilities.CreateFile => "New empty files cannot be created inside an archive; create the file in a folder and copy it in with F5.",
         LocationCapabilities.MoveSource => "Moving out of an archive is not supported: copy (extract) with F5, then delete the members with F8. Rename a member with F2.",
-        LocationCapabilities.Recycle => "Archive members do not go to the Recycle Bin; deleting them rewrites the archive.",
+        LocationCapabilities.Recycle => $"Archive members do not go to {RecycleText.Destination}; deleting them rewrites the archive.",
         _ => base.ExplainUnavailable(location, capability),
     };
 

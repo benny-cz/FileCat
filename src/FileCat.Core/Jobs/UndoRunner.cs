@@ -89,10 +89,10 @@ internal sealed class UndoRunner(UndoPlan plan, IFileSystemOperations fs, Action
                 return (UndoOutcomeKind.Restored, "Moved back without replacing another item.");
             }
             case UndoKind.RestoreRecycled:
-                if (step.RecycledId is null) return (UndoOutcomeKind.Kept, "The platform did not record a restorable Recycle Bin identity.");
+                if (step.RecycledId is null) return (UndoOutcomeKind.Kept, $"The platform did not record a restorable {RecycleText.BareDestination} identity.");
                 intent();
                 return fs.TryRestoreRecycled(step.RecycledId, step.To, out var error)
-                    ? (UndoOutcomeKind.Restored, "Restored from the Recycle Bin.")
+                    ? (UndoOutcomeKind.Restored, $"Restored from {RecycleText.FromDestination}.")
                     : (UndoOutcomeKind.Kept, error ?? "The platform could not safely restore this recycled item.");
             case UndoKind.RemoveEmptyDirectory:
             {
@@ -145,7 +145,7 @@ public static class UndoActions
     {
         UndoKind.MoveBack => $"Move back: \"{step.From}\" → \"{step.To}\"",
         UndoKind.RenameBatchBack => $"Rename back: \"{step.From}\" → \"{step.To}\"",
-        UndoKind.RestoreRecycled => $"Restore from Recycle Bin: \"{step.To}\"",
+        UndoKind.RestoreRecycled => $"Restore from {RecycleText.FromDestination}: \"{step.To}\"",
         UndoKind.RemoveEmptyDirectory => $"Remove created empty folder: \"{step.From}\"",
         UndoKind.RemoveCreatedFile => $"Remove created empty file: \"{step.From}\"",
         UndoKind.RemoveCreatedLink => $"Remove created link: \"{step.From}\" (target retained: \"{step.To}\")",

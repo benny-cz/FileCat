@@ -83,7 +83,7 @@ public sealed class UndoReport
         string from = display(outcome.From), to = display(outcome.To), reason = display(outcome.Reason);
         if (outcome.Outcome == UndoOutcomeKind.Restored)
             return outcome.Kind == UndoKind.RenameBatchBack ? $"Renamed \"{from}\" back to \"{to}\"."
-                : outcome.Kind == UndoKind.RestoreRecycled ? $"Restored \"{to}\" from the Recycle Bin." : $"Restored \"{from}\" to \"{to}\".";
+                : outcome.Kind == UndoKind.RestoreRecycled ? $"Restored \"{to}\" from {RecycleText.FromDestination}." : $"Restored \"{from}\" to \"{to}\".";
         if (outcome.Outcome == UndoOutcomeKind.Removed)
             return outcome.Kind switch
             {
