@@ -15,6 +15,7 @@ namespace FileCat.App.Services;
 public static class UpdateCheck
 {
     public const string LatestReleaseApi = "https://api.github.com/repos/benny-cz/FileCat/releases/latest";
+    public const string PreviewReleasesApi = "https://api.github.com/repos/benny-cz/FileCat/releases?per_page=10";
 
     /// <summary>The page offered when an answer names no page of FileCat's own releases.</summary>
     public const string ReleasesPage = "https://github.com/benny-cz/FileCat/releases";
@@ -49,13 +50,16 @@ public static class UpdateCheck
     public static async Task<Result> CheckAsync(CancellationToken ct = default)
     {
         var current = CurrentVersion;
+        var api = ReleaseApiFor(current);
+        bool preview = api == PreviewReleasesApi;
         try
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("FileCat", current));
             http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-            using var response = await http.GetAsync(LatestReleaseApi, HttpCompletionOption.ResponseHeadersRead, ct);
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return new Result(false, current, null, null, "No release has been published yet.");
+            using var response = await http.GetAsync(api, HttpCompletionOption.ResponseHeadersRead, ct);
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                return new Result(false, current, null, null, preview ? "No release has been published yet." : "No stable release has been published yet.");
             response.EnsureSuccessStatusCode();
             if (response.Content.Headers.ContentLength > MaxAnswerBytes) return new Result(false, current, null, null, Unreadable);
             await using var stream = await response.Content.ReadAsStreamAsync(ct);
@@ -67,7 +71,7 @@ public static class UpdateCheck
                 answer.Write(buffer, 0, n);
             }
             AppLog.Info("Update check completed.");
-            return Interpret(current, answer.ToArray());
+            return preview ? InterpretPreview(current, answer.ToArray()) : Interpret(current, answer.ToArray());
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
         {
@@ -77,6 +81,10 @@ public static class UpdateCheck
     }
 
     private const string Unreadable = "The release information could not be read.";
+
+    internal static string ReleaseApiFor(string current) =>
+        ReleaseVersion.TryParse(current, out _, out var preRelease) && preRelease is not null
+            ? PreviewReleasesApi : LatestReleaseApi;
 
     /// <summary>
     /// What an answer says, believed only as far as it reads like FileCat's own (V23 B13): a tag that reads as a version,
@@ -98,6 +106,38 @@ public static class UpdateCheck
         catch (JsonException) { return new Result(false, current, null, null, Unreadable); }
         if (tag is null || !ReleaseVersion.IsReleaseTag(tag)) return new Result(false, current, null, null, Unreadable);
         return new Result(ReleaseVersion.IsNewer(current, tag), current, tag.TrimStart('v', 'V'), IsOwnReleasePage(url) ? url : ReleasesPage, null);
+    }
+
+    /// <summary>Preview builds can see published prereleases; GitHub's /latest endpoint excludes them.</summary>
+    internal static Result InterpretPreview(string current, ReadOnlySpan<byte> json)
+    {
+        try
+        {
+            var reader = new Utf8JsonReader(json);
+            using var doc = JsonDocument.ParseValue(ref reader);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return new Result(false, current, null, null, Unreadable);
+            string? bestTag = null, bestUrl = null;
+            bool published = false;
+            foreach (var release in doc.RootElement.EnumerateArray())
+            {
+                if (release.ValueKind != JsonValueKind.Object ||
+                    !release.TryGetProperty("draft", out var draft) || draft.ValueKind != JsonValueKind.False ||
+                    !release.TryGetProperty("published_at", out var date) || date.ValueKind != JsonValueKind.String ||
+                    string.IsNullOrWhiteSpace(date.GetString())) continue;
+                published = true;
+                if (!release.TryGetProperty("tag_name", out var tagValue) || tagValue.ValueKind != JsonValueKind.String ||
+                    tagValue.GetString() is not { } tag || !ReleaseVersion.IsReleaseTag(tag)) continue;
+                if (bestTag is not null && !ReleaseVersion.IsNewer(bestTag, tag)) continue;
+                bestTag = tag;
+                bestUrl = release.TryGetProperty("html_url", out var urlValue) && urlValue.ValueKind == JsonValueKind.String
+                    ? urlValue.GetString() : null;
+            }
+            if (bestTag is null)
+                return new Result(false, current, null, null, published ? Unreadable : "No release has been published yet.");
+            return new Result(ReleaseVersion.IsNewer(current, bestTag), current, bestTag.TrimStart('v', 'V'),
+                IsOwnReleasePage(bestUrl) ? bestUrl : ReleasesPage, null);
+        }
+        catch (JsonException) { return new Result(false, current, null, null, Unreadable); }
     }
 
     /// <summary>An https address of a page under github.com/benny-cz/FileCat/releases, nothing else.</summary>

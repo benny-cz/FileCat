@@ -26,6 +26,38 @@ public sealed class UpdateCheckTests
         JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, string> { ["tag_name"] = tag, ["html_url"] = url });
 
     [Fact]
+    public void Preview_builds_consider_public_prereleases_while_stable_builds_use_full_releases()
+    {
+        Assert.Equal(UpdateCheck.PreviewReleasesApi, UpdateCheck.ReleaseApiFor("1.0.0-preview.4"));
+        Assert.Equal(UpdateCheck.LatestReleaseApi, UpdateCheck.ReleaseApiFor("1.0.0"));
+
+        const string previewPage = "https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.4";
+        var releases = JsonSerializer.SerializeToUtf8Bytes(new[]
+        {
+            new { tag_name = "v1.0.0-preview.5", html_url = previewPage, draft = true, published_at = (string?)null },
+            new { tag_name = "v1.0.0-preview.4", html_url = previewPage, draft = false, published_at = (string?)"2026-10-31T13:00:42Z" },
+            new { tag_name = "v1.0.0-preview.3", html_url = previewPage, draft = false, published_at = (string?)"2026-10-30T16:17:53Z" },
+        });
+        var newer = UpdateCheck.InterpretPreview("1.0.0-preview.3", releases);
+        Assert.Equal((true, "1.0.0-preview.4", previewPage, (string?)null),
+            (newer.Newer, newer.Latest, newer.Url, newer.Error));
+        var current = UpdateCheck.InterpretPreview("1.0.0-preview.4", releases);
+        Assert.Equal((false, "1.0.0-preview.4", (string?)null), (current.Newer, current.Latest, current.Error));
+        Assert.Equal("No release has been published yet.", UpdateCheck.InterpretPreview("1.0.0-preview.4", "[]"u8).Error);
+
+        var untrusted = JsonSerializer.SerializeToUtf8Bytes(new[]
+        {
+            new { tag_name = "v1.0.0-preview.10", html_url = "https://other.example/download", draft = false,
+                  published_at = (string?)"2026-11-01T00:00:00Z" },
+        });
+        var chosen = UpdateCheck.InterpretPreview("1.0.0-preview.9", untrusted);
+        Assert.Equal((true, "1.0.0-preview.10", UpdateCheck.ReleasesPage),
+            (chosen.Newer, chosen.Latest, chosen.Url));
+        Assert.Equal("The release information could not be read.",
+            UpdateCheck.InterpretPreview("1.0.0-preview.4", "not json"u8).Error);
+    }
+
+    [Fact]
     public void A_release_answer_is_believed_only_as_far_as_it_reads_like_FileCats_own()
     {
         const string page = "https://github.com/benny-cz/FileCat/releases/tag/v1.0.1";
