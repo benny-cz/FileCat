@@ -14,4 +14,6 @@ Capture SHA-256: before `3616c71bd1368efe47faacdd5eb5d66ea91efa4649c5bb078608265
 
 ## Candidate stopping rule
 
+Exact-source [main run 41191709479](https://github.com/benny-cz/FileCat/actions/runs/41191709479) at `a1997784` passed the producer, Windows x64, Windows ARM64, Ubuntu and macOS. The three package jobs and private-draft job skipped by design on main. I580 subsequently changed product source, so this run does not close the latest-source gate.
+
 On the exact installed Windows x64 1.0.0 candidate, enter an owned harmless draft in the command line, Up to a known harmless history entry, then Down. The original draft must reappear exactly and remain editable. Repeat with an initially empty live line to ensure it returns empty. No external command is needed. Stop after these affected routes and latest-product five-lane CI with skips reconciled; do not repeat accepted Tab, quoting, or external-tool tests. Stable signing, installed-candidate qualification and final GO remain separate.
