@@ -1,0 +1,19 @@
+# I583 — command search announced internal records on macOS
+
+## Consequence and prior-work boundary
+
+In the public, unsigned preview.5 Mac package, typing `checksum` into the visible **Search commands** field showed a readable visual result, but the native AX row title was `Entry { Id = file.checksum, Title = Calculate checksums…, Category = File, ... }`. A screen-reader user navigating the result list could hear implementation fields instead of a concise command name. This was a new presentation boundary: the existing CommandSearch tests checked ranking, focus, Enter, keyboard help and disabled-command reasons, but not the realized result item's accessible name. The prior Mac expert command journey used the command directly and did not open this search.
+
+The exact official `FileCat-1.0.0-preview.5-osx-arm64.zip` SHA-256 is `55e384f02827d032a161db4f9ce782f1e74582bc6aa7d8f655db9fde8096fc26`, independently matching the hosted producer manifest. It was extracted with `ditto -x -k`; `codesign --verify --deep --strict` passed and `FileCat --version` returned `1.0.0-preview.5`. The owned 17-byte `sample.bin` was selected in an isolated `--data` instance. Direct AX, scoped to that FileCat process, exposed the internal record string on the first result row. No full-desktop capture was used.
+
+## Minimal failing control and correction
+
+At the preview.5 source, a focused headless App assertion on the realized `ListBoxItem` peer expected the selected command's title, `Settings…`, and failed **0P/1F** because its accessible name began `Entry { Id = app.settings, Title = Settings…`. The failed TRX SHA-256 is `5bcd65870f50bb95160f7fa8a4f023c6e61a759042d05785d63fd925a2b71c94`. The row peer was falling back to the command entry record's compiler-generated `ToString()`.
+
+Product commit `1c52c4e6e10764e91cb4b56a07b0aa2e435acb1a` makes `CommandSearch.Entry.ToString()` return its human title. The focused App CommandSearch class passed **27P/0F/0S** on Windows; its TRX SHA-256 is `99f1fde24d2acd573bef51c55f6147cc7abb3a77c5a62dd727819656ff6d4899`. An isolated Mac worktree at exact preview.5 source `8adaf1f1` carried only the product and test files from that commit. Its native App class passed **27P/0F/0S**, TRX SHA-256 `e6a034600c159ab303b4a1ade29898805c8a949e7ddc0daa153a2bd744eeaae8`.
+
+The Mac worktree produced a separate ad-hoc-signed source package, ZIP SHA-256 `09a1f56957da82616b13e4fc413c543b42777e45ae0fe234cb7f27aaba9b4594`, App DLL SHA-256 `d53f77639ff558590018426a18ee17d546ee54c82b78f41dd007204d02935933`. Native AX on its isolated process now shows `Calculate checksums…`, `Verify checksums and signatures` and `Check for updates…` as the row titles, with no `Entry { ... }` fields. Enter on the first result produced **Checksums of 1 file** and the SHA-256 `06465924253ffc4d04aad18c82e844df0545f2117b56f3f1caf86556c3242722  sample.bin`, equal to an independent source rehash. Closing returned focus to `sample.bin`; the owned target remained empty and source bytes unchanged. This checks both the accessibility correction and the expert workflow it had interrupted.
+
+## Disposition and stopping rule
+
+Medium UX/accessibility defect, remediated preliminarily at `1c52c4e6`. Exact-source producer, Windows x64, Windows ARM64, Ubuntu and macOS CI plus skip reconciliation are pending. Do not relabel preview.5's immutable binaries: they predate this fix. An installed final candidate still needs the command search and a screen-reader participant check under the existing release criteria. Reopen this preliminary result only if a later product change alters result-row materialization, an assistive-technology observation contradicts the AX name, or exact-source CI finds a consequence. Resume exploratory selection with a **fresh clean streak** after the fix; the two clean public-preview journeys preceding this defect remain historical evidence, not part of that new streak. Stable 1.0.0 remains **NO-GO**.
