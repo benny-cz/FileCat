@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**928 evidence entries; none is final candidate qualification.** No candidate exists.
+**929 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -11,6 +11,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 
 | ID | What | Source | Class | Record | Issues |
 |---|---|---|---|---|---|
+| E-I581-PREVIEW-UPDATE-DISCOVERY | Public-preview state changed the accepted update result; native before/after and channel controls | `f78638f0` before; isolated `bf1155e5` plus `eb66d756` product patch after; Ubuntu VM | Old native Help command falsely said no release; corrected native command offered public preview.4. App 3P/Core 12P; latest CI and installed candidate remain. | [I581 update evidence](evidence/E-I581-preview-update-discovery.md) | I581, GATE-CI-FINAL |
 | E-PREVIEW4-TAG-20261031 | Owner-reviewed protected draft, exact hosted preview.4 inventory, official Windows ZIP startup and separate public approval | `c08f8c52`; tag object `028fe871`, run 41198371834, release 429934195 | All source/package/draft jobs pass; 24 assets match three independently downloaded/rehashed producer manifests and six upload receipts by name, byte size, SHA-256 and ID. Official x64 ZIP matches digest and exits zero. Separate owner-approved unsigned publication is confirmed by unauthenticated public API with the same assets and notes; stable candidate remains separate. | [Preview.4 tag, hosted inventory and publication](evidence/E-PREVIEW4-TAG-20261031.md) | I03, I580, GATE-CI-FINAL, REL-PIPELINE, DEC-07 |
 | E-PREVIEW4-PRETAG-CI-20261031 | Approved exact preview.4 source, five-lane CI, 20-TRX skip reconciliation and immutable tag identity | `c08f8c52`; main run 41195400154 and tag object `028fe871` | 41,246P/1,535S/0F, four new I580 passes, no lost pass or new skip; owner-approved tag peels to exact source. Tag package jobs passed, but private draft and public publication are separate. | [Preview.4 pretag CI](evidence/E-PREVIEW4-PRETAG-CI-20261031.md) | I03, I580, GATE-CI-FINAL, REL-PIPELINE, DEC-07 |
 | E-A01 | CI run 36722039034: per-lane outcomes and explicit skips | `4f6b062` | Preliminary automated | [E-A01](evidence/E-A01-ci-36722039034-skip-inventory.md) | — |
