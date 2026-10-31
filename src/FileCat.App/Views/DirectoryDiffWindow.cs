@@ -268,18 +268,6 @@ public sealed class DirectoryDiffWindow : Window
                         + (shown.Count == 0 ? " Nothing matches the filter." : "");
     }
 
-    private static string Describe(TreeDiffKind kind) => kind switch
-    {
-        TreeDiffKind.Same => "same",
-        TreeDiffKind.LeftOnly => "only left",
-        TreeDiffKind.RightOnly => "only right",
-        TreeDiffKind.LeftNewer => "newer left",
-        TreeDiffKind.RightNewer => "newer right",
-        TreeDiffKind.Different => "different",
-        TreeDiffKind.TypeMismatch => "file / folder",
-        _ => "undecided",
-    };
-
     private static string Side(EntryData? e) =>
         e is not { } d ? "" : d.IsContainer ? "folder" : $"{Formatters.Size(d.Size)}  {Formatters.Date(d)}";
 
@@ -294,7 +282,7 @@ public sealed class DirectoryDiffWindow : Window
             grid.Children.Add(t);
         }
         Cell(0, e.RelativePath + (e.IsFolder ? "/" : ""));
-        Cell(1, Describe(e.Kind), e.Kind == TreeDiffKind.Unknown ? "error" : null);
+        Cell(1, e.StatusText, e.Kind == TreeDiffKind.Unknown ? "error" : null);
         Cell(2, Side(e.Left), "muted");
         Cell(3, Side(e.Right), "muted");
         Cell(4, e.Detail ?? "", "small");

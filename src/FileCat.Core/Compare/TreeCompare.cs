@@ -37,6 +37,24 @@ public sealed record TreeDiffEntry(string RelativePath, TreeDiffKind Kind, Entry
 
     public bool IsDifference => Kind != TreeDiffKind.Same;
     public bool IsFolder => (Left ?? Right)?.IsContainer == true;
+
+    /// <summary>The short status shared by the visual difference column and accessibility row name.</summary>
+    public string StatusText => Kind switch
+    {
+        TreeDiffKind.Same => "same",
+        TreeDiffKind.LeftOnly => "only left",
+        TreeDiffKind.RightOnly => "only right",
+        TreeDiffKind.LeftNewer => "newer left",
+        TreeDiffKind.RightNewer => "newer right",
+        TreeDiffKind.Different => "different",
+        TreeDiffKind.TypeMismatch => "file / folder",
+        _ => "undecided",
+    };
+
+    // Avalonia's native ListBox row peer uses the item text as its name. The record's generated
+    // ToString exposed internal source and review objects instead of the difference a user needs.
+    public override string ToString() => $"{RelativePath}{(IsFolder ? "/" : "")}, {StatusText}"
+        + (string.IsNullOrWhiteSpace(Detail) ? "" : $", {Detail}");
 }
 
 /// <param name="Complete">False when stopped (canceled or over <see cref="TreeCompare.MaxEntries"/>): the rest was not compared.</param>

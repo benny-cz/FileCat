@@ -1,9 +1,11 @@
 using Avalonia.Controls;
+using Avalonia.Automation.Peers;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using Avalonia.Threading;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
 using FileCat.Core.Compare;
@@ -15,6 +17,32 @@ namespace FileCat.App.Tests;
 
 public sealed class DirectoryDiffTests(ITestOutputHelper output)
 {
+    [AvaloniaFact]
+    public async Task Native_result_rows_name_the_relative_file_and_difference_without_internal_records()
+    {
+        var result = new TreeCompareResult([
+            new TreeDiffEntry("sub/changed.txt", TreeDiffKind.Different,
+                new EntryData("changed.txt", EntryKind.File), new EntryData("changed.txt", EntryKind.File),
+                "Same size, different content"),
+            new TreeDiffEntry("only-left.txt", TreeDiffKind.LeftOnly,
+                new EntryData("only-left.txt", EntryKind.File), null),
+        ], true, 2);
+        var window = DirectoryDiffWindow.StartAsync("owned-left", "owned-right", "owned comparison",
+            (_, _) => Task.FromResult(result), (_, _) => { });
+        try
+        {
+            for (int i = 0; i < 200 && window.IsComparing; i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            Assert.False(window.IsComparing);
+            Dispatcher.UIThread.RunJobs();
+            var names = window.GetVisualDescendants().OfType<ListBoxItem>()
+                .Where(row => row.DataContext is TreeDiffEntry)
+                .Select(row => ControlAutomationPeer.CreatePeerForElement(row).GetName()).ToArray();
+            Assert.Equal(["sub/changed.txt, different, Same size, different content", "only-left.txt, only left"], names);
+        }
+        finally { window.Close(); }
+    }
+
     [AvaloniaFact]
     public async Task Ctrl_F10_with_subfolders_previews_differences_and_opens_them_as_results()
     {
