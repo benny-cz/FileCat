@@ -1,3 +1,5 @@
+using FileCat.Core.Resources;
+
 namespace FileCat.Core.FileSystem;
 
 /// <summary>
@@ -6,6 +8,26 @@ namespace FileCat.Core.FileSystem;
 /// </summary>
 public sealed record SourcePathReview(FileSystemItemInfo Info, string? Identity, string? FinalPath)
 {
+    /// <summary>
+    /// A result row describes the item found or last listed, not whichever item later occupies its path.
+    /// This inexpensive check catches ordinary changes before a review and again when a queued job starts;
+    /// it is not an object-bound or content-hash guarantee against a same-metadata substitution.
+    /// </summary>
+    public static bool MatchesSelectionMetadata(ItemRef item, IFileSystemOperations files)
+    {
+        if (item.FileSystemPath is not { } path) return false;
+        try
+        {
+            var current = files.TryGetInfo(path);
+            return current is not null && current.IsDirectory == item.IsContainer &&
+                (current.IsDirectory || current.Size == item.Size) && current.ModifiedUtc.Ticks == item.Modified;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
     public static SourcePathReview? Capture(string path, IFileSystemOperations files, Action? check = null)
     {
         check?.Invoke(); var info = files.TryGetInfo(path); check?.Invoke();

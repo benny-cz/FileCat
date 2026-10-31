@@ -183,6 +183,12 @@ public sealed partial class MainViewModel
         {
             var source = tab.Location!;
             var sourceCaps = Services.Providers.For(source).GetCapabilities(source);
+            bool requireResultSourceMetadata = source.Scheme == Schemes.ResultSet && items.All(i => i.FileSystemPath is not null);
+            if (requireResultSourceMetadata && !await Task.Run(() => items.All(i => SourcePathReview.MatchesSelectionMetadata(i, Services.Jobs.FileOperations))))
+            {
+                Notify("A selected result changed since it was listed. Search or refresh the results, then review the current item before copying or moving.", true);
+                return;
+            }
             if (kind == JobKind.Move && (sourceCaps & LocationCapabilities.MoveSource) == 0)
             {
                 Notify(Services.Providers.For(source).ExplainUnavailable(source, LocationCapabilities.MoveSource) + " Use F5 to copy instead.", true);
@@ -229,6 +235,7 @@ public sealed partial class MainViewModel
                 NewName = newName,
                 Options = request.Options,
                 Mode = request.Queue ? QueueMode.Queue : QueueMode.Start,
+                RequireResultSourceMetadata = requireResultSourceMetadata,
             });
             submitted = finalItems;
             Track(job, tab);

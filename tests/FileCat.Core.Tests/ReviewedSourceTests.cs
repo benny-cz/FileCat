@@ -9,6 +9,38 @@ namespace FileCat.Core.Tests;
 public sealed class ReviewedSourceTests(ITestOutputHelper output)
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Result_set_copy_refuses_a_replaced_search_row_before_destination_creation(bool replace)
+    {
+        using var f = new Fixture();
+        var info = new FileInfo(f.Source);
+        var item = new ItemRef(Location.FileSystem(f.Root), info.Name, EntryKind.File, info.Length, info.LastWriteTimeUtc.Ticks);
+        var job = f.Jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy, Sources = [item], Destination = Location.FileSystem(f.Destination),
+            RequireResultSourceMetadata = true,
+        });
+        if (replace)
+        {
+            File.Move(f.Source, Path.Join(f.Root, "original.txt"));
+            File.WriteAllText(f.Source, "replacement source bytes with a different length");
+        }
+        f.Jobs.MaxConcurrent = 4; f.Jobs.Schedule(); await Wait(job);
+        if (replace)
+        {
+            Assert.False(Directory.Exists(f.Destination));
+            Assert.Contains(job.Issues, i => i.Outcome == StepOutcome.CanceledBeforeChange);
+            Assert.Equal("owned source bytes", File.ReadAllText(Path.Join(f.Root, "original.txt")));
+        }
+        else
+        {
+            Assert.Equal(JobState.Completed, job.State);
+            Assert.Equal("owned source bytes", File.ReadAllText(Path.Join(f.Destination, "source.txt")));
+        }
+    }
+
+    [Theory]
     [InlineData("removed", JobKind.Copy)]
     [InlineData("size", JobKind.Copy)]
     [InlineData("time", JobKind.Copy)]

@@ -445,7 +445,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         var destDir = Job.Request.Destination!.Path;
         // A queued recovery may outlive the UI review. Refuse the whole request before destination creation or
         // discovery when any reviewed root changed or became unavailable.
-        if (Job.Request.ExpectedSources is not null || Job.Request.ExpectedSourceTrees is not null)
+        if (Job.Request.ExpectedSources is not null || Job.Request.ExpectedSourceTrees is not null || Job.Request.RequireResultSourceMetadata)
             foreach (var source in Job.Request.Sources)
                 if (!SourceStillReviewed(source)) return;
         using var discoveryCts = CancellationTokenSource.CreateLinkedTokenSource(Job.Token);
@@ -611,12 +611,13 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
 
     private bool SourceStillReviewed(ItemRef source)
     {
-        if (Job.Request.ExpectedSources is null && Job.Request.ExpectedSourceTrees is null) return true;
+        if (Job.Request.ExpectedSources is null && Job.Request.ExpectedSourceTrees is null && !Job.Request.RequireResultSourceMetadata) return true;
         var path = source.FileSystemPath!;
         try
         {
-            bool pathMatches = Job.Request.ExpectedSources is not { } expected ||
-                expected.TryGetValue(source, out var review) && review.Matches(path, Fs, Job.Checkpoint);
+            bool pathMatches = (!Job.Request.RequireResultSourceMetadata || SourcePathReview.MatchesSelectionMetadata(source, Fs)) &&
+                (Job.Request.ExpectedSources is not { } expected ||
+                expected.TryGetValue(source, out var review) && review.Matches(path, Fs, Job.Checkpoint));
             bool treeMatches = pathMatches && (Job.Request.ExpectedSourceTrees is not { } trees ||
                 trees.TryGetValue(source, out var reviewed) && reviewed.Tree.Matches(Fs, reviewed.Provider, Job.Checkpoint));
             if (pathMatches && treeMatches) return true;

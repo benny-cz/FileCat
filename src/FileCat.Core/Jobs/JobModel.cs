@@ -176,6 +176,11 @@ public sealed class JobRequest
     /// </summary>
     public IReadOnlyDictionary<ItemRef, SourcePathReview>? ExpectedSources { get; init; }
     /// <summary>
+    /// A local result-set transfer must still match the size, kind and timestamp displayed when its selection was
+    /// captured. This catches stale Find/working-set rows; it is not a native identity or content guarantee.
+    /// </summary>
+    public bool RequireResultSourceMetadata { get; init; }
+    /// <summary>
     /// A bounded interrupted copy/move review of complete ordinary-file bytes and descendant membership.
     /// Each tree must match before destination creation and before its root is processed. Links retain only
     /// their literal metadata; this is not an atomic native mutation or a guarantee about followed targets.

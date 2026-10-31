@@ -258,6 +258,35 @@ public sealed class FindWindowTests
     }
 
     [AvaloniaFact]
+    public async Task A_replaced_find_result_refuses_copy_before_showing_a_stale_review()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var find = await OpenFindAsync(vm, ct);
+            await SearchAsync(find, "a.txt", ct);
+            var listing = find.ResultsTab!.Listing;
+            await WaitFor(() => listing.VisibleCount == 1, ct);
+            string original = Path.Combine(root, "files", "a.txt");
+            File.Move(original, Path.Combine(root, "files", "retired.txt"));
+            File.WriteAllText(original, "replacement source with a different size");
+            find.List.Focus();
+            listing.SetFocus(0);
+            find.KeyPress(Key.F5, RawInputModifiers.None, PhysicalKey.F5, null);
+            await WaitFor(() => vm.RecentNotifications.Any(n => n.Message.Contains("changed since it was listed", StringComparison.Ordinal)), ct);
+            Assert.False(find.Dialogs.IsOpen);
+            Assert.Contains(vm.RecentNotifications, n => n.IsError && n.Message.Contains("Search or refresh", StringComparison.Ordinal));
+            Assert.Equal("replacement source with a different size", File.ReadAllText(original));
+        }
+        finally
+        {
+            CloseAll();
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
     public async Task The_log_lists_ignored_folders_and_shows_one_in_the_active_panel()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
