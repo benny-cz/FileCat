@@ -218,6 +218,7 @@ public static class CommandIds
     public const string Menu = "app.menu";
     public const string Settings = "app.settings";
     public const string Help = "app.help";
+    public const string ChangeShortcut = "app.changeShortcut";
     public const string Exit = "app.exit";
     public const string About = "app.about";
     public const string CheckUpdates = "app.checkUpdates";
@@ -463,6 +464,7 @@ public sealed class CommandRegistry
         Add(CommandIds.Menu, "Menu bar", A, "Menu", CommandContext.Global, "F10");
         Add(CommandIds.Settings, "Settings…", A, null, CommandContext.Global, "Ctrl+Comma");
         Add(CommandIds.Help, "Keyboard reference", A, "Help", CommandContext.Global, "F1");
+        Add(CommandIds.ChangeShortcut, "Change shortcut…", A, null, CommandContext.Global);
         Add(CommandIds.Exit, "Exit", A, "Quit", CommandContext.Global, "Alt+F4");
         Add(CommandIds.About, "About FileCat", A);
         Add(CommandIds.CheckUpdates, "Check for updates…", A);
@@ -539,6 +541,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.ToggleDriveButtons, "Shows or hides the buttons above each panel that open a drive, This PC, a special folder, a bookmark, or a saved server with one click: everything Alt+F1 and Alt+F2 offer.");
         r.Describe(CommandIds.Settings, "Appearance, behavior, keys, columns, programs, and more.");
         r.Describe(CommandIds.Help, "Search for a command here, then choose Change shortcut to edit its key.");
+        r.Describe(CommandIds.ChangeShortcut, "Choose a command, then assign or reset its keyboard shortcut.");
         K(CommandIds.ChangeJournal, "USN", "UsnJrnl", "$J", "journal", "recent changes", "what changed", "forensics", "timeline");
         K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files", "find deleted files", "disk image", "scan drive");
         K(CommandIds.FindFiles, "search", "locate", "look for", "grep", "find in files");
@@ -592,7 +595,8 @@ public sealed class CommandRegistry
         K(CommandIds.QuickView, "preview pane", "thumbnail");
         K(CommandIds.Operations, "jobs", "progress", "transfers", "queue", "tasks", "background");
         K(CommandIds.Palette, "command palette", "commands", "actions", "run command");
-        K(CommandIds.Help, "shortcuts", "keyboard", "hotkeys", "keys", "key bindings", "change shortcut", "edit shortcut", "remap key");
+        K(CommandIds.Help, "shortcuts", "keyboard", "hotkeys", "keys", "key bindings");
+        K(CommandIds.ChangeShortcut, "edit shortcut", "remap key", "customize shortcut", "assign shortcut", "change hotkey");
         K(CommandIds.About, "version");
         K(CommandIds.CheckUpdates, "update", "new version");
         K(CommandIds.DiagnosticsExport, "logs", "bug report", "crash report");

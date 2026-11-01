@@ -48,8 +48,9 @@ public sealed class CommandSearchTests
     [InlineData("sha256", CommandIds.Checksum)]
     [InlineData("keyboard resize", CommandIds.ResizePanel)]
     [InlineData("copy ancestor", CommandIds.AncestorMenu)]
-    [InlineData("change shortcut", CommandIds.Help)]
-    [InlineData("edit shortcut", CommandIds.Help)]
+    [InlineData("change shortcut", CommandIds.ChangeShortcut)]
+    [InlineData("edit shortcut", CommandIds.ChangeShortcut)]
+    [InlineData("remap key", CommandIds.ChangeShortcut)]
     public void Finds_commands_by_title_synonym_misspelling_and_shortcut(string query, string expected)
     {
         Assert.Equal(expected, First(query));
@@ -82,7 +83,7 @@ public sealed class CommandSearchTests
     }
 
     [AvaloniaFact]
-    public async Task Change_shortcut_search_opens_the_keyboard_reference()
+    public async Task Change_shortcut_search_opens_the_shortcut_editor()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
@@ -95,12 +96,16 @@ public sealed class CommandSearchTests
             await WaitFor(() => box.IsFocused, ct);
             box.Text = "change shortcut";
             await WaitFor(() => window.CommandSearch.Selected is not null, ct);
-            Assert.Equal(CommandIds.Help, window.CommandSearch.Selected?.Id);
-            Assert.Contains("Enter opens Keyboard reference", window.CommandSearch.Hint);
+            Assert.Equal(CommandIds.ChangeShortcut, window.CommandSearch.Selected?.Id);
+            Assert.Contains("Enter opens shortcut editor", window.CommandSearch.Hint);
 
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             await WaitFor(() => dialogs.IsOpen, ct);
             Assert.True(dialogs.IsOpen);
+            Assert.False(window.GetVisualDescendants().OfType<Button>()
+                .Single(b => Equals(b.Content, "Run command")).IsVisible);
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(),
+                t => t.Text?.Contains("Select a command and press Enter or F2 to change it", StringComparison.Ordinal) == true);
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             await WaitFor(() => !dialogs.IsOpen, ct);
         }
@@ -140,6 +145,35 @@ public sealed class CommandSearchTests
                 var entry = matches[0];
                 Assert.Contains(CommandSearch.Rank(entry.Title, entries, [], int.MaxValue), e => e.Id == id);
             }
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Keyboard_reference_finds_the_change_shortcut_command()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            vm.Execute(CommandIds.Help);
+            await WaitFor(() => dialogs.IsOpen, ct);
+            window.UpdateLayout();
+            var search = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(t => AutomationProperties.GetName(t) == "Search keyboard reference");
+            search.Text = "change shortcut";
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            var list = window.GetVisualDescendants().OfType<ListBox>()
+                .Single(l => AutomationProperties.GetName(l) == "Commands and current shortcuts");
+            await WaitFor(() => list.ItemsSource?.Cast<KeyboardHelpEntry>()
+                .Any(e => e.Id == CommandIds.ChangeShortcut) == true, ct);
+            Assert.Contains(list.ItemsSource!.Cast<KeyboardHelpEntry>(), e => e.Id == CommandIds.ChangeShortcut);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await WaitFor(() => !dialogs.IsOpen, ct);
         }
         finally
         {
@@ -427,6 +461,13 @@ public sealed class CommandSearchTests
             await WaitFor(() => list.ContainerFromIndex(0) is not null, ct);
             var firstTitle = list.ContainerFromIndex(0)!.GetVisualDescendants().OfType<TextBlock>().First().Text;
             Assert.StartsWith("Recover deleted files", firstTitle);
+            filter.Text = "change shortcut";
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            await WaitFor(() => list.ContainerFromIndex(0)?.GetVisualDescendants().OfType<TextBlock>()
+                .FirstOrDefault()?.Text?.StartsWith("Change shortcut", StringComparison.Ordinal) == true, ct);
+            Assert.StartsWith("Change shortcut", list.ContainerFromIndex(0)!
+                .GetVisualDescendants().OfType<TextBlock>().First().Text);
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             await WaitFor(() => !dialogs.IsOpen, ct);
         }

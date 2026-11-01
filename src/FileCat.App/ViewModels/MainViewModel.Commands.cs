@@ -467,6 +467,9 @@ public sealed partial class MainViewModel
             case CommandIds.Help:
                 await ShowKeyboardReferenceAsync();
                 break;
+            case CommandIds.ChangeShortcut:
+                await ShowKeyboardReferenceForSearchAsync(remapOnly: true);
+                break;
             case CommandIds.Menu:
                 View.OpenMenuBar();
                 break;

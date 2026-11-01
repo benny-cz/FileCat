@@ -143,7 +143,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 return command == CommandIds.Help;
             },
             () => vm.Services.Keymap.GetGestureText(CommandIds.Help),
-            vm.ShowKeyboardReferenceForSearchAsync);
+            () => vm.ShowKeyboardReferenceForSearchAsync());
         MenuRow.SizeChanged += (_, _) => FitCommandSearch();
         OverlayHost.PropertyChanged += (_, change) =>
         {

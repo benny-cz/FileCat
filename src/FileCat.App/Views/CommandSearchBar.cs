@@ -153,8 +153,8 @@ internal sealed class CommandSearchBar
                 : "Recently used · type to search all commands"
             : _results.Count == 0
                 ? $"No command matches \"{query}\". Other words may find it; use Keyboard reference{(_helpGesture() is { Length: > 0 } gesture ? $" ({gesture})" : "")} for all shortcuts."
-                : _list.SelectedItem is CommandSearch.Entry { Id: CommandIds.Help }
-                    ? "Enter opens Keyboard reference · find the command there to change its shortcut"
+                : _list.SelectedItem is CommandSearch.Entry { Id: CommandIds.ChangeShortcut }
+                    ? "Enter opens shortcut editor · choose the command whose key you want to change"
                     : "Enter runs · F2 changes the shortcut · Esc returns to the panel";
     }
 
