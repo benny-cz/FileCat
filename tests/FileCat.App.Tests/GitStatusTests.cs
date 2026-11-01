@@ -62,7 +62,7 @@ public sealed class GitStatusTests(ITestOutputHelper output)
         var tracked = "README.md\0src/main.cs\0docs/guide.md\0clean/sub/file.txt\0";
         var status = " M src/main.cs\0?? src/new file.cs\0A  docs/new.md\0UU conflict.txt\0?? loose file.txt\0";
 
-        var snapshot = GitStatusSnapshot.Parse(tracked, status);
+        var snapshot = GitStatusSnapshot.Parse(tracked, status, StringComparer.Ordinal);
 
         Assert.Equal(GitStatusKind.Clean, snapshot.ForName("README.md"));
         Assert.Equal(GitStatusKind.Modified, snapshot.ForName("src"));
@@ -74,9 +74,24 @@ public sealed class GitStatusTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void Snapshot_keeps_case_distinct_names_separate_on_a_case_sensitive_directory()
+    {
+        const string tracked = "PROOF.txt\0proof.txt\0";
+        const string status = " M proof.txt\0";
+
+        var sensitive = GitStatusSnapshot.Parse(tracked, status, StringComparer.Ordinal);
+        Assert.Equal(GitStatusKind.Clean, sensitive.ForName("PROOF.txt"));
+        Assert.Equal(GitStatusKind.Modified, sensitive.ForName("proof.txt"));
+        Assert.Equal(GitStatusKind.None, sensitive.ForName("Proof.txt"));
+
+        var insensitive = GitStatusSnapshot.Parse("proof.txt\0", "", StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(GitStatusKind.Clean, insensitive.ForName("PROOF.txt"));
+    }
+
+    [Fact]
     public void Snapshot_consumes_both_pathnames_of_a_rename()
     {
-        var snapshot = GitStatusSnapshot.Parse("old.cs\0", "R  new.cs\0old.cs\0?? unknown.cs\0");
+        var snapshot = GitStatusSnapshot.Parse("old.cs\0", "R  new.cs\0old.cs\0?? unknown.cs\0", StringComparer.Ordinal);
 
         Assert.Equal(GitStatusKind.Modified, snapshot.ForName("new.cs"));
         Assert.Equal(GitStatusKind.Modified, snapshot.ForName("old.cs"));
@@ -89,10 +104,10 @@ public sealed class GitStatusTests(ITestOutputHelper output)
         // Every path belongs to the same immediate child. The reader permits up to four million
         // characters of Git output, but the visible badge needs only one dictionary entry.
         string tracked = string.Concat(Enumerable.Repeat("same/one\0", 400_000));
-        _ = GitStatusSnapshot.Parse("warmup/file\0", "");
+        _ = GitStatusSnapshot.Parse("warmup/file\0", "", StringComparer.Ordinal);
         long before = GC.GetAllocatedBytesForCurrentThread();
 
-        var snapshot = GitStatusSnapshot.Parse(tracked, "");
+        var snapshot = GitStatusSnapshot.Parse(tracked, "", StringComparer.Ordinal);
 
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         output.WriteLine($"GIT_SNAPSHOT_ALLOCATED_BYTES={allocated}; TRACKED_CHARACTERS={tracked.Length}");

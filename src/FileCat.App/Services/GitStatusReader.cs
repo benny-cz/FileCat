@@ -24,13 +24,13 @@ internal sealed class GitStatusSnapshot(Dictionary<string, GitStatusKind> entrie
         a._entries.All(e => b._entries.TryGetValue(e.Key, out var kind) && kind == e.Value);
 
     /// <summary>A whole work tree's state from its "git status": clean, or its strongest change.</summary>
-    internal static GitStatusKind Summary(string status) => Parse(string.Empty, status).Strongest();
+    internal static GitStatusKind Summary(string status) => Parse(string.Empty, status, StringComparer.Ordinal).Strongest();
 
     private GitStatusKind Strongest() => _entries.Count == 0 ? GitStatusKind.Clean : _entries.Values.Max();
 
-    internal static GitStatusSnapshot Parse(string tracked, string status)
+    internal static GitStatusSnapshot Parse(string tracked, string status, StringComparer names)
     {
-        var entries = new Dictionary<string, GitStatusKind>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        var entries = new Dictionary<string, GitStatusKind>(names);
         var lookup = entries.GetAlternateLookup<ReadOnlySpan<char>>();
         void Add(ReadOnlySpan<char> path, GitStatusKind kind)
         {
@@ -115,7 +115,7 @@ internal static class GitStatusReader
                 string? status = await RunAsync(folder, timeout.Token, gitExecutable, "status", "--porcelain=v1", "-z", "--untracked-files=normal", "--ignore-submodules=all", "--", ".").ConfigureAwait(false);
                 if (status is null) return null;
                 string? tracked = await RunAsync(folder, timeout.Token, gitExecutable, "ls-files", "--cached", "-z", "--", ".").ConfigureAwait(false);
-                return tracked is null ? null : GitStatusSnapshot.Parse(tracked, status);
+                return tracked is null ? null : GitStatusSnapshot.Parse(tracked, status, WindowsCaseSensitivity.NamesIn(folder));
             }
             finally { Gate.Release(); }
         }
@@ -154,12 +154,12 @@ internal static class GitStatusReader
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { return null; }
         if (repositories.Count == 0) return null;
-        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        var states = new Dictionary<string, GitStatusKind>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        var names = WindowsCaseSensitivity.NamesIn(folder);
+        var states = new Dictionary<string, GitStatusKind>(names);
         foreach (string repository in repositories)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!string.Equals(SafeRepository(repository), repository, comparison)) continue;
+            if (!names.Equals(SafeRepository(repository), repository)) continue;
             // Each within moments: a huge or slow one is left plain, not the others with it.
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(5));
