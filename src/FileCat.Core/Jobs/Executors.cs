@@ -874,6 +874,23 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         }
         if (!SourceItemStillReviewed(src)) return Result.Failed;
         Job.SetCurrent(src);
+        MacExtendedAttributes.DirectoryMetadata? macMetadata = null;
+        if (OperatingSystem.IsMacOS())
+        {
+            try { macMetadata = MacExtendedAttributes.ProbeDirectory(src); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Job.ItemFailed();
+                Issue(IssueSeverity.Error, src, "The source folder's metadata could not be inspected: " + ErrorText.Describe(ex), StepOutcome.Failed);
+                return Result.Failed;
+            }
+            if (Move && macMetadata is { HasMetadata: true })
+            {
+                Job.ItemFailed();
+                Issue(IssueSeverity.Error, src, "The folder has macOS ACLs or extended attributes. A cross-volume folder move cannot safely preserve them; copy it to a fresh destination and review the result before deleting the original.", StepOutcome.CanceledBeforeChange);
+                return Result.Failed;
+            }
+        }
         var existing = Fs.TryGetInfo(dst);
         var target = dst;
         if (existing is not null && (!existing.IsDirectory || existing.IsLink))
@@ -897,13 +914,21 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             }
             existing = null;
         }
+        if (existing is { IsDirectory: true } && macMetadata is { HasMetadata: true })
+        {
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, src, "The folder has macOS ACLs or extended attributes. Merging it into an existing folder would discard those protections; choose a fresh destination name.", StepOutcome.CanceledBeforeChange);
+            return Result.Failed;
+        }
         bool created = false;
+        FileIdentity? createdIdentity = null;
         bool EnsureCreated()
         {
             if (created || existing is not null) return true;
             if (ensureParent is not null && !ensureParent()) return false;
             if (!TryIo(target, "create a folder", () => Fs.CreateDirectory(target))) return false;
             created = true;
+            if (macMetadata is { HasMetadata: true }) createdIdentity = UnixFiles.Stat(target)?.Identity;
             UnixPermissions.TryCopyFolderMode(src, target, final: false); // no wider than the source while it fills
             return true;
         }
@@ -946,6 +971,21 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             if (created) UnixPermissions.TryCopyFolderMode(src, target, final: true);
             if (Options.PreserveTimestamps) TrySetTimes(target, info);
             if (created && Options.PreserveAttributes) TrySetAttributes(target, info.Attributes);
+            if (created && macMetadata is { HasMetadata: true } sourceMetadata)
+            {
+                try
+                {
+                    if (createdIdentity is not { } destinationIdentity)
+                        throw new IOException("The new folder's identity could not be read.");
+                    MacExtendedAttributes.CopyDirectory(src, target, sourceMetadata.Identity, destinationIdentity, Job.Token);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    allOk = false;
+                    Job.ItemFailed();
+                    Issue(IssueSeverity.Error, target, "The copied folder's macOS ACL or extended attributes could not be preserved. The partial destination needs review: " + ErrorText.Describe(ex), StepOutcome.PartiallyApplied);
+                }
+            }
         }
         if (Move && allOk) RemoveIfEmpty(src);
         return allOk ? Result.Committed : anyTransferred ? Result.Failed : Result.Failed;

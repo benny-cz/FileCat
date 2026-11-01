@@ -7,6 +7,40 @@ namespace FileCat.Core.Tests;
 public sealed class MacCopyMetadataTests
 {
     [Fact]
+    public void Created_folder_can_receive_its_source_acl_and_xattrs_after_children()
+    {
+        if (!OperatingSystem.IsMacOS()) Assert.Skip("macOS directory metadata APIs only.");
+        using var dir = new TempDir();
+        string source = dir.Dir("source");
+        string destination = dir.Dir("destination");
+        File.WriteAllText(Path.Combine(source, "child.txt"), "child");
+        File.Copy(Path.Combine(source, "child.txt"), Path.Combine(destination, "child.txt"));
+        Assert.True(Xattr.Set(source, "org.filecat.folder-copy-test", "folder metadata"));
+        var chmod = new ProcessStartInfo("/bin/chmod") { RedirectStandardError = true, UseShellExecute = false };
+        chmod.ArgumentList.Add("+a");
+        chmod.ArgumentList.Add("everyone deny add_file");
+        chmod.ArgumentList.Add(source);
+        using (var process = Process.Start(chmod)!)
+        {
+            process.WaitForExit();
+            Assert.True(process.ExitCode == 0, process.StandardError.ReadToEnd());
+        }
+
+        var sourceMetadata = MacExtendedAttributes.ProbeDirectory(source);
+        var destinationMetadata = MacExtendedAttributes.ProbeDirectory(destination);
+        Assert.True(sourceMetadata.HasMetadata);
+        Assert.False(destinationMetadata.HasMetadata);
+        MacExtendedAttributes.CopyDirectory(source, destination, sourceMetadata.Identity,
+            destinationMetadata.Identity, TestContext.Current.CancellationToken);
+
+        Assert.Equal("folder metadata", Xattr.Get(destination, "org.filecat.folder-copy-test"));
+        Assert.Equal(File.ReadAllText(Path.Combine(source, "child.txt")),
+            File.ReadAllText(Path.Combine(destination, "child.txt")));
+        Assert.Equal(MacExtendedAttributes.ReadDirectoryAclText(source),
+            MacExtendedAttributes.ReadDirectoryAclText(destination));
+    }
+
+    [Fact]
     public void Copy_of_plain_file_still_succeeds_without_an_acl_or_fork()
     {
         if (!OperatingSystem.IsMacOS()) Assert.Skip("macOS metadata APIs only.");

@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.FileSystem;
 
@@ -8,15 +9,65 @@ internal static partial class MacExtendedAttributes
     private const uint CopyFileAcl = 1u << 0; // copyfile.h: COPYFILE_ACL
     private const uint CopyFileXattr = 1u << 2; // copyfile.h: COPYFILE_XATTR
     private const int AclTypeExtended = 0x100; // sys/acl.h: ACL_TYPE_EXTENDED
+    private const int OpenDirectoryFlags = 0x00100000 | 0x00000100 | 0x01000000;
     private const string ResourceFork = "com.apple.ResourceFork";
 
+    internal readonly record struct DirectoryMetadata(FileIdentity Identity, bool HasMetadata);
+
     public static void Copy(FileStream source, FileStream destination, CancellationToken cancellationToken)
+    {
+        Copy(source.SafeFileHandle.DangerousGetHandle().ToInt32(),
+            destination.SafeFileHandle.DangerousGetHandle().ToInt32(), cancellationToken);
+    }
+
+    internal static DirectoryMetadata ProbeDirectory(string path)
+    {
+        using var handle = OpenDirectory(path);
+        int fd = handle.DangerousGetHandle().ToInt32();
+        var identity = UnixFiles.Stat(handle)?.Identity ?? throw new IOException("The folder identity could not be read.");
+        nint size = FListXattr(fd, null, 0, 0);
+        if (size < 0)
+        {
+            int error = Marshal.GetLastPInvokeError();
+            if (error != 45 /* EOPNOTSUPP */) throw new IOException($"The folder's extended attributes could not be listed (errno {error}).");
+            size = 0;
+        }
+        return new DirectoryMetadata(identity, size > 0 || ReadAclText(fd).Length > 0);
+    }
+
+    internal static string ReadDirectoryAclText(string path)
+    {
+        using var handle = OpenDirectory(path);
+        return ReadAclText(handle.DangerousGetHandle().ToInt32());
+    }
+
+    internal static void CopyDirectory(string source, string destination, FileIdentity sourceIdentity,
+        FileIdentity destinationIdentity, CancellationToken cancellationToken)
+    {
+        using var from = OpenDirectory(source);
+        using var to = OpenDirectory(destination);
+        if (UnixFiles.Stat(from)?.Identity != sourceIdentity || UnixFiles.Stat(to)?.Identity != destinationIdentity)
+            throw new IOException("The folder changed before its metadata could be copied.");
+        Copy(from.DangerousGetHandle().ToInt32(), to.DangerousGetHandle().ToInt32(), cancellationToken);
+        if (UnixFiles.Stat(destination)?.Identity != destinationIdentity)
+            throw new IOException("The destination folder changed while its metadata was copied.");
+    }
+
+    private static SafeFileHandle OpenDirectory(string path)
+    {
+        int fd = Open(path, OpenDirectoryFlags);
+        if (fd < 0) throw new IOException($"The folder could not be opened without following a link (errno {Marshal.GetLastPInvokeError()}).");
+        var handle = new SafeFileHandle((nint)fd, ownsHandle: true);
+        if (UnixFiles.Stat(handle) is { IsDirectory: true }) return handle;
+        handle.Dispose();
+        throw new IOException("The path no longer names a folder.");
+    }
+
+    private static void Copy(int sourceFd, int destinationFd, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         try
         {
-            int sourceFd = source.SafeFileHandle.DangerousGetHandle().ToInt32();
-            int destinationFd = destination.SafeFileHandle.DangerousGetHandle().ToInt32();
             long sourceForkSize = ResourceForkSize(sourceFd);
             string sourceAcl = ReadAclText(sourceFd);
             // fcopyfile binds both sides to the same handles used for the data-fork copy. Path-based copyfile
@@ -51,7 +102,7 @@ internal static partial class MacExtendedAttributes
         if (acl == 0)
         {
             int error = Marshal.GetLastPInvokeError();
-            if (error == 2 /* ENOENT: no ACL */) return string.Empty;
+            if (error is 2 /* ENOENT: no ACL */ or 45 /* EOPNOTSUPP */) return string.Empty;
             throw new IOException($"macOS could not inspect the file's ACL (errno {error}).");
         }
         try
@@ -82,4 +133,10 @@ internal static partial class MacExtendedAttributes
 
     [LibraryImport("libc", EntryPoint = "acl_free")]
     private static partial int AclFree(nint value);
+
+    [LibraryImport("libc", EntryPoint = "flistxattr", SetLastError = true)]
+    private static partial nint FListXattr(int fd, byte[]? buffer, nint size, int options);
+
+    [LibraryImport("libc", EntryPoint = "open", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial int Open(string path, int flags);
 }
