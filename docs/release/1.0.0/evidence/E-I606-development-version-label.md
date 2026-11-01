@@ -20,6 +20,8 @@ Ignored native captures are `.tmp/i602-vm/about-old-dialog.png` (SHA-256 `9C4997
 
 ## Finite acceptance and stop
 
+The first pushed-head run [41332440939](https://github.com/benny-cz/FileCat/actions/runs/41332440939) failed **before platform jobs** in producer release-table validation: the new I606 row and 956th evidence entry were added while the issue/evidence index headers still stated 605/955. Local `python eng/validation/validate-release-issue-register.py` reproduced the sequential header failures. Correcting both headers made that validator pass with **606 IDs / 585 preliminary / two closed / 19 unresolved, 956 unique evidence entries and 82 acceptance cases**. The failed run is not product or package qualification; a fresh five-lane run is required.
+
 1. Latest product source passes producer, Windows x64, Windows ARM64, Ubuntu and macOS CI with tag-only skips reconciled.
 2. An ordinary direct source build reports `1.0.0-dev` with its commit in About and `--version`; a package built with an explicit release tag reports that exact tag in both places. The already verified preview.5 `--version` is the tag positive control; the final installed 1.0.0 candidate remains a separate future artifact.
 3. Development update checks identify the latest published release without an upgrade claim. The offline native VM result does not substitute for the deterministic interpreter check; repeat live network UI only if a candidate or owner report gives a consequential reason.
