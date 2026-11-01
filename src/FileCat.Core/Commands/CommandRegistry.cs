@@ -538,7 +538,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.ToggleToolbar, "Shows or hides this toolbar; Settings → Appearance has it too.");
         r.Describe(CommandIds.ToggleDriveButtons, "Shows or hides the buttons above each panel that open a drive, This PC, a special folder, a bookmark, or a saved server with one click: everything Alt+F1 and Alt+F2 offer.");
         r.Describe(CommandIds.Settings, "Appearance, behavior, keys, columns, programs, and more.");
-        r.Describe(CommandIds.Help, "Every command with its key: run one from there, or change its key.");
+        r.Describe(CommandIds.Help, "Search for a command here, then choose Change shortcut to edit its key.");
         K(CommandIds.ChangeJournal, "USN", "UsnJrnl", "$J", "journal", "recent changes", "what changed", "forensics", "timeline");
         K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files", "find deleted files", "disk image", "scan drive");
         K(CommandIds.FindFiles, "search", "locate", "look for", "grep", "find in files");
@@ -592,7 +592,7 @@ public sealed class CommandRegistry
         K(CommandIds.QuickView, "preview pane", "thumbnail");
         K(CommandIds.Operations, "jobs", "progress", "transfers", "queue", "tasks", "background");
         K(CommandIds.Palette, "command palette", "commands", "actions", "run command");
-        K(CommandIds.Help, "shortcuts", "keyboard", "hotkeys", "keys", "key bindings");
+        K(CommandIds.Help, "shortcuts", "keyboard", "hotkeys", "keys", "key bindings", "change shortcut", "edit shortcut", "remap key");
         K(CommandIds.About, "version");
         K(CommandIds.CheckUpdates, "update", "new version");
         K(CommandIds.DiagnosticsExport, "logs", "bug report", "crash report");

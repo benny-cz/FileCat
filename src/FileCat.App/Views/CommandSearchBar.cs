@@ -9,6 +9,7 @@ using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using FileCat.App.Services;
+using FileCat.Core.Commands;
 
 namespace FileCat.App.Views;
 
@@ -152,7 +153,9 @@ internal sealed class CommandSearchBar
                 : "Recently used · type to search all commands"
             : _results.Count == 0
                 ? $"No command matches \"{query}\". Other words may find it; use Keyboard reference{(_helpGesture() is { Length: > 0 } gesture ? $" ({gesture})" : "")} for all shortcuts."
-                : "Enter runs · F2 changes the shortcut · Esc returns to the panel";
+                : _list.SelectedItem is CommandSearch.Entry { Id: CommandIds.Help }
+                    ? "Enter opens Keyboard reference · find the command there to change its shortcut"
+                    : "Enter runs · F2 changes the shortcut · Esc returns to the panel";
     }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)

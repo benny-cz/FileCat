@@ -48,6 +48,8 @@ public sealed class CommandSearchTests
     [InlineData("sha256", CommandIds.Checksum)]
     [InlineData("keyboard resize", CommandIds.ResizePanel)]
     [InlineData("copy ancestor", CommandIds.AncestorMenu)]
+    [InlineData("change shortcut", CommandIds.Help)]
+    [InlineData("edit shortcut", CommandIds.Help)]
     public void Finds_commands_by_title_synonym_misspelling_and_shortcut(string query, string expected)
     {
         Assert.Equal(expected, First(query));
@@ -77,6 +79,72 @@ public sealed class CommandSearchTests
         // "compare" matches both comparisons equally; the one used last comes first.
         Assert.Equal(CommandIds.CompareFiles, First("compare", CommandIds.CompareFiles));
         Assert.Equal(CommandIds.CompareDirectories, First("compare", CommandIds.CompareDirectories));
+    }
+
+    [AvaloniaFact]
+    public async Task Change_shortcut_search_opens_the_keyboard_reference()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var dialogs = (OverlayDialogService)vm.Dialogs;
+            var box = window.GetVisualDescendants().OfType<TextBox>()
+                .Single(t => AutomationProperties.GetName(t) == "Search commands");
+            Assert.True(window.FocusCommandSearch());
+            await WaitFor(() => box.IsFocused, ct);
+            box.Text = "change shortcut";
+            await WaitFor(() => window.CommandSearch.Selected is not null, ct);
+            Assert.Equal(CommandIds.Help, window.CommandSearch.Selected?.Id);
+            Assert.Contains("Enter opens Keyboard reference", window.CommandSearch.Hint);
+
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            await WaitFor(() => dialogs.IsOpen, ct);
+            Assert.True(dialogs.IsOpen);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await WaitFor(() => !dialogs.IsOpen, ct);
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
+    }
+
+    [AvaloniaFact]
+    public void Every_applicable_menu_command_can_be_found_by_its_name()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
+        try
+        {
+            var entries = vm.CommandSearchEntries();
+            static IEnumerable<string> Ids(IEnumerable<object> items)
+            {
+                foreach (var item in items)
+                {
+                    if (item is MainMenuModel.Submenu submenu)
+                    {
+                        foreach (var id in Ids(submenu.Items)) yield return id;
+                    }
+                    else if (item is string id && id != "-") yield return id;
+                }
+            }
+
+            foreach (var id in MainMenuModel.Layout.SelectMany(menu => Ids(menu.Items)).Distinct())
+            {
+                if (!MainMenuModel.IsPlatformApplicable(id)) continue;
+                if (id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal)
+                    && int.TryParse(id.AsSpan(CommandIds.ColumnProfilePrefix.Length), out int profile)
+                    && profile >= services.Columns.Count) continue;
+                var matches = entries.Where(e => e.Id == id).ToList();
+                Assert.True(matches.Count == 1, $"Menu command {id} has {matches.Count} search entries.");
+                var entry = matches[0];
+                Assert.Contains(CommandSearch.Rank(entry.Title, entries, [], int.MaxValue), e => e.Id == id);
+            }
+        }
+        finally
+        {
+            AccessibilityTests.Close(services, window, root);
+        }
     }
 
     [AvaloniaFact]
