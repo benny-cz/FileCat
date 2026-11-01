@@ -499,7 +499,7 @@ public sealed partial class MainViewModel
         string? selected = null;
         while (true)
         {
-            var choice = await Dialogs.KeyboardReferenceAsync(KeyboardHelpEntries(), selected, remapOnly);
+            var choice = await Dialogs.KeyboardReferenceAsync(KeyboardHelpEntries(remapOnly), selected, remapOnly);
             if (choice is null) return true;
             if (choice.ChangeShortcut)
             {
@@ -513,13 +513,14 @@ public sealed partial class MainViewModel
         }
     }
 
-    private KeyboardHelpEntry[] KeyboardHelpEntries()
+    private KeyboardHelpEntry[] KeyboardHelpEntries(bool remapOnly)
     {
         return Services.Commands.All
             .Where(d => !d.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
                 && !d.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal)
                 && !d.Id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal)
-                && !d.Id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal))
+                && !d.Id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal)
+                && (!remapOnly || d.Id != CommandIds.ChangeShortcut))
             .Select(d =>
             {
                 var availability = GetAvailability(d.Id);

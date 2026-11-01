@@ -25,7 +25,7 @@ public sealed class KeyboardReferenceTests
             await Task.Delay(20, TestContext.Current.CancellationToken);
             var run = host.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Run command"));
             Assert.False(run.IsVisible);
-            var search = host.GetVisualDescendants().OfType<TextBox>().Single(x => x.PlaceholderText == "Search command, shortcut, or command ID");
+            var search = host.GetVisualDescendants().OfType<TextBox>().Single(x => x.PlaceholderText == "Find the command to remap");
             Assert.True(search.Focus());
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             Assert.Equal(new KeyboardReferenceChoice("file.copy", ChangeShortcut: true), await task);

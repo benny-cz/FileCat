@@ -106,6 +106,11 @@ public sealed class CommandSearchTests
                 .Single(b => Equals(b.Content, "Run command")).IsVisible);
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(),
                 t => t.Text?.Contains("Select a command and press Enter or F2 to change its shortcut", StringComparison.Ordinal) == true);
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(),
+                t => t.Text?.StartsWith("Choose the command whose shortcut you want to change.", StringComparison.Ordinal) == true);
+            var commands = window.GetVisualDescendants().OfType<ListBox>()
+                .Single(l => AutomationProperties.GetName(l) == "Commands and current shortcuts");
+            Assert.DoesNotContain(commands.ItemsSource!.Cast<KeyboardHelpEntry>(), e => e.Id == CommandIds.ChangeShortcut);
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             await WaitFor(() => !dialogs.IsOpen, ct);
         }

@@ -779,7 +779,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     public Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null, bool remapOnly = false)
     {
         var tcs = new TaskCompletionSource<KeyboardReferenceChoice?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var search = new TextBox { PlaceholderText = "Search command, shortcut, or command ID", MinWidth = 220 };
+        var search = new TextBox { PlaceholderText = remapOnly ? "Find the command to remap" : "Search command, shortcut, or command ID", MinWidth = 220 };
         Avalonia.Automation.AutomationProperties.SetName(search, "Search keyboard reference");
         var categories = new[] { "All categories" }.Concat(commands.Select(c => c.Category).Distinct().Order()).ToArray();
         var category = new ComboBox { ItemsSource = categories, SelectedIndex = 0, MinWidth = 130, Margin = new Thickness(8, 0, 0, 0) };
@@ -818,7 +818,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         var body = new StackPanel { Spacing = 8 };
         body.Children.Add(new TextBlock
         {
-            Text = "Move: arrows, Page Up/Down, Home/End · Mark: Space or Insert · Shift+movement marks a range · Type to quick-search in a panel · Ctrl+0–9 opens a bookmark; Ctrl+Shift+0–9 sets one · Esc leaves search or stops loading.",
+            Text = remapOnly
+                ? "Choose the command whose shortcut you want to change. Search by its name, current shortcut, or command ID."
+                : "Move: arrows, Page Up/Down, Home/End · Mark: Space or Insert · Shift+movement marks a range · Type to quick-search in a panel · Ctrl+0–9 opens a bookmark; Ctrl+Shift+0–9 sets one · Esc leaves search or stops loading.",
             TextWrapping = TextWrapping.Wrap,
         });
         body.Children.Add(filters);
