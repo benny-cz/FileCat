@@ -901,6 +901,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (l.State == ListingState.Loading) rest.Add(l.LoadingProgress ?? "loading…");
         else if (l.IsRefreshing) rest.Add(l.LoadingProgress ?? "refreshing…");
         if (l.Filter is not null) rest.Add($"filter \"{l.Filter.Text}\" shows {Math.Max(0, l.VisibleCount - (l.HasParentRow ? 1 : 0))}");
+        else if (!l.ShowHidden && l.State == ListingState.Complete)
+        {
+            // The leading totals count the whole folder. Explain why fewer rows are visible
+            // after hiding dotfiles, Finder-hidden files or Windows hidden/system items.
+            int hidden = l.TotalCount - Math.Max(0, l.VisibleCount - (l.HasParentRow ? 1 : 0));
+            if (hidden > 0) rest.Add($"{Formatters.Plural(hidden, "hidden or system item", "hidden or system items")} not shown");
+        }
         // Checksums remain in the status; free space has a stable place beside the mask above.
         if (_verificationSummary is { } verified && fileSystem) rest.Add(verified);
         // Free space belongs to folders on disk, not to archives, servers, or lists (the last value would linger there).
