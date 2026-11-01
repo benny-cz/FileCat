@@ -262,6 +262,23 @@ public class ContentAndToolTests
     }
 
     [Fact]
+    public void Mac_editor_detection_does_not_treat_Xcode_xed_as_a_text_editor()
+    {
+        string folder = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "filecat-editor-" + Guid.NewGuid().ToString("N"))).FullName;
+        try
+        {
+            string xed = Path.Combine(folder, OperatingSystem.IsWindows() ? "xed.exe" : "xed");
+            File.WriteAllText(xed, "");
+            var mac = ToolLauncher.DetectUnixEditor(mac: true, path: folder);
+            Assert.Equal("TextEdit", mac.Name);
+            Assert.Equal("/usr/bin/open", mac.Executable);
+            Assert.Equal(["-e", "{files}"], mac.Arguments);
+            Assert.Equal(xed, ToolLauncher.DetectUnixEditor(mac: false, path: folder).Executable);
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
+
+    [Fact]
     public void Tool_launcher_uses_absolute_paths_list_files_and_splits_long_selections()
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows' command-line length limit and list files.");
