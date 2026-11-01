@@ -540,7 +540,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.ToggleToolbar, "Shows or hides this toolbar; Settings → Appearance has it too.");
         r.Describe(CommandIds.ToggleDriveButtons, "Shows or hides the buttons above each panel that open a drive, This PC, a special folder, a bookmark, or a saved server with one click: everything Alt+F1 and Alt+F2 offer.");
         r.Describe(CommandIds.Settings, "Appearance, behavior, keys, columns, programs, and more.");
-        r.Describe(CommandIds.Help, "Search for a command here, then choose Change shortcut to edit its key.");
+        r.Describe(CommandIds.Help, "Browse commands and their current keys; press F2 on a selected row to assign a key.");
         r.Describe(CommandIds.ChangeShortcut, "Choose a command, then assign or reset its keyboard shortcut.");
         K(CommandIds.ChangeJournal, "USN", "UsnJrnl", "$J", "journal", "recent changes", "what changed", "forensics", "timeline");
         K(CommandIds.FindDeleted, "recover", "recovery", "undelete", "unerase", "restore deleted", "lost files", "deleted files", "find deleted files", "disk image", "scan drive");

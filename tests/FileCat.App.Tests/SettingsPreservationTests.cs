@@ -393,7 +393,7 @@ public sealed class SettingsPreservationTests
                 var search = Field<TextBox>(window, "Search keyboard reference");
                 search.Text = "file.copy";
                 Dispatcher.UIThread.RunJobs();
-                BodyButton(window, "Change shortcut…").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                BodyButton(window, "Next: set shortcut…").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 for (int i = 0; i < 20 && !window.GetVisualDescendants().OfType<Button>().Any(b => Equals(b.Content, "No shortcut")); i++)
                 {
                     await Task.Delay(10, TestContext.Current.CancellationToken);

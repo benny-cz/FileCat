@@ -808,7 +808,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         var detail = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "muted" }, MinHeight = 24 };
         var count = new TextBlock { Classes = { "muted", "small" } };
         var run = new Button { Content = "Run command", Classes = { "primary" }, IsDefault = !remapOnly, IsVisible = !remapOnly };
-        var change = new Button { Content = "Change shortcut…" };
+        var change = new Button { Content = remapOnly ? "Next: set shortcut…" : "Change shortcut…" };
         Avalonia.Controls.ToolTip.SetTip(change, "Press a new shortcut for the selected command (F2)");
         var close = new Button { Content = "Close", IsCancel = true };
         var filters = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
@@ -819,8 +819,10 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         body.Children.Add(new TextBlock
         {
             Text = remapOnly
-                ? "Choose the command whose shortcut you want to change. Search by its name, current shortcut, or command ID."
+                ? "Step 1 of 2 · Choose a command to remap. Search by its name, current shortcut, or command ID."
                 : "Move: arrows, Page Up/Down, Home/End · Mark: Space or Insert · Shift+movement marks a range · Type to quick-search in a panel · Ctrl+0–9 opens a bookmark; Ctrl+Shift+0–9 sets one · Esc leaves search or stops loading.",
+            FontWeight = remapOnly ? Avalonia.Media.FontWeight.SemiBold : Avalonia.Media.FontWeight.Normal,
+            FontSize = remapOnly ? 17 : 14,
             TextWrapping = TextWrapping.Wrap,
         });
         body.Children.Add(filters);
@@ -908,7 +910,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         change.Click += (_, _) => ChangeShortcut();
         close.Click += (_, _) => Finish(null);
         Apply();
-        session = Show(Card(remapOnly ? "Change shortcut" : "Keyboard reference", body, ButtonRow(close, change, run), 840), search, top: false, () => Finish(null));
+        session = Show(Card(remapOnly ? "Choose command to remap" : "Keyboard reference", body, ButtonRow(close, change, run), 840), search, top: false, () => Finish(null));
         return tcs.Task;
     }
 
