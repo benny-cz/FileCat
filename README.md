@@ -122,8 +122,9 @@ make every parser a full sandbox.
 
 - **Built-in viewers:** F3 reads text and hex from very large files without loading the whole
   file. Search, go to line or byte offset, follow a growing file, inspect encodings and checksums,
-  or use Ctrl+Q for quick view. Picture view supports zoom and pan. Page view renders local HTML
-  and Markdown without fetching from the web; a contained Markdown link opens in another viewer.
+  or use Ctrl+Q for quick view. Picture view supports zoom and pan; PDFs open as visual pages with
+  page navigation and document details in Info. Page view renders local HTML and Markdown without
+  fetching from the web; a contained Markdown link opens in another viewer.
 - **Inspectors:** Info view reports PE, ELF, Mach-O, APK/AAB, image, audio, video and HTML
   structure without executing or playing the file. A fixed-length hex editor offers a protected
   baseline, bounded undo, journaled save, Save As and patch export; in-place saves are not atomic.

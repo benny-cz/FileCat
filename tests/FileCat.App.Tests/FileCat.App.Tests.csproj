@@ -27,5 +27,8 @@
     <Compile Include="..\FileCat.Remote.Tests\TestSshd.cs" Link="Sftp\TestSshd.cs" />
     <!-- A disk image with deleted files, for the recovery UI (see the Core tests' TestData/Recovery/README.md). -->
     <None Include="..\FileCat.Core.Tests\TestData\Recovery\fat16.img.gz" Link="TestData\fat16.img.gz" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="TestData\Viewer\owned-two-page.pdf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="TestData\Viewer\owned-encrypted.pdf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="TestData\Viewer\owned-one-page.pdf" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

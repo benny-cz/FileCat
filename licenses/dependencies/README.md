@@ -31,3 +31,13 @@ The exact .NET 10.0.14 runtime pack license and notices are also retained for
 the five existing publish RIDs. Native subcomponents, runtime composition,
 AppImage and installer obligations still require their own artifact-specific audit. This snapshot does not certify
 complete notices or OSI-only eligibility.
+
+The PDFtoImage 5.2.1 MIT text is retained from its package-declared source revision.
+The bblanchon.PDFium 147.0.7690 packages declare Apache-2.0 but carry no license
+or notice members. The snapshot retains an immutable SPDX Apache-2.0 text,
+their declared source repository's MIT text, and an independently pinned PDFium
+LICENSE with its bundled attributions. The exact PDFium source/build revision
+and full third-party notice set for each shipped native binary remain open in
+`KnownFullTextGaps`; the independent PDFium text does not establish binary
+provenance. SkiaSharp's extra Linux no-dependencies package retains the two
+license/notice members from its exact NuGet archive.

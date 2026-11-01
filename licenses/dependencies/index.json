@@ -205,6 +205,26 @@
       "PackageArchiveSHA256": "70bd381c5d67f97a6a80294001cde125ab5b24b6d36098ad901d8e15efd752d0"
     },
     {
+      "Path": "nuget/skiasharp.nativeassets.linux.nodependencies/3.119.2/LICENSE.txt",
+      "Bytes": 1129,
+      "SHA256": "89101e35a8c66fd4d6dffc1763259161d35cb564c169714ec227a768c89f2938",
+      "Source": "NuGet archive member",
+      "ArchiveMember": "LICENSE.txt",
+      "PackageID": "skiasharp.nativeassets.linux.nodependencies",
+      "PackageVersion": "3.119.2",
+      "PackageArchiveSHA256": "efd0422d90188df1cfd4364a801fa1b32c819619f26503e2f92c2fb344589e78"
+    },
+    {
+      "Path": "nuget/skiasharp.nativeassets.linux.nodependencies/3.119.2/THIRD-PARTY-NOTICES.txt",
+      "Bytes": 139775,
+      "SHA256": "21504c46c4c58aa64c1055bd2dcbc5f9a136b4b8c412ed3cc6740e22c5b127f5",
+      "Source": "NuGet archive member",
+      "ArchiveMember": "THIRD-PARTY-NOTICES.txt",
+      "PackageID": "skiasharp.nativeassets.linux.nodependencies",
+      "PackageVersion": "3.119.2",
+      "PackageArchiveSHA256": "efd0422d90188df1cfd4364a801fa1b32c819619f26503e2f92c2fb344589e78"
+    },
+    {
       "Path": "nuget/skiasharp.nativeassets.linux/3.119.4/LICENSE.txt",
       "Bytes": 1129,
       "SHA256": "89101e35a8c66fd4d6dffc1763259161d35cb564c169714ec227a768c89f2938",
@@ -415,6 +435,16 @@
       "PackageArchiveSHA256": "a3ea61b4a2da6d28e562dd1cdacf80eb4dd6b9727b0a2b47f9d6aba90dbbcb1f"
     },
     {
+      "Path": "spdx/Apache-2.0/f715b3660bb164c3d0b81cba9ce94e3c558c4048/Apache-2.0.txt",
+      "Bytes": 10280,
+      "SHA256": "074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff",
+      "Source": "Immutable SPDX expression reference text",
+      "SPDXRepository": "spdx/license-list-data",
+      "SPDXRevision": "f715b3660bb164c3d0b81cba9ce94e3c558c4048",
+      "SPDXSourcePath": "text/Apache-2.0.txt",
+      "SourceURL": "https://github.com/spdx/license-list-data/blob/f715b3660bb164c3d0b81cba9ce94e3c558c4048/text/Apache-2.0.txt"
+    },
+    {
       "Path": "spdx/MIT/f715b3660bb164c3d0b81cba9ce94e3c558c4048/MIT.txt",
       "Bytes": 1078,
       "SHA256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
@@ -437,17 +467,6 @@
       "SourceURL": "https://github.com/AvaloniaUI/Avalonia.BuildServices/blob/777f975b0a0cecf0311273711d56697212c558c0/LICENSE"
     },
     {
-      "Path": "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md",
-      "Bytes": 16954,
-      "SHA256": "dd6f80852d16320c865a2e403ffd1a8b07a0e34c5b37122c0bc2343639ff68e6",
-      "Source": "Package-declared upstream Git source",
-      "Repository": "AvaloniaUI/Avalonia",
-      "Revision": "2d79ba55fae1b1e71c69f93a668080c9029e6a31",
-      "SourcePath": "NOTICE.md",
-      "GitBlobSHA1": "365f5223feb580838ab6521996c4c6ce92d9f7c5",
-      "SourceURL": "https://github.com/AvaloniaUI/Avalonia/blob/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md"
-    },
-    {
       "Path": "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/licence.md",
       "Bytes": 1096,
       "SHA256": "213814d306090074d234d760239ff0f67eb9b8d20eefb4d5631bb39dbe0b769b",
@@ -459,15 +478,15 @@
       "SourceURL": "https://github.com/AvaloniaUI/Avalonia/blob/2d79ba55fae1b1e71c69f93a668080c9029e6a31/licence.md"
     },
     {
-      "Path": "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md",
+      "Path": "upstream/AvaloniaUI/Avalonia/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md",
       "Bytes": 16954,
       "SHA256": "dd6f80852d16320c865a2e403ffd1a8b07a0e34c5b37122c0bc2343639ff68e6",
       "Source": "Package-declared upstream Git source",
       "Repository": "AvaloniaUI/Avalonia",
-      "Revision": "e33eaed9c106846b200680751022385d9cc5dc6f",
+      "Revision": "2d79ba55fae1b1e71c69f93a668080c9029e6a31",
       "SourcePath": "NOTICE.md",
       "GitBlobSHA1": "365f5223feb580838ab6521996c4c6ce92d9f7c5",
-      "SourceURL": "https://github.com/AvaloniaUI/Avalonia/blob/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md"
+      "SourceURL": "https://github.com/AvaloniaUI/Avalonia/blob/2d79ba55fae1b1e71c69f93a668080c9029e6a31/NOTICE.md"
     },
     {
       "Path": "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/licence.md",
@@ -481,15 +500,37 @@
       "SourceURL": "https://github.com/AvaloniaUI/Avalonia/blob/e33eaed9c106846b200680751022385d9cc5dc6f/licence.md"
     },
     {
-      "Path": "upstream/LTRData/DiscUtils/745ca1993227864ceaf3095eda1efd1c761e56be/LICENSE.txt",
-      "Bytes": 1091,
-      "SHA256": "7f62225e8d08b717f9e580e3768d64791df324dd1ff509a6b5d2a684b9e058c4",
+      "Path": "upstream/AvaloniaUI/Avalonia/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md",
+      "Bytes": 16954,
+      "SHA256": "dd6f80852d16320c865a2e403ffd1a8b07a0e34c5b37122c0bc2343639ff68e6",
       "Source": "Package-declared upstream Git source",
-      "Repository": "LTRData/DiscUtils",
-      "Revision": "745ca1993227864ceaf3095eda1efd1c761e56be",
-      "SourcePath": "LICENSE.txt",
-      "GitBlobSHA1": "f96005f0392ff2566b420405cbc966e344f77cbd",
-      "SourceURL": "https://github.com/LTRData/DiscUtils/blob/745ca1993227864ceaf3095eda1efd1c761e56be/LICENSE.txt"
+      "Repository": "AvaloniaUI/Avalonia",
+      "Revision": "e33eaed9c106846b200680751022385d9cc5dc6f",
+      "SourcePath": "NOTICE.md",
+      "GitBlobSHA1": "365f5223feb580838ab6521996c4c6ce92d9f7c5",
+      "SourceURL": "https://github.com/AvaloniaUI/Avalonia/blob/e33eaed9c106846b200680751022385d9cc5dc6f/NOTICE.md"
+    },
+    {
+      "Path": "upstream/bblanchon/pdfium-binaries/9d8f70d3f4c0d37c0a479407805ceab4dd68d516/LICENSE",
+      "Bytes": 1068,
+      "SHA256": "493abc10084b58f97dce3fac1654624e1a25788f17180fe8925786c266cd2416",
+      "Source": "Package-declared upstream Git source",
+      "Repository": "bblanchon/pdfium-binaries",
+      "Revision": "9d8f70d3f4c0d37c0a479407805ceab4dd68d516",
+      "SourcePath": "LICENSE",
+      "GitBlobSHA1": "6c5b763ff1ae65dbf43b2fc4a9d7fca53ed93216",
+      "SourceURL": "https://github.com/bblanchon/pdfium-binaries/blob/9d8f70d3f4c0d37c0a479407805ceab4dd68d516/LICENSE"
+    },
+    {
+      "Path": "upstream/chromium/pdfium/a84323421e94f484faca52dd9d027934eba42ab8/LICENSE",
+      "Bytes": 12896,
+      "SHA256": "1fe9dea718fbd75cf149adaf4d8a22a4335604d964ddb76d1b45383dec8668c9",
+      "Source": "Independent upstream reference; native package build revision unverified",
+      "Repository": "chromium/pdfium",
+      "Revision": "a84323421e94f484faca52dd9d027934eba42ab8",
+      "SourcePath": "LICENSE",
+      "GitBlobSHA1": "161ca160d6fa51df6e3e594aeb2b1097b55e3866",
+      "SourceURL": "https://github.com/chromium/pdfium/blob/a84323421e94f484faca52dd9d027934eba42ab8/LICENSE"
     },
     {
       "Path": "upstream/dotnet/dotnet/b0f34d51fccc69fd334253924abd8d6853fad7aa/LICENSE.TXT",
@@ -514,6 +555,17 @@
       "SourceURL": "https://github.com/kekekeks/MicroCom/blob/76785efcafd91b5902fd19dd11145f6dd655b7b4/LICENSE"
     },
     {
+      "Path": "upstream/LTRData/DiscUtils/745ca1993227864ceaf3095eda1efd1c761e56be/LICENSE.txt",
+      "Bytes": 1091,
+      "SHA256": "7f62225e8d08b717f9e580e3768d64791df324dd1ff509a6b5d2a684b9e058c4",
+      "Source": "Package-declared upstream Git source",
+      "Repository": "LTRData/DiscUtils",
+      "Revision": "745ca1993227864ceaf3095eda1efd1c761e56be",
+      "SourcePath": "LICENSE.txt",
+      "GitBlobSHA1": "f96005f0392ff2566b420405cbc966e344f77cbd",
+      "SourceURL": "https://github.com/LTRData/DiscUtils/blob/745ca1993227864ceaf3095eda1efd1c761e56be/LICENSE.txt"
+    },
+    {
       "Path": "upstream/sshnet/SSH.NET/7b2fd3dbf2c86a80a7b06cea020aa5f821c9902e/LICENSE",
       "Bytes": 1117,
       "SHA256": "84c79a38515de2833a7c353395e04056c0cbd77545d450fe216d569e1570b78e",
@@ -534,6 +586,17 @@
       "SourcePath": "THIRD-PARTY-NOTICES.TXT",
       "GitBlobSHA1": "5f75d165089774209f52afebd2212796f3378b03",
       "SourceURL": "https://github.com/sshnet/SSH.NET/blob/7b2fd3dbf2c86a80a7b06cea020aa5f821c9902e/THIRD-PARTY-NOTICES.TXT"
+    },
+    {
+      "Path": "upstream/sungaila/PDFtoImage/0eb81fdffb9bcd27ba34a4fa0bac63318844de1b/LICENSE",
+      "Bytes": 1076,
+      "SHA256": "96689e585089de537595e7c70ac6774155785e09f0290ab84c0357341f80e689",
+      "Source": "Package-declared upstream Git source",
+      "Repository": "sungaila/PDFtoImage",
+      "Revision": "0eb81fdffb9bcd27ba34a4fa0bac63318844de1b",
+      "SourcePath": "LICENSE",
+      "GitBlobSHA1": "1668897ed29cd4eb149c9bcd086f537e001383ce",
+      "SourceURL": "https://github.com/sungaila/PDFtoImage/blob/0eb81fdffb9bcd27ba34a4fa0bac63318844de1b/LICENSE"
     },
     {
       "Path": "upstream/tmds/Tmds.DBus/b4a7fed0b878f74cb54f7cca84d2889af4e596ba/COPYING",
@@ -883,6 +946,90 @@
       ],
       "FullTextRetained": true,
       "Coverage": "declared-source-texts-retained"
+    },
+    {
+      "ID": "bblanchon.PDFium.Linux",
+      "Version": "147.0.7690",
+      "NuGetContentHash": "VnH5sYEI1/gd1t0h3TQMsbGnicdYKfzfDjKBGfRX8MqjSFcWgHdFL1MGvyB7HBvQzZtDWspSn2qY6mehGRSw9g==",
+      "PackageArchiveSHA256": "653079772f32d7c8fdf5c04b2ff584d4956dc4aaed1187a7df18549b9dd5b225",
+      "NuGetLicenseDeclaration": {
+        "Text": "Apache-2.0",
+        "Attributes": {
+          "type": "expression"
+        }
+      },
+      "NuGetRepositoryDeclaration": {
+        "Text": null,
+        "Attributes": {
+          "type": "git",
+          "url": "https://github.com/bblanchon/pdfium-binaries.git",
+          "branch": "master",
+          "commit": "9d8f70d3f4c0d37c0a479407805ceab4dd68d516"
+        }
+      },
+      "RetainedNoticePaths": [
+        "spdx/Apache-2.0/f715b3660bb164c3d0b81cba9ce94e3c558c4048/Apache-2.0.txt",
+        "upstream/bblanchon/pdfium-binaries/9d8f70d3f4c0d37c0a479407805ceab4dd68d516/LICENSE",
+        "upstream/chromium/pdfium/a84323421e94f484faca52dd9d027934eba42ab8/LICENSE"
+      ],
+      "FullTextRetained": false,
+      "Coverage": "declared-license-and-independent-upstream-reference-retained; exact-native-binary-attributions-open"
+    },
+    {
+      "ID": "bblanchon.PDFium.macOS",
+      "Version": "147.0.7690",
+      "NuGetContentHash": "P6b05GVUhbcfzO54W3rKTTWX/lac3CzZ+5TZnqMhJMqSJrtTGawCXsw+4GiFfC2imnbU7EPabFARzvtPvNp0sw==",
+      "PackageArchiveSHA256": "7962bd848650413cc32b514fe689f138815f6d9e91268940c900ef6c5c6219dc",
+      "NuGetLicenseDeclaration": {
+        "Text": "Apache-2.0",
+        "Attributes": {
+          "type": "expression"
+        }
+      },
+      "NuGetRepositoryDeclaration": {
+        "Text": null,
+        "Attributes": {
+          "type": "git",
+          "url": "https://github.com/bblanchon/pdfium-binaries.git",
+          "branch": "master",
+          "commit": "9d8f70d3f4c0d37c0a479407805ceab4dd68d516"
+        }
+      },
+      "RetainedNoticePaths": [
+        "spdx/Apache-2.0/f715b3660bb164c3d0b81cba9ce94e3c558c4048/Apache-2.0.txt",
+        "upstream/bblanchon/pdfium-binaries/9d8f70d3f4c0d37c0a479407805ceab4dd68d516/LICENSE",
+        "upstream/chromium/pdfium/a84323421e94f484faca52dd9d027934eba42ab8/LICENSE"
+      ],
+      "FullTextRetained": false,
+      "Coverage": "declared-license-and-independent-upstream-reference-retained; exact-native-binary-attributions-open"
+    },
+    {
+      "ID": "bblanchon.PDFium.Win32",
+      "Version": "147.0.7690",
+      "NuGetContentHash": "vPUlS9LklHm59lcBc9f6loggGgezogOoMdRYbUfTvum1Ndlr7u7KrAq3ZTuTdPF0ijHjhtfjNafZvyyTbmB4mg==",
+      "PackageArchiveSHA256": "f6c4495873d927f5b253b844908cafda7693feca697a95cccbd9c7a304f83bc3",
+      "NuGetLicenseDeclaration": {
+        "Text": "Apache-2.0",
+        "Attributes": {
+          "type": "expression"
+        }
+      },
+      "NuGetRepositoryDeclaration": {
+        "Text": null,
+        "Attributes": {
+          "type": "git",
+          "url": "https://github.com/bblanchon/pdfium-binaries.git",
+          "branch": "master",
+          "commit": "9d8f70d3f4c0d37c0a479407805ceab4dd68d516"
+        }
+      },
+      "RetainedNoticePaths": [
+        "spdx/Apache-2.0/f715b3660bb164c3d0b81cba9ce94e3c558c4048/Apache-2.0.txt",
+        "upstream/bblanchon/pdfium-binaries/9d8f70d3f4c0d37c0a479407805ceab4dd68d516/LICENSE",
+        "upstream/chromium/pdfium/a84323421e94f484faca52dd9d027934eba42ab8/LICENSE"
+      ],
+      "FullTextRetained": false,
+      "Coverage": "declared-license-and-independent-upstream-reference-retained; exact-native-binary-attributions-open"
     },
     {
       "ID": "BouncyCastle.Cryptography",
@@ -1340,6 +1487,31 @@
       ]
     },
     {
+      "ID": "PDFtoImage",
+      "Version": "5.2.1",
+      "NuGetContentHash": "tqCcLRuEc517UJeKy+gHmhjtLcvpE9/UXWgDtU8t4GR+2NQx0SimBDVKkFxGsLlMUHEHuy58dlyfXlo5Sf1jjw==",
+      "PackageArchiveSHA256": "0db8fd1ec91d711842ef61d7140c8900fc0555d9a7850d932256b703adb7d099",
+      "NuGetLicenseDeclaration": {
+        "Text": "MIT",
+        "Attributes": {
+          "type": "expression"
+        }
+      },
+      "NuGetRepositoryDeclaration": {
+        "Text": null,
+        "Attributes": {
+          "type": "git",
+          "url": "https://github.com/sungaila/PDFtoImage.git",
+          "commit": "0eb81fdffb9bcd27ba34a4fa0bac63318844de1b"
+        }
+      },
+      "RetainedNoticePaths": [
+        "upstream/sungaila/PDFtoImage/0eb81fdffb9bcd27ba34a4fa0bac63318844de1b/LICENSE"
+      ],
+      "FullTextRetained": true,
+      "Coverage": "source-and-declared-license-reference-retained"
+    },
+    {
       "ID": "SkiaSharp",
       "Version": "3.119.4",
       "NuGetContentHash": "53NOSUZ1Us+91Sm0uCkIivh/k7jOowRErZT2sIWwPFN9mLUvdxnE6rS4sWo4255+Rd2MWUSF+j0NMZHD6Cke+Q==",
@@ -1388,6 +1560,33 @@
       "RetainedNoticePaths": [
         "nuget/skiasharp.nativeassets.linux/3.119.4/LICENSE.txt",
         "nuget/skiasharp.nativeassets.linux/3.119.4/THIRD-PARTY-NOTICES.txt"
+      ],
+      "FullTextRetained": true,
+      "Coverage": "nuget-files-retained"
+    },
+    {
+      "ID": "SkiaSharp.NativeAssets.Linux.NoDependencies",
+      "Version": "3.119.2",
+      "NuGetContentHash": "1rmveKZ8Cz7k4QJQdtKV6RFXYIEqYBiX450Bm0Bk41EE50MMPUyF81cRnASsuV0qCwdZuzjZTaFvoqS0Q2zVfA==",
+      "PackageArchiveSHA256": "efd0422d90188df1cfd4364a801fa1b32c819619f26503e2f92c2fb344589e78",
+      "NuGetLicenseDeclaration": {
+        "Text": "MIT",
+        "Attributes": {
+          "type": "expression"
+        }
+      },
+      "NuGetRepositoryDeclaration": {
+        "Text": null,
+        "Attributes": {
+          "type": "git",
+          "url": "https://go.microsoft.com/fwlink/?linkid=868515",
+          "branch": "release/3.119.2",
+          "commit": "2888c737ad016d584c74525e2d35db5097ea8576"
+        }
+      },
+      "RetainedNoticePaths": [
+        "nuget/skiasharp.nativeassets.linux.nodependencies/3.119.2/LICENSE.txt",
+        "nuget/skiasharp.nativeassets.linux.nodependencies/3.119.2/THIRD-PARTY-NOTICES.txt"
       ],
       "FullTextRetained": true,
       "Coverage": "nuget-files-retained"
@@ -1578,7 +1777,12 @@
       "Coverage": "declared-source-texts-retained"
     }
   ],
-  "KnownFullTextGaps": [],
+  "KnownFullTextGaps": [
+    {
+      "ID": "bblanchon.PDFium native binaries",
+      "Reason": "The NuGet packages contain native PDFium builds but no license or third-party notice files. The package-declared Apache-2.0 text, declared source repository MIT text and an independently pinned upstream PDFium LICENSE are retained. The exact PDFium source revision, build inputs and third-party attribution set of each shipped native binary remain unverified for candidate release."
+    }
+  ],
   "NuGetMetadataSourceRevisionsProveReproducibleBinaries": false,
   "NativeRuntimeAppImageAndInstallerNoticesComplete": false,
   "OSIEligibilityQualified": false,

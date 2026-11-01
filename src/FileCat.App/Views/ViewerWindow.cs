@@ -65,6 +65,9 @@ public sealed class ViewerWindow : Window
     private readonly ToggleButton _modeHex = new() { Content = "Hex" };
     private readonly ToggleButton _modeInfo = new() { Content = "Info" };
     private readonly ToggleButton _modePicture = new() { Content = "Picture", IsVisible = false };
+    private readonly Button _previousPdfPage = new() { Content = "Previous page", IsVisible = false };
+    private readonly Button _nextPdfPage = new() { Content = "Next page", IsVisible = false };
+    private readonly TextBlock _pdfPageLabel = new() { IsVisible = false, VerticalAlignment = VerticalAlignment.Center };
     /// <summary>A web page, drawn by the system's browser engine with scripts and the web off (D-51).</summary>
     private readonly ToggleButton _modePage = new() { Content = "Page", IsVisible = false };
     private readonly PageView _pageView;
@@ -90,6 +93,11 @@ public sealed class ViewerWindow : Window
     private readonly TextBlock _contentSize = new() { VerticalAlignment = VerticalAlignment.Center, Classes = { "small" } };
     private readonly PictureView _picture = new() { IsVisible = false };
     private bool _isPicture;
+    private bool _isPdf;
+    private int _pdfPage;
+    private int _pictureDisplayedPdfPage = -1;
+    private int _pdfRequestGeneration;
+    private CancellationTokenSource? _pdfLoadCts;
     private Task? _pictureLoad;
     // Decoded pictures, structure reports and loaded pages are snapshots. Reader refreshes must not describe them as current.
     private long _sourceGeneration, _pictureGeneration, _infoGeneration, _pageGeneration;
@@ -297,6 +305,9 @@ public sealed class ViewerWindow : Window
         var toolbar = new WrapPanel { Margin = new Thickness(8, 4), ItemSpacing = 8, LineSpacing = 4 };
         toolbar.Children.Add(_modePage);
         toolbar.Children.Add(_modePicture);
+        toolbar.Children.Add(_previousPdfPage);
+        toolbar.Children.Add(_pdfPageLabel);
+        toolbar.Children.Add(_nextPdfPage);
         ToolTip.SetTip(_modePage, "The page as a browser draws it, with its scripts off and nothing fetched from the web");
         Avalonia.Automation.AutomationProperties.SetName(_pageView, "Web page");
         toolbar.Children.Add(_modeText);
@@ -322,6 +333,10 @@ public sealed class ViewerWindow : Window
         Avalonia.Automation.AutomationProperties.SetAutomationId(_pictureLimit, "Picture decode limit");
         Avalonia.Automation.AutomationProperties.SetLiveSetting(_pictureLimit, Avalonia.Automation.AutomationLiveSetting.Polite);
         Avalonia.Automation.AutomationProperties.SetName(_picture, "Picture");
+        Avalonia.Automation.AutomationProperties.SetName(_previousPdfPage, "Previous PDF page");
+        Avalonia.Automation.AutomationProperties.SetName(_nextPdfPage, "Next PDF page");
+        Avalonia.Automation.AutomationProperties.SetAutomationId(_pdfPageLabel, "PDF page position");
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(_pdfPageLabel, Avalonia.Automation.AutomationLiveSetting.Polite);
         ToolTip.SetTip(_modeInfo, "Structure of executables and images: headers, sections, imports, version, EXIF (Ctrl+I)");
         Avalonia.Automation.AutomationProperties.SetName(_info, "File information");
         ShowInfoText("");
@@ -453,6 +468,8 @@ public sealed class ViewerWindow : Window
         _modeHex.Click += (_, _) => SetMode(true);
         _modeInfo.Click += async (_, _) => await ShowInfoAsync();
         _modePicture.Click += (_, _) => ShowPicture();
+        _previousPdfPage.Click += (_, _) => ChangePdfPage(-1);
+        _nextPdfPage.Click += (_, _) => ChangePdfPage(1);
         _modePage.Click += (_, _) => ShowPage();
         _pageView.Changed += () => { if (_isPage) UpdateStatus(); };
         _pageView.LoadCompleted += (ok, _) =>
@@ -729,7 +746,9 @@ public sealed class ViewerWindow : Window
         if (_closing.IsCancellationRequested || _services.Io.IsStopped) return;
         _encodingInfo.Text = $"{_guess.Encoding.WebName}: {_guess.Evidence}";
         // A picture opens as the picture (Alt+F3 asked for the bytes: those stay, and the picture is a click away).
-        _modePicture.IsVisible = PictureDecoder.Recognize(prefix) is not null;
+        _isPdf = IsPdf(prefix);
+        _modePicture.Content = _isPdf ? "PDF" : "Picture";
+        _modePicture.IsVisible = _isPdf || PictureDecoder.Recognize(prefix) is not null;
         // A Markdown file opens drawn, as a page does (release issue I25); its text is an F4 away.
         _modePage.IsVisible = HtmlPage.IsHtml(_displayName, prefix) || Markdown.IsMarkdown(_displayName);
         if (Markdown.IsMarkdown(_displayName)) ToolTip.SetTip(_modePage, "The Markdown drawn as a page: its HTML shown as text, pictures only from its folder, nothing fetched from the web");
@@ -753,6 +772,8 @@ public sealed class ViewerWindow : Window
         return little is 0xFEEDFACE or 0xFEEDFACF or 0xCEFAEDFE or 0xCFFAEDFE || big is 0xCAFEBABE or 0xCAFEBABF;
     }
 
+    private static bool IsPdf(ReadOnlySpan<byte> prefix) => prefix.StartsWith("%PDF-"u8);
+
     /// <summary>The picture mode: decoded once, by the worker, while the window stays responsive.</summary>
     public void ShowPicture()
     {
@@ -761,7 +782,8 @@ public sealed class ViewerWindow : Window
         _copyCts?.Cancel();
         LeavePage();
         _isPicture = true;
-        _modeLabel.Text = "Mode: Picture";
+        _picture.DocumentPage = _isPdf;
+        _modeLabel.Text = _isPdf ? "Mode: PDF" : "Mode: Picture";
         _findToggle.IsVisible = false;
         _findBar.IsVisible = false;
         _isInfo = false;
@@ -770,6 +792,8 @@ public sealed class ViewerWindow : Window
         _modePicture.IsChecked = true;
         _modeText.IsChecked = _modeHex.IsChecked = _modeInfo.IsChecked = false;
         _fitPicture.IsVisible = _actualSize.IsVisible = _pictureZoom.IsVisible = _zoomLevels.IsVisible = true;
+        _previousPdfPage.IsVisible = _nextPdfPage.IsVisible = _pdfPageLabel.IsVisible = _isPdf;
+        UpdatePdfPageControls();
         UpdatePictureZoomControls();
         foreach (var part in _textOnly) part.IsVisible = false;
         _wrap.IsEnabled = false;
@@ -784,35 +808,79 @@ public sealed class ViewerWindow : Window
 
     public DecodedPicture? Picture => _picture.Picture;
 
-    private async Task LoadPictureAsync()
+    private async Task LoadPictureAsync(int? previousPdfPage = null)
     {
         var reader = _reader;
-        _pictureGeneration = _sourceGeneration;
-        _picture.ShowMessage("Decoding the picture…");
+        int page = _pdfPage;
+        int request = ++_pdfRequestGeneration;
+        _pdfLoadCts?.Cancel();
+        using var pending = CancellationTokenSource.CreateLinkedTokenSource(_closing.Token);
+        _pdfLoadCts = pending;
+        _picture.ShowMessage(_isPdf ? $"Rendering PDF page {page + 1}…" : "Decoding the picture…");
+        string? pageFailure = null;
         try
         {
-            var picture = await PictureDecoder.DecodeAsync(reader, _services.Io, _deviceKey, PictureSide, _closing.Token);
-            if (_closing.IsCancellationRequested || !ReferenceEquals(reader, _reader))
+            var picture = _isPdf
+                ? await PictureDecoder.DecodePdfAsync(reader, _services.Io, _deviceKey, page, PictureSide, pending.Token)
+                : await PictureDecoder.DecodeAsync(reader, _services.Io, _deviceKey, PictureSide, pending.Token);
+            if (_closing.IsCancellationRequested || request != _pdfRequestGeneration || !ReferenceEquals(reader, _reader))
             {
                 picture.Bitmap.Dispose();
                 return;
             }
             _picture.Show(picture);
+            _pictureDisplayedPdfPage = _isPdf ? page : -1;
+            _pictureGeneration = _sourceGeneration;
+            UpdatePdfPageControls();
         }
-        catch (Exception) when (_closing.IsCancellationRequested)
+        catch (Exception) when (_closing.IsCancellationRequested || pending.IsCancellationRequested)
         {
             return; // the window closed meanwhile
         }
-        catch (Exception) when (!ReferenceEquals(reader, _reader))
+        catch (Exception) when (request != _pdfRequestGeneration || !ReferenceEquals(reader, _reader))
         {
             return; // a newer source owns the picture view
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or TimeoutException or InvalidOperationException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
             if (ReferenceEquals(reader, _reader))
-                _picture.ShowMessage($"This picture cannot be shown: {ex.Message}. Text and Hex (F4) show its bytes; Info (Ctrl+I) reads its headers.");
+            {
+                if (_isPdf && previousPdfPage is { } prior && _picture.Picture is not null)
+                {
+                    _pdfPage = prior;
+                    _picture.ShowCurrent();
+                    UpdatePdfPageControls();
+                    pageFailure = $"Page {page + 1} could not be shown: {ex.Message}";
+                }
+                else _picture.ShowMessage($"This {(_isPdf ? "PDF page" : "picture")} cannot be shown: {ex.Message}. Text and Hex (F4) show its bytes; Info (Ctrl+I) describes the file.");
+            }
         }
-        if (ReferenceEquals(reader, _reader)) UpdateStatus();
+        finally { if (ReferenceEquals(_pdfLoadCts, pending)) _pdfLoadCts = null; }
+        if (ReferenceEquals(reader, _reader))
+        {
+            UpdateStatus();
+            if (pageFailure is not null) _status.Text = pageFailure + " · " + _status.Text;
+        }
+    }
+
+    private void UpdatePdfPageControls()
+    {
+        if (!_isPdf) return;
+        int count = _picture.Picture?.Frames ?? 0;
+        _pdfPageLabel.Text = count > 0 ? $"Page {_pdfPage + 1} of {count}" : $"Page {_pdfPage + 1}";
+        _previousPdfPage.IsEnabled = _pdfPage > 0;
+        _nextPdfPage.IsEnabled = count > 0 && _pdfPage + 1 < count;
+    }
+
+    private void ChangePdfPage(int delta)
+    {
+        if (!_isPdf || !_isPicture || _picture.Picture is not { } current) return;
+        int next = _pdfPage + delta;
+        if (next < 0 || next >= current.Frames) return;
+        int prior = _pdfPage;
+        _pdfPage = next;
+        UpdatePdfPageControls();
+        _pictureLoad = LoadPictureAsync(prior);
     }
 
     /// <summary>The page mode: the page drawn by the system's browser engine (a native view over the window's content).</summary>
@@ -895,6 +963,7 @@ public sealed class ViewerWindow : Window
         _isPicture = false;
         _picture.IsVisible = false;
         _modePicture.IsChecked = false;
+        _previousPdfPage.IsVisible = _nextPdfPage.IsVisible = _pdfPageLabel.IsVisible = false;
         _findToggle.IsVisible = true;
         _findBar.IsVisible = _findOpen;
         _fitPicture.IsVisible = _actualSize.IsVisible = _pictureZoom.IsVisible = _zoomLevels.IsVisible =
@@ -956,6 +1025,23 @@ public sealed class ViewerWindow : Window
         ShowInfoText("Reading the file's structure…");
         try
         {
+            if (_isPdf)
+            {
+                DecodedPicture? temporary = null;
+                try
+                {
+                    var pdf = _pictureGeneration == _sourceGeneration && _pictureDisplayedPdfPage == _pdfPage &&
+                        _picture.Picture is { } visible
+                        ? visible
+                        : temporary = await PictureDecoder.DecodePdfAsync(reader, _services.Io, _deviceKey,
+                            _pdfPage, PictureSide, _closing.Token);
+                    if (!_closing.IsCancellationRequested && ReferenceEquals(reader, _reader))
+                        ShowInfoText(PdfInfoText(pdf, reader.Length, _pdfPage));
+                }
+                finally { temporary?.Bitmap.Dispose(); }
+                if (ReferenceEquals(reader, _reader)) UpdateStatus();
+                return;
+            }
             var text = await Task.Run(() =>
             {
                 string result = "";
@@ -982,6 +1068,15 @@ public sealed class ViewerWindow : Window
         }
         if (ReferenceEquals(reader, _reader)) UpdateStatus();
     }
+
+    private static string PdfInfoText(DecodedPicture pdf, long length, int page) =>
+        $"PDF document\n\nVersion: {pdf.Format}\nPages: {pdf.Frames:N0}\nCurrent page: {page + 1:N0}\n" +
+        $"Current page size: {pdf.Width:N0} × {pdf.Height:N0} points " +
+        $"({pdf.Width / 72.0:0.##} × {pdf.Height / 72.0:0.##} inches)\n" +
+        $"File size: {Formatters.ExactSize(length)}\n\n" +
+        "Preview renders pages without running document actions or opening links. " +
+        "Title, author, attachments and form fields are not interpreted in this view. " +
+        "Text and Hex show the original bytes (F4).";
 
     // A borrowed inspector source observes close between calls, including an inspector's short-read loop.
     // The reader retains ownership until the inspection returns.
@@ -1145,6 +1240,18 @@ public sealed class ViewerWindow : Window
         UpdateRefreshFeedback();
         if (_isPicture)
         {
+            if (_isPdf)
+            {
+                _status.Text = _picture.Picture is { } pdf
+                    ? $"{pdf.Format} · page {_pdfPage + 1:N0} of {pdf.Frames:N0} · " +
+                      $"{pdf.Width:N0} × {pdf.Height:N0} points · " +
+                      $"{(_picture.Fit ? "fitted, " : "")}{_picture.Zoom * 100:0}% · " +
+                      Formatters.ExactSize(_reader.Length) + " · Page Up/Down changes page; F4 shows bytes"
+                    : $"PDF page {_pdfPage + 1:N0} · {Formatters.ExactSize(_reader.Length)}";
+                if (_pictureGeneration != _sourceGeneration)
+                    _status.Text = "The file changed; Refresh (F5) to update this PDF. " + _status.Text;
+                return;
+            }
             _status.Text = _picture.Picture is { } p
                 ? $"{p.Format} · {p.Width:N0} × {p.Height:N0} pixels · {(_picture.Fit ? "fitted, " : "")}{_picture.Zoom * 100:0}%" +
                   (p.Frames > 1 ? $" · animated, {p.Frames:N0} frames: the first is shown" : "") +
@@ -1268,6 +1375,7 @@ public sealed class ViewerWindow : Window
         var oldReader = _reader;
         long oldGeneration = _sourceGeneration;
         bool pictureMode = _isPicture, infoMode = _isInfo, pageMode = _isPage, hexMode = _isHex;
+        int refreshedPdfPage = _pdfPage;
         IContentSource? opened = null;
         PagedReader? prepared = null;
         DecodedPicture? decoded = null;
@@ -1297,13 +1405,40 @@ public sealed class ViewerWindow : Window
             HtmlPage? page = null;
             if (pictureMode)
             {
-                if (PictureDecoder.Recognize(prefix) is null)
-                    throw new InvalidDataException("The new version is not a supported picture");
-                decoded = await PictureDecoder.DecodeAsync(reader, _services.Io, _deviceKey, PictureSide, ct);
+                if (_isPdf)
+                {
+                    if (!IsPdf(prefix)) throw new InvalidDataException("The new version is not a PDF");
+                    try { decoded = await PictureDecoder.DecodePdfAsync(reader, _services.Io, _deviceKey, refreshedPdfPage, PictureSide, ct); }
+                    catch (InvalidDataException) when (refreshedPdfPage > 0)
+                    {
+                        decoded = await PictureDecoder.DecodePdfAsync(reader, _services.Io, _deviceKey, 0, PictureSide, ct);
+                        refreshedPdfPage = 0;
+                    }
+                }
+                else
+                {
+                    if (PictureDecoder.Recognize(prefix) is null)
+                        throw new InvalidDataException("The new version is not a supported picture");
+                    decoded = await PictureDecoder.DecodeAsync(reader, _services.Io, _deviceKey, PictureSide, ct);
+                }
             }
             else if (infoMode)
             {
-                report = await Task.Run(() =>
+                if (_isPdf && IsPdf(prefix))
+                {
+                    DecodedPicture pdf;
+                    try { pdf = await PictureDecoder.DecodePdfAsync(reader, _services.Io, _deviceKey,
+                        refreshedPdfPage, PictureSide, ct); }
+                    catch (InvalidDataException) when (refreshedPdfPage > 0)
+                    {
+                        pdf = await PictureDecoder.DecodePdfAsync(reader, _services.Io, _deviceKey,
+                            0, PictureSide, ct);
+                        refreshedPdfPage = 0;
+                    }
+                    try { report = PdfInfoText(pdf, reader.Length, refreshedPdfPage); }
+                    finally { pdf.Bitmap.Dispose(); }
+                }
+                else report = await Task.Run(() =>
                 {
                     string result = "";
                     reader.WithSource(source =>
@@ -1379,18 +1514,24 @@ public sealed class ViewerWindow : Window
             if (sameRevision && hexSelection.Length > 0)
                 _hex.GoTo(hexSelection.Start, select: true, length: hexSelection.Length);
             else _hex.GoTo(hexCursor);
-            _modePicture.IsVisible = PictureDecoder.Recognize(prefix) is not null;
+            _isPdf = IsPdf(prefix);
+            _pdfPage = _isPdf ? refreshedPdfPage : 0;
+            _modePicture.Content = _isPdf ? "PDF" : "Picture";
+            _modePicture.IsVisible = _isPdf || PictureDecoder.Recognize(prefix) is not null;
             _modePage.IsVisible = HtmlPage.IsHtml(_displayName, prefix) || Markdown.IsMarkdown(_displayName);
             if (pictureMode && decoded is not null)
             {
                 _picture.ReplacePreservingView(decoded);
                 decoded = null;
+                _pictureDisplayedPdfPage = _isPdf ? _pdfPage : -1;
                 _pictureGeneration = _sourceGeneration;
                 _pictureLoad = Task.CompletedTask;
+                UpdatePdfPageControls();
             }
             else
             {
                 _picture.Clear();
+                _pictureDisplayedPdfPage = -1;
                 _pictureLoad = null;
             }
             if (infoMode && report is not null)
@@ -1562,6 +1703,12 @@ public sealed class ViewerWindow : Window
             case Key.Z when e.KeyModifiers == KeyModifiers.None && _isPicture:
                 if (_picture.Fit || Math.Abs(_picture.Zoom - 1) > 0.001) _picture.ShowActualSize();
                 else _picture.Fit = true;
+                break;
+            case Key.PageDown when _isPdf && _isPicture:
+                ChangePdfPage(1);
+                break;
+            case Key.PageUp when _isPdf && _isPicture:
+                ChangePdfPage(-1);
                 break;
             case Key.I when e.KeyModifiers == KeyModifiers.Control:
                 _ = ShowInfoAsync();

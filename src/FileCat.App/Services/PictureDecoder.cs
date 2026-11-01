@@ -66,19 +66,29 @@ public static class PictureDecoder
             reader.WithSource(source => Feed(source, input, canceled));
         }, token), maxSide, ct, drainFeed: false);
 
+    /// <summary>Renders one PDF page inside the same restricted worker boundary as pictures.</summary>
+    public static Task<DecodedPicture> DecodePdfAsync(PagedReader reader, DeviceIoScheduler io, string deviceKey,
+        int page, int maxSide, CancellationToken ct) =>
+        DecodeAsync(reader.Length, (input, token) => io.Run(deviceKey, IoPriority.Interactive, canceled =>
+        {
+            canceled.ThrowIfCancellationRequested();
+            reader.WithSource(source => Feed(source, input, canceled));
+        }, token), maxSide, ct, drainFeed: false, pdfPage: page);
+
     private static async Task<DecodedPicture> DecodeAsync(long length, Func<Stream, CancellationToken, Task> feed,
-        int maxSide, CancellationToken ct, bool drainFeed)
+        int maxSide, CancellationToken ct, bool drainFeed, int? pdfPage = null)
     {
         ct.ThrowIfCancellationRequested();
         maxSide = Math.Clamp(maxSide, PictureWorker.MinSide, PictureWorker.MaxSide);
-        if (length > PictureWorker.MaxInputBytes)
-            throw new InvalidDataException($"at {Formatters.SizeWithUnit(length)} it is larger than FileCat shows as a picture");
+        long maxInput = pdfPage is null ? PictureWorker.MaxInputBytes : PictureWorker.MaxPdfInputBytes;
+        if (length > maxInput)
+            throw new InvalidDataException($"at {Formatters.SizeWithUnit(length)} it is larger than FileCat shows as a {(pdfPage is null ? "picture" : "PDF")}");
         using var admission = await Admission.EnterAsync(ct).ConfigureAwait(false);
         ct.ThrowIfCancellationRequested();
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
         limit.CancelAfter(Timeout);
         var token = limit.Token;
-        var launch = WorkerLaunchFor(maxSide);
+        var launch = WorkerLaunchFor(maxSide, pdfPage);
         await using var worker = Worker.StartPicture(launch);
         using var stop = token.Register(worker.Kill);
         // Written and read at once: the worker may stop reading early (a damaged file), and a full pipe must not block.
@@ -228,10 +238,14 @@ public static class PictureDecoder
         return LinuxPictureSandbox.StartInfo(helper.Executable, helper.ArgumentList, executable, arguments);
     }
 
-    private static WorkerLaunch WorkerLaunchFor(int maxSide)
+    private static WorkerLaunch WorkerLaunchFor(int maxSide, int? pdfPage = null)
     {
-        string arguments = $"{PictureWorker.Argument} {maxSide}";
-        string[] argumentList = [PictureWorker.Argument, maxSide.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+        string arguments = $"{PictureWorker.Argument} {maxSide}" +
+            (pdfPage is { } page ? $" {PictureWorker.PdfArgument} {page}" : string.Empty);
+        string[] argumentList = pdfPage is { } requested
+            ? [PictureWorker.Argument, maxSide.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                PictureWorker.PdfArgument, requested.ToString(System.Globalization.CultureInfo.InvariantCulture)]
+            : [PictureWorker.Argument, maxSide.ToString(System.Globalization.CultureInfo.InvariantCulture)];
         string dll = typeof(PictureWorker).Assembly.Location;
         string? process = Environment.ProcessPath;
         if (dll.Length == 0 && process is not null) return new(process, arguments, argumentList);

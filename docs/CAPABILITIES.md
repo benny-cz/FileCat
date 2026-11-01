@@ -16,6 +16,12 @@ The main toolbar defaults to ten stable actions: Back, Forward, Parent, Refresh,
 
 ## Locations
 
+F3 previews PDF pages locally with page navigation and zoom on Windows, Ubuntu and macOS. Info
+shows the PDF version, page count, current page dimensions and file size; Text and Hex expose the
+original bytes. Password-protected or damaged PDFs show a bounded preview error, and FileCat does
+not follow PDF links or execute document actions. The native renderer runs in the restricted picture
+worker; exact native binary provenance and final installed-candidate qualification remain open.
+
 | Location | Browse | View (F3) | Copy from (F5) | Copy into | Move, rename | Create (F7, Shift+F4) | Delete (F8, Shift+F8) | Watch |
 |---|---|---|---|---|---|---|---|---|
 | Local folders (NTFS, ReFS, Dev Drive, FAT, exFAT) | Yes (a link that refuses to be listed itself, such as Windows' `Local Settings` or `Documents and Settings` compatibility junction, opens the folder it leads to, as in Salamander) | Yes | Yes | Yes | Yes | Yes | Recycle where the volume has a bin; otherwise explicit permanent delete | Yes |

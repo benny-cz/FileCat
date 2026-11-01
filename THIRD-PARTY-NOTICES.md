@@ -28,6 +28,9 @@ the runtime and relinks the AppImage with a modified libfuse.
 | Avalonia (Avalonia, Desktop, Skia, HarfBuzz, Win32, X11, Native, FreeDesktop, AtSpi, Remote.Protocol, Themes.Fluent) | 12.1.4 | MIT | UI framework |
 | Avalonia.Angle.Windows.Natives | 2.1.27548.20260419 | BSD-3-Clause (ANGLE) | Native OpenGL ES over Direct3D on Windows |
 | SkiaSharp (+ native assets) | 3.119.4 | MIT; native Skia BSD-3-Clause | 2D graphics |
+| SkiaSharp.NativeAssets.Linux.NoDependencies | 3.119.2 | MIT; bundled native notices | Additional Linux native asset resolved by the PDF renderer; exact package license and third-party notice bytes retained |
+| PDFtoImage | 5.2.1 | MIT | PDF page rasterization inside FileCat's restricted viewer worker; no PDF actions, links or forms run |
+| bblanchon.PDFium (Win32, Linux, macOS) | 147.0.7690 | NuGet declares Apache-2.0; PDFium includes BSD-3-Clause and other notices | Native PDF renderer. The package-declared source repository has an MIT LICENSE, while the NuGet archive has no license/notice files. Declared and upstream texts are retained, but the exact native PDFium source and third-party attribution set for these binary packages still need artifact-specific review before stable release |
 | HarfBuzzSharp (+ native assets) | 8.3.1.3 | MIT; native HarfBuzz "Old MIT" | Text shaping |
 | MicroCom.Runtime | 0.11.6 | MIT | COM interop helper used by Avalonia |
 | Tmds.DBus.Protocol | 0.94.1 | MIT | Linux desktop integration (D-Bus) |

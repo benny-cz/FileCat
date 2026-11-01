@@ -33,6 +33,20 @@ public sealed class PictureView : Border
     private Point _offset;
     private Point? _dragFrom;
     private Point _dragOffset;
+    private bool _documentPage;
+
+    /// <summary>Give opaque document pages a visible canvas and a little breathing room.</summary>
+    public bool DocumentPage
+    {
+        get => _documentPage;
+        set
+        {
+            if (_documentPage == value) return;
+            _documentPage = value;
+            if (_fit) FitNow();
+            else Changed();
+        }
+    }
 
     public PictureView()
     {
@@ -109,6 +123,15 @@ public sealed class PictureView : Border
         _surface.IsVisible = false;
     }
 
+    /// <summary>Restore the last successfully decoded page after a later page fails.</summary>
+    public void ShowCurrent()
+    {
+        if (Picture is null) return;
+        _message.IsVisible = false;
+        _surface.IsVisible = true;
+        Changed();
+    }
+
     /// <summary>Releases the displayed bitmap when its viewer closes.</summary>
     public void Clear()
     {
@@ -127,7 +150,9 @@ public sealed class PictureView : Border
         if (Picture is { } p && available.Width > 0 && available.Height > 0)
         {
             var pixels = p.Bitmap.PixelSize;
-            _scale = Math.Min(Math.Min(available.Width / pixels.Width, available.Height / pixels.Height), ScaleFor(1));
+            double inset = _documentPage ? 24 : 0;
+            _scale = Math.Min(Math.Min(Math.Max(1, available.Width - inset * 2) / pixels.Width,
+                Math.Max(1, available.Height - inset * 2) / pixels.Height), ScaleFor(1));
         }
         Clamp(available);
         Changed(available);
@@ -280,16 +305,20 @@ public sealed class PictureView : Border
     private sealed class Surface(PictureView owner) : Control
     {
         private static readonly IBrush Checker = Checkerboard();
+        private static readonly IBrush DocumentCanvas = new SolidColorBrush(Color.FromRgb(47, 50, 56));
+        private static readonly Pen DocumentEdge = new(new SolidColorBrush(Color.FromRgb(149, 153, 161)), 1);
 
         public override void Render(DrawingContext context)
         {
             if (owner.Picture is not { } picture) return;
             var bitmap = picture.Bitmap;
             var destination = new Rect(owner._offset, new Size(bitmap.PixelSize.Width * owner._scale, bitmap.PixelSize.Height * owner._scale));
-            context.FillRectangle(Checker, destination);
+            if (owner.DocumentPage) context.FillRectangle(DocumentCanvas, new Rect(Bounds.Size));
+            else context.FillRectangle(Checker, destination);
             bool enlarged = owner._scale * owner.Scaling >= 2;
             using (context.PushRenderOptions(new RenderOptions { BitmapInterpolationMode = enlarged ? BitmapInterpolationMode.None : BitmapInterpolationMode.HighQuality }))
                 context.DrawImage(bitmap, new Rect(bitmap.Size), destination);
+            if (owner.DocumentPage) context.DrawRectangle(null, DocumentEdge, destination);
         }
     }
 
