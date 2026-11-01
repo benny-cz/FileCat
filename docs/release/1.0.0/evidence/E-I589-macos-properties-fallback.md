@@ -1,0 +1,17 @@
+# I589 — Properties was a dead end on macOS and Linux
+
+## User consequence and scope
+
+In an isolated native macOS FileCat instance at exact product `b28e2ad4`, selecting an ordinary owned `note.txt` and invoking **File → Properties** produced only “System properties could not be opened for this item.” The portable shell service has no OS property sheet, yet the command remained offered. The previously accepted File-system record inspector is a useful read-only alternative; its mode, owner and group are material to a user checking a Unix file. This shot did not reopen the already accepted APFS record parser or the Windows native property sheet.
+
+## Correction and bounded verification
+
+Product `292bcb92558e72756ae1a90d77e069632f4ea4a8` retains the Windows system property sheet. Where macOS or Linux has no shell property sheet, **Properties** now opens FileCat's file-system record for the *exact path passed by the panel or context action*. The existing Inspect command uses the same report route. A focused Windows App `ReportWindowTests` run passed **4/4**; the first sandboxed MSBuild attempt exited without diagnostics, and an unsandboxed repeat passed. No file was edited by the action.
+
+A clean Mac worktree at exact `292bcb92` produced a local ad-hoc-signed `1.0.0-exploratory` ZIP, SHA-256 `726b75fd1d308aeddfb54bd6128c1e81ff88c546132d73affd8aa0f7f8af9b71`; the staged App DLL SHA-256 was `cc3f05ebca48a024d3964676fe4ed1170bffd1f92f618310757664cd7117fc7a`. The extracted bundle passed `codesign --verify --deep --strict`. In a new isolated native process, **Properties** opened `note.txt · File-system record — FileCat`, named its exact owned path and APFS, and exposed **43 accessible report lines**. Lines 41–43 read mode `-rw-r--r-- (644)`, owner `benny (501)` and group `staff (20)`, matching independent `stat`. Closing returned to the same selected `note.txt` row. The file remained 24 bytes with SHA-256 `e94c8d0457af3230dcd8dfaca11bd525cebea42216e21c1a3f24833d5b2a00e5`, its mode/owner/group were unchanged, and the target stayed empty.
+
+Exact product [CI run 41256940846](https://github.com/benny-cz/FileCat/actions/runs/41256940846) passed producer, Windows x64, Windows ARM64, Ubuntu and macOS; four tag-only jobs skipped by design. Independently downloaded test-result artifacts from that run and prior green I588 run 41252989982 contain the same **20 TRX inventories, 41,302 Passed / 1,535 NotExecuted / 0 Failed**, with no lost case, new skip or changed outcome/message. The comparison receipt is retained under the ignored local `.tmp/i589-ci` root. No public preview binary contains this fix.
+
+## Disposition and finite candidate rule
+
+Medium UX/platform-convention issue, **remediated preliminarily**. On the exact installed 1.0.0 candidate, invoke Properties on an owned macOS and Linux file from the panel and on a separate exact path from a context result; require a readable record for the chosen file, including mode, owner and group, with no wrong-path report or mutation. On Windows require its native property sheet to remain available. Stop after these affected routes and latest-product five-lane CI with skips reconciled; do not replay the APFS record parser, unrelated shell handoffs or general permissions suite without a new consequence. Stable 1.0.0 remains **NO-GO** until the release contract's other candidate gates and owner GO are met. The exploratory clean streak resets to **0/20**.
