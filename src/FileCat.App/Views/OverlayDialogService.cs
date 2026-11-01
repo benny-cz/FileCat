@@ -826,7 +826,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         body.Children.Add(list);
         body.Children.Add(detail);
         body.Children.Add(new TextBlock { Text = remapOnly
-            ? "Shortcuts reflect this Settings draft. Select a command and press Enter or F2 to change it; Esc returns to Settings."
+            ? "Select a command and press Enter or F2 to change its shortcut; Esc returns to the previous view."
             : "Shortcuts reflect your current settings. Select a command and press Enter to run it; F2 changes its shortcut; Esc closes help.", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap });
         Session? session = null;
         void Finish(KeyboardReferenceChoice? choice)
@@ -906,7 +906,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         change.Click += (_, _) => ChangeShortcut();
         close.Click += (_, _) => Finish(null);
         Apply();
-        session = Show(Card("Keyboard reference", body, ButtonRow(close, change, run), 840), search, top: false, () => Finish(null));
+        session = Show(Card(remapOnly ? "Change shortcut" : "Keyboard reference", body, ButtonRow(close, change, run), 840), search, top: false, () => Finish(null));
         return tcs.Task;
     }
 

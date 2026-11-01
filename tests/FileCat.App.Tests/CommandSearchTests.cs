@@ -105,7 +105,7 @@ public sealed class CommandSearchTests
             Assert.False(window.GetVisualDescendants().OfType<Button>()
                 .Single(b => Equals(b.Content, "Run command")).IsVisible);
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(),
-                t => t.Text?.Contains("Select a command and press Enter or F2 to change it", StringComparison.Ordinal) == true);
+                t => t.Text?.Contains("Select a command and press Enter or F2 to change its shortcut", StringComparison.Ordinal) == true);
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             await WaitFor(() => !dialogs.IsOpen, ct);
         }
