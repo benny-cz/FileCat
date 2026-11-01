@@ -217,9 +217,11 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         LayoutUpdated += (_, _) =>
         {
             var bands = (MenuRow.Bounds.Bottom, WorkspaceHost.Bounds.Bottom + WorkspaceHost.Margin.Bottom);
-            if (Backdrop.GlassBands != bands)
+            var span = (MainMenu.Bounds.Right + 6, CommandSearchBox.Bounds.Left - 6);
+            if (Backdrop.GlassBands != bands || Backdrop.GlassSpan != span)
             {
                 Backdrop.GlassBands = bands;
+                Backdrop.GlassSpan = span;
                 Backdrop.InvalidateVisual();
             }
         };
