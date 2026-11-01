@@ -510,6 +510,10 @@ public class PortableFileOperations : IFileSystemOperations
                     if (progress?.Invoke(done, total) == CopyProgressAction.Cancel) throw new OperationCanceledException(ct);
                 }
                 if (dst.Length != done) dst.SetLength(done);
+                // On macOS the resource fork is an extended attribute, not part of FileStream's data fork.
+                // Copy it (and the other xattrs) between the already-open files before the new name is published.
+                // A failure must discard this destination rather than report a complete copy with missing bytes.
+                if (OperatingSystem.IsMacOS()) MacExtendedAttributes.Copy(src, dst, ct);
                 dst.Flush(flushToDisk: options.FlushDestination);
             }
             File.SetLastWriteTimeUtc(destination, info.LastWriteTimeUtc);
