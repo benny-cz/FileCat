@@ -109,6 +109,9 @@ public static class MainMenuModel
     /// <summary>Where a command is in the menus ("Commands", "File › Registry"), or null when no menu has it.</summary>
     public static string? PathOf(string id) => s_paths.Value.GetValueOrDefault(id);
 
+    /// <summary>Hide Windows-only path actions where the platform cannot produce their result.</summary>
+    public static bool IsPlatformApplicable(string id) => id != CommandIds.CopyUncPaths || OperatingSystem.IsWindows();
+
     /// <summary>A menu header without its access-key underscore ("_File" is File).</summary>
     private static string Plain(string header) => header.Replace("_", string.Empty, StringComparison.Ordinal);
 }

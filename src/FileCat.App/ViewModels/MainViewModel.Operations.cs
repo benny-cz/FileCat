@@ -914,10 +914,18 @@ public sealed partial class MainViewModel
     {
         var sel = ActiveTab?.Listing.GetSelection();
         if (sel is null || sel.Count == 0 || View.Clipboard is null) return;
-        var lines = sel.Select(s => s.FileSystemPath).Where(p => p is not null).Select(p => Services.Shell.ToUncPath(p!)).ToList();
+        var lines = ActualUncPaths(sel.Select(s => s.FileSystemPath), Services.Shell.ToUncPath);
+        if (lines.Count == 0)
+        {
+            Notify("None of the selected items has a UNC path. Use Copy full paths for local files.");
+            return;
+        }
         await View.Clipboard.SetTextAsync(string.Join(Environment.NewLine, lines));
         Notify($"Copied {Formatters.Plural(lines.Count, "UNC path", "UNC paths")} to the clipboard.");
     }
+
+    internal static List<string> ActualUncPaths(IEnumerable<string?> paths, Func<string, string> convert) =>
+        paths.Where(p => p is not null).Select(p => convert(p!)).Where(PathUtil.IsUncPath).ToList();
 
     /// <summary>Handles files dropped onto a panel: the drop target is the explicit destination.</summary>
     internal async Task DropFilesAsync(PanelViewModel panel, DropTargetAdmission.Offer offered, IReadOnlyList<string> paths)

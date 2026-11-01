@@ -455,6 +455,7 @@ public sealed partial class MainViewModel
         var entries = new List<CommandSearch.Entry>();
         foreach (var d in Services.Commands.All)
         {
+            if (!MainMenuModel.IsPlatformApplicable(d.Id)) continue;
             if (d.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal)
                 || d.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal)
                 || d.Id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal))
