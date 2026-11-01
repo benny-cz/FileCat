@@ -526,9 +526,18 @@ public sealed class JobManager
                 writes.Add(D(r.NewName ?? ""));
                 break;
             case JobKind.Attributes:
-                title = $"Change attributes of {What()}";
+            {
+                var change = r.Attributes;
+                bool attributes = change is null || change.Set != 0 || change.Clear != 0 || change.ChangesPermissions;
+                bool modified = change?.ModifiedUtc is not null;
+                bool created = change?.CreatedUtc is not null;
+                string part = attributes
+                    ? modified || created ? "attributes and times" : "attributes"
+                    : modified && created ? "file times" : modified ? "modified time" : "creation time";
+                title = $"Change {part} of {What()}";
                 AddSourceScopes(writes);
                 break;
+            }
             case JobKind.ApplyCommand:
                 title = r.Description ?? $"Run a command for {What()}";
                 // The program may change the items and write next to them.
