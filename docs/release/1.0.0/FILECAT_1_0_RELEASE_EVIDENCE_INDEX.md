@@ -1,6 +1,6 @@
 # FileCat 1.0.0 — current evidence index
 
-**956 evidence entries; none is final candidate qualification.** No candidate exists.
+**957 evidence entries; none is final candidate qualification.** No candidate exists.
 This index retains every evidence ID, description, source, classification, record link and issue mapping.
 Environment/result narratives and the original campaign commit catalogue are preserved verbatim in the [frozen full catalogue](FILECAT_1_0_RELEASE_EVIDENCE_HISTORY_20261006.md). The linked individual records retain exact scope, commands, artifacts, hashes and failures.
 
@@ -11,6 +11,7 @@ See the [dashboard](FILECAT_1_0_RELEASE_EXECUTION_REPORT.md) for current progres
 
 | ID | What | Source | Class | Record | Issues |
 |---|---|---|---|---|---|
+| E-I607-SHORTCUT-SEARCH | “Change shortcut” was absent from Search commands; corrected query opens Keyboard reference with an explicit next step | `98b48511` before; `5c0a9730` after; Windows 11 Insider VM | Native exact-query before/after and Enter-open captures; focused command-search 31P including all applicable menu commands by displayed name; installed candidate and CI remain | [I607 shortcut discovery](evidence/E-I607-shortcut-search-discovery.md) | I607, V17, V23, GATE-CI-FINAL |
 | E-I587-DIRECTORY-DIFF-AX-NAME | Native Mac directory comparison named result rows with internal TreeDiffEntry records; corrected short file/status/detail names | `16fc03aa` before; `699356ba` after; Mac ARM64 and Windows x64 | Four-difference recursive content preview, failing-before Windows App peer control, corrected affected class 4P, exact-source ad-hoc-signed Mac package with four readable AX rows and eight unchanged file hashes. CI and installed candidate remain. | [I587 directory-difference accessible rows](evidence/E-I587-directory-difference-row-accessible-name.md) | I587, V17, V23, GATE-CI-FINAL |
 | E-I588-SYNC-STEP-AX-NAME | Native Mac synchronization review named a proposed step by its class; corrected action/path/choice/reason name | `699356ba` before; `b28e2ad4` after; Mac ARM64 and Windows x64 | Read-only Update proposal, failing-before Windows App peer control, corrected affected class 5P, exact-source ad-hoc-signed Mac package with included/excluded native AX rows and eight unchanged source hashes. Five-lane CI 41252989982 passed with 20 TRX reconciled; installed candidate remains. | [I588 synchronization-step accessible row](evidence/E-I588-sync-step-accessible-name.md) | I588, V17, V23, GATE-CI-FINAL |
 | E-I589-PROPERTIES-PORTABLE-FALLBACK | Mac Properties command failed where no OS sheet exists; exact-path record now opens on Mac/Linux | `b28e2ad4` before; `292bcb92` after; Mac ARM64, Windows x64 and five-lane CI | Native Mac toast before; exact-source signed local package after with 43-line APFS report, mode/owner/group matching stat, original bytes/mode unchanged. Focused App 4P; exact CI 41256940846 five jobs passed, 20 TRX unchanged against prior green at 41,302P/1,535S/0F. Installed candidate remains. | [I589 Properties fallback](evidence/E-I589-macos-properties-fallback.md) | I589, V17, V23, GATE-CI-FINAL |
