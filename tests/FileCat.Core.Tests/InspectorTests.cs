@@ -152,4 +152,31 @@ public sealed class InspectorTests
         var gif = Inspect(Gif())!;
         Assert.Equal(("89a", "2, loops"), (Fields(gif, "Image")["Version"], Fields(gif, "Image")["Frames"]));
     }
+
+    [Fact]
+    public void A_valid_second_EXIF_directory_without_displayed_fields_is_not_reported_as_unreadable()
+    {
+        // A camera or encoder may put an ExifIFD pointer, rather than orientation/camera/date,
+        // in a separate APP1 block. Apple ImageIO accepts this arrangement in real JPEGs.
+        byte[] secondTiff =
+        [
+            (byte)'M', (byte)'M', 0, 42, 0, 0, 0, 8,
+            0, 1, 0x87, 0x69, 0, 4, 0, 0, 0, 1, 0, 0, 0, 26,
+            0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0,
+        ];
+        byte[] secondPayload = "Exif\0\0"u8.ToArray().Concat(secondTiff).ToArray();
+        byte[] second = [0xFF, 0xE1, (byte)((secondPayload.Length + 2) >> 8), (byte)(secondPayload.Length + 2), .. secondPayload];
+        byte[] jpeg = Jpeg();
+        int afterFirstApp1 = 4 + BinaryPrimitives.ReadUInt16BigEndian(jpeg.AsSpan(4));
+        byte[] combined = [.. jpeg[..afterFirstApp1], .. second, .. jpeg[afterFirstApp1..]];
+
+        var report = Inspect(combined)!;
+        Assert.Equal("rotated 90° clockwise", Fields(report, "EXIF")["Orientation"]);
+        Assert.DoesNotContain(report.Warnings, w => w.Contains("EXIF block could not be read", StringComparison.Ordinal));
+
+        byte[] malformed = (byte[])combined.Clone();
+        malformed[afterFirstApp1 + 13] = 0; // second block's TIFF magic is no longer 42
+        Assert.Contains(Inspect(malformed)!.Warnings, w => w.Contains("EXIF block could not be read", StringComparison.Ordinal));
+    }
 }
