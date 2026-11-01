@@ -14,6 +14,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.ViewModels;
+using FileCat.Core.Commands;
 
 namespace FileCat.App.Views;
 
@@ -868,6 +869,11 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         list.SelectionChanged += (_, _) =>
         {
             var item = list.SelectedItem as KeyboardHelpEntry;
+            var editLauncher = !remapOnly && item?.Id == CommandIds.ChangeShortcut;
+            change.Content = editLauncher ? "Choose a command…" : remapOnly ? "Next: set shortcut…" : "Change shortcut…";
+            Avalonia.Controls.ToolTip.SetTip(change, editLauncher
+                ? "Choose which command's shortcut to change"
+                : "Press a new shortcut for the selected command (F2)");
             detail.Text = item is null ? "No matching command." :
                 (item.ContextLabel is null ? string.Empty : "Context: " + item.ContextLabel + ". ") +
                 (item.DefaultGestures is null ? string.Empty : "Default: " + item.DefaultGestures + ". ") +
@@ -907,7 +913,11 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         });
         list.DoubleTapped += (_, _) => Accept();
         run.Click += (_, _) => Accept();
-        change.Click += (_, _) => ChangeShortcut();
+        change.Click += (_, _) =>
+        {
+            if (!remapOnly && list.SelectedItem is KeyboardHelpEntry { Id: CommandIds.ChangeShortcut }) Accept();
+            else ChangeShortcut();
+        };
         close.Click += (_, _) => Finish(null);
         Apply();
         session = Show(Card(remapOnly ? "Choose command to remap" : "Keyboard reference", body, ButtonRow(close, change, run), 840), search, top: false, () => Finish(null));

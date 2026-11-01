@@ -179,6 +179,14 @@ public sealed class CommandSearchTests
             await WaitFor(() => list.ItemsSource?.Cast<KeyboardHelpEntry>()
                 .Any(e => e.Id == CommandIds.ChangeShortcut) == true, ct);
             Assert.Equal(CommandIds.ChangeShortcut, Assert.Single(list.ItemsSource!.Cast<KeyboardHelpEntry>()).Id);
+            var choose = window.GetVisualDescendants().OfType<Button>()
+                .Single(b => Equals(b.Content, "Choose a command…"));
+            choose.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            await WaitFor(() => window.GetVisualDescendants().OfType<TextBlock>()
+                .Any(t => t.Text?.StartsWith("Step 1 of 2 · Choose a command to remap.", StringComparison.Ordinal) == true), ct);
+            var targets = window.GetVisualDescendants().OfType<ListBox>()
+                .Single(l => AutomationProperties.GetName(l) == "Commands and current shortcuts");
+            Assert.DoesNotContain(targets.ItemsSource!.Cast<KeyboardHelpEntry>(), e => e.Id == CommandIds.ChangeShortcut);
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             await WaitFor(() => !dialogs.IsOpen, ct);
         }
