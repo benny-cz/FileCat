@@ -815,8 +815,16 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException)
         {
-            Notify($"Cannot view \"{name}\": {(ex is OperationCanceledException ? "canceled." : ErrorText.Describe(ex))}", ex is not OperationCanceledException);
+            Notify($"Cannot view \"{name}\": {DescribeViewError(item, ex)}", ex is not OperationCanceledException);
         }
+    }
+
+    internal static string DescribeViewError(ItemRef item, Exception ex)
+    {
+        if (ex is OperationCanceledException) return "canceled.";
+        if (item.Parent.IsFileSystem && (item.Flags & EntryFlags.Link) != 0 && ErrorText.Classify(ex) == "notfound")
+            return "The link, its target, or its folder no longer exists. Check the link target in Properties.";
+        return ErrorText.Describe(ex);
     }
 
     private async Task EditFocusedAsync()
