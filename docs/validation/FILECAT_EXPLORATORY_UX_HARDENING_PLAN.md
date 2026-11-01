@@ -1,6 +1,6 @@
 # FileCat exploratory UX and hardening plan
 
-**Prepared and rechecked:** 30 October–1 November 2026. **Status:** recurring exploratory loop with bounded shots and cycles; this plan does not itself accept product behavior. The preparation baseline was `37e6fc0e`. Public preview.5 is at immutable product source `8adaf1f1` and includes I581 and I582; current main product source `7d51ca80` adds I583–I607 and the Steampunk header refinement, with test-only RAR timing guard `f15f38b0` before I601. Refresh source, release and CI identity before each new shot.
+**Prepared and rechecked:** 30 October–1 November 2026. **Status:** recurring exploratory loop with bounded shots and cycles; this plan does not itself accept product behavior. The preparation baseline was `37e6fc0e`. Public preview.5 is at immutable product source `8adaf1f1` and includes I581 and I582; current main product source `68d8517c` adds I583–I607 and the Steampunk header refinement, with test-only RAR timing guard `f15f38b0` before I601. Refresh source, release and CI identity before each new shot.
 
 ## Purpose and boundary
 
