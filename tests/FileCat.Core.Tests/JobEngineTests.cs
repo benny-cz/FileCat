@@ -53,6 +53,25 @@ public sealed class JobEngineTests : IDisposable
     }
 
     [Fact]
+    public async Task Reviewed_root_contents_copy_uses_explicit_folder_name_without_touching_source()
+    {
+        string proof = Path.Combine(_src, "proof.txt");
+        File.WriteAllText(proof, "owned drive-root copy proof");
+        string before = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(proof)));
+        var root = new ItemRef(Location.FileSystem(_src), string.Empty, EntryKind.Directory);
+        var job = await WaitAsync(_jobs.Submit(new JobRequest
+        {
+            Kind = JobKind.Copy, Sources = [root], Destination = Location.FileSystem(_dst), NewName = "Drive X",
+        }));
+        Assert.Equal(JobState.Completed, job.State);
+        Assert.Equal(["Drive X"], Directory.GetDirectories(_dst).Select(Path.GetFileName));
+        string copied = Path.Combine(_dst, "Drive X", "proof.txt");
+        Assert.True(File.Exists(copied));
+        Assert.Equal(before, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(proof))));
+        Assert.Equal(before, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(copied))));
+    }
+
+    [Fact]
     public void Queue_move_only_changes_eligible_queued_order_and_preserves_sync_plan_steps()
     {
         _jobs.MaxConcurrent = 0; // Hold all requests in the queue without relying on timing or a large file.

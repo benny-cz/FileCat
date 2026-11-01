@@ -441,13 +441,26 @@ public sealed partial class MainViewModel
         var items = RegistryBatch("Copy");
         if (items is null) return;
         var target = Workspace.ActiveTarget?.ActiveTab?.Location;
+        if (target is null) { Notify("Choose a target panel for the Registry copy."); return; }
+        await CopyRegistryItemsAsync(items, target);
+    }
+
+    private async Task CopyRegistryItemsAsync(IReadOnlyList<ItemRef> items, Location target)
+    {
+        if (items.Count == 0 || items.Count > MaxRegistryBatch ||
+            items.Any(i => i.Parent.Scheme != Schemes.Registry || i.Kind is not (EntryKind.RegistryKey or EntryKind.RegistryValue) ||
+                i.Kind == EntryKind.RegistryKey && i.Parent.Path.Length == 0))
+        {
+            Notify($"Copy at most {MaxRegistryBatch:N0} Registry keys or values at a time.", true);
+            return;
+        }
         if (target is { IsFileSystem: true })
         {
             // Typed Registry data never becomes a byte file silently; the named export is offered instead (plan §12.1).
             await ExportRegistryToFolderAsync(items, target);
             return;
         }
-        if (target?.Scheme != Schemes.Registry || target.Path.Length == 0)
+        if (target.Scheme != Schemes.Registry || target.Path.Length == 0)
         {
             Notify("Choose a Registry key (or a folder, to export a .reg file) in the target panel.");
             return;

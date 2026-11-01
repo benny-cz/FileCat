@@ -72,7 +72,7 @@ public static class OperationDialogs
         if (input.RecoveryReviewNotice is { } recoveryNotice) body.Children.Add(Text(recoveryNotice));
         // The title is the verb; the body says what (one item by name, several counted and then named).
         var single = input.Items.Count == 1 ? input.Items[0] : null;
-        string what = single is null ? input.Summary
+        string what = single is null || single.Name.Length == 0 ? input.Summary
             : (single.IsContainer ? "the folder " : string.Empty) + $"\"{Formatters.SafeName(single.Name)}\"" +
               (single is { IsContainer: false, Size: >= 0 } ? $" ({Formatters.SizeWithUnit(single.Size)})" : string.Empty);
         body.Children.Add(Text($"{verb} {what}", bold: true));

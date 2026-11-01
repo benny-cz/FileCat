@@ -311,6 +311,10 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
 
     /// <summary>FileCat's own drag is under way: its source deletes nothing on the drop's result.</summary>
     private bool _ownDrag;
+    private static readonly DataFormat<string> OwnDragFormat = DataFormat.CreateStringApplicationFormat("filecat-owned-drag-v1");
+    private sealed record OwnDragSource(string Token, TabViewModel Tab, Location Location, IReadOnlyList<ItemRef> Items);
+    private OwnDragSource? _activeDrag;
+    private bool _ownDragHandled;
 
     private void AttachDragDrop(PanelView view, PanelViewModel panel)
     {
@@ -319,15 +323,17 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         string? reportedRefusal = null;
         view.AddHandler(DragDrop.DragOverEvent, (_, e) =>
         {
-            bool files = e.DataTransfer.Contains(DataFormat.File);
+            bool owned = _ownDrag && _activeDrag is not null && e.DataTransfer.Contains(OwnDragFormat);
+            bool files = e.DataTransfer.Contains(DataFormat.File) || owned;
             string? refusal;
             var (current, candidateRefusal) = DropTargetAdmission.Check(panel, files,
-                (e.KeyModifiers & KeyModifiers.Shift) != 0, _ownDrag);
+                (e.KeyModifiers & KeyModifiers.Shift) != 0, owned, owned,
+                owned ? _activeDrag!.Location : null, owned ? _activeDrag!.Items : null);
             (current, refusal) = dragIntent.Hover(current, candidateRefusal);
             // Native drag managers may never raise Drop when the offered effect is None.
             // Explain an unsupported file destination on its first hover, but do not
             // repeat a notice for every DragOver frame or for unrelated tab drags.
-            if (files && current is null && refusal is not null &&
+            if (files && !owned && current is null && refusal is not null &&
                 !string.Equals(reportedRefusal, refusal, StringComparison.Ordinal))
             {
                 reportedRefusal = refusal;
@@ -352,7 +358,10 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             bool move = (e.KeyModifiers & KeyModifiers.Shift) != 0;
             e.Handled = true;
             e.DragEffects = DragDropEffects.None;
-            var (current, refusal) = DropTargetAdmission.Check(panel, e.DataTransfer.Contains(DataFormat.File), move, _ownDrag);
+            bool owned = _ownDrag && _activeDrag is not null && e.DataTransfer.Contains(OwnDragFormat);
+            var (current, refusal) = DropTargetAdmission.Check(panel,
+                e.DataTransfer.Contains(DataFormat.File) || owned, move, owned, owned,
+                owned ? _activeDrag!.Location : null, owned ? _activeDrag!.Items : null);
             if (targetChanged)
             {
                 _vm.Notify(DropTargetAdmission.ChangedTargetMessage, true);
@@ -373,6 +382,19 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             if (previous is not null && !DropTargetAdmission.SameTarget(previous, current))
             {
                 _vm.Notify(DropTargetAdmission.ChangedTargetMessage, true);
+                return;
+            }
+            if (owned)
+            {
+                var source = _activeDrag!;
+                if (e.DataTransfer.TryGetValue(OwnDragFormat) != source.Token)
+                {
+                    _vm.Notify("The drag no longer matches its captured FileCat selection. Nothing was copied.", true);
+                    return;
+                }
+                e.DragEffects = current.Effect;
+                _ownDragHandled = true;
+                await _vm.DropItemsAsync(panel, current, source.Tab, source.Location, source.Items);
                 return;
             }
             IReadOnlyList<string>? paths;
@@ -399,17 +421,23 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         view.List.DragRequested += async (_, press) =>
         {
             var tab = panel.ActiveTab;
-            if (tab is null) return;
+            if (tab?.Location is not { } sourceLocation) return;
             var sel = tab.Listing.GetSelection();
-            DragExport.Prepared? prepared;
-            string? refusal;
+            var captured = sel.ToList();
+            DragExport.Prepared? prepared = null;
+            string? refusal = null;
             try
             {
-                async Task<IStorageItem?> Convert(string path, bool folder) => folder
-                    ? await StorageProvider.TryGetFolderFromPathAsync(path)
-                    : await StorageProvider.TryGetFileFromPathAsync(path);
-                (prepared, refusal) = await DragExport.PrepareAsync(sel, _vm.Services.Providers,
-                    _vm.Services.Platform.FileOperations, _vm.Services.Paths.TempDirectory, Convert, CancellationToken.None);
+                // Servers and Registry items are process-local drag sources. Staging a server before
+                // starting the OS drag loses the held pointer; Registry data has no file representation.
+                if (!captured.All(i => i.Parent.Scheme is Schemes.Ftp or Schemes.Sftp or Schemes.Registry or Schemes.Computer))
+                {
+                    async Task<IStorageItem?> Convert(string path, bool folder) => folder
+                        ? await StorageProvider.TryGetFolderFromPathAsync(path)
+                        : await StorageProvider.TryGetFileFromPathAsync(path);
+                    (prepared, refusal) = await DragExport.PrepareAsync(captured, _vm.Services.Providers,
+                        _vm.Services.Platform.FileOperations, _vm.Services.Paths.TempDirectory, Convert, CancellationToken.None);
+                }
             }
             catch (OperationCanceledException) { return; }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
@@ -421,14 +449,14 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
             {
                 ItemSources.Release(sel);
             }
-            if (prepared is null)
+            if (prepared is null && refusal is not null)
             {
-                if (refusal is not null) _vm.Notify(refusal, true);
+                _vm.Notify(refusal, true);
                 return;
             }
             using (prepared)
             {
-                if (!ReferenceEquals(panel.ActiveTab, tab) || tab.Listing.IsDisposed)
+                if (captured.Count == 0 || !ReferenceEquals(panel.ActiveTab, tab) || tab.Listing.IsDisposed || tab.Location != sourceLocation)
                 {
                     _vm.Notify("The source tab changed before dragging began. Select the complete scope again.");
                     return;
@@ -436,18 +464,23 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 try
                 {
                     var transfer = new DataTransfer();
-                    foreach (var item in prepared.Items) transfer.Add(DataTransferItem.CreateFile(item));
+                    var source = new OwnDragSource(Guid.NewGuid().ToString("N"), tab, sourceLocation, captured);
+                    transfer.Add(DataTransferItem.Create(OwnDragFormat, source.Token));
+                    if (prepared is not null)
+                        foreach (var item in prepared.Items) transfer.Add(DataTransferItem.CreateFile(item));
                     // The drag loop holds the pointer: what hovers FileCat's panels until it returns is this drag.
                     _ownDrag = true;
+                    _activeDrag = source;
+                    _ownDragHandled = false;
                     var effect = await DragDrop.DoDragDropAsync(press, transfer, DragDropEffects.Copy | DragDropEffects.Move | DragDropEffects.Link);
-                    if (effect != DragDropEffects.None) prepared.Handoff();
+                    if (effect != DragDropEffects.None && !_ownDragHandled) prepared?.Handoff();
                 }
                 catch (OperationCanceledException) { }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
                 {
                     _vm.Notify("Dragging could not start: " + Formatters.SafeName(ex.Message), true);
                 }
-                finally { _ownDrag = false; }
+                finally { _ownDrag = false; _activeDrag = null; _ownDragHandled = false; }
             }
         };
     }

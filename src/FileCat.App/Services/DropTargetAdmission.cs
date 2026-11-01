@@ -43,10 +43,11 @@ internal static class DropTargetAdmission
     }
 
     /// <param name="ownDrag">The drag is FileCat's own, whose source deletes nothing on the drop's result.</param>
-    internal static (Offer? Accepted, string? Refusal) Check(PanelViewModel panel, bool hasFilePayload, bool move, bool ownDrag = false)
+    internal static (Offer? Accepted, string? Refusal) Check(PanelViewModel panel, bool hasFilePayload, bool move,
+        bool ownDrag = false, bool ownItems = false, Location? ownSource = null, IReadOnlyList<ItemRef>? sourceItems = null)
     {
         if (!hasFilePayload)
-            return (null, "This drop contains no files or folders. Select files and drop them onto a local folder.");
+            return (null, "This drop contains no files or folders. Select items and drop them onto a supported folder.");
         // Drop returns a native performed effect before the asynchronous transfer review/job can complete.
         // Never report Move to a source that may delete its originals on that result. FileCat's own drag deletes nothing
         // on it, so its Shift-drag is a Move job, reviewed as F6's is (a Low of the review of d1757bca: it was refused
@@ -55,13 +56,32 @@ internal static class DropTargetAdmission
         var tab = panel.ActiveTab;
         if (tab is null || tab.Listing.IsDisposed || tab.Location is not { } location)
             return (null, "This panel has no available destination. Open a local folder and try again.");
-        if (!location.IsFileSystem)
-            return (null, "This panel cannot receive dropped files. Open a local folder here, or use F5 to choose a supported destination.");
+        if (ownSource?.Scheme == Schemes.Registry)
+        {
+            if (move) return (null, "Registry drag copies or exports only. Release Shift and try again.");
+            if (!location.IsFileSystem && location.Scheme != Schemes.Registry)
+                return (null, "Drop Registry items onto a local folder to export .reg, or onto another Registry key to copy.");
+        }
+        else if (ownSource?.Scheme == Schemes.Computer)
+        {
+            if (move) return (null, "A whole drive can be copied, not moved. Release Shift and try again.");
+            if (!location.IsFileSystem || sourceItems is null || sourceItems.Count != 1 || sourceItems[0].Kind != EntryKind.Drive)
+                return (null, "Select one drive and drop it onto a local folder for a reviewed copy of its contents.");
+        }
+        else if (location.Scheme == Schemes.Registry && ownSource is not null)
+            return (null, "Drop Registry items here to review a Registry copy. Import .reg files through File → Import .reg.");
+        if (location.Scheme == Schemes.Registry && !ownItems)
+            return (null, "Use File → Import .reg to review files before changing the Registry, or choose a local folder with F5.");
+        if (location.Scheme == Schemes.Registry && location.Path.Length == 0)
+            return (null, "Open a Registry key before dropping Registry items here, or choose a local folder with F5.");
+        if (!location.IsFileSystem && location.Scheme is not (Schemes.Ftp or Schemes.Sftp or Schemes.Registry))
+            return (null, "This panel cannot receive a file drop. Use F5 to choose a local folder or supported server.");
         if (tab.Listing.State != ListingState.Complete || tab.Listing.IsPartial || tab.Listing.LastRefreshError is not null)
             return (null, "This folder is not available for a drop. Reconnect or refresh it, then try again; F5 also lets you choose another destination.");
         var provider = panel.Services.Providers.For(location);
-        if ((provider.GetCapabilities(location) & LocationCapabilities.TransferTarget) == 0)
-            return (null, provider.ExplainUnavailable(location, LocationCapabilities.TransferTarget) + " Choose a local folder with F5 instead.");
+        if (location.Scheme != Schemes.Registry &&
+            (provider.GetCapabilities(location) & LocationCapabilities.TransferTarget) == 0)
+            return (null, provider.ExplainUnavailable(location, LocationCapabilities.TransferTarget) + " Choose a supported folder with F5 instead.");
         return (new Offer(tab, location, move ? DragDropEffects.Move : DragDropEffects.Copy), null);
     }
 

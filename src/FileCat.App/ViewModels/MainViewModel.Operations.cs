@@ -172,11 +172,12 @@ public sealed partial class MainViewModel
 
     // ---- Copy / move ---------------------------------------------------------------------------------
 
-    private async Task TransferAsync(JobKind kind, IReadOnlyList<ItemRef>? explicitItems = null, Location? explicitDestination = null)
+    private async Task TransferAsync(JobKind kind, IReadOnlyList<ItemRef>? explicitItems = null,
+        Location? explicitDestination = null, TabViewModel? explicitSource = null)
     {
-        var sel = SourceSelection();
+        var sel = explicitItems is null ? SourceSelection() : null;
         if (sel is null && explicitItems is null) return;
-        var tab = sel?.Tab ?? ActiveTab!;
+        var tab = explicitSource ?? sel?.Tab ?? ActiveTab!;
         var items = explicitItems ?? sel!.Value.Items;
         IReadOnlyList<ItemRef>? finalItems = null, submitted = null;
         try
@@ -936,6 +937,96 @@ public sealed partial class MainViewModel
         paths.Where(p => p is not null).Select(p => convert(p!)).Where(PathUtil.IsUncPath).ToList();
 
     /// <summary>Handles files dropped onto a panel: the drop target is the explicit destination.</summary>
+    internal async Task DropItemsAsync(PanelViewModel panel, DropTargetAdmission.Offer offered,
+        TabViewModel sourceTab, Location sourceLocation, IReadOnlyList<ItemRef> items)
+    {
+        if (items.Count == 0 || items.Count > DragExport.MaxItems || sourceTab.Listing.IsDisposed ||
+            sourceTab.Listing.State != ListingState.Complete || sourceTab.Listing.IsPartial ||
+            sourceTab.Listing.LastRefreshError is not null || sourceTab.Location != sourceLocation ||
+            sourceLocation.Scheme != Schemes.ResultSet && items.Any(i => !i.Parent.Equals(sourceLocation)))
+        {
+            Notify("The drag source changed or its selection is too large. Select it again.", true);
+            return;
+        }
+        var move = offered.Effect == Avalonia.Input.DragDropEffects.Move;
+        var (current, refusal) = DropTargetAdmission.Check(panel, true, move, ownDrag: true, ownItems: true,
+            ownSource: sourceLocation, sourceItems: items);
+        if (current is null || !DropTargetAdmission.SameTarget(offered, current))
+        {
+            Notify(current is null ? refusal! : DropTargetAdmission.ChangedTargetMessage, true);
+            return;
+        }
+        if (offered.Destination.IsFileSystem && !await Task.Run(() => Directory.Exists(offered.Destination.Path)))
+        {
+            Notify("The drop folder is no longer available. Choose another destination.", true);
+            return;
+        }
+        if (sourceLocation.Scheme == Schemes.Registry)
+        {
+            if (move) { Notify("Dragging Registry items copies them. Use F6 for a reviewed move.", true); return; }
+            await CopyRegistryItemsAsync(items, offered.Destination);
+            return;
+        }
+        if (offered.Destination.Scheme == Schemes.Registry)
+        {
+            Notify("Use File → Import .reg to review a file before changing the Registry.", true);
+            return;
+        }
+        if (sourceLocation.Scheme == Schemes.Computer)
+        {
+            await DropDriveContentsAsync(items, offered.Destination, move);
+            return;
+        }
+        if (items.All(i => i.Parent.Equals(offered.Destination)))
+        {
+            Notify("The dropped items are already in this folder.");
+            return;
+        }
+        await TransferAsync(move ? JobKind.Move : JobKind.Copy, items, offered.Destination, sourceTab);
+    }
+
+    private async Task DropDriveContentsAsync(IReadOnlyList<ItemRef> items, Location destination, bool move)
+    {
+        if (move) { Notify("A whole drive can be copied, not moved. Release Shift and drag again.", true); return; }
+        if (!destination.IsFileSystem || items.Count != 1 || items[0].Kind != EntryKind.Drive ||
+            !OperatingSystem.IsWindows() || items[0].Name.Length != 2 ||
+            !char.IsLetter(items[0].Name[0]) || items[0].Name[1] != ':')
+        {
+            Notify("Select one available Windows drive and drop it onto a local folder.", true);
+            return;
+        }
+        string root = items[0].Name + Path.DirectorySeparatorChar;
+        if (!await Task.Run(() => Directory.Exists(root)))
+        {
+            Notify("The selected drive is no longer available.", true);
+            return;
+        }
+        if (PathUtil.IsSameOrUnder(destination.Path, root))
+        {
+            Notify("A drive cannot be copied into itself. Choose a folder on another drive.", true);
+            return;
+        }
+        string folderName = "Drive " + char.ToUpperInvariant(items[0].Name[0]);
+        if (!await Dialogs.ConfirmAsync("Copy an entire drive",
+            $"Copy the contents of {root} into a new “{folderName}” folder at {destination.Path}? This can be very large and may include protected files. Review the destination and job report before relying on the copy.",
+            "Review drive copy")) return;
+        // An empty child name denotes the root itself; the reviewed new name is the destination folder.
+        var source = new ItemRef(Location.FileSystem(root), string.Empty, EntryKind.Directory);
+        var request = await OperationDialogs.ShowTransferAsync(this, new TransferDialogInput(JobKind.Copy,
+            [source], $"the contents of {root} (size not fully counted)", Path.Combine(destination.Path, folderName),
+            "drop target", 0, false) { InitialLocation = destination, BaseLocation = Location.FileSystem(root) });
+        if (request?.ResolvedDestination is not { } resolved) return;
+        if (!resolved.IsFileSystem || PathUtil.IsSameOrUnder(resolved.Path, root))
+        {
+            Notify("The reviewed drive destination must be on another local drive.", true);
+            return;
+        }
+        Services.Jobs.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [source], Destination = resolved,
+            NewName = request.NewName ?? folderName, Options = request.Options,
+            Mode = request.Queue ? QueueMode.Queue : QueueMode.Start });
+    }
+
+    /// <summary>Handles files dropped onto a panel: the drop target is the explicit destination.</summary>
     internal async Task DropFilesAsync(PanelViewModel panel, DropTargetAdmission.Offer offered, IReadOnlyList<string> paths)
     {
         // Only FileCat's own drag is offered as a Move.
@@ -953,7 +1044,8 @@ public sealed partial class MainViewModel
             Notify(current is null ? refusal! : "The drop target changed during the drag. Drop again onto the folder you want to use.", true);
             return;
         }
-        bool available = await Task.Run(() => Directory.Exists(offered.Destination.Path));
+        bool available = !offered.Destination.IsFileSystem ||
+            await Task.Run(() => Directory.Exists(offered.Destination.Path));
         (current, refusal) = DropTargetAdmission.Check(panel, paths.Count > 0, move, ownDrag: move);
         if (!available || current is null || !DropTargetAdmission.SameTarget(offered, current))
         {
