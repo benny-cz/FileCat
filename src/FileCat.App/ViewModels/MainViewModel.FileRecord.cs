@@ -12,12 +12,16 @@ public sealed partial class MainViewModel
             Notify("File-system records belong to files and folders on disk.", true);
             return;
         }
-        var records = Services.Platform.FileRecords;
-        if (!records.IsSupported)
-        {
+        if (!ShowFileRecordForPath(path))
             Notify("FileCat does not read file-system records on this system.", true);
-            return;
-        }
+    }
+
+    /// <summary>The selected panel item and context-menu paths share one exact-path report route.</summary>
+    private bool ShowFileRecordForPath(string path)
+    {
+        var records = Services.Platform.FileRecords;
+        if (!records.IsSupported) return false;
         new ReportWindow("File-system record", path, ct => Task.FromResult(records.Read(path, ct).ToText())).Show();
+        return true;
     }
 }

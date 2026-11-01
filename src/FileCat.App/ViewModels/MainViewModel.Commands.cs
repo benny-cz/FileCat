@@ -572,7 +572,11 @@ public sealed partial class MainViewModel
 
     internal void ShowPropertiesForPath(string path)
     {
-        if (!Services.Shell.ShowProperties(path, NativeOwner())) Notify("System properties could not be opened for this item.", true);
+        if (Services.Shell.ShowProperties(path, NativeOwner())) return;
+        // Only Windows supplies a native property sheet. On Mac/Linux, use the exact
+        // selected or context-menu path for FileCat's mode/owner/metadata report.
+        if (!OperatingSystem.IsWindows() && ShowFileRecordForPath(path)) return;
+        Notify("System properties could not be opened for this item.", true);
     }
 
     private string DisplayPathOf(ItemRef item) =>
