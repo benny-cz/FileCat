@@ -34,6 +34,7 @@ public partial class PanelView : UserControl
         StatusBar.SizeChanged += (_, e) => StatusRightText.MaxWidth = Math.Max(120, e.NewSize.Width * 0.45);
         List.ActivateRequested += (_, _) => Activated?.Invoke();
         List.OpenRequested += (_, _) => OpenRequested?.Invoke();
+        List.RenameRequested += (_, _) => RenameRequested?.Invoke();
         List.MiddleClickRequested += (_, row) => MiddleClick?.Invoke(row);
         List.ContextMenuRequested += (_, point) => ShowContextMenu(point: point);
         List.InspectRequested += (_, report) => _ = ShowInspectionAsync(report);
@@ -766,6 +767,7 @@ public partial class PanelView : UserControl
 
     public event Action? Activated;
     public event Action? OpenRequested;
+    public event Action? RenameRequested;
 
     /// <summary>A press on the panel's number or tab strip that may start moving the panel (and the element pressed).</summary>
     public event Action<PointerPressedEventArgs, Control>? MoveRequested;

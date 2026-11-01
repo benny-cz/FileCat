@@ -635,6 +635,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         v = new PanelView { DataContext = p };
         v.Activated += () => _vm.Workspace.Activate(p);
         v.OpenRequested += () => _vm.Execute(CommandIds.Open);
+        v.RenameRequested += () => _vm.Execute(CommandIds.Rename);
         v.PathSubmitted += text => NavigateToText(p, text);
         // A panel's own location button: that panel is the source, and its menu opens.
         v.LocationMenuRequested += () =>

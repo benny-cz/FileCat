@@ -21,6 +21,33 @@ namespace FileCat.App.Tests;
 public sealed class FileListSelectionTests
 {
     [AvaloniaFact]
+    public async Task Two_separate_filename_clicks_request_rename_without_opening()
+    {
+        using var f = new FileListFixture("report.txt", "other.txt");
+        await f.Load();
+        int opens = 0, renames = 0;
+        f.List.OpenRequested += (_, _) => opens++;
+        f.List.RenameRequested += (_, _) => renames++;
+        string clickedName = f.Tab.Listing.GetVisible(0).Name;
+
+        f.Click(0);
+        Assert.Equal(0, renames);
+        await Task.Delay(650, TestContext.Current.CancellationToken); // beyond the native double-click interval
+        f.Click(0);
+        Assert.Equal(1, renames);
+        Assert.Equal(0, opens);
+        Assert.Equal(clickedName, f.Tab.Listing.GetVisible(f.Tab.Listing.FocusedIndex).Name);
+
+        // A click in the empty area of the Name column must remain a selection click.
+        await Task.Delay(650, TestContext.Current.CancellationToken);
+        var row = f.List.GetRowBounds(1);
+        var whitespace = f.List.TranslatePoint(new Point(300, row.Center.Y), f.Window)!.Value;
+        f.Window.MouseDown(whitespace, MouseButton.Left);
+        f.Window.MouseUp(whitespace, MouseButton.Left);
+        Assert.Equal(1, renames);
+    }
+
+    [AvaloniaFact]
     public async Task Preloaded_tab_switch_uses_the_new_tabs_focus_and_preserves_ctrl_marks()
     {
         using var f = new FileListFixture(Enumerable.Range(0, 100).Select(i => $"a{i:D3}").ToArray());

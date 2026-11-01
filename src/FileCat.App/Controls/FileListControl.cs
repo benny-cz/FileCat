@@ -125,6 +125,11 @@ public sealed class FileListControl : Control
     private Point? _dragStart;
     private PointerPressedEventArgs? _pressArgs;
     private int _pressedRow = -1;
+    private EntryStore? _nameClickStore;
+    private int _nameClickStoreIndex = -1;
+    private string? _nameClickName;
+    private long _nameClickAt;
+    private bool _secondNameClick;
     private DispatcherTimer? _loadingHintTimer;
     private bool _showLoadingHint;
     private readonly Action _metadataHandler;
@@ -177,6 +182,7 @@ public sealed class FileListControl : Control
                 int top = (int)Math.Round(_vbar.Value);
                 if (top != _topRow)
                 {
+                    ClearNameClick();
                     ClearTip();
                     _viewportIntentGeneration++;
                     _topRow = top;
@@ -292,6 +298,9 @@ public sealed class FileListControl : Control
     /// <summary>Raised when the user asks to open the focused row (double click).</summary>
     public event EventHandler? OpenRequested;
 
+    /// <summary>Raised after a second, separate click on the same filename.</summary>
+    public event EventHandler? RenameRequested;
+
     /// <summary>Raised when the control is clicked so the owning panel becomes active.</summary>
     public event EventHandler? ActivateRequested;
 
@@ -309,6 +318,7 @@ public sealed class FileListControl : Control
     /// <summary>Edits the focused name in its row. Null means the user canceled or the row vanished.</summary>
     public Task<string?>? BeginRename(PromptOptions options)
     {
+        ClearNameClick();
         if (_listing is null || !_listing.TryGetFocused(out var entry) || entry.Kind == EntryKind.Parent)
             return null;
         _renameRestoredStore = null;
@@ -1253,6 +1263,7 @@ public sealed class FileListControl : Control
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
+        ClearNameClick();
         if (e.Handled || _listing is null || IsRenaming) return;
         if (e.Key == Key.I && e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift))
         {
@@ -1330,6 +1341,7 @@ public sealed class FileListControl : Control
         _dragStart = null;
         _pressArgs = null;
         _pressedRow = -1;
+        ClearNameClick();
     }
 
     protected override void OnGotFocus(FocusChangedEventArgs e)
@@ -1346,7 +1358,34 @@ public sealed class FileListControl : Control
         _dragStart = null;
         _pressArgs = null;
         _pressedRow = -1;
+        ClearNameClick();
     }
+
+    private void ClearNameClick()
+    {
+        _nameClickStore = null;
+        _nameClickStoreIndex = -1;
+        _nameClickName = null;
+        _secondNameClick = false;
+    }
+
+    private bool IsOnFilename(Point pos, int row)
+    {
+        if (_listing is null || _listing.GetVisible(row).Kind == EntryKind.Parent) return false;
+        int col = ColumnAt(pos);
+        if (col < 0 || _columns[col].Field != ColumnField.Name) return false;
+        double left = _columnX[col] + (col == 0 ? MarkGutter + IconSize + 4 : Padding);
+        double available = _columnX[col] + _columnW[col] - Padding - left;
+        if (available <= 0) return false;
+        var entry = _listing.GetVisible(row);
+        double textWidth = Math.Min(available, TextWidth(DisplayName(entry),
+            _listing.IsVisibleMarked(row) ? _boldTypeface : _typeface, FontSize > 0 ? FontSize : 13));
+        double x = pos.X + _horizontalOffset;
+        return x >= left && x <= left + textWidth + 2;
+    }
+
+    internal static bool IsSecondNameClick(bool sameStore, bool sameEntry, int clickCount, TimeSpan elapsed) =>
+        sameStore && sameEntry && clickCount == 1 && elapsed <= TimeSpan.FromSeconds(4);
 
     private int ResolveRangeAnchor()
     {
@@ -1426,6 +1465,7 @@ public sealed class FileListControl : Control
         int edge = ResizeTargetAt(pos, out bool inverse);
         if (edge >= 0 && point.Properties.IsLeftButtonPressed)
         {
+            ClearNameClick();
             _resizingColumn = edge;
             _resizeInverse = inverse;
             _resizeStartX = pos.X;
@@ -1436,6 +1476,7 @@ public sealed class FileListControl : Control
         }
         if (pos.Y < _headerHeight)
         {
+            ClearNameClick();
             int col = ColumnAt(pos);
             if (col >= 0 && point.Properties.IsLeftButtonPressed && _columns[col] is { Field: ColumnField.Metadata or ColumnField.Folder, MetadataId: { } mid }) Tab?.SortByMetadata(mid);
             else if (col >= 0 && point.Properties.IsLeftButtonPressed && _columns[col].SortField is { } sf) Tab?.SortBy(sf);
@@ -1446,12 +1487,14 @@ public sealed class FileListControl : Control
         int row = RowAt(pos);
         if (point.Properties.IsMiddleButtonPressed)
         {
+            ClearNameClick();
             if (row >= 0) MiddleClickRequested?.Invoke(this, row);
             e.Handled = true;
             return;
         }
         if (row < 0)
         {
+            ClearNameClick();
             if (point.Properties.IsRightButtonPressed && pos.X >= 0 && pos.X < _horizontalViewport &&
                 pos.Y >= _headerHeight && pos.Y < Bounds.Height - (_hbar.IsVisible ? HorizontalBarHeight : 0))
                 BackgroundContextRequested?.Invoke(this, pos);
@@ -1461,6 +1504,7 @@ public sealed class FileListControl : Control
         var mods = e.KeyModifiers;
         if (point.Properties.IsRightButtonPressed)
         {
+            ClearNameClick();
             if (!_listing.IsVisibleMarked(row))
             {
                 _listing.UnmarkEverything();
@@ -1475,11 +1519,13 @@ public sealed class FileListControl : Control
         if ((mods & KeyModifiers.Control) != 0 ||
             OperatingSystem.IsMacOS() && (mods & KeyModifiers.Meta) != 0)
         {
+            ClearNameClick();
             _listing.ToggleMark(row);
             _listing.SetFocus(row);
         }
         else if ((mods & KeyModifiers.Shift) != 0)
         {
+            ClearNameClick();
             int from = ResolveRangeAnchor();
             if (from < 0) from = row;
             _listing.SetMarkRange(from, row, true);
@@ -1487,6 +1533,14 @@ public sealed class FileListControl : Control
         }
         else
         {
+            bool onName = IsOnFilename(pos, row);
+            int storeIndex = _listing.GetStoreIndex(row);
+            string name = _listing.GetVisible(row).Name;
+            bool secondNameClick = onName && IsSecondNameClick(ReferenceEquals(_nameClickStore, _listing.Store),
+                _nameClickStoreIndex == storeIndex && _nameClickName == name,
+                e.ClickCount, Stopwatch.GetElapsedTime(_nameClickAt));
+            ClearNameClick();
+            _secondNameClick = secondNameClick;
             _listing.SetFocus(row);
             SetRangeAnchor(row);
             if (e.ClickCount >= 2)
@@ -1498,6 +1552,12 @@ public sealed class FileListControl : Control
             _dragStart = pos;
             _pressedRow = row;
             _pressArgs = e;
+            if (onName)
+            {
+                _nameClickStore = _listing.Store;
+                _nameClickStoreIndex = storeIndex;
+                _nameClickName = name;
+            }
         }
         Tab?.OnUserMovedFocus();
         e.Handled = true;
@@ -1524,6 +1584,7 @@ public sealed class FileListControl : Control
             if (Math.Abs(pos.X - start.X) > 6 || Math.Abs(pos.Y - start.Y) > 6)
             {
                 _dragStart = null;
+                ClearNameClick();
                 if (_pressedRow >= 0 && _pressArgs is { } press) DragRequested?.Invoke(this, press);
             }
         }
@@ -1633,7 +1694,23 @@ public sealed class FileListControl : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
+        if (_dragStart is not null && _listing is { } listing && _pressedRow >= 0 &&
+            ReferenceEquals(_nameClickStore, listing.Store) &&
+            _nameClickStoreIndex == listing.GetStoreIndex(_pressedRow) &&
+            _nameClickName == listing.GetVisible(_pressedRow).Name &&
+            RowAt(e.GetPosition(this)) == _pressedRow && IsOnFilename(e.GetPosition(this), _pressedRow))
+        {
+            if (_secondNameClick)
+            {
+                ClearNameClick();
+                RenameRequested?.Invoke(this, EventArgs.Empty);
+            }
+            else _nameClickAt = Stopwatch.GetTimestamp();
+        }
+        else ClearNameClick();
         _dragStart = null;
+        _pressArgs = null;
+        _pressedRow = -1;
         if (_resizingColumn >= 0)
         {
             int column = _resizingColumn;
@@ -1649,6 +1726,7 @@ public sealed class FileListControl : Control
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
+        ClearNameClick();
         if (_hbar.IsVisible && (Math.Abs(e.Delta.X) > Math.Abs(e.Delta.Y) || (e.KeyModifiers & KeyModifiers.Shift) != 0))
         {
             _wheelRows.Reset();
