@@ -714,10 +714,19 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
                 children.Add(new Separator());
                 continue;
             }
+            int columnProfile = -1;
+            if (id.StartsWith(CommandIds.ColumnProfilePrefix, StringComparison.Ordinal)
+                && int.TryParse(id.AsSpan(CommandIds.ColumnProfilePrefix.Length), out columnProfile)
+                && columnProfile >= _vm.Services.Columns.Count)
+                continue;
             var def = _vm.Services.Commands.Get(id);
             if (def is null) continue;
             var chord = _vm.Services.Keymap.GetChords(id).FirstOrDefault();
-            var mi = new MenuItem { Header = TitleOf(id, def.Title), Tag = id };
+            var mi = new MenuItem
+            {
+                Header = columnProfile >= 0 ? "Columns: " + _vm.Services.Columns.NameOf(columnProfile) : TitleOf(id, def.Title),
+                Tag = id,
+            };
             if (chord.Key is not null && KeyMapper.ToGesture(chord) is { } g) mi.InputGesture = g;
             if (CommandIcons.Get(id) is { } icon) mi.Icon = new Image { Source = icon, Width = 16, Height = 16 };
             mi.Click += (_, _) =>
