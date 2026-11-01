@@ -21,6 +21,46 @@ public sealed partial class MainViewModel
 {
     private const int MaxArchiveBatch = 100_000;
 
+    /// <summary>The Shell's Send to compressed-folder handler can outlive our isolated context host.</summary>
+    internal void PackFromWindowsSendTo(IReadOnlyList<string?> paths, TabViewModel origin)
+    {
+        if (!OperatingSystem.IsWindows() || !WindowsContextMenu.CanShow(paths) || Services.Io.IsStopped) return;
+        var items = new List<ItemRef>(paths.Count);
+        try
+        {
+            foreach (string path in paths.Select(p => p!))
+            {
+                var attributes = File.GetAttributes(path);
+                if ((attributes & FileAttributes.ReparsePoint) != 0 && ReparseLinks.IsLink(path))
+                {
+                    Notify("Linked selections are not packed. Select the link's target explicitly.", true);
+                    return;
+                }
+                items.Add(ItemRef.ForFileSystemPath(path,
+                    (attributes & FileAttributes.Directory) != 0 ? EntryKind.Directory : EntryKind.File));
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Notify("Cannot pack this selection: " + ex.Message, true);
+            return;
+        }
+        string folder = Path.GetDirectoryName(paths[0]!)!;
+        string stem = items.Count == 1 && items[0].IsContainer ? items[0].Name : Path.GetFileNameWithoutExtension(items[0].Name);
+        if (stem.Length == 0) stem = "archive";
+        string archive = Path.Combine(folder, stem + ".zip");
+        for (int suffix = 2; File.Exists(archive) || Directory.Exists(archive); suffix++)
+        {
+            if (suffix > 10_000) { Notify("No available ZIP name was found in this folder.", true); return; }
+            archive = Path.Combine(folder, stem + " (" + suffix + ").zip");
+        }
+        var changes = items.Select(i => new ArchiveChange(i.IsContainer ? ArchiveChangeKind.AddFolder : ArchiveChangeKind.AddFile,
+            i.Name, i.FileSystemPath)).ToList();
+        SubmitArchive(new ArchivePlan(archive, null, changes, CompressionLevel.Optimal), items, Location.FileSystem(folder),
+            $"Pack {Formatters.Plural(items.Count, "item", "items")} into \"{Path.GetFileName(archive)}\"",
+            Path.GetFileName(archive), origin);
+    }
+
     private static string ArchiveFile(Location zip) => zip.Container?.Path ?? throw new InvalidOperationException("Not an archive location.");
 
     private static string MemberPath(ItemRef item) => item.Parent.Path.Length == 0 ? item.Name : item.Parent.Path + "/" + item.Name;

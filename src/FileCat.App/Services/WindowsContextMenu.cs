@@ -21,7 +21,7 @@ internal static class WindowsContextMenu
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan InteractiveTimeout = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan InvokeTimeout = TimeSpan.FromSeconds(20);
-    internal enum Result { Handled, FileCatActions, ActionFailed, Failed, RecoverImage, Properties }
+    internal enum Result { Handled, FileCatActions, ActionFailed, Failed, RecoverImage, Properties, CompressedZip, Copy, Cut, ShareInExplorer }
     private static int _openHosts;
     private static long _lastHostClosedAt;
 
@@ -86,11 +86,12 @@ internal static class WindowsContextMenu
             }
             if (child.ExitCode == 11 && details.Length != 0)
                 AppLog.Warn("Windows context menu action failed: " + details[..Math.Min(240, details.Length)].Trim());
-            if (child.ExitCode is not (0 or 10 or 11 or 12 or 13))
+            if (child.ExitCode is not (0 or 10 or 11 or 12 or 13 or 14 or 15 or 16 or 17))
                 AppLog.Warn("Windows context menu helper exited with code " + child.ExitCode +
                     (details.Length == 0 ? string.Empty : ": " + details[..Math.Min(240, details.Length)].Trim()));
             return child.ExitCode switch { 0 => Result.Handled, 10 => Result.FileCatActions, 11 => Result.ActionFailed, 12 => Result.RecoverImage,
-                13 => Result.Properties, _ => Result.Failed };
+                13 => Result.Properties, 14 => Result.CompressedZip, 15 => Result.Copy, 16 => Result.Cut,
+                17 => Result.ShareInExplorer, _ => Result.Failed };
         }
         catch (Exception ex) when (ex is Win32Exception or IOException or InvalidOperationException)
         {
@@ -275,6 +276,15 @@ internal static class WindowsContextMenu
             if (popup == 0) { Console.Error.WriteLine("CreatePopupMenu failed"); return 1; }
             int hr = menu.QueryContextMenu(popup, 0, ShellFirst, ShellLast, 0);
             if (hr < 0 || GetMenuItemCount(popup) < 1) { Console.Error.WriteLine("QueryContextMenu failed 0x" + hr.ToString("X8", CultureInfo.InvariantCulture)); return 1; }
+            // Windows.ModernShare requires per-window WinRT interop. Invoking it from this short-lived
+            // isolated Shell host fails with an invalid-window error. Give its menu entry an honest handoff.
+            for (int i = 0; i < GetMenuItemCount(popup); i++)
+            {
+                uint command = GetMenuItemID(popup, i);
+                if (command is >= ShellFirst and <= ShellLast &&
+                    string.Equals(CanonicalVerb(menu, command), "Windows.ModernShare", StringComparison.OrdinalIgnoreCase))
+                    ModifyMenuW(popup, command, 0, command, "Share in Explorer…");
+            }
             if (probe)
             {
                 for (int i = 0; i < GetMenuItemCount(popup); i++)
@@ -322,7 +332,15 @@ internal static class WindowsContextMenu
             // A Properties sheet needs a persistent owner. The short-lived Shell-extension host is destroyed
             // immediately after InvokeCommand, which can leave the sheet invisible. Dispatch the canonical
             // Shell verb to FileCat's existing Alt+Enter route with the exact selected path instead.
-            if (string.Equals(CanonicalVerb(menu, selected), "properties", StringComparison.OrdinalIgnoreCase)) return 13;
+            string? selectedVerb = CanonicalVerb(menu, selected);
+            if (string.Equals(selectedVerb, "properties", StringComparison.OrdinalIgnoreCase)) return 13;
+            if (string.Equals(selectedVerb, "copy", StringComparison.OrdinalIgnoreCase)) return 15;
+            if (string.Equals(selectedVerb, "cut", StringComparison.OrdinalIgnoreCase)) return 16;
+            if (string.Equals(selectedVerb, "Windows.ModernShare", StringComparison.OrdinalIgnoreCase)) return 17;
+            // The Windows compressed-folder Send to target may create a zero-byte ZIP after this isolated
+            // host exits: its handler returns before it has finished reading the selection. Route only that
+            // installed target to FileCat's verified archive job, which retains its sources until publication.
+            if (IsCompressedFolderTarget(popup, selected)) return 14;
             Console.Out.WriteLine(InvokeMessage);
             Console.Out.Flush();
             var invoke = new InvokeCommandInfoEx
@@ -355,6 +373,21 @@ internal static class WindowsContextMenu
             if (items is not null) Marshal.ReleaseComObject(items);
             foreach (nint pidl in pidls) if (pidl != 0) Marshal.FreeCoTaskMem(pidl);
         }
+    }
+
+    private static bool IsCompressedFolderTarget(nint popup, uint selected)
+    {
+        var label = new StringBuilder(512);
+        if (GetMenuStringW(popup, selected, label, label.Capacity, 0) == 0) return false;
+        string sendTo = Environment.GetFolderPath(Environment.SpecialFolder.SendTo);
+        if (sendTo.Length == 0) return false;
+        string displayName = label.ToString().Replace("&", "", StringComparison.Ordinal);
+        try
+        {
+            return Directory.EnumerateFiles(sendTo, "*.ZFSendToTarget", SearchOption.TopDirectoryOnly)
+                .Any(path => string.Equals(Path.GetFileNameWithoutExtension(path), displayName, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
     }
 
     private static string? CanonicalVerb(IContextMenu menu, uint selected)
@@ -458,6 +491,8 @@ internal static class WindowsContextMenu
     private static extern int GetMenuStringW(nint menu, uint item, StringBuilder text, int maxChars, uint flags);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern bool AppendMenuW(nint menu, uint flags, uint item, string? label);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool ModifyMenuW(nint menu, uint position, uint flags, uint item, string label);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern ushort RegisterClassExW(ref WindowClass value);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]

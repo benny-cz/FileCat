@@ -1135,6 +1135,31 @@ public partial class PanelView : UserControl
                     else vm.Notify("Select one item to show its properties.");
                     return;
                 }
+                if (result == WindowsContextMenu.Result.CompressedZip)
+                {
+                    vm.PackFromWindowsSendTo(paths, tab);
+                    return;
+                }
+                if (result is WindowsContextMenu.Result.Copy or WindowsContextMenu.Result.Cut)
+                {
+                    await vm.PutContextFilesOnClipboardAsync(tab, paths, result == WindowsContextMenu.Result.Cut);
+                    return;
+                }
+                if (result == WindowsContextMenu.Result.ShareInExplorer)
+                {
+                    try
+                    {
+                        vm.Services.Shell.Reveal(paths[0]!);
+                        vm.Notify(paths.Length == 1
+                            ? "Selected in Explorer. Choose Share there."
+                            : "The first item is selected in Explorer. Select the other items there, then choose Share.");
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception or System.Runtime.InteropServices.COMException)
+                    {
+                        vm.Notify("Could not open Explorer for sharing: " + ex.Message, true);
+                    }
+                    return;
+                }
                 if (result == WindowsContextMenu.Result.RecoverImage)
                 {
                     vm.RecoverImage(paths[0]!);

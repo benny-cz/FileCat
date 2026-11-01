@@ -1,6 +1,7 @@
 using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
 using FileCat.App.Services;
+using FileCat.Core.Diagnostics;
 using FileCat.Core.Jobs;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
@@ -19,14 +20,31 @@ public sealed partial class MainViewModel
 
     private sealed class PendingPaste { public long Revision; }
 
-    private async Task PutFilesOnClipboardAsync(bool cut)
+    internal async Task PutContextFilesOnClipboardAsync(TabViewModel tab, IReadOnlyList<string?> expectedPaths, bool cut)
     {
-        var tab = ActiveTab;
+        try { await PutFilesOnClipboardAsync(cut, tab, expectedPaths); }
+        catch (Exception ex)
+        {
+            AppLog.Error("Windows context-menu clipboard action failed", ex);
+            Notify("Could not place the selected files on the clipboard: " + ex.Message, true);
+        }
+    }
+
+    private async Task PutFilesOnClipboardAsync(bool cut, TabViewModel? sourceTab = null, IReadOnlyList<string?>? expectedPaths = null)
+    {
+        var tab = sourceTab ?? ActiveTab;
         var top = View.TopLevel;
         var clipboard = View.Clipboard;
         if (tab is null || top is null || clipboard is null) return;
         var selection = tab.Listing.GetSelection();
         if (selection.Count == 0) { ItemSources.Release(selection); return; }
+        if (expectedPaths is not null && (selection.Count != expectedPaths.Count ||
+            selection.Where((item, index) => !string.Equals(item.FileSystemPath, expectedPaths[index], StringComparison.OrdinalIgnoreCase)).Any()))
+        {
+            ItemSources.Release(selection);
+            Notify("The selection changed while the Windows menu was open. Copy or Cut it again.", true);
+            return;
+        }
         long revision = _fileClipboard.BeginWrite();
         try
         {
