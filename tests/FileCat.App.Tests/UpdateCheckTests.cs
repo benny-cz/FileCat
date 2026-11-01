@@ -43,6 +43,10 @@ public sealed class UpdateCheckTests
             (newer.Newer, newer.Latest, newer.Url, newer.Error));
         var current = UpdateCheck.InterpretPreview("1.0.0-preview.4", releases);
         Assert.Equal((false, "1.0.0-preview.4", (string?)null), (current.Newer, current.Latest, current.Error));
+        var development = UpdateCheck.InterpretPreview("1.0.0-dev", releases);
+        Assert.Equal((false, "1.0.0-preview.4", (string?)null,
+            "This is a development build (1.0.0-dev); the latest published release is 1.0.0-preview.4."),
+            (development.Newer, development.Latest, development.Url, development.Error));
         Assert.Equal("No release has been published yet.", UpdateCheck.InterpretPreview("1.0.0-preview.4", "[]"u8).Error);
 
         var untrusted = JsonSerializer.SerializeToUtf8Bytes(new[]

@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+    <!-- Direct source builds are development builds for the 1.0 line. Tagged package producers pass
+         Version explicitly, so their informational version stays bound to the immutable release tag. -->
+    <InformationalVersion Condition="'$(VersionPrefix)' == '0.1.0' and '$(VersionSuffix)' == 'preview' and '$(Version)' == ''">1.0.0-dev</InformationalVersion>
     <RootNamespace>FileCat.App</RootNamespace>
     <AssemblyName>FileCat</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>

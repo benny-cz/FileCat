@@ -13,7 +13,7 @@
   no Windows candidate is qualified until a trusted signing provider and final-byte pipeline pass.
 #>
 param(
-    [string]$Version = "0.1.0-preview",
+    [string]$Version = "1.0.0-dev",
     [string]$ProductVersion,
     [string]$CandidateRef,
     [string]$Runtime = "win-x64",

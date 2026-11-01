@@ -5,7 +5,7 @@
 # Usage: eng/package-macos.sh [version]      (needs macOS: iconutil, codesign, ditto; and the .NET SDK)
 set -euo pipefail
 
-VERSION="${1:-0.1.0-preview}"
+VERSION="${1:-1.0.0-dev}"
 PRODUCT_VERSION="${2:-$VERSION}"
 CANDIDATE_REF="${3:-}"
 RID="osx-arm64"

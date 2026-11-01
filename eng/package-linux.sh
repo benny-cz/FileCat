@@ -7,7 +7,7 @@
 # Usage: eng/package-linux.sh [version] [rid]   (rid: linux-x64 or linux-arm64)
 set -euo pipefail
 
-VERSION="${1:-0.1.0-preview}"
+VERSION="${1:-1.0.0-dev}"
 RID="${2:-linux-x64}"
 PRODUCT_VERSION="${3:-$VERSION}"
 CANDIDATE_REF="${4:-}"

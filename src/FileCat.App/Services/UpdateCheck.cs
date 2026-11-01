@@ -134,6 +134,13 @@ public static class UpdateCheck
             }
             if (bestTag is null)
                 return new Result(false, current, null, null, published ? Unreadable : "No release has been published yet.");
+            // A source build has no release identity. A published preview must not be advertised as
+            // an upgrade merely because its SemVer identifier sorts after "dev"; nor should the
+            // manual check call this development build "the latest release".
+            if (ReleaseVersion.TryParse(current, out _, out var currentPre) &&
+                currentPre?.Split('.').Contains("dev", StringComparer.OrdinalIgnoreCase) == true)
+                return new Result(false, current, bestTag.TrimStart('v', 'V'), null,
+                    $"This is a development build ({current}); the latest published release is {bestTag.TrimStart('v', 'V')}.");
             return new Result(ReleaseVersion.IsNewer(current, bestTag), current, bestTag.TrimStart('v', 'V'),
                 IsOwnReleasePage(bestUrl) ? bestUrl : ReleasesPage, null);
         }

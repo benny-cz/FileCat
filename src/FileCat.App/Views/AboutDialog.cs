@@ -92,14 +92,14 @@ internal static class AboutDialog
         }
     }
 
-    /// <summary>The version as built ("0.1.0-preview"), with the commit it was built from when the build recorded one.</summary>
+    /// <summary>The build's informational version, with its recorded source commit when available.</summary>
     internal static string Version()
     {
         var assembly = typeof(MainViewModel).Assembly;
         string? informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         if (string.IsNullOrEmpty(informational)) return assembly.GetName().Version?.ToString() ?? "?";
         int plus = informational.IndexOf('+');
-        // "0.1.0-preview+0874b79c…" reads as "0.1.0-preview (0874b79)".
+        // "1.0.0-dev+0874b79c…" reads as "1.0.0-dev (0874b79)".
         return plus < 0 ? informational : $"{informational[..plus]} ({informational[(plus + 1)..Math.Min(informational.Length, plus + 8)]})";
     }
 
