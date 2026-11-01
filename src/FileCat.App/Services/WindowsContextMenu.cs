@@ -21,7 +21,7 @@ internal static class WindowsContextMenu
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan InteractiveTimeout = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan InvokeTimeout = TimeSpan.FromSeconds(20);
-    internal enum Result { Handled, FileCatActions, ActionFailed, Failed, RecoverImage }
+    internal enum Result { Handled, FileCatActions, ActionFailed, Failed, RecoverImage, Properties }
     private static int _openHosts;
     private static long _lastHostClosedAt;
 
@@ -84,10 +84,11 @@ internal static class WindowsContextMenu
                     (details.Length == 0 ? "." : ": " + details[..Math.Min(240, details.Length)].Trim()));
                 return Result.Failed;
             }
-            if (child.ExitCode is not (0 or 10 or 11 or 12))
+            if (child.ExitCode is not (0 or 10 or 11 or 12 or 13))
                 AppLog.Warn("Windows context menu helper exited with code " + child.ExitCode +
                     (details.Length == 0 ? string.Empty : ": " + details[..Math.Min(240, details.Length)].Trim()));
-            return child.ExitCode switch { 0 => Result.Handled, 10 => Result.FileCatActions, 11 => Result.ActionFailed, 12 => Result.RecoverImage, _ => Result.Failed };
+            return child.ExitCode switch { 0 => Result.Handled, 10 => Result.FileCatActions, 11 => Result.ActionFailed, 12 => Result.RecoverImage,
+                13 => Result.Properties, _ => Result.Failed };
         }
         catch (Exception ex) when (ex is Win32Exception or IOException or InvalidOperationException)
         {
@@ -224,17 +225,18 @@ internal static class WindowsContextMenu
         return start;
     }
 
-    // Test/probe mode constructs the real menu without displaying it or invoking a verb.
+    // Test/probe modes construct the real menu without displaying it or invoking a verb.
     internal static int RunHost(string[] args)
     {
         if (!CanStartHost()) return 1;
-        bool probe = args.Length >= 3 && args[1] == "--probe";
+        bool verbProbe = args.Length >= 3 && args[1] == "--probe-verbs";
+        bool probe = args.Length >= 3 && (args[1] == "--probe" || verbProbe);
         int start = probe ? 2 : 3;
         if (args.Length <= start || !probe && (!int.TryParse(args[1], CultureInfo.InvariantCulture, out _) ||
             !int.TryParse(args[2], CultureInfo.InvariantCulture, out _))) return 1;
         string[] paths = args[start..];
         if (!CanShow(paths)) return 1;
-        try { return Display(paths, probe, probe ? 0 : int.Parse(args[1], CultureInfo.InvariantCulture), probe ? 0 : int.Parse(args[2], CultureInfo.InvariantCulture)); }
+        try { return Display(paths, probe, verbProbe, probe ? 0 : int.Parse(args[1], CultureInfo.InvariantCulture), probe ? 0 : int.Parse(args[2], CultureInfo.InvariantCulture)); }
         catch (Exception ex) when (ex is COMException or ExternalException or Win32Exception or ArgumentException or InvalidOperationException)
         {
             Console.Error.WriteLine(ex.GetType().Name + " 0x" + ex.HResult.ToString("X8", CultureInfo.InvariantCulture));
@@ -250,7 +252,7 @@ internal static class WindowsContextMenu
     private static IContextMenu2? _menu2;
     private static IContextMenu3? _menu3;
 
-    private static int Display(string[] paths, bool probe, int x, int y)
+    private static int Display(string[] paths, bool probe, bool verbProbe, int x, int y)
     {
         var pidls = new nint[paths.Length];
         IShellItemArray? items = null;
@@ -277,7 +279,13 @@ internal static class WindowsContextMenu
                 {
                     var label = new StringBuilder(512);
                     GetMenuStringW(popup, (uint)i, label, label.Capacity, 0x400);
-                    if (label.Length > 0) Console.WriteLine(label);
+                    if (label.Length > 0)
+                    {
+                        uint command = GetMenuItemID(popup, i);
+                        string? verb = verbProbe && command is >= ShellFirst and <= ShellLast
+                            ? CanonicalVerb(menu, command) : null;
+                        Console.WriteLine(verbProbe ? label + "\t" + (verb ?? "") : label.ToString());
+                    }
                 }
             }
 
@@ -309,6 +317,10 @@ internal static class WindowsContextMenu
             if (selected == FileCatCommand) return 10;
             if (selected == RecoverCommand) return 12;
             if (selected < ShellFirst || selected > ShellLast) return 11;
+            // A Properties sheet needs a persistent owner. The short-lived Shell-extension host is destroyed
+            // immediately after InvokeCommand, which can leave the sheet invisible. Dispatch the canonical
+            // Shell verb to FileCat's existing Alt+Enter route with the exact selected path instead.
+            if (string.Equals(CanonicalVerb(menu, selected), "properties", StringComparison.OrdinalIgnoreCase)) return 13;
             Console.Out.WriteLine(InvokeMessage);
             Console.Out.Flush();
             var invoke = new InvokeCommandInfoEx
@@ -335,6 +347,20 @@ internal static class WindowsContextMenu
             if (items is not null) Marshal.ReleaseComObject(items);
             foreach (nint pidl in pidls) if (pidl != 0) Marshal.FreeCoTaskMem(pidl);
         }
+    }
+
+    private static string? CanonicalVerb(IContextMenu menu, uint selected)
+    {
+        const uint GcsVerbW = 4;
+        const int characters = 260;
+        nint buffer = Marshal.AllocHGlobal(characters * sizeof(char));
+        try
+        {
+            Marshal.WriteInt16(buffer, 0);
+            return menu.GetCommandString((nint)(selected - ShellFirst), GcsVerbW, 0, buffer, characters) >= 0
+                ? Marshal.PtrToStringUni(buffer) : null;
+        }
+        finally { Marshal.FreeHGlobal(buffer); }
     }
 
     private static nint HandleWindowMessage(nint window, uint message, nint wParam, nint lParam)
@@ -418,6 +444,8 @@ internal static class WindowsContextMenu
     private static extern bool DestroyMenu(nint menu);
     [DllImport("user32.dll")]
     private static extern int GetMenuItemCount(nint menu);
+    [DllImport("user32.dll")]
+    private static extern uint GetMenuItemID(nint menu, int position);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetMenuStringW(nint menu, uint item, StringBuilder text, int maxChars, uint flags);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]

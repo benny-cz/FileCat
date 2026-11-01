@@ -1129,6 +1129,12 @@ public partial class PanelView : UserControl
                 var result = await WindowsContextMenu.ShowAsync(paths!, screen.X, screen.Y);
                 if (request != _menuRequest) return;
                 if (result == WindowsContextMenu.Result.Handled) return;
+                if (result == WindowsContextMenu.Result.Properties)
+                {
+                    if (paths.Length == 1) vm.ShowPropertiesForPath(paths[0]!);
+                    else vm.Notify("Select one item to show its properties.");
+                    return;
+                }
                 if (result == WindowsContextMenu.Result.RecoverImage)
                 {
                     vm.RecoverImage(paths[0]!);
