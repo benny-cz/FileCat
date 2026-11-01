@@ -84,6 +84,8 @@ internal static class WindowsContextMenu
                     (details.Length == 0 ? "." : ": " + details[..Math.Min(240, details.Length)].Trim()));
                 return Result.Failed;
             }
+            if (child.ExitCode == 11 && details.Length != 0)
+                AppLog.Warn("Windows context menu action failed: " + details[..Math.Min(240, details.Length)].Trim());
             if (child.ExitCode is not (0 or 10 or 11 or 12 or 13))
                 AppLog.Warn("Windows context menu helper exited with code " + child.ExitCode +
                     (details.Length == 0 ? string.Empty : ": " + details[..Math.Min(240, details.Length)].Trim()));
@@ -326,14 +328,20 @@ internal static class WindowsContextMenu
             var invoke = new InvokeCommandInfoEx
             {
                 cbSize = (uint)Marshal.SizeOf<InvokeCommandInfoEx>(),
-                fMask = 0x00004000 | 0x20000000, // Unicode and invocation point.
+                // This is a short-lived isolated host. Ask Shell handlers to finish their work before the
+                // selected item's COM owner and PIDLs are released (Send to -> Compressed folder is one such
+                // handler). The flag is advisory, so installed-candidate behavior still needs a native check.
+                fMask = 0x00004000 | 0x00000100 | 0x20000000, // Unicode, NOASYNC, invocation point.
                 hwnd = owner,
                 lpVerb = (nint)(selected - ShellFirst),
                 lpVerbW = (nint)(selected - ShellFirst),
                 nShow = 1,
                 ptInvoke = new NativePoint(x, y),
             };
-            return menu.InvokeCommand(ref invoke) >= 0 ? 0 : 11;
+            int invokeResult = menu.InvokeCommand(ref invoke);
+            if (invokeResult >= 0) return 0;
+            Console.Error.WriteLine("InvokeCommand failed 0x" + invokeResult.ToString("X8", CultureInfo.InvariantCulture));
+            return 11;
         }
         finally
         {
