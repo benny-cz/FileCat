@@ -165,6 +165,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             if (layoutRevealQueued || !IsCurrent(session)) return;
             var focused = TopLevel.GetTopLevel(host)?.FocusManager?.GetFocusedElement() as TextBox;
             if (focused is null || !session.Layer.IsVisualAncestorOf(focused)) return;
+            // A search field stays focused while the user scrolls the result/page below it.
+            // Revealing it on every layout would pull that deliberate scroll back to the top.
+            if (focused.Classes.Contains("dialogSearch")) return;
             layoutRevealQueued = true;
             Dispatcher.UIThread.Post(() =>
             {

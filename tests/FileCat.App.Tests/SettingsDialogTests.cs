@@ -10,11 +10,75 @@ using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
+using FileCat.Core.State;
 
 namespace FileCat.App.Tests;
 
 public sealed class SettingsDialogTests
 {
+    [AvaloniaFact]
+    public async Task Settings_search_is_ready_on_open_and_an_empty_result_cannot_save_the_draft()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 950, height: 500);
+        try
+        {
+            var showing = SettingsDialog.ShowAsync(vm);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            var card = Assert.Single(window.GetVisualDescendants().OfType<DialogCard>());
+            var search = card.GetVisualDescendants().OfType<TextBox>()
+                .Single(box => AutomationProperties.GetName(box) == "Search settings");
+            Assert.True(search.IsFocused);
+            search.Text = "no-setting-has-this-name";
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(showing.IsCompleted);
+            Assert.Single(window.GetVisualDescendants().OfType<DialogCard>());
+            Assert.Empty(card.GetVisualDescendants().OfType<ListBox>()
+                .Single(list => AutomationProperties.GetName(list) == "Matching settings").Items);
+
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
+    public async Task Existing_customized_settings_close_cleanly_after_inspecting_editor_modes()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1100, height: 760);
+        try
+        {
+            var settings = services.Settings;
+            settings.RowDensity = "Comfortable";
+            settings.DateFormat = "yyyy-MM-dd HH:mm";
+            settings.FontSize = 14;
+            settings.DefaultVerify = "ReadBack";
+            settings.SavedFilters = [new SavedFilter { Name = "logs", Mask = "*.log" }];
+            settings.Editor = new ToolDefinition { Name = "Editor", Executable = "editor", Arguments = ["--flag", "{files}"] };
+            settings.UserCommands = [new ToolDefinition { Name = "Inspect", Executable = "inspect", Arguments = ["{file}"] }];
+            settings.Associations = [new ToolDefinition { Name = "Text", Executable = "viewer", Intent = "view", Mask = "*.txt", Arguments = ["{file}"] }];
+
+            var showing = SettingsDialog.ShowAsync(vm);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var card = Assert.Single(window.GetVisualDescendants().OfType<DialogCard>());
+            var tabs = Assert.Single(card.GetVisualDescendants().OfType<TabControl>());
+            tabs.SelectedIndex = 2;
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var advanced = card.GetVisualDescendants().OfType<CheckBox>()
+                .Single(check => Equals(check.Content, "Edit user commands as text"));
+            advanced.IsChecked = true;
+            advanced.IsChecked = false;
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Empty(window.GetVisualDescendants().OfType<DialogCard>());
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     [AvaloniaFact]
     public async Task Clean_settings_escape_closes_without_discard_review_after_navigation_or_reverted_edit()
     {

@@ -257,14 +257,14 @@ public static class SettingsDialog
         var bindings = new TextBox
         {
             AcceptsReturn = true,
-            MinHeight = 260,
+            MinHeight = 160,
             FontFamily = new FontFamily("Cascadia Mono,Consolas,monospace"),
             Text = string.Join(Environment.NewLine, s.KeyBindings.Select(kv => $"{kv.Key} = {string.Join(", ", kv.Value)}")),
             PlaceholderText = "command.id = Ctrl+Shift+X, F12",
         };
-        var reference = new TextBlock { Text = "One binding per line; an empty box keeps the defaults. Easier: in the keyboard reference (F1), select a command and press F2, then the new keys. Command ids are listed there.", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap };
+        var reference = new TextBlock { Text = "Choose a command and press its new shortcut above, or edit the bindings directly below. Use one command id per line; an empty box keeps the defaults. The keyboard reference (F1) also opens the shortcut chooser.", Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap };
         var chooseShortcut = new Button { Content = "Find and change a shortcut…" };
-        var shortcutStatus = Note("Changes here stay in this Settings draft until OK.");
+        var shortcutStatus = Note("Shortcut changes are saved with OK.");
         var contextPreview = new TextBlock { Classes = { "muted", "small" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 };
         Avalonia.Automation.AutomationProperties.SetName(contextPreview, "Find shortcut context preview");
         void UpdateContextPreview()
@@ -324,7 +324,7 @@ public static class SettingsDialog
                 shortcutStatus.Text = result.Message + " Save Settings to keep this change.";
             }
         };
-        tabs.Items.Add(new TabItem { Header = "Keyboard", Content = Form(("Custom bindings", bindings), ("", chooseShortcut), ("", shortcutStatus), ("", contextPreview), ("", reference)) });
+        tabs.Items.Add(new TabItem { Header = "Keyboard", Content = Form(("", chooseShortcut), ("", shortcutStatus), ("", reference), ("Custom bindings", bindings), ("", contextPreview)) });
 
         // ---- Privacy
         var diag = new CheckBox { Content = "Diagnostic mode: include file paths in the local log (off by default)", IsChecked = s.DiagnosticMode };
@@ -361,7 +361,7 @@ public static class SettingsDialog
         var error = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
         Avalonia.Automation.AutomationProperties.SetLiveSetting(error, Avalonia.Automation.AutomationLiveSetting.Assertive);
         // Search the actual labels and explanations in every tab, including tabs not yet selected.
-        var search = new TextBox { PlaceholderText = "Search settings", MinWidth = 220 };
+        var search = new TextBox { PlaceholderText = "Search settings", MinWidth = 220, Classes = { "dialogSearch" } };
         Avalonia.Automation.AutomationProperties.SetName(search, "Search settings");
         var results = new ListBox { MaxHeight = 190, IsVisible = false };
         Avalonia.Automation.AutomationProperties.SetName(results, "Matching settings");
@@ -433,7 +433,10 @@ public static class SettingsDialog
         search.TextChanged += (_, _) => UpdateSearch();
         search.KeyDown += (_, e) =>
         {
-            if (e.Key == Key.Enter && matches.Count > 0) { e.Handled = true; GoToSetting(); }
+            if (e.Key != Key.Enter) return;
+            // Search never silently activates Settings' default OK button, even for no matches.
+            e.Handled = true;
+            if (matches.Count > 0) GoToSetting();
         };
         results.DoubleTapped += (_, _) => GoToSetting();
         goToResult.Click += (_, _) => GoToSetting();
@@ -455,6 +458,7 @@ public static class SettingsDialog
             body.Children.Insert(0, new TextBlock { Text = reason, Classes = { "warning" }, TextWrapping = TextWrapping.Wrap });
             await vm.Dialogs.ShowCustomAsync("Settings — read-only", body,
                 [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)],
+                initialFocus: search,
                 behavior: new DialogBehavior { DismissOnBackdrop = false, AlignTop = true });
             return;
         }
@@ -574,6 +578,7 @@ public static class SettingsDialog
         }
         var r = await vm.Dialogs.ShowCustomAsync("Settings", body,
             [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true) { Validate = Validate }],
+            initialFocus: search,
             closer: closer, pinnedReview: error, behavior: new DialogBehavior
             {
                 DismissOnBackdrop = false,
