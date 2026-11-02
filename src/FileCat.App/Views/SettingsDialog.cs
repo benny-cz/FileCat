@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.LogicalTree;
+using Avalonia.VisualTree;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -27,6 +28,18 @@ public static class SettingsDialog
         var s = vm.Services.Settings;
         // The shared modal owns vertical scrolling. Tabs wrap with the available client width.
         var tabs = new TabControl { ItemsPanel = new FuncTemplate<Panel?>(() => new WrapPanel()) };
+        tabs.SelectionChanged += (_, change) =>
+        {
+            if (!ReferenceEquals(change.Source, tabs)) return;
+            Dispatcher.UIThread.Post(() =>
+            {
+                // A long page can leave the next page halfway down in the shared modal scroller.
+                // Return to the tab strip; a search jump reveals its target afterward.
+                if (tabs.GetVisualAncestors().OfType<ScrollViewer>()
+                    .FirstOrDefault(view => view.Name == "DialogBodyScroll") is { } scroll)
+                    scroll.Offset = new Vector(scroll.Offset.X, 0);
+            }, DispatcherPriority.Loaded);
+        };
 
         // ---- Appearance
         // Choosing a theme shows it at once; Cancel goes back to the one in use.
@@ -368,12 +381,19 @@ public static class SettingsDialog
                 .Select(entry => (entry.Tab, entry.Control, Text: entry.Text!, TabName: tab.Header as string ?? "Settings"))
             ?? []).ToList();
         List<(int Tab, Control Control, string Text, string TabName)> matches = [];
+        // Logical descendants include the controls in collapsed advanced editors. A result that
+        // points into one of those editors cannot be brought into view until its mode is enabled.
+        // Keep the mode switch searchable, then index its fields when the user opens it.
+        static bool IsSearchable(Control control) => control.IsVisible &&
+            control.GetLogicalAncestors().OfType<Control>().TakeWhile(ancestor => ancestor is not TabItem)
+                .All(ancestor => ancestor.IsVisible);
         void UpdateSearch()
         {
             var terms = (search.Text ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             results.IsVisible = resultHint.IsVisible = goToResult.IsVisible = terms.Length > 0;
             matches = terms.Length == 0 ? [] : searchEntries
-                .Where(entry => terms.All(term => entry.Text.Contains(term, StringComparison.CurrentCultureIgnoreCase)))
+                .Where(entry => IsSearchable(entry.Control) &&
+                    terms.All(term => entry.Text.Contains(term, StringComparison.CurrentCultureIgnoreCase)))
                 .Take(40).ToList();
             results.ItemsSource = matches.Select(entry => entry.TabName + " · " +
                 (entry.Text.Length <= 110 ? entry.Text : entry.Text[..107] + "…")).ToArray();
@@ -382,11 +402,22 @@ public static class SettingsDialog
                 matches.Count == 40 ? "Showing the first 40 matches." : $"{matches.Count} matching settings.";
             goToResult.IsEnabled = matches.Count > 0;
         }
+        // Switching a structured/advanced editor changes which search hits can actually be
+        // reached. Refresh an active query as soon as those panes change visibility.
+        foreach (var control in searchEntries.SelectMany(entry =>
+                     new[] { entry.Control }.Concat(entry.Control.GetLogicalAncestors().OfType<Control>()
+                         .TakeWhile(ancestor => ancestor is not TabItem))).Distinct())
+            control.PropertyChanged += (_, change) =>
+            {
+                if (change.Property == Control.IsVisibleProperty && !string.IsNullOrWhiteSpace(search.Text))
+                    UpdateSearch();
+            };
         void GoToSetting()
         {
             int index = results.SelectedIndex;
             if (index < 0 || index >= matches.Count) return;
             var entry = matches[index];
+            if (!IsSearchable(entry.Control)) { UpdateSearch(); return; }
             tabs.SelectedIndex = entry.Tab;
             Dispatcher.UIThread.Post(() =>
             {

@@ -131,6 +131,10 @@ internal sealed class ColumnProfilesEditor
         if (_profiles.Count >= ColumnProfileSet.MaxProfiles) return;
         _profiles.Add(p);
         RefreshProfiles(select: _profiles.Count - 1);
+        // New and Duplicate are naming tasks; put the suggested name under the caret so
+        // typing replaces it, while leaving it intact if the user accepts the suggestion.
+        _name.Focus();
+        _name.SelectAll();
     }
 
     private void RemoveProfile()

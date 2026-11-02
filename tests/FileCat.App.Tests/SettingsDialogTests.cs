@@ -16,6 +16,119 @@ namespace FileCat.App.Tests;
 public sealed class SettingsDialogTests
 {
     [AvaloniaFact]
+    public async Task Settings_search_only_offers_reachable_editor_fields_and_new_profile_is_ready_to_rename()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1100, height: 760);
+        try
+        {
+            var showing = SettingsDialog.ShowAsync(vm);
+            Layout();
+            var card = Assert.Single(window.GetVisualDescendants().OfType<DialogCard>());
+            var search = card.GetVisualDescendants().OfType<TextBox>()
+                .Single(box => AutomationProperties.GetName(box) == "Search settings");
+            var results = card.GetVisualDescendants().OfType<ListBox>()
+                .Single(list => AutomationProperties.GetName(list) == "Matching settings");
+
+            search.Text = "One filter per line";
+            Layout();
+            Assert.Equal("No settings match.", card.GetVisualDescendants().OfType<TextBlock>()
+                .Single(block => block.Text == "No settings match.").Text);
+            Assert.Empty(results.Items);
+
+            var tabs = Assert.Single(card.GetVisualDescendants().OfType<TabControl>());
+            tabs.SelectedIndex = 1;
+            Layout();
+            card.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Add filter"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var filterName = card.GetVisualDescendants().OfType<TextBox>()
+                .Single(box => AutomationProperties.GetName(box) == "Selected filter name");
+            Assert.True(filterName.IsFocused);
+            Assert.Equal("new-filter", filterName.SelectedText);
+            var advanced = card.GetVisualDescendants().OfType<CheckBox>()
+                .Single(check => Equals(check.Content, "Edit filter definitions as text"));
+            advanced.IsChecked = true;
+            Layout();
+            Assert.Contains(results.Items.OfType<string>(), item => item.Contains("One filter per line"));
+            advanced.IsChecked = false;
+            Layout();
+            Assert.Empty(results.Items);
+
+            tabs.SelectedIndex = 3;
+            Layout();
+            card.GetVisualDescendants().OfType<Button>()
+                .Single(button => AutomationProperties.GetName(button) == "New profile")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Layout();
+            var name = card.GetVisualDescendants().OfType<TextBox>()
+                .Single(box => AutomationProperties.GetName(box) == "Profile name");
+            Assert.True(name.IsFocused);
+            Assert.Equal("New profile", name.SelectedText);
+            card.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Cancel"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+
+        void Layout()
+        {
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Settings_tab_change_starts_at_the_new_pages_top_after_scrolling()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1100, height: 500);
+        try
+        {
+            var showing = SettingsDialog.ShowAsync(vm);
+            Layout();
+            var card = Assert.Single(window.GetVisualDescendants().OfType<DialogCard>());
+            var tabs = Assert.Single(card.GetVisualDescendants().OfType<TabControl>());
+            var scroll = card.GetVisualDescendants().OfType<ScrollViewer>()
+                .Single(view => view.Name == "DialogBodyScroll");
+            tabs.SelectedIndex = 2;
+            Layout();
+            Assert.True(scroll.Extent.Height > scroll.Viewport.Height + 100);
+            scroll.Offset = new Vector(0, 150);
+            Layout();
+            Assert.True(scroll.Offset.Y > 100);
+            var shell = card.GetVisualDescendants().OfType<ComboBox>()
+                .Single(box => AutomationProperties.GetName(box) == "Command line shell");
+            shell.SelectedIndex = shell.SelectedIndex == 0 ? 1 : 0;
+            Layout();
+            Assert.True(scroll.Offset.Y > 100);
+            tabs.SelectedIndex = 0;
+            Layout();
+            Assert.InRange(scroll.Offset.Y, 0, 1);
+            var search = card.GetVisualDescendants().OfType<TextBox>()
+                .Single(box => AutomationProperties.GetName(box) == "Search settings");
+            search.Text = "Alt+F3 always opens";
+            Layout();
+            card.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Go to setting"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Layout();
+            Assert.Equal(2, tabs.SelectedIndex);
+            Assert.True(scroll.Offset.Y > 100);
+            card.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Cancel"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+
+        void Layout()
+        {
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Settings_remains_anchored_and_requires_an_explicit_decision_to_discard_a_draft()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1100, height: 760);

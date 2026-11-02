@@ -49,6 +49,7 @@ internal sealed class SavedFiltersEditor
             _draft.Add(new SavedFilter { Name = UniqueName("new-filter"), Mask = "*" });
             Refresh(_draft.Count - 1);
             _name.Focus();
+            _name.SelectAll();
         };
         _duplicate.Click += (_, _) =>
         {
@@ -56,6 +57,7 @@ internal sealed class SavedFiltersEditor
             _draft.Insert(_list.SelectedIndex + 1, new SavedFilter { Name = UniqueName(f.Name + "-copy"), Mask = f.Mask });
             Refresh(_list.SelectedIndex + 1);
             _name.Focus();
+            _name.SelectAll();
         };
         _remove.Click += (_, _) =>
         {
