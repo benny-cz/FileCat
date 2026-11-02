@@ -17,6 +17,39 @@ namespace FileCat.App.Tests;
 public sealed class SettingsDialogTests
 {
     [AvaloniaFact]
+    public async Task Tools_program_field_tabs_to_its_browse_action()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1100, height: 760);
+        try
+        {
+            var showing = SettingsDialog.ShowAsync(vm);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var card = Assert.Single(window.GetVisualDescendants().OfType<DialogCard>());
+            var tabs = Assert.Single(card.GetVisualDescendants().OfType<TabControl>());
+            tabs.SelectedIndex = 2;
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            card.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Add command"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var program = card.GetVisualDescendants().OfType<TextBox>()
+                .Single(box => AutomationProperties.GetName(box) == "Selected command program");
+            var browse = card.GetVisualDescendants().OfType<Button>()
+                .Single(button => Equals(button.Content, "Browse for command program…"));
+            program.Focus();
+            Assert.True(program.IsFocused);
+            window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+            Assert.True(browse.IsFocused);
+            card.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Cancel"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Settings_search_is_ready_on_open_and_an_empty_result_cannot_save_the_draft()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 950, height: 500);
