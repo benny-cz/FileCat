@@ -1,6 +1,6 @@
 # I610 — cross-panel drag from remote, Registry and drive sources
 
-**Status:** Remediated preliminarily in the source following `0ee87c9d`; exact-source five-lane CI and final installed-candidate checks remain open. **Severity:** High UX and data-integrity risk for the reviewed destination and operation. **Owner:** V17/V23/GATE-CI-FINAL. Public preview.5 predates this correction.
+**Status:** Remediated preliminarily at `ef9932f90d713593d12307357e47d41b4a25dac5`; exact-source [run 41360067146](https://github.com/benny-cz/FileCat/actions/runs/41360067146) passed producer, Windows x64, Windows ARM64, Ubuntu and macOS. The three tag-only package jobs and draft job skipped by design. Final installed-candidate checks remain open. **Severity:** High UX and data-integrity risk for the reviewed destination and operation. **Owner:** V17/V23/GATE-CI-FINAL. Public preview.5 predates this correction.
 
 ## Finding and correction
 

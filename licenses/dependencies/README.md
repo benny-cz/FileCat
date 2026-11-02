@@ -33,11 +33,13 @@ AppImage and installer obligations still require their own artifact-specific aud
 complete notices or OSI-only eligibility.
 
 The PDFtoImage 5.2.1 MIT text is retained from its package-declared source revision.
-The bblanchon.PDFium 147.0.7690 packages declare Apache-2.0 but carry no license
-or notice members. The snapshot retains an immutable SPDX Apache-2.0 text,
-their declared source repository's MIT text, and an independently pinned PDFium
-LICENSE with its bundled attributions. The exact PDFium source/build revision
-and full third-party notice set for each shipped native binary remain open in
-`KnownFullTextGaps`; the independent PDFium text does not establish binary
-provenance. SkiaSharp's extra Linux no-dependencies package retains the two
-license/notice members from its exact NuGet archive.
+The bblanchon.PDFium 147.0.7690 NuGet packages declare Apache-2.0 but carry no
+license or notice members. The snapshot retains their declared source repository's
+MIT text and the exact `chromium/7690` upstream release archive's `LICENSE` and
+15 `licenses/` members for each of Windows x64, Windows ARM64, Linux x64 and
+macOS ARM64. The archive SHA-256 values are pinned in `index.json`; the four
+native library hashes independently match the corresponding NuGet/publish inputs.
+This establishes which vendor-supplied notice set accompanies each shipped PDFium
+binary. It does not prove a reproducible build or audit every linked native
+component independently. SkiaSharp's extra Linux no-dependencies package retains
+the two license/notice members from its exact NuGet archive.
