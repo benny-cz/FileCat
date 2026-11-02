@@ -76,7 +76,11 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
                 ("Path", path),
                 ("Kind", Kind(_mode, (*(uint*)(b + 128), *(uint*)(b + 132)))),
             };
-            if (mount is { } m) item.Add(("Volume", $"{m.MountPoint} · {m.Type} · {m.Source}"));
+            if (mount is { } m)
+            {
+                item.Add(("Volume", $"{m.MountPoint} · {m.Type} · {m.Source}"));
+                if (m.Root != "/" && path == m.MountPoint) item.Add(("Source root", m.Root));
+            }
             item.Add(("Device", $"{devMajor}:{devMinor}"));
             item.Add(("Inode", inode.ToString("N0", CultureInfo.CurrentCulture)));
             item.Add(("Hard links", (*(uint*)(b + 16)).ToString(CultureInfo.CurrentCulture)));
@@ -102,7 +106,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
             return $"File-system record · {mount?.Type ?? "Linux"}";
         }
 
-        private sealed record MountInfo(string MountPoint, string Type, string Source, string Options, string DeviceNumber);
+        private sealed record MountInfo(string MountPoint, string Type, string Source, string Root, string Options, string DeviceNumber);
 
         /// <summary>
         /// True for FAT and exFAT mount types (the kernel's, or a FUSE subtype such as "fuseblk.exfat"); false for FUSE
@@ -154,7 +158,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
                     if (fields.Length < 10 || fields[0] != id.ToString(CultureInfo.InvariantCulture)) continue;
                     int dash = Array.IndexOf(fields, "-");
                     if (dash < 0 || dash + 3 >= fields.Length) return null;
-                    return new MountInfo(Unescape(fields[4]), fields[dash + 1], Unescape(fields[dash + 2]), fields[5] + "; " + fields[dash + 3], fields[2]);
+                    return new MountInfo(Unescape(fields[4]), fields[dash + 1], Unescape(fields[dash + 2]), Unescape(fields[3]), fields[5] + "; " + fields[dash + 3], fields[2]);
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
@@ -253,6 +257,7 @@ public sealed unsafe partial class UnixFileRecords : IFileRecords
                 ("Source", mount.Source),
                 ("Options", mount.Options),
             };
+            if (mount.Root != "/") fields.Insert(3, ("Root within source", mount.Root));
             var children = new List<InspectionSection>();
             // ext4 (and ext3): its journal's statistics, and the file system's own counters.
             string? device = BlockDeviceName(mount.DeviceNumber);
