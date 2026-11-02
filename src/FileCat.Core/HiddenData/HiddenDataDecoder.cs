@@ -211,6 +211,8 @@ public static class HiddenDataDecoder
             case "com.apple.metadata:kMDItemDownloadedDate":
                 var dates = BinaryPlist.Dates(v);
                 return dates.Count > 0 ? ($"Downloaded {dates[0].ToLocalTime():g}", []) : null;
+            case "com.apple.metadata:_kMDItemUserTags":
+                return FinderTags(v);
             case "com.apple.FinderInfo" when v.Length >= 32:
                 return FinderInfo(v[..32]);
             case "com.apple.ResourceFork":
@@ -240,6 +242,24 @@ public static class HiddenDataDecoder
         return name.StartsWith("com.apple.metadata:", StringComparison.Ordinal) && BinaryPlist.Strings(v) is { Count: > 0 } strings
             ? ($"{name["com.apple.metadata:".Length..]}: {string.Join(", ", strings)}", strings)
             : null;
+    }
+
+    private static (string, IReadOnlyList<string>)? FinderTags(ReadOnlySpan<byte> value)
+    {
+        var names = BinaryPlist.Strings(value).Select(raw =>
+        {
+            // Finder keeps a one-digit color index after the tag's name. It is not part of that name.
+            if (raw.Length >= 2 && raw[^2] == '\n' && raw[^1] is >= '0' and <= '7') raw = raw[..^2];
+            string clean = new(raw.Select(c => char.IsControl(c) ? ' ' : c).ToArray());
+            clean = clean.Trim();
+            return clean.Length > 120 ? clean[..120] + "…" : clean;
+        }).Where(name => name.Length > 0).ToList();
+        if (names.Count == 0) return null;
+        string label = names.Count == 1 ? "Finder tag: " : "Finder tags: ";
+        string summary = label + string.Join(", ", names.Take(3));
+        if (names.Count > 3) summary += $" and {names.Count - 3} more";
+        IReadOnlyList<string> details = names.Count <= 32 ? names : [.. names.Take(32), $"{names.Count - 32} more tags not shown"];
+        return (summary, details);
     }
 
     /// <summary>"flags;hex seconds;agent;event UUID".</summary>

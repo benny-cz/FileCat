@@ -69,6 +69,14 @@ public sealed partial class HiddenDataTests
         Assert.Equal("Downloaded from https://example.com/app.dmg", froms);
         Assert.Equal(2, fromDetails.Count);
 
+        // Finder stores its color index after a newline; the name shown to a person excludes that suffix.
+        byte[] tagList = BinaryPlistOfStrings("Evidence\n4", "Review\n0");
+        var (tagSummary, tagDetails) = HiddenDataDecoder.Describe(
+            new HiddenItem("com.apple.metadata:_kMDItemUserTags", HiddenKind.Attribute, tagList.Length), tagList);
+        Assert.Equal("Finder tags: Evidence, Review", tagSummary);
+        Assert.Equal(["Evidence", "Review"], tagDetails);
+        Assert.DoesNotContain('\n', tagSummary);
+
         // FinderInfo: type 'TEXT', creator 'ttxt', invisible and a color label.
         var finder = new byte[32];
         "TEXTttxt"u8.CopyTo(finder);
