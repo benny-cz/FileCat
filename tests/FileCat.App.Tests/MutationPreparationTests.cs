@@ -136,7 +136,25 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
         using var f = new Fixture(); await f.Load(false); var task = f.Vm.ExecuteAsync(CommandIds.CreateLink); await Wait(() => f.Button("Create")?.IsEnabled == true);
         string link = f.PathBox("Link path").Text!;
         if (navigate) { f.Right.Navigate(Location.FileSystem(f.Root)); f.Left.Navigate(Location.FileSystem(f.Root)); }
-        f.Click("Create"); await task.WaitAsync(TimeSpan.FromSeconds(15)); var job = Assert.Single(f.Services.Jobs.Jobs); await Wait(() => job.State.IsFinished());
+        f.Click("Create");
+        var elapsed = Stopwatch.StartNew();
+        try { await task.WaitAsync(TimeSpan.FromSeconds(15)); }
+        catch (TimeoutException)
+        {
+            // I529 has recurred on loaded macOS CI after many clean focused runs. Capture the phase
+            // before fixture disposal so a future failure distinguishes a live preview/dialog from
+            // an already submitted job. This retains the original finite response guard.
+            Emit("actual-hard-link-command-timeout", f, new
+            {
+                navigate, elapsedMs = elapsed.ElapsedMilliseconds, taskCompleted = task.IsCompleted,
+                dialogOpen = f.Button("Cancel") is not null,
+                createEnabled = f.Button("Create")?.IsEnabled,
+                link, jobs = f.Services.Jobs.Jobs.Select(j => new { state = j.State.ToString(), j.Request.Kind }).ToArray(),
+            });
+            throw;
+        }
+        var job = Assert.Single(f.Services.Jobs.Jobs);
+        await Wait(() => job.State.IsFinished());
         Assert.Equal(JobState.Completed, job.State); Assert.Equal(f.Target, job.Request.Destination!.Path); Assert.Equal(Path.Join(f.Folder, "source.txt"), Assert.Single(job.Request.Sources).FileSystemPath);
         File.WriteAllText(Path.Join(f.Folder, "source.txt"), "changed through the actual hard link"); Assert.Equal("changed through the actual hard link", File.ReadAllText(link));
         Emit("actual-hard-link", f, new { navigate, link, state = job.State.ToString() });
