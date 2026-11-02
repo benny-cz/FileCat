@@ -416,6 +416,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 case ArchiveChangeKind.Replace:
                 {
                     var info = new FileInfo(change.SourcePath ?? throw new ArgumentException("A source file is required."));
+                    PathUtil.RefuseAmbiguousUnixName(info.FullName);
                     if (!info.Exists) throw new FileNotFoundException("The file to add no longer exists.", info.FullName);
                     // A cloud placeholder (a OneDrive file) is a reparse point, but no link.
                     if (ReparseLinks.IsLink(info.FullName))
@@ -443,9 +444,11 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         {
             Job.Checkpoint();
             var (dir, prefix) = pending.Pop();
+            PathUtil.RefuseAmbiguousUnixName(dir.FullName);
             bool any = false;
             foreach (var entry in dir.EnumerateFileSystemInfos().OrderBy(e => e.Name, StringComparer.Ordinal))
             {
+                PathUtil.RefuseAmbiguousUnixName(entry.Name);
                 any = true;
                 string child = prefix + "/" + entry.Name;
                 if ((entry.Attributes & FileAttributes.ReparsePoint) != 0 && ReparseLinks.IsLink(entry.FullName))

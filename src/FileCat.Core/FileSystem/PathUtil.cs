@@ -2,6 +2,8 @@ using System.Text;
 
 namespace FileCat.Core.FileSystem;
 
+public sealed class AmbiguousUnixNameException(string message) : IOException(message);
+
 /// <summary>
 /// File-system path helpers. Identity comparisons stay exact; the case-insensitive helpers here are
 /// only used for conservative safety checks (overlap detection, destination-inside-source).
@@ -9,6 +11,20 @@ namespace FileCat.Core.FileSystem;
 public static class PathUtil
 {
     public static bool IsWindows => OperatingSystem.IsWindows();
+
+    /// <summary>
+    /// On Unix, .NET decodes an invalid UTF-8 filename byte as U+FFFD. A literal U+FFFD name and
+    /// several different byte names can then become the same managed path, so opening that path
+    /// may open a different item. Refuse the ambiguous spelling until a byte-preserving tool renames it.
+    /// This conservatively also refuses a genuine U+FFFD filename.
+    /// </summary>
+    public static bool HasAmbiguousUnixName(string path) => !IsWindows && path.Contains('\uFFFD');
+
+    public static void RefuseAmbiguousUnixName(string path)
+    {
+        if (HasAmbiguousUnixName(path))
+            throw new AmbiguousUnixNameException("A local name contains U+FFFD, which may stand for invalid UTF-8 filename bytes. FileCat cannot identify the exact item safely; use a byte-preserving tool to rename it before opening or changing it here.");
+    }
 
     /// <summary>Comparison for conservative containment checks: case-insensitive on Windows.</summary>
     public static StringComparison SafetyComparison => IsWindows ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
@@ -174,6 +190,7 @@ public static class PathUtil
         else
         {
             if (name.Contains('/') || name.Contains('\0')) return "The name cannot contain '/' or NUL.";
+            if (HasAmbiguousUnixName(name)) return "A name containing U+FFFD cannot be used safely here because invalid UTF-8 filename bytes can have the same displayed spelling.";
         }
         if (Encoding.UTF8.GetByteCount(name) > 1020 || name.Length > 255) return "The name is too long.";
         return null;

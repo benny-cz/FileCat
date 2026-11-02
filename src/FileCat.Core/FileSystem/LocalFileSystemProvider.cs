@@ -104,6 +104,7 @@ public class LocalFileSystemProvider : ResourceProvider
     public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
     {
         // Runs synchronously on the calling (per-device I/O) thread.
+        PathUtil.RefuseAmbiguousUnixName(location.Path);
         var detector = ContainerDetector;
         var batch = new EntryData[BatchSize];
         int n = 0;
@@ -127,7 +128,7 @@ public class LocalFileSystemProvider : ResourceProvider
             {
                 moved = e.MoveNext();
             }
-            catch (IOException) when (n > 0)
+            catch (IOException ex) when (n > 0 && ex is not AmbiguousUnixNameException)
             {
                 sink.AddBatch(batch.AsSpan(0, n));
                 throw;
@@ -187,10 +188,14 @@ public class LocalFileSystemProvider : ResourceProvider
 
     internal static EntryData ToEntry(ref FileSystemEntry fe)
     {
+        string name = fe.FileName.ToString();
+        // FileSystemEntry's metadata access also reopens a managed path. Refuse before even
+        // reading that metadata: two invalid byte names can alias a third, valid U+FFFD file.
+        PathUtil.RefuseAmbiguousUnixName(name);
         var attrs = fe.Attributes;
         var e = new EntryData
         {
-            Name = fe.FileName.ToString(),
+            Name = name,
             Kind = fe.IsDirectory ? EntryKind.Directory : EntryKind.File,
             Size = fe.IsDirectory ? -1 : fe.Length,
             Modified = fe.LastWriteTimeUtc.UtcTicks,

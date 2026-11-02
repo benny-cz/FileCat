@@ -370,18 +370,32 @@ public sealed class SearchSession
             List<FileSystemInfo> children;
             try
             {
+                PathUtil.RefuseAmbiguousUnixName(frame.Dir);
                 children = new DirectoryInfo(frame.Dir).EnumerateFileSystemInfos("*", Options).ToList();
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
             {
+                if (ex is AmbiguousUnixNameException) _truncated = true;
                 AddLog(SearchLogKind.Inaccessible, frame.Dir, ex.Message);
                 continue;
             }
             var subdirs = new List<string>();
             bool skipCurrent = false;
+            bool warnedAmbiguousName = false;
             foreach (var info in children)
             {
                 ct.ThrowIfCancellationRequested();
+                if (PathUtil.HasAmbiguousUnixName(info.FullName))
+                {
+                    _truncated = true;
+                    if (!warnedAmbiguousName)
+                    {
+                        AddLog(SearchLogKind.Warning, frame.Dir,
+                            "A local filename contains U+FFFD and may alias invalid UTF-8 bytes. Ambiguous entries in this folder were skipped; rename them with a byte-preserving tool before searching them in FileCat.");
+                        warnedAmbiguousName = true;
+                    }
+                    continue;
+                }
                 if (_skip is { } skip && PathUtil.IsSameOrUnder(frame.Dir, skip))
                 {
                     if (string.Equals(skip, frame.Dir, StringComparison.OrdinalIgnoreCase))

@@ -298,6 +298,7 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual IDisposable HoldRegularFile(string path, string? root = null)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         string full = Path.GetFullPath(path);
         RefuseLinks(full, FollowableComponents(full, root, file: true), "The source path contains a link; it was not added to the archive.");
         if ((File.GetAttributes(full) & FileAttributes.Directory) != 0) throw new IOException("The source is a folder, not a regular file.");
@@ -306,6 +307,7 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual IDisposable HoldDirectory(string path, string? root = null)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         string full = Path.GetFullPath(path);
         RefuseLinks(full, FollowableComponents(full, root, file: false), "The destination folder path contains a link; nothing was written there.");
         if ((File.GetAttributes(full) & FileAttributes.Directory) == 0) throw new IOException("The destination is not a folder.");
@@ -368,6 +370,7 @@ public class PortableFileOperations : IFileSystemOperations
     {
         try
         {
+            PathUtil.RefuseAmbiguousUnixName(path);
             FileSystemInfo fi = new FileInfo(path);
             if (!fi.Exists)
             {
@@ -394,6 +397,7 @@ public class PortableFileOperations : IFileSystemOperations
     /// </summary>
     public static FileSystemItemInfo FromInfo(FileSystemInfo fi, string? path = null)
     {
+        PathUtil.RefuseAmbiguousUnixName(path ?? fi.FullName);
         bool isDir = fi is DirectoryInfo;
         string? linkTarget = (fi.Attributes & FileAttributes.ReparsePoint) != 0 ? fi.LinkTarget : null;
         return new FileSystemItemInfo(path ?? fi.FullName, isDir, linkTarget is not null, isDir ? -1 : ((FileInfo)fi).Length,
@@ -477,6 +481,8 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct)
     {
+        PathUtil.RefuseAmbiguousUnixName(source);
+        PathUtil.RefuseAmbiguousUnixName(destination);
         var info = new FileInfo(source);
         if (options.CopyLinkAsLink && info.LinkTarget is not null)
         {
@@ -557,6 +563,8 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual void Move(string source, string destination, bool replaceExisting, bool writeThrough = false)
     {
+        PathUtil.RefuseAmbiguousUnixName(source);
+        PathUtil.RefuseAmbiguousUnixName(destination);
         if (Directory.Exists(source) && new DirectoryInfo(source).LinkTarget is null)
         {
             if (replaceExisting) throw new IOException("Directories are merged item by item, never replaced wholesale.");
@@ -570,21 +578,28 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual void CreateDirectory(string path)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         if (Directory.Exists(path) || File.Exists(path)) throw new IOException($"An item named \"{Path.GetFileName(path)}\" already exists.");
         Directory.CreateDirectory(path);
     }
 
     public virtual void CreateDirectoryForCopy(string path, UnixFileMode mode)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         if (OperatingSystem.IsWindows()) { CreateDirectory(path); return; }
         if (Directory.Exists(path) || File.Exists(path)) throw new IOException($"An item named \"{Path.GetFileName(path)}\" already exists.");
         Directory.CreateDirectory(path, mode);
     }
 
-    public virtual void DeleteFile(string path) => File.Delete(path);
+    public virtual void DeleteFile(string path)
+    {
+        PathUtil.RefuseAmbiguousUnixName(path);
+        File.Delete(path);
+    }
 
     public virtual void DeleteDirectory(string path)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         var di = new DirectoryInfo(path);
         if (di.LinkTarget is not null)
         {
@@ -595,10 +610,15 @@ public class PortableFileOperations : IFileSystemOperations
         Directory.Delete(path, recursive: false);
     }
 
-    public virtual void SetAttributes(string path, FileAttributes attributes) => File.SetAttributes(path, attributes);
+    public virtual void SetAttributes(string path, FileAttributes attributes)
+    {
+        PathUtil.RefuseAmbiguousUnixName(path);
+        File.SetAttributes(path, attributes);
+    }
 
     public virtual void SetTimes(string path, DateTime? createdUtc, DateTime? modifiedUtc)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         bool dir = Directory.Exists(path);
         if (createdUtc is { } c)
         {
@@ -617,6 +637,8 @@ public class PortableFileOperations : IFileSystemOperations
         error = null;
         try
         {
+            PathUtil.RefuseAmbiguousUnixName(source);
+            PathUtil.RefuseAmbiguousUnixName(destination);
             var target = isDirectory ? new DirectoryInfo(source).LinkTarget : new FileInfo(source).LinkTarget;
             if (target is null)
             {
@@ -659,6 +681,7 @@ public class PortableFileOperations : IFileSystemOperations
             }
             try
             {
+                PathUtil.RefuseAmbiguousUnixName(p);
                 results.Add(new RecycleResult(p, RecycleOutcome.Recycled, UnixTrash.Put(p, trash)));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -674,6 +697,8 @@ public class PortableFileOperations : IFileSystemOperations
         error = null;
         try
         {
+            PathUtil.RefuseAmbiguousUnixName(recycledId);
+            PathUtil.RefuseAmbiguousUnixName(originalPath);
             if (File.Exists(originalPath) || Directory.Exists(originalPath))
             {
                 error = "An item already exists at the original location.";
@@ -704,6 +729,8 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual void CreateLink(string linkPath, string target, LinkKind kind, bool isDirectory)
     {
+        PathUtil.RefuseAmbiguousUnixName(linkPath);
+        PathUtil.RefuseAmbiguousUnixName(target);
         if (File.Exists(linkPath) || Directory.Exists(linkPath) || new FileInfo(linkPath).LinkTarget is not null)
             throw new IOException($"An item named \"{Path.GetFileName(linkPath)}\" already exists.");
         switch (kind)
@@ -755,15 +782,18 @@ public class PortableFileOperations : IFileSystemOperations
     }
 
     /// <summary>Linux and macOS: the device and inode of the path's own entry (Windows overrides with volume and file ID).</summary>
-    public virtual string? GetFileIdentity(string path) => UnixFiles.Stat(path) is { } s ? s.Identity.ToString() : null;
+    public virtual string? GetFileIdentity(string path) =>
+        PathUtil.HasAmbiguousUnixName(path) ? null : UnixFiles.Stat(path) is { } s ? s.Identity.ToString() : null;
 
     /// <summary>Linux and macOS: realpath (Windows overrides with the handle's final path).</summary>
-    public virtual string? GetFinalPath(string path) => UnixFiles.RealPath(path);
+    public virtual string? GetFinalPath(string path) =>
+        PathUtil.HasAmbiguousUnixName(path) ? null : UnixFiles.RealPath(path);
 
     /// <summary>Hashes the finite file length observed at opening; growth or truncation refuses the result.</summary>
     public static byte[] HashFile(string path, HashAlgorithmName algorithm, CancellationToken ct, Action<long>? progress = null, long? expectedLength = null)
     {
         ct.ThrowIfCancellationRequested();
+        PathUtil.RefuseAmbiguousUnixName(path);
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan);
         long length = fs.Length;
         if (expectedLength is { } expected && expected != length) throw new IOException("The file length changed before verification.");

@@ -56,6 +56,7 @@ internal static class VerificationFileReader
 
     private static FileStream Open(string path, FileShare share, int bufferSize, FileOptions options)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         if (OperatingSystem.IsWindows())
         {
             // A device name (NUL, COM1) opens the device, which cannot seek.

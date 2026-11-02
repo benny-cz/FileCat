@@ -272,6 +272,7 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
     /// <summary>A file's size and modification time as the caches key them, or null when it is not there.</summary>
     public static (long Size, long Modified)? Stamp(string path)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         var info = new FileInfo(path);
         return info.Exists ? (info.Length, info.LastWriteTimeUtc.Ticks) : null;
     }
@@ -701,7 +702,7 @@ public sealed class VerificationService(VerificationCache cache, Func<long> thre
             {
                 // Minisign.KeysIn ignores larger public-key files. Do not hash unrelated multi-MiB
                 // *.pub files for every visible signed row.
-                try { files.AddRange(new DirectoryInfo(folder).EnumerateFiles("*.pub").Where(f => f.Length <= 4096)); }
+                try { files.AddRange(new DirectoryInfo(folder).EnumerateFiles("*.pub").Where(f => !PathUtil.HasAmbiguousUnixName(f.Name) && f.Length <= 4096)); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             }
         if (openPgp) files.AddRange(OpenPgp.KeyringFiles());

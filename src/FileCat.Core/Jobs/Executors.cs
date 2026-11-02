@@ -496,6 +496,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                 {
                     foreach (var fi in new DirectoryInfo(dir).EnumerateFileSystemInfos("*", ChildOptions))
                     {
+                        PathUtil.RefuseAmbiguousUnixName(fi.Name);
                         bool link = (fi.Attributes & FileAttributes.ReparsePoint) != 0;
                         if (fi is DirectoryInfo && !link) stack.Push(fi.FullName);
                         else if (Options.Filter is null || Options.Filter.IsMatch(fi.Name))
@@ -2362,6 +2363,7 @@ internal sealed class AttributesExecutor(Job job, IFileSystemOperations fs, JobJ
                 foreach (var (child, isDirectory) in inside)
                 {
                     Job.Checkpoint();
+                    PathUtil.RefuseAmbiguousUnixName(child);
                     if (isDirectory) folders.Add(child);
                     else ok &= Apply(child, change, inside: true);
                 }
