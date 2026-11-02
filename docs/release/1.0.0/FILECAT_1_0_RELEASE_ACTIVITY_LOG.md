@@ -5238,3 +5238,11 @@ A distinct Ubuntu administrator journey found that the ordinary file-system reco
 ### 2026-11-02 — I613 slow SFTP host-key review and I611 CI test correction
 
 The first PDF-over-SFTP exploratory shot exposed distinct user friction: after independently checking a new SSH server key for longer than 20 seconds, **Trust and connect** left the initial listing timed out and required Ctrl+R. Product `21f66f3d` grants one new bounded handshake for the exact approved key only. A native Mac OpenSSH regression passed with a deliberate 3.5-second review against a three-second deadline, and an exact-source Ubuntu GUI displayed the remote PDF after a 32-second review without Refresh. The source hash was unchanged, the local target empty, and owned test processes/roots removed. [I613 evidence](evidence/E-I613-sftp-host-key-review-timeout.md) gives exact hashes and candidate limits. Separately, I611's post-lock CI exposed one stale reflection test on all four platforms; its focused Windows test passes after passing `PictureWorker.MaxInputBytes` to the helper. Newer five-lane runs are open. The register is **613 total / 592 preliminary remediations / two preliminary closures / 19 unresolved statuses**; evidence index **963**. This correction earns no clean credit; I611 Windows ARM64 CI remains the gate before the 30-run threshold starts. Preview.5 predates both; stable 1.0.0 remains NO-GO.
+
+## 2026-11-02 — I614 Linux POSIX ACL copy access correction
+
+- Exact product `6a9fc6de23b42241041138981ccdf28c213d2832` preserves Linux access/default ACLs and owner-only staging for reviewed copies.
+- Native Ubuntu before: an owned 0644 file denied to `nobody` by its ACL copied as readable to `nobody`; bytes matched.
+- Native Ubuntu after: file, nested folder/default ACL and destination-inherited-ACL cases matched independent `getfacl -cn` and three SHA-256 pairs; `nobody` remained denied. Exact owned fixture/process cleanup passed.
+- Focused Windows `UnixPermissionTests`: 18 passed, six expected Unix/Linux skips. Two new Linux-only job tests will run where `setfacl`/`getfacl` are present. Exact-source five-lane CI and frozen installed-candidate acceptance remain open.
+- [Exact evidence and finite stop](evidence/E-I614-linux-posix-acl-copy.md). Public preview.5 predates the correction; stable 1.0.0 remains NO-GO.
