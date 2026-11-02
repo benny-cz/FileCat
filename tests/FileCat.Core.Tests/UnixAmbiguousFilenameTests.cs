@@ -62,6 +62,9 @@ public sealed class UnixAmbiguousFilenameTests
             Assert.Contains("U+FFFD", refusal.Message);
             Assert.Empty(sink.Entries);
             Assert.Null(new PortableFileOperations().TryGetInfo(valid));
+            Assert.Null(UnixFiles.Stat(valid));
+            Assert.Null(UnixFiles.RealPath(valid));
+            Assert.Throws<AmbiguousUnixNameException>(() => UnixFiles.OpenRegularFileForRead(valid));
             Assert.Throws<AmbiguousUnixNameException>(() => PortableFileOperations.FromInfo(new FileInfo(valid)));
             Assert.Null(FolderContents.Read(folder, CancellationToken.None));
             Assert.Throws<AmbiguousUnixNameException>(() => VerificationFileReader.OpenRead(valid));

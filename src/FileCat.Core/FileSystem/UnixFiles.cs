@@ -35,7 +35,7 @@ public static unsafe partial class UnixFiles
     /// </summary>
     public static UnixStat? Stat(string path, bool followLinks = false)
     {
-        if (OperatingSystem.IsWindows()) return null;
+        if (OperatingSystem.IsWindows() || PathUtil.HasAmbiguousUnixName(path)) return null;
         byte* buffer = stackalloc byte[256];
         try
         {
@@ -59,12 +59,14 @@ public static unsafe partial class UnixFiles
     /// <summary>The full path with every link resolved (realpath), or null when it does not exist or cannot be read.</summary>
     public static string? RealPath(string path)
     {
-        if (OperatingSystem.IsWindows()) return null;
+        if (OperatingSystem.IsWindows() || PathUtil.HasAmbiguousUnixName(path)) return null;
         // PATH_MAX is 4096 on Linux and 1024 on macOS, the terminating zero included.
         byte* buffer = stackalloc byte[4096 + 1];
         try
         {
-            return RealPathNative(path, buffer) is null ? null : Marshal.PtrToStringUTF8((nint)buffer);
+            if (RealPathNative(path, buffer) is null) return null;
+            string? resolved = Marshal.PtrToStringUTF8((nint)buffer);
+            return resolved is not null && !PathUtil.HasAmbiguousUnixName(resolved) ? resolved : null;
         }
         catch (Exception ex) when (ex is EntryPointNotFoundException or DllNotFoundException)
         {
@@ -102,6 +104,7 @@ public static unsafe partial class UnixFiles
     public static SafeFileHandle OpenRegularFileForRead(string path)
     {
         if (OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        PathUtil.RefuseAmbiguousUnixName(path);
         int flags = OperatingSystem.IsMacOS() ? 4 | 16777216 : 2048 | 524288; // O_RDONLY(0) | O_NONBLOCK | O_CLOEXEC
         int fd = OpenReadOnly(path, flags);
         if (fd < 0) throw new IOException("The input file could not be opened.");

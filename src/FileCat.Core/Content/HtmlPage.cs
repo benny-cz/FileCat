@@ -1,5 +1,6 @@
 using System.Text;
 using System.Runtime.InteropServices;
+using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 using Microsoft.Win32.SafeHandles;
 
@@ -239,6 +240,7 @@ public sealed class HtmlPage
 
     private static string ResolveLinks(string path)
     {
+        PathUtil.RefuseAmbiguousUnixName(path);
         // Restart from the root after substituting a target, so its intermediate components are resolved too.
         // A finite bound refuses cycles and excessively long chains without recursion or unbounded work.
         for (int links = 0; links <= 40; links++)
@@ -250,12 +252,14 @@ public sealed class HtmlPage
             for (int i = 0; i < parts.Length; i++)
             {
                 current = Path.Combine(current, parts[i]);
+                PathUtil.RefuseAmbiguousUnixName(current);
                 FileSystemInfo entry = (File.GetAttributes(current) & FileAttributes.Directory) != 0
                     ? new DirectoryInfo(current) : new FileInfo(current);
                 if (entry.LinkTarget is null) continue;
                 if (links == 40) throw new IOException("The page resource has too many symbolic links.");
                 string target = entry.ResolveLinkTarget(returnFinalTarget: false)?.FullName
                     ?? throw new IOException("The page resource link cannot be resolved.");
+                PathUtil.RefuseAmbiguousUnixName(target);
                 path = Path.GetFullPath(Path.Combine(new[] { target }.Concat(parts[(i + 1)..]).ToArray()));
                 followed = true;
                 break;
