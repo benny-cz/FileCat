@@ -380,6 +380,9 @@ public static class SettingsDialog
                 .Where(entry => !string.IsNullOrWhiteSpace(entry.Text))
                 .Select(entry => (entry.Tab, entry.Control, Text: entry.Text!, TabName: tab.Header as string ?? "Settings"))
             ?? []).ToList();
+        searchEntries.InsertRange(0, tabs.Items.OfType<TabItem>().Select((tab, index) =>
+            (Tab: index, Control: (Control)tab, Text: tab.Header as string ?? "Settings",
+                TabName: tab.Header as string ?? "Settings")));
         List<(int Tab, Control Control, string Text, string TabName)> matches = [];
         // Logical descendants include the controls in collapsed advanced editors. A result that
         // points into one of those editors cannot be brought into view until its mode is enabled.
@@ -395,7 +398,8 @@ public static class SettingsDialog
                 .Where(entry => IsSearchable(entry.Control) &&
                     terms.All(term => entry.Text.Contains(term, StringComparison.CurrentCultureIgnoreCase)))
                 .Take(40).ToList();
-            results.ItemsSource = matches.Select(entry => entry.TabName + " · " +
+            results.ItemsSource = matches.Select(entry => entry.Control is TabItem ?
+                "Open " + entry.TabName + " tab" : entry.TabName + " · " +
                 (entry.Text.Length <= 110 ? entry.Text : entry.Text[..107] + "…")).ToArray();
             results.SelectedIndex = matches.Count > 0 ? 0 : -1;
             resultHint.Text = matches.Count == 0 ? "No settings match." :

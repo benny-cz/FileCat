@@ -277,6 +277,7 @@ public sealed class SettingsPreservationTests
             Assert.Equal(1, list.SelectedIndex);
             BodyButton(window, "Duplicate command or menu").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(5, list.ItemCount);
+            Assert.Equal("Second copy", Field<TextBox>(window, "Selected command or menu name").SelectedText);
             BodyButton(window, "Remove command or menu").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(4, list.ItemCount);
             Click(window, "OK");

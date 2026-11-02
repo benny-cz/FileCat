@@ -67,6 +67,7 @@ internal sealed class UserCommandsEditor
             RememberArguments([duplicate]);
             Refresh(duplicate);
             _name.Focus();
+            _name.SelectAll();
         };
         _remove.Click += (_, _) =>
         {

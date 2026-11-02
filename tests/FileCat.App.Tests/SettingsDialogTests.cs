@@ -28,6 +28,15 @@ public sealed class SettingsDialogTests
                 .Single(box => AutomationProperties.GetName(box) == "Search settings");
             var results = card.GetVisualDescendants().OfType<ListBox>()
                 .Single(list => AutomationProperties.GetName(list) == "Matching settings");
+            var tabs = Assert.Single(card.GetVisualDescendants().OfType<TabControl>());
+
+            search.Text = "Privacy";
+            Layout();
+            Assert.Contains("Open Privacy tab", results.Items.OfType<string>());
+            card.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Go to setting"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Layout();
+            Assert.Equal(5, tabs.SelectedIndex);
 
             search.Text = "One filter per line";
             Layout();
@@ -35,7 +44,6 @@ public sealed class SettingsDialogTests
                 .Single(block => block.Text == "No settings match.").Text);
             Assert.Empty(results.Items);
 
-            var tabs = Assert.Single(card.GetVisualDescendants().OfType<TabControl>());
             tabs.SelectedIndex = 1;
             Layout();
             card.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Add filter"))
@@ -173,6 +181,7 @@ public sealed class SettingsDialogTests
                 .Single(box => AutomationProperties.GetName(box) == "Association name");
             Assert.Equal(string.Empty, associationName.Text);
             Assert.Equal("New association", associationName.PlaceholderText);
+            Assert.True(associationName.IsFocused);
             window.MouseDown(new Point(5, 5), MouseButton.Left);
             window.MouseUp(new Point(5, 5), MouseButton.Left);
             Assert.False(showing.IsCompleted);

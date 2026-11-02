@@ -77,7 +77,7 @@ internal sealed class AssociationsEditor
                 Arguments = ["{file}"],
             }));
             Refresh(_draft.Count - 1);
-            _mask.Focus();
+            _name.Focus();
         };
         _duplicate.Click += (_, _) =>
         {
