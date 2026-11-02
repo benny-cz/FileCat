@@ -509,9 +509,59 @@ public static class SettingsDialog
         }
         var closer = new DialogCloser();
         bool reviewingDismissal = false;
+        bool HasDraftChanges()
+        {
+            // Compare values that OK would save, not navigation, search, or sample preview fields.
+            if ((theme.SelectedIndex >= 0 ? themeNames[theme.SelectedIndex] : "System") != s.Theme ||
+                (animations.IsChecked == true) != s.ThemeAnimations ||
+                (double)(fontSize.Value ?? 13) != s.FontSize ||
+                ReadabilityPolicy.ContentSize((double)(contentFontSize.Value ?? 13)) != ReadabilityPolicy.ContentSize(s.ContentFontSize) ||
+                (density.SelectedIndex == 1 ? "Comfortable" : "Compact") != s.RowDensity ||
+                (dateFormat.SelectedItem as string ?? "Culture") != s.DateFormat ||
+                (keyBar.IsChecked == true) != s.ShowFunctionKeyBar ||
+                (toolbar.IsChecked == true) != s.ShowToolbar ||
+                (classicToolbar.IsChecked == true) != s.ClassicToolbar ||
+                (allPlaces.IsChecked != true) != s.CompactPlaces ||
+                (driveButtons.IsChecked == true) != s.ShowDriveButtons ||
+                (cmdLine.IsChecked == true) != s.ShowCommandLine ||
+                (hidden.IsChecked == true) != s.ShowHidden ||
+                (natural.IsChecked == true) != s.NaturalSort ||
+                (dirsFirst.IsChecked == true) != s.DirectoriesFirst ||
+                (confirmRecycle.IsChecked == true) != s.ConfirmRecycle ||
+                (sizeOnSpace.IsChecked == true) != s.SizeFolderOnSpace ||
+                (sizeSlow.IsChecked == true) != s.SizeFolderOnSlowLocations ||
+                (anywhere.IsChecked == true) != s.QuickSearchMatchAnywhere ||
+                (single.IsChecked == true) != s.SingleInstance ||
+                (awake.IsChecked == true) != s.KeepAwakeDuringJobs ||
+                (verify.SelectedIndex == 1 ? "ReadBack" : "Native") != s.DefaultVerify ||
+                (int)(verifyUpTo.Value ?? 256) != s.VerifyAutomaticallyUpToMiB ||
+                (editorExe.Text ?? "") != originalExecutable ||
+                (editorArgs.Text ?? "") != originalArguments ||
+                (editorShellMode.IsChecked == true) != (s.Editor?.ShellMode ?? false) ||
+                (shell.SelectedItem as string ?? s.Terminal.Shell) != s.Terminal.Shell ||
+                bindings.Text != string.Join(Environment.NewLine, s.KeyBindings.Select(kv => $"{kv.Key} = {string.Join(", ", kv.Value)}")) ||
+                (diag.IsChecked == true) != s.DiagnosticMode ||
+                (updates.IsChecked == true) != s.CheckForUpdates ||
+                (shellPictures.IsChecked == true) != s.ShellPictures ||
+                (shellSlow.IsChecked == true) != s.ShellPicturesOnNetworkAndRemovable ||
+                columnsEditor.HasChanges()) return true;
+
+            // Invalid edits are still draft changes; a valid edit is compared to the saved model.
+            return !filtersEditor.TryGet(out var filters, out _, out _) ||
+                JsonSerializer.Serialize(filters) != JsonSerializer.Serialize(s.SavedFilters) ||
+                !userCommandsEditor.TryGet(out var commands, out _, out _) ||
+                JsonSerializer.Serialize(commands) != JsonSerializer.Serialize(s.UserCommands) ||
+                !associationsEditor.TryGet(out var associations, out _, out _) ||
+                JsonSerializer.Serialize(associations) != JsonSerializer.Serialize(s.Associations);
+        }
         async void ReviewImplicitDismissal()
         {
             if (reviewingDismissal) return;
+            if (!HasDraftChanges())
+            {
+                closer.Close("cancel");
+                return;
+            }
             reviewingDismissal = true;
             try
             {

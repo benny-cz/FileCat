@@ -196,8 +196,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         if (behavior?.OnImplicitDismiss is not null && card.GetVisualDescendants().OfType<Button>()
                 .FirstOrDefault(button => button.Name == "DialogCloseButton") is { } closeButton)
         {
-            AutomationProperties.SetHelpText(closeButton, "Review before closing this dialog without saving.");
-            ToolTip.SetTip(closeButton, "Review closing this dialog (Esc)");
+            AutomationProperties.SetHelpText(closeButton, "Close this dialog; unsaved changes may need review.");
+            ToolTip.SetTip(closeButton, "Close dialog (Esc)");
         }
         if (_sessions.Count > 0) _sessions[^1].Layer.IsEnabled = false;
         host.Children.Add(session.Layer);

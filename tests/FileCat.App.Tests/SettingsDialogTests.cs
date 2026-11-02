@@ -16,6 +16,47 @@ namespace FileCat.App.Tests;
 public sealed class SettingsDialogTests
 {
     [AvaloniaFact]
+    public async Task Clean_settings_escape_closes_without_discard_review_after_navigation_or_reverted_edit()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1100, height: 760);
+        try
+        {
+            var showing = SettingsDialog.ShowAsync(vm);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var card = Assert.Single(window.GetVisualDescendants().OfType<DialogCard>());
+            var tabs = Assert.Single(card.GetVisualDescendants().OfType<TabControl>());
+            tabs.SelectedIndex = 5;
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            var search = card.GetVisualDescendants().OfType<TextBox>()
+                .Single(box => AutomationProperties.GetName(box) == "Search settings");
+            search.Text = "privacy";
+            var updates = card.GetVisualDescendants().OfType<CheckBox>()
+                .Single(check => Equals(check.Content, "Automatically check for updates"));
+            bool? original = updates.IsChecked;
+            updates.IsChecked = !original;
+            updates.IsChecked = original;
+
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Empty(window.GetVisualDescendants().OfType<DialogCard>());
+            Assert.Equal(original, services.Settings.CheckForUpdates);
+
+            showing = SettingsDialog.ShowAsync(vm);
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            card = Assert.Single(window.GetVisualDescendants().OfType<DialogCard>());
+            card.GetVisualDescendants().OfType<Button>()
+                .Single(button => button.Name == "DialogCloseButton")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Empty(window.GetVisualDescendants().OfType<DialogCard>());
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
+    [AvaloniaFact]
     public async Task Settings_search_only_offers_reachable_editor_fields_and_new_profile_is_ready_to_rename()
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1100, height: 760);

@@ -108,6 +108,13 @@ internal sealed class ColumnProfilesEditor
 
     public Control View { get; }
 
+    public bool HasChanges()
+    {
+        var original = Load(_set.Profiles);
+        return _profiles.Count != original.Count || _profiles.Where((profile, index) =>
+            profile.Name != original[index].Name || !profile.Columns.SequenceEqual(original[index].Columns)).Any();
+    }
+
     private Profile? Selected
     {
         get
