@@ -56,9 +56,10 @@ internal static partial class WindowsSparseCopy
             {
                 long start = ranges[i].Offset;
                 long rangeLength = ranges[i].Length;
-                if (start < 0 || rangeLength <= 0 || start > length || rangeLength > length - start)
+                if (start < 0 || rangeLength <= 0 || start >= length || rangeLength > long.MaxValue - start)
                     throw new IOException("The source file returned an invalid allocated range.");
-                long end = start + rangeLength;
+                // NTFS may round the query length beyond EOF to an allocation boundary.
+                long end = Math.Min(length, start + rangeLength);
                 // NTFS can round the query start down. Do not copy or report an extent twice.
                 start = Math.Max(start, done);
                 if (end <= start) continue;

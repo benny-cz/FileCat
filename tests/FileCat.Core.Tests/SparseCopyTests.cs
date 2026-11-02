@@ -96,6 +96,32 @@ public sealed class SparseCopyTests : IDisposable
             "A sparse source copy must not consume nearly the full logical length on disk.");
     }
 
+    [Fact]
+    public void Windows_sparse_copy_handles_a_last_allocated_byte_beyond_a_rounding_boundary()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows sparse-file control codes are required.");
+        const int length = 16 * 1024 * 1024 + 1;
+        string source = Path.Combine(_dir.Path, "source-unaligned.bin");
+        string destination = Path.Combine(_dir.Path, "copy-unaligned.bin");
+        using (var stream = new FileStream(source, FileMode.CreateNew, FileAccess.Write))
+        {
+            if (!DeviceIoControl(stream.SafeFileHandle, 0x000900C4, 0, 0, 0, 0, out _, 0))
+                Assert.Skip("The test volume cannot mark a file sparse.");
+            stream.SetLength(length);
+            stream.Position = length - 1;
+            stream.WriteByte(0x5A);
+        }
+        if (StorageBytes(source) >= length / 4)
+            Assert.Skip("The test volume did not create a sparse source file.");
+
+        new PortableFileOperations().CopyFile(source, destination, new FileCopyOptions(), null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(length, new FileInfo(destination).Length);
+        Assert.Equal(0x5A, File.ReadAllBytes(destination)[^1]);
+        Assert.Equal(SHA256.HashData(File.ReadAllBytes(source)), SHA256.HashData(File.ReadAllBytes(destination)));
+        Assert.True(StorageBytes(destination) < length / 4);
+    }
+
     private static long Blocks(string path)
     {
         using var process = Process.Start(new ProcessStartInfo("stat")
