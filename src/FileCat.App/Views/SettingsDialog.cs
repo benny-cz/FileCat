@@ -83,7 +83,7 @@ public static class SettingsDialog
         tabs.Items.Add(new TabItem { Header = "Behavior", Content = Form(("", hidden), ("", natural), ("", dirsFirst), ("", confirmRecycle), ("", sizeOnSpace), ("", sizeSlow), ("", anywhere), ("", single), ("", awake), ("Default copy verification", verify),
             ("Verify automatically up to", verifyUpTo),
             ("", Note("Files next to a checksum file or signature (SHA256SUMS, name.sha256, .minisig, .asc…) are checked when shown up to this size; larger ones, and files on the network, on request: File → Verify checksums and signatures. 0 checks only on request.")),
-            ("Saved filters", filtersEditor.View),
+            ("", filtersEditor.View),
             ("", Note("Use filters as @name in any mask: select (Num+), quick filter, copy filters, Find, and compare."))) });
 
         // ---- Tools
@@ -231,9 +231,8 @@ public static class SettingsDialog
                 ("Preview file (sample only)", previewFile), ("", previewButton), ("", previewResult),
                 ("", editorShellMode),
                 ("", Note("Batch programs normally reject selected names with shell characters such as &, | or >. Enable this only if you trust both the batch program and the names it receives; a normal executable is safer.")),
-                ("", Note("Arguments stay separate: quote an argument containing spaces or pipes; doubled quotes represent a literal quote, and backslashes stay literal. \"\" is one empty argument. An empty field means no arguments. The @json: array form preserves embedded line breaks.")), ("Command line shell", shell), ("User commands (F9)", userCommandsEditor.View),
-                ("", Note("One command per line: Name | program | arguments | options. Group > Name puts a command in a submenu. Quote arguments that contain spaces. Options: key=HOTKEY, dir=FOLDER, shell. Complex saved definitions use an @tools: JSON array to preserve their complete structure. Tokens: {file} {files} {listfile} {dir} {target} {name} {prompt}. Programs must be real executables; batch files are refused when an argument contains shell metacharacters unless the command has the shell option.")),
-                ("Associations", associationsEditor.View),
+                ("", Note("Arguments stay separate: quote an argument containing spaces or pipes; doubled quotes represent a literal quote, and backslashes stay literal. \"\" is one empty argument. An empty field means no arguments. The @json: array form preserves embedded line breaks.")), ("Command line shell", shell), ("", userCommandsEditor.View),
+                ("", associationsEditor.View),
                 ("", Note("F3, F4, and Enter use the first matching association for that action; Alt+F3 always opens the internal viewer."))),
         });
 
@@ -347,6 +346,7 @@ public static class SettingsDialog
         tabs.Items.Add(new TabItem { Header = "Privacy", Content = Form(("", diag), ("", updates), ("", updateNote), ("", shellPictures), ("", shellSlow), ("", shellNote), ("Storage", paths)) });
 
         var error = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        Avalonia.Automation.AutomationProperties.SetLiveSetting(error, Avalonia.Automation.AutomationLiveSetting.Assertive);
         // Search the actual labels and explanations in every tab, including tabs not yet selected.
         var search = new TextBox { PlaceholderText = "Search settings", MinWidth = 220 };
         Avalonia.Automation.AutomationProperties.SetName(search, "Search settings");
@@ -402,7 +402,7 @@ public static class SettingsDialog
         };
         results.DoubleTapped += (_, _) => GoToSetting();
         goToResult.Click += (_, _) => GoToSetting();
-        var body = new StackPanel { Spacing = 6, Children = { search, results, resultHint, goToResult, tabs, error } };
+        var body = new StackPanel { Spacing = 6, Children = { search, results, resultHint, goToResult, tabs } };
         if (vm.Services.SettingsReadOnly)
         {
             // Keep tabs, scrolling and text selection usable while preventing edits and preview side effects.
@@ -419,7 +419,8 @@ public static class SettingsDialog
             };
             body.Children.Insert(0, new TextBlock { Text = reason, Classes = { "warning" }, TextWrapping = TextWrapping.Wrap });
             await vm.Dialogs.ShowCustomAsync("Settings — read-only", body,
-                [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)]);
+                [new DialogButton("Close", "close", IsDefault: true, IsCancel: true)],
+                behavior: new DialogBehavior { DismissOnBackdrop = false, AlignTop = true });
             return;
         }
 
@@ -471,8 +472,29 @@ public static class SettingsDialog
                 return Fail("Associations", associationError!, associationField, 2);
             return true;
         }
+        var closer = new DialogCloser();
+        bool reviewingDismissal = false;
+        async void ReviewImplicitDismissal()
+        {
+            if (reviewingDismissal) return;
+            reviewingDismissal = true;
+            try
+            {
+                if (await vm.Dialogs.ConfirmAsync("Close Settings?",
+                    "Settings changes are saved only with OK. Close this draft without saving?",
+                    confirmText: "Discard draft", danger: true, cancelText: "Keep editing"))
+                    closer.Close("cancel");
+            }
+            finally { reviewingDismissal = false; }
+        }
         var r = await vm.Dialogs.ShowCustomAsync("Settings", body,
-            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true) { Validate = Validate }]);
+            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("OK", "ok", IsDefault: true) { Validate = Validate }],
+            closer: closer, pinnedReview: error, behavior: new DialogBehavior
+            {
+                DismissOnBackdrop = false,
+                AlignTop = true,
+                OnImplicitDismiss = ReviewImplicitDismissal,
+            });
         if (r as string != "ok")
         {
             ThemeManager.Apply(s.Theme);

@@ -24,7 +24,7 @@ internal sealed class AssociationsEditor
     private readonly List<Entry> _draft;
     private readonly Func<IReadOnlyList<SavedFilter>> _savedFilters;
     private readonly ListBox _list = new() { Height = 160 };
-    private readonly TextBox _name = new();
+    private readonly TextBox _name = new() { PlaceholderText = "New association" };
     private readonly TextBox _mask = new();
     private readonly ComboBox _intent = new() { ItemsSource = new[] { Associations.View, Associations.Edit, Associations.Open }, MinWidth = 140 };
     private readonly TextBox _program = new();
@@ -73,7 +73,7 @@ internal sealed class AssociationsEditor
         {
             _draft.Add(new Entry(new ToolDefinition
             {
-                Name = "New association", Mask = "*.txt", Intent = Associations.View,
+                Name = string.Empty, Mask = "*.txt", Intent = Associations.View,
                 Arguments = ["{file}"],
             }));
             Refresh(_draft.Count - 1);
@@ -178,7 +178,11 @@ internal sealed class AssociationsEditor
         AdvancedTextFileExchange.AddTo(_rawPanel, _raw, "association");
         _rawPanel.Children.Add(_rawError);
         _advanced.IsCheckedChanged += (_, _) => SwitchMode();
-        View = new StackPanel { Margin = new Thickness(8), Spacing = 6, Children = { _advanced, _structured, _rawPanel } };
+        View = new StackPanel { Margin = new Thickness(0, 6, 0, 10), Spacing = 6, Children =
+        {
+            new TextBlock { Text = "Associations", FontWeight = FontWeight.SemiBold },
+            _advanced, _structured, _rawPanel,
+        } };
         Refresh(_draft.Count > 0 ? 0 : -1);
         _retirePreview = () => preview.Text = "Preview out of date. Choose Preview first match again.";
     }
@@ -257,7 +261,8 @@ internal sealed class AssociationsEditor
     private void Refresh(int index, bool show = true)
     {
         _updating = true;
-        _list.ItemsSource = _draft.Select((e, i) => $"{i + 1}. {e.Tool.Mask} · {e.Tool.Intent} → {e.Tool.Name}").ToList();
+        _list.ItemsSource = _draft.Select((e, i) => $"{i + 1}. {e.Tool.Mask} · {e.Tool.Intent} → " +
+            (string.IsNullOrWhiteSpace(e.Tool.Name) ? "New association (enter a name)" : e.Tool.Name)).ToList();
         _list.SelectedIndex = index >= 0 && _draft.Count > 0 ? Math.Min(index, _draft.Count - 1) : -1;
         _updating = false;
         _retirePreview?.Invoke();

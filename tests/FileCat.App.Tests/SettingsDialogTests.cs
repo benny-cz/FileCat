@@ -1,8 +1,13 @@
 using Avalonia.Automation;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
+using FileCat.App.Controls;
 using FileCat.App.Views;
 using FileCat.Core.Commands;
 
@@ -10,6 +15,85 @@ namespace FileCat.App.Tests;
 
 public sealed class SettingsDialogTests
 {
+    [AvaloniaFact]
+    public async Task Settings_remains_anchored_and_requires_an_explicit_decision_to_discard_a_draft()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1100, height: 760);
+        try
+        {
+            var showing = SettingsDialog.ShowAsync(vm);
+            Layout();
+            var card = Assert.Single(window.GetVisualDescendants().OfType<DialogCard>());
+            Point origin = card.TranslatePoint(default, window)!.Value;
+            var tabs = Assert.Single(card.GetVisualDescendants().OfType<TabControl>());
+            foreach (var index in new[] { 2, 0, 4, 2 })
+            {
+                tabs.SelectedIndex = index;
+                Layout();
+                Point position = card.TranslatePoint(default, window)!.Value;
+                Assert.InRange(Math.Abs(position.X - origin.X), 0, 1);
+                Assert.InRange(Math.Abs(position.Y - origin.Y), 0, 1);
+            }
+            Assert.Contains("Choose Preview invocation", card.GetVisualDescendants().OfType<SelectableTextBlock>()
+                .Single(text => AutomationProperties.GetName(text) == "Command invocation preview").Text);
+            Assert.Contains("Choose Preview invocation", card.GetVisualDescendants().OfType<SelectableTextBlock>()
+                .Single(text => AutomationProperties.GetName(text) == "Association invocation preview").Text);
+
+            // A backdrop press must keep Settings open even before any draft edit.
+            window.MouseMove(new Point(5, 5));
+            window.MouseDown(new Point(5, 5), MouseButton.Left);
+            window.MouseUp(new Point(5, 5), MouseButton.Left);
+            Assert.False(showing.IsCompleted);
+            Assert.Single(window.GetVisualDescendants().OfType<DialogCard>());
+
+            var add = card.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Add command"));
+            add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var name = card.GetVisualDescendants().OfType<TextBox>()
+                .Single(box => AutomationProperties.GetName(box) == "Selected command or menu name");
+            Assert.Equal(string.Empty, name.Text);
+            Assert.Equal("New command", name.PlaceholderText);
+            Assert.True(name.IsFocused);
+            Assert.DoesNotContain(services.Settings.UserCommands, command => string.IsNullOrWhiteSpace(command.Name));
+            card.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Add association"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var associationName = card.GetVisualDescendants().OfType<TextBox>()
+                .Single(box => AutomationProperties.GetName(box) == "Association name");
+            Assert.Equal(string.Empty, associationName.Text);
+            Assert.Equal("New association", associationName.PlaceholderText);
+            window.MouseDown(new Point(5, 5), MouseButton.Left);
+            window.MouseUp(new Point(5, 5), MouseButton.Left);
+            Assert.False(showing.IsCompleted);
+            card.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "OK"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Layout();
+            Assert.False(showing.IsCompleted);
+            var validation = card.GetVisualDescendants().OfType<TextBlock>()
+                .Single(text => text.Text?.StartsWith("User commands:", StringComparison.Ordinal) == true);
+            Assert.True(validation.IsVisible);
+            var pinned = validation.GetVisualAncestors().OfType<Border>().First();
+            Assert.Equal(2, Grid.GetRow(pinned));
+            Assert.True(pinned.IsVisible);
+
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            Layout();
+            Assert.False(showing.IsCompleted);
+            Assert.Equal(2, window.GetVisualDescendants().OfType<DialogCard>().Count());
+            window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Discard draft"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await showing.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Empty(services.Settings.UserCommands);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+
+        void Layout()
+        {
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateLayout();
+        }
+    }
+
     [AvaloniaFact]
     public async Task Privacy_setting_names_only_automatic_release_checks_and_explains_requested_connections()
     {

@@ -95,7 +95,16 @@ public sealed class DialogCloser
     public void Close(object? result) => _close?.Invoke(result);
 }
 
-/// <summary>Overlay dialogs owned by the main window. All are keyboard-first: Enter confirms, Esc cancels.</summary>
+/// <summary>Optional presentation and implicit-dismiss behavior for a custom modal.</summary>
+public sealed record DialogBehavior
+{
+    public bool DismissOnBackdrop { get; init; } = true;
+    public bool AlignTop { get; init; }
+    /// <summary>Esc and the title-bar close button use this action; explicit buttons keep their own behavior.</summary>
+    public Action? OnImplicitDismiss { get; init; }
+}
+
+/// <summary>Overlay dialogs owned by the main window. Enter confirms; Esc follows each dialog's close behavior.</summary>
 public interface IDialogService
 {
     Task<PromptResult?> PromptAsync(PromptOptions options);
@@ -109,13 +118,14 @@ public interface IDialogService
     /// <param name="selectedId">The command selected when it opens (after changing its shortcut).</param>
     Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null, bool remapOnly = false);
     /// <summary>
-    /// Hosts arbitrary content with buttons; returns the chosen button result or null on Esc. The default button is
+    /// Hosts arbitrary content with buttons; returns the chosen button result or the cancel result on implicit close.
+    /// The default button is
     /// enabled only while <paramref name="canConfirm"/> (cheap, side-effect free; re-evaluated while open) is true.
     /// <paramref name="closer"/> lets the content end the dialog itself.
     /// </summary>
     Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null,
         Func<bool>? canConfirm = null, DialogCloser? closer = null, bool resizable = false,
-        Control? pinnedReview = null);
+        Control? pinnedReview = null, DialogBehavior? behavior = null);
     bool IsOpen { get; }
 }
 

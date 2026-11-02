@@ -101,7 +101,11 @@ internal sealed class DialogCard : Border
         _layout.Children.Add(_bodyBorder);
         if (pinnedReview is not null)
         {
-            var review = new Border { Classes = { "dialogBody" }, Child = pinnedReview };
+            var review = new Border { Classes = { "dialogBody" }, Child = pinnedReview, IsVisible = pinnedReview.IsVisible };
+            pinnedReview.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == IsVisibleProperty) review.IsVisible = pinnedReview.IsVisible;
+            };
             Grid.SetRow(review, 2);
             _layout.Children.Add(review);
         }
@@ -265,7 +269,7 @@ internal sealed class DialogForm : Grid
             {
                 Text = row.Label,
                 TextWrapping = TextWrapping.Wrap,
-                VerticalAlignment = row.Control is TextBox { AcceptsReturn: true } ? VerticalAlignment.Top : VerticalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Top,
             };
             if (label is not null)
             {

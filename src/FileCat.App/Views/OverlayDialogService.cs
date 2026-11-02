@@ -19,8 +19,8 @@ using FileCat.Core.Commands;
 namespace FileCat.App.Views;
 
 /// <summary>
-/// In-window modal dialogs on a dimmed backdrop. Keyboard-first: Enter confirms, Esc cancels, Tab cycles
-/// inside the dialog, and focus returns to where it was when the dialog closes (plan §4.3).
+/// In-window modal dialogs on a dimmed backdrop. Keyboard-first: Enter confirms, Esc follows the dialog's
+/// implicit-close behavior, Tab cycles inside the dialog, and closing restores the prior focus (plan §4.3).
 /// </summary>
 public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallbackFocus,
     Action<FileListControl>? announceRestoredRow = null) : IDialogService
@@ -42,6 +42,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         public required Control InitialFocus;
         public IInputElement? PreviousFocus;
         public required Action OnEscape;
+        public required Action OnImplicitDismiss;
+        public bool DismissOnBackdrop;
     }
 
     // Open dialogs, the topmost last, and the window whose Esc reaches them wherever the keyboard is.
@@ -78,7 +80,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         if (e.Source is Visual source && (ReferenceEquals(source, top.Layer) ||
             IsInCardOrPopup(source, top))) return;
         e.Handled = true;
-        top.OnEscape();
+        top.OnImplicitDismiss();
     }
 
     private void OnRootPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -90,7 +92,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         // like the backdrop before the obscured control receives its press.
         if (IsInCardOrPopup(source, top)) return;
         e.Handled = true;
-        top.OnEscape();
+        if (top.DismissOnBackdrop) top.OnImplicitDismiss();
     }
 
     private void OnRootGotFocus(object? sender, RoutedEventArgs e)
@@ -110,7 +112,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         }, DispatcherPriority.Input);
     }
 
-    private Session Show(Control card, Control? initialFocus, bool top, Action onEscape)
+    private Session Show(Control card, Control? initialFocus, bool top, Action onEscape, DialogBehavior? behavior = null)
     {
         var focusManager = TopLevel.GetTopLevel(host)?.FocusManager;
         var session = new Session
@@ -123,6 +125,8 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
                 Child = card,
             },
             OnEscape = onEscape,
+            OnImplicitDismiss = behavior?.OnImplicitDismiss ?? onEscape,
+            DismissOnBackdrop = behavior?.DismissOnBackdrop ?? true,
         };
         if (_escapeRoot is null && TopLevel.GetTopLevel(host) is { } root)
         {
@@ -133,8 +137,9 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         }
         card.HorizontalAlignment = HorizontalAlignment.Center;
         card.Focusable = true;
-        card.VerticalAlignment = top ? VerticalAlignment.Top : VerticalAlignment.Center;
-        card.Margin = top ? new Thickness(24, 56, 24, 24) : new Thickness(24);
+        bool alignTop = top || behavior?.AlignTop == true;
+        card.VerticalAlignment = alignTop ? VerticalAlignment.Top : VerticalAlignment.Center;
+        card.Margin = alignTop ? new Thickness(24, 56, 24, 24) : new Thickness(24);
         KeyboardNavigation.SetTabNavigation(card, KeyboardNavigationMode.Cycle);
         session.Layer.AddHandler(InputElement.GotFocusEvent, (_, e) =>
         {
@@ -174,20 +179,26 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             {
                 e.Handled = true;
                 _escapeClosing = new(e);
-                onEscape();
+                session.OnImplicitDismiss();
             }
         }, Avalonia.Interactivity.RoutingStrategies.Bubble);
         session.Layer.PointerPressed += (_, e) =>
         {
             if (!ReferenceEquals(e.Source, session.Layer) || !IsCurrent(session)) return;
             e.Handled = true;
-            onEscape();
+            if (session.DismissOnBackdrop) session.OnImplicitDismiss();
         };
         if (card is DialogCard dialogCard)
             dialogCard.CloseRequested += () =>
             {
-                if (IsCurrent(session)) onEscape();
+                if (IsCurrent(session)) session.OnImplicitDismiss();
             };
+        if (behavior?.OnImplicitDismiss is not null && card.GetVisualDescendants().OfType<Button>()
+                .FirstOrDefault(button => button.Name == "DialogCloseButton") is { } closeButton)
+        {
+            AutomationProperties.SetHelpText(closeButton, "Review before closing this dialog without saving.");
+            ToolTip.SetTip(closeButton, "Review closing this dialog (Esc)");
+        }
         if (_sessions.Count > 0) _sessions[^1].Layer.IsEnabled = false;
         host.Children.Add(session.Layer);
         host.IsVisible = true;
@@ -708,7 +719,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
 
     public Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null,
         Func<bool>? canConfirm = null, DialogCloser? closer = null, bool resizable = false,
-        Control? pinnedReview = null)
+        Control? pinnedReview = null, DialogBehavior? behavior = null)
     {
         var tcs = new TaskCompletionSource<object?>();
         Session? session = null;
@@ -772,7 +783,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             if (confirm is not null && confirmAvailable?.Invoke() != false && confirm.Validate?.Invoke() != false) Finish(confirm.Result);
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         var cancel = buttons.FirstOrDefault(b => b.IsCancel);
-        session = Show(card, initialFocus ?? btns.FirstOrDefault(b => b.IsDefault), top: false, () => Finish(cancel?.Result));
+        session = Show(card, initialFocus ?? btns.FirstOrDefault(b => b.IsDefault), top: false, () => Finish(cancel?.Result), behavior);
         closer?.Attach(Finish);
         return tcs.Task;
     }

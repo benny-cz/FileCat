@@ -80,8 +80,12 @@ internal sealed class SavedFiltersEditor
         _advanced.IsCheckedChanged += (_, _) => SwitchMode();
         View = new StackPanel
         {
-            Margin = new Thickness(8), Spacing = 6,
-            Children = { _advanced, _structured, _rawPanel },
+            Margin = new Thickness(0, 6, 0, 10), Spacing = 6,
+            Children =
+            {
+                new TextBlock { Text = "Saved filters", FontWeight = FontWeight.SemiBold },
+                _advanced, _structured, _rawPanel,
+            },
         };
         Refresh(_draft.Count > 0 ? 0 : -1);
     }

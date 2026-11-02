@@ -17,6 +17,7 @@ internal sealed class ToolInvocationPreview
     private readonly TextBox _sample;
     private readonly SelectableTextBlock _result;
     private int _generation;
+    private bool _hasPreview;
 
     public ToolInvocationPreview(string kind, TextBox arguments, Func<(ToolDefinition? Tool, string? Error)> snapshot, string sampleFolder)
     {
@@ -53,6 +54,7 @@ internal sealed class ToolInvocationPreview
         preview.Click += async (_, _) =>
         {
             int request = ++_generation;
+            _hasPreview = true;
             var owner = TopLevel.GetTopLevel(preview);
             if (owner is null) return;
             var sample = _sample.Text ?? string.Empty;
@@ -91,7 +93,7 @@ internal sealed class ToolInvocationPreview
     public void Retire()
     {
         _generation++;
-        _result.Text = "Preview out of date. Choose Preview invocation again.";
+        if (_hasPreview) _result.Text = "Preview out of date. Choose Preview invocation again.";
     }
 
     private static string Format(ToolDefinition tool, string sample)

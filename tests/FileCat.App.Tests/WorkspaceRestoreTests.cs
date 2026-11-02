@@ -292,6 +292,6 @@ public sealed class WorkspaceRestoreTests
         public Task<KeyboardReferenceChoice?> KeyboardReferenceAsync(IReadOnlyList<KeyboardHelpEntry> commands, string? selectedId = null, bool remapOnly = false) => throw new NotSupportedException();
         public Task<object?> ShowCustomAsync(string title, Control content, IReadOnlyList<DialogButton> buttons, Control? initialFocus = null,
             Func<bool>? canConfirm = null, DialogCloser? closer = null, bool resizable = false,
-            Control? pinnedReview = null) => throw new NotSupportedException();
+            Control? pinnedReview = null, DialogBehavior? behavior = null) => throw new NotSupportedException();
     }
 }
