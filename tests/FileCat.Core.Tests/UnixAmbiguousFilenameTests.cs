@@ -3,6 +3,7 @@ using System.Text;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 using FileCat.Core.Search;
+using FileCat.Core.Verification;
 
 namespace FileCat.Core.Tests;
 
@@ -63,6 +64,7 @@ public sealed class UnixAmbiguousFilenameTests
             Assert.Null(new PortableFileOperations().TryGetInfo(valid));
             Assert.Throws<AmbiguousUnixNameException>(() => PortableFileOperations.FromInfo(new FileInfo(valid)));
             Assert.Null(FolderContents.Read(folder, CancellationToken.None));
+            Assert.Throws<AmbiguousUnixNameException>(() => VerificationFileReader.OpenRead(valid));
             Assert.NotNull(PathUtil.ValidateNewName("another_\uFFFD.txt"));
 
             var files = new UnixFileOperations();
