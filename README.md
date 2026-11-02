@@ -189,8 +189,9 @@ above. Classic, Psychedelic, DOS Commander and macOS Classic Dark are shown imme
 | [![FileCat High Contrast theme on Windows, four panels with three tabs each](docs/screenshots/windows/HighContrast.png)](docs/screenshots/windows/HighContrast.png) | [![FileCat Classic Dark theme on Ubuntu, four panels with three tabs each](docs/screenshots/ubuntu/ClassicDark.png)](docs/screenshots/ubuntu/ClassicDark.png) |
 
 These are real MainWindow renders from development source on their named operating systems.
-The [capture record](docs/screenshots/CAPTURE-2026-10-29.md) documents their producers; they do
-not establish installed-package or native-interaction acceptance.
+The [gallery capture record](docs/screenshots/CAPTURE-2026-10-29.md) documents the original set;
+the [updated Steampunk capture](docs/screenshots/CAPTURE-2026-11-02-STEAMPUNK.md) shows its
+connected-glass header. They do not establish installed-package or native-interaction acceptance.
 
 ## Platforms
 
