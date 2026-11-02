@@ -875,6 +875,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (!SourceItemStillReviewed(src)) return Result.Failed;
         Job.SetCurrent(src);
         MacExtendedAttributes.DirectoryMetadata? macMetadata = null;
+        LinuxPosixAcl.DirectoryMetadata? linuxMetadata = null;
         if (OperatingSystem.IsMacOS())
         {
             try { macMetadata = MacExtendedAttributes.ProbeDirectory(src); }
@@ -888,6 +889,16 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             {
                 Job.ItemFailed();
                 Issue(IssueSeverity.Error, src, "The folder has macOS ACLs or extended attributes. A cross-volume folder move cannot safely preserve them; copy it to a fresh destination and review the result before deleting the original.", StepOutcome.CanceledBeforeChange);
+                return Result.Failed;
+            }
+        }
+        if (OperatingSystem.IsLinux())
+        {
+            try { linuxMetadata = LinuxPosixAcl.ProbeDirectory(src); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Job.ItemFailed();
+                Issue(IssueSeverity.Error, src, "The source folder's POSIX ACL could not be inspected: " + ErrorText.Describe(ex), StepOutcome.Failed);
                 return Result.Failed;
             }
         }
@@ -920,15 +931,21 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
             Issue(IssueSeverity.Error, src, "The folder has macOS ACLs or extended attributes. Merging it into an existing folder would discard those protections; choose a fresh destination name.", StepOutcome.CanceledBeforeChange);
             return Result.Failed;
         }
+        if (existing is { IsDirectory: true } && linuxMetadata is { HasMetadata: true })
+        {
+            Job.ItemFailed();
+            Issue(IssueSeverity.Error, src, "The folder has a POSIX ACL. Merging it into an existing folder would discard that protection; choose a fresh destination name.", StepOutcome.CanceledBeforeChange);
+            return Result.Failed;
+        }
         bool created = false;
         FileIdentity? createdIdentity = null;
         bool EnsureCreated()
         {
             if (created || existing is not null) return true;
             if (ensureParent is not null && !ensureParent()) return false;
-            if (!TryIo(target, "create a folder", () => Fs.CreateDirectory(target))) return false;
+            if (!TryIo(target, "create a folder", () => Fs.CreateDirectoryForCopy(target, UnixPermissions.WhileCopying(isDirectory: true)))) return false;
             created = true;
-            if (macMetadata is { HasMetadata: true }) createdIdentity = UnixFiles.Stat(target)?.Identity;
+            if (macMetadata is { HasMetadata: true } || linuxMetadata is not null) createdIdentity = UnixFiles.Stat(target)?.Identity;
             UnixPermissions.TryCopyFolderMode(src, target, final: false); // no wider than the source while it fills
             return true;
         }
@@ -968,7 +985,7 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
         if (_enumerationFailed.Remove(src)) allOk = false;
         if (created || existing is not null)
         {
-            if (created) UnixPermissions.TryCopyFolderMode(src, target, final: true);
+            if (created && !OperatingSystem.IsLinux()) UnixPermissions.TryCopyFolderMode(src, target, final: true);
             if (Options.PreserveTimestamps) TrySetTimes(target, info);
             if (created && Options.PreserveAttributes) TrySetAttributes(target, info.Attributes);
             if (created && macMetadata is { HasMetadata: true } sourceMetadata)
@@ -984,6 +1001,22 @@ internal sealed class TransferExecutor(Job job, IFileSystemOperations fs, JobJou
                     allOk = false;
                     Job.ItemFailed();
                     Issue(IssueSeverity.Error, target, "The copied folder's macOS ACL or extended attributes could not be preserved. The partial destination needs review: " + ErrorText.Describe(ex), StepOutcome.PartiallyApplied);
+                }
+            }
+            if (created && linuxMetadata is { } sourceAcl)
+            {
+                try
+                {
+                    if (createdIdentity is not { } destinationIdentity)
+                        throw new IOException("The new folder's identity could not be read.");
+                    if (!LinuxPosixAcl.CopyDirectory(src, target, sourceAcl, destinationIdentity, Job.Token))
+                        UnixPermissions.TryCopyFolderMode(src, target, final: true);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    allOk = false;
+                    Job.ItemFailed();
+                    Issue(IssueSeverity.Error, target, "The copied folder's POSIX ACL could not be preserved. The partial destination needs review: " + ErrorText.Describe(ex), StepOutcome.PartiallyApplied);
                 }
             }
         }

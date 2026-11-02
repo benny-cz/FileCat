@@ -185,6 +185,7 @@ public interface IFileSystemOperations
         Action checkpoint, CancellationToken ct);
 
     void CreateDirectory(string path);
+    void CreateDirectoryForCopy(string path, UnixFileMode mode) => CreateDirectory(path);
 
     /// <summary>Permanently deletes one file or link (never follows it).</summary>
     void DeleteFile(string path);
@@ -484,14 +485,16 @@ public class PortableFileOperations : IFileSystemOperations
         }
         long total = info.Length;
         bool created = false;
-        // Unix: while it is written, the copy is readable by no one the source excludes (a private key stays private).
+        // An ACL may deny someone whom the mode bits allow. Keep a new Unix file owner-only until its
+        // final mode and any POSIX ACL have both been applied through the held destination handle.
         var create = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, BufferSize = 1, Options = FileOptions.SequentialScan };
         UnixFileMode mode = 0;
         if (!OperatingSystem.IsWindows())
         {
             mode = File.GetUnixFileMode(source);
-            create.UnixCreateMode = UnixPermissions.WhileCopying(mode, isDirectory: false);
+            create.UnixCreateMode = UnixPermissions.WhileCopying(isDirectory: false);
         }
+        bool linuxModeSet = false;
         try
         {
             using (var src = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.SequentialScan))
@@ -514,11 +517,12 @@ public class PortableFileOperations : IFileSystemOperations
                 // Copy it (and the other xattrs) between the already-open files before the new name is published.
                 // A failure must discard this destination rather than report a complete copy with missing bytes.
                 if (OperatingSystem.IsMacOS()) MacExtendedAttributes.Copy(src, dst, ct);
+                if (OperatingSystem.IsLinux()) linuxModeSet = LinuxPosixAcl.CopyFile(src, dst, ct);
                 dst.Flush(flushToDisk: options.FlushDestination);
             }
             File.SetLastWriteTimeUtc(destination, info.LastWriteTimeUtc);
             File.SetCreationTimeUtc(destination, info.CreationTimeUtc);
-            if (!OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindows() && !linuxModeSet)
             {
                 // Drives without permissions (FAT, some network shares) refuse or ignore this; the copy itself is complete.
                 try { File.SetUnixFileMode(destination, UnixPermissions.ForCopy(mode, isDirectory: false)); }
@@ -557,6 +561,13 @@ public class PortableFileOperations : IFileSystemOperations
     {
         if (Directory.Exists(path) || File.Exists(path)) throw new IOException($"An item named \"{Path.GetFileName(path)}\" already exists.");
         Directory.CreateDirectory(path);
+    }
+
+    public virtual void CreateDirectoryForCopy(string path, UnixFileMode mode)
+    {
+        if (OperatingSystem.IsWindows()) { CreateDirectory(path); return; }
+        if (Directory.Exists(path) || File.Exists(path)) throw new IOException($"An item named \"{Path.GetFileName(path)}\" already exists.");
+        Directory.CreateDirectory(path, mode);
     }
 
     public virtual void DeleteFile(string path) => File.Delete(path);

@@ -3,6 +3,7 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Metadata;
 using FileCat.Core.Resources;
 using System.Reflection;
+using System.Diagnostics;
 
 namespace FileCat.Core.Tests;
 
@@ -69,8 +70,8 @@ public sealed class UnixPermissionTests : IDisposable
     {
         Assert.Equal((UnixFileMode)0x1ED, UnixPermissions.ForCopy((UnixFileMode)0xDED, isDirectory: false)); // 6755 → 755
         Assert.Equal((UnixFileMode)0x5ED, UnixPermissions.ForCopy((UnixFileMode)0xDED, isDirectory: true)); // folders keep set-group-ID
-        Assert.Equal((UnixFileMode)0x180, UnixPermissions.WhileCopying((UnixFileMode)0x100, isDirectory: false)); // r-------- fills as rw-------
-        Assert.Equal((UnixFileMode)0x1ED, UnixPermissions.WhileCopying((UnixFileMode)0x16D, isDirectory: true)); // r-xr-xr-x folder fills as rwxr-xr-x
+        Assert.Equal((UnixFileMode)0x180, UnixPermissions.WhileCopying(isDirectory: false)); // 0600 until ACL and final mode are applied
+        Assert.Equal((UnixFileMode)0x1C0, UnixPermissions.WhileCopying(isDirectory: true)); // 0700 while the tree is filled
     }
 
     [Fact]
@@ -198,6 +199,71 @@ public sealed class UnixPermissionTests : IDisposable
         Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(Path.Combine(dst, ".ssh", "id_ed25519")));
         Assert.Equal((UnixFileMode)0x1ED, File.GetUnixFileMode(Path.Combine(dst, ".ssh", "tool"))); // no set-user-ID on a copy
         Assert.Equal("private key", File.ReadAllText(Path.Combine(dst, ".ssh", "id_ed25519")));
+    }
+
+    [Fact]
+    public async Task Linux_copy_keeps_named_user_file_and_folder_acls()
+    {
+        if (!OperatingSystem.IsLinux() || !File.Exists("/usr/bin/setfacl") || !File.Exists("/usr/bin/getfacl"))
+            Assert.Skip("Requires Linux with POSIX ACL tools.");
+
+        var source = _dir.Dir("acl-source");
+        var target = _dir.Dir("acl-target");
+        var deniedFile = _dir.File("acl-source/denied.txt", "owned secret");
+        var protectedFolder = _dir.Dir("acl-source/protected");
+        var nested = _dir.File("acl-source/protected/nested.txt", "nested secret");
+        RunAclTool("/usr/bin/setfacl", "-m", "u:65534:---", deniedFile);
+        RunAclTool("/usr/bin/setfacl", "-m", "u:65534:---,d:u:65534:---", protectedFolder);
+        RunAclTool("/usr/bin/setfacl", "-m", "u:65534:---", nested);
+
+        var job = await WaitAsync(Jobs().Submit(new JobRequest
+        {
+            Kind = JobKind.Copy,
+            Sources = [Item(deniedFile), Item(protectedFolder)],
+            Destination = Location.FileSystem(target),
+        }));
+        Assert.Equal(JobState.Completed, job.State);
+        foreach (var relative in new[] { "denied.txt", "protected", "protected/nested.txt" })
+        {
+            string original = Path.Combine(source, relative), copy = Path.Combine(target, relative);
+            Assert.Equal(RunAclTool("/usr/bin/getfacl", "-cn", original), RunAclTool("/usr/bin/getfacl", "-cn", copy));
+        }
+        Assert.Equal(File.ReadAllBytes(deniedFile), File.ReadAllBytes(Path.Combine(target, "denied.txt")));
+        Assert.Equal(File.ReadAllBytes(nested), File.ReadAllBytes(Path.Combine(target, "protected", "nested.txt")));
+    }
+
+    [Fact]
+    public async Task Linux_copy_removes_an_inherited_acl_absent_on_source()
+    {
+        if (!OperatingSystem.IsLinux() || !File.Exists("/usr/bin/setfacl") || !File.Exists("/usr/bin/getfacl"))
+            Assert.Skip("Requires Linux with POSIX ACL tools.");
+
+        var source = _dir.File("plain.txt", "plain owned bytes");
+        var target = _dir.Dir("inheriting-target");
+        RunAclTool("/usr/bin/setfacl", "-m", "d:u:65534:r--", target);
+        var job = await WaitAsync(Jobs().Submit(new JobRequest
+        {
+            Kind = JobKind.Copy, Sources = [Item(source)], Destination = Location.FileSystem(target),
+        }));
+        Assert.Equal(JobState.Completed, job.State);
+        var copy = Path.Combine(target, "plain.txt");
+        Assert.Equal(File.ReadAllBytes(source), File.ReadAllBytes(copy));
+        Assert.Equal(RunAclTool("/usr/bin/getfacl", "-cn", source), RunAclTool("/usr/bin/getfacl", "-cn", copy));
+    }
+
+    private static string RunAclTool(string tool, params string[] args)
+    {
+        using var process = new Process { StartInfo = new ProcessStartInfo(tool)
+        {
+            UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
+        } };
+        foreach (var arg in args) process.StartInfo.ArgumentList.Add(arg);
+        process.Start();
+        string output = process.StandardOutput.ReadToEnd();
+        string error = process.StandardError.ReadToEnd();
+        if (!process.WaitForExit(5000) || process.ExitCode != 0)
+            throw new IOException($"{Path.GetFileName(tool)} failed: {error}");
+        return output.Replace("\r\n", "\n").Trim();
     }
 
     [Fact]
