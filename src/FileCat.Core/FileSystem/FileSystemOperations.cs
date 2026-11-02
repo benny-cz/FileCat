@@ -501,18 +501,29 @@ public class PortableFileOperations : IFileSystemOperations
             using (var dst = new FileStream(destination, create))
             {
                 created = true;
-                if (total > 0 && !options.DisablePreallocation) dst.SetLength(total);
                 var buffer = new byte[BufferSize];
-                long done = 0;
-                int n;
-                while ((n = src.Read(buffer, 0, buffer.Length)) > 0)
+                void Advanced(long done)
                 {
                     ct.ThrowIfCancellationRequested();
-                    dst.Write(buffer, 0, n);
-                    done += n;
                     if (progress?.Invoke(done, total) == CopyProgressAction.Cancel) throw new OperationCanceledException(ct);
                 }
-                if (dst.Length != done) dst.SetLength(done);
+                bool sparseCopied = (OperatingSystem.IsWindows() && (info.Attributes & FileAttributes.SparseFile) != 0 &&
+                    WindowsSparseCopy.TryCopy(src, dst, total, buffer, options.DisablePreallocation, Advanced, ct)) ||
+                    UnixSparseCopy.TryCopy(src, dst, total, buffer, Advanced, ct);
+                if (!sparseCopied)
+                {
+                    src.Position = 0; // extent probing may have moved the shared native descriptor
+                    if (total > 0 && !options.DisablePreallocation) dst.SetLength(total);
+                    long done = 0;
+                    int n;
+                    while ((n = src.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        dst.Write(buffer, 0, n);
+                        done += n;
+                        Advanced(done);
+                    }
+                    if (dst.Length != done) dst.SetLength(done);
+                }
                 // On macOS the resource fork is an extended attribute, not part of FileStream's data fork.
                 // Copy it (and the other xattrs) between the already-open files before the new name is published.
                 // A failure must discard this destination rather than report a complete copy with missing bytes.
