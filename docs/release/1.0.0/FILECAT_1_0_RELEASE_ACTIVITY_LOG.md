@@ -5246,3 +5246,9 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 - Native Ubuntu after: file, nested folder/default ACL and destination-inherited-ACL cases matched independent `getfacl -cn` and three SHA-256 pairs; `nobody` remained denied. Exact owned fixture/process cleanup passed.
 - Focused Windows `UnixPermissionTests`: 18 passed, six expected Unix/Linux skips. Two new Linux-only job tests will run where `setfacl`/`getfacl` are present. Exact-source five-lane CI and frozen installed-candidate acceptance remain open.
 - [Exact evidence and finite stop](evidence/E-I614-linux-posix-acl-copy.md). Public preview.5 predates the correction; stable 1.0.0 remains NO-GO.
+
+## 2026-11-02 — I611 CI reconciliation and I615 Finder tag clarity
+
+- Corrected I611 run 41368842811 at `c74e201a` passed all five required jobs; 20 current/prior TRX are 41,397P/1,544S/0F versus 41,381P/1,544S/0F, with 16 new PDF viewer passes, no lost pass/new skip; tag-only jobs skipped as designed. The exploratory threshold is now 30, with the current defect-reset streak 0/30.
+- Native Mac reviewed Copy preserved an owned file and Finder-tag xattr byte for byte, but the attribute row showed the raw escaped plist color suffix. Product `ed4922b6` presents the tag name; focused Core 1P and native Mac AX before/after pass. Exact fixture/worktree/process cleanup passed.
+- [I611 platform/CI evidence](evidence/E-I611-pdf-preview-info-platform-stress.md) and [I615 Mac evidence](evidence/E-I615-macos-finder-tag-label.md). Latest product-source CI and frozen installed candidate remain open; stable 1.0.0 NO-GO.
