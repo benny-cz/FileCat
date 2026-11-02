@@ -31,6 +31,28 @@ public sealed class OpenSshIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void Time_spent_reviewing_the_first_host_key_does_not_expire_the_approved_connection()
+    {
+        if (_sshd is null) Assert.Skip("No OpenSSH sshd here (install openssh-server or set FILECAT_SSHD).");
+        int decisions = 0;
+        var context = new ConnectContext
+        {
+            ApproveHostKey = key =>
+            {
+                Interlocked.Increment(ref decisions);
+                Thread.Sleep(TimeSpan.FromMilliseconds(3500));
+                return key.AsSpan().SequenceEqual(_sshd.HostKey);
+            },
+            GetSecret = _ => null,
+            AnswerPrompts = (_, _) => null,
+        };
+        using var channel = new SshNetConnector(connectTimeout: TimeSpan.FromSeconds(3))
+            .Connect(_sshd.Profile, context, TestContext.Current.CancellationToken);
+        Assert.Equal(1, decisions);
+        Assert.NotNull(channel.List(_sshd.Files, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public void Stopped_listings_close_their_folders_on_the_server()
     {
         // A Low of the review of d1757bca: SSH.NET closes a listing's directory handle with the token it was given, so a
