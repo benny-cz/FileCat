@@ -1,6 +1,6 @@
 # SignPath Foundation application packet — FileCat 1.0.0
 
-**State:** the owner submitted the SignPath Foundation application on 2026-10-30. On 2026-10-31, SignPath Foundation declined it because FileCat does not yet have enough independent public visibility and trust signals. This packet is a historical record, not an active application or signing policy. The preview.3 release linked in the submitted packet was subsequently deleted at the owner's request; preview.4 is now the sole public release. See the [Windows signing route reassessment](WINDOWS_SIGNING_ROUTE_REASSESSMENT_20261031.md). No provider, certificate or signed candidate is recorded. Stable 1.0.0 remains **NO-GO**.
+**State:** the owner submitted the SignPath Foundation application on 2026-10-30. On 2026-10-31, SignPath Foundation declined it because FileCat does not yet have enough independent public visibility and trust signals. This packet is a historical record, not an active application or signing policy. The preview.3 release linked in the submitted packet was subsequently deleted at the owner's request; preview.4, preview.5 and preview.6 are the current public prereleases. See the [Windows signing route reassessment](WINDOWS_SIGNING_ROUTE_REASSESSMENT_20261031.md). No provider, certificate or signed candidate is recorded. Stable 1.0.0 remains **NO-GO**.
 
 ## Project and public release
 
