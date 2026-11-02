@@ -45,6 +45,9 @@ downloaded producer file and its platform manifest. The six downloaded workflow 
 (three preflight and three upload) agree on the repository, tag, source, manifest hashes,
 release ID and all 24 hosted upload IDs, with no extra or missing ID. This metadata check
 does not claim every hosted large package was independently downloaded a second time.
+The three hosted manifests were separately downloaded and rehashed to the manifest hashes
+above. The receipts workflow artifact is ID `13133559282` with GitHub-reported SHA-256
+`2958451d9e648b695e1436074b8460abb607e6573dc113a81499bf16076f8f6e`.
 
 | Producer asset | Bytes | SHA-256 |
 |---|---:|---|
@@ -76,10 +79,14 @@ does not claim every hosted large package was independently downloaded a second 
 ## Publication stop
 
 The `benny-cz` maintainer approved the protected `release` environment review for the
-**private** upload. Before public publication, upload the exact committed preview.6 notes
-to the draft and read their body back, then re-read the immutable tag and all 24 hosted
-asset names, IDs, sizes and server digests against the manifests and receipts. DEC-07
-requires a separate owner decision on that exact hosted inventory. Publish only as an
+**private** upload. The draft body now exactly equals the committed
+[preview.6 notes](https://github.com/benny-cz/FileCat/blob/0a206f02e907971d0f2534df3d6f50e80048cadd/docs/release/1.0.0/PREVIEW6_RELEASE_NOTES.md),
+SHA-256 `01b1ff2d02e8001b19aa828286834ad7b4741532fc6f24097ac28b138717613c`.
+A fresh authenticated prepublication read still found the same annotated tag object and
+peeled source, private release ID, exact notes and all 24 hosted assets/receipts unchanged.
+The retained API snapshot has SHA-256
+`d712467ac6400e06b5e0d6af9846a53550ed662778fe9ee6ebd1f4b1a485f48e`.
+DEC-07 requires a separate owner decision on this exact hosted inventory. Publish only as an
 unsigned prerelease with `make_latest: false`; verify the public state, exact notes and
 release attestation afterward. No stable 1.0.0 candidate, trusted Windows signing or
 stable publication is implied by this preview work.
