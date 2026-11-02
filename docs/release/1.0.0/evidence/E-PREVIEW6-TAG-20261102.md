@@ -1,4 +1,4 @@
-# Preview.6 tagged source and producer inventory — 2 November 2026
+# Preview.6 tagged source and public release — 2 November 2026
 
 The unsigned `v1.0.0-preview.6` annotated tag object
 `8fc7fd205f8352281df8672e99cb829383a7aef3` was independently read back from GitHub and
@@ -38,7 +38,8 @@ stderr. This is a noninteractive package start check, not installed candidate qu
 ## Exact hosted inventory
 
 The table below describes the verified workflow package artifacts and the identical 24
-uploaded assets in private draft **431344306**. A fresh authenticated GitHub API read found
+uploaded assets at the private-draft checkpoint for release **431344306**. A fresh
+authenticated GitHub API read found
 `draft: true`, `prerelease: true`, no publication time, and 24 unique assets in `uploaded`
 state. Every hosted name, byte size and server SHA-256 digest matches the independently
 downloaded producer file and its platform manifest. The six downloaded workflow receipts
@@ -76,7 +77,7 @@ above. The receipts workflow artifact is ID `13133559282` with GitHub-reported S
 | sbom-1.0.0-preview.6-win-x64-portable.spdx.json | 326770 | 87c9b4c20ab7e48431ed2d72d7cf9b9b35e7df8e804279872a16b227b0dfcf61 |
 | sbom-1.0.0-preview.6-win-x64-setup-payload.spdx.json | 331401 | 925aef303351a830957a057dcc9165c1c9133cc9a2dd32ee9bfbf86ed4aae2a9 |
 
-## Publication stop
+## Prepublication decision gate
 
 The `benny-cz` maintainer approved the protected `release` environment review for the
 **private** upload. The draft body now exactly equals the committed
@@ -86,7 +87,34 @@ A fresh authenticated prepublication read still found the same annotated tag obj
 peeled source, private release ID, exact notes and all 24 hosted assets/receipts unchanged.
 The retained API snapshot has SHA-256
 `d712467ac6400e06b5e0d6af9846a53550ed662778fe9ee6ebd1f4b1a485f48e`.
-DEC-07 requires a separate owner decision on this exact hosted inventory. Publish only as an
-unsigned prerelease with `make_latest: false`; verify the public state, exact notes and
-release attestation afterward. No stable 1.0.0 candidate, trusted Windows signing or
-stable publication is implied by this preview work.
+DEC-07 required a separate owner decision on this exact hosted inventory. The approved
+publication parameters were an unsigned prerelease with `make_latest: false`, followed by
+public-state, exact-notes and release-attestation verification. No stable 1.0.0 candidate,
+trusted Windows signing or stable publication is implied by this preview work.
+
+## Public preview publication
+
+The owner separately approved the exact 24-asset inventory, hashes and notes for unsigned
+public preview.6. Immediately before publication, a fresh authenticated read still matched
+the immutable annotated tag object and peeled source, release ID **431344306**, private
+draft/prerelease state, exact notes body, all 24 hosted asset names/IDs/sizes/server digests,
+and the six receipts. GitHub published that draft at **2026-11-02T11:00:05Z** as a prerelease
+with `make_latest: false`: [FileCat v1.0.0-preview.6](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.6).
+
+An unauthenticated public release-by-tag API read returned HTTP 200, the same ID/tag,
+`draft: false`, `prerelease: true`, `immutable: true`, the exact notes body and all **24
+unchanged uploaded assets** matching the inventory above. The retained public API snapshot
+SHA-256 is `f7aa85316981acb0a0809dcf041bb8e229709dd31348e0e2a3c0b6896b2ea005`.
+GitHub CLI's signed release-attestation verification passed. Its verified in-toto statement
+binds annotated tag object `8fc7fd205f8352281df8672e99cb829383a7aef3` and the exact
+SHA-256 of all 24 assets above; the retained JSON verification SHA-256 is
+`e3da8227f06cb43ef473b10ac3f0532b73e88a2846f4334a60b06649f19e4836`.
+
+The official public `FileCat-1.0.0-preview.6-win-x64-portable.zip` was downloaded again.
+Its **105,831,375 bytes** and locally computed SHA-256
+`c8714be70dfabc4be3c5db96881fa82c88df02cd8e5388e4b7259435a7c1de9a` match the
+producer manifest, GitHub server digest and signed attestation; `gh release verify-asset`
+passed. The byte-identical producer ZIP had already passed the safe extraction and
+noninteractive `FileCat 1.0.0-preview.6` start check above. This release-integrity check
+is not a trusted Windows code signature or installed stable-candidate qualification.
+Stable 1.0.0 remains **NO-GO**.

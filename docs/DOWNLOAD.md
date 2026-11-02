@@ -1,30 +1,30 @@
 # Download FileCat
 
-**FileCat 1.0.0-preview.5** is available for Windows, Ubuntu and macOS. This is a preview for evaluation; stable 1.0.0 is still in validation. These packages do not have trusted release signing.
+**FileCat 1.0.0-preview.6** is available for Windows, Ubuntu and macOS. This is a preview for evaluation; stable 1.0.0 is still in validation. These packages do not have trusted release signing.
 
 ## Choose your download
 
-Choose your operating system and processor architecture. The links below point to the exact [1.0.0-preview.5 release](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.5).
+Choose your operating system and processor architecture. The links below point to the exact [1.0.0-preview.6 release](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.6).
 
 | Your system | Start here | Other package options |
 |---|---|---|
-| Windows 11 · x64 | [Installer (.exe)](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.5/FileCat-1.0.0-win-x64-setup.exe) | [Portable ZIP](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.5/FileCat-1.0.0-preview.5-win-x64-portable.zip) |
-| Windows 11 · ARM64 | [Native ARM64 installer (.exe)](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.5/FileCat-1.0.0-win-arm64-setup.exe) | [Native ARM64 portable ZIP](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.5/FileCat-1.0.0-preview.5-win-arm64-portable.zip) |
-| Ubuntu 24.04/26.04 · x64 · GNOME | [Debian package (.deb)](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.5/filecat_1.0.0-preview.5_amd64.deb) | [AppImage](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.5/FileCat-1.0.0-preview.5-x86_64.AppImage) · [Portable tar.gz](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.5/FileCat-1.0.0-preview.5-linux-x64.tar.gz) |
-| macOS 26+ · Apple silicon | [Application ZIP](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.5/FileCat-1.0.0-preview.5-osx-arm64.zip) | Ad-hoc signed; not notarized |
+| Windows 11 · x64 | [Installer (.exe)](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.6/FileCat-1.0.0-win-x64-setup.exe) | [Portable ZIP](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.6/FileCat-1.0.0-preview.6-win-x64-portable.zip) |
+| Windows 11 · ARM64 | [Native ARM64 installer (.exe)](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.6/FileCat-1.0.0-win-arm64-setup.exe) | [Native ARM64 portable ZIP](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.6/FileCat-1.0.0-preview.6-win-arm64-portable.zip) |
+| Ubuntu 24.04/26.04 · x64 · GNOME | [Debian package (.deb)](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.6/filecat_1.0.0-preview.6_amd64.deb) | [AppImage](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.6/FileCat-1.0.0-preview.6-x86_64.AppImage) · [Portable tar.gz](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.6/FileCat-1.0.0-preview.6-linux-x64.tar.gz) |
+| macOS 26+ · Apple silicon | [Application ZIP](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.6/FileCat-1.0.0-preview.6-osx-arm64.zip) | Ad-hoc signed; not notarized |
 
-Read the [preview release notes](release/1.0.0/PREVIEW5_RELEASE_NOTES.md) and check the [published asset inventory and SHA-256 hashes](release/1.0.0/evidence/E-PREVIEW5-TAG-20261031.md#exact-hosted-inventory) before installing.
+Read the [preview release notes](release/1.0.0/PREVIEW6_RELEASE_NOTES.md) and check the [published asset inventory and SHA-256 hashes](release/1.0.0/evidence/E-PREVIEW6-TAG-20261102.md#exact-hosted-inventory) before installing.
 
 ### Which package fits your workflow?
 
-- **Windows installer:** includes the administrator-helper route for supported operations. The installer filenames omit `preview.5`; these links still install the preview, and the app reports `1.0.0-preview.5`. Windows may show an unrecognized-app warning because the packages lack trusted release signing.
+- **Windows installer:** includes the administrator-helper route for supported operations. The installer filenames omit `preview.6`; these links still install the preview, and the app reports `1.0.0-preview.6`. Windows may show an unrecognized-app warning because the packages lack trusted release signing.
 - **Windows portable ZIP:** includes the .NET runtime and keeps settings, history and other state in `Data/` beside the app. It has no administrator helper. For disk recovery, put FileCat and its state on another disk, or use `--data` on another disk as described in the [README](../README.md#try-a-local-build).
-- **Windows framework-dependent ZIP:** available for [x64](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.5/FileCat-1.0.0-preview.5-win-x64-fdd.zip) and [ARM64](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.5/FileCat-1.0.0-preview.5-win-arm64-fdd.zip) if you have the matching .NET runtime. These packages have no administrator helper. The .NET SDK is required only when [building from source](../README.md#try-a-local-build).
-- **macOS application ZIP:** the app is ad-hoc signed and not notarized. On first start, use **Open Anyway** in System Settings → Privacy & Security and confirm. If extracting in Terminal, use macOS `ditto -x -k FileCat-1.0.0-preview.5-osx-arm64.zip DESTINATION_DIR` to preserve the bundle's signing metadata; ordinary `unzip` did not preserve it in the preview.5 check.
+- **Windows framework-dependent ZIP:** available for [x64](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.6/FileCat-1.0.0-preview.6-win-x64-fdd.zip) and [ARM64](https://github.com/benny-cz/FileCat/releases/download/v1.0.0-preview.6/FileCat-1.0.0-preview.6-win-arm64-fdd.zip) if you have the matching .NET runtime. These packages have no administrator helper. The .NET SDK is required only when [building from source](../README.md#try-a-local-build).
+- **macOS application ZIP:** the app is ad-hoc signed and not notarized. On first start, use **Open Anyway** in System Settings → Privacy & Security and confirm. If extracting in Terminal, use macOS `ditto -x -k FileCat-1.0.0-preview.6-osx-arm64.zip DESTINATION_DIR` to preserve the bundle's signing metadata; ordinary `unzip` did not preserve it in the preview.5 check.
 
 Windows ARM64 has been built, tested and started on a hosted ARM64 runner; physical ARM64 hardware has not been qualified. Other Linux distributions and desktops are outside this preview's claimed support. See [what works where](CAPABILITIES.md) for platform and location limits.
 
-The [release page](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.5) also contains the package manifests, software bills of materials (SBOMs), and Linux AppImage runtime source bundle. The [README](../README.md) introduces FileCat and its source-build route.
+The [release page](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.6) also contains the package manifests, software bills of materials (SBOMs), and Linux AppImage runtime source bundle. The [README](../README.md) introduces FileCat and its source-build route.
 
 ## Code signing policy
 
