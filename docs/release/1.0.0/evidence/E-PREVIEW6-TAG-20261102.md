@@ -35,11 +35,16 @@ screen before extraction into an owned ignored workspace directory. Its `FileCat
 marker exists; `FileCat.exe --version` exited 0 with `FileCat 1.0.0-preview.6` and empty
 stderr. This is a noninteractive package start check, not installed candidate qualification.
 
-## Exact producer inventory
+## Exact hosted inventory
 
-The table below describes the verified workflow package artifacts. Hosted release assets
-must be independently reconciled after the protected private-draft upload. The release remains
-unpublished at this checkpoint.
+The table below describes the verified workflow package artifacts and the identical 24
+uploaded assets in private draft **431344306**. A fresh authenticated GitHub API read found
+`draft: true`, `prerelease: true`, no publication time, and 24 unique assets in `uploaded`
+state. Every hosted name, byte size and server SHA-256 digest matches the independently
+downloaded producer file and its platform manifest. The six downloaded workflow receipts
+(three preflight and three upload) agree on the repository, tag, source, manifest hashes,
+release ID and all 24 hosted upload IDs, with no extra or missing ID. This metadata check
+does not claim every hosted large package was independently downloaded a second time.
 
 | Producer asset | Bytes | SHA-256 |
 |---|---:|---|
@@ -70,9 +75,11 @@ unpublished at this checkpoint.
 
 ## Publication stop
 
-The protected `release` environment requires the `benny-cz` maintainer review before the
-private draft job may upload these files. After upload, compare all hosted names, IDs, byte
-sizes and server digests with the three manifests and six preflight/upload receipts, then
-read the exact draft tag and notes body back. DEC-07 requires a separate owner decision on
-that exact hosted inventory before public prerelease publication. No stable 1.0.0 candidate,
-trusted Windows signing or stable publication is implied by this preview work.
+The `benny-cz` maintainer approved the protected `release` environment review for the
+**private** upload. Before public publication, upload the exact committed preview.6 notes
+to the draft and read their body back, then re-read the immutable tag and all 24 hosted
+asset names, IDs, sizes and server digests against the manifests and receipts. DEC-07
+requires a separate owner decision on that exact hosted inventory. Publish only as an
+unsigned prerelease with `make_latest: false`; verify the public state, exact notes and
+release attestation afterward. No stable 1.0.0 candidate, trusted Windows signing or
+stable publication is implied by this preview work.
