@@ -228,7 +228,10 @@ public sealed class CommandSearchTests
             Assert.True(dialogs.IsOpen, "Enter ran Settings");
             Assert.Equal("", box.Text);
             Assert.Equal(CommandIds.Settings, services.History.RecentCommands[0]);
-            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            // Settings now reviews implicit dismissal. Use its explicit Cancel action here;
+            // SettingsDialogTests covers the Esc review and rollback separately.
+            window.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Cancel"))
+                .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
             await WaitFor(() => !dialogs.IsOpen, ct);
 
             // Next time, with nothing typed, it is listed first.

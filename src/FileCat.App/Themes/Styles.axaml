@@ -157,6 +157,8 @@
     <Setter Property="Margin" Value="4,2" />
     <Setter Property="MinHeight" Value="{DynamicResource FcRoleHeight}" />
     <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="CornerRadius" Value="3" />
     <Setter Property="FontSize" Value="{DynamicResource FcRoleFontSize}" />
     <Setter Property="Background" Value="Transparent" />

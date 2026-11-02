@@ -85,7 +85,8 @@
         <Button x:Name="RoleButton" Grid.Column="5" Classes="role" Classes.target="{Binding IsTarget}" Classes.offer="{Binding OffersTarget}"
                 ToolTip.Tip="{Binding RoleTip}" AutomationProperties.Name="{Binding RoleTip}" Click="OnRoleClick"
                 IsVisible="{Binding RoleLabel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-          <TextBlock Text="{Binding RoleLabel}" MaxWidth="80" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{Binding RoleLabel}" MaxWidth="80" TextTrimming="CharacterEllipsis"
+                     VerticalAlignment="Center" TextAlignment="Center" />
         </Button>
       </Grid>
 
