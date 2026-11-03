@@ -284,28 +284,28 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>
-    /// View → Analyze folder (plan §10, META-002): computes a column's value for every item and sorts by it. Sorted by
-    /// such a column already, that one is analyzed; otherwise the columns to choose from, each with what it shows.
+    /// View → Analyze folder (plan §10, META-002): lets the user choose or re-run a column's full analysis,
+    /// even when the panel is already sorted by metadata.
     /// </summary>
     private async Task AnalyzeFolderAsync()
     {
         if (ActiveTab is not { Location: not null } tab) return;
-        if (tab.Listing.Sort is { Field: Core.Listing.SortField.Metadata, MetadataId: { } current } && current != Controls.ColumnSpec.FolderSortKey)
-        {
-            await tab.AnalyzeAsync(current);
-            return;
-        }
+        var current = tab.Listing.Sort is { Field: Core.Listing.SortField.Metadata, MetadataId: { } sorted } &&
+                      sorted != Controls.ColumnSpec.FolderSortKey ? sorted : null;
         var fields = Services.Metadata.Fields.Where(f => OperatingSystem.IsWindows() ? f.Id is not ("permissions" or "owner" or "group") : f.Id != "version")
             .OrderBy(f => f.Title, StringComparer.CurrentCulture).ToList();
         if (fields.Count == 0) return;
-        var items = fields.Select(f => new ChoiceItem(f.Title, AnalysisDescription(f.Id))).ToList();
+        var items = fields.Select(f => new ChoiceItem(f.Title,
+            f.Id == current ? "Current sort · " + AnalysisDescription(f.Id) : AnalysisDescription(f.Id))).ToList();
         var r = await Dialogs.ChooseAsync(new ChoiceOptions("Analyze folder", items)
         {
-            Hint = "Reads the value for every item in this folder, then sorts by it (Esc stops it) · Enter starts",
+            SelectedIndex = Math.Max(0, fields.FindIndex(f => f.Id == current)),
+            Hint = "Choose a field or rerun the current sort · reads every item · Enter starts · Esc cancels",
         });
         if (r.Index < 0 || r.Index >= fields.Count) return;
-        tab.SortByMetadata(fields[r.Index].Id, analyzing: true);
-        await tab.AnalyzeAsync(fields[r.Index].Id);
+        var selected = fields[r.Index].Id;
+        if (selected != current) tab.SortByMetadata(selected, analyzing: true);
+        await tab.AnalyzeAsync(selected);
     }
 
     private static string AnalysisDescription(string fieldId) => fieldId switch
