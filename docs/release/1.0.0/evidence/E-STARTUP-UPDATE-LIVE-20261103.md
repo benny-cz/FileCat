@@ -1,0 +1,21 @@
+# Startup update check — live Windows VM follow-up, 3 November 2026
+
+## Scope and test identity
+
+This is a focused native follow-up to the owner-requested background startup update dialog. The test used the disposable Windows 11 x64 VM at `V:\Virtual Machines\Jamf\Windows 10 x64\Windows 10 x64.vmx`, restored from its `updated #38` interactive snapshot. The physical workstation desktop and Mac GUI were not used. The VM ran an isolated self-contained source build with an isolated `--data` profile. Its informational version was deliberately set to `1.0.0-preview.7` so public `v1.0.0-preview.8` was a genuine newer release. This synthetic test build is **not** a tagged or qualified distribution candidate.
+
+The first package ZIP was independently rehashed after VM transfer: SHA-256 `BFBCD72D43DE1409D465B5B8FFFFD535E231B8B0CD651ECA25301E8ED919EED5`, with product version `1.0.0-preview.7+ab30f474`. After the timeout correction, the exact `FileCat.dll` copied into the VM and copied back had matching host/guest SHA-256 `E6DB100870B2FA475898D971CC7C3BF77C717ADCF3E77198B7341B5D987A3045`. Its version label remained synthetic; the DLL includes the 20-second timeout correction beyond base commit `ab30f474`.
+
+## Consequential finding and correction
+
+The original 10-second total request deadline kept the UI responsive and showed no error, but it missed an available release on this VM twice. The app log recorded startup at `18:46:42Z` and failure at `18:46:55Z`, then startup at `18:55:05Z` and failure at `18:55:18Z`, both `TaskCanceledException`. The VM's separate GitHub API request returned five releases headed by published `v1.0.0-preview.8`. A Windows PowerShell `HttpClient` comparison on the same guest took 11,878 ms on its default route and 238 ms with proxy use disabled. This supports a slow default network/proxy path on the guest; it does not identify the precise stage of FileCat's .NET 10 request. FileCat retains the system proxy and now gives its entirely background request/response a finite 20-second deadline. It still stays silent on failure.
+
+With the corrected DLL, FileCat rendered its main window before the request finished. The log recorded startup at `19:00:37Z` and `Update check completed` at `19:00:51Z`. Native UI Automation found the **Update available** dialog, the exact text `FileCat 1.0.0-preview.8 is available; this is 1.0.0-preview.7.`, and **Not now**, **Skip this version**, and **Open release page** buttons. A Windows Update system prompt obscured part of the screenshot, so the dialog controls and text were checked through the FileCat window's native accessibility tree rather than inferred from the obstructed image.
+
+The native **Skip this version** button was invoked. Isolated `settings.json` then contained `SkippedUpdateVersion: 1.0.0-preview.8` and `CheckForUpdates: true`. After clearing only the daily test timestamp and restarting, the log recorded another completed release request (`19:08:58Z` startup, `19:09:12Z` completion), while native inspection found no update dialog; the skip remained saved. Next, `CheckForUpdates` was set to false in that isolated profile and its daily timestamp cleared. On startup at `19:12:43Z`, the timestamp remained null and no update request was logged. Finally, **Help → Check for updates** was invoked through native UI Automation with both the opt-out and skip still saved; it opened the same update dialog for preview.8. This verifies that manual checks bypass both automatic preferences.
+
+## Limits and stopping rule
+
+The corrected 20-second path was checked live against GitHub on one VM and the saved skip and opt-out were exercised across restarts. A disconnected-network run of the final 20-second build was not separately performed; the earlier 10-second timeout was observed to fail silently, and the failure-handling code is unchanged. Focused App update/Settings tests passed 15/15 on the final source, and the revised native acceptance script parsed successfully. Source CI and an installed release candidate remain separate gates. Stop this focused follow-up once required source CI passes; do not reopen accepted unrelated scenarios without a consequential reason.
+
+After collecting the results, the VM was shut down and restored to the same `updated #38` snapshot. It was left off, as it was before this follow-up.

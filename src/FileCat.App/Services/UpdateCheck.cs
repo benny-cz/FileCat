@@ -64,7 +64,9 @@ public static class UpdateCheck
             // ResponseHeadersRead ends HttpClient's request timeout at the headers. The linked
             // token also bounds a stalled or trickling response body.
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            deadline.CancelAfter(TimeSpan.FromSeconds(10));
+            // Proxy discovery can be slow on an otherwise reachable machine. It runs in the
+            // background, so allow that path time to complete while keeping a finite deadline.
+            deadline.CancelAfter(TimeSpan.FromSeconds(20));
             using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
             http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("FileCat", current));
             http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
