@@ -17,6 +17,51 @@ namespace FileCat.Rendering.Tests;
 public sealed class PictureGridRenderingTests
 {
     [AvaloniaFact]
+    public async Task Offline_picture_is_listed_without_starting_an_automatic_content_read()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows offline file attributes are required.");
+        string root = Path.Combine(Path.GetTempPath(), "filecat-picture-offline", Guid.NewGuid().ToString("N"));
+        string folder = Directory.CreateDirectory(Path.Combine(root, "files")).FullName;
+        string picture = Path.Combine(folder, "online-only.bmp");
+        File.WriteAllBytes(picture, Bmp(35));
+        File.SetAttributes(picture, File.GetAttributes(picture) | FileAttributes.Offline);
+        var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: Path.Combine(root, "state")));
+        Window? window = null;
+        TabViewModel? tab = null;
+        try
+        {
+            var workspace = new WorkspaceViewModel(services);
+            var panel = new PanelViewModel(workspace, services);
+            workspace.Panels.Add(panel);
+            workspace.ActivePanel = panel;
+            tab = panel.OpenTab(Location.FileSystem(folder));
+            var list = new FileListControl { Tab = tab, PictureMode = true, Width = 640, Height = 420 };
+            window = new Window { Width = 640, Height = 420, Content = list };
+            window.Show();
+            for (int i = 0; i < 100 && tab.Listing.State != ListingState.Complete; i++)
+            {
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+                Dispatcher.UIThread.RunJobs();
+            }
+            using var frame = new RenderTargetBitmap(new PixelSize(640, 420));
+            frame.Render(list);
+            Dispatcher.UIThread.RunJobs();
+            await Task.Delay(150, TestContext.Current.CancellationToken);
+            Assert.True(tab.Listing.FindStoreIndex("online-only.bmp") >= 0);
+            Assert.Equal(0, list.PictureThumbnailLoadCount);
+            Assert.Equal(0, list.PendingPictureThumbnailCount);
+        }
+        finally
+        {
+            window?.Close();
+            tab?.Dispose();
+            services.Dispose();
+            try { File.SetAttributes(picture, FileAttributes.Normal); } catch (IOException) { }
+            try { Directory.Delete(root, true); } catch (IOException) { }
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Grid_renders_mixed_items_and_decoded_thumbnails_in_a_bounded_viewport()
     {
         string root = Path.Combine(Path.GetTempPath(), "filecat-picture-render", Guid.NewGuid().ToString("N"));
@@ -136,12 +181,32 @@ public sealed class PictureGridRenderingTests
             Assert.Equal(65, list.CachedPictureThumbnailCount);
             Assert.Equal(65, list.PictureThumbnailLoadCount);
 
+            // New pictures below the viewport should not evict the first screen.
+            // Returning to it must not start another decoder for unchanged files.
+            for (int i = 65; i < 85; i++)
+                File.WriteAllBytes(Path.Combine(folder, $"picture-{i:00}.bmp"), Bmp((byte)(20 + i)));
+            await RefreshListing();
+            list.ScrollToTopRow(int.MaxValue);
+            frame.Render(list);
+            await WaitForPictures(85, 85);
+            list.ScrollToTopRow(0);
+            frame.Render(list);
+            Dispatcher.UIThread.RunJobs();
+            await Task.Delay(150, TestContext.Current.CancellationToken);
+            Assert.Equal(85, list.CachedPictureThumbnailCount);
+            Assert.Equal(85, list.PictureThumbnailLoadCount);
+
             string changed = Path.Combine(folder, "picture-00.bmp");
             File.WriteAllBytes(changed, Bmp(230));
             File.SetLastWriteTimeUtc(changed, DateTime.UtcNow.AddMinutes(1));
             await RefreshListing();
-            await WaitForPictures(66, 65);
-            Assert.Equal(66, list.PictureThumbnailLoadCount);
+            for (int i = 0; i < 200 && (list.PictureThumbnailLoadCount < 86 || list.PendingPictureThumbnailCount > 0); i++)
+            {
+                frame.Render(list);
+                Dispatcher.UIThread.RunJobs();
+                await Task.Delay(20, TestContext.Current.CancellationToken);
+            }
+            Assert.Equal(86, list.PictureThumbnailLoadCount);
         }
         finally
         {

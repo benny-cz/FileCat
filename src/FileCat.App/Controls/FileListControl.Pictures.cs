@@ -15,7 +15,10 @@ namespace FileCat.App.Controls;
 public sealed partial class FileListControl
 {
     private const long MaxAutomaticThumbnailBytes = 64L * 1024 * 1024;
-    private const int MaxCachedThumbnails = 64;
+    // Keep a normal photo folder warm when the user scrolls back. Bound both the
+    // number of answers and their decoded pixels so very large folders stay finite.
+    private const int MaxCachedThumbnails = 512;
+    private const long MaxCachedThumbnailBytes = 96L * 1024 * 1024;
     private readonly SemaphoreSlim _thumbnailSlots = new(2);
     private readonly Dictionary<ThumbnailKey, ThumbnailValue> _pictureCache = new();
     private readonly Dictionary<ThumbnailKey, ThumbnailRequest> _picturePending = new();
@@ -82,7 +85,7 @@ public sealed partial class FileListControl
                 var item = listing.GetItemRef(storeIndex);
                 WriteableBitmap? thumbnail = null;
                 if (entry.Kind == EntryKind.File && PictureBrowseContext.IsPictureName(entry.Name)
-                    && entry.Size <= MaxAutomaticThumbnailBytes)
+                    && entry.Size <= MaxAutomaticThumbnailBytes && !entry.Has(EntryFlags.Offline))
                 {
                     var key = new ThumbnailKey(item, entry.Size, entry.Modified);
                     // Demand tracks every visible picture, including cached ones. Otherwise
@@ -118,6 +121,7 @@ public sealed partial class FileListControl
                 {
                     string extension = NameParts.GetExtension(entry.Name).ToUpperInvariant();
                     string badge = entry.Kind == EntryKind.Parent ? "UP" : entry.IsContainer ? "FOLDER"
+                        : entry.Has(EntryFlags.Offline) ? "ONLINE ONLY"
                         : extension.Length is > 0 and <= 6 ? extension : "FILE";
                     using var label = MakeText(badge, _muted, _typeface, Math.Max(1, imageBox.Width - 8));
                     label.Draw(dc, new Point(imageBox.Center.X - label.Width / 2, imageBox.Bottom - label.Height - 4));
@@ -128,6 +132,7 @@ public sealed partial class FileListControl
                     marked ? _boldTypeface : _typeface, Math.Max(1, tile.Width - 16));
                 name.Draw(dc, new Point(tile.X + 8, tile.Bottom - 43));
                 string detail = entry.Kind == EntryKind.Parent ? "Parent folder" : entry.IsContainer ? "Folder"
+                    : entry.Has(EntryFlags.Offline) ? "Open to download"
                     : entry.Size >= 0 ? Formatters.SizeWithUnit(entry.Size) : "File";
                 using var secondary = MakeText(detail, _muted, _typeface, Math.Max(1, tile.Width - 16));
                 secondary.Draw(dc, new Point(tile.X + 8, tile.Bottom - 23));
@@ -226,9 +231,11 @@ public sealed partial class FileListControl
 
     private void TrimPictureCache()
     {
-        // The viewport can contain more than 64 tiles on a large display. Never evict
-        // an on-screen thumbnail: doing so starts an endless decode/redraw loop.
-        while (_pictureCache.Count > MaxCachedThumbnails)
+        // A large viewport can exceed the ordinary cache budget. Never evict an
+        // on-screen thumbnail: doing so starts an endless decode/redraw loop.
+        long bytes = _pictureCache.Values.Sum(value => value.Bitmap is { } bitmap
+            ? (long)bitmap.PixelSize.Width * bitmap.PixelSize.Height * 4 : 0);
+        while (_pictureCache.Count > MaxCachedThumbnails || bytes > MaxCachedThumbnailBytes)
         {
             ThumbnailKey? oldestKey = null;
             long oldestTouch = long.MaxValue;
@@ -240,6 +247,8 @@ public sealed partial class FileListControl
             }
             if (oldestKey is not { } evicted) break;
             _pictureCache.Remove(evicted, out var removed);
+            if (removed?.Bitmap is { } bitmap)
+                bytes -= (long)bitmap.PixelSize.Width * bitmap.PixelSize.Height * 4;
             removed?.Bitmap?.Dispose();
         }
     }
