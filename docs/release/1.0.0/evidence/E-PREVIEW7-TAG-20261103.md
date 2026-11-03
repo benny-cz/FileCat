@@ -28,7 +28,7 @@ manifests are expected to state `CandidateQualified: false` and `SigningVerified
 Stable 1.0.0 remains **NO-GO**.
 
 
-## Exact producer inventory
+## Exact hosted inventory
 
 The three workflow package artifacts are Windows `filecat-release` ID `13217070190`,
 GitHub-reported SHA-256 `84940178ca9286a26e453024a10e7f42cffd5f31a4f2a95bd08d0f1e241a58b3`;
@@ -49,6 +49,21 @@ and symlink screen, the ZIP's CRC check passed, and it was extracted into an own
 workspace directory. Its `FileCat.portable` marker exists; `FileCat.exe --version` exited 0
 and printed `FileCat 1.0.0-preview.7`. This is a noninteractive package start check, not
 installed stable-candidate qualification.
+
+The owner (`benny-cz`) approved the protected `release` environment review, and the
+private draft job passed. A fresh authenticated API read of release **432451806** returned
+`draft: true`, `prerelease: true`, no publication time and 24 unique assets in `uploaded`
+state. Every hosted name, byte size and server SHA-256 digest matches the independently
+downloaded producer file and its platform manifest. The six workflow receipts (three
+preflight and three upload) agree on repository, tag, source, manifest hashes, release ID
+and all 24 hosted upload IDs, with no extra or missing ID. This metadata check does not
+claim that every hosted large package was independently downloaded a second time. The
+three hosted manifests were separately downloaded and found byte-identical to the
+producer manifests above. The receipts workflow artifact is ID `13216946585`, with
+GitHub-reported SHA-256
+`4a4664a3843475cbdeb81c746d88ede651011799f648682a93c440a58d87265b`.
+The retained private API snapshot SHA-256 is
+`8bed620acd97f979436e62f79443c3204fa8fa6aba89b2f39804f23efe9039e2`.
 
 | Hosted asset | Bytes | SHA-256 |
 |---|---:|---|
@@ -77,7 +92,6 @@ installed stable-candidate qualification.
 | sbom-1.0.0-preview.7-win-x64-portable.spdx.json | 326770 | e3e383de29d28e65bb73e249dbfe0805b3052b3320ac447e4aa2d19bb8424473 |
 | sbom-1.0.0-preview.7-win-x64-setup-payload.spdx.json | 331401 | 943e7fdda06bce6a73fcf61cb8870eeb795d7251eee5f24b5346284dcb22e2cb |
 
-The protected draft job is waiting for the owner's required `release` environment review.
-Only that job can upload these exact producer files as a private draft. Its post-upload
-receipts and the hosted asset inventory must be reconciled before a separate DEC-07 decision
-on public unsigned publication. Stable 1.0.0 remains **NO-GO**.
+The private draft body still needs the exact committed preview.7 notes. DEC-07 requires a
+separate owner decision on this exact hosted inventory before public unsigned publication.
+Stable 1.0.0 remains **NO-GO**.
