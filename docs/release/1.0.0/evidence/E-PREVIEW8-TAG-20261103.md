@@ -105,3 +105,23 @@ The retained private API snapshot SHA-256 is
 | sbom-1.0.0-preview.8-win-x64-fdd.spdx.json | 202517 | 08e82511ecb56be572ff5ba46bf2c8fa95c308e9dae554d59fd340788e4791e5 |
 | sbom-1.0.0-preview.8-win-x64-portable.spdx.json | 326770 | 6aac6dd7b9acd1456d1769b5888e3c6627cfbc9de2232a94de78fefeefea235f |
 | sbom-1.0.0-preview.8-win-x64-setup-payload.spdx.json | 331401 | 47c7a317a12d3646f870c58edcac39570def8da1d866693533ac3d287f29e885 |
+
+## Prepublication decision gate
+
+The private draft body exactly matches the committed
+[preview.8 notes](https://github.com/benny-cz/FileCat/blob/3f92a8cdc4e628c1d9ce58a42f7af44f91d0e95a/docs/release/1.0.0/PREVIEW8_RELEASE_NOTES.md),
+SHA-256 `63452fcfcf92eb7c49a593ba6f3c81229a14917370008a5377c78b70e7238430`.
+The first body-only REST update returned an `untagged-*` draft name, despite
+retaining release ID **432893243**, draft/prerelease flags, exact body and all
+24 assets. A second private REST update explicitly supplied the existing
+`v1.0.0-preview.8` tag, exact source, name, notes and draft/prerelease flags.
+An independent fresh read confirmed the correct tag association, source,
+private state, exact notes and all 24 hosted assets and six receipts unchanged.
+The retained final private API snapshot SHA-256 is
+`c6dc31ba51013f7525418744ce1d86c2d6b4f22ad829094ccf3097ae6d36a68b`.
+The immutable annotated tag object remains `774f8882`.
+
+DEC-07 requires a separate owner decision on this exact hosted inventory. The
+proposed publication is an **unsigned prerelease** with `make_latest: false`.
+After publication, verify unauthenticated public state, exact notes, 24 asset
+hashes and signed GitHub release attestation. Stable 1.0.0 remains **NO-GO**.
