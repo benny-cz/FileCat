@@ -32,7 +32,7 @@ See the [capability matrix](https://github.com/benny-cz/FileCat/blob/main/docs/C
 
 ## Verify the downloads
 
-The release contains a `*-assets.json` manifest for each platform, with the SHA-256 and byte size of its packages, SBOMs and the Linux AppImage runtime source bundle. Match a downloaded file to its platform manifest and the [exact producer inventory](https://github.com/benny-cz/FileCat/blob/main/docs/release/1.0.0/evidence/E-PREVIEW7-TAG-20261103.md#exact-producer-inventory). The three producer manifests were downloaded and rehashed:
+The release contains a `*-assets.json` manifest for each platform, with the SHA-256 and byte size of its packages, SBOMs and the Linux AppImage runtime source bundle. Match a downloaded file to its platform manifest and the [exact hosted inventory](https://github.com/benny-cz/FileCat/blob/49fd81b8dd6a1291edac79391422c205cb27e7dc/docs/release/1.0.0/evidence/E-PREVIEW7-TAG-20261103.md#exact-hosted-inventory). The three hosted manifests were separately downloaded and rehashed:
 
 | Manifest | SHA-256 |
 |---|---|
@@ -40,4 +40,4 @@ The release contains a `*-assets.json` manifest for each platform, with the SHA-
 | `FileCat-1.0.0-preview.7-linux-assets.json` | `5487efb39bc87b5f47adafe094eb4c7cbadbf18b98d334b6843826c4d9dabb67` |
 | `FileCat-1.0.0-preview.7-macos-assets.json` | `e6da69d7e11330c5a4eb9848f52a430564a1d58fd7b6ea59961d411f59208497` |
 
-The immutable product source is `8008a3a8523faf830d8ebaa4399de8d2d2563d6a`. All five tagged source jobs and three package jobs passed; the 24 producer files match their manifests. The owner-reviewed private draft and separate public decision remain. This remains an unsigned prerelease. Stable 1.0.0 remains NO-GO.
+The immutable product source is `8008a3a8523faf830d8ebaa4399de8d2d2563d6a`. All five tagged source jobs and three package jobs passed; the owner-reviewed private draft's 24 hosted assets match the producer manifests and upload receipts. This remains an unsigned prerelease. Stable 1.0.0 remains NO-GO.
