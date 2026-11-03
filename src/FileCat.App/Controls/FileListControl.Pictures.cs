@@ -19,11 +19,13 @@ public sealed partial class FileListControl
     private readonly SemaphoreSlim _thumbnailSlots = new(2);
     private readonly Dictionary<ThumbnailKey, ThumbnailValue> _pictureCache = new();
     private readonly Dictionary<ThumbnailKey, ThumbnailRequest> _picturePending = new();
+    private HashSet<ThumbnailKey> _pictureDemand = [];
     private int _pictureColumns = 1;
     private long _pictureGeneration;
     private long _pictureTouch;
     internal int CachedPictureThumbnailCount => _pictureCache.Values.Count(value => value.Bitmap is not null);
     internal int PendingPictureThumbnailCount => _picturePending.Count;
+    internal long PictureThumbnailLoadCount { get; private set; }
 
     private readonly record struct ThumbnailKey(ItemRef Item, long Size, long Modified);
     private sealed record ThumbnailValue(WriteableBitmap? Bitmap, long Touch);
@@ -83,12 +85,14 @@ public sealed partial class FileListControl
                     && entry.Size <= MaxAutomaticThumbnailBytes)
                 {
                     var key = new ThumbnailKey(item, entry.Size, entry.Modified);
+                    // Demand tracks every visible picture, including cached ones. Otherwise
+                    // cache trimming mistakes a rendered thumbnail for an off-screen entry.
+                    demand.Add(key);
                     if (_pictureCache.TryGetValue(key, out var cached))
                     {
                         thumbnail = cached.Bitmap;
                         _pictureCache[key] = cached with { Touch = ++_pictureTouch };
                     }
-                    else demand.Add(key);
                 }
                 if (thumbnail is not null)
                 {
@@ -139,6 +143,7 @@ public sealed partial class FileListControl
     private void SyncPictureDemand(HashSet<ThumbnailKey> demand, long generation)
     {
         if (!PictureMode || !_viewEventsAttached || generation != _pictureGeneration || Tab is not { } tab) return;
+        _pictureDemand = demand;
         foreach (var (key, request) in _picturePending.ToArray())
         {
             if (!demand.Contains(key))
@@ -147,6 +152,7 @@ public sealed partial class FileListControl
                 _picturePending.Remove(key);
             }
         }
+        TrimPictureCache();
         foreach (var key in demand)
         {
             if (_pictureCache.ContainsKey(key) || _picturePending.ContainsKey(key)) continue;
@@ -166,6 +172,7 @@ public sealed partial class FileListControl
             await _thumbnailSlots.WaitAsync(ct);
             entered = true;
             ct.ThrowIfCancellationRequested();
+            PictureThumbnailLoadCount++;
             var provider = tab.Services.Providers.For(key.Item.Parent);
             string deviceKey = provider.GetDeviceKey(key.Item.Parent);
             var source = await ViewerLauncher.ReopenSourceAsync(tab.Services, deviceKey,
@@ -207,24 +214,40 @@ public sealed partial class FileListControl
                 if (_picturePending.TryGetValue(key, out var pending) && ReferenceEquals(pending, request))
                     _picturePending.Remove(key);
                 bool current = generation == _pictureGeneration && PictureMode && ReferenceEquals(tab, Tab)
-                    && !request.Cancellation.IsCancellationRequested;
+                    && !request.Cancellation.IsCancellationRequested && _pictureDemand.Contains(key);
                 request.Cancellation.Dispose();
                 if (!current) { ready?.Dispose(); return; }
                 _pictureCache[key] = new ThumbnailValue(ready, ++_pictureTouch);
-                while (_pictureCache.Count > MaxCachedThumbnails)
-                {
-                    var oldest = _pictureCache.MinBy(pair => pair.Value.Touch);
-                    _pictureCache.Remove(oldest.Key);
-                    oldest.Value.Bitmap?.Dispose();
-                }
+                TrimPictureCache();
                 InvalidateVisual();
             }, DispatcherPriority.Background);
+        }
+    }
+
+    private void TrimPictureCache()
+    {
+        // The viewport can contain more than 64 tiles on a large display. Never evict
+        // an on-screen thumbnail: doing so starts an endless decode/redraw loop.
+        while (_pictureCache.Count > MaxCachedThumbnails)
+        {
+            ThumbnailKey? oldestKey = null;
+            long oldestTouch = long.MaxValue;
+            foreach (var (key, value) in _pictureCache)
+            {
+                if (_pictureDemand.Contains(key) || value.Touch >= oldestTouch) continue;
+                oldestKey = key;
+                oldestTouch = value.Touch;
+            }
+            if (oldestKey is not { } evicted) break;
+            _pictureCache.Remove(evicted, out var removed);
+            removed?.Bitmap?.Dispose();
         }
     }
 
     private void ClearPictureThumbnails()
     {
         _pictureGeneration++;
+        _pictureDemand.Clear();
         foreach (var request in _picturePending.Values) request.Cancellation.Cancel();
         _picturePending.Clear();
         foreach (var cached in _pictureCache.Values) cached.Bitmap?.Dispose();

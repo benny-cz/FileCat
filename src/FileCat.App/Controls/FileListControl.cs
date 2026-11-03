@@ -775,7 +775,9 @@ public sealed partial class FileListControl : Control
         if (!ReferenceEquals(sender, _listing)) return;
         if ((change & (ListingChange.Rows | ListingChange.Reset | ListingChange.RefreshRows)) != 0)
         {
-            if ((change & (ListingChange.Reset | ListingChange.RefreshRows)) != 0) ClearPictureThumbnails();
+            // A refresh creates a new entry store, but unchanged files keep the same
+            // thumbnail key (item, size, modification time). Only navigation resets it.
+            if ((change & ListingChange.Reset) != 0) ClearPictureThumbnails();
             _renderedCells.Clear();
             ClearTip();
         }

@@ -67,6 +67,91 @@ public sealed class PictureGridRenderingTests
         }
     }
 
+    [AvaloniaFact]
+    public async Task Large_picture_grid_keeps_visible_thumbnails_across_redraw_and_unchanged_refresh()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "filecat-picture-stable", Guid.NewGuid().ToString("N"));
+        string folder = Directory.CreateDirectory(Path.Combine(root, "files")).FullName;
+        for (int i = 0; i < 65; i++)
+            File.WriteAllBytes(Path.Combine(folder, $"picture-{i:00}.bmp"), Bmp((byte)(20 + i)));
+        var services = AppServices.CreateForPaths(AppPaths.Resolve(overrideRoot: Path.Combine(root, "state")));
+        Window? window = null;
+        TabViewModel? tab = null;
+        try
+        {
+            var workspace = new WorkspaceViewModel(services);
+            var panel = new PanelViewModel(workspace, services);
+            workspace.Panels.Add(panel);
+            workspace.ActivePanel = panel;
+            tab = panel.OpenTab(Location.FileSystem(folder));
+            var list = new FileListControl { Tab = tab, PictureMode = true, Width = 1900, Height = 950 };
+            window = new Window { Width = 1900, Height = 950, Content = list };
+            window.Show();
+            using var frame = new RenderTargetBitmap(new PixelSize(1900, 950));
+
+            async Task WaitForPictures(long loads, int cached)
+            {
+                for (int i = 0; i < 2000; i++)
+                {
+                    Dispatcher.UIThread.RunJobs();
+                    window.UpdateLayout();
+                    if (i % 5 == 0) frame.Render(list);
+                    if (list.PictureThumbnailLoadCount >= loads && list.CachedPictureThumbnailCount == cached
+                        && list.PendingPictureThumbnailCount == 0) return;
+                    await Task.Delay(20, TestContext.Current.CancellationToken);
+                }
+                Assert.Fail($"Only {list.CachedPictureThumbnailCount}/{cached} thumbnails settled; " +
+                    $"loads={list.PictureThumbnailLoadCount}, pending={list.PendingPictureThumbnailCount}.");
+            }
+
+            await WaitForPictures(65, 65);
+            Assert.Equal(65, list.PictureThumbnailLoadCount);
+            for (int i = 0; i < 10; i++)
+            {
+                frame.Render(list);
+                Dispatcher.UIThread.RunJobs();
+            }
+            Assert.Equal(65, list.CachedPictureThumbnailCount);
+            Assert.Equal(65, list.PictureThumbnailLoadCount);
+
+            async Task RefreshListing()
+            {
+                var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                void OnChanged(object? sender, ListingChange change)
+                {
+                    if ((change & ListingChange.RefreshComplete) != 0) completed.TrySetResult();
+                }
+                tab.Listing.Changed += OnChanged;
+                try
+                {
+                    tab.Refresh();
+                    await completed.Task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+                }
+                finally { tab.Listing.Changed -= OnChanged; }
+                frame.Render(list);
+                Dispatcher.UIThread.RunJobs();
+            }
+
+            await RefreshListing();
+            Assert.Equal(65, list.CachedPictureThumbnailCount);
+            Assert.Equal(65, list.PictureThumbnailLoadCount);
+
+            string changed = Path.Combine(folder, "picture-00.bmp");
+            File.WriteAllBytes(changed, Bmp(230));
+            File.SetLastWriteTimeUtc(changed, DateTime.UtcNow.AddMinutes(1));
+            await RefreshListing();
+            await WaitForPictures(66, 65);
+            Assert.Equal(66, list.PictureThumbnailLoadCount);
+        }
+        finally
+        {
+            window?.Close();
+            tab?.Dispose();
+            services.Dispose();
+            try { Directory.Delete(root, true); } catch (IOException) { }
+        }
+    }
+
     private static byte[] Bmp(byte blue)
     {
         var bytes = new byte[58];
