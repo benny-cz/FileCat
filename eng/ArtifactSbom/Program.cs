@@ -243,7 +243,7 @@ try
             ["packageVerificationCode"] = new JsonObject { ["packageVerificationCodeValue"] = verification },
             ["licenseConcluded"] = "NOASSERTION",
             ["licenseDeclared"] = "MIT",
-            ["copyrightText"] = "Copyright (c) 2026 Benny and FileCat contributors",
+            ["copyrightText"] = "Copyright (c) 2026 Marek Střihavka <marek.strihavka@gmail.com> and FileCat contributors",
             ["sourceInfo"] = sourceStatement,
             ["comment"] = $"Exact {kind} payload tree for {rid}; tree SHA-256 {treeIdentity}. Preliminary composition evidence, not signing or candidate qualification."
                 + (omittedProjects.Count == 0 ? "" : $" Its dependency manifest also names {string.Join(", ", omittedProjects)}, whose files this payload does not carry: not shipped here."),
@@ -333,14 +333,14 @@ try
         (string license, string copyright, string? comment) = name.ToLowerInvariant() switch
         {
             "filecat.archives.rar15" => ("LGPL-2.1-or-later",
-                "Copyright (c) 2017-present MacPaw Way Ltd. (XADMaster); C# port Copyright (c) 2026 Benny and FileCat contributors", null),
+                "Copyright (c) 2017-present MacPaw Way Ltd. (XADMaster); C# port Copyright (c) 2026 Marek Střihavka <marek.strihavka@gmail.com> and FileCat contributors", null),
             "filecat.sharpcompress" => ("MIT AND Apache-2.0 AND MS-PL AND BSD-2-Clause AND BSD-3-Clause AND Zlib",
                 "Copyright (c) 2014 Adam Hathcock and SharpCompress contributors; the copyrights of its parts from other projects are in "
-                + "licenses/sharpcompress/COMPONENTS.md; FileCat's changes Copyright (c) 2026 Benny and FileCat contributors",
+                + "licenses/sharpcompress/COMPONENTS.md; FileCat's changes Copyright (c) 2026 Marek Střihavka <marek.strihavka@gmail.com> and FileCat contributors",
                 "SharpCompress 0.50.5 (github.com/adamhathcock/sharpcompress commit e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626) built from "
                 + "src/ThirdParty/SharpCompress, cut down to its 7z, bzip2, xz and zstd readers: no UnRAR-derived RAR or PPMd variant H "
                 + "code and none of its other formats. Every part's license is OSI-approved. Texts and notices: licenses/sharpcompress."),
-            _ => ("MIT", "Copyright (c) 2026 Benny and FileCat contributors", null),
+            _ => ("MIT", "Copyright (c) 2026 Marek Střihavka <marek.strihavka@gmail.com> and FileCat contributors", null),
         };
         var project = new JsonObject
         {

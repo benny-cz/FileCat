@@ -30,4 +30,4 @@ The [release page](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-previ
 
 The current Windows preview packages are **unsigned**. SignPath Foundation declined FileCat's application on 2026-10-31 because the project does not yet have enough independent public visibility. FileCat is evaluating another trusted Windows signing route; no provider, certificate or signed FileCat package is currently claimed. This page will identify the actual provider, signed packages and signing policy before any package is offered as signed.
 
-The repository maintainer, [benny-cz](https://github.com/benny-cz), owns source changes and release approval. Signing roles and controls will be published after a provider and certificate are selected. See FileCat's [privacy policy](PRIVACY.md) and [security reporting policy](../SECURITY.md).
+The repository maintainer, [Marek Střihavka](https://github.com/benny-cz), owns source changes and release approval. Signing roles and controls will be published after a provider and certificate are selected. See FileCat's [privacy policy](PRIVACY.md) and [security reporting policy](../SECURITY.md).

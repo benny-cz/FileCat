@@ -108,7 +108,7 @@ cat > "$APP/Contents/Info.plist" <<EOF
   <key>LSMinimumSystemVersion</key><string>26.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSHumanReadableCopyright</key><string>Copyright (c) 2026 Benny and FileCat contributors. MIT license.</string>
+  <key>NSHumanReadableCopyright</key><string>Copyright (c) 2026 Marek Střihavka &lt;marek.strihavka@gmail.com&gt; and FileCat contributors. MIT license.</string>
 </dict>
 </plist>
 EOF
