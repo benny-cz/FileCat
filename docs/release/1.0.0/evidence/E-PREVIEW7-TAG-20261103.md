@@ -92,6 +92,17 @@ The retained private API snapshot SHA-256 is
 | sbom-1.0.0-preview.7-win-x64-portable.spdx.json | 326770 | e3e383de29d28e65bb73e249dbfe0805b3052b3320ac447e4aa2d19bb8424473 |
 | sbom-1.0.0-preview.7-win-x64-setup-payload.spdx.json | 331401 | 943e7fdda06bce6a73fcf61cb8870eeb795d7251eee5f24b5346284dcb22e2cb |
 
-The private draft body still needs the exact committed preview.7 notes. DEC-07 requires a
-separate owner decision on this exact hosted inventory before public unsigned publication.
-Stable 1.0.0 remains **NO-GO**.
+## Prepublication decision gate
+
+The private draft body exactly matches the committed
+[preview.7 notes](https://github.com/benny-cz/FileCat/blob/d89208fb44be646f3695f4407d4bea21b0980da5/docs/release/1.0.0/PREVIEW7_RELEASE_NOTES.md),
+SHA-256 `18bd2414b49edc9f585f389beea772c2fd220192193b6da1d2f5c8a7495d5bc2`.
+A fresh authenticated prepublication read still found the same annotated tag object and
+peeled source, private release ID **432451806**, exact notes and all 24 hosted assets and
+receipts unchanged. The retained API snapshot SHA-256 is
+`20ffbd0d5e748d104090d1ce7ede7544095b031b468ce763742e917726aac672`.
+
+DEC-07 requires a separate owner decision on this exact hosted inventory. The proposed
+publication is an **unsigned prerelease** with `make_latest: false`. After publication,
+verify unauthenticated public state, exact notes, 24 asset hashes and signed GitHub release
+attestation. Stable 1.0.0 remains **NO-GO**.
