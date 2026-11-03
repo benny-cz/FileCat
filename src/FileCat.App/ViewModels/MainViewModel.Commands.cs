@@ -1012,7 +1012,7 @@ public sealed partial class MainViewModel
             History = Services.MaskSuggestions(),
             Validate = t => Mask.TryParse(t, out _, out var err) ? null : err,
             CheckboxText = "Include folders",
-            CheckboxValue = false,
+            CheckboxValue = true,
         });
         if (r is null) return;
         AppServices.RememberText(Services.History.Masks, r.Text);

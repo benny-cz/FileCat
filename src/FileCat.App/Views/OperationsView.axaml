@@ -35,7 +35,8 @@
           </Grid>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8,0,0,0">
-          <Button Content="Review decision…" IsVisible="{Binding NeedsDecision}" Click="OnReviewDecision"
+          <Button Classes="primary" Content="Review decision…" FontWeight="SemiBold" Padding="10,4"
+                  IsVisible="{Binding NeedsDecision}" Click="OnReviewDecision"
                   ToolTip.Tip="Review this operation's waiting decision; background work does not interrupt your typing" />
           <Button Classes="flat" Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" ToolTip.Tip="Pause at the next safe point" />
           <Button Classes="flat" Content="{Binding ResumeLabel}" IsVisible="{Binding CanResume}" Click="OnResume" />
@@ -197,7 +198,9 @@
                     ToolTip.Tip="Removes finished reports and unused Undo steps from this session; review is required for useful records" />
             <Button Classes="flat" Content="Fit height" Click="OnFitDrawerHeight"
                     ToolTip.Tip="Size Operations to its visible jobs and report; restores automatic sizing after a manual resize" />
-            <Button Content="Review decision…" IsVisible="{Binding NeedsDecision}" Click="OnReviewDecision" />
+            <Button Classes="primary" Content="Review decision…" FontWeight="SemiBold" Padding="10,4"
+                    IsVisible="{Binding NeedsDecision}" Click="OnReviewDecision"
+                    ToolTip.Tip="Review this operation's waiting decision" />
             <Button Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" />
             <Button Content="{Binding ResumeLabel}" IsVisible="{Binding CanResume}" Click="OnResume" />
             <Button Content="{Binding CancelLabel}" IsVisible="{Binding !IsFinished}" Click="OnCancel" ToolTip.Tip="{Binding CancelTooltip}" />
