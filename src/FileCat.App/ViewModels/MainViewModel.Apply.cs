@@ -33,7 +33,7 @@ public sealed partial class MainViewModel
         string? target = Workspace.ActiveTarget?.ActiveTab?.Location is { IsFileSystem: true } t ? t.Path : null;
 
         var history = Services.History.ApplyCommands;
-        var command = new TextBox { Text = history.FirstOrDefault() ?? "", MinWidth = 640 };
+        var command = new TextBox { Text = history.FirstOrDefault() ?? "", MinWidth = 240 };
         Avalonia.Automation.AutomationProperties.SetName(command, "Command");
         int historyIndex = history.Count > 0 ? 0 : -1;
         command.KeyDown += (_, e) =>
@@ -52,7 +52,6 @@ public sealed partial class MainViewModel
         var preview = new ListBox
         {
             Height = 220,
-            MinWidth = 640,
             ItemTemplate = DialogLayout.WrappingListText,
         };
         // The full expanded path and arguments must remain visible before the user authorizes execution.

@@ -45,13 +45,18 @@ internal static class FindDialogs
         var atLeastUnit = Units(SizeUnits, "Unit of the size at least");
         var atMost = Number("Size at most");
         var atMostUnit = Units(SizeUnits, "Unit of the size at most");
+        static Control SizeBound(string label, TextBox value, ComboBox unit) => new WrapPanel
+        {
+            ItemSpacing = 8, LineSpacing = 4,
+            Children = { Word(label), value, unit },
+        };
         var sizes = new WrapPanel
         {
             ItemSpacing = 8,
             LineSpacing = 4,
             Children =
             {
-                Word("At least"), atLeast, atLeastUnit, new Border { Width = 16 }, Word("At most"), atMost, atMostUnit,
+                SizeBound("At least", atLeast, atLeastUnit), SizeBound("At most", atMost, atMostUnit),
             },
         };
 
@@ -179,8 +184,16 @@ internal static class FindDialogs
                 Children =
                 {
                     _any,
-                    new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { _within, _amount, _unit } },
-                    new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { _between, _from, Word("to"), _to } },
+                    new WrapPanel { ItemSpacing = 8, LineSpacing = 4, Children = { _within, _amount, _unit } },
+                    new WrapPanel
+                    {
+                        ItemSpacing = 8, LineSpacing = 4,
+                        Children =
+                        {
+                            new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { _between, _from } },
+                            new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { Word("to"), _to } },
+                        },
+                    },
                 },
             };
             foreach (var radio in new[] { _any, _within, _between }) radio.IsCheckedChanged += (_, _) => Changed?.Invoke();
@@ -282,8 +295,10 @@ internal static class FindDialogs
         Name(list, "Ignored folders");
         var add = new TextBox { PlaceholderText = "node_modules, \\build, or a full path" };
         Name(add, "Folder to skip");
-        var addButton = new Button { Content = "Add" };
-        var remove = new Button { Content = "Remove" };
+        var addButton = new Button { Content = "Add", IsEnabled = false };
+        var remove = new Button { Content = "Remove", IsEnabled = false };
+        add.TextChanged += (_, _) => addButton.IsEnabled = !string.IsNullOrWhiteSpace(add.Text);
+        list.SelectionChanged += (_, _) => remove.IsEnabled = list.SelectedItem is IgnoredFolderEntry;
         void Add()
         {
             var text = (add.Text ?? string.Empty).Trim();
@@ -294,7 +309,7 @@ internal static class FindDialogs
         addButton.Click += (_, _) => Add();
         add.KeyDown += (_, e) =>
         {
-            if (e.Key != Avalonia.Input.Key.Enter || string.IsNullOrWhiteSpace(add.Text)) return;
+            if (e.Key != Avalonia.Input.Key.Enter) return;
             e.Handled = true; // Enter adds the folder here; it does not close the dialog
             Add();
         };

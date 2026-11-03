@@ -141,6 +141,55 @@ public sealed class SearchDialogResizeTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+    [AvaloniaFact]
+    public async Task Advanced_size_bounds_stay_together_and_empty_ignored_folder_Enter_does_not_accept()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 640, height: 455);
+        try
+        {
+            ProductStyles(window);
+            var advanced = FindDialogs.AdvancedAsync(vm.Dialogs, new AdvancedSearchCriteria());
+            Layout(window);
+            var card = Card(window);
+            var most = Assert.Single(card.GetVisualDescendants().OfType<TextBox>(), t => AutomationProperties.GetName(t) == "Size at most");
+            var mostUnit = Assert.Single(card.GetVisualDescendants().OfType<ComboBox>(), t => AutomationProperties.GetName(t) == "Unit of the size at most");
+            var mostLabel = Assert.Single(card.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "At most");
+            var scroll = Assert.Single(card.GetVisualDescendants().OfType<ScrollViewer>(), s => s.Name == "DialogBodyScroll");
+            Assert.True(scroll.Extent.Width <= scroll.Viewport.Width + 1);
+            Assert.InRange(Math.Abs(most.Bounds.Top - mostUnit.Bounds.Top), 0, 2);
+            Assert.InRange(Math.Abs(mostLabel.TranslatePoint(default, card)!.Value.Y - most.TranslatePoint(default, card)!.Value.Y), 0, 12);
+            ((OverlayDialogService)vm.Dialogs).CancelAll();
+            Assert.Null(await advanced);
+
+            var ignored = FindDialogs.IgnoredFoldersAsync(vm.Dialogs,
+                [new IgnoredFolderEntry { Folder = "node_modules", Enabled = true }]);
+            Layout(window);
+            card = Card(window);
+            var add = Assert.Single(card.GetVisualDescendants().OfType<TextBox>(), t => AutomationProperties.GetName(t) == "Folder to skip");
+            var addButton = Assert.Single(card.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Add");
+            var remove = Assert.Single(card.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Remove");
+            var list = Assert.Single(card.GetVisualDescendants().OfType<ListBox>(), b => AutomationProperties.GetName(b) == "Ignored folders");
+            Assert.False(remove.IsEnabled);
+            Assert.False(addButton.IsEnabled);
+            add.Text = " ";
+            Assert.True(add.Focus());
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Layout(window);
+            Assert.True(((OverlayDialogService)vm.Dialogs).IsOpen, "Empty Enter in Add must not accept and discard the folder editor.");
+            add.Text = "build";
+            Layout(window);
+            Assert.True(addButton.IsEnabled);
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Layout(window);
+            Assert.Equal(2, list.ItemCount);
+            list.SelectedIndex = 1;
+            Assert.True(remove.IsEnabled);
+            ((OverlayDialogService)vm.Dialogs).CancelAll();
+            Assert.Null(await ignored);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     private static DialogCard Card(Control root) => Assert.Single(root.GetVisualDescendants().OfType<DialogCard>());
     private static void ProductStyles(Window window) => window.Styles.Add(new StyleInclude(new Uri("avares://FileCat/"))
         { Source = new Uri("avares://FileCat/Themes/Styles.axaml") });

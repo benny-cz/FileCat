@@ -251,7 +251,7 @@ public sealed partial class MainViewModel
         var targetFolder = Workspace.ActiveTarget?.ActiveTab?.Location is { IsFileSystem: true } t ? t.Path : Path.GetDirectoryName(items[0].FileSystemPath!)!;
         string stem = items.Count == 1 ? Path.GetFileNameWithoutExtension(items[0].Name) : Path.GetFileName(Path.GetDirectoryName(items[0].FileSystemPath!)!.TrimEnd('\\', '/'));
         if (string.IsNullOrEmpty(stem)) stem = "archive";
-        var pathBox = new TextBox { Text = Path.Combine(targetFolder, stem + ".zip"), MinWidth = 560 };
+        var pathBox = new TextBox { Text = Path.Combine(targetFolder, stem + ".zip"), MinWidth = 240 };
         Avalonia.Automation.AutomationProperties.SetName(pathBox, "Archive path");
         var level = new ComboBox { ItemsSource = new[] { "Normal compression", "Fastest", "No compression (store)" }, SelectedIndex = 0, MinWidth = 220 };
         Avalonia.Automation.AutomationProperties.SetName(level, "Compression");
@@ -262,7 +262,7 @@ public sealed partial class MainViewModel
             {
                 new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 620, Text = $"Pack {sel.Value.Summary} into:" },
                 pathBox,
-                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { new TextBlock { Text = "Compression:", VerticalAlignment = VerticalAlignment.Center }, level } },
+                new WrapPanel { ItemSpacing = 8, LineSpacing = 4, Children = { new TextBlock { Text = "Compression:", VerticalAlignment = VerticalAlignment.Center }, level } },
                 new TextBlock
                 {
                     HorizontalAlignment = HorizontalAlignment.Left,

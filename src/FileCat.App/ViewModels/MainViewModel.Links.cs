@@ -65,7 +65,7 @@ public sealed partial class MainViewModel
         catch (OperationCanceledException) { return; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         { if (initialScope.Current) Notify("Cannot prepare links: " + ex.Message, true); return; }
-        var pathBox = new TextBox { Text = initial, MinWidth = 560 };
+        var pathBox = new TextBox { Text = initial, MinWidth = 240 };
         Avalonia.Automation.AutomationProperties.SetName(pathBox, "Link path");
         bool allFolders = items.All(i => i.IsContainer), allFiles = items.All(i => !i.IsContainer);
         var kinds = new List<(LinkKind Kind, RadioButton Button)>
@@ -85,7 +85,7 @@ public sealed partial class MainViewModel
             Classes = { "error" }, TextWrapping = TextWrapping.Wrap, MaxWidth = 640,
             Text = "This account cannot create symbolic links: that needs Developer Mode (Settings → System → For developers) or administrator rights. A junction works for folders on local drives, and a hard link for files on the same drive.",
         };
-        var preview = new ListBox { Height = 200, MinWidth = 640 };
+        var preview = new ListBox { Height = 200 };
         Avalonia.Automation.AutomationProperties.SetName(preview, "Links to create");
         var summary = new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 640 };
         IReadOnlyList<LinkPreview> rows = [];
@@ -168,7 +168,7 @@ public sealed partial class MainViewModel
         foreach (var (_, button) in kinds) button.IsCheckedChanged += (_, _) => Refresh();
         relative.IsCheckedChanged += (_, _) => Refresh();
 
-        var kindRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
+        var kindRow = new WrapPanel { ItemSpacing = 16, LineSpacing = 4 };
         foreach (var (_, button) in kinds) kindRow.Children.Add(button);
         var body = new StackPanel
         {

@@ -316,7 +316,7 @@ public sealed partial class MainViewModel
         auth.SelectedIndex = existing?.Auth switch { RemoteAuth.Key => 1, RemoteAuth.KeyboardInteractive => 2, RemoteAuth.Agent => 3, _ => 0 };
         var keyFile = Box(existing?.KeyFile ?? DefaultKeyFile(), "Private key file", 360);
         var browse = new Button { Content = "Browse…" };
-        var keyRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { keyFile, browse } };
+        var keyRow = new WrapPanel { ItemSpacing = 8, LineSpacing = 4, Children = { keyFile, browse } };
         var folder = Box(existing?.InitialPath, "Start folder", 360);
         folder.PlaceholderText = "Home folder";
         bool persistent = Services.Platform.Secrets.IsPersistent;
@@ -390,7 +390,7 @@ public sealed partial class MainViewModel
                 Row("Name (optional):", name),
                 Row("Protocol:", protocol),
                 plainWarning,
-                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { Row("Server:", host), Row("Port:", port), Row("User:", user) } },
+                new WrapPanel { ItemSpacing = 8, LineSpacing = 4, Children = { Row("Server:", host), Row("Port:", port), Row("User:", user) } },
                 authRow,
                 keyRow,
                 Row("Start folder (optional):", folder),
