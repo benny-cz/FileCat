@@ -1158,6 +1158,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     private string TitleOf(string id, string title) => id switch
     {
         CommandIds.ToggleHidden => _vm.ShowHiddenItems ? "Hide hidden and system items" : "Show hidden and system items",
+        CommandIds.PictureView => _vm.Workspace.ActiveTab?.PictureView == true ? "Hide pictures" : "Show pictures",
         CommandIds.ToggleToolbar => _vm.ShowToolbar ? "Hide the toolbar" : "Show the toolbar",
         CommandIds.ToggleDriveButtons => _vm.ShowDriveButtons ? "Hide the place buttons" : "Show the place buttons",
         _ => title,
@@ -1195,6 +1196,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
     private bool? CheckedState(string id) => id switch
     {
         CommandIds.ToggleHidden => _vm.ShowHiddenItems,
+        CommandIds.PictureView => _vm.Workspace.ActiveTab?.PictureView == true,
         CommandIds.ToggleToolbar => _vm.ShowToolbar,
         CommandIds.ToggleDriveButtons => _vm.ShowDriveButtons,
         _ => null,

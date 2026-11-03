@@ -59,7 +59,7 @@ This is the **single correction index for this exploratory campaign**. Each row 
 | I620 | Kept compact About, Find criteria, command, archive, link and connection forms within the dialog viewport, with related controls together. | [Dialog UX review](../release/1.0.0/evidence/E-I620-I621-dialog-ux-review.md#i620--compact-forms-should-retain-their-relationships) |
 | I621 | Kept empty Enter inside Ignored Folders and disabled Add/Remove until they can act. | [Dialog UX review](../release/1.0.0/evidence/E-I620-I621-dialog-ux-review.md#i621--ignored-folders-editing-must-not-close-by-accident) |
 | I622 | Reopened Analyze folder's field chooser after each metadata sort, with the current choice highlighted and reruns preserving direction. | [Analyze folder chooser](../release/1.0.0/evidence/E-I622-analyze-folder-chooser-reopen.md) |
-| I623 | Added same-window Space/Backspace picture browsing and a virtualized View → Pictures grid that keeps folders, other files and file actions. | [Picture browsing](../release/1.0.0/evidence/E-I623-picture-browsing.md) |
+| I623 | Added same-window Space/Backspace picture browsing and a virtualized picture grid that keeps folders, other files and file actions. The View action now says Show or Hide pictures for the active tab. | [Picture browsing](../release/1.0.0/evidence/E-I623-picture-browsing.md) |
 | Steampunk header | Connected the colored glass fragments across the free menu span and blended their upper, lower and side edges into the iron. | [Native visual comparison](evidence/E-STEAMPUNK-HEADER-20261101.md) · `6a22decd` |
 
 ## Baseline and selection

@@ -416,7 +416,7 @@ public sealed class CommandRegistry
         Add(CommandIds.FocusPanelFilter, "Edit active panel filter", V, null, CommandContext.Panel, "Ctrl+Shift+F");
         Add(CommandIds.FlatView, "Flat view (all files below this folder)", V, null, CommandContext.Panel, "Ctrl+B");
         Add(CommandIds.AnalyzeFolder, "Analyze folder…", V);
-        Add(CommandIds.PictureView, "Pictures (thumbnail grid)", V, null, CommandContext.Panel);
+        Add(CommandIds.PictureView, "Show or hide pictures", V, null, CommandContext.Panel);
 
         Add(CommandIds.FindFiles, "Find files…", C, "Find", CommandContext.Panel, "Alt+F7");
         const string FindCategory = "Find";
