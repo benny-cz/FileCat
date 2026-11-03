@@ -1,10 +1,10 @@
 # FileCat exploratory UX and hardening — results
 
-**Started:** 30 October 2026. **Plan:** [bounded exploratory journeys](FILECAT_EXPLORATORY_UX_HARDENING_PLAN.md). **Current cursor:** the owner-directed dialog review after Settings produced I620–I621. The active threshold remains **30 distinct clean native journeys** and the streak is **0/30** after I617; this focused correction earns no clean-journey credit. Exact-source CI and the frozen installed candidate remain separate. Observations below are scoped to exact builds and fixtures.
+**Started:** 30 October 2026. **Plan:** [bounded exploratory journeys](FILECAT_EXPLORATORY_UX_HARDENING_PLAN.md). **Current cursor:** the owner-reported Analyze folder menu trap produced I622 after the dialog review. The active threshold remains **30 distinct clean native journeys** and the streak is **0/30**; this focused correction earns no clean-journey credit. Exact-source CI and the frozen installed candidate remain separate. Observations below are scoped to exact builds and fixtures.
 
 ## Corrected items
 
-This is the **single correction index for this exploratory campaign**. Each row names the user consequence and the correction; its linked evidence gives the exact before/after build, native result, limits and finite candidate check. I573–I621 are remediated **preliminarily** at their recorded scopes; I611 is an owner-chosen feature rather than a found defect. None is accepted on a final installed 1.0.0 candidate. The later cycle sections retain chronological observations and clean-streak resets, not a second correction backlog. Release disposition is owned by the [issue register](../release/1.0.0/FILECAT_1_0_RELEASE_ISSUES.md).
+This is the **single correction index for this exploratory campaign**. Each row names the user consequence and the correction; its linked evidence gives the exact before/after build, native result, limits and finite candidate check. I573–I622 are remediated **preliminarily** at their recorded scopes; I611 is an owner-chosen feature rather than a found defect. None is accepted on a final installed 1.0.0 candidate. The later cycle sections retain chronological observations and clean-streak resets, not a second correction backlog. Release disposition is owned by the [issue register](../release/1.0.0/FILECAT_1_0_RELEASE_ISSUES.md).
 
 | Item | Correction | Exact evidence |
 |---|---|---|
@@ -58,6 +58,7 @@ This is the **single correction index for this exploratory campaign**. Each row 
 | I619 | Centered TARGET and Set as target text inside the role chip after a Mac Retina comparison rejected an overshooting padding trial. | [Mac badge alignment](../release/1.0.0/evidence/E-I619-macos-target-badge-alignment.md) |
 | I620 | Kept compact About, Find criteria, command, archive, link and connection forms within the dialog viewport, with related controls together. | [Dialog UX review](../release/1.0.0/evidence/E-I620-I621-dialog-ux-review.md#i620--compact-forms-should-retain-their-relationships) |
 | I621 | Kept empty Enter inside Ignored Folders and disabled Add/Remove until they can act. | [Dialog UX review](../release/1.0.0/evidence/E-I620-I621-dialog-ux-review.md#i621--ignored-folders-editing-must-not-close-by-accident) |
+| I622 | Reopened Analyze folder's field chooser after each metadata sort, with the current choice highlighted and reruns preserving direction. | [Analyze folder chooser](../release/1.0.0/evidence/E-I622-analyze-folder-chooser-reopen.md) |
 | Steampunk header | Connected the colored glass fragments across the free menu span and blended their upper, lower and side edges into the iron. | [Native visual comparison](evidence/E-STEAMPUNK-HEADER-20261101.md) · `6a22decd` |
 
 ## Baseline and selection
