@@ -13,7 +13,7 @@ The command now opens the chooser on every invocation. It selects and labels the
 - A real Avalonia chooser appeared in the headless main window on two consecutive invocations after the panel had a metadata sort. Escape closed it both times without changing the field.
 - A command-level fixture chose an initial field, reopened and canceled, re-ran the current field without reversing descending order, then chose a different field. The chooser's selected row and current-sort description matched the panel state.
 - The changed tests plus existing current-demand and leave-folder analysis suites passed **8/8** on the rebuilt Windows source. An initial new visual test queried the tree before it had laid out; after waiting for the chooser controls, both new tests passed and the complete eight-test suite passed. This was a test synchronization issue, not another product failure.
-- Exact-source main run 41648160388 passed all five required jobs with the chooser fix; the installed-candidate keyboard/visual checks remain open.
+- Exact-source main run 41648160388 and tagged run 41656633973 passed all five required jobs with identical 20-TRX results and the chooser fix; the installed-candidate keyboard/visual checks remain open.
 
 ## Finite acceptance and stopping rule
 

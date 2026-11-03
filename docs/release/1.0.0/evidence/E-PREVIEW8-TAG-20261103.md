@@ -125,3 +125,34 @@ DEC-07 requires a separate owner decision on this exact hosted inventory. The
 proposed publication is an **unsigned prerelease** with `make_latest: false`.
 After publication, verify unauthenticated public state, exact notes, 24 asset
 hashes and signed GitHub release attestation. Stable 1.0.0 remains **NO-GO**.
+
+## Public preview publication
+
+The owner separately approved public publication of the exact 24-asset unsigned
+preview.8 inventory and notes. The final authenticated private read found the
+same tag object, peeled product source, release ID, private draft/prerelease
+state, exact notes and all 24 hosted asset names, IDs, sizes and server digests
+unchanged. GitHub published that draft at **2026-11-03T15:55:42Z** as a
+prerelease with an explicit `make_latest: false` request:
+[FileCat v1.0.0-preview.8](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.8).
+
+An unauthenticated public release-by-tag API read returned HTTP 200, the same
+ID/tag, `draft: false`, `prerelease: true`, `immutable: true`, exact notes and
+all **24 unchanged uploaded assets** matching the inventory above. The
+retained public API snapshot SHA-256 is
+`4e78f6c1718a6e8b01e4d44cc08af4df77fd0671b76d1fa7d506ca049a90d04a`.
+GitHub CLI's signed release-attestation verification passed. Its verified
+in-toto statement binds annotated tag object
+`774f8882490c8cece1ead58e594250c42f0be885` and the exact SHA-256 of all
+24 assets; the retained JSON verification SHA-256 is
+`66926cf241efcc7d0dcd69c6c7df99dbbfa85965ec71ab27e4b3376be213040c`.
+
+The official public `FileCat-1.0.0-preview.8-win-x64-portable.zip` was
+downloaded again without authentication. Its **105,877,555 bytes** and locally
+computed SHA-256
+`ee5b342a1083d74a3d7b2c90292b1178db1a8c0301432d04355aa30418ac63e6`
+match the producer manifest, GitHub server digest and signed attestation;
+`gh release verify-asset` passed. The byte-identical producer ZIP had already
+passed safe extraction, CRC and noninteractive `FileCat 1.0.0-preview.8` start
+checks. This release-integrity check is not a trusted Windows code signature
+or installed stable-candidate qualification. Stable 1.0.0 remains **NO-GO**.
