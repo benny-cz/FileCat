@@ -103,8 +103,18 @@ ID `13274574383`, with GitHub-reported SHA-256
 The retained private API snapshot SHA-256 is
 `a8baa21eaebc9b70e9496f50f49e85caa30c20fd0ed505e802be0558eed7ca38`.
 
-The initial draft body is empty. The committed notes must be attached by a
-private update that explicitly retains the existing tag and exact source.
+The initial draft body was empty. The private REST update explicitly supplied
+the existing tag, exact source, name, committed notes and draft/prerelease
+flags. A fresh independent read of the same release ID confirmed
+`v1.0.0-preview.9`, source `b333eebf`, `draft: true`, `prerelease: true`, no
+publication time, exact [committed preview.9 notes](https://github.com/benny-cz/FileCat/blob/75af9469/docs/release/1.0.0/PREVIEW9_RELEASE_NOTES.md)
+at SHA-256 `bc9ffd473e710f3d2c82d34c48e461d5e50445bab9fde5df3f4af350cb22cd63`,
+and all 24 hosted asset IDs, names, sizes, states and digests unchanged. The
+retained final private API snapshot SHA-256 is
+`3a563e70f981e7f1f4aba8a13922c0cc8906368b7142027eade28bd45ba47875`.
+
 DEC-07 requires a separate owner decision on this exact hosted inventory
 before public publication. The proposed publication is an **unsigned
-prerelease** with `make_latest: false`; stable 1.0.0 remains **NO-GO**.
+prerelease** with `make_latest: false`. After publication, verify unauthenticated
+public state, exact notes, 24 asset hashes and signed GitHub release
+attestation. Stable 1.0.0 remains **NO-GO**.
