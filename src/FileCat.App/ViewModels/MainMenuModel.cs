@@ -42,7 +42,7 @@ public static class MainMenuModel
                 CommandIds.PanelSwapPlaces, CommandIds.RotatePanels, CommandIds.EqualizePanels, CommandIds.ResizePanel]), "-", CommandIds.NewTab, CommandIds.CloseTab, CommandIds.NextTab, CommandIds.PreviousTab, CommandIds.MoveTabLeft, CommandIds.MoveTabRight, CommandIds.ReopenTab,
             CommandIds.TabList, CommandIds.DuplicateTab, CommandIds.CopyTabToTarget, CommandIds.LockTab, CommandIds.OpenInNewTab,
             CommandIds.OpenInNewTargetTab]),
-        ("_View", [CommandIds.SortName, CommandIds.SortExtension, CommandIds.SortTime, CommandIds.SortSize, CommandIds.SortNone, "-",
+        ("_View", [CommandIds.PictureView, "-", CommandIds.SortName, CommandIds.SortExtension, CommandIds.SortTime, CommandIds.SortSize, CommandIds.SortNone, "-",
             CommandIds.ColumnProfilePrefix + "0", CommandIds.ColumnProfilePrefix + "1", CommandIds.ColumnProfilePrefix + "2", "-",
             CommandIds.AnalyzeFolder, CommandIds.ColumnProfilePrefix + "3", CommandIds.ColumnProfilePrefix + "4",
             CommandIds.ColumnProfilePrefix + "5", CommandIds.ColumnProfilePrefix + "6", CommandIds.ColumnProfilePrefix + "7",

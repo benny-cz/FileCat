@@ -35,7 +35,7 @@ public sealed class ViewerWindow : Window
     private readonly AppServices _services;
     private readonly string _deviceKey;
     private PagedReader _reader;
-    private readonly Func<CancellationToken, Task<IContentSource?>>? _reopen;
+    private Func<CancellationToken, Task<IContentSource?>>? _reopen;
     private readonly TextViewer _text = new();
     private readonly Panel _dialogHost = new() { IsVisible = false };
     private readonly OverlayDialogService _dialogs;
@@ -118,7 +118,9 @@ public sealed class ViewerWindow : Window
     private readonly CheckBox _follow = new() { Content = "Follow end", VerticalAlignment = VerticalAlignment.Center };
     private readonly DispatcherTimer _changeTimer;
     private bool _checkingChanges;
-    private readonly string _displayName;
+    private string _displayName;
+    internal PictureBrowseContext? BrowseContext { get; set; }
+    private string? _pictureBrowseFeedback;
     private EncodingGuess _guess = new(new UTF8Encoding(false), 0, "not yet examined", false);
     private bool _isHex;
     private CancellationTokenSource? _searchCts;
@@ -805,6 +807,8 @@ public sealed class ViewerWindow : Window
 
     /// <summary>The picture once it has loaded (tests).</summary>
     public Task? PictureLoad => _pictureLoad;
+    internal bool ReadyForRefresh => _readyForRefresh;
+    internal bool PictureRefreshBusy => _refreshing;
 
     public DecodedPicture? Picture => _picture.Picture;
 
@@ -959,6 +963,7 @@ public sealed class ViewerWindow : Window
 
     private void LeavePicture()
     {
+        _pictureBrowseFeedback = null;
         LeavePage();
         _isPicture = false;
         _picture.IsVisible = false;
@@ -1257,12 +1262,14 @@ public sealed class ViewerWindow : Window
                   (p.Frames > 1 ? $" · animated, {p.Frames:N0} frames: the first is shown" : "") +
                   (p.Incomplete ? " · the file ends early: the rest of the picture is blank" : "") +
                   $" · {Formatters.ExactSize(_reader.Length)}" +
+                  (BrowseContext is not null ? " · Space next; Backspace previous" : string.Empty) +
                   (p.Bitmap.PixelSize.Width < p.Width || p.Bitmap.PixelSize.Height < p.Height
                       ? $" · detail limited: decoded to {p.Bitmap.PixelSize.Width:N0} × {p.Bitmap.PixelSize.Height:N0} pixels ({PictureSide:N0}-pixel side cap)"
                       : string.Empty)
                 : Formatters.ExactSize(_reader.Length);
             if (_pictureGeneration != _sourceGeneration)
                 _status.Text = "The file changed; Refresh (F5) to update this picture. " + _status.Text;
+            if (_pictureBrowseFeedback is { } feedback) _status.Text += " · " + feedback;
             return;
         }
         if (_isInfo)
@@ -1358,9 +1365,11 @@ public sealed class ViewerWindow : Window
     }
 
     /// <summary>Reopens the exact provider item and prepares its visible snapshot before retiring the old source.</summary>
-    internal async Task RefreshAsync()
+    internal async Task RefreshAsync(Func<CancellationToken, Task<IContentSource?>>? replacementReopen = null,
+        string? replacementName = null)
     {
-        if (_reopen is null)
+        var reopen = replacementReopen ?? _reopen;
+        if (reopen is null)
         {
             _status.Text = "This source cannot be reopened here; open it again from its provider to refresh.";
             return;
@@ -1386,7 +1395,7 @@ public sealed class ViewerWindow : Window
         {
             if (pageMode && !_pageView.PageLoaded)
                 throw new InvalidOperationException("Wait for the current page to finish loading before refreshing");
-            opened = await _reopen(ct) ?? throw new IOException("This provider cannot reopen the selected item");
+            opened = await reopen(ct) ?? throw new IOException("This provider cannot reopen the selected item");
             // Provider metadata may touch a remote device. Keep it off the UI thread and await
             // completion even after close, so the source cannot be disposed under an active call.
             var admitted = opened;
@@ -1497,6 +1506,12 @@ public sealed class ViewerWindow : Window
             prepared = null;
             _reader.PageLoaded += OnContentPageLoaded;
             _sourceGeneration++;
+            if (replacementName is not null)
+            {
+                _displayName = replacementName;
+                _reopen = reopen;
+                Title = $"{Path.GetFileName(replacementName.TrimEnd('\\', '/'))} — FileCat Viewer";
+            }
             var previousGuess = _guess;
             var chosenEncoding = _text.Encoding.WebName == previousGuess.Encoding.WebName ? guess.Encoding : _text.Encoding;
             _guess = guess;
@@ -1521,7 +1536,8 @@ public sealed class ViewerWindow : Window
             _modePage.IsVisible = HtmlPage.IsHtml(_displayName, prefix) || Markdown.IsMarkdown(_displayName);
             if (pictureMode && decoded is not null)
             {
-                _picture.ReplacePreservingView(decoded);
+                if (replacementName is null) _picture.ReplacePreservingView(decoded);
+                else _picture.Show(decoded); // a new photo starts fitted, without the previous photo's pan
                 decoded = null;
                 _pictureDisplayedPdfPage = _isPdf ? _pdfPage : -1;
                 _pictureGeneration = _sourceGeneration;
@@ -1579,6 +1595,44 @@ public sealed class ViewerWindow : Window
             if (ReferenceEquals(_refreshCts, cts)) _refreshCts = null;
             _refreshing = false;
             UpdateRefreshFeedback();
+        }
+    }
+
+    /// <summary>Space and Backspace follow the source panel's visible picture order without creating another window.</summary>
+    private async Task StepPictureAsync(int direction)
+    {
+        if (BrowseContext is null)
+        {
+            _pictureBrowseFeedback = "Open a picture from a file panel to browse its folder with Space.";
+            UpdateStatus();
+            return;
+        }
+        if (_refreshing || _closing.IsCancellationRequested) return;
+        if (!_readyForRefresh)
+        {
+            _pictureBrowseFeedback = "Wait for the current picture to finish loading, then browse the folder.";
+            UpdateStatus();
+            return;
+        }
+        var next = BrowseContext.Step(direction, out var reason);
+        if (next is null)
+        {
+            _pictureBrowseFeedback = reason;
+            UpdateStatus();
+            return;
+        }
+        _pictureBrowseFeedback = null;
+        var provider = _services.Providers.For(next.Parent);
+        Task<IContentSource?> Reopen(CancellationToken ct) => ViewerLauncher.ReopenSourceAsync(
+            _services, _deviceKey, () => provider.OpenContent(next), ct);
+        var name = next.FileSystemPath ?? _services.Providers.Display(next.Parent).TrimEnd('\\', '/') + "/" + next.Name;
+        long previousGeneration = _sourceGeneration;
+        await RefreshAsync(Reopen, name);
+        if (!_closing.IsCancellationRequested && previousGeneration == _sourceGeneration)
+        {
+            _pictureBrowseFeedback = $"Could not show {Formatters.SafeName(next.Name)}. The current picture remains; " +
+                (direction > 0 ? "Space tries the following picture." : "Backspace tries the preceding picture.");
+            UpdateStatus();
         }
     }
 
@@ -1703,6 +1757,14 @@ public sealed class ViewerWindow : Window
             case Key.Z when e.KeyModifiers == KeyModifiers.None && _isPicture:
                 if (_picture.Fit || Math.Abs(_picture.Zoom - 1) > 0.001) _picture.ShowActualSize();
                 else _picture.Fit = true;
+                break;
+            case Key.Space when e.KeyModifiers == KeyModifiers.None && _isPicture && !_isPdf &&
+                                focused is not (Button or ToggleButton or TextBox or ComboBox):
+                await StepPictureAsync(1);
+                break;
+            case Key.Back when e.KeyModifiers == KeyModifiers.None && _isPicture && !_isPdf &&
+                               focused is not (Button or ToggleButton or TextBox or ComboBox):
+                await StepPictureAsync(-1);
                 break;
             case Key.PageDown when _isPdf && _isPicture:
                 ChangePdfPage(1);
@@ -2585,7 +2647,14 @@ public sealed class ViewerWindow : Window
 public static class ViewerLauncher
 {
     /// <summary>Admits initial metadata off the UI thread; transfers the source to a shown window or disposes it on failure.</summary>
-    public static async Task Open(AppServices services, ItemRef item, IContentSource source, bool hex)
+    public static Task Open(AppServices services, ItemRef item, IContentSource source, bool hex) =>
+        OpenCore(services, item, source, hex, null);
+
+    /// <summary>Open from a panel with its current order available for same-window picture browsing.</summary>
+    public static Task OpenWithBrowsing(AppServices services, ItemRef item, IContentSource source, bool hex, TabViewModel tab) =>
+        OpenCore(services, item, source, hex, tab);
+
+    private static async Task OpenCore(AppServices services, ItemRef item, IContentSource source, bool hex, TabViewModel? tab)
     {
         PagedReader? reader = null;
         ViewerWindow? window = null;
@@ -2599,6 +2668,8 @@ public static class ViewerLauncher
             var provider = services.Providers.For(item.Parent);
             Task<IContentSource?> Reopen(CancellationToken ct) => ReopenProviderAsync(services, provider, item, deviceKey, ct);
             window = new ViewerWindow(services, source, name, hex, deviceKey, reader, Reopen);
+            if (tab is not null && item.Kind == EntryKind.File && PictureBrowseContext.IsPictureName(item.Name))
+                window.BrowseContext = new PictureBrowseContext(tab, item);
             window.Show();
             transferred = true;
         }

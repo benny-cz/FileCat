@@ -156,6 +156,7 @@ public sealed class TabState
     public bool SortDescending { get; set; }
     public string? Filter { get; set; }
     public int ColumnProfile { get; set; }
+    public bool PictureView { get; set; }
     public string? FocusName { get; set; }
     public List<Location> BackHistory { get; set; } = [];
     public List<Location> ForwardHistory { get; set; } = [];

@@ -104,6 +104,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string? _filterValidationError;
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private bool _isActiveTab;
+    [ObservableProperty] private bool _pictureView;
 
     /// <summary>Saved root of a locked tab (the "return to root" variant).</summary>
     private Location? _lockedRoot;
@@ -1172,6 +1173,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             SortDescending = Listing.Sort.Descending,
             Filter = Listing.Filter?.Text,
             ColumnProfile = ColumnProfile,
+            PictureView = PictureView,
             FocusName = focus,
             BackHistory = _back.TakeLast(10).Where(l => (l.Scheme != Schemes.ResultSet || Core.Search.ResultSetProvider.IsPersistent(l)) &&
                                                          !(l.Scheme == Schemes.Recovery && FileCat.Recovery.RecoveryProvider.IsDevice(l))).ToList(),
@@ -1184,6 +1186,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         ReturnToRoot = s.ReturnToRoot;
         LockedRoot = s.LockedRoot;
         _columnProfile = s.ColumnProfile;
+        PictureView = s.PictureView;
         Listing.Sort = Listing.Sort with { Field = s.SortField, Descending = s.SortDescending };
         if (!string.IsNullOrEmpty(s.Filter)) SetFilter(s.Filter);
         _back.Clear();

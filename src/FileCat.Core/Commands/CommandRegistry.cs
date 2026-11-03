@@ -168,6 +168,7 @@ public static class CommandIds
     public const string FocusPanelFilter = "view.focusFilter";
     public const string FlatView = "view.flat";
     public const string AnalyzeFolder = "view.analyze";
+    public const string PictureView = "view.pictures";
 
     public const string FindFiles = "search.find";
     public const string FindRun = "find.search";
@@ -415,6 +416,7 @@ public sealed class CommandRegistry
         Add(CommandIds.FocusPanelFilter, "Edit active panel filter", V, null, CommandContext.Panel, "Ctrl+Shift+F");
         Add(CommandIds.FlatView, "Flat view (all files below this folder)", V, null, CommandContext.Panel, "Ctrl+B");
         Add(CommandIds.AnalyzeFolder, "Analyze folder…", V);
+        Add(CommandIds.PictureView, "Pictures (thumbnail grid)", V, null, CommandContext.Panel);
 
         Add(CommandIds.FindFiles, "Find files…", C, "Find", CommandContext.Panel, "Alt+F7");
         const string FindCategory = "Find";
@@ -494,6 +496,7 @@ public sealed class CommandRegistry
         r.Describe(CommandIds.FindDeleted, "Choose a drive or a disk image: its deleted files open in a new tab, to copy (F5) to another drive.");
         r.Describe(CommandIds.ChooseTarget, "Where F5 and F6 copy and move to, with three or more panels; “Set as target” on a panel's header does the same.");
         r.Describe(CommandIds.AnalyzeFolder, "Reads one column (versions, picture sizes, link targets, where files came from) for every item, then sorts by it.");
+        r.Describe(CommandIds.PictureView, "Toggle a thumbnail grid in this tab. Folders and every file remain available for selection and file operations.");
         r.Describe(CommandIds.CompareDirectories, "Marks what differs between the two panels' folders; Include subfolders lists every difference below and can synchronize.");
         // The toolbar's commands (D-49): their tooltips say this under the title and key.
         r.Describe(CommandIds.Back, "Goes back to the folder this tab showed before.");
@@ -612,6 +615,7 @@ public sealed class CommandRegistry
         K(CommandIds.WorkingSets, "collections", "basket");
         K(CommandIds.Undo, "revert", "take back");
         K(CommandIds.AnalyzeFolder, "metadata", "versions", "picture sizes", "dimensions", "link targets", "origin");
+        K(CommandIds.PictureView, "photo", "photos", "images", "thumbnails", "gallery");
         K(CommandIds.MarkToggle, "folder size", "folder sizes", "calculate size");
         K(CommandIds.MoveTabLeft, "reorder tabs", "tab order", "drag tab");
         K(CommandIds.MoveTabRight, "reorder tabs", "tab order", "drag tab");

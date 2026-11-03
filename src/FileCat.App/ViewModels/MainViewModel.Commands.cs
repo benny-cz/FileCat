@@ -426,6 +426,13 @@ public sealed partial class MainViewModel
                 break;
 
             // ---- View --------------------------------------------------------------------------------
+            case CommandIds.PictureView:
+                if (tab is not null)
+                {
+                    tab.PictureView = !tab.PictureView;
+                    Notify(tab.PictureView ? "Pictures: thumbnail grid in this tab." : "Pictures: file list in this tab.");
+                }
+                break;
             case CommandIds.SortName:
                 tab?.SortBy(SortField.Name);
                 break;

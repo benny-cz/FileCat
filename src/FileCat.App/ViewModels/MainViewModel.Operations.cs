@@ -792,14 +792,14 @@ public sealed partial class MainViewModel
         }
         // F3 honors a per-type View association; Alt+F3 always uses the internal viewer.
         if (!hex && item.FileSystemPath is { } viewPath && TryLaunchAssociation(Associations.View, viewPath)) return;
-        _ = ViewItemAsync(item, f.Name, hex);
+        _ = ViewItemAsync(item, f.Name, hex, tab);
     }
 
     /// <summary>
     /// Opens content once on a bounded device worker (a remote item may connect and ask for a password), and hands it
     /// to the viewer, which owns it from then on. Shutdown cancels queued opens; active calls finish before transfer.
     /// </summary>
-    private async Task ViewItemAsync(ItemRef item, string name, bool hex)
+    private async Task ViewItemAsync(ItemRef item, string name, bool hex, TabViewModel sourceTab)
     {
         try
         {
@@ -811,7 +811,7 @@ public sealed partial class MainViewModel
                 Notify("This item has no viewable content.", true);
                 return;
             }
-            await ViewerLauncher.Open(Services, item, source, hex);
+            await ViewerLauncher.OpenWithBrowsing(Services, item, source, hex, sourceTab);
             if (item.Parent.IsFileSystem) Services.RecordFile(item.Parent, item.Name);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException)

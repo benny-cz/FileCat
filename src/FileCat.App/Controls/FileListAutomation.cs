@@ -186,7 +186,7 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
         ? Math.Clamp(_list.HorizontalOffset * 100.0 / MaximumHorizontal, 0, 100) : ScrollPatternIdentifiers.NoScroll;
     public double HorizontalViewSize => _list.HorizontalExtent > 0
         ? Math.Min(100, _list.HorizontalViewport * 100.0 / _list.HorizontalExtent) : 100;
-    private int MaximumTop => Math.Max(0, (_list.AutomationListing?.VisibleCount ?? 0) - _list.VisibleRowCapacity);
+    private int MaximumTop => _list.MaximumTopRow;
     public bool VerticallyScrollable => MaximumTop > 0;
     public double VerticalScrollPercent => MaximumTop > 0 ? _list.TopRow * 100.0 / MaximumTop : ScrollPatternIdentifiers.NoScroll;
     public double VerticalViewSize => _list.AutomationListing is { VisibleCount: > 0 } listing
@@ -210,8 +210,8 @@ internal sealed class FileListAutomationPeer : ControlAutomationPeer, ISelection
         int delta = verticalAmount switch
         {
             ScrollAmount.NoAmount => 0,
-            ScrollAmount.SmallIncrement => 1,
-            ScrollAmount.SmallDecrement => -1,
+            ScrollAmount.SmallIncrement => _list.VerticalScrollStep,
+            ScrollAmount.SmallDecrement => -_list.VerticalScrollStep,
             ScrollAmount.LargeIncrement => Math.Max(1, _list.VisibleRowCapacity - 1),
             ScrollAmount.LargeDecrement => -Math.Max(1, _list.VisibleRowCapacity - 1),
             _ => throw new ArgumentOutOfRangeException(nameof(verticalAmount)),

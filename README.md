@@ -70,8 +70,10 @@ on another disk so FileCat's state cannot write to the source.
 
 - Start with two panels or dock more beside and above them. Each panel keeps its own tabs,
   target and history. Lock a tab, reopen a closed one, save a workspace, or jump to a bookmark.
-- Browse very large folders with virtualized listings. Search names as you type, filter with masks,
-  switch column profiles, and request expensive metadata only when you need it.
+- Browse very large folders with virtualized listings. Switch **View → Pictures** to a thumbnail
+  grid that still includes folders and other files, with the same selection and file actions.
+  Search names as you type, filter with masks, switch column profiles, and request expensive
+  metadata only when you need it.
 - Find files by name, content or metadata (Alt+F7). Results act on the original files. Flat view,
   persistent working sets and duplicate finding give different ways to assemble a task.
 - Compare files in text or binary; compare folder trees and preview **Update** or **Mirror**
@@ -122,7 +124,8 @@ make every parser a full sandbox.
 
 - **Built-in viewers:** F3 reads text and hex from very large files without loading the whole
   file. Search, go to line or byte offset, follow a growing file, inspect encodings and checksums,
-  or use Ctrl+Q for quick view. Picture view supports zoom and pan; PDFs open as visual pages with
+  or use Ctrl+Q for quick view. Picture view supports zoom and pan; Space and Backspace move through
+  the panel's visible pictures without opening another window. PDFs open as visual pages with
   page navigation and document details in Info. Page view renders local HTML and Markdown without
   fetching from the web; a contained Markdown link opens in another viewer.
 - **Inspectors:** Info view reports PE, ELF, Mach-O, APK/AAB, image, audio, video and HTML
