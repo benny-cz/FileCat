@@ -61,7 +61,6 @@ public partial class App : Application
             autosave.Start();
             vm.Initialize(state);
             vm.OpenArguments(StartupOptions, initial: true);
-            if (!benchmark) _ = vm.CheckForUpdatesOnStartupAsync();
             desktop.MainWindow = window;
             desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
             // Signing out or shutting down while operations run: Windows shows the reason set by the view model and
@@ -84,6 +83,13 @@ public partial class App : Application
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
                 }
             };
+            if (!benchmark)
+            {
+                var startupUpdateCheck = new CancellationTokenSource();
+                window.Opened += (_, _) => Dispatcher.UIThread.Post(
+                    () => _ = vm.CheckForUpdatesOnStartupAsync(startupUpdateCheck.Token), DispatcherPriority.Background);
+                window.Closed += (_, _) => startupUpdateCheck.Cancel();
+            }
             if (benchmark)
             {
                 window.Opened += async (_, _) => await NativeBenchmark.RunAsync(window, vm, services, StartupOptions, syntheticRoot);

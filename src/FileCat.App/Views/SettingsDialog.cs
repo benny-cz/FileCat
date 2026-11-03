@@ -329,7 +329,7 @@ public static class SettingsDialog
         // ---- Privacy
         var diag = new CheckBox { Content = "Diagnostic mode: include file paths in the local log (off by default)", IsChecked = s.DiagnosticMode };
         var updates = new CheckBox { Content = "Automatically check for updates", IsChecked = s.CheckForUpdates };
-        var updateNote = Note("At most once a day at startup, FileCat checks for a newer release and notifies you. It does not download or install update packages. Help → Check for updates and network locations still connect when you request them.");
+        var updateNote = Note("On by default for new profiles. At most once a day at startup, FileCat checks for a newer release and offers its release page. You can skip one version or turn this off. It does not download or install update packages. Help → Check for updates and network locations still connect when you request them.");
         Avalonia.Automation.AutomationProperties.SetHelpText(updates, updateNote.Text);
         bool helper = vm.Services.ShellPictures is not null;
         var shellPictures = new CheckBox

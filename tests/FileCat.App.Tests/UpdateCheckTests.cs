@@ -15,11 +15,31 @@ public sealed class UpdateCheckTests
     {
         int saves = 0;
         var settings = new AppSettings { CheckForUpdates = false };
-        Assert.Null(await UpdateCheck.RunScheduledAsync(settings, () => saves++));
+        Assert.Null(await UpdateCheck.RunScheduledAsync(settings, () => saves++, TestContext.Current.CancellationToken));
         settings.CheckForUpdates = true;
         settings.LastUpdateCheckUtc = DateTime.UtcNow;
-        Assert.Null(await UpdateCheck.RunScheduledAsync(settings, () => saves++));
+        Assert.Null(await UpdateCheck.RunScheduledAsync(settings, () => saves++, TestContext.Current.CancellationToken));
         Assert.Equal(0, saves);
+    }
+
+    [Fact]
+    public void Startup_offer_skips_only_the_saved_version_and_preserves_the_opt_out()
+    {
+        var settings = new AppSettings();
+        Assert.True(settings.CheckForUpdates);
+        var newer = new UpdateCheck.Result(true, "1.0.0-preview.4", "1.0.0-preview.5",
+            "https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.5", null);
+        Assert.True(UpdateCheck.ShouldOfferOnStartup(settings, newer));
+        settings.SkippedUpdateVersion = "1.0.0-preview.5";
+        Assert.False(UpdateCheck.ShouldOfferOnStartup(settings, newer));
+        Assert.True(UpdateCheck.ShouldOfferOnStartup(settings, newer with { Latest = "1.0.0-preview.6" }));
+        settings.CheckForUpdates = false;
+        Assert.False(UpdateCheck.ShouldOfferOnStartup(settings, newer with { Latest = "1.0.0-preview.6" }));
+        Assert.False(UpdateCheck.ShouldOfferOnStartup(new AppSettings(), newer with { Url = null }));
+        var saved = JsonSerializer.Serialize(settings, StateJsonContext.Default.AppSettings);
+        var loaded = JsonSerializer.Deserialize(saved, StateJsonContext.Default.AppSettings)!;
+        Assert.False(loaded.CheckForUpdates);
+        Assert.Equal("1.0.0-preview.5", loaded.SkippedUpdateVersion);
     }
 
     private static byte[] Answer(string tag, string url) =>

@@ -374,7 +374,7 @@ public sealed class SettingsDialogTests
                 .Single(c => c.Content as string == "Automatically check for updates");
             Assert.False(updates.IsChecked);
             var note = window.GetVisualDescendants().OfType<TextBlock>()
-                .Single(t => t.Text?.StartsWith("At most once a day at startup", StringComparison.Ordinal) == true);
+                .Single(t => t.Text?.StartsWith("On by default for new profiles. At most once a day at startup", StringComparison.Ordinal) == true);
             Assert.Contains("does not download or install update packages", note.Text);
             Assert.Contains("Help → Check for updates", note.Text);
             Assert.Contains("network locations still connect", note.Text);

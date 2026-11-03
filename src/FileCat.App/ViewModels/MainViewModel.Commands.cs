@@ -603,18 +603,61 @@ public sealed partial class MainViewModel
         ClearNotification();
         if (r.Newer && r.Url is { } url)
         {
-            if (await Dialogs.ConfirmAsync("Update available", $"FileCat {r.Latest} is available; this is {r.Current}.\n\nFileCat never downloads or installs updates itself. Open the release page?", "Open release page"))
-                Services.Shell.Open(url);
+            await ShowAvailableUpdateAsync(r, url);
             return;
         }
         await Dialogs.AlertAsync("Check for updates", r.Error ?? $"FileCat {r.Current} is the latest release.");
     }
 
-    /// <summary>The daily check at startup, only when enabled in Settings → Privacy.</summary>
-    public async Task CheckForUpdatesOnStartupAsync()
+    private bool _updatePromptShowing;
+    private string? _sessionUpdateVersionPresented;
+
+    internal async Task ShowAvailableUpdateAsync(UpdateCheck.Result result, string url)
     {
-        var r = await UpdateCheck.RunScheduledAsync(Services.Settings, Services.SaveSettings);
-        if (r is { Newer: true }) Notify($"FileCat {r.Latest} is available (this is {r.Current}). Help → Check for updates opens its release page.");
+        if (_updatePromptShowing) return;
+        _updatePromptShowing = true;
+        _sessionUpdateVersionPresented = result.Latest;
+        try
+        {
+            var answer = await Dialogs.ShowCustomAsync("Update available",
+                new Avalonia.Controls.TextBlock
+                {
+                    Text = $"FileCat {result.Latest} is available; this is {result.Current}.\n\nFileCat never downloads or installs updates itself.",
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                    MaxWidth = 560,
+                },
+                [new DialogButton("Not now", "later", IsDefault: true, IsCancel: true),
+                 new DialogButton("Skip this version", "skip")
+                 {
+                     HelpText = $"Do not show FileCat {result.Latest} in automatic startup checks. A newer version or a manual check can still be shown.",
+                 },
+                 new DialogButton("Open release page", "open")]);
+            if (answer is "skip" && result.Latest is { } latest)
+            {
+                Services.Settings.SkippedUpdateVersion = latest;
+                Services.SaveSettings();
+            }
+            else if (answer is "open") Services.Shell.Open(url);
+        }
+        finally { _updatePromptShowing = false; }
+    }
+
+    /// <summary>The daily check at startup, only when enabled in Settings → Privacy.</summary>
+    public async Task CheckForUpdatesOnStartupAsync(CancellationToken ct = default)
+    {
+        UpdateCheck.Result? r;
+        try { r = await UpdateCheck.RunScheduledAsync(Services.Settings, Services.SaveSettings, ct); }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return; }
+        if (!UpdateCheck.ShouldOfferOnStartup(Services.Settings, r) || r?.Url is not { } url) return;
+        try
+        {
+            // A startup result must not replace a dialog the user is already working in.
+            while (Dialogs.IsOpen && !ct.IsCancellationRequested) await Task.Delay(250, ct);
+            if (!ct.IsCancellationRequested && UpdateCheck.ShouldOfferOnStartup(Services.Settings, r) &&
+                !string.Equals(_sessionUpdateVersionPresented, r.Latest, StringComparison.OrdinalIgnoreCase))
+                await ShowAvailableUpdateAsync(r, url);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
     }
     private void OpenFocused(bool withSystem)
     {

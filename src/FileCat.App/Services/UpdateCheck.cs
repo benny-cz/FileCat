@@ -8,7 +8,7 @@ using FileCat.Core.State;
 namespace FileCat.App.Services;
 
 /// <summary>
-/// Opt-in automatic update check (plan §19.3, PI-08): it only notifies and never downloads or installs.
+/// Automatic update check with a Settings opt-out: it only offers the release page and never downloads or installs.
 /// Disabling it stops scheduled release checks. Explicit Help checks and requested remote locations can still connect.
 /// The request carries no identifier beyond the product version in the User-Agent.
 /// </summary>
@@ -36,16 +36,23 @@ public static class UpdateCheck
         }
     }
 
-    /// <summary>At startup, at most once a day, only when the user enabled it.</summary>
-    public static async Task<Result?> RunScheduledAsync(AppSettings settings, Action save)
+    /// <summary>At startup, at most once a day, unless the user disabled it.</summary>
+    public static async Task<Result?> RunScheduledAsync(AppSettings settings, Action save, CancellationToken ct = default)
     {
         if (!settings.CheckForUpdates) return null;
         if (settings.LastUpdateCheckUtc is { } last && DateTime.UtcNow - last < TimeSpan.FromHours(24)) return null;
-        var result = await CheckAsync();
+        // Keep network I/O and bounded JSON parsing off the UI thread at startup.
+        var result = await Task.Run(() => CheckAsync(ct));
+        if (ct.IsCancellationRequested || !settings.CheckForUpdates) return null;
         settings.LastUpdateCheckUtc = DateTime.UtcNow;
         save();
         return result;
     }
+
+    /// <summary>A skip affects the automatic prompt for one exact release, not future releases or manual checks.</summary>
+    public static bool ShouldOfferOnStartup(AppSettings settings, Result? result) =>
+        settings.CheckForUpdates && result is { Newer: true, Latest: not null, Url: not null } &&
+        !string.Equals(settings.SkippedUpdateVersion, result.Latest, StringComparison.OrdinalIgnoreCase);
 
     public static async Task<Result> CheckAsync(CancellationToken ct = default)
     {
@@ -54,18 +61,22 @@ public static class UpdateCheck
         bool preview = api == PreviewReleasesApi;
         try
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            // ResponseHeadersRead ends HttpClient's request timeout at the headers. The linked
+            // token also bounds a stalled or trickling response body.
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            deadline.CancelAfter(TimeSpan.FromSeconds(10));
+            using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
             http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("FileCat", current));
             http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-            using var response = await http.GetAsync(api, HttpCompletionOption.ResponseHeadersRead, ct);
+            using var response = await http.GetAsync(api, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 return new Result(false, current, null, null, preview ? "No release has been published yet." : "No stable release has been published yet.");
             response.EnsureSuccessStatusCode();
             if (response.Content.Headers.ContentLength > MaxAnswerBytes) return new Result(false, current, null, null, Unreadable);
-            await using var stream = await response.Content.ReadAsStreamAsync(ct);
+            await using var stream = await response.Content.ReadAsStreamAsync(deadline.Token);
             using var answer = new MemoryStream();
             var buffer = new byte[64 * 1024];
-            for (int n; (n = await stream.ReadAsync(buffer, ct)) > 0;)
+            for (int n; (n = await stream.ReadAsync(buffer, deadline.Token)) > 0;)
             {
                 if (answer.Length + n > MaxAnswerBytes) return new Result(false, current, null, null, Unreadable);
                 answer.Write(buffer, 0, n);
@@ -73,7 +84,7 @@ public static class UpdateCheck
             AppLog.Info("Update check completed.");
             return preview ? InterpretPreview(current, answer.ToArray()) : Interpret(current, answer.ToArray());
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException or JsonException or InvalidOperationException)
         {
             AppLog.Info("Update check failed: " + ex.GetType().Name);
             return new Result(false, current, null, null, "The release information could not be retrieved (offline or blocked).");

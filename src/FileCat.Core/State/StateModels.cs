@@ -122,8 +122,11 @@ public sealed class AppSettings : IVersionedState
     public Dictionary<string, string[]> KeyBindings { get; set; } = new(StringComparer.Ordinal);
     public List<ColumnProfile> ColumnProfiles { get; set; } = [];
     public bool KeepAwakeDuringJobs { get; set; }
-    public bool CheckForUpdates { get; set; }
+    /// <summary>On for new profiles; a saved false value remains an explicit opt-out.</summary>
+    public bool CheckForUpdates { get; set; } = true;
     public DateTime? LastUpdateCheckUtc { get; set; }
+    /// <summary>Only this published version is hidden from automatic update prompts; manual checks still show it.</summary>
+    public string? SkippedUpdateVersion { get; set; }
     public bool DiagnosticMode { get; set; }
     public int RecentlyClosedTabs { get; set; } = 25;
     public int HistorySize { get; set; } = 200;
