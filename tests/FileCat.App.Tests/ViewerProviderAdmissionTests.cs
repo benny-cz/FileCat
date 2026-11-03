@@ -210,7 +210,7 @@ public sealed class ViewerProviderAdmissionTests(ITestOutputHelper output)
             _vm = new MainViewModel(Services);
         }
         public Task Open() => (Task)typeof(MainViewModel).GetMethod("ViewItemAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .Invoke(_vm, [new ItemRef(new Location(Provider.Scheme, "owned"), "owned.txt", EntryKind.File), "owned.txt", true])!;
+            .Invoke(_vm, [new ItemRef(new Location(Provider.Scheme, "owned"), "owned.txt", EntryKind.File), "owned.txt", true, _vm.ActiveTab!])!;
         public void Dispose()
         {
             Provider.Release.Set();

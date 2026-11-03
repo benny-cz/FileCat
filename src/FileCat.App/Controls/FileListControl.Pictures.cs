@@ -64,6 +64,7 @@ public sealed partial class FileListControl
                 var tile = PictureTileBounds(row).Deflate(new Thickness(4));
                 bool marked = listing.IsMarked(storeIndex);
                 bool focused = row == listing.FocusedIndex;
+                dc.DrawRectangle(null, new Pen(_grid, 0.75), tile.Deflate(new Thickness(0.5)));
                 if (marked) dc.FillRectangle(_markedBg, tile);
                 if (focused && active) dc.FillRectangle(_focusBg, tile);
                 if (marked) dc.FillRectangle(_markedText, new Rect(tile.X, tile.Y + 2, 4, tile.Height - 4));
@@ -71,7 +72,9 @@ public sealed partial class FileListControl
                     dc.DrawRectangle(null, active ? new Pen(_focusBorder, 1.5)
                         : new Pen(_focusInactive, 1, new DashStyle([2, 2], 0)), tile.Deflate(new Thickness(0.5)));
 
-                var imageBox = new Rect(tile.X + 10, tile.Y + 7, Math.Max(1, tile.Width - 20), Math.Max(1, tile.Height - 55));
+                double imageWidth = Math.Max(1, Math.Min(220, tile.Width - 20));
+                var imageBox = new Rect(tile.Center.X - imageWidth / 2, tile.Y + 7,
+                    imageWidth, Math.Max(1, tile.Height - 61));
                 dc.FillRectangle(_header, imageBox);
                 dc.DrawRectangle(null, new Pen(_grid, 1), imageBox);
                 var item = listing.GetItemRef(storeIndex);
@@ -93,6 +96,14 @@ public sealed partial class FileListControl
                     double w = thumbnail.PixelSize.Width * scale, h = thumbnail.PixelSize.Height * scale;
                     var image = new Rect(imageBox.Center.X - w / 2, imageBox.Center.Y - h / 2, w, h);
                     dc.DrawImage(thumbnail, image);
+                }
+                else if (entry.Kind == EntryKind.Parent)
+                {
+                    var center = imageBox.Center;
+                    var arrow = new Pen(_muted, 2.5);
+                    dc.DrawLine(arrow, new Point(center.X, center.Y + 13), new Point(center.X, center.Y - 17));
+                    dc.DrawLine(arrow, new Point(center.X, center.Y - 17), new Point(center.X - 12, center.Y - 5));
+                    dc.DrawLine(arrow, new Point(center.X, center.Y - 17), new Point(center.X + 12, center.Y - 5));
                 }
                 else if (Tab?.Services.Icons.GetIcon(entry, Tab.Location) is { } icon)
                 {

@@ -192,6 +192,7 @@ public static class CommandIcons
         [CommandIds.OpenInNewTargetTab] = [new(Tab, "TextMuted"), new("M6,12 L10.5,7.5 M7.5,7.5 L10.5,7.5 L10.5,10.5", "TargetAccent")],
         [CommandIds.TabList] = [new(Tab, "TextMuted"), new("M5,8 L11,8 M5,10.5 L11,10.5", "Text")],
         // View
+        [CommandIds.PictureView] = [new(Box, "TextMuted"), new("M3.5,11.5 L6.5,8 L8.5,10 L11,6.5 L13,11.5 Z", "ActiveAccent"), new("M4.5,5 C5.2,5 5.7,5.5 5.7,6.2 C5.7,6.9 5.2,7.4 4.5,7.4 C3.8,7.4 3.3,6.9 3.3,6.2 C3.3,5.5 3.8,5 4.5,5 Z", "Warning", Fill: true)],
         [CommandIds.SortName] = [new("M2,12 L4.5,4 L7,12 M2.9,9.5 L6.1,9.5"), new("M11.5,3 L11.5,13 M9.5,11 L11.5,13 L13.5,11", "ActiveAccent")],
         [CommandIds.SortExtension] = [new("M2.5,7.5 L2.5,8 M5,4 L5,12 M5,4 L8,4 M5,8 L7.5,8 M5,12 L8,12"), new("M11.5,3 L11.5,13 M9.5,11 L11.5,13 L13.5,11", "ActiveAccent")],
         [CommandIds.SortTime] = [new("M5.5,3.5 C7.7,3.5 9.5,5.3 9.5,7.5 C9.5,9.7 7.7,11.5 5.5,11.5 C3.3,11.5 1.5,9.7 1.5,7.5 C1.5,5.3 3.3,3.5 5.5,3.5 Z M5.5,5.5 L5.5,7.5 L7,8.5"), new("M12.5,3 L12.5,13 M10.5,11 L12.5,13 L14.5,11", "ActiveAccent")],

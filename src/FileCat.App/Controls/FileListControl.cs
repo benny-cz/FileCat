@@ -1038,13 +1038,13 @@ public sealed partial class FileListControl : Control
             {
                 bool wasVisible = _vbar.IsVisible;
                 _horizontalViewport = Math.Max(0, finalSize.Width - (wasVisible ? sbw : 0));
-                _pictureColumns = Math.Max(1, (int)(_horizontalViewport / 154));
+                _pictureColumns = Math.Max(1, (int)(_horizontalViewport / 184));
                 ClampTop();
                 UpdateScrollBar();
                 if (wasVisible == _vbar.IsVisible) break;
             }
             _horizontalViewport = Math.Max(0, finalSize.Width - (_vbar.IsVisible ? sbw : 0));
-            _pictureColumns = Math.Max(1, (int)(_horizontalViewport / 154));
+            _pictureColumns = Math.Max(1, (int)(_horizontalViewport / 184));
             ClampTop();
             if (previousColumns != _pictureColumns) EnsureFocusVisible();
             UpdateScrollBar();
