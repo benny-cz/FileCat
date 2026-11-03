@@ -30,3 +30,10 @@ The Add field consumed Enter only when nonblank. Blank Enter could fall through 
 - No additional visual ornament or control was justified by the remaining reviewed dialogs. The candidate check above is deliberately finite; do not reopen an accepted dialog without a consequential counterexample.
 
 Stable 1.0.0 remains **NO-GO** until its independent release gates and owner decision are satisfied.
+
+## Exact-source CI follow-up, 3 November
+
+The exact `8008a3a8523faf830d8ebaa4399de8d2d2563d6a` main
+[run 41553304616](https://github.com/benny-cz/FileCat/actions/runs/41553304616)
+passed the producer and Windows x64, Windows ARM64, Ubuntu and macOS jobs. The finite
+installed-candidate dialog and keyboard checks above remain separate.

@@ -11,3 +11,7 @@ Product correction `d68ea6b8` applies to the role chip's TARGET and Set as targe
 ## Finite acceptance and stop
 
 At the frozen 1.0.0 candidate, inspect TARGET and Set as target at ordinary and narrow panel widths on macOS, with normal and enlarged text, and require centered labels without clipping or a changed click target. Confirm Windows and Ubuntu role chips remain legible and all five required source CI jobs pass with expected tag-only skips. Stop after those checks; do not repeat unrelated panel/theme scenarios absent a consequential regression.
+
+The later exact `8008a3a8` main [run 41553304616](https://github.com/benny-cz/FileCat/actions/runs/41553304616)
+passed the producer and all four platform jobs on 3 November. The installed-candidate visual
+check remains open.
