@@ -106,3 +106,30 @@ DEC-07 requires a separate owner decision on this exact hosted inventory. The pr
 publication is an **unsigned prerelease** with `make_latest: false`. After publication,
 verify unauthenticated public state, exact notes, 24 asset hashes and signed GitHub release
 attestation. Stable 1.0.0 remains **NO-GO**.
+
+## Public preview publication
+
+The owner separately approved public publication of the exact 24-asset unsigned preview.7
+inventory and notes. The final authenticated prepublication read found the same tag object,
+peeled product source, release ID, private draft/prerelease state, exact notes and all 24
+hosted asset names/IDs/sizes/server digests unchanged. GitHub published that draft at
+**2026-11-03T08:55:08Z** as a prerelease with `make_latest: false`:
+[FileCat v1.0.0-preview.7](https://github.com/benny-cz/FileCat/releases/tag/v1.0.0-preview.7).
+
+An unauthenticated public release-by-tag API read returned HTTP 200, the same ID/tag,
+`draft: false`, `prerelease: true`, `immutable: true`, exact notes and all **24 unchanged
+uploaded assets** matching the inventory above. The retained public API snapshot SHA-256
+is `27039e96151c948b49205b97e319d6c833f4a67ab968c628811eeda07b59cdee`.
+GitHub CLI's signed release-attestation verification passed. Its verified in-toto statement
+binds annotated tag object `0c5eff2729cc3846b73344faf65bfa4d4e65d5e5` and the exact
+SHA-256 of all 24 assets; the retained JSON verification SHA-256 is
+`02ee9b47bfe2f2295b1c9e1fb338d0e94d0fc8b1a6701fbe71048c443ff9a81d`.
+
+The official public `FileCat-1.0.0-preview.7-win-x64-portable.zip` was downloaded again.
+Its **105,842,450 bytes** and locally computed SHA-256
+`21d9de695aa3d2543005f344d37c36e278a1063cfa8d76eacdfe1298faa30cad` match the
+producer manifest, GitHub server digest and signed attestation; `gh release verify-asset`
+passed. The byte-identical producer ZIP had already passed safe extraction, CRC and
+noninteractive `FileCat 1.0.0-preview.7` start checks. This release-integrity check is
+not a trusted Windows code signature or installed stable-candidate qualification.
+Stable 1.0.0 remains **NO-GO**.
