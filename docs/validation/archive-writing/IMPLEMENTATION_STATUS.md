@@ -11,9 +11,9 @@ application. An explicit new-profile job refuses instead of entering the legacy 
 - Isolated worktree: `E:\FileCat\.tmp\worktrees\archive-writing`. The shared `E:\FileCat` checkout remains on `main`.
 - The baseline plan was an untracked user-provided file; this branch retains its unchanged contents.
 - Implementation checkpoints: `a8313365` (contracts/proxy IO) and `7e63b39e` (strict TAR/gzip transforms).
-- The transferred current-source delta has SHA-256
+- The transferred TAR/gzip foundation delta (before the later native-worker changes) has SHA-256
   `70E85DE4D5DA731DF0C38DD814E1253B87F2D822CE1172CFA02D65DC2BFE2CDA`.
-  It contains the modified/new production and test sources, applied over the baseline source archive.
+  It contains those foundation production and test sources, applied over the baseline source archive.
 
 ## Implemented foundations
 
@@ -23,6 +23,7 @@ application. An explicit new-profile job refuses instead of entering the legacy 
 | Framed protocol | Nonce, version, sequence, reserved-field/opcode, frame-size, cumulative payload/control and frame-count checks before payload allocation; poisoned channels cannot resume | Phase machine, real production worker lifecycle, cancellation channel and OS controls |
 | Proxy IO | Child uses fixed input IDs and seekable stage requests; parent checks offsets/lengths/IO amplification before touching a stream; no path/publication/delete authority | Reviewed native input leases, parent-owned manifests and production launch integration |
 | Queue | One active worker reservation and at most eight pending; cancellation and duplicate release tested | Integrate with actual process lifetime and operation-center phases |
+| Windows boundary spike | Suspended restricted LPAC, actual-token/access checks, exact inherited pipe list, private-profile write protection, finite job commit/CPU, bounded stderr and idempotent kill/reaping | Production entry point, engine workloads, other namespace/asset/setup-race probes, ordinary user and installed-package/RID qualification |
 | TAR assessment | Full raw USTAR/PAX framing, checksums, exact UTF-8, numeric/PAX grammar and allowlist, pre-allocation metadata limits, complete payload hashes, end markers and padding; independent runtime-decoder agreement | Coverage-guided campaigns, complete metadata/preservation corpus, scale measurements and native independent tools |
 | TAR transform | Stream-only create and exact per-occurrence replace/delete/rename; flattened file/directory additions; order/duplicate/metadata preservation; collision and stale-key refusal; complete expected-manifest verification | Folder preparation/review, native safe save, fresh verifier process, provenance and production dispatch |
 | Gzip | Neutral single-member framing, explicit DEFLATE terminal status/consumption, CRC/ISIZE, no concatenation/trailing data, bounded expansion; streaming runtime encoder and valid empty output | Existing-TGZ update adapter, complete output bound, wrapper metadata corpus and independent oracle qualification |
@@ -44,7 +45,7 @@ validation directories; they are not evidence of installed-package or GUI qualif
 |---|---|---|---|
 | Windows x64 host | 506 passed, 28 skipped, 0 failed | 569 passed, 28 skipped, 0 failed (597 total) | Regression/function tests, including new real-child proxy IO; no GUI or native containment qualification |
 | macOS ARM64, macOS 27.0.1 / APFS | 515 passed, 19 skipped, 0 failed | 578 passed, 19 skipped, 0 failed (597 total) | Owned checkout under `/Users/benny/FileCatValidation/archive-writing-42829297`; SDK 10.0.101, installed 10.0.1/10.0.12 runtimes; no signed-worker/package qualification |
-| Windows 11 x64 VM, build 26340 | Pending | Pending | Initially lacked pinned SDK; isolated offline SDK/feed setup is being completed; no test pass claimed |
+| Windows 11 x64 VM, build 26340 | Not replayed natively | 569 passed, 28 skipped, 0 failed (597 total) | Host-built foundation test binaries; actual .NET 10.0.14 and medium integrity verified; no GUI/package qualification |
 | Ubuntu VM | Postponed | Postponed | Another tester's pre-existing FileCat picture instance was observed; it was not stopped or modified |
 
 The new tests include 1,000 checksum-repaired TAR mutations and 1,000 gzip mutations. These are deterministic regression
@@ -54,6 +55,17 @@ subset currently passes 63/63 on the host; the full current suite includes it on
 Two defects found during this work have regressions: the runtime TAR writer emits no end markers if no entry is written,
 and the runtime raw DEFLATE stream emits no payload for an entirely empty input. The adapters explicitly emit valid empty
 containers. A seekable captured payload view also avoids TarWriter's whole-payload buffering when its output is compressed.
+
+The Windows native worker lane separately passes **22/22**: nine new authority/resource/lifetime probes and thirteen
+existing restricted-worker regressions. The tracked runner was also exercised successfully on the guest. A healthy
+64 MiB framed stream-proxy copy/readback, native 64 MiB allocation, denial of an additional 1 GiB commit, finite CPU,
+bounded stderr, unrelated inherited-handle denial, repeat disposal and real parent death are included. This is a
+development boundary spike, not production worker or installed-package qualification. See the
+[native spike report](NATIVE_WORKER_SPIKES.md) for artifact hashes, failed iterations, limitations and remaining gates.
+
+The Mac ad-hoc signed App Sandbox probe admitted its own executable read and refused unrelated file read/write,
+network access and `fork`. Its attempted absolute 1 GiB `RLIMIT_AS` returned EINVAL and a 2 GiB mapping still succeeded.
+The hard whole-process memory gate remains **unqualified**; no Mac writer is enabled from these partial denials.
 
 ## Outstanding work
 
@@ -72,15 +84,14 @@ after each test. A temporary `caffeinate -diu` assertion keeps the Mac awake unt
 a test instance and is intentionally retained.
 
 The Windows guest setup is owned at `C:\Users\admin\FileCatValidation\ArchiveWriting-42829297`.
-The Mac and host use the same baseline plus the current-source delta above. The Windows SDK copy is hash-verified
+The Mac's functional run uses the foundation source delta above. Windows native probes use the host-built binaries
+identified in the spike report. The Windows SDK copy is hash-verified
 (`8DC778E823BBA1BF6C6D6C608727304663C162790D783187AFCF1B5B6EB8CF17`) and reports 10.0.101. Download from the guest stalled;
 only this task's matching downloader was stopped. SDK/reference packs and a locked-package offline feed were copied from
-the host. Re-extraction reported existing DLL unlink refusals, and offline restore still asks for missing apphost packs
-(including 10.0.14) despite the private SDK. The next setup step is to inspect the owned `msbuild-properties.json` report
-and correct SDK/apphost-pack selection; do not reinterpret this setup failure as a passing Windows VM test. The property
-probe confirmed that SDK/root/targeting-pack paths select the private 10.0.101 installation and its known apphost is 10.0.1.
-A fresh restore is now running with `BaseIntermediateOutputPath=obj-pinned-sdk/` and build-server reuse disabled, to exclude
-generated imports from earlier restore attempts. Its logs are `restore-clean.log` and (if restore succeeds) `test-clean.log`.
+the host. The repository deliberately pins serviced runtime/apphost packs 10.0.14 separately from SDK 10.0.101's bundled
+10.0.1 packs. Copying the missing serviced apphost packs resolved offline restore. Test execution uses the installed
+10.0.14 host with the private SDK's VSTest console. Earlier elevated/setup runs failed or timed out and are not passes;
+only the medium-integrity functional run and the separately recorded successful native lanes are counted above.
 VMware paths are `V:\Virtual Machines\Jamf\Windows 10 x64\Windows 10 x64.vmx` (actually Windows 11) and
 `V:\Virtual Machines\Barebit\Ubuntu 64-bit\Ubuntu 64-bit.vmx`. The user supplied `a` for VM encryption and guest passwords.
 Control commands require `vmrun -vp a`; guest users are `admin` and `benny` respectively. Never restart or stop another

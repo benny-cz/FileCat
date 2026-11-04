@@ -8,6 +8,28 @@ using FileCat.Core.Search;
 using FileCat.Core.State;
 using FileCat.Core.Archives;
 
+if (args.Length > 0 && args[0] == "--archive-test-medium")
+    return await ArchiveTestMedium.Run(args[1..]);
+
+if (args is ["--archive-boundary-parent", var platformAssembly, var archiveProbe] && OperatingSystem.IsWindows())
+{
+    // Test-only crash host: deliberately load the platform adapter supplied by the native test without adding
+    // a Windows dependency to the shared Core harness. This executable is never an application worker.
+    if (!Path.IsPathFullyQualified(platformAssembly) || !Path.IsPathFullyQualified(archiveProbe)) return 64;
+    var assembly = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromAssemblyPath(platformAssembly);
+    var type = assembly.GetType("FileCat.Platform.Windows.Shell.ArchiveAppContainer", throwOnError: true)!;
+    object worker = type.GetMethod("Start")!.Invoke(null, [archiveProbe, "archive-idle", TimeSpan.FromSeconds(30)])!;
+    await using var lifetime = (IAsyncDisposable)worker;
+    using var workerOutput = new StreamReader((Stream)type.GetProperty("Output")!.GetValue(worker)!);
+    string? ready = await workerOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(15));
+    int pid = (int)type.GetProperty("ProcessId")!.GetValue(worker)!;
+    if (ready != pid.ToString(System.Globalization.CultureInfo.InvariantCulture)) return 65;
+    Console.WriteLine(pid);
+    Console.Out.Flush();
+    Console.ReadLine(); // the native test kills this actual parent before normal disposal
+    return 0;
+}
+
 if (args is ["--archive-proxy", var archiveNonceText, var archiveLengthText] &&
     Guid.TryParse(archiveNonceText, out var archiveNonce) && long.TryParse(archiveLengthText, out long archiveLength) && archiveLength is >= 0 and <= 1 << 20)
 {

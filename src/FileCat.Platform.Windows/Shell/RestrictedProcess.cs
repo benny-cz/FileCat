@@ -19,7 +19,8 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     private readonly nint _process;
     private bool _disposed;
 
-    private RestrictedProcess(nint job, nint process, int id, FileStream input, FileStream output, bool lowIntegrity)
+    private RestrictedProcess(nint job, nint process, int id, FileStream input, FileStream output, bool lowIntegrity,
+        FileStream? error)
     {
         _job = job;
         _process = process;
@@ -27,6 +28,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
         Input = input;
         Output = output;
         LowIntegrity = lowIntegrity;
+        Error = error;
     }
 
     /// <summary>Written to the helper's standard input.</summary>
@@ -35,6 +37,8 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     /// <summary>Read from the helper's standard output.</summary>
     public FileStream Output { get; }
 
+    internal FileStream? Error { get; }
+
     public int ProcessId { get; }
 
     /// <summary>True when the helper was started with a low-integrity token.</summary>
@@ -42,27 +46,43 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
 
     public bool HasExited => WaitForSingleObject(_process, 0) == 0;
 
+    internal uint ExitCode => GetExitCodeProcess(_process, out uint code) ? code : throw new Win32Exception(Marshal.GetLastPInvokeError());
+
     /// <summary>Ends the helper and anything in its job at once.</summary>
     public void Kill() => TerminateJobObject(_job, 1);
 
     public static RestrictedProcess Start(string executable, string arguments, bool lowIntegrity, long memoryLimitBytes,
-        bool inheritParentEnvironment = true)
+        bool inheritParentEnvironment = true, nint appContainerSid = 0, long cpuTimeTicks = 0)
     {
-        nint job = CreateJob(memoryLimitBytes);
-        nint childIn = 0, parentIn = 0, parentOut = 0, childOut = 0;
+        if (appContainerSid != 0 && (!lowIntegrity || inheritParentEnvironment))
+            throw new ArgumentException("An archive AppContainer requires a restricted token and a clean environment.");
+        nint job = CreateJob(memoryLimitBytes, cpuTimeTicks);
+        nint childIn = 0, parentIn = 0, parentOut = 0, childOut = 0, parentError = 0, childError = 0;
+        nint process = 0, thread = 0;
+        FileStream? input = null, output = null, errorStream = null;
         try
         {
             var inherit = new SECURITY_ATTRIBUTES { nLength = sizeof(SECURITY_ATTRIBUTES), bInheritHandle = 1 };
             if (!CreatePipe(out childIn, out parentIn, &inherit, 0) || !CreatePipe(out parentOut, out childOut, &inherit, 0))
                 throw new Win32Exception(Marshal.GetLastPInvokeError(), "The Shell helper's pipes could not be created.");
+            if (appContainerSid != 0 && !CreatePipe(out parentError, out childError, &inherit, 0))
+                throw new Win32Exception(Marshal.GetLastPInvokeError(), "The archive worker's error pipe could not be created.");
             // FileCat's own ends are never inherited.
-            SetHandleInformation(parentIn, HANDLE_FLAG_INHERIT, 0);
-            SetHandleInformation(parentOut, HANDLE_FLAG_INHERIT, 0);
+            if (!SetHandleInformation(parentIn, HANDLE_FLAG_INHERIT, 0) ||
+                !SetHandleInformation(parentOut, HANDLE_FLAG_INHERIT, 0) ||
+                (parentError != 0 && !SetHandleInformation(parentError, HANDLE_FLAG_INHERIT, 0)))
+                throw new Win32Exception(Marshal.GetLastPInvokeError(), "The parent's worker pipe ends could not be protected.");
 
             bool low = lowIntegrity;
-            var pi = low ? TryCreate(executable, arguments, childIn, childOut, lowToken: true, inheritParentEnvironment) : null;
+            var pi = low ? TryCreate(executable, arguments, childIn, childOut, lowToken: true, inheritParentEnvironment,
+                appContainerSid, childError) : null;
             if (pi is null)
             {
+                if (appContainerSid != 0)
+                {
+                    int error = Marshal.GetLastPInvokeError();
+                    throw new Win32Exception(error, $"The archive AppContainer could not be started (Windows error {error}). No unrestricted worker was started.");
+                }
                 // CreateProcessW inherits this process's token; an elevated FileCat must never turn a
                 // failed low-integrity start into an administrator parser/handler. Unknown also refuses.
                 if (lowIntegrity && !OrdinaryFallbackAllowed())
@@ -73,30 +93,53 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
                      ?? throw new Win32Exception(Marshal.GetLastPInvokeError(), "The Shell helper could not be started.");
             }
             var info = pi.Value;
+            process = info.hProcess;
+            thread = info.hThread;
+            if (appContainerSid != 0 && !VerifyArchiveContainerToken(info.hProcess, appContainerSid, out string tokenRefusal))
+            {
+                throw new Win32Exception($"The suspended archive worker's boundary could not be verified: {tokenRefusal}");
+            }
             if (!AssignProcessToJobObject(job, info.hProcess))
             {
                 int error = Marshal.GetLastPInvokeError();
-                TerminateProcess(info.hProcess, 1);
-                CloseHandle(info.hThread);
-                CloseHandle(info.hProcess);
                 throw new Win32Exception(error, "The Shell helper could not be restricted, so it was not started.");
             }
-            ResumeThread(info.hThread);
+            if (ResumeThread(info.hThread) == uint.MaxValue)
+            {
+                int error = Marshal.GetLastPInvokeError();
+                throw new Win32Exception(error, "The restricted worker could not be resumed.");
+            }
             CloseHandle(info.hThread);
+            thread = 0;
             CloseHandle(childIn);
             CloseHandle(childOut);
             childIn = childOut = 0;
-            var input = new FileStream(new SafeFileHandle(parentIn, ownsHandle: true), FileAccess.Write, 1);
-            var output = new FileStream(new SafeFileHandle(parentOut, ownsHandle: true), FileAccess.Read, 1);
-            parentIn = parentOut = 0;
-            return new RestrictedProcess(job, info.hProcess, (int)info.dwProcessId, input, output, low);
+            if (childError != 0) { CloseHandle(childError); childError = 0; }
+            input = TakePipe(ref parentIn, FileAccess.Write);
+            output = TakePipe(ref parentOut, FileAccess.Read);
+            errorStream = parentError == 0 ? null : TakePipe(ref parentError, FileAccess.Read);
+            return new RestrictedProcess(job, info.hProcess, (int)info.dwProcessId, input, output, low, errorStream);
         }
         catch
         {
-            foreach (var h in new[] { childIn, parentIn, parentOut, childOut }) if (h != 0) CloseHandle(h);
+            if (process != 0) TerminateProcess(process, 1);
+            foreach (var h in new[] { childIn, parentIn, parentOut, childOut, parentError, childError }) if (h != 0) CloseHandle(h);
+            try { input?.Dispose(); } catch (IOException) { }
+            try { output?.Dispose(); } catch (IOException) { }
+            try { errorStream?.Dispose(); } catch (IOException) { }
+            if (thread != 0) CloseHandle(thread);
             CloseHandle(job);
+            if (process != 0) { WaitForSingleObject(process, 5000); CloseHandle(process); }
             throw;
         }
+    }
+
+    private static FileStream TakePipe(ref nint raw, FileAccess access)
+    {
+        var handle = new SafeFileHandle(raw, ownsHandle: true);
+        raw = 0;
+        try { return new FileStream(handle, access, 1); }
+        catch { handle.Dispose(); throw; }
     }
 
     private static bool OrdinaryFallbackAllowed()
@@ -127,7 +170,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
         finally { Marshal.FreeHGlobal(data); }
     }
 
-    private static nint CreateJob(long memoryLimitBytes)
+    private static nint CreateJob(long memoryLimitBytes, long cpuTimeTicks = 0)
     {
         nint job = CreateJobObjectW(0, 0);
         if (job == 0) throw new Win32Exception(Marshal.GetLastPInvokeError(), "The Shell helper's job object could not be created.");
@@ -136,8 +179,10 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
             BasicLimitInformation = new JOBOBJECT_BASIC_LIMIT_INFORMATION
             {
                 LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION |
-                             JOB_OBJECT_LIMIT_ACTIVE_PROCESS | JOB_OBJECT_LIMIT_PROCESS_MEMORY,
+                             JOB_OBJECT_LIMIT_ACTIVE_PROCESS | JOB_OBJECT_LIMIT_PROCESS_MEMORY |
+                             (cpuTimeTicks > 0 ? JOB_OBJECT_LIMIT_PROCESS_TIME : 0),
                 ActiveProcessLimit = 1,
+                PerProcessUserTimeLimit = cpuTimeTicks,
             },
             ProcessMemoryLimit = (nuint)memoryLimitBytes,
         };
@@ -166,18 +211,33 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     /// token holding no administrative group does not have in a session whose own token carries no logon SID.
     /// </summary>
     private static PROCESS_INFORMATION? TryCreate(string executable, string arguments, nint stdIn, nint stdOut,
-        bool lowToken, bool inheritParentEnvironment)
+        bool lowToken, bool inheritParentEnvironment, nint appContainerSid = 0, nint stdError = 0)
     {
         nint token = 0, attributes = 0;
+        bool attributesInitialized = false;
         try
         {
-            if (lowToken && (token = LowIntegrityToken()) == 0) return null;
+            if (lowToken && (token = appContainerSid != 0 ? CreateWorkerToken(appContainerBase: true) : LowIntegrityToken()) == 0)
+            {
+                if (appContainerSid != 0) throw new Win32Exception(Marshal.GetLastPInvokeError(), "The archive AppContainer base token could not be prepared.");
+                return null;
+            }
             nint size = 0;
-            InitializeProcThreadAttributeList(0, 1, 0, ref size);
+            int attributeCount = appContainerSid == 0 ? 1 : 4;
+            InitializeProcThreadAttributeList(0, attributeCount, 0, ref size);
             attributes = Marshal.AllocHGlobal(size);
-            if (!InitializeProcThreadAttributeList(attributes, 1, 0, ref size)) return null;
-            var handles = stackalloc nint[2] { stdIn, stdOut };
-            if (!UpdateProcThreadAttribute(attributes, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handles, 2 * sizeof(nint), 0, 0)) return null;
+            if (!InitializeProcThreadAttributeList(attributes, attributeCount, 0, ref size)) return null;
+            attributesInitialized = true;
+            var handles = stackalloc nint[3] { stdIn, stdOut, stdError };
+            if (!UpdateProcThreadAttribute(attributes, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handles,
+                    (stdError == 0 ? 2 : 3) * sizeof(nint), 0, 0)) return null;
+            var capabilities = new SECURITY_CAPABILITIES { AppContainerSid = appContainerSid };
+            uint allPackagesPolicy = 1, childPolicy = 1;
+            if (appContainerSid != 0 &&
+                (!UpdateProcThreadAttribute(attributes, 0, 0x20009, &capabilities, sizeof(SECURITY_CAPABILITIES), 0, 0) ||
+                 !UpdateProcThreadAttribute(attributes, 0, 0x2000f, &allPackagesPolicy, sizeof(uint), 0, 0) ||
+                 !UpdateProcThreadAttribute(attributes, 0, 0x2000e, &childPolicy, sizeof(uint), 0, 0)))
+                return null;
             var si = new STARTUPINFOEXW
             {
                 StartupInfo = new STARTUPINFOW
@@ -186,12 +246,13 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
                     dwFlags = STARTF_USESTDHANDLES,
                     hStdInput = stdIn,
                     hStdOutput = stdOut,
+                    hStdError = stdError,
                 },
                 lpAttributeList = attributes,
             };
             string commandLine = $"\"{executable}\" {arguments}";
             var cmd = commandLine.ToCharArray();
-            var env = EnvironmentBlock(inheritParentEnvironment);
+            var env = EnvironmentBlock(inheritParentEnvironment, appContainerSid != 0);
             uint flags = CREATE_SUSPENDED | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT;
             PROCESS_INFORMATION pi;
             fixed (char* c = cmd)
@@ -200,17 +261,24 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
                 bool ok = lowToken
                     ? CreateProcessAsUserW(token, executable, c, 0, 0, true, flags, e, null, &si, &pi)
                     : CreateProcessW(executable, c, 0, 0, true, flags, e, null, &si, &pi);
+                if (!ok && appContainerSid != 0)
+                {
+                    int error = Marshal.GetLastPInvokeError();
+                    throw new Win32Exception(error, $"CreateProcessAsUser refused the archive AppContainer (Windows error {error}).");
+                }
                 return ok ? pi : null;
             }
         }
         finally
         {
+            int creationError = Marshal.GetLastPInvokeError();
             if (attributes != 0)
             {
-                DeleteProcThreadAttributeList(attributes);
+                if (attributesInitialized) DeleteProcThreadAttributeList(attributes);
                 Marshal.FreeHGlobal(attributes);
             }
             if (token != 0) CloseHandle(token);
+            Marshal.SetLastPInvokeError(creationError);
         }
     }
 
@@ -221,7 +289,9 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     /// integrity alone restricts writes: a token that still carries an enabled Administrators SID reads whatever
     /// administrators may read, and one that keeps its privileges can debug processes and bypass file security.
     /// </summary>
-    private static nint LowIntegrityToken()
+    private static nint LowIntegrityToken() => CreateWorkerToken(appContainerBase: false);
+
+    private static nint CreateWorkerToken(bool appContainerBase)
     {
         if (!OpenProcessToken(GetCurrentProcess(), TOKEN_DUPLICATE | TOKEN_QUERY, out var own)) return 0;
         nint limited = 0, restricted = 0, worker = 0;
@@ -232,7 +302,8 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
             if (!DuplicateTokenEx(restricted, TOKEN_DUPLICATE | TOKEN_QUERY | TOKEN_ASSIGN_PRIMARY | TOKEN_ADJUST_DEFAULT,
                     0, SecurityImpersonation, TokenPrimary, out worker))
                 return 0;
-            if (!LowerIntegrity(worker) || !NoAdministratorAuthority(worker)) return 0;
+            if (!SetIntegrity(worker, appContainerBase ? "S-1-16-8192" : LowIntegritySid) ||
+                !VerifyNoAdministratorAuthority(worker, appContainerBase ? 8192u : LowIntegrityLevel)) return 0;
             nint result = worker;
             worker = 0;
             return result;
@@ -323,9 +394,9 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
         return rid is 544 or 548 or 549 or 550 or 551 or 547 or 556 or 557 or 559 or 578;
     }
 
-    private static bool LowerIntegrity(nint token)
+    private static bool SetIntegrity(nint token, string integritySid)
     {
-        if (!ConvertStringSidToSidW(LowIntegritySid, out var sid)) return false;
+        if (!ConvertStringSidToSidW(integritySid, out var sid)) return false;
         try
         {
             var label = new TOKEN_MANDATORY_LABEL { Sid = sid, Attributes = SE_GROUP_INTEGRITY };
@@ -338,17 +409,26 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     /// Verifies the finished worker token: low integrity, no enabled administrative group and no privilege beyond
     /// SeChangeNotifyPrivilege. A worker is never started on a token that fails this.
     /// </summary>
-    internal static bool NoAdministratorAuthority(nint token)
+    internal static bool NoAdministratorAuthority(nint token) => VerifyNoAdministratorAuthority(token, LowIntegrityLevel);
+
+    private static bool VerifyNoAdministratorAuthority(nint token, uint maximumIntegrity) =>
+        VerifyNoAdministratorAuthority(token, maximumIntegrity, out _);
+
+    private static bool VerifyNoAdministratorAuthority(nint token, uint maximumIntegrity, out string refusal)
     {
+        refusal = "The token integrity could not be read.";
         if (!TokenInformation(token, TokenIntegrityLevel, out nint level, out _)) return false;
         try
         {
             nint sid = Marshal.ReadIntPtr(level);
             byte count = Marshal.ReadByte(GetSidSubAuthorityCount(sid));
-            if (count == 0 || unchecked((uint)Marshal.ReadInt32(GetSidSubAuthority(sid, (uint)(count - 1)))) > LowIntegrityLevel) return false;
+            if (count == 0) return false;
+            uint integrity = unchecked((uint)Marshal.ReadInt32(GetSidSubAuthority(sid, (uint)(count - 1))));
+            if (integrity > maximumIntegrity) { refusal = $"The token integrity is {integrity}, above {maximumIntegrity}."; return false; }
         }
         finally { Marshal.FreeHGlobal(level); }
 
+        refusal = "The token groups could not be read.";
         if (!TokenInformation(token, TokenGroups, out nint groups, out _)) return false;
         try
         {
@@ -357,12 +437,13 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
             {
                 nint entry = groups + sizeof(nint) + i * (2 * sizeof(nint));
                 if ((Marshal.ReadInt32(entry, sizeof(nint)) & SE_GROUP_ENABLED) != 0 && IsPrivilegedGroup(Marshal.ReadIntPtr(entry)))
-                    return false;
+                { refusal = "The token retained an enabled administrative group."; return false; }
             }
         }
         finally { Marshal.FreeHGlobal(groups); }
 
         long notify = 0;
+        refusal = "The token privileges could not be read.";
         if (!LookupPrivilegeValueW(null, "SeChangeNotifyPrivilege", out notify)) return false;
         if (!TokenInformation(token, TokenPrivileges, out nint privileges, out _)) return false;
         try
@@ -373,11 +454,45 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
                 // DWORD PrivilegeCount, then LUID_AND_ATTRIBUTES: two DWORDs of LUID and one of attributes.
                 nint entry = privileges + sizeof(int) + i * 12;
                 long luid = (uint)Marshal.ReadInt32(entry) | ((long)Marshal.ReadInt32(entry, 4) << 32);
-                if (luid != notify) return false;
+                if (luid != notify) { refusal = $"The token retained an unexpected privilege (LUID {luid})."; return false; }
             }
+            refusal = "";
             return true;
         }
         finally { Marshal.FreeHGlobal(privileges); }
+    }
+
+    private static bool VerifyArchiveContainerToken(nint process, nint expectedSid, out string refusal)
+    {
+        refusal = "The suspended process token could not be opened.";
+        if (!OpenProcessToken(process, TOKEN_QUERY | TOKEN_DUPLICATE, out nint token)) return false;
+        try
+        {
+            int appContainer = 0;
+            refusal = "The process is not a verified AppContainer.";
+            if (!GetTokenInformation(token, 29, (nint)(&appContainer), sizeof(int), out uint size) ||
+                size != sizeof(int) || appContainer != 1) return false;
+            refusal = "The process AppContainer identity does not match the archive profile.";
+            if (!TokenInformation(token, 31, out nint container, out uint identityBytes)) return false;
+            try { if (identityBytes < sizeof(nint) || !EqualSid(Marshal.ReadIntPtr(container), expectedSid)) return false; }
+            finally { Marshal.FreeHGlobal(container); }
+            refusal = "The process capabilities could not be read.";
+            if (!TokenInformation(token, 30, out nint capabilities, out uint bytes)) return false;
+            try
+            {
+                if (bytes < sizeof(uint)) return false;
+                int count = Marshal.ReadInt32(capabilities);
+                if (count != 0) { refusal = $"The process has {count} unexpected capabilities."; return false; }
+            }
+            finally { Marshal.FreeHGlobal(capabilities); }
+            uint mandatoryPolicy = 0;
+            refusal = "The archive worker does not enforce mandatory no-write-up policy.";
+            if (!GetTokenInformation(token, 27, (nint)(&mandatoryPolicy), sizeof(uint), out size) ||
+                size != sizeof(uint) || (mandatoryPolicy & 1) == 0) return false;
+            return VerifyNoAdministratorAuthority(token, LowIntegrityLevel, out refusal) &&
+                VerifyLessPrivilegedAccess(token, expectedSid, out refusal);
+        }
+        finally { CloseHandle(token); }
     }
 
     /// <summary>Reads one variable-length token information class into unmanaged memory the caller frees.</summary>
@@ -385,7 +500,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     {
         data = 0;
         GetTokenInformation(token, information, 0, 0, out size);
-        if (size == 0) return false;
+        if (size == 0 || size > 1 << 20) return false;
         nint buffer = Marshal.AllocHGlobal(checked((int)size));
         if (!GetTokenInformation(token, information, buffer, size, out size))
         {
@@ -397,7 +512,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     }
 
     /// <summary>Only the picture decoder drops the parent's variables; Shell helpers retain their existing profile.</summary>
-    private static char[] EnvironmentBlock(bool inheritParentEnvironment)
+    private static char[] EnvironmentBlock(bool inheritParentEnvironment, bool appContainer = false)
     {
         var vars = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (inheritParentEnvironment)
@@ -410,6 +525,15 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
             // An absolute apphost/host path finds its own runtime. Retain Windows' loader root, not the parent's
             // PATH, credentials, native loader overrides or user-profile settings, for hostile picture decoding.
             vars["SystemRoot"] = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            if (appContainer)
+            {
+                // Windows constructs the AppContainer's redirected profile/temp locations from these OS-known
+                // folders. They carry no file authority and are not inherited loader/credential variables.
+                vars["USERPROFILE"] = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                vars["LOCALAPPDATA"] = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                vars["APPDATA"] = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                vars["TEMP"] = vars["TMP"] = Path.GetTempPath();
+            }
         }
         vars["DOTNET_EnableDiagnostics"] = "0";
         var sb = new StringBuilder();
@@ -425,6 +549,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
         Kill();
         try { Input.Dispose(); } catch (IOException) { }
         try { Output.Dispose(); } catch (IOException) { }
+        try { Error?.Dispose(); } catch (IOException) { }
         CloseHandle(_process);
         CloseHandle(_job);
     }
@@ -436,7 +561,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     private const int STARTF_USESTDHANDLES = 0x100;
     private const nint PROC_THREAD_ATTRIBUTE_HANDLE_LIST = 0x20002;
     private const int JobObjectBasicUIRestrictions = 4, JobObjectExtendedLimitInformation = 9;
-    private const uint JOB_OBJECT_LIMIT_ACTIVE_PROCESS = 0x8, JOB_OBJECT_LIMIT_PROCESS_MEMORY = 0x100,
+    private const uint JOB_OBJECT_LIMIT_PROCESS_TIME = 0x2, JOB_OBJECT_LIMIT_ACTIVE_PROCESS = 0x8, JOB_OBJECT_LIMIT_PROCESS_MEMORY = 0x100,
         JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION = 0x400, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
     private const uint JOB_OBJECT_UILIMIT_HANDLES = 0x1,
         JOB_OBJECT_UILIMIT_READCLIPBOARD = 0x2, JOB_OBJECT_UILIMIT_WRITECLIPBOARD = 0x4, JOB_OBJECT_UILIMIT_SYSTEMPARAMETERS = 0x8,
@@ -536,6 +661,15 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    private struct SECURITY_CAPABILITIES
+    {
+        public nint AppContainerSid;
+        public nint Capabilities;
+        public uint CapabilityCount;
+        public uint Reserved;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     private struct LUID_AND_ATTRIBUTES
     {
         public long Luid;
@@ -574,6 +708,10 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
 
     [LibraryImport("kernel32.dll")]
     private static partial uint WaitForSingleObject(nint hHandle, uint dwMilliseconds);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetExitCodeProcess(nint process, out uint exitCode);
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -646,4 +784,8 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
 
     [LibraryImport("advapi32.dll")]
     private static partial nint GetSidSubAuthorityCount(nint sid);
+
+    [LibraryImport("advapi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool EqualSid(nint first, nint second);
 }
