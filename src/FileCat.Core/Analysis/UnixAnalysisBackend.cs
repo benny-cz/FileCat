@@ -13,7 +13,9 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
     private bool _disposed;
     private readonly ulong _device, _mount;
     private readonly bool _identitySupported;
+    private readonly ulong _modifiedPrecisionTicks = 1;
     private readonly Dictionary<int, IDisposable> _handleLeases = [];
+    private readonly Guid _bindingId = Guid.NewGuid();
     public RootBinding Root { get; }
     public AnalysisEntry RootEntry { get; }
     public string Basis => _mac ? "darwin-stat-total-blocks-v1" : "linux-statx-blocks-v1";
@@ -27,15 +29,20 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
         string canonical = UnixFiles.RealPath(selectedRoot) ?? throw new IOException("The selected root could not be resolved.");
         // Preparing is explicit and does not enumerate. The setup screen displays this captured target before Start.
         var rootLease = AnalysisNativeHandles.Acquire();
-        _root = Open(canonical, _mac ? 0x1000000 | 0x100000 | 0x100 : 0x80000 | 0x10000 | 0x20000);
+        _root = Open(canonical, _mac ? 0x1000000 | 0x8000 | 0x100 | 0x4 : 0x200000 | 0x80000 | 0x20000);
         if (_root < 0) rootLease.Dispose(); else _handleLeases.Add(_root, rootLease);
         if (_root < 0) throw new IOException("The selected directory could not be opened without following a link.");
         try
         {
             var facts = Stat(_root);
-            if (facts.Kind != AnalysisKind.Directory) throw new IOException("Select a directory for analysis.");
+            if (facts.Kind is not (AnalysisKind.Directory or AnalysisKind.File)) throw new IOException("Select a regular file or folder for analysis.");
             _device = facts.Device; _mount = facts.Mount;
-            if (_mac) _identitySupported = MacFileSystem(_root).Type is "apfs" or "hfs";
+            if (_mac)
+            {
+                string type = MacFileSystem(_root).Type;
+                _identitySupported = type is "apfs" or "hfs";
+                _modifiedPrecisionTicks = type == "hfs" ? (ulong)TimeSpan.TicksPerSecond : 1;
+            }
             else
             {
                 byte* fs = stackalloc byte[512]; new Span<byte>(fs, 512).Clear();
@@ -44,9 +51,9 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
             }
             Root = new("1", "file", selectedRoot, canonical, $"{_device:X}:{facts.Inode:X}:{_mount:X}", _identitySupported ? IdentityAssurance.Verified : IdentityAssurance.Unknown,
                 Path.GetFileName(canonical.TrimEnd('/')) is { Length: > 0 } n ? n : canonical);
-            RootEntry = Entry([], Encoding.UTF8.GetBytes(Root.Label), facts);
+            RootEntry = Bind(Entry([], Encoding.UTF8.GetBytes(Root.Label), facts), null);
             // Require the kernel's resolution contract before advertising recursive Linux traversal.
-            if (!_mac) { int probe = OpenRelative([] , directory: true); Close(probe); }
+            if (!_mac && facts.Kind == AnalysisKind.Directory) { int probe = OpenRelative([] , directory: true); Close(probe); }
         }
         catch { Close(_root); throw; }
     }
@@ -87,7 +94,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
                     child = OpenRelative(relative, directory: false);
                     var facts = Stat(child);
                     if (facts.Device != _device || facts.Mount != _mount) throw new AnalysisSourceChangedException();
-                    result = Entry(relative.ToImmutableArray(), raw, facts);
+                    result = Bind(Entry(relative.ToImmutableArray(), raw, facts), directory.Ancestry);
                 }
                 finally { if (child >= 0) Close(child); }
                 yield return result;
@@ -99,15 +106,40 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
             if (fd >= 0) Close(fd);
         }
     }
+    private AnalysisEntry Bind(AnalysisEntry entry, AnalysisAncestry? parent) => entry.Kind != AnalysisKind.Directory ? entry
+        : entry with { Ancestry = new(_bindingId, entry.RelativeName, entry.Identity, entry.Version, parent) };
+    public void ValidateReadScope(AnalysisEntry directory)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (directory.Ancestry is not { } witness || witness.BindingId != _bindingId ||
+            !witness.RelativeName.AsSpan().SequenceEqual(directory.RelativeName.AsSpan())) throw new AnalysisSourceChangedException();
+        if (_mac && _modifiedPrecisionTicks != 1 && directory.RelativeName.Length > 0)
+            throw new IOException("Recursive scope-change detection is unqualified on this timestamp basis.");
+        int depth = 0;
+        for (var ancestor = witness; ancestor is not null; ancestor = ancestor.Parent)
+        {
+            if (++depth > AnalysisLimits.Depth + 1 || ancestor.BindingId != _bindingId) throw new AnalysisSourceChangedException();
+            int fd = OpenRelative(ancestor.RelativeName.AsSpan(), directory: true);
+            try
+            {
+                var facts = Stat(fd);
+                if (facts.Kind != AnalysisKind.Directory || facts.Device != _device || facts.Mount != _mount ||
+                    ancestor.Version != Version(facts) || ancestor.Identity != (_identitySupported ? Identity(facts) : null))
+                    throw new AnalysisSourceChangedException();
+            }
+            finally { Close(fd); }
+        }
+    }
 
     private bool Same(AnalysisEntry entry, Facts f) => entry.Version == Version(f) &&
         entry.Identity == (_identitySupported ? Identity(f) : null) && f.Device == _device && f.Mount == _mount;
     private AnalysisEntry Entry(ImmutableArray<byte> relative, byte[] raw, Facts f) => new(relative,
         Encoding.UTF8.GetString(raw), raw.ToImmutableArray(), f.Kind, _identitySupported ? Identity(f) : null,
         f.Kind == AnalysisKind.File ? AnalysisMeasurement.Known(f.Size) : AnalysisMeasurement.Missing(MeasurementState.Unsupported),
-        f.HasAllocation ? AnalysisMeasurement.Known(checked((UInt128)f.Blocks * 512)) : AnalysisMeasurement.Missing(MeasurementState.Unsupported),
+        f.HasAllocation && !(_mac && (f.Flags & 0x40000000) != 0) ? AnalysisMeasurement.Known(checked((UInt128)f.Blocks * 512)) : AnalysisMeasurement.Missing(MeasurementState.Unsupported),
         AnalysisMeasurement.Known(f.Links), Time(f.Modified, f.ModifiedNs), Version(f),
-        Cloud: _mac && (f.Flags & 0x40000000) != 0, Compressed: _mac && (f.Flags & 0x20) != 0, NameEncoding: "unix-bytes", ObservedUtc: DateTimeOffset.UtcNow);
+        Cloud: _mac ? (f.Flags & 0x40000000) != 0 : null, Compressed: _mac ? (f.Flags & 0x20) != 0 : null,
+        NameEncoding: "unix-bytes", ObservedUtc: DateTimeOffset.UtcNow, ModifiedPrecisionTicks: _modifiedPrecisionTicks);
     private string Identity(Facts f) => $"{(_mac ? "darwin" : "linux")}:{f.Device:X}:{f.Inode:X}";
     private static string Version(Facts f) => $"{f.Device:X}:{f.Inode:X}:{f.Kind}:{f.Size}:{f.Changed}:{f.ChangedNs}";
     private static DateTimeOffset? Time(long seconds, uint ns)

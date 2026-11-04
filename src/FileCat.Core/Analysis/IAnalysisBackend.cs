@@ -4,8 +4,15 @@ namespace FileCat.Core.Analysis;
 
 public sealed record AnalysisEntry(ImmutableArray<byte> RelativeName, string Name, ImmutableArray<byte> RawName,
     AnalysisKind Kind, string? Identity, AnalysisMeasurement LogicalLength, AnalysisMeasurement Allocation,
-    AnalysisMeasurement Links, DateTimeOffset? ModifiedUtc, string Version, bool Cloud = false, bool Compressed = false,
-    string NameEncoding = "utf8", DateTimeOffset? ObservedUtc = null);
+    AnalysisMeasurement Links, DateTimeOffset? ModifiedUtc, string Version, bool? Cloud = null, bool? Compressed = null,
+    string NameEncoding = "utf8", DateTimeOffset? ObservedUtc = null, bool? Sparse = null, ulong ModifiedPrecisionTicks = 1)
+{
+    // Process-owned read-scope evidence. It is deliberately absent from inventory records and never authorizes mutation.
+    internal AnalysisAncestry? Ancestry { get; init; }
+}
+
+internal sealed record AnalysisAncestry(Guid BindingId, ImmutableArray<byte> RelativeName, string? Identity,
+    string Version, AnalysisAncestry? Parent);
 
 /// <summary>An explicitly prepared, held live source. Inventories cannot implement or deserialize this capability.</summary>
 public interface IAnalysisBackend : IDisposable
@@ -13,7 +20,10 @@ public interface IAnalysisBackend : IDisposable
     RootBinding Root { get; }
     string Basis { get; }
     AnalysisEntry RootEntry { get; }
+    string IoDeviceKey => FileSystem.PathUtil.GetDeviceKey(Root.CanonicalLocator.StartsWith("\\\\?\\", StringComparison.Ordinal)
+        ? Root.CanonicalLocator[4..] : Root.CanonicalLocator);
     IEnumerable<AnalysisEntry> Children(AnalysisEntry directory, CancellationToken cancellation);
+    void ValidateReadScope(AnalysisEntry directory);
 }
 
 public sealed class AnalysisSourceChangedException : IOException

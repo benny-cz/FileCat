@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using FileCat.Core.Analysis;
 using FileCat.Core.Threading;
 using FileCat.Platform.Windows.Analysis;
@@ -7,6 +9,67 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed partial class AnalysisWindowsTests
 {
+    [Theory]
+    [InlineData(0x9000001Au)]
+    [InlineData(0x9000101Au)]
+    [InlineData(0x9000F01Au)]
+    public void CloudTagsRepresentRegularFilePathsWithoutClaimingLocalAllocation(uint tag)
+    {
+        var result = WindowsAnalysisBackend.Classify(0x400, tag);
+        Assert.Equal(AnalysisKind.File, result.Kind); Assert.True(result.Cloud);
+        Assert.Equal(AnalysisKind.Link, WindowsAnalysisBackend.Classify(0x410, tag).Kind);
+        Assert.Equal(AnalysisKind.Link, WindowsAnalysisBackend.Classify(0x400, 0xA000000C).Kind);
+    }
+    [Fact]
+    public async Task ExplicitHardLinkedFileRootsUseMetadataRightsAndCountOneObject()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows process.");
+        string temp = Path.Combine(Environment.CurrentDirectory, ".tmp", "analysis-files-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+        try
+        {
+            string a = Path.Combine(temp, "first.bin"), b = Path.Combine(temp, "second.bin");
+            File.WriteAllBytes(a, new byte[10000]); Assert.True(HardLink(b, a, 0));
+            var info = new FileInfo(a); var security = info.GetAccessControl(); byte[] original = security.GetSecurityDescriptorBinaryForm();
+            using var identity = WindowsIdentity.GetCurrent();
+            security.AddAccessRule(new FileSystemAccessRule(identity.User!, FileSystemRights.ReadData, AccessControlType.Deny));
+            info.SetAccessControl(security);
+            try
+            {
+                Assert.Throws<UnauthorizedAccessException>(() => { using var read = File.OpenRead(a); });
+                using var io = new DeviceIoScheduler();
+                using var session = new AnalysisCoordinator(io).Start([new WindowsAnalysisBackend(a), new WindowsAnalysisBackend(b)]);
+                await session.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+                var s = session.Snapshot(); AnalysisValidation.Validate(s, TestContext.Current.CancellationToken);
+                Assert.Equal(NamespaceCoverage.CompleteUnderPolicy, s.Coverage); Assert.Equal(2, s.Nodes.Length);
+                Assert.Equal((UInt128)20000, AnalysisAggregate.Project(s, AnalysisMetric.FileSize, cancellation: TestContext.Current.CancellationToken).Totals.Known);
+                Assert.Equal((UInt128)10000, AnalysisAggregate.Project(s, AnalysisMetric.UniqueFileSize, cancellation: TestContext.Current.CancellationToken).Totals.Known);
+                Assert.Equal(0ul, Assert.Single(AnalysisAggregate.Project(s, AnalysisMetric.OnDisk, cancellation: TestContext.Current.CancellationToken).Charges).ParentId);
+            }
+            finally { var reset = new FileSecurity(); reset.SetSecurityDescriptorBinaryForm(original, AccessControlSections.Access); info.SetAccessControl(reset); }
+        }
+        finally { Directory.Delete(temp, true); }
+    }
+    [Fact]
+    public void QueuedDirectoryCannotIgnoreRenamedAncestors()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows process.");
+        string temp = Path.Combine(Environment.CurrentDirectory, ".tmp", "analysis-binding-" + Guid.NewGuid().ToString("N"));
+        string root = Path.Combine(temp, "root"), parent = Path.Combine(root, "parent"), child = Path.Combine(parent, "child");
+        Directory.CreateDirectory(child); File.WriteAllText(Path.Combine(child, "file"), "owned fixture");
+        try
+        {
+            using var backend = new WindowsAnalysisBackend(root);
+            var p = Assert.Single(backend.Children(backend.RootEntry, TestContext.Current.CancellationToken));
+            var c = Assert.Single(backend.Children(p, TestContext.Current.CancellationToken));
+            backend.ValidateReadScope(c);
+            Thread.Sleep(20);
+            Directory.Move(parent, parent + "-moved"); Directory.Move(parent + "-moved", parent);
+            Assert.Single(Directory.EnumerateFileSystemEntries(child));
+            Assert.Throws<AnalysisSourceChangedException>(() => backend.ValidateReadScope(c));
+        }
+        finally { Directory.Delete(temp, true); }
+    }
     [Fact]
     public async Task NativeAccountingUsesIdentityAndNeverTraversesJunctions()
     {

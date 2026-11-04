@@ -5,7 +5,7 @@ namespace FileCat.Core.Tests;
 public sealed class AnalysisFilterTests
 {
     private static AnalysisFilterItem Item(string name = "photo.jpg", AnalysisMeasurement? length = null) => new(
-        new(2, "root", 1, name, AnalysisKind.File, "o"),
+        new(2, "root", 1, name, AnalysisKind.File, "o", Cloud: false),
         new("o", "dev:o", length ?? AnalysisMeasurement.Known(2048), AnalysisMeasurement.Known(1), DateTimeOffset.Parse("2026-11-04T12:00:00Z")),
         "Pictures/" + name, AnalysisMeasurement.Missing(MeasurementState.Unsupported));
     private static AnalysisTruth Match(string query, AnalysisFilterItem? item = null, bool sensitive = false) =>
@@ -72,6 +72,38 @@ public sealed class AnalysisFilterTests
         Assert.Throws<OverflowException>(() => AnalysisFilter.ParseBytes(UInt128.MaxValue + "KB"));
         Assert.Equal(AnalysisTruth.Unknown, Match("size>1", Item(length: AnalysisMeasurement.Missing(MeasurementState.Changed))));
         Assert.Equal(AnalysisTruth.True, Match("state:unknown", Item(length: AnalysisMeasurement.Missing(MeasurementState.Changed))));
+    }
+
+    [Fact]
+    public void CoarseTimestampCrossingBoundaryRemainsUnknown()
+    {
+        var item = Item();
+        item = item with { Object = item.Object! with { ModifiedUtc = DateTimeOffset.Parse("2026-11-03T23:59:59Z"), ModifiedPrecisionTicks = 2 * (ulong)TimeSpan.TicksPerSecond } };
+        Assert.Equal(AnalysisTruth.Unknown, Match("modified<2026-11-04", item));
+        Assert.Equal(AnalysisTruth.Unknown, Match("modified=2026-11-04", item));
+        Assert.Equal(AnalysisTruth.Unknown, Match("NOT modified=2026-11-04", item));
+        Assert.Equal(AnalysisTruth.True, Match("modified<2026-11-05", item));
+    }
+
+    [Fact]
+    public void UnknownFlagsAndActiveMetricStateAreNotTreatedAsFalseOrLogicalState()
+    {
+        var item = Item() with { Node = Item().Node with { Cloud = null }, ActiveState = MeasurementState.Unsupported };
+        Assert.Equal(AnalysisTruth.Unknown, Match("cloud:false", item));
+        Assert.Equal(AnalysisTruth.Unknown, Match("NOT cloud:true", item));
+        Assert.Equal(AnalysisTruth.True, Match("state:unknown", item));
+        Assert.Equal(AnalysisTruth.False, Match("state:known", item));
+    }
+
+    [Fact]
+    public void RootLabelsResolveOnlyWhenUnambiguousAndSignedDeltaIncludesMinimum()
+    {
+        RootBinding[] roots = [new("root", "file", "/a", "/a", null, IdentityAssurance.Unknown, "Downloads")];
+        Assert.Equal(AnalysisTruth.True, AnalysisFilter.Parse("root:downloads", TimeZoneInfo.Utc, roots: roots).Evaluate(Item()));
+        Assert.Throws<FormatException>(() => AnalysisFilter.Parse("root:Downloads", TimeZoneInfo.Utc,
+            roots: [..roots, roots[0] with { Id = "second" }]));
+        var filter = AnalysisFilter.Parse("delta=-170141183460469231731687303715884105728", TimeZoneInfo.Utc, comparison: true);
+        Assert.Equal(AnalysisTruth.True, filter.Evaluate(Item() with { Delta = Int128.MinValue }));
     }
 
     [Theory]

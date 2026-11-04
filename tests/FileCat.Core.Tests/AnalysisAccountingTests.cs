@@ -146,9 +146,9 @@ public sealed class AnalysisAccountingTests
     [Fact]
     public void CanonicalPolicyGoldenAndOrdinalSorting()
     {
-        const string expected = "{\"schemaVersion\":1,\"analysisMode\":\"disk\",\"componentPreset\":\"standard\",\"basisIds\":[],\"exclusions\":[],\"mountPolicy\":\"stay-on-source\",\"packagePolicy\":\"opaque\",\"cloudPolicy\":\"metadata-only\",\"limits\":{},\"classificationVersion\":1,\"allocationVersion\":1,\"attributionVersion\":1}";
+        const string expected = """{"schemaVersion":"1","analysisMode":"disk","componentPreset":"standard","basisIds":[],"exclusions":[],"mountPolicy":"stay-on-source","packagePolicy":"opaque","cloudPolicy":"metadata-only","limits":{},"classificationVersion":"1","allocationVersion":"1","attributionVersion":"1"}""";
         Assert.Equal(expected, new ScanPolicy().CanonicalJson);
-        Assert.Equal("23f027441948cbb24c8ff45ddb671b0e2ffc8a546a6e47eef06c96b608b9397d", new ScanPolicy().Fingerprint);
+        Assert.Equal("c981968e6709e811cff2ca70d8b45b9ffcd136b292112fed00713b7497b2afca", new ScanPolicy().Fingerprint);
         Assert.Equal(Encoding.UTF8.GetBytes(expected), new ScanPolicy().CanonicalBytes());
         var a = new ScanPolicy { BasisIds = ["z", "A"], Exclusions = ["z", "a"], Limits = ImmutableSortedDictionary.Create<string, ulong>().Add("z", 20).Add("a", 10) };
         var b = a with { BasisIds = ["A", "z"], Exclusions = ["a", "z"] };

@@ -11,7 +11,8 @@ public enum NamespaceCoverage { CompleteUnderPolicy, Partial, Unknown }
 public enum AnalysisFreshness { Observed, PossiblyStale, SourceUnavailable, IdentityMismatch }
 public enum AnalysisOrigin { LiveSession, OwnSavedInventory, ImportedInventory }
 public enum AnalysisPersistence { Temporary, SavingRevision, NamedSaved, RollingSaved, SaveFailed }
-public enum AnalysisTaint { OrdinarySensitive, PrivilegedDerived, ImportedUnverified }
+[Flags]
+public enum AnalysisTaint { OrdinarySensitive = 1, PrivilegedDerived = 2, ImportedUnverified = 4 }
 public enum IdentityAssurance { Unknown, Verified }
 public enum AnalysisAssurance { ObservedMetadata, ReviewedObject, ComparedContent }
 
@@ -35,9 +36,10 @@ public sealed record SessionIdentity(Guid SessionId, long Epoch, long Revision, 
 public sealed record RootBinding(string Id, string Scheme, string DisplayLocator, string CanonicalLocator,
     string? SourceIdentity, IdentityAssurance Assurance, string Label);
 public sealed record AnalysisObject(string Id, string? VerifiedIdentity, AnalysisMeasurement LogicalLength,
-    AnalysisMeasurement LinkCount, DateTimeOffset? ModifiedUtc = null, string? VersionEvidence = null);
+    AnalysisMeasurement LinkCount, DateTimeOffset? ModifiedUtc = null, string? VersionEvidence = null,
+    ulong ModifiedPrecisionTicks = 1);
 public sealed record AnalysisNode(ulong Id, string RootId, ulong ParentId, string Name, AnalysisKind Kind,
-    string? ObjectId = null, bool Sparse = false, bool Compressed = false, bool Cloud = false)
+    string? ObjectId = null, bool? Sparse = null, bool? Compressed = null, bool? Cloud = null)
 {
     public string NameEncoding { get; init; } = "utf8";
     public ImmutableArray<byte> RawName { get; init; } = [];
@@ -58,4 +60,7 @@ public sealed record AnalysisCharge(ulong ParentId, string Label, UInt128 Value,
 public sealed record AnalysisTotals(UInt128 Known, UInt128 IdentityUnverified, ulong MatchingPaths,
     ImmutableDictionary<MeasurementState, ulong> Missing, bool CompatibleBasis);
 public sealed record AnalysisProjection(Guid SessionId, long Epoch, long Revision, AnalysisMetric Metric,
-    ImmutableArray<AnalysisCharge> Charges, AnalysisTotals Totals, ImmutableHashSet<ulong> MatchingNodes);
+    ImmutableArray<AnalysisCharge> Charges, AnalysisTotals Totals, ImmutableHashSet<ulong> MatchingNodes)
+{
+    public ImmutableDictionary<ulong, MeasurementState> UnmeasuredStates { get; init; } = ImmutableDictionary<ulong, MeasurementState>.Empty;
+}

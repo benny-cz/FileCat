@@ -11,6 +11,8 @@ public enum CommandContext
     Find,
     FindCriteria,
     FindResults,
+    DiskSpace,
+    DiskSpaceReview,
 }
 
 public static class CommandContextNames
@@ -20,6 +22,8 @@ public static class CommandContextNames
         CommandContext.Find => "Find criteria and results",
         CommandContext.FindCriteria => "Find criteria",
         CommandContext.FindResults => "Find results",
+        CommandContext.DiskSpace => "Disk space analysis",
+        CommandContext.DiskSpaceReview => "Disk space review",
         CommandContext.Panel => "file panels",
         CommandContext.Global => "everywhere",
         CommandContext.Viewer => "viewers",
@@ -46,6 +50,19 @@ public sealed record CommandDefinition(string Id, string Title, string Category)
 
 public static class CommandIds
 {
+    public const string DiskSpace = "tools.diskSpace";
+    public const string DiskSpaceFilter = "diskSpace.filter";
+    public const string DiskSpaceMark = "diskSpace.mark";
+    public const string DiskSpaceEnter = "diskSpace.enter";
+    public const string DiskSpaceParent = "diskSpace.parent";
+    public const string DiskSpaceBack = "diskSpace.back";
+    public const string DiskSpaceForward = "diskSpace.forward";
+    public const string DiskSpacePreview = "diskSpace.preview";
+    public const string DiskSpaceCopy = "diskSpace.copy";
+    public const string DiskSpaceMove = "diskSpace.move";
+    public const string DiskSpaceReview = "diskSpace.review";
+    public const string DiskSpaceClose = "diskSpace.close";
+    public const string DiskSpaceReviewCancel = "diskSpace.reviewCancel";
     public const string View = "file.view";
     public const string ViewAlternate = "file.viewAlternate";
     public const string Edit = "file.edit";
@@ -431,6 +448,19 @@ public sealed class CommandRegistry
         Add(CommandIds.FindShowInPanel, "Show focused result in panel", FindCategory, null, CommandContext.FindResults, "Space");
         Add(CommandIds.FindStopOrClose, "Stop search or close Find", FindCategory, null, CommandContext.Find, "Escape");
         Add(CommandIds.FindSkipCurrent, "Skip current search folder", FindCategory, null, CommandContext.Find);
+        const string DiskCategory = "Disk space";
+        Add(CommandIds.DiskSpaceFilter, "Filter analysis observations", DiskCategory, null, CommandContext.DiskSpace, "Ctrl+F");
+        Add(CommandIds.DiskSpaceMark, "Toggle analysis mark", DiskCategory, null, CommandContext.DiskSpace, "Space");
+        Add(CommandIds.DiskSpaceEnter, "Inspect file or drill into analysis folder/group", DiskCategory, null, CommandContext.DiskSpace, "Enter");
+        Add(CommandIds.DiskSpaceParent, "Parent analysis scope", DiskCategory, null, CommandContext.DiskSpace, "Back");
+        Add(CommandIds.DiskSpaceBack, "Previous analysis scope", DiskCategory, null, CommandContext.DiskSpace, "Alt+Left");
+        Add(CommandIds.DiskSpaceForward, "Next analysis scope", DiskCategory, null, CommandContext.DiskSpace, "Alt+Right");
+        Add(CommandIds.DiskSpacePreview, "Preview analysis file", DiskCategory, null, CommandContext.DiskSpace, "F3");
+        Add(CommandIds.DiskSpaceCopy, "Review analysis copy…", DiskCategory, null, CommandContext.DiskSpace, "F5");
+        Add(CommandIds.DiskSpaceMove, "Review analysis move…", DiskCategory, null, CommandContext.DiskSpace, "F6");
+        Add(CommandIds.DiskSpaceReview, "Review analysis deletion…", DiskCategory, null, CommandContext.DiskSpace, "F8", "Delete");
+        Add(CommandIds.DiskSpaceClose, "Close disk space window", DiskCategory, null, CommandContext.DiskSpace, "Escape");
+        Add(CommandIds.DiskSpaceReviewCancel, "Cancel analysis review / Keep files", DiskCategory, null, CommandContext.DiskSpaceReview, "Escape");
         Add(CommandIds.RegistryExport, "Export Registry selection to .reg…", F);
         Add(CommandIds.RegistryImport, "Import .reg into selected Registry scope…", F);
         Add(CommandIds.RegistryWritable, "Open writable Registry location…", F);

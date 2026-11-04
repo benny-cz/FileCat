@@ -1,60 +1,76 @@
 {
   "schemaVersion": 1,
-  "status": "development-foundation-in-progress",
+  "status": "scan-foundation-and-exploration-in-progress",
   "branch": "codex/disk-space-analysis",
   "productCommandRegistered": false,
   "nativeUiTested": false,
   "completedBehaviors": [
-    "Immutable observations and separate measurement states; checked UInt128 accounting.",
-    "LCA hard-link attribution before filters, separate unverified totals, component inclusion and conflicting-version handling.",
-    "Canonical policy encoder and cross-platform golden vector; bounded declarative filter grammar with three-valued predicates.",
-    "Read-only anchored native metadata backends; allocation bases and unsupported filesystem identity fallbacks.",
-    "Bounded in-memory store, global native handle cap, scan/device admission, producer batching, stop/freeze, pause/resume and snapshot leases.",
-    "All runtime action/helper capabilities remain disabled with reasons; no existing job safeguard changed."
+    "Immutable observations, separate measurement states and checked UInt128 accounting, with LCA attribution before filters.",
+    "Canonical integer-string policy golden vector, precision-aware three-valued filters, root-label disambiguation and unknown sparse/compressed/cloud states.",
+    "Read-only handle-relative native metadata scans, metadata-only explicit file roots, hard-link identity accounting, before/after ancestry witnesses and conservative filesystem fallbacks.",
+    "Process and actual-worker authority checks, global native handle/store budgets, scan/device admission, time-bounded batches, nonresponse freeze, pause/resume, stop and snapshot leases.",
+    "Draft modeless tabbed exploration window, one shared accounting tree, bounded nested Treemap/Sunburst, ranked table, narrow inspector sheet, independent focus/marks/basket and frozen interaction revisions.",
+    "Identity-unverified allocation remains labelled throughout presentation; filtered group capture excludes hidden descendants and context folders; oversized captures fail without partial selection changes.",
+    "All runtime action/helper capabilities remain off with reasons. The product command is not registered, and existing job safeguards are unchanged."
   ],
   "validation": {
     "windowsCore": {
-      "total": 71,
-      "passed": 70,
-      "skippedUnixNative": 1,
+      "total": 126,
+      "passed": 121,
       "failed": 0,
-      "evidence": "windows-core.xml"
+      "skipped": 5,
+      "detail": "98 analysis cases and 28 command regressions; three Unix-native and two Unix-FIFO controls skip on Windows.",
+      "evidence": "windows-core-r12.xml"
     },
     "windowsHostNative": {
-      "total": 1,
-      "passed": 1,
-      "skipped": 0,
+      "total": 6,
+      "passed": 6,
       "failed": 0,
-      "evidence": "windows-host-native.xml"
+      "skipped": 0,
+      "evidence": "windows-host-native-r16.xml"
+    },
+    "windowsVm": {
+      "status": "ordinary-user-regression-fixtures-passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "windows-vm-native-r12.xml",
+      "detail": "Three native fixtures and three pure reparse-tag cases. No native application UI qualification claimed."
     },
     "macosArm64": {
-      "total": 71,
-      "passed": 71,
-      "skipped": 0,
+      "total": 126,
+      "passed": 126,
       "failed": 0,
-      "evidence": "mac-core-r7.xml"
+      "skipped": 0,
+      "evidence": "mac-core-r12.xml"
+    },
+    "headlessRendering": {
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "analysis-render-r6.xml",
+      "detail": "Skia rendering: seven themes, three widths, three view modes, fixed 780-DIP height; latest-filter and frozen-selection behavior. This is not native accessibility or UI evidence."
+    },
+    "solutionBuild": {
+      "errors": 0,
+      "warnings": 0,
+      "evidence": "solution-build-r12.txt"
     },
     "ubuntu": {
       "status": "postponed-other-FileCat-instance"
-    },
-    "windowsVm": {
-      "status": "no-passing-native-run-claimed",
-      "detail": "Admin test correctly refused. Ordinary-account manual task did not start; own tasks removed and no own FileCat process left running."
     }
   },
   "nextWork": [
-    "Review coordinator health handling: freeze on device nonresponse, use time-bounded batches and the existing provider I/O keys; retain native/store leases safely.",
-    "Review admission on actual I/O threads, including Linux thread fsuid/fsgid and Windows retained authority.",
-    "Fix Windows cloud placeholders being classified as ordinary links; qualify no-content metadata behavior and unknown cloud states.",
-    "Complete raw-name/source-root, overlapping/file-root, timestamp precision, taint propagation and canonical policy contracts before qualifying W0/W1.",
-    "Complete W0 contracts and qualification tests, including policy integer-string interpretation, date precision intervals, root-label resolution, complete coverage/selection axes and schema enums.",
-    "Complete W1 queued ancestor/root substitution and mount/placeholder tests; resource/hang/epoch-refresh checks; filesystem allocation matrix; private anchored spill or explicit bounded-memory fallback.",
-    "Audit actual thread authority on each admitted I/O request, including Linux fsuid/fsgid and Windows retained authority; do not enable product registration before qualification.",
-    "W2: modeless sessions, equal Treemap/Sunburst, accessible ranked table and inspector, stable projections/selection, filters, themes and tooltips.",
-    "W3: strict bounded inert JSONL inventories, private stores/index, save/history, compatible comparison and reviewed create-only exports.",
-    "W4/W5: qualified typed shared operation contracts, protected objects, immutable membership/review tokens, preserving destructive review and job outcomes; unsupported verbs stay unavailable.",
+    "W0: finish root/observation/coverage/selection contracts, schema/enum validation, runtime taint joins and saved-source continuity before claiming qualification.",
+    "W1: explicit mount/access/placeholder boundaries, root and queued-entry substitution matrix, macOS/Linux permission controls, epoch refresh, shared memory accounting and qualified private indexed storage or prescribed bounded fallback.",
+    "W1/W8: perform Ubuntu native testing once the other instance exits; never stop another tester or use that occupied guest for fixtures.",
+    "W2: finish window-level review shortcut routing, minimum-height/large-text scrolling, root/group/sort controls, detailed issue/basis explanations, inspector/tooltips and session lifecycle. Qualify actual native UI and assistive technology on all three platforms.",
+    "W3: strict bounded inert JSONL inventories, private store/catalog, save/history, compatible comparison and reviewed create-only exports.",
+    "W4/W5: qualified typed operation contracts, live source binding, protected objects, immutable membership/review tokens, preserving review and accurate job outcomes. Native impossibility needs evidence; do not treat missing implementation as qualification.",
     "W6: versioned declarative insights/recipes and explicit content work only through qualified sources.",
     "W7: separately qualified closed NTFS metadata helper or explicit standard-scan fallback.",
-    "W8: actual native UI/accessibility/theme/package matrix on all three platforms, resource benchmarks, negative controls, diagnostics privacy and evidence review."
+    "W8: actual native theme/DPI/accessibility/package matrix, 1M/10M resource measurements, negative controls, diagnostics leakage tests, documentation and capability/evidence review."
   ]
 }

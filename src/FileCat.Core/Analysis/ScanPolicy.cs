@@ -26,7 +26,7 @@ public sealed record ScanPolicy
         using (var w = new Utf8JsonWriter(buffer))
         {
             w.WriteStartObject();
-            w.WriteNumber("schemaVersion", SchemaVersion);
+            w.WriteString("schemaVersion", SchemaVersion.ToString(System.Globalization.CultureInfo.InvariantCulture));
             w.WriteString("analysisMode", AnalysisMode);
             w.WriteString("componentPreset", ComponentPreset);
             Strings(w, "basisIds", BasisIds);
@@ -38,9 +38,9 @@ public sealed record ScanPolicy
             foreach (var p in Limits.OrderBy(p => p.Key, StringComparer.Ordinal))
                 w.WriteString(p.Key, p.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
             w.WriteEndObject();
-            w.WriteNumber("classificationVersion", ClassificationVersion);
-            w.WriteNumber("allocationVersion", AllocationVersion);
-            w.WriteNumber("attributionVersion", AttributionVersion);
+            w.WriteString("classificationVersion", ClassificationVersion.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            w.WriteString("allocationVersion", AllocationVersion.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            w.WriteString("attributionVersion", AttributionVersion.ToString(System.Globalization.CultureInfo.InvariantCulture));
             w.WriteEndObject();
         }
         return buffer.ToArray();

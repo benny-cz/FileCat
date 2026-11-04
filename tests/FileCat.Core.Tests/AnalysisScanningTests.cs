@@ -11,6 +11,21 @@ public sealed partial class AnalysisScanningTests
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary test process: " + AnalysisAdmission.Refusal());
 
     [Fact]
+    public async Task CloudDirectoryIsAnExplicitPolicyBoundaryWithoutEnumeration()
+    {
+        Ordinary(); bool enumerated = false;
+        var source = new FakeBackend(1) { CloudRoot = true, BeforeEnumerate = () => enumerated = true };
+        using var io = new DeviceIoScheduler();
+        using var session = new AnalysisCoordinator(io).Start([source]);
+        await session.Completion.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var s = session.Snapshot();
+        Assert.False(enumerated); Assert.Single(s.Nodes);
+        Assert.Equal(NamespaceCoverage.CompleteUnderPolicy, s.Coverage);
+        Assert.Equal(MeasurementState.Excluded, Assert.Single(s.Issues).State);
+        Assert.Equal("cloud-directory-not-enumerated", s.Issues[0].Code);
+    }
+
+    [Fact]
     public async Task SnapshotLeaseRetainsAnImmutableRevisionAfterOwnerCloses()
     {
         Ordinary();
@@ -122,6 +137,82 @@ public sealed partial class AnalysisScanningTests
     }
 
     [Fact]
+    public async Task DeviceTimeoutFreezesResultsWithoutClosingTheInFlightSource()
+    {
+        Ordinary();
+        using var entered = new ManualResetEventSlim(); using var release = new ManualResetEventSlim();
+        using var io = new DeviceIoScheduler(TimeSpan.FromMilliseconds(40));
+        var source = new FakeBackend(2) { BeforeEnumerate = () => { entered.Set(); release.Wait(TimeSpan.FromSeconds(15)); } };
+        using var session = new AnalysisCoordinator(io).Start([source]);
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            for (int i = 0; i < 200 && session.Snapshot().Phase != AnalysisPhase.Stopped; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
+            var frozen = session.Snapshot();
+            Assert.Equal(AnalysisPhase.Stopped, frozen.Phase);
+            Assert.Equal(AnalysisFreshness.SourceUnavailable, frozen.Freshness);
+            Assert.Contains(frozen.Issues, i => i.Code == "device-not-responding");
+            Assert.False(source.Disposed);
+            using var other = new AnalysisCoordinator(io).Start([new FakeBackend(1)]);
+            await other.Completion.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            Assert.Equal(NamespaceCoverage.CompleteUnderPolicy, other.Snapshot().Coverage);
+            release.Set(); await session.Completion.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            Assert.Equal(frozen, session.Snapshot());
+        }
+        finally { release.Set(); }
+    }
+
+    [Fact]
+    public async Task ScopeMustRemainBoundUntilTheBatchIsPublished()
+    {
+        Ordinary();
+        using var io = new DeviceIoScheduler();
+        bool changed = false;
+        var source = new FakeBackend(2) { BeforeEnumerate = () => changed = true, Validate = () => { if (changed) throw new AnalysisSourceChangedException(); } };
+        using var session = new AnalysisCoordinator(io).Start([source]);
+        await session.Completion.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var snapshot = session.Snapshot();
+        Assert.Single(snapshot.Nodes); // The unbound batch cannot enter charts or an inventory.
+        Assert.Equal(NamespaceCoverage.Partial, snapshot.Coverage);
+        Assert.Equal(AnalysisFreshness.PossiblyStale, snapshot.Freshness);
+    }
+
+    [Fact]
+    public void UnixQueuedDirectoryRetainsItsAncestorBinding()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix native fixture."); Ordinary();
+        using var temp = new TempDir();
+        string root = Path.Combine(temp.Path, "root");
+        string parent = Path.Combine(root, "parent"); string child = Path.Combine(parent, "child");
+        Directory.CreateDirectory(child); File.WriteAllText(Path.Combine(child, "file"), "owned fixture");
+        using var backend = new UnixAnalysisBackend(root);
+        var p = Assert.Single(backend.Children(backend.RootEntry, TestContext.Current.CancellationToken));
+        var c = Assert.Single(backend.Children(p, TestContext.Current.CancellationToken));
+        backend.ValidateReadScope(c);
+        Thread.Sleep(20);
+        Directory.Move(parent, parent + "-moved"); Directory.Move(parent + "-moved", parent);
+        Assert.Single(Directory.EnumerateFileSystemEntries(child)); // A path-only control would miss this movement.
+        Assert.Throws<AnalysisSourceChangedException>(() => backend.ValidateReadScope(c));
+    }
+
+    [Fact]
+    public async Task UnixExplicitHardLinkedFileRootsAreTwoPathsAndOneObject()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix native fixture."); Ordinary();
+        using var temp = new TempDir();
+        string a = Path.Combine(temp.Path, "first.bin"), b = Path.Combine(temp.Path, "second.bin");
+        File.WriteAllBytes(a, new byte[10000]); Assert.Equal(0, Link(a, b));
+        using var io = new DeviceIoScheduler();
+        using var session = new AnalysisCoordinator(io).Start([new UnixAnalysisBackend(a), new UnixAnalysisBackend(b)]);
+        await session.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        var s = session.Snapshot(); AnalysisValidation.Validate(s, TestContext.Current.CancellationToken);
+        Assert.Equal(NamespaceCoverage.CompleteUnderPolicy, s.Coverage); Assert.Equal(2, s.Nodes.Length);
+        Assert.Equal((UInt128)20000, AnalysisAggregate.Project(s, AnalysisMetric.FileSize, cancellation: TestContext.Current.CancellationToken).Totals.Known);
+        Assert.Equal((UInt128)10000, AnalysisAggregate.Project(s, AnalysisMetric.UniqueFileSize, cancellation: TestContext.Current.CancellationToken).Totals.Known);
+        Assert.Equal(0ul, Assert.Single(AnalysisAggregate.Project(s, AnalysisMetric.OnDisk, cancellation: TestContext.Current.CancellationToken).Charges).ParentId);
+    }
+
+    [Fact]
     public async Task UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink()
     {
         Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix native fixture."); Ordinary();
@@ -160,10 +251,14 @@ public sealed partial class AnalysisScanningTests
     {
         public bool Disposed;
         public Action? BeforeEnumerate;
+        public Action? Validate;
+        public bool CloudRoot;
         public int FailAfter = int.MaxValue;
         public RootBinding Root { get; } = new("1", "file", "fake", "fake-" + Guid.NewGuid(), "fake-" + Guid.NewGuid(), IdentityAssurance.Verified, "fake");
         public string Basis => "fixture-v1";
-        public AnalysisEntry RootEntry => Entry("root", AnalysisKind.Directory);
+        public string IoDeviceKey { get; init; } = "fixture:" + Guid.NewGuid().ToString("N");
+        public AnalysisEntry RootEntry => Entry("root", AnalysisKind.Directory) with { Cloud = CloudRoot };
+        public void ValidateReadScope(AnalysisEntry directory) => Validate?.Invoke();
         public IEnumerable<AnalysisEntry> Children(AnalysisEntry directory, CancellationToken cancellation)
         {
             BeforeEnumerate?.Invoke();

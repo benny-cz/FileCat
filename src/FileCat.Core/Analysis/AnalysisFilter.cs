@@ -1,11 +1,13 @@
 using System.Globalization;
+using System.Collections.Immutable;
 using System.Text;
 
 namespace FileCat.Core.Analysis;
 
 public enum AnalysisTruth { False, True, Unknown }
 public sealed record AnalysisFilterItem(AnalysisNode Node, AnalysisObject? Object, string RelativePath,
-    AnalysisMeasurement Allocation, Int128? Delta = null, string? Change = null, bool Stale = false, bool Unreadable = false);
+    AnalysisMeasurement Allocation, Int128? Delta = null, string? Change = null, bool Stale = false, bool Unreadable = false,
+    MeasurementState? ActiveState = null);
 
 /// <summary>Bounded declarative query parser. It has no filesystem, reflection or executable expression access.</summary>
 public sealed class AnalysisFilter
@@ -13,8 +15,8 @@ public sealed class AnalysisFilter
     private readonly Func<AnalysisFilterItem, AnalysisTruth> _evaluate;
     private AnalysisFilter(Func<AnalysisFilterItem, AnalysisTruth> evaluate) => _evaluate = evaluate;
     public AnalysisTruth Evaluate(AnalysisFilterItem item) => _evaluate(item);
-    public static AnalysisFilter Parse(string text, TimeZoneInfo zone, bool caseSensitive = false, bool comparison = false) =>
-        new(new Parser(text, zone, caseSensitive, comparison).Parse());
+    public static AnalysisFilter Parse(string text, TimeZoneInfo zone, bool caseSensitive = false, bool comparison = false,
+        IReadOnlyList<RootBinding>? roots = null) => new(new Parser(text, zone, caseSensitive, comparison, roots).Parse());
 
     public static AnalysisTruth Not(AnalysisTruth v) => v switch { AnalysisTruth.True => AnalysisTruth.False, AnalysisTruth.False => AnalysisTruth.True, _ => AnalysisTruth.Unknown };
     public static AnalysisTruth And(AnalysisTruth a, AnalysisTruth b) => a == AnalysisTruth.False || b == AnalysisTruth.False ? AnalysisTruth.False : a == AnalysisTruth.True && b == AnalysisTruth.True ? AnalysisTruth.True : AnalysisTruth.Unknown;
@@ -52,12 +54,13 @@ public sealed class AnalysisFilter
         private readonly TimeZoneInfo _zone;
         private readonly StringComparison _case;
         private readonly bool _comparison;
+        private readonly IReadOnlyList<RootBinding>? _roots;
         private int _at, _terms;
         private sealed record Token(string Value, bool Quoted = false);
-        public Parser(string text, TimeZoneInfo zone, bool sensitive, bool comparison)
+        public Parser(string text, TimeZoneInfo zone, bool sensitive, bool comparison, IReadOnlyList<RootBinding>? roots)
         {
             if (Encoding.UTF8.GetByteCount(text) > AnalysisLimits.QueryBytes) throw new FormatException("Filter exceeds 8 KiB.");
-            _zone = zone; _case = sensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase; _comparison = comparison;
+            _zone = zone; _case = sensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase; _comparison = comparison; _roots = roots;
             for (int i = 0; i < text.Length;)
             {
                 char c = text[i];
@@ -151,8 +154,9 @@ public sealed class AnalysisFilter
                 UInt128 bytes = ParseBytes(negative ? value[1..] : value.StartsWith('+') && field == "delta" ? value[1..] : value);
                 if (field == "delta")
                 {
-                    if (!_comparison || bytes > (UInt128)Int128.MaxValue) throw new FormatException("Delta requires a comparison and a signed bounded value.");
-                    Int128 limit = negative ? -(Int128)bytes : (Int128)bytes;
+                    UInt128 maximum = (UInt128)Int128.MaxValue + (negative ? 1u : 0u);
+                    if (!_comparison || bytes > maximum) throw new FormatException("Delta requires a comparison and a signed bounded value.");
+                    Int128 limit = bytes > (UInt128)Int128.MaxValue ? Int128.MinValue : negative ? -(Int128)bytes : (Int128)bytes;
                     return i => i.Delta.HasValue ? Truth(Compare(i.Delta.Value.CompareTo(limit), op)) : AnalysisTruth.Unknown;
                 }
                 return i =>
@@ -188,14 +192,13 @@ public sealed class AnalysisFilter
                     if (_zone.IsAmbiguousTime(localEnd) || _zone.IsInvalidTime(localEnd)) throw new FormatException("Date boundary needs an explicit offset.");
                     end = new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(localEnd, _zone));
                 }
-                return i => i.Object?.ModifiedUtc is not { } m ? AnalysisTruth.Unknown : end.HasValue
-                    ? Truth(op == "=" ? m >= instant && m < end : !(m >= instant && m < end))
-                    : Truth(Compare(m.CompareTo(instant), comparisonOp));
+                return i => DateInterval(i.Object, comparisonOp, instant.UtcTicks, end?.UtcTicks);
             }
             if (field is "sparse" or "compressed" or "cloud")
             {
                 if (op is not (":" or "=") || !bool.TryParse(value, out bool wanted)) throw new FormatException("Boolean fields use :true or :false.");
-                return i => Truth((field switch { "sparse" => i.Node.Sparse, "compressed" => i.Node.Compressed, _ => i.Node.Cloud }) == wanted);
+                return i => (field switch { "sparse" => i.Node.Sparse, "compressed" => i.Node.Compressed, _ => i.Node.Cloud }) is { } flag
+                    ? Truth(flag == wanted) : AnalysisTruth.Unknown;
             }
             if (field == "change")
             {
@@ -206,19 +209,29 @@ public sealed class AnalysisFilter
             {
                 EnumOperator(op);
                 if (value is not ("known" or "unknown" or "pending" or "failed" or "excluded" or "stale" or "unreadable")) throw new FormatException("Unknown measurement state.");
-                return i => Truth(value switch
+                return i =>
                 {
+                    var state = i.ActiveState ?? i.Object?.LogicalLength.State ?? MeasurementState.Unsupported;
+                    return Truth(value switch
+                    {
                     "stale" => i.Stale, "unreadable" => i.Unreadable,
-                    "known" => i.Object?.LogicalLength.IsKnown == true,
-                    "unknown" => i.Object is null || i.Object.LogicalLength.State is MeasurementState.Unsupported or MeasurementState.Changed,
-                    "pending" => i.Object?.LogicalLength.State == MeasurementState.Pending,
-                    "failed" => i.Object?.LogicalLength.State == MeasurementState.Failed,
-                    _ => i.Object?.LogicalLength.State == MeasurementState.Excluded
-                });
+                    "known" => state == MeasurementState.Known,
+                    "unknown" => state is MeasurementState.Unsupported or MeasurementState.Changed,
+                    "pending" => state == MeasurementState.Pending,
+                    "failed" => state == MeasurementState.Failed,
+                    _ => state == MeasurementState.Excluded
+                    });
+                };
             }
             if (field is not ("name" or "path" or "ext" or "type" or "root")) throw new FormatException("Unknown filter field.");
             if (op is not (":" or "=" or "!=")) throw new FormatException("Text fields use colon, equals or not-equals.");
             if (field == "ext") value = value.StartsWith('.') ? value[1..] : value;
+            if (field == "root" && _roots is not null)
+            {
+                var matches = _roots.Where(r => r.Id.Equals(value, StringComparison.Ordinal) || r.Label.Equals(value, _case)).DistinctBy(r => r.Id).Take(2).ToArray();
+                if (matches.Length != 1) throw new FormatException("Choose an unambiguous root ID or label.");
+                value = matches[0].Id;
+            }
             return i =>
             {
                 string candidate = field switch
@@ -228,6 +241,27 @@ public sealed class AnalysisFilter
                 };
                 if (field == "type" && !AnalysisClassification.Families.Contains(value, StringComparer.OrdinalIgnoreCase)) candidate = Path.GetExtension(i.Node.Name).TrimStart('.');
                 return Truth(op == ":" && field is not ("type" or "root") ? candidate.Contains(value, _case) : op == "!=" ? !candidate.Equals(value, _case) : candidate.Equals(value, _case));
+            };
+        }
+        private static AnalysisTruth DateInterval(AnalysisObject? obj, string op, long threshold, long? rangeEnd)
+        {
+            if (obj?.ModifiedUtc is not { } time || obj.ModifiedPrecisionTicks == 0 || obj.ModifiedPrecisionTicks > (ulong)(long.MaxValue - time.UtcTicks))
+                return AnalysisTruth.Unknown;
+            long start = time.UtcTicks, end = checked(start + (long)obj.ModifiedPrecisionTicks);
+            if (rangeEnd is { } upper)
+            {
+                var equals = start >= threshold && end <= upper ? AnalysisTruth.True : end <= threshold || start >= upper ? AnalysisTruth.False : AnalysisTruth.Unknown;
+                return op == "!=" ? Not(equals) : equals;
+            }
+            return op switch
+            {
+                "<" => end <= threshold ? AnalysisTruth.True : start >= threshold ? AnalysisTruth.False : AnalysisTruth.Unknown,
+                ">=" => start >= threshold ? AnalysisTruth.True : end <= threshold ? AnalysisTruth.False : AnalysisTruth.Unknown,
+                ">" => start > threshold ? AnalysisTruth.True : end <= threshold + 1 ? AnalysisTruth.False : AnalysisTruth.Unknown,
+                "<=" => end <= threshold + 1 ? AnalysisTruth.True : start > threshold ? AnalysisTruth.False : AnalysisTruth.Unknown,
+                "=" => start == threshold && end == start + 1 ? AnalysisTruth.True : threshold < start || threshold >= end ? AnalysisTruth.False : AnalysisTruth.Unknown,
+                "!=" => Not(DateInterval(obj, "=", threshold, null)),
+                _ => throw new FormatException("Unsupported date comparison.")
             };
         }
         private static void EnumOperator(string op) { if (op is not (":" or "=")) throw new FormatException("Enum fields use colon or equals."); }
@@ -242,7 +276,7 @@ public sealed class AnalysisFilter
 
 public static class AnalysisClassification
 {
-    public static readonly string[] Families = ["text", "code", "image", "audio", "video", "archive", "executable", "document", "other", "unknown"];
+    public static readonly ImmutableArray<string> Families = ["text", "code", "image", "audio", "video", "archive", "executable", "document", "other", "unknown"];
     private static readonly Dictionary<string, string> Extensions = Build();
     public static string Family(string name) => Extensions.GetValueOrDefault(Path.GetExtension(name).TrimStart('.'), "other");
     private static Dictionary<string, string> Build()

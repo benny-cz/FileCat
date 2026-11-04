@@ -6,7 +6,7 @@
   "packets": {
     "W0": "in-progress",
     "W1": "in-progress",
-    "W2": "pending",
+    "W2": "in-progress",
     "W3": "pending",
     "W4": "pending",
     "W5": "pending",
@@ -28,41 +28,98 @@
       "platform": "Windows",
       "enabledInProduct": false,
       "assurance": "ObservedMetadata",
-      "tests": ["AnalysisWindowsTests.NativeAccountingUsesIdentityAndNeverTraversesJunctions"],
-      "evidence": "windows-host-native.xml",
+      "tests": [
+        "AnalysisWindowsTests.NativeAccountingUsesIdentityAndNeverTraversesJunctions",
+        "AnalysisWindowsTests.QueuedDirectoryCannotIgnoreRenamedAncestors",
+        "AnalysisWindowsTests.ExplicitHardLinkedFileRootsUseMetadataRightsAndCountOneObject"
+      ],
+      "evidence": "windows-vm-native-r12.xml",
       "lastQualifiedBuild": null,
-      "limitations": ["Native basic fixture only; sparse, compressed, resident, preallocation, cloud, races and filesystem matrix remain unqualified.", "No live source action or privileged helper registration."]
+      "limitations": [
+        "Read-only regression fixtures pass on the ordinary host and guest users; sparse/compressed/resident/preallocation/cloud/filter and filesystem matrices remain unqualified.",
+        "Explicit file-root fixture denies primary content reads and permits metadata observations.",
+        "No live action adapter or privileged metadata helper registration."
+      ]
     },
     {
       "id": "darwin-stat-total-blocks-v1",
       "platform": "macOS arm64",
       "enabledInProduct": false,
       "assurance": "ObservedMetadata",
-      "tests": ["AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink"],
-      "evidence": "mac-core-r7.xml",
+      "tests": [
+        "AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink",
+        "AnalysisScanningTests.UnixQueuedDirectoryRetainsItsAncestorBinding",
+        "AnalysisScanningTests.UnixExplicitHardLinkedFileRootsAreTwoPathsAndOneObject"
+      ],
+      "evidence": "mac-core-r12.xml",
       "lastQualifiedBuild": null,
-      "limitations": ["Total reported block allocation; not exclusive ownership or primary-fork-only allocation.", "Basic fixture only; clones, forks, mounts, cloud and substitution matrix remain unqualified.", "Raw non-UTF-8 names have no qualified recursive macOS route."]
+      "limitations": [
+        "Total reported block allocation; not exclusive ownership or primary-fork-only allocation.",
+        "Basic fixture only; clones, forks, mounts, cloud and substitution matrix remain unqualified.",
+        "Raw non-UTF-8 names have no qualified recursive macOS route."
+      ]
     },
     {
       "id": "linux-statx-blocks-v1",
       "platform": "Linux",
       "enabledInProduct": false,
       "assurance": "ObservedMetadata",
-      "tests": ["AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink"],
+      "tests": [
+        "AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink"
+      ],
       "evidence": null,
       "lastQualifiedBuild": null,
-      "limitations": ["Native execution postponed while another FileCat instance occupies the Ubuntu guest.", "Requires statx mount identity and openat2 containment; btrfs object uniqueness is not asserted without subvolume identity."]
+      "limitations": [
+        "Native execution postponed while another FileCat instance occupies the Ubuntu guest.",
+        "Requires statx mount identity and openat2 containment; btrfs object uniqueness is not asserted without subvolume identity."
+      ]
     }
   ],
   "verbs": [
-    {"id":"preview","enabled":false,"reason":"No qualified explicit live-source read binding."},
-    {"id":"copy","enabled":false,"reason":"No qualified reviewed source/destination binding."},
-    {"id":"replace","enabled":false,"reason":"No qualified bound target replacement."},
-    {"id":"move","enabled":false,"reason":"No qualified exact-entry source removal."},
-    {"id":"recycle","enabled":false,"reason":"Reviewed recycling is unavailable here; exact-entry and outcome proof are unqualified."},
-    {"id":"permanent-delete","enabled":false,"reason":"No qualified exact-entry mutation adapter."},
-    {"id":"fast-ntfs","enabled":false,"reason":"The installed closed metadata helper and transport are unqualified."},
-    {"id":"archive-contents","enabled":false,"reason":"Producer-side resource isolation is unqualified."},
-    {"id":"stable-hash","enabled":false,"reason":"No qualified coherent content reader."}
+    {
+      "id": "preview",
+      "enabled": false,
+      "reason": "No qualified explicit live-source read binding."
+    },
+    {
+      "id": "copy",
+      "enabled": false,
+      "reason": "No qualified reviewed source/destination binding."
+    },
+    {
+      "id": "replace",
+      "enabled": false,
+      "reason": "No qualified bound target replacement."
+    },
+    {
+      "id": "move",
+      "enabled": false,
+      "reason": "No qualified exact-entry source removal."
+    },
+    {
+      "id": "recycle",
+      "enabled": false,
+      "reason": "Reviewed recycling is unavailable here; exact-entry and outcome proof are unqualified."
+    },
+    {
+      "id": "permanent-delete",
+      "enabled": false,
+      "reason": "No qualified exact-entry mutation adapter."
+    },
+    {
+      "id": "fast-ntfs",
+      "enabled": false,
+      "reason": "The installed closed metadata helper and transport are unqualified."
+    },
+    {
+      "id": "archive-contents",
+      "enabled": false,
+      "reason": "Producer-side resource isolation is unqualified."
+    },
+    {
+      "id": "stable-hash",
+      "enabled": false,
+      "reason": "No qualified coherent content reader."
+    }
   ]
 }

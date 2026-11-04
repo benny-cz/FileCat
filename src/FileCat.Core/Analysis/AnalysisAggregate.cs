@@ -5,6 +5,18 @@ namespace FileCat.Core.Analysis;
 /// <summary>Exact additive accounting on one immutable revision. Attribution precedes display filtering.</summary>
 public static class AnalysisAggregate
 {
+    public static AnalysisMeasurement CompatibleAllocation(IEnumerable<StorageFact> observations)
+    {
+        var facts = SelectComponents(observations.ToArray());
+        if (facts.Count == 0) return AnalysisMeasurement.Missing(MeasurementState.Unsupported);
+        UInt128 total = 0;
+        foreach (var fact in facts)
+        {
+            if (!fact.Measurement.IsKnown) return fact.Measurement;
+            total = checked(total + fact.Measurement.Value!.Value);
+        }
+        return AnalysisMeasurement.Known(total);
+    }
     public static AnalysisProjection Project(AnalysisSnapshot snapshot, AnalysisMetric metric,
         Func<AnalysisNode, AnalysisObject?, bool>? filter = null, CancellationToken cancellation = default)
     {
@@ -14,6 +26,7 @@ public static class AnalysisAggregate
         var matching = ImmutableHashSet.CreateBuilder<ulong>();
         var charges = ImmutableArray.CreateBuilder<AnalysisCharge>();
         var missing = new Dictionary<MeasurementState, ulong>();
+        var unmeasured = ImmutableDictionary.CreateBuilder<ulong, MeasurementState>();
         UInt128 known = 0, unverified = 0;
         ulong count = 0;
         int processed = 0;
@@ -37,9 +50,9 @@ public static class AnalysisAggregate
             {
                 var length = obj?.LogicalLength ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported);
                 if (length.IsKnown) Add(node.ParentId, node.Name, length.Value!.Value, [node.Id], false, false);
-                else Missing(length);
+                else Missing(length, [node.Id]);
             }
-            else if (obj is null) Missing(AnalysisMeasurement.Missing(MeasurementState.Unsupported));
+            else if (obj is null) Missing(AnalysisMeasurement.Missing(MeasurementState.Unsupported), [node.Id]);
         }
 
         bool compatible = true;
@@ -56,7 +69,7 @@ public static class AnalysisAggregate
                 var members = paths.Select(p => objects[p.ObjectId!]).DistinctBy(o => o.Id).ToArray();
                 if (members.Select(o => o.LogicalLength).Distinct().Skip(1).Any() ||
                     members.Select(o => o.VersionEvidence).Where(v => v is not null).Distinct(StringComparer.Ordinal).Skip(1).Any())
-                { Missing(AnalysisMeasurement.Missing(MeasurementState.Changed)); continue; }
+                { Missing(AnalysisMeasurement.Missing(MeasurementState.Changed), paths.Select(p => p.Id)); continue; }
                 bool unknownIdentity = obj.VerifiedIdentity is null;
                 ulong parent = CommonParent(paths, nodes);
                 var ids = paths.Select(p => p.Id).ToImmutableArray();
@@ -64,13 +77,13 @@ public static class AnalysisAggregate
                 {
                     if (obj.LogicalLength.IsKnown) Add(parent, paths.Count > 1 ? "Shared hard-linked files" : paths[0].Name,
                         obj.LogicalLength.Value!.Value, ids, paths.Count > 1, unknownIdentity);
-                    else Missing(obj.LogicalLength);
+                    else Missing(obj.LogicalLength, ids);
                     continue;
                 }
                 // Coherent aliases must agree; do not silently pick one of conflicting observations.
                 var candidateFacts = members.SelectMany(o => byObject[o.Id]).ToArray();
                 var facts = SelectComponents(candidateFacts);
-                if (facts.Count == 0) Missing(AnalysisMeasurement.Missing(MeasurementState.Unsupported));
+                if (facts.Count == 0) Missing(AnalysisMeasurement.Missing(MeasurementState.Unsupported), ids);
                 foreach (var fact in facts)
                 {
                     foreach (var root in paths.Select(p => p.RootId).Distinct())
@@ -80,7 +93,7 @@ public static class AnalysisAggregate
                     }
                     if (fact.Measurement.IsKnown) Add(parent, paths.Count > 1 ? "Shared hard-linked files" : paths[0].Name,
                         fact.Measurement.Value!.Value, ids, paths.Count > 1, unknownIdentity);
-                    else Missing(fact.Measurement);
+                    else Missing(fact.Measurement, ids);
                 }
             }
             if (metric == AnalysisMetric.OnDisk)
@@ -95,7 +108,7 @@ public static class AnalysisAggregate
                     directoryBases.Add(fact.BasisId);
                     if (fact.Measurement.IsKnown) Add(fact.DirectoryId.Value, "Directory allocation", fact.Measurement.Value!.Value,
                         [], false, false, true);
-                    else Missing(fact.Measurement);
+                    else Missing(fact.Measurement, [fact.DirectoryId.Value]);
                 }
                 var sets = basesByRoot.Values.ToArray();
                 compatible = sets.Length < 2 || sets.Skip(1).All(s => s.SetEquals(sets[0]));
@@ -103,13 +116,17 @@ public static class AnalysisAggregate
         }
         if (!compatible) { known = 0; unverified = 0; charges.Clear(); }
         return new(snapshot.Identity.SessionId, snapshot.Identity.Epoch, snapshot.Identity.Revision, metric,
-            charges.ToImmutable(), new(known, unverified, count, missing.ToImmutableDictionary(), compatible), matching.ToImmutable());
+            charges.ToImmutable(), new(known, unverified, count, missing.ToImmutableDictionary(), compatible), matching.ToImmutable())
+            { UnmeasuredStates = unmeasured.ToImmutable() };
 
-        void Missing(AnalysisMeasurement measurement)
+        void Missing(AnalysisMeasurement measurement, IEnumerable<ulong> ids)
         {
             var state = measurement.State == MeasurementState.Known ? MeasurementState.Unsupported : measurement.State;
             missing[state] = checked(missing.GetValueOrDefault(state) + 1);
+            foreach (ulong id in ids)
+                if (!unmeasured.TryGetValue(id, out var old) || Rank(state) > Rank(old)) unmeasured[id] = state;
         }
+        static int Rank(MeasurementState state) => state switch { MeasurementState.Changed => 5, MeasurementState.Failed => 4, MeasurementState.Pending => 3, MeasurementState.Excluded => 2, _ => 1 };
         void Add(ulong parent, string label, UInt128 value, ImmutableArray<ulong> ids, bool shared, bool uncertain, bool directory = false)
         {
             if (uncertain) unverified = checked(unverified + value); else known = checked(known + value);
