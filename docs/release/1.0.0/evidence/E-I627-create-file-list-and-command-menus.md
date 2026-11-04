@@ -1,6 +1,6 @@
 # I627 — Create file list and command discovery
 
-**Source:** `65243370` (parent `bdcc86f0`). **Status:** implemented and checked in isolated source builds; hosted CI and the installed 1.0.0 candidate remain separate gates.
+**Source:** `65243370` (parent `bdcc86f0`); menu-icon correction `8da2c873`. **Status:** implemented and checked in isolated source builds; the original hosted CI failed, and the corrected exact-source CI and installed 1.0.0 candidate remain separate gates.
 
 ## User task and correction
 
@@ -17,6 +17,12 @@ The command-menu audit also added visible routes for previously search-only user
 | Windows VM | The prior 620-DIP source dialog was natively visible with every control, and its isolated build/focused suites passed before the final compact-only change. The VM was powered off during the 520-DIP follow-up; a headless `vmrun start` reported a host/guest file-access error. No final Windows visual pass is claimed from that attempt. |
 
 The Mac save check found a real edge case in the initial source: a person could leave the Save sheet open past the two-minute export deadline, then receive a timeout without a file. The correction starts the deadline only after a destination is chosen. The final source build's native Mac Save flow produced the exact 19-byte file above. This is the consequential reason for the second Mac save check; unrelated viewers and operations were not reopened.
+
+## Hosted CI regression and correction
+
+The initial product [run 41851998680](https://github.com/benny-cz/FileCat/actions/runs/41851998680) failed the App test project in all four platform jobs. Each lane's log identifies the same single failing assertion: `PanelKeysTests.The_toolbar_runs_commands_names_their_keys_shows_switches_and_can_be_hidden` found eight menu commands without icons. The Windows x64 aggregate then correctly refused the failed App project. The later docs-only [run 41852971751](https://github.com/benny-cz/FileCat/actions/runs/41852971751) repeated the failure in Windows x64/ARM64 and Ubuntu; macOS was cancelled after another lane failed. Both runs passed the producer; tag-only package/draft skips are expected on main. These are failed gates, not accepted source CI.
+
+The new menu routes surfaced eight commands that did not have command-icon drawings: Context menu, Select all once the listing is complete, Edit active panel filter, Create file list, Command history, Viewer and editor windows, Clear history and Change shortcut. Product `8da2c873` adds a themed 16 × 16 drawing for each command. In an isolated macOS ARM64 source checkout, the exact failing `PanelKeysTests` case passed **1/1** after the correction. The corrected five-lane hosted run and its skip reconciliation remain open; this focused pass is not a substitute for CI.
 
 ## Finite candidate acceptance and stop
 

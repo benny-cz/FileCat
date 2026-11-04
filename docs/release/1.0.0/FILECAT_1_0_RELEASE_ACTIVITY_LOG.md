@@ -5347,3 +5347,7 @@ The first PDF-over-SFTP exploratory shot exposed distinct user friction: after i
 ## 2026-11-04 — Create file list chooser mouse dismissal
 
 - Owner-reported I628: an expanded chooser stayed open when a mouse press landed on another field or the nondismissing backdrop. The new regression failed before correction. Product `00b4be9d` closes only the outside chooser popup, leaving the dialog and ordinary popup selection handling intact. Mac overlay pointer tests passed 8/8 and Settings dialog tests 10/10; Ubuntu App built cleanly and native field/backdrop mouse presses closed the popup without closing the dialog. [I628 evidence](evidence/E-I628-file-list-chooser-pointer-dismiss.md) keeps the exact checks and final-candidate stop. Exact-source CI and installed candidate remain separate; stable 1.0.0 stays NO-GO.
+
+## 2026-11-04 — File-list menu icon CI correction
+
+- Original I627 product run 41851998680 failed the App job in all four platform lanes; the later docs run 41852971751 repeated the missing-menu-icon failure on Windows x64/ARM64 and Ubuntu, with macOS cancelled. The producer passed, and tag-only package/draft skips were expected. Eight newly exposed commands lacked drawings. Product `8da2c873` supplies themed icons, and the exact failing PanelKeys test passed 1/1 in an isolated Mac source build. [I627 evidence](evidence/E-I627-create-file-list-and-command-menus.md#hosted-ci-regression-and-correction) records the failure and finite corrected gate. Corrected hosted CI and final candidate remain open; no stable publication is authorized.
