@@ -24,6 +24,7 @@ application. An explicit new-profile job refuses instead of entering the legacy 
 | Canonical manifests | Frozen ordered physical members, contiguous exact duplicate occurrences, profile/features and separate full/content/metadata digests; aggregate heap/metadata/logical budgets | Complete format feature inventories, rebuild/verification wire schemas and private sidecars |
 | Proxy IO | Child uses fixed input IDs and seekable stage requests; parent checks offsets/lengths/IO amplification before touching a stream; no path/publication/delete authority | Reviewed native input leases, parent-owned manifests and production launch integration |
 | Queue | One active in-process reservation and at most eight pending; assessment holds it through exit, final diagnostics and reaping | Other roles, cross-parent scheduling and operation-center phases |
+| Legacy ZIP publication extraction | Separate compatibility-only publication/rollback/cleanup boundary; existing codec and journal ordering retained; explicit profiles refused before intent | Object-bound publication, typed provenance, durable archive facts/recovery and separately reviewed ZIP worker migration |
 | Windows boundary spike | Suspended restricted LPAC, actual-token/access checks, exact inherited pipe list, private-profile write protection, finite job commit/CPU, bounded stderr and idempotent kill/reaping; actual guarded application entry tested | Full engine workloads, other namespace/asset/setup-race probes, ordinary user and installed-package/RID qualification |
 | TAR assessment process | Actual early entry, numeric read-only source proxy, SHA/raw TAR/runtime-decoder passes, checked catalog phases and terminal digest; parent CPU/progress watchdog and final drain/reaping checks | Qualified AppServices registration, reviewed input leases, cooperative cancellation, transform/fresh verifier and publication integration |
 | TAR assessment | Full raw USTAR/PAX framing, checksums, exact UTF-8, numeric/PAX grammar and allowlist, pre-allocation metadata limits, complete payload hashes, end markers and padding; independent runtime-decoder agreement | Coverage-guided campaigns, complete metadata/preservation corpus, scale measurements and native independent tools |
@@ -57,6 +58,11 @@ passed 63/63. The manifest/wire/assessment/lifecycle work adds 23 cases, include
 Two defects found during this work have regressions: the runtime TAR writer emits no end markers if no entry is written,
 and the runtime raw DEFLATE stream emits no payload for an entirely empty input. The adapters explicitly emit valid empty
 containers. A seekable captured payload view also avoids TarWriter's whole-payload buffering when its output is compressed.
+
+The later narrow ZIP publication extraction passed 52 tests with eight existing Unix-only skips on both Windows host
+and Windows VM, and all 60 on Mac. It adds two explicit-profile guard cases. Ubuntu replay remains postponed. See
+[the extraction checkpoint](ZIP_PUBLICATION_EXTRACTION.md). This is a compatibility refactor, not qualification of
+the legacy pathname operations for new formats; no new profile is enabled.
 
 The Windows native worker lane now separately passes **25/25**: twelve archive authority/resource/lifetime/assessment
 cases and thirteen existing restricted-worker regressions. The tracked runner was exercised successfully on the guest. A healthy
