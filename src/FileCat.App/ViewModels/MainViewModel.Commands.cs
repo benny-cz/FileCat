@@ -99,6 +99,10 @@ public sealed partial class MainViewModel
                         ? "A working set holds references to items elsewhere; create folders in a real location. F7 in the list of working sets (Backspace) creates another set."
                         : "Result sets hold references to items elsewhere; create folders in a real location.");
                 return (caps & LocationCapabilities.CreateDirectory) != 0 ? CommandAvailability.Yes : CommandAvailability.No(Explain(LocationCapabilities.CreateDirectory));
+            case CommandIds.CreateFileList:
+                return loc is not null && loc.Scheme is Schemes.FileSystem or Schemes.Zip or Schemes.Archive or Schemes.Ftp or Schemes.Sftp or Schemes.Mtp &&
+                       (caps & LocationCapabilities.Enumerate) != 0
+                    ? CommandAvailability.Yes : CommandAvailability.No("Open a folder, archive, or connected file panel to create a list.");
             case CommandIds.EditNew:
                 return (caps & LocationCapabilities.CreateFile) != 0 ? CommandAvailability.Yes : CommandAvailability.No(Explain(LocationCapabilities.CreateFile));
             case CommandIds.OpenInNewTab:
@@ -461,6 +465,9 @@ public sealed partial class MainViewModel
                 break;
             case CommandIds.CopyPaths:
                 await CopyTextAsync(sel => string.Join(Environment.NewLine, sel.Select(DisplayPathOf)));
+                break;
+            case CommandIds.CreateFileList:
+                await CreateFileListAsync();
                 break;
 
             // ---- Application ---------------------------------------------------------------------------

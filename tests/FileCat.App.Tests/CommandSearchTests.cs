@@ -70,6 +70,25 @@ public sealed class CommandSearchTests
     }
 
     [Fact]
+    public void User_facing_panel_and_global_commands_have_a_menu_route()
+    {
+        var infrastructure = new HashSet<string>(StringComparer.Ordinal)
+        {
+            CommandIds.Menu, // F10 focuses the menu bar itself.
+        };
+        var missing = CommandRegistry.CreateDefault().All
+            .Where(c => c.Context is CommandContext.Panel or CommandContext.Global && !infrastructure.Contains(c.Id))
+            // Dynamic bookmark slots live in Navigate → Bookmarks, rather than twenty-four top-level menu rows.
+            .Where(c => !c.Id.StartsWith(CommandIds.BookmarkGoPrefix, StringComparison.Ordinal) &&
+                        !c.Id.StartsWith(CommandIds.BookmarkSetPrefix, StringComparison.Ordinal) &&
+                        !c.Id.StartsWith(CommandIds.BookmarkTargetPrefix, StringComparison.Ordinal))
+            .Where(c => MainMenuModel.PathOf(c.Id) is null)
+            .Select(c => c.Title).ToArray();
+        Assert.Empty(missing);
+        Assert.Equal("Commands", MainMenuModel.PathOf(CommandIds.CreateFileList));
+    }
+
+    [Fact]
     public void Nothing_typed_lists_recent_commands_and_recent_use_breaks_ties()
     {
         Assert.Equal(new[] { CommandIds.Settings, CommandIds.Pack },
@@ -228,9 +247,12 @@ public sealed class CommandSearchTests
             Assert.True(dialogs.IsOpen, "Enter ran Settings");
             Assert.Equal("", box.Text);
             Assert.Equal(CommandIds.Settings, services.History.RecentCommands[0]);
-            // Settings now reviews implicit dismissal. Use its explicit Cancel action here;
-            // SettingsDialogTests covers the Esc review and rollback separately.
-            window.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Cancel"))
+            // This command-search test only needs to close Settings. A read-only settings store
+            // presents Close instead of Cancel; SettingsDialogTests covers editable rollback.
+            await WaitFor(() => window.GetVisualDescendants().OfType<Button>()
+                .Any(button => Equals(button.Content, "Cancel") || Equals(button.Content, "Close")), ct);
+            window.GetVisualDescendants().OfType<Button>()
+                .Single(button => Equals(button.Content, services.SettingsReadOnly ? "Close" : "Cancel"))
                 .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
             await WaitFor(() => !dialogs.IsOpen, ct);
 

@@ -133,11 +133,11 @@ internal sealed class DialogCard : Border
     }
 
     /// <summary>Optional pointer and keyboard size control for substantial search dialogs.</summary>
-    internal void EnableResizing(Panel host)
+    internal void EnableResizing(Panel host, Size? preferredSize = null)
     {
         _resizable = true;
         MaxWidth = double.PositiveInfinity;
-        _requestedSize = new Size(700, 560);
+        _requestedSize = preferredSize ?? new Size(700, 560);
         _layout.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         var gripRow = new Grid { Height = 24 };
         var thumb = new Thumb { Name = "DialogResizeGrip", Width = 32, Height = 24,

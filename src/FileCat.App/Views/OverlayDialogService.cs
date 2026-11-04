@@ -765,7 +765,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             requery.Start();
         }
         var card = Card(title, content, ButtonRow(btns), 760, pinnedReview);
-        if (resizable) card.EnableResizing(host);
+        if (resizable) card.EnableResizing(host, behavior?.PreferredSize);
         // Enter confirms as soon as the dialog would: whether the default button may act is asked when Enter is pressed,
         // not only when the 200 ms re-check last enabled it, so Enter right after typing is not lost. A button or a
         // multi-line box that used Enter keeps it; a focused list item takes Enter for itself, and in a dialog Enter

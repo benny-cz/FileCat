@@ -110,6 +110,8 @@ public sealed class AppSettings : IVersionedState
     public List<ToolDefinition> UserCommands { get; set; } = [];
     /// <summary>Named masks used as <c>@name</c> wherever a mask is accepted (plan §11 saved filters).</summary>
     public List<SavedFilter> SavedFilters { get; set; } = [];
+    /// <summary>Named formats for Commands → Create file list; built-in formats stay in the application.</summary>
+    public List<Operations.FileListRule> FileListRules { get; set; } = [];
     /// <summary>Find's saved searches (plan §11); one may load whenever Find opens.</summary>
     public List<Search.SavedSearch> SavedSearches { get; set; } = [];
     /// <summary>Folders Find does not search, each switchable.</summary>

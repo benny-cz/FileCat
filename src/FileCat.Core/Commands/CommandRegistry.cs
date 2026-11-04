@@ -206,6 +206,7 @@ public static class CommandIds
     public const string CopyNames = "clipboard.copyNames";
     public const string CopyPaths = "clipboard.copyPaths";
     public const string CopyUncPaths = "clipboard.copyUnc";
+    public const string CreateFileList = "file.createList";
 
     public const string ConnectNetworkDrive = "net.connect";
     public const string DisconnectNetworkDrive = "net.disconnect";
@@ -454,6 +455,7 @@ public sealed class CommandRegistry
         Add(CommandIds.CopyNames, "Copy names", C, null, CommandContext.Panel, "Ctrl+Shift+N");
         Add(CommandIds.CopyPaths, "Copy full paths", C, null, CommandContext.Panel, "Ctrl+Shift+C");
         Add(CommandIds.CopyUncPaths, "Copy UNC paths", C, null, CommandContext.Panel, "Ctrl+Shift+U");
+        Add(CommandIds.CreateFileList, "Create file list…", C, null, CommandContext.Panel);
         Add(CommandIds.ConnectNetworkDrive, "Connect network drive…", C);
         Add(CommandIds.DisconnectNetworkDrive, "Disconnect network drive…", C);
         Add(CommandIds.SftpConnect, "Connect to a server (SFTP, FTPS, FTP)…", C);
@@ -480,6 +482,8 @@ public sealed class CommandRegistry
         Add(CommandIds.ThemeCycle, "Next theme", A);
         Add(CommandIds.ThemePrevious, "Previous theme", A);
         AddSearchWords(r);
+        r.Describe(CommandIds.CreateFileList, "List all or selected items, optionally including subfolders; format fields and send the result to a viewer, clipboard, or text file.");
+        r.AddKeywords(CommandIds.CreateFileList, "make file list", "directory listing", "export filenames", "inventory", "recursive list");
         return r;
     }
 

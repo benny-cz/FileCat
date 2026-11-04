@@ -100,6 +100,8 @@ public sealed record DialogBehavior
 {
     public bool DismissOnBackdrop { get; init; } = true;
     public bool AlignTop { get; init; }
+    /// <summary>Initial size for a resizable dialog, clamped to the available client area.</summary>
+    public Avalonia.Size? PreferredSize { get; init; }
     /// <summary>Esc and the title-bar close button use this action; explicit buttons keep their own behavior.</summary>
     public Action? OnImplicitDismiss { get; init; }
 }

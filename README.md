@@ -230,6 +230,7 @@ covered in the [developer build guide](docs/BUILDING.md).
 
 - [Downloads and package choices](docs/DOWNLOAD.md) — preview packages, verification and signing status
 - [What works where](docs/CAPABILITIES.md) — supported platforms, locations and actions
+- [Create a file list](docs/CREATE_FILE_LIST.md) — reusable formats, fields and output choices
 - [Privacy policy](docs/PRIVACY.md)
 - [Third-party notices](THIRD-PARTY-NOTICES.md)
 - [Security policy and vulnerability reporting](SECURITY.md)
