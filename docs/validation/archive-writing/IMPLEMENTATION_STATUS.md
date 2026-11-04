@@ -37,7 +37,7 @@ inventory and artifact SBOM/notices still need review before enabling this path.
 
 The test command is `dotnet test tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --no-restore` with filter
 `FullyQualifiedName~Archive|FullyQualifiedName~EditSession|FullyQualifiedName~BackingArchiveTarget` and a TRX logger.
-SDK: `10.0.101`. Raw logs/TRX files are retained under the worktree's `test-results/archive-writing` and the owned guest
+SDK: `10.0.101`. Raw logs/TRX files are retained under the worktree's `.tmp/test-results/archive-writing` and the owned guest
 validation directories; they are not evidence of installed-package or GUI qualification.
 
 | Environment | Baseline result | Current-source result | Scope/limitations |
@@ -77,7 +77,10 @@ The Mac and host use the same baseline plus the current-source delta above. The 
 only this task's matching downloader was stopped. SDK/reference packs and a locked-package offline feed were copied from
 the host. Re-extraction reported existing DLL unlink refusals, and offline restore still asks for missing apphost packs
 (including 10.0.14) despite the private SDK. The next setup step is to inspect the owned `msbuild-properties.json` report
-and correct SDK/apphost-pack selection; do not reinterpret this setup failure as a passing Windows VM test.
+and correct SDK/apphost-pack selection; do not reinterpret this setup failure as a passing Windows VM test. The property
+probe confirmed that SDK/root/targeting-pack paths select the private 10.0.101 installation and its known apphost is 10.0.1.
+A fresh restore is now running with `BaseIntermediateOutputPath=obj-pinned-sdk/` and build-server reuse disabled, to exclude
+generated imports from earlier restore attempts. Its logs are `restore-clean.log` and (if restore succeeds) `test-clean.log`.
 VMware paths are `V:\Virtual Machines\Jamf\Windows 10 x64\Windows 10 x64.vmx` (actually Windows 11) and
 `V:\Virtual Machines\Barebit\Ubuntu 64-bit\Ubuntu 64-bit.vmx`. The user supplied `a` for VM encryption and guest passwords.
 Control commands require `vmrun -vp a`; guest users are `admin` and `benny` respectively. Never restart or stop another
