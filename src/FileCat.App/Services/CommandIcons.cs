@@ -59,6 +59,7 @@ public static class CommandIcons
     {
         // File
         [CommandIds.Open] = [new(Box, "TextMuted"), new("M4.5,8 L11.5,8 M9,5.5 L11.5,8 L9,10.5", "ActiveAccent")],
+        [CommandIds.ContextMenu] = [new(Box, "TextMuted"), new("M4.5,5.5 L11.5,5.5 M4.5,8 L11.5,8 M4.5,10.5 L9,10.5", "ActiveAccent")],
         [CommandIds.View] = [new(Eye), new(Pupil, "ActiveAccent", Fill: true)],
         [CommandIds.ViewAlternate] = [new(Eye), new(Pupil, "TextMuted", Fill: true)],
         [CommandIds.Edit] = [new("M2.5,13.5 L3,10.5 L10.5,3 L13,5.5 L5.5,13 Z M9.5,4 L12,6.5"), new("M2.5,13.5 L5.5,13", "ActiveAccent")],
@@ -119,6 +120,7 @@ public static class CommandIcons
         [CommandIds.CopyNames] = [new(Clipboard), new("M6,8.5 L10,8.5", "ActiveAccent")],
         [CommandIds.CopyPaths] = [new(Clipboard), new("M5.5,10.5 L7,6.5 M8,8.5 L10.5,8.5", "ActiveAccent")],
         [CommandIds.CopyUncPaths] = [new(Clipboard), new("M5,10.5 L6.5,6.5 M7.5,10.5 L9,6.5", "ActiveAccent")],
+        [CommandIds.MarkAllComplete] = [new("M2,4 L3.5,5.5 L5.5,3.5 M7,4.5 L13.5,4.5 M2,9 L3.5,10.5 L5.5,8.5 M7,9.5 L11,9.5", "TextMarked"), new("M12.5,11 L12.5,14 M11,12.5 L14,12.5", "ActiveAccent")],
         [CommandIds.MarkNone] = [new("M2,2 L5,2 L5,5 L2,5 Z M2,7 L5,7 L5,10 L2,10 Z M2,12 L5,12 L5,15 L2,15 Z", "TextMuted"), new("M8,3.5 L14.5,3.5 M8,8.5 L14.5,8.5 M8,13.5 L14.5,13.5")],
         // Navigate
         [CommandIds.Parent] = [new("M8,13.5 L8,3 M3.5,7.5 L8,3 L12.5,7.5")],
@@ -140,11 +142,14 @@ public static class CommandIcons
         [CommandIds.ToggleHidden] = [new(Page, "TextMuted", Dashed: true), new("M6,9.5 C7.2,7.8 9.3,7.8 10.5,9.5 C9.3,11.2 7.2,11.2 6,9.5 Z", "ActiveAccent")],
         // Commands
         [CommandIds.FindFiles] = [new(Magnifier)],
+        [CommandIds.CreateFileList] = [new(Page, "TextMuted"), new("M5.5,7 L10.5,7 M5.5,9.5 L10.5,9.5 M5.5,12 L9,12", "ActiveAccent")],
         [CommandIds.CompareDirectories] = [new(Panes, "FolderIcon"), new("M3,6 L5.5,6 M3,9 L5.5,9 M10.5,6 L13,6 M10.5,9 L13,9", "Text")],
         [CommandIds.CompareFiles] = [new("M1.5,2 L6.5,2 L6.5,14 L1.5,14 Z M9.5,2 L14.5,2 L14.5,14 L9.5,14 Z", "TextMuted"), new("M3,5 L5,5 M3,8 L5,8 M11,5 L13,5 M11,8 L13,8", "Text"), new("M3,11 L5,11 M11,11 L13,11", "Warning")],
         [CommandIds.FlatView] = [new("M1.5,3 L14.5,3 M1.5,6.3 L14.5,6.3 M1.5,9.6 L14.5,9.6 M1.5,13 L14.5,13")],
         [CommandIds.QuickFilter] = [new("M2,3 L14,3 L9.5,8.5 L9.5,13 L6.5,14.5 L6.5,8.5 Z")],
+        [CommandIds.FocusPanelFilter] = [new(Box, "TextMuted"), new("M4,5 L12,5 L9,8.5 L9,12 L7,13 L7,8.5 Z", "ActiveAccent")],
         [CommandIds.CommandLineFocus] = [new("M1.5,10.5 L14.5,10.5 L14.5,14 L1.5,14 Z", "TextMuted"), new("M3.5,12.2 L6,12.2", "ActiveAccent")],
+        [CommandIds.CommandHistory] = [new(Clock, "TextMuted"), new("M8,4.5 L8,8 L10.5,9.5", "ActiveAccent")],
         [CommandIds.OpenTerminal] = [new("M1.5,2.5 L14.5,2.5 L14.5,13.5 L1.5,13.5 Z"), new("M4,6 L6.5,8 L4,10 M8,10 L11.5,10", "ActiveAccent")],
         [CommandIds.InsertName] = [new(CommandLine, "TextMuted"), new("M8,2 L8,8 M6,6 L8,8 L10,6", "ActiveAccent")],
         [CommandIds.InsertPath] = [new(CommandLine, "TextMuted"), new("M8,2 L8,8 M6,6 L8,8 L10,6 M11.5,4.5 L13,1.5", "ActiveAccent")],
@@ -213,6 +218,9 @@ public static class CommandIcons
         [CommandIds.Palette] = [new(Magnifier, "TextMuted"), new("M4.5,5 L6.5,6.5 L4.5,8", "ActiveAccent")],
         [CommandIds.Settings] = [new("M8,5 C9.7,5 11,6.3 11,8 C11,9.7 9.7,11 8,11 C6.3,11 5,9.7 5,8 C5,6.3 6.3,5 8,5 Z"),
             new("M8,1.5 L8,3.5 M8,12.5 L8,14.5 M1.5,8 L3.5,8 M12.5,8 L14.5,8 M3.4,3.4 L4.8,4.8 M11.2,11.2 L12.6,12.6 M3.4,12.6 L4.8,11.2 M11.2,4.8 L12.6,3.4", "ActiveAccent")],
+        [CommandIds.ChangeShortcut] = [new("M2,4 L14,4 L14,12 L2,12 Z M4,7 L5,7 M7,7 L8,7 M10,7 L11,7 M5,10 L11,10", "TextMuted"), new("M12.5,1.5 L12.5,4", "ActiveAccent")],
+        [CommandIds.ViewerWindows] = [new("M1.5,3 L10.5,3 L10.5,11 L1.5,11 Z", "TextMuted"), new("M5,6 L14.5,6 L14.5,14 L5,14 Z", "ActiveAccent")],
+        [CommandIds.ClearHistory] = [new(Clock, "TextMuted"), new("M10,10 L14,14 M14,10 L10,14", "Error")],
         [CommandIds.SaveWorkspace] = [new("M2.5,2.5 L11.5,2.5 L13.5,4.5 L13.5,13.5 L2.5,13.5 Z M5,2.5 L5,6 L10.5,6 L10.5,2.5"), new("M4.5,13.5 L4.5,9.5 L11.5,9.5 L11.5,13.5", "ActiveAccent")],
         [CommandIds.LoadWorkspace] = [new(Folder, "FolderIcon"), new("M8,11.5 L8,7 M6,9 L8,7 L10,9", "OnAccent")],
         [CommandIds.RestorePreviousWorkspace] = [new(Folder, "FolderIcon"), new("M9,6 L6,8 L9,10 M6,8 L12,8", "OnAccent")],
