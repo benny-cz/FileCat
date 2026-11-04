@@ -87,6 +87,14 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     {
         if (_sessions.Count == 0 || e.Source is not Visual source) return;
         var top = _sessions[^1];
+        // ComboBox popups in an in-window modal do not reliably light-dismiss when a
+        // press lands on another control or the non-dismissing backdrop. Close only
+        // choosers outside the pressed target; a press on the chooser or its popup
+        // must still reach its own toggle/selection handler.
+        if (top.Layer.Child is Visual card)
+            foreach (var chooser in card.GetVisualDescendants().OfType<ComboBox>())
+                if (chooser.IsDropDownOpen && !IsInCardOrPopup(source, chooser))
+                    chooser.IsDropDownOpen = false;
         // At minimum window sizes a native hit can land on a footer or other
         // window chrome outside the overlay's arranged hit surface. Treat it
         // like the backdrop before the obscured control receives its press.
