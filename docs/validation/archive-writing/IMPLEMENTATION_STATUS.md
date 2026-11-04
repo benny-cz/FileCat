@@ -101,3 +101,15 @@ VMware paths are `V:\Virtual Machines\Jamf\Windows 10 x64\Windows 10 x64.vmx` (a
 `V:\Virtual Machines\Barebit\Ubuntu 64-bit\Ubuntu 64-bit.vmx`. The user supplied `a` for VM encryption and guest passwords.
 Control commands require `vmrun -vp a`; guest users are `admin` and `benny` respectively. Never restart or stop another
 tester's Ubuntu instance merely to make the machine available.
+
+## Queued follow-up after the current goal is complete
+
+The user requested a separate RAR-writing licensing analysis only after the entire archive-writing implementation goal,
+including all required implementation, testing, validation and rechecks, is finished. Preserve that prerequisite.
+
+At that point, research current primary licensing/specification sources and the repository's existing RAR provenance.
+Assess a FileCat-owned implementation developed without violating upstream restrictions, including any necessary clean
+separation from restricted decompressor sources. If other viable options fail, assess invoking an external `rar` tool,
+including user-supplied installation versus redistribution, license obligations and Windows/macOS/Ubuntu feasibility.
+Produce an evidence-backed comparison and recommendation. The requested follow-up is analysis; RAR implementation and
+enablement are not part of that request. Do not start this analysis before the current goal's completion audit passes.
