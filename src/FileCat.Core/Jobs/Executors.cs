@@ -73,6 +73,9 @@ public static class JobExecutors
             case JobKind.CreateDirectory or JobKind.CreateFile when r.Destination is { IsFileSystem: true }:
                 return new CreateExecutor(job, fs, journal);
             case JobKind.ArchiveUpdate when r.Archive is not null:
+                if (r.Archive.Profile is not null)
+                    return new RefusedExecutor(job, fs, journal,
+                        "Writing this archive profile is not available until its worker and safe-save support are qualified. The archive was not changed.");
                 return new Archives.ZipUpdateExecutor(job, fs, journal);
             case JobKind.ArchiveTest when fsSources:
                 return new Archives.ZipTestExecutor(job, fs, journal);

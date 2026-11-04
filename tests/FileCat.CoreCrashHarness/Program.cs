@@ -6,6 +6,28 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Search;
 using FileCat.Core.State;
+using FileCat.Core.Archives;
+
+if (args is ["--archive-proxy", var archiveNonceText, var archiveLengthText] &&
+    Guid.TryParse(archiveNonceText, out var archiveNonce) && long.TryParse(archiveLengthText, out long archiveLength) && archiveLength is >= 0 and <= 1 << 20)
+{
+    using var archiveInputPipe = Console.OpenStandardInput();
+    using var archiveOutputPipe = Console.OpenStandardOutput();
+    var archiveReceive = new ArchiveWorkerProtocol(archiveNonce, 16 << 20);
+    var archiveSend = new ArchiveWorkerProtocol(archiveNonce, 16 << 20);
+    var archiveConnection = new ArchiveProxyConnection(request =>
+    {
+        archiveSend.Write(archiveOutputPipe, request.Kind, request.Payload);
+        return archiveReceive.Read(archiveInputPipe);
+    });
+    using var archiveSourceProxy = new ArchiveProxyStream(archiveConnection, 0, archiveLength, archiveLength);
+    using var archiveStageProxy = new ArchiveProxyStream(archiveConnection, ArchiveIoAuthority.StageId, 0, archiveLength, writable: true);
+    archiveSourceProxy.CopyTo(archiveStageProxy, 64 << 10);
+    archiveStageProxy.Position = 0;
+    byte[] archiveVerifiedDigest = System.Security.Cryptography.SHA256.HashData(archiveStageProxy);
+    archiveSend.Write(archiveOutputPipe, ArchiveWorkerMessage.Completed, archiveVerifiedDigest);
+    return 0;
+}
 
 if (args is ["--matroska-depth"])
 {
