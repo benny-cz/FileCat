@@ -336,7 +336,7 @@ internal static class ExpansionLimit
 /// nor run past the end of a plain archive. Headers are where the TAR framing puts them: each one's data follows it, and
 /// after each member the reader returns it is told so (<see cref="Returned"/>).
 /// </summary>
-internal sealed class TarHeaderGuard(Stream inner) : Stream
+internal sealed class TarHeaderGuard(Stream inner, int maximumMetadata = TarHeaderGuard.MaxMetadata) : Stream
 {
     /// <summary>The most metadata one member may carry (its PAX attributes, its GNU long name): far beyond real archives.</summary>
     public const int MaxMetadata = 16 << 20;
@@ -404,8 +404,8 @@ internal sealed class TarHeaderGuard(Stream inner) : Stream
         _filled = 0;
         if (_header[156] is not ((byte)'x' or (byte)'g' or (byte)'L' or (byte)'K')) return;
         if (Size(_header.AsSpan(124, 12)) is not long size) return;
-        if (size > MaxMetadata)
-            _refusal = $"A member's header gives it {size:N0} bytes of metadata, more than FileCat reads ({MaxMetadata >> 20} MiB): the archive is damaged.";
+        if (size > maximumMetadata)
+            _refusal = $"A member's header gives it {size:N0} bytes of metadata, more than FileCat reads ({maximumMetadata >> 20} MiB): the archive is damaged.";
         else if (inner.CanSeek && size > inner.Length - start - Block)
             _refusal = "A member's metadata runs past the end of the archive: it is damaged or cut short.";
         if (_refusal is not null) throw new InvalidDataException(_refusal);
