@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "status": "development-foundation-in-progress",
+  "branch": "codex/disk-space-analysis",
+  "productCommandRegistered": false,
+  "nativeUiTested": false,
+  "completedBehaviors": [
+    "Immutable observations and separate measurement states; checked UInt128 accounting.",
+    "LCA hard-link attribution before filters, separate unverified totals, component inclusion and conflicting-version handling.",
+    "Canonical policy encoder and cross-platform golden vector; bounded declarative filter grammar with three-valued predicates.",
+    "Read-only anchored native metadata backends; allocation bases and unsupported filesystem identity fallbacks.",
+    "Bounded in-memory store, global native handle cap, scan/device admission, producer batching, stop/freeze, pause/resume and snapshot leases.",
+    "All runtime action/helper capabilities remain disabled with reasons; no existing job safeguard changed."
+  ],
+  "validation": {
+    "windowsCore": {
+      "total": 71,
+      "passed": 70,
+      "skippedUnixNative": 1,
+      "failed": 0,
+      "evidence": "windows-core.xml"
+    },
+    "windowsHostNative": {
+      "total": 1,
+      "passed": 1,
+      "skipped": 0,
+      "failed": 0,
+      "evidence": "windows-host-native.xml"
+    },
+    "macosArm64": {
+      "total": 71,
+      "passed": 71,
+      "skipped": 0,
+      "failed": 0,
+      "evidence": "mac-core-r7.xml"
+    },
+    "ubuntu": {
+      "status": "postponed-other-FileCat-instance"
+    },
+    "windowsVm": {
+      "status": "no-passing-native-run-claimed",
+      "detail": "Admin test correctly refused. Ordinary-account manual task did not start; own tasks removed and no own FileCat process left running."
+    }
+  },
+  "nextWork": [
+    "Review coordinator health handling: freeze on device nonresponse, use time-bounded batches and the existing provider I/O keys; retain native/store leases safely.",
+    "Review admission on actual I/O threads, including Linux thread fsuid/fsgid and Windows retained authority.",
+    "Fix Windows cloud placeholders being classified as ordinary links; qualify no-content metadata behavior and unknown cloud states.",
+    "Complete raw-name/source-root, overlapping/file-root, timestamp precision, taint propagation and canonical policy contracts before qualifying W0/W1.",
+    "Complete W0 contracts and qualification tests, including policy integer-string interpretation, date precision intervals, root-label resolution, complete coverage/selection axes and schema enums.",
+    "Complete W1 queued ancestor/root substitution and mount/placeholder tests; resource/hang/epoch-refresh checks; filesystem allocation matrix; private anchored spill or explicit bounded-memory fallback.",
+    "Audit actual thread authority on each admitted I/O request, including Linux fsuid/fsgid and Windows retained authority; do not enable product registration before qualification.",
+    "W2: modeless sessions, equal Treemap/Sunburst, accessible ranked table and inspector, stable projections/selection, filters, themes and tooltips.",
+    "W3: strict bounded inert JSONL inventories, private stores/index, save/history, compatible comparison and reviewed create-only exports.",
+    "W4/W5: qualified typed shared operation contracts, protected objects, immutable membership/review tokens, preserving destructive review and job outcomes; unsupported verbs stay unavailable.",
+    "W6: versioned declarative insights/recipes and explicit content work only through qualified sources.",
+    "W7: separately qualified closed NTFS metadata helper or explicit standard-scan fallback.",
+    "W8: actual native UI/accessibility/theme/package matrix on all three platforms, resource benchmarks, negative controls, diagnostics privacy and evidence review."
+  ]
+}

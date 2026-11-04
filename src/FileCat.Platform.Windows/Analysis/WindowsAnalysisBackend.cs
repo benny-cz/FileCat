@@ -1,0 +1,192 @@
+using System.Collections.Immutable;
+using System.Runtime.InteropServices;
+using System.Text;
+using FileCat.Core.Analysis;
+using Microsoft.Win32.SafeHandles;
+
+namespace FileCat.Platform.Windows.Analysis;
+
+/// <summary>Read-only handle-relative traversal. Reparse entries are observations, never traversal targets.</summary>
+public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
+{
+    private readonly OwnedHandle _root;
+    private bool _disposed;
+    private readonly ulong _volume;
+    private readonly string _namespace;
+    public RootBinding Root { get; }
+    public AnalysisEntry RootEntry { get; }
+    public string Basis => "windows-primary-allocation-v1";
+    public WindowsAnalysisBackend(string selectedRoot)
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
+        string full = Path.GetFullPath(selectedRoot);
+        if (full.StartsWith("\\\\", StringComparison.Ordinal) || full.StartsWith("\\?", StringComparison.Ordinal))
+            throw new NotSupportedException("Select a local directory. This adapter does not qualify network or device paths.");
+        if (GetDriveType(Path.GetPathRoot(full)!) == 4) throw new NotSupportedException("Mounted network sources require a separately qualified analysis adapter.");
+        var rootLease = AnalysisNativeHandles.Acquire();
+        try { _root = new(CreateFile("\\\\?\\" + full, 0x100081, 3, 0, 3, 0x02000000 | 0x00200000 | 0x00100000, 0), rootLease); }
+        catch { rootLease.Dispose(); throw; }
+        if (_root.Value.IsInvalid) { _root.Dispose(); throw new IOException("The selected directory could not be opened."); }
+        try
+        {
+            var buffer = new char[32768];
+            uint length;
+            fixed (char* p = buffer) length = GetFinalPathNameByHandle(_root.Value, p, (uint)buffer.Length, 0);
+            if (length == 0 || length >= buffer.Length) throw new IOException("The captured source path is unavailable.");
+            string canonical = new(buffer, 0, (int)length);
+            if (canonical.StartsWith("\\\\?\\UNC\\", StringComparison.OrdinalIgnoreCase)) throw new NotSupportedException("The captured source is a network location.");
+            fixed (char* p = buffer) length = GetFinalPathNameByHandle(_root.Value, p, (uint)buffer.Length, 2);
+            if (length == 0 || length >= buffer.Length) throw new IOException("The source volume namespace is unavailable.");
+            string ntPath = new(buffer, 0, (int)length);
+            var parts = ntPath.Split('\\', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 2 || parts[0] != "Device" || !parts[1].StartsWith("HarddiskVolume", StringComparison.Ordinal)) throw new NotSupportedException("This source namespace is unqualified.");
+            _namespace = parts[1];
+            var entry = Observe(_root.Value, [], Raw(Path.GetFileName(full.TrimEnd('\\')) is { Length: > 0 } label ? label : full), _namespace);
+            if (entry.Kind != AnalysisKind.Directory) throw new IOException("Select a directory, or explicitly select the resolved target of a link.");
+            if (entry.Identity is null) throw new IOException("The source does not expose a qualified root identity.");
+            _volume = Volume(_root.Value);
+            Root = new("1", "file", selectedRoot, canonical, $"{_volume:X}:{entry.Identity}", IdentityAssurance.Verified, entry.Name);
+            RootEntry = entry;
+        }
+        catch { _root.Dispose(); throw; }
+    }
+    public IEnumerable<AnalysisEntry> Children(AnalysisEntry directory, CancellationToken cancellation)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        using var lease = OpenDirectory(directory);
+        var actual = Observe(lease.Handle, directory.RelativeName, directory.RawName.ToArray(), _namespace);
+        if (actual.Identity != directory.Identity || actual.Version != directory.Version) throw new AnalysisSourceChangedException();
+        byte[] buffer = new byte[64 * 1024];
+        bool restart = true;
+        while (true)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var (status, count) = Query(lease.Handle, buffer, restart); restart = false;
+            if (status == unchecked((int)0x80000006)) break; // STATUS_NO_MORE_FILES
+            if (status < 0 || count <= 0 || count > buffer.Length) throw new IOException($"Directory enumeration did not finish (status {status:X8}).");
+            int offset = 0;
+            while (offset < count)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                var (name, next) = DirectoryName(buffer, offset, count);
+                if (name is not ("." or ".."))
+                {
+                    if (!AnalysisNames.IsOrdinaryChild(name, windows: true)) throw new IOException("A name requires a separately qualified native-name route.");
+                    using var child = OpenChild(lease.Handle, name, directory: false);
+                    if (Volume(child.Value) != _volume) throw new AnalysisSourceChangedException();
+                    var raw = Raw(name);
+                    var relative = Raw(directory.RelativeName.Length == 0 ? name : Utf16(directory.RelativeName.AsSpan()) + "\\" + name);
+                    yield return Observe(child.Value, relative.ToImmutableArray(), raw, _namespace);
+                }
+                if (next == 0) break;
+                offset = checked(offset + next);
+            }
+        }
+    }
+    private sealed class OwnedHandle(SafeFileHandle handle, IDisposable reservation) : IDisposable
+    {
+        public SafeFileHandle Value => handle;
+        public void Dispose() { handle.Dispose(); reservation.Dispose(); }
+    }
+    private sealed class DirectoryLease(List<OwnedHandle> handles, SafeFileHandle root) : IDisposable
+    {
+        public SafeFileHandle Handle => handles.Count == 0 ? root : handles[^1].Value;
+        public void Dispose() { for (int i = handles.Count - 1; i >= 0; i--) handles[i].Dispose(); }
+    }
+    private DirectoryLease OpenDirectory(AnalysisEntry directory)
+    {
+        var held = new List<OwnedHandle>();
+        try
+        {
+            if (directory.Identity is null) throw new IOException("The queued directory has no qualified identity binding.");
+            var parts = Utf16(directory.RelativeName.AsSpan()).Split('\\', StringSplitOptions.RemoveEmptyEntries);
+            // Retain the chain without delete sharing through enumeration. Reserve headroom for simultaneous scans.
+            if (parts.Length > 48) throw new IOException("The native handle budget limits traversal depth here.");
+            SafeFileHandle current = _root.Value;
+            foreach (string part in parts)
+            {
+                var opened = OpenChild(current, part, directory: true); held.Add(opened); current = opened.Value;
+                var info = Observe(current, [], Raw(part), _namespace);
+                if (info.Kind != AnalysisKind.Directory || Volume(current) != _volume) throw new AnalysisSourceChangedException();
+            }
+            return new(held, _root.Value);
+        }
+        catch { foreach (var h in held) h.Dispose(); throw; }
+    }
+    private static OwnedHandle OpenChild(SafeFileHandle parent, string name, bool directory)
+    {
+        var reservation = AnalysisNativeHandles.Acquire();
+        try
+        {
+        fixed (char* p = name)
+        {
+            var str = new UnicodeString { Length = checked((ushort)(name.Length * 2)), MaximumLength = checked((ushort)(name.Length * 2)), Buffer = (nint)p };
+            var attrs = new ObjectAttributes { Length = (uint)sizeof(ObjectAttributes), Root = parent.DangerousGetHandle(), Name = (nint)(&str), Attributes = 0x40 };
+            int status = NtCreateFile(out var handle, directory ? 0x100081u : 0x100080u, &attrs, out _, 0, 0, 3, 1,
+                0x00200000 | 0x20u | (directory ? 1u : 0x00400000), 0, 0); // DIRECTORY_FILE's allowed flag set excludes NO_RECALL
+            if (status < 0) { handle?.Dispose(); throw new IOException($"The selected metadata entry could not be opened (status {status:X8})."); }
+            return new(handle, reservation);
+        }
+        }
+        catch { reservation.Dispose(); throw; }
+    }
+    private static AnalysisEntry Observe(SafeFileHandle h, ImmutableArray<byte> relative, byte[] raw, string sourceNamespace)
+    {
+        byte* standard = stackalloc byte[24]; byte* basic = stackalloc byte[40]; byte* id = stackalloc byte[24];
+        if (!GetInfo(h, 1, standard, 24) || !GetInfo(h, 0, basic, 40) || !GetInfo(h, 18, id, 24)) throw new IOException("Required file metadata is unavailable.");
+        long allocation = *(long*)standard, length = *(long*)(standard + 8); uint attributes = *(uint*)(basic + 32);
+        if (allocation < 0 || length < 0) throw new InvalidDataException("Invalid native size.");
+        var kind = (attributes & 0x400) != 0 ? AnalysisKind.Link : (attributes & 0x10) != 0 ? AnalysisKind.Directory : AnalysisKind.File;
+        AnalysisMeasurement allocated = AnalysisMeasurement.Known((ulong)allocation);
+        if ((attributes & (0x800u | 0x200u)) != 0)
+        {
+            byte* compression = stackalloc byte[16];
+            allocated = GetInfo(h, 8, compression, 16) && *(long*)compression >= 0
+                ? AnalysisMeasurement.Known((ulong)*(long*)compression) : AnalysisMeasurement.Missing(MeasurementState.Unsupported);
+        }
+        bool cloud = (attributes & (0x1000u | 0x40000u | 0x400000u)) != 0;
+        if (cloud) allocated = AnalysisMeasurement.Missing(MeasurementState.Unsupported);
+        var idBytes = new ReadOnlySpan<byte>(id + 8, 16);
+        string? identity = idBytes.IndexOfAnyExcept((byte)0) < 0 ? null : $"win:{sourceNamespace}:{*(ulong*)id:X}:" + Convert.ToHexString(idBytes);
+        DateTimeOffset? modified;
+        try { modified = DateTimeOffset.FromFileTime(*(long*)(basic + 16)); } catch (ArgumentOutOfRangeException) { modified = null; }
+        return new(relative, Utf16(raw), raw.ToImmutableArray(), kind, identity,
+            kind == AnalysisKind.File ? AnalysisMeasurement.Known((ulong)length) : AnalysisMeasurement.Missing(MeasurementState.Unsupported),
+            allocated, AnalysisMeasurement.Known(*(uint*)(standard + 16)), modified, $"{identity}:{length}:{*(long*)(basic + 24)}", cloud,
+            Compressed: (attributes & 0x800) != 0, NameEncoding: "utf16le", ObservedUtc: DateTimeOffset.UtcNow);
+    }
+    private static ulong Volume(SafeFileHandle h)
+    {
+        byte* buffer = stackalloc byte[24];
+        if (!GetInfo(h, 18, buffer, 24)) throw new IOException("Source identity is unavailable.");
+        return *(ulong*)buffer;
+    }
+    private static (int Status, int Count) Query(SafeFileHandle h, byte[] buffer, bool restart)
+    {
+        fixed (byte* b = buffer)
+        {
+            int status = NtQueryDirectoryFile(h, 0, 0, 0, out var io, b, (uint)buffer.Length, 1, false, 0, restart);
+            return (status, checked((int)io.Information));
+        }
+    }
+    private static (string Name, int Next) DirectoryName(byte[] buffer, int offset, int count)
+    {
+        if (count - offset < 64) throw new InvalidDataException("Invalid native directory record.");
+        uint next = BitConverter.ToUInt32(buffer, offset), length = BitConverter.ToUInt32(buffer, offset + 60);
+        if ((length & 1) != 0 || length > count - offset - 64 || next != 0 && (next < 64 + length || next > count - offset)) throw new InvalidDataException("Invalid native directory name.");
+        return (Utf16(buffer.AsSpan(offset + 64, checked((int)length))), checked((int)next));
+    }
+    private static string Utf16(ReadOnlySpan<byte> bytes) => new(MemoryMarshal.Cast<byte, char>(bytes));
+    private static byte[] Raw(string name) => MemoryMarshal.AsBytes(name.AsSpan()).ToArray();
+    public void Dispose() { if (!_disposed) { _disposed = true; _root.Dispose(); } }
+    [StructLayout(LayoutKind.Sequential)] private struct UnicodeString { public ushort Length, MaximumLength; public nint Buffer; }
+    [StructLayout(LayoutKind.Sequential)] private struct ObjectAttributes { public uint Length; public nint Root, Name; public uint Attributes; public nint Descriptor, Quality; }
+    [StructLayout(LayoutKind.Sequential)] private struct IoStatus { public nint Status; public nuint Information; }
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)] private static partial SafeFileHandle CreateFile(string path, uint access, uint share, nint security, uint disposition, uint flags, nint template);
+    [LibraryImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetInfo(SafeFileHandle h, int kind, byte* info, uint length);
+    [LibraryImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW", SetLastError = true)] private static partial uint GetFinalPathNameByHandle(SafeFileHandle h, char* path, uint length, uint flags);
+    [LibraryImport("kernel32.dll", EntryPoint = "GetDriveTypeW", StringMarshalling = StringMarshalling.Utf16)] private static partial uint GetDriveType(string root);
+    [LibraryImport("ntdll.dll")] private static partial int NtCreateFile(out SafeFileHandle h, uint access, ObjectAttributes* attributes, out IoStatus io, nint allocation, uint flags, uint share, uint disposition, uint options, nint ea, uint eaLength);
+    [LibraryImport("ntdll.dll")] private static partial int NtQueryDirectoryFile(SafeFileHandle h, nint evt, nint apc, nint ctx, out IoStatus io, byte* buffer, uint length, int kind, [MarshalAs(UnmanagedType.U1)] bool single, nint pattern, [MarshalAs(UnmanagedType.U1)] bool restart);
+}
