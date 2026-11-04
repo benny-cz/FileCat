@@ -2,13 +2,14 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$ProbeAssets,
+    [Parameter(Mandatory = $true)][string]$ApplicationAssets,
     [Parameter(Mandatory = $true)][string]$VSTestConsole,
     [Parameter(Mandatory = $true)][string]$EvidenceDirectory,
     [ValidateSet('Release', 'Debug')][string]$Configuration = 'Release'
 )
 $ErrorActionPreference = 'Stop'
 $taskCheckout = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
-foreach ($taskPath in @($ProbeAssets, $VSTestConsole, $EvidenceDirectory)) {
+foreach ($taskPath in @($ProbeAssets, $ApplicationAssets, $VSTestConsole, $EvidenceDirectory)) {
     if (-not [IO.Path]::IsPathRooted($taskPath)) { throw 'Supply absolute asset, runner and evidence paths.' }
 }
 if (-not (Test-Path -LiteralPath (Join-Path $ProbeAssets 'coreclr.dll') -PathType Leaf)) {
@@ -28,9 +29,11 @@ $taskRun = 'containment-' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ') + '-
 $taskPrefix = Join-Path $EvidenceDirectory $taskRun
 $taskPreviousOptIn = $env:FILECAT_ARCHIVE_CONTAINMENT
 $taskPreviousAssets = $env:FILECAT_ARCHIVE_PROBE_ASSETS
+$taskPreviousApplicationAssets = $env:FILECAT_ARCHIVE_APP_ASSETS
 try {
     $env:FILECAT_ARCHIVE_CONTAINMENT = '1'
     $env:FILECAT_ARCHIVE_PROBE_ASSETS = $ProbeAssets
+    $env:FILECAT_ARCHIVE_APP_ASSETS = $ApplicationAssets
     $taskFilter = 'FullyQualifiedName~ArchiveAppContainerTests|FullyQualifiedName~RestrictedProcessLowTokenTests|FullyQualifiedName~RestrictedProcessFallbackTests|FullyQualifiedName~SandboxedWorkerEnvironmentTests'
     & $taskDotnet $taskHarness --archive-test-medium $taskPrefix $taskDotnet exec $VSTestConsole $taskTests "/TestCaseFilter:$taskFilter" "/Logger:trx;LogFileName=$taskRun.trx" "/ResultsDirectory:$EvidenceDirectory"
     $taskExit = $LASTEXITCODE
@@ -43,4 +46,5 @@ try {
 finally {
     $env:FILECAT_ARCHIVE_CONTAINMENT = $taskPreviousOptIn
     $env:FILECAT_ARCHIVE_PROBE_ASSETS = $taskPreviousAssets
+    $env:FILECAT_ARCHIVE_APP_ASSETS = $taskPreviousApplicationAssets
 }

@@ -17,7 +17,7 @@ public sealed class ArchiveWorkerProtocol(Guid nonce, long maximumPayloadBytes)
     public const ushort Version = 1;
     public const int HeaderBytes = 36;
     private readonly Guid _nonce = nonce != Guid.Empty ? nonce : throw new ArgumentException("A task nonce is required.", nameof(nonce));
-    private readonly long _maximumPayloadBytes = maximumPayloadBytes is >= 0 and <= ArchiveWritePolicy.MaxPhysicalBytes
+    private readonly long _maximumPayloadBytes = maximumPayloadBytes is >= 0 and <= ArchiveWritePolicy.MaxWorkerWireBytes
         ? maximumPayloadBytes : throw new ArgumentOutOfRangeException(nameof(maximumPayloadBytes));
     private uint _next;
     private long _payloadBytes;

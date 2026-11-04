@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\src\FileCat.Archives\FileCat.Archives.csproj" />
     <ProjectReference Include="..\..\src\FileCat.Recovery\FileCat.Recovery.csproj" />
     <ProjectReference Include="..\FileCat.CoreCrashHarness\FileCat.CoreCrashHarness.csproj" />
+    <ProjectReference Include="..\FileCat.WorkerProbe\FileCat.WorkerProbe.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

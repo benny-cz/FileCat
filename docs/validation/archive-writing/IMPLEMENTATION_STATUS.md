@@ -20,10 +20,12 @@ application. An explicit new-profile job refuses instead of entering the legacy 
 | Area | Current behavior | Remaining gate |
 |---|---|---|
 | Typed contracts | Explicit versioned profiles, raw occurrence keys, portable name validation and cumulative member/metadata/heap/logical-byte budgets | Full request/manifest/receipt wire schema, service registry and session contracts |
-| Framed protocol | Nonce, version, sequence, reserved-field/opcode, frame-size, cumulative payload/control and frame-count checks before payload allocation; poisoned channels cannot resume | Phase machine, real production worker lifecycle, cancellation channel and OS controls |
+| Framed protocol | Nonce, version, sequence, reserved-field/opcode, frame-size, cumulative payload/control and frame-count checks before payload allocation; bounded fragmented records; poisoned channels cannot resume | Rebuild/verification phase contracts, cancellation channel and final platform/package qualification |
+| Canonical manifests | Frozen ordered physical members, contiguous exact duplicate occurrences, profile/features and separate full/content/metadata digests; aggregate heap/metadata/logical budgets | Complete format feature inventories, rebuild/verification wire schemas and private sidecars |
 | Proxy IO | Child uses fixed input IDs and seekable stage requests; parent checks offsets/lengths/IO amplification before touching a stream; no path/publication/delete authority | Reviewed native input leases, parent-owned manifests and production launch integration |
-| Queue | One active worker reservation and at most eight pending; cancellation and duplicate release tested | Integrate with actual process lifetime and operation-center phases |
-| Windows boundary spike | Suspended restricted LPAC, actual-token/access checks, exact inherited pipe list, private-profile write protection, finite job commit/CPU, bounded stderr and idempotent kill/reaping | Production entry point, engine workloads, other namespace/asset/setup-race probes, ordinary user and installed-package/RID qualification |
+| Queue | One active in-process reservation and at most eight pending; assessment holds it through exit, final diagnostics and reaping | Other roles, cross-parent scheduling and operation-center phases |
+| Windows boundary spike | Suspended restricted LPAC, actual-token/access checks, exact inherited pipe list, private-profile write protection, finite job commit/CPU, bounded stderr and idempotent kill/reaping; actual guarded application entry tested | Full engine workloads, other namespace/asset/setup-race probes, ordinary user and installed-package/RID qualification |
+| TAR assessment process | Actual early entry, numeric read-only source proxy, SHA/raw TAR/runtime-decoder passes, checked catalog phases and terminal digest; parent CPU/progress watchdog and final drain/reaping checks | Qualified AppServices registration, reviewed input leases, cooperative cancellation, transform/fresh verifier and publication integration |
 | TAR assessment | Full raw USTAR/PAX framing, checksums, exact UTF-8, numeric/PAX grammar and allowlist, pre-allocation metadata limits, complete payload hashes, end markers and padding; independent runtime-decoder agreement | Coverage-guided campaigns, complete metadata/preservation corpus, scale measurements and native independent tools |
 | TAR transform | Stream-only create and exact per-occurrence replace/delete/rename; flattened file/directory additions; order/duplicate/metadata preservation; collision and stale-key refusal; complete expected-manifest verification | Folder preparation/review, native safe save, fresh verifier process, provenance and production dispatch |
 | Gzip | Neutral single-member framing, explicit DEFLATE terminal status/consumption, CRC/ISIZE, no concatenation/trailing data, bounded expansion; streaming runtime encoder and valid empty output | Existing-TGZ update adapter, complete output bound, wrapper metadata corpus and independent oracle qualification |
@@ -34,7 +36,7 @@ is retained. It is used because the runtime DeflateStream API does not expose a 
 The encoder remains the runtime DeflateStream. No third-party source/package was added or upgraded. The reachable-code
 inventory and artifact SBOM/notices still need review before enabling this path.
 
-## Observed checks, 4 November 2026
+## Observed checks, 4–5 November 2026
 
 The test command is `dotnet test tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --no-restore` with filter
 `FullyQualifiedName~Archive|FullyQualifiedName~EditSession|FullyQualifiedName~BackingArchiveTarget` and a TRX logger.
@@ -43,24 +45,26 @@ validation directories; they are not evidence of installed-package or GUI qualif
 
 | Environment | Baseline result | Current-source result | Scope/limitations |
 |---|---|---|---|
-| Windows x64 host | 506 passed, 28 skipped, 0 failed | 569 passed, 28 skipped, 0 failed (597 total) | Regression/function tests, including new real-child proxy IO; no GUI or native containment qualification |
-| macOS ARM64, macOS 27.0.1 / APFS | 515 passed, 19 skipped, 0 failed | 578 passed, 19 skipped, 0 failed (597 total) | Owned checkout under `/Users/benny/FileCatValidation/archive-writing-42829297`; SDK 10.0.101, installed 10.0.1/10.0.12 runtimes; no signed-worker/package qualification |
-| Windows 11 x64 VM, build 26340 | Not replayed natively | 569 passed, 28 skipped, 0 failed (597 total) | Host-built foundation test binaries; actual .NET 10.0.14 and medium integrity verified; no GUI/package qualification |
+| Windows x64 host | 506 passed, 28 skipped, 0 failed | 592 passed, 28 skipped, 0 failed (620 total) | Includes real-child TAR assessment and protocol/lifecycle adversaries; no GUI/package qualification |
+| macOS ARM64, macOS 27.0.1 / APFS | 515 passed, 19 skipped, 0 failed | 601 passed, 19 skipped, 0 failed (620 total) | Owned source checkout; SDK 10.0.101; controlled child tests do not qualify a signed confined worker |
+| Windows 11 x64 VM, build 26340 | Not replayed natively | 592 passed, 28 skipped, 0 failed (620 total) | Host-built binaries; actual .NET 10.0.14 and medium integrity verified; no GUI/package qualification |
 | Ubuntu VM | Postponed | Postponed | Another tester's pre-existing FileCat picture instance was observed; it was not stopped or modified |
 
 The new tests include 1,000 checksum-repaired TAR mutations and 1,000 gzip mutations. These are deterministic regression
-tests, **not** coverage-guided fuzz campaigns or satisfaction of the plan's CPU-hour release floors. The complete new-test
-subset currently passes 63/63 on the host; the full current suite includes it on macOS.
+tests, **not** coverage-guided fuzz campaigns or satisfaction of the plan's CPU-hour release floors. The foundation subset
+passed 63/63. The manifest/wire/assessment/lifecycle work adds 23 cases, included in the 620-case native replays above.
 
 Two defects found during this work have regressions: the runtime TAR writer emits no end markers if no entry is written,
 and the runtime raw DEFLATE stream emits no payload for an entirely empty input. The adapters explicitly emit valid empty
 containers. A seekable captured payload view also avoids TarWriter's whole-payload buffering when its output is compressed.
 
-The Windows native worker lane separately passes **22/22**: nine new authority/resource/lifetime probes and thirteen
-existing restricted-worker regressions. The tracked runner was also exercised successfully on the guest. A healthy
+The Windows native worker lane now separately passes **25/25**: twelve archive authority/resource/lifetime/assessment
+cases and thirteen existing restricted-worker regressions. The tracked runner was exercised successfully on the guest. A healthy
 64 MiB framed stream-proxy copy/readback, native 64 MiB allocation, denial of an additional 1 GiB commit, finite CPU,
 bounded stderr, unrelated inherited-handle denial, repeat disposal and real parent death are included. This is a
-development boundary spike, not production worker or installed-package qualification. See the
+development boundary/assessment checkpoint, not complete write-pipeline or installed-package qualification. The actual
+self-contained application assessed a TAR inside LPAC; forged startup facts refused before source IO. Seven early-entry
+cases pass on Windows and Mac. See the [assessment report](ASSESSMENT_VALIDATION.md) and
 [native spike report](NATIVE_WORKER_SPIKES.md) for artifact hashes, failed iterations, limitations and remaining gates.
 
 The Mac ad-hoc signed App Sandbox probe admitted its own executable read and refused unrelated file read/write,
@@ -84,7 +88,8 @@ after each test. A temporary `caffeinate -diu` assertion keeps the Mac awake unt
 a test instance and is intentionally retained.
 
 The Windows guest setup is owned at `C:\Users\admin\FileCatValidation\ArchiveWriting-42829297`.
-The Mac's functional run uses the foundation source delta above. Windows native probes use the host-built binaries
+The Mac's current run includes the full assessment source and final accounting corrections described in the assessment
+report. Windows native probes use the host-built binaries
 identified in the spike report. The Windows SDK copy is hash-verified
 (`8DC778E823BBA1BF6C6D6C608727304663C162790D783187AFCF1B5B6EB8CF17`) and reports 10.0.101. Download from the guest stalled;
 only this task's matching downloader was stopped. SDK/reference packs and a locked-package offline feed were copied from

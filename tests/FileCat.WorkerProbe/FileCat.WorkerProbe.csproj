@@ -14,5 +14,6 @@
   <ItemGroup>
     <!-- The probe reports the worker identity change the product performs, from the product's own code. -->
     <ProjectReference Include="..\..\src\FileCat.Core\FileCat.Core.csproj" />
+    <ProjectReference Include="..\..\src\FileCat.Archives\FileCat.Archives.csproj" />
   </ItemGroup>
 </Project>

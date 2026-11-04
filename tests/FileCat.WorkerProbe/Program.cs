@@ -8,6 +8,12 @@ if (args.Length == 0)
 
 switch (args[0])
 {
+    case "archive-assess":
+        if (args.Length != 2 || !Guid.TryParse(args[1], out Guid taskNonce) || taskNonce == Guid.Empty) return 2;
+        using (var input = Console.OpenStandardInput())
+        using (var output = Console.OpenStandardOutput())
+            return FileCat.Archives.Writing.ArchiveAssessmentWorker.RunAfterIsolation(input, output, taskNonce);
+
     case "archive-boundary":
     {
         if (!OperatingSystem.IsWindows() || args.Length != 6 || !int.TryParse(args[4], out int archivePort)) return 2;

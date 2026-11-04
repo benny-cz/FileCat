@@ -10,14 +10,14 @@ self-contained bundle (the lane adds a read/execute grant to this bundle, never 
 
 ```powershell
 dotnet publish tests/FileCat.WorkerProbe/FileCat.WorkerProbe.csproj -c Release -r win-x64 --self-contained true -o .tmp/archive-worker-probe
-eng/validation/archive-writing/run-windows-containment.ps1 -ProbeAssets <absolute-bundle-path> -VSTestConsole <absolute-sdk-path>/vstest.console.dll -EvidenceDirectory <absolute-owned-evidence-path>
+dotnet publish src/FileCat.App/FileCat.App.csproj -c Release -r win-x64 --self-contained true -o .tmp/archive-worker-app
+eng/validation/archive-writing/run-windows-containment.ps1 -ProbeAssets <absolute-probe-bundle-path> -ApplicationAssets <absolute-app-bundle-path> -VSTestConsole <absolute-sdk-path>/vstest.console.dll -EvidenceDirectory <absolute-owned-evidence-path>
 ```
 
 Use the chosen installed `dotnet` host with the SDK's VSTest console. The harness lowers its own integrity before spawning
 the actual test parent and records both levels plus runtime/PIDs/exit status. Integrity is measured rather than inferred
 from the guest username or successful control login; ordinary-user token qualification remains separate. New evidence
-prefixes are exclusive and unique. The nine archive
-tests require the explicit opt-in; ordinary test runs skip them.
+prefixes are exclusive and unique. The archive tests require the explicit opt-in; ordinary test runs skip them.
 
 Asset provisioning also rejects a shared-runtime shape and linked asset trees before changing their ACLs.
 
@@ -41,8 +41,14 @@ The real profile-write probe defeated a package-specific DACL deny. The adapter 
 labels. Unexpectedly large trees or reparse points refuse setup. See
 [mandatory integrity](https://learn.microsoft.com/en-us/windows/win32/secauthz/mandatory-integrity-control) and
 [security-label propagation](https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-setnamedsecurityinfow).
-Installed asset ACLs, profile setup races, private registry/IPC namespaces, alternate network routes, real archive engines,
+Installed asset ACLs, profile setup races, private registry/IPC namespaces, alternate network routes, complete engine workloads,
 ARM64 and final package modes still require qualification. No production registration depends on these probes passing.
+
+The lane now also runs real strict TAR assessment through both the probe and the application's early worker entry,
+and rejects forged startup privilege facts before source reads. The parent resolves the sole allowed traverse-check
+privilege and verifies the suspended token; the child repeats the check without an LSA lookup. See the
+[assessment contract](../../../docs/validation/archive-writing/ASSESSMENT_PROTOCOL.md). Assessment does not create or
+publish an archive, and complete write-engine/package qualification remains outstanding.
 
 ## macOS ARM64
 

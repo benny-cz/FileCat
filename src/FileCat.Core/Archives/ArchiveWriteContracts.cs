@@ -88,6 +88,8 @@ public static class ArchiveWritePolicy
     public const int MaxDataFrameBytes = 64 << 10;
     public const int MaxInputLeases = 16;
     public const long MaxWorkerMemoryBytes = 1L << 30;
+    // Wire traffic includes bounded rereads/backpatches of sources and stage; it is not an output-file size.
+    public const long MaxWorkerWireBytes = 8 * MaxPhysicalBytes + MaxMetadataBytes;
     internal static readonly UTF8Encoding Utf8 = new(false, true);
 
     public static void ValidateDigest(string digest)

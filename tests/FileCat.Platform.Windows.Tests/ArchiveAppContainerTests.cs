@@ -24,6 +24,66 @@ public sealed partial class ArchiveAppContainerTests
         return Path.Combine(assets, "FileCat.WorkerProbe.exe");
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Production_assessment_protocol_parses_real_TAR_in_the_confined_process(bool application)
+    {
+        string executable = Probe();
+        if (application)
+        {
+            string? assets = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_APP_ASSETS");
+            Assert.True(assets is not null && Path.IsPathFullyQualified(assets), "Supply a dedicated self-contained FileCat application bundle.");
+            ArchiveAppContainer.ProvisionRuntimeReadAccess(assets!);
+            executable = Path.Combine(assets!, "FileCat.exe");
+        }
+        using var tar = new MemoryStream();
+        byte[] payload = new byte[64 << 10]; new Random(711).NextBytes(payload);
+        using (var writer = new System.Formats.Tar.TarWriter(tar, leaveOpen: true))
+        using (var data = new MemoryStream(payload))
+            writer.WriteEntry(new System.Formats.Tar.PaxTarEntry(System.Formats.Tar.TarEntryType.RegularFile, "owned.txt")
+                { DataStream = data, ModificationTime = DateTimeOffset.UnixEpoch });
+        byte[] bytes = tar.ToArray();
+        ArchiveAppContainer? actual = null;
+        var client = new ArchiveAssessmentClient((nonce, cpu) => actual = application
+            ? ArchiveAppContainer.StartAssessment(executable, nonce, cpu)
+            : ArchiveAppContainer.Start(executable, "archive-assess " + nonce, cpu));
+        try
+        {
+            var result = await client.AssessAsync(new(new(ArchiveWriteFormat.Tar), bytes.Length, Convert.ToHexString(SHA256.HashData(bytes))),
+                () => new MemoryStream(bytes, writable: false), TestContext.Current.CancellationToken);
+            Assert.Equal("owned.txt", Assert.Single(result.Manifest.Members).Name);
+            Assert.Equal(Convert.ToHexString(SHA256.HashData(payload)), result.Manifest.Members[0].Sha256);
+            Assert.True(actual!.HasExited);
+            Assert.Equal(0u, actual.ExitCode);
+        }
+        catch (Exception ex)
+        {
+            Assert.Fail($"{ex.GetType().Name}: {ex.Message}; exit={actual?.ExitCode:X8}; stderr={(actual is null ? "" : await actual.ErrorForQualification)}");
+        }
+    }
+
+    [Fact]
+    public async Task A_forged_startup_privilege_identity_is_refused_before_any_archive_input()
+    {
+        _ = Probe();
+        string? assets = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_APP_ASSETS");
+        Assert.True(assets is not null && Path.IsPathFullyQualified(assets));
+        ArchiveAppContainer.ProvisionRuntimeReadAccess(assets!);
+        int opens = 0;
+        ArchiveAppContainer? actual = null;
+        var client = new ArchiveAssessmentClient((nonce, cpu) => actual = ArchiveAppContainer.Start(Path.Combine(assets!, "FileCat.exe"),
+            $"--archive-worker {nonce:D} FFFFFFFFFFFFFFFF", cpu));
+        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => client.AssessAsync(
+            new(new(ArchiveWriteFormat.Tar), 1024, Convert.ToHexString(SHA256.HashData(new byte[1024]))),
+            () => { opens++; throw new InvalidOperationException("No source may be requested before the boot check."); },
+            TestContext.Current.CancellationToken));
+        Assert.Equal(ArchiveWriteReason.WorkerUnavailable, failure.Reason);
+        Assert.Equal(0, opens);
+        Assert.True(actual!.HasExited);
+        Assert.Equal(65u, actual.ExitCode);
+    }
+
     [Fact]
     public async Task No_capabilities_or_user_files_network_registry_children_or_profile_writes_are_granted()
     {

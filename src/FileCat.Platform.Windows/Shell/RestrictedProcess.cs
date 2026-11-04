@@ -48,6 +48,9 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
 
     internal uint ExitCode => GetExitCodeProcess(_process, out uint code) ? code : throw new Win32Exception(Marshal.GetLastPInvokeError());
 
+    internal TimeSpan TotalProcessorTime => GetProcessTimes(_process, out _, out _, out long kernel, out long user)
+        ? TimeSpan.FromTicks(checked(kernel + user)) : throw new Win32Exception(Marshal.GetLastPInvokeError());
+
     /// <summary>Ends the helper and anything in its job at once.</summary>
     public void Kill() => TerminateJobObject(_job, 1);
 
@@ -251,16 +254,17 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
                 lpAttributeList = attributes,
             };
             string commandLine = $"\"{executable}\" {arguments}";
-            var cmd = commandLine.ToCharArray();
+            var cmd = (commandLine + '\0').ToCharArray(); // CreateProcess requires a writable, NUL-terminated buffer.
             var env = EnvironmentBlock(inheritParentEnvironment, appContainerSid != 0);
+            string? workingDirectory = appContainerSid == 0 ? null : Path.GetDirectoryName(executable);
             uint flags = CREATE_SUSPENDED | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT;
             PROCESS_INFORMATION pi;
             fixed (char* c = cmd)
             fixed (char* e = env)
             {
                 bool ok = lowToken
-                    ? CreateProcessAsUserW(token, executable, c, 0, 0, true, flags, e, null, &si, &pi)
-                    : CreateProcessW(executable, c, 0, 0, true, flags, e, null, &si, &pi);
+                    ? CreateProcessAsUserW(token, executable, c, 0, 0, true, flags, e, workingDirectory, &si, &pi)
+                    : CreateProcessW(executable, c, 0, 0, true, flags, e, workingDirectory, &si, &pi);
                 if (!ok && appContainerSid != 0)
                 {
                     int error = Marshal.GetLastPInvokeError();
@@ -414,7 +418,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     private static bool VerifyNoAdministratorAuthority(nint token, uint maximumIntegrity) =>
         VerifyNoAdministratorAuthority(token, maximumIntegrity, out _);
 
-    private static bool VerifyNoAdministratorAuthority(nint token, uint maximumIntegrity, out string refusal)
+    private static bool VerifyNoAdministratorAuthority(nint token, uint maximumIntegrity, out string refusal, long? permittedNotifyPrivilege = null)
     {
         refusal = "The token integrity could not be read.";
         if (!TokenInformation(token, TokenIntegrityLevel, out nint level, out _)) return false;
@@ -444,11 +448,18 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
 
         long notify = 0;
         refusal = "The token privileges could not be read.";
-        if (!LookupPrivilegeValueW(null, "SeChangeNotifyPrivilege", out notify)) return false;
-        if (!TokenInformation(token, TokenPrivileges, out nint privileges, out _)) return false;
+        if (!TokenInformation(token, TokenPrivileges, out nint privileges, out uint privilegeBytes)) return false;
         try
         {
+            if (privilegeBytes < sizeof(int)) return false;
             int count = Marshal.ReadInt32(privileges);
+            if (count < 0 || count > (privilegeBytes - sizeof(int)) / 12) return false;
+            // A real AppContainer can have no privileges and cannot resolve LSA privilege names. Its empty
+            // list already proves this condition; no privileged lookup is needed to verify an empty set.
+            if (count == 0) { refusal = ""; return true; }
+            refusal = "The worker's one permitted privilege could not be resolved.";
+            if (permittedNotifyPrivilege is { } known) notify = known;
+            else if (!LookupPrivilegeValueW(null, "SeChangeNotifyPrivilege", out notify)) return false;
             for (int i = 0; i < count; i++)
             {
                 // DWORD PrivilegeCount, then LUID_AND_ATTRIBUTES: two DWORDs of LUID and one of attributes.
@@ -462,7 +473,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
         finally { Marshal.FreeHGlobal(privileges); }
     }
 
-    private static bool VerifyArchiveContainerToken(nint process, nint expectedSid, out string refusal)
+    internal static bool VerifyArchiveContainerToken(nint process, nint expectedSid, out string refusal, long? permittedNotifyPrivilege = null)
     {
         refusal = "The suspended process token could not be opened.";
         if (!OpenProcessToken(process, TOKEN_QUERY | TOKEN_DUPLICATE, out nint token)) return false;
@@ -489,10 +500,31 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
             refusal = "The archive worker does not enforce mandatory no-write-up policy.";
             if (!GetTokenInformation(token, 27, (nint)(&mandatoryPolicy), sizeof(uint), out size) ||
                 size != sizeof(uint) || (mandatoryPolicy & 1) == 0) return false;
-            return VerifyNoAdministratorAuthority(token, LowIntegrityLevel, out refusal) &&
+            return VerifyNoAdministratorAuthority(token, LowIntegrityLevel, out refusal, permittedNotifyPrivilege) &&
                 VerifyLessPrivilegedAccess(token, expectedSid, out refusal);
         }
         finally { CloseHandle(token); }
+    }
+
+    internal static long NotifyPrivilege()
+    {
+        if (!LookupPrivilegeValueW(null, "SeChangeNotifyPrivilege", out long value)) throw new Win32Exception(Marshal.GetLastPInvokeError());
+        return value;
+    }
+
+    internal static bool VerifyCurrentArchiveJob()
+    {
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = default;
+        JOBOBJECT_BASIC_UI_RESTRICTIONS ui = default;
+        uint required = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_ACTIVE_PROCESS |
+            JOB_OBJECT_LIMIT_PROCESS_MEMORY | JOB_OBJECT_LIMIT_PROCESS_TIME;
+        return QueryInformationJobObject(0, JobObjectExtendedLimitInformation, &limits, (uint)sizeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION), out uint bytes) &&
+            bytes == sizeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION) &&
+            (limits.BasicLimitInformation.LimitFlags & required) == required && limits.BasicLimitInformation.ActiveProcessLimit == 1 &&
+            limits.ProcessMemoryLimit <= (nuint)FileCat.Core.Archives.ArchiveWritePolicy.MaxWorkerMemoryBytes && limits.ProcessMemoryLimit > 0 &&
+            limits.BasicLimitInformation.PerProcessUserTimeLimit is > 0 && limits.BasicLimitInformation.PerProcessUserTimeLimit <= TimeSpan.FromHours(2).Ticks &&
+            QueryInformationJobObject(0, JobObjectBasicUIRestrictions, &ui, (uint)sizeof(JOBOBJECT_BASIC_UI_RESTRICTIONS), out bytes) &&
+            bytes == sizeof(JOBOBJECT_BASIC_UI_RESTRICTIONS) && (ui.UIRestrictionsClass & 0xff) == 0xff;
     }
 
     /// <summary>Reads one variable-length token information class into unmanaged memory the caller frees.</summary>
@@ -693,6 +725,10 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool QueryInformationJobObject(nint job, int informationClass, void* information, uint length, out uint returned);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool AssignProcessToJobObject(nint hJob, nint hProcess);
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
@@ -712,6 +748,10 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetExitCodeProcess(nint process, out uint exitCode);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetProcessTimes(nint process, out long creation, out long exit, out long kernel, out long user);
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -768,6 +808,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     [LibraryImport("advapi32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetTokenInformation(nint tokenHandle, int tokenInformationClass, nint tokenInformation, uint tokenInformationLength, out uint returnLength);
+
 
     [LibraryImport("advapi32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

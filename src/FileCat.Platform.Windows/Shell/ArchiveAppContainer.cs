@@ -12,7 +12,7 @@ namespace FileCat.Platform.Windows.Shell;
 /// inheritance, no child creation, finite process commit/CPU and parent-owned job lifetime. Never falls back to the
 /// Shell/picture worker. Runtime-read ACL provisioning is an explicit trusted installation/qualification action.
 /// </summary>
-public sealed partial class ArchiveAppContainer : IAsyncDisposable
+public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
 {
     private const string ProfileName = "FileCat.ArchiveWriter.v1";
     private readonly RestrictedProcess _process;
@@ -21,6 +21,7 @@ public sealed partial class ArchiveAppContainer : IAsyncDisposable
     private Task? _disposeTask;
     private bool _fullyDisposed;
     private uint _finalExitCode;
+    private TimeSpan _finalCpu;
     private int _errorLimitExceeded;
     private ArchiveAppContainer(RestrictedProcess process)
     {
@@ -32,9 +33,42 @@ public sealed partial class ArchiveAppContainer : IAsyncDisposable
     public int ProcessId => _process.ProcessId;
     public bool HasExited { get { lock (_lifetimeGate) return _fullyDisposed || _process.HasExited; } }
     public uint ExitCode { get { lock (_lifetimeGate) return _fullyDisposed ? _finalExitCode : _process.ExitCode; } }
+    public TimeSpan TotalProcessorTime { get { lock (_lifetimeGate) return _fullyDisposed ? _finalCpu : _process.TotalProcessorTime; } }
     public bool ErrorLimitExceeded => Volatile.Read(ref _errorLimitExceeded) != 0;
     // Never use untrusted stderr as a product-facing reason or include it in normal archive logs.
     internal Task<string> ErrorForQualification => _errorDrain;
+
+    /// <summary>Worker-side boot check before input. This checks launch controls, not release/package qualification.</summary>
+    public static bool IsCurrentProcessConfined() => TryVerifyCurrentProcess(out _);
+
+    public static bool TryVerifyCurrentProcess(out string refusal, long? permittedNotifyPrivilege = null)
+    {
+        refusal = "The archive worker's Windows boundary is unavailable.";
+        if (!OperatingSystem.IsWindows()) return false;
+        int hr = DeriveAppContainerSidFromAppContainerName(ProfileName, out nint sid);
+        if (hr < 0 || sid == 0) return false;
+        try
+        {
+            if (!RestrictedProcess.VerifyArchiveContainerToken(new nint(-1), sid, out refusal, permittedNotifyPrivilege)) return false;
+            refusal = "The archive worker's immediate job limits could not be verified.";
+            if (!RestrictedProcess.VerifyCurrentArchiveJob()) return false;
+            refusal = ""; return true;
+        }
+        finally { FreeSid(sid); }
+    }
+
+    /// <summary>
+    /// Fixed application bootstrap. Resolve the sole allowed privilege in the trusted parent, whose suspended-token
+    /// check independently verifies it again. The child uses this immutable startup fact to repeat the check without
+    /// an LSA lookup denied inside LPAC. No value from archive input or a worker receipt supplies this authority.
+    /// </summary>
+    public static ArchiveAppContainer StartAssessment(string executable, Guid nonce, TimeSpan cpuLimit)
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        if (nonce == Guid.Empty) throw new ArgumentException("A task nonce is required.", nameof(nonce));
+        string privilege = unchecked((ulong)RestrictedProcess.NotifyPrivilege()).ToString("X16", System.Globalization.CultureInfo.InvariantCulture);
+        return Start(executable, $"--archive-worker {nonce:D} {privilege}", cpuLimit);
+    }
 
     public static ArchiveAppContainer Start(string executable, string arguments, TimeSpan cpuLimit)
     {
@@ -112,7 +146,7 @@ public sealed partial class ArchiveAppContainer : IAsyncDisposable
         await _errorDrain.ConfigureAwait(false);
         lock (_lifetimeGate)
         {
-            try { _finalExitCode = _process.ExitCode; }
+            try { _finalExitCode = _process.ExitCode; _finalCpu = _process.TotalProcessorTime; }
             finally { _fullyDisposed = true; _process.Dispose(); }
         }
     }
