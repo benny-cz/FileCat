@@ -37,7 +37,7 @@ public static class ArchiveAssessmentWorker
                 return receive.Read(input);
             });
             using var source = new ArchiveProxyStream(connection, 0, request.SourceLength, request.SourceLength);
-            string physicalDigest = Convert.ToHexString(SHA256.HashData(source));
+            string physicalDigest = PhysicalDigest(source, ct);
             if (physicalDigest != request.SourceSha256)
                 throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The pinned source differs from its reviewed revision.");
             source.Position = 0;
@@ -46,20 +46,7 @@ public static class ArchiveAssessmentWorker
                 throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The pinned TAR changed during assessment.");
             source.Position = 0;
             StrictTarCatalog.CompareDecoder(source, catalog, ct);
-            var members = new List<ArchiveManifestMember>(catalog.Members.Count);
-            var budget = new ArchiveWriteBudget();
-            foreach (var member in catalog.Members)
-            {
-                ct.ThrowIfCancellationRequested();
-                int size = MetadataLength(member);
-                int nameBytes = Encoding.UTF8.GetByteCount(member.Name);
-                // Reserve the second representation before producing/copying its canonical metadata buffer.
-                budget.AddMember(); budget.AddLogicalBytes(member.Length);
-                budget.AddMetadata(nameBytes + size + 64L, 2L * member.Name.Length + size + 512L);
-                members.Add(new(member.Name, member.Type, member.Occurrence, member.Length, member.Sha256, Metadata(member, size)));
-            }
-            var manifest = new ArchiveWriteManifest(request.Profile, members,
-                [1, catalog.Format == TarEntryFormat.Ustar ? (byte)1 : (byte)2]);
+            var manifest = Manifest(request.Profile, catalog.Format, catalog.Members, ct);
             var result = new ArchiveAssessment(manifest, catalog.Revision, request.SourceLength, physicalDigest);
             outgoing.Write(ArchiveControlRecord.Catalog, ArchiveAssessmentWire.Catalog(result));
             foreach (var member in manifest.Members)
@@ -78,6 +65,29 @@ public static class ArchiveAssessmentWorker
             catch (IOException) { return 1; }
             return 0; // controlled refusal; no raw names, archive bytes or uncontrolled exception text on the wire
         }
+    }
+
+    internal static ArchiveWriteManifest Manifest(ArchiveWriteProfile profile, TarEntryFormat format, IReadOnlyList<TarWriteMember> source, CancellationToken ct)
+    {
+        var members = new List<ArchiveManifestMember>(source.Count); var budget = new ArchiveWriteBudget();
+        foreach (var member in source)
+        {
+            ct.ThrowIfCancellationRequested(); int size = MetadataLength(member); int nameBytes = Encoding.UTF8.GetByteCount(member.Name);
+            budget.AddMember(); budget.AddLogicalBytes(member.Length);
+            budget.AddMetadata(nameBytes + size + 64L, 2L * member.Name.Length + size + 512L);
+            members.Add(new(member.Name, member.Type, member.Occurrence, member.Length, member.Sha256, Metadata(member, size)));
+        }
+        return new(profile, members, [1, source.Count == 0 || format == TarEntryFormat.Ustar ? (byte)1 : (byte)2]);
+    }
+
+    private static string PhysicalDigest(Stream source, CancellationToken ct)
+    {
+        // Use the maximum bounded proxy read explicitly. HashData(Stream)'s runtime-selected small buffer caused
+        // many more IPC frames than the archive-size policy could support on large otherwise valid sources.
+        byte[] buffer = new byte[ArchiveIoAuthority.MaximumReadBytes];
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256); int count;
+        while ((count = source.Read(buffer)) != 0) { ct.ThrowIfCancellationRequested(); hash.AppendData(buffer, 0, count); }
+        return Convert.ToHexString(hash.GetHashAndReset());
     }
 
     private static int MetadataLength(TarWriteMember member) => checked(2 + 12 + 8 + 8 +

@@ -5,10 +5,11 @@ internal static class ArchiveWorker
 {
     public const string Argument = "--archive-worker";
     public const string VerificationArgument = "--archive-verify-worker";
+    public const string TransformArgument = "--archive-transform-worker";
 
     public static int Run(string[] args)
     {
-        if (args.Length != 3 || args[0] is not (Argument or VerificationArgument) || !Guid.TryParseExact(args[1], "D", out Guid nonce) || nonce == Guid.Empty || args[2].Length != 16 ||
+        if (args.Length != 3 || args[0] is not (Argument or VerificationArgument or TransformArgument) || !Guid.TryParseExact(args[1], "D", out Guid nonce) || nonce == Guid.Empty || args[2].Length != 16 ||
             !ulong.TryParse(args[2], System.Globalization.NumberStyles.AllowHexSpecifier, System.Globalization.CultureInfo.InvariantCulture, out ulong notify) ||
             args[2] != notify.ToString("X16", System.Globalization.CultureInfo.InvariantCulture)) return 64;
         // Linux/macOS launch/resource/package gates remain unqualified. Never replace this refusal with an
@@ -18,8 +19,11 @@ internal static class ArchiveWorker
         { Console.Error.WriteLine(refusal); return 65; }
         using var input = Console.OpenStandardInput();
         using var output = Console.OpenStandardOutput();
-        return args[0] == VerificationArgument
-            ? FileCat.Archives.Writing.ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, nonce)
-            : FileCat.Archives.Writing.ArchiveAssessmentWorker.RunAfterIsolation(input, output, nonce);
+        return args[0] switch
+        {
+            TransformArgument => FileCat.Archives.Writing.ArchiveTransformWorker.RunAfterIsolation(input, output, nonce),
+            VerificationArgument => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, nonce),
+            _ => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunAfterIsolation(input, output, nonce)
+        };
     }
 }

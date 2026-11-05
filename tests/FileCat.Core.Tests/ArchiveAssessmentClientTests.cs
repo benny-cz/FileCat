@@ -130,6 +130,27 @@ public sealed class ArchiveAssessmentClientTests
         Assert.Equal(ArchiveWriteReason.BudgetExceeded, failure.Reason);
     }
 
+    [Fact]
+    public async Task Complete_physical_hashing_uses_bounded_large_proxy_reads_instead_of_runtime_small_hash_chunks()
+    {
+        using var output = new MemoryStream();
+        using (var writer = new TarWriter(output, TarEntryFormat.Pax, leaveOpen: true))
+        { using var data = new MemoryStream(new byte[4 << 20]); writer.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, "payload") { DataStream = data }); }
+        byte[] bytes = output.ToArray(); CountingSource? source = null;
+        var result = await new ArchiveAssessmentClient((nonce, _) => Child.Start(nonce)).AssessAsync(new(new(ArchiveWriteFormat.Tar), bytes.Length, Hash(bytes)),
+            () => source = new CountingSource(bytes), TestContext.Current.CancellationToken);
+        Assert.Equal(bytes.Length, result.SourceLength); Assert.NotNull(source);
+        Assert.Equal(ArchiveIoAuthority.MaximumReadBytes, source.MaximumRequest); Assert.InRange(source.ReadCalls, 1, 399);
+    }
+
+    private sealed class CountingSource(byte[] bytes) : MemoryStream(bytes, writable: false)
+    {
+        public int ReadCalls { get; private set; }
+        public int MaximumRequest { get; private set; }
+        public override int Read(Span<byte> buffer)
+        { ReadCalls++; MaximumRequest = Math.Max(MaximumRequest, buffer.Length); return base.Read(buffer); }
+    }
+
     private static byte[] Tar()
     {
         using var bytes = new MemoryStream();

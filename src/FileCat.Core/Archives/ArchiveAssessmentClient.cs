@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.Diagnostics;
 
 namespace FileCat.Core.Archives;
 
@@ -46,83 +45,12 @@ public sealed class ArchiveAssessmentClient
     public async Task<ArchiveAssessment> AssessAsync(ArchiveAssessmentRequest request, Func<Stream> openPinnedSource, CancellationToken ct)
     {
         ArchiveAssessmentWire.Validate(request);
-        using var reservation = await _queue.EnterAsync(ct).ConfigureAwait(false);
-        Guid nonce = Guid.NewGuid();
-        TimeSpan cpu = CpuAllowance(request.SourceLength);
-        // Native process/profile setup and every pipe/file operation run away from the UI thread.
-        var process = await Task.Run(() => _launch(nonce, cpu), ct).ConfigureAwait(false);
-        using var stopWatch = new CancellationTokenSource();
-        using var cancel = ct.Register(process.Kill);
-        long began = Stopwatch.GetTimestamp(), progress = began;
-        ArchiveWriteException? monitorFailure = null;
-        Task watch = Watch();
-        bool disposed = false;
-        try
-        {
-            ct.ThrowIfCancellationRequested();
-            var result = await Task.Run(Conversation, CancellationToken.None).ConfigureAwait(false);
-            while (!process.HasExited)
-            {
-                ct.ThrowIfCancellationRequested();
-                if (Volatile.Read(ref monitorFailure) is { } failure) throw failure;
-                await Task.Delay(10, ct).ConfigureAwait(false);
-            }
-            ct.ThrowIfCancellationRequested();
-            if (Volatile.Read(ref monitorFailure) is { } terminalFailure) throw terminalFailure;
-            // Exit alone is insufficient: the final stderr bytes must be drained and classified before a result
-            // is accepted. A late output-limit failure must not become a successful assessment during finally.
-            await FinishProcess().ConfigureAwait(false);
-            ct.ThrowIfCancellationRequested();
-            if (Volatile.Read(ref monitorFailure) is { } finalMonitorFailure) throw finalMonitorFailure;
-            if (process.TotalProcessorTime > cpu)
-                throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The archive worker exceeded its CPU allowance.");
-            if (process.ExitCode != 0 || process.ErrorLimitExceeded) throw Unavailable();
-            if (result.Refusal is { } refusal)
-                throw new ArchiveWriteException(refusal, "The archive worker refused this assessment. The archive remains unchanged.");
-            return result.Assessment!;
-        }
-        catch (Exception ex) when (ex is IOException or OperationCanceledException)
-        {
-            ct.ThrowIfCancellationRequested();
-            if (Volatile.Read(ref monitorFailure) is { } failure) throw failure;
-            if (ex is ArchiveWriteException) throw;
-            throw Unavailable();
-        }
-        finally
-        {
-            if (!disposed) await FinishProcess().ConfigureAwait(false);
-        }
+        var result = await ArchiveWorkerSession.RunAsync(_launch, _queue, CpuAllowance(request.SourceLength), _idle, _wall, Conversation, ct).ConfigureAwait(false);
+        if (result.Refusal is { } reason)
+            throw new ArchiveWriteException(reason, "The archive worker refused this assessment. The archive remains unchanged.");
+        return result.Assessment!;
 
-        async Task FinishProcess()
-        {
-            stopWatch.Cancel();
-            try { try { await watch.ConfigureAwait(false); } catch (OperationCanceledException) { } }
-            finally { await process.DisposeAsync().ConfigureAwait(false); disposed = true; }
-        }
-
-        async Task Watch()
-        {
-            while (!stopWatch.IsCancellationRequested && !process.HasExited)
-            {
-                ArchiveWriteException? failure = null;
-                try
-                {
-                    if (Stopwatch.GetElapsedTime(began) > _wall || Stopwatch.GetElapsedTime(Volatile.Read(ref progress)) > _idle ||
-                        process.TotalProcessorTime > cpu || process.ErrorLimitExceeded)
-                        failure = new(ArchiveWriteReason.BudgetExceeded, "The archive worker exceeded its time, CPU or output allowance.");
-                }
-                catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
-                { failure = Unavailable(); }
-                if (failure is not null)
-                {
-                    Interlocked.CompareExchange(ref monitorFailure, failure, null);
-                    process.Kill(); return;
-                }
-                await Task.Delay(100, stopWatch.Token).ConfigureAwait(false);
-            }
-        }
-
-        (ArchiveAssessment? Assessment, ArchiveWriteReason? Refusal) Conversation()
+        (ArchiveAssessment? Assessment, ArchiveWriteReason? Refusal) Conversation(Guid nonce, IArchiveWorkerProcess process, Action reportProgress)
         {
             long wireBytes = 4 * request.SourceLength + ArchiveWritePolicy.MaxMetadataBytes;
             var receive = new ArchiveWorkerProtocol(nonce, wireBytes);
@@ -133,9 +61,9 @@ public sealed class ArchiveAssessmentClient
             if (hello.Kind != ArchiveWorkerMessage.Hello || !hello.Payload.AsSpan().SequenceEqual(_verification ? ArchiveAssessmentWire.VerificationHello : ArchiveAssessmentWire.Hello))
                 throw ArchiveAssessmentWire.Fault();
             commands.Write(ArchiveControlRecord.AssessmentRequest, ArchiveAssessmentWire.Request(request));
-            Volatile.Write(ref progress, Stopwatch.GetTimestamp());
+            reportProgress();
             using var absentStage = new MemoryStream();
-            using var authority = new ArchiveIoAuthority([new(0, request.SourceLength)], _ => openPinnedSource(),
+            using var authority = new ArchiveIoAuthority([new(0, request.SourceLength)], _ => { ct.ThrowIfCancellationRequested(); return openPinnedSource(); },
                 new ArchiveStageProxy(absentStage, 0, 0), 4 * request.SourceLength);
             long verifiedPrefix = 0;
             ArchiveWorkerFrame frame;
@@ -146,6 +74,7 @@ public sealed class ArchiveAssessmentClient
                 if (frame.Kind != ArchiveWorkerMessage.Read) break;
                 if (frame.Payload.Length != 16 || BinaryPrimitives.ReadInt32LittleEndian(frame.Payload) != 0)
                     throw ArchiveAssessmentWire.Fault(); // no stage, new input ID, write or capability change in this phase
+                ct.ThrowIfCancellationRequested();
                 var reply = authority.Handle(frame);
                 if (_verification && reply.Payload.Length > 12)
                 {
@@ -154,19 +83,19 @@ public sealed class ArchiveAssessmentClient
                     if (offset <= verifiedPrefix && end > verifiedPrefix) verifiedPrefix = end;
                 }
                 send.Write(process.Input, reply.Kind, reply.Payload);
-                if (reply.Payload.Length > 12) Volatile.Write(ref progress, Stopwatch.GetTimestamp());
+                if (reply.Payload.Length > 12) reportProgress();
             }
             if (_verification && verifiedPrefix != request.SourceLength) throw ArchiveAssessmentWire.Fault();
             var budget = new ArchiveWriteBudget();
             var catalog = ArchiveAssessmentWire.ReadCatalog(records.Read(ArchiveControlRecord.Catalog, frame), request, budget);
-            Volatile.Write(ref progress, Stopwatch.GetTimestamp());
+            reportProgress();
             var members = new ArchiveManifestMember[catalog.Members];
             for (int i = 0; i < members.Length; i++)
             {
                 frame = receive.Read(process.Output);
                 if (frame.Kind == ArchiveWorkerMessage.Refused) return Refused(frame);
                 members[i] = ArchiveAssessmentWire.ReadMember(records.Read(ArchiveControlRecord.Member, frame), budget);
-                Volatile.Write(ref progress, Stopwatch.GetTimestamp());
+                reportProgress();
             }
             // All declared records must be present and agree before accepting any terminal receipt.
             var manifest = new ArchiveWriteManifest(catalog.Profile, members, catalog.Features);
@@ -188,7 +117,7 @@ public sealed class ArchiveAssessmentClient
             void End()
             {
                 if (process.Output.ReadByte() != -1) throw ArchiveAssessmentWire.Fault();
-                Volatile.Write(ref progress, Stopwatch.GetTimestamp());
+                reportProgress();
             }
         }
     }
@@ -198,6 +127,4 @@ public sealed class ArchiveAssessmentClient
         if (actualInputBytes is < 0 or > ArchiveWritePolicy.MaxPhysicalBytes) throw new ArgumentOutOfRangeException(nameof(actualInputBytes));
         return TimeSpan.FromSeconds(Math.Min(7200, 30 + actualInputBytes / (double)(1 << 20) * 2));
     }
-    private static ArchiveWriteException Unavailable() => new(ArchiveWriteReason.WorkerUnavailable,
-        "The archive worker stopped or its boundary could not be monitored. The archive remains unchanged.");
 }

@@ -17,5 +17,7 @@ public sealed class ArchiveWorkerEntryTests
         Assert.Equal(code, FileCat.App.Program.Main(args));
         string[] verifier = (string[])args.Clone(); verifier[0] = ArchiveWorker.VerificationArgument;
         Assert.Equal(code, FileCat.App.Program.Main(verifier));
+        string[] transform = (string[])args.Clone(); transform[0] = ArchiveWorker.TransformArgument;
+        Assert.Equal(code, FileCat.App.Program.Main(transform));
     }
 }

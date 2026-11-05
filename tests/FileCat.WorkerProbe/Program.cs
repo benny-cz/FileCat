@@ -8,7 +8,7 @@ if (args.Length > 0 && args[0] == FileCat.Core.Archives.Linux.LinuxArchiveIsolat
         return FileCat.Core.Archives.Linux.LinuxArchiveIsolation.RunWorker(args, startup =>
         {
             string[] requests = args[4..];
-            if (requests.Length == 0 || requests[0] is "archive-assess" or "archive-verify" && (requests.Length != 2 || requests[1] != startup.Nonce.ToString("D"))) return 64;
+            if (requests.Length == 0 || requests[0] is "archive-assess" or "archive-verify" or "archive-transform" && (requests.Length != 2 || requests[1] != startup.Nonce.ToString("D"))) return 64;
             return RunProbe(requests);
         });
     }
@@ -39,12 +39,16 @@ static int RunProbe(string[] requests)
             return LinuxArchiveProbe.Parent();
         case "archive-assess":
         case "archive-verify":
+        case "archive-transform":
             if (requests.Length != 2 || !Guid.TryParse(requests[1], out Guid taskNonce) || taskNonce == Guid.Empty) return 2;
             using (var input = Console.OpenStandardInput())
             using (var output = Console.OpenStandardOutput())
-                return requests[0] == "archive-verify"
-                    ? FileCat.Archives.Writing.ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, taskNonce)
-                    : FileCat.Archives.Writing.ArchiveAssessmentWorker.RunAfterIsolation(input, output, taskNonce);
+                return requests[0] switch
+                {
+                    "archive-transform" => FileCat.Archives.Writing.ArchiveTransformWorker.RunAfterIsolation(input, output, taskNonce),
+                    "archive-verify" => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, taskNonce),
+                    _ => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunAfterIsolation(input, output, taskNonce)
+                };
 
         case "archive-boundary":
             {

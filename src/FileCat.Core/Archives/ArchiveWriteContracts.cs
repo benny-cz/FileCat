@@ -8,8 +8,8 @@ public enum ArchiveAdmissionState { Unknown, Assessing, Writable, ReadOnly, Unav
 public enum ArchiveMemberType { File = 0, Directory = 1 }
 public enum ArchiveWriteReason
 {
-    InvalidRequest, InvalidArchive, UnsupportedFeature, BudgetExceeded, SourceChanged,
-    VerificationFailed, WorkerUnavailable, ProtocolViolation, PublicationUnavailable, NeedsReview,
+    InvalidRequest = 0, InvalidArchive = 1, UnsupportedFeature = 2, BudgetExceeded = 3, SourceChanged = 4,
+    VerificationFailed = 5, WorkerUnavailable = 6, ProtocolViolation = 7, PublicationUnavailable = 8, NeedsReview = 9,
 }
 
 /// <summary>A controlled refusal, distinct from an unexpected decoder or programmer exception.</summary>

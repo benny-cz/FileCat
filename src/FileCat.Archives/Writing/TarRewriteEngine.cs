@@ -35,8 +35,12 @@ internal static class TarRewriteEngine
             if (catalog.Revision != expectedRevision) throw Changed();
             original.Position = 0;
             StrictTarCatalog.CompareDecoder(original, catalog, ct);
+            ValidateNamespace(catalog.Members.Select(m => (m, (int?)null, false)).ToList());
         }
         else if (expectedRevision is not null || edits.Count != 0) throw Invalid("A new archive cannot target existing members.");
+
+        long inputBytes = 0;
+        foreach (var member in catalog?.Members ?? []) inputBytes = checked(inputBytes + member.Length);
 
         foreach (var (id, input) in inputs)
         {
@@ -59,6 +63,7 @@ internal static class TarRewriteEngine
                 ArchiveWritePolicy.ValidateName(edit.NewName ?? "", edit.Key.Type);
             if (edit.Kind == ArchiveChangeKind.Replace && (edit.Key.Type != ArchiveMemberType.File ||
                 edit.InputId is not { } replaceId || !inputs.ContainsKey(replaceId))) throw Invalid("A replacement needs one captured regular file.");
+            if (edit.Kind == ArchiveChangeKind.Replace) ChargeInput(inputs[edit.InputId!.Value].Length);
             if (edit.Kind != ArchiveChangeKind.Replace && edit.InputId is not null ||
                 edit.Kind != ArchiveChangeKind.Rename && edit.NewName is not null)
                 throw Invalid("The TAR operation contains unrelated options.");
@@ -94,6 +99,7 @@ internal static class TarRewriteEngine
             if (addition.Type == ArchiveMemberType.File)
             {
                 if (addition.InputId is not { } id || !inputs.TryGetValue(id, out input)) throw Invalid("A file addition needs a captured input.");
+                ChargeInput(input.Length);
             }
             else if (addition.InputId is not null) throw Invalid("A directory cannot carry a file payload.");
             decimal modified = input is null ? 0 : (input.Modified.UtcTicks - DateTimeOffset.UnixEpoch.Ticks) / (decimal)TimeSpan.TicksPerSecond;
@@ -153,6 +159,12 @@ internal static class TarRewriteEngine
         if (planned.Count == 0) stage.Write(new byte[1024]);
         stage.Flush(); // the parent flushes the real stage descriptor to disk after transform exit
         return new TarRewriteManifest(format, manifest.AsReadOnly());
+
+        void ChargeInput(long bytes)
+        {
+            if (bytes > ArchiveWritePolicy.MaxLogicalBytes - inputBytes) throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The TAR source and requested payloads exceed the job's logical input allowance.");
+            inputBytes += bytes;
+        }
     }
 
     internal static void Verify(Stream stage, TarRewriteManifest expected, CancellationToken ct)

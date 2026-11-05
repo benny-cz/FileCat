@@ -2,7 +2,11 @@ using System.Buffers.Binary;
 
 namespace FileCat.Core.Archives;
 
-public enum ArchiveControlRecord : byte { AssessmentRequest = 1, Catalog = 2, Member = 3, Receipt = 4 }
+public enum ArchiveControlRecord : byte
+{
+    AssessmentRequest = 1, Catalog = 2, Member = 3, Receipt = 4,
+    TransformRequest = 5, TransformInput = 6, TransformEdit = 7, TransformAddition = 8,
+}
 
 /// <summary>
 /// Bounded records carried by consecutive control fragments. Record type, total length and exact offset are repeated

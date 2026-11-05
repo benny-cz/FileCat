@@ -68,6 +68,9 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
     public static ArchiveAppContainer StartVerification(string executable, Guid nonce, TimeSpan cpuLimit)
         => StartContract(executable, nonce, cpuLimit, "--archive-verify-worker");
 
+    public static ArchiveAppContainer StartTransform(string executable, Guid nonce, TimeSpan cpuLimit)
+        => StartContract(executable, nonce, cpuLimit, "--archive-transform-worker");
+
     private static ArchiveAppContainer StartContract(string executable, Guid nonce, TimeSpan cpuLimit, string roleArgument)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();

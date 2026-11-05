@@ -16,6 +16,7 @@ public sealed class ArchiveWorkerProtocol(Guid nonce, long maximumPayloadBytes)
 {
     public const ushort Version = 1;
     public const int HeaderBytes = 36;
+    public const uint MaximumFrames = 8_000_000;
     private readonly Guid _nonce = nonce != Guid.Empty ? nonce : throw new ArgumentException("A task nonce is required.", nameof(nonce));
     private readonly long _maximumPayloadBytes = maximumPayloadBytes is >= 0 and <= ArchiveWritePolicy.MaxWorkerWireBytes
         ? maximumPayloadBytes : throw new ArgumentOutOfRangeException(nameof(maximumPayloadBytes));
@@ -75,19 +76,22 @@ public sealed class ArchiveWorkerProtocol(Guid nonce, long maximumPayloadBytes)
         int limit = kind is ArchiveWorkerMessage.Control or ArchiveWorkerMessage.Hello
             ? ArchiveWritePolicy.MaxControlFrameBytes : ArchiveWritePolicy.MaxDataFrameBytes;
         if (length > limit || length > _maximumPayloadBytes - _payloadBytes) throw Fault();
-        if (kind is not (ArchiveWorkerMessage.Data or ArchiveWorkerMessage.Write) &&
+        if (IsMetadata(kind) &&
             length > ArchiveWritePolicy.MaxMetadataBytes - _controlBytes) throw Fault();
         // Even zero-length frames consume a finite allowance: a progress flood cannot keep a session alive forever.
-        if (_next >= 4_000_000) throw Fault();
+        if (_next >= MaximumFrames) throw Fault();
     }
 
     private void Commit(ArchiveWorkerMessage kind, uint length)
     {
         _payloadBytes += length;
-        if (kind is not (ArchiveWorkerMessage.Data or ArchiveWorkerMessage.Write)) _controlBytes += length;
+        if (IsMetadata(kind)) _controlBytes += length;
         _next++;
     }
     private void EnsureHealthy() { if (_poisoned) throw Fault(); }
+    // IO command shapes/offsets are checked by the phase authority, with independent payload/frame/IO ceilings.
+    // Their fixed framing must not spend the complete semantic metadata allowance of a large valid catalog.
+    private static bool IsMetadata(ArchiveWorkerMessage kind) => kind is not (ArchiveWorkerMessage.Data or ArchiveWorkerMessage.Write or ArchiveWorkerMessage.Read or ArchiveWorkerMessage.Seek or ArchiveWorkerMessage.SetLength);
     private static ArchiveWriteException Fault() => new(ArchiveWriteReason.ProtocolViolation, "The archive worker sent an invalid or over-budget message.");
 }
 
