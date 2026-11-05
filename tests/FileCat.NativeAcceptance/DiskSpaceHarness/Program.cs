@@ -28,6 +28,7 @@ internal sealed partial class HarnessApp : Application
     private AppServices? _services;
     private DiskSpaceWindow? _window;
     private object? _lastState;
+    private object? _lastScreen;
     private string _run = "", _fixture = "";
     private bool _deadlineClosed;
     private double _lastWidth, _lastHeight, _lastScale;
@@ -127,7 +128,15 @@ internal sealed partial class HarnessApp : Application
     {
         if (_run.Length == 0) return;
         if (_window is { IsVisible: true })
-        { _lastWidth = _window.ClientSize.Width; _lastHeight = _window.ClientSize.Height; _lastScale = _window.RenderScaling; }
+        {
+            _lastWidth = _window.ClientSize.Width; _lastHeight = _window.ClientSize.Height; _lastScale = _window.RenderScaling;
+            var screen = _window.Screens.ScreenFromWindow(_window) ?? _window.Screens.Primary;
+            if (screen is not null) _lastScreen = new
+            {
+                bounds = screen.Bounds.ToString(), workingArea = screen.WorkingArea.ToString(), screen.Scaling,
+                position = _window.Position.ToString(), frameSize = _window.FrameSize?.ToString()
+            };
+        }
         var report = new
         {
             schemaVersion = 1, purpose = "Native desktop development validation; no capability qualification",
@@ -135,7 +144,8 @@ internal sealed partial class HarnessApp : Application
             platform = RuntimeInformation.OSDescription, architecture = RuntimeInformation.ProcessArchitecture.ToString(),
             run = _run, fixture = _fixture, fixtureRegularPaths = _originals.Count, fixtureLimitations = _fixtureLimitations,
             nativeWindowVisible = _window?.IsVisible, lastVisibleWidth = _lastWidth, lastVisibleHeight = _lastHeight,
-            lastVisibleScale = _lastScale, sessions = _window?.SessionCount, createdSessions = _models.Count, lastObservation = _lastState,
+            lastVisibleScale = _lastScale, lastScreen = _lastScreen,
+            sessions = _window?.SessionCount, createdSessions = _models.Count, lastObservation = _lastState,
             appSha256 = _appHash, harnessSha256 = _harnessHash
         };
         File.WriteAllText(Path.Combine(_run, "report.json"), JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }) + "\n");

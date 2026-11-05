@@ -63,7 +63,8 @@
     "Native Ubuntu explicit mapping verified unmapped/disabled approval, Enter opening only the focused dropdown, explicit Cancel, chosen pair with structural labelling, selected-entry bases, preserving Enter and explicit Discard. The saved hash and509 generated source paths stayed unchanged; the owned instance exited before its deadline.",
     "Bounded three-valued comparison queries now select Current, Previous, either or current-with-removed fallback; exact signed UInt128 delta/status predicates and root-relative lossless aliases preserve whole accounting rows. Invalid edits retain the last applied result. Reference-counted result/read/snapshot leases retain actual worker ownership through cancellation and owner closure.",
     "Native Windows review exposed offset-spelling false metadata changes and selected-row Enter consumption. UTC-tick fingerprints now survive strict codec roundtrip, and tunneling handles actual pointer-to-keyboard activation. Reproduction and final regressions pass on guest runtimes. Selected structural Previous paths now wrap in review.",
-    "Native Ubuntu query/invalid-query/alias retention/selected-row Return inspection/preserving-close and Mac scan/save/compare/query/preserving-close subsets passed. Both owned processes exited before their deadlines; all509 source paths and saved inventory hashes stayed unchanged. Mac visual capture via existing FileCatCapture revealed a WindowFit sizing issue to fix next."
+    "Native Ubuntu query/invalid-query/alias retention/selected-row Return inspection/preserving-close and Mac scan/save/compare/query/preserving-close subsets passed. Both owned processes exited before their deadlines; all509 source paths and saved inventory hashes stayed unchanged. Mac visual capture via existing FileCatCapture revealed a WindowFit sizing issue to fix next.",
+    "Actual Mac visual review found a shared WindowFit error: Retina render scale2 was applied to screen coordinates already at scale1. Using Screen.Scaling restores1180x763 client/1180x791 frame within the1440x791 working area. Native scan/save/compare/query/invalid-query/Return preservation/Discard passes after the fix,509 source hashes and saved bytes unchanged; owned instance exited. WindowFit and35 presentation cases pass on all three guest runtimes."
   ],
   "validation": {
     "windowsCore": {
@@ -102,13 +103,13 @@
       "passed": 35.0,
       "failed": 0.0,
       "skipped": 0.0,
-      "evidence": "analysis-render-r34.xml",
+      "evidence": "windows-vm-render-r35.xml",
       "detail": "35 cases pass on Windows VM, Mac and Ubuntu, including comparison query ownership and actual pointer-to-keyboard Enter regression."
     },
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "solution-build-r34.txt"
+      "evidence": "solution-build-r35.txt"
     },
     "ubuntu": {
       "status": "ordinary-user-native-regressions-passed",
@@ -120,8 +121,8 @@
       "detail": "Ubuntu 24.04 ordinary benny, .NET runtime 10.0.14, local ext4. Prior FileCat PID exited; process checks were clear before transfer and runs. Native scans, O_TMPFILE/procfs create-new publication, no-follow/privacy/link controls and I/O ownership passed. Darwin ACL case skipped. No desktop/a11y qualification."
     },
     "nativeDesktop": {
-      "macos": "Native scan/save/compare/query/invalid-query/Enter-preserving-close subset passed; visual inspection revealed WindowFit sizing issue. Full native qualification remains pending.",
-      "evidence": "mac-native-ui-r34.json",
+      "macos": "Native scan/save/compare/query/invalid-query/Enter-preserving-close subset passed after the WindowFit Retina fix. Actual1180x763/2x fits screen scale1 working area; screenshots inspected. Full native qualification pending.",
+      "evidence": "mac-native-ui-r35.json",
       "windows": "Account mismatch resolved: verified ordinary filecatdsa_r2/session2. VM native startup/close passed,509 source paths unchanged; injected VMware console input did not reach guest. All final r34 runtime suites pass in VM. Complete native input acceptance pending; host live testing forbidden by user.",
       "ubuntu": "Native explicit mapping/query/invalid-query/shared aliases/selected-row Return inspection/preserving-close subset passed. Owned process exited,509 source paths unchanged; full native qualification pending.",
       "ubuntuEvidence": "ubuntu-native-ui-r26.json",
@@ -151,18 +152,24 @@
       "passed": 35.0,
       "failed": 0.0,
       "skipped": 0.0,
-      "evidence": "mac-analysis-render-r34.xml"
+      "evidence": "mac-analysis-render-r35.xml"
     },
     "ubuntuHeadlessRendering": {
       "total": 35.0,
       "passed": 35.0,
       "failed": 0.0,
       "skipped": 0.0,
-      "evidence": "ubuntu-analysis-render-r34.xml"
+      "evidence": "ubuntu-render-r35.xml"
+    },
+    "windowFit": {
+      "detail": "Headless fit regression plus actual Mac Retina geometry/visual workflow; broader native DPI/multi-monitor acceptance remains pending.",
+      "passedOnEachPlatform": 1,
+      "windows": "windows-vm-windowfit-r35.xml",
+      "mac": "mac-windowfit-r35.xml",
+      "ubuntu": "ubuntu-windowfit-r35.xml"
     }
   },
   "nextWork": [
-    "Fix Mac native WindowFit Retina sizing revealed by r34 visual inspection; verify native screen metadata and retest.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",

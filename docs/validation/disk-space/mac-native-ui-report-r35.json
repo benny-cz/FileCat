@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native desktop development validation; no capability qualification",
+  "state": "closed",
+  "sourceUnchanged": true,
+  "deadlineClosed": false,
+  "processId": 19598,
+  "platform": "macOS 27.0.1",
+  "architecture": "Arm64",
+  "run": "/Users/benny/FileCatValidation/dsa-20261105-r35c-native/app/native-validation/dsa-924c4a64383b4771a5f729c9d3423bfa",
+  "fixture": "/Users/benny/FileCatValidation/dsa-20261105-r35c-native/app/native-validation/dsa-924c4a64383b4771a5f729c9d3423bfa/fixture",
+  "fixtureRegularPaths": 509,
+  "fixtureLimitations": [],
+  "nativeWindowVisible": false,
+  "lastVisibleWidth": 1180,
+  "lastVisibleHeight": 763,
+  "lastVisibleScale": 2,
+  "lastScreen": {
+    "bounds": "0, 0, 1440, 900",
+    "workingArea": "0, 30, 1440, 791",
+    "Scaling": 1,
+    "position": "130, 30",
+    "frameSize": "1180, 791"
+  },
+  "sessions": 0,
+  "createdSessions": 1,
+  "lastObservation": {
+    "Phase": 5,
+    "Status": "Saved Native Mac r35.fcdsa. Captured traversal complete under policy.",
+    "FilterError": null,
+    "Query": "",
+    "Metric": 2,
+    "session": "5f61d251-7fd1-4d94-9a2d-8c76ef296525",
+    "Coverage": 0,
+    "Freshness": 0,
+    "paths": 518,
+    "objects": 508,
+    "issues": [
+      {
+        "Code": "navigation-link-not-followed",
+        "State": 3
+      }
+    ],
+    "known": "3424256",
+    "unverified": "0",
+    "matchingPaths": 509,
+    "rows": 1,
+    "focus": null,
+    "marked": 0,
+    "basket": 0
+  },
+  "appSha256": "3dcd6e79f157e060432b8825cea6202970dc7505e46312e9ca05fb3e3175244e",
+  "harnessSha256": "4465bd26f8be2c95b5c02543420e2103b7e7f1457409e39aea795ebe07d81ad0"
+}

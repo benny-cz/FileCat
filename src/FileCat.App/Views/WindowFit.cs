@@ -38,7 +38,9 @@ internal static class WindowFit
         if (!window.IsVisible || window.WindowState != WindowState.Normal) return false;
         var screen = window.Screens.ScreenFromWindow(window) ?? window.Screens.Primary;
         if (screen is null) return false;
-        double scale = window.RenderScaling;
+        // Screen coordinates use the screen's scaling, which need not equal the render backing scale.
+        // Avalonia.Native reports macOS points at Scaling=1 even on a Retina window rendering at 2x.
+        double scale = screen.Scaling;
         var area = screen.WorkingArea;
         var client = window.ClientSize;
         // The title bar and borders around the client area, in units.

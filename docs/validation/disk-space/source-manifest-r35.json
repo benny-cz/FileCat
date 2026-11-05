@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Targeted WindowFit native/regression provenance, not capability authorization",
+  "gitBase": "2ced7d7f",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/Views/WindowFit.cs",
+      "sha256": "5fdfb7f7cdd3e47f79ad9e1c09098477f0b674cc61f06e57daa98a42b622d456"
+    },
+    {
+      "path": "tests/FileCat.App.Tests/WindowFitTests.cs",
+      "sha256": "887171fd6bbca416f02dc404a519120fba1213a80480aaa04267e261c50db758"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs",
+      "sha256": "a79e52c6c6354bef23e4b69d74a6cf834fa602e86b620a0db93883982543d7b9"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-windowfit-windows-r35.tgz",
+      "sha256": "b9776c824399d216bb0d4439aeaf286a0286e85c53e56b51197d1d9be5d4969e"
+    },
+    {
+      "path": ".tmp/dsa-windowfit-mac-r35.tgz",
+      "sha256": "838f429e88594fae60a318b46ced978622dbfc38d90ec539092ead6215306e11"
+    },
+    {
+      "path": ".tmp/dsa-windowfit-linux-r35.tgz",
+      "sha256": "ce7f03f2c33e9d4dfeefd10df9237d3bd72c4036fc7f3557ee4a9dba620e5e6d"
+    },
+    {
+      "path": ".tmp/desktop-r35-mac.tgz",
+      "sha256": "05cb45178feadd91ca529b98b7c3dbf5985ba70bf39d7152fc6680b92dc5c333"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".tmp/windowfit-r35-mac/FileCat.dll",
+      "sha256": "1222845b6c7f850f1fc69082729f419ed806e5af7ae7e3a031b907792273fcb9"
+    },
+    {
+      "path": ".tmp/windowfit-r35-mac/FileCat.App.Tests.dll",
+      "sha256": "b9e0b32e864d1602cb170c11f66e33a1747234ea74ae7afba45afce486a24b79"
+    },
+    {
+      "path": ".tmp/windowfit-r35-mac/FileCat.Rendering.Tests.dll",
+      "sha256": "4807ea7027dd69f7b39531b71bb932165b2d5186e805e63416ebcb5ce56ef4d7"
+    },
+    {
+      "path": ".tmp/desktop-r35-mac/FileCat.dll",
+      "sha256": "3dcd6e79f157e060432b8825cea6202970dc7505e46312e9ca05fb3e3175244e"
+    },
+    {
+      "path": ".tmp/desktop-r35-mac/DiskSpaceHarness.dll",
+      "sha256": "4465bd26f8be2c95b5c02543420e2103b7e7f1457409e39aea795ebe07d81ad0"
+    }
+  ],
+  "desktopAcceptance": "Mac Retina sizing and comparison/query/preserving-close subset passes,509 unchanged source paths and owned exit. All35 presentation cases and the WindowFit case pass on Windows VM/Mac/Ubuntu; earlier core/native evidence remains r34."
+}

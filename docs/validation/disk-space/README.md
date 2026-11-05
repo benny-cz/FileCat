@@ -8,16 +8,16 @@ After the other Ubuntu FileCat process exited, fresh process gates allowed ordin
 
 | Run | Result | Receipt |
 |---|---|---|
-| Full solution build | No warnings or errors | [build](solution-build-r34.txt) |
+| Full solution build | No warnings or errors | [build](solution-build-r35.txt) |
 | Windows analysis, commands and state/path cases | 275 pass, 15 platform skips | [XML](windows-core-r34.xml) |
 | Historical Windows host (before VM-only instruction) | 14 pass, no skips at r32 | [XML](windows-host-native-r32.xml) |
 | Ordinary Windows guest | 14 pass, no skips | [XML](windows-vm-native-r34.xml) |
 | macOS arm64 analysis and command cases | 272 pass, no skips | [XML](mac-core-r34.xml) |
 | macOS shared stat consumers | 49 pass, 2 platform skips | [XML](mac-stat-consumers-r22.xml) |
-| Windows Skia headless presentation | 35 pass in Windows VM | [XML](analysis-render-r34.xml) |
-| macOS headless presentation and native persistence | 35 pass | [XML](mac-analysis-render-r34.xml) |
-| Ubuntu headless presentation and native persistence | 35 pass | [XML](ubuntu-analysis-render-r34.xml) |
-| macOS native scan/save/compare/query/close subset |509 source hashes unchanged; owned process exited; sizing bug found | [receipt](mac-native-ui-r34.json) |
+| Windows Skia headless presentation | 35 pass in Windows VM | [XML](windows-vm-render-r35.xml) |
+| macOS headless presentation and native persistence | 35 pass | [XML](mac-analysis-render-r35.xml) |
+| Ubuntu headless presentation and native persistence | 35 pass | [XML](ubuntu-render-r35.xml) |
+| macOS native scan/save/compare/query/close subset |509 source hashes unchanged; owned process exited; sizing bug fixed | [receipt](mac-native-ui-r35.json) |
 | Ubuntu ext4 analysis and command cases | 271 pass, 1 Darwin-only skip | [XML](ubuntu-core-r34.xml) |
 | Ubuntu shared stat consumers | 49 pass, 2 platform skips | [XML](ubuntu-stat-consumers-r24.xml) |
 | Ubuntu native Save/Open subset | Saved/opened matching inventory; conflict hash and all 509 source hashes preserved; owned process exited | [receipt](ubuntu-native-ui-r26.json) |
@@ -86,3 +86,5 @@ The r34 packet adds bounded comparison queries with explicit recorded-side selec
 [Ubuntu native query evidence](ubuntu-native-ui-r34.json) includes explicit structural pairing, one-row name and root-relative alias queries, invalid-input preservation, selected-row Return inspection, Keep open with Return and explicit Discard. [Mac native evidence](mac-native-ui-r34.json) covers native Start, Save, same-revision comparison, one-row query, invalid syntax and preserving close. Both owned processes exited before their deadlines; all509 source paths and saved hashes were unchanged. Existing FileCatCapture authorization works when the unchanged helper is opened through Launch Services. Actual screenshots revealed unnecessary Retina window shrinking; that finding remains open for the next fix. Full accessibility/DPI/native feature qualification is pending.
 
 Windows now verifies the ordinary filecatdsa_r2 console account. VM startup/owned close preserved509 source paths, but injected VMware console keys did not reach the guest, so that attempt is not native input acceptance. The final r34 core/native/render suites all ran inside the Windows VM, matching the user's VM+Mac-only live-testing constraint. No host GUI test will be launched. [r34 provenance](source-manifest-r34.json) identifies tested sources and bundles.
+
+The r35 native Mac retest fixes the Retina sizing error by using the screen coordinate scale rather than the window backing render scale. The native report records screen scale1, render scale2, working area1440x791 and a1180x763 client/1180x791 frame at130,30. [The native receipt](mac-native-ui-r35.json), [query capture](renders/mac-native-r35-query.png) and [preserving-close capture](renders/mac-native-r35-close-review.png) show reachable controls and were inspected. The scan/save/compare/query/invalid-input/Return/Discard workflow passes; all509 source paths and saved inventory bytes are unchanged, and the owned instance exited before its deadline. The first two retests exposed a driver assumption that window1 is the main window when a tooltip can take that position; the final driver targets the observed main-window title. Those earlier attempts are not complete acceptance. WindowFit's existing geometry regression and all35 presentation cases pass on Windows VM, Mac and Ubuntu; the solution has zero warnings/errors. [r35 provenance](source-manifest-r35.json) records the targeted sources and bundles. Broader native display and accessibility qualification remains open.

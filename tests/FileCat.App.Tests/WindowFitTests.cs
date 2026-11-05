@@ -20,7 +20,7 @@ public sealed class WindowFitTests
             var screen = window.Screens.ScreenFromWindow(window) ?? window.Screens.Primary;
             Assert.NotNull(screen);
             var area = screen.WorkingArea;
-            double scale = window.RenderScaling;
+            double scale = screen.Scaling;
             // Larger than the screen and partly above and left of it, as a scaling change can leave it.
             window.Width = area.Width / scale + 300;
             window.Height = area.Height / scale + 200;
