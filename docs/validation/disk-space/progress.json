@@ -20,46 +20,49 @@
     "Captured timezone is used for historical date filters; unavailable timezone requires explicit offsets. Source component extension matching is independent of host path separators.",
     "Per-entry metadata failures preserve readable siblings. Failed directories are not queued, observed unknown kinds remain unknown, and policy-excluded mount/volume entries are omitted from all metrics.",
     "Native Windows observation accepts exact DOS-reserved and trailing-dot/space names independently of future action eligibility; raw NT opens use exact component spelling.",
-    "Schema-1 inert JSONL stream codec has fixed typed order, canonical decimal strings and raw base64 names, bounded parsing/import memory, mandatory counts/hash trailer, graph/coverage checks and recomputed checked totals. Private filename publication is not implemented.",
+    "Schema-1 inert JSONL stream codec has fixed typed order, canonical decimal strings and raw base64 names, bounded parsing/import memory, mandatory counts/hash trailer, graph/coverage checks and recomputed checked totals. Private filename publication now has a separately tested native foundation; UI/catalog integration remains unfinished.",
     "Display preserves unpaired UTF16 code units, invalid Unix bytes and trailing name characters without conflating literal escape text. Lossy name/path predicates are Unknown, and clipboard paths remain refused when not lossless.",
     "Logical-size uncertainty is independent of allocation uncertainty: known zero remains zero, missing logical size stays Unknown, and exact inspector/tooltips retain numeric precision. Clearing filters resets uncertain-cohort input; closing a tab clears the session-cap notice.",
     "Standalone native desktop harness uses production styles/services/backends, generated fixtures, an isolated profile, process admission, source hash checks and bounded cleanup. Mac startup/close at 2x with 509 generated regular paths passed; desktop interaction/a11y acceptance is still unqualified.",
     "Standard and Detailed allocation are explicit captured presets. Detailed records directory-self facts in separate non-file buckets; namespace-only root filters retain them, file predicates omit them, and identity-unverified directory charges remain labelled.",
     "File-object fact indices no longer rely on global fact-list positions. Interleaved directory facts cannot be invalidated by alias changes; allocation-only alias conflicts preserve coherent logical length and invalidate allocation.",
     "Typed Mount/NavigationLink/CloudDirectory/SpecialEntry/UnverifiedRootOverlap counters remain exact beyond detailed issue caps, independently of exclusion/severity counts, and round-trip through strict inventory coverage records.",
-    "Finished unsaved analyses now require preserving close review with Keep open as the Enter/Escape default. Tab labels are monotonic and close continuations revalidate their target. Setup visibility and concise coverage keep narrow layouts usable."
+    "Finished unsaved analyses now require preserving close review with Keep open as the Enter/Escape default. Tab labels are monotonic and close continuations revalidate their target. Setup visibility and concise coverage keep narrow layouts usable.",
+    "Private create-new inventory storage uses process-owned native directory/file capabilities, actual worker authority, owner-private modes/ACLs, no-follow retained ancestry, an 8 GiB file cap and bounded free-space reserve checks. Windows uses source-handle rename on NTFS; Darwin uses anonymous staged data and atomic APFS source-fd cloning; Linux anonymous/procfs publication remains untested while Ubuntu is occupied. No replacement or path fallback is exposed.",
+    "Native Windows and Mac storage regressions cover create/reopen, Unicode names, byte-preserving conflicts, cancellation/invalid-write cleanup, link-count and privacy failures, source-parent movement/reparse refusal and actual ACL denial. Mac ACL presence inspection, Apple Silicon variadic creation mode and Darwin capacity layout were corrected through live failures. Post-commit sync failure is explicitly uncertain.",
+    "Native Unix persistence calls retain SafeHandle references through the syscall, and raw descriptor use is explicitly pinned. Private free-space reserves round the percentage up safely to whole bytes. Directory ownership transfers to the synchronous store and stays with admitted actual I/O work."
   ],
   "validation": {
     "windowsCore": {
-      "total": 176,
-      "passed": 167,
+      "total": 214,
+      "passed": 201,
       "failed": 0,
-      "skipped": 9,
-      "detail": "148 analysis cases and 28 command regressions; seven Unix-native and two Unix-FIFO cases skip on Windows.",
-      "evidence": "windows-core-r21.xml"
+      "skipped": 13,
+      "detail": "168 analysis cases, 28 command cases and 18 state/path cases; ten Unix-native, two Unix-FIFO and one Unix state-path case skip on Windows.",
+      "evidence": "windows-core-r22.xml"
     },
     "windowsHostNative": {
-      "total": 10,
-      "passed": 10,
+      "total": 12,
+      "passed": 12,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-host-native-r21.xml"
+      "evidence": "windows-host-native-r22.xml"
     },
     "windowsVm": {
       "status": "ordinary-user-regression-fixtures-passed",
-      "total": 10,
-      "passed": 10,
+      "total": 12,
+      "passed": 12,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-native-r21.xml",
-      "detail": "Seven native cases and three reparse-tag cases; Standard/Detailed directory allocation with hard links and junction boundaries. No desktop/a11y qualification claimed."
+      "evidence": "windows-vm-native-r22.xml",
+      "detail": "Nine native cases and three reparse-tag cases; includes private create-new NTFS publication and preservation/refusal controls. No desktop/a11y qualification claimed."
     },
     "macosArm64": {
-      "total": 176,
-      "passed": 176,
+      "total": 196,
+      "passed": 196,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-core-r21.xml"
+      "evidence": "mac-core-r22.xml"
     },
     "headlessRendering": {
       "total": 8,
@@ -72,7 +75,7 @@
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "solution-build-r18.txt"
+      "evidence": "solution-build-r22.txt"
     },
     "ubuntu": {
       "status": "postponed-other-FileCat-instance",
@@ -83,6 +86,13 @@
       "evidence": "mac-native-startup-r20.json",
       "windows": "Desktop activation/accessibility unavailable; background/lock-screen captures only. User unlock check pending; owned test process closed.",
       "ubuntu": "Postponed under explicit user instruction while another test remains active."
+    },
+    "macStatConsumers": {
+      "total": 51,
+      "passed": 49,
+      "failed": 0,
+      "skipped": 2,
+      "evidence": "mac-stat-consumers-r22.xml"
     }
   },
   "nextWork": [
@@ -91,7 +101,7 @@
     "W1: finish epoch refresh, retained/hung I/O and prepared-source cleanup responsiveness, actual shared-memory and indexed private-store budgets or prescribed bounded fallback.",
     "Ubuntu: continue postponing under the user's explicit instruction while the other FileCat instance runs. Do not close it or reboot that occupied guest.",
     "W2: actual native desktop/assistive-technology testing; safe raw-name/path and unknown-value display; grouping/sort/breadcrumbs/details/tooltips; complete lifecycle and lazy tools.diskSpace registration.",
-    "W3: integrate the tested data-only stream codec through qualified private storage/catalog and guarded atomic publication; named save/history, compatible comparison, sensitivity review and create-only exports/imports remain.",
+    "W3: qualify and integrate the native private-store foundation on admitted I/O workers; Linux/interrupt/crash/resource evidence, private catalog/state, named save/history, compatible comparison, sensitivity review and create-only exports/imports remain. Replacement and orphan cleanup still need guarded routes.",
     "W4/W5: qualified live source and exact-entry typed operations, protected objects, immutable review/submission, preserving defaults and accurate outcomes. Unsupported needs feasibility evidence.",
     "W6/W7: declarative recipes and explicitly qualified content work; closed NTFS metadata helper or prescribed standard-scan fallback.",
     "W8: native platform/theme/DPI/a11y/package matrix, 1M/10M measurements, negative controls, actual diagnostics ZIP leakage, documentation and final requirement-by-requirement audit.",

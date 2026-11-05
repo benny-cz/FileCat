@@ -15,6 +15,9 @@ public readonly record struct UnixStat(ulong Device, ulong Inode, bool IsLink, b
 
     /// <summary>The permission bits (the low 12 bits of the mode: set-ID, sticky, and read, write and execute).</summary>
     public uint Mode { get; init; }
+
+    /// <summary>The kernel-reported hard-link count (zero can describe an open anonymous file).</summary>
+    public uint LinkCount { get; init; }
 }
 
 /// <summary>
@@ -25,8 +28,8 @@ public readonly record struct UnixStat(ulong Device, ulong Inode, bool IsLink, b
 public static unsafe partial class UnixFiles
 {
     private const int AtFdCwd = -100, AtSymlinkNoFollow = 0x100, AtEmptyPath = 0x1000;
-    private const uint StatxType = 0x1, StatxMode = 0x2, StatxUid = 0x8, StatxCtime = 0x80, StatxIno = 0x100, StatxSize = 0x200;
-    private const uint StatxWanted = StatxType | StatxMode | StatxUid | StatxCtime | StatxIno | StatxSize;
+    private const uint StatxType = 0x1, StatxMode = 0x2, StatxNlink = 0x4, StatxUid = 0x8, StatxCtime = 0x80, StatxIno = 0x100, StatxSize = 0x200;
+    private const uint StatxWanted = StatxType | StatxMode | StatxNlink | StatxUid | StatxCtime | StatxIno | StatxSize;
     private const int TypeMask = 0xF000, TypeLink = 0xA000, TypeDirectory = 0x4000, TypeRegular = 0x8000;
 
     /// <summary>
@@ -130,7 +133,7 @@ public static unsafe partial class UnixFiles
         return new UnixStat(device, *(ulong*)(b + 32), type == TypeLink, type == TypeDirectory,
             (long)*(ulong*)(b + 40), *(long*)(b + 96), *(uint*)(b + 104), (*(uint*)b & StatxCtime) != 0,
             type == TypeRegular)
-        { Owner = *(uint*)(b + 20), Mode = (uint)(*(ushort*)(b + 28) & 0xFFF) };
+        { Owner = *(uint*)(b + 20), Mode = (uint)(*(ushort*)(b + 28) & 0xFFF), LinkCount = *(uint*)(b + 16) };
     }
 
     // struct stat (64-bit inodes): i32 dev at 0, u16 mode at 4, u64 ino at 8, u32 uid at 16, ctimespec at 64, i64 size at 96.
@@ -139,7 +142,7 @@ public static unsafe partial class UnixFiles
         int type = *(ushort*)(b + 4) & TypeMask;
         return new UnixStat((uint)*(int*)b, *(ulong*)(b + 8), type == TypeLink, type == TypeDirectory,
             *(long*)(b + 96), *(long*)(b + 64), *(long*)(b + 72), true, type == TypeRegular)
-        { Owner = *(uint*)(b + 16), Mode = (uint)(*(ushort*)(b + 4) & 0xFFF) };
+        { Owner = *(uint*)(b + 16), Mode = (uint)(*(ushort*)(b + 4) & 0xFFF), LinkCount = *(ushort*)(b + 6) };
     }
 
     /// <summary>

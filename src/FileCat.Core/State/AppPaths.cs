@@ -47,6 +47,15 @@ public sealed class AppPaths
     /// <summary>Original bytes for interrupted hex saves stay in user-local storage, including portable mode.</summary>
     public string HexRecoveryDirectory { get; }
 
+    /// <summary>Owner-private, disposable analysis sessions. Created by the analysis native store, not Ensure.</summary>
+    public string AnalysisScratchDirectory => Path.Combine(ListingScratchDirectory, "analysis");
+    /// <summary>Owner-private named inventories, independent of disposable caches.</summary>
+    public string AnalysisSnapshotsDirectory => Path.Combine(LocalDirectory, "analysis-snapshots");
+    /// <summary>Private versioned named/rolling inventory index; never generic application history.</summary>
+    public string AnalysisCatalogFile => Path.Combine(AnalysisSnapshotsDirectory, "catalog.json");
+    /// <summary>Private roots, queries, recipes and write-locator history; excluded from normal preferences.</summary>
+    public string AnalysisPrivateStateFile => Path.Combine(AnalysisSnapshotsDirectory, "private-state.json");
+
     public string JournalDirectory => Path.Combine(LocalDirectory, "journal");
     public string LogDirectory => Path.Combine(LocalDirectory, "diagnostics");
     public string CacheDirectory => Path.Combine(LocalDirectory, "cache");
@@ -90,6 +99,8 @@ public sealed class AppPaths
         ("logs, journals, caches and temporary files", RegistryBackupDirectory),
         ("logs, journals, caches and temporary files", EditSessionsDirectory),
         ("the scratch of large listings", ListingScratchDirectory),
+        ("private disk-space analysis scratch", AnalysisScratchDirectory),
+        ("private saved disk-space analyses and catalog", AnalysisSnapshotsDirectory),
         ("originals kept while hex edits are saved", HexRecoveryDirectory),
     ];
 

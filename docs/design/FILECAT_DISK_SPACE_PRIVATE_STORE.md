@@ -1,0 +1,35 @@
+# Private analysis inventory publication
+
+This is an implementation note for plan §§27.11 and 28.8. The native store is under development; it does not qualify the release persistence gate or supply the unfinished catalog, history, save/import UI, replacement, scratch spilling or orphan cleanup.
+
+`AnalysisPrivateInventoryStore` accepts a process-owned `AnalysisPrivateDirectory`, never a deserialized directory binding. Its synchronous methods belong on admitted I/O workers. It checks the actual worker's ordinary authority, validates a portable `.fcdsa` leaf, retains the native directory/file leases through completion, bounds each inventory to 8 GiB, and checks privacy and free space while streaming in at most 64 KiB chunks. The destination reserve is max(256 MiB, 1% of capacity), capped at 2 GiB. The strict schema-1 codec remains the only inventory parser; reloads are imported and unverified.
+
+Directory ownership transfers to the store; the caller must dispose it through the store after admitted work completes. Native calls retain their safe handles through the call, and any required raw-descriptor conversion is pinned, preventing descriptor reuse during a concurrent close. The percentage reserve rounds up to a whole byte without overflowing at `UInt128.MaxValue`.
+
+There is no replacement method. A conflicting destination, including a future-schema file or a link, remains in place. The caller must offer another name. There is no fallback to ordinary path-based `File.Move`, `File.WriteAllText` or `JsonFileStore`. Publication happens after the complete trailer and file flush. A native failure after the atomic name commit throws `AnalysisPublicationUncertainException`; callers must keep the existing name, inspect it, and never silently retry as replacement. Power-loss durability still requires the plan's native qualification, beyond successful API calls.
+
+## Native boundaries
+
+Windows walks a fixed local drive from its root with no-follow NT relative opens, retains every ancestor without delete sharing, and refuses every reparse tag. The store presently supports NTFS with persistent ACLs. The private directory and each staging file receive their protected owner/SYSTEM ACL in the create-new `NtCreateFile` call, before payload bytes. Reads and writes verify the owner and exact ACL shape. Regular inventory files must have a single link. Staging-file deletion and create-only rename use the original file handle; a substituted staging pathname is not a source. A successful rename is followed by a file flush and verification. This uses ordinary native helpers, without invoking an elevation broker.
+
+Linux and Darwin walk one component at a time using `openat`, `O_DIRECTORY`, `O_NOFOLLOW` and close-on-exec handles, retaining and rechecking the ancestry. The final directory must be owned by the actual ordinary user with mode 0700; files require 0600, regular type and the expected link count. A zero Linux POSIX group-class mask denies named ACL grants too. Darwin extended ACLs are separately checked and any entry is refused; Darwin's `acl_get_entry` success convention differs from Linux's.
+
+Linux currently supports ext4 and XFS. An `O_TMPFILE` staging inode has no name. It is published with `linkat` through a held, verified procfs descriptor directory and `AT_SYMLINK_FOLLOW`, atomically refusing an existing target. The procfs route avoids retaining the capability required by `AT_EMPTY_PATH`. Unsupported anonymous-file or descriptor publication primitives fail without a weaker fallback. The linked file and containing directory are synced. Volatile tmpfs is refused for named storage.
+
+Darwin currently supports APFS. It creates a random 0600 empty staging file with `O_EXCL` in the verified owner-private directory, verifies that local entry, and unlinks it before writing payload. This small local initialization transaction relies on the owner-private directory boundary; it does not accept a catalog/imported cleanup path. `fclonefileat` then atomically creates the final name from the open staging descriptor, so publication does not race a source filename. Both the staged and committed data receive `F_FULLFSYNC`, and the containing directory receives `fsync`. Lack of APFS clone support is a refusal. A process stopped before the Darwin initialization unlink can leave a random empty staging entry; no stale-state recursive janitor is implemented.
+
+Darwin ACL inspection uses successful `fstatx_np` plus explicit `filesec` property presence, since `acl_get_fd_np` returns null for both an absent ACL and inspection failures. Apple Silicon's public `openat` also needs its variadic creation mode on the stack; the dedicated P/Invoke declaration fills the otherwise unused argument registers and places the promoted mode in the first stack slot. The resulting mode is checked before every payload write. Native tests independently compare capacity with `DriveInfo` to catch platform structure-layout errors, verify 0700/0600 modes, and exercise a real Everyone ACL grant as a refusal control.
+
+`AppPaths` declares analysis scratch below the selected listing scratch profile and saved inventories/catalog/private-state below the selected local profile. `Ensure` deliberately does not create those directories with generic inherited permissions. `--data`, profiles and portable selection therefore continue to determine their locations, and `WriteFolders` reports both. Private roots, names and inventory bytes are not placed in normal application preferences or generic diagnostics by this module.
+
+## Primary API references
+
+- [Windows file rename information](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_rename_info)
+- [Windows handle-based ownership and ACL inspection](https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-getsecurityinfo)
+- [Linux anonymous temporary files and descriptor publication](https://man7.org/linux/man-pages/man2/open.2.html)
+- [Linux file and directory durability](https://man7.org/linux/man-pages/man2/fsync.2.html)
+- [Darwin clonefile/fclonefileat contract](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man2/clonefile.2)
+- [Darwin ACL iteration contract](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/acl_get_entry.3.html)
+- [Apple Silicon argument and varargs ABI](https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms)
+
+The broader filesystem, interruption, process-death, resource, native UI and diagnostics evidence remains mandatory. These API references and focused regressions alone do not close any gate.
