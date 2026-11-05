@@ -3,6 +3,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Avalonia.Media;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Analysis;
@@ -12,6 +13,28 @@ namespace FileCat.Rendering.Tests;
 
 public sealed partial class AnalysisRenderingTests
 {
+    [AvaloniaFact]
+    public async Task OpenSavedFolderWrapsAtShortNarrowSizesAndCancelIsReachable()
+    {
+        OrdinaryPreparation(); using var fixture = new PreparationFixture(); using var styles = new ProductStyles();
+        using var model = new DiskSpaceViewModel(fixture.Services, ImportedFixture()); await model.RebuildAsync(true);
+        var window = new DiskSpaceWindow { Width = 380, Height = 430 }; window.AddSession(model); window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open saved…").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            var folder = window.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text?.StartsWith("Saved analyses folder:", StringComparison.Ordinal) == true);
+            Assert.Equal(TextWrapping.Wrap, folder.TextWrapping); Assert.True(folder.Bounds.Width <= 350); Assert.True(folder.Bounds.Height > 20);
+            var cancel = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Cancel" && b.IsEffectivelyVisible);
+            Assert.True(cancel.Bounds.Width > 0 && cancel.Bounds.Height > 0);
+            Assert.True(window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open observations").IsDefault);
+            cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Task.Yield();
+            Assert.False(Directory.Exists(fixture.Services.Paths.AnalysisSnapshotsDirectory));
+        }
+        finally { window.ForceClose(); }
+    }
+
     private static AnalysisInventory ImportedFixture(AnalysisSnapshot? snapshot = null)
     {
         using var stream = new MemoryStream();

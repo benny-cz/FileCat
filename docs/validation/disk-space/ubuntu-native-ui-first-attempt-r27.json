@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native desktop development validation; no capability qualification",
+  "state": "closed",
+  "sourceUnchanged": true,
+  "deadlineClosed": true,
+  "processId": 149085,
+  "platform": "Ubuntu 24.04.5 LTS",
+  "architecture": "X64",
+  "run": "/home/benny/FileCatValidation/dsa-20261105-r27-desktop/app/native-validation/dsa-ca735eb477684a23a09d51c2b554a739",
+  "fixture": "/home/benny/FileCatValidation/dsa-20261105-r27-desktop/app/native-validation/dsa-ca735eb477684a23a09d51c2b554a739/fixture",
+  "fixtureRegularPaths": 509,
+  "fixtureLimitations": [],
+  "nativeWindowVisible": false,
+  "lastVisibleWidth": 1180,
+  "lastVisibleHeight": 780,
+  "lastVisibleScale": 1,
+  "sessions": 0,
+  "createdSessions": 1,
+  "lastObservation": null,
+  "appSha256": "a2f9c7059bb267170dbfceb491d212b2b2e040db40cca0662472ff6eec76a455",
+  "harnessSha256": "83e035bfcb65b744189bf03f2023536237d808b066e7d95c848d06580120e3ee"
+}

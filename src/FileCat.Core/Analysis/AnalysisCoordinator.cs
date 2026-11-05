@@ -1,10 +1,13 @@
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using FileCat.Core.Threading;
 
 namespace FileCat.Core.Analysis;
 
-public sealed record AnalysisProgress(int ObservedPaths, ulong Issues, AnalysisPhase Phase);
+public sealed record AnalysisProgress(int ObservedPaths, ulong Issues, AnalysisPhase Phase)
+{
+    // Runtime resource lifecycle, separate from an already frozen metadata revision.
+    public ulong SourceCloseFailures { get; init; }
+}
 
 public sealed class AnalysisCoordinator(DeviceIoScheduler io, string? profileIdentity = null)
 {
@@ -23,7 +26,6 @@ public sealed class AnalysisCoordinator(DeviceIoScheduler io, string? profileIde
 public sealed class AnalysisSession : IDisposable
 {
     private static readonly SemaphoreSlim GlobalScans = new(AnalysisLimits.ActiveScans);
-    private static readonly ConcurrentDictionary<string, SemaphoreSlim> Devices = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _sync = new();
     private readonly AnalysisStore _store = new();
     private readonly CancellationTokenSource _cancel = new();
@@ -43,6 +45,8 @@ public sealed class AnalysisSession : IDisposable
     private string? _activeDevice;
     private AnalysisFreshness _freshness;
     private ulong _enumerationRequested, _enumerationCompleted, _enumerationFailed;
+    private ulong _sourceCloseFailures;
+    public ulong SourceCloseFailures { get { lock (_sync) return _sourceCloseFailures; } }
     public Task Completion { get; }
     internal AnalysisSession(DeviceIoScheduler io, IAnalysisBackend[] sources, IProgress<AnalysisProgress>? progress, string profileIdentity,
         AnalysisComponentPreset components)
@@ -165,10 +169,8 @@ public sealed class AnalysisSession : IDisposable
                 string device = source.IoDeviceKey;
                 lock (_sync) _activeDevice = device;
                 if (_io.GetHealth(device) == DeviceHealth.NotResponding) { Issue("device-not-responding"); continue; }
-                var gate = Devices.GetOrAdd(device, _ => new(1));
-                await gate.WaitAsync(_cancel.Token).ConfigureAwait(false);
-                try { await WalkAsync(source, root, device).ConfigureAwait(false); }
-                finally { gate.Release(); }
+                using var turn = await AnalysisScanDevices.AcquireAsync(device, _cancel.Token).ConfigureAwait(false);
+                await WalkAsync(source, root, device).ConfigureAwait(false);
                 if (_store.Limited) break;
             }
         }
@@ -183,19 +185,32 @@ public sealed class AnalysisSession : IDisposable
         }
         finally
         {
-            _io.HealthChanged -= OnDeviceHealth;
             try
             {
                 for (int i = 0; i < _sources.Length; i++)
                 {
-                    try { await AnalysisIo.ReleaseAsync(_io, _sources[i]).ConfigureAwait(false); }
+                    try
+                    {
+                        string device = _sources[i].IoDeviceKey;
+                        lock (_sync) _activeDevice = device;
+                        if (_io.IsStopped) Stop("analysis-io-stopped");
+                        else if (_io.GetHealth(device) == DeviceHealth.NotResponding) Stop("device-not-responding");
+                        await AnalysisIo.ReleaseAsync(_io, _sources[i]).ConfigureAwait(false);
+                    }
                     // A close is attempted once. Retrying an uncertain native close could operate on a reused
                     // descriptor. Preserve the failure without abandoning the other independently owned roots.
-                    catch (Exception) { Issue("analysis-source-close-failed", rootId: _roots[i].Id); }
+                    catch (Exception)
+                    {
+                        lock (_sync) _sourceCloseFailures++;
+                        Issue("analysis-source-close-failed", rootId: _roots[i].Id);
+                        Report();
+                    }
                 }
             }
             finally
             {
+                lock (_sync) _activeDevice = null;
+                _io.HealthChanged -= OnDeviceHealth;
                 if (admitted) GlobalScans.Release();
                 lock (_sync)
                 {
@@ -221,8 +236,7 @@ public sealed class AnalysisSession : IDisposable
                 string device = _sources[parent].IoDeviceKey;
                 lock (_sync) _activeDevice = device;
                 if (_io.GetHealth(device) == DeviceHealth.NotResponding) { uncertain = true; continue; }
-                var gate = Devices.GetOrAdd(device, _ => new(1));
-                await gate.WaitAsync(_cancel.Token).ConfigureAwait(false);
+                using var turn = await AnalysisScanDevices.AcquireAsync(device, _cancel.Token).ConfigureAwait(false);
                 try
                 {
                     await PauseBoundaryAsync().ConfigureAwait(false);
@@ -237,7 +251,6 @@ public sealed class AnalysisSession : IDisposable
                 }
                 catch (AnalysisSourceChangedException) { uncertain = true; Issue("source-changed-or-boundary", rootId: roots[child].Id); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { uncertain = true; }
-                finally { gate.Release(); }
             }
             if (coveredBy is { } p)
             {
@@ -352,8 +365,10 @@ public sealed class AnalysisSession : IDisposable
     private void Report()
     {
         AnalysisProgress p;
-        lock (_sync) { if (_disposed) return; p = new(_store.Count, _store.IssueCount, _phase); }
-        _progress?.Report(p);
+        lock (_sync) { if (_disposed) return; p = new(_store.Count, _store.IssueCount, _phase) { SourceCloseFailures = _sourceCloseFailures }; }
+        // Observers do not own traversal or handle lifetimes. A released/broken UI subscription cannot
+        // skip independent closes, strand a scan reservation or turn valid observations into a producer failure.
+        try { _progress?.Report(p); } catch (Exception) { }
     }
     public void Dispose()
     {

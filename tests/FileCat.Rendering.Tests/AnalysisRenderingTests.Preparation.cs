@@ -14,6 +14,20 @@ namespace FileCat.Rendering.Tests;
 public sealed partial class AnalysisRenderingTests
 {
     [AvaloniaFact]
+    public async Task SourceCloseFailureIsVisibleInTheAnalysisStatus()
+    {
+        OrdinaryPreparation(); using var fixture = new PreparationFixture();
+        var source = new PreparedSource(fixture.Root) { CloseAction = () => throw new IOException("injected cleanup failure") };
+        using var model = new DiskSpaceViewModel(fixture.Services, _ => source);
+        await model.StartAsync([fixture.Root]); await source.Closed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (model.SourceCloseFailures == 0 && DateTime.UtcNow < deadline) await Task.Delay(10);
+        Assert.Equal(1ul, model.SourceCloseFailures); Assert.Contains("Source cleanup reported 1 failure", model.Status);
+        Assert.Equal(AnalysisPhase.Finished, model.Phase); Assert.Equal(1, source.CloseCalls);
+        await model.RebuildAsync(true); Assert.Equal(NamespaceCoverage.Partial, model.Tree!.Snapshot.Coverage);
+    }
+
+    [AvaloniaFact]
     public async Task StopBindingIsEnabledAndLateNativeSourceClosesWithoutStartingTheNextRoot()
     {
         OrdinaryPreparation(); using var fixture = new PreparationFixture(); using var styles = new ProductStyles();
@@ -102,6 +116,7 @@ public sealed partial class AnalysisRenderingTests
     private sealed class PreparedSource(string path) : IAnalysisBackend
     {
         public int CloseCalls, CloseThread, Enumerations;
+        public Action? CloseAction;
         public TaskCompletionSource Closed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public RootBinding Root { get; } = new("1", "file", path, path, "fixture", IdentityAssurance.Verified, "fixture");
         public string Basis => "fixture-v1";
@@ -109,6 +124,10 @@ public sealed partial class AnalysisRenderingTests
             AnalysisMeasurement.Known(0), AnalysisMeasurement.Known(1), null, "v1");
         public IEnumerable<AnalysisEntry> Children(AnalysisEntry directory, CancellationToken cancellation) { Interlocked.Increment(ref Enumerations); return []; }
         public void ValidateReadScope(AnalysisEntry directory) { }
-        public void Dispose() { CloseThread = Environment.CurrentManagedThreadId; Interlocked.Increment(ref CloseCalls); Closed.TrySetResult(); }
+        public void Dispose()
+        {
+            CloseThread = Environment.CurrentManagedThreadId; Interlocked.Increment(ref CloseCalls);
+            try { CloseAction?.Invoke(); } finally { Closed.TrySetResult(); }
+        }
     }
 }

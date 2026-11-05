@@ -40,6 +40,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     public bool Dirty { get; private set; }
     public bool IsPreparing { get; private set; }
     public AnalysisPhase Phase { get; private set; } = AnalysisPhase.Ready;
+    public ulong SourceCloseFailures { get; private set; }
     public bool Running => Phase is AnalysisPhase.Scanning or AnalysisPhase.Pausing or AnalysisPhase.Paused or AnalysisPhase.Refreshing;
     public bool HasTemporaryWork => !_disposed && (IsPreparing || Running || _prepared.Count > 0 || Selection.Marks.Count > 0 || Selection.Basket.Count > 0 ||
         !DisplayedRevisionSaved && (_session is not null || _observation is { Origin: AnalysisOrigin.LiveSession, Persistence: AnalysisPersistence.Temporary }));
@@ -100,7 +101,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
             preparation.Token.ThrowIfCancellationRequested();
             _session?.Dispose();
             _session = new AnalysisCoordinator(_services.Io).Start(_prepared.ToArray(), new LatestProgress(_services.Ui, UpdateProgress), Components);
-            _prepared.Clear(); _preparedInput = []; Phase = AnalysisPhase.Scanning; Dirty = true;
+            _prepared.Clear(); _preparedInput = []; Phase = AnalysisPhase.Scanning; SourceCloseFailures = 0; Dirty = true;
             SetStatus("Scanning metadata. Known results so far; allocation can share physical blocks.");
         }
         catch (OperationCanceledException) when (preparation.IsCancellationRequested)
@@ -125,7 +126,9 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     {
         if (_disposed) return;
         Phase = progress.Phase; Dirty = true;
-        SetStatus($"{progress.Phase} · {progress.ObservedPaths:N0} observed paths · {progress.Issues:N0} issues. Values are observations over time.");
+        SourceCloseFailures = progress.SourceCloseFailures;
+        SetStatus($"{progress.Phase} · {progress.ObservedPaths:N0} observed paths · {progress.Issues:N0} issues. Values are observations over time." +
+            (SourceCloseFailures == 0 ? "" : $" Source cleanup reported {SourceCloseFailures:N0} " + (SourceCloseFailures == 1 ? "failure" : "failures") + "; close was not retried."));
     }
     public void PauseOrResume() { if (Phase == AnalysisPhase.Paused || Phase == AnalysisPhase.Pausing) _session?.Resume(); else _session?.Pause(); }
     public void Stop()

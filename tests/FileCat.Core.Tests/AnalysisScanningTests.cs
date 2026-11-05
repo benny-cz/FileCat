@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Text;
 using FileCat.Core.Analysis;
@@ -9,6 +10,84 @@ namespace FileCat.Core.Tests;
 public sealed partial class AnalysisScanningTests
 {
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary test process: " + AnalysisAdmission.Refusal());
+
+    [Fact]
+    public async Task WatchdogStaysActiveWhileBackendCloseStillOwnsTheNativeRequest()
+    {
+        Ordinary(); using var io = new DeviceIoScheduler(TimeSpan.FromMilliseconds(40)); using var gate = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var source = new FakeBackend(1) { BeforeClose = () => { entered.TrySetResult(); gate.Wait(TimeSpan.FromSeconds(15)); } };
+        using var session = new AnalysisCoordinator(io).Start([source]);
+        AnalysisSnapshot frozen;
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            var deadline = DateTime.UtcNow.AddSeconds(5);
+            while (session.Snapshot().Phase != AnalysisPhase.Stopped && DateTime.UtcNow < deadline) await Task.Delay(10, TestContext.Current.CancellationToken);
+            frozen = session.Snapshot(); Assert.Equal(AnalysisPhase.Stopped, frozen.Phase);
+            Assert.False(session.Completion.IsCompleted); Assert.Equal(AnalysisFreshness.SourceUnavailable, frozen.Freshness);
+            Assert.Contains(frozen.Issues, i => i.Code == "device-not-responding");
+        }
+        finally { gate.Set(); }
+        await session.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        Assert.Same(frozen, session.Snapshot()); Assert.Equal(0ul, session.SourceCloseFailures);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FullDeviceTraversalSerializesAcrossSchedulersAndCanceledWaitersDoNotStrandIt(bool cancelSecond)
+    {
+        Ordinary(); using var firstIo = new DeviceIoScheduler(); using var secondIo = new DeviceIoScheduler();
+        using var gate = new ManualResetEventSlim(); var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        string key = "fixture-scan-gate:" + Guid.NewGuid().ToString("N"); int fullyEnumerated = 0, tooSoon = 0;
+        var firstSource = new FakeBackend(1100) { IoDeviceKey = key,
+            BeforeEnumerate = () => { entered.TrySetResult(); gate.Wait(TimeSpan.FromSeconds(15)); },
+            Transform = (i, entry) => { if (i == 1099) Volatile.Write(ref fullyEnumerated, 1); return entry; } };
+        var secondSource = new FakeBackend(1) { IoDeviceKey = key.ToUpperInvariant(), BeforeEnumerate = () =>
+        { if (Volatile.Read(ref fullyEnumerated) == 0) Interlocked.Increment(ref tooSoon); secondEntered.TrySetResult(); } };
+        using var first = new AnalysisCoordinator(firstIo).Start([firstSource]);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        using var second = new AnalysisCoordinator(secondIo).Start([secondSource]);
+        try
+        {
+            await Task.Delay(50, TestContext.Current.CancellationToken); Assert.False(secondEntered.Task.IsCompleted);
+            if (cancelSecond) second.Stop();
+        }
+        finally
+        {
+            gate.Set();
+            await Task.WhenAll(first.Completion, second.Completion).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        }
+        Assert.Equal(0, tooSoon); Assert.Equal(!cancelSecond, secondEntered.Task.IsCompleted);
+        Assert.True(firstSource.Disposed); Assert.True(secondSource.Disposed);
+        Assert.Equal(cancelSecond ? AnalysisPhase.Stopped : AnalysisPhase.Finished, second.Snapshot().Phase);
+        using var next = new AnalysisCoordinator(secondIo).Start([new FakeBackend(1) { IoDeviceKey = key }]);
+        await next.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        Assert.Equal(NamespaceCoverage.CompleteUnderPolicy, next.Snapshot().Coverage);
+    }
+
+    [Fact]
+    public async Task CloseFailureAfterStopIsVisibleWithoutChangingTheFrozenRevision()
+    {
+        Ordinary(); using var io = new DeviceIoScheduler(); using var gate = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reports = new ConcurrentQueue<AnalysisProgress>();
+        var source = new FakeBackend(1) { BeforeEnumerate = () => { entered.TrySetResult(); gate.Wait(TimeSpan.FromSeconds(15)); },
+            BeforeClose = () => throw new IOException("injected late close failure") };
+        using var session = new AnalysisCoordinator(io).Start([source], new CallbackProgress(reports.Enqueue));
+        AnalysisSnapshot frozen;
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            session.Stop(); frozen = session.Snapshot();
+        }
+        finally { gate.Set(); }
+        await session.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        Assert.Same(frozen, session.Snapshot()); Assert.True(source.Disposed); Assert.Equal(1ul, session.SourceCloseFailures);
+        Assert.Contains(reports, p => p.Phase == AnalysisPhase.Stopped && p.SourceCloseFailures == 1);
+    }
 
     [Fact]
     public async Task UnexpectedBackendFailureCannotPublishACompleteFinishedInventory()
@@ -29,7 +108,7 @@ public sealed partial class AnalysisScanningTests
         Ordinary(); using var io = new DeviceIoScheduler(); int closes = 0;
         var first = new FakeBackend(1) { BeforeClose = () => { Interlocked.Increment(ref closes); throw new IOException("injected close failure"); } };
         var second = new FakeBackend(1);
-        using var session = new AnalysisCoordinator(io).Start([first, second]);
+        using var session = new AnalysisCoordinator(io).Start([first, second], new CallbackProgress(_ => throw new IOException("released progress observer")));
         await session.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         Assert.True(first.Disposed); Assert.True(second.Disposed); Assert.Equal(1, closes);
         var snapshot = session.Snapshot();
@@ -456,5 +535,7 @@ public sealed partial class AnalysisScanningTests
             name, AnalysisMeasurement.Known(1), AnalysisMeasurement.Known(1), AnalysisMeasurement.Known(1), DateTimeOffset.UnixEpoch, "v1");
         public void Dispose() { Disposed = true; BeforeClose?.Invoke(); }
     }
+    private sealed class CallbackProgress(Action<AnalysisProgress> callback) : IProgress<AnalysisProgress>
+    { public void Report(AnalysisProgress value) => callback(value); }
     [LibraryImport("libc", EntryPoint = "link", StringMarshalling = StringMarshalling.Utf8)] private static partial int Link(string oldName, string newName);
 }

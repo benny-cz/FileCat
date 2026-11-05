@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native compact-layout observation only; not full desktop/a11y or manual-close acceptance",
+  "platform": "Ubuntu 24.04.5 LTS",
+  "appSha256": "a2f9c7059bb267170dbfceb491d212b2b2e040db40cca0662472ff6eec76a455",
+  "harnessSha256": "83e035bfcb65b744189bf03f2023536237d808b066e7d95c848d06580120e3ee",
+  "harnessReport": "ubuntu-native-ui-report-r27.json",
+  "firstAttemptReport": "ubuntu-native-ui-first-attempt-r27.json",
+  "observedClientPixels": {
+    "width": 380,
+    "height": 430
+  },
+  "renderScale": 1,
+  "theme": "ClassicDark",
+  "directoryTextWraps": true,
+  "filenameAndButtonsVisible": true,
+  "accessibleFolderAndControls": "ubuntu-a11y-compact-dialog-r27.json",
+  "scanStarted": false,
+  "inventoryOpenedOrCreated": false,
+  "sourceRegularPathsUnchanged": 509,
+  "ownedProcessExited": true,
+  "closure": "Both attempts reached the eight-minute harness safety deadline. No Escape/manual-close acceptance is claimed.",
+  "nativeWindowControlReference": "https://specifications.freedesktop.org/wm/latest-single/",
+  "limitations": [
+    "Only this layout at scale1; full theme/DPI/screen-reader/package matrix remains open.",
+    "The raw harness lastVisible dimensions update on report triggers, not every native resize; they are not used as compact geometry proof. The 380x430 screenshot and owned X11 geometry establish the actual observation.",
+    "The first attempt stayed maximized. The retry used a PID/window-guarded native EWMH restore and geometry request; no OS preferences were changed."
+  ],
+  "remainingFindings": [
+    "Empty filename validation includes an implementation parameter name and should be clearer.",
+    "Update harness dimension reporting on actual SizeChanged events before wider native acceptance."
+  ]
+}

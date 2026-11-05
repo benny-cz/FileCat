@@ -31,22 +31,17 @@ public sealed partial class DiskSpaceWindow
                     new TextBlock { Text = "Saved analyses folder: " + AnalysisNames.Display(Model.SavedDirectory ?? "") + "\nObserved " + revision.Snapshot.Identity.StartedUtc.ToString("u") + " – " + revision.Snapshot.Identity.ObservedUtc.ToString("u") + ". " + (revision.Snapshot.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Traversal complete under the captured policy." : "Partial observations remain partial.") + " The live scan can continue.", TextWrapping = TextWrapping.Wrap },
                     name, error
                 } };
-                string? NameError()
-                {
-                    try { AnalysisPrivateInventoryStore.ValidateName(name.Text ?? ""); return null; }
-                    catch (ArgumentException ex) { return AnalysisNames.Display(ex.Message, 240); }
-                }
-                name.TextChanged += (_, _) => error.Text = NameError();
+                name.TextChanged += (_, _) => error.Text = InventoryNameError(name.Text);
                 AutomationProperties.SetLiveSetting(error, Avalonia.Automation.AutomationLiveSetting.Assertive);
                 var result = await _window._dialogs.ShowCustomAsync("Save named analysis", body,
-                    [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Save new inventory", true) { IsAvailable = () => NameError() is null }], name);
+                    [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Save new inventory", true) { IsAvailable = () => InventoryNameError(name.Text) is null }], name);
                 if (result is not true || _disposed) return;
                 var receipt = await WithInventoryProgress("Saving inventory", token => Model.SaveNewAsync(name.Text!, revision, token));
                 if (!_disposed) Model.SetStatus("Saved " + AnalysisNames.Display(receipt.Name, 240) + ". " + (revision.Snapshot.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Captured traversal complete under policy." : "Partial observations remain partial."));
             }
             catch (OperationCanceledException) { Model.SetStatus("Inventory save canceled. No successful save is claimed."); }
             catch (AnalysisPublicationUncertainException) { Model.SetStatus("The inventory name was published, but durability is uncertain. Keep that file and inspect it before trying another name."); }
-            catch (Exception ex) when (InventoryError(ex)) { Model.SetStatus("Inventory was not saved: " + AnalysisNames.Display(ex.Message, 400) + " Choose another name if it already exists."); }
+            catch (Exception ex) when (InventoryError(ex)) { Model.SetStatus("Inventory was not saved: " + AnalysisNames.Display(ex.Message, 400)); }
             finally { _persistenceBusy = false; Model.Interaction(false); Refresh(); }
         }
 
@@ -57,14 +52,21 @@ public sealed partial class DiskSpaceWindow
             _persistenceBusy = true; Refresh();
             try
             {
-                var result = await _window._dialogs.PromptAsync(new PromptOptions("Open saved analysis", "Enter a saved .fcdsa filename in this private profile. This opens offline observations without reconnecting sources or granting file actions.")
+                var name = new TextBox { Text = Model.SavedInventoryName ?? "", MaxLength = 120 };
+                AutomationProperties.SetName(name, "Saved inventory filename");
+                var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
+                AutomationProperties.SetLiveSetting(error, Avalonia.Automation.AutomationLiveSetting.Assertive);
+                name.TextChanged += (_, _) => error.Text = InventoryNameError(name.Text);
+                var body = new StackPanel { Spacing = 8, Children =
                 {
-                    Text = Model.SavedInventoryName ?? "", ConfirmText = "Open observations",
-                    Hint = "Private directory: " + AnalysisNames.Display(Model.SavedDirectory ?? ""),
-                    Validate = text => { try { AnalysisPrivateInventoryStore.ValidateName(text); return null; } catch (ArgumentException ex) { return AnalysisNames.Display(ex.Message, 240); } }
-                });
-                if (result is null || _disposed) return;
-                var loaded = await WithInventoryProgress("Opening inventory", token => Model.OpenSavedAsync(result.Text, token));
+                    new TextBlock { Text = "Enter a saved .fcdsa filename. Opening it shows offline observations without reconnecting sources or granting file actions.", TextWrapping = TextWrapping.Wrap },
+                    new TextBlock { Text = "Saved analyses folder: " + AnalysisNames.Display(Model.SavedDirectory ?? ""), TextWrapping = TextWrapping.Wrap },
+                    name, error
+                } };
+                var result = await _window._dialogs.ShowCustomAsync("Open saved analysis", body,
+                    [new DialogButton("Cancel", false, IsCancel: true), new DialogButton("Open observations", true, IsDefault: true) { IsAvailable = () => InventoryNameError(name.Text) is null }], name);
+                if (result is not true || _disposed) return;
+                var loaded = await WithInventoryProgress("Opening inventory", token => Model.OpenSavedAsync(name.Text!, token));
                 if (_disposed || !_window.IsVisible) { loaded.Dispose(); return; }
                 if (_window.SessionCount >= AnalysisLimits.Sessions) { loaded.Dispose(); _window.ExplainSessionLimit(); return; }
                 try { _window.AddSession(loaded); } catch { loaded.Dispose(); throw; }
@@ -92,5 +94,10 @@ public sealed partial class DiskSpaceWindow
         }
 
         private static bool InventoryError(Exception ex) => ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException;
+        private static string? InventoryNameError(string? text)
+        {
+            try { AnalysisPrivateInventoryStore.ValidateName(text ?? ""); return null; }
+            catch (ArgumentException ex) { return AnalysisNames.Display(ex.Message, 240); }
+        }
     }
 }

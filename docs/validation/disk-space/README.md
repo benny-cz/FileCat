@@ -8,17 +8,17 @@ After the other Ubuntu FileCat process exited, fresh process gates allowed ordin
 
 | Run | Result | Receipt |
 |---|---|---|
-| Full solution build | No warnings or errors | [build](solution-build-r26.txt) |
-| Windows analysis, commands and state/path cases | 216 pass, 13 platform skips | [XML](windows-core-r26.xml) |
-| Ordinary Windows host | 12 pass, no skips | [XML](windows-host-native-r26.xml) |
-| Ordinary Windows guest | 12 pass, no skips | [XML](windows-vm-native-r26.xml) |
-| macOS arm64 analysis and command cases | 211 pass, no skips | [XML](mac-core-r26.xml) |
+| Full solution build | No warnings or errors | [build](solution-build-r27.txt) |
+| Windows analysis, commands and state/path cases | 220 pass, 13 platform skips | [XML](windows-core-r27.xml) |
+| Ordinary Windows host | 12 pass, no skips | [XML](windows-host-native-r27.xml) |
+| Ordinary Windows guest | 12 pass, no skips | [XML](windows-vm-native-r27.xml) |
+| macOS arm64 analysis and command cases | 215 pass, no skips | [XML](mac-core-r27.xml) |
 | macOS shared stat consumers | 49 pass, 2 platform skips | [XML](mac-stat-consumers-r22.xml) |
-| Windows Skia headless presentation | 18 pass | [XML](analysis-render-r26.xml) |
-| macOS headless presentation and native persistence | 18 pass | [XML](mac-analysis-render-r26.xml) |
-| Ubuntu headless presentation and native persistence | 18 pass | [XML](ubuntu-analysis-render-r26.xml) |
+| Windows Skia headless presentation | 20 pass | [XML](analysis-render-r27.xml) |
+| macOS headless presentation and native persistence | 20 pass | [XML](mac-analysis-render-r27.xml) |
+| Ubuntu headless presentation and native persistence | 20 pass | [XML](ubuntu-analysis-render-r27.xml) |
 | macOS native startup/close only | 509 generated regular paths unchanged; owned process exited | [receipt](mac-native-startup-r20.json) |
-| Ubuntu ext4 analysis and command cases | 210 pass, 1 Darwin-only skip | [XML](ubuntu-core-r26.xml) |
+| Ubuntu ext4 analysis and command cases | 214 pass, 1 Darwin-only skip | [XML](ubuntu-core-r27.xml) |
 | Ubuntu shared stat consumers | 49 pass, 2 platform skips | [XML](ubuntu-stat-consumers-r24.xml) |
 | Ubuntu native Save/Open subset | Saved/opened matching inventory; conflict hash and all 509 source hashes preserved; owned process exited | [receipt](ubuntu-native-ui-r26.json) |
 
@@ -45,9 +45,13 @@ The CLI suites start no FileCat application processes. A separate [native deskto
 
 The r26 checkpoint connects development Save/Open to the guarded native store. The Save review names the private destination, explains full inventory versus display-filter scope and retains the exact published revision while native work runs. Opening a saved filename creates an inert offline tab; recorded in-progress phases never resume a scan. Five new presentation controls cover native round-trip/conflict preservation, queued-save lifetime after owner close, partial historical phases, cancellation and preserving review. All 18 presentation cases pass on the Windows host, Mac/APFS and Ubuntu/ext4. Catalog browsing, saved view state, rolling history, comparisons, general imports/exports and the persistence gate remain unfinished.
 
-A further [native Ubuntu desktop run](ubuntu-native-ui-r26.json) exercised Save, offline Open and duplicate-name refusal with actual X11 input. The 455,909-byte inventory retained its SHA-256 after the conflict and had mode 0600, owner UID1000 and one link. Both tabs closed, the harness exited before its deadline and all 509 generated source paths retained their hashes. AT-SPI and selected screenshots show the review and offline totals. The Open dialog's long directory hint clipped and is queued for repair. Synthetic type-and-click pacing also needs qualification; a separate settled activation completed the conflict check. This subset does not establish full desktop/a11y acceptance.
+A further [native Ubuntu desktop run](ubuntu-native-ui-r26.json) exercised Save, offline Open and duplicate-name refusal with actual X11 input. The 455,909-byte inventory retained its SHA-256 after the conflict and had mode 0600, owner UID1000 and one link. Both tabs closed, the harness exited before its deadline and all 509 generated source paths retained their hashes. AT-SPI and selected screenshots show the review and offline totals. The Open dialog's long directory hint clipped in r26; r27 repairs it and records a separate native compact-layout observation. Synthetic type-and-click pacing also needs qualification; a separate settled activation completed the conflict check. This subset does not establish full desktop/a11y acceptance.
 
-Three new coordinator controls cover backend-close failure, scheduler shutdown during actual work and unexpected producer failure. Two pre-fix cases reproduced skipped cleanup/admission finalization and an uncaught cancellation. Finalization now attempts each independent backend once, releases scan admission and retains useful qualified results. A stopped snapshot stays frozen; separate visibility of a later close failure remains to be completed. [Current provenance](source-manifest-r26.json) records tested sources and bundles.
+Three new coordinator controls cover backend-close failure, scheduler shutdown during actual work and unexpected producer failure. Two pre-fix cases reproduced skipped cleanup/admission finalization and an uncaught cancellation. Finalization now attempts each independent backend once, releases scan admission and retains useful qualified results. A stopped snapshot stays frozen; r27 adds separate runtime visibility of a later close failure. [Current provenance](source-manifest-r26.json) records tested sources and bundles.
+
+The r27 checkpoint keeps watchdog tracking through backend cleanup, exposes runtime close-failure counts after Stop and protects cleanup from a throwing progress observer. Its traversal-device registry is bounded to the global two-scan admission and retires canceled/finished entries. Four new core cases cover serialization/reuse, canceled waiting, a late close failure and blocked native cleanup. The total is 233 Windows cases (13 platform skips), 215 Mac cases and 215 Ubuntu cases (one Darwin skip). All 20 presentation cases pass on the three runtimes, including the wrapped Open dialog and cleanup status.
+
+[Native compact-layout evidence](ubuntu-native-ui-r27.json) records the complete private folder path, field and buttons at an actual 380 × 430, scale1 on Ubuntu. A standard native window-manager request was needed after GNOME kept ordinary resize requests maximized. Both bounded attempts later closed at their eight-minute safety deadlines, with all 509 fixture paths unchanged and no private inventory created. This does not qualify Escape/manual-close behavior. The raw harness's report-trigger-only dimension cache is not used as the compact geometry proof. Clearer empty-name validation and live resize reporting remain next fixes. [r27 provenance](source-manifest-r27.json) records the current tested sources and artifacts.
 
 ## Remaining work
 
