@@ -1,0 +1,145 @@
+{
+  "purpose": "Native saved table order/process restart subset; no physical input or complete qualification",
+  "archiveSha256": "39ca80e919cde392302b1fcade1e86678a6dcf1d7dc7b7df2f966cba5fa402a1",
+  "runs": [
+    {
+      "pass": 1,
+      "processId": 416130,
+      "savedPayloadBytesPreserved": true,
+      "savedOrderingProbe": {
+        "created": true,
+        "reopenedAfterProcessRestart": false,
+        "filenameOnlyUsesDefaultView": true,
+        "results": [
+          {
+            "Name": "ascending.fcdsa",
+            "Sort": 1,
+            "SortDescending": false,
+            "scope": "n:1",
+            "rows": [
+              ".hidden.bin",
+              "Aliases",
+              "Archives",
+              "large.bin",
+              "link-outside",
+              "Package.app",
+              "Photos",
+              "report.csv",
+              "Shared hard-linked files",
+              "Small files",
+              "Unicode",
+              "zero.bin"
+            ],
+            "offline": true,
+            "emptyMarksAndBasket": true
+          },
+          {
+            "Name": "descending.fcdsa",
+            "Sort": 1,
+            "SortDescending": true,
+            "scope": "n:1",
+            "rows": [
+              "zero.bin",
+              "Unicode",
+              "Small files",
+              "Shared hard-linked files",
+              "report.csv",
+              "Photos",
+              "Package.app",
+              "link-outside",
+              "large.bin",
+              "Archives",
+              "Aliases",
+              ".hidden.bin"
+            ],
+            "offline": true,
+            "emptyMarksAndBasket": true
+          }
+        ]
+      },
+      "finished": true,
+      "hasQualifiedHostProfile": true,
+      "sameIdentityAsFirst": true,
+      "continuityNotice": null,
+      "privateBytesPreserved": true,
+      "fixtureRegularPaths": 509,
+      "appSha256": "4cd3cbfd7dd2630ba3f54028c3c87d63247276ece5ce5c7c0fa292681b64e8bf",
+      "harnessSha256": "097441d11fab91bf7e80d999bac4b8715d1578da3220ce38645ff2d1797ea14d",
+      "state": "closed",
+      "sourceUnchanged": true,
+      "deadlineClosed": false,
+      "exitCode": 0,
+      "ownedProcessExited": true
+    },
+    {
+      "pass": 2,
+      "processId": 416222,
+      "savedPayloadBytesPreserved": true,
+      "savedOrderingProbe": {
+        "created": false,
+        "reopenedAfterProcessRestart": true,
+        "filenameOnlyUsesDefaultView": true,
+        "results": [
+          {
+            "Name": "ascending.fcdsa",
+            "Sort": 1,
+            "SortDescending": false,
+            "scope": "n:1",
+            "rows": [
+              ".hidden.bin",
+              "Aliases",
+              "Archives",
+              "large.bin",
+              "link-outside",
+              "Package.app",
+              "Photos",
+              "report.csv",
+              "Shared hard-linked files",
+              "Small files",
+              "Unicode",
+              "zero.bin"
+            ],
+            "offline": true,
+            "emptyMarksAndBasket": true
+          },
+          {
+            "Name": "descending.fcdsa",
+            "Sort": 1,
+            "SortDescending": true,
+            "scope": "n:1",
+            "rows": [
+              "zero.bin",
+              "Unicode",
+              "Small files",
+              "Shared hard-linked files",
+              "report.csv",
+              "Photos",
+              "Package.app",
+              "link-outside",
+              "large.bin",
+              "Archives",
+              "Aliases",
+              ".hidden.bin"
+            ],
+            "offline": true,
+            "emptyMarksAndBasket": true
+          }
+        ]
+      },
+      "finished": true,
+      "hasQualifiedHostProfile": true,
+      "sameIdentityAsFirst": true,
+      "continuityNotice": null,
+      "privateBytesPreserved": true,
+      "fixtureRegularPaths": 509,
+      "appSha256": "4cd3cbfd7dd2630ba3f54028c3c87d63247276ece5ce5c7c0fa292681b64e8bf",
+      "harnessSha256": "097441d11fab91bf7e80d999bac4b8715d1578da3220ce38645ff2d1797ea14d",
+      "state": "closed",
+      "sourceUnchanged": true,
+      "deadlineClosed": false,
+      "exitCode": 0,
+      "ownedProcessExited": true
+    }
+  ],
+  "passed": true
+}

@@ -1,0 +1,102 @@
+{
+  "purpose": "Saved table ordering compatibility, immutable view restore and native two-process persistence subset; no capability authorization",
+  "gitBase": "f3b7a7601bd0c1824c295c3f58d17b03122292d3",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_PRIVATE_STORE.md",
+      "sha256": "9eaec0407ae9d2f46f11fdef4cd7f652feb0db6a3153ff7c61133770f9205bdf"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "22cc27b33f413f6030d01c31b41913a258930ede68abce3e3d5e740ed41d70da"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Persistence.cs",
+      "sha256": "2b6485a73d7bd1369b6379e2bc5ab176859f6c1c934e8735cdc16dac0c8a16c3"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Persistence.cs",
+      "sha256": "ebe8d92dc42469125031e7473f495999016510c914f4d504cb9abce58ee2e54a"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.cs",
+      "sha256": "4776bdbfa6712adc51458dee82b71f5bb16c6877a833732a4dfccf6f73641e49"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisCatalogTests.cs",
+      "sha256": "03005d267bf67c2f036371d4db73aea3ffd08e38f10408d2673451945fbf169d"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs",
+      "sha256": "42ef72826d325481cdf714af6feb63e00c8fd9f8e0b62e25e9b5ff50b9559c04"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/README.md",
+      "sha256": "14dd063c89a670fc7dfc423606e7574d97084e6d6a3c724039ee5d189d28744e"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/SavedOrdering.cs",
+      "sha256": "0691006c006565e6e9bdecde2a2c5b0301983d8e6c6afe99cb6f43347b678864"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Persistence.cs",
+      "sha256": "c95dc4b1cf429b8f1878a5a545a5cb31ee95bfd8925240ecb894276c31033007"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.SavedOrdering.cs",
+      "sha256": "eee2c685fc6c031f210bd206e26f1eafc0308963f6f5fdf182c7f3d71779672c"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r75.tgz",
+      "sha256": "f2fae8582e2ace47c519471e8c3915ab4cc5d77dec4bc75d003717450273d756"
+    },
+    {
+      "path": ".tmp/dsa-render-windows-r78.tgz",
+      "sha256": "c97cedc3cc52d58b214b4c061b5893ae952a576ed2ef197d666f31ff12b19fc5"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r78.tgz",
+      "sha256": "1deda280a59dc9248cad8a46802ac63cc18bd295d8c101efd991877cf7c27271"
+    },
+    {
+      "path": ".tmp/dsa-render-linux-r78.tgz",
+      "sha256": "f100115fd211734550f09298be592f3dd2078109e790b480ee715d2795ab7156"
+    },
+    {
+      "path": ".tmp/native-r81.tgz",
+      "sha256": "875a1f46efef06491b9c8a4f073cac26fddcdd911039ee8e468ee9e996a5c05f"
+    },
+    {
+      "path": ".tmp/desktop-r79-windows.tgz",
+      "sha256": "26dfe16850b3fc0b29ccd5b3264554dcf9505a6fca268f42bea4781dab779805"
+    },
+    {
+      "path": ".tmp/desktop-r79-mac.tgz",
+      "sha256": "d55af014f1522824d5e80213dc0ecabf4d342483fab6ac4c46db48dea3697285"
+    },
+    {
+      "path": ".tmp/desktop-r79-linux.tgz",
+      "sha256": "39ca80e919cde392302b1fcade1e86678a6dcf1d7dc7b7df2f966cba5fa402a1"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "drivers/unix-native-order-r79.py",
+      "sha256": "3edc58c5c4736e2b5ed5a6c9d442437636828338fa03b9036f87ff51a5274a6e"
+    },
+    {
+      "path": "drivers/windows-native-order-r79.ps1",
+      "sha256": "2cfb922a5a6999e901fec9ebfa2e6048b57e8aa6c82f8a825d47661669e760f3"
+    }
+  ],
+  "nativeReports": [
+    "windows-native-order-r79-1.json",
+    "windows-native-order-r79-2.json",
+    "mac-native-order-r79.json",
+    "ubuntu-native-order-r79.json"
+  ],
+  "remaining": "Grouping/color/range selection, complete table/details, mutable state/managed catalogs, broad qualification and the rest of the full implementation plan; final independent review not performed."
+}

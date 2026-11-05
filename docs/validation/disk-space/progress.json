@@ -84,16 +84,20 @@
     "A strict immutable create-new private-state schema retains a random profile UUID through service/process restarts. Ordinary native hardware-profile/host-UUID/application-machine-ID observations become canonical profile-scoped pseudonyms; unavailable host context remains explicit and corrupt/unsafe state is preserved with visible ephemeral fallback. This is correlation data, not authenticated provenance or live source authority.",
     "Comparison no longer guesses identity continuity from equal serial/path or opaque host strings. Missing/different host/profile/root-object/connection context requires reviewed structural mapping; selfcomparison of the same recorded acquisition remains data-only. Continuity across fresh native rebinds remains unqualified.",
     "Core r67 passes on Windows VM 294/312 with18 platform skips, Mac294/294, Ubuntu293/294 withone Darwin ACL skip. All51 presentation cases pass on each guest after a corrupt-state InvalidDataException regression and explicit-mapping fixture updates. Actual diagnostics ZIP omits the new profile/token/query/scratch canaries; this is a subset of the complete leakage gate.",
-    "Three native profile launches per platform verify create/reopen exact state and identity, then untouched corrupt bytes plus visible fallback. Every run preserves509 generated regular paths and exits. Windows21 native filesystem cases pass and full solution build has zero warnings/errors. Other testers were postponed; Ubuntu first window-search attempt safely closed and is excluded from acceptance."
+    "Three native profile launches per platform verify create/reopen exact state and identity, then untouched corrupt bytes plus visible fallback. Every run preserves509 generated regular paths and exits. Windows21 native filesystem cases pass and full solution build has zero warnings/errors. Other testers were postponed; Ubuntu first window-search attempt safely closed and is excluded from acceptance.",
+    "Named catalog entries now retain typed table ordering and direction in strict entry schema2. Existing schema1 entries retain Active metric/Descending defaults without rewriting; missing/duplicate/unknown/future/wrong-type ordering is refused without changing metadata. Inventory and catalog-header formats remain schema1.",
+    "Browse restores saved ordering before the offline projection, retaining real scope/settings while clearing marks/basket and preserving imported taint. Filename-only opening remains independent of catalog health and uses default display state; its dialog explains that distinction.",
+    "Eight additional core catalog controls pass on all3 runtimes: Windows302pass/18platform skips, Mac302pass, Ubuntu301pass/oneDarwinACLskip. All53 presentation cases pass on each guest; two new direction cases verify actual restored row order and filename defaults. The first new fixture incorrectly used breadcrumb-only navigation to enter a folder and is excluded; corrected fixtures use the actual folder-open route.",
+    "Two native saved-ordering processes per platform save/reopen both directions and captured scope with no live source/marks/basket. All5 inventory/catalog payload hashes and private-state bytes remain unchanged on reopen. Each scan retains509 source hashes; every owned app exits. Windows21 native private-store/filesystem cases pass with the new format, and full solution builds with zero warnings/errors. This subset does not close full native/a11y/resource/feature gates or final review."
   ],
   "validation": {
     "windowsCore": {
-      "total": 312,
-      "passed": 294,
+      "total": 320,
+      "passed": 302,
       "failed": 0,
       "skipped": 18,
-      "detail": "Current r67 analysis/command suite with profile, native host API, state privacy and continuity controls. Platform skips remain explicit.",
-      "evidence": "windows-core-r67.xml"
+      "detail": "Current r75 analysis/command suite, including strict saved-ordering schema compatibility and refusal controls.",
+      "evidence": "windows-core-r75.xml"
     },
     "windowsHostNative": {
       "total": 14,
@@ -108,38 +112,38 @@
       "passed": 21,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-native-r73.xml",
-      "detail": "21 ordinary NTFS regressions pass, including actual independent-binding comparison refusal and explicitly mapped growth. Existing feasibility counterexamples remain rejected operation proofs."
+      "evidence": "windows-vm-native-r81.xml",
+      "detail": "21 ordinary NTFS/private-catalog regressions pass with entry schema2. Existing operation-feasibility counterexamples remain rejected proofs."
     },
     "macosArm64": {
-      "total": 294,
-      "passed": 294,
+      "total": 302,
+      "passed": 302,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-core-r67.xml",
-      "detail": "Current r67 analysis/command suite with profile, native host API, state privacy and continuity controls. Platform skips remain explicit."
+      "evidence": "mac-core-r75.xml",
+      "detail": "Current r75 analysis/command suite, including strict saved-ordering schema compatibility and refusal controls."
     },
     "headlessRendering": {
-      "total": 51,
-      "passed": 51,
+      "total": 53,
+      "passed": 53,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-render-r72.xml",
-      "detail": "All51 cases pass on each authorized guest runtime; includes safe corrupt-state fallback, service reopen, explicit structural mapping and actual diagnostics ZIP subset."
+      "evidence": "windows-vm-render-r78.xml",
+      "detail": "All53 cases pass on each guest runtime, including named saved order/direction/scope, actual row order, dialog controls and filename-only defaults."
     },
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "solution-build-r74.txt"
+      "evidence": "solution-build-r80.txt"
     },
     "ubuntu": {
       "status": "ordinary-user-native-regressions-passed",
-      "total": 294,
-      "passed": 293,
+      "total": 302,
+      "passed": 301,
       "failed": 0,
       "skipped": 1,
-      "evidence": "ubuntu-core-r67.xml",
-      "detail": "Current r67 analysis/command suite with profile, native host API, state privacy and continuity controls. Platform skips remain explicit."
+      "evidence": "ubuntu-core-r75.xml",
+      "detail": "Current r75 analysis/command suite, including strict saved-ordering schema compatibility and refusal controls."
     },
     "nativeDesktop": {
       "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification. r62 native accessibility/keyboard link inspection verifies the visible omitted-target explanation, measured-zero distinction and retained mark, with 509 unchanged source paths and owned exit.",
@@ -226,11 +230,21 @@
       "ubuntu": "ubuntu-native-profile-r71b.json",
       "scope": "Native metadata/process restart/private byte preservation/visible fallback, not pointer/keyboard/a11y or full qualification",
       "excluded": "ubuntu-native-profile-failed-window-r71.json"
+    },
+    "nativeSavedOrdering": {
+      "status": "subset-passed-all-three",
+      "windows": [
+        "windows-native-order-r79-1.json",
+        "windows-native-order-r79-2.json"
+      ],
+      "mac": "mac-native-order-r79.json",
+      "ubuntu": "ubuntu-native-order-r79.json",
+      "scope": "Two native processes, save/reopen both order directions and scope; unchanged5 saved payloads/profile bytes/509 source paths per run; owned exit. Not physical input or complete qualification."
     }
   },
   "nextWork": [
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
-    "W2: table-order persistence, grouping/color dimensions, captured sort-order range selection and full table/detail columns/tooltips. Sunburst labels and complete native pointer/a11y/theme/display qualification remain open.",
+    "W2: grouping/color dimensions, captured sort-order range selection and full table/detail columns/tooltips. Sunburst labels and complete native pointer/a11y/theme/display qualification remain open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",

@@ -96,7 +96,7 @@ public sealed partial class DiskSpaceWindow
                 name.TextChanged += (_, _) => error.Text = string.IsNullOrEmpty(name.Text) ? "" : InventoryNameError(name.Text);
                 var body = new StackPanel { Spacing = 8, Children =
                 {
-                    new TextBlock { Text = comparing ? "Compare the entire captured revision with a saved inventory as Previous. The display filter and folder scope do not limit this comparison. Compatibility and missing coverage qualify every difference." : "Enter a saved .fcdsa filename. Opening it shows offline observations without reconnecting sources or granting file actions.", TextWrapping = TextWrapping.Wrap },
+                    new TextBlock { Text = comparing ? "Compare the entire captured revision with a saved inventory as Previous. The display filter and folder scope do not limit this comparison. Compatibility and missing coverage qualify every difference." : "Browse saved analyses to restore saved display settings, including table order. Entering a .fcdsa filename alone uses the default view. Opening shows offline observations without reconnecting sources or granting file actions.", TextWrapping = TextWrapping.Wrap },
                     new TextBlock { Text = "Saved analyses folder: " + AnalysisNames.Display(Model.SavedDirectory ?? ""), TextWrapping = TextWrapping.Wrap },
                     browse, catalogStatus, choices, name, error
                 } };

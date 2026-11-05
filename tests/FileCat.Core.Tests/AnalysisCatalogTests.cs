@@ -30,7 +30,7 @@ public sealed class AnalysisCatalogTests
     {
         Ordinary(); using var directory = new MemoryDirectory(); using var store = new AnalysisPrivateInventoryStore(directory);
         var catalog = new AnalysisSavedCatalog(store); var id = Guid.NewGuid();
-        var view = new AnalysisSavedView(AnalysisMetric.Files, "Sunburst", "name:*.bin", "1", "n:1", true, false);
+        var view = new AnalysisSavedView(AnalysisMetric.Files, "Sunburst", "name:*.bin", "1", "n:1", true, false, AnalysisTableSort.MeasurementState, false);
         var receipt = catalog.SaveNew("saved 😀.fcdsa", AnalysisAccountingTests.Golden(), id, view, Cancellation);
         store.SaveNew("legacy.fcdsa", AnalysisAccountingTests.Golden(), Guid.NewGuid(), Cancellation);
         using var result = catalog.Read(Cancellation); var entry = Assert.Single(result.Entries);
@@ -43,6 +43,48 @@ public sealed class AnalysisCatalogTests
         Assert.Throws<IOException>(() => catalog.SaveNew("SAVED 😀.fcdsa", AnalysisAccountingTests.Golden(), Guid.NewGuid(), view, Cancellation));
         Assert.Equal(before, directory.Files[entry.Name]);
         Assert.Throws<InvalidDataException>(() => catalog.Load(entry with { InventoryId = Guid.NewGuid() }, Cancellation));
+    }
+
+    [Theory]
+    [InlineData("future")]
+    [InlineData("missing")]
+    [InlineData("unknown")]
+    [InlineData("numeric")]
+    [InlineData("direction")]
+    [InlineData("duplicate")]
+    [InlineData("legacy-extra")]
+    public void InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(string fault)
+    {
+        Ordinary(); using var directory = new MemoryDirectory(); using var store = new AnalysisPrivateInventoryStore(directory);
+        var catalog = new AnalysisSavedCatalog(store); catalog.SaveNew("order.fcdsa", AnalysisAccountingTests.Golden(), Guid.NewGuid(), AnalysisSavedView.Default, Cancellation);
+        string name = directory.Files.Keys.Single(n => n.StartsWith("catalog-", StringComparison.Ordinal));
+        string json = Encoding.UTF8.GetString(directory.Files[name]);
+        json = fault switch
+        {
+            "future" => json.Replace("\"schema\":\"2\"", "\"schema\":\"3\"", StringComparison.Ordinal),
+            "missing" => json.Replace(",\"sort\":\"ActiveMetric\"", "", StringComparison.Ordinal),
+            "unknown" => json.Replace("ActiveMetric", "ArbitraryPath", StringComparison.Ordinal),
+            "numeric" => json.Replace("\"sort\":\"ActiveMetric\"", "\"sort\":0", StringComparison.Ordinal),
+            "direction" => json.Replace("\"sortDescending\":true", "\"sortDescending\":\"true\"", StringComparison.Ordinal),
+            "duplicate" => json.Replace("\"sortDescending\":true", "\"sortDescending\":true,\"sortDescending\":false", StringComparison.Ordinal),
+            _ => json.Replace("\"schema\":\"2\"", "\"schema\":\"1\"", StringComparison.Ordinal)
+        };
+        directory.Files[name] = Encoding.UTF8.GetBytes(json);
+        Assert.Throws<InvalidDataException>(() => catalog.Read(Cancellation)); Assert.Equal(json, Encoding.UTF8.GetString(directory.Files[name]));
+        using var data = store.Load("order.fcdsa", Cancellation); Assert.Equal(AnalysisOrigin.ImportedInventory, data.Snapshot.Origin);
+    }
+
+    [Fact]
+    public void LegacySavedViewUsesItsOriginalDefaultOrderWithoutRewritingTheEntry()
+    {
+        Ordinary(); using var directory = new MemoryDirectory(); using var store = new AnalysisPrivateInventoryStore(directory);
+        var catalog = new AnalysisSavedCatalog(store); catalog.SaveNew("old.fcdsa", AnalysisAccountingTests.Golden(), Guid.NewGuid(), AnalysisSavedView.Default, Cancellation);
+        string name = directory.Files.Keys.Single(n => n.StartsWith("catalog-", StringComparison.Ordinal));
+        string json = Encoding.UTF8.GetString(directory.Files[name]).Replace("\"schema\":\"2\"", "\"schema\":\"1\"", StringComparison.Ordinal)
+            .Replace(",\"sort\":\"ActiveMetric\",\"sortDescending\":true", "", StringComparison.Ordinal);
+        directory.Files[name] = Encoding.UTF8.GetBytes(json);
+        using var result = catalog.Read(Cancellation); var entry = Assert.Single(result.Entries);
+        Assert.Equal(AnalysisSavedView.Default, entry.View); Assert.Equal(json, Encoding.UTF8.GetString(directory.Files[name]));
     }
 
     [Theory]
