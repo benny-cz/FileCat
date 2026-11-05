@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Responsive tabs/native activation and heading-wrap development provenance, not capability authorization",
+  "gitBase": "70d4c325",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "444f13b63b01a9584aef3b3c90e081da23f7baff563994285368a542db940a83"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Comparison.cs",
+      "sha256": "c87f6b146e90b91fbc3e2cc07b850ee1cb9a5172f4af89ba2d36eea2d9c191ee"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Tabs.cs",
+      "sha256": "c8c54208035b1bc121e6d95c8a006d4a09cff6ded7599ffed4228f5fa8ca256b"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs",
+      "sha256": "91393cb78df0a51ea02cd33729b1c6396863dfbd7baae74f2285f6944a787547"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/README.md",
+      "sha256": "d97568c26ba96bb4a322a2b5dc89e00b421f5be62f973fd3815a0153b185ab63"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-render-windows-r38.tgz",
+      "sha256": "6aaa988a125a390de539025906bbe1cab81d734810e3db1549007174d8ca007d"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r38.tgz",
+      "sha256": "d52fc64d9b23e458ad80a9b2613acadbe1ba9a39b09ce9e279bb296ac8d3f122"
+    },
+    {
+      "path": ".tmp/dsa-render-linux-r38.tgz",
+      "sha256": "5dc7d5734e70b8c1116d2624b6b16f7754e09a2c0dae214d3b43e4d44323bf3e"
+    },
+    {
+      "path": ".tmp/desktop-r38-mac.tgz",
+      "sha256": "b3b5e53d31792a72208ad14f3c04c39835141ff54b3d6f8591d2ce50d8a25862"
+    },
+    {
+      "path": ".tmp/desktop-r38-linux.tgz",
+      "sha256": "179f7a53937c2abbeb5110136444ba9b5c68a594bb5b3e3817cfecdbfd784df5"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".tmp/render-r38-mac/FileCat.dll",
+      "sha256": "f41082859634ea9dea701429cef1dddef2b71a928d6b0148eaaa4f10760a3521"
+    },
+    {
+      "path": ".tmp/render-r38-mac/FileCat.Rendering.Tests.dll",
+      "sha256": "4690e56add2905e445ce80dcf1e6809b47801e8ace7af17d513489a031a70dbf"
+    },
+    {
+      "path": ".tmp/desktop-r38-mac/FileCat.dll",
+      "sha256": "194070ed6ce35d31cf6b748fc63f754538720214df59152f477044661a643c24"
+    },
+    {
+      "path": ".tmp/desktop-r38-mac/DiskSpaceHarness.dll",
+      "sha256": "c3fb063c207b50431f78901ded9d4a575fa35523a535ca03f7de50d3f492bafc"
+    },
+    {
+      "path": ".tmp/desktop-r38-linux/FileCat.dll",
+      "sha256": "90e4db79f2fa3ef6471d8d894ce70550e52099d8a01dbebadec9cea476868275"
+    },
+    {
+      "path": ".tmp/desktop-r38-linux/DiskSpaceHarness.dll",
+      "sha256": "8194a4cf19fd1e84368db032bd71128037d8f995199dc425f7d8fb5c9d41063c"
+    }
+  ],
+  "nativeAcceptance": "Mac compact/large-text eight-tab AXPress/values/pointer/Left subset passes. Ubuntu restore/resize attempt failed and closed. All36 headless presentation cases pass on Windows VM/Mac/Ubuntu. Full qualification remains pending."
+}

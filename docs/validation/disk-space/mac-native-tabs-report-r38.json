@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native desktop development validation; no capability qualification",
+  "state": "closed",
+  "sourceUnchanged": true,
+  "deadlineClosed": false,
+  "processId": 21596,
+  "platform": "macOS 27.0.1",
+  "architecture": "Arm64",
+  "run": "/Users/benny/FileCatValidation/dsa-20261105-r38-tabs/app/native-validation/dsa-b0ff76d0b0354ed48671d236a0f4fea1",
+  "fixture": "/Users/benny/FileCatValidation/dsa-20261105-r38-tabs/app/native-validation/dsa-b0ff76d0b0354ed48671d236a0f4fea1/fixture",
+  "fixtureRegularPaths": 509,
+  "fixtureLimitations": [],
+  "nativeWindowVisible": false,
+  "lastVisibleWidth": 380,
+  "lastVisibleHeight": 402,
+  "lastVisibleScale": 2,
+  "lastScreen": {
+    "bounds": "0, 0, 1440, 900",
+    "workingArea": "0, 30, 1440, 791",
+    "Scaling": 1,
+    "position": "130, 30",
+    "frameSize": "380, 430"
+  },
+  "largeText": true,
+  "sessions": 0,
+  "createdSessions": 9,
+  "lastObservation": null,
+  "selectedTab": 6,
+  "tabHeaders": [
+    "Analysis 1",
+    "Analysis 2",
+    "Analysis 3",
+    "Analysis 4",
+    "Analysis 5",
+    "Analysis 6",
+    "Analysis 7",
+    "Analysis 9"
+  ],
+  "appSha256": "194070ed6ce35d31cf6b748fc63f754538720214df59152f477044661a643c24",
+  "harnessSha256": "c3fb063c207b50431f78901ded9d4a575fa35523a535ca03f7de50d3f492bafc"
+}

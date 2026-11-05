@@ -1,0 +1,309 @@
+AXGroup	WindowChrome	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	New analysis	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Close analysis	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Continue in FileCat	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXTabGroup	Analysis tabs	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXRadioButton	Analysis 1	false
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXRadioButton	Analysis 2	false
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXRadioButton	Analysis 3	false
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXRadioButton	Analysis 4	false
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXRadioButton	Analysis 5	false
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXRadioButton	Analysis 6	false
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXRadioButton	Analysis 7	false
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXRadioButton	Analysis 8	true
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXScrollArea	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXScrollArea	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Understand this storage. Choose what to measure.	Understand this storage. Choose what to measure.
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXTextField	Analysis location 1	/Users/benny/FileCatValidation/dsa-20261105-r38-tabs/app/native-validation/dsa-b0ff76d0b0354ed48671d236a0f4fea1/fixture
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXScrollArea	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Remove	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Add location	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Choose folders…	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Choose files…	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXPopUpButton	Allocation components	Standard allocation
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Standard allocation	Standard allocation
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXUnknown	missing value	missing value
+AXStaticText	Stay within each filesystem. Links and cloud contents are not followed. Detailed adds directory allocation; separate streams, forks and xattrs are not measured.	Stay within each filesystem. Links and cloud contents are not followed. Detailed adds directory allocation; separate streams, forks and xattrs are not measured.
+AXStaticText	missing value	missing value
+AXButton	Start analysis	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXScrollBar	missing value	0,0
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Line up	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Page up	missing value
+AXGroup	missing value	missing value
+AXButton	Page down	missing value
+AXGroup	missing value	missing value
+AXHandle	Position	missing value
+AXGroup	missing value	missing value
+AXButton	Line down	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Back	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Forward	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Up	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXPopUpButton	missing value	Treemap
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Treemap	Treemap
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXUnknown	missing value	missing value
+AXPopUpButton	missing value	On disk — reported
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	On disk — reported	On disk — reported
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXUnknown	missing value	missing value
+AXButton	Pause	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Stop	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Inspect selection	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Save…	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Open saved…	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Compare…	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Captured scope appears here after Start.	Captured scope appears here after Start.
+AXStaticText	No measurements yet	No measurements yet
+AXStaticText	Unknown, unavailable and zero remain separate.	Unknown, unavailable and zero remain separate.
+AXGroup	missing value	missing value
+AXTextField	Filter observations	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXScrollArea	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Search within observations…	Search within observations…
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXCheckBox	Case sensitive	false
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Clear filter	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXHandle	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Mark	Mark
+AXStaticText	Name	Name
+AXStaticText	Active metric	Active metric
+AXList	Ranked analysis entries	missing value
+AXGroup	missing value	missing value
+AXScrollArea	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Review basket: 0 references · expected free-space gain unknown	Review basket: 0 references · expected free-space gain unknown
+AXButton	Review cleanup	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXStaticText	Choose locations. Standard analysis reads metadata, not file contents.	Choose locations. Standard analysis reads metadata, not file contents.
+AXScrollBar	missing value	0,0
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Line up	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	Page up	missing value
+AXGroup	missing value	missing value
+AXButton	Page down	missing value
+AXGroup	missing value	missing value
+AXHandle	Position	missing value
+AXGroup	missing value	missing value
+AXButton	Line down	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	missing value	missing value
+AXButton	missing value	missing value
+AXGroup	missing value	missing value
+AXGroup	missing value	missing value
+AXButton	missing value	missing value
+AXStaticText	Disk space — FileCat	Disk space — FileCat

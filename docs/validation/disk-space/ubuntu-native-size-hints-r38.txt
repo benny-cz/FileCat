@@ -1,0 +1,4 @@
+WM_NORMAL_HINTS(WM_SIZE_HINTS):
+		program specified minimum size: 360 by 360
+		program specified resize increment: 1 by 1
+_NET_WM_STATE(ATOM) = _NET_WM_STATE_MAXIMIZED_HORZ, _NET_WM_STATE_MAXIMIZED_VERT, _NET_WM_STATE_FOCUSED

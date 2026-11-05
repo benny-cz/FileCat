@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
 using Avalonia;
 using Avalonia.Automation;
+using Avalonia.Automation.Peers;
+using Avalonia.Automation.Provider;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
@@ -43,6 +45,10 @@ public sealed partial class DiskSpaceWindow : Window
         WindowFit.Attach(this);
         try { Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://FileCat/Assets/filecat.ico"))); } catch (IOException) { }
         _dialogs = new(_overlay, () => _tabs);
+        AutomationProperties.SetName(_tabs, "Analysis tabs");
+        // Up to eight modeless sessions must stay reachable on a narrow screen. Wrap their
+        // headers instead of letting the theme's compact dialog tabs clip the later sessions.
+        _tabs.ItemsPanel = new FuncTemplate<Panel?>(() => new WrapPanel { Orientation = Orientation.Horizontal });
         var header = new WrapPanel { ItemSpacing = 8, Margin = new Thickness(10, 8) };
         header.Children.Add(ActionButton("New analysis", () => _newAnalysis?.Invoke(), "Choose another captured scope in a new analysis tab."));
         header.Children.Add(ActionButton("Close analysis", () => _ = CloseTabAsync(), "Close the selected analysis. Active work and review references need a preserving choice."));
@@ -74,7 +80,11 @@ public sealed partial class DiskSpaceWindow : Window
         if (_sessions.Count >= AnalysisLimits.Sessions) throw new InvalidOperationException("Eight analyses are open. Close an analysis before adding another.");
         var view = new SessionView(this, model, roots ?? []);
         _notice.IsVisible = false;
-        var item = new TabItem { Header = (model.Comparison is null ? "Analysis " : "Comparison ") + checked(++_nextTabNumber), Content = view.CreateViewport() };
+        string label = (model.Comparison is null ? "Analysis " : "Comparison ") + checked(++_nextTabNumber);
+        var item = new AnalysisTabItem { Header = label, Content = view.CreateViewport(), Padding = new Thickness(12, 6),
+            Margin = new Thickness(0, 0, 4, 0), MinHeight = 32 };
+        item.Bind(FontSizeProperty, this.GetObservable(FontSizeProperty));
+        AutomationProperties.SetName(item, label);
         _sessions.Add(view); _items.Add(item); _tabs.ItemsSource = _items.ToArray(); _tabs.SelectedItem = item;
     }
     private async Task ConfirmCloseAsync()
@@ -107,6 +117,42 @@ public sealed partial class DiskSpaceWindow : Window
     {
         var button = new Button { Content = text }; button.Click += (_, _) => action();
         ToolTip.SetTip(button, new RichTip(text, detail: help)); AutomationProperties.SetHelpText(button, help); return button;
+    }
+    private sealed class AnalysisTabItem : TabItem
+    {
+        protected override Type StyleKeyOverride => typeof(TabItem);
+        protected override AutomationPeer OnCreateAutomationPeer() => OperatingSystem.IsMacOS()
+            ? new MacTabPeer(this) : new TabPeer(this);
+    }
+    // Avalonia 12.1's native AXPress dispatches Invoke/Toggle, but its default TabItem peer
+    // supplies SelectionItem only. Keep normal tab semantics and add the explicit activation.
+    private class TabPeer(AnalysisTabItem owner) : ListItemAutomationPeer(owner), IInvokeProvider
+    {
+        public void Invoke()
+        {
+            if (!owner.IsEffectivelyEnabled || !owner.IsEffectivelyVisible ||
+                owner.Parent is not TabControl tabs || !tabs.Items.Contains(owner)) return;
+            Select(); owner.Focus();
+        }
+    }
+    // macOS presents tabs as radio buttons and obtains their numeric value from Toggle.
+    // Selecting an already selected radio tab remains selected; activation never deselects it.
+    private sealed class MacTabPeer : TabPeer, IToggleProvider
+    {
+        private readonly AnalysisTabItem _owner;
+        public MacTabPeer(AnalysisTabItem owner) : base(owner)
+        {
+            _owner = owner;
+            owner.PropertyChanged += (_, change) =>
+            {
+                if (change.Property == TabItem.IsSelectedProperty)
+                    RaisePropertyChangedEvent(TogglePatternIdentifiers.ToggleStateProperty,
+                        change.GetOldValue<bool>() ? ToggleState.On : ToggleState.Off,
+                        change.GetNewValue<bool>() ? ToggleState.On : ToggleState.Off);
+            };
+        }
+        public ToggleState ToggleState => _owner.IsSelected ? ToggleState.On : ToggleState.Off;
+        public void Toggle() => Invoke();
     }
     private sealed partial class SessionView : Grid, IDisposable
     {
@@ -152,7 +198,7 @@ public sealed partial class DiskSpaceWindow : Window
             _query.Text = Model.Query; _case.IsChecked = Model.CaseSensitive; _metric.SelectedIndex = (int)Model.Metric;
             _mode.SelectedIndex = Model.Chart switch { "Sunburst" => 1, "Table" => 2, _ => 0 };
             RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,Auto");
-            _setup.Children.Add(new TextBlock { Text = "Understand this storage. Choose what to measure.", FontSize = 20 });
+            _setup.Children.Add(SessionText("Understand this storage. Choose what to measure.", 20));
             _setup.Children.Add(_roots);
             foreach (string root in roots) AddRoot(root);
             if (_rootEditors.Count == 0) AddRoot("");

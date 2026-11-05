@@ -44,7 +44,7 @@ public sealed partial class DiskSpaceWindow
             ? value.ToString("+0.###;-0.###;0") + "%" : "New / zero baseline";
         private static string ComparisonEvidence(AnalysisComparisonEvidence evidence) => evidence switch
         { AnalysisComparisonEvidence.CompatibleIdentityAndVersion => "Compatible observed identity and version", AnalysisComparisonEvidence.Structural => "Explicit structural comparison", _ => "Path-based observations" };
-        private TextBlock ComparisonText(string text, double? size = null)
+        private TextBlock SessionText(string text, double? size = null)
         {
             var label = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap };
             if (size.HasValue)
@@ -60,19 +60,19 @@ public sealed partial class DiskSpaceWindow
         {
             foreach (var child in Children) child.IsVisible = false;
             var heading = _comparisonHeading = new StackPanel { Spacing = 7, Margin = new Thickness(10, 5) };
-            heading.Children.Add(ComparisonText("Compare observations · " + ComparisonMetric(comparison.Metric), 20));
-            heading.Children.Add(ComparisonText("Previous: " + AnalysisNames.Display(Model.ComparisonPreviousName ?? "", 240) + " · " + Interval(Model.ComparisonPreviousIdentity) +
+            heading.Children.Add(SessionText("Compare observations · " + ComparisonMetric(comparison.Metric), 20));
+            heading.Children.Add(SessionText("Previous: " + AnalysisNames.Display(Model.ComparisonPreviousName ?? "", 240) + " · " + Interval(Model.ComparisonPreviousIdentity) +
                 "\nCurrent captured revision: " + Interval(Model.ComparisonCurrentIdentity)));
             string Total(AnalysisTotals total) => !total.CompatibleBasis ? "No combined total · incompatible bases" :
                 ComparisonValue(AnalysisMeasurement.Known(total.Known), comparison.Metric) + " known" +
                 (total.IdentityUnverified > 0 ? " + " + total.IdentityUnverified.ToString("N0") + " identity-unverified bytes" : "") +
                 (total.Missing.Count > 0 ? " · " + total.Missing.Values.Aggregate(0ul, (a, b) => checked(a + b)).ToString("N0") + " unavailable measurements" : "");
-            heading.Children.Add(ComparisonText("Previous: " + Total(comparison.PreviousTotals) + "\nCurrent: " + Total(comparison.CurrentTotals) +
+            heading.Children.Add(SessionText("Previous: " + Total(comparison.PreviousTotals) + "\nCurrent: " + Total(comparison.CurrentTotals) +
                 "\nObserved net change: " + ComparisonDelta(comparison.NetChange, comparison.Metric), 16));
-            heading.Children.Add(ComparisonText(string.Join("\n", comparison.Compatibility.Explanations)));
-            if (comparison.Taint.HasFlag(AnalysisTaint.PrivilegedDerived)) heading.Children.Add(ComparisonText("Contains privileged-derived observations. Private handling remains required."));
+            heading.Children.Add(SessionText(string.Join("\n", comparison.Compatibility.Explanations)));
+            if (comparison.Taint.HasFlag(AnalysisTaint.PrivilegedDerived)) heading.Children.Add(SessionText("Contains privileged-derived observations. Private handling remains required."));
             var list = _comparisonRows = new ListBox { MinHeight = 180, Focusable = true, SelectionMode = SelectionMode.Single };
-            var count = ComparisonText(""); AutomationProperties.SetLiveSetting(count, AutomationLiveSetting.Polite);
+            var count = SessionText(""); AutomationProperties.SetLiveSetting(count, AutomationLiveSetting.Polite);
             var status = _comparisonStatus = new ComboBox { MinWidth = 180, ItemsSource = new[]
                 { "All observations", "Growing", "Shrinking", "Added", "Removed", "Moved", "Attribution", "Replaced", "Metadata changed", "No observed metadata change", "Unknown / previously unknown" }, SelectedIndex = 0 };
             var sort = new ComboBox { MinWidth = 180, ItemsSource = new[] { "Absolute difference", "Relative change", "Current amount", "Path" }, SelectedIndex = 0 };
@@ -83,7 +83,7 @@ public sealed partial class DiskSpaceWindow
             var query = _comparisonQuery = new TextBox { PlaceholderText = "e.g. delta>1MiB OR change:removed", MaxLength = AnalysisLimits.QueryBytes, MinWidth = 180, Width = 310 };
             var querySide = new ComboBox { ItemsSource = new[] { "Current; Previous for removed rows", "Current observations", "Previous observations", "Either recorded side" }, SelectedIndex = 0, MinWidth = 180 };
             var sensitive = new CheckBox { Content = "Case sensitive" };
-            var queryError = ComparisonText(""); AutomationProperties.SetLiveSetting(queryError, AutomationLiveSetting.Assertive);
+            var queryError = SessionText(""); AutomationProperties.SetLiveSetting(queryError, AutomationLiveSetting.Assertive);
             var unknown = new CheckBox { Content = "Inspect uncertain query matches", IsVisible = false };
             AutomationProperties.SetName(query, "Comparison query"); AutomationProperties.SetName(querySide, "Comparison query side");
             AutomationProperties.SetName(unknown, "Inspect uncertain comparison matches");
@@ -131,10 +131,10 @@ public sealed partial class DiskSpaceWindow
                 if (row is null) return new Border();
                 var body = new StackPanel { Spacing = 4, Margin = new Thickness(8, 6) };
                 string title = ChangeLabel(row.Change) + " · " + ComparisonDelta(row.Delta, comparison.Metric) + " · " + RelativeChange(row);
-                body.Children.Add(ComparisonText(title, 15));
-                if (row.Current is { } current) body.Children.Add(ComparisonText("Current: " + current.Paths[0] + AliasCount(current) + " · " + ComparisonValue(current.Value, comparison.Metric)));
-                if (row.Previous is { } previous) body.Children.Add(ComparisonText("Previous: " + previous.Paths[0] + AliasCount(previous) + " · " + ComparisonValue(previous.Value, comparison.Metric)));
-                body.Children.Add(ComparisonText(row.Evidence == AnalysisComparisonEvidence.CompatibleIdentityAndVersion ? "Compatible observed identity/version evidence" : row.Evidence == AnalysisComparisonEvidence.Structural ? "Explicit structural comparison" : "Path-based observations"));
+                body.Children.Add(SessionText(title, 15));
+                if (row.Current is { } current) body.Children.Add(SessionText("Current: " + current.Paths[0] + AliasCount(current) + " · " + ComparisonValue(current.Value, comparison.Metric)));
+                if (row.Previous is { } previous) body.Children.Add(SessionText("Previous: " + previous.Paths[0] + AliasCount(previous) + " · " + ComparisonValue(previous.Value, comparison.Metric)));
+                body.Children.Add(SessionText(row.Evidence == AnalysisComparisonEvidence.CompatibleIdentityAndVersion ? "Compatible observed identity/version evidence" : row.Evidence == AnalysisComparisonEvidence.Structural ? "Explicit structural comparison" : "Path-based observations"));
                 AutomationProperties.SetName(body, title + "; " + (row.Current?.Paths[0] ?? row.Previous!.Paths[0]));
                 ToolTip.SetTip(body, new RichTip("Observed difference", detail: row.Explanation + " " + row.Evidence + ". Inspect the entry for both path sets and measurement bases."));
                 return body;
@@ -168,7 +168,7 @@ public sealed partial class DiskSpaceWindow
             list.AddHandler(KeyDownEvent, (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; _ = InspectComparisonAsync(); } }, RoutingStrategies.Tunnel);
             var footer = _comparisonFooter = new StackPanel { Spacing = 6, Margin = new Thickness(10, 6) };
             footer.Children.Add(ActionButton("Inspect comparison entry", () => _ = InspectComparisonAsync(), "Read both path sets, measured values and compatibility evidence. Historical rows supply no current file target."));
-            footer.Children.Add(ComparisonText("Offline metadata comparison. Reported allocation is not consumed or reclaimable physical space. No file contents were compared. This view uses the captured metric; choose another metric before starting a new comparison."));
+            footer.Children.Add(SessionText("Offline metadata comparison. Reported allocation is not consumed or reclaimable physical space. No file contents were compared. This view uses the captured metric; choose another metric before starting a new comparison."));
             var panel = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto") };
             panel.Children.Add(heading); Grid.SetRow(list, 1); panel.Children.Add(list); Grid.SetRow(footer, 2); panel.Children.Add(footer);
             Grid.SetRowSpan(panel, 5); Children.Add(panel); Filter();
@@ -179,16 +179,16 @@ public sealed partial class DiskSpaceWindow
             if (_disposed || _window._dialogs.IsOpen || Model.Comparison is not { } comparison) return;
             if (_comparisonRows?.SelectedItem is not AnalysisComparisonRow row) { _comparisonRows?.Focus(); return; }
             var body = new StackPanel { Spacing = 8 };
-            body.Children.Add(ComparisonText(ChangeLabel(row.Change) + " · " + ComparisonDelta(row.Delta, comparison.Metric) + " · " + RelativeChange(row), 17));
-            body.Children.Add(ComparisonText(row.Explanation));
-            body.Children.Add(ComparisonText("Metadata evidence: " + ComparisonEvidence(row.Evidence) + ". No current source or content proof is supplied."));
+            body.Children.Add(SessionText(ChangeLabel(row.Change) + " · " + ComparisonDelta(row.Delta, comparison.Metric) + " · " + RelativeChange(row), 17));
+            body.Children.Add(SessionText(row.Explanation));
+            body.Children.Add(SessionText("Metadata evidence: " + ComparisonEvidence(row.Evidence) + ". No current source or content proof is supplied."));
             void Side(string title, AnalysisComparisonEntity? entity)
             {
-                body.Children.Add(ComparisonText(title + ": " + (entity is null ? "No comparable observed entry" : ComparisonValue(entity.Value, comparison.Metric)), 16));
+                body.Children.Add(SessionText(title + ": " + (entity is null ? "No comparable observed entry" : ComparisonValue(entity.Value, comparison.Metric)), 16));
                 if (entity is null) return;
-                body.Children.Add(ComparisonText("Observed modified time: " + (entity.ModifiedUtc?.ToString("u") ?? "Unknown") + " · " + entity.Paths.Length.ToString("N0") + (entity.Paths.Length == 1 ? " path" : " paths")));
+                body.Children.Add(SessionText("Observed modified time: " + (entity.ModifiedUtc?.ToString("u") ?? "Unknown") + " · " + entity.Paths.Length.ToString("N0") + (entity.Paths.Length == 1 ? " path" : " paths")));
                 var paths = new ListBox { ItemsSource = entity.Paths, MaxHeight = 180, MinHeight = 60,
-                    ItemTemplate = new FuncDataTemplate<string>((path, _) => ComparisonText(path ?? "")) };
+                    ItemTemplate = new FuncDataTemplate<string>((path, _) => SessionText(path ?? "")) };
                 AutomationProperties.SetName(paths, title + " observed paths"); body.Children.Add(paths);
             }
             Side("Previous", row.Previous); Side("Current", row.Current);
@@ -197,11 +197,11 @@ public sealed partial class DiskSpaceWindow
                 foreach (bool previous in new[] { true, false })
                 {
                     string title = previous ? "Previous recorded measurement bases" : "Current recorded measurement bases";
-                    body.Children.Add(ComparisonText(title, 16));
+                    body.Children.Add(SessionText(title, 16));
                     var descriptions = Model.ComparisonBases(previous, previous ? row.Previous : row.Current);
-                    if (descriptions.IsEmpty) body.Children.Add(ComparisonText("No measurement bases recorded for this entry; component coverage is unknown."));
+                    if (descriptions.IsEmpty) body.Children.Add(SessionText("No measurement bases recorded for this entry; component coverage is unknown."));
                     var bases = new ListBox { ItemsSource = descriptions, MaxHeight = 140, MinHeight = 40,
-                        ItemTemplate = new FuncDataTemplate<string>((basis, _) => ComparisonText(basis ?? "")) };
+                        ItemTemplate = new FuncDataTemplate<string>((basis, _) => SessionText(basis ?? "")) };
                     AutomationProperties.SetName(bases, title); body.Children.Add(bases);
                 }
             }

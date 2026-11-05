@@ -8,15 +8,15 @@ After the other Ubuntu FileCat process exited, fresh process gates allowed ordin
 
 | Run | Result | Receipt |
 |---|---|---|
-| Full solution build | No warnings or errors | [build](solution-build-r36.txt) |
+| Full solution build | No warnings or errors | [build](solution-build-r38.txt) |
 | Windows analysis, commands and state/path cases | 275 pass, 17 platform skips | [XML](windows-core-r36c.xml) |
 | Historical Windows host (before VM-only instruction) | 14 pass, no skips at r32 | [XML](windows-host-native-r32.xml) |
 | Ordinary Windows guest, regressions plus native guard counterexamples |21 pass, no skips | [XML](windows-vm-native-r36e.xml) |
 | macOS arm64 analysis and command cases | 274 pass, no skips | [XML](mac-core-r36c.xml) |
 | macOS shared stat consumers | 49 pass, 2 platform skips | [XML](mac-stat-consumers-r22.xml) |
-| Windows Skia headless presentation | 35 pass in Windows VM | [XML](windows-vm-render-r35.xml) |
-| macOS headless presentation and native persistence | 35 pass | [XML](mac-analysis-render-r35.xml) |
-| Ubuntu headless presentation and native persistence | 35 pass | [XML](ubuntu-render-r35.xml) |
+| Windows Skia headless presentation | 36 pass in Windows VM | [XML](windows-vm-render-r38.xml) |
+| macOS headless presentation and native persistence | 36 pass | [XML](mac-analysis-render-r38.xml) |
+| Ubuntu headless presentation and native persistence | 36 pass | [XML](ubuntu-analysis-render-r38.xml) |
 | macOS native scan/save/compare/query/close subset |509 source hashes unchanged; owned process exited; sizing bug fixed | [receipt](mac-native-ui-r35.json) |
 | Ubuntu ext4 analysis and command cases | 273 pass, 1 Darwin-only skip | [XML](ubuntu-core-r36c.xml) |
 | Ubuntu shared stat consumers | 49 pass, 2 platform skips | [XML](ubuntu-stat-consumers-r24.xml) |
@@ -92,3 +92,7 @@ The r35 native Mac retest fixes the Retina sizing error by using the screen coor
 The r36 [early W4 feasibility work](../../design/FILECAT_DISK_SPACE_OPERATION_FEASIBILITY.md) tests actual native primitives, without changing or enabling production operations. Windows metadata-only selected-alias removal succeeds with primary ReadData denied, excludes ordinary writers/renames/ancestor movement and refuses an existing writer. However, an attribute-only handle changes LastWriteTime through the share guard and through granted R/RH/RW/RWH oplocks without a break notification. Mac/APFS and Ubuntu/ext4 held-descriptor counterexamples demonstrate selected-child substitution and changed ancestor binding before unlinkat. [The receipt](operation-feasibility-r36.json) distinguishes successful counterexamples from operation qualification. A stronger adapter or fully evidenced prescribed unavailable behavior remains required; no existing ComparedContent guarantee was weakened.
 
 The new runs exposed test-only import-memory and native-handle budget contention. Capacity-exhaustion classes now run in a nonparallel collection, preserving production refusal. Final core suites pass on all three machines, Windows native has21 passes, and the full solution has zero warnings/errors. The Mac/Ubuntu runners exited with clear process gates. Subsequent Windows read-only auditing detected another Core test and then an App test instance; they were left untouched and further Windows testing is postponed. No GUI instance was started for this packet. [r36 provenance](source-manifest-r36.json) identifies exact tested sources and staged binaries.
+
+The r38 packet fixes crowded tab headers and their native accessibility activation. Tabs wrap within a narrow window, follow its text size and provide32-DIP targets. Native Mac testing found that the framework's selection-only TabItem peer did not activate through AXPress; analyzer tabs now provide explicit activation and the Mac radio selected value. Activation is inert for disabled, hidden or removed tabs. A clipped setup title now wraps and follows the same minimum text size. All36 presentation cases pass on Windows VM, Mac and Ubuntu, including eight tabs at380x430/20-DIP in seven themes, padded pointer activation, provider semantics and Left navigation. The solution has zero warnings/errors.
+
+[Native Mac compact evidence](mac-native-tabs-r38.json) records eight headers fully inside a380x430-point frame/380x402 client at2x with20-DIP text, real AXPress and selected values, padded pointer/Left behavior, caption9 after closing8,509 unchanged source paths and owned exit before the deadline. [Compact tabs](renders/mac-native-r38-compact-eight-tabs.png) were visually inspected and show the repaired title wrapping. [Ubuntu's resize attempt](ubuntu-native-tabs-control-r38.json) was refused/remaximized even though native hints specify360x360 minimum; it closed its owned instance, preserved509 source paths and is not compact acceptance. Full native Windows input, screen-reader/theme/DPI/display and feature qualification remain open. [r38 provenance](source-manifest-r38.json) identifies tested sources and binaries.
