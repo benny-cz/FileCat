@@ -42,6 +42,10 @@ transformation and fresh verification, with fixed-pass replay and native prepara
 registration, update publication and the remaining release gates stay unfinished.
 That checkpoint also retains two intermittent Ubuntu controlled-worker monitor refusals as an open reliability
 investigation, despite the subsequent passing broad/native replays. Their cause has not been established.
+The subsequent [catalog/lifecycle follow-up](TAR_GZIP_CATALOG_REUSE.md) removes a duplicate retained gzip-update
+catalog and tightens compressed replay to four physical passes. It preserves monitor/terminal/conversation causes,
+and reproduces and fixes an exited-process CPU observation bug in the controlled test child. The two older refusals
+did not capture their precise cause; complete production lifecycle/release qualification remains unfinished.
 
 | Area | Current behavior | Remaining gate |
 |---|---|---|

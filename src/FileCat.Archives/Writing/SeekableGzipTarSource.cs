@@ -2,7 +2,7 @@ using FileCat.Core.Archives;
 
 namespace FileCat.Archives.Writing;
 
-/// <summary>At most three forward decompression passes over the same retained physical grant. No payload spool.</summary>
+/// <summary>At most two forward decompression passes over the same retained physical grant. No payload spool.</summary>
 internal sealed class SeekableGzipTarSource : Stream
 {
     private readonly Stream source;
@@ -23,7 +23,7 @@ internal sealed class SeekableGzipTarSource : Stream
     private void Live() { ObjectDisposedException.ThrowIf(disposed, this); ct.ThrowIfCancellationRequested(); if (failed) throw Changed(); }
     private void Reset()
     {
-        if (passes == 3) throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The TAR.GZ replay exceeded its fixed pass budget.");
+        if (passes == 2) throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The TAR.GZ replay exceeded its fixed pass budget.");
         decoder?.Dispose(); source.Position = 0; decoder = new(source, ct); passes++;
         if (decoder.OperatingSystem != operatingSystem || decoder.ExtraFlags != extraFlags) { decoder.Dispose(); throw Changed(); }
         position = 0; ended = false;

@@ -31,7 +31,7 @@ public sealed class ArchiveTransformClient
 
         (ArchiveTransformReceipt? Receipt, ArchiveWriteReason? Refusal) Conversation(Guid nonce, IArchiveWorkerProcess process, Action progress)
         {
-            long sourceIo = checked((request.Profile.Format == ArchiveWriteFormat.TarGzip ? 5 : 3) * originalLength + inputLength);
+            long sourceIo = checked((request.Profile.Format == ArchiveWriteFormat.TarGzip ? 4 : 3) * originalLength + inputLength);
             long wireBytes = Math.Min(ArchiveWritePolicy.MaxWorkerWireBytes, checked(sourceIo + 4 * request.OutputLengthBound + ArchiveWritePolicy.MaxMetadataBytes));
             var receive = new ArchiveWorkerProtocol(nonce, wireBytes); var send = new ArchiveWorkerProtocol(nonce, wireBytes);
             var incoming = new ArchiveWorkerRecords(receive, process.Output, writing: false); var outgoing = new ArchiveWorkerRecords(send, process.Input, writing: true);

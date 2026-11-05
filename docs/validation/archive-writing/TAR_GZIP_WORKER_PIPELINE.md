@@ -1,5 +1,9 @@
 # TAR.GZ worker pipeline, 5 November 2026
 
+The subsequent [catalog/lifecycle follow-up](TAR_GZIP_CATALOG_REUSE.md) reduces retained catalogs and compressed
+source passes, adds failure-cause diagnostics, and reproduces/fixes a controlled-child CPU observation defect.
+The observations below describe this earlier checkpoint; its two historical refusals lack precise cause evidence.
+
 Development checkpoint over `e86cfc10`. Application registration remains disabled. This extends the existing TAR
 assessment/transform/fresh-verification and native preparation bridges; it does not complete the archive-writing plan.
 

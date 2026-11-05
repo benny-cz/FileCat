@@ -40,7 +40,7 @@ internal static class GzipTarRewriteEngine
         using var gzip = new StrictGzipWriteStream(stage, ArchiveTarFeatures.Level(flags), os);
         try
         {
-            var manifest = TarRewriteEngine.Rebuild(replay, source?.Tar.Revision, gzip, mapped, additions, inputs, openInput, ct);
+            var manifest = TarRewriteEngine.Rebuild(replay, source?.Tar.Revision, gzip, mapped, additions, inputs, openInput, ct, source?.Tar);
             replay?.Complete(); return new(manifest, os, flags);
         }
         catch { gzip.Abort(); throw; }

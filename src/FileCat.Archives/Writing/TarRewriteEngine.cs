@@ -18,7 +18,7 @@ internal static class TarRewriteEngine
 {
     internal static TarRewriteManifest Rebuild(Stream? original, string? expectedRevision, Stream stage,
         IReadOnlyList<TarWriteEdit> edits, IReadOnlyList<TarWriteAddition> additions,
-        IReadOnlyDictionary<int, TarInputDescriptor> inputs, Func<int, Stream> openInput, CancellationToken ct)
+        IReadOnlyDictionary<int, TarInputDescriptor> inputs, Func<int, Stream> openInput, CancellationToken ct, TarWriteCatalog? reviewedCatalog = null)
     {
         if (!stage.CanWrite || stage.CanSeek && stage.Length != 0 || ReferenceEquals(stage, original) ||
             edits.Count > ArchiveWritePolicy.MaxMembers || additions.Count > ArchiveWritePolicy.MaxMembers ||
@@ -31,13 +31,15 @@ internal static class TarRewriteEngine
                 throw Invalid("An update needs a bounded, seekable source and its reviewed revision.");
             ArchiveWritePolicy.ValidateDigest(expectedRevision);
             original.Position = 0;
-            catalog = StrictTarCatalog.Read(original, ct);
-            if (catalog.Revision != expectedRevision) throw Changed();
+            // The gzip adapter has already completely scanned its decoded bytes and wrapper. Reuse that worker-
+            // local catalog rather than retaining a duplicate. It never comes from a worker request or parent DTO.
+            catalog = reviewedCatalog ?? StrictTarCatalog.Read(original, ct);
+            if (catalog.Revision != expectedRevision || catalog.Length != original.Length) throw Changed();
             original.Position = 0;
             StrictTarCatalog.CompareDecoder(original, catalog, ct);
             ValidateNamespace(catalog.Members.Select(m => (m, (int?)null, false)).ToList());
         }
-        else if (expectedRevision is not null || edits.Count != 0) throw Invalid("A new archive cannot target existing members.");
+        else if (expectedRevision is not null || edits.Count != 0 || reviewedCatalog is not null) throw Invalid("A new archive cannot target existing members.");
 
         long inputBytes = 0;
         foreach (var member in catalog?.Members ?? []) inputBytes = checked(inputBytes + member.Length);

@@ -26,13 +26,18 @@ internal static class ArchiveWorkerSession
             await Finish().ConfigureAwait(false);
             ct.ThrowIfCancellationRequested(); if (Volatile.Read(ref monitorFailure) is { } final) throw final;
             if (process.TotalProcessorTime > cpu) throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The archive worker exceeded its CPU allowance.");
-            if (process.ExitCode != 0 || process.ErrorLimitExceeded) throw Unavailable();
+            uint exitCode = process.ExitCode; bool diagnosticsExceeded = process.ErrorLimitExceeded;
+            if (exitCode != 0 || diagnosticsExceeded)
+            {
+                var error = Unavailable("terminal"); error.Data["archiveWorkerExitCode"] = exitCode;
+                error.Data["archiveWorkerDiagnosticsExceeded"] = diagnosticsExceeded; throw error;
+            }
             return result;
         }
         catch (Exception ex) when (ex is IOException or OperationCanceledException)
         {
             ct.ThrowIfCancellationRequested(); if (Volatile.Read(ref monitorFailure) is { } failure) throw failure;
-            if (ex is ArchiveWriteException) throw; throw Unavailable();
+            if (ex is ArchiveWriteException) throw; throw Unavailable("conversation", ex);
         }
         finally { if (!disposed) await Finish().ConfigureAwait(false); }
 
@@ -44,21 +49,26 @@ internal static class ArchiveWorkerSession
         }
         async Task Watch()
         {
-            while (!stop.IsCancellationRequested && !process.HasExited)
+            while (!stop.IsCancellationRequested)
             {
                 ArchiveWriteException? failure = null;
                 try
                 {
+                    if (process.HasExited) return;
                     if (Stopwatch.GetElapsedTime(began) > wall || Stopwatch.GetElapsedTime(Volatile.Read(ref progress)) > idle ||
                         process.TotalProcessorTime > cpu || process.ErrorLimitExceeded)
                         failure = new(ArchiveWriteReason.BudgetExceeded, "The archive worker exceeded its time, CPU or output allowance.");
                 }
-                catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException) { failure = Unavailable(); }
+                catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException) { failure = Unavailable("monitor", ex); }
                 if (failure is not null) { Interlocked.CompareExchange(ref monitorFailure, failure, null); process.Kill(); return; }
                 await Task.Delay(100, stop.Token).ConfigureAwait(false);
             }
         }
     }
-    private static ArchiveWriteException Unavailable() => new(ArchiveWriteReason.WorkerUnavailable,
-        "The archive worker stopped or its boundary could not be monitored. The archive remains unchanged.");
+    private static ArchiveWriteException Unavailable(string phase, Exception? cause = null)
+    {
+        const string message = "The archive worker stopped or its boundary could not be monitored. The archive remains unchanged.";
+        var error = cause is null ? new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, message) : new(ArchiveWriteReason.WorkerUnavailable, message, cause);
+        error.Data["archiveWorkerPhase"] = phase; return error;
+    }
 }

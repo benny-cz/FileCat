@@ -13,9 +13,11 @@ public enum ArchiveWriteReason
 }
 
 /// <summary>A controlled refusal, distinct from an unexpected decoder or programmer exception.</summary>
-public sealed class ArchiveWriteException(ArchiveWriteReason reason, string message) : IOException(message)
+public sealed class ArchiveWriteException : IOException
 {
-    public ArchiveWriteReason Reason { get; } = reason;
+    public ArchiveWriteReason Reason { get; }
+    public ArchiveWriteException(ArchiveWriteReason reason, string message) : base(message) { Reason = reason; }
+    public ArchiveWriteException(ArchiveWriteReason reason, string message, Exception innerException) : base(message, innerException) { Reason = reason; }
 }
 
 /// <summary>Versioned options. A filename never selects a writer or changes its preservation policy.</summary>

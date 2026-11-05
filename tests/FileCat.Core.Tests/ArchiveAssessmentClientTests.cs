@@ -252,7 +252,8 @@ public sealed class ArchiveAssessmentClientTests
             {
                 if (Disposed || Reaped) return _cpu;
                 try { return _cpu = process.TotalProcessorTime; }
-                catch (System.ComponentModel.Win32Exception) when (process.HasExited) { return _cpu; }
+                // Unix Process can reject a CPU observation either before or after noticing exit.
+                catch (Exception ex) when ((ex is System.ComponentModel.Win32Exception or InvalidOperationException) && process.HasExited) { return _cpu; }
             }
         }
         public bool ErrorLimitExceeded => false;

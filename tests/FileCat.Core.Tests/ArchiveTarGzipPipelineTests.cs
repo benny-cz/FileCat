@@ -141,11 +141,37 @@ public sealed class ArchiveTarGzipPipelineTests
     {
         byte[] tar = ArchiveStrictTarTests.Make(TarEntryFormat.Ustar, ("file", "payload")), bytes = Compress(tar);
         using var source = new MemoryStream(bytes, false); using var replay = new SeekableGzipTarSource(source, tar.Length, 255, 0, Ct);
-        replay.ReadExactly(new byte[512]); replay.Position = 0; replay.ReadExactly(new byte[512]); replay.Position = 0; replay.ReadExactly(new byte[512]);
+        replay.ReadExactly(new byte[512]); replay.Position = 0; replay.ReadExactly(new byte[512]);
         Assert.Equal(ArchiveWriteReason.BudgetExceeded, Assert.Throws<ArchiveWriteException>(() => replay.Position = 0).Reason);
         Assert.Throws<ArchiveWriteException>(() => replay.ReadByte());
         using var wrongLength = new SeekableGzipTarSource(new MemoryStream(bytes, false), tar.Length - 1, 255, 0, Ct);
         Assert.Throws<ArchiveWriteException>(() => wrongLength.Complete());
+    }
+
+    [Fact]
+    public void A_many_member_update_reuses_its_catalog_and_reads_at_most_four_physical_source_passes()
+    {
+        byte[] before = Compress(ArchiveStrictTarTests.Make(TarEntryFormat.Pax,
+            Enumerable.Range(0, 64).Select(i => ("file-" + i, "payload-" + i)).ToArray()));
+        using var original = new CountedSource(new MemoryStream(before, false)); using var stage = new MemoryStream();
+        var rebuilt = GzipTarRewriteEngine.Rebuild(original, Hash(before), new(ArchiveWriteFormat.TarGzip), stage, [], [],
+            new Dictionary<int, TarInputDescriptor>(), _ => throw new InvalidOperationException("No captured input exists."), Ct);
+        Assert.Equal(64, rebuilt.Tar.Members.Count); Assert.InRange(original.BytesRead, before.Length, 4L * before.Length);
+        TarRewriteEngine.VerifyGzip(stage, rebuilt.Tar, Ct); Assert.True(original.CanRead);
+    }
+
+    private sealed class CountedSource(Stream source) : Stream
+    {
+        internal long BytesRead { get; private set; }
+        public override bool CanRead => source.CanRead; public override bool CanSeek => source.CanSeek; public override bool CanWrite => false;
+        public override long Length => source.Length; public override long Position { get => source.Position; set => source.Position = value; }
+        public override int Read(byte[] b, int o, int c) => Read(b.AsSpan(o, c));
+        public override int Read(Span<byte> b) { int n = source.Read(b); BytesRead += n; return n; }
+        public override long Seek(long o, SeekOrigin s) => source.Seek(o, s);
+        public override void Flush() => throw new NotSupportedException();
+        public override void SetLength(long n) => throw new NotSupportedException();
+        public override void Write(byte[] b, int o, int c) => throw new NotSupportedException();
+        protected override void Dispose(bool disposing) { if (disposing) source.Dispose(); base.Dispose(disposing); }
     }
 
     [Fact]
