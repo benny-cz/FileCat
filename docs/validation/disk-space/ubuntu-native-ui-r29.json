@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native Ubuntu catalog interaction subset, not full desktop/a11y acceptance",
+  "harnessReport": "ubuntu-native-ui-report-r29.json",
+  "controlReport": "ubuntu-native-ui-control-r29.json",
+  "appSha256": "f76f029d9235b00bcbd713762911e0de9444ef38ec2e2430cfb926b878244075",
+  "harnessSha256": "953439ec14021e25e8f56ed1c6c051c5ae2591e5d76722b6b007ca24b0e52280",
+  "observedClientPixels": {
+    "width": 1180,
+    "height": 731
+  },
+  "events": [
+    "Invoked Start analysis",
+    "Invoked Save\u2026",
+    "Entered Inventory filename",
+    "Invoked Save new inventory",
+    "Invoked Open saved\u2026",
+    "Entered Saved inventory filename",
+    "Invoked Browse saved analyses",
+    "Selected saved analysis using native pointer input",
+    "Invoked Open observations"
+  ],
+  "catalogEntryConfirmed": true,
+  "selectedFromClearedFilename": true,
+  "offlineTabVisible": true,
+  "inventoryBytes": 455917,
+  "inventorySha256": "6cba3f53933a1f8762f57231010af5c556c9e242c77766173afc5cf4e379cba3",
+  "privateMode": "0o600",
+  "linkCount": 1,
+  "sourcePathsUnchanged": 509,
+  "ownedProcessExited": true,
+  "deadlineClosed": false,
+  "nativeControl": "AT-SPI actions and text entry on the owned application; pointer input at observed combo/item screen extents; actual native backend and guarded storage",
+  "limitations": [
+    "Four earlier bounded drivers ended on nullable-report, role/signature assumptions or an already-completed default Open; their owned processes closed in finally. They are not counted as passing acceptance.",
+    "The earlier keyboard attempt did not select from an empty combo; keyboard and full screen-reader journeys remain unqualified. The passing run used native pointer selection.",
+    "Popup pixels are not in the main-window-only capture; selection is evidenced by the populated field, item accessibility, selected-row capture and offline tab.",
+    "Windows/Mac native input, compact geometry and the full theme/DPI/accessibility matrix remain pending."
+  ]
+}

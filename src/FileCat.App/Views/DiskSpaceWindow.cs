@@ -147,6 +147,8 @@ public sealed partial class DiskSpaceWindow : Window
         public SessionView(DiskSpaceWindow window, DiskSpaceViewModel model, IReadOnlyList<string> roots)
         {
             _window = window; Model = model;
+            _query.Text = Model.Query; _case.IsChecked = Model.CaseSensitive; _metric.SelectedIndex = (int)Model.Metric;
+            _mode.SelectedIndex = Model.Chart switch { "Sunburst" => 1, "Table" => 2, _ => 0 };
             RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,Auto");
             _setup.Children.Add(new TextBlock { Text = "Understand this storage. Choose what to measure.", FontSize = 20 });
             _setup.Children.Add(_roots);
@@ -212,7 +214,7 @@ public sealed partial class DiskSpaceWindow : Window
             Grid.SetRow(bottom, 3); Children.Add(bottom); Grid.SetRow(_status, 4); _status.Margin = new Thickness(10, 3, 10, 8); Children.Add(_status);
             _start.Click += async (_, _) => await Model.StartAsync(_rootEditors.Select(e => e.Text ?? "").ToArray());
             _pause.Click += (_, _) => Model.PauseOrResume(); _stop.Click += (_, _) => Model.Stop();
-            _mode.SelectionChanged += (_, _) => Refresh();
+            _mode.SelectionChanged += (_, _) => { Model.Chart = _mode.SelectedIndex switch { 1 => "Sunburst", 2 => "Table", _ => "Treemap" }; Refresh(); };
             _metric.SelectionChanged += (_, _) => { if (_updating) return; Model.Metric = (AnalysisMetric)Math.Max(0, _metric.SelectedIndex); _ = Model.RebuildAsync(true); };
             _query.TextChanged += (_, _) => { if (_updating) return; _filterTimer.Stop(); _filterTimer.Start(); };
             _case.IsCheckedChanged += (_, _) => { Model.CaseSensitive = _case.IsChecked == true; _ = Model.RebuildAsync(true); };

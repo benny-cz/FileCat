@@ -46,60 +46,64 @@
     "The private Open saved dialog now wraps the complete directory path in its scrollable body and retains filename validation, accessible labels and reachable preserving controls at compact sizes. A native 380x430 Ubuntu capture shows the full path and controls; timeout cleanup is explicitly not manual-close acceptance.",
     "Private Save/Open now watches scheduler device health, requests cooperative cancellation on nonresponse and retains the actual request/data until return. Unhealthy-device admission refuses new non-cleanup work before queuing and on the actual worker; cleanup retains its guarded route. Native runtime controls cover the eight-second status/cancellation boundary and a healthy-key negative control.",
     "Filename validation now explains the portable .fcdsa constraint without implementation parameter names; blank fields show a placeholder and disabled Open rather than an initial error. A new UI workflow drives the actual Open dialog to a separate offline tab.",
-    "Native harness reports dimensions on visible SizeChanged events. An Ubuntu AT-SPI run invoked Open saved and Cancel, observed friendly blank-field behavior and live1214x731 dimensions, created no private inventory, preserved509 source paths and closed before its deadline. Requested compact geometry remained unachieved and unqualified."
+    "Native harness reports dimensions on visible SizeChanged events. An Ubuntu AT-SPI run invoked Open saved and Cancel, observed friendly blank-field behavior and live1214x731 dimensions, created no private inventory, preserved509 source paths and closed before its deadline. Requested compact geometry remained unachieved and unqualified.",
+    "Create-new private catalog now uses a strict immutable namespace header and generated entry metadata through the same guarded native publication route. Directory enumeration and metadata JSON have producer/read limits and a shared result-memory pool; public inventory methods still accept only portable .fcdsa leaves. Future/poisoned catalogs refuse writes without repair or downgrade.",
+    "Named saves retain private metric/chart/query/root/real-scope display state. Catalog-selected loads verify inventory identity and restore only inert display state; marks, baskets and source/approval authority are not restored. Explicit Browse holds its memory lease and cancels when dismissed; opening/canceling the filename dialog alone does no catalog I/O.",
+    "Interrupted indexing reports a published-but-unindexed inventory with its receipt and offers filename recovery. Uncertain header durability no longer becomes a confirmed inventory save. Native catalog tests cover repeat enumeration over 1,000 unrelated names, Unicode, reopening and metadata hard-link/symlink refusal on NTFS, APFS and ext4.",
+    "A native Ubuntu run scanned, saved, browsed, selected from a cleared filename and opened a second inert tab. The 455,917-byte inventory had mode0600/linkcount1; all509 generated source paths were unchanged and the owned instance exited before its deadline. Earlier driver failures are documented separately; keyboard/a11y acceptance remains open."
   ],
   "validation": {
     "windowsCore": {
-      "total": 234,
-      "passed": 221,
+      "total": 249,
+      "passed": 235,
       "failed": 0,
-      "skipped": 13,
-      "detail": "188 analysis cases, 28 command cases and 18 state/path cases; 13 expected Unix-only skips.",
-      "evidence": "windows-core-r28.xml"
+      "skipped": 14,
+      "detail": "203 analysis cases, 28 command cases and 18 state/path cases; 14 expected platform skips.",
+      "evidence": "windows-core-r29.xml"
     },
     "windowsHostNative": {
-      "total": 12,
-      "passed": 12,
+      "total": 13,
+      "passed": 13,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-host-native-r28.xml"
+      "evidence": "windows-host-native-r29.xml"
     },
     "windowsVm": {
       "status": "ordinary-user-regression-fixtures-passed",
-      "total": 12,
-      "passed": 12,
+      "total": 13,
+      "passed": 13,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-native-r28.xml",
-      "detail": "Nine native cases and three reparse-tag cases; includes private create-new NTFS publication and preservation/refusal controls. No desktop/a11y qualification claimed."
+      "evidence": "windows-vm-native-r29.xml",
+      "detail": "13 ordinary native Windows cases, including repeat catalog enumeration, saved-view reopening and metadata hard-link refusal. No desktop/a11y qualification."
     },
     "macosArm64": {
-      "total": 216,
-      "passed": 216,
+      "total": 231,
+      "passed": 231,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-core-r28.xml"
+      "evidence": "mac-core-r29.xml"
     },
     "headlessRendering": {
-      "total": 22,
-      "passed": 22,
+      "total": 23,
+      "passed": 23,
       "failed": 0,
       "skipped": 0,
-      "evidence": "analysis-render-r28.xml",
-      "detail": "22 headless cases on all three runtimes, including complete Open dialog workflow, friendly validation and real eight-second private-I/O nonresponse ownership. Ubuntu exposed a status-test timing assumption; waiting for terminal completion fixed the test and all final reruns passed."
+      "evidence": "analysis-render-r29.xml",
+      "detail": "23 cases pass on Windows, Mac and Ubuntu, including catalog browsing, restored private display state, inert opening and no restored marks or source authority."
     },
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "solution-build-r28.txt"
+      "evidence": "solution-build-r29.txt"
     },
     "ubuntu": {
       "status": "ordinary-user-native-regressions-passed",
-      "total": 216,
-      "passed": 215,
+      "total": 231,
+      "passed": 230,
       "failed": 0,
       "skipped": 1,
-      "evidence": "ubuntu-core-r28.xml",
+      "evidence": "ubuntu-core-r29.xml",
       "detail": "Ubuntu 24.04 ordinary benny, .NET runtime 10.0.14, local ext4. Prior FileCat PID exited; process checks were clear before transfer and runs. Native scans, O_TMPFILE/procfs create-new publication, no-follow/privacy/link controls and I/O ownership passed. Darwin ACL case skipped. No desktop/a11y qualification."
     },
     "nativeDesktop": {
@@ -109,7 +113,8 @@
       "ubuntu": "Native X11 scan, Save review, named publication, offline Open, duplicate-name refusal and tab close. All 509 source paths and existing destination hash unchanged. No process remains; full matrix unqualified.",
       "ubuntuEvidence": "ubuntu-native-ui-r26.json",
       "ubuntuCompactEvidence": "ubuntu-native-ui-r27.json",
-      "ubuntuDialogEvidence": "ubuntu-native-ui-r28.json"
+      "ubuntuDialogEvidence": "ubuntu-native-ui-r28.json",
+      "ubuntuCatalogEvidence": "ubuntu-native-ui-r29.json"
     },
     "macStatConsumers": {
       "total": 51,
@@ -126,22 +131,22 @@
       "evidence": "ubuntu-stat-consumers-r24.xml"
     },
     "macHeadlessRendering": {
-      "total": 22,
-      "passed": 22,
+      "total": 23,
+      "passed": 23,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-analysis-render-r28.xml"
+      "evidence": "mac-analysis-render-r29.xml"
     },
     "ubuntuHeadlessRendering": {
-      "total": 22,
-      "passed": 22,
+      "total": 23,
+      "passed": 23,
       "failed": 0,
       "skipped": 0,
-      "evidence": "ubuntu-analysis-render-r28.xml"
+      "evidence": "ubuntu-analysis-render-r29.xml"
     }
   },
   "nextWork": [
-    "W3: implement the guarded private catalog/state and saved-view/history/comparison/general import-export workflows. Persistence health controls and friendly validation now pass; native compact geometry and broader device/resource qualification remain open.",
+    "W3: implement guarded mutable private state, managed catalog maintenance/replacement/deletion, optional capped history, compatible comparison and general import/export. Create-new catalog browsing and saved display state are connected; complete persistence qualification remains open.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
     "W1: epoch refresh, native unresponsive-device and shared-memory/indexed private-store budget qualification remain. Shared eight-request actual-I/O ownership and worker cleanup now have regressions; this is not full resource qualification.",

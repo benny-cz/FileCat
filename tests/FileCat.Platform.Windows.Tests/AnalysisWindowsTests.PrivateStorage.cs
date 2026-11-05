@@ -12,6 +12,29 @@ public sealed partial class AnalysisWindowsTests
         [new(1, "r", 0, "Root", AnalysisKind.Directory)], [], [], [], new(), AnalysisPhase.Finished, NamespaceCoverage.CompleteUnderPolicy);
 
     [Fact]
+    public void PrivateNativeCatalogEnumeratesAgainAndReopensWithSavedView()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows process.");
+        using var fixture = new PrivateFixture(); var view = AnalysisSavedView.Default with { Chart = "Table", Query = "name:*.txt" };
+        Guid id;
+        using (var store = new AnalysisPrivateInventoryStore(new WindowsAnalysisPrivateDirectory(fixture.Path, "saved")))
+        {
+            var catalog = new AnalysisSavedCatalog(store);
+            id = catalog.SaveNew("catalog 😀.fcdsa", StorageSample(), Guid.NewGuid(), view, TestContext.Current.CancellationToken).InventoryId;
+            for (int i = 0; i < 1000; i++) File.WriteAllBytes(Path.Combine(fixture.Path, "saved", $"unindexed-{i:D4}.bin"), []);
+            using var first = catalog.Read(TestContext.Current.CancellationToken); Assert.Equal(id, Assert.Single(first.Entries).InventoryId);
+            using var second = catalog.Read(TestContext.Current.CancellationToken); Assert.Single(second.Entries); // RestartScan resets held cursor
+        }
+        using var reopened = new AnalysisPrivateInventoryStore(new WindowsAnalysisPrivateDirectory(fixture.Path, "saved"));
+        var fresh = new AnalysisSavedCatalog(reopened); using var result = fresh.Read(TestContext.Current.CancellationToken);
+        var entry = Assert.Single(result.Entries); Assert.Equal(view, entry.View);
+        using var loaded = fresh.Load(entry, TestContext.Current.CancellationToken); Assert.Equal(id, loaded.InventoryId);
+        string metadata = Directory.GetFiles(Path.Combine(fixture.Path, "saved"), "catalog-*.json").Single(), alias = Path.Combine(fixture.Path, "metadata-alias");
+        Assert.True(HardLink(alias, metadata, 0));
+        Assert.Throws<IOException>(() => fresh.Read(TestContext.Current.CancellationToken)); File.Delete(alias);
+    }
+
+    [Fact]
     public void PrivateNativePublicationKeepsConflictsAndClosesUnpublishedStaging()
     {
         Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows process.");

@@ -110,10 +110,48 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
 
     internal override AnalysisPrivateFile OpenRead(string name)
     {
-        AnalysisPrivateInventoryStore.ValidateName(name); Verify();
+        AnalysisPrivateNames.Entry(name); Verify();
         var owned = OpenOwned(Root, name, GenericRead | ReadControl | Synchronize, ShareRead, Open, NonDirectoryFile | OpenReparsePoint);
         try { Private(owned.Handle, directory: false); return new PrivateFile(this, owned, writable: false); }
         catch { owned.Dispose(); throw; }
+    }
+
+    internal override string[] Entries(CancellationToken cancellation)
+    {
+        Verify(); var names = new List<string>(); byte[] buffer = new byte[64 * 1024]; long bytes = 0; bool restart = true;
+        while (true)
+        {
+            cancellation.ThrowIfCancellationRequested(); int status; IoStatus io;
+            fixed (byte* data = buffer) status = NtQueryDirectoryFile(Root, 0, 0, 0, out io, data, (uint)buffer.Length, 1, false, 0, restart);
+            restart = false;
+            if (status == unchecked((int)0x80000006)) break; // STATUS_NO_MORE_FILES
+            if (status < 0) throw Error(status, "Enumerate private analysis catalog");
+            long used = (long)io.Information;
+            if (used is < 64 or > 65536) throw new InvalidDataException("Invalid private directory response.");
+            int offset = 0;
+            while (true)
+            {
+                cancellation.ThrowIfCancellationRequested(); var record = buffer.AsSpan(offset, (int)used - offset);
+                if (record.Length < 64) throw new InvalidDataException("Invalid private directory record.");
+                uint next = MemoryMarshal.Read<uint>(record), length = MemoryMarshal.Read<uint>(record[60..]);
+                if ((length & 1) != 0 || length == 0 || length > record.Length - 64 ||
+                    next != 0 && (next < 64 + length || next >= record.Length || (next & 7) != 0))
+                    throw new InvalidDataException("Invalid private directory name extent.");
+                string name = new(MemoryMarshal.Cast<byte, char>(record.Slice(64, (int)length)));
+                if (name.Contains('\0') || name.Contains('/') || name.Contains('\\') || !AnalysisPrivateInventoryStore.WellFormedText(name))
+                    throw new InvalidDataException("Invalid private catalog entry name.");
+                if (name is not ("." or ".."))
+                {
+                    if (names.Count >= AnalysisPrivateNames.DirectoryEntries || (bytes += name.Length * 4L + 128) > AnalysisPrivateNames.DirectoryNameBytes)
+                        throw new InvalidDataException("The private catalog directory exceeds its enumeration limit.");
+                    names.Add(name);
+                }
+                if (next == 0) break;
+                offset += (int)next;
+            }
+            Verify();
+        }
+        Verify(); return names.ToArray();
     }
 
     private void Private(SafeFileHandle handle, bool directory)
@@ -173,7 +211,7 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
         public override void PublishNew(string name)
         {
             if (!_writable || _published) throw new InvalidOperationException("This private file cannot be published.");
-            AnalysisPrivateInventoryStore.ValidateName(name); _directory.Verify(); Verify();
+            AnalysisPrivateNames.Entry(name); _directory.Verify(); Verify();
             Rename(_owned.Handle, _directory.Root, name, replace: false);
             _published = true;
             try { Flush(); _directory.Verify(); Verify(); }
@@ -212,6 +250,8 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
         catch { reservation.Dispose(); throw; }
     }
     [StructLayout(LayoutKind.Sequential)] private struct IoStatus { public nint Status, Information; }
+    [LibraryImport("ntdll.dll")] private static partial int NtQueryDirectoryFile(SafeFileHandle handle, nint evt, nint apc, nint context,
+        out IoStatus io, byte* buffer, uint length, int kind, [MarshalAs(UnmanagedType.U1)] bool single, nint pattern, [MarshalAs(UnmanagedType.U1)] bool restart);
     [LibraryImport("ntdll.dll")] private static partial int NtQueryVolumeInformationFile(SafeFileHandle handle, IoStatus* io, byte* buffer, uint length, int informationClass);
     [LibraryImport("kernel32.dll", EntryPoint = "GetDriveTypeW", StringMarshalling = StringMarshalling.Utf16)] private static partial uint GetDriveType(string root);
     [LibraryImport("kernel32.dll", EntryPoint = "GetVolumeInformationByHandleW", SetLastError = true)]

@@ -29,6 +29,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     public AnalysisTree? Tree { get; private set; }
     public ImmutableArray<AnalysisTreeItem> Rows { get; private set; } = [];
     public AnalysisMetric Metric { get; set; } = AnalysisMetric.OnDisk;
+    public string Chart { get; set; } = "Treemap";
     public AnalysisComponentPreset Components { get; set; }
     public string Query { get; set; } = "";
     public string? RootFilter { get; set; }

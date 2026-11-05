@@ -1,0 +1,24 @@
+{
+  "purpose": "Native Save/Browse/Open subset; no full qualification",
+  "processId": 163666,
+  "events": [
+    "Invoked Start analysis",
+    "Invoked Save\u2026",
+    "Entered Inventory filename",
+    "Invoked Save new inventory",
+    "Invoked Open saved\u2026",
+    "Entered Saved inventory filename",
+    "Invoked Browse saved analyses",
+    "Selected saved analysis using native pointer input",
+    "Invoked Open observations"
+  ],
+  "catalogEntryConfirmed": true,
+  "inventoryBytes": 455917,
+  "offlineTabVisible": true,
+  "inventorySha256": "6cba3f53933a1f8762f57231010af5c556c9e242c77766173afc5cf4e379cba3",
+  "catalogHeaderSha256": "fbc18392812c703e655d5989f78cb120d96ff4493dc778d403f1cc16f68d2179",
+  "privateMode": "0o600",
+  "linkCount": 1,
+  "state": "passed-native-catalog-save-browse-open-subset",
+  "ownedProcessExited": true
+}

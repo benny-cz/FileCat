@@ -298,7 +298,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
         if (end <= 0) throw new IOException("Filesystem type is unavailable.");
         return (*(ulong*)(fs + 48), Encoding.ASCII.GetString(type[..end]));
     }
-    private static byte[] ReadName(nint record, bool mac)
+    internal static byte[] ReadName(nint record, bool mac)
     {
         byte* p = (byte*)record;
         int recordLength = *(ushort*)(p + 16), offset = mac ? 21 : 19;

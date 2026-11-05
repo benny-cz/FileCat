@@ -14,6 +14,10 @@ public sealed partial class DiskSpaceWindow
     {
         private readonly Button _save, _openSaved;
         private bool _persistenceBusy;
+        private sealed record SavedChoice(string Name, AnalysisSavedEntry? Entry)
+        {
+            public override string ToString() => AnalysisNames.Display(Name, 240) + (Entry is null ? " · unindexed" : " · " + Entry.SavedUtc.ToLocalTime().ToString("g") + " · " + Entry.Bytes.ToString("N0") + " bytes" + (Entry.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "" : " · partial"));
+        }
 
         private async Task SaveAsync()
         {
@@ -41,6 +45,7 @@ public sealed partial class DiskSpaceWindow
             }
             catch (OperationCanceledException) { Model.SetStatus("Inventory save canceled. No successful save is claimed."); }
             catch (AnalysisPublicationUncertainException) { Model.SetStatus("The inventory name was published, but durability is uncertain. Keep that file and inspect it before trying another name."); }
+            catch (AnalysisCatalogUpdateException ex) { Model.SetStatus("Saved " + AnalysisNames.Display(ex.Receipt.Name, 240) + ", but its catalog entry is incomplete. Keep the file and open it by filename."); }
             catch (Exception ex) when (InventoryError(ex)) { Model.SetStatus("Inventory was not saved: " + AnalysisNames.Display(ex.Message, 400)); }
             finally { _persistenceBusy = false; Model.Interaction(false); Refresh(); }
         }
@@ -50,30 +55,57 @@ public sealed partial class DiskSpaceWindow
             if (_disposed || _persistenceBusy || !Model.HasPrivateStorage) return;
             if (_window.SessionCount >= AnalysisLimits.Sessions) { _window.ExplainSessionLimit(); return; }
             _persistenceBusy = true; Refresh();
+            AnalysisCatalogSnapshot? catalogLease = null; bool closed = false;
+            using var browseCancel = new CancellationTokenSource();
             try
             {
                 var name = new TextBox { Text = Model.SavedInventoryName ?? "", PlaceholderText = "Saved analysis.fcdsa", MaxLength = 120 };
                 AutomationProperties.SetName(name, "Saved inventory filename");
                 var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
+                var catalogStatus = new TextBlock { TextWrapping = TextWrapping.Wrap };
+                var choices = new ComboBox { IsVisible = false, HorizontalAlignment = HorizontalAlignment.Stretch, MaxWidth = 600 };
+                AutomationProperties.SetName(choices, "Saved analyses"); AutomationProperties.SetLiveSetting(catalogStatus, AutomationLiveSetting.Polite);
+                var browse = new Button { Content = "Browse saved analyses" };
+                bool browsing = false;
+                choices.SelectionChanged += (_, _) => { if (choices.SelectedItem is SavedChoice choice) name.Text = choice.Name; };
+                browse.Click += async (_, _) =>
+                {
+                    if (browsing || closed) return;
+                    browsing = true; browse.IsEnabled = false; catalogStatus.Text = "Reading this profile's private catalog…";
+                    try
+                    {
+                        var catalog = await Model.ReadSavedCatalogAsync(browseCancel.Token);
+                        if (closed || _disposed) { catalog.Dispose(); return; }
+                        catalogLease?.Dispose(); catalogLease = catalog;
+                        choices.ItemsSource = catalog.Entries.Select(e => new SavedChoice(e.Name, e)).Concat(catalog.UnindexedNames.Select(n => new SavedChoice(n, null))).ToArray();
+                        choices.IsVisible = true;
+                        catalogStatus.Text = $"{catalog.Entries.Length:N0} named analyses · {catalog.UnindexedNames.Length:N0} unindexed files. Select an analysis to restore its saved view.";
+                    }
+                    catch (OperationCanceledException) { if (!closed && !_disposed) catalogStatus.Text = "Catalog browsing canceled."; }
+                    catch (Exception ex) when (InventoryError(ex)) { if (!closed && !_disposed) catalogStatus.Text = "Catalog unavailable: " + AnalysisNames.Display(ex.Message, 400) + " You can still open a known filename."; }
+                    finally { browsing = false; if (!closed && !_disposed) browse.IsEnabled = true; }
+                };
                 AutomationProperties.SetLiveSetting(error, Avalonia.Automation.AutomationLiveSetting.Assertive);
                 name.TextChanged += (_, _) => error.Text = string.IsNullOrEmpty(name.Text) ? "" : InventoryNameError(name.Text);
                 var body = new StackPanel { Spacing = 8, Children =
                 {
                     new TextBlock { Text = "Enter a saved .fcdsa filename. Opening it shows offline observations without reconnecting sources or granting file actions.", TextWrapping = TextWrapping.Wrap },
                     new TextBlock { Text = "Saved analyses folder: " + AnalysisNames.Display(Model.SavedDirectory ?? ""), TextWrapping = TextWrapping.Wrap },
-                    name, error
+                    browse, catalogStatus, choices, name, error
                 } };
                 var result = await _window._dialogs.ShowCustomAsync("Open saved analysis", body,
                     [new DialogButton("Cancel", false, IsCancel: true), new DialogButton("Open observations", true, IsDefault: true) { IsAvailable = () => InventoryNameError(name.Text) is null }], name);
+                closed = true;
                 if (result is not true || _disposed) return;
-                var loaded = await WithInventoryProgress("Opening inventory", token => Model.OpenSavedAsync(name.Text!, token));
+                var selected = choices.SelectedItem is SavedChoice choice && choice.Name == name.Text ? choice.Entry : null;
+                var loaded = await WithInventoryProgress("Opening inventory", token => Model.OpenSavedAsync(name.Text!, selected, token));
                 if (_disposed || !_window.IsVisible) { loaded.Dispose(); return; }
                 if (_window.SessionCount >= AnalysisLimits.Sessions) { loaded.Dispose(); _window.ExplainSessionLimit(); return; }
                 try { _window.AddSession(loaded); } catch { loaded.Dispose(); throw; }
             }
             catch (OperationCanceledException) { Model.SetStatus("Opening the inventory was canceled."); }
             catch (Exception ex) when (InventoryError(ex)) { Model.SetStatus("Inventory was not opened: " + AnalysisNames.Display(ex.Message, 400)); }
-            finally { _persistenceBusy = false; Refresh(); }
+            finally { closed = true; browseCancel.Cancel(); catalogLease?.Dispose(); _persistenceBusy = false; Refresh(); }
         }
 
         private async Task<T> WithInventoryProgress<T>(string title, Func<CancellationToken, Task<T>> run)

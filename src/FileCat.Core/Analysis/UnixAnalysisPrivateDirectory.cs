@@ -126,10 +126,44 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
 
     internal override AnalysisPrivateFile OpenRead(string name)
     {
-        AnalysisPrivateInventoryStore.ValidateName(name); Verify();
+        AnalysisPrivateNames.Entry(name); Verify();
         var owned = OpenOwned(Root, name, FileFlags, 0);
         try { Private(owned.Handle, directory: false, links: 1); return new PrivateFile(this, owned, writable: false); }
         catch { owned.Dispose(); throw; }
+    }
+
+    internal override string[] Entries(CancellationToken cancellation)
+    {
+        Verify(); cancellation.ThrowIfCancellationRequested();
+        var names = new List<string>(); var utf8 = new UTF8Encoding(false, true); long bytes = 0;
+        using var cursor = OpenOwned(Root, ".", DirectoryFlags, 0);
+        if (!Same(Stat(cursor.Handle), Stat(Root))) throw new IOException("The private catalog directory changed.");
+        nint stream = FdOpenDir(Fd(cursor.Handle));
+        if (stream == 0) throw Error("The private catalog could not be enumerated.");
+        cursor.Handle.SetHandleAsInvalid(); // DIR owns the descriptor; cursor retains its budget reservation.
+        try
+        {
+            while (true)
+            {
+                cancellation.ThrowIfCancellationRequested(); Marshal.SetLastPInvokeError(0);
+                nint record = _mac && RuntimeInformation.ProcessArchitecture != Architecture.Arm64 ? ReadDirMac(stream) : ReadDir(stream);
+                if (record == 0)
+                {
+                    if (Marshal.GetLastPInvokeError() != 0) throw Error("The private catalog enumeration did not finish.");
+                    break;
+                }
+                byte[] raw = UnixAnalysisBackend.ReadName(record, _mac);
+                if (raw.AsSpan().SequenceEqual("."u8) || raw.AsSpan().SequenceEqual(".."u8)) continue;
+                if (raw.Length == 0 || raw.Contains((byte)0) || raw.Contains((byte)'/')) throw new InvalidDataException("Invalid private catalog entry name.");
+                if (names.Count >= AnalysisPrivateNames.DirectoryEntries || (bytes += raw.Length * 4L + 128) > AnalysisPrivateNames.DirectoryNameBytes)
+                    throw new InvalidDataException("The private catalog directory exceeds its enumeration limit.");
+                try { names.Add(utf8.GetString(raw)); }
+                catch (DecoderFallbackException) { throw new InvalidDataException("The private catalog contains an unsupported entry name."); }
+                if ((names.Count & 255) == 0) Verify();
+            }
+            Verify(); return names.ToArray();
+        }
+        finally { CloseDir(stream); }
     }
 
     private void Private(SafeFileHandle handle, bool directory, uint? links)
@@ -191,7 +225,7 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
         public override void PublishNew(string name)
         {
             if (!_writable || _published) throw new InvalidOperationException("This private file cannot be published.");
-            AnalysisPrivateInventoryStore.ValidateName(name); _directory.Verify(); Verify();
+            AnalysisPrivateNames.Entry(name); _directory.Verify(); Verify();
             if (_directory._mac)
             {
                 // APFS clones the held source, atomically refusing an existing destination. No source-path rename race.
@@ -279,6 +313,10 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
     private static partial int OpenAtDarwinArm64(int fd, string name, int flags, int unused3, int unused4, int unused5, int unused6, int unused7, ulong mode);
     [LibraryImport("libc", EntryPoint = "mkdirat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int MkdirAt(SafeFileHandle fd, string name, uint mode);
+    [LibraryImport("libc", EntryPoint = "fdopendir", SetLastError = true)] private static partial nint FdOpenDir(int fd);
+    [LibraryImport("libc", EntryPoint = "readdir", SetLastError = true)] private static partial nint ReadDir(nint stream);
+    [LibraryImport("libc", EntryPoint = "readdir$INODE64", SetLastError = true)] private static partial nint ReadDirMac(nint stream);
+    [LibraryImport("libc", EntryPoint = "closedir", SetLastError = true)] private static partial int CloseDir(nint stream);
     [LibraryImport("libc", EntryPoint = "unlinkat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int UnlinkAt(SafeFileHandle fd, string name, int flags);
     [LibraryImport("libc", EntryPoint = "linkat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]

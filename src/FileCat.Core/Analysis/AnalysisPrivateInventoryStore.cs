@@ -8,6 +8,7 @@ public abstract class AnalysisPrivateDirectory : IDisposable
     internal abstract (UInt128 Capacity, UInt128 Available) Space();
     internal abstract AnalysisPrivateFile CreateStaging();
     internal abstract AnalysisPrivateFile OpenRead(string name);
+    internal virtual string[] Entries(CancellationToken cancellation) => throw new NotSupportedException("Private catalog enumeration is unavailable.");
     public abstract void Dispose();
 }
 
@@ -43,6 +44,12 @@ public sealed class AnalysisPrivateInventoryStore(AnalysisPrivateDirectory direc
     public AnalysisInventoryReceipt SaveNew(string name, AnalysisSnapshot snapshot, Guid inventoryId, CancellationToken cancellation = default)
     {
         ValidateName(name);
+        long bytes = WriteNew(name, stream => AnalysisInventoryFormat.Write(stream, snapshot, inventoryId, cancellation), cancellation);
+        return new(inventoryId, name, bytes);
+    }
+
+    private long WriteNew(string name, Action<Stream> write, CancellationToken cancellation)
+    {
         lock (_gate)
         {
             Guard(); cancellation.ThrowIfCancellationRequested();
@@ -50,15 +57,50 @@ public sealed class AnalysisPrivateInventoryStore(AnalysisPrivateDirectory direc
             using var stream = new GuardedWriteStream(file.Stream, () => { Guard(); file.Verify(); }, directory.Space, cancellation);
             using (var buffered = new BufferedStream(stream, 64 * 1024))
             {
-                AnalysisInventoryFormat.Write(buffered, snapshot, inventoryId, cancellation);
+                write(buffered);
                 buffered.Flush();
             }
             cancellation.ThrowIfCancellationRequested(); Guard(); file.Verify();
             file.Flush();
             cancellation.ThrowIfCancellationRequested(); Guard(); file.Verify();
             file.PublishNew(name);
-            return new(inventoryId, name, stream.Written);
+            return stream.Written;
         }
+    }
+
+    // Reserved metadata is available only to the trusted catalog/private-state codec. Public inventory
+    // SaveNew/Load still require .fcdsa, so decoded names cannot select arbitrary JSON/profile artifacts.
+    internal long WriteMetadataNew(string name, byte[] bytes, CancellationToken cancellation)
+    {
+        AnalysisPrivateNames.Metadata(name); ArgumentNullException.ThrowIfNull(bytes);
+        if (bytes.Length is < 1 or > AnalysisPrivateNames.MetadataBytes) throw new InvalidDataException("Private analysis metadata exceeds its size limit.");
+        return WriteNew(name, stream => stream.Write(bytes), cancellation);
+    }
+
+    internal byte[] ReadMetadata(string name, CancellationToken cancellation, int maximum = AnalysisPrivateNames.MetadataBytes)
+    {
+        AnalysisPrivateNames.Metadata(name);
+        if (maximum is < 1 or > AnalysisPrivateNames.MetadataBytes) throw new ArgumentOutOfRangeException(nameof(maximum));
+        lock (_gate)
+        {
+            Guard(); cancellation.ThrowIfCancellationRequested();
+            using var file = directory.OpenRead(name); file.Verify();
+            if (file.Stream.Length < 1 || file.Stream.Length > maximum) throw new InvalidDataException("Private analysis metadata exceeds its size limit.");
+            using var source = new GuardedReadStream(file.Stream, () => { Guard(); file.Verify(); }, cancellation);
+            using var result = new MemoryStream(); byte[] buffer = new byte[64 * 1024];
+            int count;
+            while ((count = source.Read(buffer)) != 0)
+            {
+                if (count > maximum - result.Length) throw new InvalidDataException("Private analysis metadata exceeds its size limit.");
+                result.Write(buffer, 0, count);
+            }
+            Guard(); file.Verify(); return result.ToArray();
+        }
+    }
+
+    internal string[] Entries(CancellationToken cancellation)
+    {
+        lock (_gate) { Guard(); cancellation.ThrowIfCancellationRequested(); return directory.Entries(cancellation); }
     }
 
     public AnalysisInventory Load(string name, CancellationToken cancellation = default)

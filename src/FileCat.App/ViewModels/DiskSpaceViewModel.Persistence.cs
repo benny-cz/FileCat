@@ -40,6 +40,12 @@ public sealed partial class DiskSpaceViewModel
         if (AnalysisAdmission.Refusal() is { } refusal) throw new InvalidOperationException(refusal);
         AnalysisPrivateInventoryStore.ValidateName(name);
         using var revision = captured.Retain(); var snapshot = revision.Snapshot;
+        // Inventory wire root IDs are positional; node IDs and real node scopes are retained by the codec.
+        string? root = null;
+        for (int i = 0; i < snapshot.Roots.Length; i++) if (snapshot.Roots[i].Id == RootFilter) root = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var view = new AnalysisSavedView(Metric, Chart, Query, root,
+            Selection.Scope == AnalysisTree.RootKey || Selection.Scope.StartsWith("n:", StringComparison.Ordinal) ? Selection.Scope : AnalysisTree.RootKey,
+            CaseSensitive, ShowUnknownFilterResults);
         string path = _services!.Paths.AnalysisSnapshotsDirectory;
         IsSaving = true; SetStatus("Saving the captured inventory revision. The live scan can continue.");
         try
@@ -47,7 +53,7 @@ public sealed partial class DiskSpaceViewModel
             var receipt = await RunPrivateIoAsync(path, token =>
             {
                 using var store = OpenPrivateStore(path);
-                return store.SaveNew(name, snapshot, Guid.NewGuid(), token);
+                return new AnalysisSavedCatalog(store).SaveNew(name, snapshot, Guid.NewGuid(), view, token);
             }, cancellation);
             _savedRevision = snapshot.Identity; SavedInventoryName = receipt.Name;
             SetStatus("Saved " + AnalysisNames.Display(name, 240) + (snapshot.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "." : " · partial observations."));
@@ -55,6 +61,11 @@ public sealed partial class DiskSpaceViewModel
         }
         catch (AnalysisPublicationUncertainException)
         { SetStatus("The inventory name was published, but durability is uncertain. Keep the file and inspect it before retrying."); throw; }
+        catch (AnalysisCatalogUpdateException ex)
+        {
+            _savedRevision = snapshot.Identity; SavedInventoryName = ex.Receipt.Name;
+            SetStatus("The inventory was saved, but indexing is incomplete. Keep it and open it by filename."); throw;
+        }
         catch (OperationCanceledException)
         { SetStatus("Inventory save canceled. No successful save is claimed."); throw; }
         catch (Exception)
@@ -63,7 +74,17 @@ public sealed partial class DiskSpaceViewModel
     }
 
     /// <summary>Loads only a named private inventory. The strict reader always returns imported, unverified data.</summary>
-    public async Task<DiskSpaceViewModel> OpenSavedAsync(string name, CancellationToken cancellation = default)
+    public Task<DiskSpaceViewModel> OpenSavedAsync(string name, CancellationToken cancellation = default) => OpenSavedAsync(name, null, cancellation);
+
+    public async Task<AnalysisCatalogSnapshot> ReadSavedCatalogAsync(CancellationToken cancellation = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!HasPrivateStorage) throw new InvalidOperationException("Private inventory storage is unavailable.");
+        string path = _services!.Paths.AnalysisSnapshotsDirectory;
+        return await RunPrivateIoAsync(path, token => { using var store = OpenPrivateStore(path); return new AnalysisSavedCatalog(store).Read(token); }, cancellation);
+    }
+
+    public async Task<DiskSpaceViewModel> OpenSavedAsync(string name, AnalysisSavedEntry? entry, CancellationToken cancellation = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!HasPrivateStorage) throw new InvalidOperationException("Private inventory storage is unavailable.");
@@ -73,9 +94,22 @@ public sealed partial class DiskSpaceViewModel
         var inventory = await RunPrivateIoAsync(path, token =>
         {
             using var store = OpenPrivateStore(path);
-            return store.Load(name, token);
+            if (entry is not null && entry.Name != name) throw new InvalidDataException("The selected catalog entry does not match the reviewed filename.");
+            return entry is null ? store.Load(name, token) : new AnalysisSavedCatalog(store).Load(entry, token);
         }, cancellation);
-        try { return new(_services, inventory); }
+        try
+        {
+            var model = new DiskSpaceViewModel(_services, inventory);
+            if (entry is not null)
+            {
+                var view = entry.View; AnalysisSavedCatalog.ValidateView(view);
+                model.Metric = view.Metric; model.Chart = view.Chart; model.Query = view.Query;
+                model.CaseSensitive = view.CaseSensitive; model.ShowUnknownFilterResults = view.ShowUnknown;
+                model.RootFilter = inventory.Snapshot.Roots.Any(r => r.Id == view.Root) ? view.Root : null;
+                if (view.Scope == AnalysisTree.RootKey || inventory.Snapshot.Nodes.Any(n => AnalysisTree.Key(n.Id) == view.Scope)) model.Selection.Navigate(view.Scope);
+            }
+            return model;
+        }
         catch { inventory.Dispose(); throw; }
     }
 

@@ -14,6 +14,48 @@ namespace FileCat.Rendering.Tests;
 public sealed partial class AnalysisRenderingTests
 {
     [AvaloniaFact]
+    public async Task CatalogSelectionRestoresPrivateViewWithoutConnectingOrRetainingMarks()
+    {
+        OrdinaryPreparation(); using var fixture = new PreparationFixture(); using var styles = new ProductStyles();
+        using var model = new DiskSpaceViewModel(fixture.Services, ImportedFixture()); await model.RebuildAsync(true);
+        model.Metric = AnalysisMetric.Files; model.Chart = "Table"; model.Query = "name:*.bin"; model.CaseSensitive = true;
+        model.RootFilter = model.Tree!.Snapshot.Roots[0].Id; model.Selection.Navigate("n:1"); model.Selection.ToggleMark(1);
+        await model.RebuildAsync(true); var receipt = await model.SaveNewAsync("view-settings.fcdsa");
+        using (var catalog = await model.ReadSavedCatalogAsync())
+        {
+            var entry = Assert.Single(catalog.Entries); Assert.Equal(receipt.InventoryId, entry.InventoryId);
+            using var offline = await model.OpenSavedAsync(entry.Name, entry); await offline.RebuildAsync(true);
+            Assert.Equal(model.Metric, offline.Metric); Assert.Equal(model.Chart, offline.Chart); Assert.Equal(model.Query, offline.Query);
+            Assert.Equal("1", offline.RootFilter); Assert.Equal("n:1", offline.Selection.Scope); Assert.True(offline.CaseSensitive);
+            Assert.Empty(offline.Selection.Marks); Assert.Empty(offline.Selection.Basket); Assert.False(offline.Running);
+        }
+        var window = new DiskSpaceWindow(); window.AddSession(model); window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open saved…").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Browse saved analyses").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var deadline = DateTime.UtcNow.AddSeconds(10); ComboBox? list = null;
+            while (DateTime.UtcNow < deadline)
+            {
+                Dispatcher.UIThread.RunJobs();
+                list = window.GetVisualDescendants().OfType<ComboBox>().Single(c => Avalonia.Automation.AutomationProperties.GetName(c) == "Saved analyses");
+                if (list.ItemCount > 0) break; await Task.Delay(10);
+            }
+            Assert.NotNull(list); Assert.Equal(1, list.ItemCount); list.SelectedIndex = 0;
+            Assert.Equal(receipt.Name, window.GetVisualDescendants().OfType<TextBox>().Single(t => Avalonia.Automation.AutomationProperties.GetName(t) == "Saved inventory filename").Text);
+            window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open observations").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            deadline = DateTime.UtcNow.AddSeconds(10);
+            while (window.SessionCount != 2 && DateTime.UtcNow < deadline) await Task.Delay(10);
+            Assert.Equal(2, window.SessionCount); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            Assert.Equal("name:*.bin", window.GetVisualDescendants().OfType<TextBox>().Single(t => Avalonia.Automation.AutomationProperties.GetName(t) == "Filter observations" && t.IsEffectivelyVisible).Text);
+            Assert.Contains(window.GetVisualDescendants().OfType<ComboBox>(), c => c.IsEffectivelyVisible && c.SelectedItem as string == "Table");
+        }
+        finally { window.ForceClose(); }
+    }
+
+    [AvaloniaFact]
     public async Task PrivateIoNonresponseRequestsCancellationButRetainsItsActualWork()
     {
         OrdinaryPreparation(); using var fixture = new PreparationFixture(); using var release = new ManualResetEventSlim();
