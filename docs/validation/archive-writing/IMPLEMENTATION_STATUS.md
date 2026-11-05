@@ -22,6 +22,9 @@ and Windows 0644 defaults, with passing native regression checks on all three pl
 The subsequent [exact TAR timestamp checkpoint](EXACT_TAR_TIMESTAMPS.md) adds native nanosecond capture, versioned
 input/member metadata and a bounded PAX encoder adapter, with three-platform regression/native and independent-reader
 checks. Complete capture/publication/production integration and release qualification remain unfinished.
+The subsequent [preparation-space checkpoint](PREPARATION_SPACE_ADMISSION.md) checks the complete stage/evidence,
+known snapshots and safety margin against capacity from the retained native destination, before intent or artifact
+creation. Unknown capacity remains explicit; full capture/space UI, allocation guarantees and qualification remain open.
 
 | Area | Current behavior | Remaining gate |
 |---|---|---|

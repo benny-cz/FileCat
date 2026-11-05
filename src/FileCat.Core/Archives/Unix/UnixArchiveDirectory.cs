@@ -9,7 +9,7 @@ internal sealed class UnixArchiveArtifactCreationException(string retainedPath, 
 { internal string RetainedPath { get; } = retainedPath; } // Evidence, never pathname cleanup authority.
 
 /// <summary>Unregistered parent storage. Held directory-relative children, private-at-create artifacts, no path deletion.</summary>
-internal sealed class UnixArchiveDirectory : IDisposable
+internal sealed class UnixArchiveDirectory : IDisposable, IArchiveDestinationSpace
 {
     internal readonly object Gate = new();
     private readonly SafeFileHandle directory;
@@ -32,6 +32,16 @@ internal sealed class UnixArchiveDirectory : IDisposable
         catch { directory.Dispose(); throw; }
     }
     internal static UnixArchiveDirectory Open(string path) => new(path);
+    ArchiveSpaceReview IArchiveDestinationSpace.ReviewSpace(string expectedParentIdentity, ArchiveSpaceEstimate estimate, CancellationToken ct)
+    {
+        lock (Gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this); ct.ThrowIfCancellationRequested(); VerifyNamespace();
+            if (expectedParentIdentity != Identity.ToString()) throw UnixArchiveNative.Unavailable();
+            var capacity = FileSystemCapacity.QueryHeldDirectory(directory, Identity.VolumeSerial);
+            ct.ThrowIfCancellationRequested(); VerifyNamespace(); return new(expectedParentIdentity, estimate, capacity);
+        }
+    }
     internal UnixArchiveFile CreateArtifact(Guid nonce, UnixArchiveArtifactKind kind, long maximumLength)
         => CreateArtifact(ReserveArtifact(nonce, kind, maximumLength));
     internal ArchiveArtifactReservation ReserveArtifact(Guid nonce, UnixArchiveArtifactKind kind, long maximumLength)

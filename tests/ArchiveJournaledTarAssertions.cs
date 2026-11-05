@@ -33,6 +33,18 @@ internal static class ArchiveJournaledTarAssertions
         TestContext.Current.TestOutputHelper?.WriteLine(JsonSerializer.Serialize(new
         { archiveRuntime = Environment.Version.ToString(), runtimeDirectory = RuntimeEnvironment.GetRuntimeDirectory(), os = RuntimeInformation.OSDescription, process = Environment.ProcessId }));
         var facts = prepared.Facts; Assert.True(journal.NeedsRecovery); Assert.Equal(ArchiveTransactionPhase.Verifying, facts.Phase);
+        Assert.Equal(facts.ParentIdentity, prepared.Space.ParentIdentity); Assert.True(prepared.Space.CapacityKnown);
+        Assert.True(prepared.Space.Capacity!.AvailableBytes >= prepared.Space.Estimate.AdditionalBytes);
+        Assert.Equal(facts.Original?.Length ?? 0, prepared.Space.Estimate.OriginalBytes);
+        Assert.Equal(facts.StageMaximumLength, prepared.Space.Estimate.StageBytes);
+        Assert.Equal(facts.Sidecars.Sum(s => s.MaximumLength), prepared.Space.Estimate.EvidenceBytes);
+        Assert.Equal(0, prepared.Space.Estimate.KnownSnapshotBytes);
+        Assert.Equal((64L << 20) + facts.StageMaximumLength + facts.Sidecars.Sum(s => s.MaximumLength), prepared.Space.Estimate.AdditionalBytes);
+        TestContext.Current.TestOutputHelper?.WriteLine(JsonSerializer.Serialize(new { archiveSpace = new {
+            parent = prepared.Space.ParentIdentity, volume = prepared.Space.Capacity.VolumeIdentity, available = prepared.Space.Capacity.AvailableBytes,
+            additional = prepared.Space.Estimate.AdditionalBytes, footprint = prepared.Space.Estimate.TotalFootprintBytes,
+            original = prepared.Space.Estimate.OriginalBytes, stage = prepared.Space.Estimate.StageBytes,
+            evidence = prepared.Space.Estimate.EvidenceBytes, snapshots = prepared.Space.Estimate.KnownSnapshotBytes } }));
         Assert.Equal(prepared.Verified.Stage.Version, facts.VerifiedStage); Assert.Null(facts.SecuritySnapshotSha256); Assert.Null(facts.Published);
         Assert.Equal(facts.VerifiedStage, facts.FinalizedStage);
         Assert.Equal(plan.Source is null ? 3 : 4, prepared.Sidecars.Count); Assert.Equal(prepared.Sidecars.Count, facts.Sidecars.Count);

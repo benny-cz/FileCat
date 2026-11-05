@@ -24,7 +24,7 @@ internal sealed class WindowsArchiveArtifactCreationException(string retainedPat
 /// qualification: provenance, metadata, directory-entry durability and the journaled publication protocol are separate
 /// gates. In particular, a successful file flush does not claim power-loss durability of a rename.
 /// </summary>
-internal sealed class WindowsArchiveDirectory : IDisposable
+internal sealed class WindowsArchiveDirectory : IDisposable, IArchiveDestinationSpace
 {
     internal readonly object Gate = new();
     private readonly LocalIconFileLease directory;
@@ -61,6 +61,17 @@ internal sealed class WindowsArchiveDirectory : IDisposable
     }
 
     public static WindowsArchiveDirectory Open(string path) => new(path);
+
+    ArchiveSpaceReview IArchiveDestinationSpace.ReviewSpace(string expectedParentIdentity, ArchiveSpaceEstimate estimate, CancellationToken ct)
+    {
+        lock (Gate)
+        {
+            EnsureOpen(); ct.ThrowIfCancellationRequested(); VerifyNamespace();
+            if (expectedParentIdentity != Identity.ToString()) throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "The space-review destination is a different retained directory.");
+            var capacity = FileSystemCapacity.QueryHeldDirectory(Handle, Identity.VolumeSerial);
+            ct.ThrowIfCancellationRequested(); VerifyNamespace(); return new(expectedParentIdentity, estimate, capacity);
+        }
+    }
 
     public WindowsArchiveFile CreateArtifact(Guid nonce, WindowsArchiveArtifactKind kind, long maximumLength)
         => CreateArtifact(ReserveArtifact(nonce, kind, maximumLength));

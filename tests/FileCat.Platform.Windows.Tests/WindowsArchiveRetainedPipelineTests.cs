@@ -6,6 +6,18 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed partial class WindowsArchiveStorageTests
 {
     [Fact]
+    public void Held_NTFS_capacity_agrees_with_independent_path_API_and_requires_the_exact_parent()
+    {
+        RequireWindows(); using var root = new Fixture(); using var directory = WindowsArchiveDirectory.Open(root.Root);
+        var estimate = new ArchiveSpaceEstimate(0, 1024, 52, 0);
+        var review = ((IArchiveDestinationSpace)directory).ReviewSpace(directory.Identity.ToString(), estimate, TestContext.Current.CancellationToken);
+        var independent = FileCat.Core.FileSystem.FileSystemCapacity.Query(root.Root);
+        Assert.NotNull(independent); Assert.True(review.CapacityKnown); review.RequireAvailable();
+        Assert.Equal("windows-volume:" + directory.Identity.VolumeSerial.ToString("X16"), review.Capacity!.VolumeIdentity);
+        Assert.InRange(review.Capacity.AvailableBytes, Math.Max(0, independent.AvailableBytes - (64L << 20)), independent.AvailableBytes + (64L << 20));
+        Assert.Equal(ArchiveWriteReason.NeedsReview, Assert.Throws<ArchiveWriteException>(() => ((IArchiveDestinationSpace)directory).ReviewSpace("wrong-parent", estimate, TestContext.Current.CancellationToken)).Reason);
+    }
+    [Fact]
     public void Readonly_source_uses_portable_new_file_mode_while_its_native_attribute_remains_reviewed()
     {
         RequireWindows(); using var f = new Fixture(); string path = f.PathOf("input"); File.WriteAllBytes(path, [1]); File.SetAttributes(path, FileAttributes.ReadOnly);

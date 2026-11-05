@@ -35,6 +35,16 @@ internal sealed class ArchiveArtifactReservation
         if (!ReferenceEquals(issuer, expectedIssuer)) throw new ArgumentException("The reservation belongs to another retained directory.");
         if (Interlocked.Exchange(ref claimed, 1) != 0) throw new InvalidOperationException("An archive artifact reservation can be attempted only once.");
     }
+
+    internal ArchiveSpaceReview ReviewSpace(ArchiveSpaceEstimate estimate, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(estimate); ct.ThrowIfCancellationRequested();
+        var reviewed = issuer is IArchiveDestinationSpace directory ? directory.ReviewSpace(ParentIdentity, estimate, ct)
+            : new ArchiveSpaceReview(ParentIdentity, estimate, null);
+        if (reviewed.ParentIdentity != ParentIdentity || reviewed.Estimate != estimate)
+            throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "The space review differs from its reserved destination or byte estimate.");
+        reviewed.RequireAvailable(); ct.ThrowIfCancellationRequested(); return reviewed;
+    }
 }
 
 /// <summary>Durable intent precedes exclusive creation. Failure retains evidence and never performs pathname cleanup.</summary>

@@ -4,11 +4,12 @@ namespace FileCat.Core.Archives;
 
 /// <summary>Unpublished native preparation. The caller continues to own every source lease.</summary>
 internal sealed class ArchivePreparedTar<T>(T stage, ArchiveVerifiedNativeStage verified, ArchiveTransactionFacts facts,
-    IReadOnlyList<ArchiveSealedSidecar<T>> sidecars) : IDisposable where T : class, IArchiveRetainedStage
+    IReadOnlyList<ArchiveSealedSidecar<T>> sidecars, ArchiveSpaceReview space) : IDisposable where T : class, IArchiveRetainedStage
 {
     internal T Stage { get; } = stage;
     internal ArchiveVerifiedNativeStage Verified { get; } = verified;
     internal ArchiveTransactionFacts Facts { get; } = facts;
+    internal ArchiveSpaceReview Space { get; } = space;
     internal IReadOnlyList<ArchiveSealedSidecar<T>> Sidecars { get; } = Array.AsReadOnly(sidecars.ToArray());
     public void Dispose() { try { Stage.Dispose(); } finally { foreach (var sidecar in Sidecars) sidecar.Dispose(); } }
 }
@@ -22,7 +23,7 @@ internal static class ArchiveJournaledTarPreparation
     internal static async Task<ArchivePreparedTar<T>> PrepareAsync<T>(JobJournal journal, string archivePath,
         ArchiveTarTransformPlan plan, ArchiveRetainedBinding? original, IReadOnlyDictionary<int, ArchiveRetainedBinding> captured,
         Func<Guid, ArchiveArtifactKind, long, ArchiveArtifactReservation> reserve, Func<ArchiveArtifactReservation, T> create,
-        ArchiveTransformClient transform, ArchiveVerificationClient verifier, CancellationToken ct) where T : class, IArchiveRetainedStage
+        ArchiveTransformClient transform, ArchiveVerificationClient verifier, CancellationToken ct, long knownSnapshotBytes = 0) where T : class, IArchiveRetainedStage
     {
         ArgumentNullException.ThrowIfNull(journal); ArgumentNullException.ThrowIfNull(plan); ArgumentNullException.ThrowIfNull(captured);
         ArgumentNullException.ThrowIfNull(reserve); ArgumentNullException.ThrowIfNull(create); ArgumentNullException.ThrowIfNull(transform); ArgumentNullException.ThrowIfNull(verifier);
@@ -35,7 +36,7 @@ internal static class ArchiveJournaledTarPreparation
         if (plan.Additions.Any(a => a.Type == ArchiveMemberType.Directory))
             throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "New directories require retained folder metadata and provenance capture.");
         var inputs = captured.ToDictionary(); var sidecars = new List<ArchiveSealedSidecar<T>>(); T? stage = null;
-        ArchiveTransactionFacts? facts = null;
+        ArchiveTransactionFacts? facts = null; ArchiveSpaceReview? space = null;
         try
         {
             var setup = await Task.Run(() =>
@@ -49,7 +50,8 @@ internal static class ArchiveJournaledTarPreparation
                 long expectedLength = ArchiveManifestSidecar.EncodedLength(plan.Expected, ct);
                 long assessedLength = plan.Source is null ? 0 : ArchiveManifestSidecar.EncodedLength(plan.Source.Manifest, ct);
                 long originLength = ArchiveOriginEvidenceWriter.EncodedLength(originScope, records, ct);
-                if (checked(2 * expectedLength + assessedLength + originLength) > ArchiveWritePolicy.MaxMetadataBytes) throw ArchiveWriteBudget.Limit();
+                long evidenceLength = checked(2 * expectedLength + assessedLength + originLength);
+                if (evidenceLength > ArchiveWritePolicy.MaxMetadataBytes) throw ArchiveWriteBudget.Limit();
                 long stageBound = ArchiveTransformWire.OutputBound(plan.Expected, ct);
                 var stageName = reserve(nonce, ArchiveArtifactKind.Stage, stageBound);
                 var expectedName = reserve(nonce, ArchiveArtifactKind.Manifest, expectedLength);
@@ -64,6 +66,7 @@ internal static class ArchiveJournaledTarPreparation
                 CheckReservation(originName, ArchiveArtifactKind.Provenance, originLength);
                 CheckReservation(verifiedName, ArchiveArtifactKind.Manifest, expectedLength);
                 if (assessedName is not null) CheckReservation(assessedName, ArchiveArtifactKind.Manifest, assessedLength);
+                space = stageName.ReviewSpace(new(original?.Reviewed.Version.Length ?? 0, stageBound, evidenceLength, knownSnapshotBytes), ct);
                 var reservedSidecars = new List<ArchiveSidecarFacts>
                 {
                     new(ArchiveSidecarRole.ExpectedOutput, expectedName.Path, expectedLength),
@@ -95,7 +98,7 @@ internal static class ArchiveJournaledTarPreparation
                 stage!.Review(verified.Stage, ct); ReviewInputs(); ReviewSidecars();
                 Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Verifying, verified.Stage.Version));
             }, ct).ConfigureAwait(false);
-            return new(stage!, verified, facts!, sidecars);
+            return new(stage!, verified, facts!, sidecars, space!);
         }
         catch
         {
