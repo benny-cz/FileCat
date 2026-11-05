@@ -1,0 +1,102 @@
+{
+  "purpose": "Captured table range/modified pointer/initial-focus corrections and native range subset; no capability authorization",
+  "gitBase": "b765481f8d057bf827bccbcd02ec06438ed45b6a",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "c9e9430588c70170342cd52daa613169baf82887a0b16c6fa282a28e4819f333"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "ea46481c7544a6b6e1ea9b902dcc303593dd28fc0eb21209b3028efd9b530e27"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "1f9588288a615931fbcfafe8585f63416efefcc995b7c2e786800454d724a504"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Selection.cs",
+      "sha256": "13bf442f6dc5aa2722f63937f7296fad12057cb7c217b44ece0a54e20518a62a"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "6c948ebdea1a16219b04ae8544a6a60870b6bc1999650f03850d0afdee7f5559"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Selection.cs",
+      "sha256": "d73b55406e95762601bf018c1d24840b5010132e5f7d113f901d6c063a0eb148"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSelectionState.cs",
+      "sha256": "0f605d12b72b0298dbcd2b01694d31032203230214264481b7cd051bfd91a0f4"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisTreeTests.cs",
+      "sha256": "bb96142024ddb3f7b0b182a2411f5c6695919550b291d73901bd2caef1a57059"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/WindowsInput.cs",
+      "sha256": "713748ecd202e0ba8d55f1a14222afd9378c1194604180fce4b817667eb00ffc"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Range.cs",
+      "sha256": "26bc0f0f3bd706d53d6b5a6b4c5622ee3997c7453c9a7928236609d52447411c"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r84.tgz",
+      "sha256": "2e72b60ed57d3f9874c1762171433c82e4404625c8b5ad24f495d7d5ed86a969"
+    },
+    {
+      "path": ".tmp/dsa-render-windows-r94.tgz",
+      "sha256": "5459e034b2f81efd095d76d4b5a77fb45425470fe5c34433c41d7c64da578f36"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r94.tgz",
+      "sha256": "083633f5fa7690d0163886c700bbf9107e3a0872c78f9a00d927951fc8c4b210"
+    },
+    {
+      "path": ".tmp/dsa-render-linux-r94.tgz",
+      "sha256": "5761220e08e0bb522d81d7d27cfc996257841a02c572c4e382c3fca4377a5b96"
+    },
+    {
+      "path": ".tmp/desktop-r95-windows.tgz",
+      "sha256": "3866626d71ad000e667020797d7ba20ad9dcf465d2b37c42f63ec9739d5b4a70"
+    },
+    {
+      "path": ".tmp/desktop-r95-mac.tgz",
+      "sha256": "49d59029b7d8f6b22a57c311f2ee6b7d8424984696cc540074f3075fabd6b454"
+    },
+    {
+      "path": ".tmp/desktop-r95-linux.tgz",
+      "sha256": "939973499ae9cd9635ea92bb380f2b06ef488e40a4ed73a2cdb303c9c83f2e75"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "drivers/windows-native-input-r95b.ps1",
+      "sha256": "e439d2cb844607e525c49c8127c825e2beb61f974abadd32718523e4ecadc877"
+    },
+    {
+      "path": "drivers/mac-native-links-r95.py",
+      "sha256": "a0ff8289e07bee95ad98ffc838e15fe173a76f9b8108251dcd5d3b164d4baa6c"
+    },
+    {
+      "path": "drivers/linux-native-links-r95.py",
+      "sha256": "f532ede39ad53d85402eb8af91548419ee139e10f59153bc72b4c0d6f316c9eb"
+    },
+    {
+      "path": "drivers/ubuntu-qualification-r95.sh",
+      "sha256": "ed707689dbb2e06b624a57dc9835c66dde5b15e0d1c995ef6d00045ae74c6543"
+    }
+  ],
+  "nativeReports": [
+    "windows-native-range-r95b.json",
+    "windows-native-range-report-r95b.json",
+    "mac-native-range-r95.json",
+    "ubuntu-native-range-r95.json"
+  ],
+  "remaining": "Remaining selection/group commands and hidden-mark counts, indexed scale, the rest of the full plan and complete native qualification; final independent review not performed."
+}

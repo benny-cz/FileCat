@@ -238,6 +238,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     }
     private void Publish(AnalysisTree tree, AnalysisOrderedRows order, AnalysisSnapshotLease? lease)
     {
+        RebindTableRangeOrder(tree, order);
         var old = _lease; var oldOrder = _orderedRows; _lease = lease; _orderedRows = order; Tree = tree; Rows = order.Rows; _observation = tree.Snapshot;
         try { Changed?.Invoke(); } finally { old?.Dispose(); oldOrder?.Dispose(); }
     }
@@ -253,6 +254,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     }
     public void Focus(string key, bool toggleMark = false, bool open = false)
     {
+        SetTableAnchor(key);
         Selection.SetFocus(key);
         if (toggleMark && Tree?.Items.GetValueOrDefault(key)?.NodeId is { } id)
         { try { Selection.ToggleMark(id); } catch (InvalidOperationException ex) { SetStatus(ex.Message); } }
@@ -407,6 +409,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         _inventory?.Dispose();
         Comparison?.Dispose(); Comparison = null; _comparisonPrevious?.Dispose(); _comparisonPrevious = null; _comparisonCurrent?.Dispose(); _comparisonCurrent = null;
         _rowOrderCancel?.Cancel(); _orderedRows?.Dispose(); _pending?.Order.Dispose();
+        _rangeBaseline = _rangePublishedMarks = null; _rangeOrderOwner = null; _tableAnchor = null;
         Tree = null; Rows = []; _observation = null; _pending = null; Changed = null;
     }
     private sealed class LatestProgress(IUiDispatcher ui, Action<AnalysisProgress> consume) : IProgress<AnalysisProgress>

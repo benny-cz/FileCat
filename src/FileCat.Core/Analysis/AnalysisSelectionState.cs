@@ -33,6 +33,13 @@ public sealed class AnalysisSelectionState
     {
         _marks = CaptureBounded(_marks, ids, "marked selection");
     }
+    /// <summary>Replace an active range over a retained bounded baseline, without partial changes on refusal.</summary>
+    public void MarkRangeCaptured(ImmutableHashSet<ulong> baseline, IEnumerable<ulong> ids)
+    {
+        ArgumentNullException.ThrowIfNull(baseline);
+        if (baseline.Contains(0) || baseline.Count > AnalysisLimits.ReviewPaths) throw new ArgumentException("A bounded set of real observation IDs is required.", nameof(baseline));
+        _marks = CaptureBounded(baseline, ids, "marked selection");
+    }
     public void ClearMarks() => _marks = [];
     public void StageCaptured(IEnumerable<ulong> ids)
     {

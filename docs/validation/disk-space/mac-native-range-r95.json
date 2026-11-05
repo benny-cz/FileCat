@@ -1,0 +1,213 @@
+{
+  "purpose": "Native Mac table ordering/breadcrumb/AX selection/keyboard subset; no full qualification",
+  "processId": 33572,
+  "events": [
+    "Invoked Start analysis",
+    "Selected Chart view = Table",
+    "Pressed native Return",
+    "Selected Analysis table sort = Name",
+    "Selected Analysis table sort direction = Ascending"
+  ],
+  "menuTargetReceipts": [
+    "1\t1",
+    "1\t1",
+    "1\t1"
+  ],
+  "markedKey": "n:10",
+  "capturedRangeRealRows": 11,
+  "captures": {
+    "range-all": {
+      "width": 2880,
+      "height": 1800,
+      "helper": "com.filecat.validation.capture",
+      "scope": "Main display while owned app is frontmost"
+    },
+    "range-shrunk": {
+      "width": 2880,
+      "height": 1800,
+      "helper": "com.filecat.validation.capture",
+      "scope": "Main display while owned app is frontmost"
+    }
+  },
+  "nativeCapturedRangeVerified": true,
+  "state": "passed-native-range-subset",
+  "ownedProcessExited": true,
+  "harnessReport": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "closed",
+    "sourceUnchanged": true,
+    "deadlineClosed": false,
+    "processId": 33572,
+    "platform": "macOS 27.0.1",
+    "architecture": "Arm64",
+    "run": "/Users/benny/FileCatValidation/dsa-20261105-r95-links/app/native-validation/dsa-97d79a68064e49318375b57d934959c7",
+    "fixture": "/Users/benny/FileCatValidation/dsa-20261105-r95-links/app/native-validation/dsa-97d79a68064e49318375b57d934959c7/fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": false,
+    "lastVisibleWidth": 1180,
+    "lastVisibleHeight": 763,
+    "lastVisibleScale": 2,
+    "lastScreen": {
+      "bounds": "0, 0, 1440, 900",
+      "workingArea": "0, 30, 1440, 791",
+      "Scaling": 1,
+      "position": "130, 30",
+      "frameSize": "1180, 791"
+    },
+    "largeText": false,
+    "compact": false,
+    "sharedProfile": false,
+    "sessions": 0,
+    "createdSessions": 1,
+    "lastObservation": {
+      "Phase": 5,
+      "Status": "Marked rows: 1. Existing marks outside this range are retained.",
+      "FilterError": null,
+      "Query": "",
+      "Metric": 2,
+      "session": "238b26f8-d11e-4f5b-b781-2bc42816286c",
+      "Coverage": 0,
+      "Freshness": 0,
+      "hostProfile": "hp1:9af02f9dc64e4b6ea834d0a55e235eb3:darwin-host-uuid:52fe5ecc12a2864caf09fcd46e86055b53cb6cb3c7c28f6e243d425938b54914",
+      "ContinuityNotice": null,
+      "paths": 518,
+      "objects": 508,
+      "issues": [
+        {
+          "Code": "navigation-link-not-followed",
+          "State": 3
+        }
+      ],
+      "known": "3424256",
+      "unverified": "0",
+      "matchingPaths": 509,
+      "rows": 12,
+      "focus": "n:10",
+      "marked": 1,
+      "basket": 0,
+      "tableSort": 1,
+      "tableDescending": false,
+      "tableRows": [
+        {
+          "Key": "n:10",
+          "Name": ".hidden.bin",
+          "value": "4096",
+          "activeText": "4,0 KiB",
+          "fileSizeText": "321 B",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:11",
+          "Name": "Aliases",
+          "value": "0",
+          "activeText": "Shared at ancestor",
+          "fileSizeText": "1,0 MiB",
+          "state": "Shared links"
+        },
+        {
+          "Key": "n:7",
+          "Name": "Archives",
+          "value": "81920",
+          "activeText": "80,0 KiB",
+          "fileSizeText": "80,0 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:9",
+          "Name": "large.bin",
+          "value": "0",
+          "activeText": "Shared at ancestor",
+          "fileSizeText": "1,0 MiB",
+          "state": "Shared links"
+        },
+        {
+          "Key": "n:8",
+          "Name": "link-outside",
+          "value": "0",
+          "activeText": "Not measured",
+          "fileSizeText": "Not measured",
+          "state": "Link not followed"
+        },
+        {
+          "Key": "n:5",
+          "Name": "Package.app",
+          "value": "12288",
+          "activeText": "12,0 KiB",
+          "fileSizeText": "11,0 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:12",
+          "Name": "Photos",
+          "value": "245760",
+          "activeText": "240,0 KiB",
+          "fileSizeText": "240,0 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:2",
+          "Name": "report.csv",
+          "value": "4096",
+          "activeText": "4,0 KiB",
+          "fileSizeText": "60 B",
+          "state": "Observed"
+        },
+        {
+          "Key": "shared:n:1",
+          "Name": "Shared hard-linked files",
+          "value": "1048576",
+          "activeText": "1,0 MiB",
+          "fileSizeText": "2,0 MiB",
+          "state": "Group"
+        },
+        {
+          "Key": "n:6",
+          "Name": "Small files",
+          "value": "2023424",
+          "activeText": "1,9 MiB",
+          "fileSizeText": "22,8 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:3",
+          "Name": "Unicode",
+          "value": "4096",
+          "activeText": "4,0 KiB",
+          "fileSizeText": "123 B",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:4",
+          "Name": "zero.bin",
+          "value": "0",
+          "activeText": "0 B",
+          "fileSizeText": "0 B",
+          "state": "Observed"
+        }
+      ],
+      "breadcrumbs": [
+        {
+          "Key": "scope",
+          "Label": "All locations"
+        },
+        {
+          "Key": "n:1",
+          "Label": "fixture"
+        }
+      ]
+    },
+    "selectedTab": 0,
+    "tabHeaders": [
+      "Analysis 1"
+    ],
+    "appSha256": "23366eb1dd8b3f1f83e2995451a6b77731978bf90a596ffd4e028bc1e75753e4",
+    "harnessSha256": "a85c408230a548266f59494d1cef28747b5275ece8d4c4c6a9fc010c3f6388f6",
+    "profileProbe": false,
+    "profileProbeFinished": false,
+    "profileProbeError": null,
+    "profileProbeCaptureError": null,
+    "savedOrderingProbe": null
+  }
+}

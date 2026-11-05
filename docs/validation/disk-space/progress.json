@@ -88,16 +88,20 @@
     "Named catalog entries now retain typed table ordering and direction in strict entry schema2. Existing schema1 entries retain Active metric/Descending defaults without rewriting; missing/duplicate/unknown/future/wrong-type ordering is refused without changing metadata. Inventory and catalog-header formats remain schema1.",
     "Browse restores saved ordering before the offline projection, retaining real scope/settings while clearing marks/basket and preserving imported taint. Filename-only opening remains independent of catalog health and uses default display state; its dialog explains that distinction.",
     "Eight additional core catalog controls pass on all3 runtimes: Windows302pass/18platform skips, Mac302pass, Ubuntu301pass/oneDarwinACLskip. All53 presentation cases pass on each guest; two new direction cases verify actual restored row order and filename defaults. The first new fixture incorrectly used breadcrumb-only navigation to enter a folder and is excluded; corrected fixtures use the actual folder-open route.",
-    "Two native saved-ordering processes per platform save/reopen both directions and captured scope with no live source/marks/basket. All5 inventory/catalog payload hashes and private-state bytes remain unchanged on reopen. Each scan retains509 source hashes; every owned app exits. Windows21 native private-store/filesystem cases pass with the new format, and full solution builds with zero warnings/errors. This subset does not close full native/a11y/resource/feature gates or final review."
+    "Two native saved-ordering processes per platform save/reopen both directions and captured scope with no live source/marks/basket. All5 inventory/catalog payload hashes and private-state bytes remain unchanged on reopen. Each scan retains509 source hashes; every owned app exits. Windows21 native private-store/filesystem cases pass with the new format, and full solution builds with zero warnings/errors. This subset does not close full native/a11y/resource/feature gates or final review.",
+    "Observed table rows now support Ctrl/Command-click toggling and inclusive Shift-click/arrows/Home/End/Page ranges over the actual published sort order. A bounded baseline supports shrinking while retaining unrelated marks; additive gestures retain current marks. Basket contents remain independent. Synthetic groups are not silently expanded and retain the explicit current-member action.",
+    "Range candidates commit only after the100,000-path bound passes, preserving focus/marks/basket on refusal. Equivalent ordered key/ID publications preserve the anchor without retaining a released reference array. Modified pointer capture holds the projection freeze through release/capture loss/detachment; checkbox Space and modified double-tap routing stay distinct.",
+    "Review found initial Shift-Down could skip the first row when focus was not in the displayed rows. Initial Shift arrows/page keys now begin at the corresponding boundary, with two dedicated regressions. All61 presentation controls pass on Windows VM, Mac and Ubuntu, including page keys and a filter arriving while a modified press is held. Core304 pass on Mac,303pass/oneDarwinACLskip on Ubuntu, and304pass/18platform skips on Windows. The full solution builds with zero warnings/errors.",
+    "Final native range checks pass on Windows r95b, Mac r95 and Ubuntu r95, expanding11 observed rows and shrinking to the original mark without expanding the accounting group or basket. Windows additionally verifies exact row IDs and native Ctrl-click toggling. Each preserves509 source hashes and exits its owned app. Ubuntu waited for competing instances; Windows rejected an overlap and then passed after sequential rendering/native execution. Earlier controller focus/AX traversal failures are excluded from acceptance."
   ],
   "validation": {
     "windowsCore": {
-      "total": 320,
-      "passed": 302,
+      "total": 322,
+      "passed": 304,
       "failed": 0,
       "skipped": 18,
-      "detail": "Current r75 analysis/command suite, including strict saved-ordering schema compatibility and refusal controls.",
-      "evidence": "windows-core-r75.xml"
+      "detail": "Current r84 analysis/command suite with atomic bounded range replacement and refusal controls.",
+      "evidence": "windows-core-r84.xml"
     },
     "windowsHostNative": {
       "total": 14,
@@ -116,34 +120,34 @@
       "detail": "21 ordinary NTFS/private-catalog regressions pass with entry schema2. Existing operation-feasibility counterexamples remain rejected proofs."
     },
     "macosArm64": {
-      "total": 302,
-      "passed": 302,
+      "total": 304,
+      "passed": 304,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-core-r75.xml",
-      "detail": "Current r75 analysis/command suite, including strict saved-ordering schema compatibility and refusal controls."
+      "evidence": "mac-core-r84.xml",
+      "detail": "Current r84 analysis/command suite with atomic bounded range replacement and refusal controls."
     },
     "headlessRendering": {
-      "total": 53,
-      "passed": 53,
+      "total": 61,
+      "passed": 61,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-render-r78.xml",
-      "detail": "All53 cases pass on each guest runtime, including named saved order/direction/scope, actual row order, dialog controls and filename-only defaults."
+      "evidence": "windows-vm-render-r94.xml",
+      "detail": "All61 cases pass per guest, including captured ranges, initial missing-focus boundaries, Control/Meta pointer input, page keys, synthetic omission, atomic refusal and held-pointer filter publication."
     },
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "solution-build-r80.txt"
+      "evidence": "solution-build-r96.txt"
     },
     "ubuntu": {
       "status": "ordinary-user-native-regressions-passed",
-      "total": 302,
-      "passed": 301,
+      "total": 304,
+      "passed": 303,
       "failed": 0,
       "skipped": 1,
-      "evidence": "ubuntu-core-r75.xml",
-      "detail": "Current r75 analysis/command suite, including strict saved-ordering schema compatibility and refusal controls."
+      "evidence": "ubuntu-core-r84.xml",
+      "detail": "Current r84 analysis/command suite with atomic bounded range replacement and refusal controls."
     },
     "nativeDesktop": {
       "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification. r62 native accessibility/keyboard link inspection verifies the visible omitted-target explanation, measured-zero distinction and retained mark, with 509 unchanged source paths and owned exit.",
@@ -240,11 +244,27 @@
       "mac": "mac-native-order-r79.json",
       "ubuntu": "ubuntu-native-order-r79.json",
       "scope": "Two native processes, save/reopen both order directions and scope; unchanged5 saved payloads/profile bytes/509 source paths per run; owned exit. Not physical input or complete qualification."
+    },
+    "nativeCapturedRange": {
+      "status": "subset-passed-all-three",
+      "windows": "windows-native-range-r95b.json",
+      "windowsReport": "windows-native-range-report-r95b.json",
+      "mac": "mac-native-range-r95.json",
+      "ubuntu": "ubuntu-native-range-r95.json",
+      "scope": "Native11-row expansion/shrink, basket independence,509 unchanged fixture paths and owned exit. Windows exact marks/Ctrl pointer; Mac AX selection/native keyboard; Ubuntu pointer/native keyboard. Complete matrix remains open.",
+      "excluded": [
+        "windows-native-range-failed-r88.json",
+        "windows-native-range-failed-report-r88.json",
+        "mac-native-range-failed-r88.json",
+        "ubuntu-native-range-failed-r88.json",
+        "windows-native-range-overlap-r95.json",
+        "windows-native-range-overlap-report-r95.json"
+      ]
     }
   },
   "nextWork": [
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
-    "W2: grouping/color dimensions, captured sort-order range selection and full table/detail columns/tooltips. Sunburst labels and complete native pointer/a11y/theme/display qualification remain open.",
+    "W2: grouping/color dimensions, remaining selection commands/group semantics/hidden-mark counts and full table/detail columns/tooltips. Sunburst labels and complete native pointer/a11y/theme/display qualification remain open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",

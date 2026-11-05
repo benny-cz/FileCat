@@ -1,0 +1,237 @@
+{
+  "purpose": "Native Ubuntu table ordering/breadcrumb/pointer/keyboard subset; no full qualification",
+  "processId": 435752,
+  "events": [
+    "Invoked Start analysis",
+    "Selected Analysis table sort = Name",
+    "Selected Analysis table sort direction = Ascending",
+    "Selected Analysis table sort direction = Descending",
+    "Invoked Go to captured location: All locations",
+    "Invoked Back",
+    "Selected Analysis table sort direction = Ascending",
+    "Selected Chart view = Table"
+  ],
+  "nativePointerAndEnterDrilledRoot": true,
+  "ascendingNames": [
+    ".hidden.bin",
+    "Aliases",
+    "Archives",
+    "large.bin",
+    "link-outside",
+    "Package.app",
+    "Photos",
+    "report.csv",
+    "Shared hard-linked files",
+    "Small files",
+    "Unicode",
+    "zero.bin"
+  ],
+  "markedKey": "n:12",
+  "descendingNames": [
+    "zero.bin",
+    "Unicode",
+    "Small files",
+    "Shared hard-linked files",
+    "report.csv",
+    "Photos",
+    "Package.app",
+    "link-outside",
+    "large.bin",
+    "Archives",
+    "Aliases",
+    ".hidden.bin"
+  ],
+  "nativeSortPreservedFocusAndMark": true,
+  "nativeBreadcrumbAndBackPreservedMark": true,
+  "nativeLinkOmissionExplained": true,
+  "linkRow": {
+    "Key": "n:2",
+    "Name": "link-outside",
+    "value": "0",
+    "activeText": "Not measured",
+    "fileSizeText": "Not measured",
+    "state": "Link not followed"
+  },
+  "capturedRangeRealRows": 11,
+  "nativeCapturedRangeVerified": true,
+  "state": "passed-native-navigation-subset",
+  "ownedProcessExited": true,
+  "harnessReport": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "closed",
+    "sourceUnchanged": true,
+    "deadlineClosed": false,
+    "processId": 435752,
+    "platform": "Ubuntu 24.04.5 LTS",
+    "architecture": "X64",
+    "run": "/home/benny/FileCatValidation/dsa-20261105-r95-links/app/native-validation/dsa-06172811772c49b8a621d544ce92ee4f",
+    "fixture": "/home/benny/FileCatValidation/dsa-20261105-r95-links/app/native-validation/dsa-06172811772c49b8a621d544ce92ee4f/fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": false,
+    "lastVisibleWidth": 1180,
+    "lastVisibleHeight": 731,
+    "lastVisibleScale": 1,
+    "lastScreen": {
+      "bounds": "0, 0, 1280, 800",
+      "workingArea": "66, 32, 1214, 768",
+      "Scaling": 1,
+      "position": "66, 32",
+      "frameSize": "1180, 768"
+    },
+    "largeText": false,
+    "compact": false,
+    "sharedProfile": false,
+    "sessions": 0,
+    "createdSessions": 1,
+    "lastObservation": {
+      "Phase": 5,
+      "Status": "Marked rows: 1. Existing marks outside this range are retained.",
+      "FilterError": null,
+      "Query": "",
+      "Metric": 2,
+      "session": "7c56199c-e166-43fa-b94a-62dc3bf1287e",
+      "Coverage": 0,
+      "Freshness": 0,
+      "hostProfile": "hp1:e5d09cced7d34aabbd64f122d50caa61:linux-app-machine-id:0038b58d7d5029e35d0e0c9cb66413177371caa6b5dad1dc010b4188c3759db2",
+      "ContinuityNotice": null,
+      "paths": 518,
+      "objects": 508,
+      "issues": [
+        {
+          "Code": "navigation-link-not-followed",
+          "State": 3
+        }
+      ],
+      "known": "3424256",
+      "unverified": "0",
+      "matchingPaths": 509,
+      "rows": 12,
+      "focus": "n:12",
+      "marked": 1,
+      "basket": 0,
+      "tableSort": 1,
+      "tableDescending": false,
+      "tableRows": [
+        {
+          "Key": "n:12",
+          "Name": ".hidden.bin",
+          "value": "4096",
+          "activeText": "4.0 KiB",
+          "fileSizeText": "321 B",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:7",
+          "Name": "Aliases",
+          "value": "0",
+          "activeText": "Shared at ancestor",
+          "fileSizeText": "1.0 MiB",
+          "state": "Shared links"
+        },
+        {
+          "Key": "n:9",
+          "Name": "Archives",
+          "value": "81920",
+          "activeText": "80.0 KiB",
+          "fileSizeText": "80.0 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:11",
+          "Name": "large.bin",
+          "value": "0",
+          "activeText": "Shared at ancestor",
+          "fileSizeText": "1.0 MiB",
+          "state": "Shared links"
+        },
+        {
+          "Key": "n:2",
+          "Name": "link-outside",
+          "value": "0",
+          "activeText": "Not measured",
+          "fileSizeText": "Not measured",
+          "state": "Link not followed"
+        },
+        {
+          "Key": "n:3",
+          "Name": "Package.app",
+          "value": "12288",
+          "activeText": "12.0 KiB",
+          "fileSizeText": "11.0 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:5",
+          "Name": "Photos",
+          "value": "245760",
+          "activeText": "240.0 KiB",
+          "fileSizeText": "240.0 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:6",
+          "Name": "report.csv",
+          "value": "4096",
+          "activeText": "4.0 KiB",
+          "fileSizeText": "60 B",
+          "state": "Observed"
+        },
+        {
+          "Key": "shared:n:1",
+          "Name": "Shared hard-linked files",
+          "value": "1048576",
+          "activeText": "1.0 MiB",
+          "fileSizeText": "2.0 MiB",
+          "state": "Group"
+        },
+        {
+          "Key": "n:10",
+          "Name": "Small files",
+          "value": "2023424",
+          "activeText": "1.9 MiB",
+          "fileSizeText": "22.8 KiB",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:4",
+          "Name": "Unicode",
+          "value": "4096",
+          "activeText": "4.0 KiB",
+          "fileSizeText": "123 B",
+          "state": "Observed"
+        },
+        {
+          "Key": "n:8",
+          "Name": "zero.bin",
+          "value": "0",
+          "activeText": "0 B",
+          "fileSizeText": "0 B",
+          "state": "Observed"
+        }
+      ],
+      "breadcrumbs": [
+        {
+          "Key": "scope",
+          "Label": "All locations"
+        },
+        {
+          "Key": "n:1",
+          "Label": "fixture"
+        }
+      ]
+    },
+    "selectedTab": 0,
+    "tabHeaders": [
+      "Analysis 1"
+    ],
+    "appSha256": "399f5abadce803570fd63ee2ca1029b249a45af8e99421639cf0ecce57a322c4",
+    "harnessSha256": "519214d6baf202bc6be960259eddeaf63e694594e3e592e036b93f41bc46226b",
+    "profileProbe": false,
+    "profileProbeFinished": false,
+    "profileProbeError": null,
+    "profileProbeCaptureError": null,
+    "savedOrderingProbe": null
+  }
+}

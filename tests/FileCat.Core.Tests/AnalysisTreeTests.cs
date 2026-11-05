@@ -147,6 +147,26 @@ public sealed class AnalysisTreeTests
     }
 
     [Fact]
+    public void CapturedRangeCanShrinkWithoutRemovingUnrelatedMarksOrChangingTheBasket()
+    {
+        var state = new AnalysisSelectionState(); state.MarkCaptured([9]); state.StageCaptured([7]); state.SetFocus("n:2");
+        var baseline = state.Marks;
+        state.MarkRangeCaptured(baseline, [2, 3, 4]); Assert.Equal(new ulong[] { 2, 3, 4, 9 }, state.Marks.Order());
+        state.MarkRangeCaptured(baseline, [2, 3]); Assert.Equal(new ulong[] { 2, 3, 9 }, state.Marks.Order());
+        Assert.Equal(new ulong[] { 7 }, state.Basket); Assert.Equal("n:2", state.Focus);
+    }
+
+    [Fact]
+    public void CapturedRangeRefusesOversizeAndInvalidIdsWithoutPartialMarks()
+    {
+        var state = new AnalysisSelectionState(); state.MarkCaptured([9]); var before = state.Marks;
+        Assert.Throws<InvalidOperationException>(() => state.MarkRangeCaptured(before, Enumerable.Range(10, AnalysisLimits.ReviewPaths).Select(i => (ulong)i)));
+        Assert.Same(before, state.Marks);
+        Assert.Throws<ArgumentException>(() => state.MarkRangeCaptured(before, new ulong[] { 2, 0, 3 })); Assert.Same(before, state.Marks);
+        Assert.Throws<ArgumentException>(() => state.MarkRangeCaptured(System.Collections.Immutable.ImmutableHashSet.Create(0ul), [])); Assert.Same(before, state.Marks);
+    }
+
+    [Fact]
     public void KnownPathSizesAndCountsFoldExactlyWithoutUsingGeometry()
     {
         var s = AnalysisAccountingTests.Golden();

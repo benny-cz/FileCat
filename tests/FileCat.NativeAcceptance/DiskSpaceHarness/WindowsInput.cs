@@ -27,6 +27,7 @@ internal sealed partial class HarnessApp
     private DateTimeOffset? _windowsForegroundAt;
     private bool _windowsActivationRequested, _windowsChoiceStarted;
     private string? _windowsMarked;
+    private bool _windowsRangeVerified;
 
     private void BeginWindowsInput()
     {
@@ -116,6 +117,36 @@ internal sealed partial class HarnessApp
                         _windowsMarked is null || !model.Selection.Marks.Contains(model.Tree.Items[_windowsMarked].NodeId!.Value))
                         throw new InvalidOperationException("The native link inspection did not retain the explanatory state and independent mark.");
                     WindowsCapture("link-inspector");
+                    AdvanceWindows("Observed native link explanation"); break;
+                case 15:
+                    if (WindowsChoose("Chart view", "Table")) AdvanceWindows("Native Table choice for range"); break;
+                case 16:
+                    if (model.Chart != "Table") return;
+                    var rangeAnchor = WindowsControl<ListBox>("Ranked analysis entries").ContainerFromIndex(0) as Control;
+                    if (rangeAnchor is null) return;
+                    WindowsClick(rangeAnchor, 70); AdvanceWindows("Native pointer establishes table range anchor"); break;
+                case 17:
+                    if (model.Selection.Focus != _windowsMarked) return;
+                    WindowsGuestInput.Key(0x23, 0x10); AdvanceWindows("Native Shift End"); break;
+                case 18:
+                    if (model.Selection.Focus != model.Rows[^1].Key) return;
+                    if (!model.Selection.Marks.SetEquals(model.Rows.Where(r => r.NodeId.HasValue).Select(r => r.NodeId!.Value)) || model.Selection.Basket.Count != 0)
+                        throw new InvalidOperationException("Native range did not mark exactly its displayed real rows independently of the basket.");
+                    WindowsCapture("range-all"); WindowsGuestInput.Key(0x24, 0x10); AdvanceWindows("Native Shift Home shrinks range"); break;
+                case 19:
+                    if (model.Selection.Focus != _windowsMarked) return;
+                    if (model.Selection.Marks.Count != 1) throw new InvalidOperationException("Native shrinking range retained stale range marks.");
+                    var toggleRow = WindowsControl<ListBox>("Ranked analysis entries").ContainerFromIndex(0) as Control;
+                    if (toggleRow is null) return;
+                    WindowsClick(toggleRow, 70, controlModifier: true); AdvanceWindows("Native Ctrl click removes selected mark"); break;
+                case 20:
+                    if (model.Selection.Marks.Count != 0) return;
+                    var sameRow = WindowsControl<ListBox>("Ranked analysis entries").ContainerFromIndex(0) as Control;
+                    if (sameRow is null) return;
+                    WindowsClick(sameRow, 70, controlModifier: true); AdvanceWindows("Native Ctrl click restores selected mark"); break;
+                case 21:
+                    if (model.Selection.Marks.Count != 1 || model.Selection.Focus != _windowsMarked) return;
+                    _windowsRangeVerified = true; WindowsCapture("range-shrunk");
                     WriteWindowsInput("passed-native-input-subset"); _windowsInput.Stop(); window.ForceClose(); return;
             }
             WriteWindowsInput(_windowsStep == 0 && !WindowsGuestInput.ForegroundIsOwned() ? "waiting-foreground" : "running");
@@ -152,7 +183,7 @@ internal sealed partial class HarnessApp
         if (combo.ContainerFromIndex(index) is not Control itemControl || !itemControl.IsEffectivelyVisible) return false;
         WindowsClick(itemControl); _windowsChoiceStarted = false; return true;
     }
-    private static void WindowsClick(Control control, double? x = null)
+    private static void WindowsClick(Control control, double? x = null, bool controlModifier = false)
     {
         if (!control.IsEffectivelyEnabled || !control.IsEffectivelyVisible || control.Bounds.Width < 4 || control.Bounds.Height < 4)
             throw new InvalidOperationException("The observed native target is unavailable.");
@@ -161,7 +192,7 @@ internal sealed partial class HarnessApp
         if (handle == 0 || !WindowsGuestInput.HandleIsOwned(handle)) throw new InvalidOperationException("Target native window ownership mismatch.");
         var local = new Point(x is { } requested ? Math.Min(requested, control.Bounds.Width / 2) : control.Bounds.Width / 2, control.Bounds.Height / 2);
         var point = control.PointToScreen(local);
-        WindowsGuestInput.Click(handle, point.X, point.Y);
+        WindowsGuestInput.Click(handle, point.X, point.Y, controlModifier ? (ushort)0x11 : (ushort)0);
     }
     private void WindowsCapture(string label)
     {
@@ -175,6 +206,7 @@ internal sealed partial class HarnessApp
             schemaVersion = 1, purpose = "Opt-in Windows VM native input subset; no full qualification", state, error,
             processId = Environment.ProcessId, user = Environment.UserName, machine = Environment.MachineName,
             step = _windowsStep, events = _windowsEvents, markedKey = _windowsMarked,
+            nativeCapturedRangeVerified = _windowsRangeVerified,
             windowVisible = _window?.IsVisible, windowActive = _window?.IsActive,
             keyboardFocus = _window?.FocusManager?.GetFocusedElement()?.GetType().Name,
             environment = WindowsGuestInput.Observation(),
@@ -275,16 +307,33 @@ internal sealed partial class HarnessApp
             foreach (int modifier in new[] { 0x10, 0x11, 0x12, 0x5b, 0x5c })
                 if ((GetAsyncKeyState(modifier) & 0x8000) != 0) throw new InvalidOperationException("A native modifier is held; postpone gestures without changing its state.");
         }
-        private static void Send(Input[] input) { Guard(); if (SendInput((uint)input.Length, input, Marshal.SizeOf<Input>()) != input.Length) throw new Win32Exception(Marshal.GetLastPInvokeError(), "Native input was not fully accepted."); }
-        public static void Key(ushort key) => Send([new() { Type = 1, Data = new() { Keyboard = new() { Key = key } } }, new() { Type = 1, Data = new() { Keyboard = new() { Key = key, Flags = 2 } } }]);
-        public static void Click(nint handle, int x, int y)
+        private static void Send(Input[] input, ushort modifier = 0)
         {
+            Guard();
+            if (SendInput((uint)input.Length, input, Marshal.SizeOf<Input>()) == input.Length) return;
+            int error = Marshal.GetLastPInvokeError();
+            // A partial native batch may have accepted this test's modifier-down. Release only
+            // its own modifier while this guarded VM process still owns the foreground desktop.
+            if (modifier != 0 && ForegroundIsOwned())
+                try { DesktopGuard(); SendInput(1, [KeyInput(modifier, 2)], Marshal.SizeOf<Input>()); } catch { }
+            throw new Win32Exception(error, "Native input was not fully accepted.");
+        }
+        private static Input KeyInput(ushort key, uint flags = 0) => new() { Type = 1, Data = new() { Keyboard = new() { Key = key, Flags = flags } } };
+        public static void Key(ushort key, ushort modifier = 0)
+        {
+            if (modifier is not (0 or 0x10 or 0x11)) throw new ArgumentOutOfRangeException(nameof(modifier));
+            Send(modifier == 0 ? [KeyInput(key), KeyInput(key, 2)] : [KeyInput(modifier), KeyInput(key), KeyInput(key, 2), KeyInput(modifier, 2)], modifier);
+        }
+        public static void Click(nint handle, int x, int y, ushort modifier = 0)
+        {
+            if (modifier is not (0 or 0x10 or 0x11)) throw new ArgumentOutOfRangeException(nameof(modifier));
             Guard(); if (!HandleIsOwned(handle) || !GetWindowRect(handle, out var rect) || x < rect.Left || x >= rect.Right || y < rect.Top || y >= rect.Bottom)
                 throw new InvalidOperationException("The observed pointer target is outside its owned native window.");
             if (!HandleIsOwned(WindowFromPoint(new NativePoint { X = x, Y = y })))
                 throw new InvalidOperationException("The observed point is covered by a different native process; no input was sent.");
             if (!SetCursorPos(x, y)) throw new Win32Exception(Marshal.GetLastPInvokeError());
-            Send([new() { Data = new() { Mouse = new() { Flags = 2 } } }, new() { Data = new() { Mouse = new() { Flags = 4 } } }]);
+            Input down = new() { Data = new() { Mouse = new() { Flags = 2 } } }, up = new() { Data = new() { Mouse = new() { Flags = 4 } } };
+            Send(modifier == 0 ? [down, up] : [KeyInput(modifier), down, up, KeyInput(modifier, 2)], modifier);
         }
         public static void Capture(nint handle, string path)
         {

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Opt-in Windows VM native input subset; no full qualification",
+  "state": "native-input-failed",
+  "error": "InvalidOperationException: Another FileCat or dotnet process appeared; postpone testing.",
+  "processId": 4524,
+  "user": "filecatdsa_r2",
+  "machine": "DESKTOP-A60F1NE",
+  "step": 0,
+  "events": [],
+  "markedKey": null,
+  "nativeCapturedRangeVerified": false,
+  "windowVisible": true,
+  "windowActive": true,
+  "keyboardFocus": null,
+  "environment": {
+    "processSession": 2,
+    "consoleSession": 2,
+    "windowStation": "WinSta0",
+    "foregroundProcessId": 6900
+  },
+  "appSha256": "fa3a38aac62535f85dcb7c86c2b456f24eacc8e42261f9f5b37563e558f19863",
+  "harnessSha256": "ef7dcb4d10c0a224b33705577624582da72eb1e39bcac248b2d73cf41113f949",
+  "phase": "Ready",
+  "status": "Choose locations. Standard analysis reads metadata, not file contents.",
+  "scope": "scope",
+  "focus": null,
+  "marks": 0
+}

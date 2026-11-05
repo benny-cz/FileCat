@@ -257,6 +257,7 @@ public sealed partial class DiskSpaceWindow : Window
             Grid.SetRow(splitter, 1); _explorer.Children.Add(splitter);
             _list.ItemTemplate = new FuncDataTemplate<AnalysisTreeItem>((item, _) => item is null ? new Border() : Row(item));
             _list.SelectionChanged += (_, _) => { if (!_updating && _list.SelectedItem is AnalysisTreeItem item) Model.Focus(item.Key); };
+            ConfigureTableSelection();
             // ListBox (or a focused mark checkbox) consumes Enter/Space before the window's bubble
             // route. Resolve the analyzer keymap first, preserving editor and overlay guards.
             _list.AddHandler(KeyDownEvent, (_, e) =>
@@ -266,7 +267,7 @@ public sealed partial class DiskSpaceWindow : Window
                 if (e.Key == Key.Space && _window.FocusManager?.GetFocusedElement() is CheckBox) return;
                 if (e.Key is Key.Enter or Key.Space) HandleKeys(e);
             }, RoutingStrategies.Tunnel);
-            _list.DoubleTapped += (_, _) => { if (_list.SelectedItem is AnalysisTreeItem item) ActivateItem(item.Key, false, true); };
+            _list.DoubleTapped += (_, e) => { if (e.KeyModifiers == KeyModifiers.None && _list.SelectedItem is AnalysisTreeItem item) ActivateItem(item.Key, false, true); };
             bool tablePress = false;
             _list.PointerPressed += (_, _) => { if (!tablePress) { tablePress = true; Model.Interaction(true); } };
             void EndTablePress() { if (tablePress) { tablePress = false; Model.Interaction(false); } }
