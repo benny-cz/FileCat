@@ -28,11 +28,12 @@
     "File-object fact indices no longer rely on global fact-list positions. Interleaved directory facts cannot be invalidated by alias changes; allocation-only alias conflicts preserve coherent logical length and invalidate allocation.",
     "Typed Mount/NavigationLink/CloudDirectory/SpecialEntry/UnverifiedRootOverlap counters remain exact beyond detailed issue caps, independently of exclusion/severity counts, and round-trip through strict inventory coverage records.",
     "Finished unsaved analyses now require preserving close review with Keep open as the Enter/Escape default. Tab labels are monotonic and close continuations revalidate their target. Setup visibility and concise coverage keep narrow layouts usable.",
-    "Private create-new inventory storage uses process-owned native directory/file capabilities, actual worker authority, owner-private modes/ACLs, no-follow retained ancestry, an 8 GiB file cap and bounded free-space reserve checks. Windows uses source-handle rename on NTFS; Darwin uses anonymous staged data and atomic APFS source-fd cloning; Linux anonymous/procfs publication remains untested while Ubuntu is occupied. No replacement or path fallback is exposed.",
+    "Private create-new inventory storage uses process-owned native directory/file capabilities, actual worker authority, owner-private modes/ACLs, no-follow retained ancestry, an 8 GiB file cap and bounded free-space reserve checks. Windows uses source-handle rename on NTFS; Darwin uses anonymous staged data and atomic APFS source-fd cloning; Linux anonymous/procfs publication now passes initial ext4 native controls; broader filesystem qualification remains open. No replacement or path fallback is exposed.",
     "Native Windows and Mac storage regressions cover create/reopen, Unicode names, byte-preserving conflicts, cancellation/invalid-write cleanup, link-count and privacy failures, source-parent movement/reparse refusal and actual ACL denial. Mac ACL presence inspection, Apple Silicon variadic creation mode and Darwin capacity layout were corrected through live failures. Post-commit sync failure is explicitly uncertain.",
     "Native Unix persistence calls retain SafeHandle references through the syscall, and raw descriptor use is explicitly pinned. Private free-space reserves round the percentage up safely to whole bytes. Directory ownership transfers to the synchronous store and stays with admitted actual I/O work.",
     "AnalysisIo now shares a hard eight-request admission and one-operation device gate across preparation, containment, cursor creation/read/disposal and backend cleanup. Actual worker completion owns the reservation through cancellation; canceled queued work releases it. Device entries retire at zero references.",
-    "Prepared sources, including late arrivals after view disposal, no longer close on the UI thread. Canceled queued metadata-handle releases during application I/O shutdown use one bounded close worker with the original admission; running releases never retry. Seven tests exercise actual worker affinity, cancellation, shared serialization, capacity and shutdown ownership."
+    "Prepared sources, including late arrivals after view disposal, no longer close on the UI thread. Canceled queued metadata-handle releases during application I/O shutdown use one bounded close worker with the original admission; running releases never retry. Seven tests exercise actual worker affinity, cancellation, shared serialization, capacity and shutdown ownership.",
+    "After the other Ubuntu FileCat process exited, ordinary native ext4 scanning, raw metadata boundaries, O_TMPFILE/procfs create-new inventory publication, privacy and link-count refusal, cancellation and shared I/O ownership passed live regressions. Deployed Core/test DLL hashes matched the Windows-built portable bundle; no FileCat app was started or left running."
   ],
   "validation": {
     "windowsCore": {
@@ -80,14 +81,19 @@
       "evidence": "solution-build-r23.txt"
     },
     "ubuntu": {
-      "status": "postponed-other-FileCat-instance",
-      "detail": "User reconfirmed that the existing test is active on 5 November; leave it running."
+      "status": "ordinary-user-native-regressions-passed",
+      "total": 203,
+      "passed": 202,
+      "failed": 0,
+      "skipped": 1,
+      "evidence": "ubuntu-core-r24.xml",
+      "detail": "Ubuntu 24.04 ordinary benny, .NET runtime 10.0.14, local ext4. Prior FileCat PID exited; process checks were clear before transfer and runs. Native scans, O_TMPFILE/procfs create-new publication, no-follow/privacy/link controls and I/O ownership passed. Darwin ACL case skipped. No desktop/a11y qualification."
     },
     "nativeDesktop": {
       "macos": "Startup/close only; no desktop-input or a11y acceptance.",
       "evidence": "mac-native-startup-r20.json",
       "windows": "Desktop activation/accessibility unavailable; background/lock-screen captures only. User unlock check pending; owned test process closed.",
-      "ubuntu": "Postponed under explicit user instruction while another test remains active."
+      "ubuntu": "No native desktop-input/a11y acceptance; native CLI regressions resumed after the prior session exited."
     },
     "macStatConsumers": {
       "total": 51,
@@ -95,15 +101,22 @@
       "failed": 0,
       "skipped": 2,
       "evidence": "mac-stat-consumers-r22.xml"
+    },
+    "ubuntuStatConsumers": {
+      "total": 51,
+      "passed": 49,
+      "failed": 0,
+      "skipped": 2,
+      "evidence": "ubuntu-stat-consumers-r24.xml"
     }
   },
   "nextWork": [
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
     "W1: preparation cancellation/status, epoch refresh, native unresponsive-device and shared-memory/indexed private-store budget qualification remain. Shared eight-request actual-I/O ownership and worker cleanup now have regressions; this is not full resource qualification.",
-    "Ubuntu: continue postponing under the user's explicit instruction while the other FileCat instance runs. Do not close it or reboot that occupied guest.",
+    "Ubuntu: CLI regression coverage now passes after the other process exited. Continue process gates before every run and postpone whenever another FileCat session appears; native desktop, broader filesystem/resource and package qualification remain.",
     "W2: actual native desktop/assistive-technology testing; safe raw-name/path and unknown-value display; grouping/sort/breadcrumbs/details/tooltips; complete lifecycle and lazy tools.diskSpace registration.",
-    "W3: qualify and integrate the native private-store foundation on admitted I/O workers; Linux/interrupt/crash/resource evidence, private catalog/state, named save/history, compatible comparison, sensitivity review and create-only exports/imports remain. Replacement and orphan cleanup still need guarded routes.",
+    "W3: integrate the native private-store foundation on admitted I/O workers; broader interrupt/crash/resource evidence, private catalog/state, named save/history, compatible comparison, sensitivity review and create-only exports/imports remain. Initial native ext4 publication passes; replacement and orphan cleanup still need guarded routes.",
     "W4/W5: qualified live source and exact-entry typed operations, protected objects, immutable review/submission, preserving defaults and accurate outcomes. Unsupported needs feasibility evidence.",
     "W6/W7: declarative recipes and explicitly qualified content work; closed NTFS metadata helper or prescribed standard-scan fallback.",
     "W8: native platform/theme/DPI/a11y/package matrix, 1M/10M measurements, negative controls, actual diagnostics ZIP leakage, documentation and final requirement-by-requirement audit.",
