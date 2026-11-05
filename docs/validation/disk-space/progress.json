@@ -58,23 +58,25 @@
     "Development Compare now captures the displayed revision before review, names full-inventory scope and metric, reads the saved previous inventory on admitted native I/O and computes off the UI thread. A new inert comparison tab retains both inputs after source-view closure; canceled and queued workflows preserve their lifetimes without source connections or approval authority.",
     "Comparison tabs show previous/current known amounts, unavailable/unverified qualifiers, exact net/row differences, intervals and compatibility reasons. Virtualized status cohorts, absolute/relative/current/path ranking and two-sided alias/modified-time/basis inspection are connected. Temporary comparison close defaults to Keep open; explicit Discard releases result admission and payloads.",
     "Comparison source paths retain Windows separators on all hosts. Disposed result Rows access refuses rather than exposing stale payloads. Seven themes render at1180 and380/short/large-text sizes; visual review found fixed font sizes, which now honor the window minimum. Native review found enum-style wording and inventory-wide basis details, now readable and scoped to the selected entry.",
-    "A native Ubuntu scan/save/compare/browse/inspect flow showed508 accounting rows, known zero difference and entry-specific basis count1. Keep open held focus and real Enter preserved the comparison; explicit Discard removed it. The inventory hash and509 generated source paths were unchanged; the owned instance exited before its deadline. Full desktop and comparison feature qualification remain pending."
+    "A native Ubuntu scan/save/compare/browse/inspect flow showed508 accounting rows, known zero difference and entry-specific basis count1. Keep open held focus and real Enter preserved the comparison; explicit Discard removed it. The inventory hash and509 generated source paths were unchanged; the owned instance exited before its deadline. Full desktop and comparison feature qualification remain pending.",
+    "Structural comparison now has an explicit root-pair review, required when no automatic pair exists. Every pair starts unmapped; unique compatible entry/name rules are enforced. Cancel is default, partial mappings retain unknowns, and independent worker leases survive preparation/source-view disposal.",
+    "Native Ubuntu explicit mapping verified unmapped/disabled approval, Enter opening only the focused dropdown, explicit Cancel, chosen pair with structural labelling, selected-entry bases, preserving Enter and explicit Discard. The saved hash and509 generated source paths stayed unchanged; the owned instance exited before its deadline."
   ],
   "validation": {
     "windowsCore": {
-      "total": 273,
-      "passed": 258,
+      "total": 274,
+      "passed": 259,
       "failed": 0,
       "skipped": 15,
-      "detail": "227 analysis cases,28 command cases and18 state/path cases;15 expected platform skips.",
-      "evidence": "windows-core-r31.xml"
+      "detail": "228 analysis cases,28 command cases and18 state/path cases;15 expected platform skips.",
+      "evidence": "windows-core-r32.xml"
     },
     "windowsHostNative": {
       "total": 14,
       "passed": 14,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-host-native-r31.xml"
+      "evidence": "windows-host-native-r32.xml"
     },
     "windowsVm": {
       "status": "ordinary-user-regression-fixtures-passed",
@@ -82,36 +84,36 @@
       "passed": 14,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-native-r31.xml",
+      "evidence": "windows-vm-native-r32.xml",
       "detail": "14 ordinary native Windows cases, including actual before/after scan comparison, private catalog enumeration and storage. No desktop/a11y qualification."
     },
     "macosArm64": {
-      "total": 255,
-      "passed": 255,
+      "total": 256,
+      "passed": 256,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-core-r31.xml"
+      "evidence": "mac-core-r32.xml"
     },
     "headlessRendering": {
-      "total": 30,
-      "passed": 30,
+      "total": 32,
+      "passed": 32,
       "failed": 0,
       "skipped": 0,
-      "evidence": "analysis-render-r31.xml",
-      "detail": "30 presentation cases pass on all three runtimes. Seven new comparison controls cover complete dialog flow, cancel, queued/owner-close lifetime, narrow inspection, preserving discard, seven-theme renders and selected-entry bases."
+      "evidence": "analysis-render-r32.xml",
+      "detail": "32 presentation cases pass on all three runtimes. Structural mapping review and retained-input/worker ownership join the comparison controls."
     },
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "solution-build-r31.txt"
+      "evidence": "solution-build-r32.txt"
     },
     "ubuntu": {
       "status": "ordinary-user-native-regressions-passed",
-      "total": 255,
-      "passed": 254,
+      "total": 256,
+      "passed": 255,
       "failed": 0,
       "skipped": 1,
-      "evidence": "ubuntu-core-r31.xml",
+      "evidence": "ubuntu-core-r32.xml",
       "detail": "Ubuntu 24.04 ordinary benny, .NET runtime 10.0.14, local ext4. Prior FileCat PID exited; process checks were clear before transfer and runs. Native scans, O_TMPFILE/procfs create-new publication, no-follow/privacy/link controls and I/O ownership passed. Darwin ACL case skipped. No desktop/a11y qualification."
     },
     "nativeDesktop": {
@@ -123,7 +125,8 @@
       "ubuntuCompactEvidence": "ubuntu-native-ui-r27.json",
       "ubuntuDialogEvidence": "ubuntu-native-ui-r28.json",
       "ubuntuCatalogEvidence": "ubuntu-native-ui-r29.json",
-      "ubuntuComparisonEvidence": "ubuntu-native-ui-r31.json"
+      "ubuntuComparisonEvidence": "ubuntu-native-ui-r31.json",
+      "ubuntuStructuralMappingEvidence": "ubuntu-native-ui-r32.json"
     },
     "macStatConsumers": {
       "total": 51,
@@ -140,22 +143,22 @@
       "evidence": "ubuntu-stat-consumers-r24.xml"
     },
     "macHeadlessRendering": {
-      "total": 30,
-      "passed": 30,
+      "total": 32,
+      "passed": 32,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-analysis-render-r31.xml"
+      "evidence": "mac-analysis-render-r32.xml"
     },
     "ubuntuHeadlessRendering": {
-      "total": 30,
-      "passed": 30,
+      "total": 32,
+      "passed": 32,
       "failed": 0,
       "skipped": 0,
-      "evidence": "ubuntu-analysis-render-r31.xml"
+      "evidence": "ubuntu-analysis-render-r32.xml"
     }
   },
   "nextWork": [
-    "W3: complete comparison charts/queries/metric changes, explicit structural root mapping, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
+    "W3: complete comparison charts/queries/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
     "W1: epoch refresh, native unresponsive-device and shared-memory/indexed private-store budget qualification remain. Shared eight-request actual-I/O ownership and worker cleanup now have regressions; this is not full resource qualification.",

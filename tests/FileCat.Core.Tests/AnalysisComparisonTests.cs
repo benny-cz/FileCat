@@ -20,6 +20,16 @@ public sealed partial class AnalysisComparisonTests
     }
 
     [Fact]
+    public void RootSuggestionsUseCapturedSourceContextRatherThanPositionalRootIds()
+    {
+        var old = Sample(("same", "k", 1, 1, "one")); var current = old with
+        { Roots = [old.Roots[0] with { Id = "other-id" }], Nodes = old.Nodes.Select(n => n with { RootId = "other-id" }).ToImmutableArray() };
+        var suggested = AnalysisComparison.SuggestRootMapping(old, current);
+        Assert.Equal("other-id", Assert.Single(suggested).Value); Assert.Equal("r", Assert.Single(suggested).Key);
+        Assert.Throws<InvalidOperationException>(() => AnalysisComparison.SuggestRootMapping(old, current with { Roots = [current.Roots[0] with { SourceIdentity = "different-source" }] }));
+    }
+
+    [Fact]
     public void EmptyKnownFileScopeHasAZeroAllocationBaselineWithinTheDeclaredBasis()
     {
         using var result = AnalysisComparison.Build(Sample(), Sample(("new", "n", 10, 8, "one")), AnalysisMetric.OnDisk, cancellation: Cancellation);

@@ -64,6 +64,8 @@ public sealed partial class DiskSpaceWindow
             {
                 if (comparing) { Model.Interaction(true); interaction = true; captured = Model.CaptureDisplayedRevision(); }
                 var name = new TextBox { Text = Model.SavedInventoryName ?? "", PlaceholderText = "Saved analysis.fcdsa", MaxLength = 120 };
+                var mapRoots = new CheckBox { Content = "Map recorded roots for structural comparison", IsVisible = comparing };
+                AutomationProperties.SetName(mapRoots, "Map recorded roots");
                 AutomationProperties.SetName(name, comparing ? "Previous inventory filename" : "Saved inventory filename");
                 var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
                 var catalogStatus = new TextBlock { TextWrapping = TextWrapping.Wrap };
@@ -98,14 +100,30 @@ public sealed partial class DiskSpaceWindow
                     new TextBlock { Text = "Saved analyses folder: " + AnalysisNames.Display(Model.SavedDirectory ?? ""), TextWrapping = TextWrapping.Wrap },
                     browse, catalogStatus, choices, name, error
                 } };
-                if (captured is not null) body.Children.Insert(1, new TextBlock { Text = "Current metric: " + ComparisonMetric(metric) + " · observed " + captured.Snapshot.Identity.StartedUtc.ToString("u") + " – " + captured.Snapshot.Identity.ObservedUtc.ToString("u") + ". " + (captured.Snapshot.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Captured traversal complete under policy." : "Captured observations are partial."), TextWrapping = TextWrapping.Wrap });
+                if (captured is not null)
+                {
+                    body.Children.Insert(1, new TextBlock { Text = "Current metric: " + ComparisonMetric(metric) + " · observed " + captured.Snapshot.Identity.StartedUtc.ToString("u") + " – " + captured.Snapshot.Identity.ObservedUtc.ToString("u") + ". " + (captured.Snapshot.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Captured traversal complete under policy." : "Captured observations are partial."), TextWrapping = TextWrapping.Wrap });
+                    body.Children.Insert(2, mapRoots);
+                }
                 var result = await _window._dialogs.ShowCustomAsync(comparing ? "Compare saved analysis" : "Open saved analysis", body,
                     [new DialogButton("Cancel", false, IsCancel: true), new DialogButton(comparing ? "Compare observations" : "Open observations", true, IsDefault: true) { IsAvailable = () => InventoryNameError(name.Text) is null }], name);
                 closed = true;
                 if (result is not true || _disposed) return;
                 var selected = choices.SelectedItem is SavedChoice choice && choice.Name == name.Text ? choice.Entry : null;
-                var loaded = await WithInventoryProgress(comparing ? "Comparing inventories" : "Opening inventory", token => comparing
-                    ? Model.CompareSavedAsync(name.Text!, selected, captured!, metric, token) : Model.OpenSavedAsync(name.Text!, selected, token));
+                DiskSpaceViewModel loaded;
+                if (comparing)
+                {
+                    using var inputs = await WithInventoryProgress("Reading comparison inputs", token => Model.PrepareComparisonAsync(name.Text!, selected, captured!, metric, token));
+                    if (_disposed || !_window.IsVisible) return;
+                    System.Collections.Immutable.ImmutableDictionary<string, string>? mapping = null;
+                    if (mapRoots.IsChecked == true || !inputs.HasAutomaticRoots)
+                    {
+                        mapping = await ReviewRootMappingAsync(inputs);
+                        if (mapping is null || _disposed) return;
+                    }
+                    loaded = await WithInventoryProgress("Comparing observations", token => inputs.BuildAsync(mapping, token));
+                }
+                else loaded = await WithInventoryProgress("Opening inventory", token => Model.OpenSavedAsync(name.Text!, selected, token));
                 if (_disposed || !_window.IsVisible) { loaded.Dispose(); return; }
                 if (_window.SessionCount >= AnalysisLimits.Sessions) { loaded.Dispose(); _window.ExplainSessionLimit(); return; }
                 try { _window.AddSession(loaded); } catch { loaded.Dispose(); throw; }

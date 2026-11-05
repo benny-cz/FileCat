@@ -79,6 +79,13 @@ public static class AnalysisComparison
         public void Dispose() { if (Interlocked.Exchange(ref _released, 1) == 0) Interlocked.Exchange(ref s_active, 0); }
     }
 
+    /// <summary>Data-only suggestions for captured roots. These strings never bind or open a source.</summary>
+    public static ImmutableDictionary<string, string> SuggestRootMapping(AnalysisSnapshot previous, AnalysisSnapshot current)
+    {
+        ArgumentNullException.ThrowIfNull(previous); ArgumentNullException.ThrowIfNull(current);
+        return MapRoots(previous, current, null);
+    }
+
     public static AnalysisComparisonResult Build(AnalysisSnapshot previous, AnalysisSnapshot current, AnalysisMetric metric,
         IReadOnlyDictionary<string, string>? structuralRoots = null, CancellationToken cancellation = default)
     {

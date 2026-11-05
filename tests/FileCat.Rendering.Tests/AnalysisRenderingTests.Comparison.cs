@@ -17,6 +17,65 @@ namespace FileCat.Rendering.Tests;
 public sealed partial class AnalysisRenderingTests
 {
     [AvaloniaFact]
+    public async Task StructuralInputsSurviveSourceClosureAndReleaseTheirOwnersDuringActualWork()
+    {
+        OrdinaryPreparation(); using var fixture = new PreparationFixture();
+        var old = Fixture(); old = old with { Roots = [old.Roots[0] with { CanonicalLocator = "/previous", SourceIdentity = "previous-source" }] };
+        using var previous = new DiskSpaceViewModel(fixture.Services, ImportedFixture(old)); await previous.RebuildAsync(true); await previous.SaveNewAsync("mapped.fcdsa");
+        var s = Fixture(); s = s with { Roots = [s.Roots[0] with { CanonicalLocator = "/current", SourceIdentity = "current-source" }],
+            Objects = s.Objects.SetItem(0, s.Objects[0] with { LogicalLength = AnalysisMeasurement.Known(131072) }) };
+        using var current = new DiskSpaceViewModel(fixture.Services, ImportedFixture(s)) { Metric = AnalysisMetric.FileSize }; await current.RebuildAsync(true);
+        using var captured = current.CaptureDisplayedRevision();
+        using var inputs = await current.PrepareComparisonAsync("mapped.fcdsa", null, captured, current.Metric, CancellationToken.None);
+        Assert.False(inputs.HasAutomaticRoots);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => inputs.BuildAsync(null, CancellationToken.None));
+        var pairs = new Dictionary<string, string> { [inputs.PreviousRoots[0].Id] = inputs.CurrentRoots[0].Id };
+        var building = inputs.BuildAsync(pairs, CancellationToken.None);
+        inputs.Dispose(); current.Dispose(); previous.Dispose();
+        using var result = await building;
+        Assert.Equal(new AnalysisDelta(false, 65536), result.Comparison!.NetChange);
+        Assert.False(result.Comparison.Compatibility.VerifiedIdentityContext);
+        Assert.All(result.Comparison.Rows, r => Assert.Equal(AnalysisComparisonEvidence.Structural, r.Evidence));
+        Assert.Throws<ObjectDisposedException>(() => inputs.CurrentRoots);
+    }
+
+    [AvaloniaFact]
+    public async Task MissingAutomaticRootsRequireExplicitMappingAndDefaultToCancel()
+    {
+        OrdinaryPreparation(); using var fixture = new PreparationFixture(); using var styles = new ProductStyles();
+        var old = Fixture(); old = old with { Roots = [old.Roots[0] with { CanonicalLocator = "/previous", SourceIdentity = "previous-source" }] };
+        using var previous = new DiskSpaceViewModel(fixture.Services, ImportedFixture(old)); await previous.RebuildAsync(true); await previous.SaveNewAsync("mapped.fcdsa");
+        var s = Fixture(); s = s with { Roots = [s.Roots[0] with { CanonicalLocator = "/current", SourceIdentity = "current-source" }] };
+        using var current = new DiskSpaceViewModel(fixture.Services, ImportedFixture(s)) { Metric = AnalysisMetric.FileSize }; await current.RebuildAsync(true);
+        var window = new DiskSpaceWindow(); window.AddSession(current); window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Compare…" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == "Previous inventory filename").Text = "mapped.fcdsa";
+            window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Compare observations" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var deadline = DateTime.UtcNow.AddSeconds(10); Button? compare = null;
+            while (DateTime.UtcNow < deadline)
+            {
+                Dispatcher.UIThread.RunJobs();
+                compare = window.GetVisualDescendants().OfType<Button>().SingleOrDefault(b => b.Content as string == "Compare mapped observations" && b.IsEffectivelyVisible);
+                if (compare is not null) break; await Task.Delay(10);
+            }
+            Assert.NotNull(compare); Assert.False(compare.IsEnabled);
+            Assert.True(window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Cancel" && b.IsEffectivelyVisible).IsDefault);
+            var root = window.GetVisualDescendants().OfType<ComboBox>().Single(c => (AutomationProperties.GetName(c) ?? "").StartsWith("Previous root for current ", StringComparison.Ordinal));
+            Assert.Equal(0, root.SelectedIndex); root.SelectedIndex = 1;
+            deadline = DateTime.UtcNow.AddSeconds(5); while (!compare.IsEnabled && DateTime.UtcNow < deadline) await Task.Delay(10);
+            Assert.True(compare.IsEnabled); compare.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            deadline = DateTime.UtcNow.AddSeconds(5); while (window.SessionCount != 2 && DateTime.UtcNow < deadline) await Task.Delay(10);
+            Assert.Equal(2, window.SessionCount); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.IsEffectivelyVisible && t.Text?.Contains("Explicit structural comparison", StringComparison.Ordinal) == true);
+        }
+        finally { window.ForceClose(); }
+    }
+
+    [AvaloniaFact]
     public async Task ComparisonPresentationRendersEveryThemeWithFiniteNarrowAndWideRows()
     {
         OrdinaryPreparation(); using var fixture = new PreparationFixture(); using var styles = new ProductStyles();
