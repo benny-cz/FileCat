@@ -4,7 +4,7 @@ namespace FileCat.Core.Analysis;
 
 // Inventory records are observations. None of these types authorizes a filesystem operation.
 public enum MeasurementState { Known, Pending, Unsupported, Excluded, Failed, Changed }
-public enum AnalysisKind { Directory, File, Link, Special }
+public enum AnalysisKind { Directory, File, Link, Special, Unknown }
 public enum AnalysisMetric { FileSize, UniqueFileSize, OnDisk, Files }
 public enum AnalysisPhase { Ready, Scanning, Pausing, Paused, Refreshing, Finished, Stopped, Failed }
 public enum NamespaceCoverage { CompleteUnderPolicy, Partial, Unknown }
@@ -62,6 +62,8 @@ public sealed record AnalysisObservationTimes(DateTimeOffset ObservedUtc, DateTi
 public sealed record AnalysisNode(ulong Id, string RootId, ulong ParentId, string Name, AnalysisKind Kind,
     string? ObjectId = null, bool? Sparse = null, bool? Compressed = null, bool? Cloud = null)
 {
+    public MeasurementState MetadataState { get; init; } = MeasurementState.Known;
+    public bool IncludedByPolicy { get; init; } = true;
     public string NameEncoding { get; init; } = "utf8";
     public ImmutableArray<byte> RawName { get; init; } = [];
     public AnalysisObservationTimes? Times { get; init; }

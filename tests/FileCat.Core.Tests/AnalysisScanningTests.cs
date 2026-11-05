@@ -11,6 +11,68 @@ public sealed partial class AnalysisScanningTests
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary test process: " + AnalysisAdmission.Refusal());
 
     [Fact]
+    public async Task UnixUnreadableDirectoryDoesNotLoseReadableSiblingFiles()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix native fixture."); Ordinary();
+        using var temp = new TempDir(); string root = Path.Combine(temp.Path, "root"), denied = Path.Combine(root, "denied");
+        Directory.CreateDirectory(denied); File.WriteAllBytes(Path.Combine(denied, "unseen.bin"), new byte[99]);
+        File.WriteAllBytes(Path.Combine(root, "readable.bin"), new byte[11]);
+        var original = File.GetUnixFileMode(denied);
+        try
+        {
+            File.SetUnixFileMode(denied, UnixFileMode.None);
+            using var io = new DeviceIoScheduler(); using var session = new AnalysisCoordinator(io).Start([new UnixAnalysisBackend(root)]);
+            await session.Completion.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
+            var s = session.Snapshot(); AnalysisValidation.Validate(s, TestContext.Current.CancellationToken);
+            Assert.Equal(NamespaceCoverage.Partial, s.Coverage); Assert.Contains(s.Nodes, n => n.Name == "readable.bin");
+            Assert.DoesNotContain(s.Nodes, n => n.Name == "unseen.bin");
+            Assert.Equal((UInt128)11, AnalysisAggregate.Project(s, AnalysisMetric.FileSize, cancellation: TestContext.Current.CancellationToken).Totals.Known);
+            Assert.Equal(1ul, s.CoverageDetails!.EnumerationCompleted);
+            var deniedNode = s.Nodes.Single(n => n.Name == "denied");
+            if (deniedNode.MetadataState == MeasurementState.Known)
+            {
+                Assert.Equal(2ul, s.CoverageDetails.EnumerationRequested); Assert.Equal(1ul, s.CoverageDetails.EnumerationFailed);
+                Assert.Contains(s.Issues, i => i.NodeId == deniedNode.Id && i.Code == "enumeration-unavailable");
+            }
+            else
+            {
+                Assert.Equal(MeasurementState.Failed, deniedNode.MetadataState);
+                Assert.Equal(1ul, s.CoverageDetails.EnumerationRequested); Assert.Equal(0ul, s.CoverageDetails.EnumerationFailed);
+                Assert.Contains(s.Issues, i => i.NodeId == deniedNode.Id && i.Code == "entry-metadata-unavailable");
+            }
+        }
+        finally { File.SetUnixFileMode(denied, original); }
+    }
+
+    [Fact]
+    public async Task UnavailableEntriesPreserveSiblingsAndExcludePolicyBoundariesFromEveryMetric()
+    {
+        Ordinary(); using var io = new DeviceIoScheduler();
+        var backend = new FakeBackend(7)
+        {
+            Transform = (i, entry) => i is 0 or 6 ? entry : AnalysisEntry.Unavailable(entry.RelativeName, entry.RawName, "utf8",
+                i == 3 ? AnalysisKind.Directory : i == 4 ? AnalysisKind.Unknown : AnalysisKind.File,
+                i == 2 ? MeasurementState.Excluded : i == 5 ? MeasurementState.Changed : MeasurementState.Failed,
+                i == 2 ? "source-mount-boundary" : i == 5 ? "entry-changed-before-observation" : "entry-metadata-unavailable")
+        };
+        using var session = new AnalysisCoordinator(io).Start([backend]);
+        await session.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        var s = session.Snapshot(); AnalysisValidation.Validate(s, TestContext.Current.CancellationToken);
+        Assert.Equal(8, s.Nodes.Length); Assert.Equal(NamespaceCoverage.Partial, s.Coverage);
+        Assert.Equal(AnalysisFreshness.PossiblyStale, s.Freshness);
+        Assert.Equal(1ul, s.CoverageDetails!.EnumerationRequested); Assert.Equal(1ul, s.CoverageDetails.EnumerationCompleted);
+        Assert.Equal(0ul, s.CoverageDetails.EnumerationFailed);
+        Assert.Equal((UInt128)4, AnalysisAggregate.Project(s, AnalysisMetric.Files, cancellation: TestContext.Current.CancellationToken).Totals.Known);
+        foreach (var metric in new[] { AnalysisMetric.FileSize, AnalysisMetric.UniqueFileSize, AnalysisMetric.OnDisk })
+        {
+            var p = AnalysisAggregate.Project(s, metric, cancellation: TestContext.Current.CancellationToken);
+            Assert.Equal((UInt128)2, p.Totals.Known);
+            Assert.Equal(1ul, p.Totals.Missing[MeasurementState.Failed]); Assert.Equal(1ul, p.Totals.Missing[MeasurementState.Changed]);
+            Assert.DoesNotContain(4ul, p.MatchingNodes);
+        }
+    }
+
+    [Fact]
     public async Task CapturedSelectionRetainsExactlyThePublishedRevisionAfterTheSessionCloses()
     {
         Ordinary(); using var io = new DeviceIoScheduler(); var session = new AnalysisCoordinator(io).Start([new FakeBackend(2)]);
@@ -312,6 +374,7 @@ public sealed partial class AnalysisScanningTests
         public Action? Validate;
         public bool CloudRoot;
         public int FailAfter = int.MaxValue;
+        public Func<int, AnalysisEntry, AnalysisEntry>? Transform;
         public RootBinding Root { get; init; } = new("1", "file", "fake", "fake-" + Guid.NewGuid(), "fake-" + Guid.NewGuid(), IdentityAssurance.Verified, "fake");
         public string Basis => "fixture-v1";
         public string IoDeviceKey { get; init; } = "fixture:" + Guid.NewGuid().ToString("N");
@@ -324,7 +387,8 @@ public sealed partial class AnalysisScanningTests
             {
                 cancellation.ThrowIfCancellationRequested();
                 if (i == FailAfter) throw new AnalysisSourceChangedException();
-                yield return Entry(i + new string('x', 200), AnalysisKind.File);
+                var entry = Entry(i + new string('x', 200), AnalysisKind.File);
+                yield return Transform?.Invoke(i, entry) ?? entry;
             }
         }
         private static AnalysisEntry Entry(string name, AnalysisKind kind) => new([], name, Encoding.UTF8.GetBytes(name).ToImmutableArray(), kind,

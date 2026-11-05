@@ -33,7 +33,7 @@ public static class AnalysisAggregate
         foreach (var node in snapshot.Nodes)
         {
             if ((processed++ & 4095) == 0) cancellation.ThrowIfCancellationRequested();
-            if (node.Kind != AnalysisKind.File) continue;
+            if (node.Kind != AnalysisKind.File || !node.IncludedByPolicy) continue;
             AnalysisObject? obj = node.ObjectId is { } id ? objects.GetValueOrDefault(id) : null;
             // Always index aliases before applying filters, including nonmatching aliases.
             if (obj is not null)
@@ -102,7 +102,7 @@ public static class AnalysisAggregate
                 foreach (var fact in SelectComponents(directoryFacts.ToArray()))
                 {
                     // Directory self allocation is never attributed to a dominant file type.
-                    if (filter is not null || !nodes.ContainsKey(fact.DirectoryId!.Value)) continue;
+                    if (filter is not null || !nodes.TryGetValue(fact.DirectoryId!.Value, out var directory) || !directory.IncludedByPolicy) continue;
                     string root = nodes[fact.DirectoryId.Value].RootId;
                     if (!basesByRoot.TryGetValue(root, out var directoryBases)) basesByRoot[root] = directoryBases = new(StringComparer.Ordinal);
                     directoryBases.Add(fact.BasisId);

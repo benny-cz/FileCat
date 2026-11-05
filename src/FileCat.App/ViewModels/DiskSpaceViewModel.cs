@@ -244,7 +244,11 @@ public sealed class DiskSpaceViewModel : IDisposable
         }
         return string.Join('/', names);
     }
-    public static string ValueText(AnalysisTreeItem item, AnalysisMetric metric) => item.SharedElsewhere && item.Value == 0 ? "Shared at ancestor"
+    public static string StatusText(AnalysisTreeItem item) => !item.IncludedByPolicy ? "Excluded by policy"
+        : item.MetadataState != MeasurementState.Known ? item.MetadataState + " metadata"
+        : item.IdentityUnverified > 0 ? "Identity unverified" : item.Unknown ? "Partial" : item.SharedElsewhere ? "Shared links" : item.Synthetic ? "Group" : "Observed";
+    public static string ValueText(AnalysisTreeItem item, AnalysisMetric metric) => !item.IncludedByPolicy ? "Excluded"
+        : item.SharedElsewhere && item.Value == 0 ? "Shared at ancestor"
         : item.Unknown && item.Value == 0 ? "Unknown" : metric == AnalysisMetric.Files ? item.Value.ToString("N0", CultureInfo.CurrentCulture) : Bytes(item.Value) +
         (item.IdentityUnverified > 0 ? " · unverified" : item.Unknown ? " known" : "");
     public static string Bytes(UInt128 bytes)

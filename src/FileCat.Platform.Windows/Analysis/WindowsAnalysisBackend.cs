@@ -86,15 +86,30 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
             while (offset < count)
             {
                 cancellation.ThrowIfCancellationRequested();
-                var (name, next) = DirectoryName(buffer, offset, count);
+                var (name, next, attributes) = DirectoryName(buffer, offset, count);
                 if (name is not ("." or ".."))
                 {
-                    if (!AnalysisNames.IsOrdinaryChild(name, windows: true)) throw new IOException("A name requires a separately qualified native-name route.");
-                    using var child = OpenChild(lease.Handle, name, directory: false);
-                    if (Volume(child.Value) != _volume) throw new AnalysisSourceChangedException();
                     var raw = Raw(name);
+                    if (!AnalysisNames.IsObservedChild(name, windows: true, raw.Length)) throw new InvalidDataException("Invalid native directory name.");
                     var relative = Raw(directory.RelativeName.Length == 0 ? name : Utf16(directory.RelativeName.AsSpan()) + "\\" + name);
-                    yield return Bind(Observe(child.Value, relative.ToImmutableArray(), raw, _namespace), directory.Ancestry);
+                    AnalysisEntry result;
+                    try
+                    {
+                        using var child = OpenChild(lease.Handle, name, directory: false);
+                        if (Volume(child.Value) != _volume) throw new AnalysisEntryUnavailableException(MeasurementState.Excluded, "source-volume-boundary");
+                        result = Bind(Observe(child.Value, relative.ToImmutableArray(), raw, _namespace), directory.Ancestry);
+                    }
+                    catch (AnalysisEntryUnavailableException ex)
+                    {
+                        result = AnalysisEntry.Unavailable(relative.ToImmutableArray(), raw.ToImmutableArray(), "utf16le",
+                            UnavailableKind(attributes), ex.State, ex.Code);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        result = AnalysisEntry.Unavailable(relative.ToImmutableArray(), raw.ToImmutableArray(), "utf16le",
+                            UnavailableKind(attributes), MeasurementState.Failed, "entry-metadata-unavailable");
+                    }
+                    yield return result;
                 }
                 if (next == 0) break;
                 offset = checked(offset + next);
@@ -199,10 +214,16 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
         fixed (char* p = name)
         {
             var str = new UnicodeString { Length = checked((ushort)(name.Length * 2)), MaximumLength = checked((ushort)(name.Length * 2)), Buffer = (nint)p };
-            var attrs = new ObjectAttributes { Length = (uint)sizeof(ObjectAttributes), Root = parent.DangerousGetHandle(), Name = (nint)(&str), Attributes = 0x40 };
+            var attrs = new ObjectAttributes { Length = (uint)sizeof(ObjectAttributes), Root = parent.DangerousGetHandle(), Name = (nint)(&str) };
             int status = NtCreateFile(out var handle, directory ? 0x100081u : 0x100080u, &attrs, out _, 0, 0, 3, 1,
                 0x00200000 | 0x20u | (directory ? 1u : 0x00400000), 0, 0); // DIRECTORY_FILE's allowed flag set excludes NO_RECALL
-            if (status < 0) { handle?.Dispose(); throw new IOException($"The selected metadata entry could not be opened (status {status:X8})."); }
+            if (status < 0)
+            {
+                handle?.Dispose();
+                bool changed = (uint)status is 0xC0000034 or 0xC000003A or 0xC0000056 or 0xC0000123;
+                throw new AnalysisEntryUnavailableException(changed ? MeasurementState.Changed : MeasurementState.Failed,
+                    changed ? "entry-changed-before-observation" : "entry-metadata-unavailable");
+            }
             return new(handle, reservation);
         }
         }
@@ -249,6 +270,10 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
             : directory ? AnalysisKind.Directory : AnalysisKind.File;
         return (kind, cloud);
     }
+    // FILE_DIRECTORY_INFORMATION has attributes but no reparse tag. An unavailable entry with a reparse
+    // attribute might be either a navigation link or a regular placeholder, so do not invent a kind.
+    private static AnalysisKind UnavailableKind(uint attributes) => (attributes & 0x400) != 0 ? AnalysisKind.Unknown
+        : (attributes & 0x10) != 0 ? AnalysisKind.Directory : AnalysisKind.File;
     private static ulong Volume(SafeFileHandle h)
     {
         byte* buffer = stackalloc byte[24];
@@ -263,12 +288,12 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
             return (status, checked((int)io.Information));
         }
     }
-    private static (string Name, int Next) DirectoryName(byte[] buffer, int offset, int count)
+    private static (string Name, int Next, uint Attributes) DirectoryName(byte[] buffer, int offset, int count)
     {
         if (count - offset < 64) throw new InvalidDataException("Invalid native directory record.");
         uint next = BitConverter.ToUInt32(buffer, offset), length = BitConverter.ToUInt32(buffer, offset + 60);
         if ((length & 1) != 0 || length > count - offset - 64 || next != 0 && (next < 64 + length || next > count - offset)) throw new InvalidDataException("Invalid native directory name.");
-        return (Utf16(buffer.AsSpan(offset + 64, checked((int)length))), checked((int)next));
+        return (Utf16(buffer.AsSpan(offset + 64, checked((int)length))), checked((int)next), BitConverter.ToUInt32(buffer, offset + 56));
     }
     private static string Utf16(ReadOnlySpan<byte> bytes) => new(MemoryMarshal.Cast<byte, char>(bytes));
     private static byte[] Raw(string name) => MemoryMarshal.AsBytes(name.AsSpan()).ToArray();

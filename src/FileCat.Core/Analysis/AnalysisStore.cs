@@ -40,7 +40,7 @@ public sealed class AnalysisStore : IDisposable
             if (objectId is null)
             {
                 objectId = (_objects.Count + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
-                _objects.Add(new(objectId, e.Identity, e.LogicalLength, e.Links, e.ModifiedUtc, e.Version, e.ModifiedPrecisionTicks));
+                _objects.Add(new(objectId, e.Identity, e.LogicalLength, e.Links, e.ModifiedUtc, e.Version.Length == 0 ? null : e.Version, e.ModifiedPrecisionTicks));
                 if (e.Identity is not null) _identities.Add(e.Identity, objectId);
                 _facts.Add(new("f" + id, objectId, null, "reported-data", basis, e.Allocation, basis,
                     e.ObservedUtc ?? DateTimeOffset.UtcNow, []));
@@ -58,7 +58,8 @@ public sealed class AnalysisStore : IDisposable
             }
         }
         _nodes.Add(new(id, rootId, parent, e.Name, e.Kind, objectId, Sparse: e.Sparse, Compressed: e.Compressed, Cloud: e.Cloud)
-            { NameEncoding = e.NameEncoding, RawName = e.RawName, Times = new(e.ObservedUtc ?? DateTimeOffset.UtcNow, e.ModifiedUtc, e.ModifiedPrecisionTicks), ObservedIdentity = e.Identity });
+            { NameEncoding = e.NameEncoding, RawName = e.RawName, Times = new(e.ObservedUtc ?? DateTimeOffset.UtcNow, e.ModifiedUtc, e.ModifiedPrecisionTicks), ObservedIdentity = e.Identity,
+                MetadataState = e.MetadataState, IncludedByPolicy = e.IncludedByPolicy });
         return id;
     }
     public void Issue(string code, ulong? node = null, MeasurementState state = MeasurementState.Failed, string? rootId = null)

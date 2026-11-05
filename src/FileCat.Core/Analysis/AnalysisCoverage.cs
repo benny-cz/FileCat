@@ -9,7 +9,7 @@ public static class AnalysisCoverage
         if (completed > requested || failed > requested - completed) throw new InvalidDataException("Invalid enumeration coverage.");
         var objects = snapshot.Objects.ToDictionary(o => o.Id, StringComparer.Ordinal);
         ulong verified = 0, unverified = 0;
-        foreach (var node in snapshot.Nodes.Where(n => n.Kind == AnalysisKind.File))
+        foreach (var node in snapshot.Nodes.Where(n => n.Kind == AnalysisKind.File && n.IncludedByPolicy))
         {
             if (node.ObjectId is { } id && objects.GetValueOrDefault(id)?.VerifiedIdentity is not null) verified++;
             else unverified++;

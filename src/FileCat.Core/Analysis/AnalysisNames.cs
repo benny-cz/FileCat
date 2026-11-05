@@ -5,6 +5,11 @@ namespace FileCat.Core.Analysis;
 
 public static class AnalysisNames
 {
+    // Inert observed names can be outside Win32's action-addressable subset. Native relative opens still
+    // prohibit separators, streams and navigation components; passing this check grants no action authority.
+    public static bool IsObservedChild(string name, bool windows, int rawBytes) =>
+        name.Length > 0 && name is not ("." or "..") && !name.Contains('\0') && !name.Contains('/') &&
+        (!windows || !name.Contains('\\') && !name.Contains(':')) && rawBytes is > 0 and <= AnalysisLimits.RawNameBytes;
     // A source name is a single component. Host-specific path separators must not change imported classification.
     public static string Extension(string name)
     {

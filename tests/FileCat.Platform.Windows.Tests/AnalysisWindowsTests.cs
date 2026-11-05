@@ -9,6 +9,50 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed partial class AnalysisWindowsTests
 {
+    [Fact]
+    public async Task DeniedMetadataPreservesReadableSiblingsAndNativeWin32AmbiguousNames()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows process.");
+        string temp = Path.Combine(Environment.CurrentDirectory, ".tmp", "analysis-denied-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+        string denied = Path.Combine(temp, "denied.bin"); byte[]? original = null;
+        string[] native = ["\\\\?\\" + Path.Combine(temp, "NUL"), "\\\\?\\" + Path.Combine(temp, "trailing. ")];
+        try
+        {
+            File.WriteAllBytes(denied, new byte[17]); File.WriteAllBytes(Path.Combine(temp, "sibling.bin"), new byte[11]);
+            foreach (string path in native) File.WriteAllBytes(path, new byte[7]);
+            var info = new FileInfo(denied); var security = info.GetAccessControl(); original = security.GetSecurityDescriptorBinaryForm();
+            using var identity = WindowsIdentity.GetCurrent();
+            // Windows can grant READ_ATTRIBUTES through the enumerated parent. The managed Deny-rule
+            // constructor strips SYNCHRONIZE; preserve its explicit native mask to refuse this handle.
+            var descriptor = new RawSecurityDescriptor(original, 0);
+            descriptor.DiscretionaryAcl!.InsertAce(0, new CommonAce(AceFlags.None, AceQualifier.AccessDenied, 0x100080, identity.User!, false, null));
+            byte[] blocked = new byte[descriptor.BinaryLength]; descriptor.GetBinaryForm(blocked, 0);
+            var deniedSecurity = new FileSecurity(); deniedSecurity.SetSecurityDescriptorBinaryForm(blocked, AccessControlSections.Access);
+            info.SetAccessControl(deniedSecurity);
+            Assert.Throws<IOException>(() => { using var unavailable = new WindowsAnalysisBackend(denied); });
+            using var io = new DeviceIoScheduler(); using var session = new AnalysisCoordinator(io).Start([new WindowsAnalysisBackend(temp)]);
+            await session.Completion.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
+            var s = session.Snapshot(); AnalysisValidation.Validate(s, TestContext.Current.CancellationToken);
+            Assert.Equal(NamespaceCoverage.Partial, s.Coverage); Assert.Equal(5, s.Nodes.Length);
+            Assert.Equal((UInt128)25, AnalysisAggregate.Project(s, AnalysisMetric.FileSize, cancellation: TestContext.Current.CancellationToken).Totals.Known);
+            Assert.Equal((UInt128)4, AnalysisAggregate.Project(s, AnalysisMetric.Files, cancellation: TestContext.Current.CancellationToken).Totals.Known);
+            var missing = s.Nodes.Single(n => n.Name == "denied.bin"); Assert.Equal(MeasurementState.Failed, missing.MetadataState);
+            Assert.Contains(s.Issues, i => i.NodeId == missing.Id && i.Code == "entry-metadata-unavailable");
+            Assert.All(s.Nodes.Where(n => n.Name is "NUL" or "trailing. "), n => Assert.Equal(MeasurementState.Known, n.MetadataState));
+            Assert.Equal(1ul, s.CoverageDetails!.EnumerationCompleted); Assert.Equal(0ul, s.CoverageDetails.EnumerationFailed);
+        }
+        finally
+        {
+            if (original is not null)
+            {
+                var restored = new FileSecurity(); restored.SetSecurityDescriptorBinaryForm(original, AccessControlSections.Access);
+                new FileInfo(denied).SetAccessControl(restored);
+            }
+            foreach (string path in native) if (File.Exists(path)) File.Delete(path);
+            Directory.Delete(temp, true);
+        }
+    }
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

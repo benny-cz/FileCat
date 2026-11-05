@@ -279,7 +279,7 @@ public sealed class DiskSpaceWindow : Window
             void UpdateMark() => mark.IsChecked = item.NodeId is { } id && Model.Selection.Marks.Contains(id);
             mark.AttachedToVisualTree += (_, _) => Model.Changed += UpdateMark; mark.DetachedFromVisualTree += (_, _) => Model.Changed -= UpdateMark;
             row.Children.Add(mark);
-            string[] values = [AnalysisNames.Display(item.Name), DiskSpaceViewModel.ValueText(item, Model.Tree?.Projection.Metric ?? Model.Metric), DiskSpaceViewModel.Bytes(item.LogicalSize), item.Files.ToString("N0"), item.IdentityUnverified > 0 ? "Identity unverified" : item.Unknown ? "Partial" : item.SharedElsewhere ? "Shared links" : item.Synthetic ? "Group" : "Observed"];
+            string[] values = [AnalysisNames.Display(item.Name), DiskSpaceViewModel.ValueText(item, Model.Tree?.Projection.Metric ?? Model.Metric), DiskSpaceViewModel.Bytes(item.LogicalSize), item.Files.ToString("N0"), DiskSpaceViewModel.StatusText(item)];
             for (int i = 0; i < values.Length; i++) { var text = new TextBlock { Text = values[i], TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center }; Grid.SetColumn(text, i + 1); row.Children.Add(text); }
             ToolTip.SetTip(row, new RichTip(AnalysisNames.Display(item.Name, 240), detail: $"Exact known value: {item.Value}. File size: {item.LogicalSize} bytes. Files: {item.Files}.", hints: [item.Unknown ? "Some measurements or namespace entries are unavailable." : "Observed metadata, not an immutable filesystem snapshot."]));
             AutomationProperties.SetName(row, string.Join("; ", values)); return row;
@@ -336,7 +336,8 @@ public sealed class DiskSpaceWindow : Window
                     _sunburst.SetView(tree, Model.Selection.Scope, Model.Selection.Focus, Model.Selection.Marks);
                     var selected = tree.Items.GetValueOrDefault(Model.Selection.Focus ?? "");
                     _inspector.Text = selected is null ? "Choose an entry in either chart or the table. Marks and the review basket are separate." :
-                        AnalysisNames.Display(selected.Name) + "\n" + AnalysisNames.Display(Model.FocusedPath() ?? "Accounting group") +
+                        AnalysisNames.Display(selected.Name) + "\n" + AnalysisNames.Display(Model.FocusedPath() ??
+                            (selected.Synthetic ? "Accounting group" : "Raw name has no lossless clipboard path.")) + "\n" + DiskSpaceViewModel.StatusText(selected) +
                         $"\n\nActive metric: {selected.Value}\nFile size: {selected.LogicalSize} bytes\nFile paths: {selected.Files}\n" +
                         (selected.IdentityUnverified > 0 ? $"Identity-unverified path bytes: {selected.IdentityUnverified}. Aliases may be counted more than once.\n" : "") +
                         (selected.SharedElsewhere ? "Shared objects are charged once at their common parent. Removing one alias does not promise free space.\n" : "") +

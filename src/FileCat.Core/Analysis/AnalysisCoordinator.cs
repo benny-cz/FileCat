@@ -271,6 +271,8 @@ public sealed class AnalysisSession : IDisposable
                 {
                     var childId = _store.Append(child, id, root.Id, source.Basis);
                     if (childId is null) { Issue("memory-or-observation-limit", id); return; }
+                    if (child.IssueCode is { } issueCode) Issue(issueCode, childId, child.MetadataState);
+                    if (!child.IncludedByPolicy || child.MetadataState != MeasurementState.Known) continue;
                     if (child.Kind is AnalysisKind.Link or AnalysisKind.Special)
                         Issue(child.Kind == AnalysisKind.Link ? "navigation-link-not-followed" : "special-entry-not-traversed", childId, MeasurementState.Excluded);
                     if (child.Kind != AnalysisKind.Directory) continue;
@@ -319,7 +321,7 @@ public sealed class AnalysisSession : IDisposable
         lock (_sync)
         {
             if (state != MeasurementState.Excluded) _partial = true;
-            if (code == "source-changed-or-boundary" && _freshness == AnalysisFreshness.Observed) _freshness = AnalysisFreshness.PossiblyStale;
+            if ((state == MeasurementState.Changed || code == "source-changed-or-boundary") && _freshness == AnalysisFreshness.Observed) _freshness = AnalysisFreshness.PossiblyStale;
             _store.Issue(code, node, state, rootId);
         }
     }

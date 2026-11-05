@@ -35,7 +35,8 @@ public static class AnalysisValidation
             if (root.Disposition == AnalysisRootDisposition.Covered
                 ? root.CoveredByRootId is not { } parent || parent == root.Id || !rootMap.TryGetValue(parent, out var covered) || covered.Disposition != AnalysisRootDisposition.Active ||
                     root.ObservedObjectIdentity is null || root.CoveredRelativePath is not { } path || Encoding.UTF8.GetByteCount(path) > AnalysisLimits.LocatorBytes ||
-                    path.Length > 0 && path.Split('/').Any(part => !AnalysisNames.IsOrdinaryChild(part, root.NameRules == AnalysisNameRules.Windows))
+                    path.Length > 0 && path.Split('/').Any(part => !AnalysisNames.IsObservedChild(part, root.NameRules == AnalysisNameRules.Windows,
+                        root.NameRules == AnalysisNameRules.Windows ? checked(part.Length * 2) : Encoding.UTF8.GetByteCount(part)))
                 : root.CoveredByRootId is not null || root.CoveredRelativePath is not null) throw Invalid();
         var objects = new HashSet<string>(StringComparer.Ordinal);
         var objectMap = new Dictionary<string, AnalysisObject>(StringComparer.Ordinal);
@@ -56,6 +57,7 @@ public static class AnalysisValidation
         {
             cancellation.ThrowIfCancellationRequested();
             if (node is null || node.RawName.IsDefault || node.IssueCodes.IsDefault || node.Id == 0 || node.Id == node.ParentId || !nodes.TryAdd(node.Id, node) || !roots.Contains(node.RootId) || !Enum.IsDefined(node.Kind) ||
+                !Enum.IsDefined(node.MetadataState) || !node.IncludedByPolicy != (node.MetadataState == MeasurementState.Excluded) ||
                 node.Name is null || node.Name.Length == 0 || node.Name.Contains('\0') || node.NameEncoding is not ("utf8" or "utf16le" or "unix-bytes") ||
                 node.RawName.Length > AnalysisLimits.RawNameBytes || node.Name.Length > AnalysisLimits.RawNameBytes || !Optional(node.ObservedIdentity, 4096)) throw Invalid();
             byte[] raw = node.RawName.IsEmpty ? AnalysisRawNames.Encode(node.NameEncoding, node.Name) : node.RawName.ToArray();
@@ -65,8 +67,8 @@ public static class AnalysisValidation
                 times.CreatedPrecisionTicks == 0 || times.ChangedPrecisionTicks == 0)) throw Invalid();
             if (node.ParentId != 0)
             {
-                if (!nodes.TryGetValue(node.ParentId, out var parent) || parent.Kind != AnalysisKind.Directory || parent.RootId != node.RootId ||
-                    !AnalysisNames.IsOrdinaryChild(node.Name, rootMap[node.RootId].NameRules == AnalysisNameRules.Windows, raw.Length)) throw Invalid();
+                if (!nodes.TryGetValue(node.ParentId, out var parent) || parent.Kind != AnalysisKind.Directory || !parent.IncludedByPolicy || parent.MetadataState != MeasurementState.Known || parent.RootId != node.RootId ||
+                    !AnalysisNames.IsObservedChild(node.Name, rootMap[node.RootId].NameRules == AnalysisNameRules.Windows, raw.Length)) throw Invalid();
             }
             else if (!rootNodes.Add(node.RootId) || rootMap[node.RootId].Disposition != AnalysisRootDisposition.Active || rootMap[node.RootId].Kind != node.Kind) throw Invalid();
             int depth = node.ParentId == 0 ? 0 : depths[node.ParentId] + 1;
@@ -77,6 +79,8 @@ public static class AnalysisValidation
             if (node.ObjectId is { } oid)
             {
                 if (node.ObservedIdentity is not null && objectMap[oid].VerifiedIdentity != node.ObservedIdentity) throw Invalid();
+                if (node.MetadataState != MeasurementState.Known && (node.ObservedIdentity is not null ||
+                    objectMap[oid].VerifiedIdentity is not null || objectMap[oid].LogicalLength.State != node.MetadataState)) throw Invalid();
                 if (!aliases.TryGetValue(oid, out var members)) aliases[oid] = members = [];
                 members.Add(node.Id);
             }

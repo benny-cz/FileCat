@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "contracts-native-root-coverage-and-exploration-in-progress",
+  "status": "contracts-native-scanning-exploration-and-inventory-in-progress",
   "branch": "codex/disk-space-analysis",
   "productCommandRegistered": false,
   "nativeUiTested": false,
@@ -17,46 +17,49 @@
     "Privacy joins preserve imported/privileged classification; enum/policy/raw-name/graph/alias/root-reference and supplied coverage checks reject contradictory data.",
     "Explicit selection leases freeze IDs, object IDs, selection kind, scope/filter summary and raw locator budget against the exact published revision, retaining the store after its owner closes.",
     "Window-level review shortcuts, focusable ranked table, short/large-text finite scrolling, root-separated incompatible allocation views, and explicit uncertain-query cohorts pass behavioral rendering checks.",
-    "Captured timezone is used for historical date filters; unavailable timezone requires explicit offsets. Source component extension matching is independent of host path separators."
+    "Captured timezone is used for historical date filters; unavailable timezone requires explicit offsets. Source component extension matching is independent of host path separators.",
+    "Per-entry metadata failures preserve readable siblings. Failed directories are not queued, observed unknown kinds remain unknown, and policy-excluded mount/volume entries are omitted from all metrics.",
+    "Native Windows observation accepts exact DOS-reserved and trailing-dot/space names independently of future action eligibility; raw NT opens use exact component spelling.",
+    "Schema-1 inert JSONL stream codec has fixed typed order, canonical decimal strings and raw base64 names, bounded parsing/import memory, mandatory counts/hash trailer, graph/coverage checks and recomputed checked totals. Private filename publication is not implemented."
   ],
   "validation": {
     "windowsCore": {
-      "total": 136,
-      "passed": 129,
+      "total": 166,
+      "passed": 158,
       "failed": 0,
-      "skipped": 7,
-      "detail": "108 analysis cases and 28 command regressions; five Unix-native and two Unix-FIFO cases skip on Windows.",
-      "evidence": "windows-core-r18.xml"
+      "skipped": 8,
+      "detail": "138 analysis cases and 28 command regressions; six Unix-native and two Unix-FIFO cases skip on Windows.",
+      "evidence": "windows-core-r19.xml"
     },
     "windowsHostNative": {
-      "total": 8,
-      "passed": 8,
+      "total": 9,
+      "passed": 9,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-host-native-r18.xml"
+      "evidence": "windows-host-native-r19.xml"
     },
     "windowsVm": {
       "status": "ordinary-user-regression-fixtures-passed",
-      "total": 8,
-      "passed": 8,
+      "total": 9,
+      "passed": 9,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-native-r18.xml",
-      "detail": "Five native fixtures and three reparse-tag cases; no native application UI qualification claimed."
+      "evidence": "windows-vm-native-r19.xml",
+      "detail": "Six native fixtures and three reparse-tag cases, including denied metadata, sibling continuation and exact native DOS/trailing names. No native application UI qualification claimed."
     },
     "macosArm64": {
-      "total": 136,
-      "passed": 136,
+      "total": 166,
+      "passed": 166,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-core-r18.xml"
+      "evidence": "mac-core-r19.xml"
     },
     "headlessRendering": {
       "total": 6,
       "passed": 6,
       "failed": 0,
       "skipped": 0,
-      "evidence": "analysis-render-r18.xml",
+      "evidence": "analysis-render-r19.xml",
       "detail": "Seven-theme view parity; custom overlay cancel and Enter details; 4000-row short/large-text virtualization; root-separated bases, uncertain predicates and captured timezone. Headless, not native UI/a11y."
     },
     "solutionBuild": {
@@ -70,13 +73,13 @@
     }
   },
   "nextWork": [
-    "W0: finish producer observation/coverage and raw-name fidelity/display contracts, unknown/boundary reasons, source continuity and fully bounded contract validation/indexing. A valid data model is never live authority.",
-    "W1: per-entry access failures and mount boundaries must retain/continue other readable entries, rather than abort the directory; qualify raw names, case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases.",
+    "W0: finish raw-name fidelity/display, component coverage and boundary-counter semantics, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
+    "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
     "W1: finish epoch refresh, retained/hung I/O and prepared-source cleanup responsiveness, actual shared-memory and indexed private-store budgets or prescribed bounded fallback.",
-    "Ubuntu: continue postponing while the other FileCat instance runs; user explicitly reconfirmed this. Do not close it or reboot that occupied guest.",
-    "W2: actual native desktop/assistive-technology testing; safe raw-name/path display; grouping/sort/breadcrumbs/details/tooltips; complete session/app lifecycle and lazy tools.diskSpace registration. view.analyze and panel actions remain separate.",
-    "W3: strict bounded inert JSONL inventories, private store/catalog, named save/history, compatible comparison and guarded create-only exports/imports.",
-    "W4/W5: qualified live source and exact-entry typed operations, protected objects, immutable review/submission, preserving defaults and accurate outcomes. Unsupported needs feasibility evidence, not just missing implementation.",
+    "Ubuntu: continue postponing under the user's explicit instruction while the other FileCat instance runs. Do not close it or reboot that occupied guest.",
+    "W2: actual native desktop/assistive-technology testing; safe raw-name/path and unknown-value display; grouping/sort/breadcrumbs/details/tooltips; complete lifecycle and lazy tools.diskSpace registration.",
+    "W3: integrate the tested data-only stream codec through qualified private storage/catalog and guarded atomic publication; named save/history, compatible comparison, sensitivity review and create-only exports/imports remain.",
+    "W4/W5: qualified live source and exact-entry typed operations, protected objects, immutable review/submission, preserving defaults and accurate outcomes. Unsupported needs feasibility evidence.",
     "W6/W7: declarative recipes and explicitly qualified content work; closed NTFS metadata helper or prescribed standard-scan fallback.",
     "W8: native platform/theme/DPI/a11y/package matrix, 1M/10M measurements, negative controls, actual diagnostics ZIP leakage, documentation and final requirement-by-requirement audit."
   ]

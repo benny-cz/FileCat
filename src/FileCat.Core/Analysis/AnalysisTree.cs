@@ -9,6 +9,8 @@ public sealed record AnalysisTreeItem(string Key, string ParentKey, string Name,
     bool SharedElsewhere, string Family, ImmutableArray<string> Children, ImmutableArray<ulong> Members)
 {
     public UInt128 IdentityUnverified { get; init; }
+    public MeasurementState MetadataState { get; init; } = MeasurementState.Known;
+    public bool IncludedByPolicy { get; init; } = true;
 }
 
 /// <summary>One exact hierarchy shared by charts, the ranked table and navigation. Geometry never computes accounting.</summary>
@@ -87,7 +89,8 @@ public sealed class AnalysisTree
             bool matching = projection.MatchingNodes.Contains(node.Id);
             var item = new Builder(key, parent, node.Name, node.Id, node.Kind, false, !filterApplied || matching,
                 node.Kind == AnalysisKind.Directory ? "folder" : AnalysisClassification.Family(node.Name));
-            item.Unknown = incomplete.Contains(node.Id);
+            item.MetadataState = node.MetadataState; item.IncludedByPolicy = node.IncludedByPolicy;
+            item.Unknown = incomplete.Contains(node.Id) || node.IncludedByPolicy && node.MetadataState != MeasurementState.Known;
             if (node.Kind == AnalysisKind.File && matching)
             {
                 item.Files = 1;
@@ -146,9 +149,12 @@ public sealed class AnalysisTree
         public UInt128 Value, Logical, Unverified;
         public ulong Files;
         public bool Unknown, SharedElsewhere, Visible = visible;
+        public MeasurementState MetadataState = MeasurementState.Known;
+        public bool IncludedByPolicy = true;
         public List<string> Children = [];
         public HashSet<ulong> Members = [];
         public AnalysisTreeItem Freeze() => new(key, Parent, name, node, kind, synthetic, Visible, Value, Logical, Files, Unknown,
-            SharedElsewhere, family, Children.ToImmutableArray(), Members.Order().ToImmutableArray()) { IdentityUnverified = Unverified };
+            SharedElsewhere, family, Children.ToImmutableArray(), Members.Order().ToImmutableArray())
+            { IdentityUnverified = Unverified, MetadataState = MetadataState, IncludedByPolicy = IncludedByPolicy };
     }
 }

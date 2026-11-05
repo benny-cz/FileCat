@@ -85,6 +85,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
                     break;
                 }
                 byte[] raw = ReadName(record, _mac);
+                byte type = Marshal.ReadByte(record, _mac ? 20 : 18);
                 if (raw.AsSpan().SequenceEqual("."u8) || raw.AsSpan().SequenceEqual(".."u8)) continue;
                 if (raw.Length == 0 || raw.Contains((byte)'/') || raw.Contains((byte)0)) throw new InvalidDataException("Invalid native directory name.");
                 byte[] relative = Join(directory.RelativeName.AsSpan(), raw);
@@ -94,8 +95,18 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
                 {
                     child = OpenRelative(relative, directory: false);
                     var facts = Stat(child);
-                    if (facts.Device != _device || facts.Mount != _mount) throw new AnalysisSourceChangedException();
+                    if (facts.Device != _device || facts.Mount != _mount) throw new AnalysisEntryUnavailableException(MeasurementState.Excluded, "source-mount-boundary");
                     result = Bind(Entry(relative.ToImmutableArray(), raw, facts), directory.Ancestry);
+                }
+                catch (AnalysisEntryUnavailableException ex)
+                {
+                    result = AnalysisEntry.Unavailable(relative.ToImmutableArray(), raw.ToImmutableArray(), "unix-bytes",
+                        DirectoryEntryKind(type), ex.State, ex.Code);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    result = AnalysisEntry.Unavailable(relative.ToImmutableArray(), raw.ToImmutableArray(), "unix-bytes",
+                        DirectoryEntryKind(type), MeasurementState.Failed, "entry-metadata-unavailable");
                 }
                 finally { if (child >= 0) Close(child); }
                 yield return result;
@@ -211,7 +222,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
             {
                 var lease = AnalysisNativeHandles.Acquire();
                 long result = OpenAt2(437, _root, p, &how, (nuint)sizeof(OpenHow));
-                if (result < 0) { lease.Dispose(); throw new AnalysisSourceChangedException(); }
+                if (result < 0) { int error = Marshal.GetLastPInvokeError(); lease.Dispose(); throw OpenError(error); }
                 int fd = checked((int)result); _handleLeases.Add(fd, lease); return fd;
             }
         }
@@ -234,11 +245,11 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
                 else flags = (flags & ~0x100) | 0x200000 | 0x8000; // O_SYMLINK itself opens the link, while O_NOFOLLOW would refuse it
                 var childLease = AnalysisNativeHandles.Acquire();
                 int next = OpenAt(current, pieces[i], flags);
-                if (next < 0) { childLease.Dispose(); throw new AnalysisSourceChangedException(); }
+                if (next < 0) { int error = Marshal.GetLastPInvokeError(); childLease.Dispose(); throw OpenError(error); }
                 _handleLeases.Add(next, childLease);
                 Close(current); current = next;
                 var currentFacts = Stat(current);
-                if (currentFacts.Device != _device || currentFacts.Mount != _mount) throw new AnalysisSourceChangedException();
+                if (currentFacts.Device != _device || currentFacts.Mount != _mount) throw new AnalysisEntryUnavailableException(MeasurementState.Excluded, "source-mount-boundary");
             }
             int result = current; current = -1; return result;
         }
@@ -267,6 +278,15 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
             *(long*)(b + 96), *(uint*)(b + 104), (mask & 0x400) != 0, 0);
     }
     private static AnalysisKind Kind(ushort mode) => (mode & 0xF000) switch { 0x8000 => AnalysisKind.File, 0x4000 => AnalysisKind.Directory, 0xA000 => AnalysisKind.Link, _ => AnalysisKind.Special };
+    private static AnalysisKind DirectoryEntryKind(byte type) => type switch
+    { 0 => AnalysisKind.Unknown, 4 => AnalysisKind.Directory, 8 => AnalysisKind.File, 10 => AnalysisKind.Link, _ => AnalysisKind.Special };
+    private AnalysisEntryUnavailableException OpenError(int error) => error switch
+    {
+        18 => new(MeasurementState.Excluded, "source-mount-boundary"), // EXDEV from NO_XDEV, including file bind mounts
+        2 or 20 => new(MeasurementState.Changed, "entry-changed-before-observation"),
+        _ when error == (_mac ? 62 : 40) || error == (_mac ? 70 : 116) => new(MeasurementState.Changed, "entry-changed-before-observation"),
+        _ => new(MeasurementState.Failed, "entry-metadata-unavailable")
+    };
     private static (ulong Id, string Type) MacFileSystem(int fd)
     {
         // Darwin statfs64: fsid at 48, filesystem name at 72; 2168 bytes including bounded mount-name fields.
