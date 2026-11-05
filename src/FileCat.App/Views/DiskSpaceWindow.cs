@@ -171,6 +171,10 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly CheckBox _case = new() { Content = "Case sensitive" };
         private readonly ComboBox _metric = new() { ItemsSource = new[] { "File size", "Unique file size", "On disk — reported", "Files" }, SelectedIndex = 2, MinWidth = 155 };
         private readonly ComboBox _mode = new() { ItemsSource = new[] { "Treemap", "Sunburst", "Table" }, SelectedIndex = 0, MinWidth = 125 };
+        private readonly ComboBox _sort = new() { ItemsSource = new[] { "Active metric", "Name", "File size", "File paths", "Measurement state" }, MinWidth = 160 };
+        private readonly ComboBox _sortDirection = new() { ItemsSource = new[] { "Descending", "Ascending" }, MinWidth = 140 };
+        private readonly WrapPanel _breadcrumbs = new() { ItemSpacing = 5, LineSpacing = 4 };
+        private ImmutableArray<AnalysisBreadcrumb> _shownBreadcrumbs;
         private readonly ComboBox _rootFilter = new() { MinWidth = 140, MaxWidth = 240 };
         private readonly Button _unknown = new() { Content = "Inspect uncertain results", IsVisible = false };
         private ImmutableArray<RootBinding> _shownRoots = [];
@@ -199,6 +203,7 @@ public sealed partial class DiskSpaceWindow : Window
             _window = window; Model = model;
             _query.Text = Model.Query; _case.IsChecked = Model.CaseSensitive; _metric.SelectedIndex = (int)Model.Metric;
             _mode.SelectedIndex = Model.Chart switch { "Sunburst" => 1, "Table" => 2, _ => 0 };
+            _sort.SelectedIndex = (int)Model.Sort; _sortDirection.SelectedIndex = Model.SortDescending ? 0 : 1;
             RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,Auto");
             _setup.Children.Add(SessionText("Understand this storage. Choose what to measure.", 20));
             _setup.Children.Add(_roots);
@@ -238,14 +243,27 @@ public sealed partial class DiskSpaceWindow : Window
             var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { _query, _case } };
             filters.Children.Add(_rootFilter); filters.Children.Add(_unknown);
             filters.Children.Add(ActionButton("Clear filter", () => { Model.ShowUnknownFilterResults = false; _query.Text = ""; }, "Remove the display query; scan boundaries remain captured."));
-            toolbar.Children.Add(nav); toolbar.Children.Add(_scope); toolbar.Children.Add(_summary); toolbar.Children.Add(_coverage); toolbar.Children.Add(filters); toolbar.Children.Add(_error);
-            _dataControls.AddRange([_pause, _inspect, _save, _compare, _scope, _summary, _coverage, filters]);
+            var ordering = new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { new TextBlock { Text = "Sort table", VerticalAlignment = VerticalAlignment.Center }, _sort, _sortDirection } };
+            AutomationProperties.SetName(_sort, "Analysis table sort"); AutomationProperties.SetName(_sortDirection, "Analysis table sort direction");
+            AutomationProperties.SetName(_breadcrumbs, "Analysis location breadcrumbs");
+            ToolTip.SetTip(_sort, new RichTip("Sort observed table rows", detail: "Numeric sorting uses exact recorded integers. Missing numeric values follow known amounts in either direction. Partial amounts rank by their known subtotal. Charts keep their accounting order; focus and marks keep their observation identities."));
+            toolbar.Children.Add(nav); toolbar.Children.Add(_breadcrumbs); toolbar.Children.Add(_scope); toolbar.Children.Add(_summary); toolbar.Children.Add(_coverage); toolbar.Children.Add(filters); toolbar.Children.Add(ordering); toolbar.Children.Add(_error);
+            _dataControls.AddRange([_pause, _inspect, _save, _compare, _breadcrumbs, _scope, _summary, _coverage, filters, ordering]);
             Grid.SetRow(toolbar, 1); Children.Add(toolbar);
             _chartHost.Children.Add(_treemap); _chartHost.Children.Add(_sunburst); _explorer.Children.Add(_chartHost);
             var splitter = new GridSplitter { Height = 5, ResizeDirection = GridResizeDirection.Rows, HorizontalAlignment = HorizontalAlignment.Stretch };
             Grid.SetRow(splitter, 1); _explorer.Children.Add(splitter);
             _list.ItemTemplate = new FuncDataTemplate<AnalysisTreeItem>((item, _) => item is null ? new Border() : Row(item));
             _list.SelectionChanged += (_, _) => { if (!_updating && _list.SelectedItem is AnalysisTreeItem item) Model.Focus(item.Key); };
+            // ListBox (or a focused mark checkbox) consumes Enter/Space before the window's bubble
+            // route. Resolve the analyzer keymap first, preserving editor and overlay guards.
+            _list.AddHandler(KeyDownEvent, (_, e) =>
+            {
+                // A focused mark checkbox owns Space's press/release cycle. Routing its
+                // keydown as well would toggle once here and again on the button's keyup.
+                if (e.Key == Key.Space && _window.FocusManager?.GetFocusedElement() is CheckBox) return;
+                if (e.Key is Key.Enter or Key.Space) HandleKeys(e);
+            }, RoutingStrategies.Tunnel);
             _list.DoubleTapped += (_, _) => { if (_list.SelectedItem is AnalysisTreeItem item) ActivateItem(item.Key, false, true); };
             bool tablePress = false;
             _list.PointerPressed += (_, _) => { if (!tablePress) { tablePress = true; Model.Interaction(true); } };
@@ -272,6 +290,8 @@ public sealed partial class DiskSpaceWindow : Window
             _pause.Click += (_, _) => Model.PauseOrResume(); _stop.Click += (_, _) => Model.Stop();
             _mode.SelectionChanged += (_, _) => { Model.Chart = _mode.SelectedIndex switch { 1 => "Sunburst", 2 => "Table", _ => "Treemap" }; Refresh(); };
             _metric.SelectionChanged += (_, _) => { if (_updating) return; Model.Metric = (AnalysisMetric)Math.Max(0, _metric.SelectedIndex); _ = Model.RebuildAsync(true); };
+            _sort.SelectionChanged += (_, _) => { if (_updating || _sort.SelectedIndex < 0) return; Model.Sort = (AnalysisTableSort)_sort.SelectedIndex; _ = Model.RebuildAsync(true); };
+            _sortDirection.SelectionChanged += (_, _) => { if (_updating || _sortDirection.SelectedIndex < 0) return; Model.SortDescending = _sortDirection.SelectedIndex == 0; _ = Model.RebuildAsync(true); };
             _query.TextChanged += (_, _) => { if (_updating) return; _filterTimer.Stop(); _filterTimer.Start(); };
             _case.IsCheckedChanged += (_, _) => { Model.CaseSensitive = _case.IsChecked == true; _ = Model.RebuildAsync(true); };
             _rootFilter.SelectionChanged += (_, _) => { if (!_updating && _rootFilter.SelectedItem is RootChoice choice) { Model.RootFilter = choice.Id; _ = Model.RebuildAsync(true); } };
@@ -354,6 +374,41 @@ public sealed partial class DiskSpaceWindow : Window
                     AutomationProperties.SetName(row.Children.OfType<Button>().Single(), "Remove analysis location " + (i + 1));
             }
         }
+        private void RefreshBreadcrumbs()
+        {
+            var trail = Model.Breadcrumbs;
+            if (!_shownBreadcrumbs.IsDefault && _shownBreadcrumbs.SequenceEqual(trail)) return;
+            _shownBreadcrumbs = trail; _breadcrumbs.Children.Clear();
+            for (int i = 0; i < trail.Length; i++)
+            {
+                if (i > 0) _breadcrumbs.Children.Add(new TextBlock { Text = "›", VerticalAlignment = VerticalAlignment.Center });
+                if (i == 1 && trail.Length > 4)
+                {
+                    var ancestors = ActionButton("Ancestors…", () => { }, "Choose an earlier captured ancestor without reconnecting to a source.");
+                    var menu = new ContextMenu(); var entries = new List<MenuItem>();
+                    foreach (var ancestor in trail.Skip(1).Take(trail.Length - 3))
+                    {
+                        string key = ancestor.Key; var entry = new MenuItem { Header = ancestor.Label };
+                        entry.Click += (_, _) => Model.NavigateToScope(key); entries.Add(entry);
+                    }
+                    menu.ItemsSource = entries; ancestors.ContextMenu = menu; ancestors.Click += (_, _) => menu.Open(ancestors);
+                    _breadcrumbs.Children.Add(ancestors); i = trail.Length - 3; continue;
+                }
+                var part = trail[i];
+                var label = new TextBlock { Text = part.Label, MaxWidth = 220, TextTrimming = TextTrimming.CharacterEllipsis };
+                if (i == trail.Length - 1)
+                {
+                    label.FontWeight = FontWeight.SemiBold; label.VerticalAlignment = VerticalAlignment.Center;
+                    AutomationProperties.SetName(label, "Current location: " + part.Label);
+                    ToolTip.SetTip(label, new RichTip("Current captured location", detail: part.Label)); _breadcrumbs.Children.Add(label);
+                }
+                else
+                {
+                    var button = ActionButton(part.Label, () => Model.NavigateToScope(part.Key), "Return to this captured ancestor: " + part.Label);
+                    button.Content = label; AutomationProperties.SetName(button, "Go to captured location: " + part.Label); _breadcrumbs.Children.Add(button);
+                }
+            }
+        }
         private async Task ChooseFoldersAsync()
         {
             var folders = await _window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Analyze folders", AllowMultiple = true });
@@ -424,6 +479,8 @@ public sealed partial class DiskSpaceWindow : Window
                 _unknown.IsVisible = tree is not null && (tree.Projection.UnknownFilterNodes.Count > 0 || tree.Projection.IncludesUnknownFilterResults);
                 _unknown.Content = tree?.Projection.IncludesUnknownFilterResults == true ? "Show confirmed matches" : $"Inspect {tree?.Projection.UnknownFilterNodes.Count ?? 0:N0} uncertain results";
                 _scope.Text = tree is null ? "Captured scope appears here after Start." : AnalysisNames.Display(tree.NameOf(Model.Selection.Scope));
+                RefreshBreadcrumbs();
+                _scope.IsVisible = false;
                 _summary.Text = Model.ScopeSummary;
                 _coverage.Text = tree is null ? "Unknown, unavailable and zero remain separate." :
                     (tree.Snapshot.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Traversal complete under the captured policy" : "Traversal has gaps") +
@@ -443,6 +500,7 @@ public sealed partial class DiskSpaceWindow : Window
                     if (tree.Projection.IncludesUnknownFilterResults) _coverage.Text += " Showing uncertain filter results, not confirmed matches.";
                     else if (tree.Projection.UnknownFilterNodes.Count > 0) _coverage.Text += $" {tree.Projection.UnknownFilterNodes.Count:N0} uncertain filter results are excluded from confirmed matches.";
                     if (tree.Projection.FilterText != Model.Query) _coverage.Text += " The previous valid filter remains displayed while the new query is applied.";
+                    if (Model.Running || tree.Snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy) _coverage.Text += " Known results so far; table ranking can change.";
                     if (tree.Projection.Metric == AnalysisMetric.UniqueFileSize && totals.IdentityUnverified > 0)
                         _coverage.Text += $" {totals.IdentityUnverified} path bytes have unverified identities and are excluded from unique chart area.";
                 }

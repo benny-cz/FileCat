@@ -99,7 +99,10 @@ internal sealed partial class HarnessApp : Application
                     issues = tree.Snapshot.Issues.Select(i => new { i.Code, i.State }).ToArray(),
                     known = tree.Projection.Totals.Known.ToString(), unverified = tree.Projection.Totals.IdentityUnverified.ToString(),
                     matchingPaths = tree.Projection.Totals.MatchingPaths, rows = model.Rows.Length,
-                    focus = model.Selection.Focus, marked = model.Selection.Marks.Count, basket = model.Selection.Basket.Count
+                    focus = model.Selection.Focus, marked = model.Selection.Marks.Count, basket = model.Selection.Basket.Count,
+                    tableSort = model.Sort, tableDescending = model.SortDescending,
+                    tableRows = model.Rows.Take(12).Select(row => new { row.Key, row.Name, value = row.Value.ToString() }).ToArray(),
+                    breadcrumbs = model.Breadcrumbs
                 };
             }
             WriteReport("open");

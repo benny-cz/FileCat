@@ -1,0 +1,17 @@
+# Disk space exploration checkpoint
+
+This records the bounded table-order and breadcrumb development implementation. It does not qualify W2, register the product command, enable operations or establish the final resource/display/accessibility matrix.
+
+`AnalysisTableOrder` sorts references to immutable accounting rows. Exact UInt128 comparisons avoid floating-point rounding. Missing or policy-excluded numeric values follow known amounts in both directions; partial amounts retain their known subtotal. Name ties use ordinal spelling and stable record keys. Sorting the table does not alter the accounting tree, chart area, captured scope, focus, marks or basket.
+
+The merge worker checks cancellation at least every 4,096 copied references. Before allocating its two arrays it reserves a conservative 24 bytes per row plus headers from a shared 32 MiB ordering pool. The returned owner retains that reservation until its published or pending rows are released. Admission failure retains the preceding rows and explains refusal. Atomic scope/history publication on navigation refusal remains a follow-up requirement. This separate reference-array budget is not whole-process or indexed 1M/10M qualification.
+
+The view owns the published ordering and any pending interaction revision independently. Forced rebuild requests cancel the preceding worker and restart after actual completion. Scope workers retain their own snapshot lease through cancellation and tab closure. Stale scope/order results cannot publish; prior published owners are released after synchronous view updates, including when an observer throws. Deferred interaction results revalidate scope and ordering before adoption.
+
+Breadcrumbs derive only from the captured accounting hierarchy. The root, current location and nearby ancestry remain visible; deeper ancestors use an explicit menu. The trail is bounded, including deeply nested synthetic Other scopes. A navigation callback rechecks that its target remains in the current trail. It does no filesystem access and grants no action authority. Back/Forward preserve the same independent focus/mark/basket identities.
+
+The table resolves Enter before ListBox consumes it, so folder/group activation and file details follow the analyzer keymap. Space on a table row toggles its mark through that keymap. A focused mark checkbox keeps its own press/release cycle, avoiding a second toggle on keyup. Text editing and dialog guards remain in the existing resolver.
+
+Four presentation controls cover exact extreme integers, missing/zero/excluded values, cancellation/refusal/disposal, pointer focus with Enter/Space, sorting and navigation with preserved references, and folded ancestry. The final r46 suite has 42 passing cases on Windows VM, Mac and Ubuntu. Initial failing Enter and checkbox cases are retained as reproduction evidence. Native input receipts identify their exact binaries and distinguish pointer, keyboard and accessibility routes.
+
+Still required: persisted table ordering, grouping/color dimensions, complete columns/details/tooltips, captured sort-order range selection, bounded navigation history, broader native keyboard/screen-reader/theme/DPI/display coverage, complete lifecycle/registration and indexed scale/resource qualification. Named saved display state currently restores its existing metric/chart/query/root/real-scope fields; table ordering remains temporary. The final independent UX/UI/functional/security review remains pending until the entire implementation/testing loop is complete.

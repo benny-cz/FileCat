@@ -20,7 +20,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     private AnalysisSnapshotLease? _lease;
     private AnalysisSnapshot? _observation;
     private CancellationTokenSource? _projectionCancel;
-    private (AnalysisTree Tree, ImmutableArray<AnalysisTreeItem> Rows, AnalysisSnapshotLease? Lease, string Scope)? _pending;
+    private (AnalysisTree Tree, AnalysisOrderedRows Order, AnalysisSnapshotLease? Lease, string Scope, AnalysisTableSort Sort, bool Descending)? _pending;
     private bool _disposed, _building, _rebuildRequested;
     private int _generation, _interaction;
     private readonly List<IAnalysisBackend> _prepared = [];
@@ -144,19 +144,21 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     public async Task RebuildAsync(bool force = false)
     {
         if (_disposed || Comparison is not null) return;
-        if (_building) { if (force) _rebuildRequested = true; return; }
+        if (_building) { if (force) { _rebuildRequested = true; _projectionCancel?.Cancel(); } return; }
         if (!force && !Dirty && Tree is not null) return;
         _building = true; Dirty = false;
         int generation = ++_generation;
         _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _projectionCancel = new();
         var token = _projectionCancel.Token;
         string query = Query, scope = Selection.Scope; var metric = Metric; bool sensitive = CaseSensitive; string? root = RootFilter;
+        var sort = Sort; bool descending = SortDescending;
         if (string.IsNullOrWhiteSpace(query) && root is null) ShowUnknownFilterResults = false;
         bool showUnknown = ShowUnknownFilterResults;
         AnalysisSnapshotLease? nextLease = null;
+        AnalysisOrderedRows? nextOrder = null;
         try
         {
-            var built = await Task.Run<(AnalysisTree Tree, ImmutableArray<AnalysisTreeItem> Rows)?>(() =>
+            var built = await Task.Run<(AnalysisTree Tree, AnalysisOrderedRows Order)?>(() =>
             {
                 nextLease = _session?.AcquireSnapshot() ?? _inventory?.Retain();
                 var s = nextLease?.Snapshot ?? _observation;
@@ -195,37 +197,46 @@ public sealed partial class DiskSpaceViewModel : IDisposable
                 var projection = filtered ? AnalysisAggregate.Project(s, metric, Matches, token, directoryFilter) : all;
                 projection = projection with { UnknownFilterNodes = unknown.ToImmutable(), IncludesUnknownFilterResults = filtered && showUnknown, FilterText = query };
                 var tree = AnalysisTree.Build(s, projection, filtered, token);
-                return (Tree: tree, Rows: tree.ChildrenOf(scope));
+                nextOrder = AnalysisTableOrder.Apply(tree.ChildrenOf(scope), sort, descending, token);
+                return (Tree: tree, Order: nextOrder);
             }, token);
-            if (_disposed || token.IsCancellationRequested || generation != _generation || built is null) { nextLease?.Dispose(); return; }
+            if (_disposed || token.IsCancellationRequested || generation != _generation || built is null) { nextLease?.Dispose(); nextOrder?.Dispose(); return; }
             while (scope != Selection.Scope)
             {
                 scope = Selection.Scope; string requestedScope = scope;
-                built = (built.Value.Tree, await Task.Run(() => built.Value.Tree.ChildrenOf(requestedScope), token));
+                nextOrder?.Dispose(); nextOrder = null;
+                nextOrder = await Task.Run(() => AnalysisTableOrder.Apply(built.Value.Tree.ChildrenOf(requestedScope), sort, descending, token), token);
+                built = (built.Value.Tree, nextOrder);
             }
-            if (_disposed || token.IsCancellationRequested) { nextLease?.Dispose(); return; }
+            if (_disposed || token.IsCancellationRequested || Sort != sort || SortDescending != descending) { nextLease?.Dispose(); nextOrder?.Dispose(); return; }
             FilterError = null;
             if (_interaction > 0)
             {
-                _pending?.Lease?.Dispose(); _pending = (built.Value.Tree, built.Value.Rows, nextLease, scope); nextLease = null;
+                _pending?.Lease?.Dispose(); _pending?.Order.Dispose(); _pending = (built.Value.Tree, built.Value.Order, nextLease, scope, sort, descending); nextLease = null; nextOrder = null;
                 SetStatus("New results available. The current interaction keeps its original targets.");
             }
-            else { Publish(built.Value.Tree, built.Value.Rows, nextLease); nextLease = null; }
+            else
+            {
+                var publishedLease = nextLease; nextLease = null; nextOrder = null;
+                Publish(built.Value.Tree, built.Value.Order, publishedLease);
+            }
         }
-        catch (OperationCanceledException) { nextLease?.Dispose(); }
-        catch (ObjectDisposedException) when (_disposed || token.IsCancellationRequested) { nextLease?.Dispose(); }
+        catch (OperationCanceledException) { nextLease?.Dispose(); nextOrder?.Dispose(); }
+        catch (ObjectDisposedException) when (_disposed || token.IsCancellationRequested) { nextLease?.Dispose(); nextOrder?.Dispose(); }
         catch (Exception ex) when (ex is FormatException or OverflowException or InvalidDataException or ArgumentOutOfRangeException)
-        { nextLease?.Dispose(); FilterError = "Filter not applied. " + AnalysisNames.Display(ex.Message, 240); Changed?.Invoke(); }
+        { nextLease?.Dispose(); nextOrder?.Dispose(); FilterError = "Filter not applied. " + AnalysisNames.Display(ex.Message, 240); Changed?.Invoke(); }
+        catch (InvalidOperationException ex)
+        { nextLease?.Dispose(); nextOrder?.Dispose(); SetStatus("View not applied. " + AnalysisNames.Display(ex.Message, 240)); }
         finally
         {
             _building = false;
             if (_rebuildRequested && !_disposed) { _rebuildRequested = false; await RebuildAsync(true); }
         }
     }
-    private void Publish(AnalysisTree tree, ImmutableArray<AnalysisTreeItem> rows, AnalysisSnapshotLease? lease)
+    private void Publish(AnalysisTree tree, AnalysisOrderedRows order, AnalysisSnapshotLease? lease)
     {
-        var old = _lease; _lease = lease; Tree = tree; Rows = rows; _observation = tree.Snapshot;
-        Changed?.Invoke(); old?.Dispose();
+        var old = _lease; var oldOrder = _orderedRows; _lease = lease; _orderedRows = order; Tree = tree; Rows = order.Rows; _observation = tree.Snapshot;
+        try { Changed?.Invoke(); } finally { old?.Dispose(); oldOrder?.Dispose(); }
     }
     public void Interaction(bool start)
     {
@@ -233,8 +244,8 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         if (_interaction == 0 && _pending is { } pending)
         {
             _pending = null;
-            if (pending.Scope == Selection.Scope) Publish(pending.Tree, pending.Rows, pending.Lease);
-            else { pending.Lease?.Dispose(); _ = RebuildAsync(true); }
+            if (pending.Scope == Selection.Scope && pending.Sort == Sort && pending.Descending == SortDescending) Publish(pending.Tree, pending.Order, pending.Lease);
+            else { pending.Lease?.Dispose(); pending.Order.Dispose(); _ = RebuildAsync(true); }
         }
     }
     public void Focus(string key, bool toggleMark = false, bool open = false)
@@ -251,16 +262,23 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     public void Forward() { Selection.Forward(); RefreshRows(); }
     private async void RefreshRows()
     {
-        var tree = Tree; string scope = Selection.Scope;
+        var tree = Tree; string scope = Selection.Scope; var sort = Sort; bool descending = SortDescending;
         if (tree is null) return;
+        // Navigation can outlive the tab while its actual CPU worker unwinds cancellation.
+        using var retained = _lease?.Retain();
+        _rowOrderCancel?.Cancel(); var cancellation = new CancellationTokenSource(); _rowOrderCancel = cancellation;
+        AnalysisOrderedRows? order = null;
         try
         {
-            var rows = await Task.Run(() => tree.ChildrenOf(scope));
-            if (_disposed || Tree != tree || Selection.Scope != scope) return;
-            Rows = rows; Changed?.Invoke();
+            order = await Task.Run(() => AnalysisTableOrder.Apply(tree.ChildrenOf(scope), sort, descending, cancellation.Token), cancellation.Token);
+            if (_disposed || cancellation.IsCancellationRequested || Tree != tree || Selection.Scope != scope || Sort != sort || SortDescending != descending) return;
+            var previous = _orderedRows; _orderedRows = order; Rows = order.Rows; order = null;
+            try { Changed?.Invoke(); } finally { previous?.Dispose(); }
         }
-        catch (Exception ex) when (ex is InvalidDataException or OverflowException)
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is InvalidDataException or OverflowException or InvalidOperationException)
         { SetStatus("This scope could not be displayed: " + AnalysisNames.Display(ex.Message, 240)); }
+        finally { order?.Dispose(); if (ReferenceEquals(_rowOrderCancel, cancellation)) _rowOrderCancel = null; cancellation.Dispose(); }
     }
     public void ToggleFocusedMark() { if (Selection.Focus is { } key) Focus(key, toggleMark: true); }
     public void MarkCurrentMembers()
@@ -363,6 +381,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _session?.Dispose(); ReleasePrepared(); _lease?.Dispose(); _pending?.Lease?.Dispose();
         _inventory?.Dispose();
         Comparison?.Dispose(); Comparison = null; _comparisonPrevious?.Dispose(); _comparisonPrevious = null; _comparisonCurrent?.Dispose(); _comparisonCurrent = null;
+        _rowOrderCancel?.Cancel(); _orderedRows?.Dispose(); _pending?.Order.Dispose();
         Tree = null; Rows = []; _observation = null; _pending = null; Changed = null;
     }
     private sealed class LatestProgress(IUiDispatcher ui, Action<AnalysisProgress> consume) : IProgress<AnalysisProgress>

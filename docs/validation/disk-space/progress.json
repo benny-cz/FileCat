@@ -70,7 +70,10 @@
     "Analyzer tabs now wrap at narrow widths with32-DIP targets, explicit accessible names and inherited large text. Actual Mac AXPress previously did not activate a standard selection-only tab peer; explicit Invoke and Mac radio-value providers now select/focus current enabled tabs and expose selected values. The setup heading now wraps and follows the window minimum text size.",
     "A new interaction regression exercises all eight tabs at380x430/20-DIP text in seven themes, padded hit areas, native-provider activation, semantic role and arrow navigation. All36 presentation cases pass on Windows VM, Mac and Ubuntu. Native Mac compact380x402/2x verifies all eight headers and selected values, actual pointer/Left, monotonic captions and owned exit; all509 fixture paths are unchanged. Ubuntu external restore/resize still remaximizes and remains unqualified.",
     "Ready setup now gives the scrollable location form the remaining height and keeps Start in the navigation area, hiding empty result controls until observations exist. A reproduced compact large-text Start clipping failure passes after correcting desired-height feedback. Removing and adding locations preserves unique, sequential accessible editor/remove names. All38 presentation cases pass on Windows VM, Mac and Ubuntu; solution build has zero warnings/errors.",
-    "Native Mac and Ubuntu initial380x430-client/eight-tab/20-DIP setup controls pass. Mac AXPress Start and Ubuntu real padded tab/Start pointer input complete actual metadata scans; all509 source paths unchanged and owned processes exited before deadline. Ubuntu raw X11 absolute coordinates agree with AT-SPI; earlier xdotool-origin assertions were controller failures, not accepted runs. Dynamic resize, full desktop/a11y and Windows input remain unqualified."
+    "Native Mac and Ubuntu initial380x430-client/eight-tab/20-DIP setup controls pass. Mac AXPress Start and Ubuntu real padded tab/Start pointer input complete actual metadata scans; all509 source paths unchanged and owned processes exited before deadline. Ubuntu raw X11 absolute coordinates agree with AT-SPI; earlier xdotool-origin assertions were controller failures, not accepted runs. Dynamic resize, full desktop/a11y and Windows input remain unqualified.",
+    "Observed tables now offer exact Active metric/Name/File size/File paths/measurement-state ordering and both directions. Missing/excluded numeric values follow known amounts, with partial known subtotals retained. Cancellable merge arrays reserve a shared32MiB pool before allocation and retain it through published/pending ownership; failure retains prior rows. Navigation workers retain their snapshot through actual completion and stale worker results cannot publish. Atomic scope/history publication on navigation refusal still needs correction. This is not indexed scale or whole-process qualification.",
+    "Captured breadcrumbs provide root/current/near ancestors plus a bounded folded ancestor menu, without source access. Sorting and breadcrumb/Back/Forward navigation preserve focus, marks and basket identities. Native input exposed Enter consumption and Space marking failure in ListBox; tunneling now respects the keymap, editors/dialogs and checkbox press/release ownership. Failed Enter/checkbox reproductions and final42 passing presentation cases on Windows VM/Mac/Ubuntu are retained.",
+    "Native Ubuntu pointer/Return/Space, ascending/descending name sorts, selected/marked identity preservation and breadcrumb/Back pass in r46. Mac native accessibility selection/Return/Space, scoped menu selection, both name directions and breadcrumb/Back also pass; coordinate activation did not establish Mac pointer coverage. Both actual scans preserve509 generated source paths and both owned instances exit before their deadlines. The full solution has zero warnings/errors; complete native matrix and final independent review remain pending."
   ],
   "validation": {
     "windowsCore": {
@@ -106,17 +109,17 @@
       "detail": "274 pass after native metadata descriptor and capacity-isolation fixes; actual APFS fixture volume verified."
     },
     "headlessRendering": {
-      "total": 38,
-      "passed": 38,
+      "total": 42,
+      "passed": 42,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-render-r41.xml",
-      "detail": "38 pass on all three guest runtimes, including reproduced Ready setup Start clipping and remove/add accessible-name uniqueness."
+      "evidence": "windows-vm-render-r46.xml",
+      "detail": "42 pass on all three guest runtimes, including exact UInt128 ordering, cancellation/memory/refusal ownership, folded breadcrumbs, preserved reference selection and row/checkbox Space/Enter."
     },
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "solution-build-r41.txt"
+      "evidence": "solution-build-r46.txt"
     },
     "ubuntu": {
       "status": "ordinary-user-native-regressions-passed",
@@ -128,10 +131,10 @@
       "detail": "273 pass/one Darwin ACL skip on ext4 after native stat and capacity-test isolation fixes. Both held-child substitution and ancestor-movement counterexamples pass; no GUI instance started."
     },
     "nativeDesktop": {
-      "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit.",
+      "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification.",
       "evidence": "mac-native-ui-r35.json",
       "windows": "Account mismatch resolved: verified ordinary filecatdsa_r2/session2. VM native startup/close passed,509 source paths unchanged; injected VMware console input did not reach guest. All final r34 runtime suites pass in VM. Complete native input acceptance pending; host live testing forbidden by user.",
-      "ubuntu": "Native explicit mapping/query/invalid-query/shared aliases/selected-row Return inspection/preserving-close subset passed. Owned process exited,509 source paths unchanged; full native qualification pending. Initial compact380x430/eight-tab/20-DIP native padded pointer selection and Start scan pass in r41,509 unchanged paths and owned exit. Dynamic resize remains pending.",
+      "ubuntu": "Native explicit mapping/query/invalid-query/shared aliases/selected-row Return inspection/preserving-close subset passed. Owned process exited,509 source paths unchanged; full native qualification pending. Initial compact380x430/eight-tab/20-DIP native padded pointer selection and Start scan pass in r41,509 unchanged paths and owned exit. Dynamic resize remains pending. r46 actual pointer/Return/Space, name ordering, preserved mark/focus and breadcrumb/Back pass; owned exit,509 unchanged source paths.",
       "ubuntuEvidence": "ubuntu-native-ui-r26.json",
       "ubuntuCompactEvidence": "ubuntu-native-ui-r27.json",
       "ubuntuDialogEvidence": "ubuntu-native-ui-r28.json",
@@ -142,7 +145,9 @@
       "macCompactTabsEvidence": "mac-native-tabs-r38.json",
       "ubuntuTabsAttempt": "ubuntu-native-tabs-control-r38.json",
       "macSetupEvidence": "mac-native-setup-r41.json",
-      "ubuntuSetupEvidence": "ubuntu-native-setup-r41.json"
+      "ubuntuSetupEvidence": "ubuntu-native-setup-r41.json",
+      "ubuntuNavigationEvidence": "ubuntu-native-navigation-r46.json",
+      "macNavigationEvidence": "mac-native-navigation-r46.json"
     },
     "macStatConsumers": {
       "total": 51,
@@ -159,18 +164,18 @@
       "evidence": "ubuntu-stat-consumers-r24.xml"
     },
     "macHeadlessRendering": {
-      "total": 38,
-      "passed": 38,
+      "total": 42,
+      "passed": 42,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-analysis-render-r41.xml"
+      "evidence": "mac-analysis-render-r46.xml"
     },
     "ubuntuHeadlessRendering": {
-      "total": 38,
-      "passed": 38,
+      "total": 42,
+      "passed": 42,
       "failed": 0,
       "skipped": 0,
-      "evidence": "ubuntu-analysis-render-r41.xml"
+      "evidence": "ubuntu-analysis-render-r46.xml"
     },
     "windowFit": {
       "detail": "Headless fit regression plus actual Mac Retina geometry/visual workflow; broader native DPI/multi-monitor acceptance remains pending.",
@@ -183,6 +188,7 @@
   },
   "nextWork": [
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
+    "W2: reproduce/fix navigation refusal changing scope/history before replacement rows are admitted. Then table-order persistence, grouping/color dimensions, captured sort-order range selection, bounded navigation history and full table/detail columns/tooltips. Large treemap folder regions still need visible branch labels; complete native pointer/a11y/theme/display qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
