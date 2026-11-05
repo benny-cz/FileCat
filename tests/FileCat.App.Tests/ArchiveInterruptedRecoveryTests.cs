@@ -27,6 +27,7 @@ public sealed class ArchiveInterruptedRecoveryTests
     [AvaloniaTheory]
     [InlineData("reserved")]
     [InlineData("unrecorded-stage")]
+    [InlineData("sidecar-reserved")]
     [InlineData("committed-warning")]
     [InlineData("unknown")]
     [InlineData("mixed")]
@@ -58,6 +59,12 @@ public sealed class ArchiveInterruptedRecoveryTests
                 Assert.Contains("Stage creation identity was not recorded", report.Text);
                 Assert.Contains("Reserved stage byte limit:", report.Text);
                 Assert.DoesNotContain("Recorded stage identity: null", report.Text);
+            }
+            if (state == "sidecar-reserved")
+            {
+                Assert.Contains("Reserved sidecar ExpectedOutput (not inspected)", report.Text);
+                Assert.Contains("Reserved sidecar VerifiedOutput (not inspected)", report.Text);
+                Assert.Contains("Sidecar creation identity was not recorded", report.Text);
             }
             if (!state.StartsWith("legacy", StringComparison.Ordinal))
             {
@@ -170,7 +177,11 @@ public sealed class ArchiveInterruptedRecoveryTests
                         i >= 3 ? stage : null, i >= 3 ? retainedPath : null, i >= 3 ? manifestPath : null, i >= 3 ? manifest : null,
                         i >= 3 ? new string('E', 64) : null, i >= 5 ? stage : null, i >= 5 ? original : null,
                         i == 7 && state != "legacy-committed" ? [state == "origin-warning" ? originPath : retainedPath] : [],
-                        originPath, origin.Identity, 1, i >= 3 ? origin : null));
+                        originPath, origin.Identity, 1, i >= 3 ? origin : null,
+                        sidecars: state == "sidecar-reserved" ?
+                        [new(ArchiveSidecarRole.ExpectedOutput, manifestPath, 4096),
+                         new(ArchiveSidecarRole.OriginEvidence, originPath, 4096, origin.Identity, originSources: 1),
+                         new(ArchiveSidecarRole.VerifiedOutput, Path.Combine(root, ".owned-observed-manifest"), 4096)] : null));
                 if (state == "legacy-committed") writer.Finish(JobState.Completed, "historical completed archive");
                 if (state == "mixed") writer.ArchiveTransaction(new(Guid.NewGuid(), 1, profile, ArchiveTransactionPhase.Reserved,
                     Path.Combine(root, "second.tar"), "parent-object", null, Path.Combine(root, ".second-stage"), "second-stage-object"));
@@ -189,7 +200,7 @@ public sealed class ArchiveInterruptedRecoveryTests
                     if (record["t"]?.GetValue<string>() == "archive-transaction")
                     {
                         record["v"] = 1;
-                        foreach (string key in new[] { "originPath", "originIdentity", "originSources", "originEvidence", "stageMaximum" }) record.Remove(key);
+                        foreach (string key in new[] { "originPath", "originIdentity", "originSources", "originEvidence", "stageMaximum", "sidecars", "finalized" }) record.Remove(key);
                     }
                 }
                 File.WriteAllText(journalPath, string.Concat(records.Select(record =>

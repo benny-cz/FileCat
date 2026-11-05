@@ -22,7 +22,8 @@ internal static class ArchiveRetainedTarPipeline
 {
     internal static async Task<ArchiveVerifiedNativeStage> RebuildAndVerifyAsync(ArchiveTarTransformPlan plan,
         ArchiveRetainedBinding? original, IReadOnlyDictionary<int, ArchiveRetainedBinding> captured,
-        IArchiveRetainedStage stage, ArchiveTransformClient transform, ArchiveVerificationClient verifier, CancellationToken ct)
+        IArchiveRetainedStage stage, ArchiveTransformClient transform, ArchiveVerificationClient verifier, CancellationToken ct,
+        Action? beforeRebuild = null, Action<ArchiveFileObservation>? beforeVerification = null, Action? beforeFinalizing = null)
     {
         ArgumentNullException.ThrowIfNull(plan); ArgumentNullException.ThrowIfNull(captured); ArgumentNullException.ThrowIfNull(stage);
         ArgumentNullException.ThrowIfNull(transform); ArgumentNullException.ThrowIfNull(verifier);
@@ -49,11 +50,13 @@ internal static class ArchiveRetainedTarPipeline
                 }
                 return ArchiveTransformWire.Prepare(plan, ct);
             }, ct).ConfigureAwait(false);
-            Stream output = await Task.Run(() => stage.BeginRebuild(invocation.Request.OutputLengthBound, ct), ct).ConfigureAwait(false);
+            Stream output = await Task.Run(() => { beforeRebuild?.Invoke(); return stage.BeginRebuild(invocation.Request.OutputLengthBound, ct); }, ct).ConfigureAwait(false);
             await transform.RebuildAsync(invocation, output,
                 () => original!.File.OpenReadView(original.Reviewed, ct), id => inputs[id].File.OpenReadView(inputs[id].Reviewed, ct), ct).ConfigureAwait(false);
+            if (beforeFinalizing is not null) await Task.Run(beforeFinalizing, ct).ConfigureAwait(false);
             // The worker has exited/reaped before the native write capability is irreversibly closed and flushed.
             var sealedState = await Task.Run(() => stage.SealForVerification(ct), ct).ConfigureAwait(false);
+            if (beforeVerification is not null) await Task.Run(() => beforeVerification(sealedState), ct).ConfigureAwait(false);
             var verified = await verifier.VerifyAsync(sealedState.Version, invocation.Expected, () => stage.OpenReadView(sealedState, ct), ct).ConfigureAwait(false);
             await Task.Run(() =>
             {

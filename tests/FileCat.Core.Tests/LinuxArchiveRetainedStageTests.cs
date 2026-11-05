@@ -3,6 +3,8 @@ using FileCat.Core.Archives;
 using FileCat.Core.Archives.Linux;
 using FileCat.Core.Archives.Unix;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
+using FileCat.Tests;
 
 namespace FileCat.Core.Tests;
 
@@ -32,9 +34,15 @@ public sealed partial class LinuxArchiveProcessTests
             }
             var plan = ArchiveTarTransformPlan.Create(assessment, [state.Input(5)], source is null ? [] :
                 [new(ArchiveChangeKind.Replace, new(assessment!.CatalogRevision, "old", ArchiveMemberType.File, 0), inputId: 5)], [new("added", ArchiveMemberType.File, 5)], ct);
-            using var stage = directory.CreateArtifact(Guid.NewGuid(), UnixArchiveArtifactKind.Stage, ArchiveTransformWire.OutputBound(plan.Expected, ct));
-            var result = await ArchiveRetainedTarPipeline.RebuildAndVerifyAsync(plan, source, new Dictionary<int, ArchiveRetainedBinding> { [5] = new(input, state) }, stage,
-                new((nonce, cpu) => Start(nonce, cpu, "archive-transform")), new((nonce, cpu) => Start(nonce, cpu, "archive-verify")), ct);
+            using var journal = JobJournal.Create(Path.Combine(root, "journals"), new Job(new JobRequest { Kind = JobKind.ArchiveUpdate,
+                Archive = new(Path.Combine(root, "result.tar"), null, [], Profile: new(ArchiveWriteFormat.Tar)) }, "owned journaled TAR preparation", "owned", [], []));
+            using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, update ? "original.tar" : "result.tar"), plan, source,
+                new Dictionary<int, ArchiveRetainedBinding> { [5] = new(input, state) },
+                (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum),
+                r => { ArchiveJournaledTarAssertions.BeforeCreate(journal, r); return directory.CreateArtifact(r); },
+                new((nonce, cpu) => { ArchiveJournaledTarAssertions.Phase(journal, ArchiveTransactionPhase.Rebuilding); return Start(nonce, cpu, "archive-transform"); }),
+                new((nonce, cpu) => { ArchiveJournaledTarAssertions.Phase(journal, ArchiveTransactionPhase.Verifying); return Start(nonce, cpu, "archive-verify"); }), ct);
+            var stage = prepared.Stage; var result = prepared.Verified; ArchiveJournaledTarAssertions.Complete(prepared, journal, plan, ct);
             Assert.Equal(result.Stage.Version, stage.CaptureVersion(ct)); Assert.Equal(result.Stage.Version, result.Verification.Stage);
             Assert.Equal(plan.Expected.Digest, result.Verification.ManifestDigest); Assert.False(stage.CanWrite); Assert.Throws<NotSupportedException>(() => stage.WriteByte(1));
             Assert.True(input.CanRead); Assert.Equal(state.Version, ((IArchiveRetainedFile)input).Observe(ct).Version);

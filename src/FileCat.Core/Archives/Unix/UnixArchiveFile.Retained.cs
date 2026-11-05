@@ -52,18 +52,35 @@ internal sealed partial class UnixArchiveFile
         return new(version, parent.Identity.ToString(), KnownName, metadata.Digest, metadata.Origin, modified,
             metadata.Native.Mode <= 0x1ff ? (int)metadata.Native.Mode : null);
     }
-    string IArchiveRetainedStage.ReviewCreation(ArchiveArtifactReservation reservation, CancellationToken ct)
+    string IArchiveRetainedArtifact.ReviewCreation(ArchiveArtifactReservation reservation, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(reservation);
         lock (parent.Gate)
         {
             Writeable(); ct.ThrowIfCancellationRequested();
-            if (!artifact || !createdWritable || createdKind != UnixArchiveArtifactKind.Stage || namespaceChanged || rebuildClaimed ||
-                reservation.Kind != ArchiveArtifactKind.Stage || maximum != reservation.MaximumLength || KnownName != reservation.LeafName ||
+            if (!artifact || !createdWritable || createdKind != (UnixArchiveArtifactKind)reservation.Kind || namespaceChanged || rebuildClaimed || evidenceClaimed ||
+                maximum != reservation.MaximumLength || KnownName != reservation.LeafName ||
                 parent.Identity.ToString() != reservation.ParentIdentity || Length != 0 || position != 0)
                 throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "The fresh stage differs from its reserved native creation scope.");
             parent.VerifyNamespace(); parent.RequireName(KnownName, Identity); parent.CheckPrivate(held);
             return Identity.ToString();
+        }
+    }
+    Stream IArchiveRetainedArtifact.BeginEvidence(ArchiveArtifactReservation reservation, CancellationToken ct)
+    {
+        lock (parent.Gate)
+        {
+            ((IArchiveRetainedArtifact)this).ReviewCreation(reservation, ct);
+            if (createdKind == UnixArchiveArtifactKind.Stage) throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "A manifest or provenance artifact is required.");
+            evidenceClaimed = true; return this;
+        }
+    }
+    ArchiveFileObservation IArchiveRetainedArtifact.SealEvidence(CancellationToken ct)
+    {
+        lock (parent.Gate)
+        {
+            if (!evidenceClaimed || createdKind == UnixArchiveArtifactKind.Stage || namespaceChanged) throw new InvalidOperationException("The native artifact was not claimed for evidence writing.");
+            var version = Seal(ct); var observed = ObserveRetained(ct); if (version != observed.Version) throw Changed(); return observed;
         }
     }
     Stream IArchiveRetainedStage.BeginRebuild(long exactMaximumLength, CancellationToken ct)
@@ -84,5 +101,5 @@ internal sealed partial class UnixArchiveFile
             var version = Seal(ct); var observed = ObserveRetained(ct); if (observed.Version != version) throw Changed(); return observed;
         }
     }
-    void IArchiveRetainedStage.StopWrites() { lock (parent.Gate) writable = false; }
+    void IArchiveRetainedArtifact.StopWrites() { lock (parent.Gate) writable = false; }
 }

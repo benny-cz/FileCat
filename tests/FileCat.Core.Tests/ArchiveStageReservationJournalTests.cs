@@ -68,7 +68,7 @@ public sealed class ArchiveStageReservationJournalTests
     [Fact]
     public void Schema_two_identity_facts_remain_readable_but_cannot_be_written_as_new_facts()
     {
-        using var f = new Fixture(); var node = f.Facts(identity: "native-stage").ToJson(); node["v"] = 2; node.Remove("stageMaximum");
+        using var f = new Fixture(); var node = f.Facts(identity: "native-stage").ToJson(); node["v"] = 2; node.Remove("stageMaximum"); node.Remove("sidecars"); node.Remove("finalized");
         var old = ArchiveTransactionFacts.Parse(node); Assert.Equal(2, old.RecordVersion); Assert.Equal("native-stage", old.StageIdentity);
         using var journal = f.Journal(); Assert.Throws<InvalidOperationException>(() => journal.ArchiveTransaction(old));
     }
@@ -118,6 +118,8 @@ public sealed class ArchiveStageReservationJournalTests
     {
         public string ObjectIdentity => throw new NotSupportedException();
         public string ReviewCreation(ArchiveArtifactReservation reservation, CancellationToken ct) => throw new NotSupportedException();
+        public Stream BeginEvidence(ArchiveArtifactReservation reservation, CancellationToken ct) => throw new NotSupportedException();
+        public ArchiveFileObservation SealEvidence(CancellationToken ct) => throw new NotSupportedException();
         public ArchiveFileObservation Observe(CancellationToken ct) => throw new NotSupportedException();
         public void Review(ArchiveFileObservation expected, CancellationToken ct) => throw new NotSupportedException();
         public Stream OpenReadView(ArchiveFileObservation expected, CancellationToken ct) => throw new NotSupportedException();

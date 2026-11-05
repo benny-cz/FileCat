@@ -140,8 +140,17 @@ internal static class InterruptedRecoveryReport
                 if (transaction.OriginEvidenceSources is { } originSources) Line("Declared captured origin sources: " + originSources.ToString(CultureInfo.InvariantCulture));
                 Version("Original object", transaction.Original);
                 Version("Verified stage object", transaction.VerifiedStage);
+                Version("Finalized stage object", transaction.FinalizedStage);
                 Version("Manifest object", transaction.Manifest);
                 Version("Finalized provenance evidence", transaction.OriginEvidence);
+                foreach (var sidecar in transaction.Sidecars)
+                {
+                    Detail("Reserved sidecar " + sidecar.Role + " (not inspected)", sidecar.Path);
+                    Line("Sidecar byte limit: " + sidecar.MaximumLength.ToString(CultureInfo.InvariantCulture));
+                    Line(sidecar.Identity is { } sidecarIdentity ? "Recorded sidecar identity: " + JsonSerializer.Serialize(sidecarIdentity) :
+                        "Sidecar creation identity was not recorded; its reserved path is evidence for review only.");
+                    Version("Sealed sidecar " + sidecar.Role, sidecar.Version);
+                }
                 Version("Observed publication object", transaction.Published);
                 Version("Observed retired object", transaction.Retired);
                 if (transaction.SecuritySnapshotSha256 is { } digest) Line("Security/provenance snapshot SHA-256: " + digest);

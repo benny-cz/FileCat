@@ -144,6 +144,23 @@ public sealed class ArchiveOriginEvidenceWriter : IDisposable
         if (index >= scope.Sources || !Enum.IsDefined(kind) ||
             (kind == ArchiveOriginSourceKind.OriginalArchive) != (scope.Operation == ArchiveOriginOperation.Update && index == 0)) throw Invalid();
     }
+
+    internal static long EncodedLength(ArchiveOriginEvidenceScope scope, IReadOnlyList<ArchiveOriginEvidenceRecord> records, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(scope); ArgumentNullException.ThrowIfNull(records); ct.ThrowIfCancellationRequested();
+        if (scope.Sources != records.Count) throw Invalid();
+        long length = HeaderBytes + 4, inputBytes = 0;
+        for (int i = 0; i < records.Count; i++)
+        {
+            ct.ThrowIfCancellationRequested(); var record = records[i] ?? throw Invalid(); CheckOrder(scope, i, record.Kind);
+            int bytes = checked(RecordBytes + ArchiveWritePolicy.Utf8.GetByteCount(record.Source.Identity) + record.Origin.Bytes.Length);
+            if (bytes > ArchiveWritePolicy.MaxEntryMetadataBytes) throw ArchiveWriteBudget.Limit();
+            length = checked(length + 4 + bytes);
+            if (record.Kind == ArchiveOriginSourceKind.File) inputBytes = checked(inputBytes + record.Source.Length);
+            if (length > ArchiveWritePolicy.MaxMetadataBytes || inputBytes > ArchiveWritePolicy.MaxLogicalBytes) throw ArchiveWriteBudget.Limit();
+        }
+        return length;
+    }
     internal static void Integer(Span<byte> bytes, int offset, int value) => BinaryPrimitives.WriteInt32LittleEndian(bytes[offset..], value);
     internal static ArchiveWriteException Invalid() => new(ArchiveWriteReason.NeedsReview,
         "The archive origin evidence is incomplete, changed or unsupported; retain it for review.");

@@ -7,8 +7,9 @@ public sealed class ArchiveVerificationResult
     public string ManifestDigest { get; }
     public string ContentDigest { get; }
     public string MetadataDigest { get; }
+    internal ArchiveWriteManifest ObservedManifest { get; }
     internal ArchiveVerificationResult(ArchiveObjectVersion stage, ArchiveWriteManifest manifest)
-    { Stage = stage; ManifestDigest = manifest.Digest; ContentDigest = manifest.ContentDigest; MetadataDigest = manifest.MetadataDigest; }
+    { Stage = stage; ManifestDigest = manifest.Digest; ContentDigest = manifest.ContentDigest; MetadataDigest = manifest.MetadataDigest; ObservedManifest = manifest; }
 }
 
 /// <summary>

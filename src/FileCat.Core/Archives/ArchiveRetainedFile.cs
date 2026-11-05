@@ -40,12 +40,18 @@ internal interface IArchiveRetainedFile
     Stream OpenReadView(ArchiveFileObservation expected, CancellationToken ct);
 }
 
-internal interface IArchiveRetainedStage : IArchiveRetainedFile, IDisposable
+internal interface IArchiveRetainedArtifact : IArchiveRetainedFile, IDisposable
 {
     string ReviewCreation(ArchiveArtifactReservation reservation, CancellationToken ct);
+    Stream BeginEvidence(ArchiveArtifactReservation reservation, CancellationToken ct);
+    ArchiveFileObservation SealEvidence(CancellationToken ct);
+    void StopWrites();
+}
+
+internal interface IArchiveRetainedStage : IArchiveRetainedArtifact
+{
     Stream BeginRebuild(long exactMaximumLength, CancellationToken ct);
     ArchiveFileObservation SealForVerification(CancellationToken ct);
-    void StopWrites();
 }
 
 internal sealed record ArchiveRetainedBinding(IArchiveRetainedFile File, ArchiveFileObservation Reviewed);

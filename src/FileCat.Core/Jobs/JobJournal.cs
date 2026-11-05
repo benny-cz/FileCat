@@ -63,6 +63,26 @@ public sealed class JobJournal : IDisposable
         }
     }
 
+    internal void RequireCurrentArchiveTransaction(ArchiveTransactionFacts facts)
+    {
+        ArgumentNullException.ThrowIfNull(facts);
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished || _manualRecovery) throw new InvalidOperationException("The archive journal requires review or is finished.");
+            _archiveTransactions.RequireCurrent(facts);
+        }
+    }
+    internal ArchiveTransactionFacts CurrentArchiveTransaction(Guid nonce)
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished || _manualRecovery) throw new InvalidOperationException("The archive journal requires review or is finished.");
+            var facts = _archiveTransactions.Current(nonce); _archiveTransactions.RequireCurrent(facts); return facts;
+        }
+    }
+
     /// <summary>The header lists this many sources; a job with more gets a manifest of all of them.</summary>
     internal const int HeaderSampleSize = 64;
 

@@ -39,15 +39,7 @@ public static class ArchiveManifestSidecar
         cancellationToken.ThrowIfCancellationRequested();
         if (!ownedOutput.CanWrite || !ownedOutput.CanSeek || ownedOutput.Position != 0 || ownedOutput.Length != 0)
             throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "The private manifest output must be an empty seekable stream.");
-        long length = FixedBytes + manifest.Features.Length;
-        foreach (var member in manifest.Members)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            int recordBytes = checked(58 + ArchiveWritePolicy.Utf8.GetByteCount(member.Name) + member.Metadata.Length);
-            if (recordBytes > ArchiveWritePolicy.MaxEntryMetadataBytes) throw ArchiveWriteBudget.Limit();
-            length = checked(length + 4 + recordBytes);
-            if (length > ArchiveWritePolicy.MaxMetadataBytes) throw ArchiveWriteBudget.Limit();
-        }
+        long length = EncodedLength(manifest, cancellationToken);
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         long written = 0;
         void Put(ReadOnlySpan<byte> bytes)
@@ -80,6 +72,21 @@ public static class ArchiveManifestSidecar
         ownedOutput.Flush(); // Native lease owner must separately flush the exact file/directory durably.
         cancellationToken.ThrowIfCancellationRequested();
         return new(length, Convert.ToHexString(hash.GetHashAndReset()));
+    }
+
+    internal static long EncodedLength(ArchiveWriteManifest manifest, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(manifest); ct.ThrowIfCancellationRequested();
+        long length = FixedBytes + manifest.Features.Length;
+        foreach (var member in manifest.Members)
+        {
+            ct.ThrowIfCancellationRequested();
+            int recordBytes = checked(58 + ArchiveWritePolicy.Utf8.GetByteCount(member.Name) + member.Metadata.Length);
+            if (recordBytes > ArchiveWritePolicy.MaxEntryMetadataBytes) throw ArchiveWriteBudget.Limit();
+            length = checked(length + 4 + recordBytes);
+            if (length > ArchiveWritePolicy.MaxMetadataBytes) throw ArchiveWriteBudget.Limit();
+        }
+        return length;
     }
 
     public static ArchiveManifestSidecarReader OpenRead(Stream ownedInput, ArchiveManifestSidecarInfo expected,

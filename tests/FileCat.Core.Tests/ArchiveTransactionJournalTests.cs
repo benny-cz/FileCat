@@ -20,7 +20,7 @@ public sealed class ArchiveTransactionJournalTests
         Rewrite(f.JournalPath, node =>
         {
             if (node.ContainsKey("archiveJournalVersion")) node["archiveJournalVersion"] = 2;
-            if (node["t"]?.GetValue<string>() == "archive-transaction") { node["v"] = 2; node.Remove("stageMaximum"); }
+            if (node["t"]?.GetValue<string>() == "archive-transaction") { node["v"] = 2; node.Remove("stageMaximum"); node.Remove("sidecars"); node.Remove("finalized"); }
         });
         var recovery = JournalRecovery.ReadArchiveTransactions(f.JournalPath);
         Assert.Null(recovery.Problem); Assert.False(recovery.RequiresReview);
@@ -494,6 +494,8 @@ public sealed class ArchiveTransactionJournalTests
 
     private static void MakeLegacy(JsonObject node)
     {
+        node.Remove("sidecars");
+        node.Remove("finalized");
         node.Remove("stageMaximum");
         node["v"] = 1;
         foreach (string key in new[] { "originPath", "originIdentity", "originSources", "originEvidence" }) node.Remove(key);

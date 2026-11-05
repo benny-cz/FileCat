@@ -8,7 +8,7 @@ public enum ArchiveTransactionPhase
 {
     Reserved = 0, Rebuilding = 1, Verifying = 2, ReadyToPublish = 3, Publishing = 4,
     Reconciling = 5, Cleaning = 6, Committed = 7, CommittedWithRetainedArtifacts = 8,
-    NotCommitted = 9, RolledBack = 10, NeedsReview = 11,
+    NotCommitted = 9, RolledBack = 10, NeedsReview = 11, Finalizing = 12,
 }
 
 public sealed record ArchiveObjectVersion
@@ -33,7 +33,7 @@ public sealed record ArchiveObjectVersion
 /// </summary>
 public sealed class ArchiveTransactionFacts
 {
-    public const int SchemaVersion = 3;
+    public const int SchemaVersion = 4;
     public const int MaxArtifacts = 16;
     public const int MaxTransitions = 64;
     public Guid Nonce { get; }
@@ -47,7 +47,9 @@ public sealed class ArchiveTransactionFacts
     public string StagePath { get; }
     public string? StageIdentity { get; }
     public long StageMaximumLength { get; }
+    public ReadOnlyCollection<ArchiveSidecarFacts> Sidecars { get; }
     public ArchiveObjectVersion? VerifiedStage { get; }
+    public ArchiveObjectVersion? FinalizedStage { get; }
     public string? RetainedPath { get; }
     public string? ManifestPath { get; }
     public ArchiveObjectVersion? Manifest { get; }
@@ -68,21 +70,24 @@ public sealed class ArchiveTransactionFacts
         ArchiveObjectVersion? published = null, ArchiveObjectVersion? retired = null,
         IReadOnlyList<string>? unresolvedArtifacts = null, string? originEvidencePath = null,
         string? originEvidenceIdentity = null, int? originEvidenceSources = null, ArchiveObjectVersion? originEvidence = null,
-        long stageMaximumLength = ArchiveWritePolicy.MaxPhysicalBytes)
+        long stageMaximumLength = ArchiveWritePolicy.MaxPhysicalBytes, IReadOnlyList<ArchiveSidecarFacts>? sidecars = null,
+        ArchiveObjectVersion? finalizedStage = null)
         : this(SchemaVersion, nonce, sequence, profile, phase, archivePath, parentIdentity, original, stagePath, stageIdentity,
             verifiedStage, retainedPath, manifestPath, manifest, securitySnapshotSha256, published, retired, unresolvedArtifacts,
-            originEvidencePath, originEvidenceIdentity, originEvidenceSources, originEvidence, stageMaximumLength)
+            originEvidencePath, originEvidenceIdentity, originEvidenceSources, originEvidence, stageMaximumLength, sidecars, finalizedStage ?? verifiedStage)
     { }
 
-    // Legacy records can be inspected but never written/upgraded in place or treated as complete provenance evidence.
+    // Earlier schemas are read-only. Only schema 1 necessarily lacks complete provenance evidence.
     private ArchiveTransactionFacts(int recordVersion, Guid nonce, int sequence, ArchiveWriteProfile profile, ArchiveTransactionPhase phase,
         string archivePath, string parentIdentity, ArchiveObjectVersion? original, string stagePath, string? stageIdentity,
         ArchiveObjectVersion? verifiedStage, string? retainedPath, string? manifestPath, ArchiveObjectVersion? manifest,
         string? securitySnapshotSha256, ArchiveObjectVersion? published, ArchiveObjectVersion? retired,
         IReadOnlyList<string>? unresolvedArtifacts, string? originEvidencePath, string? originEvidenceIdentity,
-        int? originEvidenceSources, ArchiveObjectVersion? originEvidence, long stageMaximumLength)
+        int? originEvidenceSources, ArchiveObjectVersion? originEvidence, long stageMaximumLength, IReadOnlyList<ArchiveSidecarFacts>? sidecars,
+        ArchiveObjectVersion? finalizedStage)
     {
-        if (recordVersion is not (1 or 2 or SchemaVersion)) throw new ArgumentException("Unsupported archive transaction schema.");
+        if (recordVersion is not (1 or 2 or 3 or SchemaVersion)) throw new ArgumentException("Unsupported archive transaction schema.");
+        if (recordVersion < 4 && phase == ArchiveTransactionPhase.Finalizing) throw new ArgumentException("This archive phase is not part of the recorded schema.");
         if (nonce == Guid.Empty || sequence is < 1 or > MaxTransitions || !Enum.IsDefined(phase))
             throw new ArgumentException("The archive transaction phase or sequence is invalid.");
         ArgumentNullException.ThrowIfNull(profile);
@@ -97,6 +102,9 @@ public sealed class ArchiveTransactionFacts
         if (original is not null && original.Identity == stageIdentity) throw new ArgumentException("The stage cannot alias the original object.");
         if (verifiedStage is not null && verifiedStage.Identity != stageIdentity)
             throw new ArgumentException("The verified stage is a different object.");
+        if (finalizedStage is not null && (finalizedStage.Identity != stageIdentity || finalizedStage.Length > stageMaximumLength ||
+            verifiedStage is not null && finalizedStage != verifiedStage))
+            throw new ArgumentException("The finalized stage differs from its reserved or verified object and bytes.");
         if (retainedPath is not null)
         {
             ValidatePath(retainedPath);
@@ -141,7 +149,7 @@ public sealed class ArchiveTransactionFacts
         if (published is not null && verifiedStage is not null && published != verifiedStage)
             throw new ArgumentException("The publication is not the verified stage object and bytes.");
         if (retired is not null && original is null) throw new ArgumentException("A creation cannot retire an original.");
-        if (phase is ArchiveTransactionPhase.Reserved or ArchiveTransactionPhase.Rebuilding or ArchiveTransactionPhase.Verifying or
+        if (phase is ArchiveTransactionPhase.Reserved or ArchiveTransactionPhase.Rebuilding or ArchiveTransactionPhase.Finalizing or ArchiveTransactionPhase.Verifying or
             ArchiveTransactionPhase.ReadyToPublish or ArchiveTransactionPhase.NotCommitted && (published is not null || retired is not null))
             throw new ArgumentException("Publication observations cannot precede publication.");
         if (phase is ArchiveTransactionPhase.Committed or ArchiveTransactionPhase.CommittedWithRetainedArtifacts && original != retired)
@@ -163,13 +171,51 @@ public sealed class ArchiveTransactionFacts
             throw new ArgumentException("A resolved transaction cannot have unresolved artifacts.");
         if (phase == ArchiveTransactionPhase.CommittedWithRetainedArtifacts && artifacts.Count == 0)
             throw new ArgumentException("A cleanup warning must name its retained artifacts.");
+        sidecars ??= [];
+        if (sidecars.Count >= MaxArtifacts || recordVersion < 4 && sidecars.Count != 0) throw new ArgumentException("Too many or unsupported archive sidecars.");
+        var frozenSidecars = sidecars.ToArray();
+        var roles = new HashSet<ArchiveSidecarRole>();
+        var sidecarPaths = new HashSet<string>(StringComparer.Ordinal) { archivePath, stagePath };
+        var sidecarIdentities = new HashSet<string>(StringComparer.Ordinal);
+        if (retainedPath is not null) sidecarPaths.Add(retainedPath);
+        if (stageIdentity is not null) sidecarIdentities.Add(stageIdentity);
+        if (original is not null) sidecarIdentities.Add(original.Identity);
+        foreach (var sidecar in frozenSidecars)
+        {
+            if (sidecar is null || !roles.Add(sidecar.Role) || !sidecarPaths.Add(sidecar.Path) ||
+                sidecar.Identity is not null && !sidecarIdentities.Add(sidecar.Identity))
+                throw new ArgumentException("Archive sidecars have duplicate roles or alias another transaction object.");
+            if (sidecar.Role == ArchiveSidecarRole.OriginEvidence && (sidecar.OriginSources < (original is null ? 0 : 1) ||
+                sidecar.OriginSources > ArchiveWritePolicy.MaxMembers + (original is null ? 0 : 1)))
+                throw new ArgumentException("The sidecar lacks the original archive's provenance scope.");
+            if (phase != ArchiveTransactionPhase.Reserved && phase != ArchiveTransactionPhase.NeedsReview &&
+                (sidecar.Role != ArchiveSidecarRole.VerifiedOutput || publicationPhase) && sidecar.Version is null)
+                throw new ArgumentException("A transaction cannot advance before its required sidecars are sealed.");
+            if (phase is ArchiveTransactionPhase.Committed or ArchiveTransactionPhase.NotCommitted or ArchiveTransactionPhase.RolledBack && sidecar.Identity is null)
+                throw new ArgumentException("An unknown sidecar must remain available for review.");
+        }
+        if (frozenSidecars.Length != 0)
+        {
+            if ((phase == ArchiveTransactionPhase.Verifying || publicationPhase) && finalizedStage is null)
+                throw new ArgumentException("Fresh verification requires a recorded finalized native stage version.");
+            if (verifiedStage is not null && frozenSidecars.Any(s => s.Role == ArchiveSidecarRole.VerifiedOutput && s.Version is null))
+                throw new ArgumentException("Verified stage evidence requires its reserved observed manifest.");
+            var expected = frozenSidecars.SingleOrDefault(s => s.Role == ArchiveSidecarRole.ExpectedOutput);
+            if (manifest != expected?.Version || manifestPath != (expected?.Version is null ? null : expected.Path))
+                throw new ArgumentException("Final manifest evidence differs from its reserved sidecar.");
+            var origin = frozenSidecars.SingleOrDefault(s => s.Role == ArchiveSidecarRole.OriginEvidence);
+            if (originEvidence != origin?.Version || originEvidencePath != (origin?.Identity is null ? null : origin.Path) ||
+                originEvidenceIdentity != origin?.Identity || originEvidenceSources != (origin?.Identity is null ? null : origin.OriginSources))
+                throw new ArgumentException("Provenance evidence differs from its reserved sidecar.");
+        }
         RecordVersion = recordVersion; Nonce = nonce; Sequence = sequence; Profile = profile; Phase = phase; ArchivePath = archivePath;
         ParentIdentity = parentIdentity; Original = original; StagePath = stagePath; StageIdentity = stageIdentity; StageMaximumLength = stageMaximumLength;
-        VerifiedStage = verifiedStage; RetainedPath = retainedPath; ManifestPath = manifestPath; Manifest = manifest;
+        VerifiedStage = verifiedStage; FinalizedStage = finalizedStage; RetainedPath = retainedPath; ManifestPath = manifestPath; Manifest = manifest;
         OriginEvidencePath = originEvidencePath; OriginEvidenceIdentity = originEvidenceIdentity;
         OriginEvidenceSources = originEvidenceSources; OriginEvidence = originEvidence;
         SecuritySnapshotSha256 = securitySnapshotSha256; Published = published; Retired = retired;
         UnresolvedArtifacts = Array.AsReadOnly(frozenArtifacts);
+        Sidecars = Array.AsReadOnly(frozenSidecars);
         // Individual path/identity ceilings do not imply that their simultaneous escaped forms fit a CRC line.
         // Refuse the combined snapshot before any journal append or corresponding namespace mutation.
         if (System.Text.Encoding.UTF8.GetByteCount(ToJson().ToJsonString()) > Jobs.JobJournal.MaxJournalLineBytes - 10)
@@ -184,7 +230,7 @@ public sealed class ArchiveTransactionFacts
         catch (System.Text.EncoderFallbackException) { throw new ArgumentException("An archive transaction field is not exact UTF-8."); }
     }
 
-    private static void ValidatePath(string path)
+    internal static void ValidatePath(string path)
     {
         ValidateText(path, ArchiveWritePolicy.MaxNameChars);
         if (!Path.IsPathFullyQualified(path)) throw new ArgumentException("An archive transaction path must be absolute.");
@@ -197,12 +243,24 @@ public sealed class ArchiveTransactionFacts
             if (Sequence != 1 || Phase != ArchiveTransactionPhase.Reserved) throw new ArgumentException("An archive transaction must start with reservation.");
             return;
         }
+        if (Sidecars.Count != previous.Sidecars.Count) throw new ArgumentException("The initial sidecar reservation set is immutable.");
+        int advances = previous.StageIdentity is null && StageIdentity is not null ? 1 : 0;
+        for (int i = 0; i < Sidecars.Count; i++) advances += Sidecars[i].AdvancesFrom(previous.Sidecars[i]);
+        if (RecordVersion >= 4 && advances != 0 && Phase != previous.Phase)
+            throw new ArgumentException("Artifact identity/version evidence must be recorded before changing preparation phase.");
+        if (Sidecars.Count != 0 && (previous.FinalizedStage is null && FinalizedStage is not null &&
+            (previous.Phase, Phase) != (ArchiveTransactionPhase.Finalizing, ArchiveTransactionPhase.Verifying) ||
+            previous.VerifiedStage is null && VerifiedStage is not null &&
+            (previous.Phase, Phase) != (ArchiveTransactionPhase.Verifying, ArchiveTransactionPhase.Verifying)))
+            throw new ArgumentException("Finalized or verified stage evidence was recorded in the wrong preparation transition.");
+        bool verifiedSidecarAdvance = advances == 1 && previous.StageIdentity == StageIdentity && Sidecars.Where((s, i) => s != previous.Sidecars[i]).All(s => s.Role == ArchiveSidecarRole.VerifiedOutput);
         if (RecordVersion != previous.RecordVersion || Nonce != previous.Nonce || Sequence != previous.Sequence + 1 || Profile != previous.Profile ||
             ArchivePath != previous.ArchivePath || ParentIdentity != previous.ParentIdentity || Original != previous.Original ||
             StagePath != previous.StagePath || StageMaximumLength != previous.StageMaximumLength ||
             previous.StageIdentity is not null && StageIdentity != previous.StageIdentity ||
             previous.RetainedPath is not null && RetainedPath != previous.RetainedPath ||
             previous.VerifiedStage is not null && VerifiedStage != previous.VerifiedStage ||
+            previous.FinalizedStage is not null && FinalizedStage != previous.FinalizedStage ||
             previous.Manifest is not null && (Manifest != previous.Manifest || ManifestPath != previous.ManifestPath) ||
             previous.OriginEvidencePath is not null && (OriginEvidencePath != previous.OriginEvidencePath ||
                 OriginEvidenceIdentity != previous.OriginEvidenceIdentity || OriginEvidenceSources != previous.OriginEvidenceSources) ||
@@ -212,16 +270,19 @@ public sealed class ArchiveTransactionFacts
             throw new ArgumentException("Archive transaction evidence changed or a transition is missing.");
         bool allowed = (previous.Phase, Phase) switch
         {
-            (ArchiveTransactionPhase.Reserved, ArchiveTransactionPhase.Reserved) => RecordVersion >= 3 &&
-                previous.StageIdentity is null && StageIdentity is not null,
+            (ArchiveTransactionPhase.Reserved, ArchiveTransactionPhase.Reserved) => RecordVersion >= 3 && advances == 1,
             (ArchiveTransactionPhase.Reserved, ArchiveTransactionPhase.Rebuilding) => true,
-            (ArchiveTransactionPhase.Rebuilding, ArchiveTransactionPhase.Verifying) => true,
+            (ArchiveTransactionPhase.Rebuilding, ArchiveTransactionPhase.Verifying) => Sidecars.Count == 0,
+            (ArchiveTransactionPhase.Rebuilding, ArchiveTransactionPhase.Finalizing) => RecordVersion >= 4,
+            (ArchiveTransactionPhase.Finalizing, ArchiveTransactionPhase.Verifying) => RecordVersion >= 4,
+            (ArchiveTransactionPhase.Verifying, ArchiveTransactionPhase.Verifying) => RecordVersion >= 4 &&
+                (verifiedSidecarAdvance && VerifiedStage == previous.VerifiedStage || advances == 0 && previous.VerifiedStage is null && VerifiedStage is not null),
             (ArchiveTransactionPhase.Verifying, ArchiveTransactionPhase.ReadyToPublish) => true,
             (ArchiveTransactionPhase.ReadyToPublish, ArchiveTransactionPhase.Publishing) => true,
             (ArchiveTransactionPhase.Publishing, ArchiveTransactionPhase.Reconciling) => true,
             (ArchiveTransactionPhase.Reconciling, ArchiveTransactionPhase.Cleaning or ArchiveTransactionPhase.RolledBack) => true,
             (ArchiveTransactionPhase.Cleaning, ArchiveTransactionPhase.Committed or ArchiveTransactionPhase.CommittedWithRetainedArtifacts) => true,
-            (ArchiveTransactionPhase.Reserved or ArchiveTransactionPhase.Rebuilding or ArchiveTransactionPhase.Verifying or
+            (ArchiveTransactionPhase.Reserved or ArchiveTransactionPhase.Rebuilding or ArchiveTransactionPhase.Finalizing or ArchiveTransactionPhase.Verifying or
                 ArchiveTransactionPhase.ReadyToPublish or ArchiveTransactionPhase.Publishing, ArchiveTransactionPhase.NotCommitted) => true,
             (_, ArchiveTransactionPhase.NeedsReview) => !previous.IsResolved && previous.Phase is not
                 (ArchiveTransactionPhase.NeedsReview or ArchiveTransactionPhase.CommittedWithRetainedArtifacts),
@@ -250,6 +311,12 @@ public sealed class ArchiveTransactionFacts
             node["originSources"] = OriginEvidenceSources; node["originEvidence"] = VersionJson(OriginEvidence);
         }
         if (RecordVersion >= 3) node["stageMaximum"] = StageMaximumLength;
+        if (RecordVersion >= 4) node["sidecars"] = new JsonArray(Sidecars.Select(s => (JsonNode)new JsonObject
+        {
+            ["role"] = (int)s.Role, ["path"] = s.Path, ["maximum"] = s.MaximumLength, ["identity"] = s.Identity,
+            ["version"] = VersionJson(s.Version), ["sources"] = s.OriginSources,
+        }).ToArray());
+        if (RecordVersion >= 4) node["finalized"] = VersionJson(FinalizedStage);
         return node;
     }
 
@@ -259,7 +326,35 @@ public sealed class ArchiveTransactionFacts
             throw new InvalidOperationException("Only a fresh stage reservation can record its created identity.");
         return new(Nonce, Sequence + 1, Profile, Phase, ArchivePath, ParentIdentity, Original, StagePath, identity,
             VerifiedStage, RetainedPath, ManifestPath, Manifest, SecuritySnapshotSha256, Published, Retired, UnresolvedArtifacts,
-            OriginEvidencePath, OriginEvidenceIdentity, OriginEvidenceSources, OriginEvidence, StageMaximumLength);
+            OriginEvidencePath, OriginEvidenceIdentity, OriginEvidenceSources, OriginEvidence, StageMaximumLength, Sidecars, FinalizedStage);
+    }
+
+    internal ArchiveTransactionFacts BindSidecar(ArchiveSidecarFacts sidecar)
+    {
+        if (RecordVersion != SchemaVersion || Phase != ArchiveTransactionPhase.Reserved && !(Phase == ArchiveTransactionPhase.Verifying && sidecar.Role == ArchiveSidecarRole.VerifiedOutput))
+            throw new InvalidOperationException("The transaction is not reserving sidecars.");
+        var next = Sidecars.ToArray(); int index = Array.FindIndex(next, s => s.Role == sidecar.Role);
+        if (index < 0 || sidecar.AdvancesFrom(next[index]) != 1) throw new ArgumentException("A single reserved sidecar advance is required.");
+        next[index] = sidecar;
+        var expected = next.SingleOrDefault(s => s.Role == ArchiveSidecarRole.ExpectedOutput);
+        var origin = next.SingleOrDefault(s => s.Role == ArchiveSidecarRole.OriginEvidence);
+        return new(Nonce, Sequence + 1, Profile, Phase, ArchivePath, ParentIdentity, Original, StagePath, StageIdentity,
+            VerifiedStage, RetainedPath, expected?.Version is null ? null : expected.Path, expected?.Version, SecuritySnapshotSha256, Published, Retired,
+            UnresolvedArtifacts, origin?.Identity is null ? null : origin.Path, origin?.Identity, origin?.Identity is null ? null : origin.OriginSources,
+            origin?.Version, StageMaximumLength, next, FinalizedStage);
+    }
+
+    internal ArchiveTransactionFacts AdvancePreparation(ArchiveTransactionPhase phase, ArchiveObjectVersion? verifiedStage = null, ArchiveObjectVersion? finalizedStage = null)
+    {
+        if (RecordVersion != SchemaVersion || (Phase, phase) is not
+            ((ArchiveTransactionPhase.Reserved, ArchiveTransactionPhase.Rebuilding) or
+             (ArchiveTransactionPhase.Rebuilding, ArchiveTransactionPhase.Finalizing) or
+             (ArchiveTransactionPhase.Finalizing, ArchiveTransactionPhase.Verifying) or
+             (ArchiveTransactionPhase.Verifying, ArchiveTransactionPhase.Verifying)))
+            throw new InvalidOperationException("The transaction is not advancing archive preparation.");
+        return new(Nonce, Sequence + 1, Profile, phase, ArchivePath, ParentIdentity, Original, StagePath, StageIdentity,
+            verifiedStage ?? VerifiedStage, RetainedPath, ManifestPath, Manifest, SecuritySnapshotSha256, Published, Retired, UnresolvedArtifacts,
+            OriginEvidencePath, OriginEvidenceIdentity, OriginEvidenceSources, OriginEvidence, StageMaximumLength, Sidecars, finalizedStage ?? FinalizedStage);
     }
 
     private static JsonObject? VersionJson(ArchiveObjectVersion? v) => v is null ? null :
@@ -272,8 +367,9 @@ public sealed class ArchiveTransactionFacts
             "verified", "retained", "manifestPath", "manifest", "security", "published", "retired", "unresolved"];
         if (recordVersion >= 2) keys = [.. keys, "originPath", "originIdentity", "originSources", "originEvidence"];
         if (recordVersion >= 3) keys = [.. keys, "stageMaximum"];
+        if (recordVersion >= 4) keys = [.. keys, "sidecars", "finalized"];
         ExactKeys(node, keys);
-        if (recordVersion is not (1 or 2 or SchemaVersion) || Text(node, "t") != "archive-transaction" ||
+        if (recordVersion is not (1 or 2 or 3 or SchemaVersion) || Text(node, "t") != "archive-transaction" ||
             !Guid.TryParseExact(Text(node, "nonce"), "N", out var nonce) ||
             !Enum.TryParse(Text(node, "phase"), out ArchiveTransactionPhase phase) || phase.ToString() != Text(node, "phase") ||
             node["profile"] is not JsonObject profile || node["unresolved"] is not JsonArray artifacts || artifacts.Count > MaxArtifacts)
@@ -289,7 +385,21 @@ public sealed class ArchiveTransactionFacts
             recordVersion >= 2 && node["originSources"] is not null ? Int(node, "originSources") : null,
             recordVersion >= 2 ? ParseVersion(node["originEvidence"]) : null,
             recordVersion >= 3 && node["stageMaximum"] is JsonValue maximum && maximum.TryGetValue<long>(out long bound)
-                ? bound : recordVersion < 3 ? ArchiveWritePolicy.MaxPhysicalBytes : throw new ArgumentException("Invalid stage bound."));
+                ? bound : recordVersion < 3 ? ArchiveWritePolicy.MaxPhysicalBytes : throw new ArgumentException("Invalid stage bound."),
+            recordVersion >= 4 ? ParseSidecars(node["sidecars"]) : null, recordVersion >= 4 ? ParseVersion(node["finalized"]) : null);
+    }
+
+    private static ArchiveSidecarFacts[] ParseSidecars(JsonNode? node)
+    {
+        if (node is not JsonArray sidecars || sidecars.Count >= MaxArtifacts) throw new ArgumentException("Invalid sidecar reservation set.");
+        return sidecars.Select(n =>
+        {
+            if (n is not JsonObject sidecar) throw new ArgumentException("Invalid sidecar reservation.");
+            ExactKeys(sidecar, "role", "path", "maximum", "identity", "version", "sources");
+            if (sidecar["maximum"] is not JsonValue value || !value.TryGetValue<long>(out long maximum)) throw new ArgumentException("Invalid sidecar bound.");
+            return new ArchiveSidecarFacts((ArchiveSidecarRole)Int(sidecar, "role"), Text(sidecar, "path"), maximum,
+                OptionalText(sidecar, "identity"), ParseVersion(sidecar["version"]), sidecar["sources"] is null ? null : Int(sidecar, "sources"));
+        }).ToArray();
     }
 
     private static ArchiveObjectVersion? ParseVersion(JsonNode? node)
@@ -341,6 +451,13 @@ internal sealed class ArchiveTransactionCollector
         facts.ValidateAfter(latest.GetValueOrDefault(facts.Nonce));
     }
     public void Accept(ArchiveTransactionFacts facts) { ValidateNext(facts); latest[facts.Nonce] = facts; hasRecords = true; }
+    internal void RequireCurrent(ArchiveTransactionFacts facts)
+    {
+        if (problem is not null || damaged || !ReferenceEquals(latest.GetValueOrDefault(facts.Nonce), facts))
+            throw new InvalidOperationException("The supplied archive facts are not the current durable parent facts.");
+    }
+    internal ArchiveTransactionFacts Current(Guid nonce) => latest.GetValueOrDefault(nonce) ??
+        throw new InvalidOperationException("The archive transaction has no durable parent facts.");
     public void Read(string type, JsonObject node)
     {
         // A later header/end cannot turn out-of-order archive history into a completed transaction.
@@ -358,7 +475,7 @@ internal sealed class ArchiveTransactionCollector
         {
             hasRecords = true;
             if (node["archiveJournalVersion"] is not JsonValue value || !value.TryGetValue<int>(out int version) ||
-                version is not (1 or 2 or ArchiveTransactionFacts.SchemaVersion))
+                version is not (1 or 2 or 3 or ArchiveTransactionFacts.SchemaVersion))
                 problem = "This archive journal version is unsupported; retain all related artifacts for review.";
             else { headerVersion = version; legacy |= version == 1; }
             return;

@@ -19,7 +19,7 @@ internal sealed partial class WindowsArchiveFile : Stream, IArchiveRetainedStage
     private readonly bool artifact, mayRename;
     private readonly bool createdWritable;
     private readonly WindowsArchiveArtifactKind? createdKind;
-    private bool rebuildClaimed;
+    private bool rebuildClaimed, evidenceClaimed;
     private bool writable, disposed, removed, namespaceChanged;
     private long position;
     public FileIdentity Identity { get; }

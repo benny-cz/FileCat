@@ -2,6 +2,8 @@ using System.Formats.Tar;
 using FileCat.Core.Archives;
 using FileCat.Platform.Windows.Archives;
 using FileCat.Platform.Windows.Shell;
+using FileCat.Core.Jobs;
+using FileCat.Tests;
 
 namespace FileCat.Platform.Windows.Tests;
 
@@ -42,11 +44,16 @@ public sealed partial class ArchiveAppContainerTests
                 }
                 var plan = ArchiveTarTransformPlan.Create(assessment, [state.Input(3)], source is null ? [] :
                     [new(ArchiveChangeKind.Replace, new(assessment!.CatalogRevision, "old", ArchiveMemberType.File, 0), inputId: 3)], [new("added", ArchiveMemberType.File, 3)], ct);
-                using var stage = directory.CreateArtifact(Guid.NewGuid(), WindowsArchiveArtifactKind.Stage, ArchiveTransformWire.OutputBound(plan.Expected, ct));
+                using var journal = JobJournal.Create(Path.Combine(root, "journals"), new Job(new JobRequest { Kind = JobKind.ArchiveUpdate,
+                    Archive = new(Path.Combine(root, "result.tar"), null, [], Profile: new(ArchiveWriteFormat.Tar)) }, "owned journaled TAR preparation", "owned", [], []));
                 ArchiveAppContainer? transform = null, verifier = null;
-                var result = await ArchiveRetainedTarPipeline.RebuildAndVerifyAsync(plan, source, new Dictionary<int, ArchiveRetainedBinding> { [3] = new(input, state) }, stage,
-                    new((nonce, cpu) => transform = application ? ArchiveAppContainer.StartTransform(executable, nonce, cpu) : ArchiveAppContainer.Start(executable, "archive-transform " + nonce, cpu)),
-                    new((nonce, cpu) => verifier = application ? ArchiveAppContainer.StartVerification(executable, nonce, cpu) : ArchiveAppContainer.Start(executable, "archive-verify " + nonce, cpu)), ct);
+                using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, update ? "original.tar" : "result.tar"), plan, source,
+                    new Dictionary<int, ArchiveRetainedBinding> { [3] = new(input, state) },
+                    (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (WindowsArchiveArtifactKind)kind, maximum),
+                    r => { ArchiveJournaledTarAssertions.BeforeCreate(journal, r); return directory.CreateArtifact(r); },
+                    new((nonce, cpu) => { ArchiveJournaledTarAssertions.Phase(journal, ArchiveTransactionPhase.Rebuilding); return transform = application ? ArchiveAppContainer.StartTransform(executable, nonce, cpu) : ArchiveAppContainer.Start(executable, "archive-transform " + nonce, cpu); }),
+                    new((nonce, cpu) => { ArchiveJournaledTarAssertions.Phase(journal, ArchiveTransactionPhase.Verifying); return verifier = application ? ArchiveAppContainer.StartVerification(executable, nonce, cpu) : ArchiveAppContainer.Start(executable, "archive-verify " + nonce, cpu); }), ct);
+                var stage = prepared.Stage; var result = prepared.Verified; ArchiveJournaledTarAssertions.Complete(prepared, journal, plan, ct);
                 Assert.Equal(result.Stage.Version, stage.CaptureVersion(ct)); Assert.Equal(result.Stage.Version, result.Verification.Stage);
                 Assert.Equal(plan.Expected.Digest, result.Verification.ManifestDigest); Assert.False(stage.CanWrite); Assert.Throws<NotSupportedException>(() => stage.WriteByte(1));
                 Assert.True(input.CanRead); Assert.Equal(state.Version, ((IArchiveRetainedFile)input).Observe(ct).Version);

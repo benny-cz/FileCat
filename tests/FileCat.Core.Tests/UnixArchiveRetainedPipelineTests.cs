@@ -1,6 +1,8 @@
 using System.Formats.Tar;
 using FileCat.Core.Archives;
 using FileCat.Core.Archives.Unix;
+using FileCat.Core.Jobs;
+using FileCat.Tests;
 using Child = FileCat.Core.Tests.ArchiveAssessmentClientTests.Child;
 
 namespace FileCat.Core.Tests;
@@ -46,10 +48,16 @@ public sealed partial class UnixArchiveStorageTests
             var plan = ArchiveTarTransformPlan.Create(assessment, [inputState.Input(7)], source is null ? [] :
                 [new(ArchiveChangeKind.Replace, new(assessment!.CatalogRevision, "old", ArchiveMemberType.File, 0), inputId: 7)],
                 [new("added", ArchiveMemberType.File, 7)], ct);
-            using var stage = Stage(directory, ArchiveTransformWire.OutputBound(plan.Expected, ct)); string retained = stage.DisplayPath;
+            using var journal = ReservationJournal(root);
             Child? transform = null, verifier = null;
-            var result = await ArchiveRetainedTarPipeline.RebuildAndVerifyAsync(plan, source, new Dictionary<int, ArchiveRetainedBinding> { [7] = new(captured, inputState) }, stage,
-                new((nonce, _) => transform = Child.Start(nonce, "archive-transform")), new((nonce, _) => verifier = Child.Start(nonce, "archive-verify")), ct);
+            using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, update ? "original.tar" : "result.tar"), plan, source,
+                new Dictionary<int, ArchiveRetainedBinding> { [7] = new(captured, inputState) },
+                (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum),
+                r => { ArchiveJournaledTarAssertions.BeforeCreate(journal, r); return directory.CreateArtifact(r); },
+                new((nonce, _) => { ArchiveJournaledTarAssertions.Phase(journal, ArchiveTransactionPhase.Rebuilding); return transform = Child.Start(nonce, "archive-transform"); }),
+                new((nonce, _) => { ArchiveJournaledTarAssertions.Phase(journal, ArchiveTransactionPhase.Verifying); return verifier = Child.Start(nonce, "archive-verify"); }), ct);
+            var stage = prepared.Stage; var result = prepared.Verified; string retained = stage.DisplayPath;
+            ArchiveJournaledTarAssertions.Complete(prepared, journal, plan, ct);
             Assert.Equal(Version(stage), result.Stage.Version); Assert.Equal(result.Stage.Version, result.Verification.Stage);
             Assert.Equal(plan.Expected.Digest, result.Verification.ManifestDigest); Assert.True(transform!.Reaped); Assert.True(verifier!.Reaped);
             Assert.NotEqual(transform.ProcessId, verifier.ProcessId); Assert.False(stage.CanWrite); Assert.Throws<NotSupportedException>(() => stage.WriteByte(1));
