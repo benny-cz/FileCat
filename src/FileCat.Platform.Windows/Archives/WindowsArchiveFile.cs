@@ -11,13 +11,15 @@ namespace FileCat.Platform.Windows.Archives;
 /// releases handles: it never deletes evidence. Rename/delete primitives must be called by a coordinator only after
 /// the corresponding durable journal intent. They are not a complete publication or recovery protocol.
 /// </summary>
-internal sealed partial class WindowsArchiveFile : Stream
+internal sealed partial class WindowsArchiveFile : Stream, IArchiveRetainedStage
 {
     private readonly WindowsArchiveDirectory parent;
     private readonly SafeFileHandle handle;
     private readonly long maximumLength;
     private readonly bool artifact, mayRename;
     private readonly bool createdWritable;
+    private readonly WindowsArchiveArtifactKind? createdKind;
+    private bool rebuildClaimed;
     private bool writable, disposed, removed, namespaceChanged;
     private long position;
     public FileIdentity Identity { get; }
@@ -26,10 +28,11 @@ internal sealed partial class WindowsArchiveFile : Stream
     public uint LinkCount { get { lock (parent.Gate) { EnsureLive(); return Validate(); } } }
 
     internal WindowsArchiveFile(WindowsArchiveDirectory parent, SafeFileHandle handle, string leaf, FileIdentity identity,
-        long maximumLength, bool artifact, bool writable, bool mayRename)
+        long maximumLength, bool artifact, bool writable, bool mayRename, WindowsArchiveArtifactKind? createdKind = null)
     {
         this.parent = parent; this.handle = handle; KnownName = leaf; Identity = identity;
         this.maximumLength = maximumLength; this.artifact = artifact; this.writable = writable; createdWritable = writable; this.mayRename = mayRename;
+        this.createdKind = createdKind;
     }
 
     public override bool CanRead { get { lock (parent.Gate) return !disposed && !removed; } }

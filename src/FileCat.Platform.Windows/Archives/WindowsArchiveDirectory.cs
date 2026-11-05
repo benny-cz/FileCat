@@ -80,7 +80,7 @@ internal sealed class WindowsArchiveDirectory : IDisposable
                 if (status == NameCollision) { handle.Dispose(); continue; }
                 if (status < 0) { handle.Dispose(); throw Error(status, "Create exclusive private archive artifact"); }
                 // On a post-create failure, retain the object. Neither its name nor a prefix authorizes path cleanup.
-                try { return Adopt(handle, leaf, maximumLength, artifact: true, writable: true, mayRename: true); }
+                try { return Adopt(handle, leaf, maximumLength, artifact: true, writable: true, mayRename: true, createdKind: kind); }
                 catch (Exception ex) { throw new WindowsArchiveArtifactCreationException(Path.Combine(DisplayPath, leaf), ex); }
             }
             throw new IOException("An exclusive archive artifact name could not be claimed.");
@@ -117,7 +117,7 @@ internal sealed class WindowsArchiveDirectory : IDisposable
     }
 
     private WindowsArchiveFile Adopt(SafeFileHandle handle, string leaf, long maximumLength, bool artifact, bool writable,
-        bool mayRename, FileIdentity? expected = null)
+        bool mayRename, FileIdentity? expected = null, WindowsArchiveArtifactKind? createdKind = null)
     {
         try
         {
@@ -125,7 +125,7 @@ internal sealed class WindowsArchiveDirectory : IDisposable
             var identity = ProtectedHexFile.Identity(handle);
             if (expected is { } wanted && identity != wanted) throw new IOException("The archive artifact is a different object; retain it for review.");
             if (artifact) WindowsArchiveNative.RequirePrivateSecurity(handle, owner);
-            var result = new WindowsArchiveFile(this, handle, leaf, identity, maximumLength, artifact, writable, mayRename);
+            var result = new WindowsArchiveFile(this, handle, leaf, identity, maximumLength, artifact, writable, mayRename, createdKind);
             children++;
             return result;
         }
@@ -133,6 +133,21 @@ internal sealed class WindowsArchiveDirectory : IDisposable
     }
 
     internal void CheckPrivate(SafeFileHandle handle) => WindowsArchiveNative.RequirePrivateSecurity(handle, owner);
+
+    internal void VerifyNamespace()
+    {
+        using var fresh = LocalIconFileLease.TryOpenDirectory(DisplayPath, LeaseLinks.Refuse, removable: true);
+        if (fresh is null || ProtectedHexFile.Identity(fresh.LastHandle) != Identity || ProtectedHexFile.Identity(Handle) != Identity || WindowsArchiveNative.Volume(Handle) != Volume)
+            throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "The retained archive directory changed; preserve its objects for review.");
+    }
+    internal void RequireName(string leaf, FileIdentity expected)
+    {
+        // Attribute-only observation permits our existing data/delete access without granting a new data writer.
+        using var named = OpenOrThrow(Handle, leaf, 0x80 /* FILE_READ_ATTRIBUTES */ | Synchronize, ShareRead | ShareWrite | ShareDelete,
+            NtFile.Open, NonDirectoryFile | OpenReparsePoint, "Review retained archive name");
+        if (ProtectedHexFile.Identity(named) != expected)
+            throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "The retained archive name now identifies another object.");
+    }
 
     internal void ReleaseChild()
     {

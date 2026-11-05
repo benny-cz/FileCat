@@ -6,19 +6,21 @@ using Microsoft.Win32.SafeHandles;
 namespace FileCat.Core.Archives.Unix;
 
 /// <summary>Parent-owned bounded held-inode stream. Disposal retains evidence. No handle is granted to a codec/worker.</summary>
-internal sealed partial class UnixArchiveFile : Stream
+internal sealed partial class UnixArchiveFile : Stream, IArchiveRetainedStage
 {
     private readonly UnixArchiveDirectory parent;
     private readonly SafeFileHandle held;
     private readonly long maximum;
     private readonly bool artifact, createdWritable;
+    private readonly UnixArchiveArtifactKind? createdKind;
+    private bool rebuildClaimed;
     private bool writable, disposed, namespaceChanged;
     private long position;
     internal FileIdentity Identity { get; }
     internal string KnownName { get; private set; }
     internal string DisplayPath => Path.Combine(parent.DisplayPath, KnownName);
-    internal UnixArchiveFile(UnixArchiveDirectory parent, SafeFileHandle held, string leaf, FileIdentity identity, long maximum, bool artifact, bool writable)
-    { this.parent = parent; this.held = held; KnownName = leaf; Identity = identity; this.maximum = maximum; this.artifact = artifact; this.writable = writable; createdWritable = writable; }
+    internal UnixArchiveFile(UnixArchiveDirectory parent, SafeFileHandle held, string leaf, FileIdentity identity, long maximum, bool artifact, bool writable, UnixArchiveArtifactKind? createdKind = null)
+    { this.parent = parent; this.held = held; KnownName = leaf; Identity = identity; this.maximum = maximum; this.artifact = artifact; this.writable = writable; createdWritable = writable; this.createdKind = createdKind; }
     public override bool CanRead { get { lock (parent.Gate) return !disposed; } }
     public override bool CanSeek => CanRead;
     public override bool CanWrite { get { lock (parent.Gate) return !disposed && writable; } }

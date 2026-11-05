@@ -1,0 +1,49 @@
+using System.Formats.Tar;
+using FileCat.Core.Archives;
+using FileCat.Core.Archives.Linux;
+using FileCat.Core.Archives.Unix;
+using FileCat.Core.FileSystem;
+
+namespace FileCat.Core.Tests;
+
+public sealed partial class LinuxArchiveProcessTests
+{
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Retained_ext4_inputs_produce_a_real_private_sealed_stage_before_fresh_verification(bool update)
+    {
+        string probe = Probe(); var ct = TestContext.Current.CancellationToken; using var temp = new TempDir(); string root = UnixFiles.RealPath(temp.Path)!;
+        string inputPath = Path.Combine(root, "input"); File.WriteAllBytes(inputPath, "retained ext4 input"u8.ToArray());
+        File.SetLastWriteTimeUtc(inputPath, DateTime.UnixEpoch.AddSeconds(1700000000)); File.SetUnixFileMode(inputPath, (UnixFileMode)0x1a4);
+        using var directory = UnixArchiveDirectory.Open(root); using var input = directory.OpenSource("input"); var state = ((IArchiveRetainedFile)input).Observe(ct);
+        UnixArchiveFile? original = null; var workers = new List<LinuxArchiveProcess>();
+        try
+        {
+            ArchiveRetainedBinding? source = null; ArchiveAssessment? assessment = null;
+            if (update)
+            {
+                using (var data = File.Create(Path.Combine(root, "original.tar")))
+                using (var writer = new TarWriter(data, TarEntryFormat.Pax))
+                { using var content = new MemoryStream("before"u8.ToArray()); writer.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, "old") { DataStream = content }); }
+                original = directory.OpenSource("original.tar"); var originalState = ((IArchiveRetainedFile)original).Observe(ct); source = new(original, originalState);
+                assessment = await new ArchiveAssessmentClient((nonce, cpu) => Start(nonce, cpu, "archive-assess"))
+                    .AssessAsync(new(new(ArchiveWriteFormat.Tar), originalState.Version.Length, originalState.Version.Sha256), () => ((IArchiveRetainedFile)original).OpenReadView(originalState, ct), ct);
+            }
+            var plan = ArchiveTarTransformPlan.Create(assessment, [state.Input(5)], source is null ? [] :
+                [new(ArchiveChangeKind.Replace, new(assessment!.CatalogRevision, "old", ArchiveMemberType.File, 0), inputId: 5)], [new("added", ArchiveMemberType.File, 5)], ct);
+            using var stage = directory.CreateArtifact(Guid.NewGuid(), UnixArchiveArtifactKind.Stage, ArchiveTransformWire.OutputBound(plan.Expected, ct));
+            var result = await ArchiveRetainedTarPipeline.RebuildAndVerifyAsync(plan, source, new Dictionary<int, ArchiveRetainedBinding> { [5] = new(input, state) }, stage,
+                new((nonce, cpu) => Start(nonce, cpu, "archive-transform")), new((nonce, cpu) => Start(nonce, cpu, "archive-verify")), ct);
+            Assert.Equal(result.Stage.Version, stage.CaptureVersion(ct)); Assert.Equal(result.Stage.Version, result.Verification.Stage);
+            Assert.Equal(plan.Expected.Digest, result.Verification.ManifestDigest); Assert.False(stage.CanWrite); Assert.Throws<NotSupportedException>(() => stage.WriteByte(1));
+            Assert.True(input.CanRead); Assert.Equal(state.Version, ((IArchiveRetainedFile)input).Observe(ct).Version);
+            Assert.True(File.Exists(stage.DisplayPath)); Assert.False(File.Exists(Path.Combine(root, "result.tar")));
+            Assert.Equal(update ? 3 : 2, workers.Select(w => w.ProcessId).Distinct().Count());
+            foreach (var worker in workers) { Assert.True(worker.HasExited); Assert.Equal(0u, worker.ExitCode); Assert.False(Directory.Exists(worker.ControlPath)); }
+        }
+        finally { original?.Dispose(); }
+        LinuxArchiveProcess Start(Guid nonce, TimeSpan cpu, string role)
+        { var worker = LinuxArchiveProcess.Start(probe, nonce, cpu, [role, nonce.ToString("D")]); workers.Add(worker); return worker; }
+    }
+}

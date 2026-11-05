@@ -42,7 +42,7 @@ internal sealed class UnixArchiveDirectory : IDisposable
             string suffix = kind switch { UnixArchiveArtifactKind.Stage => "stage", UnixArchiveArtifactKind.Manifest => "manifest", _ => "origin" };
             string leaf = $".filecat-archive-{nonce:N}-{Guid.NewGuid():N}.{suffix}";
             var held = UnixArchiveNative.Create(directory, Path.Combine(DisplayPath, leaf), leaf);
-            try { return Adopt(held, leaf, maximumLength, artifact: true, writable: true); }
+            try { return Adopt(held, leaf, maximumLength, artifact: true, writable: true, createdKind: kind); }
             catch (Exception ex) { throw new UnixArchiveArtifactCreationException(Path.Combine(DisplayPath, leaf), ex); }
         }
     }
@@ -58,7 +58,7 @@ internal sealed class UnixArchiveDirectory : IDisposable
             return Adopt(held, leaf, maximumLength, artifact: expected.HasValue, writable: false, expected);
         }
     }
-    private UnixArchiveFile Adopt(SafeFileHandle held, string leaf, long maximumLength, bool artifact, bool writable, FileIdentity? expected = null)
+    private UnixArchiveFile Adopt(SafeFileHandle held, string leaf, long maximumLength, bool artifact, bool writable, FileIdentity? expected = null, UnixArchiveArtifactKind? createdKind = null)
     {
         try
         {
@@ -69,7 +69,7 @@ internal sealed class UnixArchiveDirectory : IDisposable
             if (expected is { } identity && facts.Identity != identity) throw UnixArchiveNative.Unavailable();
             if (artifact) UnixArchiveNative.RequirePrivate(held, user);
             VerifyNamespace(); RequireName(leaf, facts.Identity);
-            var file = new UnixArchiveFile(this, held, leaf, facts.Identity, maximumLength, artifact, writable); children++; return file;
+            var file = new UnixArchiveFile(this, held, leaf, facts.Identity, maximumLength, artifact, writable, createdKind); children++; return file;
         }
         catch { held.Dispose(); throw; }
     }
