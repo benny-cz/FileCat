@@ -177,7 +177,7 @@ public sealed class AnalysisSession : IDisposable
         finally
         {
             _io.HealthChanged -= OnDeviceHealth;
-            foreach (var source in _sources) source.Dispose();
+            foreach (var source in _sources) await AnalysisIo.ReleaseAsync(_io, source).ConfigureAwait(false);
             if (admitted) GlobalScans.Release();
             lock (_sync)
             {
@@ -207,11 +207,11 @@ public sealed class AnalysisSession : IDisposable
                 try
                 {
                     await PauseBoundaryAsync().ConfigureAwait(false);
-                    var relation = await _io.Run(device, IoPriority.Background, _ =>
+                    var relation = await AnalysisIo.Run(_io, device, _ =>
                     {
                         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
                         return _sources[parent].ContainsRoot(_sources[child]);
-                    }, CancellationToken.None).ConfigureAwait(false);
+                    }, _cancel.Token).ConfigureAwait(false);
                     _cancel.Token.ThrowIfCancellationRequested();
                     if (relation == AnalysisRootContainment.Covered) { coveredBy = parent; break; }
                     uncertain |= relation == AnalysisRootContainment.Unavailable;
@@ -251,7 +251,8 @@ public sealed class AnalysisSession : IDisposable
             _cancel.Token.ThrowIfCancellationRequested();
             var (entry, id, depth, cost) = pending.Pop(); pendingBytes -= cost;
             if (depth >= AnalysisLimits.Depth) { Issue("depth-limit", id); lock (_sync) _enumerationFailed++; continue; }
-            using var enumeration = source.Children(entry, _cancel.Token).GetEnumerator();
+            var enumeration = await AnalysisIo.Run(_io, device, _ => source.Children(entry, _cancel.Token).GetEnumerator(), _cancel.Token).ConfigureAwait(false);
+            await using var cursorOwner = AnalysisIo.OwnCursor(_io, device, enumeration);
             bool finished = false;
             bool succeeded = false;
             AnalysisEntry? carry = null;
@@ -264,7 +265,7 @@ public sealed class AnalysisSession : IDisposable
                 {
                     // Never cancel the scheduler task early: it owns the enumerator and its native handles until
                     // the call returns. Stop freezes observations immediately while retaining device admission.
-                    batch = await _io.Run(device, IoPriority.Background, _ => ReadBatch(source, entry, enumeration, carry), CancellationToken.None).ConfigureAwait(false);
+                    batch = await AnalysisIo.Run(_io, device, _ => ReadBatch(source, entry, enumeration, carry), _cancel.Token).ConfigureAwait(false);
                 }
                 catch (AnalysisSourceChangedException) { Issue("source-changed-or-boundary", id); break; }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Issue("enumeration-unavailable", id); break; }

@@ -65,8 +65,8 @@ public sealed class DiskSpaceViewModel : IDisposable
                 foreach (string path in roots)
                 {
                     string requested = Path.GetFullPath(path);
-                    var source = await _services.Io.Run(PathUtil.GetDeviceKey(requested), IoPriority.Background, _ => Prepare(requested), CancellationToken.None);
-                    if (_disposed) { source.Dispose(); return; }
+                    var source = await AnalysisIo.Run(_services.Io, PathUtil.GetDeviceKey(requested), _ => Prepare(requested));
+                    if (_disposed) { _ = ReleasePreparedSourceAsync(source); return; }
                     _prepared.Add(source);
                 }
                 _preparedInput = roots.ToImmutableArray();
@@ -284,7 +284,20 @@ public sealed class DiskSpaceViewModel : IDisposable
         while (value >= 1024 && at < units.Length - 1) { value /= 1024; at++; }
         return value.ToString(at == 0 ? "N0" : "N1", CultureInfo.CurrentCulture) + " " + units[at];
     }
-    private void ReleasePrepared() { foreach (var source in _prepared) source.Dispose(); _prepared.Clear(); _preparedInput = []; }
+    private void ReleasePrepared()
+    {
+        var owned = _prepared.ToArray(); _prepared.Clear(); _preparedInput = [];
+        foreach (var source in owned) _ = ReleasePreparedSourceAsync(source);
+    }
+    private async Task ReleasePreparedSourceAsync(IAnalysisBackend source)
+    {
+        if (_services is null) throw new InvalidOperationException("A prepared source requires its owning I/O scheduler.");
+        try { await AnalysisIo.ReleaseAsync(_services.Io, source).ConfigureAwait(false); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            _services.Ui.Post(() => { if (!_disposed) SetStatus("Analysis handles could not be closed: " + ex.GetType().Name); });
+        }
+    }
     public void Dispose()
     {
         if (_disposed) return; _disposed = true; ++_generation;

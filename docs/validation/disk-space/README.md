@@ -6,13 +6,13 @@ This branch is under development. W0, W1, W2 and W3 are in progress; no release 
 
 | Run | Result | Receipt |
 |---|---|---|
-| Full solution build | No warnings or errors | [build](solution-build-r22.txt) |
-| Windows analysis, commands and state/path cases | 201 pass, 13 platform skips | [XML](windows-core-r22.xml) |
-| Ordinary Windows host | 12 pass, no skips | [XML](windows-host-native-r22.xml) |
-| Ordinary Windows guest | 12 pass, no skips | [XML](windows-vm-native-r22.xml) |
-| macOS arm64 analysis and command cases | 196 pass, no skips | [XML](mac-core-r22.xml) |
+| Full solution build | No warnings or errors | [build](solution-build-r23.txt) |
+| Windows analysis, commands and state/path cases | 208 pass, 13 platform skips | [XML](windows-core-r23.xml) |
+| Ordinary Windows host | 12 pass, no skips | [XML](windows-host-native-r23.xml) |
+| Ordinary Windows guest | 12 pass, no skips | [XML](windows-vm-native-r23.xml) |
+| macOS arm64 analysis and command cases | 203 pass, no skips | [XML](mac-core-r23.xml) |
 | macOS shared stat consumers | 49 pass, 2 platform skips | [XML](mac-stat-consumers-r22.xml) |
-| Skia headless presentation | 8 pass | [XML](analysis-render-r21.xml) |
+| Skia headless presentation | 8 pass | [XML](analysis-render-r23.xml) |
 | macOS native startup/close only | 509 generated regular paths unchanged; owned process exited | [receipt](mac-native-startup-r20.json) |
 | Ubuntu | Postponed while another tester's FileCat is running | No native Linux claim |
 
@@ -21,6 +21,8 @@ The Windows suite includes nine native cases and three reparse-tag classificatio
 The [schema-1 stream codec](../../design/FILECAT_DISK_SPACE_INVENTORY_SCHEMA.md) preserves tagged raw names and historical root text, enforces typed order and strict schema/resource bounds, verifies a mandatory SHA-256/count trailer, validates relationships and recomputes all four metrics with checked arithmetic. Every load is imported, unverified and inert. Tests include updated-checksum poisoned records, invalid encoding/numbers/enums, cycles and references, aggregate overflow, truncation, duplicate properties, depth/line/file bounds, fragmented nonseekable input and shared-memory refusal/release. The separate native private-publication foundation is described below. Named save/history, catalog, comparison and export/import UI remain unfinished; this codec is not a security-gate qualification.
 
 The [private-store foundation](../../design/FILECAT_DISK_SPACE_PRIVATE_STORE.md) now creates owner-private native storage, retains no-follow directory/file capabilities, streams through the strict codec with the 8 GiB cap and specified free-space reserve, and atomically creates new names. NTFS source-handle rename and APFS source-descriptor clone pass actual native create/reopen, Unicode-name, conflict-preservation, interruption and privacy/link refusal controls. The Mac controls exposed and fixed ACL absence/error ambiguity, the Apple Silicon variadic creation ABI and the Darwin capacity layout. Existing stat-helper clients also passed targeted regressions. Post-publication sync failures are explicitly uncertain; replacement and path fallback are absent. Linux implementation, process-death/orphan cleanup, scratch budgets, native UI and the broader persistence gate remain unqualified. [Source and binary provenance](source-manifest-r22.json) records the tested working tree and verified guest bundle. These CLI tests started no FileCat GUI instances and all runners exited.
+
+[Shared I/O ownership](../../design/FILECAT_DISK_SPACE_IO_OWNERSHIP.md) now covers preparation, containment, cursor creation/read/disposal and backend cleanup with eight global request reservations and one operation per device key. Prepared sources and late arrivals after view disposal close on workers. Cancellation retains actual native ownership, while canceled queued handle releases at application shutdown use a single bounded close worker with the same admission. Seven controls verify worker affinity, cancellation, cross-scheduler serialization, capacity and shutdown without duplicate close. The native Mac run exposed a blocking test barrier; its asynchronous replacement and worker-side reservation release pass on Windows and Mac. [Current provenance](source-manifest-r23.json) includes this checkpoint. Preparation cancellation/status, physical-device qualification and the wider resource matrix remain open.
 
 Raw display now exposes invalid Unix bytes and unpaired UTF16 units, escapes trailing name characters and distinguishes literal backslash sequences. Text predicates on names or paths that lack lossless text return Unknown; they do not match replacement characters. Logical-size uncertainty is independent of allocation: a zero-length file remains zero even when allocation is unavailable, while missing logical size is labelled Unknown in rows, tooltips and the inspector. Exact detail values remain integer byte counts.
 
