@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "purpose": "Test-only independent native Zstandard interoperability. None of these libraries/tools is shipped or used as a production fallback.",
+  "windowsAsset": {
+    "version": "1.5.7",
+    "url": "https://github.com/meta/zstd/releases/download/v1.5.7/zstd-v1.5.7-win64.zip",
+    "sha256": "ACB4E8111511749DC7A3EBEDCA9B04190E37A17AFEB73F55D4425DBF0B90FAD9",
+    "publisherDigest": null,
+    "note": "The official release API supplied no asset digest. SHA-256 pins the downloaded TLS-origin bytes; it is not a publisher-signature proof. The library is used under its existing BSD-3-Clause option."
+  },
+  "libraries": [
+    {
+      "os": "Windows", "architecture": "x64", "version": "1.5.7",
+      "origin": "dll/libzstd.dll in windowsAsset",
+      "sha256": "8F07E1112ED283E5CD2798833E9A3C32D8961381BC36DA04AF57A1B0CA9BD40B"
+    },
+    {
+      "os": "Darwin", "architecture": "arm64", "version": "1.5.5",
+      "origin": "/opt/homebrew/Cellar/zstd/1.5.5/lib/libzstd.dylib",
+      "sha256": "36B1BFDBAACD9B3033DE00459870D6F84DDF3DA7D3FB194FFF3E80935A7EB499"
+    },
+    {
+      "os": "Linux", "architecture": "x64", "version": "1.5.5",
+      "origin": "Ubuntu libzstd1:amd64 1.5.5+dfsg2-2build1.1, /lib/x86_64-linux-gnu/libzstd.so.1",
+      "sha256": "0A2128BC10841FB29E76D08D945864DFB0B6A66DA5DF6DF5D8299197439E54BB"
+    }
+  ]
+}

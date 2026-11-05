@@ -37,7 +37,7 @@ public sealed class ArchiveTarTransformPlan
         if (inputs.Count > ArchiveWritePolicy.MaxMembers || edits.Count > ArchiveWritePolicy.MaxMembers || additions.Count > ArchiveWritePolicy.MaxMembers)
             throw ArchiveWriteBudget.Limit();
         if (source is not null) ArgumentNullException.ThrowIfNull(source.Manifest);
-        if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2) || source is not null && profile != source.Manifest.Profile) throw Unsupported();
+        if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd) || source is not null && profile != source.Manifest.Profile) throw Unsupported();
         bool ustar = false;
         if (source is not null)
         {
@@ -112,6 +112,7 @@ public sealed class ArchiveTarTransformPlan
         if (usedInputs.Count != captured.Count) throw ArchiveManifestMember.Invalid(); // no unrelated read grants
         ValidateNamespace(planned, ct);
         // A headerless empty TAR has no PAX extension and is observed as USTAR, including a PAX remove-all update.
+        // Zstandard output always includes a content checksum, including updates of valid unchecked input frames.
         var expected = new ArchiveWriteManifest(profile, planned.Select(p => p.Member).ToArray(),
             ArchiveTarFeatures.Create(profile, ustar || planned.Count == 0 ? (byte)1 : (byte)2,
                 source is not null && profile.Format == ArchiveWriteFormat.TarGzip ? source.Manifest.Features[2] : (byte)255,

@@ -7,6 +7,7 @@ using FileCat.Core.Archives;
 
 namespace FileCat.Core.Tests;
 
+[Collection(ArchiveWorkerIntegrationCollection.Name)]
 public sealed class ArchiveAssessmentClientTests
 {
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));

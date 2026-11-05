@@ -2,10 +2,10 @@ using System.IO.Compression;
 
 namespace FileCat.Core.Archives;
 
-/// <summary>Canonical TAR dialect and admitted gzip/BZip2 wrapper metadata; no publication authority.</summary>
+/// <summary>Canonical TAR dialect and admitted gzip/BZip2/Zstandard wrapper features; no publication authority.</summary>
 public static class ArchiveTarFeatures
 {
-    public static byte[] Create(ArchiveWriteProfile profile, byte dialect, byte operatingSystem = 255, byte? extraFlags = null, byte bzip2BlockSize = 9)
+    public static byte[] Create(ArchiveWriteProfile profile, byte dialect, byte operatingSystem = 255, byte? extraFlags = null, byte bzip2BlockSize = 9, byte zstdChecksum = 1)
     {
         ArgumentNullException.ThrowIfNull(profile);
         byte[] features = profile.Format switch
@@ -13,6 +13,7 @@ public static class ArchiveTarFeatures
             ArchiveWriteFormat.Tar => [1, dialect],
             ArchiveWriteFormat.TarGzip => [2, dialect, operatingSystem, extraFlags ?? Flags(profile.CompressionLevel)],
             ArchiveWriteFormat.TarBzip2 => [3, dialect, bzip2BlockSize],
+            ArchiveWriteFormat.TarZstd => [4, dialect, zstdChecksum],
             _ => [],
         };
         Validate(profile, features); return features;
@@ -26,6 +27,7 @@ public static class ArchiveTarFeatures
             ArchiveWriteFormat.TarGzip => features.Length == 4 && features[0] == 2 && features[3] is 0 or 2 or 4 &&
                 (profile.CompressionLevel == 0 || features[3] == Flags(profile.CompressionLevel)),
             ArchiveWriteFormat.TarBzip2 => features.Length == 3 && features[0] == 3 && features[2] is >= 1 and <= 9,
+            ArchiveWriteFormat.TarZstd => features.Length == 3 && features[0] == 4 && features[2] is 0 or 1,
             _ => false,
         };
         if (!valid || features[1] is not (1 or 2))

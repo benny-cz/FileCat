@@ -11,6 +11,11 @@ FileCat's changes, all for release issue I14: only code under OSI-approved licen
 derived from UnRAR. FileCat uses this library for 7z archives and bzip2, xz and zstd streams only, so
 everything else is left out.
 
+- Archive-writing Zstandard follow-up, 5 November 2026: the unregistered TAR.ZST worker now reaches the existing
+  ZstdSharp/Zstandard encoder and decoder with a pre-codec single-frame/window/block guard, fixed bounded options
+  and checksummed output. No Zstandard source was added, changed, restored or upgraded. Its BSD-3-Clause/MIT
+  provenance and required notices remain those already recorded in `licenses/sharpcompress`.
+
 - Archive-writing follow-up, 5 November 2026: `Compressors/BZip2/CBZip2InputStream.cs` and its `.Async.cs`
   retain their Apache-2.0 provenance/notices and expose an internal strict single-stream terminal observation:
   a checked combined-CRC footer, no tolerated truncation/concatenation, and zero final padding bits. Existing

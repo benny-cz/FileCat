@@ -11,6 +11,15 @@ namespace FileCat.Core.Tests;
 
 public sealed partial class LinuxArchiveProcessTests
 {
+    [Fact]
+    public async Task A_huge_Zstandard_window_refuses_before_decoder_allocation_inside_the_native_boundary()
+    {
+        string probe = Probe(); byte[] source = [0x28, 0xb5, 0x2f, 0xfd, 0, 0xf8, 1, 0, 0]; LinuxArchiveProcess? worker = null;
+        var client = new ArchiveAssessmentClient((nonce, cpu) => worker = LinuxArchiveProcess.Start(probe, nonce, cpu, ["archive-assess", nonce.ToString("D")]));
+        var error = await Assert.ThrowsAsync<ArchiveWriteException>(() => client.AssessAsync(new(new(ArchiveWriteFormat.TarZstd), source.Length,
+            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(source))), () => new MemoryStream(source, false), TestContext.Current.CancellationToken));
+        Assert.Equal(ArchiveWriteReason.BudgetExceeded, error.Reason); Assert.NotNull(worker); Assert.True(worker.HasExited); Assert.Equal(0u, worker.ExitCode); Assert.False(worker.ErrorLimitExceeded);
+    }
     [Theory]
     [InlineData("existing-target")]
     [InlineData("changed-input")]
@@ -34,6 +43,8 @@ public sealed partial class LinuxArchiveProcessTests
     [InlineData(true, ArchiveWriteFormat.TarGzip)]
     [InlineData(false, ArchiveWriteFormat.TarBzip2)]
     [InlineData(true, ArchiveWriteFormat.TarBzip2)]
+    [InlineData(false, ArchiveWriteFormat.TarZstd)]
+    [InlineData(true, ArchiveWriteFormat.TarZstd)]
     public async Task Retained_ext4_inputs_produce_a_real_private_sealed_stage_before_fresh_verification(bool update, ArchiveWriteFormat format)
     {
         string probe = Probe(); var ct = TestContext.Current.CancellationToken; using var temp = new TempDir(); string root = UnixFiles.RealPath(temp.Path)!;
@@ -52,7 +63,8 @@ public sealed partial class LinuxArchiveProcessTests
             {
                 using (var data = File.Create(Path.Combine(root, "original.tar")))
                 using (Stream? gzip = format switch { ArchiveWriteFormat.TarGzip => new System.IO.Compression.GZipStream(data, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true),
-                    ArchiveWriteFormat.TarBzip2 => SharpCompress.Compressors.BZip2.BZip2Stream.Create(data, SharpCompress.Compressors.CompressionMode.Compress, false, leaveOpen: true), _ => null })
+                    ArchiveWriteFormat.TarBzip2 => SharpCompress.Compressors.BZip2.BZip2Stream.Create(data, SharpCompress.Compressors.CompressionMode.Compress, false, leaveOpen: true),
+                    ArchiveWriteFormat.TarZstd => new SharpCompress.Compressors.ZStandard.CompressionStream(data, leaveOpen: true), _ => null })
                 using (var writer = new TarWriter(gzip ?? (Stream)data, TarEntryFormat.Pax))
                 { using var content = new MemoryStream("before"u8.ToArray()); writer.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, "old") { DataStream = content }); }
                 original = directory.OpenSource("original.tar"); var originalState = ((IArchiveRetainedFile)original).Observe(ct); source = new(original, originalState);

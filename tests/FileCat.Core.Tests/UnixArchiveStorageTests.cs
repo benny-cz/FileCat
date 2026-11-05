@@ -8,6 +8,7 @@ using FileCat.Core.FileSystem;
 
 namespace FileCat.Core.Tests;
 
+[Collection(ArchiveWorkerIntegrationCollection.Name)]
 public sealed partial class UnixArchiveStorageTests
 {
     private static void Native()

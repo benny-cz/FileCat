@@ -14,6 +14,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.Tests;
 
+[Collection(ArchiveWorkerIntegrationCollection.Name)]
 public sealed partial class LinuxArchiveProcessTests(ITestOutputHelper diagnostics)
 {
     [Fact]

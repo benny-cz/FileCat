@@ -58,7 +58,7 @@ public sealed class ArchiveTransformClient
             }
             var receipt = ArchiveTransformWire.ReadReceipt(incoming.Read(ArchiveControlRecord.Receipt, frame));
             if (receipt.Length != stage.Length || receipt.Length > request.OutputLengthBound ||
-                receipt.Length < (request.Profile.Format == ArchiveWriteFormat.Tar ? 1024 : request.Profile.Format == ArchiveWriteFormat.TarBzip2 ? 14 : 20)) throw Fault(); progress();
+                receipt.Length < ArchiveTransformWire.MinimumOutputLength(request.Profile.Format)) throw Fault(); progress();
             frame = receive.Read(process.Output);
             if (frame.Kind != ArchiveWorkerMessage.Completed || frame.Payload.Length != 32 || Convert.ToHexString(frame.Payload) != receipt.ManifestDigest) throw Fault();
             End(); return (receipt, null);

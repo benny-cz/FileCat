@@ -78,6 +78,7 @@ public static class ArchiveTransformWire
         // A conservative streaming-encoder ceiling, still enforced by the parent before every write. Its fixed
         // room and 12.5% expansion allowance exceed the supported DEFLATE encoder's ordinary block overhead.
         if (expected.Profile.Format == ArchiveWriteFormat.TarGzip) length = checked(length + (length + 7) / 8 + (64 << 10) + 18);
+        if (expected.Profile.Format == ArchiveWriteFormat.TarZstd) length = checked(length + (length + 7) / 8 + (64 << 10) + 22);
         if (expected.Profile.Format == ArchiveWriteFormat.TarBzip2)
         {
             // First RLE grows at most 5/4; MTF/second RLE do not increase that symbol count. Encoder Huffman
@@ -137,11 +138,11 @@ public static class ArchiveTransformWire
         {
             ct.ThrowIfCancellationRequested(); var reader = new Packet(records.Read(ArchiveControlRecord.TransformRequest)); reader.Schema(2);
             var profile = new ArchiveWriteProfile((ArchiveWriteFormat)reader.Integer(), reader.Integer(), reader.Integer(), reader.Integer());
-            if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2)) throw Fault();
+            if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd)) throw Fault();
             ArchiveAssessmentRequest? source = reader.Flag() ? new(profile, reader.Long(), reader.Digest()) : null;
             if (source is not null) ArchiveAssessmentWire.Validate(source);
             int inputCount = reader.Count(), editCount = reader.Count(), additionCount = reader.Count(); long bound = reader.Long(); reader.End();
-            if (source is null && editCount != 0 || bound < (profile.Format == ArchiveWriteFormat.Tar ? 1024 : profile.Format == ArchiveWriteFormat.TarBzip2 ? 14 : 20) || bound > ArchiveWritePolicy.MaxPhysicalBytes) throw Fault();
+            if (source is null && editCount != 0 || bound < MinimumOutputLength(profile.Format) || bound > ArchiveWritePolicy.MaxPhysicalBytes) throw Fault();
             var budget = new ArchiveWriteBudget(); budget.AddMetadata(0, 512L * inputCount + 256L * editCount + 192L * additionCount);
             var inputs = new Dictionary<int, ArchiveTransformInput>(); long inputBytes = 0;
             for (int i = 0; i < inputCount; i++)
@@ -192,7 +193,7 @@ public static class ArchiveTransformWire
     }
     private static void Validate(ArchiveTransformReceipt receipt)
     {
-        ArgumentNullException.ThrowIfNull(receipt); if (receipt.Length is < 14 or > ArchiveWritePolicy.MaxPhysicalBytes) throw Fault();
+        ArgumentNullException.ThrowIfNull(receipt); if (receipt.Length is < 9 or > ArchiveWritePolicy.MaxPhysicalBytes) throw Fault();
         ArchiveWritePolicy.ValidateDigest(receipt.ManifestDigest); ArchiveWritePolicy.ValidateDigest(receipt.ContentDigest); ArchiveWritePolicy.ValidateDigest(receipt.MetadataDigest);
     }
     private static byte[] Encode(Action<BinaryWriter> encode)
@@ -201,6 +202,8 @@ public static class ArchiveTransformWire
     { byte[] data = ArchiveWritePolicy.Utf8.GetBytes(value); writer.Write(data.Length); writer.Write(data); }
     private static void Digest(BinaryWriter writer, string digest) => writer.Write(Convert.FromHexString(digest));
     private static ArchiveWriteException Fault() => new(ArchiveWriteReason.ProtocolViolation, "The archive worker's transform contract is invalid.");
+    internal static int MinimumOutputLength(ArchiveWriteFormat format) => format switch
+    { ArchiveWriteFormat.Tar => 1024, ArchiveWriteFormat.TarGzip => 20, ArchiveWriteFormat.TarBzip2 => 14, ArchiveWriteFormat.TarZstd => 9, _ => throw Fault() };
 
     private ref struct Packet(ReadOnlySpan<byte> data)
     {

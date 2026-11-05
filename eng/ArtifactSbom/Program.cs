@@ -339,7 +339,7 @@ try
                 + "licenses/sharpcompress/COMPONENTS.md; FileCat's changes Copyright (c) 2026 Marek Střihavka <marek.strihavka@gmail.com> and FileCat contributors",
                 "SharpCompress 0.50.5 (github.com/adamhathcock/sharpcompress commit e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626) built from "
                 + "src/ThirdParty/SharpCompress, cut down to its 7z reader and bzip2, xz, zstd and raw DEFLATE stream codecs; "
-                + "the archive-writing development worker uses its bzip2 encoder and raw DEFLATE decoder. No UnRAR-derived RAR or PPMd variant H "
+                + "the archive-writing development worker uses its bzip2/Zstandard encoders and raw DEFLATE decoder. No UnRAR-derived RAR or PPMd variant H "
                 + "code and none of its other formats. Every part's license is OSI-approved. Texts and notices: licenses/sharpcompress."),
             _ => ("MIT", "Copyright (c) 2026 Marek Střihavka <marek.strihavka@gmail.com> and FileCat contributors", null),
         };

@@ -6,6 +6,7 @@ using Scripted = FileCat.Core.Tests.ArchiveAssessmentClientTests.Scripted;
 
 namespace FileCat.Core.Tests;
 
+[Collection(ArchiveWorkerIntegrationCollection.Name)]
 public sealed class ArchiveVerificationClientTests
 {
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));

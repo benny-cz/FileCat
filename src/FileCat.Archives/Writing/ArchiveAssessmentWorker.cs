@@ -28,7 +28,7 @@ public static class ArchiveAssessmentWorker
         {
             send.Write(output, ArchiveWorkerMessage.Hello, verification ? ArchiveAssessmentWire.VerificationHello : ArchiveAssessmentWire.Hello);
             var request = ArchiveAssessmentWire.ReadRequest(incoming.Read(ArchiveControlRecord.AssessmentRequest));
-            if (request.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2))
+            if (request.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd))
                 throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This worker profile has not been implemented.");
             var connection = new ArchiveProxyConnection(frame =>
             {
@@ -41,7 +41,7 @@ public static class ArchiveAssessmentWorker
             if (physicalDigest != request.SourceSha256)
                 throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The pinned source differs from its reviewed revision.");
             source.Position = 0;
-            TarWriteCatalog catalog; byte os = 255, block = 9; byte? flags = null;
+            TarWriteCatalog catalog; byte os = 255, block = 9, zstdChecksum = 1; byte? flags = null;
             if (request.Profile.Format == ArchiveWriteFormat.Tar)
             {
                 catalog = StrictTarCatalog.Read(source, ct);
@@ -57,14 +57,21 @@ public static class ArchiveAssessmentWorker
                     throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The gzip wrapper changed between assessment passes.");
                 StrictTarCatalog.CompareDecoder(decoded, catalog, ct); decoded.CopyTo(Stream.Null);
             }
-            else
+            else if (request.Profile.Format == ArchiveWriteFormat.TarBzip2)
             {
                 var compressed = Bzip2TarRewriteEngine.Read(source, ct); catalog = compressed.Tar; block = compressed.BlockSize;
                 source.Position = 0; using var decoded = new StrictBzip2ReadStream(source, ct);
                 if (decoded.BlockSize != block) throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The BZip2 block size changed between passes.");
                 StrictTarCatalog.CompareDecoder(decoded, catalog, ct); decoded.CopyTo(Stream.Null);
             }
-            var manifest = Manifest(request.Profile, catalog.Format, catalog.Members, ct, os, flags, block);
+            else
+            {
+                var compressed = ZstdTarRewriteEngine.Read(source, ct); catalog = compressed.Tar; zstdChecksum = compressed.Header.Checksum ? (byte)1 : (byte)0;
+                source.Position = 0; using var decoded = new StrictZstdReadStream(source, ct);
+                if (!decoded.Header.Bytes.SequenceEqual(compressed.Header.Bytes)) throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The Zstandard header changed between passes.");
+                StrictTarCatalog.CompareDecoder(decoded, catalog, ct); decoded.CopyTo(Stream.Null);
+            }
+            var manifest = Manifest(request.Profile, catalog.Format, catalog.Members, ct, os, flags, block, zstdChecksum);
             var result = new ArchiveAssessment(manifest, physicalDigest, request.SourceLength, physicalDigest);
             outgoing.Write(ArchiveControlRecord.Catalog, ArchiveAssessmentWire.Catalog(result));
             foreach (var member in manifest.Members)
@@ -86,7 +93,7 @@ public static class ArchiveAssessmentWorker
     }
 
     internal static ArchiveWriteManifest Manifest(ArchiveWriteProfile profile, TarEntryFormat format, IReadOnlyList<TarWriteMember> source, CancellationToken ct,
-        byte operatingSystem = 255, byte? extraFlags = null, byte bzip2BlockSize = 9)
+        byte operatingSystem = 255, byte? extraFlags = null, byte bzip2BlockSize = 9, byte zstdChecksum = 1)
     {
         var members = new List<ArchiveManifestMember>(source.Count); var budget = new ArchiveWriteBudget();
         foreach (var member in source)
@@ -96,7 +103,7 @@ public static class ArchiveAssessmentWorker
             budget.AddMetadata(nameBytes + size + 64L, 2L * member.Name.Length + size + 512L);
             members.Add(new(member.Name, member.Type, member.Occurrence, member.Length, member.Sha256, Metadata(member, size)));
         }
-        return new(profile, members, ArchiveTarFeatures.Create(profile, source.Count == 0 || format == TarEntryFormat.Ustar ? (byte)1 : (byte)2, operatingSystem, extraFlags, bzip2BlockSize));
+        return new(profile, members, ArchiveTarFeatures.Create(profile, source.Count == 0 || format == TarEntryFormat.Ustar ? (byte)1 : (byte)2, operatingSystem, extraFlags, bzip2BlockSize, zstdChecksum));
     }
 
     internal static string PhysicalDigest(Stream source, CancellationToken ct)

@@ -6,6 +6,7 @@ using Scripted = FileCat.Core.Tests.ArchiveAssessmentClientTests.Scripted;
 
 namespace FileCat.Core.Tests;
 
+[Collection(ArchiveWorkerIntegrationCollection.Name)]
 public sealed class ArchiveTransformClientTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

@@ -8,6 +8,7 @@ using Child = FileCat.Core.Tests.ArchiveAssessmentClientTests.Child;
 
 namespace FileCat.Core.Tests;
 
+[Collection(ArchiveWorkerIntegrationCollection.Name)]
 public sealed class ArchiveTarGzipPipelineTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

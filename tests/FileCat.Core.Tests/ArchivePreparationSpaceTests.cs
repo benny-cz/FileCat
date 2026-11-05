@@ -5,6 +5,7 @@ using FileCat.Core.Jobs;
 
 namespace FileCat.Core.Tests;
 
+[Collection(ArchiveWorkerIntegrationCollection.Name)]
 public sealed class ArchivePreparationSpaceTests
 {
     [Fact]

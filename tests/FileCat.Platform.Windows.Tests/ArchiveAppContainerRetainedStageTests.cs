@@ -11,6 +11,22 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed partial class ArchiveAppContainerTests
 {
     [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public async Task A_huge_Zstandard_window_refuses_before_decoder_allocation_inside_LPAC(bool application)
+    {
+        string executable = Probe();
+        if (application)
+        {
+            string? assets = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_APP_ASSETS");
+            Assert.True(assets is not null && Path.IsPathFullyQualified(assets)); ArchiveAppContainer.ProvisionRuntimeReadAccess(assets!); executable = Path.Combine(assets!, "FileCat.exe");
+        }
+        byte[] source = [0x28, 0xb5, 0x2f, 0xfd, 0, 0xf8, 1, 0, 0]; ArchiveAppContainer? worker = null;
+        var client = new ArchiveAssessmentClient((nonce, cpu) => worker = application ? ArchiveAppContainer.StartAssessment(executable, nonce, cpu) : ArchiveAppContainer.Start(executable, "archive-assess " + nonce, cpu));
+        var error = await Assert.ThrowsAsync<ArchiveWriteException>(() => client.AssessAsync(new(new(ArchiveWriteFormat.TarZstd), source.Length,
+            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(source))), () => new MemoryStream(source, false), TestContext.Current.CancellationToken));
+        Assert.Equal(ArchiveWriteReason.BudgetExceeded, error.Reason); Assert.NotNull(worker); Assert.True(worker.HasExited); Assert.Equal(0u, worker.ExitCode); Assert.False(worker.ErrorLimitExceeded);
+    }
+    [Theory]
     [InlineData("existing-target")]
     [InlineData("changed-input")]
     [InlineData("metadata-change")]
@@ -43,6 +59,10 @@ public sealed partial class ArchiveAppContainerTests
     [InlineData(false, true, ArchiveWriteFormat.TarBzip2)]
     [InlineData(true, false, ArchiveWriteFormat.TarBzip2)]
     [InlineData(true, true, ArchiveWriteFormat.TarBzip2)]
+    [InlineData(false, false, ArchiveWriteFormat.TarZstd)]
+    [InlineData(false, true, ArchiveWriteFormat.TarZstd)]
+    [InlineData(true, false, ArchiveWriteFormat.TarZstd)]
+    [InlineData(true, true, ArchiveWriteFormat.TarZstd)]
     public async Task Retained_NTFS_inputs_rebuild_and_verify_a_real_private_stage_without_publication(bool application, bool update, ArchiveWriteFormat format)
     {
         string executable = Probe(); var ct = TestContext.Current.CancellationToken;
@@ -68,7 +88,8 @@ public sealed partial class ArchiveAppContainerTests
                 {
                     using (var data = File.Create(Path.Combine(root, "original.tar")))
                     using (Stream? gzip = format switch { ArchiveWriteFormat.TarGzip => new System.IO.Compression.GZipStream(data, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true),
-                        ArchiveWriteFormat.TarBzip2 => SharpCompress.Compressors.BZip2.BZip2Stream.Create(data, SharpCompress.Compressors.CompressionMode.Compress, false, leaveOpen: true), _ => null })
+                        ArchiveWriteFormat.TarBzip2 => SharpCompress.Compressors.BZip2.BZip2Stream.Create(data, SharpCompress.Compressors.CompressionMode.Compress, false, leaveOpen: true),
+                        ArchiveWriteFormat.TarZstd => new SharpCompress.Compressors.ZStandard.CompressionStream(data, leaveOpen: true), _ => null })
                     using (var writer = new TarWriter(gzip ?? (Stream)data, TarEntryFormat.Pax))
                     { using var before = new MemoryStream("before"u8.ToArray()); writer.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, "old") { DataStream = before }); }
                     original = directory.OpenSource("original.tar"); var originalState = ((IArchiveRetainedFile)original).Observe(ct); source = new(original, originalState);

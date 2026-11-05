@@ -37,6 +37,8 @@ public static class ArchiveTransformWorker
                 var compressed = Bzip2TarRewriteEngine.Rebuild(source, request.Source?.SourceSha256, request.Profile, stage, edits, additions, inputs, Open, ct);
                 transformed = compressed.Tar; block = compressed.BlockSize;
             }
+            else if (request.Profile.Format == ArchiveWriteFormat.TarZstd)
+                transformed = ZstdTarRewriteEngine.Rebuild(source, request.Source?.SourceSha256, request.Profile, stage, edits, additions, inputs, Open, ct);
             else throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This transform profile has not been implemented.");
             var manifest = ArchiveAssessmentWorker.Manifest(request.Profile, transformed.Format, transformed.Members, ct, os, flags, block);
             outgoing.Write(ArchiveControlRecord.Receipt, ArchiveTransformWire.Receipt(new(stage.Length, manifest.Digest, manifest.ContentDigest, manifest.MetadataDigest)));

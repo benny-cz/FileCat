@@ -50,6 +50,10 @@ did not capture their precise cause; complete production lifecycle/release quali
 The [TAR.BZ2 worker checkpoint](TAR_BZIP2_WORKER_PIPELINE.md) adds strict single-stream assessment, streamed rebuild,
 fresh verification, preserved block size, bounded buffered proxy IO, independent bidirectional fixtures and native
 preparation/private-creation checks. Format enablement and complete common/platform release gates remain unfinished.
+The [TAR.ZST worker checkpoint](TAR_ZSTD_WORKER_PIPELINE.md) adds pre-codec frame/window/block admission, bounded
+streamed rebuild, checksummed output, separate fresh verification, pinned independent C interoperability and native
+huge-window refusal. A resource-scoped test collection fixes accidental oversubscription of the unchanged bounded
+shared queue. Full workflows, common transactions, worker/platform and release qualification remain unfinished.
 
 | Area | Current behavior | Remaining gate |
 |---|---|---|
@@ -82,6 +86,7 @@ preparation/private-creation checks. Format enablement and complete common/platf
 | TAR transform | Stream-only create and exact per-occurrence replace/delete/rename; whole-source namespace/logical budgets; order/duplicate/metadata preservation; native stage, bounded worker and fresh verifier roundtrips | Durable safe save/metadata/provenance, scalable folder preparation/review and production dispatch |
 | Gzip/TAR.GZ | Neutral single-member framing, explicit DEFLATE terminal status/consumption, CRC/ISIZE, bounded expansion; streamed create/update and fresh verification, fixed-pass replay and independent fixtures | Production registration, complete bound/scale/fuzz/wrapper corpus and inherited publication/release gates |
 | BZip2/TAR.BZ2 | Complete single-stream CRC/footer/padding/EOF admission, bounded expansion, streamed create/update/fresh verification and preserved block size; native preparation/private-creation and independent fixtures | Production registration, complete bound/scale/fuzz corpus and inherited metadata/publication/release gates |
+| Zstandard/TAR.ZST | Pre-codec single-frame/window/block admission, complete decoder/checksum/EOF validation, bounded streaming and checked encoder options; create/update/fresh verification, native private creation and independent C fixtures | Production registration, complete bound/scale/fuzz corpus and inherited metadata/publication/release gates |
 
 The raw gzip inflater is the already-vendored SharpCompress/DotNetZip component, whose existing MS-PL/BSD attribution
 is retained. It is used because the runtime DeflateStream API does not expose a terminal-state/consumed-byte result.
