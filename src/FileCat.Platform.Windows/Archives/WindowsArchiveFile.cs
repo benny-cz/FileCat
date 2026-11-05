@@ -120,22 +120,24 @@ internal sealed partial class WindowsArchiveFile : Stream
         }
     }
 
-    public void RenameNoReplace(string leaf, ArchiveObjectVersion expected, CancellationToken cancellationToken = default)
+    public void RenameNoReplace(string leaf, ArchiveObjectVersion expected, WindowsArchiveOuterMetadata expectedMetadata,
+        CancellationToken cancellationToken = default)
     {
         WindowsArchiveDirectory.ValidateLeaf(leaf);
         lock (parent.Gate)
         {
-            ReviewForMutation(expected, cancellationToken);
+            ReviewForMutation(expected, expectedMetadata, cancellationToken);
             NtFile.Rename(handle, parent.Handle, leaf, replace: false);
             KnownName = leaf;
         }
     }
 
-    public void DeleteReviewed(ArchiveObjectVersion expected, CancellationToken cancellationToken = default)
+    public void DeleteReviewed(ArchiveObjectVersion expected, WindowsArchiveOuterMetadata expectedMetadata,
+        CancellationToken cancellationToken = default)
     {
         lock (parent.Gate)
         {
-            ReviewForMutation(expected, cancellationToken);
+            ReviewForMutation(expected, expectedMetadata, cancellationToken);
             WindowsArchiveNative.DeleteExact(handle);
             // POSIX disposition unlinks when this deleting handle closes, even while other readers retain the file.
             // Do not report cleanup complete while our own still-open handle keeps the name present.
@@ -143,14 +145,24 @@ internal sealed partial class WindowsArchiveFile : Stream
         }
     }
 
-    private void ReviewForMutation(ArchiveObjectVersion expected, CancellationToken cancellationToken)
+    private void ReviewForMutation(ArchiveObjectVersion expected, WindowsArchiveOuterMetadata expectedMetadata, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(expected); EnsureLive();
+        ArgumentNullException.ThrowIfNull(expected); ArgumentNullException.ThrowIfNull(expectedMetadata); EnsureLive();
         if (!mayRename || writable) throw new InvalidOperationException("This archive lease has no reviewed namespace authority.");
-        if (expected.Identity != Identity.ToString()) throw new IOException("A different archive object was reviewed; retain this object.");
+        if (expected.Identity != Identity.ToString() || expectedMetadata.Identity != Identity)
+            throw new IOException("A different archive object was reviewed; retain this object.");
+        Validate(); // Preserve the specific read-only/type/physical-limit refusal before generic metadata capture.
         if (artifact) parent.CheckPrivate(handle);
+        RequireMetadata();
         if (CaptureVersion(cancellationToken) != expected) throw new IOException("The archive object changed; retain it for review.");
+        RequireMetadata();
         cancellationToken.ThrowIfCancellationRequested();
+        void RequireMetadata()
+        {
+            if (CaptureOuterMetadata(cancellationToken).Digest != expectedMetadata.Digest)
+                throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview,
+                    "The archive object's outer metadata or origin mark changed; retain it without renaming or deletion.");
+        }
     }
 
     private uint Validate() => WindowsArchiveNative.Regular(handle, maximumLength, artifact, mayRename);

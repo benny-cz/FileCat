@@ -103,7 +103,7 @@ public sealed class WindowsArchiveOriginTests
         Assert.Equal(origin.Digest, stage.ReadOrigin(TestContext.Current.CancellationToken).Digest);
         Assert.Equal(version, stage.CaptureVersion(TestContext.Current.CancellationToken));
         Assert.Equal(modified, File.GetLastWriteTimeUtc(stage.DisplayPath));
-        stage.RenameNoReplace("retained.tar", version, TestContext.Current.CancellationToken);
+        stage.RenameNoReplace("retained.tar", version, stage.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
         File.WriteAllBytes(fixture.PathOf("unrelated.bin"), [9]);
         Assert.Equal(origin.Digest, stage.ReadOrigin(TestContext.Current.CancellationToken).Digest);
         Assert.Equal(mark, ReadMark(stage.DisplayPath));
@@ -149,7 +149,7 @@ public sealed class WindowsArchiveOriginTests
         string path = fixture.PathOf("input.bin"); File.WriteAllBytes(path, [1, 2, 3]);
         using var input = root.OpenReviewedTarget("input.bin"); var version = input.CaptureVersion(TestContext.Current.CancellationToken);
         var before = input.ReadOrigin(TestContext.Current.CancellationToken); Assert.Equal(ArchiveOriginState.Absent, before.State);
-        input.RenameNoReplace("retired.bin", version, TestContext.Current.CancellationToken);
+        input.RenameNoReplace("retired.bin", version, input.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
         File.WriteAllBytes(path, [9]);
         PutMark(fixture.PathOf("retired.bin"), "[ZoneTransfer]\r\nZoneId=4\r\n"u8);
         Assert.Equal(version, input.CaptureVersion(TestContext.Current.CancellationToken));

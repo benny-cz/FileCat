@@ -84,6 +84,25 @@ internal static unsafe partial class WindowsArchiveNative
         finally { if (pointer != 0) LocalFree(pointer); }
     }
 
+    internal static byte[] ReadOuterSecurity(SafeFileHandle handle)
+    {
+        // This is the explicitly queried permission/label subset. It does NOT imply that an audit SACL, resource
+        // policy or other unqueried security metadata is absent; a release preservation profile must address those.
+        int error = GetSecurityInfo(handle, 1 /* SE_FILE_OBJECT */, WindowsArchiveOuterMetadata.QueriedSecurityInformation,
+            out _, out _, out _, out _, out nint pointer);
+        try
+        {
+            if (error != 0) throw new Win32Exception(error);
+            if (pointer == 0) throw new IOException("The archive permission descriptor is unavailable.");
+            int length = GetSecurityDescriptorLength(pointer);
+            if (length <= 0 || length > WindowsArchiveOuterMetadata.MaxSecurityBytes)
+                throw new IOException("The archive permission descriptor exceeds the supported bound.");
+            byte[] bytes = new byte[length]; Marshal.Copy(pointer, bytes, 0, length);
+            return bytes;
+        }
+        finally { if (pointer != 0) LocalFree(pointer); }
+    }
+
     internal static void Flush(SafeFileHandle handle)
     {
         if (!FlushFileBuffers(handle)) throw new Win32Exception(Marshal.GetLastPInvokeError());

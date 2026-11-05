@@ -75,7 +75,7 @@ public sealed partial class WindowsArchiveStorageTests
         }
         Assert.True(File.Exists(path)); Assert.Equal("payload"u8.ToArray(), File.ReadAllBytes(path));
         using var recovery = root.OpenRecoveryArtifact(Path.GetFileName(path), identity, WindowsArchiveArtifactKind.Stage, 4096);
-        recovery.DeleteReviewed(recovery.CaptureVersion(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
+        recovery.DeleteReviewed(recovery.CaptureVersion(TestContext.Current.CancellationToken), recovery.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
         Assert.False(File.Exists(path));
     }
 
@@ -113,7 +113,7 @@ public sealed partial class WindowsArchiveStorageTests
             Assert.ThrowsAny<IOException>(() => File.Move(path, fixture.PathOf("moved.bin")));
             Assert.ThrowsAny<IOException>(() => File.Delete(path));
             Assert.Equal(Digest([1, 2, 3]), source.CaptureVersion(TestContext.Current.CancellationToken).Sha256);
-            Assert.Throws<InvalidOperationException>(() => source.DeleteReviewed(source.CaptureVersion(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken));
+            Assert.Throws<InvalidOperationException>(() => source.DeleteReviewed(source.CaptureVersion(TestContext.Current.CancellationToken), source.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken));
         }
         Assert.Equal(ArchiveWriteReason.BudgetExceeded, Assert.Throws<ArchiveWriteException>(() => root.OpenSource("source.bin", 2)).Reason);
         Directory.CreateDirectory(fixture.PathOf("folder")); Assert.ThrowsAny<Exception>(() => root.OpenSource("folder"));
@@ -140,10 +140,10 @@ public sealed partial class WindowsArchiveStorageTests
         using var original = root.OpenReviewedTarget("original.bin");
         Assert.Equal(2u, original.LinkCount);
         var version = original.CaptureVersion(TestContext.Current.CancellationToken);
-        original.RenameNoReplace("retained.bin", version, TestContext.Current.CancellationToken);
+        original.RenameNoReplace("retained.bin", version, original.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
         Assert.False(File.Exists(path)); Assert.True(File.Exists(fixture.PathOf("alias.bin")));
         File.WriteAllBytes(path, [9]);
-        original.DeleteReviewed(version, TestContext.Current.CancellationToken);
+        original.DeleteReviewed(version, original.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
         Assert.False(File.Exists(fixture.PathOf("retained.bin")));
         Assert.Equal(new byte[] { 9 }, File.ReadAllBytes(path));
         Assert.Equal(new byte[] { 4, 5, 6 }, Bytes(fixture.PathOf("alias.bin")));
@@ -160,16 +160,16 @@ public sealed partial class WindowsArchiveStorageTests
         File.CreateSymbolicLink(fixture.PathOf("late-link"), fixture.PathOf("late.bin"));
         foreach (string occupant in new[] { "late.bin", "late-directory", "late-link" })
         {
-            Assert.ThrowsAny<Exception>(() => file.RenameNoReplace(occupant, version, TestContext.Current.CancellationToken));
+            Assert.ThrowsAny<Exception>(() => file.RenameNoReplace(occupant, version, file.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken));
             Assert.Equal(original, file.DisplayPath); Assert.Equal(version, file.CaptureVersion(TestContext.Current.CancellationToken));
         }
         Assert.Equal(new byte[] { 9 }, File.ReadAllBytes(fixture.PathOf("late.bin")));
         Assert.True(Directory.Exists(fixture.PathOf("late-directory")));
         Assert.NotNull(new FileInfo(fixture.PathOf("late-link")).LinkTarget);
-        file.RenameNoReplace("published.tar", version, TestContext.Current.CancellationToken);
+        file.RenameNoReplace("published.tar", version, file.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
         Assert.False(File.Exists(original)); Assert.Equal(version, file.CaptureVersion(TestContext.Current.CancellationToken));
         // Handle-bound cleanup must affect this object alone, even with a new unrelated occupant at the old name.
-        File.WriteAllBytes(original, [8]); file.DeleteReviewed(version, TestContext.Current.CancellationToken);
+        File.WriteAllBytes(original, [8]); file.DeleteReviewed(version, file.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
         Assert.Equal(new byte[] { 8 }, File.ReadAllBytes(original));
         Assert.False(File.Exists(fixture.PathOf("published.tar")));
     }
@@ -181,7 +181,7 @@ public sealed partial class WindowsArchiveStorageTests
         var file = Artifact(root); file.Write([1]); var version = file.Seal(TestContext.Current.CancellationToken);
         root.Dispose(); root.Dispose(); Assert.Throws<ObjectDisposedException>(() => Artifact(root));
         Assert.ThrowsAny<IOException>(() => Directory.Move(fixture.Root, fixture.Root + "-moved"));
-        Assert.Equal(version, file.CaptureVersion(TestContext.Current.CancellationToken)); file.RenameNoReplace("retained.stage", version, TestContext.Current.CancellationToken);
+        Assert.Equal(version, file.CaptureVersion(TestContext.Current.CancellationToken)); file.RenameNoReplace("retained.stage", version, file.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
         file.Dispose(); file.Dispose(); Assert.False(file.CanRead); Assert.False(file.CanSeek); Assert.False(file.CanWrite);
         Assert.Throws<ObjectDisposedException>(() => file.ReadByte());
         Assert.True(File.Exists(fixture.PathOf("retained.stage")));
@@ -196,13 +196,13 @@ public sealed partial class WindowsArchiveStorageTests
         foreach (var stale in new[] { new ArchiveObjectVersion("another-object", 3, version.Sha256),
                      new ArchiveObjectVersion(version.Identity, 2, version.Sha256), new ArchiveObjectVersion(version.Identity, 3, Digest([3, 2, 1])) })
         {
-            Assert.ThrowsAny<IOException>(() => file.DeleteReviewed(stale, TestContext.Current.CancellationToken));
-            Assert.ThrowsAny<IOException>(() => file.RenameNoReplace("unwanted.bin", stale, TestContext.Current.CancellationToken));
+            Assert.ThrowsAny<IOException>(() => file.DeleteReviewed(stale, file.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken));
+            Assert.ThrowsAny<IOException>(() => file.RenameNoReplace("unwanted.bin", stale, file.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken));
             Assert.Equal(path, file.DisplayPath); Assert.Equal(version, file.CaptureVersion(TestContext.Current.CancellationToken));
         }
         using var canceled = new CancellationTokenSource(); canceled.Cancel();
-        Assert.Throws<OperationCanceledException>(() => file.RenameNoReplace("unwanted.bin", version, canceled.Token));
-        Assert.Throws<OperationCanceledException>(() => file.DeleteReviewed(version, canceled.Token));
+        Assert.Throws<OperationCanceledException>(() => file.RenameNoReplace("unwanted.bin", version, file.CaptureOuterMetadata(TestContext.Current.CancellationToken), canceled.Token));
+        Assert.Throws<OperationCanceledException>(() => file.DeleteReviewed(version, file.CaptureOuterMetadata(TestContext.Current.CancellationToken), canceled.Token));
         Assert.True(File.Exists(path)); Assert.False(File.Exists(fixture.PathOf("unwanted.bin")));
     }
 
@@ -229,25 +229,34 @@ public sealed partial class WindowsArchiveStorageTests
     {
         RequireWindows(); using var fixture = new Fixture(); using var root = WindowsArchiveDirectory.Open(fixture.Root);
         using var file = Artifact(root); file.Write([1, 2, 3]); var version = file.Seal(TestContext.Current.CancellationToken);
-        string path = file.DisplayPath;
+        string path = file.DisplayPath; var reviewedMetadata = file.CaptureOuterMetadata(TestContext.Current.CancellationToken);
         var originalSecurity = new FileInfo(path).GetAccessControl();
         var changed = new FileInfo(path).GetAccessControl();
         changed.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null), FileSystemRights.Read, AccessControlType.Allow));
         new FileInfo(path).SetAccessControl(changed);
-        Assert.Throws<UnauthorizedAccessException>(() => file.RenameNoReplace("unwanted.bin", version, TestContext.Current.CancellationToken));
-        Assert.Throws<UnauthorizedAccessException>(() => file.DeleteReviewed(version, TestContext.Current.CancellationToken));
+        Assert.Throws<UnauthorizedAccessException>(() => file.RenameNoReplace("unwanted.bin", version, reviewedMetadata, TestContext.Current.CancellationToken));
+        Assert.Throws<UnauthorizedAccessException>(() => file.DeleteReviewed(version, reviewedMetadata, TestContext.Current.CancellationToken));
         Assert.True(File.Exists(path));
         originalSecurity.SetSecurityDescriptorBinaryForm(originalSecurity.GetSecurityDescriptorBinaryForm(), AccessControlSections.Access);
         new FileInfo(path).SetAccessControl(originalSecurity);
         File.SetAttributes(path, FileAttributes.ReadOnly);
         try
         {
-            Assert.Throws<UnauthorizedAccessException>(() => file.DeleteReviewed(version, TestContext.Current.CancellationToken));
+            Assert.Throws<UnauthorizedAccessException>(() => file.DeleteReviewed(version, reviewedMetadata, TestContext.Current.CancellationToken));
             Assert.True(File.Exists(path));
         }
-        finally { File.SetAttributes(path, FileAttributes.Normal); }
+        finally { File.SetAttributes(path, (FileAttributes)reviewedMetadata.Attributes); }
         Assert.Equal(version, file.CaptureVersion(TestContext.Current.CancellationToken));
-        file.RenameNoReplace("restored-private.stage", version, TestContext.Current.CancellationToken); // Rechecks the restored private DACL.
+        // A deliberate ACL edit can change native descriptor state even when its visible ACEs are restored. Review
+        // that intentional edit afresh; the native rename must still independently require the private DACL.
+        var afterRestore = file.CaptureOuterMetadata(TestContext.Current.CancellationToken);
+        Assert.Equal(reviewedMetadata.CreationTime, afterRestore.CreationTime);
+        Assert.Equal(reviewedMetadata.LastWriteTime, afterRestore.LastWriteTime);
+        Assert.Equal(reviewedMetadata.Attributes, afterRestore.Attributes);
+        Assert.Equal(reviewedMetadata.LinkCount, afterRestore.LinkCount);
+        Assert.Equal(reviewedMetadata.OwnerSid, afterRestore.OwnerSid); Assert.Equal(reviewedMetadata.GroupSid, afterRestore.GroupSid);
+        Assert.Equal(reviewedMetadata.Origin.Digest, afterRestore.Origin.Digest);
+        file.RenameNoReplace("restored-private.stage", version, afterRestore, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -257,7 +266,7 @@ public sealed partial class WindowsArchiveStorageTests
         using var file = Artifact(root); file.Write([1, 2, 3]); var version = file.Seal(TestContext.Current.CancellationToken);
         string path = file.DisplayPath;
         using var reader = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        file.DeleteReviewed(version, TestContext.Current.CancellationToken);
+        file.DeleteReviewed(version, file.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
         Assert.False(File.Exists(path)); File.WriteAllBytes(path, [9]);
         Assert.Equal(1, reader.ReadByte()); Assert.Equal(2, reader.ReadByte()); Assert.Equal(3, reader.ReadByte());
         Assert.Equal(new byte[] { 9 }, File.ReadAllBytes(path));
@@ -281,7 +290,7 @@ public sealed partial class WindowsArchiveStorageTests
         Assert.Equal(version, fresh.CaptureVersion(TestContext.Current.CancellationToken));
         using (var review = ArchiveManifestSidecar.OpenRead(fresh, info, nonce, ArchiveManifestPurpose.ExpectedOutput, manifest.Profile, TestContext.Current.CancellationToken))
         { Assert.Equal("file.txt", review.ReadNext()!.Name); Assert.Null(review.ReadNext()); Assert.Equal(manifest.Digest, review.VerifiedManifestDigest); }
-        fresh.DeleteReviewed(version, TestContext.Current.CancellationToken); Assert.False(File.Exists(fixture.PathOf(name)));
+        fresh.DeleteReviewed(version, fresh.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken); Assert.False(File.Exists(fixture.PathOf(name)));
     }
 
     [Theory]
