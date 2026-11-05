@@ -1,6 +1,8 @@
 using System.Text;
 using System.Security.AccessControl;
 using System.Security.Principal;
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 using FileCat.Core.Archives;
 using FileCat.Core.State;
 using FileCat.Platform.Windows.Archives;
@@ -156,5 +158,64 @@ public sealed class WindowsArchiveOriginTests
         Assert.Equal(ArchiveOriginState.Present, input.ReadOrigin(TestContext.Current.CancellationToken).State);
         Assert.NotEqual(before.Digest, input.ReadOrigin(TestContext.Current.CancellationToken).Digest);
         Assert.False(File.Exists(path + ":Zone.Identifier"));
+    }
+
+    [Fact]
+    public void A_raised_declared_zone_retains_url_evidence_when_copied_to_the_native_owned_stage()
+    {
+        RequireWindows(); using var fixture = new Fixture(); using var root = WindowsArchiveDirectory.Open(fixture.Root);
+        string path = fixture.PathOf("source.bin"); File.WriteAllBytes(path, [1, 2, 3]);
+        const string original = "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.test/original\r\n";
+        PutMark(path, Encoding.UTF8.GetBytes(original));
+        using var source = root.OpenSource("source.bin");
+        var raised = ArchiveWindowsOriginZone.Parse(source.ReadOrigin(TestContext.Current.CancellationToken)).RaiseTo(4);
+        using var stage = Stage(root); source.CopyTo(stage); var version = stage.Seal(TestContext.Current.CancellationToken);
+        stage.CopyOriginNoReplace(raised, TestContext.Current.CancellationToken);
+        Assert.Equal(original.Replace("ZoneId=3", "ZoneId=4"), Encoding.UTF8.GetString(stage.ReadOrigin(TestContext.Current.CancellationToken).Bytes));
+        Assert.Equal(3, ArchiveWindowsOriginZone.Parse(source.ReadOrigin(TestContext.Current.CancellationToken)).DeclaredZone);
+        Assert.Equal(source.CaptureVersion(TestContext.Current.CancellationToken).Sha256, version.Sha256);
+    }
+
+    [Theory]
+    [InlineData("utf8")][InlineData("utf8-bom")][InlineData("utf16-le")][InlineData("utf16-be")]
+    public void Windows_system_zone_identifier_is_an_independent_encoding_oracle(string format)
+    {
+        RequireWindows(); using var fixture = new Fixture();
+        string path = fixture.PathOf("oracle.bin"); File.WriteAllBytes(path, [1]);
+        Encoding encoding = format switch { "utf8" => new UTF8Encoding(false, true), "utf8-bom" => new UTF8Encoding(true, true),
+            "utf16-le" => new UnicodeEncoding(false, true, true), _ => new UnicodeEncoding(true, true, true) };
+        byte[] bytes = encoding.GetPreamble().Concat(encoding.GetBytes("[ZoneTransfer]\r\nZoneId=3\r\n")).ToArray(); PutMark(path, bytes);
+        // Test-only oracle, not a production COM/parser dependency. IID is from SDK urlmon.h; CLSID is the installed
+        // Windows PersistentZoneIdentifier. No policy is changed, no URL is mapped and no Save/SetId is called.
+        uint ReadNative()
+        {
+            object identifier = Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("0968e258-16c7-4dba-aa86-462dd61e31a3"), throwOnError: true)!)!;
+            try
+            {
+                ((IPersistFile)identifier).Load(path, 0 /* STGM_READ */);
+                int result = ((IZoneIdentifier)identifier).GetId(out uint zone);
+                Assert.True(result >= 0, $"{format}: GetId HRESULT 0x{result:X8}"); return zone;
+            }
+            finally { Marshal.FinalReleaseComObject(identifier); }
+        }
+        if (format is "utf8-bom" or "utf16-be")
+        {
+            Assert.Throws<UnauthorizedAccessException>(() => ReadNative()); // Observed Windows 11 native refusal, not absence.
+            Assert.Equal(ArchiveWriteReason.UnsupportedFeature, Assert.Throws<ArchiveWriteException>(() => ArchiveWindowsOriginZone.Parse(
+                ArchiveOriginSnapshot.Present(ArchiveOriginFormat.WindowsZoneIdentifier, bytes))).Reason);
+            return;
+        }
+        Assert.Equal(3u, ReadNative());
+        var parsed = ArchiveWindowsOriginZone.Parse(ArchiveOriginSnapshot.Present(ArchiveOriginFormat.WindowsZoneIdentifier, bytes));
+        PutMark(path, parsed.RaiseTo(4).Bytes);
+        Assert.Equal(4u, ReadNative()); // Fresh COM object; never reuse a cached original declaration.
+    }
+
+    [ComImport, Guid("cd45f185-1b21-48e2-967b-ead743a8914e"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IZoneIdentifier
+    {
+        [PreserveSig] int GetId(out uint zone);
+        [PreserveSig] int SetId(uint zone);
+        [PreserveSig] int Remove();
     }
 }
