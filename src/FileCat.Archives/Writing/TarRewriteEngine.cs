@@ -5,7 +5,7 @@ using FileCat.Core.Archives;
 
 namespace FileCat.Archives.Writing;
 
-internal sealed record TarInputDescriptor(int Id, long Length, string Sha256, DateTimeOffset Modified, int Mode = 0x1a4);
+internal sealed record TarInputDescriptor(int Id, long Length, string Sha256, ArchiveTimestamp Modified, int Mode = 0x1a4);
 internal sealed record TarWriteAddition(string Name, ArchiveMemberType Type, int? InputId = null);
 internal sealed record TarWriteEdit(ArchiveChangeKind Kind, ArchiveMemberKey Key, string? NewName = null, int? InputId = null);
 internal sealed record TarRewriteManifest(TarEntryFormat Format, IReadOnlyList<TarWriteMember> Members);
@@ -102,7 +102,7 @@ internal static class TarRewriteEngine
                 ChargeInput(input.Length);
             }
             else if (addition.InputId is not null) throw Invalid("A directory cannot carry a file payload.");
-            decimal modified = input is null ? 0 : (input.Modified.UtcTicks - DateTimeOffset.UnixEpoch.Ticks) / (decimal)TimeSpan.TicksPerSecond;
+            decimal modified = input?.Modified.UnixSeconds ?? 0;
             if (format == TarEntryFormat.Ustar) modified = decimal.Truncate(modified);
             var member = new TarWriteMember(addition.Name, addition.Type, 0, input?.Length ?? 0,
                 input?.Mode ?? 0x1ed, 0, 0, "", "", modified, null, null,
@@ -114,11 +114,14 @@ internal static class TarRewriteEngine
 
         var occurrences = new Dictionary<(string, ArchiveMemberType), int>();
         var manifest = new List<TarWriteMember>(planned.Count);
-        using (var writer = new TarWriter(stage, format, leaveOpen: true))
+        using var exactPax = format == TarEntryFormat.Pax ? new PaxTimestampWriteStream(stage, ct) : null;
+        var writer = new TarWriter(exactPax ?? stage, format, leaveOpen: true);
+        try
         {
             foreach (var (member, inputId, _) in planned)
             {
                 ct.ThrowIfCancellationRequested();
+                exactPax?.BeginMember(member.Modified, member.Length);
                 var kind = member.Type == ArchiveMemberType.File ? TarEntryType.RegularFile : TarEntryType.Directory;
                 PosixTarEntry entry;
                 if (format == TarEntryFormat.Pax)
@@ -148,12 +151,22 @@ internal static class TarRewriteEngine
                     content.Complete();
                 }
                 else writer.WriteEntry(entry);
+                exactPax?.CompleteMember();
                 var key = (member.Name, member.Type);
                 int occurrence = occurrences.GetValueOrDefault(key);
                 occurrences[key] = occurrence + 1;
                 manifest.Add(member with { Offset = 0, Occurrence = occurrence });
             }
+            exactPax?.BeginEndMarkers(planned.Count != 0);
         }
+        catch
+        {
+            // Finalizer writes must neither extend a failed PAX entry nor replace the original source/cancel error.
+            exactPax?.Abort(); try { writer.Dispose(); } catch { }
+            throw;
+        }
+        writer.Dispose();
+        exactPax?.CompleteArchive();
         // TarWriter emits no bytes if no entry was written. Removing the last member still requires a real TAR
         // with both end markers; an empty byte stream is not admitted by the strict verifier.
         if (planned.Count == 0) stage.Write(new byte[1024]);

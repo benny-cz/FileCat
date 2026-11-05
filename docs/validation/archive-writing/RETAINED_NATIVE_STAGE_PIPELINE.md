@@ -42,11 +42,11 @@ and applies no final outer metadata or origin aggregation. The caller still owns
 journaling and recovery. Closing managed data writes does not claim to remove every OS-level right from the trusted
 parent's private native handle.
 
-Unix new-member timestamps finer than the admitted 100 ns representation and special mode bits outside the new-input
-profile yield unrepresentable input facts instead of silent rounding/stripping. Original-archive observations can
-still retain those native fields for later admission/review. Windows uses its exact FILETIME modification timestamp
-and the declared default/read-only new-member mode. These are explicit input-profile semantics, not a complete copy
-of native ownership/ACL/xattr metadata into a new member.
+At this checkpoint Unix inputs finer than 100 ns and special mode bits refused. Later
+[permission-default corrections](CAPTURED_MEMBER_DEFAULTS.md) and [exact timestamp capture](EXACT_TAR_TIMESTAMPS.md)
+supersede those input restrictions: ordinary Unix bits and Windows 0644 are the new-file defaults, and PAX inputs
+retain native nanoseconds. Full native metadata remains reviewed. These member defaults do not copy complete native
+ownership/ACL/xattr metadata into an archive member.
 
 Review caught a consistency gap before this checkpoint: the native digest was compared without separately matching
 the exposed derived member fields. Native review/view admission now matches version, scope, digest, raw-origin digest,

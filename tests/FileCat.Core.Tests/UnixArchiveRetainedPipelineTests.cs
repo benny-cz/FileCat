@@ -30,6 +30,17 @@ public sealed partial class UnixArchiveStorageTests
     { File.WriteAllBytes(path, bytes); File.SetLastWriteTimeUtc(path, DateTime.UnixEpoch.AddSeconds(1700000000)); File.SetUnixFileMode(path, (UnixFileMode)0x1a4); }
 
     [Fact]
+    public void Retained_input_captures_and_rereviews_every_native_nanosecond()
+    {
+        Native(); using var temp = new TempDir(); string root = Canonical(temp.Path), path = Path.Combine(root, "input"); Payload(path, [1]);
+        ArchiveNativeTimestampFixture.SetModified(path, -1, 999999999);
+        using var directory = UnixArchiveDirectory.Open(root); using var input = directory.OpenSource("input"); var state = Observe(input);
+        Assert.Equal(new ArchiveTimestamp(-1, 999999999), state.Input(1).ModifiedTimestamp);
+        ArchiveNativeTimestampFixture.SetModified(path, -1, 999999998);
+        Assert.Equal(ArchiveWriteReason.SourceChanged, Assert.Throws<ArchiveWriteException>(() => ((IArchiveRetainedFile)input).Review(state, TestContext.Current.CancellationToken)).Reason);
+    }
+
+    [Fact]
     public void Native_read_views_retain_identity_have_independent_cursors_and_do_not_dispose_the_held_owner()
     {
         Native(); using var temp = new TempDir(); string root = Canonical(temp.Path); Payload(Path.Combine(root, "input"), [1, 2, 3]);
@@ -49,6 +60,7 @@ public sealed partial class UnixArchiveStorageTests
         Native(); var ct = TestContext.Current.CancellationToken; using var temp = new TempDir(); string root = Canonical(temp.Path);
         byte[] input = "native retained payload"u8.ToArray(); Payload(Path.Combine(root, "payload"), input);
         if (!update) File.SetUnixFileMode(Path.Combine(root, "payload"), (UnixFileMode)0xfed);
+        ArchiveNativeTimestampFixture.SetModified(Path.Combine(root, "payload"));
         using var directory = UnixArchiveDirectory.Open(root); using var captured = directory.OpenSource("payload"); var inputState = Observe(captured);
         UnixArchiveFile? original = null; ArchiveRetainedBinding? source = null; ArchiveAssessment? assessment = null;
         try
@@ -76,6 +88,11 @@ public sealed partial class UnixArchiveStorageTests
             var stage = prepared.Stage; var result = prepared.Verified; string retained = stage.DisplayPath;
             ArchiveJournaledTarAssertions.Complete(prepared, journal, plan, ct);
             Assert.Equal(update ? 0x1a4 : 0x1ed, inputState.Input(7).Mode);
+            Assert.Equal(new ArchiveTimestamp(1700000000, 123456789), inputState.Input(7).ModifiedTimestamp);
+            var addedMetadata = result.Verification.ObservedManifest.Members.Single(m => m.Name == "added").Metadata.ToArray();
+            Assert.Equal(2, BinaryPrimitives.ReadUInt16LittleEndian(addedMetadata));
+            Assert.Equal(1700000000, BinaryPrimitives.ReadInt64LittleEndian(addedMetadata.AsSpan(22)));
+            Assert.Equal(123456789, BinaryPrimitives.ReadInt32LittleEndian(addedMetadata.AsSpan(30)));
             Assert.Equal(inputState.Input(7).Mode, BinaryPrimitives.ReadInt32LittleEndian(result.Verification.ObservedManifest.Members.Single(m => m.Name == "added").Metadata[2..]));
             Assert.Equal(Version(stage), result.Stage.Version); Assert.Equal(result.Stage.Version, result.Verification.Stage);
             Assert.Equal(plan.Expected.Digest, result.Verification.ManifestDigest); Assert.True(transform!.Reaped); Assert.True(verifier!.Reaped);

@@ -90,21 +90,31 @@ public static class ArchiveAssessmentWorker
         return Convert.ToHexString(hash.GetHashAndReset());
     }
 
-    private static int MetadataLength(TarWriteMember member) => checked(2 + 12 + 8 + 8 +
+    private static bool FineTime(TarWriteMember member) =>
+        !ArchiveTimestamp.FromUnixSeconds(member.Modified).FitsTicks ||
+        member.Accessed is { } a && !ArchiveTimestamp.FromUnixSeconds(a).FitsTicks ||
+        member.Changed is { } c && !ArchiveTimestamp.FromUnixSeconds(c).FitsTicks;
+    private static int MetadataLength(TarWriteMember member) => checked(2 + 12 + 8 + (FineTime(member) ? 12 : 8) +
         Encoding.UTF8.GetByteCount(member.UserName) + Encoding.UTF8.GetByteCount(member.GroupName) +
-        2 + (member.Accessed.HasValue ? 8 : 0) + (member.Changed.HasValue ? 8 : 0));
+        2 + (member.Accessed.HasValue ? (FineTime(member) ? 12 : 8) : 0) + (member.Changed.HasValue ? (FineTime(member) ? 12 : 8) : 0));
 
     private static byte[] Metadata(TarWriteMember member, int length)
     {
         using var stream = new MemoryStream(length);
         using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
-        writer.Write((ushort)1);
+        bool fine = FineTime(member); writer.Write(fine ? (ushort)2 : (ushort)1);
         writer.Write(member.Mode); writer.Write(member.Uid); writer.Write(member.Gid);
         Text(member.UserName); Text(member.GroupName);
-        writer.Write(StrictTarCatalog.ToTime(member.Modified).UtcTicks);
+        ExactTime(member.Modified);
         Time(member.Accessed); Time(member.Changed);
         return stream.ToArray();
         void Text(string text) { byte[] bytes = Encoding.UTF8.GetBytes(text); writer.Write(bytes.Length); writer.Write(bytes); }
-        void Time(decimal? value) { writer.Write(value.HasValue); if (value is { } time) writer.Write(StrictTarCatalog.ToTime(time).UtcTicks); }
+        void Time(decimal? value) { writer.Write(value.HasValue); if (value is { } time) ExactTime(time); }
+        void ExactTime(decimal value)
+        {
+            var time = ArchiveTimestamp.FromUnixSeconds(value);
+            if (fine) { writer.Write(time.Seconds); writer.Write(time.Nanoseconds); }
+            else writer.Write(time.ToDateTimeOffset().UtcTicks);
+        }
     }
 }

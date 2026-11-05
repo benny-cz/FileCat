@@ -6,15 +6,18 @@ public sealed record ArchiveTransformInput
     public int Id { get; }
     public long Length { get; }
     public string Sha256 { get; }
-    public DateTimeOffset Modified { get; }
+    public ArchiveTimestamp ModifiedTimestamp { get; }
+    public DateTimeOffset Modified => ModifiedTimestamp.ToDateTimeOffset();
     public int Mode { get; }
     public ArchiveTransformInput(int id, long length, string sha256, DateTimeOffset modified, int mode = 0x1a4)
+        : this(id, length, sha256, (ArchiveTimestamp)modified, mode) { }
+    public ArchiveTransformInput(int id, long length, string sha256, ArchiveTimestamp modified, int mode = 0x1a4)
     {
         ArchiveWritePolicy.ValidateDigest(sha256);
         if (id <= 0 || length is < 0 or > ArchiveWritePolicy.MaxPayloadBytes || (mode & ~0x1ff) != 0 ||
             length == 0 && sha256 != "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855")
             throw ArchiveManifestMember.Invalid();
-        Id = id; Length = length; Sha256 = sha256; Modified = modified.ToUniversalTime(); Mode = mode;
+        Id = id; Length = length; Sha256 = sha256; ModifiedTimestamp = modified; Mode = mode;
     }
 }
 

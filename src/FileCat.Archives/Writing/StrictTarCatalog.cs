@@ -148,7 +148,9 @@ internal static class StrictTarCatalog
                     actual.ModificationTime.UtcTicks != ToTime(expected.Modified).UtcTicks)
                     throw Invalid("The TAR header and decoded member metadata disagree.");
                 var attributes = (actual as PaxTarEntry)?.ExtendedAttributes;
-                if (ReadTime(attributes, "atime") != expected.Accessed || ReadTime(attributes, "ctime") != expected.Changed)
+                if (ReadTime(attributes, "atime") != expected.Accessed || ReadTime(attributes, "ctime") != expected.Changed ||
+                    attributes is not null && ReadTime(attributes, "mtime") is { } mtime && mtime != expected.Modified ||
+                    !ArchiveTimestamp.FromUnixSeconds(expected.Modified).FitsTicks && ReadTime(attributes, "mtime") != expected.Modified)
                     throw Invalid("The TAR header and decoded timestamp metadata disagree.");
                 using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
                 long total = 0;
@@ -196,7 +198,7 @@ internal static class StrictTarCatalog
             throw Unsupported("This TAR contains unsupported link, device, or header metadata.");
     }
 
-    private static Dictionary<string, string> ParsePax(ReadOnlySpan<byte> bytes, ArchiveWriteBudget budget)
+    internal static Dictionary<string, string> ParsePax(ReadOnlySpan<byte> bytes, ArchiveWriteBudget budget)
     {
         // First pass counts records and rejects framing before constructing even one string or dictionary entry.
         int count = 0, offset = 0;
@@ -276,6 +278,17 @@ internal static class StrictTarCatalog
     private static int Integer(long value) => value <= int.MaxValue ? (int)value : throw Unsupported("A TAR identity or mode is outside the writable range.");
     private static decimal Timestamp(string text)
     {
+        ReadOnlySpan<char> number = text;
+        if (!number.IsEmpty && number[0] is '-' or '+') number = number[1..];
+        int decimalPoint = number.IndexOf('.');
+        var whole = decimalPoint < 0 ? number : number[..decimalPoint];
+        var fraction = decimalPoint < 0 ? ReadOnlySpan<char>.Empty : number[(decimalPoint + 1)..];
+        if (whole.IsEmpty || whole.ContainsAnyExceptInRange('0', '9') ||
+            decimalPoint >= 0 && (fraction.IsEmpty || fraction.ContainsAnyExceptInRange('0', '9')))
+            throw Invalid("A PAX timestamp has invalid decimal grammar.");
+        int point = text.IndexOf('.');
+        if (point >= 0 && text.Length - point - 1 > 9)
+            throw Unsupported("A PAX timestamp exceeds the supported nanosecond precision.");
         if (text.Length > 40 || !decimal.TryParse(text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
                 CultureInfo.InvariantCulture, out decimal value)) throw Invalid("A PAX timestamp is invalid.");
         CheckTime(value);
@@ -284,13 +297,14 @@ internal static class StrictTarCatalog
 
     private static void CheckTime(decimal value)
     {
-        if (value < -62135596800m || value > 253402300799.9999999m || decimal.Truncate(value * TimeSpan.TicksPerSecond) != value * TimeSpan.TicksPerSecond)
-            throw Unsupported("A TAR timestamp cannot be preserved at its recorded precision.");
+        _ = ArchiveTimestamp.FromUnixSeconds(value);
     }
 
     internal static DateTimeOffset ToTime(decimal value)
     {
         CheckTime(value);
+        // The runtime decoder projects decimal seconds to ticks by truncating toward zero. This is only an
+        // independent decoder comparison/writer placeholder; raw PAX values retain and verify the exact instant.
         return DateTimeOffset.UnixEpoch.AddTicks((long)(value * TimeSpan.TicksPerSecond));
     }
 

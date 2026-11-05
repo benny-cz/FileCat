@@ -10,7 +10,8 @@ payload reference gets a distinct consecutive positive grant, even when several 
 object. The parent retains the alias-to-captured-ID map and expected manifest; neither crosses the worker wire. Source
 ID zero is reserved for the original archive and stage ID minus one is the fixed parent-owned writable stream.
 
-The version-1 transform schema is TAR-only. It carries an optional physical source length/SHA, bounded record counts,
+The original version-1 transform schema is TAR-only. The later [timestamp checkpoint](EXACT_TAR_TIMESTAMPS.md)
+revises the transform handshake/input record for nanoseconds. It carries an optional physical source length/SHA, bounded record counts,
 a parent-computed output ceiling, input facts, exact member occurrence edits and flattened additions. All operation,
 reason, message and record enum values used on the wire now have explicit numeric assignments. Parsing checks exact
 schema/flags/counts, UTF-8/name limits, timestamps/modes/lengths, complete record EOF, source revision/key uniqueness

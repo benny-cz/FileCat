@@ -35,7 +35,7 @@ public sealed record ArchiveTransformReceipt(long Length, string ManifestDigest,
 /// <summary>Bounded canonical TAR transform records. No paths, expected-output digests or worker-selected grants.</summary>
 public static class ArchiveTransformWire
 {
-    public static ReadOnlySpan<byte> Hello => [1, 0, 1, 0, 2, 0, 0, 0];
+    public static ReadOnlySpan<byte> Hello => [1, 0, 2, 0, 2, 0, 0, 0];
 
     public static ArchiveTarTransformInvocation Prepare(ArchiveTarTransformPlan plan, CancellationToken ct = default)
     {
@@ -54,7 +54,7 @@ public static class ArchiveTransformWire
             if (id is null) return null;
             if (inputs.Count == ArchiveWritePolicy.MaxMembers) throw ArchiveWriteBudget.Limit();
             var input = plan.Inputs[id.Value]; int alias = inputs.Count + 1;
-            inputs.Add(alias, new(alias, input.Length, input.Sha256, input.Modified, input.Mode)); captured.Add(alias, id.Value); return alias;
+            inputs.Add(alias, new(alias, input.Length, input.Sha256, input.ModifiedTimestamp, input.Mode)); captured.Add(alias, id.Value); return alias;
         }
     }
 
@@ -92,7 +92,7 @@ public static class ArchiveTransformWire
         {
             ct.ThrowIfCancellationRequested();
             records.Write(ArchiveControlRecord.TransformInput, Encode(w =>
-            { w.Write((ushort)1); w.Write(input.Id); w.Write(input.Length); Digest(w, input.Sha256); w.Write(input.Modified.UtcTicks); w.Write(input.Mode); }));
+            { w.Write((ushort)2); w.Write(input.Id); w.Write(input.Length); Digest(w, input.Sha256); w.Write(input.ModifiedTimestamp.Seconds); w.Write(input.ModifiedTimestamp.Nanoseconds); w.Write(input.Mode); }));
             progress?.Invoke();
         }
         foreach (var edit in request.Edits)
@@ -129,11 +129,11 @@ public static class ArchiveTransformWire
             for (int i = 0; i < inputCount; i++)
             {
                 ct.ThrowIfCancellationRequested(); byte[] data = records.Read(ArchiveControlRecord.TransformInput); budget.AddMetadata(data.Length, 0);
-                var packet = new Packet(data); packet.Schema(); int id = packet.Integer(); long length = packet.Long(); string hash = packet.Digest();
-                long ticks = packet.Long(); int mode = packet.Integer(); packet.End();
-                if (id != i + 1 || length is < 0 or > ArchiveWritePolicy.MaxPayloadBytes || ticks < 0 || ticks > DateTimeOffset.MaxValue.UtcTicks) throw Fault();
+                var packet = new Packet(data); packet.Schema(2); int id = packet.Integer(); long length = packet.Long(); string hash = packet.Digest();
+                var modified = new ArchiveTimestamp(packet.Long(), packet.Integer()); int mode = packet.Integer(); packet.End();
+                if (id != i + 1 || length is < 0 or > ArchiveWritePolicy.MaxPayloadBytes) throw Fault();
                 ArchiveWriteBudget.Reserve(inputBytes, length, ArchiveWritePolicy.MaxLogicalBytes); inputBytes += length;
-                inputs.Add(id, new(id, length, hash, new DateTimeOffset(ticks, TimeSpan.Zero), mode));
+                inputs.Add(id, new(id, length, hash, modified, mode));
             }
             var used = new HashSet<int>(); var keys = new HashSet<ArchiveMemberKey>(); var edits = new List<ArchiveTransformEdit>();
             for (int i = 0; i < editCount; i++)
@@ -193,7 +193,7 @@ public static class ArchiveTransformWire
         public long Long() => BinaryPrimitives.ReadInt64LittleEndian(Take(8));
         public string Digest() => Convert.ToHexString(Take(32));
         public bool Flag() { byte flag = Take(1)[0]; if (flag > 1) throw Fault(); return flag == 1; }
-        public void Schema() { if (BinaryPrimitives.ReadUInt16LittleEndian(Take(2)) != 1) throw Fault(); }
+        public void Schema(ushort expected = 1) { if (BinaryPrimitives.ReadUInt16LittleEndian(Take(2)) != expected) throw Fault(); }
         public int Count() { int count = Integer(); if (count is < 0 or > ArchiveWritePolicy.MaxMembers) throw Fault(); return count; }
         public string Text(ArchiveWriteBudget budget)
         {

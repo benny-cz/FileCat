@@ -20,6 +20,7 @@ public sealed partial class LinuxArchiveProcessTests
         string inputPath = Path.Combine(root, "input"); File.WriteAllBytes(inputPath, "retained ext4 input"u8.ToArray());
         File.SetLastWriteTimeUtc(inputPath, DateTime.UnixEpoch.AddSeconds(1700000000)); File.SetUnixFileMode(inputPath, (UnixFileMode)0x1a4);
         if (!update) File.SetUnixFileMode(inputPath, (UnixFileMode)0xfed);
+        ArchiveNativeTimestampFixture.SetModified(inputPath);
         using var directory = UnixArchiveDirectory.Open(root); using var input = directory.OpenSource("input"); var state = ((IArchiveRetainedFile)input).Observe(ct);
         UnixArchiveFile? original = null; var workers = new List<LinuxArchiveProcess>();
         try
@@ -46,6 +47,11 @@ public sealed partial class LinuxArchiveProcessTests
                 new((nonce, cpu) => { ArchiveJournaledTarAssertions.Phase(journal, ArchiveTransactionPhase.Verifying); return Start(nonce, cpu, "archive-verify"); }), ct);
             var stage = prepared.Stage; var result = prepared.Verified; ArchiveJournaledTarAssertions.Complete(prepared, journal, plan, ct);
             Assert.Equal(update ? 0x1a4 : 0x1ed, state.Input(5).Mode);
+            Assert.Equal(new ArchiveTimestamp(1700000000, 123456789), state.Input(5).ModifiedTimestamp);
+            var addedMetadata = result.Verification.ObservedManifest.Members.Single(m => m.Name == "added").Metadata.ToArray();
+            Assert.Equal(2, BinaryPrimitives.ReadUInt16LittleEndian(addedMetadata));
+            Assert.Equal(1700000000, BinaryPrimitives.ReadInt64LittleEndian(addedMetadata.AsSpan(22)));
+            Assert.Equal(123456789, BinaryPrimitives.ReadInt32LittleEndian(addedMetadata.AsSpan(30)));
             Assert.Equal(state.Input(5).Mode, BinaryPrimitives.ReadInt32LittleEndian(result.Verification.ObservedManifest.Members.Single(m => m.Name == "added").Metadata[2..]));
             Assert.Equal(result.Stage.Version, stage.CaptureVersion(ct)); Assert.Equal(result.Stage.Version, result.Verification.Stage);
             Assert.Equal(plan.Expected.Digest, result.Verification.ManifestDigest); Assert.False(stage.CanWrite); Assert.Throws<NotSupportedException>(() => stage.WriteByte(1));

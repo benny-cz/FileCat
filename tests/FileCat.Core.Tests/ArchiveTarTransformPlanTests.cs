@@ -26,7 +26,7 @@ public sealed class ArchiveTarTransformPlanTests
         _ = TarRewriteEngine.Rebuild(before, plan.Source?.CatalogRevision, stage,
             plan.Edits.Select(e => new TarWriteEdit(e.Kind, e.Key, e.NewName, e.InputId)).ToArray(),
             plan.Additions.Select(a => new TarWriteAddition(a.Name, a.Type, a.InputId)).ToArray(),
-            plan.Inputs.ToDictionary(p => p.Key, p => new TarInputDescriptor(p.Key, p.Value.Length, p.Value.Sha256, p.Value.Modified, p.Value.Mode)),
+            plan.Inputs.ToDictionary(p => p.Key, p => new TarInputDescriptor(p.Key, p.Value.Length, p.Value.Sha256, p.Value.ModifiedTimestamp, p.Value.Mode)),
             id => new MemoryStream(inputs[id], writable: false), Ct);
         byte[] bytes = stage.ToArray(); Child? verifier = null;
         var result = await new ArchiveVerificationClient((nonce, _) => verifier = Child.Start(nonce, "archive-verify"))

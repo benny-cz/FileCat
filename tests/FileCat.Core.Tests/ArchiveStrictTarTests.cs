@@ -82,7 +82,7 @@ public sealed class ArchiveStrictTarTests
     [Theory]
     [InlineData("SCHILY.xattr.user.test", "present")]
     [InlineData("GNU.sparse.size", "100")]
-    [InlineData("mtime", "1700000000.123456789")]
+    [InlineData("mtime", "1700000000.1234567891")]
     public void Unknown_metadata_and_unrepresentable_time_precision_are_read_only(string key, string value)
     {
         using var output = new MemoryStream();
@@ -171,14 +171,14 @@ public sealed class ArchiveStrictTarTests
         return output.ToArray();
     }
 
-    private static void WriteOctal(Span<byte> field, long value)
+    internal static void WriteOctal(Span<byte> field, long value)
     {
         field.Clear();
         string octal = Convert.ToString(value, 8).PadLeft(field.Length - 1, '0');
         Encoding.ASCII.GetBytes(octal, field);
     }
 
-    private static void Checksum(Span<byte> header)
+    internal static void Checksum(Span<byte> header)
     {
         header.Slice(148, 8).Fill((byte)' ');
         long sum = 0;

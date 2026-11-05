@@ -43,12 +43,9 @@ internal sealed partial class UnixArchiveFile
     }
     private ArchiveFileObservation RetainedObservation(ArchiveObjectVersion version, ArchiveUnixOuterMetadata metadata)
     {
-        DateTimeOffset? modified = null;
-        if (metadata.Native.Modified.Nanoseconds % 100 == 0)
-        {
-            try { modified = DateTimeOffset.FromUnixTimeSeconds(metadata.Native.Modified.Seconds).AddTicks(metadata.Native.Modified.Nanoseconds / 100); }
-            catch (ArgumentOutOfRangeException) { } // Explicitly unrepresentable input metadata, never silently rounded.
-        }
+        ArchiveTimestamp? modified = null;
+        try { modified = new(metadata.Native.Modified.Seconds, checked((int)metadata.Native.Modified.Nanoseconds)); }
+        catch (ArchiveWriteException ex) when (ex.Reason == ArchiveWriteReason.UnsupportedFeature) { } // Out of the admitted UTC range.
         return new(version, parent.Identity.ToString(), KnownName, metadata.Digest, metadata.Origin, modified,
             (int)(metadata.Native.Mode & 0x1ff)); // New members capture ordinary bits; full native mode remains in the review digest.
     }

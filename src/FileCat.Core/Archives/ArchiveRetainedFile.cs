@@ -8,17 +8,17 @@ internal sealed record ArchiveFileObservation
     internal string LeafName { get; }
     internal string MetadataDigest { get; }
     internal ArchiveOriginSnapshot Origin { get; }
-    internal DateTimeOffset? MemberModified { get; }
+    internal ArchiveTimestamp? MemberModified { get; }
     internal int? MemberMode { get; }
     internal ArchiveFileObservation(ArchiveObjectVersion version, string parentIdentity, string leafName, string metadataDigest,
-        ArchiveOriginSnapshot origin, DateTimeOffset? memberModified, int? memberMode)
+        ArchiveOriginSnapshot origin, ArchiveTimestamp? memberModified, int? memberMode)
     {
         ArgumentNullException.ThrowIfNull(version); ArgumentNullException.ThrowIfNull(origin);
         ArchiveTransactionFacts.ValidateText(parentIdentity, 4096); ArchiveTransactionFacts.ValidateText(leafName, 1024);
         ArchiveWritePolicy.ValidateDigest(metadataDigest);
         if (origin.State == ArchiveOriginState.Unavailable || memberMode is < 0 or > 0x1ff) throw new ArgumentException("Incomplete retained-file observation.");
         Version = version; ParentIdentity = parentIdentity; LeafName = leafName; MetadataDigest = metadataDigest; Origin = origin;
-        MemberModified = memberModified?.ToUniversalTime(); MemberMode = memberMode;
+        MemberModified = memberModified; MemberMode = memberMode;
     }
     internal ArchiveTransformInput Input(int id)
     {

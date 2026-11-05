@@ -60,6 +60,9 @@ public sealed class ArchiveTransformWireTests
     [InlineData("id")]
     [InlineData("length")]
     [InlineData("time")]
+    [InlineData("nanos-negative")]
+    [InlineData("nanos-overflow")]
+    [InlineData("schema")]
     [InlineData("mode")]
     [InlineData("trailing")]
     public void Bad_input_descriptors_refuse_without_exposing_input_or_stage_authority(string field)
@@ -71,7 +74,10 @@ public sealed class ArchiveTransformWireTests
             case "id": BinaryPrimitives.WriteInt32LittleEndian(input.AsSpan(2), 37); break;
             case "length": BinaryPrimitives.WriteInt64LittleEndian(input.AsSpan(6), -1); break;
             case "time": BinaryPrimitives.WriteInt64LittleEndian(input.AsSpan(46), long.MaxValue); break;
-            case "mode": BinaryPrimitives.WriteInt32LittleEndian(input.AsSpan(54), -1); break;
+            case "nanos-negative": BinaryPrimitives.WriteInt32LittleEndian(input.AsSpan(54), -1); break;
+            case "nanos-overflow": BinaryPrimitives.WriteInt32LittleEndian(input.AsSpan(54), 1_000_000_000); break;
+            case "schema": input[0] = 1; break;
+            case "mode": BinaryPrimitives.WriteInt32LittleEndian(input.AsSpan(58), -1); break;
             case "trailing": input = [.. input, 0]; break;
         }
         using var bytes = new MemoryStream(); var records = new ArchiveWorkerRecords(new(Nonce, ArchiveWritePolicy.MaxWorkerWireBytes), bytes, writing: true);

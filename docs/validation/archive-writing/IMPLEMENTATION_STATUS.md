@@ -19,6 +19,9 @@ application. An explicit new-profile job refuses instead of entering the legacy 
 
 The later [captured-member defaults checkpoint](CAPTURED_MEMBER_DEFAULTS.md) corrects ordinary Unix permission bits
 and Windows 0644 defaults, with passing native regression checks on all three platforms. It does not complete capture.
+The subsequent [exact TAR timestamp checkpoint](EXACT_TAR_TIMESTAMPS.md) adds native nanosecond capture, versioned
+input/member metadata and a bounded PAX encoder adapter, with three-platform regression/native and independent-reader
+checks. Complete capture/publication/production integration and release qualification remain unfinished.
 
 | Area | Current behavior | Remaining gate |
 |---|---|---|

@@ -99,11 +99,11 @@ public sealed class ArchiveTarTransformPlan
             ct.ThrowIfCancellationRequested(); var addition = additions[i] ?? throw ArchiveManifestMember.Invalid();
             RequestName(addition.Name);
             var input = addition.InputId is { } id ? Use(id) : null;
-            long ticks = input?.Modified.UtcTicks ?? DateTimeOffset.UnixEpoch.Ticks;
-            if (ustar) ticks = DateTimeOffset.UnixEpoch.Ticks + (ticks - DateTimeOffset.UnixEpoch.Ticks) / TimeSpan.TicksPerSecond * TimeSpan.TicksPerSecond;
+            var modified = input?.ModifiedTimestamp ?? new ArchiveTimestamp(0, 0);
+            if (ustar) modified = ArchiveTimestamp.FromUnixSeconds(decimal.Truncate(modified.UnixSeconds));
             Add(addition.Name, addition.Type, input?.Length ?? 0,
                 input?.Sha256 ?? "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
-                AddedMetadata(input?.Mode ?? 0x1ed, ticks), changed: true);
+                AddedMetadata(input?.Mode ?? 0x1ed, modified), changed: true);
             frozenAdditions[i] = addition;
         }
         if (usedInputs.Count != captured.Count) throw ArchiveManifestMember.Invalid(); // no unrelated read grants
@@ -130,7 +130,7 @@ public sealed class ArchiveTarTransformPlan
         void Add(string name, ArchiveMemberType type, long length, string digest, ReadOnlySpan<byte> metadata, bool changed)
         {
             // Reserve before copying a complete member representation. Metadata is already bounded by the source
-            // manifest; newly synthesized metadata has a fixed 32-byte representation.
+            // manifest; newly synthesized metadata has a fixed 32/36-byte representation.
             budget.AddMember(); budget.AddNameChars(name.Length); budget.AddLogicalBytes(length);
             budget.AddMetadata(ArchiveWritePolicy.Utf8.GetByteCount(name) + metadata.Length + 64L, 2L * name.Length + metadata.Length + 640L);
             var key = (name, type); int occurrence = occurrences.GetValueOrDefault(key); occurrences[key] = occurrence + 1;
@@ -140,30 +140,32 @@ public sealed class ArchiveTarTransformPlan
         }
     }
 
-    private static byte[] AddedMetadata(int mode, long ticks)
+    private static byte[] AddedMetadata(int mode, ArchiveTimestamp modified)
     {
-        byte[] result = new byte[32]; BinaryPrimitives.WriteUInt16LittleEndian(result, 1);
+        byte[] result = new byte[modified.FitsTicks ? 32 : 36]; BinaryPrimitives.WriteUInt16LittleEndian(result, modified.FitsTicks ? (ushort)1 : (ushort)2);
         BinaryPrimitives.WriteInt32LittleEndian(result.AsSpan(2), mode);
-        BinaryPrimitives.WriteInt64LittleEndian(result.AsSpan(22), ticks); return result;
+        BinaryPrimitives.WriteInt64LittleEndian(result.AsSpan(22), modified.FitsTicks ? modified.ToDateTimeOffset().UtcTicks : modified.Seconds);
+        if (!modified.FitsTicks) BinaryPrimitives.WriteInt32LittleEndian(result.AsSpan(30), modified.Nanoseconds);
+        return result;
     }
 
     private static void ValidateMetadata(ArchiveManifestMember member, bool ustar)
     {
         var data = member.Metadata;
-        if (data.Length < 32 || BinaryPrimitives.ReadUInt16LittleEndian(data) != 1) throw Unsupported();
-        var reader = new MetadataReader(data[2..]); int mode = reader.Integer(), uid = reader.Integer(), gid = reader.Integer();
+        if (data.Length < 32) throw Unsupported(); ushort schema = BinaryPrimitives.ReadUInt16LittleEndian(data);
+        if (schema is not (1 or 2)) throw Unsupported();
+        var reader = new MetadataReader(data[2..], schema); int mode = reader.Integer(), uid = reader.Integer(), gid = reader.Integer();
         if ((mode & ~0xfff) != 0 || uid < 0 || gid < 0) throw Unsupported();
-        int user = reader.TextLength(), group = reader.TextLength(); long modified = reader.Time();
+        int user = reader.TextLength(), group = reader.TextLength(); ArchiveTimestamp modified = reader.Time();
         bool accessed = reader.OptionalTime(), changed = reader.OptionalTime();
         if (!reader.AtEnd) throw Unsupported();
         if (ustar && (accessed || changed || uid > 0x1fffff || gid > 0x1fffff || user > 32 || group > 32 ||
-            modified < DateTimeOffset.UnixEpoch.Ticks || (modified - DateTimeOffset.UnixEpoch.Ticks) % TimeSpan.TicksPerSecond != 0 ||
-            (modified - DateTimeOffset.UnixEpoch.Ticks) / TimeSpan.TicksPerSecond > 0x1ffffffffL || member.Length > 0x1ffffffffL || !FitsUstarName(member.Name)))
+            modified.Seconds < 0 || modified.Nanoseconds != 0 || modified.Seconds > 0x1ffffffffL || member.Length > 0x1ffffffffL || !FitsUstarName(member.Name)))
             throw Unsupported();
 
     }
 
-    private ref struct MetadataReader(ReadOnlySpan<byte> data)
+    private ref struct MetadataReader(ReadOnlySpan<byte> data, ushort schema)
     {
         private readonly ReadOnlySpan<byte> _data = data;
         private int _offset;
@@ -178,10 +180,12 @@ public sealed class ArchiveTarTransformPlan
             try { ArchiveWritePolicy.Utf8.GetCharCount(text); } catch (DecoderFallbackException) { throw Unsupported(); }
             return length;
         }
-        public long Time()
+        public ArchiveTimestamp Time()
         {
             if (_offset > _data.Length - 8) throw Unsupported(); long value = BinaryPrimitives.ReadInt64LittleEndian(_data[_offset..]); _offset += 8;
-            if (value < DateTimeOffset.MinValue.UtcTicks || value > DateTimeOffset.MaxValue.UtcTicks) throw Unsupported(); return value;
+            if (schema == 2) return new(value, Integer());
+            if (value < DateTimeOffset.MinValue.UtcTicks || value > DateTimeOffset.MaxValue.UtcTicks) throw Unsupported();
+            return new DateTimeOffset(value, TimeSpan.Zero);
         }
         public bool OptionalTime()
         {

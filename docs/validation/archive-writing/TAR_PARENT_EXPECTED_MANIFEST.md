@@ -13,10 +13,11 @@ The parent derives stable physical order, renumbered duplicate occurrences, exac
 canonical semantic metadata and TAR features from the complete assessed catalog and captured regular-file facts.
 Replacement preserves the old member metadata; additions use explicit captured mode/mtime with fixed owner/group
 defaults. New directories use the documented engine defaults. USTAR additions use the engine's whole-second timestamp
-rule and must fit its name/numeric fields. PAX times retain their exact admitted tick precision. An empty output has
+rule and must fit its name/numeric fields. PAX times retain their exact admitted precision; the later
+[timestamp checkpoint](EXACT_TAR_TIMESTAMPS.md) extends this to nanoseconds. An empty output has
 no PAX extension and therefore uses the strict observer's USTAR feature inventory.
 
-The bounded metadata reader requires schema 1, strict UTF-8 text without embedded NUL, nonnegative owner/group IDs,
+The bounded metadata reader at this checkpoint requires schema 1 (later extended with exact-time schema 2), strict UTF-8 text without embedded NUL, nonnegative owner/group IDs,
 the admitted mode bits, exact timestamp ranges/presence bytes and complete EOF. All source metadata and the complete
 source namespace are checked, including rows being deleted. Unknown features, unsupported profiles, stale/unknown/
 repeated keys, file/folder ambiguity, changed-name collisions, unrepresentable USTAR changes and unrelated input grants

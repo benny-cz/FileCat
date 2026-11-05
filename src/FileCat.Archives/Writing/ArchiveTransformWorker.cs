@@ -23,7 +23,7 @@ public static class ArchiveTransformWorker
             var transformed = TarRewriteEngine.Rebuild(source, request.Source?.SourceSha256, stage,
                 request.Edits.Select(e => new TarWriteEdit(e.Kind, e.Key, e.NewName, e.InputId)).ToArray(),
                 request.Additions.Select(a => new TarWriteAddition(a.Name, a.Type, a.InputId)).ToArray(),
-                request.Inputs.ToDictionary(p => p.Key, p => new TarInputDescriptor(p.Key, p.Value.Length, p.Value.Sha256, p.Value.Modified, p.Value.Mode)),
+                request.Inputs.ToDictionary(p => p.Key, p => new TarInputDescriptor(p.Key, p.Value.Length, p.Value.Sha256, p.Value.ModifiedTimestamp, p.Value.Mode)),
                 id => new ArchiveProxyStream(connection, id, request.Inputs[id].Length, request.Inputs[id].Length), ct);
             var manifest = ArchiveAssessmentWorker.Manifest(new(ArchiveWriteFormat.Tar), transformed.Format, transformed.Members, ct);
             outgoing.Write(ArchiveControlRecord.Receipt, ArchiveTransformWire.Receipt(new(stage.Length, manifest.Digest, manifest.ContentDigest, manifest.MetadataDigest)));
