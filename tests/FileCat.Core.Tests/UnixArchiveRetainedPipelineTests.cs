@@ -11,6 +11,22 @@ namespace FileCat.Core.Tests;
 public sealed partial class UnixArchiveStorageTests
 {
     [Theory]
+    [InlineData("existing-target")]
+    [InlineData("changed-input")]
+    [InlineData("metadata-change")]
+    [InlineData("cancelled")]
+    [InlineData("after-claim")]
+    [InlineData("unsafe-directory")]
+    public async Task New_private_archive_publication_failures_retain_exact_evidence(string failure)
+    {
+        Native(); using var root = new TempDir(); string path = Canonical(root.Path); File.SetUnixFileMode(path, (UnixFileMode)0x1c0);
+        Payload(Path.Combine(path, "input"), [1]);
+        using var directory = UnixArchiveDirectory.Open(path); using var input = directory.OpenSource("input"); var state = Observe(input);
+        await ArchiveCreationPublicationCases.Failure(failure, path, input, state,
+            (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
+            new((nonce, _) => Child.Start(nonce, "archive-transform")), new((nonce, _) => Child.Start(nonce, "archive-verify")), TestContext.Current.CancellationToken);
+    }
+    [Theory]
     [InlineData(0x1a4)]
     [InlineData(0x1ed)]
     [InlineData(0x140)]
@@ -58,6 +74,7 @@ public sealed partial class UnixArchiveStorageTests
     public async Task Retained_native_inputs_rebuild_into_a_real_private_sealed_and_freshly_verified_stage(bool update)
     {
         Native(); var ct = TestContext.Current.CancellationToken; using var temp = new TempDir(); string root = Canonical(temp.Path);
+        if (!update) File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
         byte[] input = "native retained payload"u8.ToArray(); Payload(Path.Combine(root, "payload"), input);
         if (!update) File.SetUnixFileMode(Path.Combine(root, "payload"), (UnixFileMode)0xfed);
         ArchiveNativeTimestampFixture.SetModified(Path.Combine(root, "payload"));
@@ -99,6 +116,9 @@ public sealed partial class UnixArchiveStorageTests
             Assert.NotEqual(transform.ProcessId, verifier.ProcessId); Assert.False(stage.CanWrite); Assert.Throws<NotSupportedException>(() => stage.WriteByte(1));
             Assert.True(File.Exists(retained)); Assert.False(File.Exists(Path.Combine(root, "result.tar"))); Assert.Equal(input, File.ReadAllBytes(Path.Combine(root, "payload")));
             Assert.True(captured.CanRead); Assert.Equal(inputState.Version, Observe(captured).Version);
+            if (!update) await ArchiveJournaledTarAssertions.PublishNew(prepared, journal,
+                new Dictionary<int, ArchiveRetainedBinding> { [7] = new(captured, inputState) },
+                r => { ArchiveJournaledTarAssertions.BeforeCreate(journal, r); return directory.CreateArtifact(r); }, ct);
         }
         finally { original?.Dispose(); }
     }

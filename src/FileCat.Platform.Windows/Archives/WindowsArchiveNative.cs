@@ -108,6 +108,21 @@ internal static unsafe partial class WindowsArchiveNative
         if (!FlushFileBuffers(handle)) throw new Win32Exception(Marshal.GetLastPInvokeError());
     }
 
+    internal static void RequireOnlyDataStream(SafeFileHandle handle, long expectedLength)
+    {
+        // A new unmarked private archive needs exactly the unnamed data stream. A fixed bounded query suffices:
+        // overflow, a following entry or any other name refuses rather than allocating from an untrusted list size.
+        byte* bytes = stackalloc byte[256]; new Span<byte>(bytes, 256).Clear(); IoStatus io = default;
+        int status = NtQueryInformationFile(handle, &io, bytes, 256, 22 /* FileStreamInformation */);
+        if (status != 0 || io.Information is < 24 or > 256 || *(uint*)bytes != 0 ||
+            *(long*)(bytes + 8) != expectedLength || *(long*)(bytes + 16) < 0) throw UnexpectedStreams();
+        uint length = *(uint*)(bytes + 4);
+        if (length != 0 && (length != 14 || io.Information < 24 + length || !new ReadOnlySpan<char>((char*)(bytes + 24), 7).SequenceEqual("::$DATA")))
+            throw UnexpectedStreams();
+    }
+    private static ArchiveWriteException UnexpectedStreams() => new(ArchiveWriteReason.PublicationUnavailable,
+        "The new archive's complete unnamed-stream-only state could not be established.");
+
     internal static void DeleteExact(SafeFileHandle handle)
     {
         uint flags = 1 | 2; // DELETE | POSIX_SEMANTICS. Never ignore read-only, reopen a path, or use a fallback.
@@ -117,6 +132,8 @@ internal static unsafe partial class WindowsArchiveNative
 
     [LibraryImport("ntdll.dll")]
     private static partial int NtQueryVolumeInformationFile(SafeFileHandle handle, IoStatus* io, void* buffer, uint size, int informationClass);
+    [LibraryImport("ntdll.dll")]
+    private static partial int NtQueryInformationFile(SafeFileHandle handle, IoStatus* io, void* buffer, uint size, int informationClass);
     [LibraryImport("kernel32.dll", EntryPoint = "GetVolumeInformationByHandleW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetVolumeInformationByHandle(SafeFileHandle handle, char* label, uint labelSize, out uint serial,

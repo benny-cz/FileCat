@@ -35,6 +35,7 @@
     <Compile Include="..\TestCleanup.cs" Link="TestCleanup.cs" />
     <Compile Include="..\ArchiveStageCrashAssertions.cs" Link="ArchiveStageCrashAssertions.cs" />
     <Compile Include="..\ArchiveJournaledTarAssertions.cs" Link="ArchiveJournaledTarAssertions.cs" />
+    <Compile Include="..\ArchiveCreationPublicationCases.cs" Link="ArchiveCreationPublicationCases.cs" />
     <Compile Include="..\ArchiveSidecarCrashAssertions.cs" Link="ArchiveSidecarCrashAssertions.cs" />
   </ItemGroup>
 </Project>

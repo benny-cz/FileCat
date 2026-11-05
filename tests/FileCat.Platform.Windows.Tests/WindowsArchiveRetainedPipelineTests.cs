@@ -6,6 +6,18 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed partial class WindowsArchiveStorageTests
 {
     [Fact]
+    public void An_added_named_stream_refuses_private_creation_without_claiming_the_final_name()
+    {
+        RequireWindows(); using var root = new Fixture(); using var directory = WindowsArchiveDirectory.Open(root.Root);
+        using var stage = directory.CreateArtifact(Guid.NewGuid(), WindowsArchiveArtifactKind.Stage, 1024); var retained = (IArchiveRetainedStage)stage;
+        retained.BeginRebuild(1024, TestContext.Current.CancellationToken).Write([1]); var verified = retained.SealForVerification(TestContext.Current.CancellationToken);
+        var publication = (IArchiveCreatePublicationStage)stage; var review = publication.ReviewCreate(verified, "result.tar", TestContext.Current.CancellationToken);
+        using (var added = new FileStream(stage.DisplayPath + ":unexpected", FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+            added.WriteByte(7);
+        Assert.Equal(ArchiveWriteReason.PublicationUnavailable, Assert.Throws<ArchiveWriteException>(() => publication.ClaimNewName("result.tar", review, TestContext.Current.CancellationToken)).Reason);
+        Assert.True(File.Exists(stage.DisplayPath)); Assert.False(File.Exists(root.PathOf("result.tar")));
+    }
+    [Fact]
     public void Held_NTFS_capacity_agrees_with_independent_path_API_and_requires_the_exact_parent()
     {
         RequireWindows(); using var root = new Fixture(); using var directory = WindowsArchiveDirectory.Open(root.Root);

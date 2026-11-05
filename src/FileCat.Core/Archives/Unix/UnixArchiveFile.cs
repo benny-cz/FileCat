@@ -6,7 +6,7 @@ using Microsoft.Win32.SafeHandles;
 namespace FileCat.Core.Archives.Unix;
 
 /// <summary>Parent-owned bounded held-inode stream. Disposal retains evidence. No handle is granted to a codec/worker.</summary>
-internal sealed partial class UnixArchiveFile : Stream, IArchiveRetainedStage
+internal sealed partial class UnixArchiveFile : Stream, IArchiveCreatePublicationStage
 {
     private readonly UnixArchiveDirectory parent;
     private readonly SafeFileHandle held;

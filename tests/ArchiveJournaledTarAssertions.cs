@@ -7,6 +7,28 @@ namespace FileCat.Tests;
 
 internal static class ArchiveJournaledTarAssertions
 {
+    internal static async Task PublishNew<T>(ArchivePreparedTar<T> prepared, JobJournal journal,
+        IReadOnlyDictionary<int, ArchiveRetainedBinding> captured, Func<ArchiveArtifactReservation, T> create, CancellationToken ct)
+        where T : class, IArchiveRetainedStage
+    {
+        string originalStage = prepared.Facts.StagePath; Assert.False(File.Exists(prepared.Facts.ArchivePath));
+        var published = await ArchiveNewFilePublication.PublishAsync(journal, prepared, captured, create, ct);
+        var facts = published.Facts; Assert.Equal(ArchiveTransactionPhase.CommittedWithRetainedArtifacts, facts.Phase);
+        Assert.Equal(prepared.Verified.Stage.Version, facts.Published); Assert.Equal(facts.Published, published.Published.Version);
+        Assert.Equal(Path.GetFileName(facts.ArchivePath), published.Published.LeafName); Assert.Null(facts.Retired);
+        Assert.True(File.Exists(facts.ArchivePath)); Assert.False(File.Exists(originalStage)); Assert.True(journal.NeedsRecovery);
+        var metadata = Assert.Single(facts.Sidecars, s => s.Role == ArchiveSidecarRole.CreationMetadata);
+        Assert.NotNull(metadata.Version); Assert.Equal(metadata.Version.Sha256, facts.SecuritySnapshotSha256);
+        Assert.Equal(facts.Sidecars.Select(s => s.Path), facts.UnresolvedArtifacts); Assert.All(facts.Sidecars, s => { Assert.NotNull(s.Version); Assert.True(File.Exists(s.Path)); });
+        var history = JobJournal.ReadAll(journal.Path).Where(r => r.Type == "archive-transaction").Select(r => ArchiveTransactionFacts.Parse(r.Node)).ToArray();
+        Assert.Equal(facts.Sequence, history.Length);
+        Assert.Equal(new[] { ArchiveTransactionPhase.ReadyToPublish, ArchiveTransactionPhase.Publishing, ArchiveTransactionPhase.Reconciling,
+            ArchiveTransactionPhase.Cleaning, ArchiveTransactionPhase.CommittedWithRetainedArtifacts }, history.TakeLast(5).Select(h => h.Phase));
+        Assert.Null(history[^4].Published); Assert.Equal(facts.Published, history[^3].Published);
+        Assert.Throws<IOException>(() => journal.Finish(JobState.Completed, "retained evidence remains visible"));
+        Assert.Throws<InvalidOperationException>(() => journal.RequireCurrentArchiveTransaction(prepared.Facts));
+        TestContext.Current.TestOutputHelper?.WriteLine(JsonSerializer.Serialize(new { archivePublication = new { facts.ArchivePath, version = facts.Published, phase = facts.Phase.ToString(), facts.Sequence } }));
+    }
     internal static void BeforeCreate(JobJournal journal, ArchiveArtifactReservation reservation)
     {
         var facts = Assert.Single(JournalRecovery.ReadArchiveTransactions(journal.Path).Transactions);
@@ -47,8 +69,10 @@ internal static class ArchiveJournaledTarAssertions
             evidence = prepared.Space.Estimate.EvidenceBytes, snapshots = prepared.Space.Estimate.KnownSnapshotBytes } }));
         Assert.Equal(prepared.Verified.Stage.Version, facts.VerifiedStage); Assert.Null(facts.SecuritySnapshotSha256); Assert.Null(facts.Published);
         Assert.Equal(facts.VerifiedStage, facts.FinalizedStage);
-        Assert.Equal(plan.Source is null ? 3 : 4, prepared.Sidecars.Count); Assert.Equal(prepared.Sidecars.Count, facts.Sidecars.Count);
-        Assert.All(facts.Sidecars, s => Assert.NotNull(s.Version)); Assert.All(prepared.Sidecars, s => Assert.False(s.File is Stream stream && stream.CanWrite));
+        Assert.Equal(plan.Source is null ? 3 : 4, prepared.Sidecars.Count); Assert.Equal(prepared.Sidecars.Count + (plan.Source is null ? 1 : 0), facts.Sidecars.Count);
+        Assert.All(facts.Sidecars.Where(s => s.Role != ArchiveSidecarRole.CreationMetadata), s => Assert.NotNull(s.Version));
+        if (plan.Source is null) { var metadata = Assert.Single(facts.Sidecars, s => s.Role == ArchiveSidecarRole.CreationMetadata); Assert.Null(metadata.Identity); Assert.Null(metadata.Version); Assert.NotNull(prepared.CreationMetadata); }
+        Assert.All(prepared.Sidecars, s => Assert.False(s.File is Stream stream && stream.CanWrite));
         var history = JobJournal.ReadAll(journal.Path).Where(r => r.Type == "archive-transaction").Select(r => ArchiveTransactionFacts.Parse(r.Node)).ToArray();
         Assert.Null(history[0].StageIdentity); Assert.All(history[0].Sidecars, s => { Assert.Null(s.Identity); Assert.Null(s.Version); });
         Assert.Equal(facts.Sequence, history.Length); Assert.DoesNotContain(history, h => h.Phase == ArchiveTransactionPhase.ReadyToPublish);

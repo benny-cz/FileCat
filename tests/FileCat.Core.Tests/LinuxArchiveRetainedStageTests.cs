@@ -12,11 +12,28 @@ namespace FileCat.Core.Tests;
 public sealed partial class LinuxArchiveProcessTests
 {
     [Theory]
+    [InlineData("existing-target")]
+    [InlineData("changed-input")]
+    [InlineData("metadata-change")]
+    [InlineData("cancelled")]
+    [InlineData("after-claim")]
+    public async Task Confined_new_private_archive_publication_failures_retain_exact_evidence(string failure)
+    {
+        string probe = Probe(); using var temp = new TempDir(); string root = UnixFiles.RealPath(temp.Path)!; File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
+        File.WriteAllBytes(Path.Combine(root, "input"), [1]);
+        using var directory = UnixArchiveDirectory.Open(root); using var input = directory.OpenSource("input"); var state = ((IArchiveRetainedFile)input).Observe(TestContext.Current.CancellationToken);
+        await ArchiveCreationPublicationCases.Failure(failure, root, input, state,
+            (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
+            new((nonce, cpu) => LinuxArchiveProcess.Start(probe, nonce, cpu, ["archive-transform", nonce.ToString("D")])),
+            new((nonce, cpu) => LinuxArchiveProcess.Start(probe, nonce, cpu, ["archive-verify", nonce.ToString("D")])), TestContext.Current.CancellationToken);
+    }
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Retained_ext4_inputs_produce_a_real_private_sealed_stage_before_fresh_verification(bool update)
     {
         string probe = Probe(); var ct = TestContext.Current.CancellationToken; using var temp = new TempDir(); string root = UnixFiles.RealPath(temp.Path)!;
+        if (!update) File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
         string inputPath = Path.Combine(root, "input"); File.WriteAllBytes(inputPath, "retained ext4 input"u8.ToArray());
         File.SetLastWriteTimeUtc(inputPath, DateTime.UnixEpoch.AddSeconds(1700000000)); File.SetUnixFileMode(inputPath, (UnixFileMode)0x1a4);
         if (!update) File.SetUnixFileMode(inputPath, (UnixFileMode)0xfed);
@@ -59,6 +76,9 @@ public sealed partial class LinuxArchiveProcessTests
             Assert.True(File.Exists(stage.DisplayPath)); Assert.False(File.Exists(Path.Combine(root, "result.tar")));
             Assert.Equal(update ? 3 : 2, workers.Select(w => w.ProcessId).Distinct().Count());
             foreach (var worker in workers) { Assert.True(worker.HasExited); Assert.Equal(0u, worker.ExitCode); Assert.False(Directory.Exists(worker.ControlPath)); }
+            if (!update) await ArchiveJournaledTarAssertions.PublishNew(prepared, journal,
+                new Dictionary<int, ArchiveRetainedBinding> { [5] = new(input, state) },
+                r => { ArchiveJournaledTarAssertions.BeforeCreate(journal, r); return directory.CreateArtifact(r); }, ct);
         }
         finally { original?.Dispose(); }
         LinuxArchiveProcess Start(Guid nonce, TimeSpan cpu, string role)

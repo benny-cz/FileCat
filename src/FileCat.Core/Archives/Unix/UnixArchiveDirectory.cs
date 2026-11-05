@@ -107,6 +107,7 @@ internal sealed class UnixArchiveDirectory : IDisposable, IArchiveDestinationSpa
             throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "The archive name identifies a different object; retain both objects.");
     }
     internal void CheckPrivate(SafeFileHandle held) => UnixArchiveNative.RequirePrivate(held, user);
+    internal void CheckCreationNamespace() => UnixArchiveNative.RequireCreationDirectory(directory, user);
     private void RequireCapacity()
     {
         ObjectDisposedException.ThrowIf(disposed, this);

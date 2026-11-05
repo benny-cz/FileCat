@@ -11,7 +11,7 @@ namespace FileCat.Platform.Windows.Archives;
 /// releases handles: it never deletes evidence. Rename/delete primitives must be called by a coordinator only after
 /// the corresponding durable journal intent. They are not a complete publication or recovery protocol.
 /// </summary>
-internal sealed partial class WindowsArchiveFile : Stream, IArchiveRetainedStage
+internal sealed partial class WindowsArchiveFile : Stream, IArchiveCreatePublicationStage
 {
     private readonly WindowsArchiveDirectory parent;
     private readonly SafeFileHandle handle;

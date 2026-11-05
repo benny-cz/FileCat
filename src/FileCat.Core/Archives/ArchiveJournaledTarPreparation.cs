@@ -4,12 +4,13 @@ namespace FileCat.Core.Archives;
 
 /// <summary>Unpublished native preparation. The caller continues to own every source lease.</summary>
 internal sealed class ArchivePreparedTar<T>(T stage, ArchiveVerifiedNativeStage verified, ArchiveTransactionFacts facts,
-    IReadOnlyList<ArchiveSealedSidecar<T>> sidecars, ArchiveSpaceReview space) : IDisposable where T : class, IArchiveRetainedStage
+    IReadOnlyList<ArchiveSealedSidecar<T>> sidecars, ArchiveSpaceReview space, ArchiveArtifactReservation? creationMetadata) : IDisposable where T : class, IArchiveRetainedStage
 {
     internal T Stage { get; } = stage;
     internal ArchiveVerifiedNativeStage Verified { get; } = verified;
     internal ArchiveTransactionFacts Facts { get; } = facts;
     internal ArchiveSpaceReview Space { get; } = space;
+    internal ArchiveArtifactReservation? CreationMetadata { get; } = creationMetadata;
     internal IReadOnlyList<ArchiveSealedSidecar<T>> Sidecars { get; } = Array.AsReadOnly(sidecars.ToArray());
     public void Dispose() { try { Stage.Dispose(); } finally { foreach (var sidecar in Sidecars) sidecar.Dispose(); } }
 }
@@ -50,7 +51,7 @@ internal static class ArchiveJournaledTarPreparation
                 long expectedLength = ArchiveManifestSidecar.EncodedLength(plan.Expected, ct);
                 long assessedLength = plan.Source is null ? 0 : ArchiveManifestSidecar.EncodedLength(plan.Source.Manifest, ct);
                 long originLength = ArchiveOriginEvidenceWriter.EncodedLength(originScope, records, ct);
-                long evidenceLength = checked(2 * expectedLength + assessedLength + originLength);
+                long evidenceLength = checked(2 * expectedLength + assessedLength + originLength + (original is null ? ArchiveCreationMetadata.MaximumBytes : 0));
                 if (evidenceLength > ArchiveWritePolicy.MaxMetadataBytes) throw ArchiveWriteBudget.Limit();
                 long stageBound = ArchiveTransformWire.OutputBound(plan.Expected, ct);
                 var stageName = reserve(nonce, ArchiveArtifactKind.Stage, stageBound);
@@ -58,6 +59,7 @@ internal static class ArchiveJournaledTarPreparation
                 var originName = reserve(nonce, ArchiveArtifactKind.Provenance, originLength);
                 var verifiedName = reserve(nonce, ArchiveArtifactKind.Manifest, expectedLength);
                 var assessedName = plan.Source is null ? null : reserve(nonce, ArchiveArtifactKind.Manifest, assessedLength);
+                var metadataName = original is not null ? null : reserve(nonce, ArchiveArtifactKind.Manifest, ArchiveCreationMetadata.MaximumBytes);
                 if (original is not null && original.Reviewed.ParentIdentity != stageName.ParentIdentity ||
                     inputs.Values.Any(b => b.Reviewed.ParentIdentity == stageName.ParentIdentity && string.Equals(b.Reviewed.LeafName, targetLeaf, pathComparison)))
                     throw Invalid();
@@ -66,6 +68,7 @@ internal static class ArchiveJournaledTarPreparation
                 CheckReservation(originName, ArchiveArtifactKind.Provenance, originLength);
                 CheckReservation(verifiedName, ArchiveArtifactKind.Manifest, expectedLength);
                 if (assessedName is not null) CheckReservation(assessedName, ArchiveArtifactKind.Manifest, assessedLength);
+                if (metadataName is not null) CheckReservation(metadataName, ArchiveArtifactKind.Manifest, ArchiveCreationMetadata.MaximumBytes);
                 space = stageName.ReviewSpace(new(original?.Reviewed.Version.Length ?? 0, stageBound, evidenceLength, knownSnapshotBytes), ct);
                 var reservedSidecars = new List<ArchiveSidecarFacts>
                 {
@@ -74,6 +77,7 @@ internal static class ArchiveJournaledTarPreparation
                     new(ArchiveSidecarRole.VerifiedOutput, verifiedName.Path, expectedLength),
                 };
                 if (assessedName is not null) reservedSidecars.Add(new(ArchiveSidecarRole.AssessedSource, assessedName.Path, assessedLength));
+                if (metadataName is not null) reservedSidecars.Add(new(ArchiveSidecarRole.CreationMetadata, metadataName.Path, metadataName.MaximumLength));
                 facts = new(nonce, 1, profile, ArchiveTransactionPhase.Reserved, archivePath, stageName.ParentIdentity, original?.Reviewed.Version,
                     stageName.Path, null, stageMaximumLength: stageName.MaximumLength, sidecars: reservedSidecars);
                 stage = ArchiveJournaledStage.Create(journal, facts, stageName, create, ct); facts = journal.CurrentArchiveTransaction(nonce);
@@ -81,7 +85,7 @@ internal static class ArchiveJournaledTarPreparation
                     Keep(ArchiveJournaledSidecar.WriteManifest(journal, facts, assessedName, create, ArchiveManifestPurpose.AssessedSource, plan.Source!.Manifest, ct));
                 Keep(ArchiveJournaledSidecar.WriteManifest(journal, facts, expectedName, create, ArchiveManifestPurpose.ExpectedOutput, plan.Expected, ct));
                 Keep(ArchiveJournaledSidecar.WriteOrigin(journal, facts, originName, create, originScope, records, ct));
-                return verifiedName;
+                return (Verified: verifiedName, Metadata: metadataName);
 
                 void CheckReservation(ArchiveArtifactReservation name, ArchiveArtifactKind kind, long bound)
                 {
@@ -94,11 +98,11 @@ internal static class ArchiveJournaledTarPreparation
                 beforeFinalizing: () => Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Finalizing))).ConfigureAwait(false);
             await Task.Run(() =>
             {
-                Keep(ArchiveJournaledSidecar.WriteVerifiedManifest(journal, facts!, setup, create, verified.Verification, ct));
+                Keep(ArchiveJournaledSidecar.WriteVerifiedManifest(journal, facts!, setup.Verified, create, verified.Verification, ct));
                 stage!.Review(verified.Stage, ct); ReviewInputs(); ReviewSidecars();
                 Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Verifying, verified.Stage.Version));
             }, ct).ConfigureAwait(false);
-            return new(stage!, verified, facts!, sidecars, space!);
+            return new(stage!, verified, facts!, sidecars, space!, setup.Metadata);
         }
         catch
         {

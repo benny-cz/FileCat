@@ -80,6 +80,15 @@ internal static class ArchiveJournaledSidecar
         }, ct);
     }
 
+    internal static ArchiveSealedSidecar<T> WriteCreationMetadata<T>(JobJournal journal, ArchiveTransactionFacts facts,
+        ArchiveArtifactReservation reservation, Func<ArchiveArtifactReservation, T> create, ArchiveCreationMetadata metadata,
+        CancellationToken ct) where T : class, IArchiveRetainedArtifact
+    {
+        ArgumentNullException.ThrowIfNull(metadata); metadata.RequireScope(facts);
+        return Write(journal, facts, reservation, create, ArchiveSidecarRole.CreationMetadata, stream =>
+        { metadata.Write(stream, ct); return (metadata.Length, metadata.Sha256); }, (stream, _) => metadata.Readback(stream, ct), ct);
+    }
+
     private static ArchiveSealedSidecar<T> Write<T>(JobJournal journal, ArchiveTransactionFacts facts, ArchiveArtifactReservation reservation,
         Func<ArchiveArtifactReservation, T> create, ArchiveSidecarRole role, Func<Stream, (long Length, string Sha256)> write,
         Action<Stream, ArchiveObjectVersion> readback, CancellationToken ct) where T : class, IArchiveRetainedArtifact
@@ -88,7 +97,8 @@ internal static class ArchiveJournaledSidecar
         ct.ThrowIfCancellationRequested();
         var sidecar = facts.Sidecars.SingleOrDefault(s => s.Role == role);
         if (facts.RecordVersion != ArchiveTransactionFacts.SchemaVersion ||
-            facts.Phase != (role == ArchiveSidecarRole.VerifiedOutput ? ArchiveTransactionPhase.Verifying : ArchiveTransactionPhase.Reserved) || facts.StageIdentity is null ||
+            facts.Phase != (role is ArchiveSidecarRole.VerifiedOutput or ArchiveSidecarRole.CreationMetadata ? ArchiveTransactionPhase.Verifying : ArchiveTransactionPhase.Reserved) || facts.StageIdentity is null ||
+            role == ArchiveSidecarRole.CreationMetadata && (facts.Original is not null || facts.VerifiedStage is null) ||
             sidecar is null || sidecar.Identity is not null || sidecar.Path != reservation.Path || sidecar.MaximumLength != reservation.MaximumLength ||
             reservation.Nonce != facts.Nonce || reservation.ParentIdentity != facts.ParentIdentity ||
             reservation.Kind != (role == ArchiveSidecarRole.OriginEvidence ? ArchiveArtifactKind.Provenance : ArchiveArtifactKind.Manifest))

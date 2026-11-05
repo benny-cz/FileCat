@@ -28,6 +28,10 @@ creation. Unknown capacity remains explicit; full capture/space UI, allocation g
 The later [Unix visible-attribute checkpoint](UNIX_EXTENDED_ATTRIBUTE_INVENTORY.md) adds bounded descriptor-based
 name/value inventories to native rereview and origin/rename reconciliation. Hidden policy coverage, complete outer
 admission/application, publication and production integration remain unfinished.
+The later [private new-file publication checkpoint](PRIVATE_NEW_FILE_PUBLICATION.md) adds schema-5 creation evidence,
+native exclusive claim and conservative reconciliation for creator-private, unmarked new archives. It retains all
+artifacts and leaves profiles disabled; complete metadata admission, marked creation, replacement, cleanup/recovery,
+the full crash matrix and production qualification remain unfinished.
 
 | Area | Current behavior | Remaining gate |
 |---|---|---|

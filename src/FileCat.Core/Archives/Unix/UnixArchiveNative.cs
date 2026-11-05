@@ -104,6 +104,24 @@ internal static unsafe partial class UnixArchiveNative
     {
         if (Fsync(Fd(file)) != 0 || Mac && Fcntl(Fd(file), 51 /* FULLFSYNC */, 0) != 0) throw Unavailable();
     }
+    internal static void RequireCreationDirectory(SafeFileHandle directory, uint user)
+    {
+        var facts = UnixFiles.Stat(directory);
+        if (facts is not { IsDirectory: true } || facts.Value.Owner != user || (facts.Value.Mode & 0x12 /* group/other write */) != 0)
+            throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
+                "Private archive creation requires a creator-owned destination without group/other namespace write access.");
+        if (!Mac) return; // POSIX named/group ACL permissions are limited by the mode's group mask.
+        nint acl = GetAcl(Fd(directory), 0x100);
+        if (acl == 0) { if (Marshal.GetLastPInvokeError() == 2) return; throw Unavailable(); }
+        try
+        {
+            nint entry = 0; int result = AclEntry(acl, 0, &entry);
+            if (result != -1 || Marshal.GetLastPInvokeError() != 22)
+                throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
+                    "Private archive creation requires a destination without extended Mac ACL entries until that namespace policy is qualified.");
+        }
+        finally { AclFree(acl); }
+    }
     internal static void SyncDirectory(SafeFileHandle directory)
     { if (Fsync(Fd(directory)) != 0) throw Unavailable(); } // Successful fsync, not universal power-loss qualification.
     internal static int Fd(SafeFileHandle file) => checked((int)file.DangerousGetHandle()); // Caller retains/serializes ownership.

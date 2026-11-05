@@ -11,6 +11,26 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed partial class ArchiveAppContainerTests
 {
     [Theory]
+    [InlineData("existing-target")]
+    [InlineData("changed-input")]
+    [InlineData("metadata-change")]
+    [InlineData("cancelled")]
+    [InlineData("after-claim")]
+    public async Task Confined_new_private_archive_publication_failures_retain_exact_evidence(string failure)
+    {
+        string executable = Probe(); string root = Directory.CreateTempSubdirectory("filecat-publication-").FullName;
+        try
+        {
+            File.WriteAllBytes(Path.Combine(root, "input"), [1]); using var directory = WindowsArchiveDirectory.Open(root); using var input = directory.OpenSource("input");
+            var state = ((IArchiveRetainedFile)input).Observe(TestContext.Current.CancellationToken);
+            await ArchiveCreationPublicationCases.Failure(failure, root, input, state,
+                (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (WindowsArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
+                new((nonce, cpu) => ArchiveAppContainer.Start(executable, "archive-transform " + nonce, cpu)),
+                new((nonce, cpu) => ArchiveAppContainer.Start(executable, "archive-verify " + nonce, cpu)), TestContext.Current.CancellationToken);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+    [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]
     [InlineData(true, false)]
@@ -64,6 +84,9 @@ public sealed partial class ArchiveAppContainerTests
                 Assert.NotNull(transform); Assert.NotNull(verifier); Assert.NotEqual(transform.ProcessId, verifier.ProcessId);
                 Assert.True(transform.HasExited); Assert.True(verifier.HasExited); Assert.Equal(0u, transform.ExitCode); Assert.Equal(0u, verifier.ExitCode);
                 Assert.True(File.Exists(stage.DisplayPath)); Assert.False(File.Exists(Path.Combine(root, "result.tar")));
+                if (!update) await ArchiveJournaledTarAssertions.PublishNew(prepared, journal,
+                    new Dictionary<int, ArchiveRetainedBinding> { [3] = new(input, state) },
+                    r => { ArchiveJournaledTarAssertions.BeforeCreate(journal, r); return directory.CreateArtifact(r); }, ct);
             }
             finally { original?.Dispose(); }
         }

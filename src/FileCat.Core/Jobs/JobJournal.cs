@@ -83,6 +83,24 @@ public sealed class JobJournal : IDisposable
         }
     }
 
+    /// <summary>Records conservative creation evidence even after an IO failure set the manual recovery hold.
+    /// This grants no filesystem action and does not clear that hold or restore current-snapshot mutation authority.</summary>
+    internal ArchiveTransactionFacts RecordArchiveCreationReview(Guid nonce, bool claimAttempted)
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished) throw new InvalidOperationException("A finished journal cannot record archive reconciliation.");
+            var facts = _archiveTransactions.Current(nonce);
+            if (facts.Phase == ArchiveTransactionPhase.NeedsReview) { _manualRecovery = true; return facts; }
+            var paths = facts.Sidecars.Select(s => s.Path).Append(facts.StagePath);
+            if (claimAttempted) paths = paths.Append(facts.ArchivePath);
+            var next = facts.AdvanceCreationPublication(ArchiveTransactionPhase.NeedsReview,
+                unresolved: paths.Distinct(StringComparer.Ordinal).ToArray());
+            ArchiveTransaction(next); _manualRecovery = true; return next;
+        }
+    }
+
     /// <summary>The header lists this many sources; a job with more gets a manifest of all of them.</summary>
     internal const int HeaderSampleSize = 64;
 

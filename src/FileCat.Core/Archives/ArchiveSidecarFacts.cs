@@ -1,6 +1,6 @@
 namespace FileCat.Core.Archives;
 
-public enum ArchiveSidecarRole { AssessedSource = 1, ExpectedOutput = 2, VerifiedOutput = 3, OriginEvidence = 4 }
+public enum ArchiveSidecarRole { AssessedSource = 1, ExpectedOutput = 2, VerifiedOutput = 3, OriginEvidence = 4, CreationMetadata = 5 }
 
 /// <summary>Immutable parent evidence for one reserved sidecar. A name or version never grants cleanup authority.</summary>
 public sealed record ArchiveSidecarFacts
