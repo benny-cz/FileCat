@@ -73,3 +73,22 @@ unrelated read/write/network with EPERM and fork with EAGAIN. The absolute 1 GiB
 both 64 MiB and 2 GiB mappings succeeded. This does not qualify a hard RSS/commit bound or prove that no supported design
 exists. Signing, supported whole-process resource/lifetime controls, actual engine workloads and the release candidate
 remain open gates. Do not substitute deprecated sandbox APIs or a managed-heap setting.
+
+## Unix outer metadata observer
+
+`unix-metadata-observer.c` is a FileCat-owned, read-only development oracle for the managed held-file metadata reader.
+It is never a shipped helper or runtime dependency. Compile it in an owned validation directory using the native C
+headers. On Linux use the chosen `cc`; on the observed Mac select the matching Command Line Tools compiler/sysroot
+above explicitly. For example, on an idle native Linux validation machine with an existing C toolchain:
+
+```sh
+mkdir -p .tmp
+cc -std=c11 -Wall -Wextra -Werror -O2 eng/validation/archive-writing/unix-metadata-observer.c -o .tmp/unix-metadata-observer
+FILECAT_ARCHIVE_UNIX_METADATA_OBSERVER="$PWD/.tmp/unix-metadata-observer" dotnet test tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~ArchiveUnixOuterMetadata
+```
+
+The opt-in comparison test supplies its own ordinary regular-file fixture, compares all native stat/flag fields, then
+checks the held snapshot again. Without the explicit observer path this one case skips; other metadata cases still
+run on their applicable platform. Record compiler/runtime/source hashes and actual native results. Raw birth time
+must not be replaced with a managed creation-time fallback. See the
+[metadata checkpoint](../../../docs/validation/archive-writing/UNIX_OUTER_METADATA.md) for scope and measured failures.
