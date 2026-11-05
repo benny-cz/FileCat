@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native desktop development validation; no capability qualification",
+  "state": "closed",
+  "sourceUnchanged": true,
+  "deadlineClosed": false,
+  "processId": 147062,
+  "platform": "Ubuntu 24.04.5 LTS",
+  "architecture": "X64",
+  "run": "/home/benny/FileCatValidation/dsa-20261105-r26-desktop/app/native-validation/dsa-6aa087f7eba74447be08e35e86a30695",
+  "fixture": "/home/benny/FileCatValidation/dsa-20261105-r26-desktop/app/native-validation/dsa-6aa087f7eba74447be08e35e86a30695/fixture",
+  "fixtureRegularPaths": 509,
+  "fixtureLimitations": [],
+  "nativeWindowVisible": false,
+  "lastVisibleWidth": 1180,
+  "lastVisibleHeight": 731,
+  "lastVisibleScale": 1,
+  "sessions": 0,
+  "createdSessions": 1,
+  "lastObservation": {
+    "Phase": 5,
+    "Status": "Saved Native Ubuntu r26.fcdsa. Captured traversal complete under policy.",
+    "FilterError": null,
+    "Query": "",
+    "Metric": 2,
+    "session": "69d065de-c06f-4a67-b466-0abc0a470a41",
+    "Coverage": 0,
+    "Freshness": 0,
+    "paths": 518,
+    "objects": 508,
+    "issues": [
+      {
+        "Code": "navigation-link-not-followed",
+        "State": 3
+      }
+    ],
+    "known": "3424256",
+    "unverified": "0",
+    "matchingPaths": 509,
+    "rows": 1,
+    "focus": null,
+    "marked": 0,
+    "basket": 0
+  },
+  "appSha256": "a450de4db31f55fffa10ec50312cdfc9eac95f6789da8b109d50e2f20d12c717",
+  "harnessSha256": "273238fae7aef172162a4c32f6c869fd266590b529f2517203ddf28300ce8dac"
+}

@@ -11,6 +11,59 @@ public sealed partial class AnalysisScanningTests
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary test process: " + AnalysisAdmission.Refusal());
 
     [Fact]
+    public async Task UnexpectedBackendFailureCannotPublishACompleteFinishedInventory()
+    {
+        Ordinary(); using var io = new DeviceIoScheduler();
+        var source = new FakeBackend(1) { BeforeEnumerate = () => throw new NotSupportedException("injected producer failure") };
+        using var session = new AnalysisCoordinator(io).Start([source]);
+        await session.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        var snapshot = session.Snapshot(); Assert.True(source.Disposed);
+        Assert.Equal(AnalysisPhase.Failed, snapshot.Phase); Assert.Equal(NamespaceCoverage.Partial, snapshot.Coverage);
+        Assert.Contains(snapshot.Issues, i => i.Code == "analysis-producer-failed");
+        AnalysisValidation.Validate(snapshot, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task FailedBackendCloseStillClosesRemainingSourcesAndReleasesScanAdmission()
+    {
+        Ordinary(); using var io = new DeviceIoScheduler(); int closes = 0;
+        var first = new FakeBackend(1) { BeforeClose = () => { Interlocked.Increment(ref closes); throw new IOException("injected close failure"); } };
+        var second = new FakeBackend(1);
+        using var session = new AnalysisCoordinator(io).Start([first, second]);
+        await session.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        Assert.True(first.Disposed); Assert.True(second.Disposed); Assert.Equal(1, closes);
+        var snapshot = session.Snapshot();
+        Assert.Equal(NamespaceCoverage.Partial, snapshot.Coverage);
+        Assert.Contains(snapshot.Issues, i => i.Code == "analysis-source-close-failed");
+        Assert.Equal((UInt128)2, AnalysisAggregate.Project(snapshot, AnalysisMetric.Files, cancellation: TestContext.Current.CancellationToken).Totals.Known);
+        using var next = new AnalysisCoordinator(io).Start([new FakeBackend(1)]);
+        await next.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        Assert.Equal(NamespaceCoverage.CompleteUnderPolicy, next.Snapshot().Coverage);
+    }
+
+    [Fact]
+    public async Task SchedulerShutdownPreservesPartialStoppedResultsAndActualSourceOwnership()
+    {
+        Ordinary(); using var io = new DeviceIoScheduler(); using var gate = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var source = new FakeBackend(1100) { BeforeEnumerate = () => { entered.TrySetResult(); gate.Wait(TimeSpan.FromSeconds(15)); } };
+        using var session = new AnalysisCoordinator(io).Start([source]);
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            io.Dispose(); Assert.False(source.Disposed); Assert.False(session.Completion.IsCompleted);
+        }
+        finally { gate.Set(); }
+        await session.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        var snapshot = session.Snapshot();
+        Assert.True(source.Disposed); Assert.Equal(AnalysisPhase.Stopped, snapshot.Phase);
+        Assert.Equal(NamespaceCoverage.Partial, snapshot.Coverage); Assert.Equal(AnalysisFreshness.SourceUnavailable, snapshot.Freshness);
+        Assert.Contains(snapshot.Issues, i => i.Code == "analysis-io-stopped");
+        Assert.InRange(snapshot.Nodes.Length, 1, 513);
+        AnalysisValidation.Validate(snapshot, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task UnixUnreadableDirectoryDoesNotLoseReadableSiblingFiles()
     {
         Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix native fixture."); Ordinary();
@@ -378,6 +431,7 @@ public sealed partial class AnalysisScanningTests
     {
         public bool Disposed;
         public Action? BeforeEnumerate;
+        public Action? BeforeClose;
         public Action? Validate;
         public bool CloudRoot;
         public int FailAfter = int.MaxValue;
@@ -400,7 +454,7 @@ public sealed partial class AnalysisScanningTests
         }
         private static AnalysisEntry Entry(string name, AnalysisKind kind) => new([], name, Encoding.UTF8.GetBytes(name).ToImmutableArray(), kind,
             name, AnalysisMeasurement.Known(1), AnalysisMeasurement.Known(1), AnalysisMeasurement.Known(1), DateTimeOffset.UnixEpoch, "v1");
-        public void Dispose() => Disposed = true;
+        public void Dispose() { Disposed = true; BeforeClose?.Invoke(); }
     }
     [LibraryImport("libc", EntryPoint = "link", StringMarshalling = StringMarshalling.Utf8)] private static partial int Link(string oldName, string newName);
 }

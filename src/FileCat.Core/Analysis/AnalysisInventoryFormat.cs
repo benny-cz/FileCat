@@ -9,16 +9,50 @@ namespace FileCat.Core.Analysis;
 /// <summary>An inert inventory and its bounded import-memory reservation. No live binding is created by loading it.</summary>
 public sealed class AnalysisInventory : IDisposable
 {
-    private AnalysisSnapshot? _snapshot;
-    private long _reservation;
+    private sealed class State(AnalysisSnapshot snapshot, long reservation)
+    {
+        public AnalysisSnapshot? Snapshot = snapshot;
+        public long Reservation = reservation;
+        public int References = 1;
+        public int Consumers;
+    }
+    private State? _state;
     public Guid InventoryId { get; }
-    public AnalysisSnapshot Snapshot => _snapshot ?? throw new ObjectDisposedException(nameof(AnalysisInventory));
+    public AnalysisSnapshot Snapshot
+    {
+        get
+        {
+            var state = Volatile.Read(ref _state) ?? throw new ObjectDisposedException(nameof(AnalysisInventory));
+            lock (state) return state.Snapshot ?? throw new ObjectDisposedException(nameof(AnalysisInventory));
+        }
+    }
     internal AnalysisInventory(Guid id, AnalysisSnapshot snapshot, long reservation)
-    { InventoryId = id; _snapshot = snapshot; _reservation = reservation; }
+    { InventoryId = id; _state = new(snapshot, reservation); }
+    /// <summary>Retains only inert data and its import-memory reservation, never a live source or approval.</summary>
+    public AnalysisSnapshotLease Retain() => Retain(Volatile.Read(ref _state) ?? throw new ObjectDisposedException(nameof(AnalysisInventory)));
+    private static AnalysisSnapshotLease Retain(State state)
+    {
+        lock (state)
+        {
+            if (state.Snapshot is not { } snapshot) throw new ObjectDisposedException(nameof(AnalysisInventory));
+            if (state.Consumers >= 8) throw new InvalidOperationException("This inventory already has eight retained consumers.");
+            state.References++; state.Consumers++;
+            return new(snapshot, () => Release(state, consumer: true), () => Retain(state));
+        }
+    }
+    private static void Release(State state, bool consumer = false)
+    {
+        lock (state)
+        {
+            if (consumer) state.Consumers--;
+            if (--state.References != 0) return;
+            state.Snapshot = null;
+            AnalysisInventoryFormat.Release(state.Reservation); state.Reservation = 0;
+        }
+    }
     public void Dispose()
     {
-        _snapshot = null;
-        AnalysisInventoryFormat.Release(Interlocked.Exchange(ref _reservation, 0));
+        if (Interlocked.Exchange(ref _state, null) is { } state) Release(state);
     }
 }
 

@@ -21,7 +21,7 @@ using FileCat.Core.Commands;
 namespace FileCat.App.Views;
 
 /// <summary>The modeless analysis host. Main-panel navigation never supplies operation targets here.</summary>
-public sealed class DiskSpaceWindow : Window
+public sealed partial class DiskSpaceWindow : Window
 {
     private readonly TabControl _tabs = new();
     private readonly List<TabItem> _items = [];
@@ -106,7 +106,7 @@ public sealed class DiskSpaceWindow : Window
         var button = new Button { Content = text }; button.Click += (_, _) => action();
         ToolTip.SetTip(button, new RichTip(text, detail: help)); AutomationProperties.SetHelpText(button, help); return button;
     }
-    private sealed class SessionView : Grid, IDisposable
+    private sealed partial class SessionView : Grid, IDisposable
     {
         private readonly DiskSpaceWindow _window;
         public DiskSpaceViewModel Model { get; }
@@ -174,7 +174,9 @@ public sealed class DiskSpaceWindow : Window
             nav.Children.Add(_mode); nav.Children.Add(_metric); nav.Children.Add(_pause); nav.Children.Add(_stop);
             _inspect = ActionButton("Inspect selection", () => _ = InspectAsync(), "Open full selection details and actions, including on a narrow screen.");
             nav.Children.Add(_inspect);
-            nav.Children.Add(Unavailable("Save…", "A verified private analysis store is required for saving. No inventory has been saved."));
+            _save = ActionButton("Save…", () => _ = SaveAsync(), "Save the displayed analysis, including all captured paths and metadata. The current display filter does not reduce the saved inventory.");
+            _openSaved = ActionButton("Open saved…", () => _ = OpenSavedAsync(), "Open a named inventory from this private profile as inert observations. No source is reconnected or scanned.");
+            nav.Children.Add(_save); nav.Children.Add(_openSaved);
             nav.Children.Add(Unavailable("Compare…", "Choose compatible saved observations to compare. This session has no comparison."));
             var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { _query, _case } };
             filters.Children.Add(_rootFilter); filters.Children.Add(_unknown);
@@ -310,6 +312,8 @@ public sealed class DiskSpaceWindow : Window
                 _components.IsEnabled = !Model.IsPreparing && Model.Phase == AnalysisPhase.Ready;
                 _resolved.Text = Model.ResolvedTargets; _status.Text = Model.Status; _error.Text = Model.FilterError; _error.IsVisible = Model.FilterError is not null;
                 _pause.IsEnabled = Model.Running; _stop.IsEnabled = Model.Running || Model.IsPreparing;
+                _save.IsEnabled = Model.CanSave && !_persistenceBusy;
+                _openSaved.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
                 _stop.Content = Model.IsPreparing ? "Stop binding" : "Stop";
                 _pause.Content = Model.Phase is AnalysisPhase.Paused or AnalysisPhase.Pausing ? "Resume" : "Pause";
                 var tree = Model.Tree;

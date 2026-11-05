@@ -155,6 +155,7 @@ public sealed class AnalysisSession : IDisposable
         try
         {
             await GlobalScans.WaitAsync(_cancel.Token).ConfigureAwait(false); admitted = true;
+            if (_io.IsStopped) throw new OperationCanceledException("Analysis I/O has stopped.");
             await NormalizeRootsAsync().ConfigureAwait(false);
             for (int i = 0; i < _sources.Length; i++)
             {
@@ -172,21 +173,39 @@ public sealed class AnalysisSession : IDisposable
             }
         }
         catch (OperationCanceledException) when (_cancel.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (_io.IsStopped) { Stop("analysis-io-stopped"); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         { Issue("analysis-source-unavailable"); }
+        catch (Exception)
+        {
+            Issue("analysis-producer-failed");
+            lock (_sync) if (_phase != AnalysisPhase.Stopped) _phase = AnalysisPhase.Failed;
+        }
         finally
         {
             _io.HealthChanged -= OnDeviceHealth;
-            foreach (var source in _sources) await AnalysisIo.ReleaseAsync(_io, source).ConfigureAwait(false);
-            if (admitted) GlobalScans.Release();
-            lock (_sync)
+            try
             {
-                _store.Seal();
-                if (_phase != AnalysisPhase.Stopped) _phase = AnalysisPhase.Finished;
-                _workerFinished = true;
-                if (!_disposed) _final ??= Capture(); else if (_snapshotLeases == 0) Release();
+                for (int i = 0; i < _sources.Length; i++)
+                {
+                    try { await AnalysisIo.ReleaseAsync(_io, _sources[i]).ConfigureAwait(false); }
+                    // A close is attempted once. Retrying an uncertain native close could operate on a reused
+                    // descriptor. Preserve the failure without abandoning the other independently owned roots.
+                    catch (Exception) { Issue("analysis-source-close-failed", rootId: _roots[i].Id); }
+                }
             }
-            Report();
+            finally
+            {
+                if (admitted) GlobalScans.Release();
+                lock (_sync)
+                {
+                    _store.Seal();
+                    if (_phase is not (AnalysisPhase.Stopped or AnalysisPhase.Failed)) _phase = AnalysisPhase.Finished;
+                    _workerFinished = true;
+                    if (!_disposed) _final ??= Capture(); else if (_snapshotLeases == 0) Release();
+                }
+                Report();
+            }
         }
     }
     private async Task NormalizeRootsAsync()

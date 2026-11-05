@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native desktop development subset, not security/release qualification",
+  "platform": "Ubuntu 24.04.5 LTS",
+  "sourceBuild": "a450de4db31f55fffa10ec50312cdfc9eac95f6789da8b109d50e2f20d12c717",
+  "harnessBuild": "273238fae7aef172162a4c32f6c869fd266590b529f2517203ddf28300ce8dac",
+  "harnessReport": "ubuntu-native-ui-report-r26.json",
+  "nativeInput": "X11 xdotool, with exact owned PID/window checks and no other FileCat/test instance",
+  "actions": [
+    "Start generated-fixture metadata scan",
+    "Save entire captured revision to Native Ubuntu r26.fcdsa through visible review",
+    "Open saved inventory into a second offline observation tab",
+    "Attempt Save with the existing filename; preserve destination and report failure",
+    "Close offline tab and saved live tab without discarding unsaved data",
+    "Request owned harness cleanup and verify process exit"
+  ],
+  "observations": {
+    "observedPaths": 518,
+    "observedRegularPaths": 509,
+    "reportedAllocation": "3424256",
+    "offlineTabSummaryMatched": true,
+    "offlinePauseAndStopDisabled": true,
+    "inventoryBytes": 455909,
+    "inventoryMode": "0600",
+    "inventoryOwnerUid": 1000,
+    "inventoryLinks": 1,
+    "beforeConflictSha256": "cbcc7e1376fa931f851df19cbb4a76226a96de44fd37497639906696278d4675",
+    "afterConflictSha256": "cbcc7e1376fa931f851df19cbb4a76226a96de44fd37497639906696278d4675",
+    "sourceUnchanged": true,
+    "deadlineClosed": false,
+    "finalSessions": 0,
+    "ownedProcessExited": true
+  },
+  "limitations": [
+    "ClassicDark at 1180x731 and scale 1 only; not the full native theme/DPI/a11y matrix.",
+    "AT-SPI snapshots verify exposed labels and focus, not a screen-reader journey.",
+    "Harness lastObservation and createdSessions track its original live-session factory only; the offline tab is evidenced by screenshot and AT-SPI.",
+    "An immediate synthetic type-and-click sequence did not activate Save; a separate settled pointer activation did. Input timing remains part of native qualification."
+  ],
+  "findings": [
+    "Open saved dialog directory hint clips at this generated profile path; fix pending."
+  ]
+}

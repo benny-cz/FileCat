@@ -9,7 +9,7 @@ using FileCat.Core.Threading;
 namespace FileCat.App.ViewModels;
 
 /// <summary>Owns one analysis tab. Observations, displayed projection and selection never become action authority.</summary>
-public sealed class DiskSpaceViewModel : IDisposable
+public sealed partial class DiskSpaceViewModel : IDisposable
 {
     private readonly AppServices? _services;
     private readonly TimeZoneInfo? _zone;
@@ -41,15 +41,18 @@ public sealed class DiskSpaceViewModel : IDisposable
     public bool IsPreparing { get; private set; }
     public AnalysisPhase Phase { get; private set; } = AnalysisPhase.Ready;
     public bool Running => Phase is AnalysisPhase.Scanning or AnalysisPhase.Pausing or AnalysisPhase.Paused or AnalysisPhase.Refreshing;
-    public bool HasTemporaryWork => !_disposed && (IsPreparing || _session is not null || _prepared.Count > 0 || Selection.Marks.Count > 0 || Selection.Basket.Count > 0 ||
-        _observation is { Origin: AnalysisOrigin.LiveSession, Persistence: AnalysisPersistence.Temporary });
+    public bool HasTemporaryWork => !_disposed && (IsPreparing || Running || _prepared.Count > 0 || Selection.Marks.Count > 0 || Selection.Basket.Count > 0 ||
+        !DisplayedRevisionSaved && (_session is not null || _observation is { Origin: AnalysisOrigin.LiveSession, Persistence: AnalysisPersistence.Temporary }));
     public event Action? Changed;
     public DiskSpaceViewModel(AppServices services) : this(services, Prepare) { }
     internal DiskSpaceViewModel(AppServices services, Func<string, IAnalysisBackend> prepare)
     { _services = services; _zone = TimeZoneInfo.Local; _prepareSource = prepare; }
     public DiskSpaceViewModel(AnalysisSnapshot observations)
     {
-        _observation = observations; Phase = observations.Phase;
+        _observation = observations;
+        // The recorded phase is historical data. Opening an inventory never starts or resumes its old scan.
+        Phase = observations.Phase is AnalysisPhase.Ready or AnalysisPhase.Scanning or AnalysisPhase.Pausing or AnalysisPhase.Paused or AnalysisPhase.Refreshing
+            ? AnalysisPhase.Stopped : observations.Phase;
         try { _zone = TimeZoneInfo.FindSystemTimeZoneById(observations.Identity.TimeZoneId); }
         catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException) { _zone = null; }
         Status = "Observation view. Current filesystem actions require an explicit live source binding.";
@@ -151,7 +154,7 @@ public sealed class DiskSpaceViewModel : IDisposable
         {
             var built = await Task.Run<(AnalysisTree Tree, ImmutableArray<AnalysisTreeItem> Rows)?>(() =>
             {
-                nextLease = _session?.AcquireSnapshot();
+                nextLease = _session?.AcquireSnapshot() ?? _inventory?.Retain();
                 var s = nextLease?.Snapshot ?? _observation;
                 if (s is null) return null;
                 var rootScopes = new AnalysisRootScopeIndex(s, token);
@@ -354,6 +357,7 @@ public sealed class DiskSpaceViewModel : IDisposable
         if (_disposed) return; _disposed = true; ++_generation;
         _preparationCancel?.Cancel();
         _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _session?.Dispose(); ReleasePrepared(); _lease?.Dispose(); _pending?.Lease?.Dispose();
+        _inventory?.Dispose();
         Tree = null; Rows = []; _observation = null; _pending = null; Changed = null;
     }
     private sealed class LatestProgress(IUiDispatcher ui, Action<AnalysisProgress> consume) : IProgress<AnalysisProgress>

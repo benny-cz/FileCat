@@ -8,6 +8,20 @@ namespace FileCat.Core.Tests;
 
 public sealed class AnalysisInventoryTests
 {
+    [Fact]
+    public void RetainedInventoryRevisionSurvivesOwnerCloseAndRemainsInert()
+    {
+        using var inventory = Read(Write(AnalysisAccountingTests.Golden()));
+        using var revision = inventory.Retain(); inventory.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => inventory.Snapshot);
+        Assert.Throws<ObjectDisposedException>(() => inventory.Retain());
+        using var save = revision.Retain(); revision.Dispose();
+        Assert.Equal(AnalysisOrigin.ImportedInventory, save.Snapshot.Origin);
+        Assert.True(save.Snapshot.Taint.HasFlag(AnalysisTaint.ImportedUnverified));
+        Assert.Equal(6, save.Snapshot.Nodes.Length);
+        save.Dispose(); Assert.Throws<ObjectDisposedException>(() => save.Retain());
+    }
+
     private static readonly Guid Id = Guid.Parse("99999999-1111-1111-1111-111111111111");
     private static byte[] Write(AnalysisSnapshot? snapshot = null)
     {

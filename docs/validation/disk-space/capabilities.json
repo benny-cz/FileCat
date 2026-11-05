@@ -53,7 +53,7 @@
         "AnalysisScanningTests.UnixExplicitHardLinkedFileRootsAreTwoPathsAndOneObject",
         "AnalysisScanningTests.UnixNestedRootsAreCoveredOnceInEitherSelectionOrder"
       ],
-      "evidence": "mac-core-r18.xml",
+      "evidence": "mac-core-r26.xml",
       "lastQualifiedBuild": null,
       "limitations": [
         "Total reported block allocation; not exclusive ownership or primary-fork-only allocation.",
@@ -69,11 +69,11 @@
       "tests": [
         "AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink"
       ],
-      "evidence": null,
+      "evidence": "ubuntu-core-r26.xml",
       "lastQualifiedBuild": null,
       "limitations": [
-        "Native execution postponed while another FileCat instance occupies the Ubuntu guest.",
-        "Requires statx mount identity and openat2 containment; btrfs object uniqueness is not asserted without subvolume identity."
+        "Requires statx mount identity and openat2 containment; btrfs object uniqueness is not asserted without subvolume identity.",
+        "Initial ext4 regressions and native desktop subsets pass; broader filesystem, cloud, race and resource matrices remain unqualified."
       ]
     }
   ],

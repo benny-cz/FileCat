@@ -36,23 +36,27 @@
     "After the other Ubuntu FileCat process exited, ordinary native ext4 scanning, raw metadata boundaries, O_TMPFILE/procfs create-new inventory publication, privacy and link-count refusal, cancellation and shared I/O ownership passed live regressions. Deployed Core/test DLL hashes matched the Windows-built portable bundle; no FileCat app was started or left running.",
     "Root preparation now has Stop binding, cancellation between roots, native nonresponse status and safe late-result worker closure. Four headless lifecycle regressions include a real watchdog timeout.",
     "Shared buckets expose matching member logical/path statistics after the additive fold; filtered drilldown omits hidden aliases. Scope summaries retain byte units, local counts, uncertainty and incompatible-basis warnings.",
-    "A native Ubuntu X11 run started and completed a metadata scan, focused and drilled shared hard links, filtered one alias, verified Keep open focus and Enter preservation, then explicitly closed the tab and exited the harness. All 509 generated regular paths were unchanged; AT-SPI labels and selected screenshots were captured. This is a desktop subset, not full accessibility or release qualification."
+    "A native Ubuntu X11 run started and completed a metadata scan, focused and drilled shared hard links, filtered one alias, verified Keep open focus and Enter preservation, then explicitly closed the tab and exited the harness. All 509 generated regular paths were unchanged; AT-SPI labels and selected screenshots were captured. This is a desktop subset, not full accessibility or release qualification.",
+    "Terminal cleanup now attempts every independently owned backend once and releases scan admission/finalization after close failures. Scheduler shutdown yields stopped/partial/source-unavailable data; unexpected producer failures yield Failed/Partial. Two failures reproduced before the fix; three lifecycle controls pass.",
+    "Development Save/Open now uses admitted native private storage, captures the exact displayed revision, preserves conflict bytes, cancellation and uncertain outcomes, and opens only inert inventories in a new tab. Retained import-memory leases survive owner/view closure; queued saves retain data until actual work returns. Catalog, saved view settings, history, general import/export and comparisons remain unfinished.",
+    "Historical in-progress inventory phases no longer make an offline view appear to have a running scan. Historical phase and partial coverage remain in the data. Five persistence presentation controls pass on Windows, Mac and Ubuntu with actual native storage.",
+    "Native Ubuntu input completed Save, offline Open, duplicate-name refusal with unchanged destination hash, explicit tab closure and owned harness exit. All 509 generated source paths remained unchanged; private inventory mode was 0600, owner UID1000 and link count1. The complete native desktop/a11y matrix remains unqualified."
   ],
   "validation": {
     "windowsCore": {
-      "total": 225,
-      "passed": 212,
+      "total": 229,
+      "passed": 216,
       "failed": 0,
       "skipped": 13,
-      "detail": "179 analysis cases, 28 command cases and 18 state/path cases; 13 expected Unix-only skips.",
-      "evidence": "windows-core-r25.xml"
+      "detail": "183 analysis cases, 28 command cases and 18 state/path cases; 13 expected Unix-only skips.",
+      "evidence": "windows-core-r26.xml"
     },
     "windowsHostNative": {
       "total": 12,
       "passed": 12,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-host-native-r25.xml"
+      "evidence": "windows-host-native-r26.xml"
     },
     "windowsVm": {
       "status": "ordinary-user-regression-fixtures-passed",
@@ -60,44 +64,44 @@
       "passed": 12,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-native-r25.xml",
+      "evidence": "windows-vm-native-r26.xml",
       "detail": "Nine native cases and three reparse-tag cases; includes private create-new NTFS publication and preservation/refusal controls. No desktop/a11y qualification claimed."
     },
     "macosArm64": {
-      "total": 207,
-      "passed": 207,
+      "total": 211,
+      "passed": 211,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-core-r25.xml"
+      "evidence": "mac-core-r26.xml"
     },
     "headlessRendering": {
-      "total": 13,
-      "passed": 13,
+      "total": 18,
+      "passed": 18,
       "failed": 0,
       "skipped": 0,
-      "evidence": "analysis-render-r25.xml",
-      "detail": "13 headless analysis cases, including four root-preparation lifecycle cases and scope-summary evidence. No full native desktop/a11y claim."
+      "evidence": "analysis-render-r26.xml",
+      "detail": "18 headless cases, including five native Save/Open/cancellation/lifetime controls. The same cases pass with APFS on Mac and ext4 on Ubuntu; this is not native desktop/a11y acceptance."
     },
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "solution-build-r25.txt"
+      "evidence": "solution-build-r26.txt"
     },
     "ubuntu": {
       "status": "ordinary-user-native-regressions-passed",
-      "total": 207,
-      "passed": 206,
+      "total": 211,
+      "passed": 210,
       "failed": 0,
       "skipped": 1,
-      "evidence": "ubuntu-core-r25.xml",
+      "evidence": "ubuntu-core-r26.xml",
       "detail": "Ubuntu 24.04 ordinary benny, .NET runtime 10.0.14, local ext4. Prior FileCat PID exited; process checks were clear before transfer and runs. Native scans, O_TMPFILE/procfs create-new publication, no-follow/privacy/link controls and I/O ownership passed. Darwin ACL case skipped. No desktop/a11y qualification."
     },
     "nativeDesktop": {
       "macos": "Startup/close only; no desktop-input or a11y acceptance.",
       "evidence": "mac-native-startup-r20.json",
       "windows": "Desktop activation/accessibility unavailable; background/lock-screen captures only. User unlock check pending; owned test process closed.",
-      "ubuntu": "Native X11 input subset: scan, shared-hard-link focus/drilldown, filter, Keep open focus/Enter preservation and explicit tab close. Harness exited, 509 paths unchanged. Full matrix remains unqualified.",
-      "ubuntuEvidence": "ubuntu-native-ui-r25.json"
+      "ubuntu": "Native X11 scan, Save review, named publication, offline Open, duplicate-name refusal and tab close. All 509 source paths and existing destination hash unchanged. No process remains; full matrix unqualified.",
+      "ubuntuEvidence": "ubuntu-native-ui-r26.json"
     },
     "macStatConsumers": {
       "total": 51,
@@ -112,15 +116,30 @@
       "failed": 0,
       "skipped": 2,
       "evidence": "ubuntu-stat-consumers-r24.xml"
+    },
+    "macHeadlessRendering": {
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "mac-analysis-render-r26.xml"
+    },
+    "ubuntuHeadlessRendering": {
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "ubuntu-analysis-render-r26.xml"
     }
   },
   "nextWork": [
+    "Fix observed Open saved directory-hint clipping. Preserve local visibility of backend-close failures after a Stop revision has already frozen, without mutating that snapshot; finish bounded scan-device gate retirement and watchdog status for persistence.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
     "W1: epoch refresh, native unresponsive-device and shared-memory/indexed private-store budget qualification remain. Shared eight-request actual-I/O ownership and worker cleanup now have regressions; this is not full resource qualification.",
     "Ubuntu: CLI regression coverage now passes after the other process exited. Continue process gates before every run and postpone whenever another FileCat session appears; broader native desktop, filesystem/resource and package qualification remain.",
     "W2: actual native desktop/assistive-technology testing; safe raw-name/path and unknown-value display; grouping/sort/breadcrumbs/details/tooltips; complete lifecycle and lazy tools.diskSpace registration.",
-    "W3: integrate the native private-store foundation on admitted I/O workers; broader interrupt/crash/resource evidence, private catalog/state, named save/history, compatible comparison, sensitivity review and create-only exports/imports remain. Initial native ext4 publication passes; replacement and orphan cleanup still need guarded routes.",
+    "W3: integrate the native private-store foundation on admitted I/O workers; broader interrupt/crash/resource evidence, private catalog/state, complete named save/catalog/history, compatible comparison, sensitivity review and create-only exports/imports remain. Initial native ext4 publication passes; replacement and orphan cleanup still need guarded routes.",
     "W4/W5: qualified live source and exact-entry typed operations, protected objects, immutable review/submission, preserving defaults and accurate outcomes. Unsupported needs feasibility evidence.",
     "W6/W7: declarative recipes and explicitly qualified content work; closed NTFS metadata helper or prescribed standard-scan fallback.",
     "W8: native platform/theme/DPI/a11y/package matrix, 1M/10M measurements, negative controls, actual diagnostics ZIP leakage, documentation and final requirement-by-requirement audit.",
