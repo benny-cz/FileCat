@@ -255,6 +255,14 @@ including user-supplied installation versus redistribution, license obligations 
 Produce an evidence-backed comparison and recommendation, then implement/validate a viable option if possible. Do not
 waive license, security, platform, packaging or preservation requirements to obtain a RAR writer. Record specific
 evidence if no conforming implementation is feasible; the final independent review follows this RAR phase.
-## Queued user-requested addition
+## User-requested local move into a writable archive
 
-Local move into a writable archive must replace the F5/manual-delete refusal. The original plan is amended in §11.6.1 with verified publication, unchanged-source deletion, skipped-input retention and honest partial-result requirements. Implementation and live validation are pending; this applies to the existing ZIP route as well as newly qualified formats. RAR feasibility should lead to an implementation where lawful and feasible, before the final independent review.
+The existing local ZIP route now replaces the F5/manual-delete refusal with F6 move intent, verified publication,
+unchanged-source removal, skipped-input retention, queue/name propagation and honest partial results. Real-file/native
+adapter and headless UI checks passed on Windows, Mac and Ubuntu; counts, immutable evidence and limitations are in
+`LOCAL_MOVE_INTO_ZIP.md`. Native interactive GUI acceptance and the complete crash/namespace/metadata/scale qualification
+are still open. This checkpoint does not enable new profiles or complete the common transaction boundary.
+
+The amended plan §11.6.1 also applies to future qualified formats. RAR feasibility should lead to an implementation
+where lawful and feasible, before the final independent review. The main implementation loop and those final phases
+remain unfinished; keep the goal active.

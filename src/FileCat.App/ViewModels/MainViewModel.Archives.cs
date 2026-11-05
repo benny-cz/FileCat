@@ -77,7 +77,8 @@ public sealed partial class MainViewModel
         return true;
     }
 
-    private void SubmitArchive(ArchivePlan plan, IReadOnlyList<ItemRef> sources, Location? refreshed, string description, string? focus = null, TabViewModel? origin = null)
+    private void SubmitArchive(ArchivePlan plan, IReadOnlyList<ItemRef> sources, Location? refreshed, string description, string? focus = null, TabViewModel? origin = null,
+        QueueMode mode = QueueMode.Start)
     {
         if (Services.Io.IsStopped) return;
         var job = Services.Jobs.Submit(new JobRequest
@@ -87,6 +88,7 @@ public sealed partial class MainViewModel
             Sources = sources.ToList(),
             Destination = refreshed,
             Description = description,
+            Mode = mode,
         });
         if ((origin ?? ActiveTab) is { } tab)
         {
@@ -97,12 +99,14 @@ public sealed partial class MainViewModel
 
     /// <summary>F5 into an archive folder: files and folders from disk are added; existing names ask once.</summary>
     private async Task AddToArchiveAsync(JobKind kind, IReadOnlyList<ItemRef> items, Location destination, TransferOptions options)
+        => await AddToArchiveTransferAsync(kind, items, destination, options, null, QueueMode.Start, null);
+
+    private async Task AddToArchiveTransferAsync(JobKind kind, IReadOnlyList<ItemRef> items, Location destination, TransferOptions options,
+        string? newName, QueueMode mode, TabViewModel? sourceTab)
     {
-        if (kind == JobKind.Move)
-        {
-            Notify("Moving into an archive is not supported: copy with F5, then delete the originals once the archive looks right.", true);
-            return;
-        }
+        if (items.Count == 0) return;
+        if (newName is not null && (items.Count != 1 || ArchivePaths.Problem(newName) is not null))
+        { Notify("Choose one valid member name for a single item in the archive.", true); return; }
         if (items.Any(i => i.FileSystemPath is null))
         {
             Notify("Only files and folders from disk can be added to an archive. Extract items from other archives first.", true);
@@ -117,13 +121,13 @@ public sealed partial class MainViewModel
         if (items.Count > MaxArchiveBatch) { Notify($"Add at most {MaxArchiveBatch:N0} items at a time.", true); return; }
         if (!CheckWritable(destination)) return;
         string archive = ArchiveFile(destination);
-        var names = items.Select(i => InArchive(destination, i.Name)).ToList();
+        var names = items.Select(i => InArchive(destination, newName ?? i.Name)).ToList();
         if (names.Distinct(StringComparer.Ordinal).Count() != names.Count)
         {
             Notify("Two selected items have the same name; an archive folder holds each name once.", true);
             return;
         }
-        var origin = ActiveTab;
+        var origin = sourceTab ?? ActiveTab;
         var prepared = await PrepareArchiveAsync(destination, names: true);
         if (prepared is null) return;
         var baseline = prepared.Baseline; var existing = prepared.Names;
@@ -143,12 +147,13 @@ public sealed partial class MainViewModel
             replace = answer as string == "replace";
         }
         string cost = prepared.Cost;
-        if (cost.Length > 0 && !await Dialogs.ConfirmAsync("Update archive", $"Add {Formatters.Plural(items.Count, "item", "items")} to {Path.GetFileName(archive)}?{cost}", "Add"))
+        string verb = kind == JobKind.Move ? "Move" : "Add";
+        if (cost.Length > 0 && !await Dialogs.ConfirmAsync("Update archive", $"{verb} {Formatters.Plural(items.Count, "item", "items")} to {Path.GetFileName(archive)}?{cost}", verb))
             return;
         var changes = items.Select(i => new ArchiveChange(i.IsContainer ? ArchiveChangeKind.AddFolder : ArchiveChangeKind.AddFile,
-            InArchive(destination, i.Name), i.FileSystemPath)).ToList();
-        SubmitArchive(new ArchivePlan(archive, baseline, changes, ReplaceExisting: replace), items, destination,
-            $"Add {Formatters.Plural(items.Count, "item", "items")} to \"{Path.GetFileName(archive)}\"", origin: origin);
+            InArchive(destination, newName ?? i.Name), i.FileSystemPath)).ToList();
+        SubmitArchive(new ArchivePlan(archive, baseline, changes, ReplaceExisting: replace) { MoveSources = kind == JobKind.Move }, items, destination,
+            $"{verb} {Formatters.Plural(items.Count, "item", "items")} to \"{Path.GetFileName(archive)}\"", origin: origin, mode: mode);
     }
 
     private async Task DeleteArchiveMembersAsync(Location folder, IReadOnlyList<ItemRef> items)

@@ -75,7 +75,12 @@ public partial class WindowsFileOperations
     public override unsafe IReadOnlyList<string> GetAlternateStreams(string path)
     {
         nint handle = FindFirstStream(Long(path), 0, out var data, 0);
-        if (handle == -1) return [];
+        if (handle == -1)
+        {
+            int error = Marshal.GetLastPInvokeError();
+            if (error == 38 /* HANDLE_EOF */ || error is 1 or 50 or 87 && !GetVolumeInfo(path).SupportsNamedStreams) return [];
+            throw new IOException("The file's additional streams could not be inspected.", new System.ComponentModel.Win32Exception(error));
+        }
         var list = new List<string>();
         try
         {
@@ -83,10 +88,16 @@ public partial class WindowsFileOperations
             {
                 var name = new string(data.StreamName);
                 const string suffix = ":$DATA";
-                if (name.Length > suffix.Length + 1 && name[0] == ':' && name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                if (!name.Equals("::$DATA", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (name.Length <= suffix.Length + 1 || name[0] != ':' || !name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) || list.Count >= 1024)
+                        throw new IOException("The file's additional stream inventory is unsupported or too large.");
                     list.Add(name[1..^suffix.Length]);
+                }
             }
             while (FindNextStream(handle, out data));
+            int error = Marshal.GetLastPInvokeError();
+            if (error != 38 /* HANDLE_EOF */) throw new IOException("The complete additional stream inventory could not be read.", new System.ComponentModel.Win32Exception(error));
         }
         finally
         {

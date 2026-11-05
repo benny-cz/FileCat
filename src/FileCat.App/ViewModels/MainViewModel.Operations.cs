@@ -218,7 +218,8 @@ public sealed partial class MainViewModel
             finalItems = request.IncludeHidden || explicitItems is not null || (sel?.HiddenMarked ?? 0) == 0 ? items : tab.Listing.GetSelection(includeHiddenMarks: false);
             if (destLocation?.Scheme == Schemes.Zip)
             {
-                await AddToArchiveAsync(kind, finalItems, destLocation, request.Options);
+                await AddToArchiveTransferAsync(kind, finalItems, destLocation, request.Options, newName,
+                    request.Queue ? QueueMode.Queue : QueueMode.Start, tab);
                 return;
             }
             if (kind == JobKind.Move && newName is null && destLocation is { } dl && ItemSources.Parents(finalItems)!.Contains(dl))
@@ -623,6 +624,7 @@ public sealed partial class MainViewModel
         {
             case JobState.Completed:
                 if (job.Kind == JobKind.ArchiveTest) Notify($"{job.Title}: {job.Summary}.");
+                else if (job.Request.Archive is { MoveSources: true }) Notify($"{job.Title}: {job.Summary}");
                 else if (job.Kind is JobKind.Copy or JobKind.Move or JobKind.Recycle or JobKind.Delete or JobKind.Extract)
                     Notify($"{job.Title}: done{(job.BytesDone > 0 && job.Kind is not (JobKind.Recycle or JobKind.Delete) ? $" ({Formatters.SizeWithUnit(job.BytesDone)})" : "")}.");
                 break;

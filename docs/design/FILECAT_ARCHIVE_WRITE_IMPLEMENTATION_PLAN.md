@@ -559,6 +559,11 @@ F6 and the corresponding move entry points must perform the complete local-to-ar
 - Source deletion failures produce an honest “archived; originals retained” or partial-move outcome with the affected paths, rather than relabeling a committed archive update as a failed write. Refresh/focus both panes and job progress/counts consistently.
 - Cover conflict skipping/replacement, cancellation before and after publication, changed/replaced sources, new directory children, source deletion failures and a successful file/folder move in automated and live platform tests. This addition supersedes the earlier blanket refusal and remains pending until that evidence exists.
 
+Implementation checkpoint: the existing local ZIP route has F6 move support and real-file/native-adapter plus headless
+UI evidence on Windows, Mac and Ubuntu, recorded in `docs/validation/archive-writing/LOCAL_MOVE_INTO_ZIP.md`. Native
+interactive GUI acceptance and the full common transaction/security/metadata/scale qualification remain required.
+This checkpoint does not qualify future formats or waive any gate above.
+
 ### 11.7 Error and recovery microcopy
 
 | Condition | Representative text | Default next action |

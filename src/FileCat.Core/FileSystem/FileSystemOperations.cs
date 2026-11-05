@@ -219,7 +219,8 @@ public interface IFileSystemOperations
     /// <summary>Writes origin data; returns false when the destination cannot store it (reported as a security loss).</summary>
     bool WriteOriginMark(string path, string mark);
 
-    /// <summary>Names of alternate data streams (without the default stream); empty where the platform has none.</summary>
+    /// <summary>Names of alternate data streams (without the default stream); empty where the platform has none.
+    /// Throws when the platform's stream inventory cannot be completed, including a missing source.</summary>
     IReadOnlyList<string> GetAlternateStreams(string path);
 
     /// <summary>True when <see cref="CopyFile"/> itself keeps attributes, times, and streams (native copy engines).</summary>

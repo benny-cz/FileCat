@@ -435,6 +435,6 @@ public sealed class WindowsFileOperationsTests : IDisposable
         File.WriteAllText(path + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n");
         var streams = _ops.GetAlternateStreams(path).Order(StringComparer.Ordinal).ToArray();
         Assert.Equal(["Zone.Identifier", "extra"], streams);
-        Assert.Empty(_ops.GetAlternateStreams(Path.Combine(_root, "missing.txt")));
+        Assert.Throws<IOException>(() => _ops.GetAlternateStreams(Path.Combine(_root, "missing.txt")));
     }
 }

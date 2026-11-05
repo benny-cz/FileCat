@@ -135,6 +135,8 @@ public sealed class JobJournal : IDisposable
             ["transferIntentProblem"] = transferIntentProblem,
         };
         if (job.Request.Archive?.Profile is not null) begin["archiveJournalVersion"] = ArchiveTransactionFacts.SchemaVersion;
+        if (job.Request.Archive is { MoveSources: true } move)
+        { begin["archiveMoveSources"] = true; begin["archivePath"] = move.ArchivePath; }
         try
         {
             j.Write(begin, sync: true);

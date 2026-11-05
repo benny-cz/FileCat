@@ -576,7 +576,8 @@ public sealed class JobManager
             {
                 var archive = r.Archive ?? throw new ArgumentException("An archive plan is required.", nameof(r));
                 title = r.Description ?? $"Update \"{Path.GetFileName(archive.ArchivePath)}\"";
-                foreach (var source in archive.Changes.Select(c => c.SourcePath).OfType<string>()) reads.Add(source);
+                foreach (var source in archive.Changes.Select(c => c.SourcePath).OfType<string>())
+                { reads.Add(source); if (archive.MoveSources) writes.Add(source); }
                 // The archive is rewritten as a whole: any job reading or writing it overlaps.
                 writes.Add(Path.GetFullPath(archive.ArchivePath));
                 break;

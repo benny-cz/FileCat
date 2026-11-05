@@ -33,17 +33,22 @@ internal sealed class LegacyZipPublicationTransaction
     private bool prepared;
     private bool attempted;
     private string? mark;
+    private string? requiredOrigin;
+    private readonly ArchiveMoveSources? move;
 
     public string StagePath => temp;
     public bool Published => published;
+    internal string PreparedSha256 => Convert.ToHexString(intendedPublishedDigest ?? throw new InvalidOperationException("No prepared archive digest."));
+    internal string? RequiredOrigin => requiredOrigin;
 
     public LegacyZipPublicationTransaction(Job job, IFileSystemOperations fs, JobJournal journal, ArchivePlan plan,
-        string archive, string folder)
+        string archive, string folder, ArchiveMoveSources? move = null)
     {
         if (plan.Profile is not null)
             throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
                 "A new archive profile cannot use the legacy ZIP publication protocol.");
         Job = job; Fs = fs; Journal = journal; this.plan = plan; this.archive = archive; this.folder = folder;
+        this.move = move;
         updating = plan.Baseline is not null;
         temp = Path.Combine(folder, ".filecat-zip-" + Guid.NewGuid().ToString("N") + ".tmp");
         step = Journal.Intent("zip-update", archive, null, temp);
@@ -63,10 +68,11 @@ internal sealed class LegacyZipPublicationTransaction
         if (updating && !plan.Baseline!.Matches(archive, Job.Checkpoint))
             throw new IOException("The archive changed while it was being rebuilt; the original was kept.");
         mark = updating ? Fs.ReadOriginMark(archive) : null;
-        if (mark is not null &&
-            (!Fs.WriteOriginMark(temp, mark) || !string.Equals(Fs.ReadOriginMark(temp), mark, StringComparison.Ordinal)))
+        requiredOrigin = move?.RequiredOrigin(mark) ?? mark;
+        if (requiredOrigin is not null &&
+            (!Fs.WriteOriginMark(temp, requiredOrigin) || !string.Equals(Fs.ReadOriginMark(temp), requiredOrigin, StringComparison.Ordinal)))
             throw new IOException("The rebuilt archive could not keep its downloaded-from-the-internet mark; the original was kept.");
-        if (updating)
+        if (updating || move is not null)
         {
             intendedPublishedDigest = DigestFile(temp);
             intendedPublishedIdentity = Fs.GetFileIdentity(temp);
@@ -111,7 +117,7 @@ internal sealed class LegacyZipPublicationTransaction
                     integrityError = new IOException("The archive source changed during the update.");
                 else if (!string.Equals(replacedOriginalMark, mark, StringComparison.Ordinal))
                     integrityError = new IOException("The original archive's download mark changed during the update.");
-                else if (mark is not null && !string.Equals(Fs.ReadOriginMark(archive), mark, StringComparison.Ordinal))
+                else if (requiredOrigin is not null && !string.Equals(Fs.ReadOriginMark(archive), requiredOrigin, StringComparison.Ordinal))
                     integrityError = new IOException("The replacement archive lost its downloaded-from-the-internet mark.");
             }
             catch (Exception ex) { integrityError = ex; }
@@ -133,7 +139,7 @@ internal sealed class LegacyZipPublicationTransaction
                     // even when bytes and inode are unchanged. If a mark disappeared, rolling
                     // back to the marked backup is still the safe result.
                     if (Fs.ReadOriginMark(archive) is { } currentMark &&
-                        !string.Equals(currentMark, mark, StringComparison.Ordinal))
+                        !string.Equals(currentMark, requiredOrigin, StringComparison.Ordinal))
                         throw new IOException("The published archive's download mark changed before restoration.");
                     if (!DigestFile(archive, checkCancellation: false).AsSpan().SequenceEqual(intendedPublishedDigest))
                         throw new IOException("The published archive pathname changed before restoration.");

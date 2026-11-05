@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Security.Cryptography;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
 
@@ -50,7 +51,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
 
     /// <param name="Root">The folder the user chose to add, for a file found in it: no link below it is followed.</param>
     private sealed record Addition(string Member, string? Source, bool FolderEntry, DateTime Modified, FileAttributes Attributes, long Length,
-        string? Root = null);
+        string? Root = null, ArchiveMoveSources.Input? Move = null);
 
     public override void Execute()
     {
@@ -76,8 +77,9 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 throw new ArgumentException($"\"{change.NewMemberPath}\": {renameProblem}");
         }
 
-        var additions = ExpandAdditions(plan.Changes);
-        var publication = new LegacyZipPublicationTransaction(Job, Fs, Journal, plan, archive, folder);
+        var move = plan.MoveSources ? new ArchiveMoveSources(Job, Fs, Journal, plan, archive) : null;
+        var additions = ExpandAdditions(plan.Changes, move);
+        var publication = new LegacyZipPublicationTransaction(Job, Fs, Journal, plan, archive, folder, move);
         string temp = publication.StagePath;
         FileStream? sourceStream = null;
         ZipArchive? source = null;
@@ -96,11 +98,32 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             }
             var existing = source?.Entries.ToList() ?? [];
             var plannedNames = PlanNames(plan, existing, additions, out var replaceWith, out var skipped);
-            Job.AddTotals(plannedNames.Count(n => n is not null) + additions.Count(a => !skipped.Contains(a.Member) && !replaceWith.ContainsValue(a)),
-                existing.Sum(e => Math.Max(0, e.Length)) + additions.Sum(a => a.Length));
-            foreach (var member in skipped.Where(m => additions.Any(a => a.Member == m && !a.FolderEntry)))
+            var replacementAdditions = replaceWith.Values.ToHashSet();
+            if (move is not null)
             {
-                Job.ItemSkipped();
+                var files = plannedNames.OfType<string>().Where(n => !n.EndsWith('/')).ToHashSet(StringComparer.Ordinal);
+                files.UnionWith(additions.Where(a => !a.FolderEntry && !skipped.Contains(a.Member)).Select(a => a.Member));
+                var folders = plannedNames.OfType<string>().Where(n => n.EndsWith('/')).ToHashSet(StringComparer.Ordinal);
+                foreach (string name in plannedNames.OfType<string>().Concat(additions.Select(a => a.FolderEntry ? a.Member + "/" : a.Member)))
+                    if (Ancestors(name.TrimEnd('/')).Skip(name.EndsWith('/') ? 0 : 1).Any(files.Contains))
+                        throw new IOException("An archive file blocks a folder needed for this move. Rename or remove that member first.");
+                foreach (var addition in additions.Where(a => skipped.Contains(a.Member)))
+                    if (addition.Move is not null)
+                    {
+                        // Existing directories merge just as for a local move. Their container already exists;
+                        // conflict skipping applies to the files inside, not to an otherwise completed folder move.
+                        if (addition.FolderEntry && folders.Contains(addition.Member + "/")) addition.Move.Written = true;
+                        else addition.Move.Skipped = true;
+                    }
+            }
+            long bytes = move is null ? existing.Sum(e => Math.Max(0, e.Length)) + additions.Sum(a => a.Length) :
+                existing.Select((e, i) => plannedNames[i] is null ? 0 : replaceWith.TryGetValue(i, out var r) ? r.Length : Math.Max(0, e.Length)).Sum() +
+                additions.Where(a => !skipped.Contains(a.Member) && !replacementAdditions.Contains(a)).Sum(a => a.Length);
+            Job.AddTotals(plannedNames.Count(n => n is not null) + additions.Count(a => !skipped.Contains(a.Member) && !replacementAdditions.Contains(a)), bytes);
+            var addedFiles = additions.Where(a => !a.FolderEntry).Select(a => a.Member).ToHashSet(StringComparer.Ordinal);
+            foreach (var member in skipped.Where(addedFiles.Contains))
+            {
+                if (move is null) Job.ItemSkipped();
                 Issue(IssueSeverity.Warning, member, "Not added: a member with this name exists, and replacing was not chosen.", StepOutcome.Skipped);
             }
 
@@ -117,7 +140,10 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                         var entry = existing[i];
                         Job.SetCurrent(name);
                         if (replaceWith.TryGetValue(i, out var replacement))
-                            WriteFile(rebuilt, name, replacement, plan.Level, entry);
+                        {
+                            if (replacement.FolderEntry) WriteFolder(rebuilt, replacement, entry.Comment);
+                            else WriteFile(rebuilt, name, replacement, plan.Level, entry, move);
+                        }
                         else
                             CopyEntry(entry, rebuilt, name, plan.Level);
                         written.Add((name, replacement));
@@ -126,10 +152,10 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                     foreach (var addition in additions)
                     {
                         Job.Checkpoint();
-                        if (skipped.Contains(addition.Member) || replaceWith.ContainsValue(addition)) continue;
+                        if (skipped.Contains(addition.Member) || replacementAdditions.Contains(addition)) continue;
                         Job.SetCurrent(addition.Member);
-                        if (addition.FolderEntry) rebuilt.CreateEntry(addition.Member + "/");
-                        else WriteFile(rebuilt, addition.Member, addition, plan.Level, null);
+                        if (addition.FolderEntry) WriteFolder(rebuilt, addition, null);
+                        else WriteFile(rebuilt, addition.Member, addition, plan.Level, null, move);
                         written.Add((addition.FolderEntry ? addition.Member + "/" : addition.Member, addition));
                         Job.ItemDone();
                     }
@@ -145,8 +171,10 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             publication.Publish(() =>
             {
                 // All members of the rebuilt archive commit together.
-                for (int root = 0; root < Math.Max(1, Job.Request.Sources.Count); root++) Job.RootCompleted(root);
+                if (move is null)
+                    for (int root = 0; root < Math.Max(1, Job.Request.Sources.Count); root++) Job.RootCompleted(root);
             });
+            move?.RemoveAfterPublication(publication.PreparedSha256, publication.RequiredOrigin);
         }
         catch (Exception ex) when (!publication.Published)
         {
@@ -209,15 +237,28 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             if (names[i] is { } n && counts[n] > 1 && n != ArchivePaths.Normalize(existing[i].FullName))
                 throw new IOException($"Renaming would create two members named \"{n}\"; nothing was changed.");
         var firstByName = new Dictionary<string, int>(StringComparer.Ordinal);
+        var allByName = new Dictionary<string, List<int>>(StringComparer.Ordinal);
         for (int i = 0; i < names.Count; i++)
-            if (names[i] is { } n) firstByName.TryAdd(n.TrimEnd('/'), i);
+            if (names[i] is { } n)
+            {
+                firstByName.TryAdd(n.TrimEnd('/'), i);
+                if (!allByName.TryGetValue(n, out var positions)) allByName.Add(n, positions = []);
+                positions.Add(i);
+            }
         replaceWith = [];
         skipped = [];
         foreach (var addition in additions)
         {
             if (!firstByName.TryGetValue(addition.Member, out int at)) continue;
-            bool replaceable = !addition.FolderEntry && !names[at]!.EndsWith('/') && (replacements.Contains(addition.Member) || plan.ReplaceExisting);
-            if (replaceable) replaceWith[at] = addition;
+            bool replaceable = !addition.FolderEntry && !names[at]!.EndsWith('/') && (replacements.Contains(addition.Member) || plan.ReplaceExisting) ||
+                plan.MoveSources && addition.FolderEntry && names[at]!.EndsWith('/') && plan.ReplaceExisting;
+            if (replaceable)
+            {
+                replaceWith[at] = addition;
+                // A move's new data must not be hidden by a later same-name occurrence when the source is removed.
+                if (plan.MoveSources)
+                    foreach (int i in allByName[addition.FolderEntry ? addition.Member + "/" : addition.Member]) replaceWith[i] = addition;
+            }
             else skipped.Add(addition.Member);
         }
         return names;
@@ -235,7 +276,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         }
     }
 
-    private List<Addition> ExpandAdditions(IReadOnlyList<ArchiveChange> changes)
+    private List<Addition> ExpandAdditions(IReadOnlyList<ArchiveChange> changes, ArchiveMoveSources? move)
     {
         var result = new List<Addition>();
         foreach (var change in changes)
@@ -252,14 +293,15 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                     // A cloud placeholder (a OneDrive file) is a reparse point, but no link.
                     if (ReparseLinks.IsLink(info.FullName))
                         throw new IOException("The source is a link; links are not added to ZIP archives.");
-                    result.Add(new Addition(member, info.FullName, false, info.LastWriteTime, info.Attributes, info.Length));
+                    result.Add(new Addition(member, info.FullName, false, info.LastWriteTime, info.Attributes, info.Length,
+                        Move: move?.Capture(info.FullName, directory: false)));
                     break;
                 }
                 case ArchiveChangeKind.CreateFolderEntry:
                     result.Add(new Addition(member, null, true, DateTime.Now, FileAttributes.Directory, 0));
                     break;
                 case ArchiveChangeKind.AddFolder:
-                    AddTree(new DirectoryInfo(change.SourcePath ?? throw new ArgumentException("A source folder is required.")), member, result);
+                    AddTree(new DirectoryInfo(change.SourcePath ?? throw new ArgumentException("A source folder is required.")), member, result, move);
                     break;
             }
         }
@@ -267,7 +309,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
     }
 
     /// <summary>Adds a folder's files; links are neither followed nor stored (reported), empty folders get entries.</summary>
-    private void AddTree(DirectoryInfo root, string member, List<Addition> result)
+    private void AddTree(DirectoryInfo root, string member, List<Addition> result, ArchiveMoveSources? move)
     {
         var pending = new Stack<(DirectoryInfo Dir, string Member)>();
         pending.Push((root, member));
@@ -276,6 +318,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             Job.Checkpoint();
             var (dir, prefix) = pending.Pop();
             PathUtil.RefuseAmbiguousUnixName(dir.FullName);
+            var capturedDirectory = move?.Capture(dir.FullName, directory: true);
             bool any = false;
             foreach (var entry in dir.EnumerateFileSystemInfos().OrderBy(e => e.Name, StringComparer.Ordinal))
             {
@@ -294,10 +337,24 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 }
                 if (entry is DirectoryInfo sub) pending.Push((sub, child));
                 else if (entry is FileInfo file)
-                    result.Add(new Addition(child, file.FullName, false, file.LastWriteTime, file.Attributes, file.Length, root.FullName));
+                    result.Add(new Addition(child, file.FullName, false, file.LastWriteTime, file.Attributes, file.Length, root.FullName,
+                        move?.Capture(file.FullName, directory: false)));
             }
-            if (!any) result.Add(new Addition(prefix, null, true, dir.LastWriteTime, FileAttributes.Directory, 0));
+            if (!any || move is not null)
+            {
+                if (capturedDirectory is not null) capturedDirectory.ExplicitDirectory = true;
+                result.Add(new Addition(prefix, null, true, dir.LastWriteTime, FileAttributes.Directory, 0, Move: capturedDirectory));
+            }
         }
+    }
+
+    private void WriteFolder(ZipArchive target, Addition addition, string? comment)
+    {
+        var entry = target.CreateEntry(addition.Member + "/");
+        if (addition.Move is null) return; // Keep the existing copy route's directory behavior.
+        int attributes = (int)FileAttributes.Directory;
+        if (addition.Move.UnixMode is { } mode) attributes |= unchecked((int)((mode | 0x4000) << 16));
+        Stamp(entry, addition.Modified, attributes, comment); addition.Move.Written = true;
     }
 
     private void CopyEntry(ZipArchiveEntry entry, ZipArchive target, string name, CompressionLevel level)
@@ -313,21 +370,37 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             throw new InvalidDataException($"The member \"{entry.FullName}\" is damaged (its checksum does not match), so the archive was not changed. Test the archive for details.");
     }
 
-    private void WriteFile(ZipArchive target, string name, Addition addition, CompressionLevel level, ZipArchiveEntry? replaced)
+    private void WriteFile(ZipArchive target, string name, Addition addition, CompressionLevel level, ZipArchiveEntry? replaced, ArchiveMoveSources? move)
     {
         using var held = Fs.HoldRegularFile(addition.Source!, addition.Root);
+        if (addition.Move is not null) move!.RequireCurrent(addition.Move);
         var entry = target.CreateEntry(name, level);
         int attributes = replaced?.ExternalAttributes ?? (int)(addition.Attributes & (FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive));
+        if (addition.Move is { } input)
+        {
+            attributes = (int)(addition.Attributes & (FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive));
+            if (input.UnixMode is { } mode) attributes |= unchecked((int)((mode | 0x8000) << 16));
+        }
         Stamp(entry, addition.Modified, attributes, replaced?.Comment);
         using var from = new FileStream(addition.Source!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, BufferSize, FileOptions.SequentialScan);
         using var to = entry.Open();
         var buffer = new byte[BufferSize];
+        using var hash = addition.Move is null ? null : IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        long length = 0;
         int n;
         while ((n = from.Read(buffer, 0, buffer.Length)) > 0)
         {
             Job.Checkpoint();
+            length += n;
+            if (addition.Move is not null && length > addition.Move.Info.Size) throw new IOException("The source grew while it was being moved into the archive.");
+            hash?.AppendData(buffer, 0, n);
             to.Write(buffer, 0, n);
             Job.AddBytes(n);
+        }
+        if (addition.Move is not null)
+        {
+            if (length != addition.Move.Info.Size) throw new IOException("The source changed length while it was being moved into the archive.");
+            move!.Recorded(addition.Move, hash!.GetHashAndReset());
         }
     }
 
@@ -374,13 +447,18 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         for (int i = 0; i < entries.Count; i++)
         {
             if (entries[i].FullName != written[i].Name) throw new IOException("The rebuilt archive's members are out of order; the original was kept.");
-            if (written[i].From is not { FolderEntry: false }) continue;
+            if (written[i].From is not { FolderEntry: false } addition) continue;
             Job.Checkpoint();
             uint crc = 0;
+            using var hash = addition.Move is null ? null : IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             using var data = entries[i].Open();
             int n;
-            while ((n = data.Read(buffer, 0, buffer.Length)) > 0) crc = Crc32.Append(crc, buffer.AsSpan(0, n));
+            while ((n = data.Read(buffer, 0, buffer.Length)) > 0)
+            { Job.Checkpoint(); crc = Crc32.Append(crc, buffer.AsSpan(0, n)); hash?.AppendData(buffer, 0, n); }
             if (crc != entries[i].Crc32) throw new IOException($"\"{entries[i].FullName}\" did not read back correctly; the original was kept.");
+            if (addition.Move is not null && (entries[i].Length != addition.Move.Info.Size ||
+                !hash!.GetHashAndReset().AsSpan().SequenceEqual(addition.Move.Hash)))
+                throw new IOException("The archived content differs from the move source; the originals were kept.");
         }
     }
 }

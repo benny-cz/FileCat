@@ -65,4 +65,8 @@ public sealed record ArchiveBaseline(long Length, long LastWriteUtcTicks, string
 /// replaces the original only when complete, verified, and the original is still the version the plan saw.
 /// </summary>
 public sealed record ArchivePlan(string ArchivePath, ArchiveBaseline? Baseline, IReadOnlyList<ArchiveChange> Changes,
-    CompressionLevel Level = CompressionLevel.Optimal, bool ReplaceExisting = false, ArchiveWriteProfile? Profile = null);
+    CompressionLevel Level = CompressionLevel.Optimal, bool ReplaceExisting = false, ArchiveWriteProfile? Profile = null)
+{
+    /// <summary>An explicit local move: remove only successfully archived, unchanged sources after verified publication.</summary>
+    public bool MoveSources { get; init; }
+}
