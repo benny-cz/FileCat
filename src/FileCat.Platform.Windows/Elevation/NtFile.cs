@@ -57,7 +57,7 @@ internal static unsafe partial class NtFile
     /// the NTSTATUS; <paramref name="handle"/> is invalid unless the status is a success.
     /// </summary>
     public static int TryOpen(SafeFileHandle? root, string name, uint access, uint share, uint disposition, uint options,
-        out SafeFileHandle handle, uint fileAttributes = 0)
+        out SafeFileHandle handle, uint fileAttributes = 0, ReadOnlySpan<byte> securityDescriptor = default)
     {
         if (name.Length == 0 || name.Length > 32766) throw new ArgumentException("Invalid name.", nameof(name));
         bool added = false;
@@ -65,6 +65,7 @@ internal static unsafe partial class NtFile
         {
             root?.DangerousAddRef(ref added);
             fixed (char* chars = name)
+            fixed (byte* security = securityDescriptor)
             {
                 var text = new UnicodeString { Length = (ushort)(name.Length * 2), MaximumLength = (ushort)(name.Length * 2), Buffer = chars };
                 var attributes = new ObjectAttributes
@@ -73,6 +74,7 @@ internal static unsafe partial class NtFile
                     RootDirectory = root?.DangerousGetHandle() ?? 0,
                     ObjectName = &text,
                     Attributes = CaseInsensitive,
+                    SecurityDescriptor = (nint)security,
                 };
                 IoStatusBlock io;
                 int status = NtCreateFile(out nint raw, access, &attributes, &io, null, fileAttributes, share, disposition,
@@ -88,9 +90,9 @@ internal static unsafe partial class NtFile
     }
 
     public static SafeFileHandle OpenOrThrow(SafeFileHandle? root, string name, uint access, uint share, uint disposition, uint options,
-        string what, uint fileAttributes = 0)
+        string what, uint fileAttributes = 0, ReadOnlySpan<byte> securityDescriptor = default)
     {
-        int status = TryOpen(root, name, access, share, disposition, options, out var handle, fileAttributes);
+        int status = TryOpen(root, name, access, share, disposition, options, out var handle, fileAttributes, securityDescriptor);
         if (status < 0) throw Error(status, what);
         return handle;
     }
