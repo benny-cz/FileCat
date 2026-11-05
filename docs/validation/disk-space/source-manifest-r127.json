@@ -1,0 +1,97 @@
+{
+  "purpose": "Typed indexed path/lineage reader; no feature/capability authorization",
+  "gitBase": "7d979e4910153d21c671a01ab115d5860425f3b5",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "413d15b45de34ff22972c00b7a45e03b581ff27914695df1087b3ad90c82e3b8"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "9053571a9d57f8e260d004d1efdbafc8380cce689300236eb62816f91e724b9a"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedPathCodec.cs",
+      "sha256": "469f383fbf32eb3b64012f405801eaa0e79c4abc32cb0bd8dd5ecfa894cf5f8f"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedPaths.cs",
+      "sha256": "3242934d86576b67034184f286e6d010632e2743ae21310a5e3e6ea6269156be"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchArena.cs",
+      "sha256": "5e2cd6ce99b3d870aeacdaccf59f32494f3eacd983fb9cdd44932d47270e8db1"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchVector.cs",
+      "sha256": "246f35b0f8148ad60aa9f3834dd9b18a88cf927ff91081f4cf0dc747997750fc"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisIndexedPathCodecTests.cs",
+      "sha256": "7179084617452d769a521ae50297a30622ce6e802a34b4913160d8b3de6db5dd"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisIndexedPathsTests.cs",
+      "sha256": "2f979de275665e431b92094ce51187eab0a67fe3d51fe71c7f65d5b44cf1c224"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisScratchVectorTests.cs",
+      "sha256": "b0562ae5eb5fd18a41ae9182a20d028e867e062d7ee39eb9244b7b0da3c481ad"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+      "sha256": "0c9117fa066e65d28ab8e3b8a1b5b681861bf4a70fcbd8403c342d6f878f748e"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/ScratchPathScale.cs",
+      "sha256": "9d5e8080fdca52b528475028202745529bd2b64edcdbd1c472e7707e6837e04d"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r125.tgz",
+      "sha256": "51b0c15fd8875be67c2862de2b1621133e48885a22eaecb5aca25751d9602b8f"
+    },
+    {
+      "path": ".tmp/dsa-native-r125.tgz",
+      "sha256": "80e4fc1f88216ddb87b39ff22690022251a383d2d60aea18ff6ca95450077c3f"
+    },
+    {
+      "path": ".tmp/scratch-scale-r126.tgz",
+      "sha256": "5308676fa2a8de99aeb4b61568d427a6779f1b22fe1abfe938bb33f40ac17136"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "drivers/unix-core-r125.sh",
+      "sha256": "bd4d83d7001a907069d0340276928c2165ff12477b99e331d7d551532a33998e"
+    },
+    {
+      "path": "drivers/windows-core-r125.ps1",
+      "sha256": "ae3f6eb8c6c722469a5ad84be23245eaad67f034635edee18f02d67c8336df1d"
+    },
+    {
+      "path": "drivers/windows-native-tests-r125.ps1",
+      "sha256": "9e5fb029991afd9582902bed22d23dd7688ed77c50f7813ac30c09ef2793cb66"
+    },
+    {
+      "path": "drivers/unix-scratch-scale-r126.py",
+      "sha256": "f73118b454140d6694a8c53c3a55ef1361daa25d108b7be25664c599a6b79657"
+    },
+    {
+      "path": "drivers/windows-scratch-scale-r126.ps1",
+      "sha256": "8992eebdf755efacecc048680999a75c84a118bb1256c90c7553e04fe749b095"
+    }
+  ],
+  "reports": [
+    "windows-core-r125.xml",
+    "mac-core-r125.xml",
+    "ubuntu-core-r125.xml",
+    "windows-native-r125.xml",
+    "windows-path-scale-r126.json",
+    "mac-path-scale-r126.json",
+    "ubuntu-path-scale-r126.json"
+  ],
+  "remaining": "Native source frontier/witness integration; sibling/object/fact/issue indexes and complete validation; bounded aggregation/query/projection/table/import/export; profile quota/own-artifact exclusion and complete resource/native qualification; remaining full plan and final independent review."
+}

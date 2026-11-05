@@ -104,23 +104,39 @@ internal sealed class AnalysisScratchArena : IDisposable
         lock (_gate)
         {
             if (!ReferenceEquals(checkpoint.Owner, this)) throw new ObjectDisposedException(nameof(checkpoint));
-            if (record.Length is < 0 or > AnalysisLimits.RecordBytes || record.Offset < 0 ||
-                record.Offset > checkpoint.End || HeaderBytes + (long)record.Length + TagBytes > checkpoint.End - record.Offset)
-                throw new InvalidDataException("The scratch record is outside this published revision.");
-            cancellation.ThrowIfCancellationRequested(); Guard(); _file.Verify();
-            if (_file.Length < checkpoint.End) throw new InvalidDataException("The private scratch revision was truncated.");
-            Span<byte> header = stackalloc byte[HeaderBytes]; ReadExactly(header, record.Offset, cancellation);
-            if (BinaryPrimitives.ReadUInt32LittleEndian(header) != Format || BinaryPrimitives.ReadInt32LittleEndian(header[4..]) != record.Length ||
-                BinaryPrimitives.ReadInt64LittleEndian(header[8..]) != record.Offset)
-                throw new InvalidDataException("The private scratch record header changed.");
-            byte[] payload = new byte[record.Length]; ReadExactly(payload, record.Offset + HeaderBytes, cancellation);
-            Span<byte> stored = stackalloc byte[TagBytes], actual = stackalloc byte[TagBytes];
-            ReadExactly(stored, record.Offset + HeaderBytes + record.Length, cancellation);
-            using var mac = IncrementalHash.CreateHMAC(HashAlgorithmName.SHA256, _key);
-            mac.AppendData(header); mac.AppendData(payload); mac.GetHashAndReset(actual);
-            if (!CryptographicOperations.FixedTimeEquals(stored, actual)) throw new InvalidDataException("The private scratch record changed.");
-            Guard(); _file.Verify(); return payload;
+            return ReadCore(checkpoint.End, record, cancellation);
         }
+    }
+
+    // A writer can inspect its already committed blocks without consuming an external revision lease.
+    // Its ownership and this lock retain the file throughout real I/O; no unpublished tail is readable.
+    internal byte[] ReadCommitted(AnalysisScratchRecord record, CancellationToken cancellation)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_ownerClosed, this);
+            return ReadCore(_end, record, cancellation);
+        }
+    }
+
+    private byte[] ReadCore(long end, AnalysisScratchRecord record, CancellationToken cancellation)
+    {
+        if (record.Length is < 0 or > AnalysisLimits.RecordBytes || record.Offset < 0 ||
+            record.Offset > end || HeaderBytes + (long)record.Length + TagBytes > end - record.Offset)
+            throw new InvalidDataException("The scratch record is outside this published revision.");
+        cancellation.ThrowIfCancellationRequested(); Guard(); _file.Verify();
+        if (_file.Length < end) throw new InvalidDataException("The private scratch revision was truncated.");
+        Span<byte> header = stackalloc byte[HeaderBytes]; ReadExactly(header, record.Offset, cancellation);
+        if (BinaryPrimitives.ReadUInt32LittleEndian(header) != Format || BinaryPrimitives.ReadInt32LittleEndian(header[4..]) != record.Length ||
+            BinaryPrimitives.ReadInt64LittleEndian(header[8..]) != record.Offset)
+            throw new InvalidDataException("The private scratch record header changed.");
+        byte[] payload = new byte[record.Length]; ReadExactly(payload, record.Offset + HeaderBytes, cancellation);
+        Span<byte> stored = stackalloc byte[TagBytes], actual = stackalloc byte[TagBytes];
+        ReadExactly(stored, record.Offset + HeaderBytes + record.Length, cancellation);
+        using var mac = IncrementalHash.CreateHMAC(HashAlgorithmName.SHA256, _key);
+        mac.AppendData(header); mac.AppendData(payload); mac.GetHashAndReset(actual);
+        if (!CryptographicOperations.FixedTimeEquals(stored, actual)) throw new InvalidDataException("The private scratch record changed.");
+        Guard(); _file.Verify(); return payload;
     }
 
     private void ReadExactly(Span<byte> bytes, long offset, CancellationToken cancellation)

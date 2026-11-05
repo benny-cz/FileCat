@@ -21,6 +21,8 @@ internal sealed class AnalysisScratchVector : IDisposable
     private int _used = DirectoryBytes, _pending, _blocks;
     private ulong _accepted, _committed;
     private bool _failed, _disposed;
+    private int _cachedBlock = -1;
+    private byte[]? _cache;
 
     internal AnalysisScratchVector(AnalysisScratchArena arena, int recordLimit = AnalysisLimits.Observations, int blockLimit = MaximumBlocks)
     {
@@ -78,6 +80,26 @@ internal sealed class AnalysisScratchVector : IDisposable
         if (_failed) throw new IOException("The indexed analysis store cannot accept more records. Keep its last published partial result.");
     }
 
+    // Needed for parent/witness lookup while constructing a hierarchical store. Only the owning writer
+    // sees its bounded pending buffer; external checkpoints still see exactly their published prefix.
+    internal byte[] ReadCurrent(ulong id, CancellationToken cancellation = default)
+    {
+        lock (_gate)
+        {
+            Guard(); cancellation.ThrowIfCancellationRequested();
+            if (id == 0 || id > _accepted) throw new ArgumentOutOfRangeException(nameof(id));
+            if (id > _committed) return AnalysisScratchBlockReader.Extract(_buffer, checked((int)(id - _committed - 1)));
+            int at = AnalysisScratchBlockReader.Find(_directory, _blocks, id);
+            var block = _directory[at / DirectoryPage][at % DirectoryPage];
+            if (_cachedBlock != at)
+            {
+                byte[] bytes = _arena.ReadCommitted(block.Address, cancellation);
+                AnalysisScratchBlockReader.Validate(bytes, block); _cache = bytes; _cachedBlock = at;
+            }
+            return AnalysisScratchBlockReader.Extract(_cache!, checked((int)(id - block.First)));
+        }
+    }
+
     // Publication is explicit. This never attempts a failed/pending flush or includes buffered observations.
     internal AnalysisScratchVectorCheckpoint CaptureCommitted()
     {
@@ -102,7 +124,7 @@ internal sealed class AnalysisScratchVector : IDisposable
     }
 
     public void Dispose()
-    { lock (_gate) { if (_disposed) return; _disposed = true; _directory.Clear(); _arena.Dispose(); } }
+    { lock (_gate) { if (_disposed) return; _disposed = true; _cache = null; _directory.Clear(); _arena.Dispose(); } }
 }
 
 internal readonly record struct AnalysisScratchBlock(ulong First, int Count, AnalysisScratchRecord Address);
@@ -127,27 +149,50 @@ internal sealed class AnalysisScratchVectorCheckpoint : IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this); cancellation.ThrowIfCancellationRequested();
             if (id == 0 || id > Count) throw new ArgumentOutOfRangeException(nameof(id));
-            int low = 0, high = _blocks - 1;
-            while (low <= high)
+            int at = AnalysisScratchBlockReader.Find(_directory, _blocks, id);
+            var block = _directory[at / AnalysisScratchVector.DirectoryPage][at % AnalysisScratchVector.DirectoryPage];
+            if (_cachedBlock != at)
             {
-                int at = low + (high - low) / 2; var block = _directory[at / AnalysisScratchVector.DirectoryPage][at % AnalysisScratchVector.DirectoryPage];
-                if (id < block.First) { high = at - 1; continue; }
-                if (id - block.First >= (ulong)block.Count) { low = at + 1; continue; }
-                if (_cachedBlock != at)
-                {
-                    byte[] bytes = _lease.Read(block.Address, cancellation);
-                    Validate(bytes, block); _cache = bytes; _cachedBlock = at;
-                }
-                int row = checked((int)(id - block.First)); var offsets = _cache!.AsSpan(16);
-                int start = BinaryPrimitives.ReadInt32LittleEndian(offsets[(row * 4)..]);
-                int end = BinaryPrimitives.ReadInt32LittleEndian(offsets[((row + 1) * 4)..]);
-                return _cache.AsSpan(start, end - start).ToArray();
+                byte[] bytes = _lease.Read(block.Address, cancellation);
+                AnalysisScratchBlockReader.Validate(bytes, block); _cache = bytes; _cachedBlock = at;
             }
-            throw new InvalidDataException("The indexed analysis directory does not contain this observation.");
+            return AnalysisScratchBlockReader.Extract(_cache!, checked((int)(id - block.First)));
         }
     }
 
-    private static void Validate(byte[] bytes, AnalysisScratchBlock block)
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_disposed) return; _disposed = true; _cache = null; _directory = [];
+            _lease.Dispose();
+        }
+    }
+}
+
+internal static class AnalysisScratchBlockReader
+{
+    internal static int Find(IReadOnlyList<AnalysisScratchBlock[]> directory, int blocks, ulong id)
+    {
+        int low = 0, high = blocks - 1;
+        while (low <= high)
+        {
+            int at = low + (high - low) / 2; var block = directory[at / AnalysisScratchVector.DirectoryPage][at % AnalysisScratchVector.DirectoryPage];
+            if (id < block.First) { high = at - 1; continue; }
+            if (id - block.First >= (ulong)block.Count) { low = at + 1; continue; }
+            return at;
+        }
+        throw new InvalidDataException("The indexed analysis directory does not contain this observation.");
+    }
+
+    internal static byte[] Extract(byte[] bytes, int row)
+    {
+        int start = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(16 + row * 4));
+        int end = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(16 + (row + 1) * 4));
+        return bytes.AsSpan(start, end - start).ToArray();
+    }
+
+    internal static void Validate(byte[] bytes, AnalysisScratchBlock block)
     {
         const int directory = AnalysisScratchVector.DirectoryBytes;
         if (bytes.Length < directory || bytes.Length > AnalysisLimits.BatchBytes || block.Count is < 1 or > AnalysisLimits.BatchRecords ||
@@ -164,12 +209,4 @@ internal sealed class AnalysisScratchVectorCheckpoint : IDisposable
         }
     }
 
-    public void Dispose()
-    {
-        lock (_gate)
-        {
-            if (_disposed) return; _disposed = true; _cache = null; _directory = [];
-            _lease.Dispose();
-        }
-    }
 }

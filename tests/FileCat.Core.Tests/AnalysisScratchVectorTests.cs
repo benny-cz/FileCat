@@ -9,6 +9,25 @@ public sealed class AnalysisScratchVectorTests
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary process.");
 
     [Fact]
+    public void WriterReadsPendingParentsWithoutPublishingOrTakingAnExternalRevisionLease()
+    {
+        Ordinary(); using var arena = new AnalysisScratchArena(new MemoryDirectory()); using var vector = new AnalysisScratchVector(arena);
+        vector.Append([1], Cancellation); using var empty = vector.CaptureCommitted();
+        Assert.Equal(new byte[] { 1 }, vector.ReadCurrent(1, Cancellation)); Assert.Equal(0UL, empty.Count);
+        vector.Flush(Cancellation); using var old = vector.CaptureCommitted();
+        vector.Append([2], Cancellation); Assert.Equal(new byte[] { 1 }, vector.ReadCurrent(1, Cancellation));
+        Assert.Equal(new byte[] { 2 }, vector.ReadCurrent(2, Cancellation)); Assert.Throws<ArgumentOutOfRangeException>(() => old.Read(2, Cancellation));
+        for (int i = 0; i < 1200; i++) vector.Append([(byte)i], Cancellation);
+        Assert.Equal(new byte[] { 2 }, vector.ReadCurrent(2, Cancellation));
+        Assert.Equal(new byte[] { 175 }, vector.ReadCurrent(1202, Cancellation));
+        var leases = Enumerable.Range(0, AnalysisLimits.Sessions - 2).Select(_ => vector.CaptureCommitted()).ToArray();
+        try { Assert.Equal(new byte[] { 1 }, vector.ReadCurrent(1, Cancellation)); }
+        finally { foreach (var lease in leases) lease.Dispose(); }
+        vector.Dispose(); Assert.Throws<ObjectDisposedException>(() => vector.ReadCurrent(1, Cancellation));
+        Assert.Equal(new byte[] { 1 }, old.Read(1, Cancellation));
+    }
+
+    [Fact]
     public void DenseMixedWidthRecordsRoundTripAcrossByteAndCountBoundariesAndOldRevisionsStayFixed()
     {
         Ordinary(); var directory = new MemoryDirectory(); using var arena = new AnalysisScratchArena(directory);

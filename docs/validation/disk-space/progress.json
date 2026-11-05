@@ -95,16 +95,18 @@
     "Final native range checks pass on Windows r95b, Mac r95 and Ubuntu r95, expanding11 observed rows and shrinking to the original mark without expanding the accounting group or basket. Windows additionally verifies exact row IDs and native Ctrl-click toggling. Each preserves509 source hashes and exits its owned app. Ubuntu waited for competing instances; Windows rejected an overlap and then passed after sequential rendering/native execution. Earlier controller focus/AX traversal failures are excluded from acceptance.",
     "Start now admits only the first acquisition in a tab. Finished native, imported and comparison observations retain their identity, focus, immutable marks and basket when Start is called again, with New analysis guidance; no native source/private-profile work starts for inert views. Root count is admitted before copying input. This is a lifetime guard, not the required refresh/epoch implementation.",
     "Private scratch foundation uses retained no-follow directory capabilities, anonymous Unix files (Linux scratch cannot be linked for publication), exclusive create-time Windows delete-on-close, direct offset I/O, runtime-only record authentication, process-shared/session-arena byte ceilings and space reserve checks. Failed writes retain previous checkpoints and reservations until actual file/reader release. Native abrupt-process-death and foreign-neighbor preservation controls pass. This internal foundation is not yet connected to the active AnalysisStore.",
-    "A dense indexed record primitive packs at most512 observations/256KiB per authenticated block, admits a bounded65,536-block directory, shares immutable full directory pages and copies only a captured unfinished tail. Eight reader leases and one block cache per reader retain an immutable committed prefix; pending/failed records never appear in it. Native1M/10M opaque-record write/read checks pass on Windows,Mac,Ubuntu with every record verified and owned exit. This is not full analysis, aggregation/query/chart/export or end-to-end scale qualification; Mac private-byte measurement is explicitly unavailable."
+    "A dense indexed record primitive packs at most512 observations/256KiB per authenticated block, admits a bounded65,536-block directory, shares immutable full directory pages and copies only a captured unfinished tail. Eight reader leases and one block cache per reader retain an immutable committed prefix; pending/failed records never appear in it. Native1M/10M opaque-record write/read checks pass on Windows,Mac,Ubuntu with every record verified and owned exit. This is not full analysis, aggregation/query/chart/export or end-to-end scale qualification; Mac private-byte measurement is explicitly unavailable.",
+    "Typed private path records retain one reversible native name, exact times/precision/nullable flags, opaque object/observed-identity references and a bounded root ordinal. Base records refuse supplied issue references until the separate issue index exists. Strict decoding rejects truncation, trailing bytes, invalid tags/extents/UTF-8 and loss of invalid Unix raw bytes. No backend ancestry, live binding or operation approval is serialized.",
+    "An indexed path writer resolves pending parents without external snapshot leases, enforces dense IDs, parent/root/depth and readable-ancestor structure, and publishes only immutable committed prefixes. Captured headers preserve acquisition/epoch/profile/timezone/privacy; a revision cannot be retagged to changed records or times. Lineage is bounded by depth/locator bytes and never truncates an oversized path. Native 1M/10M typed path readback verifies every field, retained count, inert classification, lineage and owned cleanup on all three guests. This remains an internal path component; active AnalysisStore, sibling/object/fact/issue indexes and full query/projection/export integration remain unfinished."
   ],
   "validation": {
     "windowsCore": {
-      "total": 343,
-      "passed": 321,
+      "total": 367,
+      "passed": 345,
       "failed": 0,
       "skipped": 22,
-      "evidence": "windows-core-r116.xml",
-      "detail": "Analysis/command/path suite including scratch failure, lease, bounded vector and native crash controls; Unix platform cases skipped."
+      "evidence": "windows-core-r125.xml",
+      "detail": "Analysis/command/path suite with strict typed name codec, pending-parent lookups, immutable path revisions, structural and privacy controls; Unix cases skipped."
     },
     "windowsHostNative": {
       "total": 14,
@@ -118,17 +120,17 @@
       "passed": 23,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-native-r116.xml",
+      "evidence": "windows-native-r125.xml",
       "status": "ordinary-user-native-regressions-passed",
-      "detail": "23 ordinary NTFS/native analysis/private inventory/catalog/scratch controls pass. Includes exclusive delete-on-close/retained reader and abrupt child death. Operation-feasibility counterexamples remain rejected proofs."
+      "detail": "23 ordinary NTFS/native analysis/private storage controls pass against the current Core. Operation-feasibility counterexamples remain rejected proofs."
     },
     "macosArm64": {
-      "total": 325,
-      "passed": 324,
+      "total": 349,
+      "passed": 348,
       "failed": 0,
       "skipped": 1,
-      "evidence": "mac-core-r116.xml",
-      "detail": "Analysis/command suite including native APFS scratch/crash; Linux-only publication control skipped."
+      "evidence": "mac-core-r125.xml",
+      "detail": "Analysis/command suite with typed codec/path reader and APFS controls; Linux-only descriptor publication control skipped."
     },
     "headlessRendering": {
       "total": 64,
@@ -141,15 +143,15 @@
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "scratch-build-r115b.txt"
+      "evidence": "path-reader-build-r124.txt"
     },
     "ubuntu": {
-      "total": 325,
-      "passed": 324,
+      "total": 349,
+      "passed": 348,
       "failed": 0,
       "skipped": 1,
-      "evidence": "ubuntu-core-r116.xml",
-      "detail": "Analysis/command suite including ext4 anonymous scratch/crash and positive inventory/negative scratch descriptor publication control; Darwin ACL case skipped."
+      "evidence": "ubuntu-core-r125.xml",
+      "detail": "Analysis/command suite with typed codec/path reader and ext4 controls; Darwin ACL case skipped."
     },
     "nativeDesktop": {
       "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification. r62 native accessibility/keyboard link inspection verifies the visible omitted-target explanation, measured-zero distinction and retained mark, with 509 unchanged source paths and owned exit.",
@@ -281,6 +283,14 @@
         "windows-scratch-scale-failed-receipt-r111.json",
         "mac-scratch-scale-unavailable-metric-r111.json"
       ]
+    },
+    "indexedTypedPaths": {
+      "status": "native-path-reader-only-subset-passed-all-three",
+      "windows": "windows-path-scale-r126.json",
+      "mac": "mac-path-scale-r126.json",
+      "ubuntu": "ubuntu-path-scale-r126.json",
+      "scope": "1M/10M synthetic path observations: binary hierarchy, first half directories, second half files, nullable flags, observed identities/times,24-character ordinary names and one64KiB raw name per1024. Every decoded node field, retained revision, inert classification and a full lineage verified; writer closed before readback; owned exits/cleanup and zero quota. No actual source traversal, sibling/object/fact/issue indexes, aggregation/query/chart/table/export, or full A51/resource/capability qualification.",
+      "macPrivateBytes": "Unavailable; separately labelled working-set samples do not substitute for private bytes."
     }
   },
   "nextWork": [
