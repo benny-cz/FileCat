@@ -76,6 +76,7 @@ public static class ArchiveWritePolicy
     public const int MaxMembers = 100_000;
     public const int MaxNameChars = 32_000;
     public const int MaxNameBytes = MaxNameChars * 4;
+    public const long MaxRetainedNameChars = 64L << 20;
     public const int MaxEntryMetadataBytes = 1 << 20;
     public const long MaxMetadataBytes = 128L << 20;
     public const long MaxRetainedHeapBytes = 192L << 20;
@@ -136,6 +137,7 @@ public sealed class ArchiveWriteBudget
     public long LogicalBytes { get; private set; }
     public long MetadataBytes { get; private set; }
     public long RetainedHeapBytes { get; private set; }
+    public long NameChars { get; private set; }
     public int Members { get; private set; }
     public int PaxPairs { get; private set; }
 
@@ -149,6 +151,12 @@ public sealed class ArchiveWriteBudget
     {
         Reserve(LogicalBytes, bytes, ArchiveWritePolicy.MaxLogicalBytes);
         LogicalBytes += bytes;
+    }
+
+    public void AddNameChars(long utf16Chars)
+    {
+        Reserve(NameChars, utf16Chars, ArchiveWritePolicy.MaxRetainedNameChars);
+        NameChars += utf16Chars;
     }
 
     public void AddMetadata(long encodedBytes, long retainedHeapBytes, int pairs = 0)

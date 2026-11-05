@@ -32,7 +32,8 @@ Bounds: sixteen transactions per journal; sixty-four transitions per transaction
 32,000 UTF-16 units per path; 4,096 per opaque identity; exact UTF-8 and uppercase SHA-256. Object lengths are bounded by
 the archive physical-byte ceiling, and the manifest by the metadata ceiling. A regression checks that the maximum
 escaped fields plus all sixteen artifacts still fit `MaxJournalLineBytes` (4 MiB). Catalogs/payloads are not placed in
-these records. The manifest reference does not implement the private bounded sidecar storage/validation yet.
+these records. The subsequent [streamed sidecar codec](MANIFEST_SIDECAR_CHECKPOINT.md) provides bounded encoding and
+review; native private storage/leases and transaction integration remain unfinished.
 
 ## Conservative recovery
 
@@ -48,7 +49,7 @@ generic `TryClose` rereads the current journal instead of trusting a stale scan.
 incomplete-copy discovery excludes archive journals. None of these reads performs artifact cleanup or replays edits.
 
 The subsequent [read-only UI checkpoint](ARCHIVE_RECOVERY_UI.md) adds an explicit archive guard and archive-fact
-disclosure to the UI's direct staged-intent review loop. Native object-bound review/deletion, actual sidecar IO,
+disclosure to the UI's direct staged-intent review loop. Native object-bound review/deletion, private sidecar storage,
 typed provenance/outer metadata and archive recovery actions remain separate unfinished work. Do not treat either
 read-only guard as qualification of a native publication or cleanup adapter.
 

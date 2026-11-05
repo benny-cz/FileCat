@@ -1,6 +1,4 @@
-using System.Buffers.Binary;
 using System.Collections.ObjectModel;
-using System.Security.Cryptography;
 
 namespace FileCat.Core.Archives;
 
@@ -74,46 +72,18 @@ public sealed class ArchiveWriteManifest
         Members = new ReadOnlyCollection<ArchiveManifestMember>(frozen);
         _features = features.ToArray();
         LogicalBytes = budget.LogicalBytes;
-        Digest = Hash(0);
-        ContentDigest = Hash(1);
-        MetadataDigest = Hash(2);
+        using var digests = new ArchiveManifestDigestBuilder(Profile, frozen.Length, _features);
+        foreach (var member in frozen) digests.Append(member);
+        (Digest, ContentDigest, MetadataDigest) = digests.Complete();
     }
 
     internal static void Reserve(ArchiveWriteBudget budget, int nameChars, int nameBytes, int metadataBytes, long length)
     {
         budget.AddMember();
+        budget.AddNameChars(nameChars);
         budget.AddLogicalBytes(length);
         // Include DTO/digest/string/dictionary/array overhead, not only the encoded metadata bytes.
         budget.AddMetadata(checked(nameBytes + metadataBytes + 64L), checked(2L * nameChars + metadataBytes + 512L));
     }
 
-    private string Hash(byte domain)
-    {
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        hash.AppendData("FCAM"u8);
-        Integer(Schema); Integer(domain);
-        Integer((int)Profile.Format); Integer(Profile.Version); Integer(Profile.CompressionLevel); Integer(Profile.DictionaryBytes);
-        Integer(Members.Count);
-        if (domain != 1) Bytes(_features);
-        foreach (var member in Members)
-        {
-            Bytes(ArchiveWritePolicy.Utf8.GetBytes(member.Name));
-            Integer((int)member.Type); Integer(member.Occurrence);
-            if (domain != 2) { Long(member.Length); Bytes(Convert.FromHexString(member.Sha256)); }
-            if (domain != 1) Bytes(member.Metadata);
-        }
-        return Convert.ToHexString(hash.GetHashAndReset());
-
-        void Integer(int value)
-        {
-            Span<byte> data = stackalloc byte[4];
-            BinaryPrimitives.WriteInt32LittleEndian(data, value); hash.AppendData(data);
-        }
-        void Long(long value)
-        {
-            Span<byte> data = stackalloc byte[8];
-            BinaryPrimitives.WriteInt64LittleEndian(data, value); hash.AppendData(data);
-        }
-        void Bytes(ReadOnlySpan<byte> value) { Integer(value.Length); hash.AppendData(value); }
-    }
 }

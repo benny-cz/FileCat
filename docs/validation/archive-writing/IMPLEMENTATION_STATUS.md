@@ -21,11 +21,12 @@ application. An explicit new-profile job refuses instead of entering the legacy 
 |---|---|---|
 | Typed contracts | Explicit versioned profiles, raw occurrence keys, portable name validation and cumulative member/metadata/heap/logical-byte budgets | Full request/manifest/receipt wire schema, service registry and session contracts |
 | Framed protocol | Nonce, version, sequence, reserved-field/opcode, frame-size, cumulative payload/control and frame-count checks before payload allocation; bounded fragmented records; poisoned channels cannot resume | Rebuild/verification phase contracts, cancellation channel and final platform/package qualification |
-| Canonical manifests | Frozen ordered physical members, contiguous exact duplicate occurrences, profile/features and separate full/content/metadata digests; aggregate heap/metadata/logical budgets | Complete format feature inventories, rebuild/verification wire schemas and private sidecars |
+| Canonical manifests | Frozen ordered physical members, contiguous exact duplicate occurrences, profile/features and separate full/content/metadata digests; aggregate name/heap/metadata/logical budgets; shared incremental hashing | Complete format feature inventories, rebuild/verification wire schemas and native sidecar integration |
+| Manifest sidecar codec | Scoped versioned stream encoding, incremental bounded review, complete EOF/semantic/file checksums, poisoned failure state; no pathname authority | Native private-file leases/permissions/durability, transaction integration and exact-object recovery/cleanup |
 | Proxy IO | Child uses fixed input IDs and seekable stage requests; parent checks offsets/lengths/IO amplification before touching a stream; no path/publication/delete authority | Reviewed native input leases, parent-owned manifests and production launch integration |
 | Queue | One active in-process reservation and at most eight pending; assessment holds it through exit, final diagnostics and reaping | Other roles, cross-parent scheduling and operation-center phases |
 | Legacy ZIP publication extraction | Separate compatibility-only publication/rollback/cleanup boundary; existing codec and journal ordering retained; explicit profiles refused before intent | Object-bound publication, typed provenance, durable archive facts/recovery and separately reviewed ZIP worker migration |
-| Archive journal facts | Immutable bounded versioned snapshots, durable transitions, conservative damaged/unknown-record handling, unresolved holds and pruning/closure protection | Private sidecar IO, native object-bound recovery/actions and actual publication/crash integration |
+| Archive journal facts | Immutable bounded versioned snapshots, durable transitions, conservative damaged/unknown-record handling, unresolved holds and pruning/closure protection | Native sidecar storage/integration, object-bound recovery/actions and actual publication/crash integration |
 | Archive recovery UI guard | Fresh journal reads at every entry point; generic archive mutations refused; recorded facts/paths exposed in a copyable read-only report | Native object-bound archive review/resolution, complete archive workflow/accessibility and package qualification |
 | Windows boundary spike | Suspended restricted LPAC, actual-token/access checks, exact inherited pipe list, private-profile write protection, finite job commit/CPU, bounded stderr and idempotent kill/reaping; actual guarded application entry tested | Full engine workloads, other namespace/asset/setup-race probes, ordinary user and installed-package/RID qualification |
 | TAR assessment process | Actual early entry, numeric read-only source proxy, SHA/raw TAR/runtime-decoder passes, checked catalog phases and terminal digest; parent CPU/progress watchdog and final drain/reaping checks | Qualified AppServices registration, reviewed input leases, cooperative cancellation, transform/fresh verifier and publication integration |
@@ -85,6 +86,12 @@ replay passed: original Core baseline 596 passed / five skipped (601 total), cur
 (255 total). No failures. These are separate owned source builds on Ubuntu/ext4, SDK 10.0.101 with serviced CoreCLR
 10.0.14. See [the Ubuntu checkpoint](UBUNTU_REGRESSION_CHECKPOINT.md) for source/artifact hashes, setup details and limits.
 All test and private SDK build-node processes were closed; no new profile or native publication capability was enabled.
+
+The streamed sidecar checkpoint adds 61 cases and enforces the plan's explicit aggregate member-name ceiling. The
+affected Core replay now passes 757 with 30 skips on both Windows host and VM, 766 with 21 skips on Mac, and 782 with
+five skips on Ubuntu (787 total in each). Canonical digests remain schema-compatible. See
+[the sidecar checkpoint](MANIFEST_SIDECAR_CHECKPOINT.md). The stream codec does not create private files or implement
+native publication/recovery; those remain necessary before enabling a profile.
 
 The Windows native worker lane now separately passes **25/25**: twelve archive authority/resource/lifetime/assessment
 cases and thirteen existing restricted-worker regressions. The tracked runner was exercised successfully on the guest. A healthy

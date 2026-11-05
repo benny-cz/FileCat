@@ -190,6 +190,7 @@ internal static class TarRewriteEngine
     {
         ArchiveWritePolicy.ValidateName(member.Name, member.Type);
         budget.AddMember();
+        budget.AddNameChars(member.Name.Length);
         budget.AddLogicalBytes(member.Length);
         long chars = (long)member.Name.Length + member.UserName.Length + member.GroupName.Length;
         budget.AddMetadata(checked(chars * 4 + 256), checked(chars * 2 + 1024));

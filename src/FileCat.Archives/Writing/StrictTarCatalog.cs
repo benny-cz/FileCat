@@ -107,6 +107,7 @@ internal static class StrictTarCatalog
             CheckTime(modified);
             if (size > ArchiveWritePolicy.MaxPayloadBytes || type == ArchiveMemberType.Directory && size != 0) throw Limit();
             ArchiveWritePolicy.ValidateName(name, type);
+            budget.AddNameChars(name.Length);
             if (type == ArchiveMemberType.File && name.EndsWith('/')) throw Invalid("A regular TAR file has a directory name.");
             // Strings, dictionary keys and fixed per-member objects are included in the retained-heap charge.
             long chars = (long)name.Length + user.Length + group.Length;
