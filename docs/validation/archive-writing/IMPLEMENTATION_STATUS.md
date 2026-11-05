@@ -25,6 +25,7 @@ application. An explicit new-profile job refuses instead of entering the legacy 
 | Proxy IO | Child uses fixed input IDs and seekable stage requests; parent checks offsets/lengths/IO amplification before touching a stream; no path/publication/delete authority | Reviewed native input leases, parent-owned manifests and production launch integration |
 | Queue | One active in-process reservation and at most eight pending; assessment holds it through exit, final diagnostics and reaping | Other roles, cross-parent scheduling and operation-center phases |
 | Legacy ZIP publication extraction | Separate compatibility-only publication/rollback/cleanup boundary; existing codec and journal ordering retained; explicit profiles refused before intent | Object-bound publication, typed provenance, durable archive facts/recovery and separately reviewed ZIP worker migration |
+| Archive journal facts | Immutable bounded versioned snapshots, durable transitions, conservative damaged/unknown-record handling, unresolved holds and pruning/closure protection | Private sidecar IO, native object-bound recovery/actions, UI consumer guard/disclosure and actual publication/crash integration |
 | Windows boundary spike | Suspended restricted LPAC, actual-token/access checks, exact inherited pipe list, private-profile write protection, finite job commit/CPU, bounded stderr and idempotent kill/reaping; actual guarded application entry tested | Full engine workloads, other namespace/asset/setup-race probes, ordinary user and installed-package/RID qualification |
 | TAR assessment process | Actual early entry, numeric read-only source proxy, SHA/raw TAR/runtime-decoder passes, checked catalog phases and terminal digest; parent CPU/progress watchdog and final drain/reaping checks | Qualified AppServices registration, reviewed input leases, cooperative cancellation, transform/fresh verifier and publication integration |
 | TAR assessment | Full raw USTAR/PAX framing, checksums, exact UTF-8, numeric/PAX grammar and allowlist, pre-allocation metadata limits, complete payload hashes, end markers and padding; independent runtime-decoder agreement | Coverage-guided campaigns, complete metadata/preservation corpus, scale measurements and native independent tools |
@@ -63,6 +64,13 @@ The later narrow ZIP publication extraction passed 52 tests with eight existing 
 and Windows VM, and all 60 on Mac. It adds two explicit-profile guard cases. Ubuntu replay remains postponed. See
 [the extraction checkpoint](ZIP_PUBLICATION_EXTRACTION.md). This is a compatibility refactor, not qualification of
 the legacy pathname operations for new formats; no new profile is enabled.
+
+The later versioned archive-journal checkpoint adds 37 cases and broadens the affected suite to include journal, job
+and undo behavior: Windows host and medium-integrity Windows VM each pass 696 with 30 skips (726 total); Mac passes
+705 with 21 skips (726 total). The existing headless recovery UI suite passes 244 with two skips on the host. See
+[the journal contract checkpoint](ARCHIVE_TRANSACTION_JOURNAL.md). These results do not implement sidecar IO, native
+publication/recovery, or the required real archive process-crash matrix. The UI's direct staged-intent review loop
+still needs an explicit archive guard and archive-fact reporting before production registration.
 
 The Windows native worker lane now separately passes **25/25**: twelve archive authority/resource/lifetime/assessment
 cases and thirteen existing restricted-worker regressions. The tracked runner was exercised successfully on the guest. A healthy

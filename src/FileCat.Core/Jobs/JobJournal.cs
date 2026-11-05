@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
+using FileCat.Core.Archives;
 using FileCat.Core.Content;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
@@ -26,6 +27,9 @@ public sealed class JobJournal : IDisposable
     private DateTime _lastFlush = DateTime.UtcNow;
     private int _step;
     private bool _disposed;
+    private bool _finished;
+    private bool _manualRecovery;
+    private readonly ArchiveTransactionCollector _archiveTransactions = new();
 
     private JobJournal(string path, FileStream stream)
     {
@@ -35,9 +39,27 @@ public sealed class JobJournal : IDisposable
 
     public string Path { get; }
     /// <summary>A temporary rename could not be reconciled; do not append an end record that hides recovery.</summary>
-    public bool NeedsRecovery { get; private set; }
+    public bool NeedsRecovery { get { lock (_lock) return _manualRecovery || _archiveTransactions.RequiresReview; } }
     /// <summary>Keep this journal open when an operation left a temporary item that must be reviewed after restart.</summary>
-    public void RequireRecovery() => NeedsRecovery = true;
+    public void RequireRecovery() { lock (_lock) _manualRecovery = true; }
+
+    /// <summary>
+    /// Persist complete versioned archive facts before the corresponding visible mutation. An incomplete write keeps
+    /// the journal unresolved. Terminal facts release only the archive hold, never another operation's recovery hold.
+    /// </summary>
+    public void ArchiveTransaction(ArchiveTransactionFacts facts)
+    {
+        ArgumentNullException.ThrowIfNull(facts);
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished) throw new InvalidOperationException("A finished journal cannot start another archive transition.");
+            _archiveTransactions.ValidateNext(facts);
+            try { Write(facts.ToJson(), sync: true); }
+            catch { RequireRecovery(); throw; }
+            _archiveTransactions.Accept(facts);
+        }
+    }
 
     /// <summary>The header lists this many sources; a job with more gets a manifest of all of them.</summary>
     internal const int HeaderSampleSize = 64;
@@ -72,6 +94,7 @@ public sealed class JobJournal : IDisposable
             ["transferIntent"] = transferIntent,
             ["transferIntentProblem"] = transferIntentProblem,
         };
+        if (job.Request.Archive?.Profile is not null) begin["archiveJournalVersion"] = ArchiveTransactionFacts.SchemaVersion;
         try
         {
             j.Write(begin, sync: true);
@@ -179,9 +202,14 @@ public sealed class JobJournal : IDisposable
 
     public void Finish(JobState state, string summary)
     {
-        Write(new JsonObject { ["t"] = "end", ["state"] = state.ToString(), ["summary"] = summary, ["time"] = DateTime.UtcNow.ToString("O") }, sync: true);
-        // A job that ended needs no rerun: its manifest goes with it.
-        try { File.Delete(ManifestPathOf(Path)); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        lock (_lock)
+        {
+            if (NeedsRecovery) throw new IOException("An unresolved archive or temporary-item transaction cannot receive an ordinary journal end record.");
+            Write(new JsonObject { ["t"] = "end", ["state"] = state.ToString(), ["summary"] = summary, ["time"] = DateTime.UtcNow.ToString("O") }, sync: true);
+            _finished = true;
+            // A job that ended needs no rerun: its manifest goes with it.
+            try { File.Delete(ManifestPathOf(Path)); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
     }
 
     private void Write(JsonObject record, bool sync)
@@ -222,21 +250,23 @@ public sealed class JobJournal : IDisposable
     public static IReadOnlyList<JournalRecord> ReadAll(string path) => ReadRecords(path).ToList();
 
     /// <summary>CRC-checked records are yielded one at a time so recovery does not retain completed steps.</summary>
-    internal static IEnumerable<JournalRecord> ReadRecords(string path)
+    internal static IEnumerable<JournalRecord> ReadRecords(string path, Action? damagedRecord = null)
     {
         foreach (var line in ReadBoundedLines(path))
         {
             // A torn line (crash mid-write) fails its checksum and is skipped; records appended later by
             // recovery still count.
             int sp = line.IndexOf(' ');
-            if (sp != 8) continue;
+            if (sp != 8) { if (line.Length != 0) damagedRecord?.Invoke(); continue; }
             var json = line[(sp + 1)..];
-            if (!uint.TryParse(line.AsSpan(0, 8), System.Globalization.NumberStyles.HexNumber, null, out var crc)) continue;
-            if (Crc32.HashToUInt32(Encoding.UTF8.GetBytes(json)) != crc) continue;
+            if (!uint.TryParse(line.AsSpan(0, 8), System.Globalization.NumberStyles.HexNumber, null, out var crc)) { damagedRecord?.Invoke(); continue; }
+            if (Crc32.HashToUInt32(Encoding.UTF8.GetBytes(json)) != crc) { damagedRecord?.Invoke(); continue; }
             JsonObject? node;
-            try { node = JsonNode.Parse(json) as JsonObject; }
-            catch (JsonException) { continue; }
-            if (node is not null) yield return new JournalRecord(node);
+            try { node = JsonNode.Parse(json) as JsonObject; _ = node?.Count; }
+            catch (Exception ex) when (ex is JsonException or ArgumentException) { damagedRecord?.Invoke(); continue; }
+            if (node is not null && node["t"] is JsonValue tag && tag.TryGetValue<string>(out var type) && !string.IsNullOrEmpty(type))
+                yield return new JournalRecord(node);
+            else damagedRecord?.Invoke();
         }
     }
 
@@ -312,6 +342,8 @@ public sealed class JournalRecord(JsonObject node)
 public sealed record InterruptedJob(string JournalPath, string Kind, string Title, DateTime CreatedUtc,
     IReadOnlyList<string> Sources, string? Destination, IReadOnlyList<PendingIntent> OpenIntents, IReadOnlyList<string> StagingDirectories, int CompletedSteps, int SourceCount)
 {
+    /// <summary>Archive facts requiring their own object-bound review; generic stage cleanup cannot resolve these.</summary>
+    public ArchiveTransactionRecovery ArchiveTransactions { get; init; } = new([], false, null);
     /// <summary>Folders that received direct copies (source folder, destination folder), bounded.</summary>
     public IReadOnlyList<FillDirectory> FillDirectories { get; init; } = [];
 
@@ -399,10 +431,12 @@ public static partial class JournalRecovery
             var directories = new HashSet<string>(StringComparer.Ordinal);
             var fills = new List<FillDirectory>();
             bool fillsCut = false;
+            var archiveTransactions = new ArchiveTransactionCollector();
             try
             {
-                foreach (var record in JobJournal.ReadRecords(f.FullName))
+                foreach (var record in JobJournal.ReadRecords(f.FullName, archiveTransactions.DamagedRecord))
                 {
+                    archiveTransactions.Read(record.Type, record.Node);
                     switch (record.Type)
                     {
                         case "begin": begin ??= record; break;
@@ -432,8 +466,10 @@ public static partial class JournalRecovery
             }
             catch (IOException) { continue; }
             catch (UnauthorizedAccessException) { continue; }
+            if (begin is null && archiveTransactions.Snapshot.HasRecords) archiveTransactions.DamagedRecord();
+            var archiveRecovery = archiveTransactions.Snapshot;
             var manifest = JobJournal.ManifestPathOf(f.FullName);
-            if (ended)
+            if (ended && !archiveRecovery.RequiresReview)
             {
                 finished++;
                 if (finished > keepFinished || f.LastWriteTimeUtc < cutoff) TryDelete(f.FullName);
@@ -442,8 +478,8 @@ public static partial class JournalRecovery
             }
             if (begin is null)
             {
-                TryDelete(f.FullName);
-                continue;
+                if (!archiveRecovery.HasRecords) { TryDelete(f.FullName); continue; }
+                begin = new JournalRecord(new JsonObject { ["kind"] = "ArchiveUpdate", ["title"] = "Archive transaction needs review" });
             }
             // Malformed scalar types must disable reconstruction without crashing the whole startup scan.
             var sources = begin.Node["sources"] is JsonArray arr && arr.Count <= JobJournal.HeaderSampleSize &&
@@ -464,6 +500,7 @@ public static partial class JournalRecovery
                 NewName = begin.Get("newName"),
                 TransferIntent = transferIntent,
                 TransferIntentProblem = transferIntentProblem,
+                ArchiveTransactions = archiveRecovery,
             };
             if (transferIntent is not null && !transferIntent.Matches(interrupted))
                 interrupted = interrupted with { TransferIntent = null, TransferIntentProblem = "The original source or destination mapping is inconsistent. Review a new transfer to choose the scope again." };
@@ -494,6 +531,7 @@ public static partial class JournalRecovery
     /// <summary>Potential staged paths, bounded by <paramref name="limit"/>. Review their current bytes before deletion.</summary>
     public static IReadOnlyList<string> FindStagedLeftovers(InterruptedJob job, int limit = 1000, Action? check = null)
     {
+        if (job.ArchiveTransactions.HasRecords) return []; // Archive artifacts need native object-bound review.
         var id = Path.GetFileNameWithoutExtension(job.JournalPath);
         var shortId = id.Length >= 8 ? id[^8..] : id;
         var list = new List<string>();
@@ -576,7 +614,8 @@ public static partial class JournalRecovery
 
     /// <summary>Renames that were under way: the item still has its temporary name (<see cref="PendingIntent.Via"/>).</summary>
     public static IReadOnlyList<PendingIntent> FindRenameLeftovers(InterruptedJob job) =>
-        job.OpenIntents.Where(i => i.Operation == JobJournal.RenameViaOp && i.Via is { } via && (File.Exists(via) || Directory.Exists(via))).ToList();
+        job.ArchiveTransactions.HasRecords ? [] :
+            job.OpenIntents.Where(i => i.Operation == JobJournal.RenameViaOp && i.Via is { } via && (File.Exists(via) || Directory.Exists(via))).ToList();
 
     /// <summary>
     /// Immediately reviews and finishes finite temporary items, restoring the original name when the new one is
@@ -612,6 +651,7 @@ public static partial class JournalRecovery
     /// </summary>
     public static CopyReview ReviewCopies(InterruptedJob job, int limit = 1000, Action? check = null)
     {
+        if (job.ArchiveTransactions.HasRecords) return new([], [], true);
         var incomplete = new List<IncompleteCopy>();
         var differing = new List<string>();
         bool limitReached = job.FillDirectoriesCut;
@@ -828,6 +868,7 @@ public static partial class JournalRecovery
     {
         try
         {
+            if (InUse(job.JournalPath) || ReadArchiveTransactions(job.JournalPath).RequiresReview) return false;
             // Start on a fresh line in case the crash left a torn record without a newline.
             bool needsNewline;
             using (var fs = new FileStream(job.JournalPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
@@ -860,14 +901,31 @@ public static partial class JournalRecovery
         try
         {
             bool began = false;
-            foreach (var record in JobJournal.ReadRecords(job.JournalPath))
+            bool ended = false;
+            var archives = new ArchiveTransactionCollector();
+            foreach (var record in JobJournal.ReadRecords(job.JournalPath, archives.DamagedRecord))
             {
-                if (record.Type == "end") return false;
+                archives.Read(record.Type, record.Node);
+                if (record.Type == "end") ended = true;
                 if (record.Type == "begin") began = true;
             }
-            return began;
+            if (!began && archives.Snapshot.HasRecords) archives.DamagedRecord();
+            return archives.Snapshot.RequiresReview || began && !ended;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
+    }
+
+    private static ArchiveTransactionRecovery ReadArchiveTransactions(string path)
+    {
+        var archives = new ArchiveTransactionCollector();
+        bool began = false;
+        foreach (var record in JobJournal.ReadRecords(path, archives.DamagedRecord))
+        {
+            if (record.Type == "begin") began = true;
+            archives.Read(record.Type, record.Node);
+        }
+        if (!began && archives.Snapshot.HasRecords) archives.DamagedRecord();
+        return archives.Snapshot;
     }
 
     private static string Line(JsonObject o)
