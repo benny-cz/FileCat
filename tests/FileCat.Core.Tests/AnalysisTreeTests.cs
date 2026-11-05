@@ -9,7 +9,8 @@ public sealed class AnalysisTreeTests
     public void LogicalUncertaintyIsIndependentOfAllocationAndKnownZero()
     {
         var s = AnalysisAccountingTests.Golden(); var token = TestContext.Current.CancellationToken;
-        s = s with { Objects = s.Objects.SetItem(1, s.Objects[1] with { LogicalLength = AnalysisMeasurement.Known(0) }) };
+        s = s with { Objects = s.Objects.SetItem(1, s.Objects[1] with { LogicalLength = AnalysisMeasurement.Known(0) }),
+            Facts = s.Facts.Add(new("dir", null, 1, "directory-self", "fixture-v1", AnalysisMeasurement.Missing(MeasurementState.Unsupported), "fixture", DateTimeOffset.UnixEpoch, [])) };
         var disk = AnalysisTree.Build(s, AnalysisAggregate.Project(s, AnalysisMetric.OnDisk, cancellation: token), false, token);
         Assert.True(disk.Items["n:6"].Unknown); Assert.False(disk.Items["n:6"].LogicalUnknown);
         Assert.Equal((UInt128)0, disk.Items["n:6"].LogicalSize); Assert.False(disk.Items[AnalysisTree.RootKey].LogicalUnknown);

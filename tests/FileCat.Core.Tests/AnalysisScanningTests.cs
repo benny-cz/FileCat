@@ -332,8 +332,10 @@ public sealed partial class AnalysisScanningTests
         Assert.Equal(0ul, Assert.Single(AnalysisAggregate.Project(s, AnalysisMetric.OnDisk, cancellation: TestContext.Current.CancellationToken).Charges).ParentId);
     }
 
-    [Fact]
-    public async Task UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink(bool detailed)
     {
         Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix native fixture."); Ordinary();
         using var temp = new TempDir();
@@ -353,7 +355,8 @@ public sealed partial class AnalysisScanningTests
                 Assert.Single(direct.Children(child, TestContext.Current.CancellationToken));
         }
         using var io = new DeviceIoScheduler();
-        using var session = new AnalysisCoordinator(io).Start([new UnixAnalysisBackend(root)]);
+        using var session = new AnalysisCoordinator(io).Start([new UnixAnalysisBackend(root)],
+            components: detailed ? AnalysisComponentPreset.DetailedAllocation : AnalysisComponentPreset.Standard);
         await session.Completion.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
         var s = session.Snapshot(); AnalysisValidation.Validate(s, TestContext.Current.CancellationToken);
         Assert.True(s.Coverage == NamespaceCoverage.CompleteUnderPolicy, string.Join(",", s.Issues.Select(i => i.Code + ":" + i.NodeId)));
@@ -363,8 +366,12 @@ public sealed partial class AnalysisScanningTests
         Assert.Equal((UInt128)10000, AnalysisAggregate.Project(s, AnalysisMetric.UniqueFileSize, cancellation: TestContext.Current.CancellationToken).Totals.Known);
         var disk = AnalysisAggregate.Project(s, AnalysisMetric.OnDisk, cancellation: TestContext.Current.CancellationToken);
         Assert.True(disk.Totals.Known > 0);
-        Assert.Single(disk.Charges);
-        Assert.True(disk.Charges[0].Shared);
+        Assert.True(Assert.Single(disk.Charges, c => !c.DirectorySelf).Shared);
+        Assert.Equal(detailed ? 3 : 0, s.Facts.Count(f => f.DirectoryId.HasValue));
+        Assert.Equal(detailed ? 3 : 0, disk.Charges.Count(c => c.DirectorySelf));
+        Assert.Equal(detailed ? "detailed" : "standard", s.Policy.ComponentPreset);
+        Assert.All(s.Facts.Where(f => f.DirectoryId.HasValue), f => Assert.True(f.Measurement.IsKnown));
+        Assert.Equal(disk.Totals.Known, disk.Charges.Aggregate((UInt128)0, (sum, c) => checked(sum + c.Value)));
     }
 
     private sealed class FakeBackend(int count) : IAnalysisBackend

@@ -118,12 +118,29 @@ public sealed class AnalysisAccountingTests
     public void DirectoryComponentsAreAdditiveOnceAndConflictingInclusionCannotHideACycle()
     {
         var s = Golden();
+        s = s with { Nodes = s.Nodes.SetItem(0, s.Nodes[0] with { ObservedIdentity = "device:root" }) };
         var primary = new StorageFact("d1", null, 1, "directory-primary", "fixture-v1", AnalysisMeasurement.Known(1), "fixture", DateTimeOffset.UnixEpoch, []);
         var total = primary with { Id = "d2", ComponentId = "directory-total", Measurement = AnalysisMeasurement.Known(9), Includes = ["directory-primary"] };
         var p = Project(s with { Facts = [..s.Facts, primary, total] }, AnalysisMetric.OnDisk);
         Assert.Equal((UInt128)89, p.Totals.Known);
         Assert.Single(p.Charges.Where(c => c.DirectorySelf));
         Assert.Throws<InvalidDataException>(() => Project(s with { Facts = [..s.Facts, primary, primary with { Id = "conflict", Includes = ["directory-primary"] }] }, AnalysisMetric.OnDisk));
+    }
+
+    [Fact]
+    public void DirectoryScopeFiltersKeepSelfFactsWithoutChangingFileAliasAttribution()
+    {
+        var s = Golden(); var token = TestContext.Current.CancellationToken;
+        s = s with { Nodes = s.Nodes.SetItem(1, s.Nodes[1] with { ObservedIdentity = "device:A" }),
+            Facts = s.Facts.Add(new("d", null, 2, "directory-self", "fixture-v1", AnalysisMeasurement.Known(9), "fixture", DateTimeOffset.UnixEpoch, [])) };
+        var scoped = AnalysisAggregate.Project(s, AnalysisMetric.OnDisk, (n, _) => n.Name == "x.bin", token, n => n.Id == 2);
+        Assert.Equal((UInt128)89, scoped.Totals.Known); Assert.Equal(1ul, scoped.Totals.MatchingPaths);
+        Assert.Equal(1ul, Assert.Single(scoped.Charges, c => c.Shared).ParentId);
+        Assert.Equal(2ul, Assert.Single(scoped.Charges, c => c.DirectorySelf).ParentId);
+        var fileFilter = Project(s, AnalysisMetric.OnDisk, (n, _) => n.Name == "x.bin");
+        Assert.Equal((UInt128)80, fileFilter.Totals.Known); Assert.DoesNotContain(fileFilter.Charges, c => c.DirectorySelf);
+        var unverified = AnalysisAggregate.Project(s with { Nodes = s.Nodes.SetItem(1, s.Nodes[1] with { ObservedIdentity = null }) }, AnalysisMetric.OnDisk, cancellation: token);
+        Assert.Equal((UInt128)80, unverified.Totals.Known); Assert.Equal((UInt128)9, unverified.Totals.IdentityUnverified);
     }
 
     [Fact]

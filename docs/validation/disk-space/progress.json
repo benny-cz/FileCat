@@ -23,47 +23,51 @@
     "Schema-1 inert JSONL stream codec has fixed typed order, canonical decimal strings and raw base64 names, bounded parsing/import memory, mandatory counts/hash trailer, graph/coverage checks and recomputed checked totals. Private filename publication is not implemented.",
     "Display preserves unpaired UTF16 code units, invalid Unix bytes and trailing name characters without conflating literal escape text. Lossy name/path predicates are Unknown, and clipboard paths remain refused when not lossless.",
     "Logical-size uncertainty is independent of allocation uncertainty: known zero remains zero, missing logical size stays Unknown, and exact inspector/tooltips retain numeric precision. Clearing filters resets uncertain-cohort input; closing a tab clears the session-cap notice.",
-    "Standalone native desktop harness uses production styles/services/backends, generated fixtures, an isolated profile, process admission, source hash checks and bounded cleanup. Mac startup/close at 2x with 509 generated regular paths passed; desktop interaction/a11y acceptance is still unqualified."
+    "Standalone native desktop harness uses production styles/services/backends, generated fixtures, an isolated profile, process admission, source hash checks and bounded cleanup. Mac startup/close at 2x with 509 generated regular paths passed; desktop interaction/a11y acceptance is still unqualified.",
+    "Standard and Detailed allocation are explicit captured presets. Detailed records directory-self facts in separate non-file buckets; namespace-only root filters retain them, file predicates omit them, and identity-unverified directory charges remain labelled.",
+    "File-object fact indices no longer rely on global fact-list positions. Interleaved directory facts cannot be invalidated by alias changes; allocation-only alias conflicts preserve coherent logical length and invalidate allocation.",
+    "Typed Mount/NavigationLink/CloudDirectory/SpecialEntry/UnverifiedRootOverlap counters remain exact beyond detailed issue caps, independently of exclusion/severity counts, and round-trip through strict inventory coverage records.",
+    "Finished unsaved analyses now require preserving close review with Keep open as the Enter/Escape default. Tab labels are monotonic and close continuations revalidate their target. Setup visibility and concise coverage keep narrow layouts usable."
   ],
   "validation": {
     "windowsCore": {
-      "total": 169,
-      "passed": 161,
+      "total": 176,
+      "passed": 167,
       "failed": 0,
-      "skipped": 8,
-      "detail": "141 analysis cases and 28 command regressions; six Unix-native and two Unix-FIFO cases skip on Windows.",
-      "evidence": "windows-core-r20.xml"
+      "skipped": 9,
+      "detail": "148 analysis cases and 28 command regressions; seven Unix-native and two Unix-FIFO cases skip on Windows.",
+      "evidence": "windows-core-r21.xml"
     },
     "windowsHostNative": {
-      "total": 9,
-      "passed": 9,
+      "total": 10,
+      "passed": 10,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-host-native-r20.xml"
+      "evidence": "windows-host-native-r21.xml"
     },
     "windowsVm": {
       "status": "ordinary-user-regression-fixtures-passed",
-      "total": 9,
-      "passed": 9,
+      "total": 10,
+      "passed": 10,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-native-r19.xml",
-      "detail": "Six native fixtures and three reparse-tag cases, including denied metadata, sibling continuation and exact native DOS/trailing names. No native application UI qualification claimed."
+      "evidence": "windows-vm-native-r21.xml",
+      "detail": "Seven native cases and three reparse-tag cases; Standard/Detailed directory allocation with hard links and junction boundaries. No desktop/a11y qualification claimed."
     },
     "macosArm64": {
-      "total": 169,
-      "passed": 169,
+      "total": 176,
+      "passed": 176,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-core-r20.xml"
+      "evidence": "mac-core-r21.xml"
     },
     "headlessRendering": {
-      "total": 7,
-      "passed": 7,
+      "total": 8,
+      "passed": 8,
       "failed": 0,
       "skipped": 0,
-      "evidence": "analysis-render-r20.xml",
-      "detail": "Seven-theme view parity, narrow/large-text virtualization, frozen interaction, roots/uncertain filters, and logical-size/raw-name inspector behavior. Headless, not native UI/a11y."
+      "evidence": "analysis-render-r21.xml",
+      "detail": "Prior theme/virtualization/freeze/raw-name cases plus preserving finished-session close, unique tab captions and root-filtered directory self-allocation. Headless only."
     },
     "solutionBuild": {
       "errors": 0,
@@ -82,7 +86,7 @@
     }
   },
   "nextWork": [
-    "W0: finish raw-name fidelity/display, component coverage and boundary-counter semantics, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
+    "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
     "W1: finish epoch refresh, retained/hung I/O and prepared-source cleanup responsiveness, actual shared-memory and indexed private-store budgets or prescribed bounded fallback.",
     "Ubuntu: continue postponing under the user's explicit instruction while the other FileCat instance runs. Do not close it or reboot that occupied guest.",

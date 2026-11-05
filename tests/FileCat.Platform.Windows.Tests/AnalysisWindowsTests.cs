@@ -143,8 +143,10 @@ public sealed partial class AnalysisWindowsTests
         }
         finally { Directory.Delete(temp, true); }
     }
-    [Fact]
-    public async Task NativeAccountingUsesIdentityAndNeverTraversesJunctions()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeAccountingUsesIdentityAndNeverTraversesJunctions(bool detailed)
     {
         Assert.SkipWhen(!OperatingSystem.IsWindows(), "Windows native fixture.");
         Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary process: " + AnalysisAdmission.Refusal());
@@ -168,7 +170,8 @@ public sealed partial class AnalysisWindowsTests
                     Assert.Single(direct.Children(child, TestContext.Current.CancellationToken));
             }
             using var io = new DeviceIoScheduler();
-            using var session = new AnalysisCoordinator(io).Start([new WindowsAnalysisBackend(root)]);
+            using var session = new AnalysisCoordinator(io).Start([new WindowsAnalysisBackend(root)],
+                components: detailed ? AnalysisComponentPreset.DetailedAllocation : AnalysisComponentPreset.Standard);
             await session.Completion.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
             var snapshot = session.Snapshot(); AnalysisValidation.Validate(snapshot, TestContext.Current.CancellationToken);
             Assert.True(snapshot.Coverage == NamespaceCoverage.CompleteUnderPolicy, string.Join(",", snapshot.Issues.Select(i => i.Code + ":" + i.NodeId)));
@@ -178,7 +181,12 @@ public sealed partial class AnalysisWindowsTests
             Assert.Equal((UInt128)10000, AnalysisAggregate.Project(snapshot, AnalysisMetric.UniqueFileSize, cancellation: TestContext.Current.CancellationToken).Totals.Known);
             var onDisk = AnalysisAggregate.Project(snapshot, AnalysisMetric.OnDisk, cancellation: TestContext.Current.CancellationToken);
             Assert.True(onDisk.Totals.Known > 0);
-            Assert.Single(onDisk.Charges); Assert.True(onDisk.Charges[0].Shared);
+            Assert.True(Assert.Single(onDisk.Charges, c => !c.DirectorySelf).Shared);
+            Assert.Equal(detailed ? 3 : 0, snapshot.Facts.Count(f => f.DirectoryId.HasValue));
+            Assert.Equal(detailed ? 3 : 0, onDisk.Charges.Count(c => c.DirectorySelf));
+            Assert.Equal(detailed ? "detailed" : "standard", snapshot.Policy.ComponentPreset);
+            Assert.All(snapshot.Facts.Where(f => f.DirectoryId.HasValue), f => Assert.True(f.Measurement.IsKnown));
+            Assert.Equal(onDisk.Totals.Known, onDisk.Charges.Aggregate((UInt128)0, (sum, c) => checked(sum + c.Value)));
             assertionsPassed = true;
             TestContext.Current.TestOutputHelper?.WriteLine("Native accounting assertions passed.");
         }

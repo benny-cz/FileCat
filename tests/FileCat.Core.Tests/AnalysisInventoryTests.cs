@@ -79,6 +79,7 @@ public sealed class AnalysisInventoryTests
     [InlineData("taint")]
     [InlineData("zeroTaint")]
     [InlineData("counts")]
+    [InlineData("boundaries")]
     [InlineData("summary")]
     [InlineData("enum")]
     public void PoisonedDataWithAnUpdatedChecksumIsRefused(string poison)
@@ -108,6 +109,7 @@ public sealed class AnalysisInventoryTests
                 case "taint": manifest["historicalTaint"] = "128"; break;
                 case "zeroTaint": manifest["historicalTaint"] = "0"; break;
                 case "counts": coverage["completed"] = "1"; break;
+                case "boundaries": coverage["boundaryTotals"] = new JsonArray(new JsonArray("Mount", "99")); break;
                 case "summary": coverage["knownBytes"] = "0"; break;
                 case "enum": nodes[0]["entryKind"] = "0"; break;
             }
@@ -173,6 +175,19 @@ public sealed class AnalysisInventoryTests
     {
         var s = AnalysisAccountingTests.Golden(); s = s with { Identity = s.Identity with { HostProfile = "bad\ud800text" } };
         Assert.Throws<InvalidDataException>(() => Write(s));
+    }
+    [Fact]
+    public void BoundaryCountersSurviveTruncatedDetailedSamplesWithoutBecomingExclusionCounts()
+    {
+        var s = AnalysisAccountingTests.Golden(); using var store = new AnalysisStore();
+        for (int i = 0; i < AnalysisLimits.Issues; i++) store.Issue("ordinary-failure");
+        store.Issue("source-volume-boundary", state: MeasurementState.Excluded);
+        store.Issue("not-requested", state: MeasurementState.Excluded);
+        s = store.Snapshot(s.Identity, s.Roots, s.Policy, AnalysisPhase.Finished, NamespaceCoverage.Partial);
+        using var loaded = Read(Write(s)); var coverage = loaded.Snapshot.CoverageDetails!;
+        Assert.Equal(1ul, coverage.Boundaries); Assert.Equal(2ul, coverage.ExcludedIssues);
+        Assert.Equal(1ul, loaded.Snapshot.BoundaryTotals[AnalysisBoundaryKind.Mount]);
+        Assert.DoesNotContain(loaded.Snapshot.Issues, i => i.Code == "source-volume-boundary");
     }
     private sealed class Fragmented(byte[] data) : Stream
     {

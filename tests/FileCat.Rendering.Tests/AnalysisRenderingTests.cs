@@ -23,6 +23,40 @@ namespace FileCat.Rendering.Tests;
 public sealed class AnalysisRenderingTests
 {
     [AvaloniaFact]
+    public async Task FinishedTemporaryAnalysesDefaultToKeepOpenAndTabNamesNeverRepeat()
+    {
+        using var styles = new ProductStyles(); using var temporary = new DiskSpaceViewModel(Fixture());
+        await temporary.RebuildAsync(true); Assert.False(temporary.Running); Assert.True(temporary.HasTemporaryWork);
+        var window = new DiskSpaceWindow();
+        try
+        {
+            window.AddSession(temporary); window.Show(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            window.Close(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            Assert.True(window.IsVisible);
+            var keep = window.GetVisualDescendants().OfType<Button>().Single(b => b.IsEffectivelyVisible && b.Content as string == "Keep open");
+            Assert.True(keep.IsDefault); Assert.True(keep.IsCancel);
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            window.KeyRelease(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            Assert.True(window.IsVisible); Assert.Equal(1, window.SessionCount);
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(), b => b.IsEffectivelyVisible && b.Content as string == "Keep open");
+        }
+        finally { window.ForceClose(); }
+        var tabsWindow = new DiskSpaceWindow();
+        try
+        {
+            for (int i = 0; i < 3; i++) tabsWindow.AddSession(new DiskSpaceViewModel(Fixture() with { Origin = AnalysisOrigin.ImportedInventory }));
+            tabsWindow.Show(); Dispatcher.UIThread.RunJobs(); tabsWindow.UpdateLayout();
+            var tabs = tabsWindow.GetVisualDescendants().OfType<TabControl>().Single(); tabs.SelectedIndex = 1;
+            tabsWindow.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Close analysis").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs(); Assert.Equal(2, tabsWindow.SessionCount);
+            tabsWindow.AddSession(new DiskSpaceViewModel(Fixture() with { Origin = AnalysisOrigin.ImportedInventory }));
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(new[] { "Analysis 1", "Analysis 3", "Analysis 4" }, tabs.Items.OfType<TabItem>().Select(t => t.Header as string));
+        }
+        finally { tabsWindow.ForceClose(); }
+    }
+    [AvaloniaFact]
     public async Task UncertainPredicateResultsAreAnExplicitCohortAndDateOnlyUsesTheCapturedZone()
     {
         var s = Fixture();
@@ -75,9 +109,10 @@ public sealed class AnalysisRenderingTests
         s = s with
         {
             Roots = s.Roots.Add(new("second", "file", "Other", "/other", "other-device", IdentityAssurance.Verified, "Other")),
-            Nodes = s.Nodes.Add(new(7, "second", 0, "Other", AnalysisKind.Directory)).Add(new(8, "second", 7, "other.bin", AnalysisKind.File, "d")),
+            Nodes = s.Nodes.Add(new AnalysisNode(7, "second", 0, "Other", AnalysisKind.Directory) { ObservedIdentity = "other-device:dir" }).Add(new(8, "second", 7, "other.bin", AnalysisKind.File, "d")),
             Objects = s.Objects.Add(new("d", "other-device:d", AnalysisMeasurement.Known(99), AnalysisMeasurement.Known(1))),
             Facts = s.Facts.Add(new("d", "d", null, "primary", "other-basis", AnalysisMeasurement.Known(4096), "fixture", DateTimeOffset.UnixEpoch, []))
+                .Add(new("dir", null, 7, "directory-self", "other-basis", AnalysisMeasurement.Known(17), "fixture", DateTimeOffset.UnixEpoch, []))
         };
         using var model = new DiskSpaceViewModel(s); await model.RebuildAsync(true); var window = new DiskSpaceWindow();
         try
@@ -87,8 +122,8 @@ public sealed class AnalysisRenderingTests
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("These locations report different allocation components", StringComparison.Ordinal) == true);
             var root = window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationProperties.GetName(c) == "Filter captured location");
             root.SelectedIndex = 2;
-            for (int i = 0; i < 100 && model.Tree.ScopeValue(AnalysisTree.RootKey) != 4096; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
-            Assert.Equal((UInt128)4096, model.Tree.ScopeValue(AnalysisTree.RootKey)); Assert.True(model.Tree.Projection.Totals.CompatibleBasis);
+            for (int i = 0; i < 100 && model.Tree.ScopeValue(AnalysisTree.RootKey) != 4113; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
+            Assert.Equal((UInt128)4113, model.Tree.ScopeValue(AnalysisTree.RootKey)); Assert.True(model.Tree.Projection.Totals.CompatibleBasis);
             root.SelectedIndex = 0; model.Metric = AnalysisMetric.FileSize; await model.RebuildAsync(true);
             for (int i = 0; i < 100 && model.Tree.Projection.Metric != AnalysisMetric.FileSize; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
             Assert.Equal((UInt128)98503, model.Tree.ScopeValue(AnalysisTree.RootKey));

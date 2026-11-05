@@ -10,11 +10,13 @@ public sealed class AnalysisCoordinator(DeviceIoScheduler io, string? profileIde
 {
     private readonly string _profileIdentity = profileIdentity ?? "ephemeral:" + Guid.NewGuid().ToString("N");
     // Ownership of prepared sources transfers to the session, including blocked native requests.
-    public AnalysisSession Start(IReadOnlyList<IAnalysisBackend> sources, IProgress<AnalysisProgress>? progress = null)
+    public AnalysisSession Start(IReadOnlyList<IAnalysisBackend> sources, IProgress<AnalysisProgress>? progress = null,
+        AnalysisComponentPreset components = AnalysisComponentPreset.Standard)
     {
         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
         if (sources.Count is < 1 or > AnalysisLimits.Roots) throw new ArgumentException("Select between 1 and 32 roots.", nameof(sources));
-        return new(io, sources.ToArray(), progress, _profileIdentity);
+        if (!Enum.IsDefined(components)) throw new ArgumentOutOfRangeException(nameof(components));
+        return new(io, sources.ToArray(), progress, _profileIdentity, components);
     }
 }
 
@@ -42,7 +44,8 @@ public sealed class AnalysisSession : IDisposable
     private AnalysisFreshness _freshness;
     private ulong _enumerationRequested, _enumerationCompleted, _enumerationFailed;
     public Task Completion { get; }
-    internal AnalysisSession(DeviceIoScheduler io, IAnalysisBackend[] sources, IProgress<AnalysisProgress>? progress, string profileIdentity)
+    internal AnalysisSession(DeviceIoScheduler io, IAnalysisBackend[] sources, IProgress<AnalysisProgress>? progress, string profileIdentity,
+        AnalysisComponentPreset components)
     {
         _io = io; _sources = sources; _progress = progress;
         _roots = sources.Select((s, i) => s.Root with { Id = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), Kind = s.RootEntry.Kind,
@@ -50,7 +53,8 @@ public sealed class AnalysisSession : IDisposable
         var now = DateTimeOffset.UtcNow;
         var firstObservation = sources.Select(s => s.RootEntry.ObservedUtc ?? now).Append(now).Min();
         _identity = new(Guid.NewGuid(), 1, 1, profileIdentity, firstObservation, now);
-        _policy = new() { BasisIds = sources.Select(s => s.Basis).Distinct().ToImmutableArray(), PackagePolicy = "contents-included", Limits = AnalysisLimits.EffectivePolicy };
+        _policy = new() { BasisIds = sources.Select(s => s.Basis).Distinct().ToImmutableArray(), PackagePolicy = "contents-included",
+            ComponentPreset = components == AnalysisComponentPreset.DetailedAllocation ? "detailed" : "standard", Limits = AnalysisLimits.EffectivePolicy };
         _io.HealthChanged += OnDeviceHealth;
         Completion = Task.Run(ProduceAsync);
     }
@@ -233,7 +237,7 @@ public sealed class AnalysisSession : IDisposable
     }
     private async Task WalkAsync(IAnalysisBackend source, RootBinding root, string device)
     {
-        var rootId = _store.Append(source.RootEntry, 0, root.Id, source.Basis);
+        var rootId = _store.Append(source.RootEntry, 0, root.Id, source.Basis, _policy.ComponentPreset == "detailed");
         if (!rootId.HasValue) { Issue("memory-or-observation-limit"); return; }
         if (source.RootEntry.Kind != AnalysisKind.Directory) return;
         if (source.RootEntry.Cloud == true) { Issue("cloud-directory-not-enumerated", rootId, MeasurementState.Excluded); return; }
@@ -269,7 +273,7 @@ public sealed class AnalysisSession : IDisposable
                 carry = batch.Carry;
                 foreach (var child in batch.Entries)
                 {
-                    var childId = _store.Append(child, id, root.Id, source.Basis);
+                    var childId = _store.Append(child, id, root.Id, source.Basis, _policy.ComponentPreset == "detailed");
                     if (childId is null) { Issue("memory-or-observation-limit", id); return; }
                     if (child.IssueCode is { } issueCode) Issue(issueCode, childId, child.MetadataState);
                     if (!child.IncludedByPolicy || child.MetadataState != MeasurementState.Known) continue;

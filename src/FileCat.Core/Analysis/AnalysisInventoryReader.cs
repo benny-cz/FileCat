@@ -44,7 +44,7 @@ public static partial class AnalysisInventoryFormat
                         objects.Select(o => o with { ObservedAliases = aliases[o.Id].Select(n => n.Id).ToImmutableArray() }).ToImmutableArray(),
                         facts.ToImmutableArray(), issues.ToImmutableArray(), manifest.Policy, manifest.Phase, manifest.Coverage, manifest.Freshness,
                         AnalysisOrigin.ImportedInventory, AnalysisPrivacy.Imported(manifest.Taint))
-                        { CoverageDetails = coverage, IssueTotals = issueTotals, Persistence = AnalysisPersistence.Temporary };
+                        { CoverageDetails = coverage, IssueTotals = issueTotals, BoundaryTotals = coverage.BoundaryTotals, Persistence = AnalysisPersistence.Temporary };
                     AnalysisValidation.Validate(snapshot, cancellation);
                     // Recompute every metric before accepting the inventory, including checked total arithmetic.
                     // No supplied summary can hide an overflowing or contradictory fact set.
@@ -160,12 +160,15 @@ public static partial class AnalysisInventoryFormat
     }
     private static (AnalysisCoverageRecord, ImmutableDictionary<MeasurementState, ulong>) ReadCoverage(JsonElement r)
     {
-        Fields(r, "kind", "requested", "completed", "failed", "denominatorFinal", "boundaries", "excludedIssues", "failedIssues", "pendingIssues", "measurements", "issueTotals", "identityVerified", "identityUnverified", "staleNodes", "staleRoots");
+        Fields(r, "kind", "requested", "completed", "failed", "denominatorFinal", "boundaries", "boundaryTotals", "excludedIssues", "failedIssues", "pendingIssues", "measurements", "issueTotals", "identityVerified", "identityUnverified", "staleNodes", "staleRoots");
+        var boundaryRecords = r.GetProperty("boundaryTotals"); Array(boundaryRecords, 0, 5);
+        var boundaries = ImmutableDictionary.CreateBuilder<AnalysisBoundaryKind, ulong>();
+        foreach (var pair in boundaryRecords.EnumerateArray()) { Array(pair, 2, 2); boundaries.Add(EnumValue<AnalysisBoundaryKind>(pair[0]), Id(pair[1])); }
         var nodes = r.GetProperty("staleNodes"); Array(nodes, 0, AnalysisLimits.Observations);
         return (new(Id(r.GetProperty("requested")), Id(r.GetProperty("completed")), Id(r.GetProperty("failed")), Boolean(r.GetProperty("denominatorFinal")),
             Id(r.GetProperty("boundaries")), Id(r.GetProperty("excludedIssues")), Id(r.GetProperty("failedIssues")), Id(r.GetProperty("pendingIssues")),
             StateCounts(r.GetProperty("measurements")), Id(r.GetProperty("identityVerified")), Id(r.GetProperty("identityUnverified")),
-            nodes.EnumerateArray().Select(Id).ToImmutableArray()) { StaleRootIds = Strings(r.GetProperty("staleRoots"), AnalysisLimits.Roots, 20) }, StateCounts(r.GetProperty("issueTotals")));
+            nodes.EnumerateArray().Select(Id).ToImmutableArray()) { BoundaryTotals = boundaries.ToImmutable(), StaleRootIds = Strings(r.GetProperty("staleRoots"), AnalysisLimits.Roots, 20) }, StateCounts(r.GetProperty("issueTotals")));
     }
 
     private static void ValidateJson(ReadOnlySpan<byte> line)

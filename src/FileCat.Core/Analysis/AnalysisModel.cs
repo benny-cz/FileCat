@@ -6,6 +6,8 @@ namespace FileCat.Core.Analysis;
 public enum MeasurementState { Known, Pending, Unsupported, Excluded, Failed, Changed }
 public enum AnalysisKind { Directory, File, Link, Special, Unknown }
 public enum AnalysisMetric { FileSize, UniqueFileSize, OnDisk, Files }
+public enum AnalysisComponentPreset { Standard, DetailedAllocation }
+public enum AnalysisBoundaryKind { Mount, NavigationLink, CloudDirectory, SpecialEntry, UnverifiedRootOverlap }
 public enum AnalysisPhase { Ready, Scanning, Pausing, Paused, Refreshing, Finished, Stopped, Failed }
 public enum NamespaceCoverage { CompleteUnderPolicy, Partial, Unknown }
 public enum AnalysisFreshness { Observed, PossiblyStale, SourceUnavailable, IdentityMismatch }
@@ -84,6 +86,7 @@ public sealed record AnalysisCoverageRecord(ulong EnumerationRequested, ulong En
 {
     public ulong EnumerationPending => checked(EnumerationRequested - EnumerationCompleted - EnumerationFailed);
     public ImmutableArray<string> StaleRootIds { get; init; } = [];
+    public ImmutableDictionary<AnalysisBoundaryKind, ulong> BoundaryTotals { get; init; } = ImmutableDictionary<AnalysisBoundaryKind, ulong>.Empty;
 }
 public sealed record AnalysisSnapshot(SessionIdentity Identity, ImmutableArray<RootBinding> Roots,
     ImmutableArray<AnalysisNode> Nodes, ImmutableArray<AnalysisObject> Objects, ImmutableArray<StorageFact> Facts,
@@ -94,6 +97,7 @@ public sealed record AnalysisSnapshot(SessionIdentity Identity, ImmutableArray<R
     public AnalysisPersistence Persistence { get; init; } = AnalysisPersistence.Temporary;
     public AnalysisCoverageRecord? CoverageDetails { get; init; }
     public ImmutableDictionary<MeasurementState, ulong> IssueTotals { get; init; } = ImmutableDictionary<MeasurementState, ulong>.Empty;
+    public ImmutableDictionary<AnalysisBoundaryKind, ulong> BoundaryTotals { get; init; } = ImmutableDictionary<AnalysisBoundaryKind, ulong>.Empty;
 }
 
 public sealed record AnalysisSelection(Guid SessionId, long Epoch, long Revision, ImmutableArray<ulong> NodeIds)

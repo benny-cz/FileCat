@@ -22,10 +22,14 @@ public sealed class AnalysisTree
     public AnalysisSnapshot Snapshot { get; }
     public AnalysisProjection Projection { get; }
     public bool FilterApplied { get; }
+    public string ComponentCoverageDescription { get; }
+    public ulong BoundaryCount { get; }
     public ImmutableDictionary<string, AnalysisTreeItem> Items { get; }
     private readonly ConcurrentDictionary<string, ImmutableArray<AnalysisTreeItem>> _children = new(StringComparer.Ordinal);
     private AnalysisTree(AnalysisSnapshot snapshot, AnalysisProjection projection, ImmutableDictionary<string, AnalysisTreeItem> items, bool filterApplied)
-    { Snapshot = snapshot; Projection = projection; Items = items; FilterApplied = filterApplied; }
+    { Snapshot = snapshot; Projection = projection; Items = items; FilterApplied = filterApplied;
+        ComponentCoverageDescription = AnalysisComponents.Describe(snapshot);
+        BoundaryCount = snapshot.CoverageDetails?.Boundaries ?? AnalysisCoverage.Create(snapshot).Boundaries; }
     public static string Key(ulong id) => "n:" + id.ToString(CultureInfo.InvariantCulture);
     public static string OtherKey(string parent, int skipped) => skipped > 0 ? "other:" + skipped.ToString(CultureInfo.InvariantCulture) + ":" + parent : throw new ArgumentOutOfRangeException(nameof(skipped));
     private static bool Other(string key, out int skipped, out string parent)
@@ -93,8 +97,9 @@ public sealed class AnalysisTree
                 node.Kind == AnalysisKind.Directory ? "folder" : AnalysisClassification.Family(node.Name));
             item.MetadataState = node.MetadataState; item.IncludedByPolicy = node.IncludedByPolicy;
             item.NameEvidence = AnalysisNames.NameEvidence(node);
-            item.Unknown = incomplete.Contains(node.Id) || node.IncludedByPolicy && node.MetadataState != MeasurementState.Known;
-            item.LogicalUnknown = node.IncludedByPolicy && (node.Kind == AnalysisKind.Unknown || node.Kind == AnalysisKind.Directory && item.Unknown);
+            bool namespaceUnknown = incomplete.Contains(node.Id) || node.IncludedByPolicy && node.MetadataState != MeasurementState.Known;
+            item.Unknown = namespaceUnknown || projection.UnmeasuredStates.ContainsKey(node.Id);
+            item.LogicalUnknown = node.IncludedByPolicy && (node.Kind == AnalysisKind.Unknown || node.Kind == AnalysisKind.Directory && namespaceUnknown);
             if (node.Kind == AnalysisKind.File && matching)
             {
                 item.Files = 1;

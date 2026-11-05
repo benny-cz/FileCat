@@ -18,7 +18,8 @@ public static class AnalysisAggregate
         return AnalysisMeasurement.Known(total);
     }
     public static AnalysisProjection Project(AnalysisSnapshot snapshot, AnalysisMetric metric,
-        Func<AnalysisNode, AnalysisObject?, bool>? filter = null, CancellationToken cancellation = default)
+        Func<AnalysisNode, AnalysisObject?, bool>? filter = null, CancellationToken cancellation = default,
+        Func<AnalysisNode, bool>? directoryFilter = null)
     {
         var nodes = snapshot.Nodes.ToDictionary(n => n.Id);
         var objects = snapshot.Objects.ToDictionary(o => o.Id, StringComparer.Ordinal);
@@ -102,12 +103,13 @@ public static class AnalysisAggregate
                 foreach (var fact in SelectComponents(directoryFacts.ToArray()))
                 {
                     // Directory self allocation is never attributed to a dominant file type.
-                    if (filter is not null || !nodes.TryGetValue(fact.DirectoryId!.Value, out var directory) || !directory.IncludedByPolicy) continue;
+                    if (!nodes.TryGetValue(fact.DirectoryId!.Value, out var directory) || !directory.IncludedByPolicy ||
+                        (directoryFilter is not null ? !directoryFilter(directory) : filter is not null)) continue;
                     string root = nodes[fact.DirectoryId.Value].RootId;
                     if (!basesByRoot.TryGetValue(root, out var directoryBases)) basesByRoot[root] = directoryBases = new(StringComparer.Ordinal);
                     directoryBases.Add(fact.BasisId);
                     if (fact.Measurement.IsKnown) Add(fact.DirectoryId.Value, "Directory allocation", fact.Measurement.Value!.Value,
-                        [], false, false, true);
+                        [], false, directory.ObservedIdentity is null, true);
                     else Missing(fact.Measurement, [fact.DirectoryId.Value]);
                 }
                 var sets = basesByRoot.Values.ToArray();

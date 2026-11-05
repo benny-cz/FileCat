@@ -126,6 +126,9 @@ public static partial class AnalysisInventoryFormat
         {
             Number(w, "requested", coverage.EnumerationRequested); Number(w, "completed", coverage.EnumerationCompleted); Number(w, "failed", coverage.EnumerationFailed);
             w.WriteBoolean("denominatorFinal", coverage.DenominatorFinal); Number(w, "boundaries", coverage.Boundaries);
+            w.WriteStartArray("boundaryTotals");
+            foreach (var pair in coverage.BoundaryTotals.OrderBy(p => p.Key)) { w.WriteStartArray(); w.WriteStringValue(pair.Key.ToString()); w.WriteStringValue(Decimal(pair.Value)); w.WriteEndArray(); }
+            w.WriteEndArray();
             Number(w, "excludedIssues", coverage.ExcludedIssues); Number(w, "failedIssues", coverage.FailedIssues); Number(w, "pendingIssues", coverage.PendingIssues);
             StateCounts(w, "measurements", coverage.MeasurementStates);
             StateCounts(w, "issueTotals", snapshot.IssueTotals.Count > 0 ? snapshot.IssueTotals : snapshot.Issues.GroupBy(i => i.State).ToImmutableDictionary(g => g.Key, g => (ulong)g.Count()));

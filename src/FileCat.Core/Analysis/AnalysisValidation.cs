@@ -7,7 +7,7 @@ public static class AnalysisValidation
 {
     public static void Validate(AnalysisSnapshot s, CancellationToken cancellation = default)
     {
-        if (s is null || s.Identity is null || s.Policy is null || s.IssueTotals is null || s.Roots.IsDefault || s.Nodes.IsDefault || s.Objects.IsDefault || s.Facts.IsDefault || s.Issues.IsDefault ||
+        if (s is null || s.Identity is null || s.Policy is null || s.IssueTotals is null || s.BoundaryTotals is null || s.Roots.IsDefault || s.Nodes.IsDefault || s.Objects.IsDefault || s.Facts.IsDefault || s.Issues.IsDefault ||
             s.Roots.Length is < 1 or > AnalysisLimits.Roots || s.Nodes.Length > AnalysisLimits.Observations || s.Facts.Length > AnalysisLimits.InventoryRecords ||
             s.Objects.Length > AnalysisLimits.Observations || s.Issues.Length > AnalysisLimits.Issues ||
             s.Identity.SessionId == Guid.Empty || s.Identity.Epoch < 0 || s.Identity.Revision < 0 || s.Identity.ObservedUtc < s.Identity.StartedUtc ||
@@ -118,6 +118,13 @@ public static class AnalysisValidation
         foreach (var pair in s.IssueTotals)
             if (!Enum.IsDefined(pair.Key) || pair.Value < (ulong)s.Issues.Count(i => i.State == pair.Key)) throw Invalid();
         if (s.IssueTotals.Count > 0 && s.Issues.Any(i => !s.IssueTotals.ContainsKey(i.State))) throw Invalid();
+        var sampledBoundaries = AnalysisCoverage.SampledBoundaries(s);
+        foreach (var pair in s.BoundaryTotals)
+            if (!Enum.IsDefined(pair.Key) || pair.Value < sampledBoundaries.GetValueOrDefault(pair.Key)) throw Invalid();
+        if (s.BoundaryTotals.Count > 0 && sampledBoundaries.Keys.Any(k => !s.BoundaryTotals.ContainsKey(k))) throw Invalid();
+        ulong boundaryCount = (s.BoundaryTotals.Count > 0 ? s.BoundaryTotals : sampledBoundaries).Values.Aggregate(0ul, (sum, value) => checked(sum + value));
+        ulong issueCount = s.IssueTotals.Count > 0 ? s.IssueTotals.Values.Aggregate(0ul, (sum, value) => checked(sum + value)) : (ulong)s.Issues.Length;
+        if (boundaryCount > issueCount) throw Invalid();
         foreach (var node in s.Nodes)
             if (node.IssueCodes.Any(code => !issueReferences.Contains((node.Id, code)))) throw Invalid();
         if (s.CoverageDetails is { } coverage)
@@ -125,7 +132,8 @@ public static class AnalysisValidation
             if (coverage.EnumerationRequested > (ulong)s.Nodes.Count(n => n.Kind == AnalysisKind.Directory) || coverage.EnumerationCompleted > coverage.EnumerationRequested ||
                 coverage.EnumerationFailed > coverage.EnumerationRequested - coverage.EnumerationCompleted) throw Invalid();
             var expected = AnalysisCoverage.Create(s, coverage.EnumerationRequested, coverage.EnumerationCompleted, coverage.EnumerationFailed);
-            if (coverage.DenominatorFinal != expected.DenominatorFinal || coverage.Boundaries != expected.Boundaries || coverage.ExcludedIssues != expected.ExcludedIssues ||
+            if (coverage.BoundaryTotals is null || !coverage.BoundaryTotals.OrderBy(p => p.Key).SequenceEqual(expected.BoundaryTotals.OrderBy(p => p.Key)) ||
+                coverage.DenominatorFinal != expected.DenominatorFinal || coverage.Boundaries != expected.Boundaries || coverage.ExcludedIssues != expected.ExcludedIssues ||
                 coverage.FailedIssues != expected.FailedIssues || coverage.PendingIssues != expected.PendingIssues || coverage.IdentityVerifiedPaths != expected.IdentityVerifiedPaths ||
                 coverage.IdentityUnverifiedPaths != expected.IdentityUnverifiedPaths || !coverage.MeasurementStates.OrderBy(p => p.Key).SequenceEqual(expected.MeasurementStates.OrderBy(p => p.Key)) ||
                 !coverage.StaleScopeNodes.SequenceEqual(expected.StaleScopeNodes) || !coverage.StaleRootIds.SequenceEqual(expected.StaleRootIds)) throw Invalid();

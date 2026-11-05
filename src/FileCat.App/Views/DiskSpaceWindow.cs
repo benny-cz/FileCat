@@ -32,6 +32,7 @@ public sealed class DiskSpaceWindow : Window
     private readonly Func<Keymap> _keymap;
     private readonly TextBlock _notice = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
     private bool _forceClose, _askingClose;
+    private long _nextTabNumber;
     public int SessionCount => _sessions.Count;
     protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => new DescendantFocusWindowAutomationPeer(this);
     public DiskSpaceWindow(Action? newAnalysis = null, Func<Keymap>? keymap = null)
@@ -60,7 +61,7 @@ public sealed class DiskSpaceWindow : Window
         Closing += (_, e) =>
         {
             if (_forceClose) return;
-            if (_sessions.Any(s => s.Model.Running || s.Model.IsPreparing || s.Model.Selection.Basket.Count > 0))
+            if (_sessions.Any(s => s.Model.HasTemporaryWork))
             {
                 e.Cancel = true;
                 if (!_askingClose) _ = ConfirmCloseAsync();
@@ -73,7 +74,7 @@ public sealed class DiskSpaceWindow : Window
         if (_sessions.Count >= AnalysisLimits.Sessions) throw new InvalidOperationException("Eight analyses are open. Close an analysis before adding another.");
         var view = new SessionView(this, model, roots ?? []);
         _notice.IsVisible = false;
-        var item = new TabItem { Header = "Analysis " + (_items.Count + 1), Content = view.CreateViewport() };
+        var item = new TabItem { Header = "Analysis " + checked(++_nextTabNumber), Content = view.CreateViewport() };
         _sessions.Add(view); _items.Add(item); _tabs.ItemsSource = _items.ToArray(); _tabs.SelectedItem = item;
     }
     private async Task ConfirmCloseAsync()
@@ -91,8 +92,9 @@ public sealed class DiskSpaceWindow : Window
         int at = _tabs.SelectedIndex;
         if (at < 0 || at >= _sessions.Count) return;
         var view = _sessions[at];
-        if ((view.Model.Running || view.Model.IsPreparing || view.Model.Selection.Basket.Count > 0) &&
+        if (view.Model.HasTemporaryWork &&
             !await _dialogs.ConfirmAsync("Close analysis?", "Stop this metadata scan and discard its temporary results and unsaved review references?", "Stop and close", true, "Keep open")) return;
+        if (_forceClose || (at = _sessions.IndexOf(view)) < 0) return;
         view.Dispose(); _sessions.RemoveAt(at); _items.RemoveAt(at); _tabs.ItemsSource = _items.ToArray();
         _notice.IsVisible = false;
         if (_items.Count > 0) _tabs.SelectedIndex = Math.Min(at, _items.Count - 1);
@@ -109,10 +111,12 @@ public sealed class DiskSpaceWindow : Window
         private readonly DiskSpaceWindow _window;
         public DiskSpaceViewModel Model { get; }
         private readonly StackPanel _setup = new() { Spacing = 6, Margin = new Thickness(10) };
+        private readonly ScrollViewer _setupViewport;
         private readonly StackPanel _roots = new() { Spacing = 5 };
         private readonly List<TextBox> _rootEditors = [];
         private readonly TextBlock _resolved = new() { TextWrapping = TextWrapping.Wrap };
         private readonly Button _start = new() { Content = "Start analysis", Classes = { "primary" } };
+        private readonly ComboBox _components = new() { ItemsSource = new[] { "Standard allocation", "Detailed allocation (partial component support)" }, MinWidth = 250 };
         private readonly TextBox _query = new() { PlaceholderText = "Search within observations…", MinWidth = 180, MaxLength = AnalysisLimits.QueryBytes };
         private readonly CheckBox _case = new() { Content = "Case sensitive" };
         private readonly ComboBox _metric = new() { ItemsSource = new[] { "File size", "Unique file size", "On disk — reported", "Files" }, SelectedIndex = 2, MinWidth = 155 };
@@ -153,9 +157,15 @@ public sealed class DiskSpaceWindow : Window
             choose.Children.Add(ActionButton("Choose folders…", () => _ = ChooseFoldersAsync(), "Choose source folders without changing the main panels."));
             choose.Children.Add(ActionButton("Choose files…", () => _ = ChooseFilesAsync(), "Choose explicit file paths. Hard links remain separate paths but share verified object charges."));
             _setup.Children.Add(choose);
-            _setup.Children.Add(new TextBlock { Text = "Standard · stay within each filesystem · discovered links are not followed. Cloud contents are not requested.", TextWrapping = TextWrapping.Wrap });
+            _components.SelectedIndex = (int)Model.Components;
+            _components.SelectionChanged += (_, _) => Model.Components = (AnalysisComponentPreset)Math.Clamp(_components.SelectedIndex, 0, 1);
+            AutomationProperties.SetName(_components, "Allocation components");
+            ToolTip.SetTip(_components, new RichTip("Allocation components", detail: "Standard records reported file allocation. Detailed also records supported directory self-allocation. " + AnalysisComponents.UnmeasuredExplanation));
+            _setup.Children.Add(_components);
+            _setup.Children.Add(new TextBlock { Text = "Stay within each filesystem. Links and cloud contents are not followed. Detailed adds directory allocation; separate streams, forks and xattrs are not measured.", TextWrapping = TextWrapping.Wrap });
             _setup.Children.Add(_resolved); _setup.Children.Add(_start);
-            Children.Add(new ScrollViewer { Content = _setup, MaxHeight = 250, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled });
+            _setupViewport = new ScrollViewer { Content = _setup, MaxHeight = 250, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+            Children.Add(_setupViewport);
             var toolbar = new StackPanel { Spacing = 6, Margin = new Thickness(10, 4) };
             var nav = new WrapPanel { ItemSpacing = 7, LineSpacing = 5 };
             nav.Children.Add(ActionButton("Back", Model.Back, "Return to the previous analysis scope."));
@@ -296,7 +306,8 @@ public sealed class DiskSpaceWindow : Window
             if (_disposed) return; _updating = true;
             try
             {
-                _setup.IsVisible = Model.Phase == AnalysisPhase.Ready; _roots.IsEnabled = !Model.IsPreparing; _start.IsEnabled = !Model.IsPreparing;
+                _setupViewport.IsVisible = Model.Phase == AnalysisPhase.Ready; _roots.IsEnabled = !Model.IsPreparing; _start.IsEnabled = !Model.IsPreparing;
+                _components.IsEnabled = !Model.IsPreparing && Model.Phase == AnalysisPhase.Ready;
                 _resolved.Text = Model.ResolvedTargets; _status.Text = Model.Status; _error.Text = Model.FilterError; _error.IsVisible = Model.FilterError is not null;
                 _pause.IsEnabled = Model.Running; _stop.IsEnabled = Model.Running; _pause.Content = Model.Phase is AnalysisPhase.Paused or AnalysisPhase.Pausing ? "Resume" : "Pause";
                 var tree = Model.Tree;
@@ -321,7 +332,12 @@ public sealed class DiskSpaceWindow : Window
                 {
                     var totals = tree.Projection.Totals;
                     ulong issueCount = tree.Snapshot.IssueTotals.Count > 0 ? tree.Snapshot.IssueTotals.Values.Aggregate(0ul, (a, b) => checked(a + b)) : (ulong)tree.Snapshot.Issues.Length;
-                    _coverage.Text += $" Missing measurements: {totals.Missing.Values.Aggregate(0ul, (a, b) => checked(a + b)):N0}. Policy boundaries/issues: {issueCount:N0}.";
+                    _coverage.Text += $" Missing measurements: {totals.Missing.Values.Aggregate(0ul, (a, b) => checked(a + b)):N0}. Traversal boundaries: {tree.BoundaryCount:N0}; issues: {issueCount:N0}.";
+                    _coverage.Text += tree.Snapshot.Policy.ComponentPreset == "detailed"
+                        ? " Detailed: directory allocation requested; extra component coverage unknown."
+                        : " Standard: reported allocation; extra component coverage unknown.";
+                    ToolTip.SetTip(_coverage, new RichTip("Measurement coverage", detail: tree.ComponentCoverageDescription));
+                    AutomationProperties.SetHelpText(_coverage, tree.ComponentCoverageDescription);
                     if (!totals.CompatibleBasis) _coverage.Text += " These locations report different allocation components. Choose a location for its On disk view; File size and Files remain available together.";
                     if (tree.Projection.IncludesUnknownFilterResults) _coverage.Text += " Showing uncertain filter results, not confirmed matches.";
                     else if (tree.Projection.UnknownFilterNodes.Count > 0) _coverage.Text += $" {tree.Projection.UnknownFilterNodes.Count:N0} uncertain filter results are excluded from confirmed matches.";

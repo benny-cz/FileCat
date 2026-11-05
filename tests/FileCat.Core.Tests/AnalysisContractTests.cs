@@ -80,6 +80,17 @@ public sealed class AnalysisContractTests
         var snapshot = store.Snapshot(s.Identity, s.Roots, s.Policy, AnalysisPhase.Finished, NamespaceCoverage.Partial);
         Assert.Equal(AnalysisLimits.Issues, snapshot.Issues.Length);
         Assert.Equal((ulong)AnalysisLimits.Issues + 7, AnalysisCoverage.Create(snapshot).FailedIssues);
+        for (int i = 0; i < 5; i++) store.Issue("component-not-requested", state: MeasurementState.Excluded);
+        for (int i = 0; i < 3; i++) store.Issue("source-mount-boundary", state: MeasurementState.Excluded);
+        for (int i = 0; i < 4; i++) store.Issue("navigation-link-not-followed", state: MeasurementState.Excluded);
+        for (int i = 0; i < 2; i++) store.Issue("root-overlap-unverified");
+        snapshot = store.Snapshot(s.Identity, s.Roots, s.Policy, AnalysisPhase.Finished, NamespaceCoverage.Partial);
+        var exact = AnalysisCoverage.Create(snapshot); AnalysisValidation.Validate(snapshot, TestContext.Current.CancellationToken);
+        Assert.Equal(9ul, exact.Boundaries); Assert.Equal(12ul, exact.ExcludedIssues);
+        Assert.Equal(3ul, exact.BoundaryTotals[AnalysisBoundaryKind.Mount]);
+        Assert.Equal(4ul, exact.BoundaryTotals[AnalysisBoundaryKind.NavigationLink]);
+        Assert.Equal(2ul, exact.BoundaryTotals[AnalysisBoundaryKind.UnverifiedRootOverlap]);
+        Assert.Throws<InvalidDataException>(() => AnalysisValidation.Validate(snapshot with { BoundaryTotals = snapshot.BoundaryTotals.SetItem(AnalysisBoundaryKind.Mount, (ulong)AnalysisLimits.Issues + 100) }, TestContext.Current.CancellationToken));
         var coverage = AnalysisCoverage.Create(s);
         Assert.Equal(3ul, coverage.IdentityVerifiedPaths);
         Assert.Throws<InvalidDataException>(() => AnalysisValidation.Validate(s with { CoverageDetails = coverage with { IdentityVerifiedPaths = 99 } }, TestContext.Current.CancellationToken));

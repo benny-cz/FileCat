@@ -26,6 +26,7 @@ public sealed class DiskSpaceViewModel : IDisposable
     public AnalysisTree? Tree { get; private set; }
     public ImmutableArray<AnalysisTreeItem> Rows { get; private set; } = [];
     public AnalysisMetric Metric { get; set; } = AnalysisMetric.OnDisk;
+    public AnalysisComponentPreset Components { get; set; }
     public string Query { get; set; } = "";
     public string? RootFilter { get; set; }
     public bool CaseSensitive { get; set; }
@@ -37,6 +38,8 @@ public sealed class DiskSpaceViewModel : IDisposable
     public bool IsPreparing { get; private set; }
     public AnalysisPhase Phase { get; private set; } = AnalysisPhase.Ready;
     public bool Running => Phase is AnalysisPhase.Scanning or AnalysisPhase.Pausing or AnalysisPhase.Paused or AnalysisPhase.Refreshing;
+    public bool HasTemporaryWork => !_disposed && (IsPreparing || _session is not null || _prepared.Count > 0 || Selection.Marks.Count > 0 || Selection.Basket.Count > 0 ||
+        _observation is { Origin: AnalysisOrigin.LiveSession, Persistence: AnalysisPersistence.Temporary });
     public event Action? Changed;
     public DiskSpaceViewModel(AppServices services) { _services = services; _zone = TimeZoneInfo.Local; }
     public DiskSpaceViewModel(AnalysisSnapshot observations)
@@ -72,7 +75,7 @@ public sealed class DiskSpaceViewModel : IDisposable
                 if (changed) { SetStatus("Review the resolved locations shown below, then choose Start analysis again to use those captured targets."); return; }
             }
             _session?.Dispose();
-            _session = new AnalysisCoordinator(_services.Io).Start(_prepared.ToArray(), new LatestProgress(_services.Ui, UpdateProgress));
+            _session = new AnalysisCoordinator(_services.Io).Start(_prepared.ToArray(), new LatestProgress(_services.Ui, UpdateProgress), Components);
             _prepared.Clear(); _preparedInput = []; Phase = AnalysisPhase.Scanning; Dirty = true;
             SetStatus("Scanning metadata. Known results so far; allocation can share physical blocks.");
         }
@@ -143,7 +146,11 @@ public sealed class DiskSpaceViewModel : IDisposable
                     return showUnknown ? truth == AnalysisTruth.Unknown : truth == AnalysisTruth.True;
                 }
                 bool filtered = !string.IsNullOrWhiteSpace(query) || root is not null;
-                var projection = filtered ? AnalysisAggregate.Project(s, metric, Matches, token) : all;
+                // A location selector is a namespace scope, not a file predicate. Keep that scope's
+                // independent directory allocation; name/type/age predicates do not match non-file facts.
+                Func<AnalysisNode, bool>? directoryFilter = root is not null && string.IsNullOrWhiteSpace(query) && !showUnknown
+                    ? n => rootScopes.IsMember(root, n) == AnalysisTruth.True : null;
+                var projection = filtered ? AnalysisAggregate.Project(s, metric, Matches, token, directoryFilter) : all;
                 projection = projection with { UnknownFilterNodes = unknown.ToImmutable(), IncludesUnknownFilterResults = filtered && showUnknown, FilterText = query };
                 var tree = AnalysisTree.Build(s, projection, filtered, token);
                 return (Tree: tree, Rows: tree.ChildrenOf(scope));

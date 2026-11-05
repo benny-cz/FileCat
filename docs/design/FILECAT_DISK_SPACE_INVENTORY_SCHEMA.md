@@ -17,10 +17,12 @@ Order and properties:
 3. Zero or more `path-node`, parent before child: `kind`, `id`, `root`, `parent`, `encoding`, `raw`, `entryKind`, `object`, `sparse`, `compressed`, `cloud`, `metadata`, `included`, `identity`, `times`.
 4. Zero or more `storage-fact`: `kind`, `id`, `object`, `directory`, `component`, `basis`, `measurement`, `method`, `observed`, `includes`, `mayShare`.
 5. Zero or more `issue`: `kind`, `code`, `node`, `root`, `state`.
-6. One `coverage`: `kind`, `requested`, `completed`, `failed`, `denominatorFinal`, `boundaries`, `excludedIssues`, `failedIssues`, `pendingIssues`, `measurements`, `issueTotals`, `identityVerified`, `identityUnverified`, `staleNodes`, `staleRoots`.
+6. One `coverage`: `kind`, `requested`, `completed`, `failed`, `denominatorFinal`, `boundaries`, `boundaryTotals`, `excludedIssues`, `failedIssues`, `pendingIssues`, `measurements`, `issueTotals`, `identityVerified`, `identityUnverified`, `staleNodes`, `staleRoots`.
 7. One `trailer`: `kind`, `counts`, `sha256`. Nothing follows it.
 
 `counts` has exactly the six preceding record-kind names as properties, with their decimal counts. `sha256` is lowercase SHA-256 of every preceding byte, including each LF. It detects corruption and does not authenticate origin. Both the trailer and its LF are required for partial/stopped analyses too.
+
+`boundaryTotals` is `[[boundaryKind, count], ...]`, without duplicate kinds. Known kinds are Mount, NavigationLink, CloudDirectory, SpecialEntry and UnverifiedRootOverlap. Their checked sum equals `boundaries`; these counters are independent of issue severity/exclusion counts and continue after detailed issue samples reach their cap. Supplied totals must cover every retained boundary sample and cannot exceed the total number of issues. Resource failures remain failed work/issues rather than being relabelled as policy exclusions.
 
 `roots` contains 1–32 fixed 15-element tuples, avoiding a manifest with excessive property tokens. Tuple positions are ID, scheme, display locator, canonical locator, source identity, identity assurance, label, entry kind, name rules, traversal boundary, historical connection reference, disposition, covered-by root ID, covered relative path, and observed object identity. Display/canonical locators, labels and non-null covered paths use `["utf16le", canonicalBase64]`; this preserves unpaired source code units without putting them into JSON strings. They remain historical data. Root schemes and graph relationships are independently validated.
 
