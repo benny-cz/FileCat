@@ -32,6 +32,8 @@ The later [private new-file publication checkpoint](PRIVATE_NEW_FILE_PUBLICATION
 native exclusive claim and conservative reconciliation for creator-private, unmarked new archives. It retains all
 artifacts and leaves profiles disabled; complete metadata admission, marked creation, replacement, cleanup/recovery,
 the full crash matrix and production qualification remain unfinished.
+The [private creation process-crash follow-up](PRIVATE_CREATION_PROCESS_CRASHES.md) passes ten new publication/metadata
+boundaries and thirteen neighboring crash cases on each platform. It leaves production and recovery authority unchanged.
 
 | Area | Current behavior | Remaining gate |
 |---|---|---|
