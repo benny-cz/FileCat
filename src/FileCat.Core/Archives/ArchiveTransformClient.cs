@@ -31,7 +31,7 @@ public sealed class ArchiveTransformClient
 
         (ArchiveTransformReceipt? Receipt, ArchiveWriteReason? Refusal) Conversation(Guid nonce, IArchiveWorkerProcess process, Action progress)
         {
-            long sourceIo = checked((request.Profile.Format == ArchiveWriteFormat.TarGzip ? 4 : 3) * originalLength + inputLength);
+            long sourceIo = checked((request.Profile.Format == ArchiveWriteFormat.Tar ? 3 : 4) * originalLength + inputLength);
             long wireBytes = Math.Min(ArchiveWritePolicy.MaxWorkerWireBytes, checked(sourceIo + 4 * request.OutputLengthBound + ArchiveWritePolicy.MaxMetadataBytes));
             var receive = new ArchiveWorkerProtocol(nonce, wireBytes); var send = new ArchiveWorkerProtocol(nonce, wireBytes);
             var incoming = new ArchiveWorkerRecords(receive, process.Output, writing: false); var outgoing = new ArchiveWorkerRecords(send, process.Input, writing: true);
@@ -58,7 +58,7 @@ public sealed class ArchiveTransformClient
             }
             var receipt = ArchiveTransformWire.ReadReceipt(incoming.Read(ArchiveControlRecord.Receipt, frame));
             if (receipt.Length != stage.Length || receipt.Length > request.OutputLengthBound ||
-                receipt.Length < (request.Profile.Format == ArchiveWriteFormat.Tar ? 1024 : 20)) throw Fault(); progress();
+                receipt.Length < (request.Profile.Format == ArchiveWriteFormat.Tar ? 1024 : request.Profile.Format == ArchiveWriteFormat.TarBzip2 ? 14 : 20)) throw Fault(); progress();
             frame = receive.Read(process.Output);
             if (frame.Kind != ArchiveWorkerMessage.Completed || frame.Payload.Length != 32 || Convert.ToHexString(frame.Payload) != receipt.ManifestDigest) throw Fault();
             End(); return (receipt, null);

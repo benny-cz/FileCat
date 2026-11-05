@@ -5,7 +5,8 @@ This is an **incomplete implementation**, not format or release qualification. T
 application. An explicit new-profile job refuses instead of entering the legacy ZIP executor.
 
 Current user-requested finishing order: complete the implementation/validation loop, analyze license-compatible RAR
-writing options, then perform the independent UX/UI/functional/security review and fix/retest its findings.
+writing options and implement/validate a viable option where possible, then perform the independent UX/UI/functional/
+security review and fix/retest its findings.
 
 ## Source and workspace
 
@@ -46,6 +47,9 @@ The subsequent [catalog/lifecycle follow-up](TAR_GZIP_CATALOG_REUSE.md) removes 
 catalog and tightens compressed replay to four physical passes. It preserves monitor/terminal/conversation causes,
 and reproduces and fixes an exited-process CPU observation bug in the controlled test child. The two older refusals
 did not capture their precise cause; complete production lifecycle/release qualification remains unfinished.
+The [TAR.BZ2 worker checkpoint](TAR_BZIP2_WORKER_PIPELINE.md) adds strict single-stream assessment, streamed rebuild,
+fresh verification, preserved block size, bounded buffered proxy IO, independent bidirectional fixtures and native
+preparation/private-creation checks. Format enablement and complete common/platform release gates remain unfinished.
 
 | Area | Current behavior | Remaining gate |
 |---|---|---|
@@ -76,13 +80,14 @@ did not capture their precise cause; complete production lifecycle/release quali
 | Journaled native TAR preparation | Frozen schema-4 sidecar reservations, private native assessed/expected/provenance/observed manifests, complete readback, source/destination binding and durable Rebuilding/Finalizing/Verifying with distinct finalized/verified stage versions; [checkpoint](JOURNALED_TAR_PREPARATION.md) | Full capture/defaults/global budgets, metadata/origin application, publication/recovery, production workflows and full qualification |
 | TAR assessment | Full raw USTAR/PAX framing, checksums, exact UTF-8, numeric/PAX grammar and allowlist, pre-allocation metadata limits, complete payload hashes, end markers and padding; independent runtime-decoder agreement | Coverage-guided campaigns, complete metadata/preservation corpus, scale measurements and native independent tools |
 | TAR transform | Stream-only create and exact per-occurrence replace/delete/rename; whole-source namespace/logical budgets; order/duplicate/metadata preservation; native stage, bounded worker and fresh verifier roundtrips | Durable safe save/metadata/provenance, scalable folder preparation/review and production dispatch |
-| Gzip | Neutral single-member framing, explicit DEFLATE terminal status/consumption, CRC/ISIZE, no concatenation/trailing data, bounded expansion; streaming runtime encoder and valid empty output | Existing-TGZ update adapter, complete output bound, wrapper metadata corpus and independent oracle qualification |
-| TAR.GZ creation | Sequential TAR output through gzip without buffering a complete payload; strict wrapper/catalog/manifest readback | Production worker and all inherited release gates |
+| Gzip/TAR.GZ | Neutral single-member framing, explicit DEFLATE terminal status/consumption, CRC/ISIZE, bounded expansion; streamed create/update and fresh verification, fixed-pass replay and independent fixtures | Production registration, complete bound/scale/fuzz/wrapper corpus and inherited publication/release gates |
+| BZip2/TAR.BZ2 | Complete single-stream CRC/footer/padding/EOF admission, bounded expansion, streamed create/update/fresh verification and preserved block size; native preparation/private-creation and independent fixtures | Production registration, complete bound/scale/fuzz corpus and inherited metadata/publication/release gates |
 
 The raw gzip inflater is the already-vendored SharpCompress/DotNetZip component, whose existing MS-PL/BSD attribution
 is retained. It is used because the runtime DeflateStream API does not expose a terminal-state/consumed-byte result.
-The encoder remains the runtime DeflateStream. No third-party source/package was added or upgraded. The reachable-code
-inventory and artifact SBOM/notices still need review before enabling this path.
+The encoder remains the runtime DeflateStream. No upstream source/package was added or upgraded. The BZip2 follow-up
+updates the fork's reachable-code SBOM description and passes the Windows development-payload notice/SBOM validators.
+Complete reachability review and exact release-artifact SBOM/notices for every enabled RID remain required.
 
 ## Observed checks, 4–5 November 2026
 
@@ -215,7 +220,7 @@ change the rule to postpone on other occupied machines or authorize stopping unr
 ## Required independent review after the implementation loop
 
 On 5 November the user required a separate independent-review pass after the full implementation/testing loop. Treat
-this as a completion gate within the active goal, before the deferred RAR analysis. Re-read the controlling plan and
+this as a completion gate within the active goal, after the RAR analysis and any feasible implementation. Re-read the controlling plan and
 final diff from the reviewer's perspective; assess actual behavior and evidence without relying on implementation
 assumptions or test success as proof of correctness.
 
@@ -225,16 +230,18 @@ identities/aliases, publication/rollback/cleanup ownership, provenance and metad
 all-platform qualification. Record reproducible findings and severity, fix findings, and repeat appropriate tests/live
 validation and review until no known actionable findings remain. Preserve explicit limitations; do not claim absence
 of all possible bugs. A final review report must identify the reviewed commit/artifacts, coverage, fixes and remaining
-qualification limits. Do not mark the goal complete or start the RAR analysis before this gate is satisfied.
+qualification limits. Do not mark the goal complete before this gate is satisfied.
 
-## Queued follow-up after the current goal is complete
+## RAR analysis and feasible implementation before independent review
 
-The user requested a separate RAR-writing licensing analysis only after the entire archive-writing implementation goal,
-including all required implementation, testing, validation and rechecks, is finished. Preserve that prerequisite.
+After the main archive-writing implementation/validation loop, research RAR writing before the final independent
+review. The user's later clarification supersedes the earlier review-first order and analysis-only scope: the analysis
+should lead to implementation and validation where a license-compatible, technically viable path exists.
 
 At that point, research current primary licensing/specification sources and the repository's existing RAR provenance.
 Assess a FileCat-owned implementation developed without violating upstream restrictions, including any necessary clean
 separation from restricted decompressor sources. If other viable options fail, assess invoking an external `rar` tool,
 including user-supplied installation versus redistribution, license obligations and Windows/macOS/Ubuntu feasibility.
-Produce an evidence-backed comparison and recommendation. The requested follow-up is analysis; RAR implementation and
-enablement are not part of that request. Do not start this analysis before the current goal's completion audit passes.
+Produce an evidence-backed comparison and recommendation, then implement/validate a viable option if possible. Do not
+waive license, security, platform, packaging or preservation requirements to obtain a RAR writer. Record specific
+evidence if no conforming implementation is feasible; the final independent review follows this RAR phase.

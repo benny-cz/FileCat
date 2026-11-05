@@ -37,7 +37,7 @@ public sealed class ArchiveTarTransformPlan
         if (inputs.Count > ArchiveWritePolicy.MaxMembers || edits.Count > ArchiveWritePolicy.MaxMembers || additions.Count > ArchiveWritePolicy.MaxMembers)
             throw ArchiveWriteBudget.Limit();
         if (source is not null) ArgumentNullException.ThrowIfNull(source.Manifest);
-        if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip) || source is not null && profile != source.Manifest.Profile) throw Unsupported();
+        if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2) || source is not null && profile != source.Manifest.Profile) throw Unsupported();
         bool ustar = false;
         if (source is not null)
         {
@@ -115,7 +115,8 @@ public sealed class ArchiveTarTransformPlan
         var expected = new ArchiveWriteManifest(profile, planned.Select(p => p.Member).ToArray(),
             ArchiveTarFeatures.Create(profile, ustar || planned.Count == 0 ? (byte)1 : (byte)2,
                 source is not null && profile.Format == ArchiveWriteFormat.TarGzip ? source.Manifest.Features[2] : (byte)255,
-                source is not null && profile.Format == ArchiveWriteFormat.TarGzip ? source.Manifest.Features[3] : null));
+                source is not null && profile.Format == ArchiveWriteFormat.TarGzip ? source.Manifest.Features[3] : null,
+                source is not null && profile.Format == ArchiveWriteFormat.TarBzip2 ? source.Manifest.Features[2] : (byte)9));
         return new(source, captured, frozenEdits, frozenAdditions, expected);
 
         ArchiveTransformInput Use(int id)

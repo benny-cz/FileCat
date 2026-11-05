@@ -43,6 +43,11 @@ namespace SharpCompress.Compressors.BZip2;
 
 internal partial class CBZip2InputStream : Stream
 {
+    // FileCat modification: expose strict single-stream completion to the write-profile verifier.
+    // Do not confuse a tolerated block-boundary EOF with a verified combined-CRC footer.
+    private bool verifiedFooter;
+    internal bool HasValidatedSingleStreamEnd => verifiedFooter && streamEnd && !decompressConcatenated &&
+        !tolerateTruncatedStream && bsLive is >= 0 and <= 7 && (bsBuff & ((1 << bsLive) - 1)) == 0;
     private static void Cadvise()
     {
         //System.out.Println("CRC Error");
@@ -419,6 +424,7 @@ internal partial class CBZip2InputStream : Stream
             CrcError();
         }
 
+        verifiedFooter = !tolerateTruncatedStream;
         var complete = !decompressConcatenated || !Initialize(false);
         if (complete)
         {

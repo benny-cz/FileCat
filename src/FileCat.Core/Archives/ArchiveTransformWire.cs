@@ -78,6 +78,15 @@ public static class ArchiveTransformWire
         // A conservative streaming-encoder ceiling, still enforced by the parent before every write. Its fixed
         // room and 12.5% expansion allowance exceed the supported DEFLATE encoder's ordinary block overhead.
         if (expected.Profile.Format == ArchiveWriteFormat.TarGzip) length = checked(length + (length + 7) / 8 + (64 << 10) + 18);
+        if (expected.Profile.Format == ArchiveWriteFormat.TarBzip2)
+        {
+            // First RLE grows at most 5/4; MTF/second RLE do not increase that symbol count. Encoder Huffman
+            // lengths are at most 20 bits. Four bytes/input byte plus 64 KiB per minimum-size block cover that
+            // payload and all selectors/tables/framing. Actual stage IO still cannot exceed the absolute ceiling.
+            long rle = checked((5 * length + 3) / 4);
+            long blocks = checked((rle + 99_979) / 99_980 + 1);
+            length = Math.Min(ArchiveWritePolicy.MaxPhysicalBytes, checked(4 * length + blocks * (64 << 10) + 32));
+        }
         if (length > ArchiveWritePolicy.MaxPhysicalBytes) throw ArchiveWriteBudget.Limit();
         return length;
         static long Align(long value) => checked((value + 511) / 512 * 512);
@@ -128,11 +137,11 @@ public static class ArchiveTransformWire
         {
             ct.ThrowIfCancellationRequested(); var reader = new Packet(records.Read(ArchiveControlRecord.TransformRequest)); reader.Schema(2);
             var profile = new ArchiveWriteProfile((ArchiveWriteFormat)reader.Integer(), reader.Integer(), reader.Integer(), reader.Integer());
-            if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip)) throw Fault();
+            if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2)) throw Fault();
             ArchiveAssessmentRequest? source = reader.Flag() ? new(profile, reader.Long(), reader.Digest()) : null;
             if (source is not null) ArchiveAssessmentWire.Validate(source);
             int inputCount = reader.Count(), editCount = reader.Count(), additionCount = reader.Count(); long bound = reader.Long(); reader.End();
-            if (source is null && editCount != 0 || bound < (profile.Format == ArchiveWriteFormat.Tar ? 1024 : 20) || bound > ArchiveWritePolicy.MaxPhysicalBytes) throw Fault();
+            if (source is null && editCount != 0 || bound < (profile.Format == ArchiveWriteFormat.Tar ? 1024 : profile.Format == ArchiveWriteFormat.TarBzip2 ? 14 : 20) || bound > ArchiveWritePolicy.MaxPhysicalBytes) throw Fault();
             var budget = new ArchiveWriteBudget(); budget.AddMetadata(0, 512L * inputCount + 256L * editCount + 192L * additionCount);
             var inputs = new Dictionary<int, ArchiveTransformInput>(); long inputBytes = 0;
             for (int i = 0; i < inputCount; i++)
@@ -183,7 +192,7 @@ public static class ArchiveTransformWire
     }
     private static void Validate(ArchiveTransformReceipt receipt)
     {
-        ArgumentNullException.ThrowIfNull(receipt); if (receipt.Length is < 20 or > ArchiveWritePolicy.MaxPhysicalBytes) throw Fault();
+        ArgumentNullException.ThrowIfNull(receipt); if (receipt.Length is < 14 or > ArchiveWritePolicy.MaxPhysicalBytes) throw Fault();
         ArchiveWritePolicy.ValidateDigest(receipt.ManifestDigest); ArchiveWritePolicy.ValidateDigest(receipt.ContentDigest); ArchiveWritePolicy.ValidateDigest(receipt.MetadataDigest);
     }
     private static byte[] Encode(Action<BinaryWriter> encode)

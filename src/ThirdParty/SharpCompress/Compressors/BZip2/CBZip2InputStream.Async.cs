@@ -178,6 +178,8 @@ internal partial class CBZip2InputStream
             CrcError();
         }
 
+        // FileCat modification: keep the strict terminal observation consistent with synchronous decoding.
+        verifiedFooter = !tolerateTruncatedStream;
         var complete =
             !decompressConcatenated
             || !(await InitializeAsync(false, cancellationToken).ConfigureAwait(false));

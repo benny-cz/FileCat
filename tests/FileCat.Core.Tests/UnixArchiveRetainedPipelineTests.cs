@@ -69,14 +69,16 @@ public sealed partial class UnixArchiveStorageTests
     }
 
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    [InlineData(true, true)]
-    public async Task Retained_native_inputs_rebuild_into_a_real_private_sealed_and_freshly_verified_stage(bool update, bool compressed)
+    [InlineData(false, ArchiveWriteFormat.Tar)]
+    [InlineData(true, ArchiveWriteFormat.Tar)]
+    [InlineData(false, ArchiveWriteFormat.TarGzip)]
+    [InlineData(true, ArchiveWriteFormat.TarGzip)]
+    [InlineData(false, ArchiveWriteFormat.TarBzip2)]
+    [InlineData(true, ArchiveWriteFormat.TarBzip2)]
+    public async Task Retained_native_inputs_rebuild_into_a_real_private_sealed_and_freshly_verified_stage(bool update, ArchiveWriteFormat format)
     {
         Native(); var ct = TestContext.Current.CancellationToken; using var temp = new TempDir(); string root = Canonical(temp.Path);
-        var profile = new ArchiveWriteProfile(compressed ? ArchiveWriteFormat.TarGzip : ArchiveWriteFormat.Tar);
+        var profile = new ArchiveWriteProfile(format);
         if (!update) File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
         byte[] input = "native retained payload"u8.ToArray(); Payload(Path.Combine(root, "payload"), input);
         if (!update) File.SetUnixFileMode(Path.Combine(root, "payload"), (UnixFileMode)0xfed);
@@ -88,7 +90,8 @@ public sealed partial class UnixArchiveStorageTests
             if (update)
             {
                 using (var data = File.Create(Path.Combine(root, "original.tar")))
-                using (var gzip = compressed ? new System.IO.Compression.GZipStream(data, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true) : null)
+                using (Stream? gzip = format switch { ArchiveWriteFormat.TarGzip => new System.IO.Compression.GZipStream(data, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true),
+                    ArchiveWriteFormat.TarBzip2 => SharpCompress.Compressors.BZip2.BZip2Stream.Create(data, SharpCompress.Compressors.CompressionMode.Compress, false, leaveOpen: true), _ => null })
                 using (var writer = new TarWriter(gzip ?? (Stream)data, TarEntryFormat.Pax))
                 { using var content = new MemoryStream("before"u8.ToArray()); writer.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, "old") { DataStream = content }); }
                 original = directory.OpenSource("original.tar"); var observed = Observe(original); source = new(original, observed);

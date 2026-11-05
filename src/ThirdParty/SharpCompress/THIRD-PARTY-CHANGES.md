@@ -11,6 +11,12 @@ FileCat's changes, all for release issue I14: only code under OSI-approved licen
 derived from UnRAR. FileCat uses this library for 7z archives and bzip2, xz and zstd streams only, so
 everything else is left out.
 
+- Archive-writing follow-up, 5 November 2026: `Compressors/BZip2/CBZip2InputStream.cs` and its `.Async.cs`
+  retain their Apache-2.0 provenance/notices and expose an internal strict single-stream terminal observation:
+  a checked combined-CRC footer, no tolerated truncation/concatenation, and zero final padding bits. Existing
+  tolerant reader behavior is unchanged. The unregistered TAR.BZ2 writer adapter uses the already-present
+  Apache-derived encoder, including its existing bounded block-size constructor; no upstream files were restored.
+
 - Removed RAR support: `Archives/Rar`, `Common/Rar`, `Compressors/Rar` (UnpackV1, UnpackV2017, VM),
   `Readers/Rar` and `Factories/RarFactory.cs`. Upstream ports these decoders from UnRAR (its repository
   keeps the UnRAR source under `reference/unrar`).

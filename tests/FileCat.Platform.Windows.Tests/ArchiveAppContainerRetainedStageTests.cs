@@ -31,18 +31,22 @@ public sealed partial class ArchiveAppContainerTests
         finally { Directory.Delete(root, true); }
     }
     [Theory]
-    [InlineData(false, false, false)]
-    [InlineData(false, true, false)]
-    [InlineData(true, false, false)]
-    [InlineData(true, true, false)]
-    [InlineData(false, false, true)]
-    [InlineData(false, true, true)]
-    [InlineData(true, false, true)]
-    [InlineData(true, true, true)]
-    public async Task Retained_NTFS_inputs_rebuild_and_verify_a_real_private_stage_without_publication(bool application, bool update, bool compressed)
+    [InlineData(false, false, ArchiveWriteFormat.Tar)]
+    [InlineData(false, true, ArchiveWriteFormat.Tar)]
+    [InlineData(true, false, ArchiveWriteFormat.Tar)]
+    [InlineData(true, true, ArchiveWriteFormat.Tar)]
+    [InlineData(false, false, ArchiveWriteFormat.TarGzip)]
+    [InlineData(false, true, ArchiveWriteFormat.TarGzip)]
+    [InlineData(true, false, ArchiveWriteFormat.TarGzip)]
+    [InlineData(true, true, ArchiveWriteFormat.TarGzip)]
+    [InlineData(false, false, ArchiveWriteFormat.TarBzip2)]
+    [InlineData(false, true, ArchiveWriteFormat.TarBzip2)]
+    [InlineData(true, false, ArchiveWriteFormat.TarBzip2)]
+    [InlineData(true, true, ArchiveWriteFormat.TarBzip2)]
+    public async Task Retained_NTFS_inputs_rebuild_and_verify_a_real_private_stage_without_publication(bool application, bool update, ArchiveWriteFormat format)
     {
         string executable = Probe(); var ct = TestContext.Current.CancellationToken;
-        var profile = new ArchiveWriteProfile(compressed ? ArchiveWriteFormat.TarGzip : ArchiveWriteFormat.Tar);
+        var profile = new ArchiveWriteProfile(format);
         if (application)
         {
             string? assets = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_APP_ASSETS");
@@ -63,7 +67,8 @@ public sealed partial class ArchiveAppContainerTests
                 if (update)
                 {
                     using (var data = File.Create(Path.Combine(root, "original.tar")))
-                    using (var gzip = compressed ? new System.IO.Compression.GZipStream(data, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true) : null)
+                    using (Stream? gzip = format switch { ArchiveWriteFormat.TarGzip => new System.IO.Compression.GZipStream(data, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true),
+                        ArchiveWriteFormat.TarBzip2 => SharpCompress.Compressors.BZip2.BZip2Stream.Create(data, SharpCompress.Compressors.CompressionMode.Compress, false, leaveOpen: true), _ => null })
                     using (var writer = new TarWriter(gzip ?? (Stream)data, TarEntryFormat.Pax))
                     { using var before = new MemoryStream("before"u8.ToArray()); writer.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, "old") { DataStream = before }); }
                     original = directory.OpenSource("original.tar"); var originalState = ((IArchiveRetainedFile)original).Observe(ct); source = new(original, originalState);

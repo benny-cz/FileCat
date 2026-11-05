@@ -24,7 +24,7 @@ public static class ArchiveTransformWorker
             var additions = request.Additions.Select(a => new TarWriteAddition(a.Name, a.Type, a.InputId)).ToArray();
             var inputs = request.Inputs.ToDictionary(p => p.Key, p => new TarInputDescriptor(p.Key, p.Value.Length, p.Value.Sha256, p.Value.ModifiedTimestamp, p.Value.Mode));
             Stream Open(int id) => new ArchiveProxyStream(connection, id, request.Inputs[id].Length, request.Inputs[id].Length);
-            TarRewriteManifest transformed; byte os = 255; byte? flags = null;
+            TarRewriteManifest transformed; byte os = 255, block = 9; byte? flags = null;
             if (request.Profile.Format == ArchiveWriteFormat.Tar)
                 transformed = TarRewriteEngine.Rebuild(source, request.Source?.SourceSha256, stage, edits, additions, inputs, Open, ct);
             else if (request.Profile.Format == ArchiveWriteFormat.TarGzip)
@@ -32,8 +32,13 @@ public static class ArchiveTransformWorker
                 var compressed = GzipTarRewriteEngine.Rebuild(source, request.Source?.SourceSha256, request.Profile, stage, edits, additions, inputs, Open, ct);
                 transformed = compressed.Tar; os = compressed.OperatingSystem; flags = compressed.ExtraFlags;
             }
+            else if (request.Profile.Format == ArchiveWriteFormat.TarBzip2)
+            {
+                var compressed = Bzip2TarRewriteEngine.Rebuild(source, request.Source?.SourceSha256, request.Profile, stage, edits, additions, inputs, Open, ct);
+                transformed = compressed.Tar; block = compressed.BlockSize;
+            }
             else throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This transform profile has not been implemented.");
-            var manifest = ArchiveAssessmentWorker.Manifest(request.Profile, transformed.Format, transformed.Members, ct, os, flags);
+            var manifest = ArchiveAssessmentWorker.Manifest(request.Profile, transformed.Format, transformed.Members, ct, os, flags, block);
             outgoing.Write(ArchiveControlRecord.Receipt, ArchiveTransformWire.Receipt(new(stage.Length, manifest.Digest, manifest.ContentDigest, manifest.MetadataDigest)));
             send.Write(output, ArchiveWorkerMessage.Completed, Convert.FromHexString(manifest.Digest));
             return 0;
