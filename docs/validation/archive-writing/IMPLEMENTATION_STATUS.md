@@ -25,6 +25,9 @@ checks. Complete capture/publication/production integration and release qualific
 The subsequent [preparation-space checkpoint](PREPARATION_SPACE_ADMISSION.md) checks the complete stage/evidence,
 known snapshots and safety margin against capacity from the retained native destination, before intent or artifact
 creation. Unknown capacity remains explicit; full capture/space UI, allocation guarantees and qualification remain open.
+The later [Unix visible-attribute checkpoint](UNIX_EXTENDED_ATTRIBUTE_INVENTORY.md) adds bounded descriptor-based
+name/value inventories to native rereview and origin/rename reconciliation. Hidden policy coverage, complete outer
+admission/application, publication and production integration remain unfinished.
 
 | Area | Current behavior | Remaining gate |
 |---|---|---|

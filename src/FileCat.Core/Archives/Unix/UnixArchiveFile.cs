@@ -104,6 +104,7 @@ internal sealed partial class UnixArchiveFile : Stream, IArchiveRetainedStage
                 var after = CaptureOuterMetadata(CancellationToken.None);
                 if (after.Native with { Changed = metadata.Native.Changed } != metadata.Native ||
                     after.Origin.Digest != metadata.Origin.Digest || after.AclPresent != metadata.AclPresent || !after.AclBytes.SequenceEqual(metadata.AclBytes) ||
+                    after.ExtendedAttributes?.Digest != metadata.ExtendedAttributes?.Digest ||
                     CaptureVersion(CancellationToken.None) != version) throw Changed();
                 UnixArchiveNative.SyncDirectory(parent.Handle);
             }

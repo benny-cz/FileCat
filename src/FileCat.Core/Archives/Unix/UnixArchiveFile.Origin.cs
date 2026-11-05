@@ -53,6 +53,7 @@ internal sealed partial class UnixArchiveFile
                 var after = CaptureOuterMetadata(CancellationToken.None);
                 if (after.Origin.Digest != origin.Digest || after.Native with { Changed = before.Native.Changed } != before.Native ||
                     after.AclPresent != before.AclPresent || !after.AclBytes.SequenceEqual(before.AclBytes) ||
+                    after.ExtendedAttributes is null || before.ExtendedAttributes is null || !after.ExtendedAttributes.MatchesExcept(before.ExtendedAttributes, UnixArchiveNative.Mac ? "com.apple.quarantine" : "user.xdg.origin.url") ||
                     CaptureVersion(CancellationToken.None) != version) throw OriginReview();
             }
             catch (ArchiveWriteException) { throw; }

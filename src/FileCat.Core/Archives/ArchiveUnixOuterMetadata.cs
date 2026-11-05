@@ -27,9 +27,11 @@ internal sealed unsafe partial class ArchiveUnixOuterMetadata
     internal bool AclPresent { get; }
     internal ReadOnlySpan<byte> AclBytes => acl;
     internal ArchiveOriginSnapshot Origin { get; }
+    internal ArchiveUnixExtendedAttributes? ExtendedAttributes { get; }
     internal string Digest { get; }
 
-    internal ArchiveUnixOuterMetadata(Facts facts, bool aclPresent, ReadOnlySpan<byte> acl, ArchiveOriginSnapshot origin)
+    internal ArchiveUnixOuterMetadata(Facts facts, bool aclPresent, ReadOnlySpan<byte> acl, ArchiveOriginSnapshot origin,
+        ArchiveUnixExtendedAttributes? extendedAttributes = null)
     {
         ArgumentNullException.ThrowIfNull(origin);
         if (!Enum.IsDefined(facts.Format) || facts.Length < 0 || facts.Length > ArchiveWritePolicy.MaxPhysicalBytes ||
@@ -37,14 +39,18 @@ internal sealed unsafe partial class ArchiveUnixOuterMetadata
             acl.Length > MaxAclBytes || aclPresent != !acl.IsEmpty ||
             origin.State == ArchiveOriginState.Unavailable || origin.Format != (facts.Format == NativeFormat.Mac ? ArchiveOriginFormat.MacQuarantine : ArchiveOriginFormat.LinuxOriginUrl))
             throw new ArgumentException("Incomplete Unix archive outer metadata.");
-        Native = facts; AclPresent = aclPresent; this.acl = acl.ToArray(); Origin = origin;
+        if (extendedAttributes is not null && !extendedAttributes.MatchesOrigin(origin)) throw new ArgumentException("The native origin and extended-attribute inventory disagree.");
+        if (facts.Format == NativeFormat.Linux && extendedAttributes is not null && !extendedAttributes.MatchesLinuxAcl(aclPresent, acl))
+            throw new ArgumentException("The native ACL and extended-attribute inventory disagree.");
+        Native = facts; AclPresent = aclPresent; this.acl = acl.ToArray(); Origin = origin; ExtendedAttributes = extendedAttributes;
         using var bytes = new MemoryStream(256 + acl.Length); using var writer = new BinaryWriter(bytes);
-        writer.Write("FCUOMD1\0"u8); writer.Write(1); writer.Write((int)facts.Format);
+        writer.Write(extendedAttributes is null ? "FCUOMD1\0"u8 : "FCUOMD2\0"u8); writer.Write(extendedAttributes is null ? 1 : 2); writer.Write((int)facts.Format);
         writer.Write(facts.Device); writer.Write(facts.Inode); writer.Write(facts.Length); writer.Write(facts.Owner); writer.Write(facts.Group);
         writer.Write(facts.Mode); writer.Write(facts.LinkCount);
         Write(facts.Modified); Write(facts.Changed); writer.Write(facts.Created.HasValue ? 1 : 0); Write(facts.Created ?? default);
         writer.Write(facts.Flags); writer.Write(facts.Attributes); writer.Write(facts.AttributeMask);
         writer.Write(aclPresent ? 1 : 0); writer.Write(acl.Length); writer.Write(acl); writer.Write(Convert.FromHexString(origin.Digest));
+        if (extendedAttributes is not null) writer.Write(Convert.FromHexString(extendedAttributes.Digest));
         writer.Flush(); Digest = Convert.ToHexString(SHA256.HashData(bytes.GetBuffer().AsSpan(0, checked((int)bytes.Length))));
         void Write(Timestamp value) { writer.Write(value.Seconds); writer.Write(value.Nanoseconds); }
         static bool Valid(Timestamp value) => value.Nanoseconds is >= 0 and < 1_000_000_000;
@@ -72,15 +78,29 @@ internal sealed unsafe partial class ArchiveUnixOuterMetadata
                 (bool present, byte[] security) = OperatingSystem.IsMacOS() ? MacAcl(fd) : LinuxAcl(fd);
                 ct.ThrowIfCancellationRequested(); var origin = ArchiveUnixOrigin.Read(handle, ct);
                 if (origin.State == ArchiveOriginState.Unavailable) throw Unavailable();
+                var attributes = ArchiveUnixExtendedAttributes.Capture(handle, ct);
                 var after = ReadFacts(fd); ct.ThrowIfCancellationRequested();
-                if (before != after) throw Changed();
-                return new(after, present, security, origin);
+                if (before != after || !attributes.MatchesOrigin(origin) || !OperatingSystem.IsMacOS() && !attributes.MatchesLinuxAcl(present, security)) throw Changed();
+                return new(after, present, security, origin, attributes);
             }
         }
         catch (ArchiveWriteException) { throw; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or EntryPointNotFoundException or DllNotFoundException)
         { throw Unavailable(); }
         finally { if (retained) handle.DangerousRelease(); }
+    }
+
+    /// <summary>Only visible xattr admission. Success does not establish absence of hidden policy state; other metadata/application gates remain separate.</summary>
+    internal void RequireSupportedExtendedAttributes()
+    {
+        if (ExtendedAttributes is null) throw Unavailable();
+        foreach (var attribute in ExtendedAttributes.Attributes)
+        {
+            bool known = Native.Format == NativeFormat.Mac ? attribute.Name == "com.apple.quarantine" :
+                attribute.Name is "system.posix_acl_access" or "user.xdg.origin.url";
+            if (!known) throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature,
+                "The archive has outer extended attributes that this preservation profile does not support.");
+        }
     }
 
     private static Facts ReadFacts(int fd)

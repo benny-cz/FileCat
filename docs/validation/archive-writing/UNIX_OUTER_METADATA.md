@@ -5,6 +5,10 @@ permission/metadata evidence needed by future publication and reconciliation. It
 chown, change ACLs/flags/origin, or delete any archive. The [implementation ledger](IMPLEMENTATION_STATUS.md) retains
 the full outstanding scope and [plan](../../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md).
 
+The later [visible extended-attribute checkpoint](UNIX_EXTENDED_ATTRIBUTE_INVENTORY.md) adds a bounded native inventory
+and digest schema 2 to these observations. It does not establish absence of hidden security-policy state or complete
+outer metadata admission/application.
+
 ## Observation contract
 
 `ArchiveUnixOuterMetadata.Capture` takes an already-held regular-file SafeFileHandle. It retains that descriptor across
