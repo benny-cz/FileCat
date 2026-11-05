@@ -6,6 +6,21 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed partial class WindowsArchiveStorageTests
 {
     [Fact]
+    public void Readonly_source_uses_portable_new_file_mode_while_its_native_attribute_remains_reviewed()
+    {
+        RequireWindows(); using var f = new Fixture(); string path = f.PathOf("input"); File.WriteAllBytes(path, [1]); File.SetAttributes(path, FileAttributes.ReadOnly);
+        try
+        {
+            using var directory = WindowsArchiveDirectory.Open(f.Root); using var input = directory.OpenSource("input"); var ct = TestContext.Current.CancellationToken;
+            var state = ((IArchiveRetainedFile)input).Observe(ct);
+            Assert.Equal(0x1a4, state.Input(1).Mode); Assert.NotEqual(0u, input.CaptureOuterMetadata(ct).Attributes & (uint)FileAttributes.ReadOnly);
+            File.SetAttributes(path, FileAttributes.Normal); var changed = ((IArchiveRetainedFile)input).Observe(ct);
+            Assert.Equal(state.MemberMode, changed.MemberMode); Assert.NotEqual(state.MetadataDigest, changed.MetadataDigest);
+            Assert.Equal(ArchiveWriteReason.SourceChanged, Assert.Throws<ArchiveWriteException>(() => ((IArchiveRetainedFile)input).Review(state, ct)).Reason);
+        }
+        finally { File.SetAttributes(path, FileAttributes.Normal); }
+    }
+    [Fact]
     public void Derived_member_metadata_is_checked_against_native_observations_rather_than_only_the_digest_field()
     {
         RequireWindows(); var ct = TestContext.Current.CancellationToken; using var fixture = new Fixture(); File.WriteAllBytes(fixture.PathOf("input"), [1]);

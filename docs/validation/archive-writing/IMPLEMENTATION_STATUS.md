@@ -17,6 +17,9 @@ application. An explicit new-profile job refuses instead of entering the legacy 
 
 ## Implemented foundations
 
+The later [captured-member defaults checkpoint](CAPTURED_MEMBER_DEFAULTS.md) corrects ordinary Unix permission bits
+and Windows 0644 defaults, with passing native regression checks on all three platforms. It does not complete capture.
+
 | Area | Current behavior | Remaining gate |
 |---|---|---|
 | Typed contracts | Explicit versioned profiles/enum IDs, raw occurrence keys, portable names, cumulative member/metadata/heap/logical budgets and TAR request/manifest/receipt wire | Other-format schemas, production service registry and session contracts |

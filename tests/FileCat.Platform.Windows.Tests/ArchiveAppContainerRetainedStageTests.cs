@@ -1,4 +1,5 @@
 using System.Formats.Tar;
+using System.Buffers.Binary;
 using FileCat.Core.Archives;
 using FileCat.Platform.Windows.Archives;
 using FileCat.Platform.Windows.Shell;
@@ -28,6 +29,7 @@ public sealed partial class ArchiveAppContainerTests
         {
             byte[] payload = "retained native NTFS input"u8.ToArray(); string inputPath = Path.Combine(root, "input");
             File.WriteAllBytes(inputPath, payload); File.SetLastWriteTimeUtc(inputPath, DateTime.UnixEpoch.AddSeconds(1700000000));
+            if (!update) File.SetAttributes(inputPath, FileAttributes.ReadOnly);
             using var directory = WindowsArchiveDirectory.Open(root); using var input = directory.OpenSource("input");
             var state = ((IArchiveRetainedFile)input).Observe(ct); WindowsArchiveFile? original = null;
             try
@@ -54,6 +56,8 @@ public sealed partial class ArchiveAppContainerTests
                     new((nonce, cpu) => { ArchiveJournaledTarAssertions.Phase(journal, ArchiveTransactionPhase.Rebuilding); return transform = application ? ArchiveAppContainer.StartTransform(executable, nonce, cpu) : ArchiveAppContainer.Start(executable, "archive-transform " + nonce, cpu); }),
                     new((nonce, cpu) => { ArchiveJournaledTarAssertions.Phase(journal, ArchiveTransactionPhase.Verifying); return verifier = application ? ArchiveAppContainer.StartVerification(executable, nonce, cpu) : ArchiveAppContainer.Start(executable, "archive-verify " + nonce, cpu); }), ct);
                 var stage = prepared.Stage; var result = prepared.Verified; ArchiveJournaledTarAssertions.Complete(prepared, journal, plan, ct);
+                Assert.Equal(0x1a4, state.Input(3).Mode);
+                Assert.Equal(0x1a4, BinaryPrimitives.ReadInt32LittleEndian(result.Verification.ObservedManifest.Members.Single(m => m.Name == "added").Metadata[2..]));
                 Assert.Equal(result.Stage.Version, stage.CaptureVersion(ct)); Assert.Equal(result.Stage.Version, result.Verification.Stage);
                 Assert.Equal(plan.Expected.Digest, result.Verification.ManifestDigest); Assert.False(stage.CanWrite); Assert.Throws<NotSupportedException>(() => stage.WriteByte(1));
                 Assert.True(input.CanRead); Assert.Equal(state.Version, ((IArchiveRetainedFile)input).Observe(ct).Version);
@@ -63,6 +67,6 @@ public sealed partial class ArchiveAppContainerTests
             }
             finally { original?.Dispose(); }
         }
-        finally { Directory.Delete(root, recursive: true); }
+        finally { if (File.Exists(Path.Combine(root, "input"))) File.SetAttributes(Path.Combine(root, "input"), FileAttributes.Normal); Directory.Delete(root, recursive: true); }
     }
 }

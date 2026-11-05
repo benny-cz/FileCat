@@ -1,4 +1,5 @@
 using System.Formats.Tar;
+using System.Buffers.Binary;
 using FileCat.Core.Archives;
 using FileCat.Core.Archives.Unix;
 using FileCat.Core.Jobs;
@@ -9,6 +10,21 @@ namespace FileCat.Core.Tests;
 
 public sealed partial class UnixArchiveStorageTests
 {
+    [Theory]
+    [InlineData(0x1a4)]
+    [InlineData(0x1ed)]
+    [InlineData(0x140)]
+    public void New_member_mode_omits_special_bits_but_native_review_still_detects_their_change(int ordinary)
+    {
+        Native(); using var temp = new TempDir(); string root = Canonical(temp.Path), path = Path.Combine(root, "input"); Payload(path, [1]);
+        File.SetUnixFileMode(path, (UnixFileMode)(ordinary | 0xe00));
+        using var directory = UnixArchiveDirectory.Open(root); using var input = directory.OpenSource("input"); var state = Observe(input);
+        Assert.Equal((uint)(ordinary | 0xe00), input.CaptureOuterMetadata(TestContext.Current.CancellationToken).Native.Mode);
+        Assert.Equal(ordinary, state.Input(1).Mode);
+        File.SetUnixFileMode(path, (UnixFileMode)ordinary); var changed = Observe(input);
+        Assert.Equal(state.MemberMode, changed.MemberMode); Assert.NotEqual(state.MetadataDigest, changed.MetadataDigest);
+        Assert.Equal(ArchiveWriteReason.SourceChanged, Assert.Throws<ArchiveWriteException>(() => ((IArchiveRetainedFile)input).Review(state, TestContext.Current.CancellationToken)).Reason);
+    }
     private static ArchiveFileObservation Observe(UnixArchiveFile file) => ((IArchiveRetainedFile)file).Observe(TestContext.Current.CancellationToken);
     private static void Payload(string path, byte[] bytes)
     { File.WriteAllBytes(path, bytes); File.SetLastWriteTimeUtc(path, DateTime.UnixEpoch.AddSeconds(1700000000)); File.SetUnixFileMode(path, (UnixFileMode)0x1a4); }
@@ -32,6 +48,7 @@ public sealed partial class UnixArchiveStorageTests
     {
         Native(); var ct = TestContext.Current.CancellationToken; using var temp = new TempDir(); string root = Canonical(temp.Path);
         byte[] input = "native retained payload"u8.ToArray(); Payload(Path.Combine(root, "payload"), input);
+        if (!update) File.SetUnixFileMode(Path.Combine(root, "payload"), (UnixFileMode)0xfed);
         using var directory = UnixArchiveDirectory.Open(root); using var captured = directory.OpenSource("payload"); var inputState = Observe(captured);
         UnixArchiveFile? original = null; ArchiveRetainedBinding? source = null; ArchiveAssessment? assessment = null;
         try
@@ -58,6 +75,8 @@ public sealed partial class UnixArchiveStorageTests
                 new((nonce, _) => { ArchiveJournaledTarAssertions.Phase(journal, ArchiveTransactionPhase.Verifying); return verifier = Child.Start(nonce, "archive-verify"); }), ct);
             var stage = prepared.Stage; var result = prepared.Verified; string retained = stage.DisplayPath;
             ArchiveJournaledTarAssertions.Complete(prepared, journal, plan, ct);
+            Assert.Equal(update ? 0x1a4 : 0x1ed, inputState.Input(7).Mode);
+            Assert.Equal(inputState.Input(7).Mode, BinaryPrimitives.ReadInt32LittleEndian(result.Verification.ObservedManifest.Members.Single(m => m.Name == "added").Metadata[2..]));
             Assert.Equal(Version(stage), result.Stage.Version); Assert.Equal(result.Stage.Version, result.Verification.Stage);
             Assert.Equal(plan.Expected.Digest, result.Verification.ManifestDigest); Assert.True(transform!.Reaped); Assert.True(verifier!.Reaped);
             Assert.NotEqual(transform.ProcessId, verifier.ProcessId); Assert.False(stage.CanWrite); Assert.Throws<NotSupportedException>(() => stage.WriteByte(1));

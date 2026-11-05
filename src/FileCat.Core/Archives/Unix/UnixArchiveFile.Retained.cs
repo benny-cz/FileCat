@@ -50,7 +50,7 @@ internal sealed partial class UnixArchiveFile
             catch (ArgumentOutOfRangeException) { } // Explicitly unrepresentable input metadata, never silently rounded.
         }
         return new(version, parent.Identity.ToString(), KnownName, metadata.Digest, metadata.Origin, modified,
-            metadata.Native.Mode <= 0x1ff ? (int)metadata.Native.Mode : null);
+            (int)(metadata.Native.Mode & 0x1ff)); // New members capture ordinary bits; full native mode remains in the review digest.
     }
     string IArchiveRetainedArtifact.ReviewCreation(ArchiveArtifactReservation reservation, CancellationToken ct)
     {
