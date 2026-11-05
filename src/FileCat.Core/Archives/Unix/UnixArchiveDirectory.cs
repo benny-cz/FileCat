@@ -33,16 +33,26 @@ internal sealed class UnixArchiveDirectory : IDisposable
     }
     internal static UnixArchiveDirectory Open(string path) => new(path);
     internal UnixArchiveFile CreateArtifact(Guid nonce, UnixArchiveArtifactKind kind, long maximumLength)
+        => CreateArtifact(ReserveArtifact(nonce, kind, maximumLength));
+    internal ArchiveArtifactReservation ReserveArtifact(Guid nonce, UnixArchiveArtifactKind kind, long maximumLength)
     {
         if (nonce == Guid.Empty || !Enum.IsDefined(kind)) throw new ArgumentException("Invalid Unix archive artifact scope.");
         Limit(kind, maximumLength);
         lock (Gate)
         {
             RequireCapacity(); VerifyNamespace();
-            string suffix = kind switch { UnixArchiveArtifactKind.Stage => "stage", UnixArchiveArtifactKind.Manifest => "manifest", _ => "origin" };
-            string leaf = $".filecat-archive-{nonce:N}-{Guid.NewGuid():N}.{suffix}";
+            return new(this, nonce, (ArchiveArtifactKind)kind, DisplayPath, Identity.ToString(), maximumLength);
+        }
+    }
+    internal UnixArchiveFile CreateArtifact(ArchiveArtifactReservation reservation)
+    {
+        ArgumentNullException.ThrowIfNull(reservation);
+        lock (Gate)
+        {
+            RequireCapacity(); VerifyNamespace(); reservation.Claim(this);
+            string leaf = reservation.LeafName;
             var held = UnixArchiveNative.Create(directory, Path.Combine(DisplayPath, leaf), leaf);
-            try { return Adopt(held, leaf, maximumLength, artifact: true, writable: true, createdKind: kind); }
+            try { return Adopt(held, leaf, reservation.MaximumLength, artifact: true, writable: true, createdKind: (UnixArchiveArtifactKind)reservation.Kind); }
             catch (Exception ex) { throw new UnixArchiveArtifactCreationException(Path.Combine(DisplayPath, leaf), ex); }
         }
     }

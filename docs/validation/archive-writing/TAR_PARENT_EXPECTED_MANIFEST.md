@@ -54,7 +54,8 @@ implementation oracle, a production in-process fallback or additional native con
 native Windows/Linux confinement evidence remains scoped to its recorded artifacts.
 
 Filter: `FullyQualifiedName~ArchiveTarTransformPlan|FullyQualifiedName~ArchiveTarRewrite|FullyQualifiedName~ArchiveStrictTar|FullyQualifiedName~ArchiveVerification|FullyQualifiedName~ArchiveManifestWire`.
-Builds used SDK 10.0.101, zero warnings/errors, and tests used runtime 10.0.14. Windows launch facts record before 12288,
+Builds used SDK 10.0.101 and zero warnings/errors. Windows/Ubuntu used runtime 10.0.14; the Mac runtime version was not
+independently captured (see the [later correction](STAGE_CREATION_RESERVATION.md)). Windows launch facts record before 12288,
 after 8192 and exit 0; administrator membership/privileges remain, so ordinary filtered-user/package qualification is
 still outstanding. Final portable runs use `tar-parent-plan-v4.trx`. Earlier v1/v2/v3 results are superseded by this final
 source and are not added to its count. Post-commit review of `911c3c5b` found that charging each unique captured object

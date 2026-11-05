@@ -63,27 +63,33 @@ internal sealed class WindowsArchiveDirectory : IDisposable
     public static WindowsArchiveDirectory Open(string path) => new(path);
 
     public WindowsArchiveFile CreateArtifact(Guid nonce, WindowsArchiveArtifactKind kind, long maximumLength)
+        => CreateArtifact(ReserveArtifact(nonce, kind, maximumLength));
+
+    internal ArchiveArtifactReservation ReserveArtifact(Guid nonce, WindowsArchiveArtifactKind kind, long maximumLength)
     {
         if (nonce == Guid.Empty || !Enum.IsDefined(kind)) throw new ArgumentException("Invalid archive artifact scope.");
         ValidateLimit(kind, maximumLength);
         lock (Gate)
         {
-            EnsureOpen();
-            RequireCapacity();
-            for (int attempt = 0; attempt < 8; attempt++)
-            {
-                string suffix = kind switch { WindowsArchiveArtifactKind.Stage => "stage", WindowsArchiveArtifactKind.Manifest => "manifest", _ => "origin" };
-                string leaf = $".filecat-archive-{nonce:N}-{Guid.NewGuid():N}.{suffix}";
-                int status = TryOpen(Handle, leaf, GenericRead | GenericWrite | Delete | Synchronize | 0x20000 /* READ_CONTROL */,
-                    ShareRead, Create, NonDirectoryFile | OpenReparsePoint, out var handle,
-                    (uint)FileAttributes.Normal, privateSecurity);
-                if (status == NameCollision) { handle.Dispose(); continue; }
-                if (status < 0) { handle.Dispose(); throw Error(status, "Create exclusive private archive artifact"); }
-                // On a post-create failure, retain the object. Neither its name nor a prefix authorizes path cleanup.
-                try { return Adopt(handle, leaf, maximumLength, artifact: true, writable: true, mayRename: true, createdKind: kind); }
-                catch (Exception ex) { throw new WindowsArchiveArtifactCreationException(Path.Combine(DisplayPath, leaf), ex); }
-            }
-            throw new IOException("An exclusive archive artifact name could not be claimed.");
+            EnsureOpen(); RequireCapacity(); VerifyNamespace();
+            return new(this, nonce, (ArchiveArtifactKind)kind, DisplayPath, Identity.ToString(), maximumLength);
+        }
+    }
+
+    internal WindowsArchiveFile CreateArtifact(ArchiveArtifactReservation reservation)
+    {
+        ArgumentNullException.ThrowIfNull(reservation);
+        lock (Gate)
+        {
+            EnsureOpen(); RequireCapacity(); VerifyNamespace(); reservation.Claim(this);
+            string leaf = reservation.LeafName;
+            int status = TryOpen(Handle, leaf, GenericRead | GenericWrite | Delete | Synchronize | 0x20000 /* READ_CONTROL */,
+                ShareRead, Create, NonDirectoryFile | OpenReparsePoint, out var handle,
+                (uint)FileAttributes.Normal, privateSecurity);
+            if (status < 0) { handle.Dispose(); throw Error(status, "Create the exact exclusive private archive artifact reservation"); }
+            // Never retry with an unrecorded name or clean up an uncertain post-create object.
+            try { return Adopt(handle, leaf, reservation.MaximumLength, artifact: true, writable: true, mayRename: true, createdKind: (WindowsArchiveArtifactKind)reservation.Kind); }
+            catch (Exception ex) { throw new WindowsArchiveArtifactCreationException(Path.Combine(DisplayPath, leaf), ex); }
         }
     }
 

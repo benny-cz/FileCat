@@ -75,7 +75,8 @@ Source overlays over `1925560d`:
 - The 48-file final Windows managed-binary overlay `unix-archive-origin-write-win-v3.tar.gz` has SHA-256
   `51CD64039959444B3076E524AE111DE9CFF0CC627018BF2EA0D8EEFD108F39B8`.
 
-Builds used SDK 10.0.101 and completed with zero warnings/errors; actual test runtime was serviced .NET 10.0.14.
+Builds used SDK 10.0.101 and completed with zero warnings/errors; Windows/Ubuntu test runtime was serviced .NET 10.0.14.
+The Mac runtime version was not independently captured; see the [later correction](STAGE_CREATION_RESERVATION.md).
 TRX: `unix-archive-origin-write-mac-v2.trx`, `unix-archive-origin-write-ubuntu-v2.trx`,
 `unix-archive-origin-core-vm3.trx`, `unix-archive-origin-native-vm3.trx`. Windows launch facts independently record
 medium integrity 8192; this is not an ordinary UAC-filtered interactive-login qualification. Raw logs, TRX, source/

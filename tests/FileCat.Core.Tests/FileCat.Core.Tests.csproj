@@ -33,5 +33,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\TestCleanup.cs" Link="TestCleanup.cs" />
+    <Compile Include="..\ArchiveStageCrashAssertions.cs" Link="ArchiveStageCrashAssertions.cs" />
   </ItemGroup>
 </Project>

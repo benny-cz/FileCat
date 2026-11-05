@@ -52,6 +52,20 @@ internal sealed partial class UnixArchiveFile
         return new(version, parent.Identity.ToString(), KnownName, metadata.Digest, metadata.Origin, modified,
             metadata.Native.Mode <= 0x1ff ? (int)metadata.Native.Mode : null);
     }
+    string IArchiveRetainedStage.ReviewCreation(ArchiveArtifactReservation reservation, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(reservation);
+        lock (parent.Gate)
+        {
+            Writeable(); ct.ThrowIfCancellationRequested();
+            if (!artifact || !createdWritable || createdKind != UnixArchiveArtifactKind.Stage || namespaceChanged || rebuildClaimed ||
+                reservation.Kind != ArchiveArtifactKind.Stage || maximum != reservation.MaximumLength || KnownName != reservation.LeafName ||
+                parent.Identity.ToString() != reservation.ParentIdentity || Length != 0 || position != 0)
+                throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "The fresh stage differs from its reserved native creation scope.");
+            parent.VerifyNamespace(); parent.RequireName(KnownName, Identity); parent.CheckPrivate(held);
+            return Identity.ToString();
+        }
+    }
     Stream IArchiveRetainedStage.BeginRebuild(long exactMaximumLength, CancellationToken ct)
     {
         lock (parent.Gate)

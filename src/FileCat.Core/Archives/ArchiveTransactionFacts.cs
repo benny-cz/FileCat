@@ -33,7 +33,7 @@ public sealed record ArchiveObjectVersion
 /// </summary>
 public sealed class ArchiveTransactionFacts
 {
-    public const int SchemaVersion = 2;
+    public const int SchemaVersion = 3;
     public const int MaxArtifacts = 16;
     public const int MaxTransitions = 64;
     public Guid Nonce { get; }
@@ -45,7 +45,8 @@ public sealed class ArchiveTransactionFacts
     public string ParentIdentity { get; }
     public ArchiveObjectVersion? Original { get; }
     public string StagePath { get; }
-    public string StageIdentity { get; }
+    public string? StageIdentity { get; }
+    public long StageMaximumLength { get; }
     public ArchiveObjectVersion? VerifiedStage { get; }
     public string? RetainedPath { get; }
     public string? ManifestPath { get; }
@@ -61,32 +62,39 @@ public sealed class ArchiveTransactionFacts
     public bool IsResolved => Phase is ArchiveTransactionPhase.Committed or ArchiveTransactionPhase.NotCommitted or ArchiveTransactionPhase.RolledBack;
 
     public ArchiveTransactionFacts(Guid nonce, int sequence, ArchiveWriteProfile profile, ArchiveTransactionPhase phase,
-        string archivePath, string parentIdentity, ArchiveObjectVersion? original, string stagePath, string stageIdentity,
+        string archivePath, string parentIdentity, ArchiveObjectVersion? original, string stagePath, string? stageIdentity,
         ArchiveObjectVersion? verifiedStage = null, string? retainedPath = null, string? manifestPath = null,
         ArchiveObjectVersion? manifest = null, string? securitySnapshotSha256 = null,
         ArchiveObjectVersion? published = null, ArchiveObjectVersion? retired = null,
         IReadOnlyList<string>? unresolvedArtifacts = null, string? originEvidencePath = null,
-        string? originEvidenceIdentity = null, int? originEvidenceSources = null, ArchiveObjectVersion? originEvidence = null)
+        string? originEvidenceIdentity = null, int? originEvidenceSources = null, ArchiveObjectVersion? originEvidence = null,
+        long stageMaximumLength = ArchiveWritePolicy.MaxPhysicalBytes)
         : this(SchemaVersion, nonce, sequence, profile, phase, archivePath, parentIdentity, original, stagePath, stageIdentity,
             verifiedStage, retainedPath, manifestPath, manifest, securitySnapshotSha256, published, retired, unresolvedArtifacts,
-            originEvidencePath, originEvidenceIdentity, originEvidenceSources, originEvidence)
+            originEvidencePath, originEvidenceIdentity, originEvidenceSources, originEvidence, stageMaximumLength)
     { }
 
     // Legacy records can be inspected but never written/upgraded in place or treated as complete provenance evidence.
     private ArchiveTransactionFacts(int recordVersion, Guid nonce, int sequence, ArchiveWriteProfile profile, ArchiveTransactionPhase phase,
-        string archivePath, string parentIdentity, ArchiveObjectVersion? original, string stagePath, string stageIdentity,
+        string archivePath, string parentIdentity, ArchiveObjectVersion? original, string stagePath, string? stageIdentity,
         ArchiveObjectVersion? verifiedStage, string? retainedPath, string? manifestPath, ArchiveObjectVersion? manifest,
         string? securitySnapshotSha256, ArchiveObjectVersion? published, ArchiveObjectVersion? retired,
         IReadOnlyList<string>? unresolvedArtifacts, string? originEvidencePath, string? originEvidenceIdentity,
-        int? originEvidenceSources, ArchiveObjectVersion? originEvidence)
+        int? originEvidenceSources, ArchiveObjectVersion? originEvidence, long stageMaximumLength)
     {
-        if (recordVersion is not (1 or SchemaVersion)) throw new ArgumentException("Unsupported archive transaction schema.");
+        if (recordVersion is not (1 or 2 or SchemaVersion)) throw new ArgumentException("Unsupported archive transaction schema.");
         if (nonce == Guid.Empty || sequence is < 1 or > MaxTransitions || !Enum.IsDefined(phase))
             throw new ArgumentException("The archive transaction phase or sequence is invalid.");
         ArgumentNullException.ThrowIfNull(profile);
-        ValidatePath(archivePath); ValidateText(parentIdentity, 4096); ValidatePath(stagePath); ValidateText(stageIdentity, 4096);
+        ValidatePath(archivePath); ValidateText(parentIdentity, 4096); ValidatePath(stagePath);
+        if (stageIdentity is not null) ValidateText(stageIdentity, 4096);
+        if (stageMaximumLength < 0 || stageMaximumLength > ArchiveWritePolicy.MaxPhysicalBytes ||
+            verifiedStage?.Length > stageMaximumLength)
+            throw new ArgumentException("The stage exceeds its reserved physical bound.");
+        if (stageIdentity is null && (recordVersion < 3 || phase is not (ArchiveTransactionPhase.Reserved or ArchiveTransactionPhase.NeedsReview)))
+            throw new ArgumentException("A stage without recorded identity must remain reserved or require review.");
         if (string.Equals(archivePath, stagePath, StringComparison.Ordinal)) throw new ArgumentException("The stage cannot be the archive.");
-        if (original?.Identity == stageIdentity) throw new ArgumentException("The stage cannot alias the original object.");
+        if (original is not null && original.Identity == stageIdentity) throw new ArgumentException("The stage cannot alias the original object.");
         if (verifiedStage is not null && verifiedStage.Identity != stageIdentity)
             throw new ArgumentException("The verified stage is a different object.");
         if (retainedPath is not null)
@@ -156,7 +164,7 @@ public sealed class ArchiveTransactionFacts
         if (phase == ArchiveTransactionPhase.CommittedWithRetainedArtifacts && artifacts.Count == 0)
             throw new ArgumentException("A cleanup warning must name its retained artifacts.");
         RecordVersion = recordVersion; Nonce = nonce; Sequence = sequence; Profile = profile; Phase = phase; ArchivePath = archivePath;
-        ParentIdentity = parentIdentity; Original = original; StagePath = stagePath; StageIdentity = stageIdentity;
+        ParentIdentity = parentIdentity; Original = original; StagePath = stagePath; StageIdentity = stageIdentity; StageMaximumLength = stageMaximumLength;
         VerifiedStage = verifiedStage; RetainedPath = retainedPath; ManifestPath = manifestPath; Manifest = manifest;
         OriginEvidencePath = originEvidencePath; OriginEvidenceIdentity = originEvidenceIdentity;
         OriginEvidenceSources = originEvidenceSources; OriginEvidence = originEvidence;
@@ -191,7 +199,8 @@ public sealed class ArchiveTransactionFacts
         }
         if (RecordVersion != previous.RecordVersion || Nonce != previous.Nonce || Sequence != previous.Sequence + 1 || Profile != previous.Profile ||
             ArchivePath != previous.ArchivePath || ParentIdentity != previous.ParentIdentity || Original != previous.Original ||
-            StagePath != previous.StagePath || StageIdentity != previous.StageIdentity ||
+            StagePath != previous.StagePath || StageMaximumLength != previous.StageMaximumLength ||
+            previous.StageIdentity is not null && StageIdentity != previous.StageIdentity ||
             previous.RetainedPath is not null && RetainedPath != previous.RetainedPath ||
             previous.VerifiedStage is not null && VerifiedStage != previous.VerifiedStage ||
             previous.Manifest is not null && (Manifest != previous.Manifest || ManifestPath != previous.ManifestPath) ||
@@ -203,6 +212,8 @@ public sealed class ArchiveTransactionFacts
             throw new ArgumentException("Archive transaction evidence changed or a transition is missing.");
         bool allowed = (previous.Phase, Phase) switch
         {
+            (ArchiveTransactionPhase.Reserved, ArchiveTransactionPhase.Reserved) => RecordVersion >= 3 &&
+                previous.StageIdentity is null && StageIdentity is not null,
             (ArchiveTransactionPhase.Reserved, ArchiveTransactionPhase.Rebuilding) => true,
             (ArchiveTransactionPhase.Rebuilding, ArchiveTransactionPhase.Verifying) => true,
             (ArchiveTransactionPhase.Verifying, ArchiveTransactionPhase.ReadyToPublish) => true,
@@ -238,7 +249,17 @@ public sealed class ArchiveTransactionFacts
             node["originPath"] = OriginEvidencePath; node["originIdentity"] = OriginEvidenceIdentity;
             node["originSources"] = OriginEvidenceSources; node["originEvidence"] = VersionJson(OriginEvidence);
         }
+        if (RecordVersion >= 3) node["stageMaximum"] = StageMaximumLength;
         return node;
+    }
+
+    internal ArchiveTransactionFacts BindCreatedStage(string identity)
+    {
+        if (RecordVersion != SchemaVersion || Phase != ArchiveTransactionPhase.Reserved || StageIdentity is not null)
+            throw new InvalidOperationException("Only a fresh stage reservation can record its created identity.");
+        return new(Nonce, Sequence + 1, Profile, Phase, ArchivePath, ParentIdentity, Original, StagePath, identity,
+            VerifiedStage, RetainedPath, ManifestPath, Manifest, SecuritySnapshotSha256, Published, Retired, UnresolvedArtifacts,
+            OriginEvidencePath, OriginEvidenceIdentity, OriginEvidenceSources, OriginEvidence, StageMaximumLength);
     }
 
     private static JsonObject? VersionJson(ArchiveObjectVersion? v) => v is null ? null :
@@ -249,9 +270,10 @@ public sealed class ArchiveTransactionFacts
         int recordVersion = Int(node, "v");
         string[] keys = ["t", "v", "nonce", "sequence", "profile", "phase", "archive", "parent", "original", "stage", "stageIdentity",
             "verified", "retained", "manifestPath", "manifest", "security", "published", "retired", "unresolved"];
-        if (recordVersion == SchemaVersion) keys = [.. keys, "originPath", "originIdentity", "originSources", "originEvidence"];
+        if (recordVersion >= 2) keys = [.. keys, "originPath", "originIdentity", "originSources", "originEvidence"];
+        if (recordVersion >= 3) keys = [.. keys, "stageMaximum"];
         ExactKeys(node, keys);
-        if (recordVersion is not (1 or SchemaVersion) || Text(node, "t") != "archive-transaction" ||
+        if (recordVersion is not (1 or 2 or SchemaVersion) || Text(node, "t") != "archive-transaction" ||
             !Guid.TryParseExact(Text(node, "nonce"), "N", out var nonce) ||
             !Enum.TryParse(Text(node, "phase"), out ArchiveTransactionPhase phase) || phase.ToString() != Text(node, "phase") ||
             node["profile"] is not JsonObject profile || node["unresolved"] is not JsonArray artifacts || artifacts.Count > MaxArtifacts)
@@ -259,13 +281,15 @@ public sealed class ArchiveTransactionFacts
         ExactKeys(profile, "format", "version", "level", "dictionary");
         return new(recordVersion, nonce, Int(node, "sequence"), new((ArchiveWriteFormat)Int(profile, "format"), Int(profile, "version"),
                 Int(profile, "level"), Int(profile, "dictionary")), phase, Text(node, "archive"), Text(node, "parent"),
-            ParseVersion(node["original"]), Text(node, "stage"), Text(node, "stageIdentity"), ParseVersion(node["verified"]),
+            ParseVersion(node["original"]), Text(node, "stage"), recordVersion >= 3 ? OptionalText(node, "stageIdentity") : Text(node, "stageIdentity"), ParseVersion(node["verified"]),
             OptionalText(node, "retained"), OptionalText(node, "manifestPath"), ParseVersion(node["manifest"]), OptionalText(node, "security"),
             ParseVersion(node["published"]), ParseVersion(node["retired"]), artifacts.Select(n =>
                 n is JsonValue v && v.TryGetValue<string>(out var p) ? p : throw new ArgumentException("Invalid artifact path.")).ToArray(),
             recordVersion >= 2 ? OptionalText(node, "originPath") : null, recordVersion >= 2 ? OptionalText(node, "originIdentity") : null,
             recordVersion >= 2 && node["originSources"] is not null ? Int(node, "originSources") : null,
-            recordVersion >= 2 ? ParseVersion(node["originEvidence"]) : null);
+            recordVersion >= 2 ? ParseVersion(node["originEvidence"]) : null,
+            recordVersion >= 3 && node["stageMaximum"] is JsonValue maximum && maximum.TryGetValue<long>(out long bound)
+                ? bound : recordVersion < 3 ? ArchiveWritePolicy.MaxPhysicalBytes : throw new ArgumentException("Invalid stage bound."));
     }
 
     private static ArchiveObjectVersion? ParseVersion(JsonNode? node)
@@ -334,7 +358,7 @@ internal sealed class ArchiveTransactionCollector
         {
             hasRecords = true;
             if (node["archiveJournalVersion"] is not JsonValue value || !value.TryGetValue<int>(out int version) ||
-                version is not (1 or ArchiveTransactionFacts.SchemaVersion))
+                version is not (1 or 2 or ArchiveTransactionFacts.SchemaVersion))
                 problem = "This archive journal version is unsupported; retain all related artifacts for review.";
             else { headerVersion = version; legacy |= version == 1; }
             return;

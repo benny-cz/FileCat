@@ -67,7 +67,8 @@ exhausted semantic budget followed by valid fixed IO framing. These are boundary
 No failures occurred. Skips are retained in the TRX and are not counted as passes. The broad filters were
 `FullyQualifiedName~Archive|FullyQualifiedName~EditSession|FullyQualifiedName~BackingArchiveTarget`. Native lanes used
 the tracked Windows containment and Linux archive runners. SDK 10.0.101 builds completed with zero warnings/errors;
-test runtime was 10.0.14. The first v1 run passed before explicit enum assignments and the maximum-name cases were
+Windows/Ubuntu test runtime was 10.0.14. The Mac runtime version was not independently captured; see the
+[later runtime inventory correction](STAGE_CREATION_RESERVATION.md). The first v1 run passed before explicit enum assignments and the maximum-name cases were
 added; final v2 runs above supersede it and counts are not combined.
 
 The new cases cover typed-wire corruption and immutable aliases, creation/update/empty/remove-all, exact duplicate

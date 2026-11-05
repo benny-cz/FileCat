@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="FileCat.Core.Tests" />
+    <InternalsVisibleTo Include="FileCat.CoreCrashHarness" />
     <InternalsVisibleTo Include="FileCat.WorkerProbe" />
     <InternalsVisibleTo Include="FileCat.App.Tests" />
     <InternalsVisibleTo Include="FileCat.Platform.Windows" />

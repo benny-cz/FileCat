@@ -63,7 +63,9 @@ member mode and timestamp together. Forged derived metadata beside an unchanged 
 There were no failures. Skips remain visible in TRX and are not passes. The broad regression/storage filter was
 `FullyQualifiedName~Archive|FullyQualifiedName~EditSession|FullyQualifiedName~BackingArchiveTarget`; native lanes used
 the tracked Windows containment and Linux archive runners. SDK 10.0.101 builds completed with zero warnings/errors;
-actual test runtime was 10.0.14. Windows launch facts record integrity 12288 before/8192 after and exit 0. Administrator
+Windows/Ubuntu test runtime was 10.0.14. The Mac runtime version was not independently captured for this checkpoint;
+the later [reservation checkpoint](STAGE_CREATION_RESERVATION.md) corrects the earlier blanket runtime claim.
+Windows launch facts record integrity 12288 before/8192 after and exit 0. Administrator
 membership/privileges remain; this is not ordinary filtered-user or installed-package qualification. Linux service
 metrics describe the driver, not sibling worker memory. Headless tests are not live GUI acceptance.
 

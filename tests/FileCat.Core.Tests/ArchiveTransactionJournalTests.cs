@@ -8,6 +8,27 @@ namespace FileCat.Core.Tests;
 
 public sealed class ArchiveTransactionJournalTests
 {
+    [Fact]
+    public void Completed_schema_two_history_keeps_its_complete_provenance_and_normal_retention_behavior()
+    {
+        using var f = new Fixture();
+        using (var journal = f.Writer())
+        {
+            for (int i = 0; i < Fixture.SuccessPhases.Length; i++) journal.ArchiveTransaction(f.Facts(i + 1, Fixture.SuccessPhases[i]));
+            journal.Finish(JobState.Completed, "completed schema-two fixture");
+        }
+        Rewrite(f.JournalPath, node =>
+        {
+            if (node.ContainsKey("archiveJournalVersion")) node["archiveJournalVersion"] = 2;
+            if (node["t"]?.GetValue<string>() == "archive-transaction") { node["v"] = 2; node.Remove("stageMaximum"); }
+        });
+        var recovery = JournalRecovery.ReadArchiveTransactions(f.JournalPath);
+        Assert.Null(recovery.Problem); Assert.False(recovery.RequiresReview);
+        var facts = Assert.Single(recovery.Transactions); Assert.Equal(2, facts.RecordVersion); Assert.Equal(f.Origin, facts.OriginEvidence);
+        Assert.Empty(JournalRecovery.Scan(f.Journals, keepFinished: 0));
+        Assert.True(File.Exists(f.StagePath)); Assert.True(File.Exists(f.OriginPath));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -473,6 +494,7 @@ public sealed class ArchiveTransactionJournalTests
 
     private static void MakeLegacy(JsonObject node)
     {
+        node.Remove("stageMaximum");
         node["v"] = 1;
         foreach (string key in new[] { "originPath", "originIdentity", "originSources", "originEvidence" }) node.Remove(key);
     }

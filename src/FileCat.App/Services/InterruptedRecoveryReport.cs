@@ -133,7 +133,9 @@ internal static class InterruptedRecoveryReport
                         ", length " + version.Length.ToString(CultureInfo.InvariantCulture) + ", SHA-256 " + version.Sha256);
                 }
                 Line("Recorded parent identity: " + JsonSerializer.Serialize(transaction.ParentIdentity));
-                Line("Recorded stage identity: " + JsonSerializer.Serialize(transaction.StageIdentity));
+                Line(transaction.StageIdentity is { } stageIdentity ? "Recorded stage identity: " + JsonSerializer.Serialize(stageIdentity) :
+                    "Stage creation identity was not recorded; its reserved path is evidence for review only.");
+                if (transaction.RecordVersion >= 3) Line("Reserved stage byte limit: " + transaction.StageMaximumLength.ToString(CultureInfo.InvariantCulture));
                 if (transaction.OriginEvidenceIdentity is { } originIdentity) Line("Recorded provenance-evidence identity: " + JsonSerializer.Serialize(originIdentity));
                 if (transaction.OriginEvidenceSources is { } originSources) Line("Declared captured origin sources: " + originSources.ToString(CultureInfo.InvariantCulture));
                 Version("Original object", transaction.Original);

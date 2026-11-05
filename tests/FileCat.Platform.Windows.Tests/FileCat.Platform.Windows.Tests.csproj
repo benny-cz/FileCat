@@ -18,12 +18,14 @@
     <ProjectReference Include="..\..\src\FileCat.ShellHost\FileCat.ShellHost.csproj" />
     <!-- A .NET worker stand-in for restricted-helper tests, started from the same folder. -->
     <ProjectReference Include="..\FileCat.WorkerProbe\FileCat.WorkerProbe.csproj" />
+    <ProjectReference Include="..\FileCat.CoreCrashHarness\FileCat.CoreCrashHarness.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\LiveUsbGuard.cs" Link="LiveUsbGuard.cs" />
+    <Compile Include="..\ArchiveStageCrashAssertions.cs" Link="ArchiveStageCrashAssertions.cs" />
     <!-- A disk image with deleted files, for reading drives through the helper's protocol (Core tests' TestData/Recovery). -->
     <None Include="..\FileCat.Core.Tests\TestData\Recovery\fat16.img.gz" Link="TestData\fat16.img.gz" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

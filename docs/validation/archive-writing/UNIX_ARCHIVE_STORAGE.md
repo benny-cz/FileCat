@@ -72,7 +72,8 @@ Final six-file source overlay over `5c9bf33b`: `unix-archive-storage-source-v4.t
 `E4EE3109BE91A5F603938323B9DBF093458B98B36E01BBA1AD4EC3C8714E9336`.
 It contains the four Unix storage/native/volume files, the Linux isolation change and the storage tests. Source builds
 with SDK 10.0.101 completed with zero warnings/errors. Guest sources contain the preceding recorded checkpoints;
-their baseline Git HEAD alone is not the tested source. Runtime: serviced .NET 10.0.14.
+their baseline Git HEAD alone is not the tested source. Windows/Ubuntu runtime: serviced .NET 10.0.14. The Mac runtime
+version was not independently captured; see the [later correction](STAGE_CREATION_RESERVATION.md).
 
 | Final lane | Passed | Skipped | Failed | Scope |
 |---|---:|---:|---:|---|

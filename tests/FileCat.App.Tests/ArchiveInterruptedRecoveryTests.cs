@@ -26,6 +26,7 @@ public sealed class ArchiveInterruptedRecoveryTests
 {
     [AvaloniaTheory]
     [InlineData("reserved")]
+    [InlineData("unrecorded-stage")]
     [InlineData("committed-warning")]
     [InlineData("unknown")]
     [InlineData("mixed")]
@@ -52,6 +53,12 @@ public sealed class ArchiveInterruptedRecoveryTests
             Assert.Contains("Archive recovery facts (read-only)", report.Text);
             Assert.Contains("have not been inspected", report.Text);
             Assert.Contains(JsonSerializer.Serialize(f.StagePath), report.Text);
+            if (state == "unrecorded-stage")
+            {
+                Assert.Contains("Stage creation identity was not recorded", report.Text);
+                Assert.Contains("Reserved stage byte limit:", report.Text);
+                Assert.DoesNotContain("Recorded stage identity: null", report.Text);
+            }
             if (!state.StartsWith("legacy", StringComparison.Ordinal))
             {
                 Assert.Contains(JsonSerializer.Serialize(f.OriginPath), report.Text);
@@ -159,7 +166,7 @@ public sealed class ArchiveInterruptedRecoveryTests
                     ArchiveTransactionPhase.Cleaning, ArchiveTransactionPhase.CommittedWithRetainedArtifacts };
                 if (state == "legacy-committed") phases[^1] = ArchiveTransactionPhase.Committed;
                 for (int i = 0; i < (state is "committed-warning" or "mixed" or "origin-warning" or "legacy-committed" ? phases.Length : 1); i++)
-                    writer.ArchiveTransaction(new(nonce, i + 1, profile, phases[i], archive, "parent-object", original, stagePath, stage.Identity,
+                    writer.ArchiveTransaction(new(nonce, i + 1, profile, phases[i], archive, "parent-object", original, stagePath, state == "unrecorded-stage" ? null : stage.Identity,
                         i >= 3 ? stage : null, i >= 3 ? retainedPath : null, i >= 3 ? manifestPath : null, i >= 3 ? manifest : null,
                         i >= 3 ? new string('E', 64) : null, i >= 5 ? stage : null, i >= 5 ? original : null,
                         i == 7 && state != "legacy-committed" ? [state == "origin-warning" ? originPath : retainedPath] : [],
@@ -182,7 +189,7 @@ public sealed class ArchiveInterruptedRecoveryTests
                     if (record["t"]?.GetValue<string>() == "archive-transaction")
                     {
                         record["v"] = 1;
-                        foreach (string key in new[] { "originPath", "originIdentity", "originSources", "originEvidence" }) record.Remove(key);
+                        foreach (string key in new[] { "originPath", "originIdentity", "originSources", "originEvidence", "stageMaximum" }) record.Remove(key);
                     }
                 }
                 File.WriteAllText(journalPath, string.Concat(records.Select(record =>

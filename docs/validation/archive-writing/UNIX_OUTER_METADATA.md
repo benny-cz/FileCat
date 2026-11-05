@@ -83,7 +83,8 @@ constructor/digest cases exercise frozen binary data, every field, presence mark
 
 Windows final TRX: `archive-unix-metadata-vm2.trx`; managed 28-file overlay SHA-256
 `2581EAD765CF7EBC803D064923C9B4E4D897784B6B3122CAD22293147C893627`.
-Mac final TRX: `archive-unix-metadata-mac-v2.trx`; source built natively using SDK 10.0.101 and runtime 10.0.14.
+Mac final TRX: `archive-unix-metadata-mac-v2.trx`; source built natively using SDK 10.0.101. Its runtime version was not
+independently captured; see the [later runtime inventory correction](STAGE_CREATION_RESERVATION.md).
 Ubuntu final TRX: `archive-unix-metadata-ubuntu-v2.trx`; the same source built natively using SDK 10.0.101 and runtime
 10.0.14; native observer built with GCC 13.3.0. Testing was postponed while other FileCat instances ran, then began
 only after an idle check. Both Unix observer comparison cases passed, not skipped.

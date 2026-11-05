@@ -29,7 +29,8 @@ repo=$1; dotnet=$2; probe=$3; results=$4
 for path in "$repo" "$dotnet" "$probe" "$results"; do
     case "$path" in /*) ;; *) echo 'All qualification paths must be absolute.' >&2; exit 64 ;; esac
 done
-[ -f "$repo/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll" ] && [ -x "$dotnet" ] && [ -x "$probe" ] || exit 65
+[ -f "$repo/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll" ] &&
+    [ -f "$dotnet" ] && [ -x "$dotnet" ] && [ -f "$probe" ] && [ -x "$probe" ] || exit 65
 python3 - <<'PY'
 import os, subprocess
 active=[]

@@ -11,6 +11,9 @@ using FileCat.Core.Archives;
 if (args.Length > 0 && args[0] == "--archive-test-medium")
     return await ArchiveTestMedium.Run(args[1..]);
 
+if (args is ["--archive-stage-crash", var artifactRoot, var crashPoint, var nativeAssembly])
+    return ArchiveStageCrash.Run(artifactRoot, crashPoint, nativeAssembly);
+
 if (args is ["--archive-boundary-parent", var platformAssembly, var archiveProbe] && OperatingSystem.IsWindows())
 {
     // Test-only crash host: deliberately load the platform adapter supplied by the native test without adding
