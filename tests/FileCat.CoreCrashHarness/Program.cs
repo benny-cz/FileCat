@@ -6,6 +6,23 @@ using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Core.Search;
 using FileCat.Core.State;
+using FileCat.Core.Analysis;
+
+if (args is ["--analysis-scratch-vector", var recordText, var vectorParent])
+    return ScratchScale.Run(int.Parse(recordText, System.Globalization.CultureInfo.InvariantCulture), vectorParent);
+
+if (args is ["--analysis-scratch-hold", var scratchParent])
+{
+    // Only the test parent's fresh generated directory is admitted. The parent kills this exact child
+    // after SCRATCH_READY, so no managed finally/Dispose runs. Windows adapter loading is test-only;
+    // keeping it out of project references leaves this portable core harness free of Windows packages.
+    AnalysisPrivateDirectory scratchDirectory = ScratchScale.Directory(scratchParent);
+    var arena = new AnalysisScratchArena(scratchDirectory);
+    arena.Append(new byte[128 * 1024]); var checkpoint = arena.Capture();
+    Console.WriteLine("SCRATCH_READY"); Console.Out.Flush();
+    Console.ReadLine(); GC.KeepAlive(checkpoint); GC.KeepAlive(arena);
+    return 18; // A normal return cannot establish the crash-cleanup property.
+}
 
 if (args is ["--matroska-depth"])
 {

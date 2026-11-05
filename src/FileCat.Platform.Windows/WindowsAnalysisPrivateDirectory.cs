@@ -119,6 +119,23 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
         catch { owned.Dispose(); throw; }
     }
 
+    internal override AnalysisPrivateScratchFile CreateScratch()
+    {
+        Verify();
+        // FILE_DELETE_ON_CLOSE is set in the create itself, including the crash-before-first-write case.
+        // Exclusive sharing also prevents another opener from retaining the temporary data after our exit.
+        // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-zwcreatefile
+        var owned = OpenOwned(Root, ".scratch-" + Guid.NewGuid().ToString("N"),
+            GenericRead | GenericWrite | Delete | ReadControl | Synchronize, 0, Create,
+            NonDirectoryFile | OpenReparsePoint | 0x1000, _fileSecurity);
+        try
+        {
+            Private(owned.Handle, directory: false, allowDeletePending: true);
+            return new AnalysisHandleScratchFile(owned.Handle, () => Private(owned.Handle, false, allowDeletePending: true), owned.Dispose);
+        }
+        catch { owned.Dispose(); throw; }
+    }
+
     internal override string[] Entries(CancellationToken cancellation)
     {
         Verify(); var names = new List<string>(); byte[] buffer = new byte[64 * 1024]; long bytes = 0; bool restart = true;
@@ -157,11 +174,11 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
         Verify(); return names.ToArray();
     }
 
-    private void Private(SafeFileHandle handle, bool directory)
+    private void Private(SafeFileHandle handle, bool directory, bool allowDeletePending = false)
     {
         RejectReparse(handle);
         byte* standard = stackalloc byte[24];
-        if (!GetFileInformationByHandleEx(handle, 1, standard, 24) || (standard[21] != 0) != directory || standard[20] != 0 ||
+        if (!GetFileInformationByHandleEx(handle, 1, standard, 24) || (standard[21] != 0) != directory || !allowDeletePending && standard[20] != 0 ||
             !directory && (*(uint*)(standard + 16) != 1 || *(long*)(standard + 8) is < 0 or > AnalysisLimits.InventoryBytes))
             throw new IOException("Analysis storage is not an ordinary private directory or single-link file.");
         int error = GetSecurityInfo(handle, 1, 1 | 4, out _, out _, out _, out _, out nint raw);

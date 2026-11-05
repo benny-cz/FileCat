@@ -98,12 +98,28 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
 
     internal override AnalysisPrivateFile CreateStaging()
     {
+        var owned = CreateAnonymous();
+        try { return new PrivateFile(this, owned, writable: true); }
+        catch { owned.Dispose(); throw; }
+    }
+
+    internal override AnalysisPrivateScratchFile CreateScratch()
+    {
+        var owned = CreateAnonymous(unpublishable: true);
+        try { return new AnalysisHandleScratchFile(owned.Handle, () => Private(owned.Handle, false, 0), owned.Dispose); }
+        catch { owned.Dispose(); throw; }
+    }
+
+    private OwnedHandle CreateAnonymous(bool unpublishable = false)
+    {
         Verify();
         OwnedHandle owned;
         if (!_mac)
         {
             // O_TMPFILE: no partial inventory name exists, even on process death.
-            owned = OpenOwned(Root, ".", 0x410000 | 0x80000 | 2, 0x180); // 0600
+            // O_EXCL with O_TMPFILE forbids linking a scratch descriptor into the namespace.
+            // Inventory staging deliberately omits it because publication must remain possible.
+            owned = OpenOwned(Root, ".", 0x410000 | 0x80000 | 2 | (unpublishable ? 0x80 : 0), 0x180); // 0600
         }
         else
         {
@@ -120,7 +136,7 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
             }
             catch { owned.Dispose(); throw; }
         }
-        try { Private(owned.Handle, directory: false, links: 0); return new PrivateFile(this, owned, writable: true); }
+        try { Private(owned.Handle, directory: false, links: 0); return owned; }
         catch { owned.Dispose(); throw; }
     }
 

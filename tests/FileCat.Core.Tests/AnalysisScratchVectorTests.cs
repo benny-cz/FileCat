@@ -1,0 +1,99 @@
+using System.Buffers.Binary;
+using FileCat.Core.Analysis;
+
+namespace FileCat.Core.Tests;
+
+public sealed class AnalysisScratchVectorTests
+{
+    private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
+    private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary process.");
+
+    [Fact]
+    public void DenseMixedWidthRecordsRoundTripAcrossByteAndCountBoundariesAndOldRevisionsStayFixed()
+    {
+        Ordinary(); var directory = new MemoryDirectory(); using var arena = new AnalysisScratchArena(directory);
+        using var vector = new AnalysisScratchVector(arena); var expected = new List<byte[]>();
+        for (int i = 0; i < 2200; i++)
+        {
+            byte[] value = i % 173 == 0 ? new byte[100_000] : [(byte)i, (byte)(i >> 8)];
+            value.AsSpan().Fill((byte)i); expected.Add(value); Assert.Equal((ulong)i + 1, vector.Append(value, Cancellation));
+        }
+        vector.Flush(Cancellation); using var old = vector.CaptureCommitted();
+        Assert.Equal(2200UL, old.Count);
+        foreach (int i in new[] { 0, 172, 173, 511, 512, 1023, 2199 }) Assert.Equal(expected[i], old.Read((ulong)i + 1, Cancellation));
+        vector.Append([99], Cancellation); using var pending = vector.CaptureCommitted(); Assert.Equal(old.Count, pending.Count);
+        Assert.Throws<ArgumentOutOfRangeException>(() => old.Read(2201, Cancellation));
+        vector.Flush(Cancellation); using var current = vector.CaptureCommitted(); Assert.Equal(2201UL, current.Count);
+        Assert.Equal(new byte[] { 99 }, current.Read(2201, Cancellation));
+        // Returned arrays cannot mutate the checkpoint's cache or older records.
+        byte[] copy = current.Read(1, Cancellation); copy[0] = 99; Assert.Equal(expected[0], current.Read(1, Cancellation));
+        vector.Dispose(); Assert.False(directory.Closed); Assert.Equal(expected[173], old.Read(174, Cancellation));
+        old.Dispose(); pending.Dispose(); current.Dispose(); Assert.True(directory.Closed);
+    }
+
+    [Fact]
+    public void FailedBlockAppendKeepsTheCommittedDensePrefixAndCannotRetryTheBufferedTail()
+    {
+        Ordinary(); var directory = new MemoryDirectory(); using var arena = new AnalysisScratchArena(directory);
+        using var vector = new AnalysisScratchVector(arena); vector.Append([1], Cancellation); vector.Flush(Cancellation);
+        using var old = vector.CaptureCommitted(); vector.Append([2], Cancellation); directory.File.Fail = true;
+        Assert.Throws<IOException>(() => vector.Flush(Cancellation)); Assert.True(vector.Failed);
+        Assert.Equal(2UL, vector.AcceptedCount); Assert.Equal(1UL, vector.CommittedCount);
+        using var partial = vector.CaptureCommitted(); Assert.Equal(1UL, partial.Count); Assert.Equal(new byte[] { 1 }, partial.Read(1, Cancellation));
+        Assert.Throws<IOException>(() => vector.Append([3], Cancellation)); Assert.Throws<IOException>(() => vector.Flush(Cancellation));
+        Assert.Throws<ArgumentOutOfRangeException>(() => old.Read(2, Cancellation));
+    }
+
+    [Fact]
+    public void RecordAndDirectoryCapsRefuseExplicitlyWithoutLosingPublishedRecords()
+    {
+        Ordinary(); using var arena = new AnalysisScratchArena(new MemoryDirectory()); using var vector = new AnalysisScratchVector(arena, recordLimit: 3, blockLimit: 2);
+        Assert.Throws<ArgumentOutOfRangeException>(() => vector.Append(new byte[AnalysisScratchVector.MaximumRecordBytes + 1], Cancellation));
+        Assert.Equal(0UL, vector.AcceptedCount);
+        vector.Append([], Cancellation); vector.Flush(Cancellation); vector.Append([2], Cancellation); vector.Flush(Cancellation);
+        vector.Append([3], Cancellation); Assert.Throws<IOException>(() => vector.Flush(Cancellation));
+        using var partial = vector.CaptureCommitted(); Assert.Equal(2UL, partial.Count); Assert.Empty(partial.Read(1, Cancellation));
+        Assert.Equal(new byte[] { 2 }, partial.Read(2, Cancellation));
+        using var secondArena = new AnalysisScratchArena(new MemoryDirectory()); using var recordLimited = new AnalysisScratchVector(secondArena, recordLimit: 1);
+        recordLimited.Append([1], Cancellation); recordLimited.Flush(Cancellation); Assert.Throws<IOException>(() => recordLimited.Append([2], Cancellation));
+        using var retained = recordLimited.CaptureCommitted(); Assert.Equal(1UL, retained.Count);
+    }
+
+    [Fact]
+    public void AuthenticatedButInvalidRecordOffsetsCannotEscapeTheirBlock()
+    {
+        Ordinary(); using var arena = new AnalysisScratchArena(new MemoryDirectory());
+        byte[] bad = new byte[AnalysisScratchVector.DirectoryBytes + 1];
+        BinaryPrimitives.WriteUInt32LittleEndian(bad, AnalysisScratchVector.Format); BinaryPrimitives.WriteInt32LittleEndian(bad.AsSpan(4), 1);
+        BinaryPrimitives.WriteUInt64LittleEndian(bad.AsSpan(8), 1); BinaryPrimitives.WriteInt32LittleEndian(bad.AsSpan(16), AnalysisScratchVector.DirectoryBytes);
+        BinaryPrimitives.WriteInt32LittleEndian(bad.AsSpan(20), int.MaxValue);
+        var address = arena.Append(bad, Cancellation);
+        using var checkpoint = new AnalysisScratchVectorCheckpoint(arena.Capture(), [[new(1, 1, address)]], 1, 1);
+        Assert.Throws<InvalidDataException>(() => checkpoint.Read(1, Cancellation));
+    }
+
+    private sealed class MemoryDirectory : AnalysisPrivateDirectory
+    {
+        internal readonly MemoryFile File = new(); internal bool Closed;
+        internal override void Verify() => ObjectDisposedException.ThrowIf(Closed, this);
+        internal override (UInt128 Capacity, UInt128 Available) Space() => ((UInt128)1024 * 1024 * 1024, (UInt128)1024 * 1024 * 1024);
+        internal override AnalysisPrivateScratchFile CreateScratch() => File;
+        internal override AnalysisPrivateFile CreateStaging() => throw new NotSupportedException();
+        internal override AnalysisPrivateFile OpenRead(string name) => throw new NotSupportedException();
+        public override void Dispose() { Closed = true; }
+    }
+    private sealed class MemoryFile : AnalysisPrivateScratchFile
+    {
+        private readonly MemoryStream _bytes = new(); internal bool Fail;
+        public override long Length => _bytes.Length;
+        public override void Verify() { }
+        public override int ReadAt(Span<byte> buffer, long offset) { _bytes.Position = offset; return _bytes.Read(buffer); }
+        public override void WriteAt(ReadOnlySpan<byte> buffer, long offset)
+        {
+            _bytes.Position = offset;
+            if (Fail) { _bytes.Write(buffer[..Math.Min(buffer.Length, 3)]); Fail = false; throw new IOException("Injected partial block append."); }
+            _bytes.Write(buffer);
+        }
+        public override void Dispose() => _bytes.Dispose();
+    }
+}

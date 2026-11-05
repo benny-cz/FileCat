@@ -13,6 +13,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\FileCat.Platform.Windows\FileCat.Platform.Windows.csproj" />
+    <ProjectReference Include="..\FileCat.CoreCrashHarness\FileCat.CoreCrashHarness.csproj" />
     <ProjectReference Include="..\..\src\FileCat.PrivilegedHost\FileCat.PrivilegedHost.csproj" />
     <!-- TV-16 tests start the real Shell helper from the test output folder. -->
     <ProjectReference Include="..\..\src\FileCat.ShellHost\FileCat.ShellHost.csproj" />
@@ -26,5 +27,8 @@
     <Compile Include="..\LiveUsbGuard.cs" Link="LiveUsbGuard.cs" />
     <!-- A disk image with deleted files, for reading drives through the helper's protocol (Core tests' TestData/Recovery). -->
     <None Include="..\FileCat.Core.Tests\TestData\Recovery\fat16.img.gz" Link="TestData\fat16.img.gz" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\AnalysisScratchCrashFixture.cs" Link="AnalysisScratchCrashFixture.cs" />
   </ItemGroup>
 </Project>

@@ -7,6 +7,8 @@ public abstract class AnalysisPrivateDirectory : IDisposable
     internal abstract void Verify();
     internal abstract (UInt128 Capacity, UInt128 Available) Space();
     internal abstract AnalysisPrivateFile CreateStaging();
+    // Temporary files have no publication operation and disappear when their last native handle closes.
+    internal virtual AnalysisPrivateScratchFile CreateScratch() => throw new NotSupportedException("Private analysis scratch is unavailable.");
     internal abstract AnalysisPrivateFile OpenRead(string name);
     internal virtual string[] Entries(CancellationToken cancellation) => throw new NotSupportedException("Private catalog enumeration is unavailable.");
     public abstract void Dispose();

@@ -1,0 +1,42 @@
+{
+    "purpose":  "Native indexed scratch primitive; not full analysis scale qualification",
+    "archiveSha256":  "75abb0a3433939b3b6d297d2d20b4c1d264c1d322da68b9b3f357f21a1e56d91",
+    "platform":  "Microsoft Windows NT 10.0.26340.0",
+    "runs":  [
+                 {
+                     "records":  1000000,
+                     "processId":  9612,
+                     "exitCode":  null,
+                     "ownedProcessExited":  true,
+                     "measurement":  {
+                                         "purpose":  "Native indexed scratch storage only; not full analysis scale or capability qualification",
+                                         "records":  1000000,
+                                         "ordinaryRecordBytes":  64,
+                                         "longRecordBytes":  65536,
+                                         "longRecordEvery":  1024,
+                                         "parentDistribution":  "binary hierarchy identifiers; no full analysis graph/query/chart/export",
+                                         "writeSeconds":  1.0631876,
+                                         "readSeconds":  0.9463787,
+                                         "scratchBytes":  132035336,
+                                         "sampledEveryRecords":  16384,
+                                         "baselinePrivateBytes":  10084352,
+                                         "sampledPeakPrivateIncrement":  38350848,
+                                         "sampledPeakWorkingSetIncrement":  42622976,
+                                         "verifiedEveryRecord":  true,
+                                         "retainedCheckpointKeptItsCount":  true,
+                                         "checksum":  500000500000,
+                                         "ownedArtifactsRemoved":  true,
+                                         "foreignNeighborPreserved":  true,
+                                         "remainingQuotaBytes":  0,
+                                         "passed":  true
+                                     },
+                     "error":  "Storage scale failed \r\nAt C:\\FileCatDsa20261104R2\\windows-scratch-scale-r111.ps1:25 char:209\r\n+ ... ytes -ne 0){throw (\u0027Storage scale failed \u0027+(Get-Content -LiteralPath  ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (Storage scale failed :String) [], RuntimeExcepti \r\n   on\r\n    + FullyQualifiedErrorId : Storage scale failed \r\n \r\n"
+                 }
+             ],
+    "hashes":  {
+                   "FileCat.Core.dll":  "021c061ea4c7737bfae746b7a2bc711770e2277778a981bcf8957a791c801276",
+                   "FileCat.CoreCrashHarness.dll":  "1cbcd5d0533c15d9ed6a6ecdf0f7eda7de80001f3bf935c60c9b53d95fabdde6",
+                   "FileCat.Platform.Windows.dll":  "0380087e725d2cafe4d8acd1e4860b7ab2600a261527ee45c00202050387ea65"
+               },
+    "error":  "Storage scale failed \r\nAt C:\\FileCatDsa20261104R2\\windows-scratch-scale-r111.ps1:25 char:209\r\n+ ... ytes -ne 0){throw (\u0027Storage scale failed \u0027+(Get-Content -LiteralPath  ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (Storage scale failed :String) [], RuntimeExcepti \r\n   on\r\n    + FullyQualifiedErrorId : Storage scale failed \r\n \r\n"
+}

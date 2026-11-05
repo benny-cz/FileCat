@@ -1,0 +1,75 @@
+{
+    "purpose":  "Native indexed scratch primitive; not full analysis scale qualification",
+    "archiveSha256":  "3b1726a39295a88aac1fd9f43951591fc5c38a2b0259c4345338ad16518d37d9",
+    "platform":  "Microsoft Windows NT 10.0.26340.0",
+    "runs":  [
+                 {
+                     "records":  1000000,
+                     "processId":  5028,
+                     "exitCode":  0,
+                     "ownedProcessExited":  true,
+                     "measurement":  {
+                                         "purpose":  "Native indexed scratch storage only; not full analysis scale or capability qualification",
+                                         "records":  1000000,
+                                         "ordinaryRecordBytes":  64,
+                                         "longRecordBytes":  65536,
+                                         "longRecordEvery":  1024,
+                                         "parentDistribution":  "binary hierarchy identifiers; no full analysis graph/query/chart/export",
+                                         "writeSeconds":  1.6517668,
+                                         "readSeconds":  0.9520151,
+                                         "scratchBytes":  132035336,
+                                         "sampledEveryRecords":  16384,
+                                         "privateMemoryAvailable":  true,
+                                         "baselinePrivateBytes":  10129408,
+                                         "sampledPeakPrivateIncrement":  36818944,
+                                         "privateMemoryBudgetVerified":  true,
+                                         "privateMemoryBasis":  ".NET process private bytes; sampled, not an absolute peak",
+                                         "sampledPeakWorkingSetIncrement":  41205760,
+                                         "verifiedEveryRecord":  true,
+                                         "retainedCheckpointKeptItsCount":  true,
+                                         "checksum":  500000500000,
+                                         "ownedArtifactsRemoved":  true,
+                                         "foreignNeighborPreserved":  true,
+                                         "remainingQuotaBytes":  0,
+                                         "passed":  true
+                                     }
+                 },
+                 {
+                     "records":  10000000,
+                     "processId":  8412,
+                     "exitCode":  0,
+                     "ownedProcessExited":  true,
+                     "measurement":  {
+                                         "purpose":  "Native indexed scratch storage only; not full analysis scale or capability qualification",
+                                         "records":  10000000,
+                                         "ordinaryRecordBytes":  64,
+                                         "longRecordBytes":  65536,
+                                         "longRecordEvery":  1024,
+                                         "parentDistribution":  "binary hierarchy identifiers; no full analysis graph/query/chart/export",
+                                         "writeSeconds":  11.4249799,
+                                         "readSeconds":  9.5172698,
+                                         "scratchBytes":  1320663792,
+                                         "sampledEveryRecords":  16384,
+                                         "privateMemoryAvailable":  true,
+                                         "baselinePrivateBytes":  10108928,
+                                         "sampledPeakPrivateIncrement":  38633472,
+                                         "privateMemoryBudgetVerified":  true,
+                                         "privateMemoryBasis":  ".NET process private bytes; sampled, not an absolute peak",
+                                         "sampledPeakWorkingSetIncrement":  43483136,
+                                         "verifiedEveryRecord":  true,
+                                         "retainedCheckpointKeptItsCount":  true,
+                                         "checksum":  50000005000000,
+                                         "ownedArtifactsRemoved":  true,
+                                         "foreignNeighborPreserved":  true,
+                                         "remainingQuotaBytes":  0,
+                                         "passed":  true
+                                     }
+                 }
+             ],
+    "hashes":  {
+                   "FileCat.Core.dll":  "f18c613523b29594fa89e3fc8d4cffc25532a7ba13ecfb6ec901e2bcdf829344",
+                   "FileCat.CoreCrashHarness.dll":  "e798a8387e8e3ead097081d903a9aa80df3f88f7a73af07fecbde962cb68e07e",
+                   "FileCat.Platform.Windows.dll":  "0380087e725d2cafe4d8acd1e4860b7ab2600a261527ee45c00202050387ea65"
+               },
+    "passed":  true
+}
