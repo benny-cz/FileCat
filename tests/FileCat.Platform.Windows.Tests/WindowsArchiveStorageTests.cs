@@ -237,6 +237,7 @@ public sealed partial class WindowsArchiveStorageTests
         Assert.Throws<UnauthorizedAccessException>(() => file.RenameNoReplace("unwanted.bin", version, TestContext.Current.CancellationToken));
         Assert.Throws<UnauthorizedAccessException>(() => file.DeleteReviewed(version, TestContext.Current.CancellationToken));
         Assert.True(File.Exists(path));
+        originalSecurity.SetSecurityDescriptorBinaryForm(originalSecurity.GetSecurityDescriptorBinaryForm(), AccessControlSections.Access);
         new FileInfo(path).SetAccessControl(originalSecurity);
         File.SetAttributes(path, FileAttributes.ReadOnly);
         try
@@ -246,6 +247,7 @@ public sealed partial class WindowsArchiveStorageTests
         }
         finally { File.SetAttributes(path, FileAttributes.Normal); }
         Assert.Equal(version, file.CaptureVersion(TestContext.Current.CancellationToken));
+        file.RenameNoReplace("restored-private.stage", version, TestContext.Current.CancellationToken); // Rechecks the restored private DACL.
     }
 
     [Fact]
