@@ -2,6 +2,8 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Analysis;
 
+public sealed class AnalysisDeviceUnavailableException() : IOException("The device is not responding. Wait until it responds before starting new analysis work there.");
+
 /// <summary>
 /// Shared analysis admission for actual native work, including preparation and retained-handle cleanup.
 /// Cancellation never completes an already running native request before its delegate returns.
@@ -42,12 +44,14 @@ public static class AnalysisIo
     {
         ArgumentNullException.ThrowIfNull(scheduler); ArgumentNullException.ThrowIfNull(work);
         if (string.IsNullOrWhiteSpace(device) || device.Length > 1024) throw new ArgumentException("A bounded provider device key is required.", nameof(device));
+        if (!releaseOnly && scheduler.GetHealth(device) == DeviceHealth.NotResponding) throw new AnalysisDeviceUnavailableException();
         using var admission = await Admit(device, cancellation).ConfigureAwait(false);
         T Invoke(CancellationToken _)
         {
             try
             {
                 cancellation.ThrowIfCancellationRequested();
+                if (!releaseOnly && scheduler.GetHealth(device) == DeviceHealth.NotResponding) throw new AnalysisDeviceUnavailableException();
                 if (!releaseOnly && AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
                 return work(cancellation);
             }

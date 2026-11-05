@@ -14,6 +14,28 @@ public sealed class AnalysisIoTests
     private static string Key() => "analysis-io-fixture-" + Guid.NewGuid().ToString("N");
 
     [Fact]
+    public async Task UnhealthyDeviceRefusesNewWorkWithoutAbandoningItsActualRequest()
+    {
+        Ordinary(); using var io = new DeviceIoScheduler(TimeSpan.FromMilliseconds(40));
+        using var release = new ManualResetEventSlim(); var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        string key = Key(); int extraEntered = 0;
+        var actual = AnalysisIo.Run(io, key, _ => { entered.TrySetResult(); release.Wait(TimeSpan.FromSeconds(15)); return 17; }, Cancellation);
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), Cancellation);
+            var deadline = DateTime.UtcNow.AddSeconds(5);
+            while (io.GetHealth(key) != DeviceHealth.NotResponding && DateTime.UtcNow < deadline) await Task.Delay(10, Cancellation);
+            Assert.Equal(DeviceHealth.NotResponding, io.GetHealth(key)); Assert.False(actual.IsCompleted);
+            await Assert.ThrowsAsync<AnalysisDeviceUnavailableException>(() => AnalysisIo.Run(io, key,
+                _ => { Interlocked.Increment(ref extraEntered); return 1; }, Cancellation).WaitAsync(TimeSpan.FromSeconds(2), Cancellation));
+            Assert.Equal(0, extraEntered);
+            Assert.Equal(23, await AnalysisIo.Run(io, Key(), _ => 23, Cancellation).WaitAsync(TimeSpan.FromSeconds(2), Cancellation));
+            Assert.False(actual.IsCompleted);
+        }
+        finally { release.Set(); Assert.Equal(17, await actual.WaitAsync(TimeSpan.FromSeconds(10), Cancellation)); }
+    }
+
+    [Fact]
     public async Task ActualWorkRunsOnTheAdmittedDeviceThread()
     {
         Ordinary(); using var io = new DeviceIoScheduler(); int caller = Environment.CurrentManagedThreadId;

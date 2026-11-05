@@ -1,0 +1,22 @@
+{
+  "purpose": "Native accessibility invocation and compact-layout subset; no full qualification",
+  "processId": 158971,
+  "events": [
+    "Invoked Open saved\u2026",
+    "Invoked Cancel"
+  ],
+  "liveReportedSize": [
+    1214,
+    731
+  ],
+  "requestedSize": [
+    380,
+    430
+  ],
+  "compactSizeConfirmed": false,
+  "blankNameHasNoParameterError": true,
+  "cancelDismissedDialog": true,
+  "privateInventoryCreated": false,
+  "state": "passed-dialog-subset; compact resize remains unqualified",
+  "ownedProcessExited": true
+}

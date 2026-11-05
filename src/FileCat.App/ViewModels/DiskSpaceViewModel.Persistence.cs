@@ -1,5 +1,6 @@
 using FileCat.Core.Analysis;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Threading;
 
 namespace FileCat.App.ViewModels;
 
@@ -43,7 +44,7 @@ public sealed partial class DiskSpaceViewModel
         IsSaving = true; SetStatus("Saving the captured inventory revision. The live scan can continue.");
         try
         {
-            var receipt = await AnalysisIo.Run(_services.Io, PathUtil.GetDeviceKey(path), token =>
+            var receipt = await RunPrivateIoAsync(path, token =>
             {
                 using var store = OpenPrivateStore(path);
                 return store.SaveNew(name, snapshot, Guid.NewGuid(), token);
@@ -69,13 +70,38 @@ public sealed partial class DiskSpaceViewModel
         if (AnalysisAdmission.Refusal() is { } refusal) throw new InvalidOperationException(refusal);
         AnalysisPrivateInventoryStore.ValidateName(name);
         string path = _services!.Paths.AnalysisSnapshotsDirectory;
-        var inventory = await AnalysisIo.Run(_services.Io, PathUtil.GetDeviceKey(path), token =>
+        var inventory = await RunPrivateIoAsync(path, token =>
         {
             using var store = OpenPrivateStore(path);
             return store.Load(name, token);
         }, cancellation);
         try { return new(_services, inventory); }
         catch { inventory.Dispose(); throw; }
+    }
+
+    internal async Task<T> RunPrivateIoAsync<T>(string path, Func<CancellationToken, T> work, CancellationToken cancellation)
+    {
+        var services = _services ?? throw new InvalidOperationException("Private inventory storage is unavailable.");
+        string device = PathUtil.GetDeviceKey(path);
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+        object sync = new(); bool finished = false;
+        void HealthChanged(string key, DeviceHealth health)
+        {
+            if (health != DeviceHealth.NotResponding || !StringComparer.OrdinalIgnoreCase.Equals(device, key)) return;
+            lock (sync) { if (finished) return; stop.Cancel(); }
+            services.Ui.Post(() =>
+            {
+                lock (sync) { if (finished) return; }
+                SetStatus("Inventory work stopped because the device is not responding. Its outstanding request remains owned until it returns.");
+            });
+        }
+        services.Io.HealthChanged += HealthChanged;
+        try { return await AnalysisIo.Run(services.Io, device, work, stop.Token); }
+        finally
+        {
+            services.Io.HealthChanged -= HealthChanged;
+            lock (sync) finished = true;
+        }
     }
 
     private static AnalysisPrivateInventoryStore OpenPrivateStore(string path)

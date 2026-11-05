@@ -53,6 +53,7 @@ internal sealed partial class HarnessApp : Application
         _services = AppServices.CreateForPaths(AppPaths.Resolve(dataRoot: Path.Combine(_run, "data")));
         ThemeManager.Apply("ClassicDark");
         _window = new DiskSpaceWindow(AddLiveSession, () => _services.Keymap);
+        _window.SizeChanged += (_, _) => { if (_window.IsVisible) WriteReport("open"); };
         desktop.MainWindow = _window;
         desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
         AddLiveSession();

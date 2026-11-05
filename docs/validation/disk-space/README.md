@@ -8,17 +8,17 @@ After the other Ubuntu FileCat process exited, fresh process gates allowed ordin
 
 | Run | Result | Receipt |
 |---|---|---|
-| Full solution build | No warnings or errors | [build](solution-build-r27.txt) |
-| Windows analysis, commands and state/path cases | 220 pass, 13 platform skips | [XML](windows-core-r27.xml) |
-| Ordinary Windows host | 12 pass, no skips | [XML](windows-host-native-r27.xml) |
-| Ordinary Windows guest | 12 pass, no skips | [XML](windows-vm-native-r27.xml) |
-| macOS arm64 analysis and command cases | 215 pass, no skips | [XML](mac-core-r27.xml) |
+| Full solution build | No warnings or errors | [build](solution-build-r28.txt) |
+| Windows analysis, commands and state/path cases | 221 pass, 13 platform skips | [XML](windows-core-r28.xml) |
+| Ordinary Windows host | 12 pass, no skips | [XML](windows-host-native-r28.xml) |
+| Ordinary Windows guest | 12 pass, no skips | [XML](windows-vm-native-r28.xml) |
+| macOS arm64 analysis and command cases | 216 pass, no skips | [XML](mac-core-r28.xml) |
 | macOS shared stat consumers | 49 pass, 2 platform skips | [XML](mac-stat-consumers-r22.xml) |
-| Windows Skia headless presentation | 20 pass | [XML](analysis-render-r27.xml) |
-| macOS headless presentation and native persistence | 20 pass | [XML](mac-analysis-render-r27.xml) |
-| Ubuntu headless presentation and native persistence | 20 pass | [XML](ubuntu-analysis-render-r27.xml) |
+| Windows Skia headless presentation | 22 pass | [XML](analysis-render-r28.xml) |
+| macOS headless presentation and native persistence | 22 pass | [XML](mac-analysis-render-r28.xml) |
+| Ubuntu headless presentation and native persistence | 22 pass | [XML](ubuntu-analysis-render-r28.xml) |
 | macOS native startup/close only | 509 generated regular paths unchanged; owned process exited | [receipt](mac-native-startup-r20.json) |
-| Ubuntu ext4 analysis and command cases | 214 pass, 1 Darwin-only skip | [XML](ubuntu-core-r27.xml) |
+| Ubuntu ext4 analysis and command cases | 215 pass, 1 Darwin-only skip | [XML](ubuntu-core-r28.xml) |
 | Ubuntu shared stat consumers | 49 pass, 2 platform skips | [XML](ubuntu-stat-consumers-r24.xml) |
 | Ubuntu native Save/Open subset | Saved/opened matching inventory; conflict hash and all 509 source hashes preserved; owned process exited | [receipt](ubuntu-native-ui-r26.json) |
 
@@ -52,6 +52,10 @@ Three new coordinator controls cover backend-close failure, scheduler shutdown d
 The r27 checkpoint keeps watchdog tracking through backend cleanup, exposes runtime close-failure counts after Stop and protects cleanup from a throwing progress observer. Its traversal-device registry is bounded to the global two-scan admission and retires canceled/finished entries. Four new core cases cover serialization/reuse, canceled waiting, a late close failure and blocked native cleanup. The total is 233 Windows cases (13 platform skips), 215 Mac cases and 215 Ubuntu cases (one Darwin skip). All 20 presentation cases pass on the three runtimes, including the wrapped Open dialog and cleanup status.
 
 [Native compact-layout evidence](ubuntu-native-ui-r27.json) records the complete private folder path, field and buttons at an actual 380 × 430, scale1 on Ubuntu. A standard native window-manager request was needed after GNOME kept ordinary resize requests maximized. Both bounded attempts later closed at their eight-minute safety deadlines, with all 509 fixture paths unchanged and no private inventory created. This does not qualify Escape/manual-close behavior. The raw harness's report-trigger-only dimension cache is not used as the compact geometry proof. Clearer empty-name validation and live resize reporting remain next fixes. [r27 provenance](source-manifest-r27.json) records the current tested sources and artifacts.
+
+The r28 checkpoint adds private-I/O watchdog cancellation/status and rejects new non-cleanup work on unhealthy scheduler device keys. Actual native ownership and retained inventory data continue until return. A healthy-key control and the real eight-second private-work case pass. Filename validation now avoids implementation parameter names, and a complete dialog-driven Open workflow produces an offline tab. All 22 presentation cases pass on Windows, Mac and Ubuntu. Ubuntu exposed a test timing assumption: the cleanup error can arrive before the terminal phase; the corrected test waits for actual completion. The full solution has no warnings/errors.
+
+[Native Ubuntu dialog evidence](ubuntu-native-ui-r28.json) uses AT-SPI to invoke Open saved and Cancel. It verifies the empty field's clear presentation, no private inventory creation, 509 unchanged source paths and owned process exit before the deadline. Live resize reporting records the actual1214×731 size. Requested compact geometry was not achieved in these automated attempts and remains unqualified; failed attempts are not counted as passing native acceptance. [Current provenance](source-manifest-r28.json) identifies the final tested sources, binaries and bundles.
 
 ## Remaining work
 

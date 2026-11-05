@@ -43,23 +43,26 @@
     "Native Ubuntu input completed Save, offline Open, duplicate-name refusal with unchanged destination hash, explicit tab closure and owned harness exit. All 509 generated source paths remained unchanged; private inventory mode was 0600, owner UID1000 and link count1. The complete native desktop/a11y matrix remains unqualified.",
     "Whole-traversal device admission now uses a two-key bounded, reference-counted registry. Complete and canceled-waiter cases preserve cross-scheduler serialization and allow reuse; retired keys/semaphores no longer accumulate.",
     "Backend cleanup keeps watchdog health tracking until actual close returns. A blocked close stops/freeze-qualifies the view while retaining the request. Runtime source-close failure counters remain visible after Stop without changing a frozen metadata revision, and broken progress observers cannot strand independent cleanup.",
-    "The private Open saved dialog now wraps the complete directory path in its scrollable body and retains filename validation, accessible labels and reachable preserving controls at compact sizes. A native 380x430 Ubuntu capture shows the full path and controls; timeout cleanup is explicitly not manual-close acceptance."
+    "The private Open saved dialog now wraps the complete directory path in its scrollable body and retains filename validation, accessible labels and reachable preserving controls at compact sizes. A native 380x430 Ubuntu capture shows the full path and controls; timeout cleanup is explicitly not manual-close acceptance.",
+    "Private Save/Open now watches scheduler device health, requests cooperative cancellation on nonresponse and retains the actual request/data until return. Unhealthy-device admission refuses new non-cleanup work before queuing and on the actual worker; cleanup retains its guarded route. Native runtime controls cover the eight-second status/cancellation boundary and a healthy-key negative control.",
+    "Filename validation now explains the portable .fcdsa constraint without implementation parameter names; blank fields show a placeholder and disabled Open rather than an initial error. A new UI workflow drives the actual Open dialog to a separate offline tab.",
+    "Native harness reports dimensions on visible SizeChanged events. An Ubuntu AT-SPI run invoked Open saved and Cancel, observed friendly blank-field behavior and live1214x731 dimensions, created no private inventory, preserved509 source paths and closed before its deadline. Requested compact geometry remained unachieved and unqualified."
   ],
   "validation": {
     "windowsCore": {
-      "total": 233,
-      "passed": 220,
+      "total": 234,
+      "passed": 221,
       "failed": 0,
       "skipped": 13,
-      "detail": "187 analysis cases, 28 command cases and 18 state/path cases; 13 expected Unix-only skips.",
-      "evidence": "windows-core-r27.xml"
+      "detail": "188 analysis cases, 28 command cases and 18 state/path cases; 13 expected Unix-only skips.",
+      "evidence": "windows-core-r28.xml"
     },
     "windowsHostNative": {
       "total": 12,
       "passed": 12,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-host-native-r27.xml"
+      "evidence": "windows-host-native-r28.xml"
     },
     "windowsVm": {
       "status": "ordinary-user-regression-fixtures-passed",
@@ -67,36 +70,36 @@
       "passed": 12,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-native-r27.xml",
+      "evidence": "windows-vm-native-r28.xml",
       "detail": "Nine native cases and three reparse-tag cases; includes private create-new NTFS publication and preservation/refusal controls. No desktop/a11y qualification claimed."
     },
     "macosArm64": {
-      "total": 215,
-      "passed": 215,
+      "total": 216,
+      "passed": 216,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-core-r27.xml"
+      "evidence": "mac-core-r28.xml"
     },
     "headlessRendering": {
-      "total": 20,
-      "passed": 20,
+      "total": 22,
+      "passed": 22,
       "failed": 0,
       "skipped": 0,
-      "evidence": "analysis-render-r27.xml",
-      "detail": "20 headless cases on all three runtimes, including native private storage, narrow wrapped Open dialog and visible cleanup failure status. Not full native desktop/a11y acceptance."
+      "evidence": "analysis-render-r28.xml",
+      "detail": "22 headless cases on all three runtimes, including complete Open dialog workflow, friendly validation and real eight-second private-I/O nonresponse ownership. Ubuntu exposed a status-test timing assumption; waiting for terminal completion fixed the test and all final reruns passed."
     },
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "solution-build-r27.txt"
+      "evidence": "solution-build-r28.txt"
     },
     "ubuntu": {
       "status": "ordinary-user-native-regressions-passed",
-      "total": 215,
-      "passed": 214,
+      "total": 216,
+      "passed": 215,
       "failed": 0,
       "skipped": 1,
-      "evidence": "ubuntu-core-r27.xml",
+      "evidence": "ubuntu-core-r28.xml",
       "detail": "Ubuntu 24.04 ordinary benny, .NET runtime 10.0.14, local ext4. Prior FileCat PID exited; process checks were clear before transfer and runs. Native scans, O_TMPFILE/procfs create-new publication, no-follow/privacy/link controls and I/O ownership passed. Darwin ACL case skipped. No desktop/a11y qualification."
     },
     "nativeDesktop": {
@@ -105,7 +108,8 @@
       "windows": "Desktop activation/accessibility unavailable; background/lock-screen captures only. User unlock check pending; owned test process closed.",
       "ubuntu": "Native X11 scan, Save review, named publication, offline Open, duplicate-name refusal and tab close. All 509 source paths and existing destination hash unchanged. No process remains; full matrix unqualified.",
       "ubuntuEvidence": "ubuntu-native-ui-r26.json",
-      "ubuntuCompactEvidence": "ubuntu-native-ui-r27.json"
+      "ubuntuCompactEvidence": "ubuntu-native-ui-r27.json",
+      "ubuntuDialogEvidence": "ubuntu-native-ui-r28.json"
     },
     "macStatConsumers": {
       "total": 51,
@@ -122,22 +126,22 @@
       "evidence": "ubuntu-stat-consumers-r24.xml"
     },
     "macHeadlessRendering": {
-      "total": 20,
-      "passed": 20,
+      "total": 22,
+      "passed": 22,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-analysis-render-r27.xml"
+      "evidence": "mac-analysis-render-r28.xml"
     },
     "ubuntuHeadlessRendering": {
-      "total": 20,
-      "passed": 20,
+      "total": 22,
+      "passed": 22,
       "failed": 0,
       "skipped": 0,
-      "evidence": "ubuntu-analysis-render-r27.xml"
+      "evidence": "ubuntu-analysis-render-r28.xml"
     }
   },
   "nextWork": [
-    "W3/W8: clearer empty-filename validation without implementation parameter names; accurate native harness resize reporting; watchdog status/cancellation for persistence work. Continue catalog/private state, saved view state/history, comparison and imports/exports.",
+    "W3: implement the guarded private catalog/state and saved-view/history/comparison/general import-export workflows. Persistence health controls and friendly validation now pass; native compact geometry and broader device/resource qualification remain open.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
     "W1: epoch refresh, native unresponsive-device and shared-memory/indexed private-store budget qualification remain. Shared eight-request actual-I/O ownership and worker cleanup now have regressions; this is not full resource qualification.",

@@ -21,7 +21,7 @@ public sealed partial class AnalysisRenderingTests
         using var model = new DiskSpaceViewModel(fixture.Services, _ => source);
         await model.StartAsync([fixture.Root]); await source.Closed.Task.WaitAsync(TimeSpan.FromSeconds(5));
         var deadline = DateTime.UtcNow.AddSeconds(5);
-        while (model.SourceCloseFailures == 0 && DateTime.UtcNow < deadline) await Task.Delay(10);
+        while ((model.SourceCloseFailures == 0 || model.Running) && DateTime.UtcNow < deadline) await Task.Delay(10);
         Assert.Equal(1ul, model.SourceCloseFailures); Assert.Contains("Source cleanup reported 1 failure", model.Status);
         Assert.Equal(AnalysisPhase.Finished, model.Phase); Assert.Equal(1, source.CloseCalls);
         await model.RebuildAsync(true); Assert.Equal(NamespaceCoverage.Partial, model.Tree!.Snapshot.Coverage);

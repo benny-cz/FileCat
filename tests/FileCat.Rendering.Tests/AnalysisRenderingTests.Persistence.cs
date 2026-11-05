@@ -14,6 +14,29 @@ namespace FileCat.Rendering.Tests;
 public sealed partial class AnalysisRenderingTests
 {
     [AvaloniaFact]
+    public async Task PrivateIoNonresponseRequestsCancellationButRetainsItsActualWork()
+    {
+        OrdinaryPreparation(); using var fixture = new PreparationFixture(); using var release = new ManualResetEventSlim();
+        using var model = new DiskSpaceViewModel(fixture.Services);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously); int observedCancellation = 0;
+        var work = model.RunPrivateIoAsync(fixture.Root, token =>
+        {
+            entered.TrySetResult(); release.Wait(TimeSpan.FromSeconds(25));
+            if (token.IsCancellationRequested) Interlocked.Increment(ref observedCancellation);
+            token.ThrowIfCancellationRequested(); return 17;
+        }, CancellationToken.None);
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var deadline = DateTime.UtcNow.AddSeconds(15);
+            while (!model.Status.Contains("device is not responding", StringComparison.Ordinal) && DateTime.UtcNow < deadline) await Task.Delay(25);
+            Assert.Contains("device is not responding", model.Status); Assert.False(work.IsCompleted);
+        }
+        finally { release.Set(); await Assert.ThrowsAnyAsync<OperationCanceledException>(() => work.WaitAsync(TimeSpan.FromSeconds(10))); }
+        Assert.Equal(1, observedCancellation);
+    }
+
+    [AvaloniaFact]
     public async Task OpenSavedFolderWrapsAtShortNarrowSizesAndCancelIsReachable()
     {
         OrdinaryPreparation(); using var fixture = new PreparationFixture(); using var styles = new ProductStyles();
@@ -28,9 +51,40 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal(TextWrapping.Wrap, folder.TextWrapping); Assert.True(folder.Bounds.Width <= 350); Assert.True(folder.Bounds.Height > 20);
             var cancel = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Cancel" && b.IsEffectivelyVisible);
             Assert.True(cancel.Bounds.Width > 0 && cancel.Bounds.Height > 0);
-            Assert.True(window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open observations").IsDefault);
+            var open = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open observations");
+            Assert.True(open.IsDefault); Assert.False(open.IsEnabled);
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("Parameter", StringComparison.Ordinal) == true);
+            window.GetVisualDescendants().OfType<TextBox>().Single(t => Avalonia.Automation.AutomationProperties.GetName(t) == "Saved inventory filename").Text = "../bad.fcdsa";
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.StartsWith("Use a portable filename", StringComparison.Ordinal) == true);
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("Parameter", StringComparison.Ordinal) == true);
             cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Task.Yield();
             Assert.False(Directory.Exists(fixture.Services.Paths.AnalysisSnapshotsDirectory));
+        }
+        finally { window.ForceClose(); }
+    }
+
+    [AvaloniaFact]
+    public async Task OpenSavedDialogUsesTheReviewedFilenameAndCreatesAnOfflineTab()
+    {
+        OrdinaryPreparation(); using var fixture = new PreparationFixture(); using var styles = new ProductStyles();
+        using var model = new DiskSpaceViewModel(fixture.Services, ImportedFixture()); await model.RebuildAsync(true);
+        var receipt = await model.SaveNewAsync("dialog-workflow.fcdsa");
+        var window = new DiskSpaceWindow(); window.AddSession(model); window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open saved…").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            var field = window.GetVisualDescendants().OfType<TextBox>().Single(t => Avalonia.Automation.AutomationProperties.GetName(t) == "Saved inventory filename");
+            Assert.Equal(receipt.Name, field.Text);
+            window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open observations").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (window.SessionCount != 2 && DateTime.UtcNow < deadline) await Task.Delay(10);
+            Assert.Equal(2, window.SessionCount); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.StartsWith("Observation view.", StringComparison.Ordinal) == true);
+            Assert.False(window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Pause").IsEnabled);
+            Assert.False(window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Stop").IsEnabled);
         }
         finally { window.ForceClose(); }
     }

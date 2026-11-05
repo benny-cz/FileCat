@@ -22,7 +22,7 @@ public sealed partial class DiskSpaceWindow
             try
             {
                 using var revision = Model.CaptureDisplayedRevision();
-                var name = new TextBox { Text = "Analysis " + DateTime.Now.ToString("yyyy-MM-dd HHmmss", System.Globalization.CultureInfo.InvariantCulture) + ".fcdsa", MaxLength = 120 };
+                var name = new TextBox { Text = "Analysis " + DateTime.Now.ToString("yyyy-MM-dd HHmmss", System.Globalization.CultureInfo.InvariantCulture) + ".fcdsa", PlaceholderText = "Analysis name.fcdsa", MaxLength = 120 };
                 AutomationProperties.SetName(name, "Inventory filename");
                 var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
                 var body = new StackPanel { Spacing = 8, Children =
@@ -31,7 +31,7 @@ public sealed partial class DiskSpaceWindow
                     new TextBlock { Text = "Saved analyses folder: " + AnalysisNames.Display(Model.SavedDirectory ?? "") + "\nObserved " + revision.Snapshot.Identity.StartedUtc.ToString("u") + " – " + revision.Snapshot.Identity.ObservedUtc.ToString("u") + ". " + (revision.Snapshot.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Traversal complete under the captured policy." : "Partial observations remain partial.") + " The live scan can continue.", TextWrapping = TextWrapping.Wrap },
                     name, error
                 } };
-                name.TextChanged += (_, _) => error.Text = InventoryNameError(name.Text);
+                name.TextChanged += (_, _) => error.Text = string.IsNullOrEmpty(name.Text) ? "" : InventoryNameError(name.Text);
                 AutomationProperties.SetLiveSetting(error, Avalonia.Automation.AutomationLiveSetting.Assertive);
                 var result = await _window._dialogs.ShowCustomAsync("Save named analysis", body,
                     [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Save new inventory", true) { IsAvailable = () => InventoryNameError(name.Text) is null }], name);
@@ -52,11 +52,11 @@ public sealed partial class DiskSpaceWindow
             _persistenceBusy = true; Refresh();
             try
             {
-                var name = new TextBox { Text = Model.SavedInventoryName ?? "", MaxLength = 120 };
+                var name = new TextBox { Text = Model.SavedInventoryName ?? "", PlaceholderText = "Saved analysis.fcdsa", MaxLength = 120 };
                 AutomationProperties.SetName(name, "Saved inventory filename");
                 var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
                 AutomationProperties.SetLiveSetting(error, Avalonia.Automation.AutomationLiveSetting.Assertive);
-                name.TextChanged += (_, _) => error.Text = InventoryNameError(name.Text);
+                name.TextChanged += (_, _) => error.Text = string.IsNullOrEmpty(name.Text) ? "" : InventoryNameError(name.Text);
                 var body = new StackPanel { Spacing = 8, Children =
                 {
                     new TextBlock { Text = "Enter a saved .fcdsa filename. Opening it shows offline observations without reconnecting sources or granting file actions.", TextWrapping = TextWrapping.Wrap },
@@ -97,7 +97,7 @@ public sealed partial class DiskSpaceWindow
         private static string? InventoryNameError(string? text)
         {
             try { AnalysisPrivateInventoryStore.ValidateName(text ?? ""); return null; }
-            catch (ArgumentException ex) { return AnalysisNames.Display(ex.Message, 240); }
+            catch (ArgumentException) { return "Use a portable filename ending in .fcdsa (up to 120 characters)."; }
         }
     }
 }
