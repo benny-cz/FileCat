@@ -33,10 +33,11 @@ public sealed record ArchiveObjectVersion
 /// </summary>
 public sealed class ArchiveTransactionFacts
 {
-    public const int SchemaVersion = 1;
+    public const int SchemaVersion = 2;
     public const int MaxArtifacts = 16;
     public const int MaxTransitions = 64;
     public Guid Nonce { get; }
+    public int RecordVersion { get; }
     public int Sequence { get; }
     public ArchiveWriteProfile Profile { get; }
     public ArchiveTransactionPhase Phase { get; }
@@ -49,6 +50,10 @@ public sealed class ArchiveTransactionFacts
     public string? RetainedPath { get; }
     public string? ManifestPath { get; }
     public ArchiveObjectVersion? Manifest { get; }
+    public string? OriginEvidencePath { get; }
+    public string? OriginEvidenceIdentity { get; }
+    public int? OriginEvidenceSources { get; }
+    public ArchiveObjectVersion? OriginEvidence { get; }
     public string? SecuritySnapshotSha256 { get; }
     public ArchiveObjectVersion? Published { get; }
     public ArchiveObjectVersion? Retired { get; }
@@ -60,8 +65,22 @@ public sealed class ArchiveTransactionFacts
         ArchiveObjectVersion? verifiedStage = null, string? retainedPath = null, string? manifestPath = null,
         ArchiveObjectVersion? manifest = null, string? securitySnapshotSha256 = null,
         ArchiveObjectVersion? published = null, ArchiveObjectVersion? retired = null,
-        IReadOnlyList<string>? unresolvedArtifacts = null)
+        IReadOnlyList<string>? unresolvedArtifacts = null, string? originEvidencePath = null,
+        string? originEvidenceIdentity = null, int? originEvidenceSources = null, ArchiveObjectVersion? originEvidence = null)
+        : this(SchemaVersion, nonce, sequence, profile, phase, archivePath, parentIdentity, original, stagePath, stageIdentity,
+            verifiedStage, retainedPath, manifestPath, manifest, securitySnapshotSha256, published, retired, unresolvedArtifacts,
+            originEvidencePath, originEvidenceIdentity, originEvidenceSources, originEvidence)
+    { }
+
+    // Legacy records can be inspected but never written/upgraded in place or treated as complete provenance evidence.
+    private ArchiveTransactionFacts(int recordVersion, Guid nonce, int sequence, ArchiveWriteProfile profile, ArchiveTransactionPhase phase,
+        string archivePath, string parentIdentity, ArchiveObjectVersion? original, string stagePath, string stageIdentity,
+        ArchiveObjectVersion? verifiedStage, string? retainedPath, string? manifestPath, ArchiveObjectVersion? manifest,
+        string? securitySnapshotSha256, ArchiveObjectVersion? published, ArchiveObjectVersion? retired,
+        IReadOnlyList<string>? unresolvedArtifacts, string? originEvidencePath, string? originEvidenceIdentity,
+        int? originEvidenceSources, ArchiveObjectVersion? originEvidence)
     {
+        if (recordVersion is not (1 or SchemaVersion)) throw new ArgumentException("Unsupported archive transaction schema.");
         if (nonce == Guid.Empty || sequence is < 1 or > MaxTransitions || !Enum.IsDefined(phase))
             throw new ArgumentException("The archive transaction phase or sequence is invalid.");
         ArgumentNullException.ThrowIfNull(profile);
@@ -85,13 +104,29 @@ public sealed class ArchiveTransactionFacts
             if (manifest.Identity == stageIdentity || manifest.Identity == original?.Identity)
                 throw new ArgumentException("The manifest cannot alias an archive object.");
         }
+        if ((originEvidencePath is null) != (originEvidenceIdentity is null) ||
+            (originEvidencePath is null) != (originEvidenceSources is null) || originEvidence is not null && originEvidencePath is null)
+            throw new ArgumentException("Origin evidence reservation is incomplete.");
+        if (originEvidencePath is not null)
+        {
+            ValidatePath(originEvidencePath); ValidateText(originEvidenceIdentity!, 4096);
+            if (originEvidencePath == archivePath || originEvidencePath == stagePath || originEvidencePath == retainedPath || originEvidencePath == manifestPath ||
+                originEvidenceIdentity == stageIdentity || originEvidenceIdentity == original?.Identity || originEvidenceIdentity == manifest?.Identity ||
+                originEvidenceSources < (original is null ? 0 : 1) || originEvidenceSources > ArchiveWritePolicy.MaxMembers + (original is null ? 0 : 1))
+                throw new ArgumentException("Origin evidence reservation aliases an archive artifact or exceeds its scope.");
+            if (originEvidence is not null && (originEvidence.Identity != originEvidenceIdentity ||
+                                               originEvidence.Length < 52 + ArchiveOriginEvidenceWriter.MinFramedRecordBytes * (long)originEvidenceSources!.Value ||
+                                               originEvidence.Length > ArchiveWritePolicy.MaxMetadataBytes))
+                throw new ArgumentException("Finalized origin evidence is a different or unsupported object.");
+        }
         if (securitySnapshotSha256 is not null) ArchiveWritePolicy.ValidateDigest(securitySnapshotSha256);
         bool publicationPhase = phase is ArchiveTransactionPhase.ReadyToPublish or ArchiveTransactionPhase.Publishing or
             ArchiveTransactionPhase.Reconciling or ArchiveTransactionPhase.Cleaning or ArchiveTransactionPhase.Committed or
             ArchiveTransactionPhase.CommittedWithRetainedArtifacts or ArchiveTransactionPhase.RolledBack;
         if (publicationPhase && (verifiedStage is null || manifest is null || securitySnapshotSha256 is null ||
+                                recordVersion >= 2 && originEvidence is null ||
                                 original is not null && retainedPath is null))
-            throw new ArgumentException("Publication requires complete verified stage, manifest, security and retention facts.");
+            throw new ArgumentException("Publication requires complete verified stage, manifest, origin evidence, security and retention facts.");
         if (phase is ArchiveTransactionPhase.Cleaning or ArchiveTransactionPhase.Committed or ArchiveTransactionPhase.CommittedWithRetainedArtifacts &&
             (published is null || original is not null && retired is null))
             throw new ArgumentException("A committed archive requires actual publication and retired-object facts.");
@@ -120,11 +155,17 @@ public sealed class ArchiveTransactionFacts
             throw new ArgumentException("A resolved transaction cannot have unresolved artifacts.");
         if (phase == ArchiveTransactionPhase.CommittedWithRetainedArtifacts && artifacts.Count == 0)
             throw new ArgumentException("A cleanup warning must name its retained artifacts.");
-        Nonce = nonce; Sequence = sequence; Profile = profile; Phase = phase; ArchivePath = archivePath;
+        RecordVersion = recordVersion; Nonce = nonce; Sequence = sequence; Profile = profile; Phase = phase; ArchivePath = archivePath;
         ParentIdentity = parentIdentity; Original = original; StagePath = stagePath; StageIdentity = stageIdentity;
         VerifiedStage = verifiedStage; RetainedPath = retainedPath; ManifestPath = manifestPath; Manifest = manifest;
+        OriginEvidencePath = originEvidencePath; OriginEvidenceIdentity = originEvidenceIdentity;
+        OriginEvidenceSources = originEvidenceSources; OriginEvidence = originEvidence;
         SecuritySnapshotSha256 = securitySnapshotSha256; Published = published; Retired = retired;
         UnresolvedArtifacts = Array.AsReadOnly(frozenArtifacts);
+        // Individual path/identity ceilings do not imply that their simultaneous escaped forms fit a CRC line.
+        // Refuse the combined snapshot before any journal append or corresponding namespace mutation.
+        if (System.Text.Encoding.UTF8.GetByteCount(ToJson().ToJsonString()) > Jobs.JobJournal.MaxJournalLineBytes - 10)
+            throw ArchiveWriteBudget.Limit();
     }
 
     internal static void ValidateText(string text, int maxChars)
@@ -148,12 +189,15 @@ public sealed class ArchiveTransactionFacts
             if (Sequence != 1 || Phase != ArchiveTransactionPhase.Reserved) throw new ArgumentException("An archive transaction must start with reservation.");
             return;
         }
-        if (Nonce != previous.Nonce || Sequence != previous.Sequence + 1 || Profile != previous.Profile ||
+        if (RecordVersion != previous.RecordVersion || Nonce != previous.Nonce || Sequence != previous.Sequence + 1 || Profile != previous.Profile ||
             ArchivePath != previous.ArchivePath || ParentIdentity != previous.ParentIdentity || Original != previous.Original ||
             StagePath != previous.StagePath || StageIdentity != previous.StageIdentity ||
             previous.RetainedPath is not null && RetainedPath != previous.RetainedPath ||
             previous.VerifiedStage is not null && VerifiedStage != previous.VerifiedStage ||
             previous.Manifest is not null && (Manifest != previous.Manifest || ManifestPath != previous.ManifestPath) ||
+            previous.OriginEvidencePath is not null && (OriginEvidencePath != previous.OriginEvidencePath ||
+                OriginEvidenceIdentity != previous.OriginEvidenceIdentity || OriginEvidenceSources != previous.OriginEvidenceSources) ||
+            previous.OriginEvidence is not null && OriginEvidence != previous.OriginEvidence ||
             previous.SecuritySnapshotSha256 is not null && SecuritySnapshotSha256 != previous.SecuritySnapshotSha256 ||
             previous.Published is not null && Published != previous.Published || previous.Retired is not null && Retired != previous.Retired)
             throw new ArgumentException("Archive transaction evidence changed or a transition is missing.");
@@ -175,9 +219,11 @@ public sealed class ArchiveTransactionFacts
         if (!allowed) throw new ArgumentException("The archive transaction transition is invalid.");
     }
 
-    internal JsonObject ToJson() => new()
+    internal JsonObject ToJson()
     {
-        ["t"] = "archive-transaction", ["v"] = SchemaVersion, ["nonce"] = Nonce.ToString("N"), ["sequence"] = Sequence,
+        var node = new JsonObject
+        {
+        ["t"] = "archive-transaction", ["v"] = RecordVersion, ["nonce"] = Nonce.ToString("N"), ["sequence"] = Sequence,
         ["profile"] = new JsonObject { ["format"] = (int)Profile.Format, ["version"] = Profile.Version,
             ["level"] = Profile.CompressionLevel, ["dictionary"] = Profile.DictionaryBytes },
         ["phase"] = Phase.ToString(), ["archive"] = ArchivePath, ["parent"] = ParentIdentity,
@@ -186,27 +232,40 @@ public sealed class ArchiveTransactionFacts
         ["manifest"] = VersionJson(Manifest), ["security"] = SecuritySnapshotSha256,
         ["published"] = VersionJson(Published), ["retired"] = VersionJson(Retired),
         ["unresolved"] = new JsonArray(UnresolvedArtifacts.Select(p => (JsonNode)JsonValue.Create(p)!).ToArray()),
-    };
+        };
+        if (RecordVersion >= 2)
+        {
+            node["originPath"] = OriginEvidencePath; node["originIdentity"] = OriginEvidenceIdentity;
+            node["originSources"] = OriginEvidenceSources; node["originEvidence"] = VersionJson(OriginEvidence);
+        }
+        return node;
+    }
 
     private static JsonObject? VersionJson(ArchiveObjectVersion? v) => v is null ? null :
         new() { ["identity"] = v.Identity, ["length"] = v.Length, ["sha256"] = v.Sha256 };
 
     internal static ArchiveTransactionFacts Parse(JsonObject node)
     {
-        ExactKeys(node, "t", "v", "nonce", "sequence", "profile", "phase", "archive", "parent", "original", "stage", "stageIdentity",
-            "verified", "retained", "manifestPath", "manifest", "security", "published", "retired", "unresolved");
-        if (Int(node, "v") != SchemaVersion || Text(node, "t") != "archive-transaction" ||
+        int recordVersion = Int(node, "v");
+        string[] keys = ["t", "v", "nonce", "sequence", "profile", "phase", "archive", "parent", "original", "stage", "stageIdentity",
+            "verified", "retained", "manifestPath", "manifest", "security", "published", "retired", "unresolved"];
+        if (recordVersion == SchemaVersion) keys = [.. keys, "originPath", "originIdentity", "originSources", "originEvidence"];
+        ExactKeys(node, keys);
+        if (recordVersion is not (1 or SchemaVersion) || Text(node, "t") != "archive-transaction" ||
             !Guid.TryParseExact(Text(node, "nonce"), "N", out var nonce) ||
             !Enum.TryParse(Text(node, "phase"), out ArchiveTransactionPhase phase) || phase.ToString() != Text(node, "phase") ||
             node["profile"] is not JsonObject profile || node["unresolved"] is not JsonArray artifacts || artifacts.Count > MaxArtifacts)
             throw new ArgumentException("Unsupported or incomplete archive transaction facts.");
         ExactKeys(profile, "format", "version", "level", "dictionary");
-        return new(nonce, Int(node, "sequence"), new((ArchiveWriteFormat)Int(profile, "format"), Int(profile, "version"),
+        return new(recordVersion, nonce, Int(node, "sequence"), new((ArchiveWriteFormat)Int(profile, "format"), Int(profile, "version"),
                 Int(profile, "level"), Int(profile, "dictionary")), phase, Text(node, "archive"), Text(node, "parent"),
             ParseVersion(node["original"]), Text(node, "stage"), Text(node, "stageIdentity"), ParseVersion(node["verified"]),
             OptionalText(node, "retained"), OptionalText(node, "manifestPath"), ParseVersion(node["manifest"]), OptionalText(node, "security"),
             ParseVersion(node["published"]), ParseVersion(node["retired"]), artifacts.Select(n =>
-                n is JsonValue v && v.TryGetValue<string>(out var p) ? p : throw new ArgumentException("Invalid artifact path.")).ToArray());
+                n is JsonValue v && v.TryGetValue<string>(out var p) ? p : throw new ArgumentException("Invalid artifact path.")).ToArray(),
+            recordVersion >= 2 ? OptionalText(node, "originPath") : null, recordVersion >= 2 ? OptionalText(node, "originIdentity") : null,
+            recordVersion >= 2 && node["originSources"] is not null ? Int(node, "originSources") : null,
+            recordVersion >= 2 ? ParseVersion(node["originEvidence"]) : null);
     }
 
     private static ArchiveObjectVersion? ParseVersion(JsonNode? node)
@@ -242,10 +301,14 @@ internal sealed class ArchiveTransactionCollector
     private readonly Dictionary<Guid, ArchiveTransactionFacts> latest = [];
     private bool hasRecords;
     private bool damaged;
+    private bool legacy;
+    private bool began, ended;
+    private int? headerVersion;
     private string? problem;
-    public bool RequiresReview => hasRecords && (problem is not null || damaged || latest.Values.Any(t => !t.IsResolved));
+    public bool RequiresReview => hasRecords && (problem is not null || damaged || legacy || latest.Values.Any(t => !t.IsResolved));
     public ArchiveTransactionRecovery Snapshot => new(Array.AsReadOnly(latest.Values.ToArray()), hasRecords,
-        problem ?? (hasRecords && damaged ? "The archive transaction journal contains damaged or incomplete records." : null));
+        problem ?? (legacy ? "This legacy archive journal lacks complete provenance evidence; retain its recorded artifacts for archive-specific review." :
+            hasRecords && damaged ? "The archive transaction journal contains damaged or incomplete records." : null));
     public void DamagedRecord() => damaged = true;
     public void ValidateNext(ArchiveTransactionFacts facts)
     {
@@ -256,14 +319,24 @@ internal sealed class ArchiveTransactionCollector
     public void Accept(ArchiveTransactionFacts facts) { ValidateNext(facts); latest[facts.Nonce] = facts; hasRecords = true; }
     public void Read(string type, JsonObject node)
     {
+        // A later header/end cannot turn out-of-order archive history into a completed transaction.
+        // These flags affect archive recovery only; the generic journal reader keeps its existing behavior.
+        if (type == "begin")
+        {
+            if (began || hasRecords || ended) damaged = true;
+            began = true;
+        }
+        else if (!began) damaged = true;
+        if (type == "end") { if (ended) damaged = true; ended = true; }
         // A version marker in the original durable header also protects a transaction whose first fact is torn.
         // A clean header with no transitions can still mean refusal/cancellation before any archive mutation.
         if (type == "begin" && node.ContainsKey("archiveJournalVersion"))
         {
             hasRecords = true;
             if (node["archiveJournalVersion"] is not JsonValue value || !value.TryGetValue<int>(out int version) ||
-                version != ArchiveTransactionFacts.SchemaVersion)
+                version is not (1 or ArchiveTransactionFacts.SchemaVersion))
                 problem = "This archive journal version is unsupported; retain all related artifacts for review.";
+            else { headerVersion = version; legacy |= version == 1; }
             return;
         }
         if (!type.StartsWith("archive-", StringComparison.Ordinal))
@@ -274,7 +347,14 @@ internal sealed class ArchiveTransactionCollector
         }
         hasRecords = true;
         if (problem is not null) return;
-        try { Accept(ArchiveTransactionFacts.Parse(node)); }
+        if (ended) damaged = true;
+        try
+        {
+            var facts = ArchiveTransactionFacts.Parse(node);
+            if (headerVersion is { } declared && declared != facts.RecordVersion)
+                throw new ArgumentException("Archive fact schema differs from its durable header.");
+            legacy |= facts.RecordVersion == 1; Accept(facts);
+        }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or ArchiveWriteException)
         { problem = "Archive transaction facts are unsupported, incomplete or inconsistent; retain all related artifacts for review."; }
     }

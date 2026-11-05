@@ -50,6 +50,8 @@ public sealed class JobJournal : IDisposable
     public void ArchiveTransaction(ArchiveTransactionFacts facts)
     {
         ArgumentNullException.ThrowIfNull(facts);
+        if (facts.RecordVersion != ArchiveTransactionFacts.SchemaVersion)
+            throw new InvalidOperationException("Legacy archive facts are read-only; create and review a fresh transaction.");
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);

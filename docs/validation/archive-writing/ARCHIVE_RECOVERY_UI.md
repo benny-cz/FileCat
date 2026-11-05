@@ -3,6 +3,9 @@
 Date: 5 November 2026. Follows the [journal contract checkpoint](ARCHIVE_TRANSACTION_JOURNAL.md). This closes the UI's
 direct staged-intent review path for archive journals; it does not implement native archive recovery actions.
 
+The subsequent [provenance journal checkpoint](ARCHIVE_ORIGIN_JOURNAL.md) adds schema-2 origin-evidence disclosure and
+legacy completed-history retention without opening artifacts. Use its later evidence for the current report contract.
+
 All recovery entry points reread bounded archive facts through the existing off-UI IO service. A stale row cannot
 authorize generic archive cleanup, transfer retry/new-transfer preparation, or closing an unresolved archive journal.
 The generic staged-intent review returns without opening archive artifacts. Core's reader is now public for this

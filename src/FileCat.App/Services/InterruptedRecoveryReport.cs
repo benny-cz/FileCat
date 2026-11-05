@@ -120,11 +120,12 @@ internal static class InterruptedRecoveryReport
             if (job.ArchiveTransactions.Problem is { } problem) Line("Journal review warning: " + JsonSerializer.Serialize(problem));
             foreach (var transaction in job.ArchiveTransactions.Transactions)
             {
-                Line($"Transaction {transaction.Nonce:N}, sequence {transaction.Sequence}, profile {transaction.Profile.Format} v{transaction.Profile.Version}, recorded phase {transaction.Phase}");
+                Line($"Transaction {transaction.Nonce:N}, facts v{transaction.RecordVersion}, sequence {transaction.Sequence}, profile {transaction.Profile.Format} v{transaction.Profile.Version}, recorded phase {transaction.Phase}");
                 Detail("Archive path (not inspected)", transaction.ArchivePath);
                 Detail("Rebuilt archive stage (not inspected)", transaction.StagePath);
                 if (transaction.RetainedPath is { } retained) Detail("Reserved retained-original path (not inspected)", retained);
                 if (transaction.ManifestPath is { } manifest) Detail("Verification manifest (not inspected)", manifest);
+                if (transaction.OriginEvidencePath is { } originEvidence) Detail("Captured provenance evidence (not inspected)", originEvidence);
                 foreach (string artifact in transaction.UnresolvedArtifacts) Detail("Recorded retained artifact (not inspected)", artifact);
                 void Version(string label, ArchiveObjectVersion? version)
                 {
@@ -133,9 +134,12 @@ internal static class InterruptedRecoveryReport
                 }
                 Line("Recorded parent identity: " + JsonSerializer.Serialize(transaction.ParentIdentity));
                 Line("Recorded stage identity: " + JsonSerializer.Serialize(transaction.StageIdentity));
+                if (transaction.OriginEvidenceIdentity is { } originIdentity) Line("Recorded provenance-evidence identity: " + JsonSerializer.Serialize(originIdentity));
+                if (transaction.OriginEvidenceSources is { } originSources) Line("Declared captured origin sources: " + originSources.ToString(CultureInfo.InvariantCulture));
                 Version("Original object", transaction.Original);
                 Version("Verified stage object", transaction.VerifiedStage);
                 Version("Manifest object", transaction.Manifest);
+                Version("Finalized provenance evidence", transaction.OriginEvidence);
                 Version("Observed publication object", transaction.Published);
                 Version("Observed retired object", transaction.Retired);
                 if (transaction.SecuritySnapshotSha256 is { } digest) Line("Security/provenance snapshot SHA-256: " + digest);

@@ -2,6 +2,10 @@
 
 Date: 5 November 2026. AW2 foundation only. No production write profile is enabled by this change.
 
+This records the original schema-1 checkpoint. The subsequent [schema-2 provenance journal checkpoint](ARCHIVE_ORIGIN_JOURNAL.md)
+adds durable origin-evidence references, conservative legacy retention, header/end ordering checks and a combined line
+budget. Its current all-platform results supersede the earlier totals below; schema-1 history remains read-only.
+
 ## Durable facts
 
 `ArchiveTransactionFacts` schema 1 is an immutable complete parent snapshot. Each `archive-transaction` record repeats:

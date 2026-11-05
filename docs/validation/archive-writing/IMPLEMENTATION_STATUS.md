@@ -31,7 +31,7 @@ application. An explicit new-profile job refuses instead of entering the legacy 
 | Proxy IO | Child uses fixed input IDs and seekable stage requests; parent checks offsets/lengths/IO amplification before touching a stream; no path/publication/delete authority | Reviewed native input leases, parent-owned manifests and production launch integration |
 | Queue | One active in-process reservation and at most eight pending; assessment holds it through exit, final diagnostics and reaping | Other roles, cross-parent scheduling and operation-center phases |
 | Legacy ZIP publication extraction | Separate compatibility-only publication/rollback/cleanup boundary; existing codec and journal ordering retained; explicit profiles refused before intent | Object-bound publication, typed provenance, durable archive facts/recovery and separately reviewed ZIP worker migration |
-| Archive journal facts | Immutable bounded versioned snapshots, durable transitions, conservative damaged/unknown-record handling, unresolved holds and pruning/closure protection | Native sidecar storage/integration, object-bound recovery/actions and actual publication/crash integration |
+| Archive journal facts | Immutable bounded versioned snapshots, durable transitions, schema-2 provenance reservations/finalized versions/counts, conservative legacy/damaged/unknown/out-of-order retention and read-only reporting; [provenance journal checkpoint](ARCHIVE_ORIGIN_JOURNAL.md) | Native sidecar storage/integration, object-bound recovery/actions and actual publication/crash integration |
 | Archive recovery UI guard | Fresh journal reads at every entry point; generic archive mutations refused; recorded facts/paths exposed in a copyable read-only report | Native object-bound archive review/resolution, complete archive workflow/accessibility and package qualification |
 | Windows boundary spike | Suspended restricted LPAC, actual-token/access checks, exact inherited pipe list, private-profile write protection, finite job commit/CPU, bounded stderr and idempotent kill/reaping; actual guarded application entry tested | Full engine workloads, other namespace/asset/setup-race probes, ordinary user and installed-package/RID qualification |
 | TAR assessment process | Actual early entry, numeric read-only source proxy, SHA/raw TAR/runtime-decoder passes, checked catalog phases and terminal digest; parent CPU/progress watchdog and final drain/reaping checks | Qualified AppServices registration, reviewed input leases, cooperative cancellation, transform/fresh verifier and publication integration |
@@ -112,6 +112,13 @@ network access and `fork`. Its attempted absolute 1 GiB `RLIMIT_AS` returned EIN
 The hard whole-process memory gate remains **unqualified**; no Mac writer is enabled from these partial denials.
 
 ## Outstanding work
+
+The later [schema-2 provenance journal checkpoint](ARCHIVE_ORIGIN_JOURNAL.md) adds 43 Core and three headless UI cases.
+Its affected Core replay passes 955 with 30 skips on the Windows VM, 964 with 21 skips on Mac, and 980 with five skips
+on Ubuntu (985 total). Recovery UI passes 256 with two skips on Windows and 252 with six skips on Mac/Ubuntu (258 total).
+No failures. Legacy completed journals stay visible for archive-specific provenance review; recorded artifacts are not
+opened or cleaned by the report. Native publication, real crash recovery and complete UI/package qualification remain
+unfinished; these results complete no AW packet or full-goal gate.
 
 AW0 is partial: baseline replay exists, but instrumented canary validation, tool inventories and scale/resource measurement
 are unfinished. AW1 is partial: protocol/proxy/admission exist, but no production platform confinement/publication adapter
