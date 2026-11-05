@@ -1,6 +1,8 @@
 using System.Security.AccessControl;
 using System.Security.Principal;
 using FileCat.Core.Analysis;
+using FileCat.Core.Threading;
+using FileCat.Platform.Windows.Analysis;
 using FileCat.Platform.Windows.Shell;
 
 namespace FileCat.Platform.Windows.Tests;
@@ -10,6 +12,23 @@ public sealed partial class AnalysisWindowsTests
     private static AnalysisSnapshot StorageSample() => new(new(Guid.NewGuid(), 1, 1, "fixture", DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch),
         [new("r", "file", "Root", "Root", "device", IdentityAssurance.Verified, "Root")],
         [new(1, "r", 0, "Root", AnalysisKind.Directory)], [], [], [], new(), AnalysisPhase.Finished, NamespaceCoverage.CompleteUnderPolicy);
+
+    [Fact]
+    public async Task NativeInventoriesCompareActualFileGrowthAndAddedPaths()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows native fixtures.");
+        using var fixture = new PrivateFixture(); string file = Path.Combine(fixture.Path, "data.bin"); File.WriteAllBytes(file, new byte[16]);
+        using var io = new DeviceIoScheduler();
+        async Task<AnalysisSnapshot> Scan()
+        {
+            using var session = new AnalysisCoordinator(io, "native-comparison-fixture").Start([new WindowsAnalysisBackend(fixture.Path)]);
+            await session.Completion.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken); return session.Snapshot();
+        }
+        var old = await Scan(); File.WriteAllBytes(file, new byte[32]); File.WriteAllBytes(Path.Combine(fixture.Path, "new.bin"), new byte[5]); var current = await Scan();
+        using var result = AnalysisComparison.Build(old, current, AnalysisMetric.FileSize, cancellation: TestContext.Current.CancellationToken);
+        Assert.Equal(new AnalysisDelta(false, 21), result.NetChange);
+        Assert.Contains(result.Rows, r => r.Change == AnalysisChange.Growing); Assert.Contains(result.Rows, r => r.Change == AnalysisChange.Added);
+    }
 
     [Fact]
     public void PrivateNativeCatalogEnumeratesAgainAndReopensWithSavedView()
