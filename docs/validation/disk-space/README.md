@@ -8,17 +8,17 @@ After the other Ubuntu FileCat process exited, fresh process gates allowed ordin
 
 | Run | Result | Receipt |
 |---|---|---|
-| Full solution build | No warnings or errors | [build](solution-build-r32.txt) |
-| Windows analysis, commands and state/path cases | 259 pass, 15 platform skips | [XML](windows-core-r32.xml) |
-| Ordinary Windows host | 14 pass, no skips | [XML](windows-host-native-r32.xml) |
-| Ordinary Windows guest | 14 pass, no skips | [XML](windows-vm-native-r32.xml) |
-| macOS arm64 analysis and command cases | 256 pass, no skips | [XML](mac-core-r32.xml) |
+| Full solution build | No warnings or errors | [build](solution-build-r34.txt) |
+| Windows analysis, commands and state/path cases | 275 pass, 15 platform skips | [XML](windows-core-r34.xml) |
+| Historical Windows host (before VM-only instruction) | 14 pass, no skips at r32 | [XML](windows-host-native-r32.xml) |
+| Ordinary Windows guest | 14 pass, no skips | [XML](windows-vm-native-r34.xml) |
+| macOS arm64 analysis and command cases | 272 pass, no skips | [XML](mac-core-r34.xml) |
 | macOS shared stat consumers | 49 pass, 2 platform skips | [XML](mac-stat-consumers-r22.xml) |
-| Windows Skia headless presentation | 32 pass | [XML](analysis-render-r32.xml) |
-| macOS headless presentation and native persistence | 32 pass | [XML](mac-analysis-render-r32.xml) |
-| Ubuntu headless presentation and native persistence | 32 pass | [XML](ubuntu-analysis-render-r32.xml) |
-| macOS native startup/close only | 509 generated regular paths unchanged; owned process exited | [receipt](mac-native-startup-r20.json) |
-| Ubuntu ext4 analysis and command cases | 255 pass, 1 Darwin-only skip | [XML](ubuntu-core-r32.xml) |
+| Windows Skia headless presentation | 35 pass in Windows VM | [XML](analysis-render-r34.xml) |
+| macOS headless presentation and native persistence | 35 pass | [XML](mac-analysis-render-r34.xml) |
+| Ubuntu headless presentation and native persistence | 35 pass | [XML](ubuntu-analysis-render-r34.xml) |
+| macOS native scan/save/compare/query/close subset |509 source hashes unchanged; owned process exited; sizing bug found | [receipt](mac-native-ui-r34.json) |
+| Ubuntu ext4 analysis and command cases | 271 pass, 1 Darwin-only skip | [XML](ubuntu-core-r34.xml) |
 | Ubuntu shared stat consumers | 49 pass, 2 platform skips | [XML](ubuntu-stat-consumers-r24.xml) |
 | Ubuntu native Save/Open subset | Saved/opened matching inventory; conflict hash and all 509 source hashes preserved; owned process exited | [receipt](ubuntu-native-ui-r26.json) |
 
@@ -80,3 +80,9 @@ After the full implementation/testing loop, the user requires a separate indepen
 The r32 checkpoint adds explicit structural root mapping with retained inert inputs. Missing automatic pairs require review, compatible pairs start unmapped, duplicate Previous assignments are refused and partial maps retain unknown differences. Cancel is default. Worker leases survive preparation/source-view closure. All32 presentation cases pass on Windows, Mac and Ubuntu; Windows core has259 passes/15 platform skips, Mac256 passes and Ubuntu255 passes/one Darwin skip. Native Windows host and ordinary guest each retain14 passes; the solution has no warnings/errors.
 
 [Native Ubuntu mapping evidence](ubuntu-native-ui-r32.json) confirms explicit Cancel, manual pairing and a structurally labelled result, selected-entry inspection, preserving Enter and explicit Discard. All509 generated source paths and the saved hash stayed unchanged; the owned process exited before its deadline. [Mapping](renders/ubuntu-native-r32-008.png) and [details](renders/ubuntu-native-r32-004.png) captures were inspected. Earlier driver assumptions about dropdown Enter and a partially occluded row were corrected; those attempts are not passing acceptance. Long selected Previous paths currently clip in the selector; improving visible review detail remains open. Full desktop/feature qualification remains pending. [r32 provenance](source-manifest-r32.json) identifies tested sources and bundles.
+
+The r34 packet adds bounded comparison queries with explicit recorded-side selection, exact signed UInt128 differences, three-valued uncertainty, whole-row alias membership and retained worker/result ownership. Invalid query edits preserve the applied rows. Native review found two functional bugs: persisted UTC normalization caused unchanged local-offset timestamps to appear changed, and a pointer-selected list row consumed Enter before inspection. UTC-tick fingerprints and a tunneling key handler fix both; regression reproductions and final suites pass on Windows VM, Mac and Ubuntu. Structural mapping review now wraps the full selected Previous path.
+
+[Ubuntu native query evidence](ubuntu-native-ui-r34.json) includes explicit structural pairing, one-row name and root-relative alias queries, invalid-input preservation, selected-row Return inspection, Keep open with Return and explicit Discard. [Mac native evidence](mac-native-ui-r34.json) covers native Start, Save, same-revision comparison, one-row query, invalid syntax and preserving close. Both owned processes exited before their deadlines; all509 source paths and saved hashes were unchanged. Existing FileCatCapture authorization works when the unchanged helper is opened through Launch Services. Actual screenshots revealed unnecessary Retina window shrinking; that finding remains open for the next fix. Full accessibility/DPI/native feature qualification is pending.
+
+Windows now verifies the ordinary filecatdsa_r2 console account. VM startup/owned close preserved509 source paths, but injected VMware console keys did not reach the guest, so that attempt is not native input acceptance. The final r34 core/native/render suites all ran inside the Windows VM, matching the user's VM+Mac-only live-testing constraint. No host GUI test will be launched. [r34 provenance](source-manifest-r34.json) identifies tested sources and bundles.

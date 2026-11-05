@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native desktop development validation; no capability qualification",
+  "state": "closed",
+  "sourceUnchanged": true,
+  "deadlineClosed": false,
+  "processId": 18838,
+  "platform": "macOS 27.0.1",
+  "architecture": "Arm64",
+  "run": "/Users/benny/FileCatValidation/dsa-20261105-r34f-native/app/native-validation/dsa-194ec5808b3249b883cbc6b26852d09e",
+  "fixture": "/Users/benny/FileCatValidation/dsa-20261105-r34f-native/app/native-validation/dsa-194ec5808b3249b883cbc6b26852d09e/fixture",
+  "fixtureRegularPaths": 509,
+  "fixtureLimitations": [],
+  "nativeWindowVisible": false,
+  "lastVisibleWidth": 720,
+  "lastVisibleHeight": 368,
+  "lastVisibleScale": 2,
+  "sessions": 0,
+  "createdSessions": 1,
+  "lastObservation": {
+    "Phase": 5,
+    "Status": "Saved Native Mac r34.fcdsa. Captured traversal complete under policy.",
+    "FilterError": null,
+    "Query": "",
+    "Metric": 2,
+    "session": "e6b75ad4-ab97-4c57-b0da-c99ac065166f",
+    "Coverage": 0,
+    "Freshness": 0,
+    "paths": 518,
+    "objects": 508,
+    "issues": [
+      {
+        "Code": "navigation-link-not-followed",
+        "State": 3
+      }
+    ],
+    "known": "3424256",
+    "unverified": "0",
+    "matchingPaths": 509,
+    "rows": 1,
+    "focus": null,
+    "marked": 0,
+    "basket": 0
+  },
+  "appSha256": "c38bb9ba4237a439d53ae4a99401059cb6fdc3d5a27ed16453506c2476bbbf2e",
+  "harnessSha256": "15e8a240174ad43a45a07d7f85eca4c7a8dc766d0564e021b72d930f4b467aec"
+}

@@ -24,7 +24,15 @@ public sealed partial class AnalysisWindowsTests
             using var session = new AnalysisCoordinator(io, "native-comparison-fixture").Start([new WindowsAnalysisBackend(fixture.Path)]);
             await session.Completion.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken); return session.Snapshot();
         }
-        var old = await Scan(); File.WriteAllBytes(file, new byte[32]); File.WriteAllBytes(Path.Combine(fixture.Path, "new.bin"), new byte[5]); var current = await Scan();
+        var old = await Scan();
+        using (var wire = new MemoryStream())
+        {
+            AnalysisInventoryFormat.Write(wire, old, Guid.NewGuid(), TestContext.Current.CancellationToken); wire.Position = 0;
+            using var saved = AnalysisInventoryFormat.Read(wire, TestContext.Current.CancellationToken);
+            using var same = AnalysisComparison.Build(saved.Snapshot, old, AnalysisMetric.OnDisk, cancellation: TestContext.Current.CancellationToken);
+            Assert.All(same.Rows, row => Assert.Equal(AnalysisChange.NoObservedMetadataChange, row.Change));
+        }
+        File.WriteAllBytes(file, new byte[32]); File.WriteAllBytes(Path.Combine(fixture.Path, "new.bin"), new byte[5]); var current = await Scan();
         using var result = AnalysisComparison.Build(old, current, AnalysisMetric.FileSize, cancellation: TestContext.Current.CancellationToken);
         Assert.Equal(new AnalysisDelta(false, 21), result.NetChange);
         Assert.Contains(result.Rows, r => r.Change == AnalysisChange.Growing); Assert.Contains(result.Rows, r => r.Change == AnalysisChange.Added);

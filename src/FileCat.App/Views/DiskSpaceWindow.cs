@@ -440,7 +440,7 @@ public sealed partial class DiskSpaceWindow : Window
             if (command == CommandIds.DiskSpaceClose) { _window.Close(); e.Handled = true; return; }
             if (Model.Comparison is not null)
             {
-                if (command == CommandIds.DiskSpaceFilter) { _comparisonStatus?.Focus(); e.Handled = true; }
+                if (command == CommandIds.DiskSpaceFilter) { _comparisonQuery?.Focus(); e.Handled = true; }
                 return;
             }
             if (command == CommandIds.DiskSpaceFilter) { _query.Focus(); e.Handled = true; return; }

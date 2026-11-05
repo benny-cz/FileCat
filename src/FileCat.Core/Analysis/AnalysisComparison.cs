@@ -12,6 +12,11 @@ public readonly record struct AnalysisDelta(bool Negative, UInt128 Magnitude)
     public static AnalysisDelta Between(UInt128 previous, UInt128 current) => current >= previous ? new(false, current - previous) : new(true, previous - current);
     public override string ToString() => (Magnitude == 0 ? "" : Negative ? "−" : "+") + Magnitude.ToString(CultureInfo.InvariantCulture);
     public double? RelativePercent(UInt128 previous) => previous == 0 ? null : (Negative ? -1d : 1d) * (double)Magnitude / (double)previous * 100d;
+    public int CompareTo(AnalysisDelta other)
+    {
+        bool negative = Negative && Magnitude != 0, otherNegative = other.Negative && other.Magnitude != 0;
+        return negative != otherNegative ? negative ? -1 : 1 : negative ? other.Magnitude.CompareTo(Magnitude) : Magnitude.CompareTo(other.Magnitude);
+    }
 }
 
 public sealed record AnalysisComparisonCompatibility(bool SamePolicy, bool SameBasis, bool SameScope, bool VerifiedIdentityContext,
@@ -40,12 +45,35 @@ public sealed record AnalysisComparisonRow(AnalysisComparisonEntity? Previous, A
 /// <summary>Inert derived observations and their bounded work/result memory lease. No live source is acquired.</summary>
 public sealed class AnalysisComparisonResult : IDisposable
 {
-    private IDisposable? _memory;
-    private ImmutableArray<AnalysisComparisonRow> _rows;
+    private readonly object _gate = new();
+    private Payload? _payload;
+    internal sealed class Payload(ImmutableArray<AnalysisComparisonRow> rows, IDisposable memory, AnalysisTaint taint)
+    {
+        private readonly object _gate = new();
+        private int _references = 1;
+        internal ImmutableArray<AnalysisComparisonRow> Rows { get; private set; } = rows;
+        internal AnalysisTaint Taint { get; } = taint;
+        internal void AddReference() { lock (_gate) { ObjectDisposedException.ThrowIf(_references == 0, this); checked { _references++; } } }
+        internal void Release()
+        {
+            lock (_gate) { if (--_references != 0) return; Rows = []; }
+            memory.Dispose();
+        }
+    }
+    /// <summary>Retains actual comparison payload/admission through queued or running data-only work.</summary>
+    public sealed class ReadLease : IDisposable
+    {
+        private readonly object _gate = new();
+        private Payload? _payload;
+        internal ReadLease(Payload payload) => _payload = payload;
+        public ImmutableArray<AnalysisComparisonRow> Rows { get { lock (_gate) return (_payload ?? throw new ObjectDisposedException(nameof(ReadLease))).Rows; } }
+        public AnalysisTaint Taint { get { lock (_gate) return (_payload ?? throw new ObjectDisposedException(nameof(ReadLease))).Taint; } }
+        public void Dispose() { Payload? payload; lock (_gate) { payload = _payload; _payload = null; } payload?.Release(); }
+    }
     internal AnalysisComparisonResult(AnalysisMetric metric, AnalysisComparisonCompatibility compatibility, AnalysisTotals previous,
         AnalysisTotals current, ImmutableArray<AnalysisComparisonRow> rows, AnalysisTaint taint, IDisposable memory)
     {
-        Metric = metric; Compatibility = compatibility; PreviousTotals = previous; CurrentTotals = current; _rows = rows; Taint = taint; _memory = memory;
+        Metric = metric; Compatibility = compatibility; PreviousTotals = previous; CurrentTotals = current; _payload = new(rows, memory, taint); Taint = taint;
         NetChange = compatibility.ComparableTotals && previous.CompatibleBasis && current.CompatibleBasis && previous.Missing.Count == 0 && current.Missing.Count == 0 &&
             previous.IdentityUnverified == 0 && current.IdentityUnverified == 0 ? AnalysisDelta.Between(previous.Known, current.Known) : null;
     }
@@ -53,13 +81,16 @@ public sealed class AnalysisComparisonResult : IDisposable
     public AnalysisComparisonCompatibility Compatibility { get; }
     public AnalysisTotals PreviousTotals { get; }
     public AnalysisTotals CurrentTotals { get; }
-    public ImmutableArray<AnalysisComparisonRow> Rows => Volatile.Read(ref _memory) is not null ? _rows : throw new ObjectDisposedException(nameof(AnalysisComparisonResult));
+    public ImmutableArray<AnalysisComparisonRow> Rows { get { lock (_gate) return (_payload ?? throw new ObjectDisposedException(nameof(AnalysisComparisonResult))).Rows; } }
+    public ReadLease Retain()
+    {
+        lock (_gate) { var payload = _payload ?? throw new ObjectDisposedException(nameof(AnalysisComparisonResult)); payload.AddReference(); return new(payload); }
+    }
     public AnalysisTaint Taint { get; }
     public AnalysisDelta? NetChange { get; }
     public void Dispose()
     {
-        var memory = Interlocked.Exchange(ref _memory, null); if (memory is null) return;
-        _rows = []; memory.Dispose();
+        Payload? payload; lock (_gate) { payload = _payload; _payload = null; } payload?.Release();
     }
 }
 
@@ -279,14 +310,16 @@ public static class AnalysisComparison
             bool known = unavailable == MeasurementState.Known && amounts.ContainsKey(pair.Key);
             var objectValues = members.Where(n => n.ObjectId is not null).Select(n => objects[n.ObjectId!]).DistinctBy(o => o.Id).ToArray();
             string? Single(Func<AnalysisObject, string?> select) { var values = objectValues.Select(select).Distinct(StringComparer.Ordinal).ToArray(); return values.Length == 1 ? values[0] : null; }
+            // Inventory dates are normalized to UTC. Offset spelling is not an observed metadata change.
+            static string Instant(DateTimeOffset? value) => value?.UtcTicks.ToString(CultureInfo.InvariantCulture) ?? "";
             string tag = pair.Key.StartsWith("directory:", StringComparison.Ordinal) ? "directory:" : "file:";
             var entity = new AnalysisComparisonEntity(members.Select(n => n.Id).ToImmutableArray(), members.Select(n => paths[n.Id]).Order(StringComparer.Ordinal).ToImmutableArray(),
                 known ? AnalysisMeasurement.Known(amounts[pair.Key]) : AnalysisMeasurement.Missing(unavailable == MeasurementState.Known ? MeasurementState.Unsupported : unavailable),
                 Single(o => o.VerifiedIdentity), Single(o => o.VersionEvidence), objectValues.Length == 0 ? members[0].Times?.ModifiedUtc : objectValues[0].ModifiedUtc,
                 members.All(n => fresh[n.Id]))
             { Keys = members.Select(n => tag + keys[n.Id]).Order(StringComparer.Ordinal).ToImmutableArray(), AttributionKey = attribution.GetValueOrDefault(pair.Key, ""),
-                MetadataFingerprint = string.Join(';', objectValues.Select(o => $"{o.LogicalLength.State}:{o.LogicalLength.Value?.ToString(CultureInfo.InvariantCulture)}:{o.LinkCount.State}:{o.LinkCount.Value?.ToString(CultureInfo.InvariantCulture)}:{o.ModifiedUtc:O}:{o.ModifiedPrecisionTicks}").Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)) + "|" +
-                    string.Join(';', members.Select(n => $"{n.Kind}:{n.Sparse}:{n.Compressed}:{n.Cloud}:{n.Times?.ModifiedUtc:O}:{n.Times?.ModifiedPrecisionTicks}:{n.Times?.CreatedUtc:O}:{n.Times?.CreatedPrecisionTicks}:{n.Times?.ChangedUtc:O}:{n.Times?.ChangedPrecisionTicks}").Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)),
+                MetadataFingerprint = string.Join(';', objectValues.Select(o => $"{o.LogicalLength.State}:{o.LogicalLength.Value?.ToString(CultureInfo.InvariantCulture)}:{o.LinkCount.State}:{o.LinkCount.Value?.ToString(CultureInfo.InvariantCulture)}:{Instant(o.ModifiedUtc)}:{o.ModifiedPrecisionTicks}").Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)) + "|" +
+                    string.Join(';', members.Select(n => $"{n.Kind}:{n.Sparse}:{n.Compressed}:{n.Cloud}:{Instant(n.Times?.ModifiedUtc)}:{n.Times?.ModifiedPrecisionTicks}:{Instant(n.Times?.CreatedUtc)}:{n.Times?.CreatedPrecisionTicks}:{Instant(n.Times?.ChangedUtc)}:{n.Times?.ChangedPrecisionTicks}").Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)),
                 Mapped = members.All(n => mapped.Contains(n.RootId)) };
             result.Add(entity);
         }

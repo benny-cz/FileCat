@@ -76,6 +76,13 @@ public sealed partial class AnalysisComparisonTests
                 await session.Completion.WaitAsync(TimeSpan.FromSeconds(15), Cancellation); return session.Snapshot();
             }
             var old = await Scan();
+            using (var wire = new MemoryStream())
+            {
+                AnalysisInventoryFormat.Write(wire, old, Guid.NewGuid(), Cancellation); wire.Position = 0;
+                using var saved = AnalysisInventoryFormat.Read(wire, Cancellation);
+                using var same = AnalysisComparison.Build(saved.Snapshot, old, AnalysisMetric.OnDisk, cancellation: Cancellation);
+                Assert.All(same.Rows, row => Assert.Equal(AnalysisChange.NoObservedMetadataChange, row.Change));
+            }
             File.WriteAllBytes(Path.Combine(root, "data.bin"), new byte[256]); File.WriteAllBytes(Path.Combine(root, "added.bin"), new byte[3]); File.Delete(Path.Combine(root, "shared-alias.bin"));
             var current = await Scan();
             using (var logical = AnalysisComparison.Build(old, current, AnalysisMetric.FileSize, cancellation: Cancellation))

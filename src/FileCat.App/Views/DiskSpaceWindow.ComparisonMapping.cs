@@ -35,6 +35,10 @@ public sealed partial class DiskSpaceWindow
                     HorizontalAlignment = HorizontalAlignment.Stretch, MaxWidth = 620 };
                 AutomationProperties.SetName(select, "Previous root for current " + AnalysisNames.Display(root.Id, 256));
                 choices.Add((root, select)); body.Children.Add(select);
+                var detail = new TextBlock { TextWrapping = TextWrapping.Wrap };
+                void Describe() => detail.Text = select.SelectedItem is RootMappingChoice { Root: { } selected }
+                    ? "Selected Previous [" + AnalysisNames.Display(selected.Id, 256) + "]: " + AnalysisNames.Display(selected.CanonicalLocator, 4096) : "No Previous root selected.";
+                select.SelectionChanged += (_, _) => Describe(); Describe(); body.Children.Add(detail);
             }
             ImmutableDictionary<string, string>? Selected()
             {

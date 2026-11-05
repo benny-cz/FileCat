@@ -66,6 +66,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.True(window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Cancel" && b.IsEffectivelyVisible).IsDefault);
             var root = window.GetVisualDescendants().OfType<ComboBox>().Single(c => (AutomationProperties.GetName(c) ?? "").StartsWith("Previous root for current ", StringComparison.Ordinal));
             Assert.Equal(0, root.SelectedIndex); root.SelectedIndex = 1;
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.StartsWith("Selected Previous [", StringComparison.Ordinal) == true && t.Text.EndsWith(": /previous", StringComparison.Ordinal));
             deadline = DateTime.UtcNow.AddSeconds(5); while (!compare.IsEnabled && DateTime.UtcNow < deadline) await Task.Delay(10);
             Assert.True(compare.IsEnabled); compare.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             deadline = DateTime.UtcNow.AddSeconds(5); while (window.SessionCount != 2 && DateTime.UtcNow < deadline) await Task.Delay(10);

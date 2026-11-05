@@ -7,7 +7,7 @@ namespace FileCat.Core.Analysis;
 public enum AnalysisTruth { False, True, Unknown }
 public sealed record AnalysisFilterItem(AnalysisNode Node, AnalysisObject? Object, string RelativePath,
     AnalysisMeasurement Allocation, Int128? Delta = null, string? Change = null, bool Stale = false, bool Unreadable = false,
-    MeasurementState? ActiveState = null, bool? RelativePathTextAvailable = null);
+    MeasurementState? ActiveState = null, bool? RelativePathTextAvailable = null, AnalysisDelta? ExactDelta = null);
 
 /// <summary>Bounded declarative query parser. It has no filesystem, reflection or executable expression access.</summary>
 public sealed class AnalysisFilter
@@ -158,10 +158,14 @@ public sealed class AnalysisFilter
                 UInt128 bytes = ParseBytes(negative ? value[1..] : value.StartsWith('+') && field == "delta" ? value[1..] : value);
                 if (field == "delta")
                 {
-                    UInt128 maximum = (UInt128)Int128.MaxValue + (negative ? 1u : 0u);
-                    if (!_comparison || bytes > maximum) throw new FormatException("Delta requires a comparison and a signed bounded value.");
-                    Int128 limit = bytes > (UInt128)Int128.MaxValue ? Int128.MinValue : negative ? -(Int128)bytes : (Int128)bytes;
-                    return i => i.Delta.HasValue ? Truth(Compare(i.Delta.Value.CompareTo(limit), op)) : AnalysisTruth.Unknown;
+                    if (!_comparison) throw new FormatException("Delta requires a comparison.");
+                    var limit = new AnalysisDelta(negative, bytes);
+                    return i =>
+                    {
+                        AnalysisDelta? delta = i.ExactDelta ?? (i.Delta is { } signed
+                            ? signed == Int128.MinValue ? new(true, (UInt128)Int128.MaxValue + 1) : new(signed < 0, (UInt128)(signed < 0 ? -signed : signed)) : null);
+                        return delta is { } exact ? Truth(Compare(exact.CompareTo(limit), op)) : AnalysisTruth.Unknown;
+                    };
                 }
                 return i =>
                 {
@@ -207,8 +211,8 @@ public sealed class AnalysisFilter
             }
             if (field == "change")
             {
-                if (!_comparison || value is not ("added" or "removed" or "growing" or "shrinking" or "moved" or "attribution" or "unknown")) throw new FormatException("Invalid comparison change.");
-                EnumOperator(op); return i => i.Change is null ? AnalysisTruth.Unknown : Truth(i.Change == value);
+                if (!_comparison || value is not ("added" or "removed" or "growing" or "shrinking" or "moved" or "attribution" or "unknown" or "replaced" or "metadata-changed" or "unchanged" or "previously-unknown")) throw new FormatException("Invalid comparison change.");
+                EnumOperator(op); return i => i.Change is null ? AnalysisTruth.Unknown : Truth(i.Change == value || value == "unknown" && i.Change == "previously-unknown");
             }
             if (field == "state")
             {

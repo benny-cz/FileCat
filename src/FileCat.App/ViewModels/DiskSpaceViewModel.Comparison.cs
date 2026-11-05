@@ -12,6 +12,23 @@ public sealed partial class DiskSpaceViewModel
     public SessionIdentity? ComparisonPreviousIdentity => _comparisonPrevious?.Snapshot.Identity;
     public SessionIdentity? ComparisonCurrentIdentity => _comparisonCurrent?.Snapshot.Identity;
     public string? ComparisonPreviousName { get; private set; }
+    internal async Task<AnalysisComparisonQueryResult> QueryComparisonAsync(string query, bool sensitive,
+        AnalysisComparisonSide side, CancellationToken cancellation)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var comparison = Comparison ?? throw new InvalidOperationException("Choose a comparison before applying a comparison query.");
+        using var before = _comparisonPrevious!.Retain(); using var current = _comparisonCurrent!.Retain();
+        AnalysisComparisonResult.ReadLease? rows = comparison.Retain(); AnalysisComparisonQueryResult? result = null;
+        try
+        {
+            var previousSnapshot = before.Snapshot; var currentSnapshot = current.Snapshot; var retained = rows;
+            result = await Task.Run(() => AnalysisComparisonQuery.Apply(previousSnapshot, currentSnapshot, comparison.Metric, retained,
+                query, sensitive, side, cancellation), CancellationToken.None);
+            rows = null; cancellation.ThrowIfCancellationRequested();
+            var success = result; result = null; return success;
+        }
+        finally { result?.Dispose(); rows?.Dispose(); }
+    }
     internal ImmutableArray<string> ComparisonBases(bool previous, AnalysisComparisonEntity? entity)
     {
         var snapshot = previous ? _comparisonPrevious?.Snapshot : _comparisonCurrent?.Snapshot;
