@@ -236,11 +236,12 @@ public sealed class ArchiveAssessmentClientTests
         }
     }
 
-    internal sealed class Child(Process process) : IArchiveWorkerProcess
+    internal sealed class Child(Process process, System.IO.Pipes.AnonymousPipeServerStream cancellation) : IArchiveWorkerProcess
     {
         internal int ProcessId { get; } = process.Id;
         public bool Disposed { get; private set; }
         public bool Reaped { get; private set; }
+        public bool HardKilled { get; private set; }
         public Stream Input => process.StandardInput.BaseStream;
         public Stream Output => process.StandardOutput.BaseStream;
         private uint _exit;
@@ -258,7 +259,9 @@ public sealed class ArchiveAssessmentClientTests
             }
         }
         public bool ErrorLimitExceeded => false;
-        public void Kill() { if (!Disposed && !process.HasExited) process.Kill(entireProcessTree: true); }
+        public void RequestCancellation() => cancellation.Dispose();
+        internal void SendMalformedCancellation() { cancellation.WriteByte(1); cancellation.Flush(); }
+        public void Kill() { if (!Disposed && !process.HasExited) { HardKilled = true; process.Kill(entireProcessTree: true); } }
         public async ValueTask DisposeAsync()
         {
             bool exitedBeforeStop = process.HasExited;
@@ -269,7 +272,7 @@ public sealed class ArchiveAssessmentClientTests
             if (diagnosticRoot is not null && Path.IsPathFullyQualified(diagnosticRoot) && Directory.Exists(diagnosticRoot))
                 File.WriteAllText(Path.Combine(diagnosticRoot, ProcessId + ".json"), System.Text.Json.JsonSerializer.Serialize(new
                 { pid = ProcessId, exit = _exit, exitedBeforeStop, role = process.StartInfo.ArgumentList[1], runtime = Environment.Version.ToString() }));
-            process.Dispose(); Disposed = true;
+            cancellation.Dispose(); process.Dispose(); Disposed = true;
         }
         public static Child Start(Guid nonce, string role = "archive-assess")
         {
@@ -282,7 +285,13 @@ public sealed class ArchiveAssessmentClientTests
             var start = new ProcessStartInfo(Path.Combine(runtimeRoot, OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet"))
             { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true };
             foreach (string arg in new[] { probe, role, nonce.ToString() }) start.ArgumentList.Add(arg);
-            return new(Process.Start(start)!);
+            var cancellation = new System.IO.Pipes.AnonymousPipeServerStream(System.IO.Pipes.PipeDirection.Out, HandleInheritability.Inheritable);
+            start.ArgumentList.Add(ArchiveWorkerCancellation.Argument); start.ArgumentList.Add(cancellation.GetClientHandleAsString());
+            try
+            {
+                var process = Process.Start(start)!; cancellation.DisposeLocalCopyOfClientHandle(); return new(process, cancellation);
+            }
+            catch { cancellation.Dispose(); throw; }
         }
     }
 }

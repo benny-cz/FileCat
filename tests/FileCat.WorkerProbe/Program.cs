@@ -7,9 +7,9 @@ if (args.Length > 0 && args[0] == FileCat.Core.Archives.Linux.LinuxArchiveIsolat
     {
         return FileCat.Core.Archives.Linux.LinuxArchiveIsolation.RunWorker(args, startup =>
         {
-            string[] requests = args[4..];
+            string[] requests = args[4..^2];
             if (requests.Length == 0 || requests[0] is "archive-assess" or "archive-verify" or "archive-transform" && (requests.Length != 2 || requests[1] != startup.Nonce.ToString("D"))) return 64;
-            return RunProbe(requests);
+            return RunProbe(requests, startup.CancellationDescriptor);
         });
     }
     catch (Exception ex) when (ex is IOException or ArgumentException or PlatformNotSupportedException or UnauthorizedAccessException)
@@ -17,8 +17,14 @@ if (args.Length > 0 && args[0] == FileCat.Core.Archives.Linux.LinuxArchiveIsolat
 }
 return RunProbe(args);
 
-static int RunProbe(string[] requests)
+static int RunProbe(string[] requests, long? cancellationHandle = null)
 {
+    if (cancellationHandle is null && requests.Length >= 2 && requests[^2] == FileCat.Core.Archives.ArchiveWorkerCancellation.Argument)
+    {
+        try { cancellationHandle = FileCat.Core.Archives.ArchiveWorkerCancellation.Parse(requests[^2], requests[^1]); }
+        catch (ArgumentException) { return 64; }
+        requests = requests[..^2];
+    }
     if (requests.Length == 0)
     {
         Console.Error.WriteLine("usage: env | read <path>... | exit0 | dropprivs [path]");
@@ -40,15 +46,27 @@ static int RunProbe(string[] requests)
         case "archive-assess":
         case "archive-verify":
         case "archive-transform":
-            if (requests.Length != 2 || !Guid.TryParse(requests[1], out Guid taskNonce) || taskNonce == Guid.Empty) return 2;
-            using (var input = Console.OpenStandardInput())
-            using (var output = Console.OpenStandardOutput())
-                return requests[0] switch
+            if (requests.Length != 2 || !Guid.TryParse(requests[1], out Guid taskNonce) || taskNonce == Guid.Empty || cancellationHandle is null) return 2;
+            return FileCat.Core.Archives.ArchiveWorkerCancellation.Run(cancellationHandle.Value, (input, output, ct) => requests[0] switch
                 {
-                    "archive-transform" => FileCat.Archives.Writing.ArchiveTransformWorker.RunAfterIsolation(input, output, taskNonce),
-                    "archive-verify" => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, taskNonce),
-                    _ => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunAfterIsolation(input, output, taskNonce)
-                };
+                    "archive-transform" => FileCat.Archives.Writing.ArchiveTransformWorker.RunAfterIsolation(input, output, taskNonce, ct),
+                    "archive-verify" => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, taskNonce, ct),
+                    _ => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunAfterIsolation(input, output, taskNonce, ct)
+                });
+
+        case "archive-cancel-ignore":
+            using (var ready = Console.OpenStandardOutput()) { ready.Write("CANCELLATION-IGNORE-READY\n"u8); ready.Flush(); }
+            Thread.Sleep(Timeout.Infinite); return 9;
+
+        case "archive-cancel-output":
+            if (cancellationHandle is null) return 64;
+            return FileCat.Core.Archives.ArchiveWorkerCancellation.Run(cancellationHandle.Value, (_, output, _) =>
+            {
+                output.Write("CANCELLATION-OUTPUT-READY\n"u8); output.Flush();
+                byte[] block = new byte[65_524];
+                for (int i = 0; i < 256; i++) output.Write(block);
+                return 9; // A test which fails to cancel must not look cooperative.
+            });
 
         case "archive-boundary":
             {

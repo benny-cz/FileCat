@@ -10,7 +10,8 @@ namespace FileCat.Platform.Windows.Shell;
 /// token that holds no administrative group and no privilege but SeChangeNotifyPrivilege even when FileCat itself runs
 /// elevated, inside a job object that ends it together with FileCat, allows it no child processes, caps its memory,
 /// and denies it FileCat's own windows, the clipboard, global atoms, and desktop, display, or shutdown changes. Only
-/// its two pipe ends are inherited, and it starts suspended, so none of its code runs outside the job. This is a
+/// its standard pipe ends (plus the archive-only diagnostics and cancellation ends) are inherited, and it starts
+/// suspended, so none of its code runs outside the job. This is a
 /// reduced-authority worker, not a verified sandbox: it keeps the filesystem and network reach of an ordinary user.
 /// </summary>
 internal sealed unsafe partial class RestrictedProcess : IDisposable
@@ -18,9 +19,10 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     private readonly nint _job;
     private readonly nint _process;
     private bool _disposed;
+    private FileStream? _cancellation;
 
     private RestrictedProcess(nint job, nint process, int id, FileStream input, FileStream output, bool lowIntegrity,
-        FileStream? error)
+        FileStream? error, FileStream? cancellation)
     {
         _job = job;
         _process = process;
@@ -29,6 +31,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
         Output = output;
         LowIntegrity = lowIntegrity;
         Error = error;
+        _cancellation = cancellation;
     }
 
     /// <summary>Written to the helper's standard input.</summary>
@@ -53,6 +56,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
 
     /// <summary>Ends the helper and anything in its job at once.</summary>
     public void Kill() => TerminateJobObject(_job, 1);
+    internal void RequestCancellation() => Interlocked.Exchange(ref _cancellation, null)?.Dispose();
 
     public static RestrictedProcess Start(string executable, string arguments, bool lowIntegrity, long memoryLimitBytes,
         bool inheritParentEnvironment = true, nint appContainerSid = 0, long cpuTimeTicks = 0)
@@ -60,9 +64,9 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
         if (appContainerSid != 0 && (!lowIntegrity || inheritParentEnvironment))
             throw new ArgumentException("An archive AppContainer requires a restricted token and a clean environment.");
         nint job = CreateJob(memoryLimitBytes, cpuTimeTicks);
-        nint childIn = 0, parentIn = 0, parentOut = 0, childOut = 0, parentError = 0, childError = 0;
+        nint childIn = 0, parentIn = 0, parentOut = 0, childOut = 0, parentError = 0, childError = 0, childCancel = 0, parentCancel = 0;
         nint process = 0, thread = 0;
-        FileStream? input = null, output = null, errorStream = null;
+        FileStream? input = null, output = null, errorStream = null, cancellationStream = null;
         try
         {
             var inherit = new SECURITY_ATTRIBUTES { nLength = sizeof(SECURITY_ATTRIBUTES), bInheritHandle = 1 };
@@ -70,15 +74,20 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
                 throw new Win32Exception(Marshal.GetLastPInvokeError(), "The Shell helper's pipes could not be created.");
             if (appContainerSid != 0 && !CreatePipe(out parentError, out childError, &inherit, 0))
                 throw new Win32Exception(Marshal.GetLastPInvokeError(), "The archive worker's error pipe could not be created.");
+            if (appContainerSid != 0 && !CreatePipe(out childCancel, out parentCancel, &inherit, 0))
+                throw new Win32Exception(Marshal.GetLastPInvokeError(), "The archive worker's cancellation pipe could not be created.");
             // FileCat's own ends are never inherited.
             if (!SetHandleInformation(parentIn, HANDLE_FLAG_INHERIT, 0) ||
                 !SetHandleInformation(parentOut, HANDLE_FLAG_INHERIT, 0) ||
-                (parentError != 0 && !SetHandleInformation(parentError, HANDLE_FLAG_INHERIT, 0)))
+                (parentError != 0 && !SetHandleInformation(parentError, HANDLE_FLAG_INHERIT, 0)) ||
+                (parentCancel != 0 && !SetHandleInformation(parentCancel, HANDLE_FLAG_INHERIT, 0)))
                 throw new Win32Exception(Marshal.GetLastPInvokeError(), "The parent's worker pipe ends could not be protected.");
 
+            if (childCancel != 0) arguments += " " + FileCat.Core.Archives.ArchiveWorkerCancellation.Argument + " " +
+                childCancel.ToString(System.Globalization.CultureInfo.InvariantCulture);
             bool low = lowIntegrity;
             var pi = low ? TryCreate(executable, arguments, childIn, childOut, lowToken: true, inheritParentEnvironment,
-                appContainerSid, childError) : null;
+                appContainerSid, childError, childCancel) : null;
             if (pi is null)
             {
                 if (appContainerSid != 0)
@@ -118,18 +127,21 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
             CloseHandle(childOut);
             childIn = childOut = 0;
             if (childError != 0) { CloseHandle(childError); childError = 0; }
+            if (childCancel != 0) { CloseHandle(childCancel); childCancel = 0; }
             input = TakePipe(ref parentIn, FileAccess.Write);
             output = TakePipe(ref parentOut, FileAccess.Read);
             errorStream = parentError == 0 ? null : TakePipe(ref parentError, FileAccess.Read);
-            return new RestrictedProcess(job, info.hProcess, (int)info.dwProcessId, input, output, low, errorStream);
+            cancellationStream = parentCancel == 0 ? null : TakePipe(ref parentCancel, FileAccess.Write);
+            return new RestrictedProcess(job, info.hProcess, (int)info.dwProcessId, input, output, low, errorStream, cancellationStream);
         }
         catch
         {
             if (process != 0) TerminateProcess(process, 1);
-            foreach (var h in new[] { childIn, parentIn, parentOut, childOut, parentError, childError }) if (h != 0) CloseHandle(h);
+            foreach (var h in new[] { childIn, parentIn, parentOut, childOut, parentError, childError, childCancel, parentCancel }) if (h != 0) CloseHandle(h);
             try { input?.Dispose(); } catch (IOException) { }
             try { output?.Dispose(); } catch (IOException) { }
             try { errorStream?.Dispose(); } catch (IOException) { }
+            try { cancellationStream?.Dispose(); } catch (IOException) { }
             if (thread != 0) CloseHandle(thread);
             CloseHandle(job);
             if (process != 0) { WaitForSingleObject(process, 5000); CloseHandle(process); }
@@ -214,7 +226,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
     /// token holding no administrative group does not have in a session whose own token carries no logon SID.
     /// </summary>
     private static PROCESS_INFORMATION? TryCreate(string executable, string arguments, nint stdIn, nint stdOut,
-        bool lowToken, bool inheritParentEnvironment, nint appContainerSid = 0, nint stdError = 0)
+        bool lowToken, bool inheritParentEnvironment, nint appContainerSid = 0, nint stdError = 0, nint cancellation = 0)
     {
         nint token = 0, attributes = 0;
         bool attributesInitialized = false;
@@ -231,9 +243,9 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
             attributes = Marshal.AllocHGlobal(size);
             if (!InitializeProcThreadAttributeList(attributes, attributeCount, 0, ref size)) return null;
             attributesInitialized = true;
-            var handles = stackalloc nint[3] { stdIn, stdOut, stdError };
+            var handles = stackalloc nint[4] { stdIn, stdOut, stdError, cancellation };
             if (!UpdateProcThreadAttribute(attributes, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handles,
-                    (stdError == 0 ? 2 : 3) * sizeof(nint), 0, 0)) return null;
+                    (cancellation != 0 ? 4 : stdError == 0 ? 2 : 3) * sizeof(nint), 0, 0)) return null;
             var capabilities = new SECURITY_CAPABILITIES { AppContainerSid = appContainerSid };
             uint allPackagesPolicy = 1, childPolicy = 1;
             if (appContainerSid != 0 &&
@@ -579,6 +591,7 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
         if (_disposed) return;
         _disposed = true;
         Kill();
+        try { RequestCancellation(); } catch (IOException) { }
         try { Input.Dispose(); } catch (IOException) { }
         try { Output.Dispose(); } catch (IOException) { }
         try { Error?.Dispose(); } catch (IOException) { }

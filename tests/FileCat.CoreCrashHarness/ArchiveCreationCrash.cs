@@ -93,7 +93,7 @@ internal static class ArchiveCreationCrash
         { if (!bytes.IsEmpty) { output.Write(bytes[..1]); output.Flush(); Wait("metadata-partial"); } }
         // Borrowed view: the native artifact owns the output and its lifetime.
     }
-    private sealed class Worker(Process process) : IArchiveWorkerProcess
+    private sealed class Worker(Process process, System.IO.Pipes.AnonymousPipeServerStream cancellation) : IArchiveWorkerProcess
     {
         private readonly Task<bool> stderr = Drain(process); // Controlled empty-TAR child, never a production launch.
         private uint exit; private TimeSpan cpu; private bool disposed;
@@ -105,11 +105,12 @@ internal static class ArchiveCreationCrash
         public uint ExitCode => disposed ? exit : (uint)process.ExitCode;
         public TimeSpan TotalProcessorTime { get { if (!disposed) { try { cpu = process.TotalProcessorTime; } catch (System.ComponentModel.Win32Exception) when (process.HasExited) { } } return cpu; } }
         public bool ErrorLimitExceeded { get; private set; }
+        public void RequestCancellation() => cancellation.Dispose();
         public void Kill() { if (!disposed && !process.HasExited) process.Kill(entireProcessTree: true); }
         public async ValueTask DisposeAsync()
         {
             if (disposed) return; Kill(); await process.WaitForExitAsync(); exit = (uint)process.ExitCode;
-            ErrorLimitExceeded = await stderr; Reaped = true; process.Dispose(); disposed = true;
+            ErrorLimitExceeded = await stderr; Reaped = true; cancellation.Dispose(); process.Dispose(); disposed = true;
         }
         private static async Task<bool> Drain(Process child)
         {
@@ -127,7 +128,13 @@ internal static class ArchiveCreationCrash
             var start = new ProcessStartInfo(Path.Combine(root, OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet"))
             { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
             foreach (string value in new[] { probe, role, nonce.ToString("D") }) start.ArgumentList.Add(value);
-            return new(Process.Start(start)!);
+            var cancellation = new System.IO.Pipes.AnonymousPipeServerStream(System.IO.Pipes.PipeDirection.Out, HandleInheritability.Inheritable);
+            start.ArgumentList.Add(ArchiveWorkerCancellation.Argument); start.ArgumentList.Add(cancellation.GetClientHandleAsString());
+            try
+            {
+                var process = Process.Start(start)!; cancellation.DisposeLocalCopyOfClientHandle(); return new(process, cancellation);
+            }
+            catch { cancellation.Dispose(); throw; }
         }
     }
 }

@@ -38,5 +38,6 @@
     <Compile Include="..\ArchiveCreationPublicationCases.cs" Link="ArchiveCreationPublicationCases.cs" />
     <Compile Include="..\ArchiveSidecarCrashAssertions.cs" Link="ArchiveSidecarCrashAssertions.cs" />
     <Compile Include="..\ArchiveCreationCrashAssertions.cs" Link="ArchiveCreationCrashAssertions.cs" />
+    <Compile Include="..\ArchiveWorkerCancellationAssertions.cs" Link="ArchiveWorkerCancellationAssertions.cs" />
   </ItemGroup>
 </Project>

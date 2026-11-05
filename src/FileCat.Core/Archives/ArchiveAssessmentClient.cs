@@ -14,6 +14,9 @@ public interface IArchiveWorkerProcess : IAsyncDisposable
     uint ExitCode { get; }
     TimeSpan TotalProcessorTime { get; }
     bool ErrorLimitExceeded { get; }
+    // Scripted/unqualified implementations may fall back to stopping. Qualified native factories override this
+    // with the dedicated lifetime channel; they never wait for protocol pipe capacity on a cancellation callback.
+    void RequestCancellation() => Kill();
     void Kill();
 }
 
@@ -76,6 +79,7 @@ public sealed class ArchiveAssessmentClient
                     throw ArchiveAssessmentWire.Fault(); // no stage, new input ID, write or capability change in this phase
                 ct.ThrowIfCancellationRequested();
                 var reply = authority.Handle(frame);
+                ct.ThrowIfCancellationRequested();
                 if (_verification && reply.Payload.Length > 12)
                 {
                     long offset = BinaryPrimitives.ReadInt64LittleEndian(frame.Payload.AsSpan(4));

@@ -12,7 +12,7 @@ internal static unsafe partial class LinuxArchiveIsolation
 {
     internal const string LauncherArgument = "--archive-linux-launch", WorkerArgument = "--archive-linux-worker";
     internal const long ReadableAssetMaximum = 256L << 20;
-    internal readonly record struct Startup(Guid Nonce, int Parent, int CpuSeconds);
+    internal readonly record struct Startup(Guid Nonce, int Parent, int CpuSeconds, int CancellationDescriptor);
     [StructLayout(LayoutKind.Sequential)]
     private struct RLimit { internal ulong Current, Maximum; }
     [StructLayout(LayoutKind.Sequential)]
@@ -22,13 +22,15 @@ internal static unsafe partial class LinuxArchiveIsolation
 
     internal static Startup Parse(string[] args, string mode)
     {
-        if (args.Length is < 4 or > 64 || args[0] != mode || !Guid.TryParseExact(args[1], "D", out Guid nonce) || nonce == Guid.Empty ||
+        if (args.Length is < 6 or > 64 || args[0] != mode || !Guid.TryParseExact(args[1], "D", out Guid nonce) || nonce == Guid.Empty ||
             !int.TryParse(args[2], NumberStyles.None, CultureInfo.InvariantCulture, out int parent) || parent <= 1 ||
             !int.TryParse(args[3], NumberStyles.None, CultureInfo.InvariantCulture, out int cpu) || cpu is < 1 or > 7200 ||
             args[2] != parent.ToString(CultureInfo.InvariantCulture) || args[3] != cpu.ToString(CultureInfo.InvariantCulture) ||
             args.Any(a => a.Length > 4096 || a.IndexOf('\0') >= 0))
             throw new ArgumentException("Invalid Linux archive startup facts.");
-        return new(nonce, parent, cpu);
+        long cancellation = ArchiveWorkerCancellation.Parse(args[^2], args[^1]);
+        if (cancellation > int.MaxValue) throw new ArgumentException("Invalid Linux archive cancellation descriptor.");
+        return new(nonce, parent, cpu, (int)cancellation);
     }
 
     internal static int RunLauncher(string[] args)
@@ -50,10 +52,13 @@ internal static unsafe partial class LinuxArchiveIsolation
             var limit = new RLimit { Current = (ulong)startup.CpuSeconds, Maximum = (ulong)startup.CpuSeconds };
             if (SetRlimit(0 /* CPU */, &limit) != 0 || LinuxArchiveProcessPolicy.Prctl(38 /* NO_NEW_PRIVS */, 1, 0, 0, 0) != 0)
                 throw LinuxArchiveNative.Unavailable("The archive worker's CPU/privilege controls could not be applied.");
-            // The launcher has consumed only fixed trusted arguments. On exec, every non-stdio descriptor is closed,
-            // including an unrelated inheritable parent file. A fresh CLR then allocates inside the memory cgroup.
+            // Preserve only the dedicated, read-only cancellation pipe across exec. Every unrelated inheritable
+            // descriptor is closed. A fresh CLR then allocates inside the memory cgroup.
+            VerifyCancellationDescriptor(startup.CancellationDescriptor);
             if (LinuxArchiveNative.Syscall(436 /* close_range */, 3, unchecked((nint)uint.MaxValue), 4 /* CLOEXEC */, 0, 0, 0) != 0)
                 throw LinuxArchiveNative.Unavailable("The archive worker could not exclude inherited descriptors.");
+            if (Fcntl(startup.CancellationDescriptor, 2 /* SETFD */, 0) != 0)
+                throw LinuxArchiveNative.Unavailable("The archive cancellation pipe could not be retained.");
             string[] child = (string[])args.Clone(); child[0] = WorkerArgument;
             Trace("launcher exec");
             Exec(executable, child);
@@ -103,7 +108,7 @@ internal static unsafe partial class LinuxArchiveIsolation
             throw LinuxArchiveNative.Unavailable("The archive worker has no exact finite CPU limit.");
         string groupPath = LinuxArchiveCgroup.VerifyCurrent(startup.Nonce);
         Trace("worker resource controls verified");
-        VerifyDescriptors();
+        VerifyDescriptors(startup.CancellationDescriptor);
         Trace("worker descriptor inventory verified");
         string executable = Environment.ProcessPath ?? throw LinuxArchiveNative.Unavailable("The archive worker executable is unavailable.");
         var assets = ValidateBundle(executable);
@@ -220,14 +225,14 @@ internal static unsafe partial class LinuxArchiveIsolation
             throw LinuxArchiveNative.Unavailable("The archive filesystem policy could not cover every runtime thread.");
     }
 
-    private static void VerifyDescriptors()
+    private static void VerifyDescriptors(int cancellation)
     {
         foreach (string path in Directory.GetFileSystemEntries("/proc/self/fd"))
         {
             if (!int.TryParse(Path.GetFileName(path), out int fd) || fd < 0) throw LinuxArchiveNative.Unavailable("The archive descriptor inventory is invalid.");
             int flags = Fcntl(fd, 1 /* GETFD */, 0);
             if (flags < 0) { if (Marshal.GetLastPInvokeError() == 9) continue; throw LinuxArchiveNative.Unavailable("The archive descriptor flags are unavailable."); }
-            if (fd > 2 && (flags & 1) == 0) throw LinuxArchiveNative.Unavailable("The archive runtime inherited an unapproved descriptor.");
+            if (fd > 2 && fd != cancellation && (flags & 1) == 0) throw LinuxArchiveNative.Unavailable("The archive runtime inherited an unapproved descriptor.");
         }
         byte* facts = stackalloc byte[256]; byte* empty = stackalloc byte[1]; empty[0] = 0;
         long statx = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? 291 : 332;
@@ -237,6 +242,18 @@ internal static unsafe partial class LinuxArchiveIsolation
             if (result != 0 || (*(ushort*)(facts + 28) & 0xf000) != 0x1000 /* FIFO */)
                 throw LinuxArchiveNative.Unavailable("Archive standard streams must be parent-owned pipes.");
         }
+        VerifyCancellationDescriptor(cancellation);
+    }
+
+    private static void VerifyCancellationDescriptor(int descriptor)
+    {
+        byte* facts = stackalloc byte[256]; byte* empty = stackalloc byte[1]; empty[0] = 0;
+        long statx = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? 291 : 332;
+        int flags = Fcntl(descriptor, 3 /* GETFL */, 0);
+        if (descriptor < 3 || flags < 0 || (flags & 3 /* O_ACCMODE */) != 0 /* O_RDONLY */ ||
+            LinuxArchiveNative.Syscall(statx, descriptor, (nint)empty, 0x1000, 1, (nint)facts, 0) != 0 ||
+            (*(ushort*)(facts + 28) & 0xf000) != 0x1000 /* FIFO */)
+            throw LinuxArchiveNative.Unavailable("The archive cancellation descriptor must be a read-only parent pipe.");
     }
 
     private static void VerifyEnvironment()

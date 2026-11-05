@@ -117,6 +117,7 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
     }
 
     public void Kill() { lock (_lifetimeGate) { if (!_fullyDisposed) _process.Kill(); } }
+    public void RequestCancellation() { lock (_lifetimeGate) { if (!_fullyDisposed) _process.RequestCancellation(); } }
     private async Task<string> DrainErrorAsync()
     {
         var captured = new byte[8192];

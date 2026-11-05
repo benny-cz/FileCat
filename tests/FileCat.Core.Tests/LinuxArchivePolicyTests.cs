@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Runtime.InteropServices;
+using FileCat.Core.Archives;
 using FileCat.Core.Archives.Linux;
 
 namespace FileCat.Core.Tests;
@@ -101,7 +102,8 @@ public sealed class LinuxArchivePolicyTests
     [InlineData("oversized")]
     public void Malformed_startup_facts_are_refused_before_native_policy_or_input(string mutation)
     {
-        string[] args = [LinuxArchiveIsolation.LauncherArgument, Guid.NewGuid().ToString("D"), "1234", "30"];
+        string[] args = [LinuxArchiveIsolation.LauncherArgument, Guid.NewGuid().ToString("D"), "1234", "30", ArchiveWorkerCancellation.Argument, "17"];
+        Assert.Equal(17, LinuxArchiveIsolation.Parse(args, LinuxArchiveIsolation.LauncherArgument).CancellationDescriptor);
         switch (mutation)
         {
             case "nonce": args[1] = Guid.Empty.ToString("D"); break;

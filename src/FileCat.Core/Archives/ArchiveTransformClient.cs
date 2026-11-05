@@ -53,7 +53,8 @@ public sealed class ArchiveTransformClient
                 if (frame.Kind == ArchiveWorkerMessage.Refused) return Refused(frame);
                 if (frame.Kind is not (ArchiveWorkerMessage.Read or ArchiveWorkerMessage.Write or ArchiveWorkerMessage.SetLength)) break;
                 ct.ThrowIfCancellationRequested();
-                long length = stage.Length; var response = authority.Handle(frame); send.Write(process.Input, response.Kind, response.Payload);
+                long length = stage.Length; var response = authority.Handle(frame);
+                ct.ThrowIfCancellationRequested(); send.Write(process.Input, response.Kind, response.Payload);
                 if (frame.Kind == ArchiveWorkerMessage.Read && response.Payload.Length > 12 || frame.Kind == ArchiveWorkerMessage.Write && frame.Payload.Length > 8 || stage.Length > length) progress();
             }
             var receipt = ArchiveTransformWire.ReadReceipt(incoming.Read(ArchiveControlRecord.Receipt, frame));

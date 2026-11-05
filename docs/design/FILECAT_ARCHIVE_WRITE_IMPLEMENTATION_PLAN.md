@@ -57,10 +57,10 @@ Production availability is per format, profile, runtime identifier, and destinat
 
 - Keep the existing ZIP implementation and tests as a behavioral baseline. Refactor only the shared safety boundary that new formats require.
 - Initial new update profiles accept regular files and explicit directories. Links, special entries, sparse layouts, unknown metadata, ambiguous names, incomplete listings, signed containers requiring signature preservation, encryption, and multipart sets cause read-only admission unless a later profile explicitly qualifies them.
-- Initial sources are explicitly selected local regular files/directories. Do not add archive-to-archive, remote-to-archive, clipboard-to-archive, move-into, or move-out support as a side effect of enabling a provider capability.
+- Initial sources are explicitly selected local regular files/directories. Local move-into is an explicit required transfer operation (§11.6.1), including the existing writable ZIP route. Do not add archive-to-archive, remote-to-archive, clipboard-to-archive or move-out support as a side effect of enabling a provider capability.
 - Nested archives remain read-only. Editing an inner archive requires extracting it first.
-- Keep bundled RAR writing and arbitrary UDF updates out of scope. An external user-installed RAR command is a separate possible integration, not a dependency of this plan.
-- No automatic removal of source files, archive-member recycle-bin behavior, background writeback on editor save, or promise of archive undo.
+- RAR writing requires a separate licence/format feasibility analysis after the common implementation loop and before the final independent review. Implement and qualify a lawful approach if feasible, considering an independent implementation and an explicit user-installed external RAR command. Do not bundle or derive an encoder from licence-restricted decoder sources. Arbitrary UDF updates remain out of scope.
+- Remove local sources only for an explicit move-into operation after verified publication and the source rechecks in §11.6.1. No archive-member recycle-bin behavior, background writeback on editor save, or promise of archive undo.
 - No silent conversion of format, TAR dialect, encryption, solid layout, filenames, or unsupported metadata. A future conversion feature must create a separate file after an explicit review; it is not an update fallback.
 - Reading and listing remain tolerant where currently designed, but a tolerant or partial result can never authorize an update.
 
@@ -548,6 +548,16 @@ Cancel normally stops preparation/transform/verification. During the short publi
 | Supported format on unqualified RID/filesystem | Existing safe read behavior | No, explain unavailable safe-save support | No | No | Save copy only | No archive mutation |
 
 Apply this matrix to keyboard commands, palette, menu bar, context menu, background context menu, toolbar and programmatic operation entry points. Every refused command has accessible help text. Do not enable clipboard paste or a remote-source pairing by broadening a scheme allowlist without an explicit transfer implementation.
+
+#### 11.6.1 Explicit local move into a writable archive (user-requested addition)
+
+F6 and the corresponding move entry points must perform the complete local-to-archive transfer without asking the user to copy and manually delete. The `Move` cells above continue to refuse move-out; move-into is allowed wherever the local-input add route is qualified. Its transfer must preserve these semantics:
+
+- Capture the exact regular files/directories selected by the user, with the same conflict choices as copy. A skipped/conflicting input is never deleted. Unsupported inputs receive the same actionable explanation as copy.
+- Publish and freshly verify the archive through its qualified write route before any source deletion. Failed, uncertain or cancelled writes leave sources intact. A late cancellation must report the actual archive result and retain sources whose deletion has not started.
+- Delete only inputs whose exact archived content and identity still match the captured originals; retain changed/replaced files and explain the partial result. A directory containing a skipped, changed, newly added or undeleted child is retained. Never recursively delete a tree using only its original pathname.
+- Source deletion failures produce an honest “archived; originals retained” or partial-move outcome with the affected paths, rather than relabeling a committed archive update as a failed write. Refresh/focus both panes and job progress/counts consistently.
+- Cover conflict skipping/replacement, cancellation before and after publication, changed/replaced sources, new directory children, source deletion failures and a successful file/folder move in automated and live platform tests. This addition supersedes the earlier blanket refusal and remains pending until that evidence exists.
 
 ### 11.7 Error and recovery microcopy
 

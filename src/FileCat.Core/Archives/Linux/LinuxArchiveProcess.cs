@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
@@ -18,6 +19,7 @@ internal sealed class LinuxArchiveProcess : IArchiveWorkerProcess
     private readonly Thread owner;
     private readonly ManualResetEventSlim release;
     private readonly Task<string> errorDrain;
+    private readonly AnonymousPipeServerStream cancellation;
     private readonly object gate = new();
     private Task? disposing;
     private bool disposed;
@@ -37,17 +39,19 @@ internal sealed class LinuxArchiveProcess : IArchiveWorkerProcess
     public TimeSpan TotalProcessorTime { get { lock (gate) return disposed ? finalCpu : Cpu(); } }
     public bool ErrorLimitExceeded => Volatile.Read(ref errorExceeded) != 0;
 
-    private LinuxArchiveProcess(Process process, LinuxArchiveCgroup group, SafeFileHandle pidfd, Thread owner, ManualResetEventSlim release)
+    private LinuxArchiveProcess(Process process, LinuxArchiveCgroup group, SafeFileHandle pidfd, Thread owner, ManualResetEventSlim release,
+        AnonymousPipeServerStream cancellation)
     {
         this.process = process; this.group = group; this.pidfd = pidfd; this.owner = owner; this.release = release;
         ProcessId = process.Id; errorDrain = DrainError();
+        this.cancellation = cancellation;
     }
 
     internal static LinuxArchiveProcess Start(string executable, Guid nonce, TimeSpan cpuLimit, IReadOnlyList<string> workerArguments, bool qualificationDiagnostics = false)
     {
         if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException();
         if (nonce == Guid.Empty || cpuLimit < TimeSpan.FromSeconds(1) || cpuLimit > TimeSpan.FromHours(2) ||
-            workerArguments.Count > 60 || workerArguments.Any(a => a is null || a.Length > 4096 || a.IndexOf('\0') >= 0))
+            workerArguments.Count > 58 || workerArguments.Any(a => a is null || a.Length > 4096 || a.IndexOf('\0') >= 0))
             throw new ArgumentException("A fixed bounded Linux archive launch is required.");
         var assets = LinuxArchiveIsolation.ValidateBundle(executable);
         var group = LinuxArchiveCgroup.Create(nonce);
@@ -55,7 +59,7 @@ internal sealed class LinuxArchiveProcess : IArchiveWorkerProcess
         var release = new ManualResetEventSlim(); Thread? owner = null;
         owner = new Thread(() =>
         {
-            Process? process = null; SafeFileHandle? pidfd = null;
+            Process? process = null; SafeFileHandle? pidfd = null; AnonymousPipeServerStream? cancellation = null;
             try
             {
                 var start = new ProcessStartInfo(executable)
@@ -78,11 +82,14 @@ internal sealed class LinuxArchiveProcess : IArchiveWorkerProcess
                 start.ArgumentList.Add(Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
                 start.ArgumentList.Add(checked((int)Math.Ceiling(cpuLimit.TotalSeconds)).ToString(CultureInfo.InvariantCulture));
                 foreach (string argument in workerArguments) start.ArgumentList.Add(argument);
+                cancellation = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
+                start.ArgumentList.Add(ArchiveWorkerCancellation.Argument); start.ArgumentList.Add(cancellation.GetClientHandleAsString());
                 process = Process.Start(start) ?? throw LinuxArchiveNative.Unavailable("The Linux archive launcher did not start.");
+                cancellation.DisposeLocalCopyOfClientHandle();
                 long fd = LinuxArchiveNative.Syscall(434 /* pidfd_open */, process.Id, 0, 0, 0, 0, 0);
                 if (fd < 0) throw LinuxArchiveNative.Unavailable("The Linux archive worker could not be bound to a native process descriptor.");
                 pidfd = new SafeFileHandle((nint)fd, ownsHandle: true);
-                var worker = new LinuxArchiveProcess(process, group, pidfd, owner!, release);
+                var worker = new LinuxArchiveProcess(process, group, pidfd, owner!, release, cancellation);
                 process.StandardInput.BaseStream.Write(LinuxArchiveIsolation.Authorization(nonce));
                 process.StandardInput.BaseStream.Flush();
                 ready.SetResult(worker);
@@ -98,7 +105,7 @@ internal sealed class LinuxArchiveProcess : IArchiveWorkerProcess
                 if (pidfd is not null) LinuxArchiveNative.Syscall(424, pidfd.DangerousGetHandle(), 9, 0, 0, 0, 0);
                 try { process?.WaitForExit(); }
                 catch (Exception cleanup) when (cleanup is InvalidOperationException or System.ComponentModel.Win32Exception) { ex = new AggregateException(ex, cleanup); }
-                pidfd?.Dispose(); process?.Dispose();
+                cancellation?.Dispose(); pidfd?.Dispose(); process?.Dispose();
                 try { group.Dispose(); } catch (IOException cleanup) { group.RetainForReview(); ex = new AggregateException(ex, cleanup); }
                 ready.TrySetException(ex);
             }
@@ -119,6 +126,8 @@ internal sealed class LinuxArchiveProcess : IArchiveWorkerProcess
                 stopFailure ??= LinuxArchiveNative.Unavailable("The archive worker could not be stopped through its process descriptor.");
         }
     }
+
+    public void RequestCancellation() { lock (gate) { if (!disposed) cancellation.Dispose(); } }
 
     public ValueTask DisposeAsync()
     {
@@ -150,7 +159,7 @@ internal sealed class LinuxArchiveProcess : IArchiveWorkerProcess
             // Keep the creator alive until the kernel child is reaped, including when resource-fact/cleanup review
             // fails. The controller's exact retained path remains available to the caller in that failure case.
             lock (gate) { finalExit = unchecked((uint)process.ExitCode); disposed = true; }
-            release.Set(); owner.Join(); release.Dispose(); pidfd.Dispose(); process.Dispose();
+            cancellation.Dispose(); release.Set(); owner.Join(); release.Dispose(); pidfd.Dispose(); process.Dispose();
         }
         if (failure is not null) throw new IOException("The archive worker stopped with an unresolved native-control failure: " + ControlPath, failure);
     }
