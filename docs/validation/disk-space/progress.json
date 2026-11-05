@@ -64,16 +64,18 @@
     "Bounded three-valued comparison queries now select Current, Previous, either or current-with-removed fallback; exact signed UInt128 delta/status predicates and root-relative lossless aliases preserve whole accounting rows. Invalid edits retain the last applied result. Reference-counted result/read/snapshot leases retain actual worker ownership through cancellation and owner closure.",
     "Native Windows review exposed offset-spelling false metadata changes and selected-row Enter consumption. UTC-tick fingerprints now survive strict codec roundtrip, and tunneling handles actual pointer-to-keyboard activation. Reproduction and final regressions pass on guest runtimes. Selected structural Previous paths now wrap in review.",
     "Native Ubuntu query/invalid-query/alias retention/selected-row Return inspection/preserving-close and Mac scan/save/compare/query/preserving-close subsets passed. Both owned processes exited before their deadlines; all509 source paths and saved inventory hashes stayed unchanged. Mac visual capture via existing FileCatCapture revealed a WindowFit sizing issue to fix next.",
-    "Actual Mac visual review found a shared WindowFit error: Retina render scale2 was applied to screen coordinates already at scale1. Using Screen.Scaling restores1180x763 client/1180x791 frame within the1440x791 working area. Native scan/save/compare/query/invalid-query/Return preservation/Discard passes after the fix,509 source hashes and saved bytes unchanged; owned instance exited. WindowFit and35 presentation cases pass on all three guest runtimes."
+    "Actual Mac visual review found a shared WindowFit error: Retina render scale2 was applied to screen coordinates already at scale1. Using Screen.Scaling restores1180x763 client/1180x791 frame within the1440x791 working area. Native scan/save/compare/query/invalid-query/Return preservation/Discard passes after the fix,509 source hashes and saved bytes unchanged; owned instance exited. WindowFit and35 presentation cases pass on all three guest runtimes.",
+    "Early W4 actual native guard probes pass on NTFS/APFS/ext4. Windows selected-alias metadata-only deletion excludes ordinary writers and ancestor/alias moves, but attribute-only version mutation bypasses share denial and all four actually granted oplock modes without break. Unix held metadata descriptors permit child substitution and ancestor movement before unlinkat. These are rejected candidate proofs, not enabled operations.",
+    "Native feasibility expansion exposed test-suite contention: import and handle capacity-exhaustion fixtures raced with legitimate consumers. Nonparallel bounded-work collections now isolate those tests without changing production refusal. Final Windows core292 cases275pass17skip, Mac274pass, Ubuntu273pass1skip, and Windows native21pass; all runners returned. Other Windows test instances appeared afterward and further tests are postponed."
   ],
   "validation": {
     "windowsCore": {
-      "total": 290.0,
-      "passed": 275.0,
-      "failed": 0.0,
-      "skipped": 15.0,
-      "detail": "Ordinary Windows VM, 275 pass and15 expected platform skips; all current live regressions run on VMs/Mac.",
-      "evidence": "windows-core-r34.xml"
+      "total": 292,
+      "passed": 275,
+      "failed": 0,
+      "skipped": 17,
+      "detail": "Windows VM:275 pass/17 platform skips, including two new Unix-only descriptor cases; capacity exhaustion controls isolated before final -maxThreads2 execution.",
+      "evidence": "windows-core-r36c.xml"
     },
     "windowsHostNative": {
       "total": 14,
@@ -83,20 +85,21 @@
       "evidence": "windows-host-native-r32.xml"
     },
     "windowsVm": {
-      "status": "ordinary-user-regression-fixtures-passed",
-      "total": 14.0,
-      "passed": 14.0,
-      "failed": 0.0,
-      "skipped": 0.0,
-      "evidence": "windows-vm-native-r34.xml",
-      "detail": "14 ordinary native Windows cases, including actual before/after scan comparison, private catalog enumeration and storage. No desktop/a11y qualification."
+      "status": "ordinary-user-native-regressions-and-early-feasibility-passed",
+      "total": 21,
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "windows-vm-native-r36e.xml",
+      "detail": "21 ordinary NTFS cases:14 previous regressions plus7 native guard/attribute/oplock feasibility controls. Passing counterexamples are not operation qualification."
     },
     "macosArm64": {
-      "total": 272.0,
-      "passed": 272.0,
-      "failed": 0.0,
-      "skipped": 0.0,
-      "evidence": "mac-core-r34.xml"
+      "total": 274,
+      "passed": 274,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "mac-core-r36c.xml",
+      "detail": "274 pass after native metadata descriptor and capacity-isolation fixes; actual APFS fixture volume verified."
     },
     "headlessRendering": {
       "total": 35.0,
@@ -109,16 +112,16 @@
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "solution-build-r35.txt"
+      "evidence": "solution-build-r36.txt"
     },
     "ubuntu": {
       "status": "ordinary-user-native-regressions-passed",
-      "total": 272.0,
-      "passed": 271.0,
-      "failed": 0.0,
-      "skipped": 1.0,
-      "evidence": "ubuntu-core-r34.xml",
-      "detail": "Ubuntu 24.04 ordinary benny, .NET runtime 10.0.14, local ext4. Prior FileCat PID exited; process checks were clear before transfer and runs. Native scans, O_TMPFILE/procfs create-new publication, no-follow/privacy/link controls and I/O ownership passed. Darwin ACL case skipped. No desktop/a11y qualification."
+      "total": 274,
+      "passed": 273,
+      "failed": 0,
+      "skipped": 1,
+      "evidence": "ubuntu-core-r36c.xml",
+      "detail": "273 pass/one Darwin ACL skip on ext4 after native stat and capacity-test isolation fixes. Both held-child substitution and ancestor-movement counterexamples pass; no GUI instance started."
     },
     "nativeDesktop": {
       "macos": "Native scan/save/compare/query/invalid-query/Enter-preserving-close subset passed after the WindowFit Retina fix. Actual1180x763/2x fits screen scale1 working area; screenshots inspected. Full native qualification pending.",
@@ -167,7 +170,8 @@
       "windows": "windows-vm-windowfit-r35.xml",
       "mac": "mac-windowfit-r35.xml",
       "ubuntu": "ubuntu-windowfit-r35.xml"
-    }
+    },
+    "operationFeasibility": "operation-feasibility-r36.json"
   },
   "nextWork": [
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
@@ -176,7 +180,7 @@
     "W1: epoch refresh, native unresponsive-device and shared-memory/indexed private-store budget qualification remain. Shared eight-request actual-I/O ownership and worker cleanup now have regressions; this is not full resource qualification.",
     "Ubuntu: CLI regression coverage now passes after the other process exited. Continue process gates before every run and postpone whenever another FileCat session appears; broader native desktop, filesystem/resource and package qualification remain.",
     "W2: actual native desktop/assistive-technology testing; safe raw-name/path and unknown-value display; grouping/sort/breadcrumbs/details/tooltips; complete lifecycle and lazy tools.diskSpace registration.",
-    "W4/W5: qualified live source and exact-entry typed operations, protected objects, immutable review/submission, preserving defaults and accurate outcomes. Unsupported needs feasibility evidence.",
+    "W4/W5: qualified live source and exact-entry typed operations, protected objects, immutable review/submission, preserving defaults and accurate outcomes. Unsupported needs feasibility evidence. Early native sharing/oplock/descriptor counterexamples are recorded; a complete qualified adapter or fully evidenced prescribed unsupported path still remains.",
     "W6/W7: declarative recipes and explicitly qualified content work; closed NTFS metadata helper or prescribed standard-scan fallback.",
     "W8: native platform/theme/DPI/a11y/package matrix, 1M/10M measurements, negative controls, actual diagnostics ZIP leakage, documentation and final requirement-by-requirement audit.",
     "After the complete implementation/testing loop: independent UX/UI/functional/security review using FINAL_REVIEW_CHECKLIST.md, fix every finding and repeat relevant native checks before completion."

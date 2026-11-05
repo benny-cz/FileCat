@@ -8,17 +8,17 @@ After the other Ubuntu FileCat process exited, fresh process gates allowed ordin
 
 | Run | Result | Receipt |
 |---|---|---|
-| Full solution build | No warnings or errors | [build](solution-build-r35.txt) |
-| Windows analysis, commands and state/path cases | 275 pass, 15 platform skips | [XML](windows-core-r34.xml) |
+| Full solution build | No warnings or errors | [build](solution-build-r36.txt) |
+| Windows analysis, commands and state/path cases | 275 pass, 17 platform skips | [XML](windows-core-r36c.xml) |
 | Historical Windows host (before VM-only instruction) | 14 pass, no skips at r32 | [XML](windows-host-native-r32.xml) |
-| Ordinary Windows guest | 14 pass, no skips | [XML](windows-vm-native-r34.xml) |
-| macOS arm64 analysis and command cases | 272 pass, no skips | [XML](mac-core-r34.xml) |
+| Ordinary Windows guest, regressions plus native guard counterexamples |21 pass, no skips | [XML](windows-vm-native-r36e.xml) |
+| macOS arm64 analysis and command cases | 274 pass, no skips | [XML](mac-core-r36c.xml) |
 | macOS shared stat consumers | 49 pass, 2 platform skips | [XML](mac-stat-consumers-r22.xml) |
 | Windows Skia headless presentation | 35 pass in Windows VM | [XML](windows-vm-render-r35.xml) |
 | macOS headless presentation and native persistence | 35 pass | [XML](mac-analysis-render-r35.xml) |
 | Ubuntu headless presentation and native persistence | 35 pass | [XML](ubuntu-render-r35.xml) |
 | macOS native scan/save/compare/query/close subset |509 source hashes unchanged; owned process exited; sizing bug fixed | [receipt](mac-native-ui-r35.json) |
-| Ubuntu ext4 analysis and command cases | 271 pass, 1 Darwin-only skip | [XML](ubuntu-core-r34.xml) |
+| Ubuntu ext4 analysis and command cases | 273 pass, 1 Darwin-only skip | [XML](ubuntu-core-r36c.xml) |
 | Ubuntu shared stat consumers | 49 pass, 2 platform skips | [XML](ubuntu-stat-consumers-r24.xml) |
 | Ubuntu native Save/Open subset | Saved/opened matching inventory; conflict hash and all 509 source hashes preserved; owned process exited | [receipt](ubuntu-native-ui-r26.json) |
 
@@ -88,3 +88,7 @@ The r34 packet adds bounded comparison queries with explicit recorded-side selec
 Windows now verifies the ordinary filecatdsa_r2 console account. VM startup/owned close preserved509 source paths, but injected VMware console keys did not reach the guest, so that attempt is not native input acceptance. The final r34 core/native/render suites all ran inside the Windows VM, matching the user's VM+Mac-only live-testing constraint. No host GUI test will be launched. [r34 provenance](source-manifest-r34.json) identifies tested sources and bundles.
 
 The r35 native Mac retest fixes the Retina sizing error by using the screen coordinate scale rather than the window backing render scale. The native report records screen scale1, render scale2, working area1440x791 and a1180x763 client/1180x791 frame at130,30. [The native receipt](mac-native-ui-r35.json), [query capture](renders/mac-native-r35-query.png) and [preserving-close capture](renders/mac-native-r35-close-review.png) show reachable controls and were inspected. The scan/save/compare/query/invalid-input/Return/Discard workflow passes; all509 source paths and saved inventory bytes are unchanged, and the owned instance exited before its deadline. The first two retests exposed a driver assumption that window1 is the main window when a tooltip can take that position; the final driver targets the observed main-window title. Those earlier attempts are not complete acceptance. WindowFit's existing geometry regression and all35 presentation cases pass on Windows VM, Mac and Ubuntu; the solution has zero warnings/errors. [r35 provenance](source-manifest-r35.json) records the targeted sources and bundles. Broader native display and accessibility qualification remains open.
+
+The r36 [early W4 feasibility work](../../design/FILECAT_DISK_SPACE_OPERATION_FEASIBILITY.md) tests actual native primitives, without changing or enabling production operations. Windows metadata-only selected-alias removal succeeds with primary ReadData denied, excludes ordinary writers/renames/ancestor movement and refuses an existing writer. However, an attribute-only handle changes LastWriteTime through the share guard and through granted R/RH/RW/RWH oplocks without a break notification. Mac/APFS and Ubuntu/ext4 held-descriptor counterexamples demonstrate selected-child substitution and changed ancestor binding before unlinkat. [The receipt](operation-feasibility-r36.json) distinguishes successful counterexamples from operation qualification. A stronger adapter or fully evidenced prescribed unavailable behavior remains required; no existing ComparedContent guarantee was weakened.
+
+The new runs exposed test-only import-memory and native-handle budget contention. Capacity-exhaustion classes now run in a nonparallel collection, preserving production refusal. Final core suites pass on all three machines, Windows native has21 passes, and the full solution has zero warnings/errors. The Mac/Ubuntu runners exited with clear process gates. Subsequent Windows read-only auditing detected another Core test and then an App test instance; they were left untouched and further Windows testing is postponed. No GUI instance was started for this packet. [r36 provenance](source-manifest-r36.json) identifies exact tested sources and staged binaries.

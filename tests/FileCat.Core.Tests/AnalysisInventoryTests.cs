@@ -6,6 +6,12 @@ using FileCat.Core.Analysis;
 
 namespace FileCat.Core.Tests;
 
+[CollectionDefinition("Analysis bounded work capacity", DisableParallelization = true)]
+public sealed class AnalysisBoundedWorkCapacityCollection;
+
+// This class deliberately exhausts process-wide import admission. Other inventory consumers must
+// finish first; an unrelated concurrent load being refused is correct production behavior.
+[Collection("Analysis bounded work capacity")]
 public sealed class AnalysisInventoryTests
 {
     [Fact]

@@ -7,6 +7,7 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Tests;
 
+[Collection("Analysis bounded work capacity")]
 public sealed partial class AnalysisScanningTests
 {
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary test process: " + AnalysisAdmission.Refusal());

@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Early W4 native feasibility and capacity-test isolation provenance, not capability authorization",
+  "gitBase": "f6f8c35b",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "sha256": "e22636cd127008ec3169f98220a8422be60c7dfa34eac11b5e04b5a292b5de15",
+      "path": "tests/FileCat.Core.Tests/AnalysisOperationFeasibilityTests.cs"
+    },
+    {
+      "sha256": "484bafad10a6a68a367200405eef6c19ab16769e40f0d21935fa1db128613697",
+      "path": "tests/FileCat.Core.Tests/AnalysisInventoryTests.cs"
+    },
+    {
+      "sha256": "bb3fe0f042f74fa5ab39ce84c34edbc9c9eb7e305aba0fe02f9f7a962fd5e44f",
+      "path": "tests/FileCat.Core.Tests/AnalysisComparisonTests.cs"
+    },
+    {
+      "sha256": "9049d2fed1123b28722f70b24efac7d0654da2782bc16eb775af1954f393e738",
+      "path": "tests/FileCat.Core.Tests/AnalysisScanningTests.cs"
+    },
+    {
+      "sha256": "9349075b3499c72a2b9a2ad5b44c4bc233b88ea8659f02517c4e35cc743002a8",
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.OperationFeasibility.cs"
+    },
+    {
+      "sha256": "6d4dfb10696421c3dc9e380d555b07f508ca2230ef639a7a59081237d8f7b540",
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.OplockFeasibility.cs"
+    },
+    {
+      "sha256": "ca35873f3e0e3e1775671bb7baee7fef98fbdea7637d2d19931a3748d41154cd",
+      "path": "docs/design/FILECAT_DISK_SPACE_OPERATION_FEASIBILITY.md"
+    }
+  ],
+  "bundles": [
+    {
+      "sha256": "5a8972e90b8d705c35533f5ad70cb30d0bb0221bf9f38b1b445021742352c9f0",
+      "path": ".tmp/dsa-operation-core-r36c.tgz"
+    },
+    {
+      "sha256": "ed8efbadf8c649f23a0d6d1ac8f32ed02e92a57834f74cf277e10a5fd936bad9",
+      "path": ".tmp/dsa-operation-windows-r36e.tgz"
+    }
+  ],
+  "artifacts": [
+    {
+      "sha256": "e49fb0065d18be543eac7e1c249fb8ec4e8412326180720afe454df86b14de62",
+      "path": ".tmp/operation-r36c-core/FileCat.Core.dll"
+    },
+    {
+      "sha256": "988c0cfb2122392fb7cd93d19b66d16fcfaf1a42d43669a796b83db402bb85e9",
+      "path": ".tmp/operation-r36c-core/FileCat.Core.Tests.dll"
+    },
+    {
+      "sha256": "e49fb0065d18be543eac7e1c249fb8ec4e8412326180720afe454df86b14de62",
+      "path": ".tmp/operation-r36e-windows/FileCat.Core.dll"
+    },
+    {
+      "sha256": "82bf4f04d9ee68a70665b17fa133a1c2da9798adbe4c6cb4f050a52303c39883",
+      "path": ".tmp/operation-r36e-windows/FileCat.Platform.Windows.dll"
+    },
+    {
+      "sha256": "bbaac37d262eec44630f750ec04a1766f6ac107a4fab1351ae70e84fb38ff3aa",
+      "path": ".tmp/operation-r36e-windows/FileCat.Platform.Windows.Tests.dll"
+    }
+  ]
+}

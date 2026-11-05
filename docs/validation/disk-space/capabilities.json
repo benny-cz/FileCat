@@ -8,7 +8,7 @@
     "W1": "in-progress",
     "W2": "in-progress",
     "W3": "in-progress",
-    "W4": "pending",
+    "W4": "in-progress",
     "W5": "pending",
     "W6": "pending",
     "W7": "pending",
@@ -123,5 +123,12 @@
       "enabled": false,
       "reason": "No qualified coherent content reader."
     }
-  ]
+  ],
+  "operationFeasibility": {
+    "design": "../../design/FILECAT_DISK_SPACE_OPERATION_FEASIBILITY.md",
+    "status": "tested-candidates-have-insufficient-proof",
+    "evidence": "operation-feasibility-r36.json",
+    "platformWideUnsupportedQualified": false,
+    "capabilitiesEnabled": false
+  }
 }
