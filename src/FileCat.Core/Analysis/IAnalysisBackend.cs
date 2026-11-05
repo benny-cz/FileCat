@@ -14,6 +14,8 @@ public sealed record AnalysisEntry(ImmutableArray<byte> RelativeName, string Nam
 internal sealed record AnalysisAncestry(Guid BindingId, ImmutableArray<byte> RelativeName, string? Identity,
     string Version, AnalysisAncestry? Parent);
 
+public enum AnalysisRootContainment { Disjoint, Covered, Unavailable }
+
 /// <summary>An explicitly prepared, held live source. Inventories cannot implement or deserialize this capability.</summary>
 public interface IAnalysisBackend : IDisposable
 {
@@ -24,6 +26,8 @@ public interface IAnalysisBackend : IDisposable
         ? Root.CanonicalLocator[4..] : Root.CanonicalLocator);
     IEnumerable<AnalysisEntry> Children(AnalysisEntry directory, CancellationToken cancellation);
     void ValidateReadScope(AnalysisEntry directory);
+    // Invoked only on admitted I/O workers. Historical RootBinding data cannot supply this proof.
+    AnalysisRootContainment ContainsRoot(IAnalysisBackend other) => AnalysisRootContainment.Unavailable;
 }
 
 public sealed class AnalysisSourceChangedException : IOException

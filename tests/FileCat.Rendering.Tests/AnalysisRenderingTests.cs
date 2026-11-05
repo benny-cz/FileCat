@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media.Imaging;
@@ -13,11 +15,134 @@ using FileCat.App.Services;
 using FileCat.App.ViewModels;
 using FileCat.App.Views;
 using FileCat.Core.Analysis;
+using FileCat.Core.Commands;
+using System.Collections.Immutable;
 
 namespace FileCat.Rendering.Tests;
 
 public sealed class AnalysisRenderingTests
 {
+    [AvaloniaFact]
+    public async Task UncertainPredicateResultsAreAnExplicitCohortAndDateOnlyUsesTheCapturedZone()
+    {
+        var s = Fixture();
+        using var model = new DiskSpaceViewModel(s) { Query = "sparse:true" };
+        await model.RebuildAsync(true);
+        Assert.Equal(0ul, model.Tree!.Projection.Totals.MatchingPaths);
+        Assert.Equal(3, model.Tree.Projection.UnknownFilterNodes.Count);
+        model.ShowUnknownFilterResults = true; await model.RebuildAsync(true);
+        Assert.True(model.Tree.Projection.IncludesUnknownFilterResults); Assert.Equal(3ul, model.Tree.Projection.Totals.MatchingPaths);
+        using var unavailable = new DiskSpaceViewModel(s with { Identity = s.Identity with { TimeZoneId = "FileCat/Missing-Zone-For-Fixture" } }) { Query = "modified<2026-01-01" };
+        await unavailable.RebuildAsync(true); Assert.Contains("explicit offset", unavailable.FilterError);
+        unavailable.Query = "modified<2026-01-01T00:00:00Z"; await unavailable.RebuildAsync(true); Assert.Null(unavailable.FilterError);
+    }
+
+    [AvaloniaFact]
+    public async Task IncompatibleAllocationRootsOfferASeparateLocationView()
+    {
+        using var styles = new ProductStyles(); var s = Fixture();
+        s = s with
+        {
+            Roots = s.Roots.Add(new("second", "file", "Other", "/other", "other-device", IdentityAssurance.Verified, "Other")),
+            Nodes = s.Nodes.Add(new(7, "second", 0, "Other", AnalysisKind.Directory)).Add(new(8, "second", 7, "other.bin", AnalysisKind.File, "d")),
+            Objects = s.Objects.Add(new("d", "other-device:d", AnalysisMeasurement.Known(99), AnalysisMeasurement.Known(1))),
+            Facts = s.Facts.Add(new("d", "d", null, "primary", "other-basis", AnalysisMeasurement.Known(4096), "fixture", DateTimeOffset.UnixEpoch, []))
+        };
+        using var model = new DiskSpaceViewModel(s); await model.RebuildAsync(true); var window = new DiskSpaceWindow();
+        try
+        {
+            window.AddSession(model); window.Show(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            Assert.False(model.Tree!.Projection.Totals.CompatibleBasis);
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("These locations report different allocation components", StringComparison.Ordinal) == true);
+            var root = window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationProperties.GetName(c) == "Filter captured location");
+            root.SelectedIndex = 2;
+            for (int i = 0; i < 100 && model.Tree.ScopeValue(AnalysisTree.RootKey) != 4096; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
+            Assert.Equal((UInt128)4096, model.Tree.ScopeValue(AnalysisTree.RootKey)); Assert.True(model.Tree.Projection.Totals.CompatibleBasis);
+            root.SelectedIndex = 0; model.Metric = AnalysisMetric.FileSize; await model.RebuildAsync(true);
+            for (int i = 0; i < 100 && model.Tree.Projection.Metric != AnalysisMetric.FileSize; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
+            Assert.Equal((UInt128)98503, model.Tree.ScopeValue(AnalysisTree.RootKey));
+        }
+        finally { window.ForceClose(); }
+    }
+    [AvaloniaFact]
+    public async Task ReviewCancelBindingRoutesFromOverlayAndEnterOnAFileOpensDetails()
+    {
+        using var styles = new ProductStyles();
+        using var model = new DiskSpaceViewModel(Fixture()); await model.RebuildAsync(true);
+        model.Focus("n:2", open: true);
+        for (int i = 0; i < 100 && model.Rows.Length != 2; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
+        var map = new Keymap(CommandRegistry.CreateDefault(), new Dictionary<string, string[]> { [CommandIds.DiskSpaceReviewCancel] = ["Ctrl+R"] });
+        var window = new DiskSpaceWindow(keymap: () => map) { Width = 600, Height = 600 };
+        try
+        {
+            window.AddSession(model); window.Show(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            var list = window.GetVisualDescendants().OfType<ListBox>().Single();
+            list.SelectedItem = model.Rows.Single(r => r.Key == "n:4"); Assert.True(list.Focus());
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            window.KeyRelease(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            Assert.Contains(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Close details" && b.IsEffectivelyVisible);
+            window.KeyPress(Key.R, RawInputModifiers.Control, PhysicalKey.R, "r");
+            window.KeyRelease(Key.R, RawInputModifiers.Control, PhysicalKey.R, "r");
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Close details" && b.IsEffectivelyVisible);
+            var review = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Review cleanup");
+            review.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            Assert.Contains(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Cancel / Keep files" && b.IsEffectivelyVisible);
+            window.KeyPress(Key.R, RawInputModifiers.Control, PhysicalKey.R, "r");
+            window.KeyRelease(Key.R, RawInputModifiers.Control, PhysicalKey.R, "r");
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Cancel / Keep files" && b.IsEffectivelyVisible);
+            Assert.True(window.IsVisible); Assert.Equal("n:4", model.Selection.Focus);
+        }
+        finally { window.ForceClose(); }
+    }
+
+    [AvaloniaFact]
+    public async Task ShortLargeTextPageScrollsAndTheRankedTableRemainsVirtualized()
+    {
+        using var styles = new ProductStyles();
+        var s = Fixture();
+        s = s with
+        {
+            Nodes = new[] { s.Nodes[0] }.Concat(Enumerable.Range(2, 4000).Select(i => new AnalysisNode((ulong)i, "r", 1, $"file-{i:D5}.dat", AnalysisKind.File, i.ToString()))).ToImmutableArray(),
+            Objects = Enumerable.Range(2, 4000).Select(i => new AnalysisObject(i.ToString(), "fixture:" + i, AnalysisMeasurement.Known(16), AnalysisMeasurement.Known(1))).ToImmutableArray(), Facts = []
+        };
+        using var model = new DiskSpaceViewModel(s) { Metric = AnalysisMetric.FileSize };
+        await model.RebuildAsync(true); model.Focus("n:1", open: true);
+        for (int i = 0; i < 100 && model.Rows.Length != 4000; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
+        var window = new DiskSpaceWindow { Width = 380, Height = 430, FontSize = 20 };
+        try
+        {
+            window.AddSession(model); window.Show();
+            foreach (string theme in new[] { "Classic", "ClassicDark", "HighContrast" })
+            {
+                ThemeManager.Apply(theme); Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+                var page = window.GetVisualDescendants().OfType<ScrollViewer>().Single(c => c.Name == "AnalysisPageScroll");
+                var list = window.GetVisualDescendants().OfType<ListBox>().Single();
+                Assert.True(page.Extent.Height > page.Viewport.Height + 100);
+                Assert.InRange(list.Bounds.Height, 100, 2000);
+                Assert.InRange(list.GetVisualDescendants().OfType<ListBoxItem>().Count(), 1, 100);
+                page.Offset = new Vector(0, page.Extent.Height); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+                var review = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Review cleanup");
+                var point = review.TranslatePoint(default, window)!.Value;
+                Assert.True(point.Y >= 0 && point.Y + review.Bounds.Height <= window.ClientSize.Height + 1, $"{theme}: review at {point}, size {review.Bounds.Size}, client {window.ClientSize}.");
+                using var frame = new RenderTargetBitmap(new PixelSize(380, 430)); frame.Render(window);
+                string output = Path.Combine(AppContext.BaseDirectory, "analysis-renders"); Directory.CreateDirectory(output);
+                frame.Save(Path.Combine(output, $"{theme}-380-short-large-text.png"), new PngBitmapEncoderOptions());
+            }
+        }
+        finally { window.ForceClose(); }
+    }
+
+    private sealed class ProductStyles : IDisposable
+    {
+        private readonly string _theme = ThemeManager.RequestedName;
+        private readonly FluentTheme _fluent = new();
+        private readonly StyleInclude _styles = new(new Uri("avares://FileCat/")) { Source = new Uri("avares://FileCat/Themes/Styles.axaml") };
+        public ProductStyles() { Application.Current!.Styles.Add(_fluent); Application.Current.Styles.Add(_styles); }
+        public void Dispose() { Application.Current!.Styles.Remove(_styles); Application.Current.Styles.Remove(_fluent); ThemeManager.Apply(_theme); }
+    }
     [AvaloniaFact]
     public async Task LatestFilterWinsAndFrozenInteractionKeepsItsSelectionAndBasket()
     {

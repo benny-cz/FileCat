@@ -117,7 +117,7 @@ public static class AnalysisAggregate
         if (!compatible) { known = 0; unverified = 0; charges.Clear(); }
         return new(snapshot.Identity.SessionId, snapshot.Identity.Epoch, snapshot.Identity.Revision, metric,
             charges.ToImmutable(), new(known, unverified, count, missing.ToImmutableDictionary(), compatible), matching.ToImmutable())
-            { UnmeasuredStates = unmeasured.ToImmutable() };
+            { UnmeasuredStates = unmeasured.ToImmutable(), Taint = AnalysisPrivacy.Join(snapshot.Taint) };
 
         void Missing(AnalysisMeasurement measurement, IEnumerable<ulong> ids)
         {

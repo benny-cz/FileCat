@@ -11,6 +11,64 @@ public sealed partial class AnalysisScanningTests
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary test process: " + AnalysisAdmission.Refusal());
 
     [Fact]
+    public async Task CapturedSelectionRetainsExactlyThePublishedRevisionAfterTheSessionCloses()
+    {
+        Ordinary(); using var io = new DeviceIoScheduler(); var session = new AnalysisCoordinator(io).Start([new FakeBackend(2)]);
+        await session.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        using var published = session.AcquireSnapshot();
+        using var selection = AnalysisSelectionLease.Capture(published, [2, 3, 2], AnalysisSelectionKind.VisibleMatches, "visible fixture", "name:x");
+        Assert.Equal(published.Snapshot.Identity.Revision, selection.Selection.Revision); Assert.Equal(2ul, selection.Selection.ExactMemberCount);
+        Assert.Equal(new ulong[] { 2, 3 }, selection.Selection.NodeIds); Assert.Equal(2, selection.Selection.ObjectIds.Length);
+        session.Dispose(); published.Dispose(); Assert.Equal(3, selection.Snapshot.Nodes.Length);
+        selection.Dispose(); Assert.Throws<ObjectDisposedException>(() => selection.Snapshot);
+        Assert.Throws<ObjectDisposedException>(() => published.Retain());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnixNestedRootsAreCoveredOnceInEitherSelectionOrder(bool childFirst)
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix native fixture."); Ordinary();
+        using var temp = new TempDir(); string root = Path.Combine(temp.Path, "root"), inner = Path.Combine(root, "inner");
+        Directory.CreateDirectory(inner); File.WriteAllBytes(Path.Combine(inner, "child.bin"), new byte[100]);
+        string direct = Path.Combine(root, "direct.bin"); File.WriteAllBytes(direct, new byte[20]);
+        var parent = new UnixAnalysisBackend(root); var child = new UnixAnalysisBackend(inner);
+        using var io = new DeviceIoScheduler();
+        using var session = new AnalysisCoordinator(io).Start(childFirst ? [child, parent, new UnixAnalysisBackend(direct), new UnixAnalysisBackend(root)]
+            : [parent, child, new UnixAnalysisBackend(direct), new UnixAnalysisBackend(root)]);
+        await session.Completion.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
+        var s = session.Snapshot(); AnalysisValidation.Validate(s, TestContext.Current.CancellationToken);
+        Assert.Equal(NamespaceCoverage.CompleteUnderPolicy, s.Coverage);
+        Assert.Equal((UInt128)120, AnalysisAggregate.Project(s, AnalysisMetric.FileSize, cancellation: TestContext.Current.CancellationToken).Totals.Known);
+        Assert.Equal(3, s.Roots.Count(r => r.Disposition == AnalysisRootDisposition.Covered));
+        string active = Assert.Single(s.Roots, r => r.Disposition == AnalysisRootDisposition.Active).Id;
+        Assert.All(s.Roots.Where(r => r.Disposition == AnalysisRootDisposition.Covered), r => Assert.Equal(active, r.CoveredByRootId));
+        var covered = s.Roots.Single(r => r.Label == "inner");
+        var scopes = new AnalysisRootScopeIndex(s, TestContext.Current.CancellationToken);
+        Assert.Equal(AnalysisTruth.True, scopes.IsMember(covered.Id, s.Nodes.Single(n => n.Name == "child.bin")));
+        Assert.Equal(AnalysisTruth.False, scopes.IsMember(covered.Id, s.Nodes.Single(n => n.Name == "direct.bin")));
+        Assert.Equal(2ul, s.CoverageDetails!.EnumerationCompleted); Assert.Equal(0ul, s.CoverageDetails.EnumerationPending);
+        Assert.All(s.Nodes, n => Assert.NotNull(n.Times));
+    }
+
+    [Fact]
+    public async Task UnverifiableOverlapIsExcludedWithAnIssueInsteadOfDoubleCounting()
+    {
+        Ordinary();
+        string root = Path.Combine(Path.GetTempPath(), "analysis-unverified-" + Guid.NewGuid().ToString("N"));
+        var parent = new FakeBackend(1) { Root = new("1", "file", root, root, "parent", IdentityAssurance.Verified, "parent") };
+        var child = new FakeBackend(1) { Root = new("1", "file", root + Path.DirectorySeparatorChar + "child", root + Path.DirectorySeparatorChar + "child", "child", IdentityAssurance.Verified, "child") };
+        using var io = new DeviceIoScheduler(); using var session = new AnalysisCoordinator(io).Start([child, parent]);
+        await session.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        var s = session.Snapshot();
+        Assert.Equal(NamespaceCoverage.Partial, s.Coverage);
+        Assert.Equal(AnalysisRootDisposition.ExcludedUnverifiedOverlap, s.Roots[0].Disposition);
+        Assert.Equal((UInt128)1, AnalysisAggregate.Project(s, AnalysisMetric.Files, cancellation: TestContext.Current.CancellationToken).Totals.Known);
+        Assert.Contains(s.Issues, i => i.Code == "root-overlap-unverified" && i.RootId == "1");
+    }
+
+    [Fact]
     public async Task CloudDirectoryIsAnExplicitPolicyBoundaryWithoutEnumeration()
     {
         Ordinary(); bool enumerated = false;
@@ -254,7 +312,7 @@ public sealed partial class AnalysisScanningTests
         public Action? Validate;
         public bool CloudRoot;
         public int FailAfter = int.MaxValue;
-        public RootBinding Root { get; } = new("1", "file", "fake", "fake-" + Guid.NewGuid(), "fake-" + Guid.NewGuid(), IdentityAssurance.Verified, "fake");
+        public RootBinding Root { get; init; } = new("1", "file", "fake", "fake-" + Guid.NewGuid(), "fake-" + Guid.NewGuid(), IdentityAssurance.Verified, "fake");
         public string Basis => "fixture-v1";
         public string IoDeviceKey { get; init; } = "fixture:" + Guid.NewGuid().ToString("N");
         public AnalysisEntry RootEntry => Entry("root", AnalysisKind.Directory) with { Cloud = CloudRoot };

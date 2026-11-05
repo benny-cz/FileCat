@@ -16,7 +16,7 @@ public sealed class AnalysisFilter
     private AnalysisFilter(Func<AnalysisFilterItem, AnalysisTruth> evaluate) => _evaluate = evaluate;
     public AnalysisTruth Evaluate(AnalysisFilterItem item) => _evaluate(item);
     public static AnalysisFilter Parse(string text, TimeZoneInfo zone, bool caseSensitive = false, bool comparison = false,
-        IReadOnlyList<RootBinding>? roots = null) => new(new Parser(text, zone, caseSensitive, comparison, roots).Parse());
+        IReadOnlyList<RootBinding>? roots = null, AnalysisRootScopeIndex? rootScopes = null, bool allowDateOnly = true) => new(new Parser(text, zone, caseSensitive, comparison, roots, rootScopes, allowDateOnly).Parse());
 
     public static AnalysisTruth Not(AnalysisTruth v) => v switch { AnalysisTruth.True => AnalysisTruth.False, AnalysisTruth.False => AnalysisTruth.True, _ => AnalysisTruth.Unknown };
     public static AnalysisTruth And(AnalysisTruth a, AnalysisTruth b) => a == AnalysisTruth.False || b == AnalysisTruth.False ? AnalysisTruth.False : a == AnalysisTruth.True && b == AnalysisTruth.True ? AnalysisTruth.True : AnalysisTruth.Unknown;
@@ -55,12 +55,16 @@ public sealed class AnalysisFilter
         private readonly StringComparison _case;
         private readonly bool _comparison;
         private readonly IReadOnlyList<RootBinding>? _roots;
+        private readonly AnalysisRootScopeIndex? _rootScopes;
+        private readonly bool _allowDateOnly;
         private int _at, _terms;
         private sealed record Token(string Value, bool Quoted = false);
-        public Parser(string text, TimeZoneInfo zone, bool sensitive, bool comparison, IReadOnlyList<RootBinding>? roots)
+        public Parser(string text, TimeZoneInfo zone, bool sensitive, bool comparison, IReadOnlyList<RootBinding>? roots, AnalysisRootScopeIndex? rootScopes, bool allowDateOnly)
         {
             if (Encoding.UTF8.GetByteCount(text) > AnalysisLimits.QueryBytes) throw new FormatException("Filter exceeds 8 KiB.");
             _zone = zone; _case = sensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase; _comparison = comparison; _roots = roots;
+            _rootScopes = rootScopes;
+            _allowDateOnly = allowDateOnly;
             for (int i = 0; i < text.Length;)
             {
                 char c = text[i];
@@ -173,6 +177,7 @@ public sealed class AnalysisFilter
                 DateTimeOffset instant;
                 if (dateOnly)
                 {
+                    if (!_allowDateOnly) throw new FormatException("The captured timezone is unavailable here. Use a timestamp with an explicit offset.");
                     var local = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
                     if (op is ">" or "<=") local = local.AddDays(1);
                     if (_zone.IsAmbiguousTime(local) || _zone.IsInvalidTime(local)) throw new FormatException("Date boundary needs an explicit offset.");
@@ -231,15 +236,22 @@ public sealed class AnalysisFilter
                 var matches = _roots.Where(r => r.Id.Equals(value, StringComparison.Ordinal) || r.Label.Equals(value, _case)).DistinctBy(r => r.Id).Take(2).ToArray();
                 if (matches.Length != 1) throw new FormatException("Choose an unambiguous root ID or label.");
                 value = matches[0].Id;
+                var binding = matches[0]; string rootId = value;
+                return item =>
+                {
+                    var member = _rootScopes?.IsMember(rootId, item.Node) ?? (binding.Disposition == AnalysisRootDisposition.Active
+                        ? Truth(item.Node.RootId == rootId) : AnalysisTruth.Unknown);
+                    return op == "!=" ? Not(member) : member;
+                };
             }
             return i =>
             {
                 string candidate = field switch
                 {
                     "name" => i.Node.Name, "path" => i.RelativePath, "root" => i.Node.RootId,
-                    "ext" => Path.GetExtension(i.Node.Name).TrimStart('.'), _ => AnalysisClassification.Family(i.Node.Name)
+                    "ext" => AnalysisNames.Extension(i.Node.Name), _ => AnalysisClassification.Family(i.Node.Name)
                 };
-                if (field == "type" && !AnalysisClassification.Families.Contains(value, StringComparer.OrdinalIgnoreCase)) candidate = Path.GetExtension(i.Node.Name).TrimStart('.');
+                if (field == "type" && !AnalysisClassification.Families.Contains(value, StringComparer.OrdinalIgnoreCase)) candidate = AnalysisNames.Extension(i.Node.Name);
                 return Truth(op == ":" && field is not ("type" or "root") ? candidate.Contains(value, _case) : op == "!=" ? !candidate.Equals(value, _case) : candidate.Equals(value, _case));
             };
         }
@@ -278,7 +290,7 @@ public static class AnalysisClassification
 {
     public static readonly ImmutableArray<string> Families = ["text", "code", "image", "audio", "video", "archive", "executable", "document", "other", "unknown"];
     private static readonly Dictionary<string, string> Extensions = Build();
-    public static string Family(string name) => Extensions.GetValueOrDefault(Path.GetExtension(name).TrimStart('.'), "other");
+    public static string Family(string name) => Extensions.GetValueOrDefault(AnalysisNames.Extension(name), "other");
     private static Dictionary<string, string> Build()
     {
         var d = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

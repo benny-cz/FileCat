@@ -12,7 +12,7 @@ namespace FileCat.App.ViewModels;
 public sealed class DiskSpaceViewModel : IDisposable
 {
     private readonly AppServices? _services;
-    private readonly TimeZoneInfo _zone = TimeZoneInfo.Local;
+    private readonly TimeZoneInfo? _zone;
     private AnalysisSession? _session;
     private AnalysisSnapshotLease? _lease;
     private AnalysisSnapshot? _observation;
@@ -29,6 +29,7 @@ public sealed class DiskSpaceViewModel : IDisposable
     public string Query { get; set; } = "";
     public string? RootFilter { get; set; }
     public bool CaseSensitive { get; set; }
+    public bool ShowUnknownFilterResults { get; set; }
     public string Status { get; private set; } = "Choose locations. Standard analysis reads metadata, not file contents.";
     public string? FilterError { get; private set; }
     public string? ResolvedTargets { get; private set; }
@@ -37,10 +38,12 @@ public sealed class DiskSpaceViewModel : IDisposable
     public AnalysisPhase Phase { get; private set; } = AnalysisPhase.Ready;
     public bool Running => Phase is AnalysisPhase.Scanning or AnalysisPhase.Pausing or AnalysisPhase.Paused or AnalysisPhase.Refreshing;
     public event Action? Changed;
-    public DiskSpaceViewModel(AppServices services) => _services = services;
+    public DiskSpaceViewModel(AppServices services) { _services = services; _zone = TimeZoneInfo.Local; }
     public DiskSpaceViewModel(AnalysisSnapshot observations)
     {
         _observation = observations; Phase = observations.Phase;
+        try { _zone = TimeZoneInfo.FindSystemTimeZoneById(observations.Identity.TimeZoneId); }
+        catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException) { _zone = null; }
         Status = "Observation view. Current filesystem actions require an explicit live source binding.";
     }
     public async Task StartAsync(IReadOnlyList<string> roots)
@@ -103,6 +106,7 @@ public sealed class DiskSpaceViewModel : IDisposable
         _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _projectionCancel = new();
         var token = _projectionCancel.Token;
         string query = Query, scope = Selection.Scope; var metric = Metric; bool sensitive = CaseSensitive; string? root = RootFilter;
+        bool showUnknown = ShowUnknownFilterResults;
         AnalysisSnapshotLease? nextLease = null;
         try
         {
@@ -111,10 +115,12 @@ public sealed class DiskSpaceViewModel : IDisposable
                 nextLease = _session?.AcquireSnapshot();
                 var s = nextLease?.Snapshot ?? _observation;
                 if (s is null) return null;
-                var filter = AnalysisFilter.Parse(query, _zone, sensitive, roots: s.Roots);
+                var rootScopes = new AnalysisRootScopeIndex(s, token);
+                var filter = AnalysisFilter.Parse(query, _zone ?? TimeZoneInfo.Utc, sensitive, roots: s.Roots, rootScopes: rootScopes, allowDateOnly: _zone is not null);
                 var nodes = s.Nodes.ToDictionary(n => n.Id);
                 var all = AnalysisAggregate.Project(s, metric, cancellation: token);
                 var allocation = s.Facts.Where(f => f.ObjectId is not null).ToLookup(f => f.ObjectId!, StringComparer.Ordinal);
+                var unknown = ImmutableHashSet.CreateBuilder<ulong>();
                 AnalysisMeasurement Allocation(AnalysisObject? obj)
                 {
                     if (obj is null) return AnalysisMeasurement.Missing(MeasurementState.Unsupported);
@@ -122,12 +128,15 @@ public sealed class DiskSpaceViewModel : IDisposable
                 }
                 bool Matches(AnalysisNode n, AnalysisObject? obj)
                 {
-                    if (root is not null && n.RootId != root) return false;
                     var active = all.UnmeasuredStates.GetValueOrDefault(n.Id, metric == AnalysisMetric.UniqueFileSize && obj?.VerifiedIdentity is null ? MeasurementState.Unsupported : MeasurementState.Known);
-                    return filter.Evaluate(new(n, obj, RelativePath(n, nodes), Allocation(obj), Stale: s.Freshness != AnalysisFreshness.Observed, ActiveState: active)) == AnalysisTruth.True;
+                    var truth = filter.Evaluate(new(n, obj, RelativePath(n, nodes), Allocation(obj), Stale: s.Freshness != AnalysisFreshness.Observed, ActiveState: active));
+                    if (root is not null) truth = AnalysisFilter.And(rootScopes.IsMember(root, n), truth);
+                    if (truth == AnalysisTruth.Unknown) unknown.Add(n.Id);
+                    return showUnknown ? truth == AnalysisTruth.Unknown : truth == AnalysisTruth.True;
                 }
                 bool filtered = query.Length != 0 || root is not null;
                 var projection = filtered ? AnalysisAggregate.Project(s, metric, Matches, token) : all;
+                projection = projection with { UnknownFilterNodes = unknown.ToImmutable(), IncludesUnknownFilterResults = filtered && showUnknown, FilterText = query };
                 var tree = AnalysisTree.Build(s, projection, filtered, token);
                 return (Tree: tree, Rows: tree.ChildrenOf(scope));
             }, token);
@@ -214,6 +223,11 @@ public sealed class DiskSpaceViewModel : IDisposable
     {
         if (Tree is not { } tree || tree.Items.GetValueOrDefault(Selection.Focus ?? "")?.NodeId is not { } id) return null;
         var nodes = tree.Snapshot.Nodes.ToDictionary(n => n.Id); var node = nodes[id];
+        for (var current = node; ; current = nodes[current.ParentId])
+        {
+            if (!AnalysisRawNames.HasLosslessText(current)) return null;
+            if (current.ParentId == 0) break;
+        }
         var root = tree.Snapshot.Roots.First(r => r.Id == node.RootId);
         string relative = RelativePath(node, nodes);
         bool windows = root.CanonicalLocator.StartsWith("\\\\", StringComparison.Ordinal) || root.CanonicalLocator.Length > 1 && root.CanonicalLocator[1] == ':';

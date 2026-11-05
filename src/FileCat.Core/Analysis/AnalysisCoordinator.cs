@@ -27,7 +27,7 @@ public sealed class AnalysisSession : IDisposable
     private readonly CancellationTokenSource _cancel = new();
     private readonly DeviceIoScheduler _io;
     private readonly IAnalysisBackend[] _sources;
-    private readonly ImmutableArray<RootBinding> _roots;
+    private ImmutableArray<RootBinding> _roots;
     private readonly ScanPolicy _policy;
     private readonly SessionIdentity _identity;
     private readonly IProgress<AnalysisProgress>? _progress;
@@ -40,15 +40,17 @@ public sealed class AnalysisSession : IDisposable
     private AnalysisSnapshot? _final;
     private string? _activeDevice;
     private AnalysisFreshness _freshness;
+    private ulong _enumerationRequested, _enumerationCompleted, _enumerationFailed;
     public Task Completion { get; }
     internal AnalysisSession(DeviceIoScheduler io, IAnalysisBackend[] sources, IProgress<AnalysisProgress>? progress, string profileIdentity)
     {
         _io = io; _sources = sources; _progress = progress;
-        _roots = sources.Select((s, i) => s.Root with { Id = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) }).ToImmutableArray();
+        _roots = sources.Select((s, i) => s.Root with { Id = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), Kind = s.RootEntry.Kind,
+            ObservedObjectIdentity = s.RootEntry.Identity }).ToImmutableArray();
         var now = DateTimeOffset.UtcNow;
         var firstObservation = sources.Select(s => s.RootEntry.ObservedUtc ?? now).Append(now).Min();
         _identity = new(Guid.NewGuid(), 1, 1, profileIdentity, firstObservation, now);
-        _policy = new() { BasisIds = sources.Select(s => s.Basis).Distinct().ToImmutableArray() };
+        _policy = new() { BasisIds = sources.Select(s => s.Basis).Distinct().ToImmutableArray(), PackagePolicy = "contents-included", Limits = AnalysisLimits.EffectivePolicy };
         _io.HealthChanged += OnDeviceHealth;
         Completion = Task.Run(ProduceAsync);
     }
@@ -60,15 +62,29 @@ public sealed class AnalysisSession : IDisposable
             return _final ?? Capture();
         }
     }
-    private AnalysisSnapshot Capture() => _store.Snapshot(_identity with { Revision = checked(++_revision), ObservedUtc = DateTimeOffset.UtcNow }, _roots, _policy,
-        _phase, _partial || _phase != AnalysisPhase.Finished ? NamespaceCoverage.Partial : NamespaceCoverage.CompleteUnderPolicy) with { Freshness = _freshness };
+    private AnalysisSnapshot Capture()
+    {
+        var snapshot = _store.Snapshot(_identity with { Revision = checked(++_revision), ObservedUtc = DateTimeOffset.UtcNow }, _roots, _policy,
+            _phase, _partial || _phase != AnalysisPhase.Finished ? NamespaceCoverage.Partial : NamespaceCoverage.CompleteUnderPolicy) with { Freshness = _freshness };
+        if (snapshot.Freshness == AnalysisFreshness.Observed && snapshot.Facts.Any(f => f.Measurement.State == MeasurementState.Changed))
+            snapshot = snapshot with { Freshness = AnalysisFreshness.PossiblyStale };
+        return snapshot with { CoverageDetails = AnalysisCoverage.Create(snapshot, _enumerationRequested, _enumerationCompleted, _enumerationFailed) };
+    }
     public AnalysisSnapshotLease AcquireSnapshot()
     {
         lock (_sync)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            return RetainSnapshot(_final ?? Capture());
+        }
+    }
+    private AnalysisSnapshotLease RetainSnapshot(AnalysisSnapshot snapshot)
+    {
+        lock (_sync)
+        {
+            ObjectDisposedException.ThrowIf(_released, this);
             if (_snapshotLeases >= 8) throw new InvalidOperationException("This analysis already has eight active snapshot consumers.");
-            var snapshot = _final ?? Capture(); _snapshotLeases++;
+            _snapshotLeases++;
             return new(snapshot, () =>
             {
                 lock (_sync)
@@ -76,7 +92,7 @@ public sealed class AnalysisSession : IDisposable
                     _snapshotLeases--;
                     if (_disposed && _workerFinished && _snapshotLeases == 0) Release();
                 }
-            });
+            }, () => RetainSnapshot(snapshot));
         }
     }
     public void Pause()
@@ -135,11 +151,12 @@ public sealed class AnalysisSession : IDisposable
         try
         {
             await GlobalScans.WaitAsync(_cancel.Token).ConfigureAwait(false); admitted = true;
+            await NormalizeRootsAsync().ConfigureAwait(false);
             for (int i = 0; i < _sources.Length; i++)
             {
                 _cancel.Token.ThrowIfCancellationRequested();
                 var source = _sources[i]; var root = _roots[i];
-                if (_roots.Take(i).Any(r => Contains(r.CanonicalLocator, root.CanonicalLocator))) continue;
+                if (root.Disposition != AnalysisRootDisposition.Active) continue;
                 string device = source.IoDeviceKey;
                 lock (_sync) _activeDevice = device;
                 if (_io.GetHealth(device) == DeviceHealth.NotResponding) { Issue("device-not-responding"); continue; }
@@ -168,6 +185,52 @@ public sealed class AnalysisSession : IDisposable
             Report();
         }
     }
+    private async Task NormalizeRootsAsync()
+    {
+        var roots = _roots.ToArray(); var active = new List<int>();
+        // Parents are considered before children regardless of selection order. IDs keep their captured binding.
+        foreach (int child in Enumerable.Range(0, roots.Length).OrderBy(i => roots[i].CanonicalLocator.Length).ThenBy(i => i))
+        {
+            _cancel.Token.ThrowIfCancellationRequested(); bool uncertain = false; int? coveredBy = null;
+            foreach (int parent in active.Where(p => AnalysisRootPaths.Potential(roots[p], roots[child])))
+            {
+                await PauseBoundaryAsync().ConfigureAwait(false);
+                string device = _sources[parent].IoDeviceKey;
+                lock (_sync) _activeDevice = device;
+                if (_io.GetHealth(device) == DeviceHealth.NotResponding) { uncertain = true; continue; }
+                var gate = Devices.GetOrAdd(device, _ => new(1));
+                await gate.WaitAsync(_cancel.Token).ConfigureAwait(false);
+                try
+                {
+                    await PauseBoundaryAsync().ConfigureAwait(false);
+                    var relation = await _io.Run(device, IoPriority.Background, _ =>
+                    {
+                        if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
+                        return _sources[parent].ContainsRoot(_sources[child]);
+                    }, CancellationToken.None).ConfigureAwait(false);
+                    _cancel.Token.ThrowIfCancellationRequested();
+                    if (relation == AnalysisRootContainment.Covered) { coveredBy = parent; break; }
+                    uncertain |= relation == AnalysisRootContainment.Unavailable;
+                }
+                catch (AnalysisSourceChangedException) { uncertain = true; Issue("source-changed-or-boundary", rootId: roots[child].Id); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { uncertain = true; }
+                finally { gate.Release(); }
+            }
+            if (coveredBy is { } p)
+            {
+                AnalysisRootPaths.TryRelative(roots[p], roots[child], roots[p].NameRules == AnalysisNameRules.Windows || OperatingSystem.IsMacOS() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal, out string relative);
+                if (roots[p].NameRules == AnalysisNameRules.Windows) relative = relative.Replace('\\', '/');
+                roots[child] = roots[child] with { Disposition = AnalysisRootDisposition.Covered, CoveredByRootId = roots[p].Id, CoveredRelativePath = relative };
+            }
+            else if (uncertain)
+            {
+                roots[child] = roots[child] with { Disposition = AnalysisRootDisposition.ExcludedUnverifiedOverlap };
+                Issue("root-overlap-unverified", rootId: roots[child].Id);
+            }
+            else active.Add(child);
+        }
+        lock (_sync) _roots = roots.ToImmutableArray();
+    }
     private async Task WalkAsync(IAnalysisBackend source, RootBinding root, string device)
     {
         var rootId = _store.Append(source.RootEntry, 0, root.Id, source.Basis);
@@ -176,15 +239,17 @@ public sealed class AnalysisSession : IDisposable
         if (source.RootEntry.Cloud == true) { Issue("cloud-directory-not-enumerated", rootId, MeasurementState.Excluded); return; }
         var pending = new Stack<(AnalysisEntry Entry, ulong Id, int Depth, long Bytes)>();
         pending.Push((source.RootEntry, rootId.Value, 0, 0));
+        lock (_sync) _enumerationRequested++;
         long pendingBytes = 0;
         var clock = System.Diagnostics.Stopwatch.StartNew();
         while (pending.Count > 0 && !_store.Limited)
         {
             _cancel.Token.ThrowIfCancellationRequested();
             var (entry, id, depth, cost) = pending.Pop(); pendingBytes -= cost;
-            if (depth >= AnalysisLimits.Depth) { Issue("depth-limit", id); continue; }
+            if (depth >= AnalysisLimits.Depth) { Issue("depth-limit", id); lock (_sync) _enumerationFailed++; continue; }
             using var enumeration = source.Children(entry, _cancel.Token).GetEnumerator();
             bool finished = false;
+            bool succeeded = false;
             AnalysisEntry? carry = null;
             while (!finished)
             {
@@ -206,16 +271,21 @@ public sealed class AnalysisSession : IDisposable
                 {
                     var childId = _store.Append(child, id, root.Id, source.Basis);
                     if (childId is null) { Issue("memory-or-observation-limit", id); return; }
+                    if (child.Kind is AnalysisKind.Link or AnalysisKind.Special)
+                        Issue(child.Kind == AnalysisKind.Link ? "navigation-link-not-followed" : "special-entry-not-traversed", childId, MeasurementState.Excluded);
                     if (child.Kind != AnalysisKind.Directory) continue;
                     if (child.Cloud == true) { Issue("cloud-directory-not-enumerated", childId, MeasurementState.Excluded); continue; }
                     long bytes = 2048L + child.RelativeName.Length * 2L + child.RawName.Length * 4L;
                     if (pendingBytes + bytes > AnalysisLimits.PendingBytes / 2) { Issue("pending-payload-limit", childId); continue; }
                     pending.Push((child, childId.Value, depth + 1, bytes)); pendingBytes += bytes;
+                    lock (_sync) _enumerationRequested++;
                 }
                 if (batch.Limited) { Issue("producer-record-limit", id); break; }
                 if (batch.Error is { } error) { Issue(error, id); break; }
+                if (finished) succeeded = true;
                 if (clock.ElapsedMilliseconds >= 250) { Report(); clock.Restart(); }
             }
+            lock (_sync) { if (succeeded) _enumerationCompleted++; else _enumerationFailed++; }
         }
     }
     private sealed record Batch(List<AnalysisEntry> Entries, bool Finished, bool Limited, AnalysisEntry? Carry = null, string? Error = null);
@@ -244,13 +314,13 @@ public sealed class AnalysisSession : IDisposable
         return Finish(new(entries, false, false));
         Batch Finish(Batch batch) { source.ValidateReadScope(directory); return batch; }
     }
-    private void Issue(string code, ulong? node = null, MeasurementState state = MeasurementState.Failed)
+    private void Issue(string code, ulong? node = null, MeasurementState state = MeasurementState.Failed, string? rootId = null)
     {
         lock (_sync)
         {
             if (state != MeasurementState.Excluded) _partial = true;
             if (code == "source-changed-or-boundary" && _freshness == AnalysisFreshness.Observed) _freshness = AnalysisFreshness.PossiblyStale;
-            _store.Issue(code, node, state);
+            _store.Issue(code, node, state, rootId);
         }
     }
     private void Report()
@@ -258,11 +328,6 @@ public sealed class AnalysisSession : IDisposable
         AnalysisProgress p;
         lock (_sync) { if (_disposed) return; p = new(_store.Count, _store.IssueCount, _phase); }
         _progress?.Report(p);
-    }
-    private static bool Contains(string parent, string child)
-    {
-        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        return parent.Equals(child, comparison) || child.StartsWith(parent.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, comparison);
     }
     public void Dispose()
     {
@@ -285,7 +350,13 @@ public sealed class AnalysisSnapshotLease : IDisposable
 {
     private AnalysisSnapshot? _snapshot;
     private Action? _release;
-    internal AnalysisSnapshotLease(AnalysisSnapshot snapshot, Action release) { _snapshot = snapshot; _release = release; }
+    private Func<AnalysisSnapshotLease>? _retain;
+    internal AnalysisSnapshotLease(AnalysisSnapshot snapshot, Action release, Func<AnalysisSnapshotLease> retain) { _snapshot = snapshot; _release = release; _retain = retain; }
     public AnalysisSnapshot Snapshot => _snapshot ?? throw new ObjectDisposedException(nameof(AnalysisSnapshotLease));
-    public void Dispose() { _snapshot = null; Interlocked.Exchange(ref _release, null)?.Invoke(); }
+    public AnalysisSnapshotLease Retain()
+    {
+        _ = Snapshot;
+        return (Volatile.Read(ref _retain) ?? throw new ObjectDisposedException(nameof(AnalysisSnapshotLease)))();
+    }
+    public void Dispose() { _snapshot = null; Interlocked.Exchange(ref _retain, null); Interlocked.Exchange(ref _release, null)?.Invoke(); }
 }

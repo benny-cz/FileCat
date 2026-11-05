@@ -11,12 +11,14 @@ public sealed class DiskSpaceWindowManager(AppServices services) : IDisposable
     public void Open(IReadOnlyList<string> roots)
     {
         _window ??= Create();
-        if (_window.SessionCount >= AnalysisLimits.Sessions) { _window.Show(); _window.Activate(); return; }
+        if (_window.SessionCount >= AnalysisLimits.Sessions) { _window.ExplainSessionLimit(); _window.Show(); _window.Activate(); return; }
         _window.AddSession(new DiskSpaceViewModel(services), roots); _window.Show(); _window.Activate();
     }
     public void OpenObservations(AnalysisSnapshot snapshot)
     {
-        _window ??= Create(); _window.AddSession(new DiskSpaceViewModel(snapshot)); _window.Show(); _window.Activate();
+        _window ??= Create();
+        if (_window.SessionCount >= AnalysisLimits.Sessions) { _window.ExplainSessionLimit(); _window.Show(); _window.Activate(); return; }
+        _window.AddSession(new DiskSpaceViewModel(snapshot)); _window.Show(); _window.Activate();
     }
     private DiskSpaceWindow Create()
     {

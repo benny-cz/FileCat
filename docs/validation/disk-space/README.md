@@ -6,17 +6,19 @@ This branch is under development. W0, W1 and W2 are in progress; no release or s
 
 | Run | Result | Receipt |
 |---|---|---|
-| Full solution build | No warnings or errors | [build](solution-build-r12.txt) |
-| Windows Core analysis and command cases | 121 pass, 5 platform skips | [XML](windows-core-r12.xml) |
-| Ordinary Windows host | 6 pass, no skips | [XML](windows-host-native-r16.xml) |
-| Ordinary Windows guest | 6 pass, no skips | [XML](windows-vm-native-r12.xml) |
-| macOS arm64 analysis and command cases | 126 pass, no skips | [XML](mac-core-r12.xml) |
-| Skia headless presentation | 2 pass | [XML](analysis-render-r6.xml) |
+| Full solution build | No warnings or errors | [build](solution-build-r18.txt) |
+| Windows Core analysis and command cases | 129 pass, 7 platform skips | [XML](windows-core-r18.xml) |
+| Ordinary Windows host | 8 pass, no skips | [XML](windows-host-native-r18.xml) |
+| Ordinary Windows guest | 8 pass, no skips | [XML](windows-vm-native-r18.xml) |
+| macOS arm64 analysis and command cases | 136 pass, no skips | [XML](mac-core-r18.xml) |
+| Skia headless presentation | 6 pass | [XML](analysis-render-r18.xml) |
 | Ubuntu | Postponed while another tester's FileCat is running | No native Linux claim |
 
-The Windows suite includes three native fixtures and three reparse-tag classification cases. Native fixtures cover hard links, junction exclusion, queued ancestor movement, explicit hard-linked file roots, and metadata access while primary content reads are denied. Mac fixtures cover no-follow enumeration, ancestor movement and explicit hard-linked file roots. These are development regression cases, not the full filesystem, cloud, race or resource qualification matrix.
+The Windows suite includes five native cases and three reparse-tag classification cases. Native fixtures cover hard links, junction exclusion, queued ancestor movement, explicit hard-linked file roots, metadata access while primary content reads are denied, and duplicate/contained roots in both selection orders. Mac fixtures cover no-follow enumeration, ancestor movement, explicit hard-linked file roots and the same root-overlap matrix. These are development regression cases, not the full filesystem, cloud, race or resource qualification matrix.
 
-The presentation test draws Treemap, Sunburst and Table at 1180, 600 and 380 DIP in all seven themes, at a fixed height of 780 DIP. It also checks that the latest filter wins, interaction freezes keep their targets, and marks/basket references survive filtering. The [render directory](renders) contains selected images from that run. Minimum-height, large-text, actual desktop, tooltip/DPI and assistive-technology qualification remain outstanding. Headless rendering does not establish native UI acceptance.
+The presentation tests draw Treemap, Sunburst and Table at 1180, 600 and 380 DIP in all seven themes, at a fixed height of 780 DIP. Separate cases check 380 × 430 with 20-DIP text and 4,000 virtualized rows, keyboard opening of details and custom overlay cancellation, root-separated incompatible allocation, uncertain predicates, captured timezone, and frozen membership. The [render directory](renders) contains selected images. Broader text/DPI, actual desktop, tooltip and assistive-technology qualification remain outstanding. Headless rendering does not establish native UI acceptance.
+
+Root containment is a request to the held native sources, not a string-prefix proof. A covered root records its active binding and relative observation scope. Unverifiable overlap is excluded with partial coverage instead of being counted twice. Selection leases retain the exact published revision and frozen real members; neither these leases nor historical binding fields are operation approvals.
 
 The suite starts no FileCat application processes. Mac and Windows guest checks after the run found no FileCat instances; the existing Ubuntu instance was left alone. Disposable-machine connection and account notes are kept only in ignored local continuation files.
 

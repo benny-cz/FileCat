@@ -174,6 +174,7 @@ public abstract class AnalysisChartControl : Control
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
+        if (e.Key == Key.Escape && ToolTip.GetIsOpen(this)) { ToolTip.SetIsOpen(this, false); e.Handled = true; return; }
         if (_view is null || e.Handled) return;
         var rows = _view.Tree.ChildrenOf(Scope);
         if (rows.Length == 0) return;

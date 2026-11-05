@@ -50,7 +50,8 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
                 _identitySupported = FstatFs(_root, fs) == 0 && *(ulong*)fs is 0xEF53 or 0x58465342 or 0x01021994;
             }
             Root = new("1", "file", selectedRoot, canonical, $"{_device:X}:{facts.Inode:X}:{_mount:X}", _identitySupported ? IdentityAssurance.Verified : IdentityAssurance.Unknown,
-                Path.GetFileName(canonical.TrimEnd('/')) is { Length: > 0 } n ? n : canonical);
+                Path.GetFileName(canonical.TrimEnd('/')) is { Length: > 0 } n ? n : canonical)
+                { Kind = facts.Kind, NameRules = AnalysisNameRules.Unix, ConnectionIdentityReference = _bindingId.ToString("N") };
             RootEntry = Bind(Entry([], Encoding.UTF8.GetBytes(Root.Label), facts), null);
             // Require the kernel's resolution contract before advertising recursive Linux traversal.
             if (!_mac && facts.Kind == AnalysisKind.Directory) { int probe = OpenRelative([] , directory: true); Close(probe); }
@@ -108,6 +109,48 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
     }
     private AnalysisEntry Bind(AnalysisEntry entry, AnalysisAncestry? parent) => entry.Kind != AnalysisKind.Directory ? entry
         : entry with { Ancestry = new(_bindingId, entry.RelativeName, entry.Identity, entry.Version, parent) };
+    public AnalysisRootContainment ContainsRoot(IAnalysisBackend other)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
+        if (other is not UnixAnalysisBackend source) return AnalysisRootContainment.Disjoint;
+        if (_device != source._device || _mount != source._mount) return AnalysisRootContainment.Disjoint;
+        if (!Same(RootEntry, Stat(_root)) || !source.Same(source.RootEntry, source.Stat(source._root))) throw new AnalysisSourceChangedException();
+        if (!_identitySupported || !source._identitySupported) return AnalysisRootContainment.Unavailable;
+        if (RootEntry.Kind == AnalysisKind.Directory && source.RootEntry.Kind == AnalysisKind.Directory && RootEntry.Identity == source.RootEntry.Identity)
+            return AnalysisRootContainment.Covered;
+        if (RootEntry.Kind == AnalysisKind.Directory && RootEntry.Cloud == true) return AnalysisRootContainment.Disjoint;
+        bool strict = AnalysisRootPaths.TryRelative(Root, source.Root, StringComparison.Ordinal, out string relative);
+        if (!strict && (!_mac || !AnalysisRootPaths.TryRelative(Root, source.Root, StringComparison.OrdinalIgnoreCase, out relative))) return AnalysisRootContainment.Disjoint;
+        if (relative.Length == 0) return RootEntry.Identity == source.RootEntry.Identity && RootEntry.Version == source.RootEntry.Version
+            ? AnalysisRootContainment.Covered : AnalysisRootContainment.Unavailable;
+        if (_mac && _modifiedPrecisionTicks != 1) return AnalysisRootContainment.Unavailable;
+        var components = relative.Split('/');
+        if (components.Any(c => !AnalysisNames.IsOrdinaryChild(c, windows: false))) return AnalysisRootContainment.Unavailable;
+        var parent = RootEntry; string prefix = "";
+        for (int i = 0; i < components.Length; i++)
+        {
+            prefix += (i == 0 ? "" : "/") + components[i];
+            var encoded = Encoding.UTF8.GetBytes(prefix).ToImmutableArray();
+            int fd = OpenRelative(encoded.AsSpan(), directory: i < components.Length - 1);
+            AnalysisEntry entry;
+            try { entry = Bind(Entry(encoded, Encoding.UTF8.GetBytes(components[i]), Stat(fd)), parent.Ancestry); }
+            finally { Close(fd); }
+            if (i < components.Length - 1)
+            {
+                if (entry.Kind != AnalysisKind.Directory || entry.Cloud == true) return AnalysisRootContainment.Unavailable;
+                parent = entry;
+            }
+            else
+            {
+                ValidateReadScope(entry.Kind == AnalysisKind.Directory ? entry : parent);
+                if (!source.Same(source.RootEntry, source.Stat(source._root))) throw new AnalysisSourceChangedException();
+                if (entry.Identity != source.RootEntry.Identity) return strict ? AnalysisRootContainment.Unavailable : AnalysisRootContainment.Disjoint;
+                return entry.Version == source.RootEntry.Version ? AnalysisRootContainment.Covered : AnalysisRootContainment.Unavailable;
+            }
+        }
+        return AnalysisRootContainment.Unavailable;
+    }
     public void ValidateReadScope(AnalysisEntry directory)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

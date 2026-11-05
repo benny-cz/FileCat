@@ -12,6 +12,7 @@ public sealed class AnalysisStore : IDisposable
     private readonly List<AnalysisObject> _objects = [];
     private readonly List<StorageFact> _facts = [];
     private readonly List<AnalysisIssue> _issues = [];
+    private readonly Dictionary<MeasurementState, ulong> _issueTotals = [];
     private readonly Dictionary<string, string> _identities = new(StringComparer.Ordinal);
     private long _reserved;
     private bool _disposed;
@@ -57,23 +58,30 @@ public sealed class AnalysisStore : IDisposable
             }
         }
         _nodes.Add(new(id, rootId, parent, e.Name, e.Kind, objectId, Sparse: e.Sparse, Compressed: e.Compressed, Cloud: e.Cloud)
-            { NameEncoding = e.NameEncoding, RawName = e.RawName });
+            { NameEncoding = e.NameEncoding, RawName = e.RawName, Times = new(e.ObservedUtc ?? DateTimeOffset.UtcNow, e.ModifiedUtc, e.ModifiedPrecisionTicks), ObservedIdentity = e.Identity });
         return id;
     }
-    public void Issue(string code, ulong? node = null, MeasurementState state = MeasurementState.Failed)
+    public void Issue(string code, ulong? node = null, MeasurementState state = MeasurementState.Failed, string? rootId = null)
     {
         lock (_sync)
         {
             if (_sealed || _disposed) return;
             IssueCount = checked(IssueCount + 1);
-            if (_issues.Count < AnalysisLimits.Issues && Reserve(512)) _issues.Add(new(code, node, state));
+            _issueTotals[state] = checked(_issueTotals.GetValueOrDefault(state) + 1);
+            if (_issues.Count < AnalysisLimits.Issues && Reserve(512)) _issues.Add(new(code, node, state) { RootId = rootId });
         }
     }
     public AnalysisSnapshot Snapshot(SessionIdentity session, ImmutableArray<RootBinding> roots, ScanPolicy policy,
         AnalysisPhase phase, NamespaceCoverage coverage)
     {
-        lock (_sync) return new(session, roots, _nodes.ToImmutableArray(), _objects.ToImmutableArray(),
-            _facts.ToImmutableArray(), _issues.ToImmutableArray(), policy, phase, coverage);
+        lock (_sync)
+        {
+            var aliases = _nodes.Where(n => n.ObjectId is not null).ToLookup(n => n.ObjectId!, StringComparer.Ordinal);
+            var issues = _issues.Where(i => i.NodeId.HasValue).ToLookup(i => i.NodeId!.Value);
+            return new(session, roots, _nodes.Select(n => n with { IssueCodes = issues[n.Id].Select(i => i.Code).Distinct(StringComparer.Ordinal).ToImmutableArray() }).ToImmutableArray(),
+                _objects.Select(o => o with { ObservedAliases = aliases[o.Id].Select(n => n.Id).ToImmutableArray() }).ToImmutableArray(),
+                _facts.ToImmutableArray(), _issues.ToImmutableArray(), policy, phase, coverage) { IssueTotals = _issueTotals.ToImmutableDictionary() };
+        }
     }
     public void Seal() { lock (_sync) _sealed = true; }
     private bool Reserve(long bytes)
@@ -91,7 +99,7 @@ public sealed class AnalysisStore : IDisposable
         lock (_sync)
         {
             if (_disposed) return;
-            _disposed = true; _nodes.Clear(); _objects.Clear(); _facts.Clear(); _issues.Clear(); _identities.Clear();
+            _disposed = true; _nodes.Clear(); _objects.Clear(); _facts.Clear(); _issues.Clear(); _issueTotals.Clear(); _identities.Clear();
             Interlocked.Add(ref s_reserved, -_reserved); _reserved = 0;
         }
     }

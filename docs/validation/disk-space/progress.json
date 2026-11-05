@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "scan-foundation-and-exploration-in-progress",
+  "status": "contracts-native-root-coverage-and-exploration-in-progress",
   "branch": "codex/disk-space-analysis",
   "productCommandRegistered": false,
   "nativeUiTested": false,
@@ -11,66 +11,73 @@
     "Process and actual-worker authority checks, global native handle/store budgets, scan/device admission, time-bounded batches, nonresponse freeze, pause/resume, stop and snapshot leases.",
     "Draft modeless tabbed exploration window, one shared accounting tree, bounded nested Treemap/Sunburst, ranked table, narrow inspector sheet, independent focus/marks/basket and frozen interaction revisions.",
     "Identity-unverified allocation remains labelled throughout presentation; filtered group capture excludes hidden descendants and context folders; oversized captures fail without partial selection changes.",
-    "All runtime action/helper capabilities remain off with reasons. The product command is not registered, and existing job safeguards are unchanged."
+    "All runtime action/helper capabilities remain off with reasons. The product command is not registered, and existing job safeguards are unchanged.",
+    "Native held-source containment normalizes duplicate/contained roots independently of selection order, records covered bindings, and excludes unverifiable overlap instead of double counting.",
+    "Root/path/object observations now retain kind, raw-name rules, observed identity/times, alias references and issue references; coverage separates requested/completed/failed/unfinished enumeration and exact issue counters.",
+    "Privacy joins preserve imported/privileged classification; enum/policy/raw-name/graph/alias/root-reference and supplied coverage checks reject contradictory data.",
+    "Explicit selection leases freeze IDs, object IDs, selection kind, scope/filter summary and raw locator budget against the exact published revision, retaining the store after its owner closes.",
+    "Window-level review shortcuts, focusable ranked table, short/large-text finite scrolling, root-separated incompatible allocation views, and explicit uncertain-query cohorts pass behavioral rendering checks.",
+    "Captured timezone is used for historical date filters; unavailable timezone requires explicit offsets. Source component extension matching is independent of host path separators."
   ],
   "validation": {
     "windowsCore": {
-      "total": 126,
-      "passed": 121,
+      "total": 136,
+      "passed": 129,
       "failed": 0,
-      "skipped": 5,
-      "detail": "98 analysis cases and 28 command regressions; three Unix-native and two Unix-FIFO controls skip on Windows.",
-      "evidence": "windows-core-r12.xml"
+      "skipped": 7,
+      "detail": "108 analysis cases and 28 command regressions; five Unix-native and two Unix-FIFO cases skip on Windows.",
+      "evidence": "windows-core-r18.xml"
     },
     "windowsHostNative": {
-      "total": 6,
-      "passed": 6,
+      "total": 8,
+      "passed": 8,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-host-native-r16.xml"
+      "evidence": "windows-host-native-r18.xml"
     },
     "windowsVm": {
       "status": "ordinary-user-regression-fixtures-passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "windows-vm-native-r18.xml",
+      "detail": "Five native fixtures and three reparse-tag cases; no native application UI qualification claimed."
+    },
+    "macosArm64": {
+      "total": 136,
+      "passed": 136,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "mac-core-r18.xml"
+    },
+    "headlessRendering": {
       "total": 6,
       "passed": 6,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-native-r12.xml",
-      "detail": "Three native fixtures and three pure reparse-tag cases. No native application UI qualification claimed."
-    },
-    "macosArm64": {
-      "total": 126,
-      "passed": 126,
-      "failed": 0,
-      "skipped": 0,
-      "evidence": "mac-core-r12.xml"
-    },
-    "headlessRendering": {
-      "total": 2,
-      "passed": 2,
-      "failed": 0,
-      "skipped": 0,
-      "evidence": "analysis-render-r6.xml",
-      "detail": "Skia rendering: seven themes, three widths, three view modes, fixed 780-DIP height; latest-filter and frozen-selection behavior. This is not native accessibility or UI evidence."
+      "evidence": "analysis-render-r18.xml",
+      "detail": "Seven-theme view parity; custom overlay cancel and Enter details; 4000-row short/large-text virtualization; root-separated bases, uncertain predicates and captured timezone. Headless, not native UI/a11y."
     },
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "solution-build-r12.txt"
+      "evidence": "solution-build-r18.txt"
     },
     "ubuntu": {
-      "status": "postponed-other-FileCat-instance"
+      "status": "postponed-other-FileCat-instance",
+      "detail": "User reconfirmed that the existing test is active on 5 November; leave it running."
     }
   },
   "nextWork": [
-    "W0: finish root/observation/coverage/selection contracts, schema/enum validation, runtime taint joins and saved-source continuity before claiming qualification.",
-    "W1: explicit mount/access/placeholder boundaries, root and queued-entry substitution matrix, macOS/Linux permission controls, epoch refresh, shared memory accounting and qualified private indexed storage or prescribed bounded fallback.",
-    "W1/W8: perform Ubuntu native testing once the other instance exits; never stop another tester or use that occupied guest for fixtures.",
-    "W2: finish window-level review shortcut routing, minimum-height/large-text scrolling, root/group/sort controls, detailed issue/basis explanations, inspector/tooltips and session lifecycle. Qualify actual native UI and assistive technology on all three platforms.",
-    "W3: strict bounded inert JSONL inventories, private store/catalog, save/history, compatible comparison and reviewed create-only exports.",
-    "W4/W5: qualified typed operation contracts, live source binding, protected objects, immutable membership/review tokens, preserving review and accurate job outcomes. Native impossibility needs evidence; do not treat missing implementation as qualification.",
-    "W6: versioned declarative insights/recipes and explicit content work only through qualified sources.",
-    "W7: separately qualified closed NTFS metadata helper or explicit standard-scan fallback.",
-    "W8: actual native theme/DPI/accessibility/package matrix, 1M/10M resource measurements, negative controls, diagnostics leakage tests, documentation and capability/evidence review."
+    "W0: finish producer observation/coverage and raw-name fidelity/display contracts, unknown/boundary reasons, source continuity and fully bounded contract validation/indexing. A valid data model is never live authority.",
+    "W1: per-entry access failures and mount boundaries must retain/continue other readable entries, rather than abort the directory; qualify raw names, case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases.",
+    "W1: finish epoch refresh, retained/hung I/O and prepared-source cleanup responsiveness, actual shared-memory and indexed private-store budgets or prescribed bounded fallback.",
+    "Ubuntu: continue postponing while the other FileCat instance runs; user explicitly reconfirmed this. Do not close it or reboot that occupied guest.",
+    "W2: actual native desktop/assistive-technology testing; safe raw-name/path display; grouping/sort/breadcrumbs/details/tooltips; complete session/app lifecycle and lazy tools.diskSpace registration. view.analyze and panel actions remain separate.",
+    "W3: strict bounded inert JSONL inventories, private store/catalog, named save/history, compatible comparison and guarded create-only exports/imports.",
+    "W4/W5: qualified live source and exact-entry typed operations, protected objects, immutable review/submission, preserving defaults and accurate outcomes. Unsupported needs feasibility evidence, not just missing implementation.",
+    "W6/W7: declarative recipes and explicitly qualified content work; closed NTFS metadata helper or prescribed standard-scan fallback.",
+    "W8: native platform/theme/DPI/a11y/package matrix, 1M/10M measurements, negative controls, actual diagnostics ZIP leakage, documentation and final requirement-by-requirement audit."
   ]
 }

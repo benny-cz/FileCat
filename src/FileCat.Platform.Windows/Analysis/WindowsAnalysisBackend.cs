@@ -47,9 +47,8 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
             var entry = Observe(_root.Value, [], Raw(Path.GetFileName(full.TrimEnd('\\')) is { Length: > 0 } label ? label : full), _namespace);
             if (entry.Kind is not (AnalysisKind.Directory or AnalysisKind.File)) throw new IOException("Select a file or folder, or explicitly select the resolved target of a link.");
             if (entry.Identity is null) throw new IOException("The source does not expose a qualified root identity.");
-            if (entry.Kind == AnalysisKind.Directory)
+            if (entry.Kind == AnalysisKind.Directory && entry.Cloud != true)
             {
-                if (entry.Cloud == true) throw new NotSupportedException("This cloud folder has no qualified metadata-only enumeration route.");
                 // An empty NT relative name reopens the held object. A dot is a literal invalid NT child name,
                 // and Win32 ReOpenFile is refused on qualified directory handles on some Windows builds.
                 var directory = OpenChild(_root.Value, string.Empty, directory: true);
@@ -63,7 +62,8 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
                 _root.Dispose(); _root = directory;
             }
             _volume = Volume(_root.Value);
-            Root = new("1", "file", selectedRoot, canonical, $"{_volume:X}:{entry.Identity}", IdentityAssurance.Verified, entry.Name);
+            Root = new("1", "file", selectedRoot, canonical, $"{_volume:X}:{entry.Identity}", IdentityAssurance.Verified, entry.Name)
+                { Kind = entry.Kind, NameRules = AnalysisNameRules.Windows, ConnectionIdentityReference = _bindingId.ToString("N") };
             RootEntry = Bind(entry, null);
         }
         catch { _root.Dispose(); throw; }
@@ -103,6 +103,48 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
     }
     private AnalysisEntry Bind(AnalysisEntry entry, AnalysisAncestry? parent) => entry.Kind != AnalysisKind.Directory ? entry
         : entry with { Ancestry = new(_bindingId, entry.RelativeName, entry.Identity, entry.Version, parent) };
+    public AnalysisRootContainment ContainsRoot(IAnalysisBackend other)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
+        if (other is not WindowsAnalysisBackend source || _namespace != source._namespace || _volume != source._volume) return AnalysisRootContainment.Disjoint;
+        bool Current(WindowsAnalysisBackend backend)
+        {
+            var observed = Observe(backend._root.Value, [], [], backend._namespace);
+            return observed.Identity == backend.RootEntry.Identity && observed.Version == backend.RootEntry.Version;
+        }
+        if (!Current(this) || !Current(source)) throw new AnalysisSourceChangedException();
+        if (RootEntry.Kind == AnalysisKind.Directory && source.RootEntry.Kind == AnalysisKind.Directory && RootEntry.Identity == source.RootEntry.Identity)
+            return AnalysisRootContainment.Covered;
+        if (RootEntry.Kind == AnalysisKind.Directory && RootEntry.Cloud == true) return AnalysisRootContainment.Disjoint;
+        if (!AnalysisRootPaths.TryRelative(Root, source.Root, StringComparison.OrdinalIgnoreCase, out string relative)) return AnalysisRootContainment.Disjoint;
+        if (relative.Length == 0) return RootEntry.Identity == source.RootEntry.Identity && RootEntry.Version == source.RootEntry.Version
+            ? AnalysisRootContainment.Covered : AnalysisRootContainment.Unavailable;
+        if (RootEntry.Kind != AnalysisKind.Directory || RootEntry.Cloud == true) return AnalysisRootContainment.Unavailable;
+        var parts = relative.Split('\\');
+        if (parts.Length > 48 || parts.Any(p => !AnalysisNames.IsOrdinaryChild(p, windows: true))) return AnalysisRootContainment.Unavailable;
+        var held = new List<OwnedHandle>();
+        try
+        {
+            SafeFileHandle parent = _root.Value;
+            for (int i = 0; i < parts.Length; i++)
+            {
+                var next = OpenChild(parent, parts[i], directory: i < parts.Length - 1); held.Add(next); parent = next.Value;
+                var entry = Observe(parent, [], [], _namespace);
+                if (Volume(parent) != _volume) return AnalysisRootContainment.Disjoint;
+                if (i < parts.Length - 1 && (entry.Kind != AnalysisKind.Directory || entry.Cloud == true)) return AnalysisRootContainment.Unavailable;
+                if (i == parts.Length - 1)
+                {
+                    ValidateReadScope(RootEntry);
+                    if (!Current(source)) throw new AnalysisSourceChangedException();
+                    return entry.Identity == source.RootEntry.Identity && entry.Version == source.RootEntry.Version
+                        ? AnalysisRootContainment.Covered : AnalysisRootContainment.Unavailable;
+                }
+            }
+        }
+        finally { for (int i = held.Count - 1; i >= 0; i--) held[i].Dispose(); }
+        return AnalysisRootContainment.Unavailable;
+    }
     public void ValidateReadScope(AnalysisEntry directory)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -203,7 +245,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
         bool cloud = cloudTag || (attributes & (0x1000u | 0x40000u | 0x400000u)) != 0;
         bool directory = (attributes & 0x10) != 0;
         // A recognized regular-file placeholder is a file path, not a navigation link. Its allocation remains unknown.
-        var kind = (attributes & 0x400) != 0 && !(cloudTag && !directory) ? AnalysisKind.Link
+        var kind = (attributes & 0x400) != 0 && !cloudTag ? AnalysisKind.Link
             : directory ? AnalysisKind.Directory : AnalysisKind.File;
         return (kind, cloud);
     }

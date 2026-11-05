@@ -30,6 +30,7 @@ public sealed class DiskSpaceWindow : Window
     private readonly OverlayDialogService _dialogs;
     private readonly Action? _newAnalysis;
     private readonly Func<Keymap> _keymap;
+    private readonly TextBlock _notice = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
     private bool _forceClose, _askingClose;
     public int SessionCount => _sessions.Count;
     protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => new DescendantFocusWindowAutomationPeer(this);
@@ -45,9 +46,17 @@ public sealed class DiskSpaceWindow : Window
         header.Children.Add(ActionButton("New analysis", () => _newAnalysis?.Invoke(), "Choose another captured scope in a new analysis tab."));
         header.Children.Add(ActionButton("Close analysis", () => _ = CloseTabAsync(), "Close the selected analysis. Active work and review references need a preserving choice."));
         header.Children.Add(ActionButton("Continue in FileCat", Hide, "Hide this window and keep its sessions in the running FileCat instance."));
-        var dock = new DockPanel(); DockPanel.SetDock(header, Dock.Top); dock.Children.Add(header); dock.Children.Add(_tabs);
+        AutomationProperties.SetLiveSetting(_notice, AutomationLiveSetting.Polite);
+        var windowHeader = new StackPanel { Children = { header, _notice } };
+        var dock = new DockPanel(); DockPanel.SetDock(windowHeader, Dock.Top); dock.Children.Add(windowHeader); dock.Children.Add(_tabs);
         Content = ThemeLayers.Over(new Grid { Children = { dock, _overlay } }, dock);
         ToolTipNames.Install();
+        // Overlays are siblings of the tabs, so review-context bindings belong to the window route.
+        AddHandler(KeyDownEvent, (_, e) =>
+        {
+            int selected = _tabs.SelectedIndex;
+            if (selected >= 0 && selected < _sessions.Count) _sessions[selected].HandleKeys(e);
+        }, RoutingStrategies.Bubble);
         Closing += (_, e) =>
         {
             if (_forceClose) return;
@@ -63,7 +72,8 @@ public sealed class DiskSpaceWindow : Window
     {
         if (_sessions.Count >= AnalysisLimits.Sessions) throw new InvalidOperationException("Eight analyses are open. Close an analysis before adding another.");
         var view = new SessionView(this, model, roots ?? []);
-        var item = new TabItem { Header = "Analysis " + (_items.Count + 1), Content = view };
+        _notice.IsVisible = false;
+        var item = new TabItem { Header = "Analysis " + (_items.Count + 1), Content = view.CreateViewport() };
         _sessions.Add(view); _items.Add(item); _tabs.ItemsSource = _items.ToArray(); _tabs.SelectedItem = item;
     }
     private async Task ConfirmCloseAsync()
@@ -87,6 +97,7 @@ public sealed class DiskSpaceWindow : Window
         if (_items.Count > 0) _tabs.SelectedIndex = Math.Min(at, _items.Count - 1);
     }
     public void ForceClose() { _forceClose = true; Close(); }
+    public void ExplainSessionLimit() { _notice.Text = "Eight analyses are open. Close an analysis before adding another."; _notice.IsVisible = true; }
     private static Button ActionButton(string text, Action action, string help)
     {
         var button = new Button { Content = text }; button.Click += (_, _) => action();
@@ -105,6 +116,10 @@ public sealed class DiskSpaceWindow : Window
         private readonly CheckBox _case = new() { Content = "Case sensitive" };
         private readonly ComboBox _metric = new() { ItemsSource = new[] { "File size", "Unique file size", "On disk — reported", "Files" }, SelectedIndex = 2, MinWidth = 155 };
         private readonly ComboBox _mode = new() { ItemsSource = new[] { "Treemap", "Sunburst", "Table" }, SelectedIndex = 0, MinWidth = 125 };
+        private readonly ComboBox _rootFilter = new() { MinWidth = 140, MaxWidth = 240 };
+        private readonly Button _unknown = new() { Content = "Inspect uncertain results", IsVisible = false };
+        private ImmutableArray<RootBinding> _shownRoots = [];
+        private sealed record RootChoice(string? Id, string Label) { public override string ToString() => Label; }
         private readonly Button _pause = new() { Content = "Pause" }, _stop = new() { Content = "Stop" };
         private readonly TextBlock _summary = new() { TextWrapping = TextWrapping.Wrap, FontSize = 18 };
         private readonly TextBlock _scope = new() { TextWrapping = TextWrapping.Wrap }, _coverage = new() { TextWrapping = TextWrapping.Wrap };
@@ -112,13 +127,14 @@ public sealed class DiskSpaceWindow : Window
         private readonly TextBlock _basket = new() { TextWrapping = TextWrapping.Wrap };
         private readonly TextBlock _inspector = new() { TextWrapping = TextWrapping.Wrap };
         private readonly StackPanel _inspectorPanel = new() { Spacing = 8, Margin = new Thickness(10) };
-        private readonly ListBox _list = new() { SelectionMode = SelectionMode.Single };
+        private readonly ListBox _list = new() { SelectionMode = SelectionMode.Single, Focusable = true };
         private readonly TreemapControl _treemap = new(); private readonly SunburstControl _sunburst = new();
-        private readonly Grid _explorer = new() { RowDefinitions = new RowDefinitions("3*,Auto,2*"), ColumnDefinitions = new ColumnDefinitions("*,300") };
+        private readonly Grid _explorer = new() { RowDefinitions = new RowDefinitions("3*,Auto,2*"), ColumnDefinitions = new ColumnDefinitions("*,300"), MinHeight = 240 };
         private readonly Grid _chartHost = new(); private readonly ScrollViewer _inspectorScroll;
         private readonly Grid _table = new() { RowDefinitions = new RowDefinitions("Auto,*") };
         private readonly Grid _tableHeader = new() { Margin = new Thickness(8, 3, 24, 3) };
         private readonly Button _inspect;
+        private ScrollViewer? _viewport;
         private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(500) };
         private readonly DispatcherTimer _filterTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
         private bool _updating, _disposed;
@@ -150,7 +166,8 @@ public sealed class DiskSpaceWindow : Window
             nav.Children.Add(Unavailable("Save…", "A verified private analysis store is required for saving. No inventory has been saved."));
             nav.Children.Add(Unavailable("Compare…", "Choose compatible saved observations to compare. This session has no comparison."));
             var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { _query, _case } };
-            filters.Children.Add(ActionButton("Clear filter", () => _query.Text = "", "Remove the display query; scan boundaries remain captured."));
+            filters.Children.Add(_rootFilter); filters.Children.Add(_unknown);
+            filters.Children.Add(ActionButton("Clear filter", () => { Model.ShowUnknownFilterResults = false; _query.Text = ""; }, "Remove the display query; scan boundaries remain captured."));
             toolbar.Children.Add(nav); toolbar.Children.Add(_scope); toolbar.Children.Add(_summary); toolbar.Children.Add(_coverage); toolbar.Children.Add(filters); toolbar.Children.Add(_error);
             Grid.SetRow(toolbar, 1); Children.Add(toolbar);
             _chartHost.Children.Add(_treemap); _chartHost.Children.Add(_sunburst); _explorer.Children.Add(_chartHost);
@@ -158,7 +175,7 @@ public sealed class DiskSpaceWindow : Window
             Grid.SetRow(splitter, 1); _explorer.Children.Add(splitter);
             _list.ItemTemplate = new FuncDataTemplate<AnalysisTreeItem>((item, _) => item is null ? new Border() : Row(item));
             _list.SelectionChanged += (_, _) => { if (!_updating && _list.SelectedItem is AnalysisTreeItem item) Model.Focus(item.Key); };
-            _list.DoubleTapped += (_, _) => { if (_list.SelectedItem is AnalysisTreeItem item) Model.Focus(item.Key, open: true); };
+            _list.DoubleTapped += (_, _) => { if (_list.SelectedItem is AnalysisTreeItem item) ActivateItem(item.Key, false, true); };
             bool tablePress = false;
             _list.PointerPressed += (_, _) => { if (!tablePress) { tablePress = true; Model.Interaction(true); } };
             void EndTablePress() { if (tablePress) { tablePress = false; Model.Interaction(false); } }
@@ -186,18 +203,42 @@ public sealed class DiskSpaceWindow : Window
             _metric.SelectionChanged += (_, _) => { if (_updating) return; Model.Metric = (AnalysisMetric)Math.Max(0, _metric.SelectedIndex); _ = Model.RebuildAsync(true); };
             _query.TextChanged += (_, _) => { if (_updating) return; _filterTimer.Stop(); _filterTimer.Start(); };
             _case.IsCheckedChanged += (_, _) => { Model.CaseSensitive = _case.IsChecked == true; _ = Model.RebuildAsync(true); };
+            _rootFilter.SelectionChanged += (_, _) => { if (!_updating && _rootFilter.SelectedItem is RootChoice choice) { Model.RootFilter = choice.Id; _ = Model.RebuildAsync(true); } };
+            _unknown.Click += (_, _) => { Model.ShowUnknownFilterResults = !Model.ShowUnknownFilterResults; _ = Model.RebuildAsync(true); };
+            ToolTip.SetTip(_rootFilter, new RichTip("Filter captured location", detail: "Choose one captured binding. Covered locations refer to their observed subtree, without scanning it twice."));
+            ToolTip.SetTip(_unknown, new RichTip("Uncertain query results", detail: "Missing metadata may leave a predicate unknown. Inspect that explicit cohort separately from confirmed matches."));
             _filterTimer.Tick += (_, _) => { _filterTimer.Stop(); Model.Query = _query.Text ?? ""; _ = Model.RebuildAsync(true); };
             foreach (var chart in new AnalysisChartControl[] { _treemap, _sunburst })
-            { chart.Activated += Model.Focus; chart.InteractionChanged += Model.Interaction; }
+            { chart.Activated += ActivateItem; chart.InteractionChanged += Model.Interaction; }
             _timer.Tick += async (_, _) => { if (IsEffectivelyVisible) await Model.RebuildAsync(); };
             AttachedToVisualTree += (_, _) => { _timer.Start(); _ = Model.RebuildAsync(true); };
             DetachedFromVisualTree += (_, _) => _timer.Stop();
-            AddHandler(KeyDownEvent, Keys, RoutingStrategies.Bubble);
             Model.Changed += Refresh;
             AutomationProperties.SetName(_list, "Ranked analysis entries"); AutomationProperties.SetName(_query, "Filter observations");
+            AutomationProperties.SetName(_rootFilter, "Filter captured location"); AutomationProperties.SetName(_unknown, "Inspect uncertain query results");
             AutomationProperties.SetName(_status, "Analysis status"); AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
             PropertyChanged += (_, e) => { if (e.Property == BoundsProperty) Refresh(); };
             Refresh();
+        }
+        public ScrollViewer CreateViewport()
+        {
+            Height = 690;
+            _viewport = new ScrollViewer { Name = "AnalysisPageScroll", Content = this, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+            _viewport.LayoutUpdated += (_, _) =>
+            {
+                if (_disposed || _viewport is null) return;
+                // Auto rows get their full wrapped height. The inner explorer always receives a finite viewport,
+                // preserving list virtualization while the page itself scrolls on short or large-text displays.
+                double minimum = Children.Where(c => c != _explorer).Sum(c => c.DesiredSize.Height) + _explorer.MinHeight;
+                double height = Math.Max(_viewport.Bounds.Height, minimum);
+                if (double.IsFinite(height) && Math.Abs(Height - height) > .5) Height = height;
+            };
+            return _viewport;
+        }
+        private void ActivateItem(string key, bool toggleMark, bool open)
+        {
+            Model.Focus(key, toggleMark, open);
+            if (open && Bounds.Width < 900 && Model.Tree?.Items.GetValueOrDefault(key)?.Kind == AnalysisKind.File) _ = InspectAsync();
         }
         private static Control Unavailable(string title, string reason)
         {
@@ -258,6 +299,15 @@ public sealed class DiskSpaceWindow : Window
                 _resolved.Text = Model.ResolvedTargets; _status.Text = Model.Status; _error.Text = Model.FilterError; _error.IsVisible = Model.FilterError is not null;
                 _pause.IsEnabled = Model.Running; _stop.IsEnabled = Model.Running; _pause.Content = Model.Phase is AnalysisPhase.Paused or AnalysisPhase.Pausing ? "Resume" : "Pause";
                 var tree = Model.Tree;
+                if (tree is not null && !_shownRoots.Equals(tree.Snapshot.Roots))
+                {
+                    _shownRoots = tree.Snapshot.Roots;
+                    var choices = new[] { new RootChoice(null, "All locations") }.Concat(_shownRoots.Select(r => new RootChoice(r.Id, AnalysisNames.Display(r.Label, 80) + " [" + r.Id + "]"))).ToArray();
+                    _rootFilter.ItemsSource = choices; _rootFilter.SelectedItem = choices.FirstOrDefault(c => c.Id == Model.RootFilter);
+                }
+                _rootFilter.IsVisible = tree is not null && tree.Snapshot.Roots.Length > 1;
+                _unknown.IsVisible = tree is not null && (tree.Projection.UnknownFilterNodes.Count > 0 || tree.Projection.IncludesUnknownFilterResults);
+                _unknown.Content = tree?.Projection.IncludesUnknownFilterResults == true ? "Show confirmed matches" : $"Inspect {tree?.Projection.UnknownFilterNodes.Count ?? 0:N0} uncertain results";
                 _scope.Text = tree is null ? "Captured scope appears here after Start." : AnalysisNames.Display(tree.NameOf(Model.Selection.Scope));
                 _summary.Text = tree is null ? "No measurements yet" : $"{MetricName(tree.Projection.Metric)}: {tree.ScopeValue(Model.Selection.Scope)} known · {tree.Projection.Totals.MatchingPaths:N0} matching file paths";
                 if (tree?.Items.GetValueOrDefault(Model.Selection.Scope) is { } scopeItem && scopeItem.IdentityUnverified > 0)
@@ -269,7 +319,12 @@ public sealed class DiskSpaceWindow : Window
                 if (tree is not null)
                 {
                     var totals = tree.Projection.Totals;
-                    _coverage.Text += $" Missing measurements: {totals.Missing.Values.Aggregate(0ul, (a, b) => checked(a + b)):N0}. Policy boundaries/issues: {tree.Snapshot.Issues.Length:N0}.";
+                    ulong issueCount = tree.Snapshot.IssueTotals.Count > 0 ? tree.Snapshot.IssueTotals.Values.Aggregate(0ul, (a, b) => checked(a + b)) : (ulong)tree.Snapshot.Issues.Length;
+                    _coverage.Text += $" Missing measurements: {totals.Missing.Values.Aggregate(0ul, (a, b) => checked(a + b)):N0}. Policy boundaries/issues: {issueCount:N0}.";
+                    if (!totals.CompatibleBasis) _coverage.Text += " These locations report different allocation components. Choose a location for its On disk view; File size and Files remain available together.";
+                    if (tree.Projection.IncludesUnknownFilterResults) _coverage.Text += " Showing uncertain filter results, not confirmed matches.";
+                    else if (tree.Projection.UnknownFilterNodes.Count > 0) _coverage.Text += $" {tree.Projection.UnknownFilterNodes.Count:N0} uncertain filter results are excluded from confirmed matches.";
+                    if (tree.Projection.FilterText != Model.Query) _coverage.Text += " The previous valid filter remains displayed while the new query is applied.";
                     if (tree.Projection.Metric == AnalysisMetric.UniqueFileSize && totals.IdentityUnverified > 0)
                         _coverage.Text += $" {totals.IdentityUnverified} path bytes have unverified identities and are excluded from unique chart area.";
                 }
@@ -296,12 +351,17 @@ public sealed class DiskSpaceWindow : Window
                 bool tableOnly = _mode.SelectedIndex == 2 || Bounds.Width < 640;
                 _chartHost.IsVisible = !tableOnly; _treemap.IsVisible = _mode.SelectedIndex == 0; _sunburst.IsVisible = _mode.SelectedIndex == 1;
                 _explorer.RowDefinitions[0].Height = tableOnly ? new GridLength(0) : new GridLength(3, GridUnitType.Star);
+                _explorer.RowDefinitions[1].Height = tableOnly ? new GridLength(0) : GridLength.Auto;
                 _inspectorScroll.IsVisible = Bounds.Width >= 900; _explorer.ColumnDefinitions[1].Width = Bounds.Width >= 900 ? new GridLength(300) : new GridLength(0);
                 _inspect.IsVisible = Bounds.Width < 900; _inspect.IsEnabled = tree is not null;
             }
             finally { _updating = false; }
         }
-        private async Task CopyPathAsync() { if (Model.FocusedPath() is { } path && _window.Clipboard is { } clipboard) await clipboard.SetTextAsync(path); }
+        private async Task CopyPathAsync()
+        {
+            if (Model.FocusedPath() is { } path && _window.Clipboard is { } clipboard) await clipboard.SetTextAsync(path);
+            else Model.SetStatus("A lossless literal path is unavailable for this selection. Raw source names remain in its observations.");
+        }
         private async Task InspectAsync()
         {
             var body = new StackPanel { Spacing = 8 };
@@ -327,7 +387,7 @@ public sealed class DiskSpaceWindow : Window
             try { await _window._dialogs.ShowCustomAsync("Review cleanup — keep files", body, [new DialogButton("Cancel / Keep files", false, IsDefault: true, IsCancel: true)]); }
             finally { Model.Interaction(false); }
         }
-        private void Keys(object? sender, KeyEventArgs e)
+        public void HandleKeys(KeyEventArgs e)
         {
             if (e.Handled || KeyMapper.ToChord(e.Key, e.KeyModifiers) is not { } chord) return;
             var keymap = _window._keymap();
@@ -356,8 +416,7 @@ public sealed class DiskSpaceWindow : Window
                 case CommandIds.DiskSpaceMove: Model.SetStatus(new AnalysisCapabilities().For(AnalysisVerb.Move).Reason); break;
                 case CommandIds.DiskSpaceMark when _list.IsKeyboardFocusWithin || _treemap.IsKeyboardFocusWithin || _sunburst.IsKeyboardFocusWithin: Model.ToggleFocusedMark(); break;
                 case CommandIds.DiskSpaceEnter when _list.IsKeyboardFocusWithin || _treemap.IsKeyboardFocusWithin || _sunburst.IsKeyboardFocusWithin:
-                    if (Model.Selection.Focus is { } focus) Model.Focus(focus, open: true);
-                    if (Model.Tree?.Items.GetValueOrDefault(Model.Selection.Focus ?? "")?.Kind == AnalysisKind.File) _ = InspectAsync();
+                    if (Model.Selection.Focus is { } focus) ActivateItem(focus, false, true);
                     break;
                 default: handled = false; break;
             }

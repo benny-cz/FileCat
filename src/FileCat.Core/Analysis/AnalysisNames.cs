@@ -5,11 +5,17 @@ namespace FileCat.Core.Analysis;
 
 public static class AnalysisNames
 {
+    // A source name is a single component. Host-specific path separators must not change imported classification.
+    public static string Extension(string name)
+    {
+        int dot = name.LastIndexOf('.');
+        return dot < 0 || dot == name.Length - 1 ? "" : name[(dot + 1)..];
+    }
     // This validates data for a future binding. Passing this check does not create live authority.
-    public static bool IsOrdinaryChild(string name, bool windows)
+    public static bool IsOrdinaryChild(string name, bool windows, int? rawBytes = null)
     {
         if (name.Length == 0 || name is "." or ".." || name.Contains('\0') || name.Contains('/') ||
-            Encoding.UTF8.GetByteCount(name) > AnalysisLimits.RawNameBytes) return false;
+            (rawBytes ?? Encoding.UTF8.GetByteCount(name)) is < 1 or > AnalysisLimits.RawNameBytes) return false;
         if (!windows) return true;
         if (name.Contains('\\') || name.Contains(':') || name.EndsWith('.') || name.EndsWith(' ') ||
             name.IndexOfAny(['<', '>', '"', '|', '?', '*']) >= 0 || name.Any(c => c < 32)) return false;

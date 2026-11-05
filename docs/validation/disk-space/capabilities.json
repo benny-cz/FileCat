@@ -31,9 +31,10 @@
       "tests": [
         "AnalysisWindowsTests.NativeAccountingUsesIdentityAndNeverTraversesJunctions",
         "AnalysisWindowsTests.QueuedDirectoryCannotIgnoreRenamedAncestors",
-        "AnalysisWindowsTests.ExplicitHardLinkedFileRootsUseMetadataRightsAndCountOneObject"
+        "AnalysisWindowsTests.ExplicitHardLinkedFileRootsUseMetadataRightsAndCountOneObject",
+        "AnalysisWindowsTests.NestedRootsAreCoveredOnceInEitherSelectionOrder"
       ],
-      "evidence": "windows-vm-native-r12.xml",
+      "evidence": "windows-vm-native-r18.xml",
       "lastQualifiedBuild": null,
       "limitations": [
         "Read-only regression fixtures pass on the ordinary host and guest users; sparse/compressed/resident/preallocation/cloud/filter and filesystem matrices remain unqualified.",
@@ -49,9 +50,10 @@
       "tests": [
         "AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink",
         "AnalysisScanningTests.UnixQueuedDirectoryRetainsItsAncestorBinding",
-        "AnalysisScanningTests.UnixExplicitHardLinkedFileRootsAreTwoPathsAndOneObject"
+        "AnalysisScanningTests.UnixExplicitHardLinkedFileRootsAreTwoPathsAndOneObject",
+        "AnalysisScanningTests.UnixNestedRootsAreCoveredOnceInEitherSelectionOrder"
       ],
-      "evidence": "mac-core-r12.xml",
+      "evidence": "mac-core-r18.xml",
       "lastQualifiedBuild": null,
       "limitations": [
         "Total reported block allocation; not exclusive ownership or primary-fork-only allocation.",

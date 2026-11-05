@@ -10,6 +10,35 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed partial class AnalysisWindowsTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NestedRootsAreCoveredOnceInEitherSelectionOrder(bool childFirst)
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows process.");
+        string temp = Path.Combine(Environment.CurrentDirectory, ".tmp", "analysis-overlap-" + Guid.NewGuid().ToString("N"));
+        string root = Path.Combine(temp, "root"), inner = Path.Combine(root, "inner"); Directory.CreateDirectory(inner);
+        File.WriteAllBytes(Path.Combine(inner, "child.bin"), new byte[100]); string direct = Path.Combine(root, "direct.bin"); File.WriteAllBytes(direct, new byte[20]);
+        try
+        {
+            var parent = new WindowsAnalysisBackend(root); var child = new WindowsAnalysisBackend(inner);
+            using var io = new DeviceIoScheduler();
+            using var session = new AnalysisCoordinator(io).Start(childFirst ? [child, parent, new WindowsAnalysisBackend(direct), new WindowsAnalysisBackend(root)]
+                : [parent, child, new WindowsAnalysisBackend(direct), new WindowsAnalysisBackend(root)]);
+            await session.Completion.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
+            var s = session.Snapshot(); AnalysisValidation.Validate(s, TestContext.Current.CancellationToken);
+            Assert.Equal(NamespaceCoverage.CompleteUnderPolicy, s.Coverage);
+            Assert.Equal((UInt128)120, AnalysisAggregate.Project(s, AnalysisMetric.FileSize, cancellation: TestContext.Current.CancellationToken).Totals.Known);
+            Assert.Equal(3, s.Roots.Count(r => r.Disposition == AnalysisRootDisposition.Covered));
+            string active = Assert.Single(s.Roots, r => r.Disposition == AnalysisRootDisposition.Active).Id;
+            Assert.All(s.Roots.Where(r => r.Disposition == AnalysisRootDisposition.Covered), r => Assert.Equal(active, r.CoveredByRootId));
+            var scopes = new AnalysisRootScopeIndex(s, TestContext.Current.CancellationToken); var covered = s.Roots.Single(r => r.Label == "inner");
+            Assert.Equal(AnalysisTruth.True, scopes.IsMember(covered.Id, s.Nodes.Single(n => n.Name == "child.bin")));
+            Assert.Equal(AnalysisTruth.False, scopes.IsMember(covered.Id, s.Nodes.Single(n => n.Name == "direct.bin")));
+            Assert.Equal(2ul, s.CoverageDetails!.EnumerationCompleted); Assert.Equal(0ul, s.CoverageDetails.EnumerationPending);
+        }
+        finally { Directory.Delete(temp, true); }
+    }
+    [Theory]
     [InlineData(0x9000001Au)]
     [InlineData(0x9000101Au)]
     [InlineData(0x9000F01Au)]
@@ -17,7 +46,7 @@ public sealed partial class AnalysisWindowsTests
     {
         var result = WindowsAnalysisBackend.Classify(0x400, tag);
         Assert.Equal(AnalysisKind.File, result.Kind); Assert.True(result.Cloud);
-        Assert.Equal(AnalysisKind.Link, WindowsAnalysisBackend.Classify(0x410, tag).Kind);
+        Assert.Equal(AnalysisKind.Directory, WindowsAnalysisBackend.Classify(0x410, tag).Kind);
         Assert.Equal(AnalysisKind.Link, WindowsAnalysisBackend.Classify(0x400, 0xA000000C).Kind);
     }
     [Fact]
