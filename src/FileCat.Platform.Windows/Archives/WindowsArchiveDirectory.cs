@@ -10,7 +10,7 @@ using static FileCat.Platform.Windows.Elevation.NtFile;
 
 namespace FileCat.Platform.Windows.Archives;
 
-internal enum WindowsArchiveArtifactKind { Stage, Manifest }
+internal enum WindowsArchiveArtifactKind { Stage, Manifest, Provenance }
 
 internal sealed class WindowsArchiveArtifactCreationException(string retainedPath, Exception inner)
     : IOException($"The created archive artifact could not be admitted; retain it for review: {retainedPath}", inner)
@@ -72,7 +72,8 @@ internal sealed class WindowsArchiveDirectory : IDisposable
             RequireCapacity();
             for (int attempt = 0; attempt < 8; attempt++)
             {
-                string leaf = $".filecat-archive-{nonce:N}-{Guid.NewGuid():N}.{(kind == WindowsArchiveArtifactKind.Stage ? "stage" : "manifest")}";
+                string suffix = kind switch { WindowsArchiveArtifactKind.Stage => "stage", WindowsArchiveArtifactKind.Manifest => "manifest", _ => "origin" };
+                string leaf = $".filecat-archive-{nonce:N}-{Guid.NewGuid():N}.{suffix}";
                 int status = TryOpen(Handle, leaf, GenericRead | GenericWrite | Delete | Synchronize | 0x20000 /* READ_CONTROL */,
                     ShareRead, Create, NonDirectoryFile | OpenReparsePoint, out var handle,
                     (uint)FileAttributes.Normal, privateSecurity);
@@ -142,8 +143,8 @@ internal sealed class WindowsArchiveDirectory : IDisposable
 
     private static void ValidateLimit(WindowsArchiveArtifactKind kind, long maximumLength)
     {
-        if (maximumLength < 0 || maximumLength > (kind == WindowsArchiveArtifactKind.Manifest
-                ? ArchiveWritePolicy.MaxMetadataBytes : ArchiveWritePolicy.MaxPhysicalBytes))
+        if (maximumLength < 0 || maximumLength > (kind == WindowsArchiveArtifactKind.Stage
+                ? ArchiveWritePolicy.MaxPhysicalBytes : ArchiveWritePolicy.MaxMetadataBytes))
             throw new ArgumentOutOfRangeException(nameof(maximumLength));
     }
 

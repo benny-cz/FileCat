@@ -336,6 +336,7 @@ public sealed partial class WindowsArchiveStorageTests
         Assert.Throws<ArgumentOutOfRangeException>(() => Artifact(root, -1));
         Assert.Throws<ArgumentOutOfRangeException>(() => Artifact(root, ArchiveWritePolicy.MaxPhysicalBytes + 1));
         Assert.Throws<ArgumentOutOfRangeException>(() => root.CreateArtifact(Guid.NewGuid(), WindowsArchiveArtifactKind.Manifest, ArchiveWritePolicy.MaxMetadataBytes + 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => root.CreateArtifact(Guid.NewGuid(), WindowsArchiveArtifactKind.Provenance, ArchiveWritePolicy.MaxMetadataBytes + 1));
         Assert.Empty(Directory.EnumerateFileSystemEntries(fixture.Root));
     }
 
