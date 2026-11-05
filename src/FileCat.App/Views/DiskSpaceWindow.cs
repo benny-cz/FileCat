@@ -13,6 +13,7 @@ using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Controls;
 using FileCat.App.Controls.DiskSpace;
 using FileCat.App.Services;
@@ -198,6 +199,7 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly DispatcherTimer _filterTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
         private bool _updating, _disposed;
         private ImmutableArray<AnalysisTreeItem> _shownRows;
+        private long _tableFocusRevision;
         public SessionView(DiskSpaceWindow window, DiskSpaceViewModel model, IReadOnlyList<string> roots)
         {
             _window = window; Model = model;
@@ -504,7 +506,25 @@ public sealed partial class DiskSpaceWindow : Window
                     if (tree.Projection.Metric == AnalysisMetric.UniqueFileSize && totals.IdentityUnverified > 0)
                         _coverage.Text += $" {totals.IdentityUnverified} path bytes have unverified identities and are excluded from unique chart area.";
                 }
-                if (!_shownRows.Equals(Model.Rows)) { _shownRows = Model.Rows; _list.ItemsSource = Model.Rows; }
+                if (!_shownRows.Equals(Model.Rows))
+                {
+                    bool restoreKeyboard = _list.IsKeyboardFocusWithin;
+                    bool restoreCheckbox = _window.FocusManager?.GetFocusedElement() is CheckBox;
+                    long focusRevision = ++_tableFocusRevision;
+                    // A projection replaces virtualized row containers. Keep the stable table
+                    // focused while they detach so Enter/Space cannot lose their routing target.
+                    if (restoreKeyboard) _list.Focus();
+                    _shownRows = Model.Rows; _list.ItemsSource = Model.Rows;
+                    if (restoreKeyboard) Dispatcher.UIThread.Post(() =>
+                    {
+                        // A later publication or explicit focus move wins over this continuation.
+                        if (_disposed || focusRevision != _tableFocusRevision || _window._dialogs.IsOpen ||
+                            !ReferenceEquals(_window.FocusManager?.GetFocusedElement(), _list)) return;
+                        if (_list.SelectedIndex < 0 || _list.ContainerFromIndex(_list.SelectedIndex) is not { } row) return;
+                        if (restoreCheckbox && row.GetVisualDescendants().OfType<CheckBox>().FirstOrDefault() is { } mark) mark.Focus();
+                        else row.Focus();
+                    }, DispatcherPriority.Loaded);
+                }
                 _list.SelectedItem = Model.Rows.FirstOrDefault(r => r.Key == Model.Selection.Focus);
                 if (tree is not null)
                 {

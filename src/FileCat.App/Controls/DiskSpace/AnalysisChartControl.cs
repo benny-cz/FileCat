@@ -19,6 +19,8 @@ public abstract class AnalysisChartControl : Control
     private ImmutableArray<Part> _parts = [];
     private readonly Dictionary<string, AnalysisTreeItem> _displayItems = new(StringComparer.Ordinal);
     private Size _layoutSize;
+    private string? _layoutFontFamily;
+    private double _layoutFontSize, _labelLineHeight;
     private bool _pressed;
     private string? _downKey, _hover;
     private int _clicks;
@@ -31,6 +33,8 @@ public abstract class AnalysisChartControl : Control
     protected abstract bool Contains(Part part, Point point);
     protected abstract void DrawPart(DrawingContext context, Part part, IBrush fill, IPen border);
     protected virtual Rect PlotBounds => new(8, 8, Math.Max(0, Bounds.Width - 16), Math.Max(0, Bounds.Height - 16));
+    protected double TileLabelHeight => 2 * _labelLineHeight + 12;
+    static AnalysisChartControl() => AffectsRender<AnalysisChartControl>(Avalonia.Controls.Documents.TextElement.FontSizeProperty);
     public AnalysisChartControl()
     {
         Focusable = true; MinHeight = 120;
@@ -73,8 +77,12 @@ public abstract class AnalysisChartControl : Control
         context.FillRectangle(new SolidColorBrush(Color.Parse(p.Panel)), new Rect(Bounds.Size));
         if (_view is null) { Text(context, "Start an analysis to explore its measured storage.", new(16, 20), p.TextMuted); return; }
         var tree = _view.Tree;
-        if (_layoutSize != Bounds.Size)
+        string family = p.FontFamily ?? FontFamily.Default.Name;
+        double fontSize = GetValue(Avalonia.Controls.Documents.TextElement.FontSizeProperty);
+        if (!_pressed && (_layoutSize != Bounds.Size || _layoutFontFamily != family || _layoutFontSize != fontSize))
         {
+            _layoutFontFamily = family; _layoutFontSize = fontSize;
+            _labelLineHeight = Format("Ag", p.Text).Height;
             _displayItems.Clear();
             UInt128 total = tree.ScopeValue(Scope);
             double pixels = this is SunburstControl ? Math.PI * Math.Min(PlotBounds.Width, PlotBounds.Height) : PlotBounds.Width * PlotBounds.Height;
@@ -95,12 +103,14 @@ public abstract class AnalysisChartControl : Control
             var pen = new Pen(new SolidColorBrush(Color.Parse(focused || ancestor ? p.FocusBorder : marked ? p.TextMarked : p.Border)), focused ? 3 : marked || ancestor ? 2 : 1,
                 item.Synthetic || item.IdentityUnverified > 0 ? new DashStyle([3, 2], 0) : null);
             DrawPart(context, part, fill, pen);
-            if (this is TreemapControl && !part.Branch && part.Bounds.Width > 72 && part.Bounds.Height > 35)
+            if (this is TreemapControl && part.Bounds.Width > 72 && part.Bounds.Height >= _labelLineHeight + 10)
             {
-                using (context.PushClip(part.Bounds.Deflate(4)))
+                var label = new Rect(part.Bounds.Position, new Size(part.Bounds.Width, Math.Min(part.Bounds.Height, TileLabelHeight)));
+                using (context.PushClip(label.Deflate(4)))
                 {
-                    Text(context, (marked ? "✓ " : "") + AnalysisNames.Display(item.Name, 90), part.Bounds.TopLeft + new Vector(7, 5), focused ? p.FocusText : p.Text);
-                    Text(context, FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, tree.Projection.Metric), part.Bounds.TopLeft + new Vector(7, 22), focused ? p.FocusText : p.TextMuted);
+                    Text(context, (marked ? "✓ " : "") + AnalysisNames.Display(item.Name, 90), part.Bounds.TopLeft + new Vector(7, 5), focused ? p.FocusText : p.Text, part.Bounds.Width - 14);
+                    if (part.Bounds.Height >= TileLabelHeight)
+                        Text(context, FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, tree.Projection.Metric), part.Bounds.TopLeft + new Vector(7, 6 + _labelLineHeight), focused ? p.FocusText : p.TextMuted, part.Bounds.Width - 14);
                 }
             }
         }
@@ -126,11 +136,17 @@ public abstract class AnalysisChartControl : Control
         return false;
     }
     private static Color Blend(Color a, Color b, double t) => Color.FromArgb(255, (byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
-    protected void Text(DrawingContext context, string text, Point point, string color)
+    private FormattedText Format(string text, string color)
     {
         var family = new FontFamily(ThemeManager.Current.FontFamily ?? FontFamily.Default.Name);
         double size = GetValue(Avalonia.Controls.Documents.TextElement.FontSizeProperty);
-        context.DrawText(new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface(family), size, new SolidColorBrush(Color.Parse(color))), point);
+        return new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface(family), size, new SolidColorBrush(Color.Parse(color)));
+    }
+    protected void Text(DrawingContext context, string text, Point point, string color, double? width = null)
+    {
+        var formatted = Format(text, color);
+        if (width is { } maximum) { formatted.MaxTextWidth = Math.Max(1, maximum); formatted.MaxLineCount = 1; formatted.Trimming = TextTrimming.CharacterEllipsis; }
+        context.DrawText(formatted, point);
     }
     private string? Hit(Point point) => _parts.Reverse().FirstOrDefault(p => Contains(p, point))?.Key;
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -153,6 +169,7 @@ public abstract class AnalysisChartControl : Control
     {
         if (!_pressed) return; _pressed = false; _downKey = null;
         if (_pending is { } pending) { _pending = null; SetView(pending.Tree, pending.Scope, pending.Focus, pending.Marks); }
+        InvalidateVisual();
         InteractionChanged?.Invoke(false);
     }
     protected override void OnPointerMoved(PointerEventArgs e) { base.OnPointerMoved(e); string? key = Hit(e.GetPosition(this)); if (_hover != key) { _hover = key; ShowTip(key); } }
@@ -218,12 +235,14 @@ public sealed class TreemapControl : AnalysisChartControl
             for (int i = firstPart; i < end && depth < 3; i++)
             {
                 var part = parts[i]; var row = siblings[i - firstPart];
-                if (part.Bounds.Width < 100 || part.Bounds.Height < 70 || row.Members.Length > 0 || row.Synthetic) continue;
-                var children = DisplayRows(row.Key, row.Value, 24 / Math.Max(1, part.Bounds.Width * part.Bounds.Height), Math.Min(512, AnalysisLimits.ChartLeaves - parts.Count));
+                if (part.Bounds.Width < 100 || part.Bounds.Height < TileLabelHeight + 40 || row.Members.Length > 0 || row.Synthetic) continue;
+                // Keep the folder's measured name/value header visible and hit-testable.
+                // Only the inner child surface is subdivided; sibling ratios and charges stay unchanged.
+                var childBounds = new Rect(part.Bounds.X + 3, part.Bounds.Y + TileLabelHeight, part.Bounds.Width - 6, part.Bounds.Height - TileLabelHeight - 3);
+                var children = DisplayRows(row.Key, row.Value, 24 / Math.Max(1, childBounds.Width * childBounds.Height), Math.Min(512, AnalysisLimits.ChartLeaves - parts.Count));
                 if (children.Length == 0) continue;
                 parts[i] = part with { Branch = true };
-                // A restrained inset exposes the parent boundary without changing any accounting value.
-                Level(children, part.Bounds.Deflate(3), row.Value, depth + 1);
+                Level(children, childBounds, row.Value, depth + 1);
             }
         }
         Level(rows, bounds, total, 0); return parts.ToImmutable();

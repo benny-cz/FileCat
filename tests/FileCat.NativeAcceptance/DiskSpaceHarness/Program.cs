@@ -80,6 +80,7 @@ internal sealed partial class HarnessApp : Application
             if (requested || DateTimeOffset.UtcNow >= _deadlineAt) { _deadlineClosed = !requested; _window.ForceClose(); }
         };
         _deadline.Start(); _window.Show(); WriteReport("ready");
+        if (Program.WindowsInput) BeginWindowsInput();
     }
 
     private void AddLiveSession()
@@ -172,12 +173,15 @@ internal static class Program
 {
     internal static bool LargeText { get; private set; }
     internal static bool Compact { get; private set; }
+    internal static bool WindowsInput { get; private set; }
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Any(arg => arg is not ("--large-text" or "--compact"))) return 64;
+        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input"))) return 64;
         LargeText = args.Contains("--large-text", StringComparer.Ordinal);
         Compact = args.Contains("--compact", StringComparer.Ordinal);
+        WindowsInput = args.Contains("--windows-input", StringComparer.Ordinal);
+        if (WindowsInput && !HarnessApp.WindowsInputVmAllowed()) return 77;
         if (AnalysisAdmission.Refusal() is not null) return 77;
         foreach (var process in Process.GetProcessesByName("FileCat"))
             using (process) if (process.Id != Environment.ProcessId) return 75;

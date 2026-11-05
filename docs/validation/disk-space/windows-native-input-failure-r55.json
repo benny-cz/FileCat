@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Opt-in Windows VM native input subset; no full qualification",
+  "state": "native-input-failed",
+  "error": "TimeoutException: Native input step 3 did not reach its observed outcome.",
+  "processId": 3996,
+  "user": "filecatdsa_r2",
+  "machine": "DESKTOP-A60F1NE",
+  "step": 3,
+  "events": [
+    "Native pointer Start",
+    "Native pointer root row",
+    "Native Return"
+  ],
+  "markedKey": null,
+  "windowVisible": true,
+  "windowActive": true,
+  "environment": {
+    "processSession": 2,
+    "consoleSession": 2,
+    "windowStation": "WinSta0",
+    "foregroundProcessId": 3996
+  },
+  "appSha256": "c6a5cb20612025777d164f5ae102e34b4e50794626e0905cc54666285fd87a3b",
+  "harnessSha256": "812f764a75dbb55a3c7744432aa90226ed8598a490b20e1ea918ad7d62ea302d",
+  "phase": "Finished",
+  "status": "Finished \u00B7 518 observed paths \u00B7 1 issues. Values are observations over time.",
+  "scope": "scope",
+  "focus": "n:1",
+  "marks": 0
+}

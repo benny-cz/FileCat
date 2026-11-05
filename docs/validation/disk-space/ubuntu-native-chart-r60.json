@@ -1,0 +1,180 @@
+{
+  "purpose": "Native Ubuntu table ordering/breadcrumb/pointer/keyboard subset; no full qualification",
+  "processId": 361726,
+  "events": [
+    "Invoked Start analysis",
+    "Selected Analysis table sort = Name",
+    "Selected Analysis table sort direction = Ascending",
+    "Selected Analysis table sort direction = Descending",
+    "Invoked Go to captured location: All locations",
+    "Invoked Back"
+  ],
+  "nativePointerAndEnterDrilledRoot": true,
+  "ascendingNames": [
+    ".hidden.bin",
+    "Aliases",
+    "Archives",
+    "large.bin",
+    "link-outside",
+    "Package.app",
+    "Photos",
+    "report.csv",
+    "Shared hard-linked files",
+    "Small files",
+    "Unicode",
+    "zero.bin"
+  ],
+  "markedKey": "n:12",
+  "descendingNames": [
+    "zero.bin",
+    "Unicode",
+    "Small files",
+    "Shared hard-linked files",
+    "report.csv",
+    "Photos",
+    "Package.app",
+    "link-outside",
+    "large.bin",
+    "Archives",
+    "Aliases",
+    ".hidden.bin"
+  ],
+  "nativeSortPreservedFocusAndMark": true,
+  "nativeBreadcrumbAndBackPreservedMark": true,
+  "state": "passed-native-navigation-subset",
+  "ownedProcessExited": true,
+  "harnessReport": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "closed",
+    "sourceUnchanged": true,
+    "deadlineClosed": false,
+    "processId": 361726,
+    "platform": "Ubuntu 24.04.5 LTS",
+    "architecture": "X64",
+    "run": "/home/benny/FileCatValidation/dsa-20261105-r60-chart/app/native-validation/dsa-03886ec795d14de4b45c7c4c2476be09",
+    "fixture": "/home/benny/FileCatValidation/dsa-20261105-r60-chart/app/native-validation/dsa-03886ec795d14de4b45c7c4c2476be09/fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": false,
+    "lastVisibleWidth": 1180,
+    "lastVisibleHeight": 731,
+    "lastVisibleScale": 1,
+    "lastScreen": {
+      "bounds": "0, 0, 1280, 800",
+      "workingArea": "66, 32, 1214, 768",
+      "Scaling": 1,
+      "position": "66, 32",
+      "frameSize": "1180, 768"
+    },
+    "largeText": false,
+    "compact": false,
+    "sessions": 0,
+    "createdSessions": 1,
+    "lastObservation": {
+      "Phase": 5,
+      "Status": "Viewing captured location: fixture.",
+      "FilterError": null,
+      "Query": "",
+      "Metric": 2,
+      "session": "56fec73b-eede-4002-98e8-e30f77a40389",
+      "Coverage": 0,
+      "Freshness": 0,
+      "paths": 518,
+      "objects": 508,
+      "issues": [
+        {
+          "Code": "navigation-link-not-followed",
+          "State": 3
+        }
+      ],
+      "known": "3424256",
+      "unverified": "0",
+      "matchingPaths": 509,
+      "rows": 12,
+      "focus": "n:12",
+      "marked": 1,
+      "basket": 0,
+      "tableSort": 1,
+      "tableDescending": true,
+      "tableRows": [
+        {
+          "Key": "n:8",
+          "Name": "zero.bin",
+          "value": "0"
+        },
+        {
+          "Key": "n:4",
+          "Name": "Unicode",
+          "value": "4096"
+        },
+        {
+          "Key": "n:10",
+          "Name": "Small files",
+          "value": "2023424"
+        },
+        {
+          "Key": "shared:n:1",
+          "Name": "Shared hard-linked files",
+          "value": "1048576"
+        },
+        {
+          "Key": "n:6",
+          "Name": "report.csv",
+          "value": "4096"
+        },
+        {
+          "Key": "n:5",
+          "Name": "Photos",
+          "value": "245760"
+        },
+        {
+          "Key": "n:3",
+          "Name": "Package.app",
+          "value": "12288"
+        },
+        {
+          "Key": "n:2",
+          "Name": "link-outside",
+          "value": "0"
+        },
+        {
+          "Key": "n:11",
+          "Name": "large.bin",
+          "value": "0"
+        },
+        {
+          "Key": "n:9",
+          "Name": "Archives",
+          "value": "81920"
+        },
+        {
+          "Key": "n:7",
+          "Name": "Aliases",
+          "value": "0"
+        },
+        {
+          "Key": "n:12",
+          "Name": ".hidden.bin",
+          "value": "4096"
+        }
+      ],
+      "breadcrumbs": [
+        {
+          "Key": "scope",
+          "Label": "All locations"
+        },
+        {
+          "Key": "n:1",
+          "Label": "fixture"
+        }
+      ]
+    },
+    "selectedTab": 0,
+    "tabHeaders": [
+      "Analysis 1"
+    ],
+    "appSha256": "7072cdf90f81fc8026842c7cad88ea17ecc061f4c2604e161422c486d69f45a4",
+    "harnessSha256": "e58d1c81932237a983c3082fb8c431d48c65c132eb3849f10f65944704a52f63"
+  }
+}

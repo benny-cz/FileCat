@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native Windows pointer/keyboard navigation subset; no full qualification",
+  "state": "passed-native-input-subset",
+  "observerState": "FINISHED exit=0",
+  "ownedProcessExited": true,
+  "inputReceipt": {
+    "schemaVersion": 1,
+    "purpose": "Opt-in Windows VM native input subset; no full qualification",
+    "state": "passed-native-input-subset",
+    "error": null,
+    "processId": 9980,
+    "user": "filecatdsa_r2",
+    "machine": "DESKTOP-A60F1NE",
+    "step": 10,
+    "events": [
+      "Native pointer Start",
+      "Native pointer root row",
+      "Native Return",
+      "Native Name choice",
+      "Native ascending choice",
+      "Native pointer .hidden.bin",
+      "Native Space",
+      "Native descending choice",
+      "Native root breadcrumb",
+      "Native Back"
+    ],
+    "markedKey": "n:2",
+    "windowVisible": true,
+    "windowActive": true,
+    "keyboardFocus": "Button",
+    "environment": {
+      "processSession": 2,
+      "consoleSession": 2,
+      "windowStation": "WinSta0",
+      "foregroundProcessId": 9980
+    },
+    "appSha256": "dc6f08a3a213f9aaac8f9a6889d767b8751a9a9738bf8627e303705a23083cea",
+    "harnessSha256": "611728647ebb365898ed1df52bdde3345ed2133413dae50ea4040d06693e90d6",
+    "phase": "Finished",
+    "status": "Viewing captured location: fixture.",
+    "scope": "n:1",
+    "focus": "n:2",
+    "marks": 1
+  },
+  "harnessReport": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "closed",
+    "sourceUnchanged": true,
+    "deadlineClosed": false,
+    "processId": 9980,
+    "platform": "Microsoft Windows 10.0.26340",
+    "architecture": "X64",
+    "run": "C:\\FileCatDsa20261104R2\\desktop-r60-input\\app\\native-validation\\dsa-bf206d90ff9e42759b956d0d8305dbc6",
+    "fixture": "C:\\FileCatDsa20261104R2\\desktop-r60-input\\app\\native-validation\\dsa-bf206d90ff9e42759b956d0d8305dbc6\\fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": false,
+    "lastVisibleWidth": 1180,
+    "lastVisibleHeight": 780,
+    "lastVisibleScale": 1,
+    "lastScreen": {
+      "bounds": "0, 0, 1534, 1193",
+      "workingArea": "0, 0, 1534, 1145",
+      "Scaling": 1,
+      "position": "130, 130",
+      "frameSize": "1196, 819"
+    },
+    "largeText": false,
+    "compact": false,
+    "sessions": 0,
+    "createdSessions": 1,
+    "lastObservation": {
+      "Phase": 5,
+      "Status": "Viewing captured location: fixture.",
+      "FilterError": null,
+      "Query": "",
+      "Metric": 2,
+      "session": "609f99c9-6b71-422e-9731-ccfe769f1eae",
+      "Coverage": 0,
+      "Freshness": 0,
+      "paths": 518,
+      "objects": 508,
+      "issues": [
+        {
+          "Code": "navigation-link-not-followed",
+          "State": 3
+        }
+      ],
+      "known": "1414184",
+      "unverified": "0",
+      "matchingPaths": 509,
+      "rows": 12,
+      "focus": "n:2",
+      "marked": 1,
+      "basket": 0,
+      "tableSort": 1,
+      "tableDescending": true,
+      "tableRows": [
+        {
+          "Key": "n:12",
+          "Name": "zero.bin",
+          "value": "0"
+        },
+        {
+          "Key": "n:11",
+          "Name": "Unicode",
+          "value": "128"
+        },
+        {
+          "Key": "n:10",
+          "Name": "Small files",
+          "value": "25120"
+        },
+        {
+          "Key": "shared:n:1",
+          "Name": "Shared hard-linked files",
+          "value": "1048576"
+        },
+        {
+          "Key": "n:9",
+          "Name": "report.csv",
+          "value": "64"
+        },
+        {
+          "Key": "n:8",
+          "Name": "Photos",
+          "value": "245760"
+        },
+        {
+          "Key": "n:7",
+          "Name": "Package.app",
+          "value": "12288"
+        },
+        {
+          "Key": "n:6",
+          "Name": "link-outside",
+          "value": "0"
+        },
+        {
+          "Key": "n:5",
+          "Name": "large.bin",
+          "value": "0"
+        },
+        {
+          "Key": "n:4",
+          "Name": "Archives",
+          "value": "81920"
+        },
+        {
+          "Key": "n:3",
+          "Name": "Aliases",
+          "value": "0"
+        },
+        {
+          "Key": "n:2",
+          "Name": ".hidden.bin",
+          "value": "328"
+        }
+      ],
+      "breadcrumbs": [
+        {
+          "Key": "scope",
+          "Label": "All locations"
+        },
+        {
+          "Key": "n:1",
+          "Label": "fixture"
+        }
+      ]
+    },
+    "selectedTab": 0,
+    "tabHeaders": [
+      "Analysis 1"
+    ],
+    "appSha256": "dc6f08a3a213f9aaac8f9a6889d767b8751a9a9738bf8627e303705a23083cea",
+    "harnessSha256": "611728647ebb365898ed1df52bdde3345ed2133413dae50ea4040d06693e90d6"
+  }
+}

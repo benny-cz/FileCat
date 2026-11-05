@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Treemap folder headers, pointer-held font layout and stable keyboard focus on row publication; no capability authorization",
+  "gitBase": "a328e50aba3496481e1a22a65c4592d28001d221",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/Controls/DiskSpace/AnalysisChartControl.cs",
+      "sha256": "6a5c5f5fb6226a411d73a83b82bb310541f3c58090e03230bd6ca7163ee2554d"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "714ca366190c78390602e51c15704fbf2e645e88bbb34b183c1ab9e5688ce37f"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ChartLabels.cs",
+      "sha256": "d9e1e81c1de045797b21194270189291680f13f28f02ba9a1f567bd4633138bf"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.TableFocus.cs",
+      "sha256": "498a5940b66927004abb89f1ce198b8e26ed2a2284d96891245c66eea99e01d8"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs",
+      "sha256": "bf1a8022ff76c4a48032834e7e9df4dc06a62ed747a60c3c1c0dc3161c660c63"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/WindowsInput.cs",
+      "sha256": "313ba6482f96627423c3c45cb0299b9175469086dbac33f1ac89f6107b64c8de"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/README.md",
+      "sha256": "272477c0e096fcb1ba852665eee8765731b3ec5f83105c5b94bbfc87a57affee"
+    },
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "16b950c443865bee7f6d1e93a1cb0f48ecdfdd6492390b2eebaa2820edb2e171"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "e8d6da4796130e580139c9d2585aac4bedea2d84ccfa12ab212131f08f7b20a6"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-render-windows-r59.tgz",
+      "sha256": "0c3f6fd91354c5475da77823a7c70a6e527508eb81a74c0887355e258fac01e5"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r59.tgz",
+      "sha256": "e159bcbf3abcc5139ba98ec2bd0822cf5aac81e4ab47e7b6a3657e829f8f500f"
+    },
+    {
+      "path": ".tmp/dsa-render-linux-r59.tgz",
+      "sha256": "c3b1ebdf2c7bc4cb7d26f9ba742b0fdc74128a3edcb7aa60cfa2ef4effce520f"
+    },
+    {
+      "path": ".tmp/desktop-r60-windows.tgz",
+      "sha256": "b67e1611daea51342827cf1c77110e6b550c810720eda2762c04d372407ff9bb"
+    },
+    {
+      "path": ".tmp/desktop-r60-mac.tgz",
+      "sha256": "7f2376739b76b7d274ef032a41fa634d4da35476f40402d9528cc3e995220cc3"
+    },
+    {
+      "path": ".tmp/desktop-r60-linux.tgz",
+      "sha256": "d3ae3fe454e2d9bdc540b045132a280c16bc98ca8c33d3f0ab49642e7bcc2633"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".tmp/desktop-r60-windows/FileCat.dll",
+      "sha256": "dc6f08a3a213f9aaac8f9a6889d767b8751a9a9738bf8627e303705a23083cea"
+    },
+    {
+      "path": ".tmp/desktop-r60-windows/FileCat.Core.dll",
+      "sha256": "700a43170e60b63fabb27f3ea36364eff387fcb0a6ca88d6160028881d6857bd"
+    },
+    {
+      "path": ".tmp/desktop-r60-windows/DiskSpaceHarness.dll",
+      "sha256": "611728647ebb365898ed1df52bdde3345ed2133413dae50ea4040d06693e90d6"
+    },
+    {
+      "path": ".tmp/render-r59-windows/FileCat.dll",
+      "sha256": "f9a74b176ed51fca51a05383957dc0844a42e6d44fe7d9c40395cbcc6a4b2e1a"
+    },
+    {
+      "path": ".tmp/render-r59-windows/FileCat.Core.dll",
+      "sha256": "8ced90ded51063aa7f0bd3761cba1e84ffd52c005e6867dca465b59cd0bacbfd"
+    },
+    {
+      "path": ".tmp/render-r59-windows/FileCat.Rendering.Tests.dll",
+      "sha256": "122a130722d9ad99e40c2ca95a7996807e7e964b29bd739a9789fa42e91b90b5"
+    },
+    {
+      "path": ".tmp/desktop-r60-mac/FileCat.dll",
+      "sha256": "fa2cf855f295d1d344b44f5d538564947342b853d2b7506f07a9a485044be97d"
+    },
+    {
+      "path": ".tmp/desktop-r60-mac/FileCat.Core.dll",
+      "sha256": "a5d8445292f58bd6637b1a073e5c399fd1a355b4476236612aac21547daf0f4c"
+    },
+    {
+      "path": ".tmp/desktop-r60-mac/DiskSpaceHarness.dll",
+      "sha256": "72ee6afa5ed210e5400dee5cf750f2a50507865b3aff36d8266e994f2467b143"
+    },
+    {
+      "path": ".tmp/render-r59-mac/FileCat.dll",
+      "sha256": "f9a74b176ed51fca51a05383957dc0844a42e6d44fe7d9c40395cbcc6a4b2e1a"
+    },
+    {
+      "path": ".tmp/render-r59-mac/FileCat.Core.dll",
+      "sha256": "8ced90ded51063aa7f0bd3761cba1e84ffd52c005e6867dca465b59cd0bacbfd"
+    },
+    {
+      "path": ".tmp/render-r59-mac/FileCat.Rendering.Tests.dll",
+      "sha256": "122a130722d9ad99e40c2ca95a7996807e7e964b29bd739a9789fa42e91b90b5"
+    },
+    {
+      "path": ".tmp/desktop-r60-linux/FileCat.dll",
+      "sha256": "7072cdf90f81fc8026842c7cad88ea17ecc061f4c2604e161422c486d69f45a4"
+    },
+    {
+      "path": ".tmp/desktop-r60-linux/FileCat.Core.dll",
+      "sha256": "c48a68d5167cf766179f05cb5304a9ba0949fac6f42a0afb98dad502ccbbfbc1"
+    },
+    {
+      "path": ".tmp/desktop-r60-linux/DiskSpaceHarness.dll",
+      "sha256": "e58d1c81932237a983c3082fb8c431d48c65c132eb3849f10f65944704a52f63"
+    },
+    {
+      "path": ".tmp/render-r59-linux/FileCat.dll",
+      "sha256": "f9a74b176ed51fca51a05383957dc0844a42e6d44fe7d9c40395cbcc6a4b2e1a"
+    },
+    {
+      "path": ".tmp/render-r59-linux/FileCat.Core.dll",
+      "sha256": "8ced90ded51063aa7f0bd3761cba1e84ffd52c005e6867dca465b59cd0bacbfd"
+    },
+    {
+      "path": ".tmp/render-r59-linux/FileCat.Rendering.Tests.dll",
+      "sha256": "122a130722d9ad99e40c2ca95a7996807e7e964b29bd739a9789fa42e91b90b5"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-input-r60.ps1",
+      "sha256": "1b8395585dc8d318e3a29c3900b8ce1a35ac64405f570b056b8648d05dc39969"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/mac-native-chart-r60.py",
+      "sha256": "70074cffc7ba5f79eeed7fa819b72a5f2bb1374295ac8fffaa80e18eb54c3e57"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/ubuntu-native-chart-r60.py",
+      "sha256": "6555399941cde27cf3181f15b8d8cbf727c98d3e20c8cd71ae211c0ba8db241c"
+    }
+  ],
+  "reproductionArtifacts": [
+    {
+      "path": ".tmp/desktop-r55-windows/FileCat.dll",
+      "sha256": "c6a5cb20612025777d164f5ae102e34b4e50794626e0905cc54666285fd87a3b"
+    },
+    {
+      "path": ".tmp/desktop-r55-windows/DiskSpaceHarness.dll",
+      "sha256": "812f764a75dbb55a3c7744432aa90226ed8598a490b20e1ea918ad7d62ea302d"
+    },
+    {
+      "path": ".tmp/render-r57-windows/FileCat.Rendering.Tests.dll",
+      "sha256": "9ad3d22ab65245ff162f71b11c5474b0db8cc20f04f34d6809fb25ce916b785d"
+    },
+    {
+      "path": ".tmp/dsa-render-windows-r57.tgz",
+      "sha256": "72603a133ee06e138f010c53cbd6671a8bac4448ca139274771ba3ab09ca6ce9"
+    }
+  ],
+  "reproduction": "Native Windows r55 reached actual scan/click/Return but lost row keyboard routing on a final projection. The r57 old-behavior deterministic test fails at the post-publication focus assertion. Earlier Start-menu/foreground attempts are controller failures and not acceptance.",
+  "nativeAcceptance": "r60 Windows native pointer/keyboard, Mac accessibility selection/menu plus keyboard, and Ubuntu native pointer/keyboard navigation/sort/mark/breadcrumb/Back subsets pass. All 509 source paths per machine remain unchanged and each owned process exits before its deadline. Mac uses the unchanged authorized full-display capture helper. Complete native input/a11y/theme/DPI/resource/feature qualification and final independent review remain pending."
+}
