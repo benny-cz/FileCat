@@ -10,6 +10,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using FileCat.App.ViewModels;
 using FileCat.Core.Analysis;
 
 namespace DiskSpaceHarness;
@@ -96,6 +97,25 @@ internal sealed partial class HarnessApp
                 case 10:
                     if (model.Breadcrumbs.Length != 2 || model.Rows.Length < 4) return;
                     WindowsAssertMark(); WindowsCapture("breadcrumb-back");
+                    AdvanceWindows("Observed preserved navigation"); break;
+                case 11:
+                    if (WindowsChoose("Analysis table sort direction", "Ascending")) AdvanceWindows("Native ascending for link inspection"); break;
+                case 12:
+                    if (model.SortDescending || model.Rows[0].Name != ".hidden.bin") return;
+                    var linkStart = WindowsControl<ListBox>("Ranked analysis entries").ContainerFromIndex(0) as Control;
+                    if (linkStart is null) return;
+                    WindowsClick(linkStart, 70); AdvanceWindows("Native first-row focus"); break;
+                case 13:
+                    if (model.Selection.Focus != _windowsMarked) return;
+                    for (int down = 0; down < 4; down++) WindowsGuestInput.Key(0x28);
+                    AdvanceWindows("Native arrows to navigation link"); break;
+                case 14:
+                    if (model.Tree?.Items.GetValueOrDefault(model.Selection.Focus ?? "") is not { Kind: AnalysisKind.Link } link) return;
+                    if (DiskSpaceViewModel.ValueText(link, model.Metric) != "Not measured" || DiskSpaceViewModel.StatusText(link) != "Link not followed" ||
+                        !_window!.GetVisualDescendants().OfType<TextBlock>().Any(c => c.IsEffectivelyVisible && c.Text?.Contains("target was not followed or measured", StringComparison.Ordinal) == true) ||
+                        _windowsMarked is null || !model.Selection.Marks.Contains(model.Tree.Items[_windowsMarked].NodeId!.Value))
+                        throw new InvalidOperationException("The native link inspection did not retain the explanatory state and independent mark.");
+                    WindowsCapture("link-inspector");
                     WriteWindowsInput("passed-native-input-subset"); _windowsInput.Stop(); window.ForceClose(); return;
             }
             WriteWindowsInput(_windowsStep == 0 && !WindowsGuestInput.ForegroundIsOwned() ? "waiting-foreground" : "running");

@@ -1,0 +1,46 @@
+{
+  "purpose": "Native Ubuntu table ordering/breadcrumb/pointer/keyboard subset; no full qualification",
+  "processId": 373580,
+  "events": [],
+  "state": "native-navigation-failed",
+  "error": "Command '['xdotool', 'search', '--onlyvisible', '--pid', '373580']' returned non-zero exit status 1.",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/benny/FileCatValidation/dsa-20261105-r62-links/run.py\", line 95, in <module>\n    ids=subprocess.check_output(['xdotool','search','--onlyvisible','--pid',str(pid)],text=True).split()\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/subprocess.py\", line 466, in check_output\n    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/subprocess.py\", line 571, in run\n    raise CalledProcessError(retcode, process.args,\nsubprocess.CalledProcessError: Command '['xdotool', 'search', '--onlyvisible', '--pid', '373580']' returned non-zero exit status 1.\n",
+  "failureCaptureError": "name 'wid' is not defined",
+  "ownedProcessExited": true,
+  "harnessReport": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "closed",
+    "sourceUnchanged": true,
+    "deadlineClosed": false,
+    "processId": 373580,
+    "platform": "Ubuntu 24.04.5 LTS",
+    "architecture": "X64",
+    "run": "/home/benny/FileCatValidation/dsa-20261105-r62-links/app/native-validation/dsa-abe628e64b94477982ea7a26ab92e46b",
+    "fixture": "/home/benny/FileCatValidation/dsa-20261105-r62-links/app/native-validation/dsa-abe628e64b94477982ea7a26ab92e46b/fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": false,
+    "lastVisibleWidth": 1180,
+    "lastVisibleHeight": 731,
+    "lastVisibleScale": 1,
+    "lastScreen": {
+      "bounds": "0, 0, 1280, 800",
+      "workingArea": "66, 32, 1214, 768",
+      "Scaling": 1,
+      "position": "66, 32",
+      "frameSize": "1180, 768"
+    },
+    "largeText": false,
+    "compact": false,
+    "sessions": 0,
+    "createdSessions": 1,
+    "lastObservation": null,
+    "selectedTab": 0,
+    "tabHeaders": [
+      "Analysis 1"
+    ],
+    "appSha256": "43e148965320358e3cb9a26ea03af82d93f7c53fabb578b7c15d9b301e85178d",
+    "harnessSha256": "9cf2d5a6dce2a46a11de9bfba2288b8cde26889efb6df20396c4ddc559657cc2"
+  }
+}

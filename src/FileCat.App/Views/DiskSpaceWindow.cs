@@ -438,7 +438,7 @@ public sealed partial class DiskSpaceWindow : Window
             row.Children.Add(mark);
             string[] values = [AnalysisNames.Display(item.Name), DiskSpaceViewModel.ValueText(item, Model.Tree?.Projection.Metric ?? Model.Metric), DiskSpaceViewModel.LogicalText(item), item.Files.ToString("N0"), DiskSpaceViewModel.StatusText(item)];
             for (int i = 0; i < values.Length; i++) { var text = new TextBlock { Text = values[i], TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center }; Grid.SetColumn(text, i + 1); row.Children.Add(text); }
-            ToolTip.SetTip(row, new RichTip(AnalysisNames.Display(item.Name, 240), detail: $"Known active value: {DiskSpaceViewModel.ValueText(item, Model.Tree?.Projection.Metric ?? Model.Metric, true)}. File size: {DiskSpaceViewModel.LogicalText(item, true)}. Files: {item.Files}.", hints: [item.Unknown ? "Some measurements or namespace entries are unavailable." : "Observed metadata, not an immutable filesystem snapshot."]));
+            ToolTip.SetTip(row, new RichTip(AnalysisNames.Display(item.Name, 240), detail: $"Active metric: {DiskSpaceViewModel.ValueText(item, Model.Tree?.Projection.Metric ?? Model.Metric, true)}. File size: {DiskSpaceViewModel.LogicalText(item, true)}. Files: {item.Files}.", hints: [DiskSpaceViewModel.EntryExplanation(item) ?? (item.Unknown ? "Some measurements or namespace entries are unavailable." : "Observed metadata, not an immutable filesystem snapshot.")]));
             AutomationProperties.SetName(row, string.Join("; ", values)); return row;
         }
         private static void FitColumns(Grid row)
@@ -534,6 +534,7 @@ public sealed partial class DiskSpaceWindow : Window
                     _inspector.Text = selected is null ? "Choose an entry in either chart or the table. Marks and the review basket are separate." :
                         AnalysisNames.Display(selected.Name) + "\n" + Model.FocusedDisplayPath() + "\n" + DiskSpaceViewModel.StatusText(selected) +
                         $"\n\nActive metric: {DiskSpaceViewModel.ValueText(selected, tree.Projection.Metric, true)}\nFile size: {DiskSpaceViewModel.LogicalText(selected, true)}\nFile paths: {selected.Files}\n" +
+                        (DiskSpaceViewModel.EntryExplanation(selected) is { } explanation ? explanation + "\n" : "") +
                         (selected.NameEvidence is { } evidence ? evidence + "\n" : "") +
                         (selected.IdentityUnverified > 0 ? $"Identity-unverified path bytes: {selected.IdentityUnverified}. Aliases may be counted more than once.\n" : "") +
                         (selected.SharedElsewhere ? "Shared objects are charged once at their common parent. Removing one alias does not promise free space.\n" : "") +

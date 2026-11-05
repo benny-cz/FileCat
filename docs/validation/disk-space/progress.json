@@ -78,7 +78,9 @@
     "The Windows pointer regression passed with its identical binary in isolation; the final test now waits for the newly attached projection, renders a fresh headless frame, asserts the actual row hit and checks distinct row/checkbox keyboard focus before sending input. Final45-case suites pass on Windows VM/Mac/Ubuntu. Mac and Ubuntu native navigation/sort/mark/breadcrumb/Back retests pass with atomic navigation,509 unchanged paths and owned exit. Windows actual console/process identity is filecatdsa_r2/session2 with Default input desktop; complete native input acceptance remains pending.",
     "Treemap folders retain selectable safe name/value headers above proportional child surfaces. Actual font metrics prevent large-text overlap; bounded single-line labels retain full tooltip/table detail. Font/theme/size relayout defers while the pointer holds its original targets.",
     "Actual Windows input reproduced final-projection row replacement losing keyboard routing. Publication now holds focus on the stable table and restores the selected row/checkbox after layout, without stealing focus from an editor, dialog or later interaction. All 48 presentation cases pass on Windows VM, Mac and Ubuntu.",
-    "Native Windows pointer/Return/Space and Mac accessibility/keyboard plus Ubuntu pointer/keyboard scan/sort/mark/breadcrumb/Back subsets pass with the final chart/focus code. All 509 generated source paths per machine are unchanged and all owned processes exited. Complete native qualification and final independent review remain pending."
+    "Native Windows pointer/Return/Space and Mac accessibility/keyboard plus Ubuntu pointer/keyboard scan/sort/mark/breadcrumb/Back subsets pass with the final chart/focus code. All 509 generated source paths per machine are unchanged and all owned processes exited. Complete native qualification and final independent review remain pending.",
+    "Non-followed navigation links and special entries now expose an explicit boundary state and Not measured/Not counted file measures instead of a known zero. Numeric active/file-size/file-path ordering keeps them after measured values in both directions. Real zero-length files and synthetic accounting groups retain their known values, and checked totals remain unchanged.",
+    "A new presentation control covers all four metrics, numeric directions, namespace completeness, exact zero values, row accessibility/help and visible inspector explanation. All 49 presentation cases pass on the Windows VM, Mac and Ubuntu; the full solution builds with zero warnings/errors. Actual native link inspection passes on all three, with 509 unchanged source paths and owned exit per platform."
   ],
   "validation": {
     "windowsCore": {
@@ -114,17 +116,17 @@
       "detail": "274 pass after native metadata descriptor and capacity-isolation fixes; actual APFS fixture volume verified."
     },
     "headlessRendering": {
-      "total": 48,
-      "passed": 48,
+      "total": 49,
+      "passed": 49,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-render-r59.xml",
-      "detail": "All 48 pass on each guest runtime; adds seven-theme folder-header/large-text targets, pointer-held font/size layout freeze and row-publication keyboard/checkbox/editor focus controls."
+      "evidence": "windows-vm-render-r61.xml",
+      "detail": "All 49 pass on each guest runtime; includes non-file link/special presentation, known zero, synthetic measures, exact totals, numeric sorting and accessible/visible explanations."
     },
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "solution-build-r60.txt"
+      "evidence": "solution-build-r62.txt"
     },
     "ubuntu": {
       "status": "ordinary-user-native-regressions-passed",
@@ -136,10 +138,10 @@
       "detail": "273 pass/one Darwin ACL skip on ext4 after native stat and capacity-test isolation fixes. Both held-child substitution and ancestor-movement counterexamples pass; no GUI instance started."
     },
     "nativeDesktop": {
-      "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification.",
+      "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification. r62 native accessibility/keyboard link inspection verifies the visible omitted-target explanation, measured-zero distinction and retained mark, with 509 unchanged source paths and owned exit.",
       "evidence": "mac-native-ui-r35.json",
-      "windows": "Native Windows VM r60 passes real pointer Start/row/dropdown/breadcrumb/Back and Return/Space with preserved focus/mark identity. Ordinary filecatdsa_r2 process and console session2, WinSta0 and Default input desktop. All 509 source paths unchanged, owned process exited. Complete native input/screen-reader/theme/DPI/feature qualification remains pending; no host GUI testing.",
-      "ubuntu": "Native explicit mapping/query/invalid-query/shared aliases/selected-row Return inspection/preserving-close subset passed. Owned process exited,509 source paths unchanged; full native qualification pending. Initial compact380x430/eight-tab/20-DIP native padded pointer selection and Start scan pass in r41,509 unchanged paths and owned exit. Dynamic resize remains pending. r46 actual pointer/Return/Space, name ordering, preserved mark/focus and breadcrumb/Back pass; owned exit,509 unchanged source paths. r60 final chart/focus implementation passes actual pointer/keyboard workflow after postponing competing test instances, with 509 unchanged source paths and owned exit.",
+      "windows": "Native Windows VM r60 passes real pointer Start/row/dropdown/breadcrumb/Back and Return/Space with preserved focus/mark identity. Ordinary filecatdsa_r2 process and console session2, WinSta0 and Default input desktop. All 509 source paths unchanged, owned process exited. Complete native input/screen-reader/theme/DPI/feature qualification remains pending; no host GUI testing. r62 native arrows select the generated link and verify visible omitted-target explanation, Not measured and an independent retained mark. The real zero file remains 0 B. All 509 source paths unchanged and owned exit.",
+      "ubuntu": "Native explicit mapping/query/invalid-query/shared aliases/selected-row Return inspection/preserving-close subset passed. Owned process exited,509 source paths unchanged; full native qualification pending. Initial compact380x430/eight-tab/20-DIP native padded pointer selection and Start scan pass in r41,509 unchanged paths and owned exit. Dynamic resize remains pending. r46 actual pointer/Return/Space, name ordering, preserved mark/focus and breadcrumb/Back pass; owned exit,509 unchanged source paths. r60 final chart/focus implementation passes actual pointer/keyboard workflow after postponing competing test instances, with 509 unchanged source paths and owned exit. r62c native pointer/Home/arrows link inspection passes with visible omitted-target explanation and retained mark, 509 unchanged source paths and owned exit. r62/r62b controller readiness/origin failures exited safely and are excluded from acceptance; the production/harness binary is unchanged.",
       "ubuntuEvidence": "ubuntu-native-ui-r26.json",
       "ubuntuCompactEvidence": "ubuntu-native-ui-r27.json",
       "ubuntuDialogEvidence": "ubuntu-native-ui-r28.json",
@@ -159,7 +161,10 @@
       "windowsNativeInputEvidence": "windows-native-ui-r60.json",
       "macChartEvidence": "mac-native-chart-r60.json",
       "ubuntuChartEvidence": "ubuntu-native-chart-r60.json",
-      "windowsFocusReproduction": "windows-focus-repro-r57.xml"
+      "windowsFocusReproduction": "windows-focus-repro-r57.xml",
+      "windowsLinkEvidence": "windows-native-ui-r62.json",
+      "macLinkEvidence": "mac-native-links-r62.json",
+      "ubuntuLinkEvidence": "ubuntu-native-links-r62c.json"
     },
     "macStatConsumers": {
       "total": 51,
@@ -176,18 +181,18 @@
       "evidence": "ubuntu-stat-consumers-r24.xml"
     },
     "macHeadlessRendering": {
-      "total": 48,
-      "passed": 48,
+      "total": 49,
+      "passed": 49,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-analysis-render-r59.xml"
+      "evidence": "mac-analysis-render-r61.xml"
     },
     "ubuntuHeadlessRendering": {
-      "total": 48,
-      "passed": 48,
+      "total": 49,
+      "passed": 49,
       "failed": 0,
       "skipped": 0,
-      "evidence": "ubuntu-analysis-render-r59.xml"
+      "evidence": "ubuntu-analysis-render-r61.xml"
     },
     "windowFit": {
       "detail": "Headless fit regression plus actual Mac Retina geometry/visual workflow; broader native DPI/multi-monitor acceptance remains pending.",
@@ -210,7 +215,6 @@
   "nextWork": [
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: table-order persistence, grouping/color dimensions, captured sort-order range selection and full table/detail columns/tooltips. Sunburst labels and complete native pointer/a11y/theme/display qualification remain open.",
-    "W2: explain non-followed navigation-link rows explicitly in table/inspector instead of the current Observed zero-value presentation.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",

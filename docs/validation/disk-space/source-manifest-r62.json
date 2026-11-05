@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Explicit non-file boundary measures, ordering and visible/accessibility explanation; no capability authorization",
+  "gitBase": "8485cc6b0ea5af4cf1ba1a70475709fd6f67304b",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+      "sha256": "4ed171b5537e9996dda35ee09bec0bd7b9f794e66a2bda7f5e9a33f4d5cbe713"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTableOrder.cs",
+      "sha256": "566bef36b9eb9bcb1265996dfa1fd0f4ad16f5e7b8ba1a644c753f47f21d8836"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "b2d833263d7f21bf9c2cb96a131baef404ca872e424fdacea1f3b393d0e7259f"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "8af1011d9f002b90145033628fc83ba18921d4e34ec623af836fb446b2fac6e5"
+    },
+    {
+      "path": "src/FileCat.App/Controls/DiskSpace/AnalysisChartControl.cs",
+      "sha256": "9ceb411feee8c73d9b25329c65b77a273ed34e469e03a6fd26d04c0c09a32e7d"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.NonFileEntries.cs",
+      "sha256": "93a34adea3cef713df82ed92bc79c70720b98c93ff060df98a735c302099b1ff"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs",
+      "sha256": "baad62702f9c409a189f28913805683812e950d2bd29bd6dfdc1a01c220fac4f"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/WindowsInput.cs",
+      "sha256": "e43af519447e0664154b49ac46618a4e988c02c481288408d1f730ab52fd1b46"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/README.md",
+      "sha256": "99e144aa9b15c78308c4faf36d37bf6d608ad3f7812a47d9deadad242d47eaba"
+    },
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "013be68b9b3428c5ec9720644b27af2f493ca6e89a2dc71199c324482c586afa"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "c37efb8c98712c8a290b262d3e375d3322adba6dc0300551cd0f62ed47402835"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-render-windows-r61.tgz",
+      "sha256": "5ce443dbb22281d6f6dbfced20972e517438b97ef5303c9be7e26b18e6b92737"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r61.tgz",
+      "sha256": "13ca1221c318192b1ef41da0980e4139ffe336117eaa8b93fff29af7c5ac7943"
+    },
+    {
+      "path": ".tmp/dsa-render-linux-r61.tgz",
+      "sha256": "ce5136c5b91050f3b9f91d05cbb39ad3cf4a39e715bf1478ba3c04afc53cf7a8"
+    },
+    {
+      "path": ".tmp/desktop-r62-windows.tgz",
+      "sha256": "82fb0b7794c591e696bf8b1b7754e46616bd9c168e5277a13afa9f895de5b5d3"
+    },
+    {
+      "path": ".tmp/desktop-r62-mac.tgz",
+      "sha256": "1ec5105ce95dd6eab1c5e9af0e3f0793a84d3951943bc12afb76d32e4fd0d44b"
+    },
+    {
+      "path": ".tmp/desktop-r62-linux.tgz",
+      "sha256": "3940081f380a71daa2c9db69f488c85100631180ac0de336a879d3421387ed98"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".tmp/desktop-r62-windows/FileCat.dll",
+      "sha256": "a55b7acde6da012893537f4acd77048b25e30102465b277082e944d8f5a9c9c6"
+    },
+    {
+      "path": ".tmp/desktop-r62-windows/FileCat.Core.dll",
+      "sha256": "837362669fb60716fbc358aca0cdc9a3742a2072b571582fcee700227eb17bce"
+    },
+    {
+      "path": ".tmp/desktop-r62-windows/DiskSpaceHarness.dll",
+      "sha256": "76a51b1fa6f259f728567149b467d235fc24b804f9c565b8a11151746991cb9b"
+    },
+    {
+      "path": ".tmp/render-r61-windows/FileCat.dll",
+      "sha256": "85c38b055a917dfcc3c7c37191e951d6885a7fc094d9088c09d7e3534c69452d"
+    },
+    {
+      "path": ".tmp/render-r61-windows/FileCat.Core.dll",
+      "sha256": "89fe0fc2fa8ac007de287deb2e3bbbd5de69da09f2b4334ac2ca7aae159ca795"
+    },
+    {
+      "path": ".tmp/render-r61-windows/FileCat.Rendering.Tests.dll",
+      "sha256": "4682a4697661d434687b30bc7080637c3b507376f09c5942ed9e8b4c78e1c869"
+    },
+    {
+      "path": ".tmp/desktop-r62-mac/FileCat.dll",
+      "sha256": "0efd1c38ffdfbccdfeb0fe0e22370839d79474606ad1194cf2c09e0d2510ce84"
+    },
+    {
+      "path": ".tmp/desktop-r62-mac/FileCat.Core.dll",
+      "sha256": "06c851870028eb50ae119863f6059a5b94e5568bb69ba814cfdbea0f43e470d6"
+    },
+    {
+      "path": ".tmp/desktop-r62-mac/DiskSpaceHarness.dll",
+      "sha256": "4e1ae48bb6d5b1fe5bfe0f9512b50dc76290fe711d6c52e015e6806006071702"
+    },
+    {
+      "path": ".tmp/render-r61-mac/FileCat.dll",
+      "sha256": "85c38b055a917dfcc3c7c37191e951d6885a7fc094d9088c09d7e3534c69452d"
+    },
+    {
+      "path": ".tmp/render-r61-mac/FileCat.Core.dll",
+      "sha256": "89fe0fc2fa8ac007de287deb2e3bbbd5de69da09f2b4334ac2ca7aae159ca795"
+    },
+    {
+      "path": ".tmp/render-r61-mac/FileCat.Rendering.Tests.dll",
+      "sha256": "4682a4697661d434687b30bc7080637c3b507376f09c5942ed9e8b4c78e1c869"
+    },
+    {
+      "path": ".tmp/desktop-r62-linux/FileCat.dll",
+      "sha256": "43e148965320358e3cb9a26ea03af82d93f7c53fabb578b7c15d9b301e85178d"
+    },
+    {
+      "path": ".tmp/desktop-r62-linux/FileCat.Core.dll",
+      "sha256": "7c03972501a8b90f50efc8edf39aafc639006711940454ecdb482891557a2095"
+    },
+    {
+      "path": ".tmp/desktop-r62-linux/DiskSpaceHarness.dll",
+      "sha256": "9cf2d5a6dce2a46a11de9bfba2288b8cde26889efb6df20396c4ddc559657cc2"
+    },
+    {
+      "path": ".tmp/render-r61-linux/FileCat.dll",
+      "sha256": "85c38b055a917dfcc3c7c37191e951d6885a7fc094d9088c09d7e3534c69452d"
+    },
+    {
+      "path": ".tmp/render-r61-linux/FileCat.Core.dll",
+      "sha256": "89fe0fc2fa8ac007de287deb2e3bbbd5de69da09f2b4334ac2ca7aae159ca795"
+    },
+    {
+      "path": ".tmp/render-r61-linux/FileCat.Rendering.Tests.dll",
+      "sha256": "4682a4697661d434687b30bc7080637c3b507376f09c5942ed9e8b4c78e1c869"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-input-r62.ps1",
+      "sha256": "777cc63b650e98290b743d10cffc6351d252f22887b0eddeeadb67b768b40274"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/mac-native-links-r62.py",
+      "sha256": "e67b64578e2f0b1701e67beb5054b4c6dfa0f1248f054ba5a2e2d74713a2f1ea"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/ubuntu-native-links-r62c.py",
+      "sha256": "f5bf113e89b7b592671617e63a17799e3dff6a207339fcc587ccefcaa41520fe"
+    }
+  ],
+  "nativeAcceptance": "Windows r62, Mac r62 and Ubuntu r62c pass native navigation/sort/marks and explicit link inspection. The link reports Not measured/Link not followed; a real zero file retains 0 B. Each owned process exits before its deadline and all 509 regular source paths remain unchanged. Ubuntu r62c uses the identical r62 bundle after correcting controller native-window mapping and visible-row-origin assumptions. Earlier attempts are safely closed and excluded from acceptance. Full native/a11y/theme/DPI/resource/feature qualification and final independent review remain pending."
+}

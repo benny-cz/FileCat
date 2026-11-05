@@ -67,8 +67,9 @@ public static class AnalysisTableOrder
     {
         bool Missing(AnalysisTreeItem item) => field switch
         {
-            AnalysisTableSort.ActiveMetric => !item.IncludedByPolicy || item.Unknown && item.Value == 0,
-            AnalysisTableSort.FileSize => !item.IncludedByPolicy || item.LogicalUnknown && item.LogicalSize == 0,
+            AnalysisTableSort.ActiveMetric => !item.IncludedByPolicy || item.IsNonFileLeaf || item.Unknown && item.Value == 0,
+            AnalysisTableSort.FileSize => !item.IncludedByPolicy || item.IsNonFileLeaf || item.LogicalUnknown && item.LogicalSize == 0,
+            AnalysisTableSort.FilePaths => !item.IncludedByPolicy || item.IsNonFileLeaf,
             AnalysisTableSort.MeasurementState => item.Unknown,
             _ => false
         };

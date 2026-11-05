@@ -182,10 +182,10 @@ public abstract class AnalysisChartControl : Control
         for (int depth = 0; Tree is { } tree && depth < AnalysisLimits.Depth; depth++)
         { names.Push(tree.NameOf(current)); if (current == AnalysisTree.RootKey) break; current = tree.ParentOf(current); }
         UInt128 denominator = Tree?.ScopeValue(Scope) ?? 0;
-        string percent = denominator == 0 ? "Unknown percentage" : ((double)item.Value / (double)denominator).ToString("P1", CultureInfo.CurrentCulture) + " of current scope's known measure";
-        var tip = new RichTip(AnalysisNames.Display(string.Join(" / ", names), 240), detail: $"{metric}: {item.Value} exact reported units. {percent}. File size: {FileCat.App.ViewModels.DiskSpaceViewModel.LogicalText(item, true)}." +
+        string percent = item.IsNonFileLeaf || !item.IncludedByPolicy ? "Not included in file measures" : denominator == 0 ? "Unknown percentage" : ((double)item.Value / (double)denominator).ToString("P1", CultureInfo.CurrentCulture) + " of current scope's known measure";
+        var tip = new RichTip(AnalysisNames.Display(string.Join(" / ", names), 240), detail: $"{metric}: {FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, Tree?.Projection.Metric ?? AnalysisMetric.OnDisk, true)}. {percent}. File size: {FileCat.App.ViewModels.DiskSpaceViewModel.LogicalText(item, true)}." +
             (item.IdentityUnverified > 0 ? $" Includes {item.IdentityUnverified} identity-unverified path bytes; aliases may repeat." : ""),
-            hints: [item.SharedElsewhere ? "Shared allocation is attributed at the common parent." : item.Unknown ? "Measurement or namespace coverage is incomplete." : "Observed metadata; allocation can share physical blocks.", "More in inspector."]) { MaxWidth = 420 };
+            hints: [FileCat.App.ViewModels.DiskSpaceViewModel.EntryExplanation(item) ?? (item.SharedElsewhere ? "Shared allocation is attributed at the common parent." : item.Unknown ? "Measurement or namespace coverage is incomplete." : "Observed metadata; allocation can share physical blocks."), "More in inspector."]) { MaxWidth = 420 };
         ToolTip.SetTip(this, tip); ToolTip.SetShowDelay(this, 450);
     }
     protected override void OnKeyDown(KeyEventArgs e)

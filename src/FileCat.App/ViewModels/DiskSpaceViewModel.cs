@@ -344,11 +344,17 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     }
     public static string StatusText(AnalysisTreeItem item) => !item.IncludedByPolicy ? "Excluded by policy"
         : item.MetadataState != MeasurementState.Known ? item.MetadataState + " metadata"
+        : item.IsNonFileLeaf ? item.Kind == AnalysisKind.Link ? "Link not followed" : "Special entry not traversed"
         : item.IdentityUnverified > 0 ? "Identity unverified" : item.Unknown ? "Partial" : item.SharedElsewhere ? "Shared links" : item.Synthetic ? "Group" : "Observed";
+    public static string? EntryExplanation(AnalysisTreeItem item) => !item.IsNonFileLeaf ? null : item.Kind == AnalysisKind.Link
+        ? "Navigation link. Its target was not followed or measured. It contributes no file size, allocation or regular-file count to this analysis."
+        : "Special entry. The scan did not traverse it or open it for content. It contributes no file size, allocation or regular-file count to this analysis.";
     public static string LogicalText(AnalysisTreeItem item, bool exact = false) => !item.IncludedByPolicy ? "Excluded"
+        : item.IsNonFileLeaf ? "Not measured"
         : item.LogicalUnknown && item.LogicalSize == 0 ? "Unknown"
         : (exact ? item.LogicalSize.ToString(CultureInfo.InvariantCulture) + " bytes" : Bytes(item.LogicalSize)) + (item.LogicalUnknown ? " known" : "");
     public static string ValueText(AnalysisTreeItem item, AnalysisMetric metric, bool exact = false) => !item.IncludedByPolicy ? "Excluded"
+        : item.IsNonFileLeaf ? metric == AnalysisMetric.Files ? "Not counted" : "Not measured"
         : item.SharedElsewhere && item.Value == 0 ? "Shared at ancestor"
         : item.Unknown && item.Value == 0 ? "Unknown" : metric == AnalysisMetric.Files ? item.Value.ToString(exact ? "0" : "N0", exact ? CultureInfo.InvariantCulture : CultureInfo.CurrentCulture)
         : (exact ? item.Value.ToString(CultureInfo.InvariantCulture) + " bytes" : Bytes(item.Value)) +
