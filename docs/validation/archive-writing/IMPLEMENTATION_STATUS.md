@@ -122,8 +122,25 @@ the host. The repository deliberately pins serviced runtime/apphost packs 10.0.1
 only the medium-integrity functional run and the separately recorded successful native lanes are counted above.
 VMware paths are `V:\Virtual Machines\Jamf\Windows 10 x64\Windows 10 x64.vmx` (actually Windows 11) and
 `V:\Virtual Machines\Barebit\Ubuntu 64-bit\Ubuntu 64-bit.vmx`. The user supplied `a` for VM encryption and guest passwords.
-Control commands require `vmrun -vp a`; guest users are `admin` and `benny` respectively. Never restart or stop another
-tester's Ubuntu instance merely to make the machine available.
+Control commands require `vmrun -vp a`; guest users are `admin` and `benny` respectively. On 5 November the user explicitly
+authorized stopping the pre-existing Ubuntu picture-test FileCat PID 65891 and image viewers 66892/67247 so this work
+could continue. They were checked against their exact command lines before being signaled. This exception does not
+change the rule to postpone on other occupied machines or authorize stopping unrelated future test instances.
+
+## Required independent review after the implementation loop
+
+On 5 November the user required a separate independent-review pass after the full implementation/testing loop. Treat
+this as a completion gate within the active goal, before the deferred RAR analysis. Re-read the controlling plan and
+final diff from the reviewer's perspective; assess actual behavior and evidence without relying on implementation
+assumptions or test success as proof of correctness.
+
+Cover UX, UI, functionality and security: complete workflows and truthful unavailable states; defaults, focus, keyboard
+and accessibility; naming, occurrence selection, fidelity, cancellation and recovery; confinement, IPC/resource bounds,
+identities/aliases, publication/rollback/cleanup ownership, provenance and metadata; licensing/package boundaries and
+all-platform qualification. Record reproducible findings and severity, fix findings, and repeat appropriate tests/live
+validation and review until no known actionable findings remain. Preserve explicit limitations; do not claim absence
+of all possible bugs. A final review report must identify the reviewed commit/artifacts, coverage, fixes and remaining
+qualification limits. Do not mark the goal complete or start the RAR analysis before this gate is satisfied.
 
 ## Queued follow-up after the current goal is complete
 
