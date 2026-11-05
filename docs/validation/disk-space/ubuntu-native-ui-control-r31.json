@@ -1,0 +1,28 @@
+{
+  "purpose": "Native comparison interaction subset; no full qualification",
+  "processId": 176401,
+  "events": [
+    "Invoked Start analysis",
+    "Invoked Save\u2026",
+    "Entered Inventory filename",
+    "Invoked Save new inventory",
+    "Invoked Compare\u2026",
+    "Entered Previous inventory filename",
+    "Invoked Browse saved analyses",
+    "Invoked Compare observations",
+    "Invoked Inspect comparison entry",
+    "Invoked Close",
+    "Invoked Close analysis",
+    "Invoked Close analysis",
+    "Invoked Discard comparison"
+  ],
+  "comparisonTabVisible": true,
+  "knownZeroDifferenceVisible": true,
+  "selectedEntryBasisCountConfirmed": true,
+  "keepOpenInitiallyFocused": true,
+  "enterPreservedComparison": true,
+  "explicitDiscardClosedComparison": true,
+  "inventorySha256Unchanged": "1fc01be70a53703be1f1e29205ba9595bb5b01e21ce7a689f159f73070565d58",
+  "state": "passed-native-comparison-subset",
+  "ownedProcessExited": true
+}

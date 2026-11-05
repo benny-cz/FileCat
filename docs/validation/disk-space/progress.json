@@ -54,23 +54,27 @@
     "A data-only bounded comparison foundation now derives all four metric totals and path/object accounting rows, retaining shared aliases once for Unique file size and On disk. Exact signed UInt128 differences cannot wrap through Int128, zero baselines have no percentage, and absolute differences rank before relative change. The comparison UI and indexed large-data path remain unconnected.",
     "Comparison checks roots/source context, explicit structural mappings, policy, component/inclusion basis, name representation, coverage and freshness. Missing partial/stale coverage is unknown rather than zero; changed representations cannot invent additions/removals. Identity-only moves need compatible version and metadata evidence, including creation metadata. Alias changes are attribution movement; ambiguous groups and reused IDs do not become confident continuity.",
     "Comparison producer bounds count records, raw/display paths, long identity/version strings and reference arrays. Work/results share one bounded admission; failures, cancellation and result disposal release it. Privacy taint joins both inputs; no comparison result supplies a backend, source connection or action/ComparedContent authority.",
-    "Native comparison fixtures now scan actual generated sources before and after writes. Windows host/ordinary guest verify observed growth/additions. Mac/APFS and Ubuntu/ext4 additionally remove a hard-link alias and verify one unchanged-amount attribution row. All runners finished; no FileCat GUI was started in this checkpoint."
+    "Native comparison fixtures now scan actual generated sources before and after writes. Windows host/ordinary guest verify observed growth/additions. Mac/APFS and Ubuntu/ext4 additionally remove a hard-link alias and verify one unchanged-amount attribution row. All runners finished; no FileCat GUI was started in this checkpoint.",
+    "Development Compare now captures the displayed revision before review, names full-inventory scope and metric, reads the saved previous inventory on admitted native I/O and computes off the UI thread. A new inert comparison tab retains both inputs after source-view closure; canceled and queued workflows preserve their lifetimes without source connections or approval authority.",
+    "Comparison tabs show previous/current known amounts, unavailable/unverified qualifiers, exact net/row differences, intervals and compatibility reasons. Virtualized status cohorts, absolute/relative/current/path ranking and two-sided alias/modified-time/basis inspection are connected. Temporary comparison close defaults to Keep open; explicit Discard releases result admission and payloads.",
+    "Comparison source paths retain Windows separators on all hosts. Disposed result Rows access refuses rather than exposing stale payloads. Seven themes render at1180 and380/short/large-text sizes; visual review found fixed font sizes, which now honor the window minimum. Native review found enum-style wording and inventory-wide basis details, now readable and scoped to the selected entry.",
+    "A native Ubuntu scan/save/compare/browse/inspect flow showed508 accounting rows, known zero difference and entry-specific basis count1. Keep open held focus and real Enter preserved the comparison; explicit Discard removed it. The inventory hash and509 generated source paths were unchanged; the owned instance exited before its deadline. Full desktop and comparison feature qualification remain pending."
   ],
   "validation": {
     "windowsCore": {
-      "total": 272,
-      "passed": 257,
+      "total": 273,
+      "passed": 258,
       "failed": 0,
       "skipped": 15,
-      "detail": "226 analysis cases, 28 command cases and 18 state/path cases;15 expected platform skips. Comparison foundation adds23 cases including one Unix native fixture.",
-      "evidence": "windows-core-r30.xml"
+      "detail": "227 analysis cases,28 command cases and18 state/path cases;15 expected platform skips.",
+      "evidence": "windows-core-r31.xml"
     },
     "windowsHostNative": {
       "total": 14,
       "passed": 14,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-host-native-r30.xml"
+      "evidence": "windows-host-native-r31.xml"
     },
     "windowsVm": {
       "status": "ordinary-user-regression-fixtures-passed",
@@ -78,36 +82,36 @@
       "passed": 14,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-native-r30.xml",
+      "evidence": "windows-vm-native-r31.xml",
       "detail": "14 ordinary native Windows cases, including actual before/after scan comparison, private catalog enumeration and storage. No desktop/a11y qualification."
     },
     "macosArm64": {
-      "total": 254,
-      "passed": 254,
+      "total": 255,
+      "passed": 255,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-core-r30.xml"
+      "evidence": "mac-core-r31.xml"
     },
     "headlessRendering": {
-      "total": 23,
-      "passed": 23,
+      "total": 30,
+      "passed": 30,
       "failed": 0,
       "skipped": 0,
-      "evidence": "analysis-render-r30.xml",
-      "detail": "23 existing presentation cases pass on the updated Core assembly on Windows, Mac and Ubuntu. Comparison presentation is not connected or qualified."
+      "evidence": "analysis-render-r31.xml",
+      "detail": "30 presentation cases pass on all three runtimes. Seven new comparison controls cover complete dialog flow, cancel, queued/owner-close lifetime, narrow inspection, preserving discard, seven-theme renders and selected-entry bases."
     },
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "solution-build-r30.txt"
+      "evidence": "solution-build-r31.txt"
     },
     "ubuntu": {
       "status": "ordinary-user-native-regressions-passed",
-      "total": 254,
-      "passed": 253,
+      "total": 255,
+      "passed": 254,
       "failed": 0,
       "skipped": 1,
-      "evidence": "ubuntu-core-r30.xml",
+      "evidence": "ubuntu-core-r31.xml",
       "detail": "Ubuntu 24.04 ordinary benny, .NET runtime 10.0.14, local ext4. Prior FileCat PID exited; process checks were clear before transfer and runs. Native scans, O_TMPFILE/procfs create-new publication, no-follow/privacy/link controls and I/O ownership passed. Darwin ACL case skipped. No desktop/a11y qualification."
     },
     "nativeDesktop": {
@@ -118,7 +122,8 @@
       "ubuntuEvidence": "ubuntu-native-ui-r26.json",
       "ubuntuCompactEvidence": "ubuntu-native-ui-r27.json",
       "ubuntuDialogEvidence": "ubuntu-native-ui-r28.json",
-      "ubuntuCatalogEvidence": "ubuntu-native-ui-r29.json"
+      "ubuntuCatalogEvidence": "ubuntu-native-ui-r29.json",
+      "ubuntuComparisonEvidence": "ubuntu-native-ui-r31.json"
     },
     "macStatConsumers": {
       "total": 51,
@@ -135,29 +140,27 @@
       "evidence": "ubuntu-stat-consumers-r24.xml"
     },
     "macHeadlessRendering": {
-      "total": 23,
-      "passed": 23,
+      "total": 30,
+      "passed": 30,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-analysis-render-r30.xml"
+      "evidence": "mac-analysis-render-r31.xml"
     },
     "ubuntuHeadlessRendering": {
-      "total": 23,
-      "passed": 23,
+      "total": 30,
+      "passed": 30,
       "failed": 0,
       "skipped": 0,
-      "evidence": "ubuntu-analysis-render-r30.xml"
+      "evidence": "ubuntu-analysis-render-r31.xml"
     }
   },
   "nextWork": [
-    "W3: connect comparison choice/review, offline comparison views, growth/removed/unknown tables, filters/charts/inspector and persistence/export. The bounded comparison engine passes actual native scan fixtures; large indexed comparisons, representation/provider mapping and full native UI qualification remain pending.",
-    "W3: implement guarded mutable private state, managed catalog maintenance/replacement/deletion, optional capped history, compatible comparison and general import/export. Create-new catalog browsing and saved display state are connected; complete persistence qualification remains open.",
+    "W3: complete comparison charts/queries/metric changes, explicit structural root mapping, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
     "W1: epoch refresh, native unresponsive-device and shared-memory/indexed private-store budget qualification remain. Shared eight-request actual-I/O ownership and worker cleanup now have regressions; this is not full resource qualification.",
     "Ubuntu: CLI regression coverage now passes after the other process exited. Continue process gates before every run and postpone whenever another FileCat session appears; broader native desktop, filesystem/resource and package qualification remain.",
     "W2: actual native desktop/assistive-technology testing; safe raw-name/path and unknown-value display; grouping/sort/breadcrumbs/details/tooltips; complete lifecycle and lazy tools.diskSpace registration.",
-    "W3: integrate the native private-store foundation on admitted I/O workers; broader interrupt/crash/resource evidence, private catalog/state, complete named save/catalog/history, compatible comparison, sensitivity review and create-only exports/imports remain. Initial native ext4 publication passes; replacement and orphan cleanup still need guarded routes.",
     "W4/W5: qualified live source and exact-entry typed operations, protected objects, immutable review/submission, preserving defaults and accurate outcomes. Unsupported needs feasibility evidence.",
     "W6/W7: declarative recipes and explicitly qualified content work; closed NTFS metadata helper or prescribed standard-scan fallback.",
     "W8: native platform/theme/DPI/a11y/package matrix, 1M/10M measurements, negative controls, actual diagnostics ZIP leakage, documentation and final requirement-by-requirement audit.",

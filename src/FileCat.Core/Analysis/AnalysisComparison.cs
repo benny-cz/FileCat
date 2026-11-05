@@ -41,10 +41,11 @@ public sealed record AnalysisComparisonRow(AnalysisComparisonEntity? Previous, A
 public sealed class AnalysisComparisonResult : IDisposable
 {
     private IDisposable? _memory;
+    private ImmutableArray<AnalysisComparisonRow> _rows;
     internal AnalysisComparisonResult(AnalysisMetric metric, AnalysisComparisonCompatibility compatibility, AnalysisTotals previous,
         AnalysisTotals current, ImmutableArray<AnalysisComparisonRow> rows, AnalysisTaint taint, IDisposable memory)
     {
-        Metric = metric; Compatibility = compatibility; PreviousTotals = previous; CurrentTotals = current; Rows = rows; Taint = taint; _memory = memory;
+        Metric = metric; Compatibility = compatibility; PreviousTotals = previous; CurrentTotals = current; _rows = rows; Taint = taint; _memory = memory;
         NetChange = compatibility.ComparableTotals && previous.CompatibleBasis && current.CompatibleBasis && previous.Missing.Count == 0 && current.Missing.Count == 0 &&
             previous.IdentityUnverified == 0 && current.IdentityUnverified == 0 ? AnalysisDelta.Between(previous.Known, current.Known) : null;
     }
@@ -52,10 +53,14 @@ public sealed class AnalysisComparisonResult : IDisposable
     public AnalysisComparisonCompatibility Compatibility { get; }
     public AnalysisTotals PreviousTotals { get; }
     public AnalysisTotals CurrentTotals { get; }
-    public ImmutableArray<AnalysisComparisonRow> Rows { get; }
+    public ImmutableArray<AnalysisComparisonRow> Rows => Volatile.Read(ref _memory) is not null ? _rows : throw new ObjectDisposedException(nameof(AnalysisComparisonResult));
     public AnalysisTaint Taint { get; }
     public AnalysisDelta? NetChange { get; }
-    public void Dispose() => Interlocked.Exchange(ref _memory, null)?.Dispose();
+    public void Dispose()
+    {
+        var memory = Interlocked.Exchange(ref _memory, null); if (memory is null) return;
+        _rows = []; memory.Dispose();
+    }
 }
 
 /// <summary>
@@ -168,7 +173,7 @@ public static class AnalysisComparison
                 if (matches.Length == 1 && used.Add(matches[0].Id)) map.Add(before.Id, matches[0].Id);
             }
         }
-        if (map.Count == 0) throw new InvalidOperationException("These inventories have no matching captured roots. Choose an explicit structural root mapping; no identity continuity can be inferred.");
+        if (map.Count == 0) throw new InvalidOperationException("These inventories have no matching captured roots. Choose an inventory of the same captured scope, or provide an explicit structural root mapping. No identity continuity can be inferred.");
         return map.ToImmutable();
     }
 
@@ -235,7 +240,9 @@ public static class AnalysisComparison
             long displayMaximum = node.ParentId == 0 ? roots[node.RootId].CanonicalLocator.Length * 8L : parentPath.Length + node.Name.Length * 16L + raw * 2L + 32;
             if ((pathBytes = checked(pathBytes + (keyLength + displayMaximum) * 2L + 128)) > PathBudget) throw Limit();
             keys.Add(node.Id, node.ParentId == 0 ? prefix : prefix + "/" + node.NameEncoding + ":" + Convert.ToHexString(node.RawName.IsEmpty ? AnalysisRawNames.Encode(node.NameEncoding, node.Name) : node.RawName.AsSpan()));
-            paths.Add(node.Id, node.ParentId == 0 ? AnalysisNames.Display(roots[node.RootId].CanonicalLocator, AnalysisLimits.LocatorBytes) : parentPath + "/" + AnalysisNames.DisplayName(node, AnalysisLimits.RawNameBytes));
+            string separator = roots[node.RootId].NameRules == AnalysisNameRules.Windows ? "\\" : "/";
+            paths.Add(node.Id, node.ParentId == 0 ? AnalysisNames.Display(roots[node.RootId].CanonicalLocator, AnalysisLimits.LocatorBytes) :
+                parentPath + (parentPath.EndsWith(separator, StringComparison.Ordinal) ? "" : separator) + AnalysisNames.DisplayName(node, AnalysisLimits.RawNameBytes));
             if (!node.IncludedByPolicy) continue;
             if (node.Kind is AnalysisKind.File or AnalysisKind.Unknown)
             {
@@ -349,5 +356,5 @@ public static class AnalysisComparison
         }
     }
 
-    private static InvalidOperationException Limit() => new("This comparison exceeds the bounded memory fallback. No partial comparison or zero baseline was published; an indexed comparison is required.");
+    private static InvalidOperationException Limit() => new("This comparison exceeds the available memory budget. Choose inventories captured from a smaller scope. No partial comparison or zero baseline was published.");
 }

@@ -1,6 +1,6 @@
 # Inventory comparison foundation
 
-`AnalysisComparison` is a bounded, data-only comparison engine under development for plan §16. The comparison window, growth filters/charts, saved comparison format and indexed large-data path are not connected or qualified. This document closes no release or security gate.
+`AnalysisComparison` is a bounded, data-only comparison engine under development for plan §16. A development comparison tab now supports status cohorts, ranking and two-sided inspection. Comparison charts, free-form comparison queries, mutable metric selection, structural root-mapping controls, saved comparison format and the indexed large-data path remain unfinished and unqualified. This document closes no release or security gate.
 
 The caller retains the input snapshot/inventory leases through work and through any view that needs them. The result owns a separate process-wide work/result admission for one 32-MiB memory fallback. Its producer preflight caps estimated input work at 12 MiB and expanded raw/display paths at 8 MiB; exceeding either limit fails the whole comparison, without publishing a partial result or zero baseline. Disposing a result releases its admission; a failed or canceled build releases it too. The future indexed implementation and resource qualification remain mandatory.
 
@@ -13,3 +13,11 @@ Path intersections match accounting entities only when the relationship is unamb
 Signed differences retain a sign and UInt128 magnitude, so subtracting extreme measurements cannot wrap through Int128. Zero baselines have no percentage; default ranking uses absolute difference before relative percentages. A net difference is available only with comparable complete coverage, compatible known totals and no missing/unverified amounts. Even then, reported allocation is not physical consumption or reclaimable-space proof.
 
 All outputs are inert observations. Privacy taint joins both inputs, including privileged/imported flags. The result contains no backend, navigation command, approval token, helper request or executable path. None of its identity/version labels establishes ComparedContent, a live target, or permission to mutate a current file. Current file actions require the plan's independent explicit source binding and fresh review.
+
+## Development comparison view
+
+Compare captures the displayed revision before its review, freezes that interaction, names the full-inventory scope and captured metric, then reads the previous private inventory on admitted workers. The current display filter/folder does not reduce either input. The CPU comparison runs off the UI thread. A new offline tab owns both input leases and the result, so closing the original view cannot retarget or invalidate its observations. Canceled/failed work publishes no partial comparison. A comparison tab is temporary work and requires a preserving Keep open / Discard comparison choice.
+
+The tab shows previous/current known amounts, unavailable and identity-unverified qualifiers, exact signed differences, observation intervals and compatibility reasons. Its virtualized rows support status cohorts, absolute/relative/current/path ranking, and separate removed/unknown entries. Detail overlays retain both path sets, modified times, metadata assurance and recorded allocation component/basis descriptions. Neither a removed row nor a current observation provides a live action target. The initial tab uses the captured metric; additional charts, metric changes, declarative comparison queries and structural mapping controls remain required by the plan.
+
+Comparison controls release their row/template references on disposal. Disposed engine results clear their owned row array before releasing admission and reject further Rows access. Windows display paths use source separators even when inspected on another platform. Text sizes inherit the window's setting, with headings retaining only a minimum size.

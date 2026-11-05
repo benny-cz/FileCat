@@ -43,7 +43,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     public AnalysisPhase Phase { get; private set; } = AnalysisPhase.Ready;
     public ulong SourceCloseFailures { get; private set; }
     public bool Running => Phase is AnalysisPhase.Scanning or AnalysisPhase.Pausing or AnalysisPhase.Paused or AnalysisPhase.Refreshing;
-    public bool HasTemporaryWork => !_disposed && (IsPreparing || Running || _prepared.Count > 0 || Selection.Marks.Count > 0 || Selection.Basket.Count > 0 ||
+    public bool HasTemporaryWork => !_disposed && (Comparison is not null || IsPreparing || Running || _prepared.Count > 0 || Selection.Marks.Count > 0 || Selection.Basket.Count > 0 ||
         !DisplayedRevisionSaved && (_session is not null || _observation is { Origin: AnalysisOrigin.LiveSession, Persistence: AnalysisPersistence.Temporary }));
     public event Action? Changed;
     public DiskSpaceViewModel(AppServices services) : this(services, Prepare) { }
@@ -143,7 +143,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     public void SetStatus(string text) { if (_disposed) return; Status = text; Changed?.Invoke(); }
     public async Task RebuildAsync(bool force = false)
     {
-        if (_disposed) return;
+        if (_disposed || Comparison is not null) return;
         if (_building) { if (force) _rebuildRequested = true; return; }
         if (!force && !Dirty && Tree is not null) return;
         _building = true; Dirty = false;
@@ -362,6 +362,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         _preparationCancel?.Cancel();
         _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _session?.Dispose(); ReleasePrepared(); _lease?.Dispose(); _pending?.Lease?.Dispose();
         _inventory?.Dispose();
+        Comparison?.Dispose(); Comparison = null; _comparisonPrevious?.Dispose(); _comparisonPrevious = null; _comparisonCurrent?.Dispose(); _comparisonCurrent = null;
         Tree = null; Rows = []; _observation = null; _pending = null; Changed = null;
     }
     private sealed class LatestProgress(IUiDispatcher ui, Action<AnalysisProgress> consume) : IProgress<AnalysisProgress>

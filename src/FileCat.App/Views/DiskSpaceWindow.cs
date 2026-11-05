@@ -74,7 +74,7 @@ public sealed partial class DiskSpaceWindow : Window
         if (_sessions.Count >= AnalysisLimits.Sessions) throw new InvalidOperationException("Eight analyses are open. Close an analysis before adding another.");
         var view = new SessionView(this, model, roots ?? []);
         _notice.IsVisible = false;
-        var item = new TabItem { Header = "Analysis " + checked(++_nextTabNumber), Content = view.CreateViewport() };
+        var item = new TabItem { Header = (model.Comparison is null ? "Analysis " : "Comparison ") + checked(++_nextTabNumber), Content = view.CreateViewport() };
         _sessions.Add(view); _items.Add(item); _tabs.ItemsSource = _items.ToArray(); _tabs.SelectedItem = item;
     }
     private async Task ConfirmCloseAsync()
@@ -82,7 +82,7 @@ public sealed partial class DiskSpaceWindow : Window
         _askingClose = true;
         try
         {
-            if (await _dialogs.ConfirmAsync("Close disk space?", "Stop read-only scans and discard temporary analysis views and unsaved review references?", "Stop and close", true, "Keep open"))
+            if (await _dialogs.ConfirmAsync("Close disk space?", "Stop active scans and discard temporary analyses, comparisons and unsaved review references?", "Stop and close", true, "Keep open"))
             { _forceClose = true; Close(); }
         }
         finally { _askingClose = false; }
@@ -93,7 +93,9 @@ public sealed partial class DiskSpaceWindow : Window
         if (at < 0 || at >= _sessions.Count) return;
         var view = _sessions[at];
         if (view.Model.HasTemporaryWork &&
-            !await _dialogs.ConfirmAsync("Close analysis?", "Stop this metadata scan and discard its temporary results and unsaved review references?", "Stop and close", true, "Keep open")) return;
+            !await _dialogs.ConfirmAsync(view.Model.Comparison is null ? "Close analysis?" : "Close comparison?",
+                view.Model.Comparison is null ? "Stop this metadata scan and discard its temporary results and unsaved review references?" : "Discard this temporary comparison and its display settings? The saved inventories remain available.",
+                view.Model.Comparison is null ? "Stop and close" : "Discard comparison", true, "Keep open")) return;
         if (_forceClose || (at = _sessions.IndexOf(view)) < 0) return;
         view.Dispose(); _sessions.RemoveAt(at); _items.RemoveAt(at); _tabs.ItemsSource = _items.ToArray();
         _notice.IsVisible = false;
@@ -179,7 +181,8 @@ public sealed partial class DiskSpaceWindow : Window
             _save = ActionButton("Save…", () => _ = SaveAsync(), "Save the displayed analysis, including all captured paths and metadata. The current display filter does not reduce the saved inventory.");
             _openSaved = ActionButton("Open saved…", () => _ = OpenSavedAsync(), "Open a named inventory from this private profile as inert observations. No source is reconnected or scanned.");
             nav.Children.Add(_save); nav.Children.Add(_openSaved);
-            nav.Children.Add(Unavailable("Compare…", "Choose compatible saved observations to compare. This session has no comparison."));
+            _compare = ActionButton("Compare…", () => _ = CompareAsync(), "Compare the entire captured revision with a saved inventory. Opening and comparison remain offline.");
+            nav.Children.Add(_compare);
             var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { _query, _case } };
             filters.Children.Add(_rootFilter); filters.Children.Add(_unknown);
             filters.Children.Add(ActionButton("Clear filter", () => { Model.ShowUnknownFilterResults = false; _query.Text = ""; }, "Remove the display query; scan boundaries remain captured."));
@@ -233,6 +236,7 @@ public sealed partial class DiskSpaceWindow : Window
             AutomationProperties.SetName(_rootFilter, "Filter captured location"); AutomationProperties.SetName(_unknown, "Inspect uncertain query results");
             AutomationProperties.SetName(_status, "Analysis status"); AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
             PropertyChanged += (_, e) => { if (e.Property == BoundsProperty) Refresh(); };
+            if (Model.Comparison is { } comparison) ShowComparison(comparison);
             Refresh();
         }
         public ScrollViewer CreateViewport()
@@ -242,6 +246,12 @@ public sealed partial class DiskSpaceWindow : Window
             _viewport.LayoutUpdated += (_, _) =>
             {
                 if (_disposed || _viewport is null) return;
+                if (Model.Comparison is not null)
+                {
+                    double comparisonHeight = Math.Max(_viewport.Bounds.Height, ComparisonMinimumHeight);
+                    if (double.IsFinite(comparisonHeight) && Math.Abs(Height - comparisonHeight) > .5) Height = comparisonHeight;
+                    return;
+                }
                 // Auto rows get their full wrapped height. The inner explorer always receives a finite viewport,
                 // preserving list virtualization while the page itself scrolls on short or large-text displays.
                 double minimum = Children.Where(c => c != _explorer).Sum(c => c.DesiredSize.Height) + _explorer.MinHeight;
@@ -307,6 +317,7 @@ public sealed partial class DiskSpaceWindow : Window
         }
         private void Refresh()
         {
+            if (Model.Comparison is not null) return;
             if (_disposed) return; _updating = true;
             try
             {
@@ -316,6 +327,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _pause.IsEnabled = Model.Running; _stop.IsEnabled = Model.Running || Model.IsPreparing;
                 _save.IsEnabled = Model.CanSave && !_persistenceBusy;
                 _openSaved.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
+                _compare.IsEnabled = Model.CanCompare && !_persistenceBusy;
                 _stop.Content = Model.IsPreparing ? "Stop binding" : "Stop";
                 _pause.Content = Model.Phase is AnalysisPhase.Paused or AnalysisPhase.Pausing ? "Resume" : "Pause";
                 var tree = Model.Tree;
@@ -426,6 +438,11 @@ public sealed partial class DiskSpaceWindow : Window
             string? command = Resolve(CommandContext.DiskSpace);
             bool editor = _window.FocusManager?.GetFocusedElement() is TextBox;
             if (command == CommandIds.DiskSpaceClose) { _window.Close(); e.Handled = true; return; }
+            if (Model.Comparison is not null)
+            {
+                if (command == CommandIds.DiskSpaceFilter) { _comparisonStatus?.Focus(); e.Handled = true; }
+                return;
+            }
             if (command == CommandIds.DiskSpaceFilter) { _query.Focus(); e.Handled = true; return; }
             if (editor) return;
             bool handled = true;
@@ -449,7 +466,7 @@ public sealed partial class DiskSpaceWindow : Window
         public void Dispose()
         {
             if (_disposed) return; _disposed = true; _timer.Stop(); _filterTimer.Stop(); Model.Changed -= Refresh;
-            _treemap.Clear(); _sunburst.Clear(); _list.ItemsSource = null; Model.Dispose();
+            _treemap.Clear(); _sunburst.Clear(); _list.ItemsSource = null; ReleaseComparisonView(); Model.Dispose();
         }
     }
 }

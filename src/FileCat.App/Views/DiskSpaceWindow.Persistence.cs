@@ -12,7 +12,7 @@ public sealed partial class DiskSpaceWindow
 {
     private sealed partial class SessionView
     {
-        private readonly Button _save, _openSaved;
+        private readonly Button _save, _openSaved, _compare;
         private bool _persistenceBusy;
         private sealed record SavedChoice(string Name, AnalysisSavedEntry? Entry)
         {
@@ -50,17 +50,21 @@ public sealed partial class DiskSpaceWindow
             finally { _persistenceBusy = false; Model.Interaction(false); Refresh(); }
         }
 
-        private async Task OpenSavedAsync()
+        private Task CompareAsync() => OpenSavedAsync(comparing: true);
+        private async Task OpenSavedAsync(bool comparing = false)
         {
             if (_disposed || _persistenceBusy || !Model.HasPrivateStorage) return;
+            if (comparing && !Model.CanCompare) return;
             if (_window.SessionCount >= AnalysisLimits.Sessions) { _window.ExplainSessionLimit(); return; }
             _persistenceBusy = true; Refresh();
             AnalysisCatalogSnapshot? catalogLease = null; bool closed = false;
+            AnalysisSnapshotLease? captured = null; bool interaction = false; var metric = Model.Metric;
             using var browseCancel = new CancellationTokenSource();
             try
             {
+                if (comparing) { Model.Interaction(true); interaction = true; captured = Model.CaptureDisplayedRevision(); }
                 var name = new TextBox { Text = Model.SavedInventoryName ?? "", PlaceholderText = "Saved analysis.fcdsa", MaxLength = 120 };
-                AutomationProperties.SetName(name, "Saved inventory filename");
+                AutomationProperties.SetName(name, comparing ? "Previous inventory filename" : "Saved inventory filename");
                 var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
                 var catalogStatus = new TextBlock { TextWrapping = TextWrapping.Wrap };
                 var choices = new ComboBox { IsVisible = false, HorizontalAlignment = HorizontalAlignment.Stretch, MaxWidth = 600 };
@@ -79,7 +83,8 @@ public sealed partial class DiskSpaceWindow
                         catalogLease?.Dispose(); catalogLease = catalog;
                         choices.ItemsSource = catalog.Entries.Select(e => new SavedChoice(e.Name, e)).Concat(catalog.UnindexedNames.Select(n => new SavedChoice(n, null))).ToArray();
                         choices.IsVisible = true;
-                        catalogStatus.Text = $"{catalog.Entries.Length:N0} named analyses · {catalog.UnindexedNames.Length:N0} unindexed files. Select an analysis to restore its saved view.";
+                        catalogStatus.Text = $"{catalog.Entries.Length:N0} named analyses · {catalog.UnindexedNames.Length:N0} unindexed files. " +
+                            (comparing ? "Select the previous inventory. Comparison uses the captured metric and full inventories." : "Select an analysis to restore its saved view.");
                     }
                     catch (OperationCanceledException) { if (!closed && !_disposed) catalogStatus.Text = "Catalog browsing canceled."; }
                     catch (Exception ex) when (InventoryError(ex)) { if (!closed && !_disposed) catalogStatus.Text = "Catalog unavailable: " + AnalysisNames.Display(ex.Message, 400) + " You can still open a known filename."; }
@@ -89,23 +94,25 @@ public sealed partial class DiskSpaceWindow
                 name.TextChanged += (_, _) => error.Text = string.IsNullOrEmpty(name.Text) ? "" : InventoryNameError(name.Text);
                 var body = new StackPanel { Spacing = 8, Children =
                 {
-                    new TextBlock { Text = "Enter a saved .fcdsa filename. Opening it shows offline observations without reconnecting sources or granting file actions.", TextWrapping = TextWrapping.Wrap },
+                    new TextBlock { Text = comparing ? "Compare the entire captured revision with a saved inventory as Previous. The display filter and folder scope do not limit this comparison. Compatibility and missing coverage qualify every difference." : "Enter a saved .fcdsa filename. Opening it shows offline observations without reconnecting sources or granting file actions.", TextWrapping = TextWrapping.Wrap },
                     new TextBlock { Text = "Saved analyses folder: " + AnalysisNames.Display(Model.SavedDirectory ?? ""), TextWrapping = TextWrapping.Wrap },
                     browse, catalogStatus, choices, name, error
                 } };
-                var result = await _window._dialogs.ShowCustomAsync("Open saved analysis", body,
-                    [new DialogButton("Cancel", false, IsCancel: true), new DialogButton("Open observations", true, IsDefault: true) { IsAvailable = () => InventoryNameError(name.Text) is null }], name);
+                if (captured is not null) body.Children.Insert(1, new TextBlock { Text = "Current metric: " + ComparisonMetric(metric) + " · observed " + captured.Snapshot.Identity.StartedUtc.ToString("u") + " – " + captured.Snapshot.Identity.ObservedUtc.ToString("u") + ". " + (captured.Snapshot.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Captured traversal complete under policy." : "Captured observations are partial."), TextWrapping = TextWrapping.Wrap });
+                var result = await _window._dialogs.ShowCustomAsync(comparing ? "Compare saved analysis" : "Open saved analysis", body,
+                    [new DialogButton("Cancel", false, IsCancel: true), new DialogButton(comparing ? "Compare observations" : "Open observations", true, IsDefault: true) { IsAvailable = () => InventoryNameError(name.Text) is null }], name);
                 closed = true;
                 if (result is not true || _disposed) return;
                 var selected = choices.SelectedItem is SavedChoice choice && choice.Name == name.Text ? choice.Entry : null;
-                var loaded = await WithInventoryProgress("Opening inventory", token => Model.OpenSavedAsync(name.Text!, selected, token));
+                var loaded = await WithInventoryProgress(comparing ? "Comparing inventories" : "Opening inventory", token => comparing
+                    ? Model.CompareSavedAsync(name.Text!, selected, captured!, metric, token) : Model.OpenSavedAsync(name.Text!, selected, token));
                 if (_disposed || !_window.IsVisible) { loaded.Dispose(); return; }
                 if (_window.SessionCount >= AnalysisLimits.Sessions) { loaded.Dispose(); _window.ExplainSessionLimit(); return; }
                 try { _window.AddSession(loaded); } catch { loaded.Dispose(); throw; }
             }
-            catch (OperationCanceledException) { Model.SetStatus("Opening the inventory was canceled."); }
-            catch (Exception ex) when (InventoryError(ex)) { Model.SetStatus("Inventory was not opened: " + AnalysisNames.Display(ex.Message, 400)); }
-            finally { closed = true; browseCancel.Cancel(); catalogLease?.Dispose(); _persistenceBusy = false; Refresh(); }
+            catch (OperationCanceledException) { Model.SetStatus(comparing ? "Comparison canceled. No partial comparison was published." : "Opening the inventory was canceled."); }
+            catch (Exception ex) when (InventoryError(ex)) { Model.SetStatus((comparing ? "Comparison unavailable: " : "Inventory was not opened: ") + AnalysisNames.Display(ex.Message, 400)); }
+            finally { closed = true; browseCancel.Cancel(); catalogLease?.Dispose(); captured?.Dispose(); if (interaction) Model.Interaction(false); _persistenceBusy = false; Refresh(); }
         }
 
         private async Task<T> WithInventoryProgress<T>(string title, Func<CancellationToken, Task<T>> run)

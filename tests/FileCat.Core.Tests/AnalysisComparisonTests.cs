@@ -11,6 +11,15 @@ public sealed partial class AnalysisComparisonTests
     private static readonly CancellationToken Cancellation = TestContext.Current.CancellationToken;
 
     [Fact]
+    public void WindowsObservedPathsKeepTheirSourceSeparatorsOnEveryHost()
+    {
+        var sample = Sample(("same", "k", 1, 1, "one"));
+        sample = sample with { Roots = [sample.Roots[0] with { CanonicalLocator = @"C:\fixture", DisplayLocator = @"C:\fixture", NameRules = AnalysisNameRules.Windows }] };
+        using var result = AnalysisComparison.Build(sample, sample, AnalysisMetric.FileSize, cancellation: Cancellation);
+        Assert.Equal(@"C:\fixture\same", Assert.Single(result.Rows).Current!.Paths[0]);
+    }
+
+    [Fact]
     public void EmptyKnownFileScopeHasAZeroAllocationBaselineWithinTheDeclaredBasis()
     {
         using var result = AnalysisComparison.Build(Sample(), Sample(("new", "n", 10, 8, "one")), AnalysisMetric.OnDisk, cancellation: Cancellation);
@@ -248,7 +257,7 @@ public sealed partial class AnalysisComparisonTests
         Assert.Throws<InvalidDataException>(() => AnalysisComparison.Build(sample with { Roots = [] }, sample, AnalysisMetric.FileSize, cancellation: Cancellation));
         using var first = AnalysisComparison.Build(sample, sample, AnalysisMetric.FileSize, cancellation: Cancellation);
         Assert.Throws<InvalidOperationException>(() => AnalysisComparison.Build(sample, sample, AnalysisMetric.FileSize, cancellation: Cancellation));
-        first.Dispose(); first.Dispose(); using var second = AnalysisComparison.Build(sample, sample, AnalysisMetric.FileSize, cancellation: Cancellation);
+        first.Dispose(); first.Dispose(); Assert.Throws<ObjectDisposedException>(() => first.Rows); using var second = AnalysisComparison.Build(sample, sample, AnalysisMetric.FileSize, cancellation: Cancellation);
         Assert.Equal(AnalysisChange.NoObservedMetadataChange, Assert.Single(second.Rows).Change);
     }
 }

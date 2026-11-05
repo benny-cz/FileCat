@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native comparison workflow subset, not full desktop/a11y or release qualification",
+  "harnessReport": "ubuntu-native-ui-report-r31.json",
+  "controlReport": "ubuntu-native-ui-control-r31.json",
+  "appSha256": "f67157fb2495a7f06234354eafb30dd17a7a073d0b601d3e9d3282231b79b36b",
+  "harnessSha256": "1dadbab8c953e3431b2dd1a9775acc005a72413fed78f2feff764ff671b8c6ea",
+  "observedClientPixels": {
+    "width": 1180,
+    "height": 731
+  },
+  "events": [
+    "Invoked Start analysis",
+    "Invoked Save\u2026",
+    "Entered Inventory filename",
+    "Invoked Save new inventory",
+    "Invoked Compare\u2026",
+    "Entered Previous inventory filename",
+    "Invoked Browse saved analyses",
+    "Invoked Compare observations",
+    "Invoked Inspect comparison entry",
+    "Invoked Close",
+    "Invoked Close analysis",
+    "Invoked Close analysis",
+    "Invoked Discard comparison"
+  ],
+  "comparisonTabVisible": true,
+  "knownZeroDifferenceVisible": true,
+  "selectedEntryBasisCountConfirmed": true,
+  "keepOpenInitiallyFocused": true,
+  "enterPreservedComparison": true,
+  "explicitDiscardClosedComparison": true,
+  "inventorySha256Unchanged": "1fc01be70a53703be1f1e29205ba9595bb5b01e21ce7a689f159f73070565d58",
+  "sourcePathsUnchanged": 509,
+  "ownedProcessExited": true,
+  "deadlineClosed": false,
+  "limitations": [
+    "Comparison currently uses the captured metric and table workflow. Comparison charts, free-form query controls, mutable metric selection, structural root mapping and saved comparison/export remain pending.",
+    "A first passing native run exposed an enum-style evidence label and inventory-wide basis count in the entry inspector. Both were fixed; this final run confirms entry-specific count1 and readable evidence.",
+    "Seven-theme narrow/large-text images are headless. Actual Mac/Windows native input, full screen-reader journeys, DPI/keyboard and compact native geometry qualification remain open."
+  ]
+}

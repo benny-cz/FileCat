@@ -8,17 +8,17 @@ After the other Ubuntu FileCat process exited, fresh process gates allowed ordin
 
 | Run | Result | Receipt |
 |---|---|---|
-| Full solution build | No warnings or errors | [build](solution-build-r30.txt) |
-| Windows analysis, commands and state/path cases | 257 pass, 15 platform skips | [XML](windows-core-r30.xml) |
-| Ordinary Windows host | 14 pass, no skips | [XML](windows-host-native-r30.xml) |
-| Ordinary Windows guest | 14 pass, no skips | [XML](windows-vm-native-r30.xml) |
-| macOS arm64 analysis and command cases | 254 pass, no skips | [XML](mac-core-r30.xml) |
+| Full solution build | No warnings or errors | [build](solution-build-r31.txt) |
+| Windows analysis, commands and state/path cases | 258 pass, 15 platform skips | [XML](windows-core-r31.xml) |
+| Ordinary Windows host | 14 pass, no skips | [XML](windows-host-native-r31.xml) |
+| Ordinary Windows guest | 14 pass, no skips | [XML](windows-vm-native-r31.xml) |
+| macOS arm64 analysis and command cases | 255 pass, no skips | [XML](mac-core-r31.xml) |
 | macOS shared stat consumers | 49 pass, 2 platform skips | [XML](mac-stat-consumers-r22.xml) |
-| Windows Skia headless presentation | 23 pass | [XML](analysis-render-r30.xml) |
-| macOS headless presentation and native persistence | 23 pass | [XML](mac-analysis-render-r30.xml) |
-| Ubuntu headless presentation and native persistence | 23 pass | [XML](ubuntu-analysis-render-r30.xml) |
+| Windows Skia headless presentation | 30 pass | [XML](analysis-render-r31.xml) |
+| macOS headless presentation and native persistence | 30 pass | [XML](mac-analysis-render-r31.xml) |
+| Ubuntu headless presentation and native persistence | 30 pass | [XML](ubuntu-analysis-render-r31.xml) |
 | macOS native startup/close only | 509 generated regular paths unchanged; owned process exited | [receipt](mac-native-startup-r20.json) |
-| Ubuntu ext4 analysis and command cases | 253 pass, 1 Darwin-only skip | [XML](ubuntu-core-r30.xml) |
+| Ubuntu ext4 analysis and command cases | 254 pass, 1 Darwin-only skip | [XML](ubuntu-core-r31.xml) |
 | Ubuntu shared stat consumers | 49 pass, 2 platform skips | [XML](ubuntu-stat-consumers-r24.xml) |
 | Ubuntu native Save/Open subset | Saved/opened matching inventory; conflict hash and all 509 source hashes preserved; owned process exited | [receipt](ubuntu-native-ui-r26.json) |
 
@@ -64,6 +64,10 @@ The r29 checkpoint connects a bounded owner-private create-new catalog and saved
 The r30 [comparison foundation](../../design/FILECAT_DISK_SPACE_COMPARISON.md) is a bounded data-only engine; no comparison window is connected yet. It compares all four metrics without duplicating shared object charges, checks policy/basis/root/coverage/name representation, preserves unknown baselines, and separates attribution and path-based observations from compatible identity/version evidence. Exact signed UInt128 differences and zero-baseline percentage handling have dedicated controls. Producer bounds include long versions, reference arrays and expanded paths. A test initially described an invalid parent/child graph; its corrected stale-scope fixture keeps the validator strict. Additional checks cover changed metadata despite equal file counts and contradictory creation metadata during a proposed rename.
 
 Actual before/after native scans verify growth/additions on Windows host and ordinary guest, with14 native cases passing on each. Mac/APFS and Ubuntu/ext4 additionally remove one hard-link alias and observe attribution movement with zero amount change. Windows core has257 passes/15 platform skips; Mac254 passes; Ubuntu253 passes/one Darwin skip. All23 existing presentation cases pass on each runtime. These are engine and regression results, not comparison UI, content, action, indexed-scale or release qualification. [r30 provenance](source-manifest-r30.json) records the tested sources and bundles.
+
+The r31 development comparison workflow captures the displayed revision and full-inventory metric before review, then opens a separate offline tab with retained inputs. Virtualized status cohorts, absolute/relative/current/path ranking, exact differences and two-sided inspection are connected. Closing the original view or canceling queued work cannot retarget its observations. Keep open remains the close default; explicit Discard clears payloads and releases comparison admission. Seven new presentation controls pass on Windows, Mac and Ubuntu (30 total each). Windows core has258 passes/15 platform skips; Mac255 passes; Ubuntu254 passes/one Darwin skip. Native Windows host/guest retain14 passes each.
+
+[Native Ubuntu comparison evidence](ubuntu-native-ui-r31.json) exercises Save, catalog selection, Compare, inspection, real Enter preservation and explicit Discard. Its selected-entry basis count is1, the saved hash and509 source paths are unchanged and the owned process exited before the deadline. [Comparison](renders/ubuntu-native-r31-003.png), [details](renders/ubuntu-native-r31-004.png) and [close review](renders/ubuntu-native-r31-005.png) captures were inspected. Initial visual review corrected fixed text sizes, enum-style evidence and inventory-wide basis counts in the entry inspector. Selected seven-theme/size [headless renders](renders/comparison-r31-HighContrast-380.png) show wrapping and finite scrolling; they do not establish native compact/a11y acceptance. Comparison charts, query controls, metric changes, mapped roots and saved comparison/export remain unfinished. [Current provenance](source-manifest-r31.json) identifies final tested sources and bundles.
 
 ## Remaining work
 
