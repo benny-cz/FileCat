@@ -133,7 +133,7 @@ internal static unsafe partial class LinuxArchiveIsolation
             throw LinuxArchiveNative.Unavailable("The Linux archive executable must be an exact local package path.");
         string root = Path.GetDirectoryName(executable)!;
         using (var held = LinuxArchiveNative.OpenDirectory(root))
-            if (LinuxArchiveNative.FileSystemMagic(held) != 0xef53 /* development lane: actual local ext4 only */)
+            if (Unix.UnixArchiveVolume.Observe(held).FileSystem != "ext4")
                 throw LinuxArchiveNative.Unavailable("This Linux archive bundle filesystem has not been qualified.");
         if (!File.Exists(Path.Combine(root, "libcoreclr.so")) || !File.Exists(Path.Combine(root, "FileCat.Core.dll")) ||
             !File.Exists(Path.Combine(root, "System.Private.CoreLib.dll")))

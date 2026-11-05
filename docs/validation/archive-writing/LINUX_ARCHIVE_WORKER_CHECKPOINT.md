@@ -4,6 +4,10 @@ Status: **unregistered development boundary; no new write profile enabled**. Thi
 Linux native containment for a stream-only assessment/probe worker. It does not complete AW1, qualify a release package,
 or complete the [implementation plan](../../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md).
 
+The later [Unix storage checkpoint](UNIX_ARCHIVE_STORAGE.md) strengthens bundle admission: ext4's shared statfs magic
+alone no longer admits ext2/ext3. The descriptor's mount ID is bound to actual procfs mountinfo and exact ext4 type;
+the updated self-contained worker passes the same complete 41-case native regression lane.
+
 ## Implemented boundary
 
 `FileCat.Core/Archives/Linux` contains FileCat-owned native wrappers and an internal process implementation. The current
