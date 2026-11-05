@@ -73,6 +73,7 @@ public sealed class ArchiveTarTransformPlan
         var changes = new Dictionary<ArchiveMemberKey, ArchiveTransformEdit>();
         var frozenEdits = new ArchiveTransformEdit[edits.Count];
         var usedInputs = new HashSet<int>();
+        long requestedBytes = source?.Manifest.LogicalBytes ?? 0;
         for (int i = 0; i < edits.Count; i++)
         {
             ct.ThrowIfCancellationRequested(); var edit = edits[i] ?? throw ArchiveManifestMember.Invalid();
@@ -112,7 +113,12 @@ public sealed class ArchiveTarTransformPlan
         return new(source, captured, frozenEdits, frozenAdditions, expected);
 
         ArchiveTransformInput Use(int id)
-        { if (!captured.TryGetValue(id, out var input)) throw ArchiveManifestMember.Invalid(); usedInputs.Add(id); return input; }
+        {
+            if (!captured.TryGetValue(id, out var input)) throw ArchiveManifestMember.Invalid();
+            // Reusing one captured object for several replacements/additions still consumes its payload each time.
+            ArchiveWriteBudget.Reserve(requestedBytes, input.Length, ArchiveWritePolicy.MaxLogicalBytes); requestedBytes += input.Length;
+            usedInputs.Add(id); return input;
+        }
         void RequestName(string name)
         { budget.AddNameChars(name.Length); budget.AddMetadata(ArchiveWritePolicy.Utf8.GetByteCount(name), 2L * name.Length + 128); }
         void ReserveSource(ArchiveManifestMember member)

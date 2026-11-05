@@ -24,8 +24,9 @@ refuse before encoding. Existing untouched duplicate records remain distinct; eq
 normalization or case folding. Namespace ancestor checks use sorted ordinal names rather than allocating and hashing
 every prefix of every deep path.
 
-The 64 GiB logical input ceiling includes all source payloads, including deleted/replaced members, plus captured new
-inputs. Output totals are independently bounded. Counts, retained names, encoded metadata and retained heap are
+The 64 GiB logical input ceiling includes all source payloads, including deleted/replaced members, plus every new
+payload reference. Reusing one captured object for several additions/replacements charges its bytes each time.
+Output totals are independently bounded. Counts, retained names, encoded metadata and retained heap are
 reserved before retaining additional representations. Accounting conservatively includes source, request maps/arrays
 and the derived output together, even when immutable objects share strings. This may refuse a large job earlier than
 an individual manifest limit; it does not replace the still-required global operation/lease budget integration.
@@ -34,15 +35,16 @@ an individual manifest limit; it does not replace the still-required global oper
 
 | Native test environment | Final affected regression |
 |---|---|
-| Windows 11 x64 VM / NTFS, actual test parent at medium integrity | 65 passed, 0 failed, 0 skipped |
-| macOS ARM64 / APFS | 65 passed, 0 failed, 0 skipped |
-| Ubuntu x64 VM / ext4 | 65 passed, 0 failed, 0 skipped |
+| Windows 11 x64 VM / NTFS, actual test parent at medium integrity | 66 passed, 0 failed, 0 skipped |
+| macOS ARM64 / APFS | 66 passed, 0 failed, 0 skipped |
+| Ubuntu x64 VM / ext4 | 66 passed, 0 failed, 0 skipped |
 
-The 26 new planner cases cover creation, empty output, exact duplicate edits/reindexing, PAX/USTAR preservation,
+The 27 planner cases cover creation, empty output, exact duplicate edits/reindexing, PAX/USTAR preservation,
 optional atime/ctime and pre-epoch fractional mtime, source mode preservation, large IDs, Unicode owner/group names,
 distinct case/Unicode member names, stale/repeated keys, malformed metadata including deleted rows, source and output
 namespace ambiguity, frozen collections, reserved/unreferenced IDs, pre-enumeration count bounds, cancellation and the
-combined logical input budget. The boundary budget fixture uses synthetic bounded facts, not a claim of a 64 GiB scale
+combined logical input budget, including repeated references and the exact accepted boundary. The boundary budget
+fixture uses synthetic bounded facts, not a claim of a 64 GiB scale
 run. The other 39 cases cover existing strict TAR, rewrite, fresh-verifier and manifest-wire behavior.
 
 For successful roundtrips the tests construct the parent's expectation first, encode owned synthetic fixtures with
@@ -54,25 +56,29 @@ native Windows/Linux confinement evidence remains scoped to its recorded artifac
 Filter: `FullyQualifiedName~ArchiveTarTransformPlan|FullyQualifiedName~ArchiveTarRewrite|FullyQualifiedName~ArchiveStrictTar|FullyQualifiedName~ArchiveVerification|FullyQualifiedName~ArchiveManifestWire`.
 Builds used SDK 10.0.101, zero warnings/errors, and tests used runtime 10.0.14. Windows launch facts record before 12288,
 after 8192 and exit 0; administrator membership/privileges remain, so ordinary filtered-user/package qualification is
-still outstanding. Final portable runs use `tar-parent-plan-v3.trx`. Earlier v1/v2 results are superseded by this final
-source and are not added to its count.
+still outstanding. Final portable runs use `tar-parent-plan-v4.trx`. Earlier v1/v2/v3 results are superseded by this final
+source and are not added to its count. Post-commit review of `911c3c5b` found that charging each unique captured object
+once could undercount repeated uses alongside deleted source content. The added regression accepts exactly 64 GiB
+of source plus referenced input facts and refuses the next reference; all three final native-OS runs include the fix.
 
-Three-file source overlay SHA-256: `49417EDC2E3511794499DB201CD5DCA4F7440548A48963FBCD3F15B702755C76`.
-Windows 28-file managed overlay SHA-256: `B7C918AF86C928FCF75F56F3D896F43AC52D141B32297D38950C7BBC95359BC6`.
+Three-file source overlay SHA-256: `6917637B74EE7913E345F483EE473FEBA0D8C3FA187A55F43BEA40FAC88A5140`.
+Windows 28-file managed overlay SHA-256: `25C4F2DEBF2F25AF8BE513A0B32135BA8E406900CB83B547B9DE96C8D7275376`.
 
 | Tested artifact | SHA-256 |
 |---|---|
-| Windows Core.dll | `5A4AFC09912032B8A8E4B88CB986C447E8D8C251ED809E9144028AABB0CC748F` |
-| Windows Core.Tests.dll | `9B70BA73AEC0FC21894F71A82861AE7950B2CD7DB6732331F22F5E6BE639514E` |
-| Mac Core.dll | `A95C30816B3391B2CF01A139F808D368882C561F9C3D0BF57320116D6776F54F` |
-| Mac Core.Tests.dll | `AD221254BC0B85EE3B4D0DBB05F7F976C9EA9E2FC4E7263EBEB25664F11C14F9` |
-| Ubuntu Core.dll | `75E4976A1C413416FD10153247F75B8ECB894BBF0E1D3065B3F5180D0C1C7E1F` |
-| Ubuntu Core.Tests.dll | `D3B1E717B42F7CAE0C1D5F27C946687D7B40193CBB7DA360F973533B7725589A` |
+| Windows Core.dll | `F5199D98291D3E1125F4BD47D0EA16AAF72CA3E082367FBCACEBB1D431D3F110` |
+| Windows Core.Tests.dll | `B748325558D539EAD8583D9FEFC3274913B9C5F0A47E1A916AE4E68E0245D525` |
+| Mac Core.dll | `3FC50812EACD1EAEB10EEFECD4889FDC4DF6BB7A6B58406C5EF555FE3CD9B68C` |
+| Mac Core.Tests.dll | `0CACEDF54653E5B293F3B61883C9C0BB26843793E9BF236A747E882B32FC0D4E` |
+| Ubuntu Core.dll | `BCFD1D4316EAE2FA371D18E01B3EEE07F20731262B668C75C769E693CBB0DA3C` |
+| Ubuntu Core.Tests.dll | `F59FD4D4767A98BA63FB4B926BEEEDC83A502B236A4B9A8E88D66D056CE6349F` |
 
 Raw TRX, stdout/stderr, Windows launch facts and build logs remain in ignored
-`.tmp/test-results/archive-writing/tar-parent-plan-v3` and owned guest directories. Each run checked for other testers
+`.tmp/test-results/archive-writing/tar-parent-plan-v4` and owned guest directories. Each run checked for other testers
 before testing and for remaining test processes afterward. No FileCat/test instance was left by this task, and the
-Mac's temporary until-reboot awake assertions remain active. The shared checkout remains on `main`.
+Mac's temporary until-reboot awake assertions remain active. Initial post-build censuses found transient dotnet
+processes and postponed testing until idle. After successful tests and cleanup, a later Ubuntu census found another
+FileCat instance; it was left alone and had exited before subsequent inspection. The shared checkout remains on `main`.
 
 Still required: reviewed source/folder capture and native lease binding, request wire/transform worker, output bounds,
 receipt/parent rereview and journaled publication/recovery, cooperative cancellation, other formats, production/UI

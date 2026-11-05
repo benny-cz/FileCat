@@ -224,6 +224,22 @@ public sealed class ArchiveTarTransformPlanTests
             ArchiveTarTransformPlan.Create(full, [Input(1, [1])], edits, [new("added", ArchiveMemberType.File, 1)], Ct)).Reason);
     }
 
+    [Fact]
+    public async Task Reusing_a_captured_input_is_charged_for_every_reference_in_addition_to_deleted_source_payloads()
+    {
+        var source = await Assess(ArchiveStrictTarTests.Make(TarEntryFormat.Pax, ("file", "data")));
+        var members = Enumerable.Range(0, 4).Select(i => new ArchiveManifestMember("file" + i, ArchiveMemberType.File, 0,
+            ArchiveWritePolicy.MaxPayloadBytes, source.SourceSha256, source.Manifest.Members[0].Metadata)).ToArray();
+        var full = source with { SourceLength = 4 * ArchiveWritePolicy.MaxPayloadBytes + (1 << 20), Manifest = new(source.Manifest.Profile, members, source.Manifest.Features) };
+        var edits = Enumerable.Range(0, 4).Select(i => new ArchiveTransformEdit(ArchiveChangeKind.Delete, Key(full, i))).ToArray();
+        var input = new ArchiveTransformInput(1, ArchiveWritePolicy.MaxPayloadBytes, source.SourceSha256, DateTimeOffset.UnixEpoch);
+        var additions = Enumerable.Range(0, 5).Select(i => new ArchiveTransformAddition("added" + i, ArchiveMemberType.File, 1)).ToArray();
+        var boundary = ArchiveTarTransformPlan.Create(full, [input], edits, additions[..4], Ct);
+        Assert.Equal(4 * ArchiveWritePolicy.MaxPayloadBytes, boundary.Expected.LogicalBytes); // Exactly 64 GiB across source plus requested input reads.
+        Assert.Equal(ArchiveWriteReason.BudgetExceeded, Assert.Throws<ArchiveWriteException>(() =>
+            ArchiveTarTransformPlan.Create(full, [input], edits, additions, Ct)).Reason);
+    }
+
     private sealed class OversizedInputs : IReadOnlyList<ArchiveTransformInput>
     {
         public int Count => ArchiveWritePolicy.MaxMembers + 1;
