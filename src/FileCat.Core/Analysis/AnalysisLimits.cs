@@ -14,6 +14,7 @@ public static class AnalysisLimits
             ["issues"] = Issues, ["components"] = Components
         }.ToImmutableSortedDictionary(StringComparer.Ordinal);
     public const int Roots = 32, Sessions = 8, ActiveScans = 2, IoRequests = 8, NativeHandles = 128;
+    public const int NavigationHistory = 128;
     public const int Observations = 10_000_000, Depth = 256, RawNameBytes = 64 * 1024, LocatorBytes = 256 * 1024;
     public const int BatchRecords = 512, BatchBytes = 256 * 1024, PendingBytes = 8 * 1024 * 1024;
     public const long MemoryBytes = 256L * 1024 * 1024, ScratchBytes = 4L * 1024 * 1024 * 1024;

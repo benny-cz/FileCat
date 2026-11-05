@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Atomic admitted navigation, bounded history and synchronized pointer regressions; no capability authorization",
+  "gitBase": "ba065861",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisLimits.cs",
+      "sha256": "f73c90e20d541f4f5e841f022ce14adb3535d771a844dff2f4c981c1883e3841"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSelectionState.cs",
+      "sha256": "ef792d622eca06d07e8262a2d2b3fffc0fc652f634a86995ba67f9bf6c0ecbe8"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "5dd0b5e61752752fae744cddfdd2d8dd00a5e60f9d42e8989e3039e12938c332"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Navigation.cs",
+      "sha256": "6ff074223d4ca59a20553b170a3454f15ddbba982768133a921c653eb06af525"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Navigation.cs",
+      "sha256": "f7e9f086ced51e668b6f78b6942815de96392ef5538cd90283fd4c8d1d2ae875"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.NavigationAtomic.cs",
+      "sha256": "ec096ecee93e43d3b9c3f656907dfb1f586421e4e55f14a1203d2dc238fd39e3"
+    },
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "7d42a5b969457061e1cc46ce3b5ed6a375c140c9677c7c8e063b6357c94118d7"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-render-windows-r48.tgz",
+      "sha256": "cd8176d6d651cc186d6ea2c2d93913a3f4dc012f59351dca1367a575b351d4f9"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r48.tgz",
+      "sha256": "312473a1808300c36e8a4b2688eb0404ff50959a4786c7be16cf5378f0409265"
+    },
+    {
+      "path": ".tmp/dsa-render-linux-r48.tgz",
+      "sha256": "392bf700e93581394c5302514a41adf2ed2e075db9d59af433dbb1af1139895e"
+    },
+    {
+      "path": ".tmp/dsa-tree-r47.tgz",
+      "sha256": "e17eac605ea803f06c6f9ae248b736ca541c76857e0771618afa0d7aae9ded57"
+    },
+    {
+      "path": ".tmp/desktop-r47-mac.tgz",
+      "sha256": "a900ce50b6feecc6b81cdbccac2734f47eb7d02b426ff8011e44261d5139e18c"
+    },
+    {
+      "path": ".tmp/desktop-r47-linux.tgz",
+      "sha256": "32ca741efa72be7beedc944ee21214fde7119833841c3af4db4743697520a1a7"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".tmp/render-r48-mac/FileCat.Core.dll",
+      "sha256": "4d70cff57bdeb1e57daa838513fbe142a426f4600a192cc2a36f6688c731e2e7"
+    },
+    {
+      "path": ".tmp/render-r48-mac/FileCat.dll",
+      "sha256": "63f9428379325f3b6e87a9b3b7bc2aa4a63a4efdba111c168017e9ff74d10889"
+    },
+    {
+      "path": ".tmp/render-r48-mac/FileCat.Rendering.Tests.dll",
+      "sha256": "5c70dd044738818fd20fb044c43517b049cca42b8e458802851c2959c87d0d26"
+    },
+    {
+      "path": ".tmp/desktop-r47-mac/FileCat.Core.dll",
+      "sha256": "8c9cf9a5dd63739783689811e499ccab3cf1d5fc5826ba55785331a6d7418b77"
+    },
+    {
+      "path": ".tmp/desktop-r47-mac/FileCat.dll",
+      "sha256": "eff1f3a20a037eb66cfa2103b77a9d7dbb3d303accaa26cdf74af9fbd6f90146"
+    },
+    {
+      "path": ".tmp/desktop-r47-mac/DiskSpaceHarness.dll",
+      "sha256": "95f53d76249d5890ca0f2f4cc331848c62e7e5ed3614f97e37a4691ecfccaadb"
+    },
+    {
+      "path": ".tmp/desktop-r47-linux/FileCat.Core.dll",
+      "sha256": "0bf45a9fa1d5839b0307630c69032f6ce925adb5154c627bb835dba6e9cc6c06"
+    },
+    {
+      "path": ".tmp/desktop-r47-linux/FileCat.dll",
+      "sha256": "3300531702c98b1bfee78cc7c1e72a93de6e47fa7d54e9819da123c041f2f507"
+    },
+    {
+      "path": ".tmp/desktop-r47-linux/DiskSpaceHarness.dll",
+      "sha256": "9a2aa1e7494c2a7eebc23e448d2b7bf0596a2fcb0f3b102a3864cbce8554c5e1"
+    },
+    {
+      "path": ".tmp/tree-r47/FileCat.Core.Tests.dll",
+      "sha256": "71120fcc92b031ba056dc42dc12f8325fbb881e1ee28545d703b2728c4103164"
+    },
+    {
+      "path": ".tmp/tree-r47/FileCat.Core.dll",
+      "sha256": "4d70cff57bdeb1e57daa838513fbe142a426f4600a192cc2a36f6688c731e2e7"
+    }
+  ],
+  "nativeAcceptance": "Mac AX/keyboard and Ubuntu pointer/keyboard navigation/sort/mark/breadcrumb/Back subsets pass against r47 production binaries. r48 changes the pointer test synchronization only. Windows native input, complete display/a11y/theme/resource/feature qualification and final independent review remain pending."
+}

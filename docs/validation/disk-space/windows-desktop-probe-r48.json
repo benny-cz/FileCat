@@ -1,0 +1,14 @@
+﻿{
+    "schemaVersion":  1,
+    "purpose":  "Read-only guest desktop/account probe; no input or authentication",
+    "user":  "DESKTOP-A60F1NE\\filecatdsa_r2",
+    "processSession":  2,
+    "activeConsoleSession":  2,
+    "threadDesktop":  "Default",
+    "inputDesktop":  "Default",
+    "inputDesktopError":  0,
+    "consoleUser":  "DESKTOP-A60F1NE\\filecatdsa_r2",
+    "fileCatProcesses":  [
+
+                         ]
+}

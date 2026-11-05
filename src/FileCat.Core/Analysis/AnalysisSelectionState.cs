@@ -6,15 +6,22 @@ namespace FileCat.Core.Analysis;
 public sealed class AnalysisSelectionState
 {
     private ImmutableHashSet<ulong> _marks = [], _basket = [];
-    private readonly Stack<string> _back = [], _forward = [];
+    private readonly LinkedList<string> _back = [], _forward = [];
     public string Scope { get; private set; } = AnalysisTree.RootKey;
     public string? Focus { get; private set; }
+    public string? BackScope => _back.Last?.Value;
+    public string? ForwardScope => _forward.Last?.Value;
     public ImmutableHashSet<ulong> Marks => _marks;
     public ImmutableHashSet<ulong> Basket => _basket;
     public void SetFocus(string key) => Focus = key;
-    public void Navigate(string scope) { if (scope == Scope) return; _back.Push(Scope); _forward.Clear(); Scope = scope; }
-    public void Back() { if (_back.TryPop(out string? previous)) { _forward.Push(Scope); Scope = previous; } }
-    public void Forward() { if (_forward.TryPop(out string? next)) { _back.Push(Scope); Scope = next; } }
+    private static void Push(LinkedList<string> history, string scope)
+    {
+        history.AddLast(scope);
+        if (history.Count > AnalysisLimits.NavigationHistory) history.RemoveFirst();
+    }
+    public void Navigate(string scope) { if (scope == Scope) return; Push(_back, Scope); _forward.Clear(); Scope = scope; }
+    public void Back() { if (_back.Last is { } previous) { _back.RemoveLast(); Push(_forward, Scope); Scope = previous.Value; } }
+    public void Forward() { if (_forward.Last is { } next) { _forward.RemoveLast(); Push(_back, Scope); Scope = next.Value; } }
     public void ToggleMark(ulong id)
     {
         if (id == 0) throw new ArgumentException("A real observation id is required.", nameof(id));

@@ -197,7 +197,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
                 var projection = filtered ? AnalysisAggregate.Project(s, metric, Matches, token, directoryFilter) : all;
                 projection = projection with { UnknownFilterNodes = unknown.ToImmutable(), IncludesUnknownFilterResults = filtered && showUnknown, FilterText = query };
                 var tree = AnalysisTree.Build(s, projection, filtered, token);
-                nextOrder = AnalysisTableOrder.Apply(tree.ChildrenOf(scope), sort, descending, token);
+                nextOrder = _orderRows(tree.ChildrenOf(scope), sort, descending, token);
                 return (Tree: tree, Order: nextOrder);
             }, token);
             if (_disposed || token.IsCancellationRequested || generation != _generation || built is null) { nextLease?.Dispose(); nextOrder?.Dispose(); return; }
@@ -205,7 +205,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
             {
                 scope = Selection.Scope; string requestedScope = scope;
                 nextOrder?.Dispose(); nextOrder = null;
-                nextOrder = await Task.Run(() => AnalysisTableOrder.Apply(built.Value.Tree.ChildrenOf(requestedScope), sort, descending, token), token);
+                nextOrder = await Task.Run(() => _orderRows(built.Value.Tree.ChildrenOf(requestedScope), sort, descending, token), token);
                 built = (built.Value.Tree, nextOrder);
             }
             if (_disposed || token.IsCancellationRequested || Sort != sort || SortDescending != descending) { nextLease?.Dispose(); nextOrder?.Dispose(); return; }
@@ -254,31 +254,47 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         if (toggleMark && Tree?.Items.GetValueOrDefault(key)?.NodeId is { } id)
         { try { Selection.ToggleMark(id); } catch (InvalidOperationException ex) { SetStatus(ex.Message); } }
         if (open && Tree is { } tree && (key.StartsWith("other:", StringComparison.Ordinal) || tree.Items.GetValueOrDefault(key) is { } item && (item.Kind == AnalysisKind.Directory || item.Members.Length > 0)))
-        { Selection.Navigate(key); RefreshRows(); }
+        { NavigateRows(key, () => Selection.Navigate(key)); }
         Changed?.Invoke();
     }
-    public void Parent() { if (Tree is { } tree) { Selection.Navigate(tree.ParentOf(Selection.Scope)); RefreshRows(); } }
-    public void Back() { Selection.Back(); RefreshRows(); }
-    public void Forward() { Selection.Forward(); RefreshRows(); }
-    private async void RefreshRows()
+    public void Parent() { if (Tree is { } tree) { string parent = tree.ParentOf(Selection.Scope); NavigateRows(parent, () => Selection.Navigate(parent)); } }
+    public void Back() { if (Selection.BackScope is { } scope) NavigateRows(scope, Selection.Back); else _rowOrderCancel?.Cancel(); }
+    public void Forward() { if (Selection.ForwardScope is { } scope) NavigateRows(scope, Selection.Forward); else _rowOrderCancel?.Cancel(); }
+    private async void NavigateRows(string scope, Action commit)
     {
-        var tree = Tree; string scope = Selection.Scope; var sort = Sort; bool descending = SortDescending;
-        if (tree is null) return;
+        _rowOrderCancel?.Cancel();
+        var tree = Tree; string previousScope = Selection.Scope; var sort = Sort; bool descending = SortDescending;
+        if (_disposed || tree is null || scope == previousScope) return;
+        if (!tree.Items.ContainsKey(scope) && !scope.StartsWith("other:", StringComparison.Ordinal))
+        { SetStatus("That captured location is no longer present in this revision."); return; }
         // Navigation can outlive the tab while its actual CPU worker unwinds cancellation.
         using var retained = _lease?.Retain();
-        _rowOrderCancel?.Cancel(); var cancellation = new CancellationTokenSource(); _rowOrderCancel = cancellation;
+        var cancellation = new CancellationTokenSource(); _rowOrderCancel = cancellation;
         AnalysisOrderedRows? order = null;
+        // Keep chart/table/breadcrumb/history on one published scope until actual admission
+        // succeeds. Incoming scan revisions stay pending during this CPU interaction.
+        Interaction(true);
         try
         {
-            order = await Task.Run(() => AnalysisTableOrder.Apply(tree.ChildrenOf(scope), sort, descending, cancellation.Token), cancellation.Token);
-            if (_disposed || cancellation.IsCancellationRequested || Tree != tree || Selection.Scope != scope || Sort != sort || SortDescending != descending) return;
+            while (true)
+            {
+                order = await Task.Run(() => _orderRows(tree.ChildrenOf(scope), sort, descending, cancellation.Token), cancellation.Token);
+                if (_disposed || cancellation.IsCancellationRequested || Tree != tree || Selection.Scope != previousScope) return;
+                if (Sort == sort && SortDescending == descending) break;
+                order.Dispose(); order = null; sort = Sort; descending = SortDescending;
+            }
+            commit();
             var previous = _orderedRows; _orderedRows = order; Rows = order.Rows; order = null;
-            try { Changed?.Invoke(); } finally { previous?.Dispose(); }
+            try { SetStatus("Viewing captured location: " + AnalysisNames.Display(tree.NameOf(scope), 120) + "."); } finally { previous?.Dispose(); }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is InvalidDataException or OverflowException or InvalidOperationException)
         { SetStatus("This scope could not be displayed: " + AnalysisNames.Display(ex.Message, 240)); }
-        finally { order?.Dispose(); if (ReferenceEquals(_rowOrderCancel, cancellation)) _rowOrderCancel = null; cancellation.Dispose(); }
+        finally
+        {
+            order?.Dispose(); if (ReferenceEquals(_rowOrderCancel, cancellation)) _rowOrderCancel = null;
+            cancellation.Dispose(); Interaction(false);
+        }
     }
     public void ToggleFocusedMark() { if (Selection.Focus is { } key) Focus(key, toggleMark: true); }
     public void MarkCurrentMembers()

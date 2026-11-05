@@ -11,6 +11,10 @@ public sealed partial class DiskSpaceViewModel
     public bool SortDescending { get; set; } = true;
     private AnalysisOrderedRows? _orderedRows;
     private CancellationTokenSource? _rowOrderCancel;
+    private readonly Func<ImmutableArray<AnalysisTreeItem>, AnalysisTableSort, bool, CancellationToken, AnalysisOrderedRows> _orderRows = AnalysisTableOrder.Apply;
+    internal DiskSpaceViewModel(AnalysisSnapshot observations,
+        Func<ImmutableArray<AnalysisTreeItem>, AnalysisTableSort, bool, CancellationToken, AnalysisOrderedRows> orderRows) : this(observations)
+    { _orderRows = orderRows ?? throw new ArgumentNullException(nameof(orderRows)); }
     public ImmutableArray<AnalysisBreadcrumb> Breadcrumbs
     {
         get
@@ -33,6 +37,6 @@ public sealed partial class DiskSpaceViewModel
     public void NavigateToScope(string key)
     {
         if (_disposed || Tree is not { } tree || !Breadcrumbs.Any(part => part.Key == key)) return;
-        Selection.Navigate(key); RefreshRows();
+        NavigateRows(key, () => Selection.Navigate(key));
     }
 }

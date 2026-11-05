@@ -21,25 +21,34 @@ public sealed partial class AnalysisRenderingTests
     {
         foreach (int pointerX in new[] { 20, 65 })
         {
-        using var styles = new ProductStyles(); using var model = new DiskSpaceViewModel(Fixture());
-        await model.RebuildAsync(true); var window = new DiskSpaceWindow { Height = 960 }; window.AddSession(model); window.Show();
-        try
-        {
-            Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
-            var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Ranked analysis entries");
-            var row = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
-            var point = row.TranslatePoint(new Point(pointerX, 15), window)!.Value;
-            window.MouseMove(point); window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left);
-            Assert.Equal("n:1", model.Selection.Focus); Assert.True(list.IsKeyboardFocusWithin);
-            bool marked = model.Selection.Marks.Contains(1ul);
-            window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, null);
-            window.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, null);
-            Assert.Equal(!marked, model.Selection.Marks.Contains(1ul));
-            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
-            window.KeyRelease(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
-            await Until(() => model.Selection.Scope == "n:1");
-        }
-        finally { window.ForceClose(); }
+            using var styles = new ProductStyles(); using var model = new DiskSpaceViewModel(Fixture());
+            await model.RebuildAsync(true); var prepared = model.Tree;
+            var window = new DiskSpaceWindow { Height = 960 }; window.AddSession(model); window.Show();
+            try
+            {
+                // Opening attaches the session and publishes a fresh projection. Render its actual
+                // frame before observing a point; an old renderer hit tree can miss a newer row.
+                await Until(() => !ReferenceEquals(model.Tree, prepared));
+                Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+                AvaloniaHeadlessPlatform.ForceRenderTimerTick(2);
+                var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Ranked analysis entries");
+                var row = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
+                var point = row.TranslatePoint(new Point(pointerX, row.Bounds.Height / 2), window)!.Value;
+                var hit = window.InputHitTest(point) as Visual;
+                Assert.True(hit == row || hit?.GetVisualAncestors().Contains(row) == true,
+                    $"Pointer {point} missed row {row.Bounds} in list {list.Bounds}/client {window.ClientSize}; hit {hit?.GetType().Name}.");
+                window.MouseMove(point); window.MouseDown(point, MouseButton.Left); window.MouseUp(point, MouseButton.Left);
+                Assert.Equal("n:1", model.Selection.Focus); Assert.True(list.IsKeyboardFocusWithin);
+                Assert.Equal(pointerX == 20, window.FocusManager?.GetFocusedElement() is CheckBox);
+                bool marked = model.Selection.Marks.Contains(1ul);
+                window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, null);
+                window.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, null);
+                Assert.Equal(!marked, model.Selection.Marks.Contains(1ul));
+                window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+                window.KeyRelease(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+                await Until(() => model.Selection.Scope == "n:1");
+            }
+            finally { window.ForceClose(); }
         }
     }
     [AvaloniaFact]
@@ -78,7 +87,8 @@ public sealed partial class AnalysisRenderingTests
     public async Task SortAndBreadcrumbNavigationPreserveCapturedFocusMarksAndBasket()
     {
         using var styles = new ProductStyles(); using var model = new DiskSpaceViewModel(Fixture());
-        await model.RebuildAsync(true); model.Focus("n:2", open: true); model.Focus("n:4", toggleMark: true); model.StageSelection();
+        await model.RebuildAsync(true); model.Focus("n:2", open: true); await Until(() => model.Selection.Scope == "n:2");
+        model.Focus("n:4", toggleMark: true); model.StageSelection();
         var window = new DiskSpaceWindow(); window.AddSession(model); window.Show();
         try
         {
@@ -110,6 +120,7 @@ public sealed partial class AnalysisRenderingTests
         using var styles = new ProductStyles();
         var snapshot = Fixture() with { Nodes = Enumerable.Range(1, 9).Select(i => new AnalysisNode((ulong)i, "r", (ulong)(i - 1), "Level " + i, AnalysisKind.Directory)).ToImmutableArray(), Objects = [], Facts = [], Issues = [] };
         using var model = new DiskSpaceViewModel(snapshot); await model.RebuildAsync(true); model.Focus("n:9", open: true);
+        await Until(() => model.Selection.Scope == "n:9");
         var window = new DiskSpaceWindow { Width = 380, Height = 430 }; window.AddSession(model); window.Show();
         try
         {
