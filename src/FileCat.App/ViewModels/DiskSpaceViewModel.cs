@@ -13,6 +13,9 @@ public sealed class DiskSpaceViewModel : IDisposable
 {
     private readonly AppServices? _services;
     private readonly TimeZoneInfo? _zone;
+    private readonly Func<string, IAnalysisBackend> _prepareSource = Prepare;
+    private CancellationTokenSource? _preparationCancel;
+    private string? _preparationDevice;
     private AnalysisSession? _session;
     private AnalysisSnapshotLease? _lease;
     private AnalysisSnapshot? _observation;
@@ -41,7 +44,9 @@ public sealed class DiskSpaceViewModel : IDisposable
     public bool HasTemporaryWork => !_disposed && (IsPreparing || _session is not null || _prepared.Count > 0 || Selection.Marks.Count > 0 || Selection.Basket.Count > 0 ||
         _observation is { Origin: AnalysisOrigin.LiveSession, Persistence: AnalysisPersistence.Temporary });
     public event Action? Changed;
-    public DiskSpaceViewModel(AppServices services) { _services = services; _zone = TimeZoneInfo.Local; }
+    public DiskSpaceViewModel(AppServices services) : this(services, Prepare) { }
+    internal DiskSpaceViewModel(AppServices services, Func<string, IAnalysisBackend> prepare)
+    { _services = services; _zone = TimeZoneInfo.Local; _prepareSource = prepare; }
     public DiskSpaceViewModel(AnalysisSnapshot observations)
     {
         _observation = observations; Phase = observations.Phase;
@@ -56,7 +61,19 @@ public sealed class DiskSpaceViewModel : IDisposable
         if (roots.Count is < 1 or > AnalysisLimits.Roots || roots.Any(string.IsNullOrWhiteSpace))
         { SetStatus("Choose between one and 32 explicit locations."); return; }
         if (AnalysisAdmission.Refusal() is { } refusal) { SetStatus(refusal); return; }
+        using var preparation = new CancellationTokenSource(); _preparationCancel = preparation;
         IsPreparing = true; SetStatus("Binding the selected locations…");
+        void HealthChanged(string device, DeviceHealth health)
+        {
+            if (health != DeviceHealth.NotResponding) return;
+            _services.Ui.Post(() =>
+            {
+                if (_disposed || !ReferenceEquals(_preparationCancel, preparation) || device != _preparationDevice) return;
+                preparation.Cancel();
+                SetStatus("Location binding stopped because the device is not responding. Its native request remains owned until it returns.");
+            });
+        }
+        _services.Io.HealthChanged += HealthChanged;
         try
         {
             if (!_preparedInput.SequenceEqual(roots, StringComparer.Ordinal) || _prepared.Count != roots.Count)
@@ -64,9 +81,12 @@ public sealed class DiskSpaceViewModel : IDisposable
                 ReleasePrepared();
                 foreach (string path in roots)
                 {
+                    preparation.Token.ThrowIfCancellationRequested();
                     string requested = Path.GetFullPath(path);
-                    var source = await AnalysisIo.Run(_services.Io, PathUtil.GetDeviceKey(requested), _ => Prepare(requested));
-                    if (_disposed) { _ = ReleasePreparedSourceAsync(source); return; }
+                    _preparationDevice = PathUtil.GetDeviceKey(requested);
+                    var source = await AnalysisIo.Run(_services.Io, _preparationDevice, _ => _prepareSource(requested), preparation.Token);
+                    if (_disposed || preparation.IsCancellationRequested)
+                    { _ = ReleasePreparedSourceAsync(source); preparation.Token.ThrowIfCancellationRequested(); return; }
                     _prepared.Add(source);
                 }
                 _preparedInput = roots.ToImmutableArray();
@@ -74,14 +94,22 @@ public sealed class DiskSpaceViewModel : IDisposable
                 bool changed = _prepared.Where((p, i) => !SameLocator(p.Root.CanonicalLocator, Path.GetFullPath(roots[i]))).Any();
                 if (changed) { SetStatus("Review the resolved locations shown below, then choose Start analysis again to use those captured targets."); return; }
             }
+            preparation.Token.ThrowIfCancellationRequested();
             _session?.Dispose();
             _session = new AnalysisCoordinator(_services.Io).Start(_prepared.ToArray(), new LatestProgress(_services.Ui, UpdateProgress), Components);
             _prepared.Clear(); _preparedInput = []; Phase = AnalysisPhase.Scanning; Dirty = true;
             SetStatus("Scanning metadata. Known results so far; allocation can share physical blocks.");
         }
+        catch (OperationCanceledException) when (preparation.IsCancellationRequested)
+        { ReleasePrepared(); SetStatus("Location binding stopped. No new scan was started."); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException)
         { ReleasePrepared(); SetStatus("Analysis could not start: " + AnalysisNames.Display(ex.Message, 500)); }
-        finally { IsPreparing = false; Changed?.Invoke(); }
+        finally
+        {
+            _services.Io.HealthChanged -= HealthChanged;
+            if (ReferenceEquals(_preparationCancel, preparation)) { _preparationCancel = null; _preparationDevice = null; }
+            IsPreparing = false; Changed?.Invoke();
+        }
     }
     private static IAnalysisBackend Prepare(string path) => OperatingSystem.IsWindows()
         ? new FileCat.Platform.Windows.Analysis.WindowsAnalysisBackend(path) : new UnixAnalysisBackend(path);
@@ -97,7 +125,14 @@ public sealed class DiskSpaceViewModel : IDisposable
         SetStatus($"{progress.Phase} · {progress.ObservedPaths:N0} observed paths · {progress.Issues:N0} issues. Values are observations over time.");
     }
     public void PauseOrResume() { if (Phase == AnalysisPhase.Paused || Phase == AnalysisPhase.Pausing) _session?.Resume(); else _session?.Pause(); }
-    public void Stop() => _session?.Stop();
+    public void Stop()
+    {
+        if (_preparationCancel is { } preparation)
+        {
+            preparation.Cancel(); SetStatus("Stopping location binding. Waiting for its native request to return…");
+        }
+        _session?.Stop();
+    }
     public void SetStatus(string text) { if (_disposed) return; Status = text; Changed?.Invoke(); }
     public async Task RebuildAsync(bool force = false)
     {
@@ -277,6 +312,22 @@ public sealed class DiskSpaceViewModel : IDisposable
         : item.Unknown && item.Value == 0 ? "Unknown" : metric == AnalysisMetric.Files ? item.Value.ToString(exact ? "0" : "N0", exact ? CultureInfo.InvariantCulture : CultureInfo.CurrentCulture)
         : (exact ? item.Value.ToString(CultureInfo.InvariantCulture) + " bytes" : Bytes(item.Value)) +
         (item.IdentityUnverified > 0 ? " · unverified" : item.Unknown ? " known" : "");
+    public string ScopeSummary
+    {
+        get
+        {
+            if (Tree is not { } tree) return "No measurements yet";
+            string label = tree.Projection.Metric switch { AnalysisMetric.FileSize => "File size", AnalysisMetric.UniqueFileSize => "Verified unique file size",
+                AnalysisMetric.OnDisk => "On disk — reported", _ => "Files" };
+            if (tree.Projection.Metric == AnalysisMetric.OnDisk && !tree.Projection.Totals.CompatibleBasis)
+                return label + ": allocation bases differ; no combined total.";
+            string scope = Selection.Scope; UInt128 value = tree.ScopeValue(scope); var item = tree.Items.GetValueOrDefault(scope);
+            string amount = item is not null && item.IdentityUnverified > 0
+                ? $"{Bytes(value - item.IdentityUnverified)} known with verified identities + {Bytes(item.IdentityUnverified)} reported for identity-unverified paths"
+                : (tree.Projection.Metric == AnalysisMetric.Files ? value.ToString("N0", CultureInfo.CurrentCulture) + (value == 1 ? " file" : " files") : Bytes(value)) + " known";
+            return label + ": " + amount + (item is null ? "" : $" · {item.Files:N0} observed file " + (item.Files == 1 ? "path" : "paths")) + (item?.Unknown == true ? " · partial" : "");
+        }
+    }
     public static string Bytes(UInt128 bytes)
     {
         string[] units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"];
@@ -286,7 +337,7 @@ public sealed class DiskSpaceViewModel : IDisposable
     }
     private void ReleasePrepared()
     {
-        var owned = _prepared.ToArray(); _prepared.Clear(); _preparedInput = [];
+        var owned = _prepared.ToArray(); _prepared.Clear(); _preparedInput = []; ResolvedTargets = null;
         foreach (var source in owned) _ = ReleasePreparedSourceAsync(source);
     }
     private async Task ReleasePreparedSourceAsync(IAnalysisBackend source)
@@ -301,6 +352,7 @@ public sealed class DiskSpaceViewModel : IDisposable
     public void Dispose()
     {
         if (_disposed) return; _disposed = true; ++_generation;
+        _preparationCancel?.Cancel();
         _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _session?.Dispose(); ReleasePrepared(); _lease?.Dispose(); _pending?.Lease?.Dispose();
         Tree = null; Rows = []; _observation = null; _pending = null; Changed = null;
     }

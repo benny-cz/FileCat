@@ -309,7 +309,9 @@ public sealed class DiskSpaceWindow : Window
                 _setupViewport.IsVisible = Model.Phase == AnalysisPhase.Ready; _roots.IsEnabled = !Model.IsPreparing; _start.IsEnabled = !Model.IsPreparing;
                 _components.IsEnabled = !Model.IsPreparing && Model.Phase == AnalysisPhase.Ready;
                 _resolved.Text = Model.ResolvedTargets; _status.Text = Model.Status; _error.Text = Model.FilterError; _error.IsVisible = Model.FilterError is not null;
-                _pause.IsEnabled = Model.Running; _stop.IsEnabled = Model.Running; _pause.Content = Model.Phase is AnalysisPhase.Paused or AnalysisPhase.Pausing ? "Resume" : "Pause";
+                _pause.IsEnabled = Model.Running; _stop.IsEnabled = Model.Running || Model.IsPreparing;
+                _stop.Content = Model.IsPreparing ? "Stop binding" : "Stop";
+                _pause.Content = Model.Phase is AnalysisPhase.Paused or AnalysisPhase.Pausing ? "Resume" : "Pause";
                 var tree = Model.Tree;
                 if (tree is not null && !_shownRoots.Equals(tree.Snapshot.Roots))
                 {
@@ -321,9 +323,7 @@ public sealed class DiskSpaceWindow : Window
                 _unknown.IsVisible = tree is not null && (tree.Projection.UnknownFilterNodes.Count > 0 || tree.Projection.IncludesUnknownFilterResults);
                 _unknown.Content = tree?.Projection.IncludesUnknownFilterResults == true ? "Show confirmed matches" : $"Inspect {tree?.Projection.UnknownFilterNodes.Count ?? 0:N0} uncertain results";
                 _scope.Text = tree is null ? "Captured scope appears here after Start." : AnalysisNames.Display(tree.NameOf(Model.Selection.Scope));
-                _summary.Text = tree is null ? "No measurements yet" : $"{MetricName(tree.Projection.Metric)}: {tree.ScopeValue(Model.Selection.Scope)} known · {tree.Projection.Totals.MatchingPaths:N0} matching file paths";
-                if (tree?.Items.GetValueOrDefault(Model.Selection.Scope) is { } scopeItem && scopeItem.IdentityUnverified > 0)
-                    _summary.Text = $"{MetricName(tree.Projection.Metric)}: {scopeItem.Value - scopeItem.IdentityUnverified} known with verified identities + {scopeItem.IdentityUnverified} identity-unverified path bytes";
+                _summary.Text = Model.ScopeSummary;
                 _coverage.Text = tree is null ? "Unknown, unavailable and zero remain separate." :
                     (tree.Snapshot.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Traversal complete under the captured policy" : "Traversal has gaps") +
                     (tree.Snapshot.Freshness == AnalysisFreshness.Observed ? ". Observed metadata over time." : ". The source may have changed or become unavailable.") +
@@ -440,7 +440,6 @@ public sealed class DiskSpaceWindow : Window
             }
             e.Handled = handled;
         }
-        private static string MetricName(AnalysisMetric metric) => metric switch { AnalysisMetric.FileSize => "File size", AnalysisMetric.UniqueFileSize => "Verified unique file size", AnalysisMetric.OnDisk => "On disk — reported", _ => "Files" };
         public void Dispose()
         {
             if (_disposed) return; _disposed = true; _timer.Stop(); _filterTimer.Stop(); Model.Changed -= Refresh;

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native desktop development validation; no capability qualification",
+  "state": "closed",
+  "sourceUnchanged": true,
+  "deadlineClosed": false,
+  "processId": 134706,
+  "platform": "Ubuntu 24.04.5 LTS",
+  "architecture": "X64",
+  "run": "/home/benny/FileCatValidation/dsa-20261105-r25/desktop/native-validation/dsa-fb5e80ea058a4241bcba7e0744c1e681",
+  "fixture": "/home/benny/FileCatValidation/dsa-20261105-r25/desktop/native-validation/dsa-fb5e80ea058a4241bcba7e0744c1e681/fixture",
+  "fixtureRegularPaths": 509,
+  "fixtureLimitations": [],
+  "nativeWindowVisible": false,
+  "lastVisibleWidth": 1180,
+  "lastVisibleHeight": 731,
+  "lastVisibleScale": 1,
+  "sessions": 0,
+  "createdSessions": 1,
+  "lastObservation": {
+    "Phase": 5,
+    "Status": "Finished \u00B7 518 observed paths \u00B7 1 issues. Values are observations over time.",
+    "FilterError": null,
+    "Query": "large-link",
+    "Metric": 2,
+    "session": "66f1951b-94c5-4a53-be9d-a8670f7e0009",
+    "Coverage": 0,
+    "Freshness": 0,
+    "paths": 518,
+    "objects": 508,
+    "issues": [
+      {
+        "Code": "navigation-link-not-followed",
+        "State": 3
+      }
+    ],
+    "known": "1048576",
+    "unverified": "0",
+    "matchingPaths": 1,
+    "rows": 1,
+    "focus": "shared:n:1",
+    "marked": 0,
+    "basket": 0
+  },
+  "appSha256": "9c472721a4a1aab4abb3b7a7082e694b9d750ea4f100996d4a687a5d369bd191",
+  "harnessSha256": "08d962171ab668d5466ccf2594cda194f98c0c11458e5aebe5978986ecd45582"
+}

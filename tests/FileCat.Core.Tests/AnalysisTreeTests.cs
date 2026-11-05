@@ -93,6 +93,46 @@ public sealed class AnalysisTreeTests
         Assert.True(tree.Items["n:4"].SharedElsewhere);
         Assert.Equal(new ulong[] { 4 }, tree.CaptureMembers("shared:n:1"));
         Assert.Equal(new ulong[] { 4, 5 }, tree.CaptureMembers("shared:n:1", false));
+        Assert.Equal("x.bin", Assert.Single(tree.ChildrenOf("shared:n:1")).Name);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SharedBucketShowsMatchingPathStatisticsWithoutAddingThemTwice(bool filtered)
+    {
+        var s = AnalysisAccountingTests.Golden(); var token = TestContext.Current.CancellationToken;
+        var projection = AnalysisAggregate.Project(s, AnalysisMetric.OnDisk, filtered ? (n, _) => n.Name == "x.bin" : null, token);
+        var tree = AnalysisTree.Build(s, projection, filtered, token); var bucket = tree.Items["shared:n:1"];
+        Assert.Equal((UInt128)80, bucket.Value); Assert.Equal(filtered ? 1ul : 2ul, bucket.Files);
+        Assert.Equal((UInt128)(filtered ? 100 : 200), bucket.LogicalSize); Assert.False(bucket.LogicalUnknown);
+        Assert.Equal((UInt128)(filtered ? 100 : 220), tree.Items[AnalysisTree.RootKey].LogicalSize);
+        Assert.Equal(filtered ? 1ul : 3ul, tree.Items[AnalysisTree.RootKey].Files);
+        Assert.Equal((UInt128)80, tree.Items[AnalysisTree.RootKey].Value);
+    }
+
+    [Fact]
+    public void SharedBucketRetainsUnknownLogicalLengthIndependentlyOfItsKnownAllocation()
+    {
+        var s = AnalysisAccountingTests.Golden(); var token = TestContext.Current.CancellationToken;
+        s = s with { Objects = s.Objects.SetItem(0, s.Objects[0] with { LogicalLength = AnalysisMeasurement.Missing(MeasurementState.Failed) }) };
+        var tree = AnalysisTree.Build(s, AnalysisAggregate.Project(s, AnalysisMetric.OnDisk, cancellation: token), false, token);
+        var bucket = tree.Items["shared:n:1"];
+        Assert.Equal((UInt128)80, bucket.Value); Assert.Equal(2ul, bucket.Files);
+        Assert.True(bucket.LogicalUnknown); Assert.Equal((UInt128)0, bucket.LogicalSize);
+        Assert.Equal((UInt128)20, tree.Items[AnalysisTree.RootKey].LogicalSize); Assert.True(tree.Items[AnalysisTree.RootKey].LogicalUnknown);
+    }
+
+    [Fact]
+    public void DirectorySelfAllocationDoesNotClaimItsSubtreeAsFileMembers()
+    {
+        var s = AnalysisAccountingTests.Golden(); var token = TestContext.Current.CancellationToken;
+        s = s with { Facts = s.Facts.Add(new("directory", null, 1, "directory-self", "fixture-v1", AnalysisMeasurement.Known(8), "fixture", DateTimeOffset.UnixEpoch, [])) };
+        var tree = AnalysisTree.Build(s, AnalysisAggregate.Project(s, AnalysisMetric.OnDisk, cancellation: token), false, token);
+        var self = tree.Items["directory:n:1"];
+        Assert.Equal((UInt128)8, self.Value); Assert.Equal(0ul, self.Files); Assert.Equal((UInt128)0, self.LogicalSize);
+        Assert.Equal(3ul, tree.Items[AnalysisTree.RootKey].Files); Assert.Equal((UInt128)220, tree.Items[AnalysisTree.RootKey].LogicalSize);
+        Assert.Equal((UInt128)88, tree.Items[AnalysisTree.RootKey].Value);
     }
 
     [Fact]

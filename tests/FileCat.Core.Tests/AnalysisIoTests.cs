@@ -3,6 +3,10 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Tests;
 
+[CollectionDefinition("Analysis I/O capacity", DisableParallelization = true)]
+public sealed class AnalysisIoCapacityCollection;
+
+[Collection("Analysis I/O capacity")]
 public sealed class AnalysisIoTests
 {
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -58,11 +62,12 @@ public sealed class AnalysisIoTests
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously); int started = 0;
         using var release = new ManualResetEventSlim();
         var work = Enumerable.Range(0, AnalysisLimits.IoRequests).Select(_ => AnalysisIo.Run(io, Key(), _ =>
-        { if (Interlocked.Increment(ref started) == AnalysisLimits.IoRequests) entered.TrySetResult(); release.Wait(TimeSpan.FromSeconds(10)); return 1; }, Cancellation)).ToArray();
+        { if (Interlocked.Increment(ref started) == AnalysisLimits.IoRequests) entered.TrySetResult(); release.Wait(TimeSpan.FromSeconds(30)); return 1; }, Cancellation)).ToArray();
         Task<int>? ninth = null; int ninthEntered = 0;
         try
         {
-            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), Cancellation);
+            // This test needs the entire process-wide capacity, so its collection excludes other analysis cases.
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10), Cancellation);
             ninth = AnalysisIo.Run(io, Key(), _ => Interlocked.Increment(ref ninthEntered), Cancellation);
             await Task.Delay(40, Cancellation); Assert.Equal(0, Volatile.Read(ref ninthEntered));
         }

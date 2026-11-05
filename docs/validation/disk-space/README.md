@@ -2,22 +2,24 @@
 
 This branch is under development. W0, W1, W2 and W3 are in progress; no release or security gate is closed. The new window is exercised directly by tests. `tools.diskSpace` is not registered in the product yet. Preview, jobs, destructive actions, content analysis and the privileged metadata helper remain off.
 
-After the other Ubuntu FileCat process exited, fresh process gates allowed ordinary-user testing to resume. The portable bundle passed native ext4 scanning, anonymous O_TMPFILE/procfs publication, Unicode names, conflict preservation, no-follow ancestry, privacy/link refusal and shared I/O lifetime controls. Existing stat clients also passed. [The Ubuntu receipt](ubuntu-native-r24.json) records matching deployed DLL hashes and a clear final FileCat process check. This is native CLI evidence; desktop input, accessibility, packaging and the broader filesystem/resource matrix remain open.
+After the other Ubuntu FileCat process exited, fresh process gates allowed ordinary-user testing to resume. The portable bundle passed native ext4 scanning, anonymous O_TMPFILE/procfs publication, Unicode names, conflict preservation, no-follow ancestry, privacy/link refusal and shared I/O lifetime controls. Existing stat clients also passed. [The Ubuntu receipt](ubuntu-native-r24.json) records matching deployed DLL hashes and a clear final FileCat process check. The subsequent native desktop run exercised Start, shared-hard-link focus/drilldown, text filtering and preserving close with real X11 input. [Its final receipt](ubuntu-native-ui-r25.json) records all 509 generated regular paths unchanged, no deadline closure and zero remaining sessions. The owned process exited. Selected screenshots and AT-SPI observations are retained; broader desktop, assistive-technology, packaging and filesystem/resource qualification remain open.
 
 ## Current evidence
 
 | Run | Result | Receipt |
 |---|---|---|
-| Full solution build | No warnings or errors | [build](solution-build-r23.txt) |
-| Windows analysis, commands and state/path cases | 208 pass, 13 platform skips | [XML](windows-core-r23.xml) |
-| Ordinary Windows host | 12 pass, no skips | [XML](windows-host-native-r23.xml) |
-| Ordinary Windows guest | 12 pass, no skips | [XML](windows-vm-native-r23.xml) |
-| macOS arm64 analysis and command cases | 203 pass, no skips | [XML](mac-core-r23.xml) |
+| Full solution build | No warnings or errors | [build](solution-build-r25.txt) |
+| Windows analysis, commands and state/path cases | 212 pass, 13 platform skips | [XML](windows-core-r25.xml) |
+| Ordinary Windows host | 12 pass, no skips | [XML](windows-host-native-r25.xml) |
+| Ordinary Windows guest | 12 pass, no skips | [XML](windows-vm-native-r25.xml) |
+| macOS arm64 analysis and command cases | 207 pass, no skips | [XML](mac-core-r25.xml) |
 | macOS shared stat consumers | 49 pass, 2 platform skips | [XML](mac-stat-consumers-r22.xml) |
-| Skia headless presentation | 8 pass | [XML](analysis-render-r23.xml) |
+| Skia headless presentation | 13 pass | [XML](analysis-render-r25.xml) |
 | macOS native startup/close only | 509 generated regular paths unchanged; owned process exited | [receipt](mac-native-startup-r20.json) |
-| Ubuntu ext4 analysis and command cases | 202 pass, 1 Darwin-only skip | [XML](ubuntu-core-r24.xml) |
+| Ubuntu ext4 analysis and command cases | 206 pass, 1 Darwin-only skip | [XML](ubuntu-core-r25.xml) |
 | Ubuntu shared stat consumers | 49 pass, 2 platform skips | [XML](ubuntu-stat-consumers-r24.xml) |
+
+The r25 change adds cancellable root preparation: Stop binding remains available while native work is outstanding, cancellation prevents later roots and scan startup, and a late returned capability closes once on a worker. Device nonresponse freezes binding without abandoning native ownership. Four headless lifecycle cases include a real watchdog timeout. Shared accounting groups now expose matching member file sizes/counts without adding them twice to ancestors; their drilldown hides filtered-out aliases. The scope summary uses byte units, local path counts and explicit unverified/basis differences. Native Ubuntu showed two shared aliases, then one after filtering, and AT-SPI reported the same labels. Its close overlay focused Keep open; Enter dismissed the overlay with the analysis intact, after which an explicit Stop and close removed the tab. Harness cleanup closed the empty native window. [Provenance](source-manifest-r25.json) identifies the tested sources and artifacts; these checks do not close a security or release gate.
 
 The Windows suite includes nine native cases and three reparse-tag classification cases. Native fixtures cover hard links, junction exclusion, queued ancestor movement, explicit hard-linked file roots, metadata access while primary content reads are denied, duplicate/contained roots in both selection orders, denied metadata with readable siblings, and exact native DOS-reserved/trailing names. The denial fixture uses an explicit native ACE because the managed Deny-rule constructor strips SYNCHRONIZE. Mac fixtures cover no-follow enumeration, ancestor movement, explicit hard-linked file roots, root overlap and unreadable-directory sibling continuation. Failure may occur before recursion on macOS, so counters distinguish metadata failure from a failed requested enumeration. These are development regressions, not the full filesystem, cloud, race or resource qualification matrix.
 
@@ -31,7 +33,7 @@ Raw display now exposes invalid Unix bytes and unpaired UTF16 units, escapes tra
 
 Detailed allocation now records directory self-allocation as independent non-file facts; Standard does not request them. Native hard-link/junction fixtures execute both presets on Windows and Mac. Object-fact indexing survives interleaved directory facts and allocation-only conflicts. Root-only namespace filters retain directory allocation, while file-name/type predicates omit those non-file buckets. Directory charges without observed identity remain labelled unverified. Independent streams/forks/xattr coverage and enrichment revisions are still unqualified; the preset does not claim full physical accounting.
 
-Traversal boundaries now have exact typed counters separate from issue severity/exclusion totals, including after the detailed issue cap. The strict inventory coverage record preserves and validates these counters. Finished temporary analyses and unsaved marks/baskets require Keep open / Stop and close review with the preserving default; tab captions are never reused after closing a middle tab. These behaviors pass headless interaction checks, with native desktop input still pending.
+Traversal boundaries now have exact typed counters separate from issue severity/exclusion totals, including after the detailed issue cap. The strict inventory coverage record preserves and validates these counters. Finished temporary analyses and unsaved marks/baskets require Keep open / Stop and close review with the preserving default; tab captions are never reused after closing a middle tab. These behaviors pass headless interaction checks and the narrow Ubuntu native close test above; the complete native desktop matrix remains pending.
 The presentation tests draw Treemap, Sunburst and Table at 1180, 600 and 380 DIP in all seven themes, at a fixed height of 780 DIP. Separate cases check 380 × 430 with 20-DIP text and 4,000 virtualized rows, keyboard opening of details and custom overlay cancellation, root-separated incompatible allocation, uncertain predicates, captured timezone, and frozen membership. The [render directory](renders) contains selected images. Broader text/DPI, actual desktop, tooltip and assistive-technology qualification remain outstanding. Headless rendering does not establish native UI acceptance.
 
 Root containment is a request to the held native sources, not a string-prefix proof. A covered root records its active binding and relative observation scope. Unverifiable overlap is excluded with partial coverage instead of being counted twice. Selection leases retain the exact published revision and frozen real members; neither these leases nor historical binding fields are operation approvals.

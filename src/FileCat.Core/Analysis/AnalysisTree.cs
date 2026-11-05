@@ -50,7 +50,7 @@ public sealed class AnalysisTree
         while (Other(key, out int skipped, out string parentKey)) { skip = checked(skip + skipped); key = parentKey; }
         if (skip > 0) return ChildrenOf(key).Skip(skip).ToImmutableArray();
         if (!Items.TryGetValue(key, out var parent)) return [];
-        var result = parent.Members.Length > 0 ? parent.Members.Select(id => Items[Key(id)]).ToImmutableArray() : parent.Children.Select(k => Items[k]).Where(n => n.Visible)
+        var result = parent.Members.Length > 0 ? parent.Members.Select(id => Items[Key(id)]).Where(n => n.Visible).ToImmutableArray() : parent.Children.Select(k => Items[k]).Where(n => n.Visible)
             .OrderBy(n => n.Unknown && n.Value == 0).ThenByDescending(n => n.Value).ThenBy(n => n.Key, StringComparer.Ordinal).ToImmutableArray();
         if (_children.Count < 512) _children.TryAdd(originalKey, result);
         return result;
@@ -131,6 +131,7 @@ public sealed class AnalysisTree
             if (!map.TryGetValue(key, out var bucket))
             {
                 bucket = new(key, parent, charge.Label, null, AnalysisKind.Special, true, true, charge.DirectorySelf ? "directory-allocation" : "shared");
+                bucket.PathMemberStatistics = !charge.DirectorySelf;
                 map.Add(key, bucket); map[parent].Children.Add(key); order.Add(key);
             }
             bucket.Value = checked(bucket.Value + charge.Value);
@@ -152,6 +153,16 @@ public sealed class AnalysisTree
             parent.Unknown |= item.Unknown; parent.SharedElsewhere |= item.SharedElsewhere; parent.Visible |= item.Visible;
             parent.LogicalUnknown |= item.LogicalUnknown;
         }
+        // Member statistics describe the matching paths inside a synthetic bucket. Populate them after the
+        // additive fold: their real namespace rows already contributed logical bytes and file counts to ancestors.
+        foreach (var bucket in map.Values.Where(i => i.PathMemberStatistics && i.Members.Count > 0))
+            foreach (ulong member in bucket.Members)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (!projection.MatchingNodes.Contains(member) || !map.TryGetValue(Key(member), out var item) || item.Files == 0) continue;
+                bucket.Logical = checked(bucket.Logical + item.Logical); bucket.Files = checked(bucket.Files + item.Files);
+                bucket.LogicalUnknown |= item.LogicalUnknown;
+            }
         return new(snapshot, projection, map.ToImmutableDictionary(p => p.Key, p => p.Value.Freeze(), StringComparer.Ordinal), filterApplied);
     }
     private sealed class Builder(string key, string parent, string name, ulong? node, AnalysisKind kind, bool synthetic, bool visible, string family)
@@ -163,6 +174,7 @@ public sealed class AnalysisTree
         public MeasurementState MetadataState = MeasurementState.Known;
         public bool IncludedByPolicy = true;
         public bool LogicalUnknown;
+        public bool PathMemberStatistics;
         public string? NameEvidence;
         public List<string> Children = [];
         public HashSet<ulong> Members = [];

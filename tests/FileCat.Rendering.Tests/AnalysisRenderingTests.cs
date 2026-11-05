@@ -20,8 +20,25 @@ using System.Collections.Immutable;
 
 namespace FileCat.Rendering.Tests;
 
-public sealed class AnalysisRenderingTests
+public sealed partial class AnalysisRenderingTests
 {
+    [AvaloniaFact]
+    public async Task ScopeSummaryKeepsLocalCountsUnitsUncertaintyAndIncompatibleBases()
+    {
+        using var model = new DiskSpaceViewModel(Fixture()); await model.RebuildAsync(true);
+        model.Selection.Navigate("n:3");
+        Assert.Contains(DiskSpaceViewModel.Bytes(32768), model.ScopeSummary); Assert.Contains("1 observed file path", model.ScopeSummary);
+        Assert.DoesNotContain("3 observed file paths", model.ScopeSummary);
+        var s = Fixture(); s = s with { Facts = s.Facts.SetItem(2, s.Facts[2] with { Measurement = AnalysisMeasurement.Known(100) }) };
+        using var unverified = new DiskSpaceViewModel(s); await unverified.RebuildAsync(true);
+        Assert.Contains("100 B reported for identity-unverified paths", unverified.ScopeSummary);
+        s = s with { Roots = s.Roots.Add(new("r2", "file", "Other", "/other", "other-device", IdentityAssurance.Verified, "Other")),
+            Nodes = s.Nodes.SetItem(2, s.Nodes[2] with { RootId = "r2", ParentId = 0 }).SetItem(4, s.Nodes[4] with { RootId = "r2" }),
+            Facts = s.Facts.SetItem(1, s.Facts[1] with { BasisId = "another-basis" }) };
+        using var incompatible = new DiskSpaceViewModel(s); await incompatible.RebuildAsync(true);
+        Assert.Contains("no combined total", incompatible.ScopeSummary); Assert.DoesNotContain("0 B", incompatible.ScopeSummary);
+    }
+
     [AvaloniaFact]
     public async Task FinishedTemporaryAnalysesDefaultToKeepOpenAndTabNamesNeverRepeat()
     {
