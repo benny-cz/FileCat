@@ -51,7 +51,7 @@ validation directories; they are not evidence of installed-package or GUI qualif
 | Windows x64 host | 506 passed, 28 skipped, 0 failed | 592 passed, 28 skipped, 0 failed (620 total) | Includes real-child TAR assessment and protocol/lifecycle adversaries; no GUI/package qualification |
 | macOS ARM64, macOS 27.0.1 / APFS | 515 passed, 19 skipped, 0 failed | 601 passed, 19 skipped, 0 failed (620 total) | Owned source checkout; SDK 10.0.101; controlled child tests do not qualify a signed confined worker |
 | Windows 11 x64 VM, build 26340 | Not replayed natively | 592 passed, 28 skipped, 0 failed (620 total) | Host-built binaries; actual .NET 10.0.14 and medium integrity verified; no GUI/package qualification |
-| Ubuntu VM | Postponed | Postponed | Another tester's pre-existing FileCat picture instance was observed; it was not stopped or modified |
+| Ubuntu VM | See later replay below | See later replay below | Initially postponed for another tester; subsequently available with explicit user authorization |
 
 The new tests include 1,000 checksum-repaired TAR mutations and 1,000 gzip mutations. These are deterministic regression
 tests, **not** coverage-guided fuzz campaigns or satisfaction of the plan's CPU-hour release floors. The foundation subset
@@ -62,7 +62,7 @@ and the runtime raw DEFLATE stream emits no payload for an entirely empty input.
 containers. A seekable captured payload view also avoids TarWriter's whole-payload buffering when its output is compressed.
 
 The later narrow ZIP publication extraction passed 52 tests with eight existing Unix-only skips on both Windows host
-and Windows VM, and all 60 on Mac. It adds two explicit-profile guard cases. Ubuntu replay remains postponed. See
+and Windows VM, and all 60 on Mac. It adds two explicit-profile guard cases. The later Ubuntu replay includes these cases. See
 [the extraction checkpoint](ZIP_PUBLICATION_EXTRACTION.md). This is a compatibility refactor, not qualification of
 the legacy pathname operations for new formats; no new profile is enabled.
 
@@ -77,9 +77,14 @@ registration.
 
 The UI guard adds nine headless cases. Its final affected UI replay passes 253 with two skips on both host and Windows
 VM, and 249 with six skips on Mac (255 total in each environment). Stale rows cannot enter generic archive cleanup,
-transfer retry or unresolved tracking closure, and reports do not open archive artifact content. The user has been asked
-whether the other Ubuntu tester is finished; until a reply authorizes closing that tester's instances or they exit,
-Ubuntu testing remains postponed.
+transfer retry or unresolved tracking closure, and reports do not open archive artifact content.
+
+After the user's explicit authorization to stop the existing Ubuntu picture-test instances, the broader native Ubuntu
+replay passed: original Core baseline 596 passed / five skipped (601 total), current Core 721 passed / five skipped
+(726 total); baseline headless recovery UI 240 passed / six skipped (246 total), current UI 249 passed / six skipped
+(255 total). No failures. These are separate owned source builds on Ubuntu/ext4, SDK 10.0.101 with serviced CoreCLR
+10.0.14. See [the Ubuntu checkpoint](UBUNTU_REGRESSION_CHECKPOINT.md) for source/artifact hashes, setup details and limits.
+All test and private SDK build-node processes were closed; no new profile or native publication capability was enabled.
 
 The Windows native worker lane now separately passes **25/25**: twelve archive authority/resource/lifetime/assessment
 cases and thirteen existing restricted-worker regressions. The tracked runner was exercised successfully on the guest. A healthy

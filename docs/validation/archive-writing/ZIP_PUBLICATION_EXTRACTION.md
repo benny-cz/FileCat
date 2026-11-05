@@ -23,7 +23,7 @@ Filter: `FullyQualifiedName~ArchivePublicationCompatibilityTests|FullyQualifiedN
 | Windows host, SDK 10.0.101 | 52 passed, 8 skipped, 0 failed | `.tmp/test-results/archive-writing/legacy-publication-host-guard.trx` |
 | Windows 11 x64 VM, runtime 10.0.14 | 52 passed, 8 skipped, 0 failed | `results/legacy-publication-vm1.trx` in the owned VM validation root; copied to the host evidence directory |
 | macOS ARM64 / APFS, SDK 10.0.101 | 60 passed, 0 skipped, 0 failed | `assessment-results/legacy-publication-mac.trx` in the owned Mac validation root |
-| Ubuntu | Postponed | Another tester's pre-existing FileCat process 65891 remains active |
+| Ubuntu | Later covered by the broader passing replay | [Ubuntu source-build checkpoint](UBUNTU_REGRESSION_CHECKPOINT.md); originally postponed for another tester |
 
 The eight Windows skips are existing Unix-specific race/mark controls. The Mac replay executes them. These results
 cover creation/update, mark/identity races, retained-backup behavior and edit sessions; they are neither GUI nor

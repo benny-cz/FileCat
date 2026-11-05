@@ -33,7 +33,7 @@ Filter: `FullyQualifiedName~Interrupted|FullyQualifiedName~JournalPlace|FullyQua
 | Windows x64 host, SDK 10.0.101 | 253 passed, 2 skipped, 0 failed (255 total) | `.tmp/test-results/archive-writing/archive-recovery-ui-final-host.trx` |
 | macOS ARM64 / APFS, SDK 10.0.101 | 249 passed, 6 skipped, 0 failed (255 total) | Owned Mac `assessment-results/archive-recovery-ui-final-mac.trx` |
 | Windows 11 x64 VM, runtime 10.0.14 | 253 passed, 2 skipped, 0 failed (255 total) | Owned Windows `results/archive-recovery-ui-vm2-final.trx`, copied to host evidence |
-| Ubuntu VM | Postponed | Another tester's FileCat picture instance is still active |
+| Ubuntu VM, later authorized replay | 249 passed, 6 skipped, 0 failed (255 total) | [Ubuntu source-build checkpoint](UBUNTU_REGRESSION_CHECKPOINT.md) |
 
 Earlier intermediate 254-case runs passed: host/Windows VM 252 passed with two POSIX skips; Mac 248 passed with six
 Windows skips. The final extra case checks mixed outcomes. The Windows VM uses host-built assemblies and the test-only

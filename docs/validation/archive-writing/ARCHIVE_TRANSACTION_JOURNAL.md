@@ -71,7 +71,7 @@ Affected Core filter: `FullyQualifiedName~Archive|FullyQualifiedName~EditSession
 | macOS ARM64 / APFS, SDK 10.0.101 | 705 passed, 21 skipped, 0 failed (726 total) | Owned Mac `assessment-results/archive-transaction-mac-checked.trx` |
 | Windows 11 x64 VM, runtime 10.0.14 | 696 passed, 30 skipped, 0 failed (726 total) | Owned Windows `results/archive-transaction-vm3-checked.trx`, copied to host evidence |
 | Windows host headless recovery UI | 244 passed, 2 skipped, 0 failed (246 total) | `.tmp/test-results/archive-writing/archive-transaction-recovery-ui-host-checked.trx` |
-| Ubuntu VM | Postponed | Another tester's pre-existing FileCat instance remains active |
+| Ubuntu VM, later authorized replay | 721 passed, 5 skipped, 0 failed (726 total) | [Ubuntu source-build checkpoint](UBUNTU_REGRESSION_CHECKPOINT.md) |
 
 The Core filter is broader than the earlier 620-case archive checkpoint; totals are not directly additive. Skips include
 existing platform-specific controls and opt-in scale/native fixtures. The earlier Mac attempt failed two existing real
