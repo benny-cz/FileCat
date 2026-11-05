@@ -1,0 +1,74 @@
+{
+  "purpose": "Acquisition lifetime boundary; no capability authorization",
+  "gitBase": "493dbb9c220ae95a37716eaa46fbd96b3d27c811",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "81c3ce839e8a05f7e7415542254ee71422cebc0268cc4054f055c28363bea7a9"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "e1ba8f96b3783f8f2c32c76dc45a843577f900fa8a980de17849c135bc90cd1c"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "97b609212ddeea24f3d27b6f4bd2878c4445e797aa06feb9f7754ff566c82f88"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Acquisition.cs",
+      "sha256": "087848fa179068efb8d0934d38bb3e968f926246bd245194a7b86d20f935941f"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs",
+      "sha256": "90126048ef46ae11ba5c0a6dace8605a675564b99d82c20c5f740ace82dfac24"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Acquisition.cs",
+      "sha256": "694a04471725fdf221a28d7be294c9693c87aa6c3e1827f8e1b434a667745535"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-render-windows-r100.tgz",
+      "sha256": "50046ee9b3af5b8ff7efeb28c97f7aa2697f8548a618b9d789f981d284542523"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r100.tgz",
+      "sha256": "5a7ec35e6449b6fecaa4fb8c62d8de73a770bbb121feebc80e8e3011e0cfa61e"
+    },
+    {
+      "path": ".tmp/dsa-render-linux-r100.tgz",
+      "sha256": "cbfc9981d62ade56b787b6e112e48238043cbb66e78666cab2f0bb6e58e59d1c"
+    },
+    {
+      "path": ".tmp/desktop-r101-windows.tgz",
+      "sha256": "fdd1d79b8f07e652ded5c5f6a253228bcac8a5360459b9e9d251ca66ae50579c"
+    },
+    {
+      "path": ".tmp/desktop-r101-mac.tgz",
+      "sha256": "0f564d5ab35a306fe4907afbc2ff095c310e641f0957239cb3150db38a842658"
+    },
+    {
+      "path": ".tmp/desktop-r101-linux.tgz",
+      "sha256": "8152790460cc0581c37dab81076ea67640c85e4d0f4f3ed0d2665a750650ee6e"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "drivers/unix-native-acquisition-r101.py",
+      "sha256": "cd7d7120640bb409f8e7ab8518a336a0da4ba807b46398322a704734079e67e0"
+    },
+    {
+      "path": "drivers/windows-native-acquisition-r101.ps1",
+      "sha256": "db078e61c4300e13ee11ec3c3534f80a45d358f920c4db93765c6628aeb73186"
+    }
+  ],
+  "nativeReports": [
+    "native-acquisition-windows-r101.json",
+    "mac-native-acquisition-r101.json",
+    "ubuntu-native-acquisition-r101.json"
+  ],
+  "redReproduction": "render-mac-r97-red.xml",
+  "remaining": "Explicit qualified refresh/epochs; indexed scale/readers; remaining complete plan and full native qualification; final independent review pending."
+}

@@ -61,8 +61,15 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     }
     public async Task StartAsync(IReadOnlyList<string> roots)
     {
-        roots = roots.ToImmutableArray();
         if (_disposed || IsPreparing || Running || _services is null) return;
+        // A tab owns one acquisition. Replacing it would reinterpret old numeric focus,
+        // marks and basket IDs against another dataset, including an imported/comparison view.
+        // Explicit refresh needs its own qualified epoch transition; it is not Start again.
+        if (_session is not null || _inventory is not null || _observation is not null || Comparison is not null)
+        { SetStatus("Choose New analysis to start another scan. This view and its selections keep their existing observations."); return; }
+        if (roots.Count is < 1 or > AnalysisLimits.Roots)
+        { SetStatus("Choose between one and 32 explicit locations."); return; }
+        roots = roots.Take(AnalysisLimits.Roots + 1).ToImmutableArray();
         if (roots.Count is < 1 or > AnalysisLimits.Roots || roots.Any(string.IsNullOrWhiteSpace))
         { SetStatus("Choose between one and 32 explicit locations."); return; }
         if (AnalysisAdmission.Refusal() is { } refusal) { SetStatus(refusal); return; }

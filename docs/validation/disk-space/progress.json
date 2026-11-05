@@ -92,7 +92,8 @@
     "Observed table rows now support Ctrl/Command-click toggling and inclusive Shift-click/arrows/Home/End/Page ranges over the actual published sort order. A bounded baseline supports shrinking while retaining unrelated marks; additive gestures retain current marks. Basket contents remain independent. Synthetic groups are not silently expanded and retain the explicit current-member action.",
     "Range candidates commit only after the100,000-path bound passes, preserving focus/marks/basket on refusal. Equivalent ordered key/ID publications preserve the anchor without retaining a released reference array. Modified pointer capture holds the projection freeze through release/capture loss/detachment; checkbox Space and modified double-tap routing stay distinct.",
     "Review found initial Shift-Down could skip the first row when focus was not in the displayed rows. Initial Shift arrows/page keys now begin at the corresponding boundary, with two dedicated regressions. All61 presentation controls pass on Windows VM, Mac and Ubuntu, including page keys and a filter arriving while a modified press is held. Core304 pass on Mac,303pass/oneDarwinACLskip on Ubuntu, and304pass/18platform skips on Windows. The full solution builds with zero warnings/errors.",
-    "Final native range checks pass on Windows r95b, Mac r95 and Ubuntu r95, expanding11 observed rows and shrinking to the original mark without expanding the accounting group or basket. Windows additionally verifies exact row IDs and native Ctrl-click toggling. Each preserves509 source hashes and exits its owned app. Ubuntu waited for competing instances; Windows rejected an overlap and then passed after sequential rendering/native execution. Earlier controller focus/AX traversal failures are excluded from acceptance."
+    "Final native range checks pass on Windows r95b, Mac r95 and Ubuntu r95, expanding11 observed rows and shrinking to the original mark without expanding the accounting group or basket. Windows additionally verifies exact row IDs and native Ctrl-click toggling. Each preserves509 source hashes and exits its owned app. Ubuntu waited for competing instances; Windows rejected an overlap and then passed after sequential rendering/native execution. Earlier controller focus/AX traversal failures are excluded from acceptance.",
+    "Start now admits only the first acquisition in a tab. Finished native, imported and comparison observations retain their identity, focus, immutable marks and basket when Start is called again, with New analysis guidance; no native source/private-profile work starts for inert views. Root count is admitted before copying input. This is a lifetime guard, not the required refresh/epoch implementation."
   ],
   "validation": {
     "windowsCore": {
@@ -128,17 +129,17 @@
       "detail": "Current r84 analysis/command suite with atomic bounded range replacement and refusal controls."
     },
     "headlessRendering": {
-      "total": 61,
-      "passed": 61,
+      "total": 64,
+      "passed": 64,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-render-r94.xml",
-      "detail": "All61 cases pass per guest, including captured ranges, initial missing-focus boundaries, Control/Meta pointer input, page keys, synthetic omission, atomic refusal and held-pointer filter publication."
+      "evidence": "render-r100-windows.xml",
+      "detail": "All64 cases pass on each guest. Three new lifetime controls fail on the old implementation (Mac r97:61pass/3fail), then pass on Windows/Mac/Ubuntu r100. Additional evidence:render-mac-r100.xml and render-ubuntu-r100.xml."
     },
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "solution-build-r96.txt"
+      "evidence": "solution-build-r102.txt"
     },
     "ubuntu": {
       "status": "ordinary-user-native-regressions-passed",
@@ -260,6 +261,13 @@
         "windows-native-range-overlap-r95.json",
         "windows-native-range-overlap-report-r95.json"
       ]
+    },
+    "nativeAcquisitionBoundary": {
+      "status": "subset-passed-all-three",
+      "windows": "native-acquisition-windows-r101.json",
+      "mac": "mac-native-acquisition-r101.json",
+      "ubuntu": "ubuntu-native-acquisition-r101.json",
+      "scope": "Native metadata scan/save/import/self-comparison/repeat-Start boundary; unchanged509 fixture paths and owned exit per guest. Native captures inspected. No physical-input or complete capability qualification."
     }
   },
   "nextWork": [

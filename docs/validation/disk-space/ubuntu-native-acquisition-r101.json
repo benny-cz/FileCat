@@ -1,0 +1,22 @@
+{
+  "purpose": "Native acquisition lifetime scan/save/import/compare subset; no physical-input qualification",
+  "archiveSha256": "8152790460cc0581c37dab81076ea67640c85e4d0f4f3ed0d2665a750650ee6e",
+  "processId": 439335,
+  "finished": true,
+  "acquisitionProbe": {
+    "repeatedStartPreservedIdentity": true,
+    "marksAndBasketPreserved": true,
+    "importedStayedInert": true,
+    "comparisonStayedInert": true,
+    "sourcePaths": 518
+  },
+  "fixtureRegularPaths": 509,
+  "appSha256": "64eee90c941501da5966f36ab277a8c46e09e8d1295e8540bb8f593253941904",
+  "harnessSha256": "77b3b53dd94c6b0827b9a5fc25887d1948f62fa275f302b5c9799796388d874d",
+  "exitCode": 0,
+  "ownedProcessExited": true,
+  "state": "closed",
+  "sourceUnchanged": true,
+  "deadlineClosed": false,
+  "passed": true
+}
