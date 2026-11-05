@@ -100,6 +100,9 @@ and UserIsActive assertions observed. Another pre-existing caffeinate process wa
 
 ## Ubuntu
 
-Testing remains postponed. Another tester's pre-existing FileCat picture-validation instance (PID 65891) and associated
-image viewers remain running. They have not been stopped, restarted or modified. Linux confinement is not inferred from
-Windows or Mac results.
+The initial spike was postponed for another tester's picture-validation instance (PID 65891) and image viewers.
+The user subsequently authorized stopping those exact old instances, and later idle windows permitted native testing.
+The [5 November Linux checkpoint](LINUX_ARCHIVE_WORKER_CHECKPOINT.md) now records the unregistered cgroup/seccomp/
+Landlock worker, healthy assessment/proxy workloads, native denied-access/resource/parent-death tests, final source and
+artifact hashes, and remaining gates. The final native lane passes 40 with one platform-guard skip. This supersedes the
+old postponed status; it does not infer Linux qualification from Windows or Mac or enable production writing.

@@ -34,6 +34,7 @@ application. An explicit new-profile job refuses instead of entering the legacy 
 | Archive journal facts | Immutable bounded versioned snapshots, durable transitions, schema-2 provenance reservations/finalized versions/counts, conservative legacy/damaged/unknown/out-of-order retention and read-only reporting; [provenance journal checkpoint](ARCHIVE_ORIGIN_JOURNAL.md) | Native sidecar storage/integration, object-bound recovery/actions and actual publication/crash integration |
 | Archive recovery UI guard | Fresh journal reads at every entry point; generic archive mutations refused; recorded facts/paths exposed in a copyable read-only report | Native object-bound archive review/resolution, complete archive workflow/accessibility and package qualification |
 | Windows boundary spike | Suspended restricted LPAC, actual-token/access checks, exact inherited pipe list, private-profile write protection, finite job commit/CPU, bounded stderr and idempotent kill/reaping; actual guarded application entry tested | Full engine workloads, other namespace/asset/setup-race probes, ordinary user and installed-package/RID qualification |
+| Linux boundary development lane | Unregistered stream-only launcher/worker, native delegated cgroup memory/pids, finite CPU, pidfd/parent-death lifetime, all-thread seccomp and Landlock, bounded stderr and exact empty-controller cleanup; [native checkpoint](LINUX_ARCHIVE_WORKER_CHECKPOINT.md) | Production entry/roles, cancellation, complete package/update/descriptor/resource races, ordinary desktop routes, ARM64/other filesystems/kernels and release qualification |
 | TAR assessment process | Actual early entry, numeric read-only source proxy, SHA/raw TAR/runtime-decoder passes, checked catalog phases and terminal digest; parent CPU/progress watchdog and final drain/reaping checks | Qualified AppServices registration, reviewed input leases, cooperative cancellation, transform/fresh verifier and publication integration |
 | TAR assessment | Full raw USTAR/PAX framing, checksums, exact UTF-8, numeric/PAX grammar and allowlist, pre-allocation metadata limits, complete payload hashes, end markers and padding; independent runtime-decoder agreement | Coverage-guided campaigns, complete metadata/preservation corpus, scale measurements and native independent tools |
 | TAR transform | Stream-only create and exact per-occurrence replace/delete/rename; flattened file/directory additions; order/duplicate/metadata preservation; collision and stale-key refusal; complete expected-manifest verification | Folder preparation/review, native safe save, fresh verifier process, provenance and production dispatch |
@@ -112,6 +113,11 @@ network access and `fork`. Its attempted absolute 1 GiB `RLIMIT_AS` returned EIN
 The hard whole-process memory gate remains **unqualified**; no Mac writer is enabled from these partial denials.
 
 ## Outstanding work
+
+The later [Linux worker checkpoint](LINUX_ARCHIVE_WORKER_CHECKPOINT.md) adds 41 cases. Its final native Ubuntu replay
+passes 40 with one platform-guard skip; Windows VM and Mac each pass 26 with 15 Linux-native skips. The existing native
+Windows containment suite separately passes 25/25 with the updated shared Core/probe binaries. No failures. The Linux
+lane remains internal and unregistered; no profile or complete AW packet is enabled or qualified by this checkpoint.
 
 The later [schema-2 provenance journal checkpoint](ARCHIVE_ORIGIN_JOURNAL.md) adds 43 Core and three headless UI cases.
 Its affected Core replay passes 955 with 30 skips on the Windows VM, 964 with 21 skips on Mac, and 980 with five skips

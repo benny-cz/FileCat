@@ -10,6 +10,7 @@
     <OutputType>WinExe</OutputType>
     <IsPackable>false</IsPackable>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <!-- The probe reports the worker identity change the product performs, from the product's own code. -->
