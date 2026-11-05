@@ -63,7 +63,7 @@ internal sealed partial class WindowsArchiveFile
         lock (parent.Gate)
         {
             EnsureLive(); cancellationToken.ThrowIfCancellationRequested();
-            if (!artifact || !createdWritable || writable) throw new InvalidOperationException("Origin writes require this transaction's sealed newly created private artifact.");
+            if (!artifact || !createdWritable || writable || namespaceChanged) throw new InvalidOperationException("Origin writes require this transaction's sealed new private artifact before publication.");
             if (origin.Format != OriginFormat || origin.State == ArchiveOriginState.Unavailable)
                 throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, "The required archive origin mark cannot be represented or read.");
             Validate(); parent.CheckPrivate(handle);

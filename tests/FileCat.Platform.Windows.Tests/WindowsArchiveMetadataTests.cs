@@ -90,12 +90,15 @@ public sealed class WindowsArchiveMetadataTests
         Assert.Throws<InvalidOperationException>(() => stage.CaptureOuterMetadata(TestContext.Current.CancellationToken));
         var version = stage.Seal(TestContext.Current.CancellationToken);
         var snapshot = stage.CaptureOuterMetadata(TestContext.Current.CancellationToken); Assert.True(snapshot.DaclProtected);
-        stage.RenameNoReplace("retained.stage", version, stage.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
-        Assert.Equal(snapshot.Digest, stage.CaptureOuterMetadata(TestContext.Current.CancellationToken).Digest);
         stage.CopyOriginNoReplace(ArchiveOriginSnapshot.Present(ArchiveOriginFormat.WindowsZoneIdentifier, "[ZoneTransfer]\r\nZoneId=3\r\n"u8), TestContext.Current.CancellationToken);
         var marked = stage.CaptureOuterMetadata(TestContext.Current.CancellationToken);
         Assert.NotEqual(snapshot.Digest, marked.Digest); Assert.Equal(snapshot.LastWriteTime, marked.LastWriteTime);
         Assert.Equal(version, stage.CaptureVersion(TestContext.Current.CancellationToken));
+        // Provenance preparation finishes before any namespace mutation. A rename then preserves that prepared
+        // snapshot and closes this lease's origin-write capability, including an otherwise harmless absent request.
+        stage.RenameNoReplace("retained.stage", version, marked, TestContext.Current.CancellationToken);
+        Assert.Equal(marked.Digest, stage.CaptureOuterMetadata(TestContext.Current.CancellationToken).Digest);
+        Assert.Throws<InvalidOperationException>(() => stage.CopyOriginNoReplace(ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier), TestContext.Current.CancellationToken));
     }
 
     [Fact]

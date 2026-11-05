@@ -145,6 +145,19 @@ public sealed class WindowsArchiveOriginTests
     }
 
     [Fact]
+    public void A_successfully_renamed_new_artifact_cannot_receive_late_origin_writes()
+    {
+        RequireWindows(); using var fixture = new Fixture(); using var root = WindowsArchiveDirectory.Open(fixture.Root); using var stage = Stage(root);
+        stage.Write([1, 2, 3]); var version = stage.Seal(TestContext.Current.CancellationToken);
+        stage.RenameNoReplace("published.tar", version, stage.CaptureOuterMetadata(TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
+        foreach (var origin in new[] { ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier),
+                     ArchiveOriginSnapshot.Present(ArchiveOriginFormat.WindowsZoneIdentifier, "[ZoneTransfer]\r\nZoneId=3\r\n"u8) })
+            Assert.Throws<InvalidOperationException>(() => stage.CopyOriginNoReplace(origin, TestContext.Current.CancellationToken));
+        Assert.Equal(ArchiveOriginState.Absent, stage.ReadOrigin(TestContext.Current.CancellationToken).State);
+        Assert.Equal(version, stage.CaptureVersion(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public void A_source_origin_is_read_again_after_its_held_object_moves_and_a_new_input_mark_is_not_hidden_by_unchanged_bytes()
     {
         RequireWindows(); using var fixture = new Fixture(); using var root = WindowsArchiveDirectory.Open(fixture.Root);

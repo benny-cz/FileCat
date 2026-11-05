@@ -11,14 +11,14 @@ internal sealed partial class UnixArchiveFile : Stream
     private readonly UnixArchiveDirectory parent;
     private readonly SafeFileHandle held;
     private readonly long maximum;
-    private readonly bool artifact;
-    private bool writable, disposed;
+    private readonly bool artifact, createdWritable;
+    private bool writable, disposed, namespaceChanged;
     private long position;
     internal FileIdentity Identity { get; }
     internal string KnownName { get; private set; }
     internal string DisplayPath => Path.Combine(parent.DisplayPath, KnownName);
     internal UnixArchiveFile(UnixArchiveDirectory parent, SafeFileHandle held, string leaf, FileIdentity identity, long maximum, bool artifact, bool writable)
-    { this.parent = parent; this.held = held; KnownName = leaf; Identity = identity; this.maximum = maximum; this.artifact = artifact; this.writable = writable; }
+    { this.parent = parent; this.held = held; KnownName = leaf; Identity = identity; this.maximum = maximum; this.artifact = artifact; this.writable = writable; createdWritable = writable; }
     public override bool CanRead { get { lock (parent.Gate) return !disposed; } }
     public override bool CanSeek => CanRead;
     public override bool CanWrite { get { lock (parent.Gate) return !disposed && writable; } }
@@ -93,7 +93,7 @@ internal sealed partial class UnixArchiveFile : Stream
             int result = UnixArchiveNative.Mac ? RenameMac(UnixArchiveNative.Fd(parent.Handle), KnownName, UnixArchiveNative.Fd(parent.Handle), leaf, 4 /* EXCL */)
                 : RenameLinux(UnixArchiveNative.Fd(parent.Handle), KnownName, UnixArchiveNative.Fd(parent.Handle), leaf, 1 /* NOREPLACE */);
             if (result != 0) throw new IOException("The exclusive archive name could not be claimed (errno " + Marshal.GetLastPInvokeError() + ").");
-            KnownName = leaf; // The syscall happened. Never hide this fact if post-review/durability fails.
+            KnownName = leaf; namespaceChanged = true; // The syscall happened. Never hide this fact if post-review/durability fails.
             try
             {
                 // Unix pathname rename is not a conditional held-inode operation. Reconcile the actual destination,

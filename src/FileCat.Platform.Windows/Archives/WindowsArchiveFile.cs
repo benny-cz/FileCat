@@ -18,7 +18,7 @@ internal sealed partial class WindowsArchiveFile : Stream
     private readonly long maximumLength;
     private readonly bool artifact, mayRename;
     private readonly bool createdWritable;
-    private bool writable, disposed, removed;
+    private bool writable, disposed, removed, namespaceChanged;
     private long position;
     public FileIdentity Identity { get; }
     public string KnownName { get; private set; }
@@ -128,7 +128,7 @@ internal sealed partial class WindowsArchiveFile : Stream
         {
             ReviewForMutation(expected, expectedMetadata, cancellationToken);
             NtFile.Rename(handle, parent.Handle, leaf, replace: false);
-            KnownName = leaf;
+            KnownName = leaf; namespaceChanged = true;
         }
     }
 
