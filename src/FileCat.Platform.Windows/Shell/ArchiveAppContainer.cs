@@ -63,11 +63,17 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
     /// an LSA lookup denied inside LPAC. No value from archive input or a worker receipt supplies this authority.
     /// </summary>
     public static ArchiveAppContainer StartAssessment(string executable, Guid nonce, TimeSpan cpuLimit)
+        => StartContract(executable, nonce, cpuLimit, "--archive-worker");
+
+    public static ArchiveAppContainer StartVerification(string executable, Guid nonce, TimeSpan cpuLimit)
+        => StartContract(executable, nonce, cpuLimit, "--archive-verify-worker");
+
+    private static ArchiveAppContainer StartContract(string executable, Guid nonce, TimeSpan cpuLimit, string roleArgument)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (nonce == Guid.Empty) throw new ArgumentException("A task nonce is required.", nameof(nonce));
         string privilege = unchecked((ulong)RestrictedProcess.NotifyPrivilege()).ToString("X16", System.Globalization.CultureInfo.InvariantCulture);
-        return Start(executable, $"--archive-worker {nonce:D} {privilege}", cpuLimit);
+        return Start(executable, $"{roleArgument} {nonce:D} {privilege}", cpuLimit);
     }
 
     public static ArchiveAppContainer Start(string executable, string arguments, TimeSpan cpuLimit)

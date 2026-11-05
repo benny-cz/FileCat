@@ -15,5 +15,7 @@ public sealed class ArchiveWorkerEntryTests
     public void Early_dispatch_refuses_bad_arguments_or_an_unconfined_process_before_UI_and_input(string[] args, int code)
     {
         Assert.Equal(code, FileCat.App.Program.Main(args));
+        string[] verifier = (string[])args.Clone(); verifier[0] = ArchiveWorker.VerificationArgument;
+        Assert.Equal(code, FileCat.App.Program.Main(verifier));
     }
 }

@@ -12,6 +12,9 @@ public sealed record ArchiveCatalogEnvelope(ArchiveWriteProfile Profile, int Mem
 public static class ArchiveAssessmentWire
 {
     public static ReadOnlySpan<byte> Hello => [1, 0, 1, 0, 0, 0, 0, 0]; // protocol 1, record schema 1, reserved 0
+    // A fresh verifier derives the complete catalog independently. Its role cannot be substituted with an assessor
+    // on the same framed channel, even though the read-only request/catalog schema is deliberately shared.
+    public static ReadOnlySpan<byte> VerificationHello => [1, 0, 1, 0, 3, 0, 0, 0];
 
     public static void Validate(ArchiveAssessmentRequest request)
     {

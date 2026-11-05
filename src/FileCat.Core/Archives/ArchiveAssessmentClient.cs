@@ -29,17 +29,18 @@ public sealed class ArchiveAssessmentClient
     private readonly ArchiveWorkerQueue _queue;
     private readonly TimeSpan _idle;
     private readonly TimeSpan _wall;
+    private readonly bool _verification;
 
     public ArchiveAssessmentClient(Func<Guid, TimeSpan, IArchiveWorkerProcess> launch, ArchiveWorkerQueue? queue = null)
         : this(launch, queue ?? ArchiveWorkerQueue.Shared, TimeSpan.FromSeconds(30), TimeSpan.FromHours(12)) { }
 
     internal ArchiveAssessmentClient(Func<Guid, TimeSpan, IArchiveWorkerProcess> launch, ArchiveWorkerQueue queue,
-        TimeSpan idle, TimeSpan wall)
+        TimeSpan idle, TimeSpan wall, bool verification = false)
     {
         if (idle <= TimeSpan.Zero || idle > TimeSpan.FromSeconds(30) || wall <= TimeSpan.Zero || wall > TimeSpan.FromHours(12))
             throw new ArgumentOutOfRangeException(nameof(idle));
         ArgumentNullException.ThrowIfNull(launch); ArgumentNullException.ThrowIfNull(queue);
-        _launch = launch; _queue = queue; _idle = idle; _wall = wall;
+        _launch = launch; _queue = queue; _idle = idle; _wall = wall; _verification = verification;
     }
 
     public async Task<ArchiveAssessment> AssessAsync(ArchiveAssessmentRequest request, Func<Stream> openPinnedSource, CancellationToken ct)
@@ -129,13 +130,14 @@ public sealed class ArchiveAssessmentClient
             var records = new ArchiveWorkerRecords(receive, process.Output, writing: false);
             var commands = new ArchiveWorkerRecords(send, process.Input, writing: true);
             var hello = receive.Read(process.Output);
-            if (hello.Kind != ArchiveWorkerMessage.Hello || !hello.Payload.AsSpan().SequenceEqual(ArchiveAssessmentWire.Hello))
+            if (hello.Kind != ArchiveWorkerMessage.Hello || !hello.Payload.AsSpan().SequenceEqual(_verification ? ArchiveAssessmentWire.VerificationHello : ArchiveAssessmentWire.Hello))
                 throw ArchiveAssessmentWire.Fault();
             commands.Write(ArchiveControlRecord.AssessmentRequest, ArchiveAssessmentWire.Request(request));
             Volatile.Write(ref progress, Stopwatch.GetTimestamp());
             using var absentStage = new MemoryStream();
             using var authority = new ArchiveIoAuthority([new(0, request.SourceLength)], _ => openPinnedSource(),
                 new ArchiveStageProxy(absentStage, 0, 0), 4 * request.SourceLength);
+            long verifiedPrefix = 0;
             ArchiveWorkerFrame frame;
             while (true)
             {
@@ -145,9 +147,16 @@ public sealed class ArchiveAssessmentClient
                 if (frame.Payload.Length != 16 || BinaryPrimitives.ReadInt32LittleEndian(frame.Payload) != 0)
                     throw ArchiveAssessmentWire.Fault(); // no stage, new input ID, write or capability change in this phase
                 var reply = authority.Handle(frame);
+                if (_verification && reply.Payload.Length > 12)
+                {
+                    long offset = BinaryPrimitives.ReadInt64LittleEndian(frame.Payload.AsSpan(4));
+                    long end = checked(offset + reply.Payload.Length - 12);
+                    if (offset <= verifiedPrefix && end > verifiedPrefix) verifiedPrefix = end;
+                }
                 send.Write(process.Input, reply.Kind, reply.Payload);
                 if (reply.Payload.Length > 12) Volatile.Write(ref progress, Stopwatch.GetTimestamp());
             }
+            if (_verification && verifiedPrefix != request.SourceLength) throw ArchiveAssessmentWire.Fault();
             var budget = new ArchiveWriteBudget();
             var catalog = ArchiveAssessmentWire.ReadCatalog(records.Read(ArchiveControlRecord.Catalog, frame), request, budget);
             Volatile.Write(ref progress, Stopwatch.GetTimestamp());

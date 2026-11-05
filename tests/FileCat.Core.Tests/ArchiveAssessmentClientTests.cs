@@ -178,7 +178,7 @@ public sealed class ArchiveAssessmentClientTests
         return stream.ToArray();
     }
 
-    private sealed class Scripted : IArchiveWorkerProcess
+    internal sealed class Scripted : IArchiveWorkerProcess
     {
         private readonly ManualResetEventSlim _stop = new();
         private readonly bool _stalled;
@@ -214,8 +214,9 @@ public sealed class ArchiveAssessmentClientTests
         }
     }
 
-    private sealed class Child(Process process) : IArchiveWorkerProcess
+    internal sealed class Child(Process process) : IArchiveWorkerProcess
     {
+        internal int ProcessId { get; } = process.Id;
         public bool Disposed { get; private set; }
         public bool Reaped { get; private set; }
         public Stream Input => process.StandardInput.BaseStream;
@@ -241,7 +242,7 @@ public sealed class ArchiveAssessmentClientTests
             _exit = (uint)process.ExitCode;
             process.Dispose(); Disposed = true;
         }
-        public static Child Start(Guid nonce)
+        public static Child Start(Guid nonce, string role = "archive-assess")
         {
             var checkout = new DirectoryInfo(AppContext.BaseDirectory);
             while (checkout is not null && !File.Exists(Path.Combine(checkout.FullName, "FileCat.slnx"))) checkout = checkout.Parent;
@@ -251,7 +252,7 @@ public sealed class ArchiveAssessmentClientTests
             string runtimeRoot = new DirectoryInfo(RuntimeEnvironment.GetRuntimeDirectory()).Parent!.Parent!.Parent!.FullName;
             var start = new ProcessStartInfo(Path.Combine(runtimeRoot, OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet"))
             { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true };
-            foreach (string arg in new[] { probe, "archive-assess", nonce.ToString() }) start.ArgumentList.Add(arg);
+            foreach (string arg in new[] { probe, role, nonce.ToString() }) start.ArgumentList.Add(arg);
             return new(Process.Start(start)!);
         }
     }

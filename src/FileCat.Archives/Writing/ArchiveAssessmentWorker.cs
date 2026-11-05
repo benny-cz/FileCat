@@ -13,6 +13,12 @@ namespace FileCat.Archives.Writing;
 public static class ArchiveAssessmentWorker
 {
     public static int RunAfterIsolation(Stream input, Stream output, Guid nonce, CancellationToken ct = default)
+        => Run(input, output, nonce, verification: false, ct);
+
+    public static int RunVerificationAfterIsolation(Stream input, Stream output, Guid nonce, CancellationToken ct = default)
+        => Run(input, output, nonce, verification: true, ct);
+
+    private static int Run(Stream input, Stream output, Guid nonce, bool verification, CancellationToken ct)
     {
         var receive = new ArchiveWorkerProtocol(nonce, ArchiveWritePolicy.MaxWorkerWireBytes);
         var send = new ArchiveWorkerProtocol(nonce, ArchiveWritePolicy.MaxWorkerWireBytes);
@@ -20,7 +26,7 @@ public static class ArchiveAssessmentWorker
         var outgoing = new ArchiveWorkerRecords(send, output, writing: true);
         try
         {
-            send.Write(output, ArchiveWorkerMessage.Hello, ArchiveAssessmentWire.Hello);
+            send.Write(output, ArchiveWorkerMessage.Hello, verification ? ArchiveAssessmentWire.VerificationHello : ArchiveAssessmentWire.Hello);
             var request = ArchiveAssessmentWire.ReadRequest(incoming.Read(ArchiveControlRecord.AssessmentRequest));
             if (request.Profile.Format != ArchiveWriteFormat.Tar)
                 throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This worker profile has not been implemented.");
