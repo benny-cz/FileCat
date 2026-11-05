@@ -59,6 +59,14 @@ public sealed class ArchiveCreationMetadataTests
     }
 
     [Fact]
+    public void A_null_reserved_sidecar_is_rejected_before_role_validation()
+    {
+        using var root = new TempDir(); var facts = Fixture(root.Path).Facts;
+        Assert.Throws<ArgumentException>(() => new ArchiveTransactionFacts(facts.Nonce, 1, facts.Profile, ArchiveTransactionPhase.Reserved,
+            facts.ArchivePath, facts.ParentIdentity, null, facts.StagePath, null, stageMaximumLength: 1024, sidecars: [null!]));
+    }
+
+    [Fact]
     public void A_manual_recovery_hold_permits_only_the_conservative_review_record_and_never_restores_creation_authority()
     {
         using var root = new TempDir(); var stage = new ArchiveObjectVersion("stage", 0, Empty); Guid nonce = Guid.NewGuid();

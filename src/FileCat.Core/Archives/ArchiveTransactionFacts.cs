@@ -182,11 +182,12 @@ public sealed class ArchiveTransactionFacts
         if (original is not null) sidecarIdentities.Add(original.Identity);
         foreach (var sidecar in frozenSidecars)
         {
+            if (sidecar is null) throw new ArgumentException("An archive sidecar reservation is missing.");
             if (recordVersion < 5 && sidecar.Role == ArchiveSidecarRole.CreationMetadata)
                 throw new ArgumentException("This sidecar role is not part of the recorded schema.");
             if (sidecar.Role == ArchiveSidecarRole.CreationMetadata && phase != ArchiveTransactionPhase.NeedsReview && sidecar.Identity is not null && verifiedStage is null)
                 throw new ArgumentException("Creation metadata cannot be created before fresh stage verification.");
-            if (sidecar is null || !roles.Add(sidecar.Role) || !sidecarPaths.Add(sidecar.Path) ||
+            if (!roles.Add(sidecar.Role) || !sidecarPaths.Add(sidecar.Path) ||
                 sidecar.Identity is not null && !sidecarIdentities.Add(sidecar.Identity))
                 throw new ArgumentException("Archive sidecars have duplicate roles or alias another transaction object.");
             if (sidecar.Role == ArchiveSidecarRole.OriginEvidence && (sidecar.OriginSources < (original is null ? 0 : 1) ||

@@ -101,3 +101,22 @@ or upgraded. The Windows final follow-up contains only the rebuilt test assembly
 | Mac explicit-private-fixture follow-up | `FD75DD86CAA788464E350F90C4B13B6EE1FEA477EC9C25248CDA30FD2E0F91DD` |
 | Ubuntu results/observers/fixtures | `A90D5948F734DAC7B71F46EFCF8E2A29DEFC2D6881A7F2D80E73A467BEB222E7` |
 | Windows results/launch facts/fixtures | `BD7AF9F4D4002CA58E110D63C350B22FC0A3150DC4D43531804A6486D12ED0B5` |
+
+## Follow-up constructor guard
+
+After the [actual process-crash checkpoint](PRIVATE_CREATION_PROCESS_CRASHES.md), a direct null sidecar reservation
+was found to dereference its role before reaching the existing rejection. A focused regression first reproduced
+NullReferenceException; validation now rejects that missing reservation with ArgumentException before examining it.
+Valid journal facts and filesystem authority are unchanged. The creation-metadata, transaction-journal and
+sidecar-journal filter passes 115/115 without skips on the Windows host and on all three guests. Builds have no
+warnings/errors. Windows launch facts record runtime 10.0.14, integrity 12288 → 8192 and exit 0; the Unix runtimes remain
+as above. Terminal runner checks confirm test cleanup. This is constructor-contract validation, with the preceding
+native publication/crash evidence remaining separately scoped; it does not complete any remaining qualification gate.
+
+Raw red/green TRX, guest logs and launch facts are under ignored
+`.tmp/test-results/archive-writing/creation-facts-guards-v1`. Source overlay SHA-256:
+`702BC1A1131C4B1BAEA8652AB7ABB24FACD19F7B1199D3EB0A4FC43BF0C2CAA9`;
+Windows four-file Core test overlay: `B3B1BAE339EF39AD77A465A6A057E072E1BDC8EA8CB3F6A2453BD5AE1378A57D`.
+Collected result archives: Mac `08BB89B89795AE7367242998E82D4B8CE82DCE9A65E5B769BC618240F0647102`,
+Ubuntu `7EBAA1C9C5730E4D31665B21DE366D0C779B91EB9314AAEC0EC7C0CEED1E496C`,
+Windows `294BBAA4A475EA6B2E9A93AC06CDEC0D4AF03A7E4622C81D94265028C3863C99`.
