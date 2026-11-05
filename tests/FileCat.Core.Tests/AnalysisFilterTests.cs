@@ -4,6 +4,17 @@ namespace FileCat.Core.Tests;
 
 public sealed class AnalysisFilterTests
 {
+    [Fact]
+    public void TextPredicatesDoNotMatchLossyNameReplacementsOrAnUnrepresentableAncestor()
+    {
+        var original = Item();
+        var raw = original with { Node = original.Node with { Name = "\ufffdphoto.jpg", NameEncoding = "unix-bytes", RawName = [0xff, (byte)'p', (byte)'h', (byte)'o', (byte)'t', (byte)'o', (byte)'.', (byte)'j', (byte)'p', (byte)'g'] } };
+        foreach (string query in new[] { "photo", "name:photo", "NOT name:photo", "ext=jpg", "type=image", "path:Pictures" })
+            Assert.Equal(AnalysisTruth.Unknown, Match(query, raw));
+        Assert.Equal(AnalysisTruth.True, Match("size>=2KiB", raw)); Assert.Equal(AnalysisTruth.True, Match("root=root", raw));
+        var ancestor = original with { RelativePathTextAvailable = false };
+        Assert.Equal(AnalysisTruth.Unknown, Match("path:Pictures", ancestor)); Assert.Equal(AnalysisTruth.True, Match("name:photo", ancestor));
+    }
     private static AnalysisFilterItem Item(string name = "photo.jpg", AnalysisMeasurement? length = null) => new(
         new(2, "root", 1, name, AnalysisKind.File, "o", Cloud: false),
         new("o", "dev:o", length ?? AnalysisMeasurement.Known(2048), AnalysisMeasurement.Known(1), DateTimeOffset.Parse("2026-11-04T12:00:00Z")),

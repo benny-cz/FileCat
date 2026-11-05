@@ -11,6 +11,8 @@ public sealed record AnalysisTreeItem(string Key, string ParentKey, string Name,
     public UInt128 IdentityUnverified { get; init; }
     public MeasurementState MetadataState { get; init; } = MeasurementState.Known;
     public bool IncludedByPolicy { get; init; } = true;
+    public bool LogicalUnknown { get; init; }
+    public string? NameEvidence { get; init; }
 }
 
 /// <summary>One exact hierarchy shared by charts, the ranked table and navigation. Geometry never computes accounting.</summary>
@@ -87,15 +89,18 @@ public sealed class AnalysisTree
             string key = Key(node.Id), parent = node.ParentId == 0 ? RootKey : Key(node.ParentId);
             if (!map.TryGetValue(parent, out var parentItem)) throw new InvalidDataException("Invalid analysis hierarchy.");
             bool matching = projection.MatchingNodes.Contains(node.Id);
-            var item = new Builder(key, parent, node.Name, node.Id, node.Kind, false, !filterApplied || matching,
+            var item = new Builder(key, parent, AnalysisNames.DisplayName(node), node.Id, node.Kind, false, !filterApplied || matching,
                 node.Kind == AnalysisKind.Directory ? "folder" : AnalysisClassification.Family(node.Name));
             item.MetadataState = node.MetadataState; item.IncludedByPolicy = node.IncludedByPolicy;
+            item.NameEvidence = AnalysisNames.NameEvidence(node);
             item.Unknown = incomplete.Contains(node.Id) || node.IncludedByPolicy && node.MetadataState != MeasurementState.Known;
+            item.LogicalUnknown = node.IncludedByPolicy && (node.Kind == AnalysisKind.Unknown || node.Kind == AnalysisKind.Directory && item.Unknown);
             if (node.Kind == AnalysisKind.File && matching)
             {
                 item.Files = 1;
                 var obj = node.ObjectId is { } id ? objects.GetValueOrDefault(id) : null;
                 if (obj?.LogicalLength.IsKnown == true) item.Logical = obj.LogicalLength.Value!.Value;
+                else item.LogicalUnknown = true;
                 item.Unknown |= !projection.Totals.CompatibleBasis || projection.UnmeasuredStates.ContainsKey(node.Id) || projection.Metric switch
                 {
                     AnalysisMetric.Files => false,
@@ -140,6 +145,7 @@ public sealed class AnalysisTree
             parent.Value = checked(parent.Value + item.Value); parent.Logical = checked(parent.Logical + item.Logical); parent.Files = checked(parent.Files + item.Files);
             parent.Unverified = checked(parent.Unverified + item.Unverified);
             parent.Unknown |= item.Unknown; parent.SharedElsewhere |= item.SharedElsewhere; parent.Visible |= item.Visible;
+            parent.LogicalUnknown |= item.LogicalUnknown;
         }
         return new(snapshot, projection, map.ToImmutableDictionary(p => p.Key, p => p.Value.Freeze(), StringComparer.Ordinal), filterApplied);
     }
@@ -151,10 +157,13 @@ public sealed class AnalysisTree
         public bool Unknown, SharedElsewhere, Visible = visible;
         public MeasurementState MetadataState = MeasurementState.Known;
         public bool IncludedByPolicy = true;
+        public bool LogicalUnknown;
+        public string? NameEvidence;
         public List<string> Children = [];
         public HashSet<ulong> Members = [];
         public AnalysisTreeItem Freeze() => new(key, Parent, name, node, kind, synthetic, Visible, Value, Logical, Files, Unknown,
             SharedElsewhere, family, Children.ToImmutableArray(), Members.Order().ToImmutableArray())
-            { IdentityUnverified = Unverified, MetadataState = MetadataState, IncludedByPolicy = IncludedByPolicy };
+            { IdentityUnverified = Unverified, MetadataState = MetadataState, IncludedByPolicy = IncludedByPolicy,
+                LogicalUnknown = LogicalUnknown, NameEvidence = NameEvidence };
     }
 }

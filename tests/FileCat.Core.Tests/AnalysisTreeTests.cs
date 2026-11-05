@@ -6,6 +6,19 @@ namespace FileCat.Core.Tests;
 public sealed class AnalysisTreeTests
 {
     [Fact]
+    public void LogicalUncertaintyIsIndependentOfAllocationAndKnownZero()
+    {
+        var s = AnalysisAccountingTests.Golden(); var token = TestContext.Current.CancellationToken;
+        s = s with { Objects = s.Objects.SetItem(1, s.Objects[1] with { LogicalLength = AnalysisMeasurement.Known(0) }) };
+        var disk = AnalysisTree.Build(s, AnalysisAggregate.Project(s, AnalysisMetric.OnDisk, cancellation: token), false, token);
+        Assert.True(disk.Items["n:6"].Unknown); Assert.False(disk.Items["n:6"].LogicalUnknown);
+        Assert.Equal((UInt128)0, disk.Items["n:6"].LogicalSize); Assert.False(disk.Items[AnalysisTree.RootKey].LogicalUnknown);
+        s = s with { Objects = s.Objects.SetItem(1, s.Objects[1] with { LogicalLength = AnalysisMeasurement.Missing(MeasurementState.Failed) }) };
+        var logical = AnalysisTree.Build(s, AnalysisAggregate.Project(s, AnalysisMetric.FileSize, cancellation: token), false, token);
+        Assert.True(logical.Items["n:6"].LogicalUnknown); Assert.True(logical.Items["n:1"].LogicalUnknown);
+        Assert.True(logical.Items[AnalysisTree.RootKey].LogicalUnknown); Assert.Equal((UInt128)200, logical.Items[AnalysisTree.RootKey].LogicalSize);
+    }
+    [Fact]
     public void FilteredGroupCaptureDoesNotStageContextFoldersOrHiddenDescendants()
     {
         var s = AnalysisAccountingTests.Golden(); var token = TestContext.Current.CancellationToken;

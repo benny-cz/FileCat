@@ -106,6 +106,7 @@ public sealed class DiskSpaceViewModel : IDisposable
         _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _projectionCancel = new();
         var token = _projectionCancel.Token;
         string query = Query, scope = Selection.Scope; var metric = Metric; bool sensitive = CaseSensitive; string? root = RootFilter;
+        if (string.IsNullOrWhiteSpace(query) && root is null) ShowUnknownFilterResults = false;
         bool showUnknown = ShowUnknownFilterResults;
         AnalysisSnapshotLease? nextLease = null;
         try
@@ -118,6 +119,12 @@ public sealed class DiskSpaceViewModel : IDisposable
                 var rootScopes = new AnalysisRootScopeIndex(s, token);
                 var filter = AnalysisFilter.Parse(query, _zone ?? TimeZoneInfo.Utc, sensitive, roots: s.Roots, rootScopes: rootScopes, allowDateOnly: _zone is not null);
                 var nodes = s.Nodes.ToDictionary(n => n.Id);
+                var pathTextAvailable = new Dictionary<ulong, bool>();
+                foreach (var node in s.Nodes)
+                {
+                    token.ThrowIfCancellationRequested();
+                    pathTextAvailable.Add(node.Id, node.ParentId == 0 || pathTextAvailable[node.ParentId] && AnalysisRawNames.HasLosslessText(node));
+                }
                 var all = AnalysisAggregate.Project(s, metric, cancellation: token);
                 var allocation = s.Facts.Where(f => f.ObjectId is not null).ToLookup(f => f.ObjectId!, StringComparer.Ordinal);
                 var unknown = ImmutableHashSet.CreateBuilder<ulong>();
@@ -129,12 +136,13 @@ public sealed class DiskSpaceViewModel : IDisposable
                 bool Matches(AnalysisNode n, AnalysisObject? obj)
                 {
                     var active = all.UnmeasuredStates.GetValueOrDefault(n.Id, metric == AnalysisMetric.UniqueFileSize && obj?.VerifiedIdentity is null ? MeasurementState.Unsupported : MeasurementState.Known);
-                    var truth = filter.Evaluate(new(n, obj, RelativePath(n, nodes), Allocation(obj), Stale: s.Freshness != AnalysisFreshness.Observed, ActiveState: active));
+                    var truth = filter.Evaluate(new(n, obj, RelativePath(n, nodes), Allocation(obj), Stale: s.Freshness != AnalysisFreshness.Observed,
+                        ActiveState: active, RelativePathTextAvailable: pathTextAvailable[n.Id]));
                     if (root is not null) truth = AnalysisFilter.And(rootScopes.IsMember(root, n), truth);
                     if (truth == AnalysisTruth.Unknown) unknown.Add(n.Id);
                     return showUnknown ? truth == AnalysisTruth.Unknown : truth == AnalysisTruth.True;
                 }
-                bool filtered = query.Length != 0 || root is not null;
+                bool filtered = !string.IsNullOrWhiteSpace(query) || root is not null;
                 var projection = filtered ? AnalysisAggregate.Project(s, metric, Matches, token) : all;
                 projection = projection with { UnknownFilterNodes = unknown.ToImmutable(), IncludesUnknownFilterResults = filtered && showUnknown, FilterText = query };
                 var tree = AnalysisTree.Build(s, projection, filtered, token);
@@ -234,6 +242,13 @@ public sealed class DiskSpaceViewModel : IDisposable
         if (windows) relative = relative.Replace('/', '\\');
         return root.CanonicalLocator.TrimEnd('/', '\\') + (relative.Length == 0 ? "" : (windows ? "\\" : "/") + relative);
     }
+    public string FocusedDisplayPath()
+    {
+        if (Tree is not { } tree || tree.Items.GetValueOrDefault(Selection.Focus ?? "")?.NodeId is not { } id) return "Accounting group";
+        if (FocusedPath() is not { } path) return "Raw name has no lossless clipboard path.";
+        var node = tree.Snapshot.Nodes.First(n => n.Id == id);
+        return AnalysisNames.DisplayPath(path, tree.Snapshot.Roots.First(r => r.Id == node.RootId).NameRules);
+    }
     public static string RelativePath(AnalysisNode node, IReadOnlyDictionary<ulong, AnalysisNode> nodes)
     {
         var names = new Stack<string>(); int depth = 0;
@@ -247,9 +262,13 @@ public sealed class DiskSpaceViewModel : IDisposable
     public static string StatusText(AnalysisTreeItem item) => !item.IncludedByPolicy ? "Excluded by policy"
         : item.MetadataState != MeasurementState.Known ? item.MetadataState + " metadata"
         : item.IdentityUnverified > 0 ? "Identity unverified" : item.Unknown ? "Partial" : item.SharedElsewhere ? "Shared links" : item.Synthetic ? "Group" : "Observed";
-    public static string ValueText(AnalysisTreeItem item, AnalysisMetric metric) => !item.IncludedByPolicy ? "Excluded"
+    public static string LogicalText(AnalysisTreeItem item, bool exact = false) => !item.IncludedByPolicy ? "Excluded"
+        : item.LogicalUnknown && item.LogicalSize == 0 ? "Unknown"
+        : (exact ? item.LogicalSize.ToString(CultureInfo.InvariantCulture) + " bytes" : Bytes(item.LogicalSize)) + (item.LogicalUnknown ? " known" : "");
+    public static string ValueText(AnalysisTreeItem item, AnalysisMetric metric, bool exact = false) => !item.IncludedByPolicy ? "Excluded"
         : item.SharedElsewhere && item.Value == 0 ? "Shared at ancestor"
-        : item.Unknown && item.Value == 0 ? "Unknown" : metric == AnalysisMetric.Files ? item.Value.ToString("N0", CultureInfo.CurrentCulture) : Bytes(item.Value) +
+        : item.Unknown && item.Value == 0 ? "Unknown" : metric == AnalysisMetric.Files ? item.Value.ToString(exact ? "0" : "N0", exact ? CultureInfo.InvariantCulture : CultureInfo.CurrentCulture)
+        : (exact ? item.Value.ToString(CultureInfo.InvariantCulture) + " bytes" : Bytes(item.Value)) +
         (item.IdentityUnverified > 0 ? " · unverified" : item.Unknown ? " known" : "");
     public static string Bytes(UInt128 bytes)
     {

@@ -48,7 +48,7 @@ public static class AnalysisRawNames
     {
         try
         {
-            if (node.NameEncoding == "unix-bytes" && !node.RawName.IsDefaultOrEmpty) _ = Utf8.GetString(node.RawName.AsSpan());
+            if (node.NameEncoding == "unix-bytes" && !node.RawName.IsDefaultOrEmpty) _ = Utf8.GetCharCount(node.RawName.AsSpan());
             _ = Utf8.GetByteCount(node.Name);
             return true;
         }

@@ -20,23 +20,26 @@
     "Captured timezone is used for historical date filters; unavailable timezone requires explicit offsets. Source component extension matching is independent of host path separators.",
     "Per-entry metadata failures preserve readable siblings. Failed directories are not queued, observed unknown kinds remain unknown, and policy-excluded mount/volume entries are omitted from all metrics.",
     "Native Windows observation accepts exact DOS-reserved and trailing-dot/space names independently of future action eligibility; raw NT opens use exact component spelling.",
-    "Schema-1 inert JSONL stream codec has fixed typed order, canonical decimal strings and raw base64 names, bounded parsing/import memory, mandatory counts/hash trailer, graph/coverage checks and recomputed checked totals. Private filename publication is not implemented."
+    "Schema-1 inert JSONL stream codec has fixed typed order, canonical decimal strings and raw base64 names, bounded parsing/import memory, mandatory counts/hash trailer, graph/coverage checks and recomputed checked totals. Private filename publication is not implemented.",
+    "Display preserves unpaired UTF16 code units, invalid Unix bytes and trailing name characters without conflating literal escape text. Lossy name/path predicates are Unknown, and clipboard paths remain refused when not lossless.",
+    "Logical-size uncertainty is independent of allocation uncertainty: known zero remains zero, missing logical size stays Unknown, and exact inspector/tooltips retain numeric precision. Clearing filters resets uncertain-cohort input; closing a tab clears the session-cap notice.",
+    "Standalone native desktop harness uses production styles/services/backends, generated fixtures, an isolated profile, process admission, source hash checks and bounded cleanup. Mac startup/close at 2x with 509 generated regular paths passed; desktop interaction/a11y acceptance is still unqualified."
   ],
   "validation": {
     "windowsCore": {
-      "total": 166,
-      "passed": 158,
+      "total": 169,
+      "passed": 161,
       "failed": 0,
       "skipped": 8,
-      "detail": "138 analysis cases and 28 command regressions; six Unix-native and two Unix-FIFO cases skip on Windows.",
-      "evidence": "windows-core-r19.xml"
+      "detail": "141 analysis cases and 28 command regressions; six Unix-native and two Unix-FIFO cases skip on Windows.",
+      "evidence": "windows-core-r20.xml"
     },
     "windowsHostNative": {
       "total": 9,
       "passed": 9,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-host-native-r19.xml"
+      "evidence": "windows-host-native-r20.xml"
     },
     "windowsVm": {
       "status": "ordinary-user-regression-fixtures-passed",
@@ -48,19 +51,19 @@
       "detail": "Six native fixtures and three reparse-tag cases, including denied metadata, sibling continuation and exact native DOS/trailing names. No native application UI qualification claimed."
     },
     "macosArm64": {
-      "total": 166,
-      "passed": 166,
+      "total": 169,
+      "passed": 169,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-core-r19.xml"
+      "evidence": "mac-core-r20.xml"
     },
     "headlessRendering": {
-      "total": 6,
-      "passed": 6,
+      "total": 7,
+      "passed": 7,
       "failed": 0,
       "skipped": 0,
-      "evidence": "analysis-render-r19.xml",
-      "detail": "Seven-theme view parity; custom overlay cancel and Enter details; 4000-row short/large-text virtualization; root-separated bases, uncertain predicates and captured timezone. Headless, not native UI/a11y."
+      "evidence": "analysis-render-r20.xml",
+      "detail": "Seven-theme view parity, narrow/large-text virtualization, frozen interaction, roots/uncertain filters, and logical-size/raw-name inspector behavior. Headless, not native UI/a11y."
     },
     "solutionBuild": {
       "errors": 0,
@@ -70,6 +73,12 @@
     "ubuntu": {
       "status": "postponed-other-FileCat-instance",
       "detail": "User reconfirmed that the existing test is active on 5 November; leave it running."
+    },
+    "nativeDesktop": {
+      "macos": "Startup/close only; no desktop-input or a11y acceptance.",
+      "evidence": "mac-native-startup-r20.json",
+      "windows": "Desktop activation/accessibility unavailable; background/lock-screen captures only. User unlock check pending; owned test process closed.",
+      "ubuntu": "Postponed under explicit user instruction while another test remains active."
     }
   },
   "nextWork": [
@@ -81,6 +90,19 @@
     "W3: integrate the tested data-only stream codec through qualified private storage/catalog and guarded atomic publication; named save/history, compatible comparison, sensitivity review and create-only exports/imports remain.",
     "W4/W5: qualified live source and exact-entry typed operations, protected objects, immutable review/submission, preserving defaults and accurate outcomes. Unsupported needs feasibility evidence.",
     "W6/W7: declarative recipes and explicitly qualified content work; closed NTFS metadata helper or prescribed standard-scan fallback.",
-    "W8: native platform/theme/DPI/a11y/package matrix, 1M/10M measurements, negative controls, actual diagnostics ZIP leakage, documentation and final requirement-by-requirement audit."
-  ]
+    "W8: native platform/theme/DPI/a11y/package matrix, 1M/10M measurements, negative controls, actual diagnostics ZIP leakage, documentation and final requirement-by-requirement audit.",
+    "After the complete implementation/testing loop: independent UX/UI/functional/security review using FINAL_REVIEW_CHECKLIST.md, fix every finding and repeat relevant native checks before completion."
+  ],
+  "finalIndependentReview": {
+    "required": true,
+    "status": "not-yet-performed",
+    "checklist": "FINAL_REVIEW_CHECKLIST.md",
+    "scope": [
+      "UX",
+      "UI",
+      "functionality",
+      "security"
+    ],
+    "timing": "After the full implementation/testing loop; fix findings and repeat relevant tests before completion."
+  }
 }

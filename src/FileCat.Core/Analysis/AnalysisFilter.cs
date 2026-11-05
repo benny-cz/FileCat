@@ -7,7 +7,7 @@ namespace FileCat.Core.Analysis;
 public enum AnalysisTruth { False, True, Unknown }
 public sealed record AnalysisFilterItem(AnalysisNode Node, AnalysisObject? Object, string RelativePath,
     AnalysisMeasurement Allocation, Int128? Delta = null, string? Change = null, bool Stale = false, bool Unreadable = false,
-    MeasurementState? ActiveState = null);
+    MeasurementState? ActiveState = null, bool? RelativePathTextAvailable = null);
 
 /// <summary>Bounded declarative query parser. It has no filesystem, reflection or executable expression access.</summary>
 public sealed class AnalysisFilter
@@ -144,7 +144,7 @@ public sealed class AnalysisFilter
                         while (Consume(":")) v += ":" + Take().Value;
                     p = Field(t.Value, op, v);
                 }
-                else p = i => Truth(i.Node.Name.Contains(t.Value, _case));
+                else p = i => AnalysisRawNames.HasLosslessText(i.Node) ? Truth(i.Node.Name.Contains(t.Value, _case)) : AnalysisTruth.Unknown;
             }
             return not ? i => Not(p(i)) : p;
         }
@@ -246,6 +246,8 @@ public sealed class AnalysisFilter
             }
             return i =>
             {
+                if (field == "path" && !(i.RelativePathTextAvailable ?? AnalysisRawNames.HasLosslessText(i.Node)) ||
+                    (field is "name" or "ext" or "type") && !AnalysisRawNames.HasLosslessText(i.Node)) return AnalysisTruth.Unknown;
                 string candidate = field switch
                 {
                     "name" => i.Node.Name, "path" => i.RelativePath, "root" => i.Node.RootId,

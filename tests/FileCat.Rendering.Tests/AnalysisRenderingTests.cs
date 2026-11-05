@@ -32,9 +32,40 @@ public sealed class AnalysisRenderingTests
         Assert.Equal(3, model.Tree.Projection.UnknownFilterNodes.Count);
         model.ShowUnknownFilterResults = true; await model.RebuildAsync(true);
         Assert.True(model.Tree.Projection.IncludesUnknownFilterResults); Assert.Equal(3ul, model.Tree.Projection.Totals.MatchingPaths);
+        model.Query = "  "; await model.RebuildAsync(true);
+        Assert.False(model.ShowUnknownFilterResults); Assert.False(model.Tree.Projection.IncludesUnknownFilterResults);
+        Assert.Equal(3ul, model.Tree.Projection.Totals.MatchingPaths);
         using var unavailable = new DiskSpaceViewModel(s with { Identity = s.Identity with { TimeZoneId = "FileCat/Missing-Zone-For-Fixture" } }) { Query = "modified<2026-01-01" };
         await unavailable.RebuildAsync(true); Assert.Contains("explicit offset", unavailable.FilterError);
         unavailable.Query = "modified<2026-01-01T00:00:00Z"; await unavailable.RebuildAsync(true); Assert.Null(unavailable.FilterError);
+    }
+
+    [AvaloniaFact]
+    public async Task InspectorSeparatesKnownZeroLogicalSizeFromMissingAllocationAndPreservesRawNameEvidence()
+    {
+        using var styles = new ProductStyles(); var s = Fixture(); const string rawName = "bad\ud800. ";
+        s = s with
+        {
+            Nodes = s.Nodes.SetItem(5, s.Nodes[5] with { Name = rawName, NameEncoding = "utf16le", RawName = AnalysisRawNames.Encode("utf16le", rawName).ToImmutableArray() }),
+            Objects = s.Objects.SetItem(2, s.Objects[2] with { LogicalLength = AnalysisMeasurement.Known(0) })
+        };
+        using var zero = new DiskSpaceViewModel(s); await zero.RebuildAsync(true); zero.Focus("n:6");
+        var window = new DiskSpaceWindow();
+        try
+        {
+            window.AddSession(zero); window.Show(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            var item = zero.Tree!.Items["n:6"];
+            Assert.True(item.Unknown); Assert.False(item.LogicalUnknown); Assert.Equal("0 bytes", DiskSpaceViewModel.LogicalText(item, true));
+            var inspector = window.GetVisualDescendants().OfType<TextBlock>().Single(t => t.Text?.Contains("Active metric:", StringComparison.Ordinal) == true).Text!;
+            Assert.Contains("Active metric: Unknown", inspector); Assert.Contains("File size: 0 bytes", inspector);
+            Assert.Contains("bad\\uD800\\u002E\\u0020", inspector); Assert.Contains("Raw name (utf16le):", inspector);
+            Assert.Contains("no lossless clipboard path", inspector); Assert.Null(zero.FocusedPath());
+            using var missing = new DiskSpaceViewModel(s with { Objects = s.Objects.SetItem(2, s.Objects[2] with { LogicalLength = AnalysisMeasurement.Missing(MeasurementState.Failed) }) });
+            await missing.RebuildAsync(true); missing.Focus("n:6"); window.AddSession(missing); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            Assert.Equal("Unknown", DiskSpaceViewModel.LogicalText(missing.Tree!.Items["n:6"], true));
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("File size: Unknown", StringComparison.Ordinal) == true);
+        }
+        finally { window.ForceClose(); }
     }
 
     [AvaloniaFact]

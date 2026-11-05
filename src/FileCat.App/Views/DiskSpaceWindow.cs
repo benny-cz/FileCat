@@ -94,6 +94,7 @@ public sealed class DiskSpaceWindow : Window
         if ((view.Model.Running || view.Model.IsPreparing || view.Model.Selection.Basket.Count > 0) &&
             !await _dialogs.ConfirmAsync("Close analysis?", "Stop this metadata scan and discard its temporary results and unsaved review references?", "Stop and close", true, "Keep open")) return;
         view.Dispose(); _sessions.RemoveAt(at); _items.RemoveAt(at); _tabs.ItemsSource = _items.ToArray();
+        _notice.IsVisible = false;
         if (_items.Count > 0) _tabs.SelectedIndex = Math.Min(at, _items.Count - 1);
     }
     public void ForceClose() { _forceClose = true; Close(); }
@@ -279,9 +280,9 @@ public sealed class DiskSpaceWindow : Window
             void UpdateMark() => mark.IsChecked = item.NodeId is { } id && Model.Selection.Marks.Contains(id);
             mark.AttachedToVisualTree += (_, _) => Model.Changed += UpdateMark; mark.DetachedFromVisualTree += (_, _) => Model.Changed -= UpdateMark;
             row.Children.Add(mark);
-            string[] values = [AnalysisNames.Display(item.Name), DiskSpaceViewModel.ValueText(item, Model.Tree?.Projection.Metric ?? Model.Metric), DiskSpaceViewModel.Bytes(item.LogicalSize), item.Files.ToString("N0"), DiskSpaceViewModel.StatusText(item)];
+            string[] values = [AnalysisNames.Display(item.Name), DiskSpaceViewModel.ValueText(item, Model.Tree?.Projection.Metric ?? Model.Metric), DiskSpaceViewModel.LogicalText(item), item.Files.ToString("N0"), DiskSpaceViewModel.StatusText(item)];
             for (int i = 0; i < values.Length; i++) { var text = new TextBlock { Text = values[i], TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center }; Grid.SetColumn(text, i + 1); row.Children.Add(text); }
-            ToolTip.SetTip(row, new RichTip(AnalysisNames.Display(item.Name, 240), detail: $"Exact known value: {item.Value}. File size: {item.LogicalSize} bytes. Files: {item.Files}.", hints: [item.Unknown ? "Some measurements or namespace entries are unavailable." : "Observed metadata, not an immutable filesystem snapshot."]));
+            ToolTip.SetTip(row, new RichTip(AnalysisNames.Display(item.Name, 240), detail: $"Known active value: {DiskSpaceViewModel.ValueText(item, Model.Tree?.Projection.Metric ?? Model.Metric, true)}. File size: {DiskSpaceViewModel.LogicalText(item, true)}. Files: {item.Files}.", hints: [item.Unknown ? "Some measurements or namespace entries are unavailable." : "Observed metadata, not an immutable filesystem snapshot."]));
             AutomationProperties.SetName(row, string.Join("; ", values)); return row;
         }
         private static void FitColumns(Grid row)
@@ -302,7 +303,7 @@ public sealed class DiskSpaceWindow : Window
                 if (tree is not null && !_shownRoots.Equals(tree.Snapshot.Roots))
                 {
                     _shownRoots = tree.Snapshot.Roots;
-                    var choices = new[] { new RootChoice(null, "All locations") }.Concat(_shownRoots.Select(r => new RootChoice(r.Id, AnalysisNames.Display(r.Label, 80) + " [" + r.Id + "]"))).ToArray();
+                    var choices = new[] { new RootChoice(null, "All locations") }.Concat(_shownRoots.Select(r => new RootChoice(r.Id, AnalysisNames.Display(r.Label, 80, true) + " [" + r.Id + "]"))).ToArray();
                     _rootFilter.ItemsSource = choices; _rootFilter.SelectedItem = choices.FirstOrDefault(c => c.Id == Model.RootFilter);
                 }
                 _rootFilter.IsVisible = tree is not null && tree.Snapshot.Roots.Length > 1;
@@ -336,9 +337,9 @@ public sealed class DiskSpaceWindow : Window
                     _sunburst.SetView(tree, Model.Selection.Scope, Model.Selection.Focus, Model.Selection.Marks);
                     var selected = tree.Items.GetValueOrDefault(Model.Selection.Focus ?? "");
                     _inspector.Text = selected is null ? "Choose an entry in either chart or the table. Marks and the review basket are separate." :
-                        AnalysisNames.Display(selected.Name) + "\n" + AnalysisNames.Display(Model.FocusedPath() ??
-                            (selected.Synthetic ? "Accounting group" : "Raw name has no lossless clipboard path.")) + "\n" + DiskSpaceViewModel.StatusText(selected) +
-                        $"\n\nActive metric: {selected.Value}\nFile size: {selected.LogicalSize} bytes\nFile paths: {selected.Files}\n" +
+                        AnalysisNames.Display(selected.Name) + "\n" + Model.FocusedDisplayPath() + "\n" + DiskSpaceViewModel.StatusText(selected) +
+                        $"\n\nActive metric: {DiskSpaceViewModel.ValueText(selected, tree.Projection.Metric, true)}\nFile size: {DiskSpaceViewModel.LogicalText(selected, true)}\nFile paths: {selected.Files}\n" +
+                        (selected.NameEvidence is { } evidence ? evidence + "\n" : "") +
                         (selected.IdentityUnverified > 0 ? $"Identity-unverified path bytes: {selected.IdentityUnverified}. Aliases may be counted more than once.\n" : "") +
                         (selected.SharedElsewhere ? "Shared objects are charged once at their common parent. Removing one alias does not promise free space.\n" : "") +
                         (selected.Unknown ? "Some requested measurements or namespace entries are unknown.\n" : "") + "\nObservations do not authorize current filesystem operations.";

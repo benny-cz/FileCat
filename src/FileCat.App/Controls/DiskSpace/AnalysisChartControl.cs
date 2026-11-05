@@ -59,11 +59,11 @@ public abstract class AnalysisChartControl : Control
         while (take < known && take < limit - 1 && (take == 0 || (double)all[take].Value / (double)total >= minimumRatio)) take++;
         if (take == known) return all.Take(take).ToImmutableArray();
         var result = all.Take(take).ToImmutableArray();
-        UInt128 sum = 0, logical = 0, unverified = 0; ulong files = 0; bool unknown = false;
-        foreach (var item in all.Skip(take)) { sum = checked(sum + item.Value); unverified = checked(unverified + item.IdentityUnverified); logical = checked(logical + item.LogicalSize); files = checked(files + item.Files); unknown |= item.Unknown; }
+        UInt128 sum = 0, logical = 0, unverified = 0; ulong files = 0; bool unknown = false, logicalUnknown = false;
+        foreach (var item in all.Skip(take)) { sum = checked(sum + item.Value); unverified = checked(unverified + item.IdentityUnverified); logical = checked(logical + item.LogicalSize); files = checked(files + item.Files); unknown |= item.Unknown; logicalUnknown |= item.LogicalUnknown; }
         if (sum == 0) return result;
         string key = AnalysisTree.OtherKey(parent, take);
-        var other = new AnalysisTreeItem(key, parent, "Other small items", null, AnalysisKind.Special, true, true, sum, logical, files, unknown, false, "other", [], []) { IdentityUnverified = unverified };
+        var other = new AnalysisTreeItem(key, parent, "Other small items", null, AnalysisKind.Special, true, true, sum, logical, files, unknown, false, "other", [], []) { IdentityUnverified = unverified, LogicalUnknown = logicalUnknown };
         _displayItems[key] = other; return result.Add(other);
     }
     public override void Render(DrawingContext context)
@@ -166,7 +166,7 @@ public abstract class AnalysisChartControl : Control
         { names.Push(tree.NameOf(current)); if (current == AnalysisTree.RootKey) break; current = tree.ParentOf(current); }
         UInt128 denominator = Tree?.ScopeValue(Scope) ?? 0;
         string percent = denominator == 0 ? "Unknown percentage" : ((double)item.Value / (double)denominator).ToString("P1", CultureInfo.CurrentCulture) + " of current scope's known measure";
-        var tip = new RichTip(AnalysisNames.Display(string.Join(" / ", names), 240), detail: $"{metric}: {item.Value} exact reported units. {percent}. File size: {item.LogicalSize} bytes." +
+        var tip = new RichTip(AnalysisNames.Display(string.Join(" / ", names), 240), detail: $"{metric}: {item.Value} exact reported units. {percent}. File size: {FileCat.App.ViewModels.DiskSpaceViewModel.LogicalText(item, true)}." +
             (item.IdentityUnverified > 0 ? $" Includes {item.IdentityUnverified} identity-unverified path bytes; aliases may repeat." : ""),
             hints: [item.SharedElsewhere ? "Shared allocation is attributed at the common parent." : item.Unknown ? "Measurement or namespace coverage is incomplete." : "Observed metadata; allocation can share physical blocks.", "More in inspector."]) { MaxWidth = 420 };
         ToolTip.SetTip(this, tip); ToolTip.SetShowDelay(this, 450);

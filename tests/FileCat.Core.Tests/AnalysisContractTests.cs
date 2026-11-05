@@ -6,6 +6,24 @@ namespace FileCat.Core.Tests;
 public sealed class AnalysisContractTests
 {
     [Fact]
+    public void DisplayPreservesUnpairedCodeUnitsAndMakesTrailingAndEscapedNamesDistinct()
+    {
+        Assert.Equal("a\\uD800b\\uDC00", AnalysisNames.Display("a\ud800b\udc00"));
+        Assert.Equal("name\\u002E\\u0020", AnalysisNames.Display("name. ", escapeTrailing: true));
+        Assert.Equal("A normal sentence.", AnalysisNames.Display("A normal sentence."));
+        Assert.Equal("safe\\u202Ename\\u000A", AnalysisNames.Display("safe\u202Ename\n"));
+        Assert.Equal("café 😀", AnalysisNames.Display("café 😀"));
+        var literal = new AnalysisNode(1, "r", 0, "\\u202E", AnalysisKind.File);
+        var bidi = literal with { Name = "\u202E" };
+        Assert.NotEqual(AnalysisNames.DisplayName(literal), AnalysisNames.DisplayName(bidi));
+        var raw = literal with { NameEncoding = "unix-bytes", Name = "\ufffdx", RawName = [0xff, (byte)'x'] };
+        Assert.Equal("[unix bytes] FF78", AnalysisNames.DisplayName(raw));
+        Assert.Equal("Raw name (unix-bytes): FF78", AnalysisNames.NameEvidence(raw));
+        Assert.Null(AnalysisNames.NameEvidence(literal));
+        Assert.Equal("C:\\parent\\u002E\\u0020\\child", AnalysisNames.DisplayPath("C:\\parent. \\child", AnalysisNameRules.Windows));
+        Assert.Equal("/parent\\u002E\\u0020/child", AnalysisNames.DisplayPath("/parent. /child", AnalysisNameRules.Unix));
+    }
+    [Fact]
     public void SourceComponentClassificationDoesNotInterpretTheCurrentHostsPathSeparators()
     {
         Assert.Equal("cs\\name", AnalysisNames.Extension("source.cs\\name"));
