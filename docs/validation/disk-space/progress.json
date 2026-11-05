@@ -80,16 +80,20 @@
     "Actual Windows input reproduced final-projection row replacement losing keyboard routing. Publication now holds focus on the stable table and restores the selected row/checkbox after layout, without stealing focus from an editor, dialog or later interaction. All 48 presentation cases pass on Windows VM, Mac and Ubuntu.",
     "Native Windows pointer/Return/Space and Mac accessibility/keyboard plus Ubuntu pointer/keyboard scan/sort/mark/breadcrumb/Back subsets pass with the final chart/focus code. All 509 generated source paths per machine are unchanged and all owned processes exited. Complete native qualification and final independent review remain pending.",
     "Non-followed navigation links and special entries now expose an explicit boundary state and Not measured/Not counted file measures instead of a known zero. Numeric active/file-size/file-path ordering keeps them after measured values in both directions. Real zero-length files and synthetic accounting groups retain their known values, and checked totals remain unchanged.",
-    "A new presentation control covers all four metrics, numeric directions, namespace completeness, exact zero values, row accessibility/help and visible inspector explanation. All 49 presentation cases pass on the Windows VM, Mac and Ubuntu; the full solution builds with zero warnings/errors. Actual native link inspection passes on all three, with 509 unchanged source paths and owned exit per platform."
+    "A new presentation control covers all four metrics, numeric directions, namespace completeness, exact zero values, row accessibility/help and visible inspector explanation. All 49 presentation cases pass on the Windows VM, Mac and Ubuntu; the full solution builds with zero warnings/errors. Actual native link inspection passes on all three, with 509 unchanged source paths and owned exit per platform.",
+    "A strict immutable create-new private-state schema retains a random profile UUID through service/process restarts. Ordinary native hardware-profile/host-UUID/application-machine-ID observations become canonical profile-scoped pseudonyms; unavailable host context remains explicit and corrupt/unsafe state is preserved with visible ephemeral fallback. This is correlation data, not authenticated provenance or live source authority.",
+    "Comparison no longer guesses identity continuity from equal serial/path or opaque host strings. Missing/different host/profile/root-object/connection context requires reviewed structural mapping; selfcomparison of the same recorded acquisition remains data-only. Continuity across fresh native rebinds remains unqualified.",
+    "Core r67 passes on Windows VM 294/312 with18 platform skips, Mac294/294, Ubuntu293/294 withone Darwin ACL skip. All51 presentation cases pass on each guest after a corrupt-state InvalidDataException regression and explicit-mapping fixture updates. Actual diagnostics ZIP omits the new profile/token/query/scratch canaries; this is a subset of the complete leakage gate.",
+    "Three native profile launches per platform verify create/reopen exact state and identity, then untouched corrupt bytes plus visible fallback. Every run preserves509 generated regular paths and exits. Windows21 native filesystem cases pass and full solution build has zero warnings/errors. Other testers were postponed; Ubuntu first window-search attempt safely closed and is excluded from acceptance."
   ],
   "validation": {
     "windowsCore": {
-      "total": 292,
-      "passed": 275,
+      "total": 312,
+      "passed": 294,
       "failed": 0,
-      "skipped": 17,
-      "detail": "Windows VM:275 pass/17 platform skips, including two new Unix-only descriptor cases; capacity exhaustion controls isolated before final -maxThreads2 execution.",
-      "evidence": "windows-core-r36c.xml"
+      "skipped": 18,
+      "detail": "Current r67 analysis/command suite with profile, native host API, state privacy and continuity controls. Platform skips remain explicit.",
+      "evidence": "windows-core-r67.xml"
     },
     "windowsHostNative": {
       "total": 14,
@@ -104,38 +108,38 @@
       "passed": 21,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-native-r36e.xml",
-      "detail": "21 ordinary NTFS cases:14 previous regressions plus7 native guard/attribute/oplock feasibility controls. Passing counterexamples are not operation qualification."
+      "evidence": "windows-vm-native-r73.xml",
+      "detail": "21 ordinary NTFS regressions pass, including actual independent-binding comparison refusal and explicitly mapped growth. Existing feasibility counterexamples remain rejected operation proofs."
     },
     "macosArm64": {
-      "total": 274,
-      "passed": 274,
+      "total": 294,
+      "passed": 294,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-core-r36c.xml",
-      "detail": "274 pass after native metadata descriptor and capacity-isolation fixes; actual APFS fixture volume verified."
+      "evidence": "mac-core-r67.xml",
+      "detail": "Current r67 analysis/command suite with profile, native host API, state privacy and continuity controls. Platform skips remain explicit."
     },
     "headlessRendering": {
-      "total": 49,
-      "passed": 49,
+      "total": 51,
+      "passed": 51,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-vm-render-r61.xml",
-      "detail": "All 49 pass on each guest runtime; includes non-file link/special presentation, known zero, synthetic measures, exact totals, numeric sorting and accessible/visible explanations."
+      "evidence": "windows-vm-render-r72.xml",
+      "detail": "All51 cases pass on each authorized guest runtime; includes safe corrupt-state fallback, service reopen, explicit structural mapping and actual diagnostics ZIP subset."
     },
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "solution-build-r62.txt"
+      "evidence": "solution-build-r74.txt"
     },
     "ubuntu": {
       "status": "ordinary-user-native-regressions-passed",
-      "total": 274,
-      "passed": 273,
+      "total": 294,
+      "passed": 293,
       "failed": 0,
       "skipped": 1,
-      "evidence": "ubuntu-core-r36c.xml",
-      "detail": "273 pass/one Darwin ACL skip on ext4 after native stat and capacity-test isolation fixes. Both held-child substitution and ancestor-movement counterexamples pass; no GUI instance started."
+      "evidence": "ubuntu-core-r67.xml",
+      "detail": "Current r67 analysis/command suite with profile, native host API, state privacy and continuity controls. Platform skips remain explicit."
     },
     "nativeDesktop": {
       "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification. r62 native accessibility/keyboard link inspection verifies the visible omitted-target explanation, measured-zero distinction and retained mark, with 509 unchanged source paths and owned exit.",
@@ -210,6 +214,18 @@
       "windows": "windows-vm-tree-r47.xml",
       "mac": "mac-tree-r47.xml",
       "ubuntu": "ubuntu-tree-r47.xml"
+    },
+    "nativeProfileRestart": {
+      "status": "subset-passed-all-three",
+      "windows": [
+        "windows-native-profile-r71-1.json",
+        "windows-native-profile-r71-2.json",
+        "windows-native-profile-r71-3.json"
+      ],
+      "mac": "mac-native-profile-r71.json",
+      "ubuntu": "ubuntu-native-profile-r71b.json",
+      "scope": "Native metadata/process restart/private byte preservation/visible fallback, not pointer/keyboard/a11y or full qualification",
+      "excluded": "ubuntu-native-profile-failed-window-r71.json"
     }
   },
   "nextWork": [

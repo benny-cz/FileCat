@@ -127,7 +127,10 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
     internal override AnalysisPrivateFile OpenRead(string name)
     {
         AnalysisPrivateNames.Entry(name); Verify();
-        var owned = OpenOwned(Root, name, FileFlags, 0);
+        OwnedHandle owned;
+        try { owned = OpenOwned(Root, name, FileFlags, 0); }
+        catch (IOException error) when (name == AnalysisPrivateNames.PrivateState && error.InnerException is Win32Exception { NativeErrorCode: 2 })
+        { throw new FileNotFoundException("The private analysis entry is missing.", error); }
         try { Private(owned.Handle, directory: false, links: 1); return new PrivateFile(this, owned, writable: false); }
         catch { owned.Dispose(); throw; }
     }

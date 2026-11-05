@@ -118,7 +118,18 @@ public sealed partial class AnalysisRenderingTests
             Dispatcher.UIThread.RunJobs();
             window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == "Previous inventory filename").Text = "before.fcdsa";
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Compare observations" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            var deadline = DateTime.UtcNow.AddSeconds(10); while (window.SessionCount != 2 && DateTime.UtcNow < deadline) await Task.Delay(10);
+            var deadline = DateTime.UtcNow.AddSeconds(10); Button? mapped = null;
+            while (DateTime.UtcNow < deadline)
+            {
+                Dispatcher.UIThread.RunJobs();
+                mapped = window.GetVisualDescendants().OfType<Button>().SingleOrDefault(b => b.Content as string == "Compare mapped observations" && b.IsEffectivelyVisible);
+                if (mapped is not null) break; await Task.Delay(10);
+            }
+            Assert.NotNull(mapped); Assert.False(mapped.IsEnabled);
+            window.GetVisualDescendants().OfType<ComboBox>().Single(c => (AutomationProperties.GetName(c) ?? "").StartsWith("Previous root for current ", StringComparison.Ordinal)).SelectedIndex = 1;
+            deadline = DateTime.UtcNow.AddSeconds(5); while (!mapped.IsEnabled && DateTime.UtcNow < deadline) await Task.Delay(10);
+            Assert.True(mapped.IsEnabled); mapped.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            deadline = DateTime.UtcNow.AddSeconds(10); while (window.SessionCount != 2 && DateTime.UtcNow < deadline) await Task.Delay(10);
             Assert.Equal(2, window.SessionCount); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.IsEffectivelyVisible && t.Text?.StartsWith("Compare observations · File size", StringComparison.Ordinal) == true);
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(), b => b.IsEffectivelyVisible && b.Content as string == "Start analysis");
@@ -129,7 +140,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.False(discard.IsDefault); discard.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             deadline = DateTime.UtcNow.AddSeconds(5); while (window.SessionCount != 1 && DateTime.UtcNow < deadline) await Task.Delay(10);
             Assert.Equal(1, window.SessionCount);
-            using var next = await current.CompareSavedAsync("before.fcdsa"); Assert.NotNull(next.Comparison);
+            using var next = await CompareStructurallyAsync(current, "before.fcdsa"); Assert.NotNull(next.Comparison);
         }
         finally { window.ForceClose(); }
     }
@@ -155,7 +166,7 @@ public sealed partial class AnalysisRenderingTests
         using var previous = new DiskSpaceViewModel(fixture.Services, ImportedFixture()); await previous.RebuildAsync(true); await previous.SaveNewAsync("before.fcdsa");
         var s = Fixture(); s = s with { Objects = s.Objects.SetItem(0, s.Objects[0] with { LogicalLength = AnalysisMeasurement.Known(131072) }) };
         using var current = new DiskSpaceViewModel(fixture.Services, ImportedFixture(s)) { Metric = AnalysisMetric.FileSize }; await current.RebuildAsync(true);
-        using var comparison = await current.CompareSavedAsync("before.fcdsa"); current.Dispose(); previous.Dispose();
+        using var comparison = await CompareStructurallyAsync(current, "before.fcdsa"); current.Dispose(); previous.Dispose();
         Assert.NotNull(comparison.Comparison); Assert.Equal(new AnalysisDelta(false, 65536), comparison.Comparison.NetChange);
         Assert.False(comparison.Running); Assert.True(comparison.HasTemporaryWork); Assert.False(comparison.CanCompare); Assert.False(comparison.CanSave);
         Assert.True(comparison.Comparison.Taint.HasFlag(AnalysisTaint.ImportedUnverified));
@@ -173,7 +184,7 @@ public sealed partial class AnalysisRenderingTests
         using var previous = new DiskSpaceViewModel(fixture.Services, ImportedFixture()); await previous.RebuildAsync(true); await previous.SaveNewAsync("before.fcdsa");
         var s = Fixture(); s = s with { Objects = s.Objects.SetItem(0, s.Objects[0] with { LogicalLength = AnalysisMeasurement.Known(131072) }) };
         using var current = new DiskSpaceViewModel(fixture.Services, ImportedFixture(s)) { Metric = AnalysisMetric.FileSize }; await current.RebuildAsync(true);
-        var comparison = await current.CompareSavedAsync("before.fcdsa"); var window = new DiskSpaceWindow { Width = 380, Height = 430, FontSize = 20 };
+        var comparison = await CompareStructurallyAsync(current, "before.fcdsa"); var window = new DiskSpaceWindow { Width = 380, Height = 430, FontSize = 20 };
         window.AddSession(comparison); window.Show();
         try
         {
@@ -222,5 +233,13 @@ public sealed partial class AnalysisRenderingTests
         using var cancel = new CancellationTokenSource(); cancel.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => model.CompareSavedAsync("before.fcdsa", cancel.Token));
         Assert.True(model.CanCompare); using var valid = await model.CompareSavedAsync("before.fcdsa"); Assert.NotNull(valid.Comparison);
+    }
+
+    private static async Task<DiskSpaceViewModel> CompareStructurallyAsync(DiskSpaceViewModel model, string name)
+    {
+        using var captured = model.CaptureDisplayedRevision();
+        using var inputs = await model.PrepareComparisonAsync(name, null, captured, model.Metric, CancellationToken.None);
+        Assert.False(inputs.HasAutomaticRoots);
+        return await inputs.BuildAsync(new Dictionary<string, string> { [inputs.PreviousRoots.Single().Id] = inputs.CurrentRoots.Single().Id }, CancellationToken.None);
     }
 }

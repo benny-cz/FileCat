@@ -33,7 +33,9 @@ public sealed partial class AnalysisWindowsTests
             Assert.All(same.Rows, row => Assert.Equal(AnalysisChange.NoObservedMetadataChange, row.Change));
         }
         File.WriteAllBytes(file, new byte[32]); File.WriteAllBytes(Path.Combine(fixture.Path, "new.bin"), new byte[5]); var current = await Scan();
-        using var result = AnalysisComparison.Build(old, current, AnalysisMetric.FileSize, cancellation: TestContext.Current.CancellationToken);
+        Assert.Throws<InvalidOperationException>(() => AnalysisComparison.SuggestRootMapping(old, current));
+        using var result = AnalysisComparison.Build(old, current, AnalysisMetric.FileSize,
+            new Dictionary<string, string> { [old.Roots[0].Id] = current.Roots[0].Id }, TestContext.Current.CancellationToken);
         Assert.Equal(new AnalysisDelta(false, 21), result.NetChange);
         Assert.Contains(result.Rows, r => r.Change == AnalysisChange.Growing); Assert.Contains(result.Rows, r => r.Change == AnalysisChange.Added);
     }

@@ -81,7 +81,8 @@ public sealed partial class AnalysisRenderingTests
         var query = comparison.QueryComparisonAsync("size>0", false, AnalysisComparisonSide.CurrentOrPrevious, CancellationToken.None);
         comparison.Dispose(); source.Dispose();
         using var result = await query; Assert.Equal(3, result.Matches.Length);
-        Assert.Throws<InvalidOperationException>(() => AnalysisComparison.Build(Fixture(), Fixture(), AnalysisMetric.Files));
-        result.Dispose(); using var next = AnalysisComparison.Build(Fixture(), Fixture(), AnalysisMetric.Files); Assert.Equal(3, next.Rows.Length);
+        var snapshot = Fixture();
+        Assert.Throws<InvalidOperationException>(() => AnalysisComparison.Build(snapshot, snapshot, AnalysisMetric.Files));
+        result.Dispose(); using var next = AnalysisComparison.Build(snapshot, snapshot, AnalysisMetric.Files); Assert.Equal(3, next.Rows.Length);
     }
 }

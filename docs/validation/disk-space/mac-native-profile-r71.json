@@ -1,0 +1,58 @@
+{
+  "purpose": "Native profile restart and corrupt-state fallback subset; no pointer/keyboard or complete qualification",
+  "archiveSha256": "92b7fe1590241f48675617f72ec8233e0bcb64e0c9854870de23f86c09b04375",
+  "runs": [
+    {
+      "pass": 1,
+      "processId": 30546,
+      "finished": true,
+      "hasQualifiedHostProfile": true,
+      "sameIdentityAsFirst": true,
+      "continuityNotice": null,
+      "privateBytesPreserved": true,
+      "fixtureRegularPaths": 509,
+      "appSha256": "0ff71ed6ebde0b9a8ca899984f753b09bd3bb29ea253b65d13c8c241fe9a310c",
+      "harnessSha256": "0b632539f111d610d778cdf7a2685bdc30b34c59207bc52cd5e1d7b186aad7fd",
+      "state": "closed",
+      "sourceUnchanged": true,
+      "deadlineClosed": false,
+      "exitCode": 0,
+      "ownedProcessExited": true
+    },
+    {
+      "pass": 2,
+      "processId": 30609,
+      "finished": true,
+      "hasQualifiedHostProfile": true,
+      "sameIdentityAsFirst": true,
+      "continuityNotice": null,
+      "privateBytesPreserved": true,
+      "fixtureRegularPaths": 509,
+      "appSha256": "0ff71ed6ebde0b9a8ca899984f753b09bd3bb29ea253b65d13c8c241fe9a310c",
+      "harnessSha256": "0b632539f111d610d778cdf7a2685bdc30b34c59207bc52cd5e1d7b186aad7fd",
+      "state": "closed",
+      "sourceUnchanged": true,
+      "deadlineClosed": false,
+      "exitCode": 0,
+      "ownedProcessExited": true
+    },
+    {
+      "pass": 3,
+      "processId": 30647,
+      "finished": true,
+      "hasQualifiedHostProfile": false,
+      "sameIdentityAsFirst": false,
+      "continuityNotice": "Private profile continuity could not be loaded or created. Existing state was preserved. Metadata analysis can continue with recorded-path comparison.",
+      "privateBytesPreserved": true,
+      "fixtureRegularPaths": 509,
+      "appSha256": "0ff71ed6ebde0b9a8ca899984f753b09bd3bb29ea253b65d13c8c241fe9a310c",
+      "harnessSha256": "0b632539f111d610d778cdf7a2685bdc30b34c59207bc52cd5e1d7b186aad7fd",
+      "state": "closed",
+      "sourceUnchanged": true,
+      "deadlineClosed": false,
+      "exitCode": 0,
+      "ownedProcessExited": true
+    }
+  ],
+  "passed": true
+}

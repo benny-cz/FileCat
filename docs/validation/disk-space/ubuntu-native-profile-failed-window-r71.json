@@ -1,0 +1,15 @@
+{
+  "purpose": "Native profile restart and corrupt-state fallback subset; no pointer/keyboard or complete qualification",
+  "archiveSha256": "c2f2a546d3ef052afb7306f7b2461ce7cfb32be4ab6ad40897e1a5b7598b0f0e",
+  "runs": [
+    {
+      "pass": 1,
+      "processId": 405926,
+      "state": "closed",
+      "sourceUnchanged": true,
+      "deadlineClosed": false,
+      "exitCode": 0,
+      "ownedProcessExited": true
+    }
+  ]
+}

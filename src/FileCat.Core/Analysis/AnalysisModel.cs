@@ -40,6 +40,7 @@ public sealed record SessionIdentity(Guid SessionId, long Epoch, long Revision, 
     DateTimeOffset StartedUtc, DateTimeOffset ObservedUtc)
 {
     public string TimeZoneId { get; init; } = TimeZoneInfo.Local.Id;
+    public AnalysisHostProfileIdentity? HostProfileIdentity => AnalysisHostProfileIdentity.TryParse(HostProfile, out var identity) ? identity : null;
 }
 public sealed record RootBinding(string Id, string Scheme, string DisplayLocator, string CanonicalLocator,
     string? SourceIdentity, IdentityAssurance Assurance, string Label)

@@ -1,0 +1,16 @@
+{
+    "purpose":  "Native Windows profile restart and fallback subset; no native input qualification",
+    "pass":  1,
+    "processId":  1124,
+    "finished":  true,
+    "hasQualifiedHostProfile":  true,
+    "continuityNotice":  null,
+    "privateBytesPreserved":  true,
+    "fixtureRegularPaths":  509,
+    "appSha256":  "ec9ccbb5517cbed8d570763ede503883275567f96b5847586d917315be95cdb6",
+    "harnessSha256":  "a1c232e8d84a3d86014b770e39a0bb993d8a7fefc829992830e247faeb764881",
+    "ownedProcessExited":  true,
+    "state":  "closed",
+    "sourceUnchanged":  true,
+    "deadlineClosed":  false
+}

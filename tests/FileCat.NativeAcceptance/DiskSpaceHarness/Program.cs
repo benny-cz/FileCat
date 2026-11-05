@@ -33,6 +33,8 @@ internal sealed partial class HarnessApp : Application
     private object? _lastScreen;
     private string _run = "", _fixture = "";
     private bool _deadlineClosed;
+    private bool _profileProbeFinished;
+    private string? _profileProbeError, _profileProbeCaptureError;
     private double _lastWidth, _lastHeight, _lastScale;
     private readonly string _appHash = Hash(Path.Combine(AppContext.BaseDirectory, "FileCat.dll"));
     private readonly string _harnessHash = Hash(Path.Combine(AppContext.BaseDirectory, "DiskSpaceHarness.dll"));
@@ -53,7 +55,8 @@ internal sealed partial class HarnessApp : Application
         _fixture = Path.Combine(_run, "fixture"); Directory.CreateDirectory(_fixture);
         CreateFixture();
         PlatformFactory.WindowsFactory = () => new FileCat.Platform.Windows.WindowsPlatform();
-        _services = AppServices.CreateForPaths(AppPaths.Resolve(dataRoot: Path.Combine(_run, "data")));
+        string profileRoot = Program.SharedProfile ? Path.Combine(AppContext.BaseDirectory, "native-validation-shared-profile") : Path.Combine(_run, "data");
+        _services = AppServices.CreateForPaths(AppPaths.Resolve(dataRoot: profileRoot));
         ThemeManager.Apply("ClassicDark");
         _window = new DiskSpaceWindow(AddLiveSession, () => _services.Keymap);
         if (Program.LargeText) _window.FontSize = 20;
@@ -81,6 +84,38 @@ internal sealed partial class HarnessApp : Application
         };
         _deadline.Start(); _window.Show(); WriteReport("ready");
         if (Program.WindowsInput) BeginWindowsInput();
+        if (Program.ProfileProbe) _ = ProfileProbeAsync();
+    }
+
+    private async Task ProfileProbeAsync()
+    {
+        try
+        {
+            await _models[0].StartAsync([_fixture]);
+            var until = DateTimeOffset.UtcNow.AddMinutes(2);
+            while (_window!.IsVisible && DateTimeOffset.UtcNow < until)
+            {
+                await _models[0].RebuildAsync(true);
+                if (_models[0].Phase == AnalysisPhase.Finished && _models[0].Tree?.Snapshot.Phase == AnalysisPhase.Finished)
+                {
+                    await Task.Delay(300);
+                    if (OperatingSystem.IsWindows())
+                    {
+                        try
+                        {
+                            WindowsGuestInput.ActivateFromDesktop(_window.TryGetPlatformHandle()?.Handle ?? 0);
+                            await Task.Delay(600); WindowsCapture("profile-probe");
+                        }
+                        catch (Exception captureError) { _profileProbeCaptureError = captureError.GetType().Name; }
+                    }
+                    _profileProbeFinished = true; WriteReport("profile-probe-finished"); return;
+                }
+                if (_models[0].Phase is AnalysisPhase.Failed or AnalysisPhase.Stopped) throw new InvalidOperationException("The generated profile probe scan did not finish.");
+                await Task.Delay(100);
+            }
+            throw new TimeoutException("The generated profile probe scan did not publish its finished revision.");
+        }
+        catch (Exception error) { _profileProbeError = error.GetType().Name + ": " + error.Message; WriteReport("profile-probe-failed"); }
     }
 
     private void AddLiveSession()
@@ -96,6 +131,7 @@ internal sealed partial class HarnessApp : Application
                 {
                     model.Phase, model.Status, model.FilterError, model.Query, model.Metric,
                     session = tree.Snapshot.Identity.SessionId, tree.Snapshot.Coverage, tree.Snapshot.Freshness,
+                    hostProfile = tree.Snapshot.Identity.HostProfile, model.ContinuityNotice,
                     paths = tree.Snapshot.Nodes.Length, objects = tree.Snapshot.Objects.Length,
                     issues = tree.Snapshot.Issues.Select(i => new { i.Code, i.State }).ToArray(),
                     known = tree.Projection.Totals.Known.ToString(), unverified = tree.Projection.Totals.IdentityUnverified.ToString(),
@@ -158,10 +194,11 @@ internal sealed partial class HarnessApp : Application
             platform = RuntimeInformation.OSDescription, architecture = RuntimeInformation.ProcessArchitecture.ToString(),
             run = _run, fixture = _fixture, fixtureRegularPaths = _originals.Count, fixtureLimitations = _fixtureLimitations,
             nativeWindowVisible = _window?.IsVisible, lastVisibleWidth = _lastWidth, lastVisibleHeight = _lastHeight,
-            lastVisibleScale = _lastScale, lastScreen = _lastScreen, largeText = Program.LargeText, compact = Program.Compact,
+            lastVisibleScale = _lastScale, lastScreen = _lastScreen, largeText = Program.LargeText, compact = Program.Compact, sharedProfile = Program.SharedProfile,
             sessions = _window?.SessionCount, createdSessions = _models.Count, lastObservation = _lastState,
             selectedTab = _tabs?.SelectedIndex, tabHeaders = _tabs?.Items.OfType<TabItem>().Select(tab => tab.Header as string).ToArray(),
             appSha256 = _appHash, harnessSha256 = _harnessHash
+            , profileProbe = Program.ProfileProbe, profileProbeFinished = _profileProbeFinished, profileProbeError = _profileProbeError, profileProbeCaptureError = _profileProbeCaptureError
         };
         File.WriteAllText(Path.Combine(_run, "report.json"), JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }) + "\n");
     }
@@ -175,14 +212,19 @@ internal static class Program
     internal static bool LargeText { get; private set; }
     internal static bool Compact { get; private set; }
     internal static bool WindowsInput { get; private set; }
+    internal static bool SharedProfile { get; private set; }
+    internal static bool ProfileProbe { get; private set; }
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input"))) return 64;
+        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe"))) return 64;
         LargeText = args.Contains("--large-text", StringComparer.Ordinal);
         Compact = args.Contains("--compact", StringComparer.Ordinal);
         WindowsInput = args.Contains("--windows-input", StringComparer.Ordinal);
-        if (WindowsInput && !HarnessApp.WindowsInputVmAllowed()) return 77;
+        SharedProfile = args.Contains("--shared-profile", StringComparer.Ordinal);
+        ProfileProbe = args.Contains("--profile-probe", StringComparer.Ordinal);
+        if (ProfileProbe && WindowsInput) return 64;
+        if ((WindowsInput || ProfileProbe && OperatingSystem.IsWindows()) && !HarnessApp.WindowsInputVmAllowed()) return 77;
         if (AnalysisAdmission.Refusal() is not null) return 77;
         foreach (var process in Process.GetProcessesByName("FileCat"))
             using (process) if (process.Id != Environment.ProcessId) return 75;

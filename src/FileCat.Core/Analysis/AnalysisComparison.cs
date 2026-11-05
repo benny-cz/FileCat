@@ -204,16 +204,26 @@ public static class AnalysisComparison
         }
         else
         {
+            bool sameHost = old.Identity.HostProfileIdentity is { HasHostContext: true } host && host == current.Identity.HostProfileIdentity;
             foreach (var before in old.Roots.Where(r => r.Disposition == AnalysisRootDisposition.Active))
             {
                 var matches = current.Roots.Where(r => r.Disposition == AnalysisRootDisposition.Active && r.Scheme == before.Scheme && r.Kind == before.Kind &&
-                    r.NameRules == before.NameRules && r.CanonicalLocator == before.CanonicalLocator && r.SourceIdentity == before.SourceIdentity).Take(2).ToArray();
+                    r.NameRules == before.NameRules && r.CanonicalLocator == before.CanonicalLocator && r.SourceIdentity == before.SourceIdentity &&
+                    (old.Identity.SessionId == current.Identity.SessionId && old.Identity.Epoch == current.Identity.Epoch &&
+                        old.Identity.HostProfile == current.Identity.HostProfile && before.ConnectionIdentityReference == r.ConnectionIdentityReference ||
+                        sameHost && SameCapturedBinding(before, r))).Take(2).ToArray();
                 if (matches.Length == 1 && used.Add(matches[0].Id)) map.Add(before.Id, matches[0].Id);
             }
         }
         if (map.Count == 0) throw new InvalidOperationException("These inventories have no matching captured roots. Choose an inventory of the same captured scope, or provide an explicit structural root mapping. No identity continuity can be inferred.");
         return map.ToImmutable();
     }
+
+    private static bool SameCapturedBinding(RootBinding a, RootBinding b) =>
+        a.Assurance == IdentityAssurance.Verified && b.Assurance == IdentityAssurance.Verified && a.SourceIdentity is not null && a.SourceIdentity == b.SourceIdentity &&
+        a.ObservedObjectIdentity is not null && a.ObservedObjectIdentity == b.ObservedObjectIdentity &&
+        Guid.TryParseExact(a.ConnectionIdentityReference, "N", out var binding) && binding != Guid.Empty && a.ConnectionIdentityReference == binding.ToString("N") &&
+        a.ConnectionIdentityReference == b.ConnectionIdentityReference;
 
     private static AnalysisComparisonCompatibility Compatibility(AnalysisSnapshot old, AnalysisSnapshot current, AnalysisMetric metric,
         ImmutableDictionary<string, string> map, bool structural, AnalysisProjection oldProjection, AnalysisProjection newProjection)
@@ -224,10 +234,10 @@ public static class AnalysisComparison
         var newEncodings = current.Nodes.ToLookup(n => n.RootId, n => n.NameEncoding, StringComparer.Ordinal);
         bool namesMatch = map.All(pair => oldEncodings[pair.Key].Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).SequenceEqual(newEncodings[pair.Value].Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal), StringComparer.Ordinal));
         bool scope = rootsMatch && namesMatch;
-        bool identity = !structural && old.Identity.HostProfile == current.Identity.HostProfile && map.All(pair =>
+        bool identity = !structural && old.Identity.HostProfileIdentity is { HasHostContext: true } oldHost && oldHost == current.Identity.HostProfileIdentity && map.All(pair =>
         {
             var a = old.Roots.Single(r => r.Id == pair.Key); var b = current.Roots.Single(r => r.Id == pair.Value);
-            return a.Assurance == IdentityAssurance.Verified && b.Assurance == IdentityAssurance.Verified && a.SourceIdentity is not null && a.SourceIdentity == b.SourceIdentity;
+            return SameCapturedBinding(a, b);
         });
         string[] Bases(AnalysisSnapshot s, bool directories) => s.Facts.Where(f => f.DirectoryId.HasValue == directories).Select(f => f.ComponentId + "\0" + f.BasisId + "\0" + string.Join('\0', f.Includes.Order(StringComparer.Ordinal))).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         bool EmptyFileBasis(AnalysisSnapshot empty, AnalysisSnapshot other) => empty.Policy.BasisIds.Length > 0 &&
@@ -242,7 +252,7 @@ public static class AnalysisComparison
         if (!rootsMatch) reasons.Add("Only some captured roots match. Unmapped observations and the total difference are unknown.");
         if (!namesMatch) reasons.Add("Raw name representations differ between these roots. Membership changes and differences are unknown until an explicit compatible representation is available.");
         if (structural) reasons.Add("Explicit structural comparison. Matching paths do not establish object identity or continuity.");
-        else if (!identity) reasons.Add("Path-based comparison. Host/profile or verified source identity continuity is unavailable.");
+        else if (!identity) reasons.Add("Path-based comparison. Host/profile or captured source-binding continuity cannot be established. A matching volume serial or path does not prove the same source.");
         bool Complete(AnalysisSnapshot s) => s.Phase == AnalysisPhase.Finished && s.Coverage == NamespaceCoverage.CompleteUnderPolicy && s.Freshness == AnalysisFreshness.Observed &&
             !s.Nodes.Any(n => n.IncludedByPolicy && (n.Kind == AnalysisKind.Unknown || n.MetadataState is MeasurementState.Failed or MeasurementState.Changed or MeasurementState.Pending)) &&
             !s.Issues.Any(i => i.State is MeasurementState.Failed or MeasurementState.Changed or MeasurementState.Pending) &&

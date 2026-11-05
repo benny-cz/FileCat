@@ -81,6 +81,9 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         _services.Io.HealthChanged += HealthChanged;
         try
         {
+            string profileIdentity = await ResolveHostProfileAsync(preparation.Token);
+            preparation.Token.ThrowIfCancellationRequested();
+            if (_disposed) return;
             if (!_preparedInput.SequenceEqual(roots, StringComparer.Ordinal) || _prepared.Count != roots.Count)
             {
                 ReleasePrepared();
@@ -101,7 +104,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
             }
             preparation.Token.ThrowIfCancellationRequested();
             _session?.Dispose();
-            _session = new AnalysisCoordinator(_services.Io).Start(_prepared.ToArray(), new LatestProgress(_services.Ui, UpdateProgress), Components);
+            _session = new AnalysisCoordinator(_services.Io, profileIdentity).Start(_prepared.ToArray(), new LatestProgress(_services.Ui, UpdateProgress), Components);
             _prepared.Clear(); _preparedInput = []; Phase = AnalysisPhase.Scanning; SourceCloseFailures = 0; Dirty = true;
             SetStatus("Scanning metadata. Known results so far; allocation can share physical blocks.");
         }

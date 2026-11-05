@@ -86,12 +86,14 @@ public sealed partial class AnalysisComparisonTests
             }
             File.WriteAllBytes(Path.Combine(root, "data.bin"), new byte[256]); File.WriteAllBytes(Path.Combine(root, "added.bin"), new byte[3]); File.Delete(Path.Combine(root, "shared-alias.bin"));
             var current = await Scan();
-            using (var logical = AnalysisComparison.Build(old, current, AnalysisMetric.FileSize, cancellation: Cancellation))
+            Assert.Throws<InvalidOperationException>(() => AnalysisComparison.SuggestRootMapping(old, current));
+            var mapping = new Dictionary<string, string> { [old.Roots[0].Id] = current.Roots[0].Id };
+            using (var logical = AnalysisComparison.Build(old, current, AnalysisMetric.FileSize, mapping, Cancellation))
             {
                 Assert.Equal(new AnalysisDelta(false, 67), logical.NetChange);
                 Assert.Contains(logical.Rows, r => r.Change == AnalysisChange.Growing); Assert.Contains(logical.Rows, r => r.Change == AnalysisChange.Added);
             }
-            using var allocation = AnalysisComparison.Build(old, current, AnalysisMetric.OnDisk, cancellation: Cancellation);
+            using var allocation = AnalysisComparison.Build(old, current, AnalysisMetric.OnDisk, mapping, Cancellation);
             var shared = Assert.Single(allocation.Rows, r => r.Current?.Paths.Any(p => p.EndsWith("/shared.bin", StringComparison.Ordinal)) == true);
             Assert.Equal(AnalysisChange.Attribution, shared.Change); Assert.Equal(new AnalysisDelta(false, 0), shared.Delta);
         }
@@ -156,8 +158,10 @@ public sealed partial class AnalysisComparisonTests
         { ObservedAliases = nodes.Where(n => n.ObjectId == f.Object).Select(n => n.Id).ToImmutableArray() }).ToImmutableArray();
         var facts = files.DistinctBy(f => f.Object).Select(f => new StorageFact("fact:" + f.Object, f.Object, null, "primary", "fixture-v1",
             AnalysisMeasurement.Known(f.Allocated), "fixture-v1", DateTimeOffset.UnixEpoch, [])).ToImmutableArray();
-        return new(new(Guid.NewGuid(), 1, 1, "host/profile", DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch),
-            [new("r", "file", "/fixture", "/fixture", "volume:root", IdentityAssurance.Verified, "fixture") { NameRules = AnalysisNameRules.Unix }],
+        string profile = AnalysisHostProfileIdentity.Create(Guid.Parse("00112233-4455-6677-8899-aabbccddeeff"), AnalysisHostObservation.LinuxApplicationMachineId, Enumerable.Range(0, 16).Select(i => (byte)i).ToArray()).ToString();
+        return new(new(Guid.NewGuid(), 1, 1, profile, DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch),
+            [new("r", "file", "/fixture", "/fixture", "volume:root", IdentityAssurance.Verified, "fixture") { NameRules = AnalysisNameRules.Unix,
+                ConnectionIdentityReference = "66554433221144338899aabbccddeeff", ObservedObjectIdentity = "volume:root-object" }],
             nodes.ToImmutable(), objects, facts, [], new() { BasisIds = ["fixture-v1"] }, AnalysisPhase.Finished, NamespaceCoverage.CompleteUnderPolicy);
     }
 
