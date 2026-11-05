@@ -1,0 +1,175 @@
+{
+  "purpose": "Native Ubuntu initial compact eight-tab/setup large-text subset; no full qualification",
+  "processId": 289850,
+  "events": [
+    "Invoked New analysis",
+    "Invoked New analysis",
+    "Invoked New analysis",
+    "Invoked New analysis",
+    "Invoked New analysis",
+    "Invoked New analysis",
+    "Invoked New analysis"
+  ],
+  "nativeWindowBounds": {
+    "x": 66,
+    "y": 69,
+    "width": 380,
+    "height": 430
+  },
+  "xwininfo": "\nxwininfo: Window id: 0x1c00013 \"Disk space \u2014 FileCat\"\n\n  Absolute upper-left X:  66\n  Absolute upper-left Y:  69\n  Relative upper-left X:  14\n  Relative upper-left Y:  49\n  Width: 380\n  Height: 430\n  Depth: 32\n  Visual: 0x66\n  Visual Class: TrueColor\n  Border width: 0\n  Class: InputOutput\n  Colormap: 0x1c00012 (not installed)\n  Bit Gravity State: NorthWestGravity\n  Window Gravity State: NorthWestGravity\n  Backing Store State: WhenMapped\n  Save Under State: no\n  Map State: IsViewable\n  Override Redirect State: no\n  Corners:  +66+69  -834+69  -834-301  +66-301\n  -geometry 20x70+52+20\n\n",
+  "accessibleWindows": [
+    {
+      "name": "Disk space \u2014 FileCat",
+      "role": "frame",
+      "rectangle": {
+        "x": 66,
+        "y": 69,
+        "width": 380,
+        "height": 430
+      }
+    }
+  ],
+  "lastHeaderObservation": {
+    "name": "Analysis 8",
+    "rectangle": {
+      "x": 187,
+      "y": 241,
+      "width": 117,
+      "height": 40
+    }
+  },
+  "allEightNativeHeadersReachable": {
+    "Analysis 1": {
+      "x": 66,
+      "y": 161,
+      "width": 117,
+      "height": 40,
+      "selectedAccessible": true
+    },
+    "Analysis 2": {
+      "x": 187,
+      "y": 161,
+      "width": 117,
+      "height": 40,
+      "selectedAccessible": true
+    },
+    "Analysis 3": {
+      "x": 308,
+      "y": 161,
+      "width": 117,
+      "height": 40,
+      "selectedAccessible": true
+    },
+    "Analysis 4": {
+      "x": 66,
+      "y": 201,
+      "width": 117,
+      "height": 40,
+      "selectedAccessible": true
+    },
+    "Analysis 5": {
+      "x": 187,
+      "y": 201,
+      "width": 117,
+      "height": 40,
+      "selectedAccessible": true
+    },
+    "Analysis 6": {
+      "x": 308,
+      "y": 201,
+      "width": 117,
+      "height": 40,
+      "selectedAccessible": true
+    },
+    "Analysis 7": {
+      "x": 66,
+      "y": 241,
+      "width": 117,
+      "height": 40,
+      "selectedAccessible": true
+    },
+    "Analysis 8": {
+      "x": 187,
+      "y": 241,
+      "width": 117,
+      "height": 40,
+      "selectedAccessible": true
+    }
+  },
+  "startWithinNativeWindow": {
+    "x": 88,
+    "y": 367,
+    "width": 139,
+    "height": 38
+  },
+  "nativePointerStartCompletedMetadataScan": true,
+  "state": "passed-native-compact-setup-subset",
+  "ownedProcessExited": true,
+  "harnessReport": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "closed",
+    "sourceUnchanged": true,
+    "deadlineClosed": false,
+    "processId": 289850,
+    "platform": "Ubuntu 24.04.5 LTS",
+    "architecture": "X64",
+    "run": "/home/benny/FileCatValidation/dsa-20261105-r41d-setup/app/native-validation/dsa-f6bca79098a040118a75195678137074",
+    "fixture": "/home/benny/FileCatValidation/dsa-20261105-r41d-setup/app/native-validation/dsa-f6bca79098a040118a75195678137074/fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": false,
+    "lastVisibleWidth": 380,
+    "lastVisibleHeight": 430,
+    "lastVisibleScale": 1,
+    "lastScreen": {
+      "bounds": "0, 0, 1280, 800",
+      "workingArea": "66, 32, 1214, 768",
+      "Scaling": 1,
+      "position": "66, 32",
+      "frameSize": "380, 467"
+    },
+    "largeText": true,
+    "compact": true,
+    "sessions": 0,
+    "createdSessions": 8,
+    "lastObservation": {
+      "Phase": 5,
+      "Status": "Finished \u00b7 518 observed paths \u00b7 1 issues. Values are observations over time.",
+      "FilterError": null,
+      "Query": "",
+      "Metric": 2,
+      "session": "78b30adb-c0c2-47ba-b0e5-246afba5ea1c",
+      "Coverage": 0,
+      "Freshness": 0,
+      "paths": 518,
+      "objects": 508,
+      "issues": [
+        {
+          "Code": "navigation-link-not-followed",
+          "State": 3
+        }
+      ],
+      "known": "3424256",
+      "unverified": "0",
+      "matchingPaths": 509,
+      "rows": 1,
+      "focus": null,
+      "marked": 0,
+      "basket": 0
+    },
+    "selectedTab": 7,
+    "tabHeaders": [
+      "Analysis 1",
+      "Analysis 2",
+      "Analysis 3",
+      "Analysis 4",
+      "Analysis 5",
+      "Analysis 6",
+      "Analysis 7",
+      "Analysis 8"
+    ],
+    "appSha256": "5e361d064c313020704d41d1b7610c47627cfd29910c2418d8fc0864e7cbc0d8",
+    "harnessSha256": "80c8f905796417656659c205067800d94b9a23e83451cdf148613561eb86bb14"
+  }
+}

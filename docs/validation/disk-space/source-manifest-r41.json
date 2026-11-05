@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Responsive Ready setup/unique location names development evidence; not capability authorization",
+  "gitBase": "feeace92",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "2d4627f71dcb68db821c43b4d7138bbb05ea9be7fb9c60652957d52ca27b14a3"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Setup.cs",
+      "sha256": "750106d79a4d41eaa94e603555a539a9484bc04ebc95d544de78acb03ac69041"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/Program.cs",
+      "sha256": "f1c45264aad0689abd0c72df8cd2fdacb4e42fdb1c054638d800c6d06773733b"
+    },
+    {
+      "path": "tests/FileCat.NativeAcceptance/DiskSpaceHarness/README.md",
+      "sha256": "59801b52a847a1b17a1975f9403b763327781716dddded8e95f2f70aeb904332"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-render-windows-r40b.tgz",
+      "sha256": "d059fa01e3abcb0fe0a52129ebea3835cf938f9b15f3a58ae1589c2e9759038c"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r40b.tgz",
+      "sha256": "763330f1925b629b3b42cc062ece829b6ec08fb996f07062be395b1fa4eb02f9"
+    },
+    {
+      "path": ".tmp/dsa-render-linux-r40b.tgz",
+      "sha256": "0454e0777138bca0ed34c6c8d3042c3356bc52d01e3f189ecbf2667c1dfb3d3c"
+    },
+    {
+      "path": ".tmp/desktop-r41-mac.tgz",
+      "sha256": "574fa8e194ba0f677877e8a3dd9ecf57a84c9eac5e7f0be6f3e408a2c11560c2"
+    },
+    {
+      "path": ".tmp/desktop-r41-linux.tgz",
+      "sha256": "b857c3e7de419cd7f6d04cb2871cedda0757d4ce4fa4c6036f0cedb9cf5c0831"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".tmp/render-r40b-mac/FileCat.dll",
+      "sha256": "a70381ee3ccca57d7e29fac31fab13d8ab8a7180f7662b8118b9d75019cdbae3"
+    },
+    {
+      "path": ".tmp/render-r40b-mac/FileCat.Rendering.Tests.dll",
+      "sha256": "1a2a5429b63f8cdd1e31487abb55ff87eeb413177229bc1f47a1c3d3d10fa352"
+    },
+    {
+      "path": ".tmp/desktop-r41-mac/FileCat.dll",
+      "sha256": "9d61a4be3c21511e179d5ccda13888121724edabe6d4b1ce7f3b7d60170c249b"
+    },
+    {
+      "path": ".tmp/desktop-r41-mac/DiskSpaceHarness.dll",
+      "sha256": "230081e53e5b38014d76f2d8fc578c1df5c71d38fc178be41d85311ae574ffe8"
+    },
+    {
+      "path": ".tmp/desktop-r41-linux/FileCat.dll",
+      "sha256": "5e361d064c313020704d41d1b7610c47627cfd29910c2418d8fc0864e7cbc0d8"
+    },
+    {
+      "path": ".tmp/desktop-r41-linux/DiskSpaceHarness.dll",
+      "sha256": "80c8f905796417656659c205067800d94b9a23e83451cdf148613561eb86bb14"
+    }
+  ],
+  "nativeAcceptance": "Mac AXPress Start and Ubuntu padded pointer/eight-tab/Start subsets pass at initial380x430 client/20-DIP text. All38 presentation cases pass in Windows VM, Mac and Ubuntu. Earlier Ubuntu coordinate assertions are controller failures, corrected against agreeing raw X11/AT-SPI absolute bounds. Full qualification remains pending."
+}

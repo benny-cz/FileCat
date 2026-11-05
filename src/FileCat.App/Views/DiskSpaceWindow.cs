@@ -162,6 +162,8 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly ScrollViewer _setupViewport;
         private readonly StackPanel _roots = new() { Spacing = 5 };
         private readonly List<TextBox> _rootEditors = [];
+        private readonly List<Control> _dataControls = [];
+        private readonly WrapPanel _basketHost = new() { ItemSpacing = 10, Margin = new Thickness(10, 5) };
         private readonly TextBlock _resolved = new() { TextWrapping = TextWrapping.Wrap };
         private readonly Button _start = new() { Content = "Start analysis", Classes = { "primary" } };
         private readonly ComboBox _components = new() { ItemsSource = new[] { "Standard allocation", "Detailed allocation (partial component support)" }, MinWidth = 250 };
@@ -213,15 +215,19 @@ public sealed partial class DiskSpaceWindow : Window
             ToolTip.SetTip(_components, new RichTip("Allocation components", detail: "Standard records reported file allocation. Detailed also records supported directory self-allocation. " + AnalysisComponents.UnmeasuredExplanation));
             _setup.Children.Add(_components);
             _setup.Children.Add(new TextBlock { Text = "Stay within each filesystem. Links and cloud contents are not followed. Detailed adds directory allocation; separate streams, forks and xattrs are not measured.", TextWrapping = TextWrapping.Wrap });
-            _setup.Children.Add(_resolved); _setup.Children.Add(_start);
+            _setup.Children.Add(_resolved);
             _setupViewport = new ScrollViewer { Content = _setup, MaxHeight = 250, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
             Children.Add(_setupViewport);
             var toolbar = new StackPanel { Spacing = 6, Margin = new Thickness(10, 4) };
             var nav = new WrapPanel { ItemSpacing = 7, LineSpacing = 5 };
-            nav.Children.Add(ActionButton("Back", Model.Back, "Return to the previous analysis scope."));
-            nav.Children.Add(ActionButton("Forward", Model.Forward, "Return to the next analysis scope."));
-            nav.Children.Add(ActionButton("Up", Model.Parent, "Inspect the parent scope without changing the captured sources."));
+            nav.Children.Add(_start);
+            void DataNavigation(string title, Action action, string help)
+            { var button = ActionButton(title, action, help); nav.Children.Add(button); _dataControls.Add(button); }
+            DataNavigation("Back", Model.Back, "Return to the previous analysis scope.");
+            DataNavigation("Forward", Model.Forward, "Return to the next analysis scope.");
+            DataNavigation("Up", Model.Parent, "Inspect the parent scope without changing the captured sources.");
             nav.Children.Add(_mode); nav.Children.Add(_metric); nav.Children.Add(_pause); nav.Children.Add(_stop);
+            AutomationProperties.SetName(_mode, "Chart view"); AutomationProperties.SetName(_metric, "Analysis metric");
             _inspect = ActionButton("Inspect selection", () => _ = InspectAsync(), "Open full selection details and actions, including on a narrow screen.");
             nav.Children.Add(_inspect);
             _save = ActionButton("Save…", () => _ = SaveAsync(), "Save the displayed analysis, including all captured paths and metadata. The current display filter does not reduce the saved inventory.");
@@ -233,6 +239,7 @@ public sealed partial class DiskSpaceWindow : Window
             filters.Children.Add(_rootFilter); filters.Children.Add(_unknown);
             filters.Children.Add(ActionButton("Clear filter", () => { Model.ShowUnknownFilterResults = false; _query.Text = ""; }, "Remove the display query; scan boundaries remain captured."));
             toolbar.Children.Add(nav); toolbar.Children.Add(_scope); toolbar.Children.Add(_summary); toolbar.Children.Add(_coverage); toolbar.Children.Add(filters); toolbar.Children.Add(_error);
+            _dataControls.AddRange([_pause, _inspect, _save, _compare, _scope, _summary, _coverage, filters]);
             Grid.SetRow(toolbar, 1); Children.Add(toolbar);
             _chartHost.Children.Add(_treemap); _chartHost.Children.Add(_sunburst); _explorer.Children.Add(_chartHost);
             var splitter = new GridSplitter { Height = 5, ResizeDirection = GridResizeDirection.Rows, HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -258,9 +265,9 @@ public sealed partial class DiskSpaceWindow : Window
             _inspectorScroll = new ScrollViewer { Content = _inspectorPanel, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
             Grid.SetColumn(_inspectorScroll, 1); Grid.SetRowSpan(_inspectorScroll, 3); _explorer.Children.Add(_inspectorScroll);
             Grid.SetRow(_explorer, 2); Children.Add(_explorer);
-            var bottom = new WrapPanel { ItemSpacing = 10, Margin = new Thickness(10, 5), Children = { _basket } };
-            bottom.Children.Add(ActionButton("Review cleanup", () => _ = ReviewAsync(), "Review the captured references and their supported actions. Expected free-space gain is unknown."));
-            Grid.SetRow(bottom, 3); Children.Add(bottom); Grid.SetRow(_status, 4); _status.Margin = new Thickness(10, 3, 10, 8); Children.Add(_status);
+            _basketHost.Children.Add(_basket);
+            _basketHost.Children.Add(ActionButton("Review cleanup", () => _ = ReviewAsync(), "Review the captured references and their supported actions. Expected free-space gain is unknown."));
+            Grid.SetRow(_basketHost, 3); Children.Add(_basketHost); Grid.SetRow(_status, 4); _status.Margin = new Thickness(10, 3, 10, 8); Children.Add(_status);
             _start.Click += async (_, _) => await Model.StartAsync(_rootEditors.Select(e => e.Text ?? "").ToArray());
             _pause.Click += (_, _) => Model.PauseOrResume(); _stop.Click += (_, _) => Model.Stop();
             _mode.SelectionChanged += (_, _) => { Model.Chart = _mode.SelectedIndex switch { 1 => "Sunburst", 2 => "Table", _ => "Treemap" }; Refresh(); };
@@ -298,9 +305,18 @@ public sealed partial class DiskSpaceWindow : Window
                     if (double.IsFinite(comparisonHeight) && Math.Abs(Height - comparisonHeight) > .5) Height = comparisonHeight;
                     return;
                 }
+                if (Model.Phase == AnalysisPhase.Ready && Model.Tree is null)
+                {
+                    // The location form scrolls inside its star row. Its full desired height
+                    // must not push the persistent Start/metric/Open controls below the page.
+                    double footer = Children.Where(c => c.IsVisible && c != _setupViewport).Sum(c => c.DesiredSize.Height);
+                    double setupHeight = Math.Max(_viewport.Bounds.Height, footer + 80);
+                    if (double.IsFinite(setupHeight) && Math.Abs(Height - setupHeight) > .5) Height = setupHeight;
+                    return;
+                }
                 // Auto rows get their full wrapped height. The inner explorer always receives a finite viewport,
                 // preserving list virtualization while the page itself scrolls on short or large-text displays.
-                double minimum = Children.Where(c => c != _explorer).Sum(c => c.DesiredSize.Height) + _explorer.MinHeight;
+                double minimum = Children.Where(c => c.IsVisible && c != _explorer).Sum(c => c.DesiredSize.Height) + (_explorer.IsVisible ? _explorer.MinHeight : 0);
                 double height = Math.Max(_viewport.Bounds.Height, minimum);
                 if (double.IsFinite(height) && Math.Abs(Height - height) > .5) Height = height;
             };
@@ -321,9 +337,22 @@ public sealed partial class DiskSpaceWindow : Window
             if (_rootEditors.Count >= AnalysisLimits.Roots) return;
             var box = new TextBox { Text = path, MinWidth = 180, HorizontalAlignment = HorizontalAlignment.Stretch };
             var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") }; row.Children.Add(box);
-            var remove = ActionButton("Remove", () => { if (_rootEditors.Count > 1) { _rootEditors.Remove(box); _roots.Children.Remove(row); } }, "Remove this location before starting.");
+            var remove = ActionButton("Remove", () =>
+            {
+                if (_rootEditors.Count <= 1) return;
+                _rootEditors.Remove(box); _roots.Children.Remove(row); NameRootEditors();
+            }, "Remove this location before starting.");
             Grid.SetColumn(remove, 1); row.Children.Add(remove); _roots.Children.Add(row); _rootEditors.Add(box);
-            AutomationProperties.SetName(box, "Analysis location " + _rootEditors.Count);
+            NameRootEditors();
+        }
+        private void NameRootEditors()
+        {
+            for (int i = 0; i < _rootEditors.Count; i++)
+            {
+                var editor = _rootEditors[i]; AutomationProperties.SetName(editor, "Analysis location " + (i + 1));
+                if (editor.Parent is Grid row)
+                    AutomationProperties.SetName(row.Children.OfType<Button>().Single(), "Remove analysis location " + (i + 1));
+            }
         }
         private async Task ChooseFoldersAsync()
         {
@@ -367,7 +396,15 @@ public sealed partial class DiskSpaceWindow : Window
             if (_disposed) return; _updating = true;
             try
             {
-                _setupViewport.IsVisible = Model.Phase == AnalysisPhase.Ready; _roots.IsEnabled = !Model.IsPreparing; _start.IsEnabled = !Model.IsPreparing;
+                bool configuring = Model.Phase == AnalysisPhase.Ready, setupOnly = configuring && Model.Tree is null;
+                _setupViewport.IsVisible = configuring; _setupViewport.MaxHeight = setupOnly ? double.PositiveInfinity : 250;
+                _setupViewport.MinHeight = setupOnly ? 80 : 0;
+                _roots.IsEnabled = !Model.IsPreparing; _start.IsEnabled = !Model.IsPreparing; _start.IsVisible = configuring;
+                RowDefinitions[0].Height = setupOnly ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
+                RowDefinitions[2].Height = setupOnly ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+                _explorer.IsVisible = _basketHost.IsVisible = !setupOnly;
+                foreach (var control in _dataControls) control.IsVisible = !setupOnly;
+                _stop.IsVisible = !setupOnly || Model.IsPreparing;
                 _components.IsEnabled = !Model.IsPreparing && Model.Phase == AnalysisPhase.Ready;
                 _resolved.Text = Model.ResolvedTargets; _status.Text = Model.Status; _error.Text = Model.FilterError; _error.IsVisible = Model.FilterError is not null;
                 _pause.IsEnabled = Model.Running; _stop.IsEnabled = Model.Running || Model.IsPreparing;
@@ -435,7 +472,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _explorer.RowDefinitions[0].Height = tableOnly ? new GridLength(0) : new GridLength(3, GridUnitType.Star);
                 _explorer.RowDefinitions[1].Height = tableOnly ? new GridLength(0) : GridLength.Auto;
                 _inspectorScroll.IsVisible = Bounds.Width >= 900; _explorer.ColumnDefinitions[1].Width = Bounds.Width >= 900 ? new GridLength(300) : new GridLength(0);
-                _inspect.IsVisible = Bounds.Width < 900; _inspect.IsEnabled = tree is not null;
+                _inspect.IsVisible = !setupOnly && Bounds.Width < 900; _inspect.IsEnabled = tree is not null;
             }
             finally { _updating = false; }
         }

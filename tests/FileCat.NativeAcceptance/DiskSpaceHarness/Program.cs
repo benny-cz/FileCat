@@ -57,6 +57,7 @@ internal sealed partial class HarnessApp : Application
         ThemeManager.Apply("ClassicDark");
         _window = new DiskSpaceWindow(AddLiveSession, () => _services.Keymap);
         if (Program.LargeText) _window.FontSize = 20;
+        if (Program.Compact) { _window.Width = 380; _window.Height = 430; }
         _window.Opened += (_, _) =>
         {
             _tabs = _window.GetVisualDescendants().OfType<TabControl>().Single();
@@ -152,7 +153,7 @@ internal sealed partial class HarnessApp : Application
             platform = RuntimeInformation.OSDescription, architecture = RuntimeInformation.ProcessArchitecture.ToString(),
             run = _run, fixture = _fixture, fixtureRegularPaths = _originals.Count, fixtureLimitations = _fixtureLimitations,
             nativeWindowVisible = _window?.IsVisible, lastVisibleWidth = _lastWidth, lastVisibleHeight = _lastHeight,
-            lastVisibleScale = _lastScale, lastScreen = _lastScreen, largeText = Program.LargeText,
+            lastVisibleScale = _lastScale, lastScreen = _lastScreen, largeText = Program.LargeText, compact = Program.Compact,
             sessions = _window?.SessionCount, createdSessions = _models.Count, lastObservation = _lastState,
             selectedTab = _tabs?.SelectedIndex, tabHeaders = _tabs?.Items.OfType<TabItem>().Select(tab => tab.Header as string).ToArray(),
             appSha256 = _appHash, harnessSha256 = _harnessHash
@@ -167,11 +168,13 @@ internal sealed partial class HarnessApp : Application
 internal static class Program
 {
     internal static bool LargeText { get; private set; }
+    internal static bool Compact { get; private set; }
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Any(arg => arg != "--large-text")) return 64;
+        if (args.Any(arg => arg is not ("--large-text" or "--compact"))) return 64;
         LargeText = args.Contains("--large-text", StringComparer.Ordinal);
+        Compact = args.Contains("--compact", StringComparer.Ordinal);
         if (AnalysisAdmission.Refusal() is not null) return 77;
         foreach (var process in Process.GetProcessesByName("FileCat"))
             using (process) if (process.Id != Environment.ProcessId) return 75;

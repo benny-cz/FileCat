@@ -1,0 +1,1340 @@
+[
+  {
+    "name": "Avalonia Application",
+    "role": "application",
+    "selected": false,
+    "showing": false
+  },
+  {
+    "name": "Disk space \u2014 FileCat",
+    "role": "frame",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "VisualLayerManager",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Grid",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Grid",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "DockPanel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Analysis tabs",
+    "role": "page tab list",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "DockPanel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ScrollViewer",
+    "role": "scroll pane",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Grid",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ScrollBar",
+    "role": "scroll bar",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Grid",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Grid",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Line down",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "PathIcon",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Viewbox",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ViewboxContainer",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Path",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Track",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Position",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Page down",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Page up",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Line up",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "PathIcon",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Viewbox",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ViewboxContainer",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Path",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Rectangle",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ScrollContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "SessionView",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Choose locations. Standard analysis reads metadata, not file contents.",
+    "role": "label",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "StackPanel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "WrapPanel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Open saved\u2026",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Analysis metric",
+    "role": "combo box",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "DataValidationErrors",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "DockPanel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Grid",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Popup",
+    "role": "unknown",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "PathIcon",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Viewbox",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ViewboxContainer",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Path",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentControl",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "On disk \u2014 reported",
+    "role": "label",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Chart view",
+    "role": "combo box",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "DataValidationErrors",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "DockPanel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Grid",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Popup",
+    "role": "unknown",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "PathIcon",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Viewbox",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ViewboxContainer",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Path",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentControl",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Treemap",
+    "role": "label",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Start analysis",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ScrollViewer",
+    "role": "scroll pane",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Grid",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ScrollBar",
+    "role": "scroll bar",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Grid",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Grid",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Line down",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "PathIcon",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Viewbox",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ViewboxContainer",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Path",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Track",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Position",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Page down",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Page up",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Line up",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "PathIcon",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Viewbox",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ViewboxContainer",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Path",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Rectangle",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ScrollContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "StackPanel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "TextBlock",
+    "role": "label",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Stay within each filesystem. Links and cloud contents are not followed. Detailed adds directory allocation; separate streams, forks and xattrs are not measured.",
+    "role": "label",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Allocation components",
+    "role": "combo box",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "DataValidationErrors",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "DockPanel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Grid",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Popup",
+    "role": "unknown",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "PathIcon",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Viewbox",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ViewboxContainer",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Path",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentControl",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Standard allocation",
+    "role": "label",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "WrapPanel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Choose files\u2026",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Choose folders\u2026",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Add location",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "StackPanel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Grid",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Remove analysis location 1",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Analysis location 1",
+    "role": "entry",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "DataValidationErrors",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "DockPanel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Grid",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "DockPanel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ScrollViewer",
+    "role": "scroll pane",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Grid",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ScrollContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "TextPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Understand this storage. Choose what to measure.",
+    "role": "label",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ItemsPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "WrapPanel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Analysis 8",
+    "role": "page tab",
+    "selected": true,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Analysis 7",
+    "role": "page tab",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Analysis 6",
+    "role": "page tab",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Analysis 5",
+    "role": "page tab",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Analysis 4",
+    "role": "page tab",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Analysis 3",
+    "role": "page tab",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Analysis 2",
+    "role": "page tab",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Analysis 1",
+    "role": "page tab",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "StackPanel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "WrapPanel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Continue in FileCat",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Close analysis",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "New analysis",
+    "role": "push button",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ContentPresenter",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "AccessText",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "ThemeBackdrop",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Panel",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "Border",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  },
+  {
+    "name": "WindowChrome",
+    "role": "panel",
+    "selected": false,
+    "showing": true
+  }
+]

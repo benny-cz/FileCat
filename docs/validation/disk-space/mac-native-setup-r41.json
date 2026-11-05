@@ -1,0 +1,91 @@
+{
+  "purpose": "Native Mac compact setup/Start large-text subset; no full qualification",
+  "processId": 22946,
+  "events": [
+    "Invoked Start analysis"
+  ],
+  "startWithinNativeWindow": {
+    "y": 423.0,
+    "height": 30.0,
+    "windowY": 114.0,
+    "windowHeight": 458.0
+  },
+  "captures": {
+    "compact-setup": {
+      "width": 2880,
+      "height": 1800,
+      "helper": "com.filecat.validation.capture",
+      "scope": "Main display while owned app is frontmost"
+    }
+  },
+  "nativeStartCompletedMetadataScan": true,
+  "state": "passed-native-compact-setup-subset",
+  "ownedProcessExited": true,
+  "harnessReport": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "closed",
+    "sourceUnchanged": true,
+    "deadlineClosed": false,
+    "processId": 22946,
+    "platform": "macOS 27.0.1",
+    "architecture": "Arm64",
+    "run": "/Users/benny/FileCatValidation/dsa-20261105-r41-setup/app/native-validation/dsa-7f3ca8ddea5e4674bd04a206c14065dc",
+    "fixture": "/Users/benny/FileCatValidation/dsa-20261105-r41-setup/app/native-validation/dsa-7f3ca8ddea5e4674bd04a206c14065dc/fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": false,
+    "lastVisibleWidth": 380,
+    "lastVisibleHeight": 430,
+    "lastVisibleScale": 2,
+    "lastScreen": {
+      "bounds": "0, 0, 1440, 900",
+      "workingArea": "0, 30, 1440, 791",
+      "Scaling": 1,
+      "position": "530, 114",
+      "frameSize": "380, 458"
+    },
+    "largeText": true,
+    "compact": true,
+    "sessions": 0,
+    "createdSessions": 8,
+    "lastObservation": {
+      "Phase": 5,
+      "Status": "Finished \u00b7 518 observed paths \u00b7 1 issues. Values are observations over time.",
+      "FilterError": null,
+      "Query": "",
+      "Metric": 2,
+      "session": "ad12e0cd-6ab9-428d-98e8-e93c517965e3",
+      "Coverage": 0,
+      "Freshness": 0,
+      "paths": 518,
+      "objects": 508,
+      "issues": [
+        {
+          "Code": "navigation-link-not-followed",
+          "State": 3
+        }
+      ],
+      "known": "3424256",
+      "unverified": "0",
+      "matchingPaths": 509,
+      "rows": 1,
+      "focus": null,
+      "marked": 0,
+      "basket": 0
+    },
+    "selectedTab": 7,
+    "tabHeaders": [
+      "Analysis 1",
+      "Analysis 2",
+      "Analysis 3",
+      "Analysis 4",
+      "Analysis 5",
+      "Analysis 6",
+      "Analysis 7",
+      "Analysis 8"
+    ],
+    "appSha256": "9d61a4be3c21511e179d5ccda13888121724edabe6d4b1ce7f3b7d60170c249b",
+    "harnessSha256": "230081e53e5b38014d76f2d8fc578c1df5c71d38fc178be41d85311ae574ffe8"
+  }
+}
