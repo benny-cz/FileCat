@@ -25,7 +25,7 @@ public sealed class ArchiveIoAuthority : IDisposable
     public ArchiveIoAuthority(IReadOnlyList<ArchiveInputGrant> grants, Func<int, Stream> openSource,
         ArchiveStageProxy stage, long maximumSourceIo)
     {
-        if (grants.Count > ArchiveWritePolicy.MaxMembers + 1 || maximumSourceIo < 0 || maximumSourceIo > 4 * ArchiveWritePolicy.MaxPhysicalBytes + (16 << 20))
+        if (grants.Count > ArchiveWritePolicy.MaxMembers + 1 || maximumSourceIo < 0 || maximumSourceIo > 5 * ArchiveWritePolicy.MaxPhysicalBytes + ArchiveWritePolicy.MaxLogicalBytes + (16 << 20))
             throw new ArgumentOutOfRangeException(nameof(grants));
         var frozen = new Dictionary<int, ArchiveInputGrant>(grants.Count);
         long inputBytes = 0;
@@ -36,7 +36,7 @@ public sealed class ArchiveIoAuthority : IDisposable
             ArchiveWriteBudget.Reserve(inputBytes, grant.Length, ArchiveWritePolicy.MaxPhysicalBytes + ArchiveWritePolicy.MaxLogicalBytes);
             inputBytes += grant.Length;
         }
-        if (maximumSourceIo > 4 * inputBytes + (16 << 20))
+        if (maximumSourceIo > 5 * inputBytes + (16 << 20))
             throw new ArgumentOutOfRangeException(nameof(maximumSourceIo), "The IO allowance must derive from the actual granted input lengths.");
         _grants = frozen;
         _openSource = openSource;

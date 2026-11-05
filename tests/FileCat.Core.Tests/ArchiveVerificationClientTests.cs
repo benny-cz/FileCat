@@ -98,7 +98,7 @@ public sealed class ArchiveVerificationClientTests
     [Fact]
     public async Task Unsupported_profile_refuses_before_launch_or_stage_access()
     {
-        var expected = new ArchiveWriteManifest(new(ArchiveWriteFormat.TarGzip), [], [1, 2]); int starts = 0, opens = 0;
+        var expected = new ArchiveWriteManifest(new(ArchiveWriteFormat.TarBzip2), [], [1, 2]); int starts = 0, opens = 0;
         var client = new ArchiveVerificationClient((_, _) => { starts++; throw new InvalidOperationException(); });
         var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => client.VerifyAsync(Version(Tar()), expected,
             () => { opens++; throw new InvalidOperationException(); }, TestContext.Current.CancellationToken));

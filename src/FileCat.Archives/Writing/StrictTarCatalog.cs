@@ -130,7 +130,11 @@ internal static class StrictTarCatalog
     /// <summary>Use the runtime decoder independently of raw framing; disagreement is refusal, never a tolerant catalog.</summary>
     internal static void CompareDecoder(Stream input, TarWriteCatalog catalog, CancellationToken ct)
     {
-        using var guard = new TarHeaderGuard(input, ArchiveWritePolicy.MaxEntryMetadataBytes);
+        // A seekable TarReader may skip to the next header, then seek backward into each returned payload. Force
+        // this independent validation pass forward so a replayable compressed source is decompressed once, with
+        // every payload read through the framing guard and no per-member replay or whole-payload buffering.
+        using var forward = new ForwardView(input);
+        using var guard = new TarHeaderGuard(forward, ArchiveWritePolicy.MaxEntryMetadataBytes);
         using var reader = new TarReader(guard, leaveOpen: true);
         byte[] buffer = ArrayPool<byte>.Shared.Rent(64 << 10);
         try
@@ -172,6 +176,20 @@ internal static class StrictTarCatalog
 
     private static decimal? ReadTime(IReadOnlyDictionary<string, string>? attributes, string key) =>
         attributes is not null && attributes.TryGetValue(key, out string? value) ? Timestamp(value) : null;
+
+    private sealed class ForwardView(Stream input) : Stream
+    {
+        public override bool CanRead => input.CanRead; public override bool CanSeek => false; public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override int Read(byte[] b, int o, int c) => input.Read(b, o, c);
+        public override int Read(Span<byte> b) => input.Read(b);
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long o, SeekOrigin s) => throw new NotSupportedException();
+        public override void SetLength(long n) => throw new NotSupportedException();
+        public override void Write(byte[] b, int o, int c) => throw new NotSupportedException();
+        // Borrowed view. The caller retains the complete source/decoder lifetime.
+    }
 
     private static void ValidateHeader(ReadOnlySpan<byte> header)
     {

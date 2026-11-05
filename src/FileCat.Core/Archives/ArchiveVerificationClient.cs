@@ -31,10 +31,11 @@ public sealed class ArchiveVerificationClient
         Func<Stream> openPinnedStage, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(sealedStage); ArgumentNullException.ThrowIfNull(expected); ArgumentNullException.ThrowIfNull(openPinnedStage);
-        // The current decoder endpoint qualifies only the TAR contract. Format expansion must bring its own complete
+        // The decoder endpoint handles TAR and the admitted neutral gzip wrapper. Format expansion needs complete
         // framing/metadata evidence and cannot silently route through the browsing/tolerant reader.
-        if (expected.Profile.Format != ArchiveWriteFormat.Tar)
+        if (expected.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip))
             throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This archive verification profile has not been implemented.");
+        ArchiveTarFeatures.Validate(expected.Profile, expected.Features);
         ct.ThrowIfCancellationRequested();
         var observed = await worker.AssessAsync(new(expected.Profile, sealedStage.Length, sealedStage.Sha256), openPinnedStage, ct).ConfigureAwait(false);
         ct.ThrowIfCancellationRequested();

@@ -94,6 +94,6 @@ public sealed partial class UnixArchiveStorageTests
         using var created = first.CreateArtifact(reservation); Assert.Equal(reservation.Path, created.DisplayPath);
     }
 
-    private static JobJournal ReservationJournal(string root) => JobJournal.Create(Path.Combine(root, "journals"), new Job(new JobRequest { Kind = JobKind.ArchiveUpdate,
-        Archive = new(Path.Combine(root, "result.tar"), null, [], Profile: new(ArchiveWriteFormat.Tar)) }, "owned native reservation", "owned", [], []));
+    private static JobJournal ReservationJournal(string root, ArchiveWriteProfile? profile = null) => JobJournal.Create(Path.Combine(root, "journals"), new Job(new JobRequest { Kind = JobKind.ArchiveUpdate,
+        Archive = new(Path.Combine(root, "result.tar"), null, [], Profile: profile ?? new(ArchiveWriteFormat.Tar)) }, "owned native reservation", "owned", [], []));
 }

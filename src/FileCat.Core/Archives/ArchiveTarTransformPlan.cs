@@ -26,21 +26,24 @@ public sealed class ArchiveTarTransformPlan
 
     public static ArchiveTarTransformPlan Create(ArchiveAssessment? source, IReadOnlyList<ArchiveTransformInput> inputs,
         IReadOnlyList<ArchiveTransformEdit> edits, IReadOnlyList<ArchiveTransformAddition> additions, CancellationToken ct)
+        => Create(source?.Manifest?.Profile ?? new(ArchiveWriteFormat.Tar), source, inputs, edits, additions, ct);
+
+    public static ArchiveTarTransformPlan Create(ArchiveWriteProfile profile, ArchiveAssessment? source, IReadOnlyList<ArchiveTransformInput> inputs,
+        IReadOnlyList<ArchiveTransformEdit> edits, IReadOnlyList<ArchiveTransformAddition> additions, CancellationToken ct)
     {
+        ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(inputs); ArgumentNullException.ThrowIfNull(edits); ArgumentNullException.ThrowIfNull(additions);
         ct.ThrowIfCancellationRequested();
         if (inputs.Count > ArchiveWritePolicy.MaxMembers || edits.Count > ArchiveWritePolicy.MaxMembers || additions.Count > ArchiveWritePolicy.MaxMembers)
             throw ArchiveWriteBudget.Limit();
         if (source is not null) ArgumentNullException.ThrowIfNull(source.Manifest);
-        var profile = source?.Manifest.Profile ?? new(ArchiveWriteFormat.Tar);
-        if (profile.Format != ArchiveWriteFormat.Tar) throw Unsupported();
+        if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip) || source is not null && profile != source.Manifest.Profile) throw Unsupported();
         bool ustar = false;
         if (source is not null)
         {
             ArchiveAssessmentWire.Validate(new(profile, source.SourceLength, source.SourceSha256));
             if (source.CatalogRevision != source.SourceSha256) throw Changed();
-            if (source.Manifest.Features.SequenceEqual(new byte[] { 1, 1 })) ustar = true;
-            else if (!source.Manifest.Features.SequenceEqual(new byte[] { 1, 2 })) throw Unsupported();
+            ArchiveTarFeatures.Validate(profile, source.Manifest.Features); ustar = source.Manifest.Features[1] == 1;
         }
         else if (edits.Count != 0) throw Changed();
 
@@ -109,7 +112,10 @@ public sealed class ArchiveTarTransformPlan
         if (usedInputs.Count != captured.Count) throw ArchiveManifestMember.Invalid(); // no unrelated read grants
         ValidateNamespace(planned, ct);
         // A headerless empty TAR has no PAX extension and is observed as USTAR, including a PAX remove-all update.
-        var expected = new ArchiveWriteManifest(profile, planned.Select(p => p.Member).ToArray(), [1, ustar || planned.Count == 0 ? (byte)1 : (byte)2]);
+        var expected = new ArchiveWriteManifest(profile, planned.Select(p => p.Member).ToArray(),
+            ArchiveTarFeatures.Create(profile, ustar || planned.Count == 0 ? (byte)1 : (byte)2,
+                source is not null && profile.Format == ArchiveWriteFormat.TarGzip ? source.Manifest.Features[2] : (byte)255,
+                source is not null && profile.Format == ArchiveWriteFormat.TarGzip ? source.Manifest.Features[3] : null));
         return new(source, captured, frozenEdits, frozenAdditions, expected);
 
         ArchiveTransformInput Use(int id)

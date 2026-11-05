@@ -37,17 +37,27 @@ public sealed class ArchiveTransformWireTests
     [InlineData("bound")]
     [InlineData("trailing")]
     [InlineData("truncate")]
+    [InlineData("format")]
+    [InlineData("unknown-format")]
+    [InlineData("version")]
+    [InlineData("level")]
+    [InlineData("dictionary")]
     public void Bad_header_counts_and_shape_refuse_before_any_following_record_is_read(string field)
     {
         byte[] valid = Write(Creation().Request); byte[] header;
         using (var source = new MemoryStream(valid)) header = new ArchiveWorkerRecords(new(Nonce, ArchiveWritePolicy.MaxWorkerWireBytes), source, writing: false).Read(ArchiveControlRecord.TransformRequest);
         switch (field)
         {
-            case "schema": header[0] = 2; break;
-            case "flag": header[2] = 2; break;
-            case "count": BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(3), int.MaxValue); break;
-            case "create-edits": BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(7), 1); break;
-            case "bound": BinaryPrimitives.WriteInt64LittleEndian(header.AsSpan(15), long.MaxValue); break;
+            case "schema": header[0] = 1; break;
+            case "format": BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(2), (int)ArchiveWriteFormat.SevenZip); break;
+            case "unknown-format": BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(2), -1); break;
+            case "version": BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(6), 2); break;
+            case "level": BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(10), 3); break;
+            case "dictionary": BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(14), 1 << 20); break;
+            case "flag": header[18] = 2; break;
+            case "count": BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(19), int.MaxValue); break;
+            case "create-edits": BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(23), 1); break;
+            case "bound": BinaryPrimitives.WriteInt64LittleEndian(header.AsSpan(31), long.MaxValue); break;
             case "trailing": header = [.. header, 0]; break;
             case "truncate": header = header[..^1]; break;
         }
@@ -104,5 +114,12 @@ public sealed class ArchiveTransformWireTests
         foreach (byte[] invalid in new[] { data[..^1], [.. data, 0] })
             Assert.Throws<ArchiveWriteException>(() => ArchiveTransformWire.ReadReceipt(invalid));
         BinaryPrimitives.WriteInt64LittleEndian(data.AsSpan(2), -1); Assert.Throws<ArchiveWriteException>(() => ArchiveTransformWire.ReadReceipt(data));
+    }
+
+    [Fact]
+    public void Contradictory_source_and_output_profiles_cannot_be_serialized_as_one_profile()
+    {
+        var request = new ArchiveTarTransformRequest(new(new(ArchiveWriteFormat.Tar), 1024, Hash(new byte[1024])), [], [], [], 2048, new(ArchiveWriteFormat.TarGzip));
+        Assert.Equal(ArchiveWriteReason.ProtocolViolation, Assert.Throws<ArchiveWriteException>(() => Write(request)).Reason);
     }
 }

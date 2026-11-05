@@ -28,7 +28,7 @@ public static class ArchiveAssessmentWorker
         {
             send.Write(output, ArchiveWorkerMessage.Hello, verification ? ArchiveAssessmentWire.VerificationHello : ArchiveAssessmentWire.Hello);
             var request = ArchiveAssessmentWire.ReadRequest(incoming.Read(ArchiveControlRecord.AssessmentRequest));
-            if (request.Profile.Format != ArchiveWriteFormat.Tar)
+            if (request.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip))
                 throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This worker profile has not been implemented.");
             var connection = new ArchiveProxyConnection(frame =>
             {
@@ -41,13 +41,24 @@ public static class ArchiveAssessmentWorker
             if (physicalDigest != request.SourceSha256)
                 throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The pinned source differs from its reviewed revision.");
             source.Position = 0;
-            var catalog = StrictTarCatalog.Read(source, ct);
-            if (catalog.Revision != request.SourceSha256 || catalog.Length != request.SourceLength)
-                throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The pinned TAR changed during assessment.");
-            source.Position = 0;
-            StrictTarCatalog.CompareDecoder(source, catalog, ct);
-            var manifest = Manifest(request.Profile, catalog.Format, catalog.Members, ct);
-            var result = new ArchiveAssessment(manifest, catalog.Revision, request.SourceLength, physicalDigest);
+            TarWriteCatalog catalog; byte os = 255; byte? flags = null;
+            if (request.Profile.Format == ArchiveWriteFormat.Tar)
+            {
+                catalog = StrictTarCatalog.Read(source, ct);
+                if (catalog.Revision != request.SourceSha256 || catalog.Length != request.SourceLength)
+                    throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The pinned TAR changed during assessment.");
+                source.Position = 0; StrictTarCatalog.CompareDecoder(source, catalog, ct);
+            }
+            else
+            {
+                var compressed = GzipTarRewriteEngine.Read(source, ct); catalog = compressed.Tar; os = compressed.OperatingSystem; flags = compressed.ExtraFlags;
+                source.Position = 0; using var decoded = new StrictGzipReadStream(source, ct);
+                if (decoded.OperatingSystem != os || decoded.ExtraFlags != flags)
+                    throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The gzip wrapper changed between assessment passes.");
+                StrictTarCatalog.CompareDecoder(decoded, catalog, ct); decoded.CopyTo(Stream.Null);
+            }
+            var manifest = Manifest(request.Profile, catalog.Format, catalog.Members, ct, os, flags);
+            var result = new ArchiveAssessment(manifest, physicalDigest, request.SourceLength, physicalDigest);
             outgoing.Write(ArchiveControlRecord.Catalog, ArchiveAssessmentWire.Catalog(result));
             foreach (var member in manifest.Members)
             {
@@ -67,7 +78,8 @@ public static class ArchiveAssessmentWorker
         }
     }
 
-    internal static ArchiveWriteManifest Manifest(ArchiveWriteProfile profile, TarEntryFormat format, IReadOnlyList<TarWriteMember> source, CancellationToken ct)
+    internal static ArchiveWriteManifest Manifest(ArchiveWriteProfile profile, TarEntryFormat format, IReadOnlyList<TarWriteMember> source, CancellationToken ct,
+        byte operatingSystem = 255, byte? extraFlags = null)
     {
         var members = new List<ArchiveManifestMember>(source.Count); var budget = new ArchiveWriteBudget();
         foreach (var member in source)
@@ -77,10 +89,10 @@ public static class ArchiveAssessmentWorker
             budget.AddMetadata(nameBytes + size + 64L, 2L * member.Name.Length + size + 512L);
             members.Add(new(member.Name, member.Type, member.Occurrence, member.Length, member.Sha256, Metadata(member, size)));
         }
-        return new(profile, members, [1, source.Count == 0 || format == TarEntryFormat.Ustar ? (byte)1 : (byte)2]);
+        return new(profile, members, ArchiveTarFeatures.Create(profile, source.Count == 0 || format == TarEntryFormat.Ustar ? (byte)1 : (byte)2, operatingSystem, extraFlags));
     }
 
-    private static string PhysicalDigest(Stream source, CancellationToken ct)
+    internal static string PhysicalDigest(Stream source, CancellationToken ct)
     {
         // Use the maximum bounded proxy read explicitly. HashData(Stream)'s runtime-selected small buffer caused
         // many more IPC frames than the archive-size policy could support on large otherwise valid sources.

@@ -29,6 +29,7 @@ internal sealed class StrictGzipReadStream : Stream
     private bool _disposed;
     private bool _failed;
     public byte OperatingSystem { get; }
+    public byte ExtraFlags { get; }
 
     public StrictGzipReadStream(Stream source, CancellationToken ct)
     {
@@ -45,6 +46,7 @@ internal sealed class StrictGzipReadStream : Stream
             throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature,
                 "This gzip stream has stored names, timestamps or other metadata that this writing profile cannot preserve.");
         OperatingSystem = header[9];
+        ExtraFlags = header[8];
         _remainingEncoded = _physicalLength - 18;
         if (_codec.InitializeInflate(expectRfc1950Header: false) != 0) throw Invalid("The gzip decoder could not initialize.");
         _codec.InputBuffer = _encoded;
@@ -135,15 +137,18 @@ internal sealed class StrictGzipWriteStream : Stream
 {
     private readonly Stream _stage;
     private readonly CompressionLevel _level;
+    private readonly OutputGate _gate;
     private System.IO.Compression.DeflateStream? _deflate;
     private long _length;
     private uint _crc;
     private bool _disposed;
+    private bool _failed;
 
     public StrictGzipWriteStream(Stream stage, CompressionLevel level, byte operatingSystem = 255)
     {
         if (!Enum.IsDefined(level) || !stage.CanWrite) throw new ArgumentException("A writable stage and supported compression level are required.");
         _stage = stage;
+        _gate = new(this);
         _level = level;
         Span<byte> header = stackalloc byte[10];
         header.Clear();
@@ -157,36 +162,66 @@ internal sealed class StrictGzipWriteStream : Stream
     public override void Write(ReadOnlySpan<byte> buffer)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (buffer.Length > ArchiveWritePolicy.MaxPhysicalBytes - _length)
-            throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The gzip input exceeds the archive writing limit.");
-        if (buffer.Length == 0) return;
-        _deflate ??= new System.IO.Compression.DeflateStream(_stage, _level, leaveOpen: true);
-        _deflate.Write(buffer);
-        _crc = Crc32.Append(_crc, buffer);
-        _length += buffer.Length;
+        try
+        {
+            Check();
+            if (buffer.Length > ArchiveWritePolicy.MaxPhysicalBytes - _length)
+                throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The gzip input exceeds the archive writing limit.");
+            if (buffer.Length == 0) return;
+            _deflate ??= new System.IO.Compression.DeflateStream(_gate, _level, leaveOpen: true);
+            _deflate.Write(buffer); _crc = Crc32.Append(_crc, buffer); _length += buffer.Length;
+        }
+        catch { _failed = true; throw; }
     }
+    internal void Abort() => _failed = true;
+    private void Check() { if (_failed) throw new IOException("The gzip encoder was stopped after a refusal."); }
 
     protected override void Dispose(bool disposing)
     {
         if (!_disposed && disposing)
         {
             _disposed = true;
-            if (_deflate is not null) _deflate.Dispose(); // finalizer failure must escape before a trailer is written
-            else _stage.Write((ReadOnlySpan<byte>)[3, 0]); // canonical final empty DEFLATE block
-            Span<byte> footer = stackalloc byte[8];
-            BinaryPrimitives.WriteUInt32LittleEndian(footer, _crc);
-            BinaryPrimitives.WriteUInt32LittleEndian(footer[4..], unchecked((uint)_length));
-            _stage.Write(footer);
+            if (_failed)
+            {
+                // Release native encoder state through a gate that forwards no more bytes. Preserve the earlier
+                // transform/write failure instead of finalizing a misleading container or masking that failure.
+                try { _deflate?.Dispose(); } catch { }
+            }
+            else
+            {
+                try
+                {
+                    if (_deflate is not null) _deflate.Dispose();
+                    else _stage.Write((ReadOnlySpan<byte>)[3, 0]); // canonical final empty DEFLATE block
+                    Span<byte> footer = stackalloc byte[8];
+                    BinaryPrimitives.WriteUInt32LittleEndian(footer, _crc);
+                    BinaryPrimitives.WriteUInt32LittleEndian(footer[4..], unchecked((uint)_length));
+                    _stage.Write(footer);
+                }
+                catch { _failed = true; throw; }
+            }
         }
         base.Dispose(disposing);
     }
     public override bool CanRead => false;
     public override bool CanSeek => false;
-    public override bool CanWrite => !_disposed;
+    public override bool CanWrite => !_disposed && !_failed;
     public override long Length => _length;
     public override long Position { get => _length; set => throw new NotSupportedException(); }
-    public override void Flush() { ObjectDisposedException.ThrowIf(_disposed, this); _deflate?.Flush(); }
+    public override void Flush() { ObjectDisposedException.ThrowIf(_disposed, this); try { Check(); _deflate?.Flush(); } catch { _failed = true; throw; } }
     public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
     public override void SetLength(long value) => throw new NotSupportedException();
+    private sealed class OutputGate(StrictGzipWriteStream owner) : Stream
+    {
+        public override bool CanRead => false; public override bool CanSeek => false; public override bool CanWrite => !owner._failed;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Write(byte[] b, int o, int c) => Write(b.AsSpan(o, c));
+        public override void Write(ReadOnlySpan<byte> b) { owner.Check(); owner._stage.Write(b); }
+        public override void Flush() { owner.Check(); owner._stage.Flush(); }
+        public override int Read(byte[] b, int o, int c) => throw new NotSupportedException();
+        public override long Seek(long o, SeekOrigin s) => throw new NotSupportedException();
+        public override void SetLength(long n) => throw new NotSupportedException();
+    }
 }

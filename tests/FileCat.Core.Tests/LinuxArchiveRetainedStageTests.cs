@@ -28,11 +28,14 @@ public sealed partial class LinuxArchiveProcessTests
             new((nonce, cpu) => LinuxArchiveProcess.Start(probe, nonce, cpu, ["archive-verify", nonce.ToString("D")])), TestContext.Current.CancellationToken);
     }
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Retained_ext4_inputs_produce_a_real_private_sealed_stage_before_fresh_verification(bool update)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task Retained_ext4_inputs_produce_a_real_private_sealed_stage_before_fresh_verification(bool update, bool compressed)
     {
         string probe = Probe(); var ct = TestContext.Current.CancellationToken; using var temp = new TempDir(); string root = UnixFiles.RealPath(temp.Path)!;
+        var profile = new ArchiveWriteProfile(compressed ? ArchiveWriteFormat.TarGzip : ArchiveWriteFormat.Tar);
         if (!update) File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
         string inputPath = Path.Combine(root, "input"); File.WriteAllBytes(inputPath, "retained ext4 input"u8.ToArray());
         File.SetLastWriteTimeUtc(inputPath, DateTime.UnixEpoch.AddSeconds(1700000000)); File.SetUnixFileMode(inputPath, (UnixFileMode)0x1a4);
@@ -46,16 +49,17 @@ public sealed partial class LinuxArchiveProcessTests
             if (update)
             {
                 using (var data = File.Create(Path.Combine(root, "original.tar")))
-                using (var writer = new TarWriter(data, TarEntryFormat.Pax))
+                using (var gzip = compressed ? new System.IO.Compression.GZipStream(data, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true) : null)
+                using (var writer = new TarWriter(gzip ?? (Stream)data, TarEntryFormat.Pax))
                 { using var content = new MemoryStream("before"u8.ToArray()); writer.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, "old") { DataStream = content }); }
                 original = directory.OpenSource("original.tar"); var originalState = ((IArchiveRetainedFile)original).Observe(ct); source = new(original, originalState);
                 assessment = await new ArchiveAssessmentClient((nonce, cpu) => Start(nonce, cpu, "archive-assess"))
-                    .AssessAsync(new(new(ArchiveWriteFormat.Tar), originalState.Version.Length, originalState.Version.Sha256), () => ((IArchiveRetainedFile)original).OpenReadView(originalState, ct), ct);
+                    .AssessAsync(new(profile, originalState.Version.Length, originalState.Version.Sha256), () => ((IArchiveRetainedFile)original).OpenReadView(originalState, ct), ct);
             }
-            var plan = ArchiveTarTransformPlan.Create(assessment, [state.Input(5)], source is null ? [] :
+            var plan = ArchiveTarTransformPlan.Create(profile, assessment, [state.Input(5)], source is null ? [] :
                 [new(ArchiveChangeKind.Replace, new(assessment!.CatalogRevision, "old", ArchiveMemberType.File, 0), inputId: 5)], [new("added", ArchiveMemberType.File, 5)], ct);
             using var journal = JobJournal.Create(Path.Combine(root, "journals"), new Job(new JobRequest { Kind = JobKind.ArchiveUpdate,
-                Archive = new(Path.Combine(root, "result.tar"), null, [], Profile: new(ArchiveWriteFormat.Tar)) }, "owned journaled TAR preparation", "owned", [], []));
+                Archive = new(Path.Combine(root, "result.tar"), null, [], Profile: profile) }, "owned journaled TAR preparation", "owned", [], []));
             using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, update ? "original.tar" : "result.tar"), plan, source,
                 new Dictionary<int, ArchiveRetainedBinding> { [5] = new(input, state) },
                 (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum),

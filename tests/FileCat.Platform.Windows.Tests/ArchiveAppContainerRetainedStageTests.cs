@@ -31,13 +31,18 @@ public sealed partial class ArchiveAppContainerTests
         finally { Directory.Delete(root, true); }
     }
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public async Task Retained_NTFS_inputs_rebuild_and_verify_a_real_private_stage_without_publication(bool application, bool update)
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, true)]
+    public async Task Retained_NTFS_inputs_rebuild_and_verify_a_real_private_stage_without_publication(bool application, bool update, bool compressed)
     {
         string executable = Probe(); var ct = TestContext.Current.CancellationToken;
+        var profile = new ArchiveWriteProfile(compressed ? ArchiveWriteFormat.TarGzip : ArchiveWriteFormat.Tar);
         if (application)
         {
             string? assets = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_APP_ASSETS");
@@ -58,16 +63,17 @@ public sealed partial class ArchiveAppContainerTests
                 if (update)
                 {
                     using (var data = File.Create(Path.Combine(root, "original.tar")))
-                    using (var writer = new TarWriter(data, TarEntryFormat.Pax))
+                    using (var gzip = compressed ? new System.IO.Compression.GZipStream(data, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true) : null)
+                    using (var writer = new TarWriter(gzip ?? (Stream)data, TarEntryFormat.Pax))
                     { using var before = new MemoryStream("before"u8.ToArray()); writer.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, "old") { DataStream = before }); }
                     original = directory.OpenSource("original.tar"); var originalState = ((IArchiveRetainedFile)original).Observe(ct); source = new(original, originalState);
                     assessment = await new ArchiveAssessmentClient((nonce, cpu) => application ? ArchiveAppContainer.StartAssessment(executable, nonce, cpu) : ArchiveAppContainer.Start(executable, "archive-assess " + nonce, cpu))
-                        .AssessAsync(new(new(ArchiveWriteFormat.Tar), originalState.Version.Length, originalState.Version.Sha256), () => ((IArchiveRetainedFile)original).OpenReadView(originalState, ct), ct);
+                        .AssessAsync(new(profile, originalState.Version.Length, originalState.Version.Sha256), () => ((IArchiveRetainedFile)original).OpenReadView(originalState, ct), ct);
                 }
-                var plan = ArchiveTarTransformPlan.Create(assessment, [state.Input(3)], source is null ? [] :
+                var plan = ArchiveTarTransformPlan.Create(profile, assessment, [state.Input(3)], source is null ? [] :
                     [new(ArchiveChangeKind.Replace, new(assessment!.CatalogRevision, "old", ArchiveMemberType.File, 0), inputId: 3)], [new("added", ArchiveMemberType.File, 3)], ct);
                 using var journal = JobJournal.Create(Path.Combine(root, "journals"), new Job(new JobRequest { Kind = JobKind.ArchiveUpdate,
-                    Archive = new(Path.Combine(root, "result.tar"), null, [], Profile: new(ArchiveWriteFormat.Tar)) }, "owned journaled TAR preparation", "owned", [], []));
+                    Archive = new(Path.Combine(root, "result.tar"), null, [], Profile: profile) }, "owned journaled TAR preparation", "owned", [], []));
                 ArchiveAppContainer? transform = null, verifier = null;
                 using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, update ? "original.tar" : "result.tar"), plan, source,
                     new Dictionary<int, ArchiveRetainedBinding> { [3] = new(input, state) },

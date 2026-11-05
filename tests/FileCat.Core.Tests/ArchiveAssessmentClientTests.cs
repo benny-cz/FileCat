@@ -259,8 +259,14 @@ public sealed class ArchiveAssessmentClientTests
         public void Kill() { if (!Disposed && !process.HasExited) process.Kill(entireProcessTree: true); }
         public async ValueTask DisposeAsync()
         {
+            bool exitedBeforeStop = process.HasExited;
             Kill(); await process.WaitForExitAsync(CancellationToken.None); Reaped = true;
             _exit = (uint)process.ExitCode;
+            if (_exit != 0) TestContext.Current.TestOutputHelper?.WriteLine($"Controlled archive child PID {ProcessId} exited with code {_exit}; runtime {Environment.Version}.");
+            string? diagnosticRoot = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_CHILD_DIAGNOSTICS_DIRECTORY");
+            if (diagnosticRoot is not null && Path.IsPathFullyQualified(diagnosticRoot) && Directory.Exists(diagnosticRoot))
+                File.WriteAllText(Path.Combine(diagnosticRoot, ProcessId + ".json"), System.Text.Json.JsonSerializer.Serialize(new
+                { pid = ProcessId, exit = _exit, exitedBeforeStop, role = process.StartInfo.ArgumentList[1], runtime = Environment.Version.ToString() }));
             process.Dispose(); Disposed = true;
         }
         public static Child Start(Guid nonce, string role = "archive-assess")

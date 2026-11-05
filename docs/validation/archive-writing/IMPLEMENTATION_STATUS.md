@@ -4,6 +4,9 @@ This is an **incomplete implementation**, not format or release qualification. T
 [the archive writing plan](../../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md). No new writer is enabled in the
 application. An explicit new-profile job refuses instead of entering the legacy ZIP executor.
 
+Current user-requested finishing order: complete the implementation/validation loop, analyze license-compatible RAR
+writing options, then perform the independent UX/UI/functional/security review and fix/retest its findings.
+
 ## Source and workspace
 
 - Baseline: `4282929753f062f5bb2cc130e8316b133e5c8e03`.
@@ -34,6 +37,11 @@ artifacts and leaves profiles disabled; complete metadata admission, marked crea
 the full crash matrix and production qualification remain unfinished.
 The [private creation process-crash follow-up](PRIVATE_CREATION_PROCESS_CRASHES.md) passes ten new publication/metadata
 boundaries and thirteen neighboring crash cases on each platform. It leaves production and recovery authority unchanged.
+The [TAR.GZ worker pipeline](TAR_GZIP_WORKER_PIPELINE.md) adds strict wrapper-aware assessment, streamed create/update
+transformation and fresh verification, with fixed-pass replay and native preparation/publication cases. Application
+registration, update publication and the remaining release gates stay unfinished.
+That checkpoint also retains two intermittent Ubuntu controlled-worker monitor refusals as an open reliability
+investigation, despite the subsequent passing broad/native replays. Their cause has not been established.
 
 | Area | Current behavior | Remaining gate |
 |---|---|---|

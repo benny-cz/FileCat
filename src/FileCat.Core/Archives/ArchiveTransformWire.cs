@@ -7,15 +7,16 @@ namespace FileCat.Core.Archives;
 /// <summary>Worker request only. Expected manifests and native object/publication identities never cross this wire.</summary>
 public sealed class ArchiveTarTransformRequest
 {
+    public ArchiveWriteProfile Profile { get; }
     public ArchiveAssessmentRequest? Source { get; }
     public IReadOnlyDictionary<int, ArchiveTransformInput> Inputs { get; }
     public IReadOnlyList<ArchiveTransformEdit> Edits { get; }
     public IReadOnlyList<ArchiveTransformAddition> Additions { get; }
     public long OutputLengthBound { get; }
     internal ArchiveTarTransformRequest(ArchiveAssessmentRequest? source, Dictionary<int, ArchiveTransformInput> inputs,
-        ArchiveTransformEdit[] edits, ArchiveTransformAddition[] additions, long outputLengthBound)
+        ArchiveTransformEdit[] edits, ArchiveTransformAddition[] additions, long outputLengthBound, ArchiveWriteProfile? profile = null)
     {
-        Source = source; Inputs = new ReadOnlyDictionary<int, ArchiveTransformInput>(inputs);
+        Profile = profile ?? source?.Profile ?? new(ArchiveWriteFormat.Tar); Source = source; Inputs = new ReadOnlyDictionary<int, ArchiveTransformInput>(inputs);
         Edits = Array.AsReadOnly(edits); Additions = Array.AsReadOnly(additions); OutputLengthBound = outputLengthBound;
     }
 }
@@ -35,7 +36,7 @@ public sealed record ArchiveTransformReceipt(long Length, string ManifestDigest,
 /// <summary>Bounded canonical TAR transform records. No paths, expected-output digests or worker-selected grants.</summary>
 public static class ArchiveTransformWire
 {
-    public static ReadOnlySpan<byte> Hello => [1, 0, 2, 0, 2, 0, 0, 0];
+    public static ReadOnlySpan<byte> Hello => [1, 0, 3, 0, 2, 0, 0, 0];
 
     public static ArchiveTarTransformInvocation Prepare(ArchiveTarTransformPlan plan, CancellationToken ct = default)
     {
@@ -47,7 +48,7 @@ public static class ArchiveTransformWire
         for (int i = 0; i < additions.Length; i++)
         { ct.ThrowIfCancellationRequested(); var addition = plan.Additions[i]; additions[i] = new(addition.Name, addition.Type, Alias(addition.InputId)); }
         var source = plan.Source is { } old ? new ArchiveAssessmentRequest(old.Manifest.Profile, old.SourceLength, old.SourceSha256) : null;
-        return new(new(source, inputs, edits, additions, OutputBound(plan.Expected, ct)), plan.Expected, captured);
+        return new(new(source, inputs, edits, additions, OutputBound(plan.Expected, ct), plan.Expected.Profile), plan.Expected, captured);
 
         int? Alias(int? id)
         {
@@ -61,7 +62,7 @@ public static class ArchiveTransformWire
     public static long OutputBound(ArchiveWriteManifest expected, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(expected);
-        if (expected.Profile.Format != ArchiveWriteFormat.Tar || expected.Features.Length != 2 || expected.Features[0] != 1 || expected.Features[1] is not (1 or 2)) throw Fault();
+        ArchiveTarFeatures.Validate(expected.Profile, expected.Features);
         long length = 1024;
         foreach (var member in expected.Members)
         {
@@ -74,6 +75,10 @@ public static class ArchiveTransformWire
                 length = checked(length + 512 + Align(ArchiveWritePolicy.Utf8.GetByteCount(member.Name) + member.Metadata.Length + 4096L));
             if (length > ArchiveWritePolicy.MaxPhysicalBytes) throw ArchiveWriteBudget.Limit();
         }
+        // A conservative streaming-encoder ceiling, still enforced by the parent before every write. Its fixed
+        // room and 12.5% expansion allowance exceed the supported DEFLATE encoder's ordinary block overhead.
+        if (expected.Profile.Format == ArchiveWriteFormat.TarGzip) length = checked(length + (length + 7) / 8 + (64 << 10) + 18);
+        if (length > ArchiveWritePolicy.MaxPhysicalBytes) throw ArchiveWriteBudget.Limit();
         return length;
         static long Align(long value) => checked((value + 511) / 512 * 512);
     }
@@ -81,9 +86,11 @@ public static class ArchiveTransformWire
     public static void WriteRequest(ArchiveWorkerRecords records, ArchiveTarTransformRequest request, CancellationToken ct = default, Action? progress = null)
     {
         ArgumentNullException.ThrowIfNull(records); ArgumentNullException.ThrowIfNull(request); ct.ThrowIfCancellationRequested();
+        if (request.Source is not null && request.Source.Profile != request.Profile) throw Fault();
         records.Write(ArchiveControlRecord.TransformRequest, Encode(w =>
         {
-            w.Write((ushort)1); w.Write(request.Source is not null);
+            w.Write((ushort)2); w.Write((int)request.Profile.Format); w.Write(request.Profile.Version);
+            w.Write(request.Profile.CompressionLevel); w.Write(request.Profile.DictionaryBytes); w.Write(request.Source is not null);
             if (request.Source is { } source) { w.Write(source.SourceLength); Digest(w, source.SourceSha256); }
             w.Write(request.Inputs.Count); w.Write(request.Edits.Count); w.Write(request.Additions.Count); w.Write(request.OutputLengthBound);
         }));
@@ -119,11 +126,13 @@ public static class ArchiveTransformWire
     {
         try
         {
-            ct.ThrowIfCancellationRequested(); var reader = new Packet(records.Read(ArchiveControlRecord.TransformRequest)); reader.Schema();
-            ArchiveAssessmentRequest? source = reader.Flag() ? new(new(ArchiveWriteFormat.Tar), reader.Long(), reader.Digest()) : null;
+            ct.ThrowIfCancellationRequested(); var reader = new Packet(records.Read(ArchiveControlRecord.TransformRequest)); reader.Schema(2);
+            var profile = new ArchiveWriteProfile((ArchiveWriteFormat)reader.Integer(), reader.Integer(), reader.Integer(), reader.Integer());
+            if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip)) throw Fault();
+            ArchiveAssessmentRequest? source = reader.Flag() ? new(profile, reader.Long(), reader.Digest()) : null;
             if (source is not null) ArchiveAssessmentWire.Validate(source);
             int inputCount = reader.Count(), editCount = reader.Count(), additionCount = reader.Count(); long bound = reader.Long(); reader.End();
-            if (source is null && editCount != 0 || bound is < 1024 or > ArchiveWritePolicy.MaxPhysicalBytes) throw Fault();
+            if (source is null && editCount != 0 || bound < (profile.Format == ArchiveWriteFormat.Tar ? 1024 : 20) || bound > ArchiveWritePolicy.MaxPhysicalBytes) throw Fault();
             var budget = new ArchiveWriteBudget(); budget.AddMetadata(0, 512L * inputCount + 256L * editCount + 192L * additionCount);
             var inputs = new Dictionary<int, ArchiveTransformInput>(); long inputBytes = 0;
             for (int i = 0; i < inputCount; i++)
@@ -154,7 +163,7 @@ public static class ArchiveTransformWire
                 int? id = Input(packet.Integer()); packet.End(); additions.Add(new(name, type, id));
             }
             if (used.Count != inputs.Count) throw Fault();
-            return new(source, inputs, edits.ToArray(), additions.ToArray(), bound);
+            return new(source, inputs, edits.ToArray(), additions.ToArray(), bound, profile);
 
             int? Input(int id)
             { if (id == 0) return null; if (!inputs.ContainsKey(id) || !used.Add(id)) throw Fault(); return id; }
@@ -174,7 +183,7 @@ public static class ArchiveTransformWire
     }
     private static void Validate(ArchiveTransformReceipt receipt)
     {
-        ArgumentNullException.ThrowIfNull(receipt); if (receipt.Length is < 1024 or > ArchiveWritePolicy.MaxPhysicalBytes) throw Fault();
+        ArgumentNullException.ThrowIfNull(receipt); if (receipt.Length is < 20 or > ArchiveWritePolicy.MaxPhysicalBytes) throw Fault();
         ArchiveWritePolicy.ValidateDigest(receipt.ManifestDigest); ArchiveWritePolicy.ValidateDigest(receipt.ContentDigest); ArchiveWritePolicy.ValidateDigest(receipt.MetadataDigest);
     }
     private static byte[] Encode(Action<BinaryWriter> encode)
