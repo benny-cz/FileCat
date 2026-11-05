@@ -915,7 +915,8 @@ public static partial class JournalRecovery
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
     }
 
-    private static ArchiveTransactionRecovery ReadArchiveTransactions(string path)
+    /// <summary>Read bounded archive recovery evidence afresh. This does not inspect artifacts or grant mutation authority.</summary>
+    public static ArchiveTransactionRecovery ReadArchiveTransactions(string path)
     {
         var archives = new ArchiveTransactionCollector();
         bool began = false;

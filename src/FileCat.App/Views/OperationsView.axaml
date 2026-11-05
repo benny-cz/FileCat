@@ -115,12 +115,12 @@
                         <Button Content="Review a new transfer…" Tag="{Binding}" Click="OnReviewNewInterrupted" IsVisible="{Binding CanReviewNewTransfer}"
                                 IsEnabled="{Binding !IsActionBusy}"
                                 ToolTip.Tip="Original transfer options are incomplete; choose and review a new transfer before anything changes" />
-                        <Button Content="{Binding CleanupLabel}" Tag="{Binding}" Click="OnCleanupInterrupted" IsEnabled="{Binding !IsActionBusy}" />
+                        <Button Content="{Binding CleanupLabel}" Tag="{Binding}" Click="OnCleanupInterrupted" IsEnabled="{Binding !IsActionBusy}" IsVisible="{Binding CanCleanup}" />
                         <Button Content="Review report" Tag="{Binding}" Click="OnInterruptedReport" AutomationProperties.Name="{Binding ReviewReportLabel}"
                                 IsEnabled="{Binding !IsActionBusy}"
                                 ToolTip.Tip="Inspect, copy or save all retained known paths and review limits without changing files" />
                         <Button Content="Mark reviewed…" Tag="{Binding}" Click="OnMarkInterruptedReviewed" AutomationProperties.Name="{Binding MarkReviewedLabel}"
-                                IsEnabled="{Binding !IsActionBusy}"
+                                IsEnabled="{Binding !IsActionBusy}" IsVisible="{Binding CanMarkReviewed}"
                                 ToolTip.Tip="Stop future recovery reminders after review; files remain unchanged and a diagnostic report is retained" />
                         <Button Content="Hide for now" Tag="{Binding}" Click="OnHideInterrupted" AutomationProperties.Name="{Binding HideLabel}"
                                 IsEnabled="{Binding !IsActionBusy}"

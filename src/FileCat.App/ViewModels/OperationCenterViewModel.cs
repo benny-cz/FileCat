@@ -317,7 +317,8 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
 {
     public InterruptedJob Job { get; } = job;
     public string Title => $"{Formatters.SafeName(Job.Title)} (interrupted {Job.CreatedUtc.ToLocalTime():g})";
-    public string Details => $"{Job.SourceCount:N0} source items · " + (Job.OpenIntents.Count == 0
+    public string Details => Job.ArchiveTransactions.HasRecords ? InterruptedRecoveryReport.ArchiveSummary(Job) :
+        $"{Job.SourceCount:N0} source items · " + (Job.OpenIntents.Count == 0
         ? $"{Job.CompletedSteps:N0} steps had finished. No step was in progress."
         : $"{Job.CompletedSteps:N0} steps had finished; {Job.OpenIntents.Count} step(s) were in progress and are inspected before anything is changed.") +
         (Job.Kind is nameof(JobKind.Copy) or nameof(JobKind.Move) && !CanRunAgain
@@ -337,11 +338,13 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
     public string ReviewReportLabel => "Review retained recovery report for " + Formatters.SafeName(Job.Title);
     public string MarkReviewedLabel => "Mark interrupted recovery reviewed for " + Formatters.SafeName(Job.Title);
     public string HideLabel => "Hide interrupted recovery notice for " + Formatters.SafeName(Job.Title);
+    public bool CanCleanup => !Job.ArchiveTransactions.HasRecords;
+    public bool CanMarkReviewed => !Job.ArchiveTransactions.RequiresReview;
 
     /// <summary>Continuation requires complete, supported original meaning as well as known source paths.</summary>
-    public bool CanRunAgain => Job.CanContinueTransfer;
+    public bool CanRunAgain => !Job.ArchiveTransactions.HasRecords && Job.CanContinueTransfer;
     public string ContinueLabel => Job.Kind == nameof(JobKind.Move) ? "Continue move…" : "Continue copy…";
-    public bool CanReviewNewTransfer => !CanRunAgain && Job.Kind is nameof(JobKind.Copy) or nameof(JobKind.Move) && Job.SourcesKnown &&
+    public bool CanReviewNewTransfer => !Job.ArchiveTransactions.HasRecords && !CanRunAgain && Job.Kind is nameof(JobKind.Copy) or nameof(JobKind.Move) && Job.SourcesKnown &&
         Job.Sources.All(RecoverableTransferIntent.ValidPath) && Job.SourceCount <= RecoverableTransferIntent.RootLimit &&
         RecoverableTransferIntent.LocalDestination(Job.Destination) is not null;
 

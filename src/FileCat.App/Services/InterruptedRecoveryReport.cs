@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using FileCat.Core.Archives;
 using FileCat.Core.Jobs;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
@@ -10,6 +11,18 @@ namespace FileCat.App.Services;
 internal static class InterruptedRecoveryReport
 {
     private const int DetailLimit = 10_000;
+
+    internal static string ArchiveSummary(InterruptedJob job)
+    {
+        var facts = job.ArchiveTransactions;
+        if (facts.Problem is not null)
+            return "Archive recovery records are incomplete or unsupported. Keep the current archive and retained files; Review report lists the recorded locations.";
+        if (facts.Transactions.Any(t => !t.IsResolved && t.Phase != ArchiveTransactionPhase.CommittedWithRetainedArtifacts))
+            return "The archive update's final outcome has not been confirmed. Keep the current archive and retained files; open Review report for recorded locations.";
+        if (facts.Transactions.Any(t => t.Phase == ArchiveTransactionPhase.CommittedWithRetainedArtifacts))
+            return "An archive update was recorded as committed, with retained files still needing review. Keep those files and open Review report.";
+        return "No unresolved archive transaction was recorded. Open Review report before closing this recovery record; the files have not been inspected.";
+    }
 
     internal static bool HasUnreviewedRemoteUpload(InterruptedJob job)
     {
@@ -97,6 +110,37 @@ internal static class InterruptedRecoveryReport
         Line("This is a review-time snapshot. Files may change afterward. Closing tracking does not delete or repair files.");
         if (HasUnreviewedRemoteUpload(job))
             Line("Remote upload still requires review: " + RemoteUploadReviewWarning(job));
+        if (job.ArchiveTransactions.HasRecords)
+        {
+            Line();
+            Line("Archive recovery facts (read-only)");
+            Line(ArchiveSummary(job));
+            Line("These are recorded paths and object versions. Their current existence, bytes, identities and security metadata have not been inspected.");
+            Line("Generic cleanup and transfer retry are unavailable for archive artifacts. Keep every needed version until the archive outcome is reconciled.");
+            if (job.ArchiveTransactions.Problem is { } problem) Line("Journal review warning: " + JsonSerializer.Serialize(problem));
+            foreach (var transaction in job.ArchiveTransactions.Transactions)
+            {
+                Line($"Transaction {transaction.Nonce:N}, sequence {transaction.Sequence}, profile {transaction.Profile.Format} v{transaction.Profile.Version}, recorded phase {transaction.Phase}");
+                Detail("Archive path (not inspected)", transaction.ArchivePath);
+                Detail("Rebuilt archive stage (not inspected)", transaction.StagePath);
+                if (transaction.RetainedPath is { } retained) Detail("Reserved retained-original path (not inspected)", retained);
+                if (transaction.ManifestPath is { } manifest) Detail("Verification manifest (not inspected)", manifest);
+                foreach (string artifact in transaction.UnresolvedArtifacts) Detail("Recorded retained artifact (not inspected)", artifact);
+                void Version(string label, ArchiveObjectVersion? version)
+                {
+                    if (version is not null) Line(label + ": identity " + JsonSerializer.Serialize(version.Identity) +
+                        ", length " + version.Length.ToString(CultureInfo.InvariantCulture) + ", SHA-256 " + version.Sha256);
+                }
+                Line("Recorded parent identity: " + JsonSerializer.Serialize(transaction.ParentIdentity));
+                Line("Recorded stage identity: " + JsonSerializer.Serialize(transaction.StageIdentity));
+                Version("Original object", transaction.Original);
+                Version("Verified stage object", transaction.VerifiedStage);
+                Version("Manifest object", transaction.Manifest);
+                Version("Observed publication object", transaction.Published);
+                Version("Observed retired object", transaction.Retired);
+                if (transaction.SecuritySnapshotSha256 is { } digest) Line("Security/provenance snapshot SHA-256: " + digest);
+            }
+        }
         Line();
         if (deleted is not null)
             foreach (string path in deleted) Detail("Deleted by cleanup", path);

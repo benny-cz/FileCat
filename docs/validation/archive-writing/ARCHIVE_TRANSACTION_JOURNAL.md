@@ -47,10 +47,10 @@ Archive records without a begin header are retained as an unknown interruption. 
 generic `TryClose` rereads the current journal instead of trusting a stale scan. Generic Core staging, rename and
 incomplete-copy discovery excludes archive journals. None of these reads performs artifact cleanup or replays edits.
 
-The UI's existing direct staged-intent review loop still needs an explicit archive guard and read-only archive-fact
-disclosure. Add that before connecting these facts to a production archive publication transaction. Do not treat the
-Core discovery guard as qualification of every UI consumer. Native object-bound review/deletion, actual sidecar IO,
-typed provenance/outer metadata and archive recovery actions are separate unfinished work.
+The subsequent [read-only UI checkpoint](ARCHIVE_RECOVERY_UI.md) adds an explicit archive guard and archive-fact
+disclosure to the UI's direct staged-intent review loop. Native object-bound review/deletion, actual sidecar IO,
+typed provenance/outer metadata and archive recovery actions remain separate unfinished work. Do not treat either
+read-only guard as qualification of a native publication or cleanup adapter.
 
 CRC checks detect torn/damaged lines; they are not authentication. These facts do not establish original-data
 authenticity, defeat an equivalent-privilege process, prove a stage is valid merely because its name exists, or prove
