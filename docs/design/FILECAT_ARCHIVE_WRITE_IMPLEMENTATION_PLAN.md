@@ -2,9 +2,9 @@
 
 > **Status:** Implementation in progress on `codex/archive-writing`; no new writer is enabled or release-qualified. Track completed components, evidence and remaining gates in [implementation status](../validation/archive-writing/IMPLEMENTATION_STATUS.md).
 >
-> **Reviewed:** 4 November 2026, Europe/Prague.
+> **Reviewed:** 6 November 2026, Europe/Prague; RAR decision updated with the user's explicit choice of option 3 with fallback to option 1.
 > **Repository baseline:** 4282929753f062f5bb2cc130e8316b133e5c8e03.
-> **Product requirement:** Extend archive writing while FileCat's own code remains MIT-licensed and new engines introduce no copyleft, proprietary runtime requirement, or restriction on fields of use.
+> **Product requirement:** Extend archive writing while FileCat's own code remains MIT-licensed and new bundled engines introduce no copyleft, proprietary runtime requirement, or restriction on fields of use. The expressly authorized RAR fallback may optionally invoke a user-installed, lawfully licensed external encoder; it is never bundled or required for ordinary FileCat functionality (§4.5).
 > **Security requirement:** Assume no archive content is valid. The complete write pipeline must be fuzzing-safe: bounded rejection or a verified result, without a process crash, uncontrolled allocation, hang, unauthorized filesystem effect, or loss of an existing file.
 > **Deliverable boundary:** This document defines the requirements; a component checkpoint does not establish format or release qualification. Keep the acceptance gates open until the complete implementation and required platform evidence satisfy them.
 > **6 November component checkpoint:** The [dedicated VM archive worker](../validation/archive-writing/DEDICATED_VM_ARCHIVE_WORKER.md) executes actual write roles with a writing-only dependency closure and strict guest syscall policy. Live ARM64/musl defects are fixed; production resource/package/admission gates and the overall plan stay open.
@@ -51,6 +51,7 @@ The product promises preservation within a clearly defined archive profile, not 
 | R2 | Create and update a narrow unencrypted, non-solid 7z profile | AW6 | Its source audit never blocks R1 |
 | R3 | Standalone GZ/BZ2/ZST creation and single-payload replacement | AW7 | Does not depend on XZ |
 | Optional later work | XZ/TAR.XZ and standalone XZ; data ISO creation | AW8 and AW9, separately | Each requires its own qualification and licence manifest |
+| RAR, separately qualified | Independent compressed RAR5 first if feasible; otherwise bundled stored RAR5 and optional installed `rar` for compression | AW10 with inherited shared gates | Research starts after the current recursive-capture checkpoint, before broad UI/interface finalization; no RAR capability until its own gates pass |
 
 Production availability is per format, profile, runtime identifier, and destination filesystem capability. A platform that lacks the worker or publication guarantees stays read-only for the affected operation; there is no silent unsafe fallback. Qualify all supported runtime identifiers before describing a format as supported across FileCat's desktop platforms.
 
@@ -60,7 +61,7 @@ Production availability is per format, profile, runtime identifier, and destinat
 - Initial new update profiles accept regular files and explicit directories. Links, special entries, sparse layouts, unknown metadata, ambiguous names, incomplete listings, signed containers requiring signature preservation, encryption, and multipart sets cause read-only admission unless a later profile explicitly qualifies them.
 - Initial sources are explicitly selected local regular files/directories. Local move-into is an explicit required transfer operation (§11.6.1), including the existing writable ZIP route. Do not add archive-to-archive, remote-to-archive, clipboard-to-archive or move-out support as a side effect of enabling a provider capability.
 - Nested archives remain read-only. Editing an inner archive requires extracting it first.
-- RAR writing requires a separate licence/format feasibility analysis after the common implementation loop and before the final independent review. Implement and qualify a lawful approach if feasible, considering an independent implementation and an explicit user-installed external RAR command. Do not bundle or derive an encoder from licence-restricted decoder sources. Arbitrary UDF updates remain out of scope.
+- RAR follows the user's explicit 6 November decision: investigate and, if feasible, implement an independent compressed RAR5 encoder first; the authorized fallback is FileCat's own stored RAR5 writer plus optional user-installed `rar` for compression. Execute the feasibility gate after the current recursive-capture checkpoint and before broad UI/interface finalization (AW10; §4.5). Do not bundle or derive an encoder from licence-restricted decoder sources. Complete the resulting implementation/qualification before the final independent review. Arbitrary UDF updates remain out of scope.
 - Remove local sources only for an explicit move-into operation after verified publication and the source rechecks in §11.6.1. No archive-member recycle-bin behavior, background writeback on editor save, or promise of archive undo.
 - No silent conversion of format, TAR dialect, encryption, solid layout, filenames, or unsupported metadata. A future conversion feature must create a separate file after an explicit review; it is not an update fallback.
 - Reading and listing remain tolerant where currently designed, but a tolerant or partial result can never authorize an update.
@@ -118,7 +119,10 @@ Legend: **Yes** means proposed support after that row's gates pass, not availabi
 | GZ / BZ2 / ZST single payload | One regular file | Replace the sole payload only | No internal delete/rename | No | After AW7 qualification | Compression stream; displayed payload name is not a multi-file namespace | Medium |
 | XZ / TAR.XZ | Later | Later profile | TAR only, later profile | TAR only | Later profile | Encoder/container writer not presently available; see AW8 | High |
 | ISO 9660 data image | Later creation | No existing-image update | No existing-image update | Later creation | No | DiscUtils CDBuilder, Joliet data image only | Medium, independent |
-| RAR / UDF / unsupported 7z or TAR variants | No bundled writer | No | No | No | No | Existing read/extract behavior | Deferred |
+| RAR5, independent compressed non-solid profile | If AW10a passes | Profile | Profile | Yes after qualification | Profile | New MIT encoder from permitted sources; shared contained stream pipeline; full metadata/profile gate | High research and qualification cost |
+| RAR5, stored non-solid fallback | If AW10a cannot establish feasibility | Stored profile | Stored profile | Yes after qualification | Stored profile | Independent MIT container writer; no compression; no silent conversion of compressed archives | Medium container/fidelity work plus inherited gates |
+| RAR5, optional installed external encoder fallback | Per qualified RID/tool version | Profile | Profile | Profile | Profile | User-selected licensed executable; private snapshots and qualified containment; never original-archive write access | High platform/backend qualification cost |
+| RAR4 / solid, encrypted, multipart or unsupported RAR5 / UDF / unsupported 7z or TAR variants | No new bundled writer | No | No | No | No | Existing read/extract behavior; external execution does not bypass admission | Deferred profiles |
 
 Recognize existing extension aliases from ArchiveFormats.ByName; show canonical extensions when creating. Test .tgz, .tbz2/.tbz/.tb2, .tzst and the other registered aliases without assuming the suffix proves the content. Do not invent support for aliases not registered or independently tested. Comic-container aliases follow the same detected format/profile, not a separate codec.
 
@@ -130,7 +134,7 @@ For standalone streams, a second selected file produces a validation message off
 
 **LIC-01:** FileCat-owned new code remains MIT. Third-party source retains its own terms, notices, provenance and applicable change notices. A permissive dependency does not become MIT merely because FileCat is MIT.
 
-**LIC-02:** No new GPL/AGPL/LGPL encoder, proprietary required executable, UnRAR-derived component, noncommercial clause, or use restriction is introduced by these phases. The already shipped separate LGPL RAR 1.5 assembly remains a baseline obligation, not permission to add more copyleft. See [XADMaster arrangement](../../licenses/xadmaster/README.md) and [third-party notices](../../THIRD-PARTY-NOTICES.md).
+**LIC-02:** No new GPL/AGPL/LGPL encoder, proprietary required executable, UnRAR-derived component, noncommercial clause, or use restriction is introduced by the bundled engines. The user's explicit RAR fallback permits a separately qualified, optional user-installed RAR executable under its own licence (§4.5); it does not permit bundling or a proprietary dependency for ordinary FileCat functionality, and creates no exception for restricted source derivation. The already shipped separate LGPL RAR 1.5 assembly remains a baseline obligation, not permission to add more copyleft. See [XADMaster arrangement](../../licenses/xadmaster/README.md) and [third-party notices](../../THIRD-PARTY-NOTICES.md).
 
 **LIC-03:** Admission is by exact source/binary revision, build features and dependency closure. Review an OSI identifier, source-file notices, origins, transitive dependencies, wrappers, optional features, linking inputs and generated artifact together. An unknown origin blocks that component. No licence label, subprocess boundary or dynamic linking assumption bypasses these checks.
 
@@ -173,6 +177,79 @@ The manifest is a candidate restoration list, not a statement that every filenam
 ### 4.4 Release obligations
 
 Update THIRD-PARTY-NOTICES.md, licenses/sharpcompress/COMPONENTS.md and NOTICE, the fork's THIRD-PARTY-CHANGES.md, source archive hashes, any changed lockfiles, and eng/ArtifactSbom's reader-only description as applicable. Run the existing dependency-notice and artifact-SBOM validators on each exact published payload. Test-only fuzz engines/oracles have separate pinned inventories and must not enter shipped dependency graphs.
+
+### 4.5 RAR decision — independent compression first, authorized fallback
+
+**User decision, 6 November 2026:** option 3 with fallback to option 1. First investigate an independent compressed
+RAR encoder. Implement and qualify it if feasible. If that path cannot establish lawful, technically viable bounded
+encoding, proceed with an independent stored RAR5 writer and optional user-installed `rar` for compression. The
+fallback is already authorized; it does not require another preference/permission round. A materially different
+scope or licence obligation still requires a new decision. Neither path is implemented or release-qualified by this
+document, and merely taking longer than expected is not proof of infeasibility.
+
+Licence research and a backend decision do not depend on finishing every unrelated codec's fuzz campaign,
+installer matrix or UI acceptance run. Postponing RAR until those interfaces are finalized risks redesigning them.
+Complete the current recursive-selection checkpoint, then make AW10a the next focused investigation/implementation
+packet. Continue independent qualification work during machine/result waits. No hard calendar estimate is implied.
+
+| Point | RAR work | Concrete exit |
+|---|---|---|
+| Current native-test/result waits | Record the chosen order, primary licence/format sources and shared dependencies | Independent compressed encoder first; stored plus optional external fallback; explicit unresolved rights questions |
+| After the current recursive-selection checkpoint is tested and recorded | AW10a: provenance investigation and a disabled minimal compressed-RAR5 prototype | Written go/no-go record with permitted inputs, genuine compression, independent interoperability and resource bounds; no ordinary provider capability changes |
+| Before finalizing worker/profile/UI interfaces | Decide what shared interfaces the chosen backend actually requires | Source capture, manifest metadata, executable authority and availability modeled without TAR-specific assumptions or a second publication implementation |
+| After the chosen route's functional, native, crash, resource, licence and fuzz gates pass | Integrate the qualified feature and include it in final independent review | Actual supported platform/profile evidence and truthful UI; unsupported combinations remain read-only |
+
+**Primary path: independent compression.** Investigate a minimal, non-solid RAR5 compressed profile, initially
+without encryption, multipart sets, SFX, recovery records or executable filters. Do not require reproduction of RAR's
+proprietary optimization strategy or compression ratio. Before product integration, AW10a must establish all of:
+
+1. A source/knowledge ledger identifying the published specifications and independently authored, permissively
+   licensed material actually used. Inspect origins as well as licence labels. No UnRAR source, restricted port,
+   proprietary binary disassembly or oracle-driven reconstruction of the vendor's compression algorithm.
+2. An independently authored encoder design that handles arbitrary binary data and demonstrates real size reduction
+   on compressible data. Relabeling stored data as a compression method is not successful compression research.
+   A documented per-member stored choice for incompressible input is allowed if the profile and verifier account for it.
+3. Valid representative compressed streams accepted by independent implementations, with exact bytes/metadata
+   checked against parent-owned expectations. Vendor tools, if lawfully used for interoperability, must not become
+   algorithm-reconstruction inputs. Do not count two ports of the same decoder as independent implementations.
+4. A credible bounded design for dictionary/window state, match search, coding tables, blocks, output, cancellation
+   and CPU/memory limits, plus the full required fuzz/qualification plan. A successful tiny example is not release evidence.
+
+Record a supported go decision or a specific no-go with the investigated alternatives and evidence. Unresolved
+source rights, unavoidable forbidden derivation or an encoding design that cannot meet the required bounds blocks
+that candidate. Do not claim legal clearance simply because a third-party decoder has an OSI licence, or claim a
+clean-room process without evidence. On a documented no-go, execute AW10b/AW10c as the authorized fallback.
+
+**Fallback distinction.** The vendor's public [RAR5 format description](https://www.rarlab.com/technote.htm)
+defines compression method zero as uncompressed data. That makes an independently authored, stored-only RAR5
+writer a technical candidate without implementing a compression algorithm. It is not a compressed RAR encoder,
+and publishing a format description alone does not establish every relevant legal right. Keep its source provenance
+separate from UnRAR and do not assert a clean-room process without evidence. Determine a precise create/update
+profile before promising edits to existing solid, encrypted, multipart or service-metadata-bearing archives. This
+smaller route is the fallback, rather than a substitute silently chosen before investigating the primary path.
+
+An explicit, user-installed external `rar` is the fallback candidate for actual RAR compression. The current vendor
+[download page](https://www.rarlab.com/download.htm) provides Windows, Linux x64 and macOS ARM64 products;
+this does not establish availability for FileCat's entire six-RID matrix. The [EULA](https://www.rarlab.com/license.htm)
+allows a maximum 40-day evaluation, requires a licence for continued use, restricts redistribution/bundling, and bars
+using the named RAR/WinRAR/UnRAR code or binaries to recreate the proprietary compression algorithm. An optional
+integration must use the user's lawfully installed executable and respect its terms; it cannot bundle a trial component
+or make a proprietary executable a new requirement for ordinary FileCat functionality. Record any departure from
+LIC-02 explicitly. These are feasibility constraints, not a legal clearance of an unimplemented integration.
+
+**Repository-specific dependency check.** `ArchiveCapturedInputs` and recursive native source capture can be
+reused. Publication, provenance and recovery should remain shared. However, `ArchiveTarTransformPlan`,
+`ArchiveTarTransformRequest` and TAR metadata expectations are currently format-specific. The independent stored
+candidate can plausibly fit numeric stream grants, while a filename-taking external encoder needs bounded immutable
+input snapshots, a private namespace, explicit executable/version selection, controlled configuration/environment,
+cancellation and process-tree resource controls. A subprocess boundary alone supplies none of those guarantees.
+Neither route should receive the original archive's writable pathname or bypass fresh independent verification.
+
+**Committed sequence:** record the in-flight recursive-selection checkpoint; pursue AW10a before broad UI/format
+interface completion; implement the viable independent compressed route or the authorized AW10b/AW10c fallback;
+finish its inherited qualification gates. Do not weaken those gates to ship RAR earlier. The final independent
+UX/UI/functional/security review remains after the RAR implementation and qualification, or a documented finding
+that a particular optional route cannot lawfully/safely be provided. No calendar completion date is inferred.
 
 ## 5. Normative security and preservation invariants
 
@@ -487,6 +564,38 @@ Standalone payload replacement is an explicit replace operation against the one 
 
 Optional ISO creation uses a new, nonbootable ISO 9660/Joliet data image, explicitly chosen volume label and qualified filename/size restrictions. No existing-image editing, hybrid partitions, boot catalog preservation, UDF creation, encryption, or claim of POSIX metadata fidelity. Use streams from stable inputs, not a builder path API that later reopens them. If the builder cannot honor bounded streaming or required names, refuse or defer that profile.
 
+### 8.6 RAR5 profiles selected through AW10
+
+RAR is no longer excluded as a whole. The initial candidate is a single-volume, non-solid, unencrypted RAR5
+profile with regular files and explicit directories. AW10a selects and pins the exact compression-version/method
+subset only after establishing a viable independent encoder. Do not implicitly require RAR7 decoding or import
+older RAR engines. A per-member stored method may be used where compression is ineffective if it is represented
+in assessment and verification. No recovery records, SFX, redirections, alternate streams, executable filters,
+unknown service/extra records, signatures or locked archives are admitted without separate preservation evidence.
+
+The source catalog must account for every block, flag, CRC, extra area, member occurrence and data extent before
+an update is accepted, even for members requested for deletion. Freeze raw names, order, content lengths/digests,
+supported timestamps, ordinary modes/attributes and supported archive/member metadata. Reject names or time/mode
+precision the selected representation cannot preserve. Do not reuse TAR metadata bytes as a RAR manifest schema.
+The complete output receives independent assessment and exact expected-manifest verification in a fresh contained
+worker; native publication/provenance/recovery and move-after-verification rules remain shared.
+
+If AW10a records a no-go, AW10b's bundled fallback admits stored-only RAR5 for create/update. Existing compressed
+archives remain read-only on that backend; do not silently decompress/rewrite them as stored archives. The UI
+must say that compression is unavailable. AW10c may offer a distinct optional installed-tool backend for actual
+compression and updates only within its independently qualified profile. Never infer its permission to update an
+archive from the vendor tool accepting it. Solid, encrypted, multipart, RAR4 and unknown-metadata inputs remain
+read-only initially on either route, with the concrete reason and an available alternative.
+
+For every enabled route, implement create, F5 add/replace/skip, explicit F6 move-into, delete, rename, empty-folder
+creation and external edit commit through the existing operation/review/session flows. Collision review is recursive;
+source deletion follows §11.6.1. Expose the selected backend, compression availability, missing executable/licence
+prerequisite and unsupported-profile reason without changing scope during preparation. No archive contents, member
+names or recovered journal data may choose the executable or its command line. External fallback is an explicit
+user choice with pinned executable identity/version, controlled arguments/configuration/environment, private bounded
+immutable inputs, one private output, no network and qualified process/resource limits. It never edits the original.
+If the platform cannot provide those controls, that backend stays unavailable there; do not run it unrestricted.
+
 ## 9. Hostile-input handling and resource budgets
 
 ### 9.1 Validation before trust
@@ -740,6 +849,8 @@ Use small primary inputs to make allocation amplification visible: normally at m
 | FZ10 | Abstract publication state machine plus injected concurrent filesystem actions | No lost preexisting/concurrent file; outcomes correspond to actual retained versions; uncertain cleanup never deletes |
 | FZ11 | Truncating/short-reading/nonseekable/throwing streams and disposal faults | Exact-read handling, deterministic failure, bounded progress; no leaked buffers/leases; finalizer failure prevents commit |
 | FZ12 | Repeated operations and worker resets/cancellation at arbitrary steps | No growing process-global state/FD leak; deterministic replay; cache/version invalidation and lifetime cleanup |
+| FZ13 | RAR5 headers/extras/CRCs, compressed blocks/tables/matches, stored data and encoder finalization | Pre-allocation bounds, finite progress, exact profile/preservation admission, independent decode and expected manifest; no restricted source imported |
+| FZ14 | Optional external RAR request/snapshot/executable selection and process/output handling | No argument/list-file/config/environment injection, executable/path substitution, unintended input disclosure, network, process escape or publication authority |
 
 Each target calls the real production boundary or adapter. Model-only FZ10 complements actual filesystem fault tests; it does not prove kernel behavior. Fuzz the real wrapper entry path, not just a sanitized decoded object created by the harness.
 
@@ -802,6 +913,8 @@ All AT groups below are required specifications, not tests already present. Add 
 | AT20 | Packaging/licensing | Published file inventory, exact hashes, notices, audited source delta, SBOM, no fuzz/oracle packages in runtime assets | eng validators and actual artifacts for every RID/package |
 | AT21 | Platform/filesystem matrix | Each advertised create/update route on actual destination filesystem; unsupported route visibly refuses | Native Windows/Linux/macOS qualification reports |
 | AT22 | Fuzz campaign | Section 13 run counts/durations, minimized fixed findings, coverage map, all invariants/oracles passing | Dedicated fuzz harness, corpus and evidence bundle |
+| AT23 | Independent RAR feasibility and qualified workflows | Source/knowledge ledger and go/no-go; actual size reduction for the compressed route or explicit stored-only fallback; arbitrary binary/empty inputs; exact metadata; full command/session/move/crash behavior and independent interoperability | AW10a or AW10b, FZ13, all advertised Windows/Mac/Ubuntu routes and supported RIDs |
+| AT24 | Optional installed RAR backend | Per-version/RID containment and licensing evidence; private snapshots; Unicode, leading dashes, `@` and wildcard names; config/environment/tool replacement attacks; output/cancellation/parent-death/resource/recovery tests | AW10c, FZ14; unavailable platform/tool combinations explained and never bypassed |
 
 ### 14.1 Independent oracles
 
@@ -1002,6 +1115,54 @@ Audit the exact DiscUtils 1.0.89 builder for input lifetime, size limits, stream
 
 **Files:** optional ISO creation adapter and create-dialog branch, DiscUtils inventory (if reachability changes), image fixtures and independent-oracle/native tests. **Licensing:** retain MIT source/package notices; no additional tool enters runtime. **Evidence:** AT01/04/05/08–13/15–22 adapted to creation; no claim that mounting alone proves image correctness. **Exit gate:** bounded creation, accurate UX and actual supported-OS readback; existing images remain read-only. **Fallback:** defer the separate feature.
 
+### AW10 — Independent RAR writing, with authorized fallback
+
+**Outcome:** FileCat writes a precisely defined RAR5 profile without restricted encoder derivation. The preferred
+route is an independently authored MIT compressed encoder. The user's authorized fallback is a bundled MIT stored
+writer and an optional user-installed encoder for compression. **Order/dependencies:** AW10a is the next focused
+packet after recording the current recursive-selection checkpoint, before broad AW4 UI/interface finalization;
+research can use native-test waits. Product integration depends on qualified AW1/AW2 publication/isolation and all
+inherited workflow gates. Packet numbering does not require waiting for AW8/AW9. RAR does not waive or postpone
+the remaining common implementation work. **Effort:** high and feasibility-dependent; no completion date promised.
+
+**AW10a — Primary feasibility and implementation.** Create a dated source/knowledge provenance ledger and
+licence/format decision using §4.5's go/no-go criteria. Investigate permitted independently authored material without
+using restricted decoder sources or reconstructing the proprietary algorithm from binaries. Produce a disabled minimal
+RAR5 compressed encoder prototype, meaningful compression and independent interoperability evidence, and a bounded
+codec design. If the record supports go, implement the selected non-solid compressed profile and strict scanner,
+format-specific manifest/wire validation, independent verification and full workflows from §8.6. Keep the writing-only
+worker dependency closure audited; do not pull the reader-only LGPL RAR1.5 assembly or excluded UnRAR code into it.
+Pin every new third-party source, notice, modification and dependency. A no-go must state the actual barrier, investigated
+alternatives and evidence; difficulty or elapsed time alone is insufficient. An incomplete prototype never enables UI.
+
+**AW10b — Authorized stored fallback.** On a documented AW10a no-go, implement an independently authored RAR5
+stored writer from permitted format information. Qualify complete create/update workflows for the exact stored-only
+profile. Preserve/reject metadata explicitly and validate real independent-reader output. Show “no compression” in
+the creation/backend choice; keep compressed/unsupported source profiles read-only instead of silently converting them.
+
+**AW10c — Authorized optional compression fallback.** Investigate and, where lawful and technically feasible,
+implement invocation of the user's own licensed `rar`. Do not bundle, auto-download, sublicense, copy licence keys,
+reset an evaluation period or require it for base FileCat functionality. Record the actual executable/version/RID,
+licensing basis, dependency/OS compatibility and confinement route. The current Mac Linux-ARM64 guest cannot simply
+execute the vendor's native macOS binary; an alternative must meet the same controls and be separately qualified.
+Use immutable bounded private snapshots and one private output; user filenames are data, never command/config/list-file
+instructions. The parent alone verifies and publishes. No direct vendor update of the original and no unrestricted
+fallback when a sandbox, resource limit, executable identity or metadata requirement cannot be satisfied.
+
+**Files/components:** format-neutral planning/manifest seams; new `Writing/Rar5WriteEngine` and strict RAR5
+admission/verification components; only a documented permitted codec closure; worker protocol/dispatch; registry,
+capability and Pack/update/session UI; optional installed-tool configuration/snapshot launcher; native crash/resource
+and interoperability harnesses; source/notice/SBOM/package validators. Revise ADR-07's RAR policy with the actual
+implementation rather than leaving this plan as an exception to a decided architecture.
+
+**Exit gate:** the primary route or authorized fallback is implemented through the qualified shared pipeline;
+AT01–24 as applicable, FZ13 and FZ14 where applicable, exact platform/profile artefacts, installed-package licensing,
+resource/security/crash/recovery evidence and all inherited campaign floors pass. Add RAR to the per-format minimum
+fuzz campaign; the small feasibility corpus is not that campaign. Document any optional route that cannot lawfully
+or safely be provided, its reason and visible unavailability. No newly enabled backend may be represented by skipped
+native checks. Run the final independent UX/UI/functional/security review after this RAR work and remaining common
+implementation/qualification; fix and revalidate every actionable finding.
+
 ## 16. Release, packaging, and rollback
 
 ### 16.1 Availability and evidence
@@ -1069,6 +1230,8 @@ Provide bounded diagnostic details with profile/reason code, job ID, application
 | R16 | Unknown platform/filesystem result gets treated as capability | Explicit Unknown/Unsupported, no optimistic fallback, per-route release manifest | AW1/AW2/AW4; AT21 |
 | R17 | Newly created highly compressible output exceeds FileCat reader limits | Production reader/verifier uses unchanged expansion policy; refuse unsupported output instead of exempting owned archives | AW3/AW5/AW6; AT05/18/22 |
 | R18 | Expanding scope delays a complete usable feature | R1 TAR/gzip end-to-end, independent wrappers/7z/native/ISO gates; no partial UI launch | AW4 release gate |
+| R19 | Independent RAR work derives from restricted material or never establishes feasibility | Source/knowledge ledger; explicit AW10a go/no-go with evidence; authorized stored/external fallback; no unsupported clean-room claim | AW10; AT20/23 |
+| R20 | External RAR gains host authority or silently changes archive semantics | Explicit optional backend; qualified private inputs/process controls; strict profile and fresh independent verification; parent-only publication | AW10c; AT21/24; FZ14 |
 
 ## 19. Open questions and required evidence
 
@@ -1086,6 +1249,8 @@ Routine choices are resolved in this plan. The remaining items require source re
 | Q08 | Whether pinned 7z writer can preserve every present attribute/time field | Exact source inspection, setter design where needed, per-field independent readback tests | Only an actually reproducible profile is writable |
 | Q09 | Optional XZ source/native wrapper/build selection | Comparative prototype, exact licence closure, native pipeline/fuzz/resource/platform evidence | XZ reading only; independent of earlier releases |
 | Q10 | DiscUtils image-builder bounds and feature limits | Pinned builder source audit, stream lifetime/memory tests, independent image readback | Defer ISO creation; existing images remain read-only |
+| Q11 | Lawful bounded independent compressed RAR5 encoder | AW10a source/knowledge ledger, genuine compressed prototype and independent interoperability, bounded design and go/no-go | Authorized AW10b stored plus AW10c optional installed-tool fallback; no silent scope substitution |
+| Q12 | External RAR executable licensing/availability and compatible containment on each advertised RID | Exact version/identity, licence basis, native backend/snapshot/resource/security qualification; resolve Mac native-binary versus Linux-ARM64 guest mismatch | Optional backend unavailable on an unqualified combination; bundled route remains independent |
 
 No open question authorizes ignoring invalid input, weakening an invariant, importing unreviewed source or shipping a partial workflow. If an implementation route cannot meet the contract, keep it disabled and document the finite missing evidence.
 
@@ -1107,7 +1272,8 @@ No open question authorizes ignoring invalid input, weakening an invariant, impo
 | INV-14/15: advisory capabilities, exact identities and UI consistency | AW2/AW3/AW4 | AT03/06/14–16/19; FZ04/06 |
 | INV-16: explicit version-bound edit commits | AW4/AW7 | AT14/15/19/22; FZ06/09/12 |
 | INV-17: bounded safe text/protocol | AW1/AW2/AW4 | AT03/12/15/16/22; FZ01/04/08/09 |
-| INV-18: licence, interoperability and fuzz release gates | AW0/AW4–AW9 | AT17/20/22 and exact candidate artifact reports |
+| INV-18: licence, interoperability and fuzz release gates | AW0/AW4–AW10 | AT17/20/22/23/24 and exact candidate artifact reports |
+| RAR primary/fallback decision and complete qualified workflows | AW10a; AW10b/AW10c on documented no-go; shared AW1/AW2/AW4 | §4.5/§8.6, AT23/24, FZ13/14, inherited native/campaign/package gates and final independent review |
 | INV-20: truthful qualification and limitations | AW0/AW1/AW2/AW4/release owner | AT09/12/15–22; release manifest and no skipped-as-passed claims |
 | LIC-01–04: MIT-friendly exact-source distribution | AW0/all dependency packets/release owner | File-level inventory, notices, source changes, exact binary SBOM and AT20 |
 | Complete robust UX/UI rather than Pack-only support | AW4 and each optional feature adapter | All section 11 journeys, AT14–16, actual native accessibility reports |
@@ -1160,6 +1326,7 @@ The baseline table links the principal source files. Additional relevant materia
 | [XZ project COPYING](https://github.com/tukaani-project/xz/blob/master/COPYING) | Current liblzma 0BSD statement and distinction from surrounding tools/build inputs; not a selected-release manifest |
 | [LZMA SDK](https://www.7-zip.org/sdk.html), [7-Zip licence](https://www.7-zip.org/license.txt) | SDK/public-domain route is distinct from the full distribution's LGPL/additional terms |
 | [RAR EULA](https://www.rarlab.com/license.htm) | Official encoder usage/bundling restrictions; no blanket claim about clean-room independent implementations |
+| [RAR5 format description](https://www.rarlab.com/technote.htm), [official RAR downloads](https://www.rarlab.com/download.htm) — rechecked 6 November 2026 | Public container/method-zero facts and actual offered platform products; neither is proof of an independently implementable compression algorithm, legal clearance or a qualified backend |
 | [libarchive COPYING](https://github.com/libarchive/libarchive/blob/master/COPYING), [format matrix](https://github.com/libarchive/libarchive/wiki/LibarchiveFormats) | Alternative writer stack and per-file/dependency audit requirement |
 | [DiscUtils CDBuilder source](https://github.com/LTRData/DiscUtils/blob/master/Library/DiscUtils.Iso9660/CDBuilder.cs) | MIT ISO-creation API; no assertion of arbitrary image-update capability |
 | [SharpFuzz](https://github.com/Metalnem/sharpfuzz), [LLVM libFuzzer](https://llvm.org/docs/LibFuzzer.html) | Candidate managed coverage tooling and fuzz campaign mechanics, subject to an actual .NET 10 compatibility/toolchain pin |
@@ -1170,4 +1337,9 @@ Verified through source/document inspection: existing ZIP write architecture and
 
 Primary web sources above were checked. Exact pinned 7z writer source files were not retrievable through the available source lookup, and a direct host lookup failed; therefore their file-level audit remains Q03 rather than an invented completed manifest. Native confinement/publication spikes, implemented writer tests, independent interoperability, builds, fuzz campaigns and release qualification were not performed in this planning task.
 
-No production files, dependency versions, existing architectural decisions or unrelated working-tree artifacts are changed by this plan. The recommended implementation order is AW0–AW4 for a complete TAR/gzip release, AW5 for the existing-codec wrappers, AW6 for limited audited 7z, AW7 for standalone streams, with AW8/AW9 independent optional work.
+The plan itself is not implementation or release evidence. The shared TAR/gzip, wrapper, 7z and standalone work
+remains required; AW8/AW9 remain separately qualified optional work. The user's 6 November RAR decision adds AW10a
+immediately after the current recursive-capture checkpoint, before broad UI/interface finalization: independent
+compressed RAR first, with AW10b/AW10c as the expressly authorized fallback. Final independent review follows the
+resulting RAR implementation/qualification and the remaining common gates. No unrelated work or existing source
+licence is changed by that decision.
