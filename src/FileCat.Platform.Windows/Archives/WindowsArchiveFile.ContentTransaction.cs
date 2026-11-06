@@ -8,8 +8,15 @@ using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Platform.Windows.Archives;
 
-internal sealed partial class WindowsArchiveFile
+internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, IArchiveContentUpdateStage
 {
+    ArchiveContentUpdateRecipe IArchiveContentUpdateSource.Recipe => ArchiveContentUpdateRecipe.WindowsNtfsTransactionalData;
+    ArchiveArtifactReservation IArchiveContentUpdateSource.ReserveContentSnapshot(Guid nonce, ArchiveSpaceEstimate prepared, CancellationToken ct)
+        => ReserveContentSnapshot(nonce, prepared, ct);
+    IArchiveContentTransaction IArchiveContentUpdateSource.BeginContentTransaction(ArchiveFileObservation reviewed, Guid nonce, TimeSpan timeout, CancellationToken ct)
+        => BeginContentTransaction(reviewed, nonce, timeout, ct);
+    string IArchiveContentUpdateStage.ReviewContentSnapshotCreation(ArchiveArtifactReservation reservation, CancellationToken ct)
+        => ReviewContentSnapshotCreation(reservation, ct);
     internal WindowsArchiveFile CreateSiblingArtifact(ArchiveArtifactReservation reservation)
     {
         lock (parent.Gate) { EnsureLive(); return parent.CreateArtifact(reservation); }
@@ -63,17 +70,27 @@ internal sealed partial class WindowsArchiveFile
     /// Unregistered same-object data primitive. Private changes require an exact retained original snapshot and a
     /// sealed verified output. No codec, journal, deletion, arbitrary security copying or generic overwrite fallback.
     /// </summary>
-    internal sealed partial class ContentTransaction : IDisposable
+    internal sealed partial class ContentTransaction : IArchiveContentTransaction
     {
-        internal sealed class Review
+        internal sealed class Review : ArchiveContentUpdateReview
         {
             internal readonly ContentTransaction Issuer;
-            internal ArchiveFileObservation PrivateOutput { get; }
-            internal ArchiveFileObservation RetainedOriginal { get; }
             internal Guid TransactionId => Issuer.TransactionId;
             internal Review(ContentTransaction issuer, ArchiveFileObservation output, ArchiveFileObservation retained)
-            { Issuer = issuer; PrivateOutput = output; RetainedOriginal = retained; }
+                : base(output, retained) { Issuer = issuer; }
         }
+        Guid IArchiveContentTransaction.TransactionId => TransactionId;
+        ArchiveFileObservation IArchiveContentTransaction.RetainOriginal(IArchiveContentUpdateStage destination, CancellationToken ct)
+            => RetainOriginal(NativeStage(destination), ct);
+        ArchiveContentUpdateReview IArchiveContentTransaction.PrepareOutput(IArchiveContentUpdateStage output, ArchiveVerifiedNativeStage verified,
+            ArchiveOriginSnapshot requiredOrigin, CancellationToken ct) => PrepareOutput(NativeStage(output), verified, requiredOrigin, ct);
+        ArchiveFileObservation IArchiveContentTransaction.Commit(ArchiveContentUpdateReview review, CancellationToken ct)
+            => Commit(NativeReview(review), ct);
+        ArchiveFileObservation IArchiveContentTransaction.ReviewPublished(ArchiveContentUpdateReview review, CancellationToken ct)
+            => ReviewPublished(NativeReview(review), ct);
+        void IArchiveContentTransaction.Rollback() => Rollback();
+        private static WindowsArchiveFile NativeStage(IArchiveContentUpdateStage file) => file as WindowsArchiveFile ?? throw Changed();
+        private static Review NativeReview(ArchiveContentUpdateReview review) => review as Review ?? throw Changed();
         private enum Phase { Open, Retaining, BackedUp, Preparing, Ready, Committing, Committed, RolledBack, Uncertain, Disposed }
         private readonly WindowsArchiveDirectory parent;
         private readonly string leaf;

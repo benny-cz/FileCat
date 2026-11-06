@@ -95,7 +95,7 @@ internal static class ArchiveCreationCrash
         { if (!bytes.IsEmpty) { output.Write(bytes[..1]); output.Flush(); Wait("metadata-partial"); } }
         // Borrowed view: the native artifact owns the output and its lifetime.
     }
-    private sealed class Worker(Process process, System.IO.Pipes.AnonymousPipeServerStream cancellation) : IArchiveWorkerProcess
+    internal sealed class Worker(Process process, System.IO.Pipes.AnonymousPipeServerStream cancellation) : IArchiveWorkerProcess
     {
         private readonly Task<bool> stderr = Drain(process); // Controlled empty-TAR child, never a production launch.
         private uint exit; private TimeSpan cpu; private bool disposed;

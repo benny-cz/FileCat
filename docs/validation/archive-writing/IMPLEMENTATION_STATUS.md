@@ -54,6 +54,11 @@ the transaction-to-normal-reader pin transfer. All 88 Windows confined-worker/na
 actual update cases across the four TAR profiles; common recovery/UI regressions pass on all three platforms. One
 native-discovered identity/digest contract mismatch is fixed and the failed evidence retained. Complete crash/recovery/
 cleanup, broader metadata/resources/aliases and production admission remain unfinished; the bridge stays unregistered.
+The [NTFS process-crash follow-up](NTFS_CONTENT_PROCESS_CRASHES.md) moves that coordinator behind typed native
+contracts and validates sixteen actual externally killed snapshot/prepare/commit/rollback boundaries. All 104 Windows
+native cases pass; common/UI and prior creation/crash regressions pass on all three platforms. Recovery retains every
+surviving artifact, including a committed file whose outcome append was interrupted. Active restoration/cleanup,
+deletion crash points, broader filesystem/resource/alias qualification and the remaining plan are still unfinished.
 The [private creation process-crash follow-up](PRIVATE_CREATION_PROCESS_CRASHES.md) passes ten new publication/metadata
 boundaries and thirteen neighboring crash cases on each platform. It leaves production and recovery authority unchanged.
 The [TAR.GZ worker pipeline](TAR_GZIP_WORKER_PIPELINE.md) adds strict wrapper-aware assessment, streamed create/update

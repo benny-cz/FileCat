@@ -20,6 +20,9 @@ if (args is ["--archive-sidecar-crash", var sidecarRoot, var sidecarRole, var si
 if (args is ["--archive-creation-crash", var creationRoot, var creationPoint, var creationAssembly, var creationProbe])
     return await ArchiveCreationCrash.Run(creationRoot, creationPoint, creationAssembly, creationProbe);
 
+if (args is ["--archive-content-crash", var contentRoot, var contentPoint, var contentAssembly, var contentProbe])
+    return await ArchiveContentCrash.Run(contentRoot, contentPoint, contentAssembly, contentProbe);
+
 if (args is ["--archive-boundary-parent", var platformAssembly, var archiveProbe] && OperatingSystem.IsWindows())
 {
     // Test-only crash host: deliberately load the platform adapter supplied by the native test without adding

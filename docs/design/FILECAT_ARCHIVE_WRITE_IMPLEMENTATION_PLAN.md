@@ -330,6 +330,12 @@ pass on Windows. Common recovery/UI regressions pass on Windows, Mac and Ubuntu.
 the complete crash/recovery/cleanup matrix, broader resource/metadata/alias qualification and production admission
 must still be completed before enabling a profile. Its retained data copy does not itself authorize restoration.
 
+The [NTFS process-crash follow-up](../validation/archive-writing/NTFS_CONTENT_PROCESS_CRASHES.md) validates sixteen
+actual externally terminated snapshot/prepare/commit/rollback boundaries through the typed common coordinator and
+actual native transactions. It preserves ambiguous outcomes for object-bound recovery, including commit before its
+outcome append. This establishes process-crash behavior; active restoration/cleanup and their deletion crash matrix,
+power-loss claims and the remaining qualification gates stay open.
+
 ### 7.5 Outer metadata and provenance
 
 Treat outer-file metadata separately from metadata of archived members. Updates preserve the existing archive's owner, ACL/mode, relevant attributes, creation time where promised, and origin/quarantine marks. Content-changing mtime follows existing FileCat policy and must be stated/tested. Hard links to the old archive remain attached to the old object; warn once when link count is known and greater than one. Do not silently update all hard-link names.
