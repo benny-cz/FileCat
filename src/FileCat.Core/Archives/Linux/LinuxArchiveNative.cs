@@ -8,7 +8,16 @@ namespace FileCat.Core.Archives.Linux;
 
 internal static unsafe partial class LinuxArchiveNative
 {
-    internal const int CloseOnExec = 0x80000, NoFollow = 0x20000, NonBlock = 0x800, DirectoryFlag = 0x10000;
+    internal const int CloseOnExec = 0x80000, NonBlock = 0x800;
+    internal static int NoFollow => OpenFlags(RuntimeInformation.ProcessArchitecture).NoFollow;
+    internal static int DirectoryFlag => OpenFlags(RuntimeInformation.ProcessArchitecture).Directory;
+    // ARM64's UAPI overrides these generic/x64 values for AArch32 compatibility.
+    internal static (int Directory, int NoFollow) OpenFlags(Architecture architecture) => architecture switch
+    {
+        Architecture.X64 => (0x10000, 0x20000),
+        Architecture.Arm64 => (0x4000, 0x8000),
+        _ => throw new PlatformNotSupportedException("Archive control-file flags require Linux x64 or ARM64."),
+    };
     internal const ulong Cgroup2Magic = 0x63677270;
     internal static readonly UTF8Encoding ExactUtf8 = new(false, true);
 

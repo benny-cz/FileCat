@@ -11,6 +11,11 @@ FileCat's changes, all for release issue I14: only code under OSI-approved licen
 derived from UnRAR. FileCat uses this library for 7z archives and bzip2, xz and zstd streams only, so
 everything else is left out.
 
+- Dedicated archive-worker build, 6 November 2026: `FileCat.SharpCompress.csproj` grants internal access to the
+  writing-only `FileCat.Archives.Writing` assembly and adds the Linux musl ARM64 restore target. Existing encoder
+  sources, package versions and component licences are unchanged. The separate worker excludes the reader-only
+  Rar15 and DiscUtils dependencies; its production registration and packaging remain disabled.
+
 - Archive-writing Zstandard follow-up, 5 November 2026: the unregistered TAR.ZST worker now reaches the existing
   ZstdSharp/Zstandard encoder and decoder with a pre-codec single-frame/window/block guard, fixed bounded options
   and checksummed output. No Zstandard source was added, changed, restored or upgraded. Its BSD-3-Clause/MIT

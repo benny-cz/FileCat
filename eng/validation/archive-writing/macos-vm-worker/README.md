@@ -1,5 +1,10 @@
 # Unregistered Mac managed archive guest experiment
 
+The dedicated production entry and writing-only dependency graph are now exercised by this development harness.
+The shared guest bootstrap checks its actual kernel grants and installs the syscall policy before parsing. Live
+ARM64/musl compatibility fixes and remaining gates are recorded in
+[the dedicated worker report](../../../../docs/validation/archive-writing/DEDICATED_VM_ARCHIVE_WORKER.md).
+
 This development harness runs the actual production TAR-family assessment, transform and verification code in
 separate headless Linux guests on an ordinary-user Mac. It is outside application composition and packaging. It
 does not register or qualify a backend. No arbitrary archive is opened by the host: the parent supplies fixed
@@ -42,8 +47,8 @@ use the monotonic clock. Installed signing/entitlement modes and full resource/p
 
 The parent now owns a dedicated inherited anonymous-pipe writer. Closing it requests cancellation without writing
 archive protocol bytes. The native host verifies an inherited read-only FIFO, polls EOF separately and relays one
-byte through a third raw serial port. Guest init supplies only fixed read-only fd 3. The guest reuses Core's actual
-bounded transport source with its cancellation token, without adding a production API/friend. A real assessment
+byte through a third raw serial port. Guest init supplies only fixed read-only fd 3. The guest uses Core's shared
+bounded transport with its cancellation token through explicit internal worker/probe friendship. A real assessment
 session and blocked-input case exit cooperatively; full output can require the bounded hard fallback. A guest that
 ignores cancellation is stopped through the VM API after 1.5 seconds, leaving margin before Core's two-second kill.
 
@@ -86,7 +91,7 @@ bash /absolute/private/repo/eng/validation/archive-writing/macos-vm-worker/run-m
   /absolute/library-fixtures /absolute/dotnet /absolute/new-evidence
 ```
 
-The output contains both published app/runtime bundles, build/tool identities, source snapshots, signed native helper,
+The output contains the dedicated worker, guest probe and host probe publications, build/tool identities, source snapshots, signed native helper,
 owned ELF/initramfs, per-role diagnostics/protocol prefixes, stages, expected payloads, child lifetimes and independent
 `verified.json`. Successful reports explicitly retain `production_backend_qualified: false`.
 `parent-death/facts.json` records every forced-death case, signal, exact parent/helper identity, kernel exit status,
@@ -96,3 +101,6 @@ outcomes, actual session cancellation/reaping, descriptor refusals, dedicated pr
 unread-output byte counts. The final runner includes each check; every production qualification flag remains false.
 `memory-envelope/*.json` preserves all native accounting samples, maxima and allocation/output outcomes. Its independent
 verifier checks the samples and eight refused RAM arguments. The ABI facts/tool binary remain alongside the evidence.
+`production-policy/facts.json` checks dependency closure, 23 actual kernel grant/denial probes and five production
+startup refusals. `process-inventory/facts.json` injects an extra root or ordinary process and requires refusal before
+protocol readiness. Diagnostic injected images are outside production packaging.

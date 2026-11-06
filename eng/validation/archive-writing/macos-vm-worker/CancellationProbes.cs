@@ -5,7 +5,7 @@ using FileCat.Core.Archives;
 
 internal static class CancellationProbes
 {
-    internal static async Task<int> Run(string native, string kernel, string initrd, string results)
+    internal static async Task<int> Run(string native, string kernel, string initrd, string probeInitrd, string results)
     {
         Directory.CreateDirectory(results);
         var rows = new List<object>();
@@ -30,7 +30,7 @@ internal static class CancellationProbes
             foreach (var probe in new[] { (Role: (byte)1, Kind: "blocked-input", Marker: ""), (Role: (byte)5, Kind: "blocked-output", Marker: "FCVMFLOD"), (Role: (byte)4, Kind: "uncooperative-spin", Marker: "FCVMBUSY") })
             {
                 string log = Path.Combine(results, probe.Kind + ".log");
-                await using var process = new VmProcess(native, kernel, initrd, Guid.NewGuid(), probe.Role, log);
+                await using var process = new VmProcess(native, kernel, probe.Role == 1 ? initrd : probeInitrd, Guid.NewGuid(), probe.Role, log);
                 if (probe.Role == 1)
                 {
                     byte[] hello = new byte[36]; await process.Output.ReadExactlyAsync(hello).AsTask().WaitAsync(TimeSpan.FromSeconds(5));

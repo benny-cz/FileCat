@@ -44,6 +44,7 @@ for log in logs:
     assert host['pid'] not in seen
     seen.add(host['pid'])
     guest = json.loads(next(line for line in text.splitlines() if line.startswith('{"guestWorker":')))
+    assert guest.pop('syscallPolicy') == 1
     assert 512 * 1024 < guest.pop('physicalKiB') <= 1024 * 1024
     assert guest == dict(guestWorker=True, uid=1000, runtime='10.0.12', memoryLimit=1073741824, limitRaiseDenied=True)
     assert text.count('FILECAT_GUEST_READY module_status=0000000000000000') == 1

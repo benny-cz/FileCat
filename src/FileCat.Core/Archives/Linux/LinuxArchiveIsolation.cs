@@ -78,13 +78,20 @@ internal static unsafe partial class LinuxArchiveIsolation
     internal static int RunWorker(string[] args, Func<Startup, int> action)
     {
         ArgumentNullException.ThrowIfNull(action);
-        Startup startup = ApplyWorker(args); int result = 65; Exception? failure = null; bool authorized = false;
+        Startup startup = ApplyWorker(args);
+        return RunParser(() => action(startup));
+    }
+
+    internal static int RunParser(Func<int> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        int result = 65; Exception? failure = null; bool authorized = false;
         Trace("worker global policies installed");
         using var begin = new ManualResetEventSlim();
         var parser = new Thread(() =>
         {
             begin.Wait(); if (!authorized) return;
-            try { result = action(startup); } catch (Exception ex) { failure = ex; }
+            try { result = action(); } catch (Exception ex) { failure = ex; }
         })
         { IsBackground = true, Name = "FileCat confined archive parser" };
         parser.Start();

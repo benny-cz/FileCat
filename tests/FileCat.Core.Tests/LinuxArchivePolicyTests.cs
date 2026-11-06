@@ -19,6 +19,9 @@ public sealed class LinuxArchivePolicyTests
         Assert.Equal(0x00050026u, Run(abi, 435));
         Assert.Equal(Deny, Run(abi, abi.CloneSyscall, 17)); // process + SIGCHLD
         Assert.Equal(Allow, Run(abi, abi.CloneSyscall, 0x3d0f00));
+        Assert.Equal(Allow, Run(abi, abi.CloneSyscall, 0x3d0f00 | 0x400000)); // musl's ignored CLONE_DETACHED bookkeeping
+        Assert.Equal(Deny, Run(abi, abi.CloneSyscall, 0x400000));
+        Assert.Equal(Deny, Run(abi, abi.CloneSyscall, (0x3d0f00 | 0x400000) & ~0x10000));
         Assert.Equal(Deny, Run(abi, abi.CloneSyscall, 0x3d0f00 | 0x10000000)); // CLONE_NEWUSER
         Assert.Equal(Deny, Run(abi, abi.CloneSyscall, 0x3d0f00UL | (1UL << 32)));
         Assert.Equal(0x80000000u, Run(abi, 0, audit: abi.Audit ^ 1));
@@ -127,6 +130,55 @@ public sealed class LinuxArchivePolicyTests
     }
 
     private const uint Self = 12345, Allow = 0x7fff0000, Deny = 0x00050001;
+    [Theory]
+    [InlineData(Architecture.X64)]
+    [InlineData(Architecture.Arm64)]
+    public void Musl_thread_signals_are_narrowly_available_only_in_the_private_guest(Architecture architecture)
+    {
+        var abi = LinuxArchiveProcessPolicy.ForArchitecture(architecture); uint tkill = abi.X32 ? 200u : 130u;
+        var policy = LinuxArchiveProcessPolicy.Build(abi, Self, readOnlyPaths: true, privateGuestThreads: true);
+        foreach (ulong signal in new ulong[] { 0, 6, 35 })
+        {
+            Assert.Equal(Deny, Run(abi, tkill, Self, signal));
+            Assert.Equal(Allow, Run(abi, tkill, Self, signal, overrideCode: policy));
+            Assert.Equal(Deny, Run(abi, tkill, 0, signal, overrideCode: policy));
+            Assert.Equal(Deny, Run(abi, tkill, Self | (1UL << 32), signal, overrideCode: policy));
+        }
+        foreach (ulong signal in new ulong[] { 1, 9, 15, 34, 36, ulong.MaxValue, 1UL << 32 })
+            Assert.Equal(Deny, Run(abi, tkill, Self, signal, overrideCode: policy));
+        foreach (ulong tid in new ulong[] { 0x80000000, uint.MaxValue, ulong.MaxValue })
+            Assert.Equal(Deny, Run(abi, tkill, tid, 0, overrideCode: policy));
+        Assert.Throws<ArgumentException>(() => LinuxArchiveProcessPolicy.Build(abi, Self, privateGuestThreads: true));
+    }
+
+    [Theory]
+    [InlineData(Architecture.X64, 0x10000, 0x20000)]
+    [InlineData(Architecture.Arm64, 0x4000, 0x8000)]
+    public void Control_file_flags_follow_the_target_kernel_ABI(Architecture architecture, int directory, int noFollow)
+        => Assert.Equal((directory, noFollow), LinuxArchiveNative.OpenFlags(architecture));
+
+    [Theory]
+    [InlineData(Architecture.X64)]
+    [InlineData(Architecture.Arm64)]
+    public void Private_guest_path_policy_denies_write_creation_and_pointer_based_alternatives(Architecture architecture)
+    {
+        var abi = LinuxArchiveProcessPolicy.ForArchitecture(architecture);
+        var policy = LinuxArchiveProcessPolicy.Build(abi, Self, readOnlyPaths: true);
+        uint openat = abi.X32 ? 257u : 56u;
+        foreach (ulong flags in new ulong[] { 0, 0x80000, 0x20000, 0x200000, 0x280000 })
+            Assert.Equal(Allow, Run(abi, openat, 0, 0, flags, overrideCode: policy));
+        foreach (ulong flags in new ulong[] { 1, 2, 3, 0x40, 0x200, 0x400, 0x410000, 0x80000 | 2 })
+            Assert.Equal(Deny, Run(abi, openat, 0, 0, flags, overrideCode: policy));
+        Assert.Equal(Deny, Run(abi, 437, overrideCode: policy));
+        Assert.Equal(Allow, Run(abi, abi.X32 ? 319u : 279u, overrideCode: policy)); // Runtime memfd remains bounded by the guest.
+        if (abi.X32)
+        {
+            Assert.Equal(Allow, Run(abi, 2, 0, 0, overrideCode: policy));
+            Assert.Equal(Deny, Run(abi, 2, 0, 2, overrideCode: policy));
+            Assert.Equal(Deny, Run(abi, 85, overrideCode: policy));
+        }
+    }
+
     private static uint Run(LinuxArchiveProcessPolicy.Abi abi, uint syscall, ulong first = 0, ulong second = 0, ulong third = 0, ulong fourth = 0, uint? audit = null,
         LinuxArchiveProcessPolicy.Filter[]? overrideCode = null)
     {

@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--root', type=Path, required=True)
 parser.add_argument('--publish', type=Path, required=True)
 parser.add_argument('--libraries', type=Path, required=True)
+parser.add_argument('--entry', choices=('FileCat.ArchiveVmProbe', 'FileCat.ArchiveWorker'), default='FileCat.ArchiveVmProbe')
 args = parser.parse_args()
 root = args.root.resolve()
 entries = {}
@@ -25,8 +26,11 @@ def add(name, mode, data=b'', major=0, minor=0):
         raise SystemExit('Duplicate/oversized fixed guest fixture.')
     entries[name] = (mode, data, major, minor)
 
-for directory in ('dev', 'proc', 'sys', 'sys/fs', 'sys/fs/cgroup', 'lib', 'usr', 'usr/lib', 'worker', 'tmp'):
-    add(directory, stat.S_IFDIR | (0o1777 if directory == 'tmp' else 0o755))
+for directory in ('.', 'dev', 'proc', 'sys', 'sys/fs', 'sys/fs/cgroup', 'lib', 'usr', 'usr/lib', 'worker', 'tmp', 'sealed'):
+    add(directory, stat.S_IFDIR | 0o755)
+add('sealed/not-runtime', stat.S_IFREG | 0o400, b'Owned read-denial fixture.\n')
+add('sealed/linked-runtime', stat.S_IFLNK | 0o777, b'../worker')
+add('sealed/control-link', stat.S_IFLNK | 0o777, b'../sys/fs/cgroup/filecat/memory.max')
 add('dev/console', stat.S_IFCHR | 0o600, major=5, minor=1)
 add('dev/hvc1', stat.S_IFCHR | 0o666, major=229, minor=1)
 add('dev/hvc2', stat.S_IFCHR | 0o444, major=229, minor=2)
@@ -75,7 +79,7 @@ for archive in archives:
 for source in sorted(args.publish.iterdir()):
     if source.is_symlink() or not source.is_file() or source.stat().st_size > 128 << 20:
         raise SystemExit('Unexpected published worker fixture.')
-    add('worker/' + source.name, stat.S_IFREG | (0o555 if source.name == 'FileCat.ArchiveVmProbe' or source.suffix == '.so' else 0o444), source.read_bytes())
+    add('worker/' + source.name, stat.S_IFREG | (0o555 if source.name == args.entry or source.suffix == '.so' else 0o444), source.read_bytes())
 add('TRAILER!!!', 0)
 archive = bytearray()
 for inode, (name, (mode, payload, major, minor)) in enumerate(entries.items(), 1):

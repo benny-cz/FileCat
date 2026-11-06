@@ -44,24 +44,40 @@ for name in ('macos-vm', 'macos-vm-worker'):
 PY
 mkdir "$results/sources/production"
 cp src/FileCat.Core/Archives/ArchiveWorkerTransport.cs "$results/sources/production/ArchiveWorkerTransport.cs"
+cp src/FileCat.Core/Archives/Linux/LinuxArchiveGuestIsolation.cs src/FileCat.Core/Archives/Linux/LinuxArchiveGuestTransport.cs src/FileCat.Core/Archives/Linux/LinuxArchiveProcessPolicy.cs src/FileCat.Core/Archives/Linux/LinuxArchiveIsolation.cs src/FileCat.Core/Archives/Linux/LinuxArchiveNative.cs "$results/sources/production/"
+cp src/FileCat.ArchiveWorker/Program.cs "$results/sources/production/ArchiveWorker.Program.cs"
+cp src/FileCat.ArchiveWorker/FileCat.ArchiveWorker.csproj src/FileCat.ArchiveWorker/packages.lock.json "$results/sources/production/"
+cp src/FileCat.Core/FileCat.Core.csproj src/ThirdParty/SharpCompress/FileCat.SharpCompress.csproj "$results/sources/production/"
+cp src/FileCat.Core/packages.lock.json "$results/sources/production/Core.packages.lock.json"
+cp src/ThirdParty/SharpCompress/packages.lock.json "$results/sources/production/SharpCompress.packages.lock.json"
+mkdir "$results/sources/writing"
+cp src/FileCat.Archives/Writing/*.cs src/FileCat.Archives/TarHeaderGuard.cs src/FileCat.Archives.Writing/FileCat.Archives.Writing.csproj src/FileCat.Archives.Writing/packages.lock.json "$results/sources/writing/"
 project=eng/validation/archive-writing/macos-vm-worker/FileCat.ArchiveVmProbe.csproj
 "$dotnet" --info > "$results/dotnet.txt"
-"$dotnet" publish "$project" -c Release -r linux-musl-arm64 --self-contained true -o "$results/guest-publish" -p:FileCatUpdateDependencyLocks=true -p:RuntimeIdentifiers=linux-musl-arm64 -p:RuntimeFrameworkVersion=10.0.12 -p:NuGetAudit=false --disable-build-servers -v minimal > "$results/guest-build.log" 2>&1
+"$dotnet" publish src/FileCat.ArchiveWorker/FileCat.ArchiveWorker.csproj -c Release -r linux-musl-arm64 --self-contained true -o "$results/guest-publish" -p:FileCatUpdateDependencyLocks=true -p:RuntimeIdentifiers=linux-musl-arm64 -p:RuntimeFrameworkVersion=10.0.12 -p:NuGetAudit=false --disable-build-servers -v minimal > "$results/guest-build.log" 2>&1
+"$dotnet" publish "$project" -c Release -r linux-musl-arm64 --self-contained true -o "$results/guest-probe-publish" -p:FileCatUpdateDependencyLocks=true -p:RuntimeIdentifiers=linux-musl-arm64 -p:RuntimeFrameworkVersion=10.0.12 -p:NuGetAudit=false --disable-build-servers -v minimal > "$results/guest-probe-build.log" 2>&1
 "$dotnet" publish "$project" -c Release -r osx-arm64 --self-contained false -o "$results/host-publish" -p:FileCatUpdateDependencyLocks=true -p:RuntimeIdentifiers=osx-arm64 -p:NuGetAudit=false --disable-build-servers -v minimal > "$results/host-build.log" 2>&1
 compiler=/Library/Developer/CommandLineTools/usr/bin/clang
 "$compiler" --version > "$results/compiler.txt"
 "$compiler" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk -Wall -Wextra -Werror eng/validation/archive-writing/macos-vm-worker/rusage-abi.c -lproc -o "$results/rusage-abi"
 "$results/rusage-abi" > "$results/rusage-abi.json"
-"$compiler" --target=aarch64-unknown-linux-gnu -DFILECAT_MANAGED_WORKER=1 -DFILECAT_LIMIT_MIB=1024 -c eng/validation/archive-writing/macos-vm/guest-memory-init.S -o "$results/input/init-control.o"
+mkdir "$results/probe-image" "$results/probe-image/input"
+cp "$module" "$results/probe-image/input/virtio_mmio.module"
+"$compiler" --target=aarch64-unknown-linux-gnu -DFILECAT_MANAGED_WORKER=1 -DFILECAT_LIMIT_MIB=1024 -c eng/validation/archive-writing/macos-vm/guest-memory-init.S -o "$results/probe-image/input/init-control.o"
+python3 eng/validation/archive-writing/macos-vm/pack-initrd.py --root "$results/probe-image" --case control > "$results/pack-probe-init.log"
+python3 eng/validation/archive-writing/macos-vm-worker/pack-worker-initrd.py --root "$results/probe-image" --publish "$results/guest-probe-publish" --libraries "$libraries" > "$results/pack-probe-worker.log"
+"$compiler" --target=aarch64-unknown-linux-gnu -DFILECAT_MANAGED_WORKER=1 -DFILECAT_LIMIT_MIB=1024 '-DFILECAT_GUEST_EXECUTABLE="/worker/FileCat.ArchiveWorker"' '-DFILECAT_GUEST_ARGUMENT="--archive-linux-vm-worker"' -c eng/validation/archive-writing/macos-vm/guest-memory-init.S -o "$results/input/init-control.o"
 python3 eng/validation/archive-writing/macos-vm/pack-initrd.py --root "$results" --case control > "$results/pack-init.log"
-python3 eng/validation/archive-writing/macos-vm-worker/pack-worker-initrd.py --root "$results" --publish "$results/guest-publish" --libraries "$libraries" > "$results/pack-worker.log"
+python3 eng/validation/archive-writing/macos-vm-worker/pack-worker-initrd.py --root "$results" --publish "$results/guest-publish" --libraries "$libraries" --entry FileCat.ArchiveWorker > "$results/pack-worker.log"
 "$compiler" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk -mmacosx-version-min=13.0 -fobjc-arc -Wall -Wextra -Werror -framework Foundation -framework CoreFoundation -framework Virtualization eng/validation/archive-writing/macos-vm-worker/linux-vm-worker.m -o "$results/FileCat.ArchiveLinuxVmWorker"
 codesign --force --sign - --identifier io.filecat.archive-linux-vm-worker --entitlements eng/validation/archive-writing/macos-vm/virtualization-entitlements.plist "$results/FileCat.ArchiveLinuxVmWorker" > "$results/signing.log" 2>&1
 "$dotnet" "$results/host-publish/FileCat.ArchiveVmProbe.dll" host "$results/FileCat.ArchiveLinuxVmWorker" "$results/input/kernel.Image" "$results/input/initrd-worker.cpio" "$results/results" > "$results/host-run.log" 2>&1
 python3 eng/validation/archive-writing/macos-vm-worker/verify-worker-run.py --root "$results" > "$results/oracle.log"
-python3 eng/validation/archive-writing/macos-vm-worker/verify-parent-death.py --native "$results/FileCat.ArchiveLinuxVmWorker" --kernel "$results/input/kernel.Image" --initrd "$results/input/initrd-worker.cpio" --output "$results/parent-death" > "$results/parent-death.log"
-"$dotnet" "$results/host-publish/FileCat.ArchiveVmProbe.dll" cancel-host "$results/FileCat.ArchiveLinuxVmWorker" "$results/input/kernel.Image" "$results/input/initrd-worker.cpio" "$results/cancellation" > "$results/cancellation.log" 2>&1
+python3 eng/validation/archive-writing/macos-vm-worker/verify-parent-death.py --native "$results/FileCat.ArchiveLinuxVmWorker" --kernel "$results/input/kernel.Image" --initrd "$results/probe-image/input/initrd-worker.cpio" --output "$results/parent-death" > "$results/parent-death.log"
+"$dotnet" "$results/host-publish/FileCat.ArchiveVmProbe.dll" cancel-host "$results/FileCat.ArchiveLinuxVmWorker" "$results/input/kernel.Image" "$results/input/initrd-worker.cpio" "$results/probe-image/input/initrd-worker.cpio" "$results/cancellation" > "$results/cancellation.log" 2>&1
 python3 eng/validation/archive-writing/macos-vm-worker/verify-cancellation.py --root "$results" > "$results/cancellation-oracle.log"
-python3 eng/validation/archive-writing/macos-vm-worker/verify-helper-death.py --native "$results/FileCat.ArchiveLinuxVmWorker" --kernel "$results/input/kernel.Image" --initrd "$results/input/initrd-worker.cpio" --output "$results/helper-death" > "$results/helper-death.log"
+python3 eng/validation/archive-writing/macos-vm-worker/verify-helper-death.py --native "$results/FileCat.ArchiveLinuxVmWorker" --kernel "$results/input/kernel.Image" --initrd "$results/probe-image/input/initrd-worker.cpio" --output "$results/helper-death" > "$results/helper-death.log"
 python3 eng/validation/archive-writing/macos-vm-worker/verify-memory-envelope.py --root "$results" > "$results/memory-envelope.log"
 python3 eng/validation/archive-writing/macos-vm-worker/verify-memory-results.py --root "$results" > "$results/memory-results.log"
+python3 eng/validation/archive-writing/macos-vm-worker/verify-production-worker.py --root "$results" > "$results/production-policy.log"
+python3 eng/validation/archive-writing/macos-vm-worker/verify-guest-process-inventory.py --root "$results" --repo "$repo" > "$results/process-inventory.log"

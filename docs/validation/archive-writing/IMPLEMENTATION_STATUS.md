@@ -21,6 +21,13 @@ security review and fix/retest its findings.
 
 ## Implemented foundations
 
+The [dedicated VM archive-worker checkpoint](DEDICATED_VM_ARCHIVE_WORKER.md) adds a non-UI worker and writing-only
+dependency graph, strict shared guest bootstrap/transport and canonical locked musl publication. Live ARM64 guests
+exposed and fixed architecture-specific open flags and musl clone/signal bugs. Both tested bundles complete 16 actual
+roles with independent extraction; 23 kernel-policy checks and extra-process startup refusals pass. Focused policy/TAR
+regressions pass 51 tests on each desktop platform. Compiler hashes verify 810 source documents per bundle. Host/provider
+memory, production packaging/admission and remaining plan gates stay open; this enables no writer profile.
+
 The later [captured-member defaults checkpoint](CAPTURED_MEMBER_DEFAULTS.md) corrects ordinary Unix permission bits
 and Windows 0644 defaults, with passing native regression checks on all three platforms. It does not complete capture.
 The subsequent [exact TAR timestamp checkpoint](EXACT_TAR_TIMESTAMPS.md) adds native nanosecond capture, versioned

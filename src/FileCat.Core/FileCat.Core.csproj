@@ -3,11 +3,15 @@
   <PropertyGroup>
     <RootNamespace>FileCat.Core</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- The dedicated macOS VM worker consumes this portable library with the musl ARM64 runtime. -->
+    <RuntimeIdentifiers>$(RuntimeIdentifiers);linux-musl-arm64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="FileCat.Core.Tests" />
     <InternalsVisibleTo Include="FileCat.CoreCrashHarness" />
     <InternalsVisibleTo Include="FileCat.WorkerProbe" />
+    <InternalsVisibleTo Include="FileCat.ArchiveWorker" />
+    <InternalsVisibleTo Include="FileCat.ArchiveVmProbe" />
     <InternalsVisibleTo Include="FileCat.App.Tests" />
     <InternalsVisibleTo Include="FileCat" />
     <InternalsVisibleTo Include="FileCat.Platform.Windows" />

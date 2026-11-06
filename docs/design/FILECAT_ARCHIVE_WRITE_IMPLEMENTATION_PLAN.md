@@ -7,6 +7,7 @@
 > **Product requirement:** Extend archive writing while FileCat's own code remains MIT-licensed and new engines introduce no copyleft, proprietary runtime requirement, or restriction on fields of use.
 > **Security requirement:** Assume no archive content is valid. The complete write pipeline must be fuzzing-safe: bounded rejection or a verified result, without a process crash, uncontrolled allocation, hang, unauthorized filesystem effect, or loss of an existing file.
 > **Deliverable boundary:** This document defines the requirements; a component checkpoint does not establish format or release qualification. Keep the acceptance gates open until the complete implementation and required platform evidence satisfy them.
+> **6 November component checkpoint:** The [dedicated VM archive worker](../validation/archive-writing/DEDICATED_VM_ARCHIVE_WORKER.md) executes actual write roles with a writing-only dependency closure and strict guest syscall policy. Live ARM64/musl defects are fixed; production resource/package/admission gates and the overall plan stay open.
 
 ## Contents
 

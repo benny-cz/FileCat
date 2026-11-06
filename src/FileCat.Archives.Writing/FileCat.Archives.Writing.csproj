@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Stream-only encoder/strict verifier assembly. Reader-only Rar15 and DiscUtils are not worker dependencies. -->
+  <PropertyGroup>
+    <RootNamespace>FileCat.Archives.Writing</RootNamespace>
+    <RuntimeIdentifiers>$(RuntimeIdentifiers);linux-musl-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- One implementation source, compiled into the existing reader package and the dedicated worker package. -->
+    <Compile Include="../FileCat.Archives/Writing/*.cs" Link="Writing/%(Filename)%(Extension)" />
+    <Compile Include="../FileCat.Archives/TarHeaderGuard.cs" Link="TarHeaderGuard.cs" />
+    <ProjectReference Include="../FileCat.Core/FileCat.Core.csproj" />
+    <ProjectReference Include="../ThirdParty/SharpCompress/FileCat.SharpCompress.csproj" />
+    <InternalsVisibleTo Include="FileCat.Core.Tests" />
+  </ItemGroup>
+</Project>

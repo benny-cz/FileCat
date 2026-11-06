@@ -21,12 +21,12 @@ internal static unsafe partial class LinuxArchiveProcessPolicy
         _ => throw new PlatformNotSupportedException("The archive syscall policy supports Linux x64 and ARM64 only."),
     };
 
-    internal static void Apply()
+    internal static void Apply(bool readOnlyPaths = false, bool privateGuestThreads = false)
     {
         if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException();
         if (Prctl(39 /* GET_NO_NEW_PRIVS */, 0, 0, 0, 0) != 1)
             throw LinuxArchiveNative.Unavailable("The archive launcher did not establish no-new-privileges.");
-        Abi abi = CurrentAbi(); Filter[] code = Build(abi, checked((uint)Environment.ProcessId));
+        Abi abi = CurrentAbi(); Filter[] code = Build(abi, checked((uint)Environment.ProcessId), readOnlyPaths, privateGuestThreads);
         fixed (Filter* pointer = code)
         {
             var program = new Program { Count = checked((ushort)code.Length), Code = pointer };
@@ -52,9 +52,10 @@ internal static unsafe partial class LinuxArchiveProcessPolicy
     [new(0x20,0,0,4),new(0x15,1,0,abi.Audit),new(0x06,0,0,0x80000000),new(0x20,0,0,0),
         new(0x15,0,1,abi.X32?60u:93u),new(0x06,0,0,0x00050001),new(0x06,0,0,0x7fff0000)];
 
-    internal static Filter[] Build(Abi abi, uint self)
+    internal static Filter[] Build(Abi abi, uint self, bool readOnlyPaths = false, bool privateGuestThreads = false)
     {
         if (self == 0) throw new ArgumentException("A positive worker process identity is required.");
+        if (privateGuestThreads && !readOnlyPaths) throw new ArgumentException("The musl thread-signal exception requires the private guest policy.");
         const uint Deny = 0x00050001, Allow = 0x7fff0000;
         List<Filter> code = [new(0x20, 0, 0, 4), new(0x15, 1, 0, abi.Audit), new(0x06, 0, 0, 0x80000000), new(0x20, 0, 0, 0)];
         if (abi.X32) { code.Add(new(0x45, 0, 1, 0x40000000)); code.Add(new(0x06, 0, 0, Deny)); }
@@ -62,6 +63,18 @@ internal static unsafe partial class LinuxArchiveProcessPolicy
         // operations do not silently acquire authority. Pinned runtime fallback behavior is qualified separately.
         code.Add(new(0x25, 0, 1, 471)); code.Add(new(0x06, 0, 0, Deny));
         bool x64 = abi.X32;
+        if (readOnlyPaths)
+        {
+            // The immutable private guest needs no path-based writes. Keep runtime memfd/ftruncate and inherited
+            // stream writes, while preventing every runtime thread from opening a writable filesystem handle.
+            const uint WriteFlags = 3 | 0x40 | 0x200 | 0x400 | 0x400000;
+            if (x64) DenyFlag(2 /* open */, 24 /* flags arg1 */, WriteFlags);
+            DenyFlag(x64 ? 257u : 56u /* openat */, 32 /* flags arg2 */, WriteFlags);
+            DenyCall(437 /* openat2 has pointer-based flags; no uninspected alternative */);
+            if (x64) DenyCall(85 /* creat */);
+            foreach (uint mutation in x64 ? new uint[] { 82,83,84,86,87,88,133,258,259,263,264,265,266,316 }
+                : new uint[] { 33,34,35,36,37,38,276 }) DenyCall(mutation);
+        }
         uint[] denied = x64 ?
         [
             41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,288,299,307, // sockets, including Unix/UDP and passed descriptors
@@ -81,9 +94,23 @@ internal static unsafe partial class LinuxArchiveProcessPolicy
             143,144,145,146,147,149,151,152,159,91,
             32,140,118,119,30,238,239,274,
         ];
-        foreach (uint number in denied.Concat(new uint[]
+        uint tkill = x64 ? 200u : 130u;
+        foreach (uint number in denied.Where(number => !privateGuestThreads || number != tkill).Concat(new uint[]
         { 425,426,427,424,434,438,428,429,430,431,432,433,442,447,452,460,463,464,465,466,467,469, abi.Exec,abi.ExecAt,abi.SetRlimit })) DenyCall(number);
         if (abi.Fork is { } fork) DenyCall(fork); if (abi.Vfork is { } vfork) DenyCall(vfork);
+        if (privateGuestThreads)
+        {
+            // Only the fixed RAM-image guest may use this musl route. Bootstrap first verifies that PID 1 is root
+            // and the worker is the sole other process, with UID 1000 and no capabilities; every process-creation
+            // and credential-changing syscall is denied here. Kernel signal permissions therefore confine tkill
+            // to this worker's threads. The desktop policy retains its unconditional tkill denial.
+            // Permit only positive, exact-width TIDs and signal 0, SIGABRT or the pinned runtime's SIGRTMIN (35).
+            GuardCall(tkill, [new(0x20,0,0,20),new(0x15,1,0,0),new(0x06,0,0,Deny),
+                new(0x20,0,0,16),new(0x25,1,0,0),new(0x06,0,0,Deny),new(0x25,0,1,0x7fffffff),new(0x06,0,0,Deny),
+                new(0x20,0,0,28),new(0x15,1,0,0),new(0x06,0,0,Deny),new(0x20,0,0,24),
+                new(0x15,0,1,0),new(0x06,0,0,Allow),new(0x15,0,1,6),new(0x06,0,0,Allow),
+                new(0x15,0,1,35),new(0x06,0,0,Allow),new(0x06,0,0,Deny)]);
+        }
         // CoreCLR initializes a new thread's affinity through pid=0 (the calling thread). An explicit target,
         // including another thread/process or a high-word alias, remains unavailable.
         GuardCall(x64 ? 203u : 122u, [new(0x20,0,0,16),new(0x15,0,2,0),new(0x20,0,0,20),new(0x15,1,0,0),
@@ -104,8 +131,9 @@ internal static unsafe partial class LinuxArchiveProcessPolicy
         // clone3 hides mutable flags behind a pointer. Force libc's register-based clone fallback for threads.
         code.Add(new(0x15, 0, 1, 435)); code.Add(new(0x06, 0, 0, 0x00050026 /* ENOSYS */));
         // CLONE_THREAD is required and every namespace/process-altering flag is excluded. VM/SIGHAND are required by
-        // the kernel for CLONE_THREAD; the allowed remainder is libc's ordinary TLS/TID/stack bookkeeping.
-        const uint ThreadFlags = 0x100 | 0x200 | 0x400 | 0x800 | 0x10000 | 0x40000 | 0x80000 | 0x100000 | 0x200000 | 0x1000000;
+        // the kernel for CLONE_THREAD; the remainder is libc's TLS/TID/stack bookkeeping. musl also supplies the
+        // legacy, kernel-ignored CLONE_DETACHED flag; it never substitutes for CLONE_THREAD or permits a namespace.
+        const uint ThreadFlags = 0x100 | 0x200 | 0x400 | 0x800 | 0x10000 | 0x40000 | 0x80000 | 0x100000 | 0x200000 | 0x400000 | 0x1000000;
         code.Add(new(0x15, 0, 9, abi.CloneSyscall));
         code.Add(new(0x20, 0, 0, 20)); code.Add(new(0x15, 0, 6, 0));
         code.Add(new(0x20, 0, 0, 16)); code.Add(new(0x45, 0, 4, 0x10000));

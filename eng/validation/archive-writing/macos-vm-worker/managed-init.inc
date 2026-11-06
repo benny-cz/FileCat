@@ -115,7 +115,11 @@ managed_worker:
     b fatal
 managed_tty: .asciz "/dev/hvc1"
 managed_cancel_tty: .asciz "/dev/hvc2"
-managed_executable: .asciz "/worker/FileCat.ArchiveVmProbe"
-managed_argument: .asciz "guest"
+#ifndef FILECAT_GUEST_EXECUTABLE
+#define FILECAT_GUEST_EXECUTABLE "/worker/FileCat.ArchiveVmProbe"
+#define FILECAT_GUEST_ARGUMENT "guest"
+#endif
+managed_executable: .asciz FILECAT_GUEST_EXECUTABLE
+managed_argument: .asciz FILECAT_GUEST_ARGUMENT
 managed_invariant: .asciz "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1"
 managed_diagnostics: .asciz "DOTNET_EnableDiagnostics=0"

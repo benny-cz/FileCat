@@ -6,9 +6,12 @@ using System.Text.Json;
 using Microsoft.Win32.SafeHandles;
 using FileCat.Archives.Writing;
 using FileCat.Core.Archives;
+using FileCat.Core.Archives.Linux;
 
 if (args is ["guest"])
 {
+    return LinuxArchiveGuestIsolation.Run(_ =>
+    {
     if (!OperatingSystem.IsLinux()) return 65;
     string[] memory = File.ReadLines("/proc/meminfo").First(line => line.StartsWith("MemTotal:", StringComparison.Ordinal)).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
     if (memory.Length != 3 || memory[2] != "kB" || !long.TryParse(memory[1], out long physicalKiB) || physicalKiB <= 512 * 1024 || physicalKiB > 1024 * 1024) return 65;
@@ -24,7 +27,7 @@ if (args is ["guest"])
     // Console.OpenStandardInput uses the interactive Unicode line reader for a tty. Preserve arbitrary
     // archive/protocol bytes with raw descriptor streams, after native init has disabled terminal processing.
     using var diagnostics = new FileStream(new SafeFileHandle((nint)2, ownsHandle: false), FileAccess.Write);
-    diagnostics.Write(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { guestWorker = true, uid = Native.getuid(), runtime = Environment.Version.ToString(), memoryLimit = 1073741824, limitRaiseDenied = denied, physicalKiB }) + "\n"));
+    diagnostics.Write(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { guestWorker = true, uid = Native.getuid(), runtime = Environment.Version.ToString(), memoryLimit = 1073741824, limitRaiseDenied = denied, physicalKiB, syscallPolicy = 1 }) + "\n"));
     diagnostics.Flush();
     return GuestCancellation.Run(diagnostics, (input, output, ct) =>
     {
@@ -42,8 +45,10 @@ if (args is ["guest"])
         5 => FloodProbe(output, ct),
         6 => NativeMemoryProbe.Run(output, 32, ct),
         7 => NativeMemoryProbe.Run(output, 160, ct),
+        8 => GuestPolicyProbe.Run(output),
         _ => 64
     };
+    });
     });
 }
 static int SpinProbe(Stream output)
@@ -59,8 +64,8 @@ static int FloodProbe(Stream output, CancellationToken ct)
     var random = new Random(42829297);
     while (true) { ct.ThrowIfCancellationRequested(); random.NextBytes(bytes); output.Write(bytes); }
 }
-if (args is ["cancel-host", var cancelNative, var cancelKernel, var cancelInitrd, var cancelResults] && OperatingSystem.IsMacOS())
-    return await CancellationProbes.Run(cancelNative, cancelKernel, cancelInitrd, cancelResults);
+if (args is ["cancel-host", var cancelNative, var cancelKernel, var cancelInitrd, var cancelProbeInitrd, var cancelResults] && OperatingSystem.IsMacOS())
+    return await CancellationProbes.Run(cancelNative, cancelKernel, cancelInitrd, cancelProbeInitrd, cancelResults);
 if (args is not ["host", var native, var kernel, var initrd, var results] || !OperatingSystem.IsMacOS()) return 64;
 Directory.CreateDirectory(results);
 using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(5));

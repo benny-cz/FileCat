@@ -55,7 +55,7 @@ for name, role in [('control-256m', 6), ('overrun-1280m', 7), ('entropy-draining
     path = output / (name + '.log')
     with path.open('xb') as log:
         try:
-            worker = subprocess.Popen([str(root / 'FileCat.ArchiveLinuxVmWorker'), str(root / 'input/kernel.Image'), str(root / 'input/initrd-worker.cpio'),
+            worker = subprocess.Popen([str(root / 'FileCat.ArchiveLinuxVmWorker'), str(root / 'input/kernel.Image'), str(root / 'probe-image/input/initrd-worker.cpio'),
                 '1024', str(os.getpid()), str(cancel_read)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=log, pass_fds=(cancel_read,), start_new_session=True)
         finally: os.close(cancel_read)
         try:
