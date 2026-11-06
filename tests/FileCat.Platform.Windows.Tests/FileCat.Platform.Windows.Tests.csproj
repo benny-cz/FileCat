@@ -35,5 +35,6 @@
     <Compile Include="..\AnalysisSourceFrontierFixture.cs" Link="AnalysisSourceFrontierFixture.cs" />
     <Compile Include="..\AnalysisFileQuotaCases.cs" Link="AnalysisFileQuotaCases.cs" />
     <Compile Include="..\AnalysisNativeMemoryFallbackCases.cs" Link="AnalysisNativeMemoryFallbackCases.cs" />
+    <Compile Include="..\AnalysisInventoryPathMapCases.cs" Link="AnalysisInventoryPathMapCases.cs" />
   </ItemGroup>
 </Project>

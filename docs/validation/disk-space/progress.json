@@ -139,7 +139,8 @@
     "Internal App preparation now preserves unsupported private state, uses ephemeral correlation when UUID continuity is unavailable and retains native private boundaries or disjoint-only ancestor guards. Unread roots carry explicit partial state; safe selected children are reactivated without double counting. Covered private selections redact identities and have known-empty direct/memory/indexed filter scope. Completed results choose indexed or leased memory views, retaining the shared memory reservation after acquisition closure. Native memory/query/folder-open/owned-exit workflows and FileCat-only visual-tree renders pass on all3 platforms; public lifecycle and full qualification remain open.",
     "The normal development Start flow now shares native private-profile/boundary preparation with indexed acquisition while remaining bounded-memory. Resolved-target review retains the same capabilities; Stop/Close at initial scanning cannot start work. Window closure waits for actual binding/acquisition cleanup, and unsupported private state disables private Save. Five added lifecycle cases pass on all3 runtimes; native normal Start/query/navigation/close preserves509 generated regular paths on each platform.",
     "Eight analyses are now admitted process-wide across windows, pending indexed opens and reserved Open/Compare destinations. A closed window keeps its slot until accepted projection/navigation/query/persistence/dialog work returns and releases its leases; explicitly requested saves can finish after view closure. Unverified failed close retains a slot until process exit with an accurate reason. Six new controls plus updated cleanup pass94 presentation cases on Mac/Ubuntu and93 plus one Unix-only skip on Windows. Actual native cross-window/late-projection refusal and exact reuse pass on all3; full resource/native-input qualification remains open.",
-    "Full native indexed revisions now save create-new in bounded paired-device turns, with two actual-lifetime save reservations, retained owner closure, exact native captured IDs, whole tables and explicit uncertain-publication failures. Coverage qualification round-trips unknown enumeration and incomplete/unlocated staleness with strict data-only validation and persistent UI notices; streaming import/arbitrary imported IDs and public indexed catalog adoption remain open."
+    "Full native indexed revisions now save create-new in bounded paired-device turns, with two actual-lifetime save reservations, retained owner closure, exact native captured IDs, whole tables and explicit uncertain-publication failures. Coverage qualification round-trips unknown enumeration and incomplete/unlocated staleness with strict data-only validation and persistent UI notices; streaming import/arbitrary imported IDs and public indexed catalog adoption remain open.",
+    "Internal original-ID mapping now uses immutable private scratch rows plus an exact external ID index, preserving arbitrary UInt64 IDs independently of file order and rejecting duplicate/zero/self/missing/forward parents. Actual cancellation/query/cleanup ownership and native private-file retirement pass all3. Full indexed import/graph/explorer adoption remains unfinished."
   ],
   "validation": {
     "windowsCore": {
@@ -1496,10 +1497,104 @@
       "nativeInputQualified": false,
       "fullResourceGateQualified": false,
       "finalIndependentReviewPerformed": false
+    },
+    "inventoryOriginalIdMap": {
+      "scope": "Internal identity mapping stage, not a complete indexed import",
+      "matrix": {
+        "windows-native-r471.xml": {
+          "total": "38",
+          "passed": "38",
+          "failed": "0",
+          "skipped": "0",
+          "time": "40.454"
+        },
+        "mac-core-r471.xml": {
+          "total": "611",
+          "passed": "609",
+          "failed": "0",
+          "skipped": "2",
+          "time": "15.440"
+        },
+        "mac-render-r472.xml": {
+          "total": "95",
+          "passed": "95",
+          "failed": "0",
+          "skipped": "0",
+          "time": "35.463"
+        },
+        "mac-scheduler-r473.xml": {
+          "total": "6",
+          "passed": "6",
+          "failed": "0",
+          "skipped": "0",
+          "time": "2.020"
+        },
+        "ubuntu-core-r471.xml": {
+          "total": "611",
+          "passed": "609",
+          "failed": "0",
+          "skipped": "2",
+          "time": "65.548"
+        },
+        "ubuntu-render-r472.xml": {
+          "total": "95",
+          "passed": "95",
+          "failed": "0",
+          "skipped": "0",
+          "time": "59.606"
+        },
+        "ubuntu-scheduler-r473.xml": {
+          "total": "6",
+          "passed": "6",
+          "failed": "0",
+          "skipped": "0",
+          "time": "2.526"
+        },
+        "windows-core-r471.xml": {
+          "total": "629",
+          "passed": "587",
+          "failed": "0",
+          "skipped": "42",
+          "time": "14.350"
+        },
+        "windows-render-r472.xml": {
+          "total": "95",
+          "passed": "94",
+          "failed": "0",
+          "skipped": "1",
+          "time": "57.737"
+        },
+        "windows-scheduler-r473.xml": {
+          "total": "6",
+          "passed": "6",
+          "failed": "0",
+          "skipped": "0",
+          "time": "2.095"
+        }
+      },
+      "nativeIdentities": 5201,
+      "nativeStorageTestedOn": [
+        "Windows",
+        "macOS",
+        "Ubuntu"
+      ],
+      "workspaceOwnerClosedBeforeQueries": true,
+      "postChecks": [
+        "mac-post-map-r474.json",
+        "ubuntu-post-map-r474.json",
+        "windows-post-map-r474.json"
+      ],
+      "manifest": "source-manifest-r474.json",
+      "streamingReaderImplemented": false,
+      "explorerAdoptionImplemented": false,
+      "nativeDesktopInputQualified": false,
+      "fullResourceGateQualified": false,
+      "finalIndependentReviewPerformed": false,
+      "runnerNotes": "Main Core omits six DeviceIoScheduler controls; scheduler-r473 runs those separately against the identical final test assembly. Initial Windows main Core was BUSY and did not launch; the same gated runner passed after the other tester exited."
     }
   },
   "nextWork": [
-    "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, bounded queue/CPU admission, actual mixed-volume/native-device identity, package/session/domain agreement, arbitrary imported inventory IDs/streaming import (bounded full native dataset write now passes all3), end-to-end1M/10M and every resource limit remain required.",
+    "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, bounded queue/CPU admission, actual mixed-volume/native-device identity, package/session/domain agreement, streaming import and adoption of the new bounded original-ID map (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: grouping/color dimensions, scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
