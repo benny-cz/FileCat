@@ -120,7 +120,7 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
         AnalysisPrivateNames.Entry(name); Verify();
         OwnedHandle owned;
         try { owned = OpenOwned(Root, name, GenericRead | ReadControl | Synchronize, ShareRead, Open, NonDirectoryFile | OpenReparsePoint); }
-        catch (IOException error) when (name == AnalysisPrivateNames.PrivateState && error.InnerException is Win32Exception { NativeErrorCode: 2 })
+        catch (IOException error) when ((name == AnalysisPrivateNames.PrivateState || AnalysisPrivateNames.IsCapacityToken(name)) && error.InnerException is Win32Exception { NativeErrorCode: 2 })
         { throw new FileNotFoundException("The private analysis entry is missing.", error); }
         try { Private(owned.Handle, directory: false); return new PrivateFile(this, owned, writable: false); }
         catch { owned.Dispose(); throw; }
@@ -233,6 +233,17 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
             _stream = new(owned.Handle, writable ? FileAccess.ReadWrite : FileAccess.Read, 64 * 1024, isAsync: false);
         }
         public override Stream Stream => _stream;
+        internal override bool TryLockCapacity()
+        {
+            if (_writable) throw new InvalidOperationException("Capacity requires an immutable published file.");
+            _directory.Verify(); Verify();
+            // Keep the lock beyond both the marker and FileStream's 64-KiB read-ahead window.
+            // NTFS can check the requested buffered read range before trimming it to EOF.
+            byte* overlapped = stackalloc byte[32]; new Span<byte>(overlapped, 32).Clear(); *(uint*)(overlapped + 2 * IntPtr.Size) = 64 * 1024 * 1024;
+            if (LockFileEx(_owned.Handle, 3, 0, 1, 0, overlapped)) return true; // EXCLUSIVE | FAIL_IMMEDIATELY
+            if (Marshal.GetLastPInvokeError() == 33) return false; // ERROR_LOCK_VIOLATION
+            throw new IOException("Private profile capacity locking is unavailable.");
+        }
         public override void Verify() => _directory.Private(_owned.Handle, directory: false);
         public override void Flush() => _stream.Flush(flushToDisk: true);
         public override void PublishNew(string name)
@@ -277,6 +288,8 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
         catch { reservation.Dispose(); throw; }
     }
     [StructLayout(LayoutKind.Sequential)] private struct IoStatus { public nint Status, Information; }
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)] private static partial bool LockFileEx(SafeFileHandle handle, uint flags, uint reserved, uint low, uint high, byte* overlapped);
     [LibraryImport("ntdll.dll")] private static partial int NtQueryDirectoryFile(SafeFileHandle handle, nint evt, nint apc, nint context,
         out IoStatus io, byte* buffer, uint length, int kind, [MarshalAs(UnmanagedType.U1)] bool single, nint pattern, [MarshalAs(UnmanagedType.U1)] bool restart);
     [LibraryImport("ntdll.dll")] private static partial int NtQueryVolumeInformationFile(SafeFileHandle handle, IoStatus* io, byte* buffer, uint length, int informationClass);

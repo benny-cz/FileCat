@@ -59,7 +59,7 @@ public sealed partial class AnalysisProfileQuotaTests
             Assert.True(ready == "QUOTA_READY", $"Child readiness: {ready}; {(child.HasExited ? await errors : "still running")}");
             if (crash) child.Kill(); else { await child.StandardInput.WriteLineAsync("EXIT".AsMemory(), Cancellation); await child.StandardInput.FlushAsync(Cancellation); }
             await child.WaitForExitAsync(Cancellation).WaitAsync(TimeSpan.FromSeconds(10), Cancellation); Assert.True(child.HasExited);
-            using var next = AnalysisProfileQuota.Open(id); Assert.True(next.TryReserve(Capacity)); Assert.False(next.TryReserve(1));
+            using var next = AnalysisProfileQuota.Open(id); await AssertEventuallyReserved(next, Capacity); Assert.False(next.TryReserve(1));
         }
         finally { if (!child.HasExited) { child.Kill(); await child.WaitForExitAsync(Cancellation).WaitAsync(TimeSpan.FromSeconds(10), Cancellation); } Assert.True(child.HasExited); }
     }
@@ -81,7 +81,8 @@ public sealed partial class AnalysisProfileQuotaTests
             Assert.False(contender.TryReserve(1));
             if (crash) child.Kill(); else { await child.StandardInput.WriteLineAsync("EXIT".AsMemory(), Cancellation); await child.StandardInput.FlushAsync(Cancellation); }
             await child.WaitForExitAsync(Cancellation).WaitAsync(TimeSpan.FromSeconds(10), Cancellation);
-            Assert.True(child.HasExited); Assert.True(contender.TryReserve(Capacity / 2)); Assert.False(contender.TryReserve(1));
+            Assert.True(child.HasExited, "The owned child has not actually exited.");
+            await AssertEventuallyReserved(contender, Capacity / 2); Assert.False(contender.TryReserve(1));
             if (!crash) Assert.Equal(0, child.ExitCode);
         }
         finally { if (!child.HasExited) { child.Kill(); await child.WaitForExitAsync(Cancellation).WaitAsync(TimeSpan.FromSeconds(10), Cancellation); } Assert.True(child.HasExited); }
@@ -109,6 +110,14 @@ public sealed partial class AnalysisProfileQuotaTests
         }
     }
 
+    private static async Task AssertEventuallyReserved(AnalysisProfileQuota quota, long bytes)
+    {
+        // Process-exit notification can precede the OS retiring every owned kernel lock.
+        // Keep observing the same quota owner; do not restart a child or assume early release.
+        var until = DateTime.UtcNow.AddSeconds(5); bool acquired;
+        while (!(acquired = quota.TryReserve(bytes)) && DateTime.UtcNow < until) await Task.Delay(10, Cancellation);
+        Assert.True(acquired, "Native capacity did not return after the actual owned process exit.");
+    }
     private static Process Start(Guid profile, long bytes, bool separateSession, string? environment)
     {
         string harness = Path.Combine(AppContext.BaseDirectory, "FileCat.CoreCrashHarness.dll");

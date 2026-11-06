@@ -1,0 +1,76 @@
+{
+  "purpose": "Actual Ubuntu IPC namespace quota counterexample and private-file coordination; no UI/resource/package qualification",
+  "passed": true,
+  "events": [
+    {
+      "case": "rejected-IPC-only-boundary",
+      "parent": {
+        "pid": 659622,
+        "ipc": "ipc:[4026531839]"
+      },
+      "child": {
+        "pid": 659636,
+        "ipc": "ipc:[4026532721]"
+      },
+      "parentBytes": 8589934592,
+      "additionalChildBytes": 1,
+      "secondCeilingObserved": true
+    },
+    {
+      "case": "shared-file-boundary",
+      "parent": {
+        "pid": 659652,
+        "ipc": "ipc:[4026531839]"
+      },
+      "child": {
+        "pid": 659666,
+        "ipc": "ipc:[4026532721]"
+      },
+      "refusedExitCode": 73,
+      "parentStillHoldsFullCapacity": true
+    },
+    {
+      "case": "actual-crash-release",
+      "child": {
+        "pid": 659682,
+        "ipc": "ipc:[4026532721]"
+      },
+      "reservedBytes": 8589934592
+    }
+  ],
+  "profileStateUnchanged": true,
+  "immutableTokensUnchanged": true,
+  "neighborUnchanged": true,
+  "ownedExits": [
+    {
+      "pid": 659682,
+      "wrapperPid": 659681,
+      "exitCode": 0
+    },
+    {
+      "pid": 659666,
+      "wrapperPid": 659665,
+      "exitCode": 73
+    },
+    {
+      "pid": 659652,
+      "wrapperPid": 659652,
+      "exitCode": -9
+    },
+    {
+      "pid": 659636,
+      "wrapperPid": 659635,
+      "exitCode": 0
+    },
+    {
+      "pid": 659622,
+      "wrapperPid": 659622,
+      "exitCode": 0
+    }
+  ],
+  "finalProcesses": [],
+  "binaries": {
+    "FileCat.Core.dll": "c822aaba28628b4a8f47de477b190f064ef1115f3cfab511188556a4b5941215",
+    "FileCat.CoreCrashHarness.dll": "1b23f1c94a2c8d11858d002fdc062c9c3bb0caadc4eb3740c358ce9d9e8a046e"
+  }
+}

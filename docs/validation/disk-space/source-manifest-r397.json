@@ -1,0 +1,450 @@
+{
+  "purpose": "Native private-file profile capacity across IPC namespaces and actual retained indexed acquisition.",
+  "gitBase": "85de4a5b60c34e27dbad5f342a93abddedd6429a",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_PROFILE_QUOTA.md",
+      "sha256": "8be0969015d38333a2ba4b87bb0d8811a7ad3b4f92e0259463b1864e84c9525e"
+    },
+    {
+      "path": "docs/validation/disk-space/README.md",
+      "sha256": "ef6a40cdcaf6299e3d8c64ff5602a26ff19a08eaa825b443e903596d95c66aac"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "43041f65cdd4fc7062e405b2a9cbd003d3c0baa9b72dab198f24fe3f6b485ac0"
+    },
+    {
+      "path": "src/FileCat.App/Services/AnalysisIndexedAcquisition.cs",
+      "sha256": "9ef67e2bfb2354c170170dd0a5347bd55d0ca9b34ec7a4701e9f33efe7d911ac"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisFileProfileCapacity.cs",
+      "sha256": "d6d91ba40c7b9d42b3a3c1e20d685e1e4c035b5bb3d2d5952bf77ce7ea2118b2"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.cs",
+      "sha256": "e9207548558bc6cc87c3997bd347dccd45271210a6ddf48d98f21b92daab489d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisPrivateNames.cs",
+      "sha256": "cd058b1b76511238ac5ecbe21e4f753ddd22401615c7421d74962f13267a7c53"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisPrivateProfileState.cs",
+      "sha256": "038a6ea431cf01a35e77c6a937715b30066bbe9c9ba4ca559389e71016e5604b"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisProfileQuota.cs",
+      "sha256": "abbae19d35dc08cb584ba452fa4e8f27586e0ba84dd11673ae9071cd8f79b71e"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/UnixAnalysisPrivateDirectory.cs",
+      "sha256": "6b849f0f25ea296ec5591829fbbc6709367ddb4b3e17ea9ac328acc999dbc6ee"
+    },
+    {
+      "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.cs",
+      "sha256": "1ba95f0bebc40934508ae48b5f3384f706946dc1ee3fcbc3c935b429c007b5e9"
+    },
+    {
+      "path": "tests/AnalysisFileQuotaCases.cs",
+      "sha256": "105500be71d08f3b547d944680d6e460051f6cf83c688a9d2b9d1d332bd858f7"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisProfileQuotaTests.Files.cs",
+      "sha256": "032d24492b6cee086a1d8b41cf22eb3dd33c17e7240b84bfa0489e68e98f962e"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisProfileQuotaTests.cs",
+      "sha256": "91daf543b8d172abaec8b5e107592fa84f5c8cc18761ad0c537ced28ae711cee"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj",
+      "sha256": "98736736fe46ac2c660d08d38ed4535487e74e970c8b184bbbd2200b286ede62"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/AnalysisQuotaHold.cs",
+      "sha256": "8bbb616457b46799c54354b33b0513d79be01a71f8ac88ecc4543a0453af13b7"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+      "sha256": "b0836a65a9f70e2c47b8dff14a09492e551db6a0b4eabf2a47a0644ae21e5e9d"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.ProfileFiles.cs",
+      "sha256": "a0903f1ed62c8815ae19a85ed6a9e6c7c532ee6fea6e4ac4c98940234df637a2"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj",
+      "sha256": "ea88d6c79b2ab7b8eda4e486e89eef6d63d6a494e88e0915cfa7914b71488125"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r387.tgz",
+      "sha256": "ad43f7e531f72430e1916f8779489501d95dafe6254bfc3f85b243f62ca999a4"
+    },
+    {
+      "path": ".tmp/dsa-core-r393.tgz",
+      "sha256": "69e33e40f7a95a916bafc83a648ff8a9e4d3dcdd0b1eb5f50ddfd5868a9e2458"
+    },
+    {
+      "path": ".tmp/dsa-native-r393.tgz",
+      "sha256": "37e7e25dff027419a0ad58eb4fd3e466d5ad217fa3ea07e24e61979bb8dc5514"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r394.tgz",
+      "sha256": "d817628c847d544a7b8939bc8e257fb17950703d7bf6197d4cb1ebb5af9fd913"
+    },
+    {
+      "path": ".tmp/dsa-render-linux-r394.tgz",
+      "sha256": "2fda90f2c7dd552af37441fac2b8aaf5a2e5525d86ca8e805abfa0ae0050a55d"
+    },
+    {
+      "path": ".tmp/dsa-render-windows-r394.tgz",
+      "sha256": "0ee4b92ef40f028f697f7fb676e8e2e56b67d9c2bad660192f755eeea077e655"
+    },
+    {
+      "path": ".tmp/desktop-r397-mac.tgz",
+      "sha256": "3895c32313ed0f01cee8e84b5fd8f64f65aaa9d7f4f98791514b83f52fa909e8"
+    },
+    {
+      "path": ".tmp/desktop-r397-linux.tgz",
+      "sha256": "b3a4271b1b52f104cf2055814109d4fceb9df281155c9992e9bc5e3fb9869c1e"
+    },
+    {
+      "path": ".tmp/desktop-r397-windows.tgz",
+      "sha256": "5f7e08fc025dc684b0a9ffa3292d039537c839d3a570bfee1b903bdb6c7fae26"
+    }
+  ],
+  "binaries": [
+    {
+      "path": ".tmp/core-r393/FileCat.Core.Tests.dll",
+      "sha256": "456549b28cfeee89c8007b36f4447ddb893ac3610e01f2837067cfe7ca33c238"
+    },
+    {
+      "path": ".tmp/core-r393/FileCat.CoreCrashHarness.dll",
+      "sha256": "1b23f1c94a2c8d11858d002fdc062c9c3bb0caadc4eb3740c358ce9d9e8a046e"
+    },
+    {
+      "path": ".tmp/native-r393/FileCat.Platform.Windows.Tests.dll",
+      "sha256": "e25eb5c5eb60881837322f8f9917e4a0410328f3f486e1440f4494fbbc849491"
+    },
+    {
+      "path": ".tmp/core-r387/FileCat.Core.dll",
+      "sha256": "c822aaba28628b4a8f47de477b190f064ef1115f3cfab511188556a4b5941215"
+    },
+    {
+      "path": ".tmp/core-r393/FileCat.Core.dll",
+      "sha256": "c822aaba28628b4a8f47de477b190f064ef1115f3cfab511188556a4b5941215"
+    },
+    {
+      "path": ".tmp/native-r393/FileCat.Core.dll",
+      "sha256": "c822aaba28628b4a8f47de477b190f064ef1115f3cfab511188556a4b5941215"
+    },
+    {
+      "path": ".tmp/native-r393/FileCat.Platform.Windows.dll",
+      "sha256": "6ad4f5f48371009be6da6d59a977fffba0663a97cde5890dfd26f155142b66ca"
+    },
+    {
+      "path": ".tmp/render-r394-linux/FileCat.dll",
+      "sha256": "ce92b4eea43e78c20718e65f7437b429a9c7a7067b1df906513b9f8c00557437"
+    },
+    {
+      "path": ".tmp/render-r394-linux/FileCat.Core.dll",
+      "sha256": "c822aaba28628b4a8f47de477b190f064ef1115f3cfab511188556a4b5941215"
+    },
+    {
+      "path": ".tmp/render-r394-linux/FileCat.Platform.Windows.dll",
+      "sha256": "6ad4f5f48371009be6da6d59a977fffba0663a97cde5890dfd26f155142b66ca"
+    },
+    {
+      "path": ".tmp/desktop-r397-linux/FileCat.dll",
+      "sha256": "ce92b4eea43e78c20718e65f7437b429a9c7a7067b1df906513b9f8c00557437"
+    },
+    {
+      "path": ".tmp/desktop-r397-linux/FileCat.Core.dll",
+      "sha256": "c822aaba28628b4a8f47de477b190f064ef1115f3cfab511188556a4b5941215"
+    },
+    {
+      "path": ".tmp/desktop-r397-linux/FileCat.Platform.Windows.dll",
+      "sha256": "6ad4f5f48371009be6da6d59a977fffba0663a97cde5890dfd26f155142b66ca"
+    },
+    {
+      "path": ".tmp/desktop-r397-mac/FileCat.dll",
+      "sha256": "ce92b4eea43e78c20718e65f7437b429a9c7a7067b1df906513b9f8c00557437"
+    },
+    {
+      "path": ".tmp/desktop-r397-mac/FileCat.Core.dll",
+      "sha256": "c822aaba28628b4a8f47de477b190f064ef1115f3cfab511188556a4b5941215"
+    },
+    {
+      "path": ".tmp/desktop-r397-mac/FileCat.Platform.Windows.dll",
+      "sha256": "6ad4f5f48371009be6da6d59a977fffba0663a97cde5890dfd26f155142b66ca"
+    },
+    {
+      "path": ".tmp/desktop-r397-windows/FileCat.dll",
+      "sha256": "ce92b4eea43e78c20718e65f7437b429a9c7a7067b1df906513b9f8c00557437"
+    },
+    {
+      "path": ".tmp/desktop-r397-windows/FileCat.Core.dll",
+      "sha256": "c822aaba28628b4a8f47de477b190f064ef1115f3cfab511188556a4b5941215"
+    },
+    {
+      "path": ".tmp/desktop-r397-windows/FileCat.Platform.Windows.dll",
+      "sha256": "6ad4f5f48371009be6da6d59a977fffba0663a97cde5890dfd26f155142b66ca"
+    }
+  ],
+  "reports": [
+    {
+      "path": "docs/validation/disk-space/mac-core-r378.xml",
+      "sha256": "8b660bcaf4cc11e59d248c2094dd74799f28b0db8cf2a3899c8034336c416a8f"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r390.xml",
+      "sha256": "01f14f9d3f31633d4a58042557ada0c1a25e861d680e4a0b51b66b17b6c57c62"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r393.xml",
+      "sha256": "07c1c1c868d8c704d278d6db1ca9e9f4b4bf03c2ac4a9a2e11c1c81ae175e712"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-native-file-capacity-r398.json",
+      "sha256": "17377b73ca721953bfb1067ac4b2bd3494916412fe01797ba50e9c35a94951f3"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-native-indexed-r397.json",
+      "sha256": "0ac686f85633c9038cb7ef8fd70067ac4476387de21fe179db05268ad1472a30"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-post-file-quota-r399.txt",
+      "sha256": "838f8b1ecde9e1741119f69df83485472934ead528ebc99a82bc0a151be6efb0"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-render-r394.xml",
+      "sha256": "263afe1d5f4e83ea88b5f16795abace2655a41455f171a38e6dc051748dd5670"
+    },
+    {
+      "path": "docs/validation/disk-space/profile-file-capacity-build-r392.txt",
+      "sha256": "56a173ad033a12712ab41da1ee1e328c3abcc376ac5e223655abaabd510b7196"
+    },
+    {
+      "path": "docs/validation/disk-space/profile-file-harness-build-r395.txt",
+      "sha256": "cf541b303279d1012d0ce4ca75e62cea688f96a793c653a837cf5ae894cf6e68"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r378.xml",
+      "sha256": "581ceef2e18b3750af14d94b62069edb287f6ae045ed2d422a6dc8ecdb5da2fd"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r387.xml",
+      "sha256": "a9f9808a2840aa79209e188f20ad2967d2e3730d34237f89875a11c1ff4928fe"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r393.xml",
+      "sha256": "09a1c9cf4b5b7cdaa3579e27f687599a77292e27624839955dc89678b159653c"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-native-file-capacity-r398.json",
+      "sha256": "49daa79c2c70bf53789f3bbed03c017e83ddcd2297e5c8df2c48b758b2571b5f"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-native-indexed-r397.json",
+      "sha256": "9a44bc090fdcba21104b8841946530178eb2cfa2f6f58dbaf4ad1c43eb51135c"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-post-file-quota-r399.txt",
+      "sha256": "838f8b1ecde9e1741119f69df83485472934ead528ebc99a82bc0a151be6efb0"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-profile-ipc-r382.json",
+      "sha256": "75866238229d9fc92e837fe0c9c7623629a8e019005d91fe80670b3a339ed146"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-render-r394.xml",
+      "sha256": "b53d78e6e75865383cc63cebf874ffae73f1009c7de6f588f2de2b6079dba0c6"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r387.xml",
+      "sha256": "32bc99c2315e57794af32b6c27e127e89352315b1048d98dd5c0fcbb68d74723"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r393.xml",
+      "sha256": "f00102eb8c39b9b1e71706b07dbc77b33b1b7071f6ea76f92efdd5c2c77c756e"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-file-capacity-r398.json",
+      "sha256": "81ef8086ab654c88d5f8bcae56c7c3f595ad569fe2d2a4ee83c36bfe9bbf9c02"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-indexed-r397.json",
+      "sha256": "1d820a07629b6317c484b55d120fd6b913e026f7de5421ddd56973d8c2424cf7"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-r378.xml",
+      "sha256": "6a0aea21f7610ea60b778b4839f391af3def0d77585e206416d6677ad19994f7"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-r391.xml",
+      "sha256": "15eac3cb245781dc15e1a1dc38df5ecab61633afc6880dbe1a95c7a8831699b6"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-r393.xml",
+      "sha256": "afcc7c7991646d4c9c10754791d952176668fafb184453ae4e1c4c365ebd1d39"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-post-file-quota-r399.json",
+      "sha256": "31ac0509ebad501a9caef67ae890b6907708d24684ae36284067c6b40f57835a"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-render-r394.xml",
+      "sha256": "f270ef2314c1a0c40e1c2f5c6eab0f350a50d457cae071cecd2702dde6b1c2a6"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/profile-file-ipc-r382.py",
+      "sha256": "cd4accfd92c11a771d213791f75d378251c35f543e757278ea29396103523380"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/profile-file-native-post-r398.py",
+      "sha256": "1d7e8cdb064bb7835e4bce185aaac753bb7aad13b5d58d6b3e42cb0ab9edeeb0"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r393.sh",
+      "sha256": "72c45be0a1014cbea523429a63b4c303e03a9b66a1d5864fc86bea1ef3c13780"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-native-indexed-r397.py",
+      "sha256": "927cbe1f74e6ef3eaf5fce68c4cbefe102f4edc2461b42371c991e18441d7e87"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-linux-r394.sh",
+      "sha256": "31212afda6bc8d8ee7812bc21567835e08bd9d685387872fd16fac43c84df61c"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-mac-r394.sh",
+      "sha256": "a5bcc2b55e0407fa1c6117b0512d1932294b932b9ba0b448ee232d04bd42492e"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r393.ps1",
+      "sha256": "dae212dcd31b071ade12386341102c9be2ef9dac0aaf8105d292686193b7f09c"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-file-native-post-r398.ps1",
+      "sha256": "68544b96f59e06ee80a21618d42dfeb0e5c18ea39b0737a4db6f258a9fafde41"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-indexed-r397.ps1",
+      "sha256": "cd27f49e31e363bb61334b3e1ba4e34c8d94eb9583be2c9775d03e5e49d73d59"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r391.ps1",
+      "sha256": "44a04e5c9dfda4770aa8f7a7edf27abc5bd64c7dfc93237c10446bb83897b5bd"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r393.ps1",
+      "sha256": "6658936262bc6933e2196e713af1460925b362436c6b8ae386541919040bdd07"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-render-r394.ps1",
+      "sha256": "8efb7fe0f11474ffb921d74fdec5aa11b5c0b54163241d23ecdbe95aacfdbaf6"
+    }
+  ],
+  "captures": [
+    {
+      "path": "docs/validation/disk-space/renders/windows-native-indexed-r397.png",
+      "sha256": "084d13f21d9b700e89fd9c17f80513dd7ab69f792e8d2cd3afea37544656e9b6"
+    },
+    {
+      "path": "docs/validation/disk-space/renders/ubuntu-native-indexed-r397.png",
+      "sha256": "f16ee42291fadcac1e7a96a862eb0c94cece307df7fa96c0018111bc288f734c"
+    },
+    {
+      "path": ".tmp/native-indexed-r397/mac.png",
+      "sha256": "e8409a551b1d9f3e9ec01b93d8d5e4ee1492c3140a96c436640fcccf5ce7cb0f"
+    }
+  ],
+  "results": {
+    "mac-core-r393.xml": {
+      "total": 576,
+      "passed": 574,
+      "failed": 0,
+      "skipped": 2,
+      "seconds": 15.051,
+      "evidence": "mac-core-r393.xml"
+    },
+    "ubuntu-core-r393.xml": {
+      "total": 576,
+      "passed": 574,
+      "failed": 0,
+      "skipped": 2,
+      "seconds": 77.869,
+      "evidence": "ubuntu-core-r393.xml"
+    },
+    "windows-core-r393.xml": {
+      "total": 594,
+      "passed": 554,
+      "failed": 0,
+      "skipped": 40,
+      "seconds": 10.889,
+      "evidence": "windows-core-r393.xml"
+    },
+    "windows-native-r393.xml": {
+      "total": 36,
+      "passed": 36,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 23.004,
+      "evidence": "windows-native-r393.xml"
+    },
+    "mac-render-r394.xml": {
+      "total": 79,
+      "passed": 79,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 34.371,
+      "evidence": "mac-render-r394.xml"
+    },
+    "ubuntu-render-r394.xml": {
+      "total": 79,
+      "passed": 79,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 51.119,
+      "evidence": "ubuntu-render-r394.xml"
+    },
+    "windows-render-r394.xml": {
+      "total": 79,
+      "passed": 78,
+      "failed": 0,
+      "skipped": 1,
+      "seconds": 45.45,
+      "evidence": "windows-render-r394.xml"
+    }
+  },
+  "namespaceProof": "r382 uses immutable r387 core package; production Core SHA matches final r393/r394/r397. Ordinary helpers in different observed Linux IPC namespaces reproduce extra IPC-only ceiling, refuse file-backed growth, and recover full capacity after actual parent death. No payload/resource/container/package qualification claimed.",
+  "nativeStaging": "Generic RID apphost/native dependencies from r95, all managed DLL/PDB/JSON from terminal r395 harness build. Not a full publish/install/package qualification.",
+  "nativeCaptureScope": "All3 inspected. Windows/Ubuntu owned windows; Mac authorized main display, unrelated content ignored and original local only. Scroll state deliberately positions captured link inspector/table. No physical-input/a11y qualification.",
+  "rejectedCandidates": "r378 missing-token translation; r387/r390 Unix fixture shared flock conflicts with own exclusive lock; r391 Windows read-ahead overlaps initial lock byte. Production lock moved beyond EOF/read-ahead. Windows legacy IPC crash control now checks actual exit and polls same retained owner for kernel capacity retirement; no child/suite restart.",
+  "publicSpillEnabled": false,
+  "nativeInputQualified": false,
+  "finalIndependentReviewPerformed": false,
+  "remaining": [
+    "W1 indexed integration: native file-backed profile capacity now has all3 evidence and an actual separate-IPC-namespace proof. Implement profile/scratch multi-device admission/quarantine and safe bounded-memory fallback before public acquisition. Qualify package/session/domain agreement, original inventory IDs/streaming persistence, end-to-end1M/10M and every resource limit before enabling spill.",
+    "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
+    "W2: grouping/color dimensions, scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
+    "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
+    "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
+    "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
+    "W1: epoch refresh, native unresponsive-device and shared-memory/indexed private-store budget qualification remain. Shared eight-request actual-I/O ownership and worker cleanup now have regressions; this is not full resource qualification.",
+    "Ubuntu: CLI regression coverage now passes after the other process exited. Continue process gates before every run and postpone whenever another FileCat session appears; broader native desktop, filesystem/resource and package qualification remain.",
+    "W2: actual native desktop/assistive-technology testing; safe raw-name/path and unknown-value display; grouping/sort/breadcrumbs/details/tooltips; complete lifecycle and lazy tools.diskSpace registration.",
+    "W4/W5: qualified live source and exact-entry typed operations, protected objects, immutable review/submission, preserving defaults and accurate outcomes. Unsupported needs feasibility evidence. Early native sharing/oplock/descriptor counterexamples are recorded; a complete qualified adapter or fully evidenced prescribed unsupported path still remains.",
+    "W6/W7: declarative recipes and explicitly qualified content work; closed NTFS metadata helper or prescribed standard-scan fallback.",
+    "W8: native platform/theme/DPI/a11y/package matrix, 1M/10M measurements, negative controls, actual diagnostics ZIP leakage, documentation and final requirement-by-requirement audit.",
+    "After the complete implementation/testing loop: independent UX/UI/functional/security review using FINAL_REVIEW_CHECKLIST.md, fix every finding and repeat relevant native checks before completion."
+  ],
+  "hostReceiptUtc": "2026-11-06T15:42:22.464574+00:00"
+}

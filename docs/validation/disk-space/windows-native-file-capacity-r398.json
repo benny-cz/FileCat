@@ -1,0 +1,13 @@
+{
+    "passed":  true,
+    "purpose":  "Read-only native indexed workflow file-capacity integration check after owned exit",
+    "tokenCount":  1,
+    "tokens":  [
+                   {
+                       "slot":  0,
+                       "sha256":  "9a5aabcb2009ee8d0ba18c4e75f5e89f2e78daf3bcbd7e575deb15e0677d9278",
+                       "bytes":  64
+                   }
+               ],
+    "profileStateMatchesNativeReceipt":  true
+}

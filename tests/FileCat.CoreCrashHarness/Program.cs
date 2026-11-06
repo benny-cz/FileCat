@@ -10,6 +10,10 @@ using FileCat.Core.Analysis;
 
 if (args is ["--analysis-quota-hold", var quotaProfile, var quotaBytes, var quotaSession])
     return AnalysisQuotaHold.Run(quotaProfile, quotaBytes, quotaSession);
+if (args is ["--analysis-file-quota-hold", var fileQuotaProfile, var fileQuotaBytes, var fileQuotaSession, var fileQuotaParent])
+    return AnalysisQuotaHold.Run(fileQuotaProfile, fileQuotaBytes, fileQuotaSession, fileQuotaParent);
+if (args is ["--analysis-file-quota-init", var fileQuotaInitParent])
+    return AnalysisQuotaHold.Initialize(fileQuotaInitParent);
 
 if (args is ["--analysis-scratch-vector", var recordText, var vectorParent])
     return ScratchScale.Run(int.Parse(recordText, System.Globalization.CultureInfo.InvariantCulture), vectorParent);

@@ -14,7 +14,7 @@ internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
     private readonly string[] _privatePaths;
     private readonly IAnalysisBackend?[] _protection = new IAnalysisBackend?[2];
     private readonly object _gate = new();
-    private AnalysisPrivateDirectory? _scratch;
+    private AnalysisPrivateDirectory? _scratch, _quotaDirectory;
     private AnalysisSession? _session;
     private Task? _close;
     private Guid _profile;
@@ -31,8 +31,8 @@ internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
         {
             await AnalysisIo.Run(services.Io, PathUtil.GetDeviceKey(owner._privatePaths[0]), token =>
             {
-                var directory = OpenDirectory(owner._privatePaths[0]);
-                using var store = new AnalysisPrivateInventoryStore(directory);
+                var directory = owner._quotaDirectory = OpenDirectory(owner._privatePaths[0]);
+                using var store = new AnalysisPrivateInventoryStore(directory, leaveOpen: true);
                 owner._profile = new AnalysisPrivateProfileState(store).LoadOrCreate(token);
                 owner._protection[0] = PrepareRoot(owner._privatePaths[0]);
                 RequireSamePrivateRoot(directory, owner._protection[0]!);
@@ -71,9 +71,15 @@ internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
             var storage = new AnalysisStorageOptions(PathUtil.GetDeviceKey(_privatePaths[1]),
                 () => Interlocked.Exchange(ref _scratch, null) ?? throw new IOException("Private scratch ownership has already transferred."),
                 [new(PathUtil.GetDeviceKey(_privatePaths[0]), () => TakeProtection(0)), new(PathUtil.GetDeviceKey(_privatePaths[1]), () => TakeProtection(1))])
-            { CreateProfileQuota = () => AnalysisProfileQuota.Open(_profile) };
+            { CreateProfileQuota = OpenProfileQuota };
             return _session = new AnalysisCoordinator(_services.Io, Profile.ToString()).Start(sources, progress, components, storage);
         }
+    }
+    private AnalysisProfileQuota OpenProfileQuota()
+    {
+        var directory = Interlocked.Exchange(ref _quotaDirectory, null) ?? throw new IOException("Private profile capacity ownership has already transferred.");
+        try { return AnalysisProfileQuota.Open(_profile, directory); }
+        catch { directory.Dispose(); throw; } // Factory runs on the admitted storage worker.
     }
     private IAnalysisBackend TakeProtection(int index) => Interlocked.Exchange(ref _protection[index], null)
         ?? throw new IOException("Private exclusion ownership has already transferred.");
@@ -122,6 +128,11 @@ internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
         if (Interlocked.Exchange(ref _scratch, null) is { } scratch)
         {
             try { await AnalysisIo.ReleaseAsync(_services.Io, PathUtil.GetDeviceKey(_privatePaths[1]), scratch).ConfigureAwait(false); }
+            catch (Exception error) { failure ??= error; }
+        }
+        if (Interlocked.Exchange(ref _quotaDirectory, null) is { } quotaDirectory)
+        {
+            try { await AnalysisIo.ReleaseAsync(_services.Io, PathUtil.GetDeviceKey(_privatePaths[0]), quotaDirectory).ConfigureAwait(false); }
             catch (Exception error) { failure ??= error; }
         }
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();

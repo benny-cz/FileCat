@@ -6,6 +6,7 @@ namespace FileCat.Core.Analysis;
 public sealed class AnalysisPrivateProfileState(AnalysisPrivateInventoryStore store)
 {
     private const int MaximumBytes = 512;
+    internal Guid ReadExisting(CancellationToken cancellation = default) => Read(cancellation);
     public Guid LoadOrCreate(CancellationToken cancellation = default)
     {
         try { return Read(cancellation); }

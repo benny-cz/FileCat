@@ -24,6 +24,8 @@ internal abstract class AnalysisPrivateFile : IDisposable
     public abstract void Flush();
     // Create-only and source-handle-bound. Once the name is committed, subsequent errors must be reported as uncertain.
     public abstract void PublishNew(string name);
+    // Runtime-only ownership on this exact immutable file. Released by actual native handle close.
+    internal virtual bool TryLockCapacity() => throw new NotSupportedException("Private profile capacity locks are unavailable.");
     public abstract void Dispose();
 }
 
@@ -40,7 +42,7 @@ public sealed record AnalysisInventoryReceipt(Guid InventoryId, string Name, lon
 /// Synchronous private storage for admitted I/O workers. There is deliberately no replace or ordinary path fallback.
 /// Loading always uses the inert, bounded importer; the receipt and filename grant no live filesystem authority.
 /// </summary>
-public sealed class AnalysisPrivateInventoryStore(AnalysisPrivateDirectory directory) : IDisposable
+public sealed class AnalysisPrivateInventoryStore(AnalysisPrivateDirectory directory, bool leaveOpen = false) : IDisposable
 {
     private readonly object _gate = new();
     private bool _disposed;
@@ -148,7 +150,7 @@ public sealed class AnalysisPrivateInventoryStore(AnalysisPrivateDirectory direc
 
     public void Dispose()
     {
-        lock (_gate) { if (_disposed) return; _disposed = true; directory.Dispose(); }
+        lock (_gate) { if (_disposed) return; _disposed = true; if (!leaveOpen) directory.Dispose(); }
     }
 
     internal static UInt128 RequiredReserve(UInt128 capacity) =>

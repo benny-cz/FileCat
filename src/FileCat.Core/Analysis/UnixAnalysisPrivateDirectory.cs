@@ -153,7 +153,7 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
         AnalysisPrivateNames.Entry(name); Verify();
         OwnedHandle owned;
         try { owned = OpenOwned(Root, name, FileFlags, 0); }
-        catch (IOException error) when (name == AnalysisPrivateNames.PrivateState && error.InnerException is Win32Exception { NativeErrorCode: 2 })
+        catch (IOException error) when ((name == AnalysisPrivateNames.PrivateState || AnalysisPrivateNames.IsCapacityToken(name)) && error.InnerException is Win32Exception { NativeErrorCode: 2 })
         { throw new FileNotFoundException("The private analysis entry is missing.", error); }
         try { Private(owned.Handle, directory: false, links: 1); return new PrivateFile(this, owned, writable: false); }
         catch { owned.Dispose(); throw; }
@@ -243,6 +243,19 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
             _stream = new(owned.Handle, writable ? FileAccess.ReadWrite : FileAccess.Read, 64 * 1024, isAsync: false);
         }
         public override Stream Stream => _stream;
+        internal override bool TryLockCapacity()
+        {
+            if (_writable) throw new InvalidOperationException("Capacity requires an immutable published file.");
+            _directory.Verify(); Verify();
+            for (int attempt = 0; attempt < 8; attempt++)
+            {
+                if (Flock(_owned.Handle, 2 | 4) == 0) return true; // LOCK_EX | LOCK_NB
+                int error = Marshal.GetLastPInvokeError();
+                if (error == (_directory._mac ? 35 : 11)) return false;
+                if (error != 4) throw Error("Private profile capacity locking is unavailable.");
+            }
+            throw new IOException("Private profile capacity locking was repeatedly interrupted.");
+        }
         public override void Verify() => _directory.Private(_owned.Handle, false, _writable ? _published && !_directory._mac ? 1u : 0u : 1u);
         public override void Flush()
         {
@@ -301,6 +314,7 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
         _chain.Clear();
     }
     private static bool Same(UnixStat a, UnixStat b) => a.Device == b.Device && a.Inode == b.Inode;
+    [LibraryImport("libc", EntryPoint = "flock", SetLastError = true)] private static partial int Flock(SafeFileHandle handle, int operation);
     private static UnixStat Stat(SafeFileHandle handle) => UnixFiles.Stat(handle) ?? throw new IOException("Private analysis storage identity is unavailable.");
     private static int Fd(SafeFileHandle handle) => checked((int)handle.DangerousGetHandle());
     private static IOException Error(string message) => new(message, new Win32Exception(Marshal.GetLastPInvokeError()));

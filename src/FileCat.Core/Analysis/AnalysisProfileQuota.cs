@@ -21,6 +21,9 @@ public sealed class AnalysisProfileQuota : IDisposable
     private readonly Mutex?[] _held = new Mutex?[Slots];
     private readonly IDisposable?[] _handles = new IDisposable?[Slots];
     private AnalysisUnixProfileCapacity? _unix;
+    private readonly AnalysisPrivateDirectory? _directory;
+    private readonly Guid _profile;
+    private AnalysisFileProfileCapacity? _files;
     private long _bytes;
     private int _references = 1;
     private bool _disposed, _ownerClosed;
@@ -28,14 +31,23 @@ public sealed class AnalysisProfileQuota : IDisposable
 
     // Construct only from application-owned private profile state. Parsed SessionIdentity data must
     // not pick an IPC namespace; importers have no reason to call this method.
-    public static AnalysisProfileQuota Open(Guid privateProfileId)
+    internal static AnalysisProfileQuota Open(Guid privateProfileId)
     {
         if (privateProfileId == Guid.Empty) throw new ArgumentException("A private profile ID is required.", nameof(privateProfileId));
         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
-        return new(privateProfileId);
+        return new(privateProfileId, null);
     }
-    private AnalysisProfileQuota(Guid profile)
+    /// <summary>Owns the trusted native profile directory on success. Its immutable capacity files coordinate across IPC namespaces.</summary>
+    public static AnalysisProfileQuota Open(Guid privateProfileId, AnalysisPrivateDirectory directory)
     {
+        ArgumentNullException.ThrowIfNull(directory);
+        if (privateProfileId == Guid.Empty) throw new ArgumentException("A private profile ID is required.", nameof(privateProfileId));
+        if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
+        return new(privateProfileId, directory);
+    }
+    private AnalysisProfileQuota(Guid profile, AnalysisPrivateDirectory? directory)
+    {
+        _profile = profile; _directory = directory;
         // No paths, host identities, queries or source names enter a public kernel-object name.
         _name = "FileCat.AnalysisQuota.v1." + Convert.ToHexStringLower(SHA256.HashData(Encoding.ASCII.GetBytes(profile.ToString("N"))));
         int workers = Interlocked.Increment(ref s_workers);
@@ -49,7 +61,7 @@ public sealed class AnalysisProfileQuota : IDisposable
         catch { Interlocked.Decrement(ref s_workers); _commands.Dispose(); throw; }
     }
     internal long ReservedBytes { get { lock (_gate) return _bytes; } }
-    internal long CapacityBytes { get { lock (_gate) return (_unix?.Units ?? _held.Count(item => item is not null)) * QuantumBytes; } }
+    internal long CapacityBytes { get { lock (_gate) return (_files?.Units ?? _unix?.Units ?? _held.Count(item => item is not null)) * QuantumBytes; } }
     internal IDisposable Borrow()
     {
         lock (_gate)
@@ -71,9 +83,15 @@ public sealed class AnalysisProfileQuota : IDisposable
             try { acquired = Invoke(() => Grow(Units(next))); }
             catch (Exception error) when (error is WaitHandleCannotBeOpenedException or UnauthorizedAccessException or EntryPointNotFoundException or DllNotFoundException or PlatformNotSupportedException)
             {
+                if (_directory is not null) _failure ??= error;
                 // Kernel object names contain a private profile digest. Surface a finite operational
                 // reason without copying runtime messages/names into UI or default diagnostics.
                 throw new IOException("Private profile capacity coordination is unavailable.", error.HResult);
+            }
+            catch (Exception error) when (_directory is not null)
+            {
+                _failure ??= error;
+                throw new IOException("Private profile capacity coordination is unavailable. Existing data was preserved.", error.HResult);
             }
             if (acquired) _bytes = next;
             return acquired;
@@ -94,6 +112,8 @@ public sealed class AnalysisProfileQuota : IDisposable
     {
         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
         if (_failure is not null) throw new IOException("Profile capacity ownership could not be verified.", _failure);
+        if (_directory is not null)
+        { _files ??= new(_directory, _profile); return _files.SetUnits(required); }
         if (!OperatingSystem.IsWindows())
         { _unix ??= new(_name); return _unix.SetUnits(required); }
         int current = _held.Count(item => item is not null);
@@ -129,6 +149,12 @@ public sealed class AnalysisProfileQuota : IDisposable
     }
     private void Shrink(int required)
     {
+        if (_directory is not null)
+        {
+            try { if (_files is not null && !_files.SetUnits(required)) throw new IOException("Private profile capacity release was refused."); }
+            catch (Exception failure) { _failure ??= failure; throw; }
+            return;
+        }
         if (!OperatingSystem.IsWindows())
         { if (_unix is not null && !_unix.SetUnits(required)) throw new IOException("Profile capacity release was refused."); return; }
         int current = _held.Count(item => item is not null);
@@ -168,7 +194,16 @@ public sealed class AnalysisProfileQuota : IDisposable
         lock (_gate)
         {
             if (--_references != 0) return;
-            try { Invoke(() => { try { Shrink(0); } finally { _unix?.Dispose(); _unix = null; } return true; }); }
+            try { Invoke(() =>
+            {
+                Exception? failure = null;
+                try { Shrink(0); } catch (Exception ex) { failure = ex; }
+                try { _unix?.Dispose(); } catch (Exception ex) { failure ??= ex; } finally { _unix = null; }
+                try { _files?.Dispose(); } catch (Exception ex) { failure ??= ex; } finally { _files = null; }
+                try { _directory?.Dispose(); } catch (Exception ex) { failure ??= ex; }
+                if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+                return true;
+            }); }
             catch (Exception failure) { error = failure; }
             finally { _disposed = true; _bytes = 0; _commands.CompleteAdding(); }
         }
