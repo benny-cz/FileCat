@@ -36,5 +36,6 @@
     <Compile Include="..\AnalysisFileQuotaCases.cs" Link="AnalysisFileQuotaCases.cs" />
     <Compile Include="..\AnalysisNativeMemoryFallbackCases.cs" Link="AnalysisNativeMemoryFallbackCases.cs" />
     <Compile Include="..\AnalysisInventoryPathMapCases.cs" Link="AnalysisInventoryPathMapCases.cs" />
+    <Compile Include="..\AnalysisInventoryStageCases.cs" Link="AnalysisInventoryStageCases.cs" />
   </ItemGroup>
 </Project>

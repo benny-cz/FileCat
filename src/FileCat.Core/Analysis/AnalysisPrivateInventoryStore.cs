@@ -173,6 +173,37 @@ public sealed class AnalysisPrivateInventoryStore(AnalysisPrivateDirectory direc
         }
     }
 
+    // A streaming import owns this store and file until its actual read/close returns.
+    internal static DatasetRead BeginDatasetRead(AnalysisPrivateDirectory directory, string name, CancellationToken cancellation)
+    {
+        ArgumentNullException.ThrowIfNull(directory);
+        var store = new AnalysisPrivateInventoryStore(directory);
+        try
+        {
+            ValidateName(name); store.Guard(); cancellation.ThrowIfCancellationRequested();
+            var file = directory.OpenRead(name);
+            try
+            {
+                file.Verify();
+                if (file.Stream.Length is < 0 or > AnalysisLimits.InventoryBytes) throw new InvalidDataException("Inventory exceeds 8 GiB.");
+                return new(store, file, cancellation);
+            }
+            catch { file.Dispose(); throw; }
+        }
+        catch { store.Dispose(); throw; }
+    }
+    internal sealed class DatasetRead : IAnalysisScratchOwned
+    {
+        private readonly AnalysisPrivateInventoryStore _store;
+        private AnalysisPrivateFile? _file;
+        internal Stream Stream { get; }
+        internal DatasetRead(AnalysisPrivateInventoryStore store, AnalysisPrivateFile file, CancellationToken cancellation)
+        { _store = store; _file = file; Stream = new GuardedReadStream(file.Stream, () => { store.Guard(); file.Verify(); }, cancellation); }
+        internal void Verify() { _store.Guard(); (_file ?? throw new ObjectDisposedException(nameof(DatasetRead))).Verify(); }
+        public void Dispose()
+        { try { Interlocked.Exchange(ref _file, null)?.Dispose(); } finally { _store.Dispose(); } }
+    }
+
     private void Guard()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

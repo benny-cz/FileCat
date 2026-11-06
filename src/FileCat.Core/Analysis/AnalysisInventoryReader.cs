@@ -15,7 +15,7 @@ public static partial class AnalysisInventoryFormat
         try
         {
             Reserve(4L * AnalysisLimits.RecordBytes, ref reservation);
-            var lines = new Lines(source); using var decoder = new RecordDecoder(bytes => Reserve(checked(2048L + bytes * 8L), ref reservation));
+            var lines = new RecordFramer(source); using var decoder = new RecordDecoder(bytes => Reserve(checked(2048L + bytes * 8L), ref reservation));
             Manifest? manifest = null; AnalysisCoverageRecord? coverage = null;
             var objects = new List<AnalysisObject>(); var nodes = new List<AnalysisNode>(); var facts = new List<StorageFact>(); var issues = new List<AnalysisIssue>();
             var objectIds = new HashSet<string>(StringComparer.Ordinal); var nodeIds = new HashSet<ulong>(); var factIds = new HashSet<string>(StringComparer.Ordinal);
@@ -229,30 +229,5 @@ public static partial class AnalysisInventoryFormat
         char[] chars = new char[raw.Length / 2];
         for (int i = 0; i < chars.Length; i++) chars[i] = (char)System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(raw.AsSpan(i * 2));
         return new string(chars);
-    }
-    private sealed class Lines(Stream source)
-    {
-        private readonly byte[] _input = new byte[64 * 1024], _line = new byte[AnalysisLimits.RecordBytes];
-        private int _position, _available;
-        private long _bytes;
-        public ReadOnlyMemory<byte>? Next(CancellationToken cancellation)
-        {
-            int length = 0;
-            while (true)
-            {
-                cancellation.ThrowIfCancellationRequested();
-                if (_position == _available)
-                {
-                    _available = source.Read(_input); _position = 0;
-                    if (_available == 0) return length == 0 ? null : throw Invalid("Inventory record lacks its LF delimiter.");
-                }
-                var remaining = _input.AsSpan(_position, _available - _position); int lf = remaining.IndexOf((byte)'\n');
-                int count = lf < 0 ? remaining.Length : lf;
-                if (count > AnalysisLimits.RecordBytes - length) throw Invalid("Inventory record exceeds 1 MiB.");
-                remaining[..count].CopyTo(_line.AsSpan(length)); length += count; _position += count + (lf < 0 ? 0 : 1);
-                _bytes += count + (lf < 0 ? 0 : 1); if (_bytes > AnalysisLimits.InventoryBytes) throw Invalid("Inventory exceeds 8 GiB.");
-                if (lf >= 0) return _line.AsMemory(0, length);
-            }
-        }
     }
 }
