@@ -125,7 +125,8 @@
     "Bounded indexed explorer reader retains one captured dataset/query, pages real children and accounting buckets, and independently pages inspector aliases/facts/issues. Bounded ancestor evidence explicitly reports truncation and preserves raw names. Page and inspector lanes independently cancel superseded work, retain only complete publications, cap queued/running requests at eight, and close through actual I/O completion. Mac/Ubuntu regressions include request bursts, cancellation/failure/closure, all-metric filtered hard-link accounting, native aliases and 6,002-path pagination after source closure. This is a backend adoption prerequisite; the window still uses the managed tree, and no UI or full scale gate is closed.",
     "Indexed hierarchy and explorer expose exact logical-size columns over the same matching paths as the active metric/filter. Per-path logical totals and five missing states fold through captured ancestors independently of shared allocation/unique charges, retain checked UInt128 arithmetic, exclude context aliases and preserve logical totals when incompatible allocation bases suppress combined chart area. Native hard-link and 6,002-path controls and all-metric/state/missing/overflow regressions pass on Mac/Ubuntu. Frontend adoption, additional sorts and remaining mandatory gates remain open.",
     "Internal indexed tabs now share the modeless analysis window, close review and both production chart controls. Bounded chart accounting includes exact shared/directory buckets and unloaded suffixes; table entries, inspector aliases/facts/issues and captured breadcrumbs page without full snapshot arrays. Wide layouts place a read-only keyboard/copy inspector beside charts/table; narrow layouts retain scrolling. Filters/metrics publish complete coherent views, hold publication through chart gestures and bind callbacks to the displayed immutable page. Eight-tab admission includes pending initialization/closure; close waits for real I/O. Actual Mac/Ubuntu/Windows core, native source controls and 70-per-platform rendered interaction regressions pass. A handled row/checkbox gesture freeze defect in the legacy table is fixed and has a pre-fix negative control. Public acquisition still uses the legacy bounded-memory path until cross-process quota and remaining indexed/product gates are satisfied.",
-    "Opt-in profile scratch capacity now coordinates cooperating ordinary processes in one native IPC domain. Windows uses current-user cross-session mutex capacity tokens on bounded owning threads; Linux/Darwin use owner-private kernel semaphores with atomic operations and process-exit undo. Shared workspace/reader lifetime retains capacity until actual scratch close. Growth rolls back before payload writes. Foreign protocol/shape/privacy and private-name leakage controls pass, as do normal/crash/last-owner/new-Unix-session and changed-runtime-environment cases. A rejected managed Unix mutex candidate exposed an environment-based second ceiling; the kernel-only implementation passes that negative control. Final actual Mac/Ubuntu suites each554pass/2skips, Windows538pass/36skips plus32native passes, clean solution build and clear owned-process postchecks. Trusted profile/IPC-domain production integration and complete resource/package/desktop qualification remain open."
+    "Opt-in profile scratch capacity now coordinates cooperating ordinary processes in one native IPC domain. Windows uses current-user cross-session mutex capacity tokens on bounded owning threads; Linux/Darwin use owner-private kernel semaphores with atomic operations and process-exit undo. Shared workspace/reader lifetime retains capacity until actual scratch close. Growth rolls back before payload writes. Foreign protocol/shape/privacy and private-name leakage controls pass, as do normal/crash/last-owner/new-Unix-session and changed-runtime-environment cases. A rejected managed Unix mutex candidate exposed an environment-based second ceiling; the kernel-only implementation passes that negative control. Final actual Mac/Ubuntu suites each554pass/2skips, Windows538pass/36skips plus32native passes, clean solution build and clear owned-process postchecks. Trusted profile/IPC-domain production integration and complete resource/package/desktop qualification remain open.",
+    "Indexed table numeric ordering now separates logical File size from the active metric and supports both paged numeric directions with measured zero before missing/non-file leaves. Exact UInt128 keys and captured membership preserve accounting/filter semantics. Same-scope sorting/paging retains focused IDs and restores table selection when the row returns. Query replacement retains the requested field/direction; late order changes invalidate complete pending query pages held by a chart gesture. The new regression rejects the pre-fix App assembly. Actual Mac/Ubuntu core each563pass/2skips and final rendered71/71, identical tested Core assembly, clean build and owned-process exit. Windows is postponed while another implementor FileCat/ShellHost runs. Indexed Name/State/group/selection and all remaining mandatory gates remain open."
   ],
   "validation": {
     "windowsCore": {
@@ -153,12 +154,12 @@
       "detail": "29 native NTFS/filesystem/private-storage controls, including production coordinator capture beyond its preview, qualified private-state exclusion, unchanged source bytes and final cleanup."
     },
     "macosArm64": {
-      "total": 556,
-      "passed": 554,
+      "total": 565,
+      "passed": 563,
       "failed": 0,
       "skipped": 2,
-      "seconds": 11.973,
-      "evidence": "mac-core-r283.xml"
+      "seconds": 12.507,
+      "evidence": "mac-core-r290.xml"
     },
     "headlessRendering": {
       "total": 64,
@@ -169,17 +170,17 @@
       "detail": "All64 cases pass on each guest. Three new lifetime controls fail on the old implementation (Mac r97:61pass/3fail), then pass on Windows/Mac/Ubuntu r100. Additional evidence:render-mac-r100.xml and render-ubuntu-r100.xml."
     },
     "solutionBuild": {
-      "errors": 0,
       "warnings": 0,
-      "evidence": "profile-quota-build-r282.txt"
+      "errors": 0,
+      "evidence": "indexed-order-build-r291.txt"
     },
     "ubuntu": {
-      "total": 556,
-      "passed": 554,
+      "total": 565,
+      "passed": 563,
       "failed": 0,
       "skipped": 2,
-      "seconds": 46.063,
-      "evidence": "ubuntu-core-r283.xml"
+      "seconds": 84.755,
+      "evidence": "ubuntu-core-r290.xml"
     },
     "nativeDesktop": {
       "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification. r62 native accessibility/keyboard link inspection verifies the visible omitted-target explanation, measured-zero distinction and retained mark, with 509 unchanged source paths and owned exit.",
@@ -552,12 +553,63 @@
         "windows-post-quota-r283.json"
       ],
       "remaining": "Trusted private-profile and IPC-domain agreement, public indexed acquisition/fallback, full 1M/10M resource/package/native desktop qualification and all other mandatory packets/final independent review."
+    },
+    "indexedOrdering": {
+      "macCore": {
+        "total": 565,
+        "passed": 563,
+        "failed": 0,
+        "skipped": 2,
+        "seconds": 12.507,
+        "evidence": "mac-core-r290.xml"
+      },
+      "ubuntuCore": {
+        "total": 565,
+        "passed": 563,
+        "failed": 0,
+        "skipped": 2,
+        "seconds": 84.755,
+        "evidence": "ubuntu-core-r290.xml"
+      },
+      "macRender": {
+        "total": 71,
+        "passed": 71,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 31.9,
+        "evidence": "mac-render-r292.xml"
+      },
+      "ubuntuRender": {
+        "total": 71,
+        "passed": 71,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 44.388,
+        "evidence": "ubuntu-render-r292.xml"
+      },
+      "negativeControl": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "skipped": 0,
+        "seconds": 6.806,
+        "evidence": "mac-render-r293.xml"
+      },
+      "windows": "Deferred: fresh r292 observation found another implementor FileCat and ShellHost; preserved both. No new ordering suite launched.",
+      "windowsEvidence": "windows-deferred-r292.json",
+      "nativeDesktopQualified": false,
+      "postChecks": [
+        "mac-post-order-r292.txt",
+        "ubuntu-post-order-r292.txt"
+      ],
+      "coreAssemblyMatchesNativeSourceTests": true,
+      "remaining": "Windows regressions when free; indexed Name/State/group/selection; public acquisition/profile-domain integration; native whole-pipeline resource/scale/package/desktop matrices and final independent review."
     }
   },
   "nextWork": [
     "W1 indexed integration: connect trusted private-profile cross-process quota and verified IPC-domain agreement to production acquisition with bounded-memory refusal/fallback. Finish typed readers, original inventory IDs and streaming import/export. Run end-to-end1M/10M and complete native resource/package fixtures before enabling spill; public Start still uses bounded memory.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
-    "W2: grouping/color dimensions, remaining selection commands/group semantics/hidden-mark counts and full table/detail columns/tooltips. Sunburst labels and complete native pointer/a11y/theme/display qualification remain open.",
+    "W2: indexed Name/State ordering, grouping/color dimensions, scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Numeric indexed directions/logical-size ordering and focused-ID retention have Mac/Ubuntu regressions; Windows rerun is deferred while occupied. Full chart/pointer/a11y/theme/display qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",

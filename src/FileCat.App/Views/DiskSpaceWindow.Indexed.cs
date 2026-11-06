@@ -57,7 +57,8 @@ public sealed partial class DiskSpaceWindow
         private AnalysisExplorerInspection? _shownInspection;
         private readonly ComboBox _metric = new() { ItemsSource = new[] { "File size", "Unique file size", "On disk — reported", "Files" }, MinWidth = 180 };
         private readonly ComboBox _chartMode = new() { ItemsSource = new[] { "Treemap", "Sunburst", "Table" }, SelectedIndex = 0 };
-        private readonly ComboBox _sort = new() { ItemsSource = new[] { "Active metric", "File paths" }, SelectedIndex = 0 };
+        private readonly ComboBox _sort = new() { ItemsSource = new[] { "Active metric", "File paths", "File size" }, SelectedIndex = 0 };
+        private readonly CheckBox _descending = new() { Content = "Descending", IsChecked = true };
         private readonly ComboBox _roots = new() { MinWidth = 160 };
         private readonly TextBox _query = new() { PlaceholderText = "Search within observations…", MinWidth = 200, MaxLength = AnalysisLimits.QueryBytes };
         private readonly CheckBox _case = new() { Content = "Case sensitive" }, _unknown = new() { Content = "Inspect uncertain query results" };
@@ -95,11 +96,12 @@ public sealed partial class DiskSpaceWindow
             _roots.SelectedIndex = filter.RootId is null ? 0 : 1 + Array.FindIndex(source.Descriptor.Roots.ToArray(), root => root.Id == filter.RootId);
             AutomationProperties.SetName(_query, "Filter indexed observations"); AutomationProperties.SetName(_metric, "Indexed metric");
             AutomationProperties.SetName(_roots, "Indexed captured location"); AutomationProperties.SetName(_sort, "Indexed table order");
+            AutomationProperties.SetName(_descending, "Indexed descending table order");
             AutomationProperties.SetName(_chartMode, "Indexed chart mode"); AutomationProperties.SetName(_status, "Indexed analysis status");
             AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
             AutomationProperties.SetName(_details, "Captured metadata inspector"); AutomationProperties.SetLiveSetting(_inspectorStatus, AutomationLiveSetting.Polite);
             var toolbar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
-            toolbar.Children.Add(_metric); toolbar.Children.Add(_chartMode); toolbar.Children.Add(_sort); toolbar.Children.Add(_roots);
+            toolbar.Children.Add(_metric); toolbar.Children.Add(_chartMode); toolbar.Children.Add(_sort); toolbar.Children.Add(_descending); toolbar.Children.Add(_roots);
             var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             filters.Children.Add(_query); filters.Children.Add(_case); filters.Children.Add(_unknown);
             filters.Children.Add(ActionButton("Apply filter", () => _ = RebuildAsync(), "Apply this query to the captured observations."));
@@ -143,7 +145,8 @@ public sealed partial class DiskSpaceWindow
             _list.DoubleTapped += (_, _) => { if (_list.SelectedItem is AnalysisHierarchyRow { Path.Kind: AnalysisKind.Directory } row) _ = NavigateAsync(row.Path.Id); };
             _metric.SelectionChanged += (_, _) => _ = RebuildAsync();
             _roots.SelectionChanged += (_, _) => { _rootId = _roots.SelectedIndex > 0 ? _source.Descriptor.Roots[_roots.SelectedIndex - 1].Id : null; _ = RebuildAsync(); };
-            _sort.SelectionChanged += (_, _) => { _pageOffsets.Clear(); _ = NavigateAsync(_scope, record: false); };
+            _sort.SelectionChanged += (_, _) => OrderChanged();
+            _descending.IsCheckedChanged += (_, _) => OrderChanged();
             _chartMode.SelectionChanged += (_, _) => UpdateCharts();
             _treemap.Activated += ActivateChart; _sunburst.Activated += ActivateChart;
             _treemap.InteractionChanged += Interaction; _sunburst.InteractionChanged += Interaction;
@@ -178,6 +181,13 @@ public sealed partial class DiskSpaceWindow
             if (_disposed) return Task.CompletedTask; _again = true; _buildCancel?.Cancel();
             return _building ? _buildTask : _buildTask = BuildLoopAsync();
         }
+        private void OrderChanged()
+        {
+            _pageOffsets.Clear();
+            // A pending query may already own a complete page waiting for a captured gesture.
+            // Rebuild that pending request too; an order change must not publish its older page.
+            if (_building) _ = RebuildAsync(); else _ = NavigateAsync(_scope, record: false);
+        }
         private async Task BuildLoopAsync()
         {
             _building = true;
@@ -191,7 +201,7 @@ public sealed partial class DiskSpaceWindow
                     {
                         var metric = (AnalysisMetric)Math.Max(0, _metric.SelectedIndex);
                         next = await AnalysisDatasetExplorer.CreateAsync(_source, metric, new(_query.Text ?? "", _case.IsChecked == true, _unknown.IsChecked == true, _rootId), cancel.Token);
-                        await Task.WhenAll(next.LoadPageAsync(cancellation: cancel.Token), next.LoadChartAsync(cancellation: cancel.Token));
+                        await Task.WhenAll(next.LoadPageAsync(sort: (AnalysisHierarchySort)_sort.SelectedIndex, cancellation: cancel.Token, descending: _descending.IsChecked == true), next.LoadChartAsync(cancellation: cancel.Token));
                         if (_interacting) _status.Text = "Query ready. Finish the current chart gesture to display it.";
                         await WaitForInteractionAsync(cancel.Token);
                         cancel.Token.ThrowIfCancellationRequested(); if (_disposed) return;
@@ -214,11 +224,11 @@ public sealed partial class DiskSpaceWindow
             var old = (_scope, _offset); _status.Text = "Loading captured entries…";
             try
             {
-                bool[] loaded = await Task.WhenAll(explorer.LoadPageAsync(parent, (AnalysisHierarchySort)_sort.SelectedIndex, offset, cancellation: cancel.Token), explorer.LoadChartAsync(parent, cancel.Token));
+                bool[] loaded = await Task.WhenAll(explorer.LoadPageAsync(parent, (AnalysisHierarchySort)_sort.SelectedIndex, offset, cancellation: cancel.Token, descending: _descending.IsChecked == true), explorer.LoadChartAsync(parent, cancel.Token));
                 await WaitForInteractionAsync(cancel.Token);
                 if (_disposed || version != _navigation || !ReferenceEquals(explorer, _explorer) || loaded.Any(done => !done)) return false;
                 if (record && old != (parent, offset)) { Push(_past, old); _future.Clear(); }
-                if (parent != _scope) _pageOffsets.Clear(); _scope = parent; _offset = offset; _focus = 0; Publish(explorer); return true;
+                if (parent != _scope) { _pageOffsets.Clear(); _focus = 0; } _scope = parent; _offset = offset; Publish(explorer); return true;
             }
             catch (OperationCanceledException) when (cancel.IsCancellationRequested) { return false; }
             catch (Exception error) when (Expected(error)) { if (!_disposed && version == _navigation) _status.Text = "The previous view remains displayed. " + AnalysisNames.Display(error.Message, 500); return false; }
@@ -239,7 +249,7 @@ public sealed partial class DiskSpaceWindow
             if (explorer.Page is not { } page) return;
             _shownPage = page; _shownChart = explorer.Chart; _shownInspection = null;
             bool focusTable = _list.IsKeyboardFocusWithin; _publishing = true;
-            try { _list.ItemsSource = page.Children.Rows; _list.SelectedItem = null; }
+            try { _list.ItemsSource = page.Children.Rows; _list.SelectedItem = page.Children.Rows.FirstOrDefault(row => row.Path.Id == _focus); }
             finally { _publishing = false; }
             if (focusTable) _list.Focus();
             var totals = page.Scope?.Totals ?? explorer.Totals; var logical = page.Scope?.Logical ?? explorer.LogicalTotals;
@@ -254,6 +264,8 @@ public sealed partial class DiskSpaceWindow
             _status.Text = (explorer.Descriptor.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Complete under captured policy." : "Partial namespace observations; known results so far.") +
                 (explorer.Filter is { } filter ? $" {filter.DefinitePaths:N0} definite matches; {filter.UnknownPaths:N0} uncertain results." : "") + (explorer.Chart?.DetailLimited == true ? " Small chart items are summarized; use the table for every entry." : "");
             _range.Text = page.Children.Total == 0 ? "No entries" : $"Entries {page.Children.Offset + 1:N0}–{page.Children.NextOffset:N0} of {page.Children.Total:N0}";
+            _range.Text += " · " + (page.Sort == AnalysisHierarchySort.FileSize ? "File size" : page.Sort == AnalysisHierarchySort.Files ? "File paths" : "Active metric") +
+                (page.Descending ? " · Descending" : " · Ascending");
             _breadcrumbs.Children.Clear(); _breadcrumbs.Children.Add(ActionButton("All locations", () => _ = NavigateAsync(0), "Explore captured locations."));
             if (!page.AncestorsComplete) _breadcrumbs.Children.Add(new TextBlock { Text = "…" });
             foreach (var path in page.Ancestors.AddRange(page.Scope is null ? [] : new[] { page.Scope.Path }))
@@ -278,6 +290,7 @@ public sealed partial class DiskSpaceWindow
             }
             foreach (var button in _evidence) button.IsEnabled = false;
             UpdateCharts(); Buttons();
+            if (_focus != 0) _ = InspectAsync(_focus);
         }
         private void Buttons()
         { _previous.IsEnabled = _offset > 0; _next.IsEnabled = _shownPage?.Children.HasMore == true; _parent.IsEnabled = _parent.IsVisible = _scope != 0;

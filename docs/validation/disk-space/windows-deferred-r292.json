@@ -1,0 +1,16 @@
+{
+    "nonce":  "disk-space-r292",
+    "observedAtUtc":  "2026-11-06T11:43:23.6943009+00:00",
+    "processes":  [
+                      {
+                          "ProcessId":  4856,
+                          "Name":  "FileCat.exe",
+                          "CommandLine":  "\"C:\\Users\\Public\\FileCatValidation\\ArchiveWriting-42829297\\cleanup-gui-v1\\app\\FileCat.exe\" --data \"C:\\Users\\Public\\FileCatValidation\\ArchiveWriting-42829297\\cleanup-gui-v1\\profile\" --new-instance --left \"C:\\Users\\Public\\FileCatValidation\\ArchiveWriting-42829297\\cleanup-gui-v1\\fixtures\\native\" --right \"C:\\Users\\Public\\FileCatValidation\\ArchiveWriting-42829297\\cleanup-gui-v1\\fixtures\\native\" "
+                      },
+                      {
+                          "ProcessId":  2944,
+                          "Name":  "FileCat.ShellHost.exe",
+                          "CommandLine":  "\"C:\\Users\\Public\\FileCatValidation\\ArchiveWriting-42829297\\cleanup-gui-v1\\app\\FileCat.ShellHost.exe\" --serve"
+                      }
+                  ]
+}

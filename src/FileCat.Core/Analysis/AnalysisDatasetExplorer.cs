@@ -4,7 +4,10 @@ namespace FileCat.Core.Analysis;
 
 public sealed record AnalysisExplorerPage(ulong ParentId, AnalysisHierarchyRow? Scope, AnalysisHierarchySort Sort,
     AnalysisDatasetPage<AnalysisHierarchyRow> Children, ImmutableArray<AnalysisHierarchyBucket> Buckets,
-    ImmutableArray<AnalysisPathMetadata> Ancestors, bool AncestorsComplete);
+    ImmutableArray<AnalysisPathMetadata> Ancestors, bool AncestorsComplete)
+{
+    public bool Descending { get; init; } = true;
+}
 
 public sealed record AnalysisExplorerInspection(AnalysisHierarchyRow Row, AnalysisObjectMetadata? Object,
     ImmutableArray<AnalysisPathMetadata> Ancestors, bool AncestorsComplete,
@@ -70,7 +73,7 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
 
     /// <returns>True only if this request published. A superseded request returns false.</returns>
     public Task<bool> LoadPageAsync(ulong parent = 0, AnalysisHierarchySort sort = AnalysisHierarchySort.Metric,
-        ulong offset = 0, int maximum = 128, CancellationToken cancellation = default)
+        ulong offset = 0, int maximum = 128, CancellationToken cancellation = default, bool descending = true)
     {
         ValidateMaximum(maximum);
         if (parent > Descriptor.Paths || !Enum.IsDefined(sort)) throw new ArgumentOutOfRangeException(nameof(parent));
@@ -79,10 +82,10 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
             var scope = parent == 0 ? null : await _hierarchy.ReadAsync(parent, token).ConfigureAwait(false);
             if (scope is not null && (scope.Path.Kind != AnalysisKind.Directory || !scope.IsVisible))
                 throw new InvalidOperationException("Only a visible directory can be an explorer scope.");
-            var children = await _hierarchy.ReadChildrenAsync(parent, sort, offset, maximum, token).ConfigureAwait(false);
+            var children = await _hierarchy.ReadChildrenAsync(parent, sort, offset, maximum, token, descending).ConfigureAwait(false);
             var buckets = await _hierarchy.ReadBucketsAsync(parent, token).ConfigureAwait(false);
             var ancestors = await ReadAncestorsAsync(scope?.Path, token).ConfigureAwait(false);
-            return new AnalysisExplorerPage(parent, scope, sort, children, buckets, ancestors.Rows, ancestors.Complete);
+            return new AnalysisExplorerPage(parent, scope, sort, children, buckets, ancestors.Rows, ancestors.Complete) { Descending = descending };
         }, value => _page = value, cancellation);
     }
 

@@ -23,6 +23,49 @@ namespace FileCat.Rendering.Tests;
 public sealed partial class AnalysisRenderingTests
 {
     [AvaloniaFact]
+    public async Task IndexedTableChangesDirectionAndLogicalOrderWithoutLosingCapturedFocus()
+    {
+        OrdinaryPreparation(); using var styles = new ProductStyles(); await using var fixture = await IndexedFixture.CreateAsync();
+        var window = new DiskSpaceWindow(); var explorer = await window.AddIndexedSessionAsync(fixture.Lease!, AnalysisMetric.Files, cancellation: TestContext.Current.CancellationToken);
+        window.Show(); Frame(window);
+        try
+        {
+            var list = IndexedList(window); list.SelectedItem = Assert.Single(list.Items.OfType<AnalysisHierarchyRow>());
+            Click(window, "Explore selected folder"); await Until(() => IndexedReady(window, explorer, 1)); Frame(window);
+            var order = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Indexed table order");
+            var direction = window.GetVisualDescendants().OfType<CheckBox>().Single(check => AutomationProperties.GetName(check) == "Indexed descending table order");
+            order.SelectedIndex = 2;
+            await Until(() => explorer.Page?.Sort == AnalysisHierarchySort.FileSize && IndexedReady(window, explorer, 1)); Frame(window);
+            var before = list.Items.OfType<AnalysisHierarchyRow>().ToArray();
+            Assert.True(before.Zip(before.Skip(1)).All(pair => pair.First.Logical.KnownBytes >= pair.Second.Logical.KnownBytes));
+            var selected = before.Single(row => row.Path.Kind == AnalysisKind.Directory); list.SelectedItem = selected;
+            await Until(() => explorer.Inspection?.Row.Path.Id == selected.Path.Id);
+            direction.IsChecked = false;
+            await Until(() => explorer.Page?.Descending == false && IndexedReady(window, explorer, 1)); Frame(window);
+            // Focus remains on its captured identity even when the new first page omits that row.
+            Assert.Null(list.SelectedItem); Assert.Equal(selected.Path.Id, explorer.Inspection!.Row.Path.Id);
+            var after = list.Items.OfType<AnalysisHierarchyRow>().ToArray();
+            Assert.True(after.Zip(after.Skip(1)).All(pair => pair.First.Logical.KnownBytes <= pair.Second.Logical.KnownBytes));
+            Assert.Equal(AnalysisMetric.Files, explorer.Metric);
+            direction.IsChecked = true;
+            await Until(() => explorer.Page?.Descending == true && IndexedReady(window, explorer, 1)); Frame(window);
+            Assert.Equal(selected.Path.Id, Assert.IsType<AnalysisHierarchyRow>(list.SelectedItem).Path.Id);
+            direction.IsChecked = false;
+            await Until(() => explorer.Page?.Descending == false && IndexedReady(window, explorer, 1));
+            // Query replacement retains the requested table field/direction in its complete new page.
+            Click(window, "Apply filter");
+            await Until(() => list.ItemCount == 1 && list.Items.OfType<AnalysisHierarchyRow>().Single().Path.Id == 1); Frame(window);
+            list.SelectedItem = Assert.Single(list.Items.OfType<AnalysisHierarchyRow>()); Click(window, "Explore selected folder");
+            await Until(() => list.ItemCount == 128); Frame(window);
+            var replacement = list.Items.OfType<AnalysisHierarchyRow>().ToArray();
+            Assert.True(replacement.Zip(replacement.Skip(1)).All(pair => pair.First.Logical.KnownBytes <= pair.Second.Logical.KnownBytes));
+            Assert.DoesNotContain(replacement, row => row.Path.Kind == AnalysisKind.Directory);
+            Assert.Equal(fixture.Payload, File.ReadAllBytes(fixture.PayloadPath));
+        }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
+    }
+
+    [AvaloniaFact]
     public async Task IndexedTabPagesAndInspectsCapturedNativeMetadataAfterSourceClosure()
     {
         OrdinaryPreparation(); using var styles = new ProductStyles(); await using var fixture = await IndexedFixture.CreateAsync();
@@ -135,8 +178,13 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "Apply filter");
             await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Query ready. Finish the current chart gesture to display it."));
             Assert.Same(original, list.ItemsSource); Assert.Equal(303UL, Assert.Single(list.Items.OfType<AnalysisHierarchyRow>()).Logical.Files);
+            window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Indexed table order").SelectedIndex = 2;
+            window.GetVisualDescendants().OfType<CheckBox>().Single(check => AutomationProperties.GetName(check) == "Indexed descending table order").IsChecked = false;
+            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Query ready. Finish the current chart gesture to display it."));
+            Assert.Same(original, list.ItemsSource);
             window.MouseUp(point, MouseButton.Left); pressed = false;
             await Until(() => Assert.Single(list.Items.OfType<AnalysisHierarchyRow>()).Logical.Files == 1);
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.EndsWith("File size · Ascending", StringComparison.Ordinal) == true);
         }
         finally { if (pressed) window.MouseUp(point, MouseButton.Left); window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }

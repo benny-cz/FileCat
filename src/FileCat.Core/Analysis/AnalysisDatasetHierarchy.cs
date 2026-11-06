@@ -5,7 +5,7 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Analysis;
 
-public enum AnalysisHierarchySort { Metric, Files }
+public enum AnalysisHierarchySort { Metric, Files, FileSize }
 public enum AnalysisHierarchyBucketKind { SharedFiles, DirectoryAllocation }
 public sealed record AnalysisHierarchyRow(AnalysisPathMetadata Path, AnalysisTotals Totals, bool NamespaceIncomplete, bool HasChargesElsewhere,
     bool IsMatch = false, bool IsVisible = true, AnalysisTruth FilterTruth = AnalysisTruth.True)
@@ -78,7 +78,7 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
                     return true;
                 }, cancellation).ConfigureAwait(false);
             await AnalysisIo.Run(io, device, token => { state.Seal(token); return true; }, cancellation).ConfigureAwait(false);
-            for (int kind = 0; kind < 5; kind++)
+            for (int kind = 0; kind < 6; kind++)
             {
                 using var entries = state.Entries(kind, cancellation).GetEnumerator();
                 var index = await AnalysisExternalSort.BuildSparseAsync(state.Workspace!, io, device, entries, cancellation).ConfigureAwait(false);
@@ -104,16 +104,22 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
             return state.Read(state.Indexes[0].Read(range.First, token).Value, token);
         }, cancellation);
     public Task<AnalysisDatasetPage<AnalysisHierarchyRow>> ReadChildrenAsync(ulong parent, AnalysisHierarchySort sort = AnalysisHierarchySort.Metric,
-        ulong offset = 0, int maximum = 256, CancellationToken cancellation = default) =>
+        ulong offset = 0, int maximum = 256, CancellationToken cancellation = default, bool descending = true) =>
         _owned.RunAsync((state, token) =>
         {
             if (parent > Descriptor.Paths || !Enum.IsDefined(sort) || maximum is < 1 or > AnalysisLimits.BatchRecords) throw new ArgumentOutOfRangeException(nameof(parent));
-            var index = state.Indexes[(int)sort + 1]; var range = index.PrefixRange(Key(parent), token);
+            var index = state.Indexes[sort == AnalysisHierarchySort.FileSize ? 5 : (int)sort + 1]; var range = index.PrefixRange(Key(parent), token);
+            // Direction reverses measured values only. Missing values retain their explicit trailing
+            // partition, including a measured zero before an unknown or a non-file namespace leaf.
+            byte[] knownPrefix = new byte[9]; Key(parent).CopyTo(knownPrefix, 0);
+            var known = descending ? default : index.PrefixRange(knownPrefix, token);
             if (offset > range.Count) throw new ArgumentOutOfRangeException(nameof(offset));
             var rows = ImmutableArray.CreateBuilder<AnalysisHierarchyRow>(); long bytes = 0;
             while (offset + (ulong)rows.Count < range.Count && rows.Count < maximum)
             {
-                token.ThrowIfCancellationRequested(); var row = state.Read(index.Read(range.First + offset + (ulong)rows.Count, token).Value, token);
+                token.ThrowIfCancellationRequested(); ulong position = offset + (ulong)rows.Count;
+                ulong at = !descending && position < known.Count ? known.First + known.Count - 1 - position : range.First + position;
+                var row = state.Read(index.Read(at, token).Value, token);
                 long cost = 1536L + row.Path.Name.Length * 2L + row.Path.RawName.Length + row.Path.RootId.Length * 2L +
                     (row.Path.ObjectId?.Length ?? 0) * 2L + (row.Path.ObservedIdentity?.Length ?? 0) * 2L;
                 if (cost > AnalysisLimits.BatchBytes) throw Invalid(); if (cost > AnalysisLimits.BatchBytes - bytes) break;
@@ -305,24 +311,32 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
             ulong count = kind == 3 ? _buckets!.Count : _rows!.Count;
             for (ulong row = 1; row <= count; row++)
             {
-                token.ThrowIfCancellationRequested(); byte[] key;
+                token.ThrowIfCancellationRequested(); byte[] key; int bytes = 256;
                 if (kind == 3) { var bucket = DecodeBucket(_buckets!.Read(row, token)); key = new byte[9]; Key(bucket.ParentId).CopyTo(key, 0); key[8] = (byte)bucket.Kind; }
                 else
                 {
                     var value = Decode(_rows!.Read(row, token));
-                    if (kind is 1 or 2 && !value.Visible || kind == 4 && !value.Match) { yield return new(null, 256); continue; }
+                    if (kind is 1 or 2 or 5 && !value.Visible || kind == 4 && !value.Match) { yield return new(null, 256); continue; }
                     if (kind == 0) key = Key(value.Id);
                     else if (kind == 4) key = Key(value.Id);
-                    else if (kind == 1)
+                    else
                     {
-                        UInt128 area = Metric == AnalysisMetric.OnDisk ? checked(value.Amount.Known + value.Amount.Unverified) : value.Amount.Known;
+                        var path = _graph.ReadPath(value.Id, token);
+                        long cost = 1024L + path.Name.Length * 2L + path.RawName.Length + path.RootId.Length * 2L +
+                            (path.ObjectId?.Length ?? 0) * 2L + (path.ObservedIdentity?.Length ?? 0) * 2L;
+                        if (cost > AnalysisScratchVector.MaximumRecordBytes) throw new IOException("A captured table-order row exceeds the bounded work payload.");
+                        bytes = (int)cost;
+                        bool nonFile = !path.IncludedByPolicy || path.Kind is not (AnalysisKind.File or AnalysisKind.Directory);
+                        UInt128 area = kind == 5 ? value.Logical.Known : kind == 2 ? value.Amount.Files :
+                            Metric == AnalysisMetric.OnDisk ? checked(value.Amount.Known + value.Amount.Unverified) : value.Amount.Known;
+                        bool missing = nonFile || kind == 5 && area == 0 && value.Logical.Missing.Skip(1).Any(n => n != 0) ||
+                            kind == 1 && area == 0 && (value.Elsewhere || value.Amount.Missing.Skip(1).Any(n => n != 0) || Metric == AnalysisMetric.UniqueFileSize && value.Amount.Unverified != 0);
                         key = new byte[33]; Key(value.Parent).CopyTo(key, 0);
-                        key[8] = area == 0 && (value.Elsewhere || value.Amount.Missing.Skip(1).Any(n => n != 0) || Metric == AnalysisMetric.UniqueFileSize && value.Amount.Unverified != 0) ? (byte)1 : (byte)0;
+                        key[8] = missing ? (byte)1 : (byte)0;
                         Write128(key.AsSpan(9), UInt128.MaxValue - area); Key(value.Id).CopyTo(key, 25);
                     }
-                    else { key = new byte[24]; Key(value.Parent).CopyTo(key, 0); BinaryPrimitives.WriteUInt64BigEndian(key.AsSpan(8), ulong.MaxValue - value.Amount.Files); Key(value.Id).CopyTo(key, 16); }
                 }
-                yield return new(new(key, row), 256);
+                yield return new(new(key, row), bytes);
             }
         }
         internal AnalysisHierarchyRow Read(ulong row, CancellationToken token)
