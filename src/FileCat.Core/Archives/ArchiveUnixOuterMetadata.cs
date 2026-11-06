@@ -57,6 +57,12 @@ internal sealed unsafe partial class ArchiveUnixOuterMetadata
     }
 
     internal static ArchiveUnixOuterMetadata Capture(SafeFileHandle handle, CancellationToken ct = default)
+        => CaptureCore(handle, directory: false, ct);
+
+    internal static ArchiveUnixOuterMetadata CaptureDirectory(SafeFileHandle handle, CancellationToken ct = default)
+        => CaptureCore(handle, directory: true, ct);
+
+    private static ArchiveUnixOuterMetadata CaptureCore(SafeFileHandle handle, bool directory, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(handle);
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) throw new PlatformNotSupportedException();
@@ -66,7 +72,7 @@ internal sealed unsafe partial class ArchiveUnixOuterMetadata
         try
         {
             handle.DangerousAddRef(ref retained);
-            if (handle.IsInvalid) throw new ArgumentException("A live held Unix regular file is required.", nameof(handle));
+            if (handle.IsInvalid) throw new ArgumentException("A live held Unix object is required.", nameof(handle));
             int fd = checked((int)handle.DangerousGetHandle());
             var first = Observe(); var second = Observe();
             if (first.Digest != second.Digest) throw Changed();
@@ -74,12 +80,12 @@ internal sealed unsafe partial class ArchiveUnixOuterMetadata
 
             ArchiveUnixOuterMetadata Observe()
             {
-                ct.ThrowIfCancellationRequested(); var before = ReadFacts(fd);
+                ct.ThrowIfCancellationRequested(); var before = ReadFacts(fd, directory);
                 (bool present, byte[] security) = OperatingSystem.IsMacOS() ? MacAcl(fd) : LinuxAcl(fd);
                 ct.ThrowIfCancellationRequested(); var origin = ArchiveUnixOrigin.Read(handle, ct);
                 if (origin.State == ArchiveOriginState.Unavailable) throw Unavailable();
                 var attributes = ArchiveUnixExtendedAttributes.Capture(handle, ct);
-                var after = ReadFacts(fd); ct.ThrowIfCancellationRequested();
+                var after = ReadFacts(fd, directory); ct.ThrowIfCancellationRequested();
                 if (before != after || !attributes.MatchesOrigin(origin) || !OperatingSystem.IsMacOS() && !attributes.MatchesLinuxAcl(present, security)) throw Changed();
                 return new(after, present, security, origin, attributes);
             }
@@ -103,14 +109,14 @@ internal sealed unsafe partial class ArchiveUnixOuterMetadata
         }
     }
 
-    private static Facts ReadFacts(int fd)
+    private static Facts ReadFacts(int fd, bool directory)
     {
         byte* raw = stackalloc byte[256]; new Span<byte>(raw, 256).Clear();
         bool mac = OperatingSystem.IsMacOS(); uint flags; Facts facts;
         if (mac)
         {
             if ((RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? MacStat(fd, raw) : MacStat64(fd, raw)) != 0) throw Unavailable();
-            RequireRegular(*(ushort*)(raw + 4), *(long*)(raw + 96));
+            RequireKind(*(ushort*)(raw + 4), *(long*)(raw + 96));
             facts = new(NativeFormat.Mac, *(uint*)raw, *(ulong*)(raw + 8), *(long*)(raw + 96), *(uint*)(raw + 16), *(uint*)(raw + 20),
                 (uint)(*(ushort*)(raw + 4) & 0xfff), *(ushort*)(raw + 6), MacTime(48), MacTime(64), MacTime(80), *(uint*)(raw + 116), 0, 0);
         }
@@ -118,7 +124,7 @@ internal sealed unsafe partial class ArchiveUnixOuterMetadata
         {
             // Linux statx has one fixed UAPI layout on both admitted ABIs. Birth time is optional and explicitly marked.
             if (Statx(fd, string.Empty, 0x1000 /* EMPTY_PATH */, 0xfff, raw) != 0 || (*(uint*)raw & 0x3df) != 0x3df) throw Unavailable();
-            RequireRegular(*(ushort*)(raw + 28), *(long*)(raw + 40));
+            RequireKind(*(ushort*)(raw + 28), *(long*)(raw + 40));
             ulong nativeFlags = 0;
             if (Ioctl(fd, 0x80086601 /* FS_IOC_GETFLAGS: native long buffer on the 64-bit lanes */, &nativeFlags) != 0) throw Unavailable();
             flags = checked((uint)nativeFlags);
@@ -129,9 +135,9 @@ internal sealed unsafe partial class ArchiveUnixOuterMetadata
         return facts;
         Timestamp MacTime(int offset) => new(*(long*)(raw + offset), *(long*)(raw + offset + 8));
         Timestamp LinuxTime(int offset) => new(*(long*)(raw + offset), *(uint*)(raw + offset + 8));
-        static void RequireRegular(uint mode, long size)
+        void RequireKind(uint mode, long size)
         {
-            if ((mode & 0xf000) != 0x8000) throw Unavailable();
+            if ((mode & 0xf000) != (directory ? 0x4000u : 0x8000u)) throw Unavailable();
             if (size < 0 || size > ArchiveWritePolicy.MaxPhysicalBytes)
                 throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The held Unix archive exceeds its physical byte bound.");
         }

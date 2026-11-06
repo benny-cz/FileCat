@@ -16,16 +16,19 @@ internal sealed class ArchiveCapturedInputs : IDisposable
     private readonly CancellationTokenSource stopped = new();
     private readonly CancellationToken stopToken;
     private readonly Dictionary<int, ArchiveRetainedBinding> bindings = [];
+    private readonly Dictionary<int, ArchiveCapturedDirectory> directories = [];
     private readonly List<ArchiveTransformInput> inputs = [];
     private readonly HashSet<string> identities = new(StringComparer.Ordinal);
     private readonly ArchiveWriteBudget budget = new();
     private IReadOnlyDictionary<int, ArchiveRetainedBinding>? frozenBindings;
+    private IReadOnlyDictionary<int, ArchiveCapturedDirectory>? frozenDirectories;
     private IReadOnlyList<ArchiveTransformInput>? frozenInputs;
     private int disposed;
     private bool poisoned;
 
     internal ArchiveCapturedInputs() { stopToken = stopped.Token; budget.AddMetadata(0, 2048); }
     internal IReadOnlyDictionary<int, ArchiveRetainedBinding> Bindings { get { lock (gate) { Live(sealedRequired: true); return frozenBindings!; } } }
+    internal IReadOnlyDictionary<int, ArchiveCapturedDirectory> Directories { get { lock (gate) { Live(sealedRequired: true); return frozenDirectories!; } } }
     internal IReadOnlyList<ArchiveTransformInput> Inputs { get { lock (gate) { Live(sealedRequired: true); return frozenInputs!; } } }
     internal ArchiveCapturedInputCost Cost { get { lock (gate) { Live(sealedRequired: true); return new(budget.MetadataBytes, budget.RetainedHeapBytes, budget.NameChars); } } }
 
@@ -38,7 +41,7 @@ internal sealed class ArchiveCapturedInputs : IDisposable
             if (frozenBindings is not null) throw new InvalidOperationException("The captured input set is sealed.");
             try
             {
-                if (id <= 0 || bindings.ContainsKey(id)) throw Invalid();
+                if (id <= 0 || bindings.ContainsKey(id) || directories.ContainsKey(id)) throw Invalid();
                 using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, stopToken);
                 CancellationToken token = cancellation.Token; token.ThrowIfCancellationRequested();
                 // Covers records, closures, descriptors, list/map/set entries and later frozen views. Variable
@@ -67,6 +70,45 @@ internal sealed class ArchiveCapturedInputs : IDisposable
         }
     }
 
+    internal void CaptureDirectory(int id, Func<CancellationToken, ArchiveDirectoryObservation> observe, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(observe);
+        lock (gate)
+        {
+            Live(sealedRequired: false);
+            if (frozenBindings is not null) throw new InvalidOperationException("The captured input set is sealed.");
+            try
+            {
+                if (id <= 0 || bindings.ContainsKey(id) || directories.ContainsKey(id)) throw Invalid();
+                using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, stopToken);
+                var token = cancellation.Token; token.ThrowIfCancellationRequested();
+                budget.AddMember(); budget.AddMetadata(0, 768);
+                using var permit = ArchiveCapturedInputLeases.Rent(token);
+                var observed = observe(token) ?? throw Invalid();
+                long names = (long)observed.ParentIdentity.Length + observed.LeafName.Length;
+                long chars = names + observed.Version.Identity.Length + observed.Version.Sha256.Length +
+                    observed.MetadataDigest.Length + observed.Origin.Digest.Length;
+                budget.AddNameChars(names);
+                budget.AddMetadata(ArchiveWritePolicy.Utf8.GetByteCount(observed.ParentIdentity) +
+                    ArchiveWritePolicy.Utf8.GetByteCount(observed.LeafName) + observed.Origin.Bytes.Length,
+                    checked(2 * chars + observed.Origin.Bytes.Length));
+                if (!identities.Add(observed.Version.Identity)) throw Changed();
+                token.ThrowIfCancellationRequested();
+                directories.Add(id, new(this, observe, observed));
+            }
+            catch { poisoned = true; throw; }
+        }
+    }
+
+    internal void ReviewDirectory(Func<CancellationToken, ArchiveDirectoryObservation> observe, ArchiveDirectoryObservation expected, CancellationToken ct)
+    {
+        Live(sealedRequired: true);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, stopToken);
+        using var permit = ArchiveCapturedInputLeases.Rent(cancellation.Token);
+        if (observe(cancellation.Token) is not { } actual || !actual.Matches(expected)) throw Changed();
+        Live(sealedRequired: true); cancellation.Token.ThrowIfCancellationRequested();
+    }
+
     internal void Seal(CancellationToken ct)
     {
         lock (gate)
@@ -75,17 +117,19 @@ internal sealed class ArchiveCapturedInputs : IDisposable
             if (frozenBindings is not null) return;
             frozenInputs = Array.AsReadOnly(inputs.ToArray());
             frozenBindings = new ReadOnlyDictionary<int, ArchiveRetainedBinding>(bindings);
+            frozenDirectories = new ReadOnlyDictionary<int, ArchiveCapturedDirectory>(directories);
         }
     }
 
     internal ArchiveTarTransformPlan CreatePlan(ArchiveWriteProfile profile, ArchiveAssessment? source,
         IReadOnlyList<ArchiveTransformEdit> edits, IReadOnlyList<ArchiveTransformAddition> additions, CancellationToken ct)
-    { lock (gate) { Live(sealedRequired: true); return ArchiveTarTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this); } }
+    { lock (gate) { Live(sealedRequired: true); RequireDirectoryPlanSupport(); return ArchiveTarTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this); } }
 
     internal static void RequirePlanCost(ArchiveTarTransformPlan plan, IReadOnlyDictionary<int, ArchiveRetainedBinding> captured)
     {
         if (plan.CaptureOwner is { } owner)
         {
+            owner.RequireDirectoryPlanSupport();
             var expected = owner.Bindings;
             if (plan.CaptureCost != owner.Cost || expected.Count != captured.Count || captured.Any(pair =>
                 !expected.TryGetValue(pair.Key, out var binding) || !ReferenceEquals(binding, pair.Value))) throw Invalid();
@@ -94,6 +138,12 @@ internal sealed class ArchiveCapturedInputs : IDisposable
         foreach (var binding in captured.Values)
             if (binding?.File is IArchiveCapturedInputFile) throw Invalid();
         if (plan.CaptureCost != default) throw Invalid();
+    }
+
+    private void RequireDirectoryPlanSupport()
+    {
+        if (directories.Count != 0) throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature,
+            "Captured folders require directory-aware planning, provenance and publication review.");
     }
 
     private void Live(bool sealedRequired)

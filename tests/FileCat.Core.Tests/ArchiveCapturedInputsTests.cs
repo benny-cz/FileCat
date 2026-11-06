@@ -5,7 +5,7 @@ using FileCat.Core.Archives;
 namespace FileCat.Core.Tests;
 
 [Collection(ArchiveWorkerIntegrationCollection.Name)]
-public sealed class ArchiveCapturedInputsTests
+public sealed partial class ArchiveCapturedInputsTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private sealed class Source(int id)

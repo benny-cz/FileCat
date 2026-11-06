@@ -60,6 +60,28 @@ internal static unsafe partial class WindowsArchiveNative
         return info.NumberOfLinks;
     }
 
+    internal static uint SourceDirectory(SafeFileHandle handle)
+    {
+        var info = DirectoryObject(handle);
+        if (info.Directory == 0 || !NtFile.IsDirectory(NtFile.GetBasic(handle).FileAttributes))
+            throw new IOException("A non-reparse source folder is required.");
+        return info.NumberOfLinks;
+    }
+
+    // A fixed named $DATA stream on an already reviewed directory. This is not regular-file admission and
+    // grants no archive payload IO; its base identity is separately required to match that held directory.
+    internal static void DirectoryOriginStream(SafeFileHandle handle) => _ = DirectoryObject(handle);
+    private static StandardInfo DirectoryObject(SafeFileHandle handle)
+    {
+        if (GetFileType(handle) != 1) throw new IOException("A disk object is required for folder origin capture.");
+        StandardInfo info;
+        if (!GetFileInformationByHandleEx(handle, 1, &info, (uint)sizeof(StandardInfo)))
+            throw new Win32Exception(Marshal.GetLastPInvokeError());
+        if (info.DeletePending != 0 || info.NumberOfLinks == 0 || NtFile.IsReparsePoint(NtFile.GetBasic(handle).FileAttributes))
+            throw new IOException("A live non-reparse folder object is required.");
+        return info;
+    }
+
     internal static void RequirePrivateSecurity(SafeFileHandle handle, string owner)
     {
         int error = GetSecurityInfo(handle, 1 /* SE_FILE_OBJECT */, 1 | 4 /* OWNER | DACL */, out _, out _, out _, out _, out nint pointer);

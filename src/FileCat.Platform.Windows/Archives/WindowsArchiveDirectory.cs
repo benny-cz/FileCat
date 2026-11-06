@@ -24,7 +24,7 @@ internal sealed class WindowsArchiveArtifactCreationException(string retainedPat
 /// qualification: provenance, metadata, directory-entry durability and the journaled publication protocol are separate
 /// gates. In particular, a successful file flush does not claim power-loss durability of a rename.
 /// </summary>
-internal sealed class WindowsArchiveDirectory : IDisposable, IArchiveDestinationSpace
+internal sealed partial class WindowsArchiveDirectory : IDisposable, IArchiveDestinationSpace
 {
     internal readonly object Gate = new();
     private readonly LocalIconFileLease directory;

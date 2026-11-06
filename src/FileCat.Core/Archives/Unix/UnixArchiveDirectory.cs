@@ -9,7 +9,7 @@ internal sealed class UnixArchiveArtifactCreationException(string retainedPath, 
 { internal string RetainedPath { get; } = retainedPath; } // Evidence, never pathname cleanup authority.
 
 /// <summary>Unregistered parent storage. Held directory-relative children, private-at-create artifacts, no path deletion.</summary>
-internal sealed class UnixArchiveDirectory : IDisposable, IArchiveDestinationSpace
+internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestinationSpace
 {
     internal readonly object Gate = new();
     private readonly SafeFileHandle directory;

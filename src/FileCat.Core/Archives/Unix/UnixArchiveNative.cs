@@ -57,6 +57,8 @@ internal static unsafe partial class UnixArchiveNative
     }
     internal static SafeFileHandle Child(SafeFileHandle parent, string leaf, bool write = false)
     { Leaf(leaf); return Handle(OpenAt(Fd(parent), leaf, SafeOpen | (write ? 2 : 0), 0)); }
+    internal static SafeFileHandle ChildDirectory(SafeFileHandle parent, string leaf)
+    { Leaf(leaf); return Handle(OpenAt(Fd(parent), leaf, SafeOpen | DirectoryFlag, 0)); }
     internal static SafeFileHandle Create(SafeFileHandle parent, string fullPath, string leaf)
     {
         Leaf(leaf);
