@@ -16,12 +16,14 @@ public sealed class ArchiveTarTransformPlan
     public IReadOnlyList<ArchiveTransformEdit> Edits { get; }
     public IReadOnlyList<ArchiveTransformAddition> Additions { get; }
     public ArchiveWriteManifest Expected { get; }
+    internal ArchiveCapturedInputCost CaptureCost { get; }
+    internal ArchiveCapturedInputs? CaptureOwner { get; }
 
     private ArchiveTarTransformPlan(ArchiveAssessment? source, Dictionary<int, ArchiveTransformInput> inputs,
-        ArchiveTransformEdit[] edits, ArchiveTransformAddition[] additions, ArchiveWriteManifest expected)
+        ArchiveTransformEdit[] edits, ArchiveTransformAddition[] additions, ArchiveWriteManifest expected, ArchiveCapturedInputCost captureCost, ArchiveCapturedInputs? captureOwner)
     {
         Source = source; Inputs = new ReadOnlyDictionary<int, ArchiveTransformInput>(inputs);
-        Edits = Array.AsReadOnly(edits); Additions = Array.AsReadOnly(additions); Expected = expected;
+        Edits = Array.AsReadOnly(edits); Additions = Array.AsReadOnly(additions); Expected = expected; CaptureCost = captureCost; CaptureOwner = captureOwner;
     }
 
     public static ArchiveTarTransformPlan Create(ArchiveAssessment? source, IReadOnlyList<ArchiveTransformInput> inputs,
@@ -30,6 +32,14 @@ public sealed class ArchiveTarTransformPlan
 
     public static ArchiveTarTransformPlan Create(ArchiveWriteProfile profile, ArchiveAssessment? source, IReadOnlyList<ArchiveTransformInput> inputs,
         IReadOnlyList<ArchiveTransformEdit> edits, IReadOnlyList<ArchiveTransformAddition> additions, CancellationToken ct)
+        => CreateCore(profile, source, inputs, edits, additions, default, ct, null);
+
+    internal static ArchiveTarTransformPlan CreateCaptured(ArchiveWriteProfile profile, ArchiveAssessment? source, IReadOnlyList<ArchiveTransformInput> inputs,
+        IReadOnlyList<ArchiveTransformEdit> edits, IReadOnlyList<ArchiveTransformAddition> additions, ArchiveCapturedInputCost captureCost, CancellationToken ct, ArchiveCapturedInputs? captureOwner = null)
+        => CreateCore(profile, source, inputs, edits, additions, captureCost, ct, captureOwner);
+
+    private static ArchiveTarTransformPlan CreateCore(ArchiveWriteProfile profile, ArchiveAssessment? source, IReadOnlyList<ArchiveTransformInput> inputs,
+        IReadOnlyList<ArchiveTransformEdit> edits, IReadOnlyList<ArchiveTransformAddition> additions, ArchiveCapturedInputCost captureCost, CancellationToken ct, ArchiveCapturedInputs? captureOwner)
     {
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(inputs); ArgumentNullException.ThrowIfNull(edits); ArgumentNullException.ThrowIfNull(additions);
@@ -50,6 +60,7 @@ public sealed class ArchiveTarTransformPlan
         // Account retained source, request arrays/maps and the derived output together. This is deliberately
         // conservative even when immutable strings/metadata are shared; global operation leases remain a later gate.
         var budget = new ArchiveWriteBudget();
+        budget.RetainCapturedInputs(captureCost);
         budget.AddMetadata(0, 256L * inputs.Count + 128L * edits.Count + 96L * additions.Count);
         var captured = new Dictionary<int, ArchiveTransformInput>(inputs.Count);
         long capturedBytes = source?.Manifest.LogicalBytes ?? 0;
@@ -118,7 +129,7 @@ public sealed class ArchiveTarTransformPlan
                 source is not null && profile.Format == ArchiveWriteFormat.TarGzip ? source.Manifest.Features[2] : (byte)255,
                 source is not null && profile.Format == ArchiveWriteFormat.TarGzip ? source.Manifest.Features[3] : null,
                 source is not null && profile.Format == ArchiveWriteFormat.TarBzip2 ? source.Manifest.Features[2] : (byte)9));
-        return new(source, captured, frozenEdits, frozenAdditions, expected);
+        return new(source, captured, frozenEdits, frozenAdditions, expected, captureCost, captureOwner);
 
         ArchiveTransformInput Use(int id)
         {

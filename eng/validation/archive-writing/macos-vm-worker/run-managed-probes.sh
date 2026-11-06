@@ -46,6 +46,7 @@ mkdir "$results/sources/production"
 cp src/FileCat.Core/Archives/ArchiveWorkerTransport.cs "$results/sources/production/ArchiveWorkerTransport.cs"
 cp src/FileCat.Core/Archives/Linux/LinuxArchiveGuestIsolation.cs src/FileCat.Core/Archives/Linux/LinuxArchiveGuestTransport.cs src/FileCat.Core/Archives/Linux/LinuxArchiveProcessPolicy.cs src/FileCat.Core/Archives/Linux/LinuxArchiveIsolation.cs src/FileCat.Core/Archives/Linux/LinuxArchiveNative.cs "$results/sources/production/"
 cp src/FileCat.Core/FileSystem/LinuxOpenFlags.cs src/FileCat.Core/FileSystem/LinuxPosixAcl.cs src/FileCat.Core/Archives/Unix/UnixArchiveNative.cs src/FileCat.Core/Archives/Unix/UnixArchiveVolume.cs "$results/sources/production/"
+cp src/FileCat.Core/Archives/ArchiveCapturedInputs.cs src/FileCat.Core/Archives/ArchiveWriteContracts.cs src/FileCat.Core/Archives/ArchiveTarTransformPlan.cs src/FileCat.Core/Archives/ArchiveProxyStreams.cs src/FileCat.Core/Archives/ArchiveRetainedTarPipeline.cs src/FileCat.Core/Archives/ArchiveJournaledTarPreparation.cs "$results/sources/production/"
 cp src/FileCat.ArchiveWorker/Program.cs "$results/sources/production/ArchiveWorker.Program.cs"
 cp src/FileCat.ArchiveWorker/FileCat.ArchiveWorker.csproj src/FileCat.ArchiveWorker/packages.lock.json "$results/sources/production/"
 cp src/FileCat.Core/FileCat.Core.csproj src/ThirdParty/SharpCompress/FileCat.SharpCompress.csproj "$results/sources/production/"
@@ -74,6 +75,8 @@ python3 eng/validation/archive-writing/macos-vm-worker/pack-worker-initrd.py --r
 codesign --force --sign - --identifier io.filecat.archive-linux-vm-worker --entitlements eng/validation/archive-writing/macos-vm/virtualization-entitlements.plist "$results/FileCat.ArchiveLinuxVmWorker" > "$results/signing.log" 2>&1
 "$dotnet" "$results/host-publish/FileCat.ArchiveVmProbe.dll" host "$results/FileCat.ArchiveLinuxVmWorker" "$results/input/kernel.Image" "$results/input/initrd-worker.cpio" "$results/results" > "$results/host-run.log" 2>&1
 python3 eng/validation/archive-writing/macos-vm-worker/verify-worker-run.py --root "$results" > "$results/oracle.log"
+"$dotnet" "$results/host-publish/FileCat.ArchiveVmProbe.dll" captured-host "$results/FileCat.ArchiveLinuxVmWorker" "$results/input/kernel.Image" "$results/input/initrd-worker.cpio" "$results/native-capture" > "$results/native-capture.log" 2>&1
+python3 eng/validation/archive-writing/verify-captured-input-oracles.py "$results/native-capture" > "$results/native-capture-oracle.log"
 python3 eng/validation/archive-writing/macos-vm-worker/verify-parent-death.py --native "$results/FileCat.ArchiveLinuxVmWorker" --kernel "$results/input/kernel.Image" --initrd "$results/probe-image/input/initrd-worker.cpio" --output "$results/parent-death" > "$results/parent-death.log"
 "$dotnet" "$results/host-publish/FileCat.ArchiveVmProbe.dll" cancel-host "$results/FileCat.ArchiveLinuxVmWorker" "$results/input/kernel.Image" "$results/input/initrd-worker.cpio" "$results/probe-image/input/initrd-worker.cpio" "$results/cancellation" > "$results/cancellation.log" 2>&1
 python3 eng/validation/archive-writing/macos-vm-worker/verify-cancellation.py --root "$results" > "$results/cancellation-oracle.log"

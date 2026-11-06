@@ -174,6 +174,16 @@ public sealed class ArchiveWriteBudget
         PaxPairs += pairs;
     }
 
+    internal void RetainCapturedInputs(ArchiveCapturedInputCost cost)
+    {
+        // Per-entry limits were checked during capture. Transfer aggregate retained costs before allocating
+        // the plan's own maps/manifests; source logical bytes/member counts are checked by plan admission itself.
+        Reserve(MetadataBytes, cost.MetadataBytes, ArchiveWritePolicy.MaxMetadataBytes);
+        Reserve(RetainedHeapBytes, cost.HeapBytes, ArchiveWritePolicy.MaxRetainedHeapBytes);
+        Reserve(NameChars, cost.NameChars, ArchiveWritePolicy.MaxRetainedNameChars);
+        MetadataBytes += cost.MetadataBytes; RetainedHeapBytes += cost.HeapBytes; NameChars += cost.NameChars;
+    }
+
     internal static void Reserve(long used, long amount, long maximum)
     {
         if (used < 0 || amount < 0 || used > maximum || amount > maximum - used) throw Limit();

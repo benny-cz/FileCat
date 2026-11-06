@@ -516,7 +516,7 @@ These are proposed conservative constants for new write profiles. They require m
 | Compression windows/dictionaries | Read only needed supported coders; new 7z defaults to 8 MiB dictionary, maximum 16 MiB initially; Zstd window maximum 64 MiB initially | Reject before codec/model allocation; calculate real encoder working-memory bounds |
 | Worker parallelism / queue | Initially one active archive worker globally, including assessment and verification, with at most eight pending requests; fresh verification runs after transform exit | Queue through job center, cancel stale preparation and bound admission; no nested thread-pool fan-out |
 | Process memory | 1 GiB hard worker RSS/commit boundary where platform supports the qualified control; normal target below 512 MiB | BudgetExceeded before the hard limit; a limit kill during fuzzing is a failing test |
-| Input handles | Maximum 16 source leases open simultaneously; one per actively consumed member plus archive/control handles | Bounded backpressure; no descriptor per member |
+| Input handles | Maximum 16 source leases open simultaneously; one per actively consumed member plus archive/control handles | Cancellable admission with a finite deadline; no descriptor per member. Refuse before opening another source when saturated. Bound worker-selected reacquisition independently of payload bytes. |
 | IO buffers | Normally 1 MiB copy buffers; IPC data chunks at most 64 KiB; pooled arrays capped and returned on every path | Validate requested size before renting; no whole-archive MemoryStream |
 | Control messages | 1 MiB maximum control frame, 64 KiB data/catalog frames; bounded records may span frames under a validated total length; finite cumulative metadata/frame counts | Protocol failure ends worker; never allocate by unvalidated frame or aggregate record length |
 | Repeated reads/writes | Per-phase IO allowance based on real opened input/stage lengths and bounded pass count; default up to four source-archive lengths plus 16 MiB control/framing slack | Reject seek/read amplification and repeated header backpatch loops |
@@ -894,6 +894,10 @@ Tasks:
 2. Extract a narrow publication/rollback/cleanup transaction from ZipUpdateExecutor under all existing race/mark tests. Adapt reviewed platform primitives without losing original retention or metadata checks.
 3. Add versioned durable transaction facts, bounded sidecars and archive-specific recovery; make uncertain/retained artifacts survive normal journal closure/pruning rules.
 4. Extend scheduler scopes to identity aliases and live transaction paths. Keep all external-source races checked independently of scheduler locks.
+   The [bounded regular-file capture checkpoint](../validation/archive-writing/BOUNDED_CAPTURED_INPUTS.md) now stores
+   reviewed native observations without retaining one file handle per member. Its exact capture owner/cost travels
+   with the plan, and the broker bounds source switching. This does not complete recursive selection capture,
+   private source snapshots, global preparation-memory admission or production wiring; those remain required.
 5. Introduce the worker-backed ZIP transform as a separate change; enforce strict verification and complete expected manifests for the new path. Compare functional outputs against the existing ZIP behavior and explicitly document any safety tightening.
 6. Remove unowned finally/File.Delete and pathname-only archive cleanup from the new shared route. Do not weaken existing code before the replacement path is qualified.
 

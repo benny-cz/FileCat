@@ -33,6 +33,7 @@ internal static class ArchiveJournaledTarPreparation
         var pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         if (string.IsNullOrEmpty(targetLeaf) || original is not null && !string.Equals(original.Reviewed.LeafName, targetLeaf, pathComparison)) throw Invalid();
         if (captured.Count != plan.Inputs.Count || captured.Count > ArchiveWritePolicy.MaxMembers || (original is null) != (plan.Source is null)) throw Invalid();
+        ArchiveCapturedInputs.RequirePlanCost(plan, captured);
         // New folder capture must supply its own retained metadata/origin snapshot before that operation can use this bridge.
         if (plan.Additions.Any(a => a.Type == ArchiveMemberType.Directory))
             throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "New directories require retained folder metadata and provenance capture.");

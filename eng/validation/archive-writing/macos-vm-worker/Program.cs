@@ -66,6 +66,8 @@ static int FloodProbe(Stream output, CancellationToken ct)
 }
 if (args is ["cancel-host", var cancelNative, var cancelKernel, var cancelInitrd, var cancelProbeInitrd, var cancelResults] && OperatingSystem.IsMacOS())
     return await CancellationProbes.Run(cancelNative, cancelKernel, cancelInitrd, cancelProbeInitrd, cancelResults);
+if (args is ["captured-host", var captureNative, var captureKernel, var captureInitrd, var captureResults] && OperatingSystem.IsMacOS())
+    return await NativeCapturedInputs.Run(captureNative, captureKernel, captureInitrd, captureResults);
 if (args is not ["host", var native, var kernel, var initrd, var results] || !OperatingSystem.IsMacOS()) return 64;
 Directory.CreateDirectory(results);
 using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(5));

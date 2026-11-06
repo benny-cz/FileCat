@@ -32,6 +32,7 @@ internal static class ArchiveRetainedTarPipeline
         {
             ct.ThrowIfCancellationRequested();
             if (captured.Count != plan.Inputs.Count || captured.Count > ArchiveWritePolicy.MaxMembers || (original is null) != (plan.Source is null)) throw Invalid();
+            ArchiveCapturedInputs.RequirePlanCost(plan, captured);
             var inputs = captured.ToDictionary();
             var invocation = await Task.Run(() =>
             {

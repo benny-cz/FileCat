@@ -18,6 +18,7 @@ public sealed class ArchiveIoAuthority : IDisposable
     private readonly ArchiveStageProxy _stage;
     private readonly long _maximumSourceIo;
     private long _sourceIo;
+    private long _sourceOpens;
     private Stream? _current;
     private int _currentId = -1;
     private bool _poisoned;
@@ -66,12 +67,20 @@ public sealed class ArchiveIoAuthority : IDisposable
                     BinaryPrimitives.WriteInt32LittleEndian(reply, id);
                     BinaryPrimitives.WriteInt64LittleEndian(reply.AsSpan(4), offset);
                     int read;
-                    if (id == StageId) read = _stage.ReadAt(offset, reply.AsSpan(12));
+                    if (count == 0) read = 0; // A length-zero query must not acquire a native source lease.
+                    else if (id == StageId) read = _stage.ReadAt(offset, reply.AsSpan(12));
                     else
                     {
                         _sourceIo += count;
                         if (_currentId != id)
                         {
+                            // Native reacquisition checks metadata. Bound that work independently of logical
+                            // payload bytes: tiny alternating reads must not trigger millions of expensive opens.
+                            // Four per fixed grant cover normal digest/rebuild passes; further credits require
+                            // actual charged IO, rather than the potentially enormous maximum IO allowance.
+                            long permittedOpens = 4L * _grants.Count + 4 * (_sourceIo / MaximumReadBytes);
+                            if (_sourceOpens >= permittedOpens) throw Fault();
+                            _sourceOpens++;
                             _current?.Dispose();
                             _current = null;
                             _currentId = -1;

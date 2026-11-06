@@ -107,6 +107,9 @@ internal sealed class WindowsArchiveDirectory : IDisposable, IArchiveDestination
     public WindowsArchiveFile OpenSource(string leaf, long maximumLength = ArchiveWritePolicy.MaxPhysicalBytes) =>
         OpenExisting(leaf, maximumLength, artifact: false, mayRename: false, expected: null);
 
+    internal void CaptureSource(ArchiveCapturedInputs inputs, int id, string leaf, CancellationToken ct)
+    { ArgumentNullException.ThrowIfNull(inputs); ValidateLeaf(leaf); inputs.Capture(id, () => OpenSource(leaf, ArchiveWritePolicy.MaxPayloadBytes), ct); }
+
     public WindowsArchiveFile OpenReviewedTarget(string leaf) =>
         OpenExisting(leaf, ArchiveWritePolicy.MaxPhysicalBytes, artifact: false, mayRename: true, expected: null);
 

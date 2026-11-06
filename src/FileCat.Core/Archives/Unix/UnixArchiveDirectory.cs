@@ -67,6 +67,8 @@ internal sealed class UnixArchiveDirectory : IDisposable, IArchiveDestinationSpa
         }
     }
     internal UnixArchiveFile OpenSource(string leaf, long maximumLength = ArchiveWritePolicy.MaxPhysicalBytes) => OpenExisting(leaf, maximumLength, null);
+    internal void CaptureSource(ArchiveCapturedInputs inputs, int id, string leaf, CancellationToken ct)
+    { ArgumentNullException.ThrowIfNull(inputs); UnixArchiveNative.Leaf(leaf); inputs.Capture(id, () => OpenSource(leaf, ArchiveWritePolicy.MaxPayloadBytes), ct); }
     internal UnixArchiveFile OpenRecoveryArtifact(string leaf, FileIdentity expected, UnixArchiveArtifactKind kind, long maximumLength)
     { if (!Enum.IsDefined(kind)) throw new ArgumentException("Invalid artifact kind."); Limit(kind, maximumLength); return OpenExisting(leaf, maximumLength, expected); }
     private UnixArchiveFile OpenExisting(string leaf, long maximumLength, FileIdentity? expected)
