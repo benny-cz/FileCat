@@ -4,6 +4,7 @@
     <OutputType>Exe</OutputType>
     <InvariantGlobalization>true</InvariantGlobalization>
     <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../../../src/FileCat.Archives/FileCat.Archives.csproj" />

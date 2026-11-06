@@ -276,6 +276,13 @@ protocol/control pipes held open, including full unread output. The 16 healthy r
 cases regress successfully. Startup/release cancellation, the complete resource/confinement/package and guest-license
 gates remain open; no production backend is registered.
 
+The [fixed guest RAM/resource follow-up](MACOS_VM_MEMORY_ENVELOPE.md) changes the managed experiment from 1536 MiB to
+exactly 1 GiB and refuses all other RAM settings. All healthy/lifetime cases regress successfully. A 256 MiB unmanaged
+entropy allocation completes; a 1280 MiB attempt is killed after 800 MiB touched. Draining/blocked entropy output runs
+for ten seconds each with per-process accounting and complete cleanup. The provider reaches 1,233,207,296-byte RSS /
+1,086,506,424-byte footprint, exceeding 1 GiB despite the fixed guest RAM. This explicitly leaves the whole host/helper/
+provider memory envelope unqualified. No limit is waived and no production profile is enabled from these measurements.
+
 ## Outstanding work
 
 The later [Linux worker checkpoint](LINUX_ARCHIVE_WORKER_CHECKPOINT.md) adds 41 cases. Its final native Ubuntu replay

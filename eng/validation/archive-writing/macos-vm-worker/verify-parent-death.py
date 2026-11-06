@@ -15,10 +15,10 @@ import uuid
 if len(sys.argv) > 1 and sys.argv[1] == '--gated-exec':
     parent, native, kernel, initrd, cancellation = sys.argv[2:]
     if os.read(0, 1) != b'X': raise SystemExit(64)
-    os.execv(native, [native, kernel, initrd, '1536', parent, cancellation])
+    os.execv(native, [native, kernel, initrd, '1024', parent, cancellation])
 if len(sys.argv) > 1 and sys.argv[1] == '--launcher':
     native, kernel, initrd, control, mode, cancellation = sys.argv[2:]
-    command = [native, kernel, initrd, '1536', str(os.getpid()), cancellation]
+    command = [native, kernel, initrd, '1024', str(os.getpid()), cancellation]
     if mode == 'before-exec':
         command = [sys.executable, __file__, '--gated-exec', str(os.getpid()), native, kernel, initrd, cancellation]
     child = subprocess.Popen(command, stdin=0, stdout=1, stderr=2, close_fds=True, pass_fds=(int(cancellation),))
@@ -167,7 +167,7 @@ for value, expected in [('1', 64), ('0', 64), ('-2', 64), ('+2', 64), ('02', 64)
                         (str(os.getppid()), 65)]:
     reader, writer = os.pipe()
     try:
-        result = subprocess.run([str(args.native), str(args.kernel), str(args.initrd), '1536', value, str(reader)], pass_fds=(reader,), stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
+        result = subprocess.run([str(args.native), str(args.kernel), str(args.initrd), '1024', value, str(reader)], pass_fds=(reader,), stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
     finally:
         os.close(reader); os.close(writer)
     assert result.returncode == expected and not result.stdout and not result.stderr

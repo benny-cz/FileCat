@@ -872,6 +872,10 @@ Tasks:
    now passes actual-session/blocked-input cooperative exits, bounded VM stops for full output and a spinning guest,
    ten invalid-descriptor refusals and twelve direct helper-death/provider-exit cases with pipes retained. Complete
    startup/release cancellation and the remaining resource/confinement/package gates before production admission.
+   The [fixed 1 GiB guest RAM/accounting follow-up](../validation/archive-writing/MACOS_VM_MEMORY_ENVELOPE.md) also passes
+   healthy/lifetime regression, native allocation pressure and ten-second entropy-output pressure. The provider's measured
+   RSS/footprint still exceed 1 GiB; guest RAM is not whole-host process containment. Complete that envelope without
+   treating sampled accounting/abort watermarks as hard controls or weakening the worker memory invariant.
 4. Implement/measure local create-no-replace and reviewed replacement capability probes with held directories and identity-aware retention. Include object-bound cleanup and durability distinctions.
 5. Provide typed reason codes for unavailable safe-save support. No codec may fall back to an unbounded/in-process transform if startup/policy fails.
 

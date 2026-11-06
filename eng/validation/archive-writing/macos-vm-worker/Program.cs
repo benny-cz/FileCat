@@ -9,6 +9,9 @@ using FileCat.Core.Archives;
 
 if (args is ["guest"])
 {
+    if (!OperatingSystem.IsLinux()) return 65;
+    string[] memory = File.ReadLines("/proc/meminfo").First(line => line.StartsWith("MemTotal:", StringComparison.Ordinal)).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+    if (memory.Length != 3 || memory[2] != "kB" || !long.TryParse(memory[1], out long physicalKiB) || physicalKiB <= 512 * 1024 || physicalKiB > 1024 * 1024) return 65;
     if (!OperatingSystem.IsLinux() || Native.getuid() != 1000 || Native.geteuid() != 1000 || Native.getppid() != 1 ||
         Native.prctl(39, 0, 0, 0, 0) != 1 || File.ReadAllText("/sys/fs/cgroup/filecat/memory.max").Trim() != "1073741824" ||
         File.ReadAllText("/sys/fs/cgroup/filecat/memory.swap.max").Trim() != "0" ||
@@ -21,7 +24,7 @@ if (args is ["guest"])
     // Console.OpenStandardInput uses the interactive Unicode line reader for a tty. Preserve arbitrary
     // archive/protocol bytes with raw descriptor streams, after native init has disabled terminal processing.
     using var diagnostics = new FileStream(new SafeFileHandle((nint)2, ownsHandle: false), FileAccess.Write);
-    diagnostics.Write(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { guestWorker = true, uid = Native.getuid(), runtime = Environment.Version.ToString(), memoryLimit = 1073741824, limitRaiseDenied = denied }) + "\n"));
+    diagnostics.Write(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { guestWorker = true, uid = Native.getuid(), runtime = Environment.Version.ToString(), memoryLimit = 1073741824, limitRaiseDenied = denied, physicalKiB }) + "\n"));
     diagnostics.Flush();
     return GuestCancellation.Run(diagnostics, (input, output, ct) =>
     {
@@ -37,6 +40,8 @@ if (args is ["guest"])
         3 => ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, nonce, ct),
         4 => SpinProbe(output),
         5 => FloodProbe(output, ct),
+        6 => NativeMemoryProbe.Run(output, 32, ct),
+        7 => NativeMemoryProbe.Run(output, 160, ct),
         _ => 64
     };
     });
@@ -51,7 +56,8 @@ static int FloodProbe(Stream output, CancellationToken ct)
 {
     output.Write("FCVMFLOD"u8); output.Flush();
     byte[] bytes = new byte[65524];
-    while (true) { ct.ThrowIfCancellationRequested(); output.Write(bytes); }
+    var random = new Random(42829297);
+    while (true) { ct.ThrowIfCancellationRequested(); random.NextBytes(bytes); output.Write(bytes); }
 }
 if (args is ["cancel-host", var cancelNative, var cancelKernel, var cancelInitrd, var cancelResults] && OperatingSystem.IsMacOS())
     return await CancellationProbes.Run(cancelNative, cancelKernel, cancelInitrd, cancelResults);
@@ -146,7 +152,7 @@ sealed class VmProcess : IArchiveWorkerProcess
         try { diagnosticFile = new FileStream(log, FileMode.CreateNew, FileAccess.Write); }
         catch { trace.Dispose(); throw; }
         var start = new ProcessStartInfo(native) { RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
-        start.ArgumentList.Add(kernel); start.ArgumentList.Add(initrd); start.ArgumentList.Add("1536");
+        start.ArgumentList.Add(kernel); start.ArgumentList.Add(initrd); start.ArgumentList.Add("1024");
         start.ArgumentList.Add(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
         try
         {

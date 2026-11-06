@@ -39,7 +39,7 @@ for name in ('macos-vm', 'macos-vm-worker'):
     target = output / name
     target.mkdir()
     for source in folder.iterdir():
-        if source.is_file() and source.suffix in ('.py', '.S', '.m', '.plist', '.cs', '.csproj', '.inc', '.sh', '.md'):
+        if source.is_file() and source.suffix in ('.py', '.S', '.m', '.c', '.plist', '.cs', '.csproj', '.inc', '.sh', '.md'):
             shutil.copyfile(source, target / source.name)
 PY
 mkdir "$results/sources/production"
@@ -50,6 +50,8 @@ project=eng/validation/archive-writing/macos-vm-worker/FileCat.ArchiveVmProbe.cs
 "$dotnet" publish "$project" -c Release -r osx-arm64 --self-contained false -o "$results/host-publish" -p:FileCatUpdateDependencyLocks=true -p:RuntimeIdentifiers=osx-arm64 -p:NuGetAudit=false --disable-build-servers -v minimal > "$results/host-build.log" 2>&1
 compiler=/Library/Developer/CommandLineTools/usr/bin/clang
 "$compiler" --version > "$results/compiler.txt"
+"$compiler" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk -Wall -Wextra -Werror eng/validation/archive-writing/macos-vm-worker/rusage-abi.c -lproc -o "$results/rusage-abi"
+"$results/rusage-abi" > "$results/rusage-abi.json"
 "$compiler" --target=aarch64-unknown-linux-gnu -DFILECAT_MANAGED_WORKER=1 -DFILECAT_LIMIT_MIB=1024 -c eng/validation/archive-writing/macos-vm/guest-memory-init.S -o "$results/input/init-control.o"
 python3 eng/validation/archive-writing/macos-vm/pack-initrd.py --root "$results" --case control > "$results/pack-init.log"
 python3 eng/validation/archive-writing/macos-vm-worker/pack-worker-initrd.py --root "$results" --publish "$results/guest-publish" --libraries "$libraries" > "$results/pack-worker.log"
@@ -61,3 +63,5 @@ python3 eng/validation/archive-writing/macos-vm-worker/verify-parent-death.py --
 "$dotnet" "$results/host-publish/FileCat.ArchiveVmProbe.dll" cancel-host "$results/FileCat.ArchiveLinuxVmWorker" "$results/input/kernel.Image" "$results/input/initrd-worker.cpio" "$results/cancellation" > "$results/cancellation.log" 2>&1
 python3 eng/validation/archive-writing/macos-vm-worker/verify-cancellation.py --root "$results" > "$results/cancellation-oracle.log"
 python3 eng/validation/archive-writing/macos-vm-worker/verify-helper-death.py --native "$results/FileCat.ArchiveLinuxVmWorker" --kernel "$results/input/kernel.Image" --initrd "$results/input/initrd-worker.cpio" --output "$results/helper-death" > "$results/helper-death.log"
+python3 eng/validation/archive-writing/macos-vm-worker/verify-memory-envelope.py --root "$results" > "$results/memory-envelope.log"
+python3 eng/validation/archive-writing/macos-vm-worker/verify-memory-results.py --root "$results" > "$results/memory-results.log"

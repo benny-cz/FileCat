@@ -32,7 +32,7 @@ for log in logs:
     text = log.read_text()
     assert text.count('FILECAT_HOST_FACTS ') == 1 and text.count('"guestWorker":true') == 1
     host = json.loads(next(line.removeprefix('FILECAT_HOST_FACTS ') for line in text.splitlines() if line.startswith('FILECAT_HOST_FACTS ')))
-    assert host['uid'] == host['euid'] and host['uid'] > 0 and host['cpus'] == 1 and host['memoryBytes'] == 1536 << 20
+    assert host['uid'] == host['euid'] and host['uid'] > 0 and host['cpus'] == 1 and host['memoryBytes'] == 1024 << 20
     assert all(host[key] is True for key in ('valid', 'started', 'guestStopped'))
     assert host['forcedStop'] is False and host['state'] == 0
     assert host['parent'] > 1 and host['parentExited'] is False and host['parentExitEvent'] is False
@@ -44,6 +44,7 @@ for log in logs:
     assert host['pid'] not in seen
     seen.add(host['pid'])
     guest = json.loads(next(line for line in text.splitlines() if line.startswith('{"guestWorker":')))
+    assert 512 * 1024 < guest.pop('physicalKiB') <= 1024 * 1024
     assert guest == dict(guestWorker=True, uid=1000, runtime='10.0.12', memoryLimit=1073741824, limitRaiseDenied=True)
     assert text.count('FILECAT_GUEST_READY module_status=0000000000000000') == 1
     assert text.count('FILECAT_LIMIT=1073741824') == 1 and 'FILECAT_ERROR=' not in text

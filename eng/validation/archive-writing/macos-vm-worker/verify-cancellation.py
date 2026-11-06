@@ -48,7 +48,7 @@ left, right = socket.socketpair()
 try:
     for value, passed, expected in [('0', (), 64), ('2', (), 64), ('-3', (), 64), ('+3', (), 64), ('03', (), 64),
         ('2147483648', (), 64), ('999999', (), 65), (str(writer), (writer,), 65), (str(regular), (regular,), 65), (str(left.fileno()), (left.fileno(),), 65)]:
-        result = subprocess.run([str(native), str(root / 'input/kernel.Image'), str(root / 'input/initrd-worker.cpio'), '1536', str(os.getpid()), value],
+        result = subprocess.run([str(native), str(root / 'input/kernel.Image'), str(root / 'input/initrd-worker.cpio'), '1024', str(os.getpid()), value],
             pass_fds=passed, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
         assert result.returncode == expected and not result.stdout and not result.stderr
         invalid.append(dict(argument=value, exit=expected))

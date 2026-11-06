@@ -80,6 +80,10 @@ The [cancellation follow-up](../../../docs/validation/archive-writing/MACOS_VM_C
 pipe and third guest serial channel, actual session/blocked-IO/CPU cancellation probes, strict descriptor refusals and
 direct helper-death checks against the dedicated virtualization provider. Startup/release and full resource gates remain open.
 
+The [fixed-RAM accounting report](../../../docs/validation/archive-writing/MACOS_VM_MEMORY_ENVELOPE.md) records a 1 GiB
+managed guest, controlled native allocation and entropy-output pressure with SDK-checked helper/provider accounting.
+Provider RSS/footprint exceed the guest's physical RAM, so the full host memory envelope remains unqualified.
+
 The observed Mac's matching compiler is `/Library/Developer/CommandLineTools/usr/bin/clang` (21.0.0) and its sysroot is
 `/Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk`. Use these explicitly rather than changing global `xcode-select`.
 In an owned fixture, arrange `probe.app/Contents/MacOS/archive-probe`, copy `mac-probe-info.plist` as `Contents/Info.plist`,

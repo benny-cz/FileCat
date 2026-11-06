@@ -59,7 +59,7 @@ static BOOL pollCancellation(int descriptor, BOOL *requested, BOOL *malformed)
 int main(int argc, char **argv)
 {
     if (argc != 6 || argv[1][0] != '/' || argv[2][0] != '/' ||
-        (strcmp(argv[3], "512") && strcmp(argv[3], "1536"))) return 64;
+        strcmp(argv[3], "1024")) return 64;
     errno = 0; char *end = NULL;
     long parsed = strtol(argv[4], &end, 10);
     char canonical[32]; snprintf(canonical, sizeof(canonical), "%ld", parsed);
@@ -94,7 +94,7 @@ int main(int argc, char **argv)
         loader.initialRamdiskURL = [NSURL fileURLWithPath:[NSString stringWithUTF8String:argv[2]]];
         loader.commandLine = @"console=hvc0 quiet loglevel=3 rdinit=/init cgroup_no_v1=all cgroup_enable=memory panic=-1";
         config.bootLoader = loader; config.CPUCount = 1;
-        config.memorySize = (strcmp(argv[3], "512") ? 1536ULL : 512ULL) * 1024 * 1024;
+        config.memorySize = 1ULL << 30;
         VZVirtioConsoleDeviceSerialPortConfiguration *serial = [[VZVirtioConsoleDeviceSerialPortConfiguration alloc] init];
         serial.attachment = [[VZFileHandleSerialPortAttachment alloc] initWithFileHandleForReading:nil fileHandleForWriting:NSFileHandle.fileHandleWithStandardError];
         VZVirtioConsoleDeviceSerialPortConfiguration *protocol = [[VZVirtioConsoleDeviceSerialPortConfiguration alloc] init];

@@ -56,7 +56,7 @@ for mode, role, marker in [('blocked', 1, None), ('busy', 4, b'FCVMBUSY'), ('ful
             log_path = args.output / f'{len(rows):02}-{mode}-{death_signal}.log'
             with log_path.open('xb') as log:
                 try:
-                    process = subprocess.Popen([str(args.native), str(args.kernel), str(args.initrd), '1536', str(os.getpid()), str(control_read)],
+                    process = subprocess.Popen([str(args.native), str(args.kernel), str(args.initrd), '1024', str(os.getpid()), str(control_read)],
                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=log, pass_fds=(control_read,), start_new_session=True)
                 finally: os.close(control_read)
                 watcher = select.kqueue()

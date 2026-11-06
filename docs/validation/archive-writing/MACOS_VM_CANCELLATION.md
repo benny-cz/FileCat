@@ -97,3 +97,6 @@ Its captured SHA-256 is `D23B34D23FD2FCD666559D4852092F07025B384650849C9B9F9F664
 `1CE45DA3B19C02DDEEB5E4969AD7D4D0097652251149694B9938397C94AFC039`. The exact after-run verifier is separate provenance.
 The final runner adds that successfully executed verification command, and README clarifications are post-run docs;
 captured startup snapshots remain intact.
+
+The subsequent [fixed-RAM measurement checkpoint](MACOS_VM_MEMORY_ENVELOPE.md) reruns these lifetime cases with exactly
+1 GiB guest RAM and measures native allocation/output pressure. Whole host/provider memory remains unqualified.

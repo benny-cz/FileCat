@@ -18,11 +18,22 @@ raw second serial channel; only after readiness does the parent send a bounded n
 streams avoid .NET's interactive Unicode terminal reader. A separate console carries diagnostics, bounded to 1 MiB;
 only the first 512 protocol bytes are retained for diagnosis. No network/storage/share/balloon device is configured.
 
-The guest cgroup ceiling, 1536 MiB guest physical RAM and host-helper memory are different quantities. Initramfs/runtime
+The guest cgroup ceiling, fixed 1024 MiB guest physical RAM and host-helper memory are different quantities. Initramfs/runtime
 file pages populated before the child are not all charged to that child's cgroup. The small healthy memory peaks
 therefore do not establish a whole-process footprint or the full guest/host budget. Aggregate host/VM CPU accounting,
 startup/release cancellation, hostile assets/IPC, large/hostile workloads, setup races,
 signing/distribution, startup/UX costs and the complete resource envelope remain unqualified. Healthy tests complete no full AW packet.
+
+The managed host now accepts only `1024` MiB and configures exactly 1 GiB, with no balloon. Guest startup also checks
+kernel-reported physical memory. A controlled 256 MiB changing-entropy native allocation completes, while a 1280 MiB
+attempt is killed after 800 MiB has been touched in the measured run. These are deliberate diagnostics, not passing
+fuzz-limit kills. The distinct allocator-only experiment in `macos-vm` retains its original settings/evidence.
+
+The runner measures helper/provider/observer RSS and physical footprint through the public SDK's `proc_pid_rusage`,
+checking its structure layout with a compiled C ABI probe and retaining stable process-birth identities. Ten-second
+draining/blocked changing-entropy output cases also complete and clean up. The provider peaks above 1 GiB in RSS,
+so guest physical RAM does not establish the whole host-process envelope. Accounting samples and abort watermarks
+are diagnostic evidence; they are not hard OS memory controls or production admission.
 
 The native development host now requires its actual parent PID, registers a synchronous `kqueue` process-exit watch
 before VM setup, checks parent identity again and polls both the kernel event and parent relation. Parent death stops
@@ -83,3 +94,5 @@ VM outcome and elapsed time. The observer never signals another tester and the i
 `cancellation/facts.json`, `cancellation/verified.json` and `helper-death/facts.json` retain cooperative versus forced
 outcomes, actual session cancellation/reaping, descriptor refusals, dedicated provider identities/exit events and
 unread-output byte counts. The final runner includes each check; every production qualification flag remains false.
+`memory-envelope/*.json` preserves all native accounting samples, maxima and allocation/output outcomes. Its independent
+verifier checks the samples and eight refused RAM arguments. The ABI facts/tool binary remain alongside the evidence.
