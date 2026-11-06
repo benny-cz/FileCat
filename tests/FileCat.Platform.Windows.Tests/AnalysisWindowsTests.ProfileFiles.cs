@@ -17,4 +17,7 @@ public sealed partial class AnalysisWindowsTests
     [InlineData(true)]
     public async Task NativePrivateFilesCoordinateOwnedChildrenThroughActualExit(bool crash)
     { FileQuotaOrdinary(); await AnalysisFileQuotaCases.CrossProcess((parent, name) => new WindowsAnalysisPrivateDirectory(parent, name), crash); }
+    [Fact]
+    public async Task QuarantinedNativeScratchKeepsCrossProcessCapacityUntilActualProcessExit()
+    { FileQuotaOrdinary(); await AnalysisFileQuotaCases.QuarantinedScratch((parent, name) => new WindowsAnalysisPrivateDirectory(parent, name)); }
 }

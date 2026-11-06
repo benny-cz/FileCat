@@ -14,6 +14,8 @@ if (args is ["--analysis-file-quota-hold", var fileQuotaProfile, var fileQuotaBy
     return AnalysisQuotaHold.Run(fileQuotaProfile, fileQuotaBytes, fileQuotaSession, fileQuotaParent);
 if (args is ["--analysis-file-quota-init", var fileQuotaInitParent])
     return AnalysisQuotaHold.Initialize(fileQuotaInitParent);
+if (args is ["--analysis-scratch-quarantine-hold", var quarantineProfile, var quarantineParent])
+    return await AnalysisScratchQuarantineHold.RunAsync(quarantineProfile, quarantineParent);
 
 if (args is ["--analysis-scratch-vector", var recordText, var vectorParent])
     return ScratchScale.Run(int.Parse(recordText, System.Globalization.CultureInfo.InvariantCulture), vectorParent);

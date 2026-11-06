@@ -31,7 +31,17 @@ internal sealed class AnalysisScratchArena : IDisposable
         if (limit is < 1 or > AnalysisLimits.ScratchBytes) throw new ArgumentOutOfRangeException(nameof(limit));
         _directory = directory; _budget = budget; _limit = limit;
         try { Guard(); _file = directory.CreateScratch(); _file.Verify(); if (_file.Length != 0) throw new IOException("Private scratch was not created empty."); }
-        catch { try { _file?.Dispose(); } finally { directory.Dispose(); CryptographicOperations.ZeroMemory(_key); } throw; }
+        catch
+        {
+            try
+            {
+                try { if (_file is not null) AnalysisIo.CloseOnWorker(_file); }
+                catch (Exception error) { _budget.Quarantine(this, error); throw; }
+                AnalysisIo.CloseOnWorker(directory);
+            }
+            finally { CryptographicOperations.ZeroMemory(_key); }
+            throw;
+        }
     }
 
     internal long ReservedBytes { get { lock (_gate) return _reserved; } }
@@ -185,12 +195,16 @@ internal sealed class AnalysisScratchArena : IDisposable
         lock (_gate)
         {
             if (--_references != 0) return;
-            try { _file.Dispose(); }
-            finally
+            try
             {
+                try { AnalysisIo.CloseOnWorker(_file); }
+                catch (Exception error) { _failed = true; _budget.Quarantine(this, error); throw; }
                 try { _budget.Release(_reserved); }
-                finally { try { _directory.Dispose(); } finally { _reserved = 0; CryptographicOperations.ZeroMemory(_key); } }
+                catch (Exception error) { _failed = true; _budget.Quarantine(this, error); throw; }
+                _reserved = 0;
+                AnalysisIo.CloseOnWorker(_directory);
             }
+            finally { CryptographicOperations.ZeroMemory(_key); }
         }
     }
     public void Dispose()
@@ -247,11 +261,26 @@ internal sealed class AnalysisScratchBudget
     private readonly long _limit;
     private readonly AnalysisScratchBudget? _parent;
     private readonly AnalysisProfileQuota? _quota;
+    private readonly AnalysisResourceQuarantine _quarantine;
+    private Exception? _admissionFailure, _releaseFailure;
     private long _reserved;
-    internal AnalysisScratchBudget(long limit, AnalysisScratchBudget? parent = null, AnalysisProfileQuota? quota = null)
+    internal AnalysisScratchBudget(long limit, AnalysisScratchBudget? parent = null, AnalysisProfileQuota? quota = null, AnalysisResourceQuarantine? quarantine = null)
     {
         if (limit is < 1 or > AnalysisLimits.ProfileScratchBytes || parent is not null && limit > parent._limit) throw new ArgumentOutOfRangeException(nameof(limit));
-        _limit = limit; _parent = parent; _quota = quota;
+        _limit = limit; _parent = parent; _quota = quota; _quarantine = quarantine ?? AnalysisResourceQuarantine.Shared;
+    }
+    internal void CheckAdmission()
+    {
+        lock (_gate)
+        {
+            if (_admissionFailure is { } error) throw AnalysisCloseUnconfirmedException.From(error);
+            _parent?.CheckAdmission();
+        }
+    }
+    internal void Quarantine(object owner, Exception error)
+    {
+        lock (_gate) _admissionFailure ??= error;
+        _quarantine.Hold(owner);
     }
     internal long ReservedBytes => Volatile.Read(ref _reserved);
     internal bool TryReserve(long bytes)
@@ -259,12 +288,12 @@ internal sealed class AnalysisScratchBudget
         if (bytes < 0) throw new ArgumentOutOfRangeException(nameof(bytes));
         lock (_gate)
         {
+            CheckAdmission();
             if (bytes > _limit - _reserved || _parent is not null && !_parent.TryReserve(bytes)) return false;
-            try
-            {
-                if (_quota is not null && !_quota.TryReserve(bytes)) { _parent?.Release(bytes); return false; }
-            }
+            bool acquired;
+            try { acquired = _quota is null || _quota.TryReserve(bytes); }
             catch { _parent?.Release(bytes); throw; }
+            if (!acquired) { _parent?.Release(bytes); return false; }
             _reserved += bytes; return true;
         }
     }
@@ -273,9 +302,18 @@ internal sealed class AnalysisScratchBudget
         lock (_gate)
         {
             if (bytes < 0 || bytes > _reserved) throw new InvalidOperationException("The private scratch reservation does not belong to this budget.");
-            _reserved -= bytes;
-            try { _quota?.Release(bytes); }
-            finally { _parent?.Release(bytes); }
+            if (_releaseFailure is { } prior) throw AnalysisCloseUnconfirmedException.From(prior);
+            try
+            {
+                _quota?.Release(bytes);
+                _parent?.Release(bytes);
+                _reserved -= bytes;
+            }
+            catch (Exception error)
+            {
+                _releaseFailure = error; Quarantine(this, error);
+                throw AnalysisCloseUnconfirmedException.From(error);
+            }
         }
     }
 }

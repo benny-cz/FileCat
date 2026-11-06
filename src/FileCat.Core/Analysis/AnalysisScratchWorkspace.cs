@@ -13,12 +13,13 @@ internal sealed class AnalysisScratchWorkspace : IAnalysisScratchOwned
     private bool _disposed;
     internal AnalysisScratchWorkspace(AnalysisPrivateDirectory directory)
         : this(directory, AnalysisLimits.ScratchBytes, AnalysisScratchBudget.Shared) { }
-    internal AnalysisScratchWorkspace(AnalysisPrivateDirectory directory, long sessionLimit, AnalysisScratchBudget profileBudget, AnalysisProfileQuota? quota = null)
+    internal AnalysisScratchWorkspace(AnalysisPrivateDirectory directory, long sessionLimit, AnalysisScratchBudget profileBudget, AnalysisProfileQuota? quota = null,
+        AnalysisResourceQuarantine? quarantine = null)
     {
         ArgumentNullException.ThrowIfNull(directory); ArgumentNullException.ThrowIfNull(profileBudget);
         if (sessionLimit is < 1 or > AnalysisLimits.ScratchBytes) throw new ArgumentOutOfRangeException(nameof(sessionLimit));
         var retained = quota?.Borrow();
-        try { _budget = new(sessionLimit, profileBudget, quota); _directory = new(directory, retained); }
+        try { _budget = new(sessionLimit, profileBudget, quota, quarantine); _directory = new(directory, retained, quarantine); }
         catch { retained?.Dispose(); throw; }
     }
     internal long ReservedBytes => _budget.ReservedBytes;
@@ -29,6 +30,7 @@ internal sealed class AnalysisScratchWorkspace : IAnalysisScratchOwned
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            _budget.CheckAdmission();
             var directory = _directory.Borrow();
             try { return new(directory, _budget); }
             catch { directory.Dispose(); throw; }
@@ -39,9 +41,16 @@ internal sealed class AnalysisScratchWorkspace : IAnalysisScratchOwned
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            _budget.CheckAdmission();
             var directory = _directory.Borrow();
             try { return new(directory, _budget, AnalysisLimits.ScratchBytes); }
-            catch { directory.Dispose(); throw; }
+            catch (Exception error)
+            {
+                // A failed native close may have transferred this exact lease to quarantine.
+                // Ordinary constructor refusal already closed it, or never accepted it.
+                if (!AnalysisCloseUnconfirmedException.IsPresent(error)) directory.Dispose();
+                throw;
+            }
         }
     }
     public void Dispose() { lock (_gate) { if (_disposed) return; _disposed = true; _directory.Dispose(); } }
@@ -50,17 +59,19 @@ internal sealed class AnalysisScratchWorkspace : IAnalysisScratchOwned
 /// <summary>Internal native directory lifetime sharing; the underlying no-follow capability remains authoritative.</summary>
 internal sealed class AnalysisSharedPrivateDirectory : AnalysisPrivateDirectory
 {
-    private sealed class Shared(AnalysisPrivateDirectory directory, IDisposable? quota)
+    private sealed class Shared(AnalysisPrivateDirectory directory, IDisposable? quota, AnalysisResourceQuarantine quarantine)
     {
         internal readonly AnalysisPrivateDirectory Directory = directory;
         internal readonly IDisposable? Quota = quota;
+        internal readonly AnalysisResourceQuarantine Quarantine = quarantine;
         internal readonly object Lifetime = new(), Io = new();
         internal int References = 1;
     }
     private readonly Shared _shared;
     private readonly object _gate = new();
     private bool _disposed;
-    internal AnalysisSharedPrivateDirectory(AnalysisPrivateDirectory directory, IDisposable? quota = null) => _shared = new(directory, quota);
+    internal AnalysisSharedPrivateDirectory(AnalysisPrivateDirectory directory, IDisposable? quota = null, AnalysisResourceQuarantine? quarantine = null) =>
+        _shared = new(directory, quota, quarantine ?? AnalysisResourceQuarantine.Shared);
     private AnalysisSharedPrivateDirectory(Shared shared) => _shared = shared;
     internal AnalysisSharedPrivateDirectory Borrow()
     {
@@ -96,6 +107,13 @@ internal sealed class AnalysisSharedPrivateDirectory : AnalysisPrivateDirectory
             if (_disposed) return; _disposed = true;
             lock (_shared.Lifetime) release = --_shared.References == 0;
         }
-        if (release) lock (_shared.Io) { try { _shared.Directory.Dispose(); } finally { _shared.Quota?.Dispose(); } }
+        if (release) lock (_shared.Io)
+        {
+            try { AnalysisIo.CloseOnWorker(_shared.Directory); }
+            catch { _shared.Quarantine.Hold(_shared); throw; }
+            if (_shared.Quota is { } quota)
+                try { AnalysisIo.CloseOnWorker(quota); }
+                catch { _shared.Quarantine.Hold(_shared); throw; }
+        }
     }
 }

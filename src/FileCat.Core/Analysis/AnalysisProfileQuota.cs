@@ -187,7 +187,8 @@ public sealed class AnalysisProfileQuota : IDisposable
     public void Dispose()
     {
         lock (_gate) { if (_ownerClosed) return; _ownerClosed = true; }
-        ReleaseOwner();
+        try { ReleaseOwner(); }
+        catch (Exception error) { AnalysisResourceQuarantine.Shared.Hold(this); throw AnalysisCloseUnconfirmedException.From(error); }
     }
     private void ReleaseOwner()
     {
@@ -206,7 +207,7 @@ public sealed class AnalysisProfileQuota : IDisposable
                 return true;
             }); }
             catch (Exception failure) { error = failure; }
-            finally { _disposed = true; _bytes = 0; _commands.CompleteAdding(); }
+            finally { _disposed = true; if (error is null) _bytes = 0; _commands.CompleteAdding(); }
         }
         _thread.Join(); _commands.Dispose();
         if (error is not null) ExceptionDispatchInfo.Capture(error).Throw();
@@ -214,6 +215,11 @@ public sealed class AnalysisProfileQuota : IDisposable
     private sealed class Retention(AnalysisProfileQuota owner) : IDisposable
     {
         private AnalysisProfileQuota? _owner = owner;
-        public void Dispose() => Interlocked.Exchange(ref _owner, null)?.ReleaseOwner();
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _owner, null) is not { } captured) return;
+            try { captured.ReleaseOwner(); }
+            catch (Exception error) { AnalysisResourceQuarantine.Shared.Hold(captured); throw AnalysisCloseUnconfirmedException.From(error); }
+        }
     }
 }

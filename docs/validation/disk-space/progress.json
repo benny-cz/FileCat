@@ -145,7 +145,8 @@
     "Incremental strict LF framing now serves the existing loader and the internal private staging pipeline. Whole records, including1 MiB and5,201-path native fixtures, enter authenticated bounded scratch blocks without an inventory-sized managed collection. Actual EOF/source-close handoff, scratch-only later queries, original-ID map retention, cancellation/close/device/import-slot controls pass all3. A stage is not yet a graph/coverage/accounting-validated imported inventory.",
     "Private staged inventories now become fully graph/coverage/accounting-validated indexed datasets retaining opaque original path IDs throughout queries, filters, charts, explorer data models and complete saves. All19 new adoption controls and native5201-path import/filter/save/reopen/actual-cleanup probes pass all3; general external-file and catalog/UI import adoption remain required.",
     "Private catalog-aware indexed loading now validates reviewed identity/actual bytes/coverage/taint, requires destination profile capacity, returns retained inert data and restores saved settings/original-ID scope through an internal app route. Native profile-backed UI controls and factory/metadata negatives pass all3 (11 new Core and10 rendering controls). Normal opener/persistence/comparison parity and full resource qualification remain pending.",
-    "Unconfirmed close outcomes are now distinct across admitted releases, private file scopes, rollback and publication wrappers. Pending indexed imports retain failed-close admission across window replacement; caught view/persistence failures stay latched through actual drain and stop new view work. All7 new Core/4 rendering controls and the extended native private-file refusal probe pass all3, in one complete candidate batch per machine."
+    "Unconfirmed close outcomes are now distinct across admitted releases, private file scopes, rollback and publication wrappers. Pending indexed imports retain failed-close admission across window replacement; caught view/persistence failures stay latched through actual drain and stop new view work. All7 new Core/4 rendering controls and the extended native private-file refusal probe pass all3, in one complete candidate batch per machine.",
+    "Unconfirmed scratch closes retain exact byte charges and directory/profile capacity until process exit, reject new workspace admission, and preserve constructor rollback ownership. Four direct controls plus a real native cross-process capacity/actual-exit probe pass all3 in complete immutable candidate batches."
   ],
   "validation": {
     "windowsCore": {
@@ -2094,13 +2095,96 @@
     },
     "testingWorkflow": {
       "default": "Build and package the largest coherent implementation candidate, then transfer one immutable bundle per free platform and execute all applicable Core/native/rendering phases sequentially before collecting evidence. Preserve other testers and gate every phase.",
-      "batchEvidence": "source-manifest-r529.json",
+      "batchEvidence": "source-manifest-r537.json",
       "oneCandidateArchivePerPlatform": true,
       "postExecutionProcessExitRequired": true
+    },
+    "quarantinedScratchCapacity": {
+      "scope": "Scratch/directory/profile retention with injected native close result; not full native-handle/global-resource qualification",
+      "directControls": 4,
+      "nativeCrossProcessControlsPerPlatform": 1,
+      "matrix": {
+        "mac-batch-r535-core-r535.xml": {
+          "total": "680",
+          "passed": "678",
+          "failed": "0",
+          "skipped": "2",
+          "errors": "0",
+          "time": "21.466"
+        },
+        "mac-batch-r535-render-r535.xml": {
+          "total": "109",
+          "passed": "109",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "38.252"
+        },
+        "ubuntu-batch-r535-core-r535.xml": {
+          "total": "680",
+          "passed": "678",
+          "failed": "0",
+          "skipped": "2",
+          "errors": "0",
+          "time": "44.454"
+        },
+        "ubuntu-batch-r535-render-r535.xml": {
+          "total": "109",
+          "passed": "109",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "65.086"
+        },
+        "windows-batch-r535-core-r535.xml": {
+          "total": "698",
+          "passed": "654",
+          "failed": "0",
+          "skipped": "44",
+          "errors": "0",
+          "time": "17.193"
+        },
+        "windows-batch-r535-native-r535.xml": {
+          "total": "40",
+          "passed": "40",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "72.508"
+        },
+        "windows-batch-r535-render-r535.xml": {
+          "total": "109",
+          "passed": "108",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "57.740"
+        }
+      },
+      "singleImmutableBundlePerPlatform": true,
+      "postChecks": [
+        "mac-batch-r535-post.json",
+        "ubuntu-batch-r535-post.json",
+        "windows-batch-r535-post.json"
+      ],
+      "manifest": "source-manifest-r537.json",
+      "scratchAndProfileCloseRetentionImplemented": true,
+      "nativeCrossProcessCapacityRetentionControlsPassed": true,
+      "nativeHandleCloseAccountingQualified": false,
+      "nativeConstructorAndRollbackFaultMatrixQualified": false,
+      "unconfirmedOwnerBudgetAccountingQualified": false,
+      "fullResourceGateQualified": false,
+      "globalPendingCpuDeviceAliasGateQualified": false,
+      "nativeDesktopInputQualified": false,
+      "productCommandRegistered": false,
+      "publicIndexedSpillEnabled": false,
+      "persistenceGateQualified": false,
+      "actionsHelperContentEnabled": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
-    "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, bounded queue/CPU admission, actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete native constructor/rollback failure injection and unconfirmed-handle/scratch/profile-budget accounting; the close signal and import/view admission controls now pass all3.",
+    "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, bounded queue/CPU admission, actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete native handle close-result accounting and the full constructor/rollback fault matrix. Scratch/directory/profile retention and an actual native cross-process capacity/exit probe now pass all3; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: grouping/color dimensions, scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",

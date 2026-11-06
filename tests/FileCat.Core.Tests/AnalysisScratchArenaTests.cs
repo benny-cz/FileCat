@@ -3,7 +3,7 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Tests;
 
-public sealed class AnalysisScratchArenaTests
+public sealed partial class AnalysisScratchArenaTests
 {
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary process.");
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -158,19 +158,19 @@ public sealed class AnalysisScratchArenaTests
     private sealed class FakeDirectory : AnalysisPrivateDirectory
     {
         internal readonly FakeFile File = new();
-        internal bool Disposed;
+        internal bool Disposed, FailClose; internal int Creates;
         internal UInt128 Available = (UInt128)1024 * 1024 * 1024;
         internal override void Verify() => ObjectDisposedException.ThrowIf(Disposed, this);
         internal override (UInt128 Capacity, UInt128 Available) Space() => ((UInt128)1024 * 1024 * 1024, Available);
-        internal override AnalysisPrivateScratchFile CreateScratch() => File;
+        internal override AnalysisPrivateScratchFile CreateScratch() { Creates++; return File; }
         internal override AnalysisPrivateFile CreateStaging() => throw new NotSupportedException();
         internal override AnalysisPrivateFile OpenRead(string name) => throw new NotSupportedException();
-        public override void Dispose() { Disposed = true; }
+        public override void Dispose() { Disposed = true; if (FailClose) throw new IOException("Injected directory close result."); }
     }
     private sealed class FakeFile : AnalysisPrivateScratchFile
     {
         internal readonly MemoryStream Data = new();
-        internal bool Disposed, FailWrite;
+        internal bool Disposed, FailWrite, FailClose;
         internal int Writes;
         internal Action? BeforeWrite;
         public override long Length => Data.Length;
@@ -182,6 +182,6 @@ public sealed class AnalysisScratchArenaTests
             if (FailWrite) { Data.Write(buffer[..Math.Min(3, buffer.Length)]); FailWrite = false; throw new IOException("Injected partial native write."); }
             Data.Write(buffer);
         }
-        public override void Dispose() { Disposed = true; Data.Dispose(); }
+        public override void Dispose() { Disposed = true; Data.Dispose(); if (FailClose) throw new IOException("Injected file close result."); }
     }
 }

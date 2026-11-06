@@ -94,6 +94,26 @@ internal static class AnalysisFileQuotaCases
         start.ArgumentList.Add(bytes.ToString(CultureInfo.InvariantCulture)); start.ArgumentList.Add("same"); start.ArgumentList.Add(fixture.Parent);
         return Process.Start(start)!;
     }
+    internal static async Task QuarantinedScratch(Func<string, string, AnalysisPrivateDirectory> open)
+    {
+        using var fixture = new Fixture(open); using var contender = fixture.Open();
+        var start = new ProcessStartInfo("dotnet") { UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (string value in new[] { Path.Combine(AppContext.BaseDirectory, "FileCat.CoreCrashHarness.dll"), "--analysis-scratch-quarantine-hold", fixture.Profile.ToString("N"), fixture.Parent }) start.ArgumentList.Add(value);
+        using var child = Process.Start(start)!; var errors = child.StandardError.ReadToEndAsync(Cancellation);
+        try
+        {
+            string? ready = await child.StandardOutput.ReadLineAsync(Cancellation).AsTask().WaitAsync(TimeSpan.FromSeconds(30), Cancellation);
+            Assert.True(ready?.StartsWith("QUARANTINE_READY ", StringComparison.Ordinal) == true, $"Quarantine readiness {ready}; {(child.HasExited ? await errors : "still running")}");
+            Assert.False(contender.TryReserve(Capacity)); Assert.True(contender.TryReserve(Capacity - Quantum)); Assert.False(contender.TryReserve(1));
+            Assert.Empty(System.IO.Directory.EnumerateFileSystemEntries(Path.Combine(fixture.Parent, "scratch")));
+            await child.StandardInput.WriteLineAsync("EXIT".AsMemory(), Cancellation); await child.StandardInput.FlushAsync(Cancellation);
+            await child.WaitForExitAsync(Cancellation).WaitAsync(TimeSpan.FromSeconds(15), Cancellation); Assert.Equal(0, child.ExitCode);
+            var until = DateTime.UtcNow.AddSeconds(5); bool acquired;
+            while (!(acquired = contender.TryReserve(Quantum)) && DateTime.UtcNow < until) await Task.Delay(10, Cancellation);
+            Assert.True(acquired); Assert.False(contender.TryReserve(1)); Assert.Equal("untouched neighbor", File.ReadAllText(fixture.Canary));
+        }
+        finally { if (!child.HasExited) { child.Kill(); await child.WaitForExitAsync(Cancellation); } Assert.True(child.HasExited); }
+    }
     private sealed class Fixture : IDisposable
     {
         private readonly Func<string, string, AnalysisPrivateDirectory> _open;

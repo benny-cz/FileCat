@@ -32,7 +32,7 @@ internal static partial class AnalysisQuotaHold
         using var store = new AnalysisPrivateInventoryStore(OpenDirectory(parent));
         Console.WriteLine(new AnalysisPrivateProfileState(store).LoadOrCreate().ToString("N")); return 0;
     }
-    private static AnalysisPrivateDirectory OpenDirectory(string parent) => OperatingSystem.IsWindows()
+    internal static AnalysisPrivateDirectory OpenDirectory(string parent) => OperatingSystem.IsWindows()
         ? (AnalysisPrivateDirectory)Activator.CreateInstance(System.Reflection.Assembly.LoadFrom(Path.Combine(AppContext.BaseDirectory, "FileCat.Platform.Windows.dll"))
             .GetType("FileCat.Platform.Windows.WindowsAnalysisPrivateDirectory", throwOnError: true)!, parent, "capacity")!
         : new UnixAnalysisPrivateDirectory(parent, "capacity");
