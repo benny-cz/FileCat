@@ -3,6 +3,7 @@ using FileCat.Core.Analysis;
 
 namespace FileCat.Core.Tests;
 
+[Collection("Analysis bounded work capacity")]
 public sealed class AnalysisScratchVectorTests
 {
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -79,6 +80,37 @@ public sealed class AnalysisScratchVectorTests
     }
 
     [Fact]
+    public void AlternatingCapturedRowsKeepNativeReadsBounded()
+    {
+        Ordinary(); var directory = new MemoryDirectory(); using var arena = new AnalysisScratchArena(directory); using var vector = new AnalysisScratchVector(arena);
+        for (ulong id = 1; id <= 6002; id++) { byte[] row = new byte[128]; BinaryPrimitives.WriteUInt64LittleEndian(row, id); vector.Append(row, Cancellation); }
+        vector.Flush(Cancellation); using var reader = vector.CaptureCommitted(); int before = directory.File.ReadCalls;
+        for (ulong id = 1; id <= 3000; id++)
+        {
+            Assert.Equal(id, BinaryPrimitives.ReadUInt64LittleEndian(reader.Read(id, Cancellation)));
+            Assert.Equal(6003UL - id, BinaryPrimitives.ReadUInt64LittleEndian(reader.Read(6003UL - id, Cancellation)));
+        }
+        int reads = directory.File.ReadCalls - before;
+        Console.WriteLine("Alternating 6,000 captured rows: native ReadAt calls=" + reads);
+        Assert.InRange(reads, 1, 64);
+    }
+
+    [Fact]
+    public void ClosingACheckpointRemovesItsCachedBlocksWithoutClosingAnotherReader()
+    {
+        Ordinary(); var before = AnalysisScratchReadCache.Shared.Snapshot; var directory = new MemoryDirectory();
+        using var arena = new AnalysisScratchArena(directory); using var vector = new AnalysisScratchVector(arena);
+        vector.Append([1], Cancellation); vector.Flush(Cancellation); using var first = vector.CaptureCommitted(); using var second = vector.CaptureCommitted();
+        Assert.Equal(new byte[] { 1 }, first.Read(1, Cancellation)); Assert.Equal(new byte[] { 1 }, second.Read(1, Cancellation));
+        var warm = AnalysisScratchReadCache.Shared.Snapshot; Assert.True(warm.ReservedBytes > before.ReservedBytes);
+        first.Dispose(); Assert.True(AnalysisScratchReadCache.Shared.Snapshot.ReservedBytes < warm.ReservedBytes);
+        vector.Dispose(); Assert.False(directory.Closed); int reads = directory.File.ReadCalls;
+        Assert.Equal(new byte[] { 1 }, second.Read(1, Cancellation)); Assert.Equal(reads, directory.File.ReadCalls);
+        second.Dispose(); Assert.True(directory.Closed); Assert.True(AnalysisScratchReadCache.Shared.Snapshot.ReservedBytes <= before.ReservedBytes);
+        Assert.Throws<ObjectDisposedException>(() => first.Read(1, Cancellation));
+    }
+
+    [Fact]
     public void AuthenticatedButInvalidRecordOffsetsCannotEscapeTheirBlock()
     {
         Ordinary(); using var arena = new AnalysisScratchArena(new MemoryDirectory());
@@ -103,10 +135,10 @@ public sealed class AnalysisScratchVectorTests
     }
     private sealed class MemoryFile : AnalysisPrivateScratchFile
     {
-        private readonly MemoryStream _bytes = new(); internal bool Fail;
+        private readonly MemoryStream _bytes = new(); internal bool Fail; internal int ReadCalls;
         public override long Length => _bytes.Length;
         public override void Verify() { }
-        public override int ReadAt(Span<byte> buffer, long offset) { _bytes.Position = offset; return _bytes.Read(buffer); }
+        public override int ReadAt(Span<byte> buffer, long offset) { ReadCalls++; _bytes.Position = offset; return _bytes.Read(buffer); }
         public override void WriteAt(ReadOnlySpan<byte> buffer, long offset)
         {
             _bytes.Position = offset;

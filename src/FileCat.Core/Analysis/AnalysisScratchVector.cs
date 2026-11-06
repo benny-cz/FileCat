@@ -149,15 +149,14 @@ internal sealed class AnalysisScratchVectorPublication(AnalysisScratchArena aren
     }
 }
 
-/// <summary>A bounded immutable directory and one-block read cache, used on admitted workers.</summary>
+/// <summary>A bounded immutable directory with globally budgeted block caching, used on admitted workers.</summary>
 internal sealed class AnalysisScratchVectorCheckpoint : IDisposable
 {
     private readonly AnalysisScratchCheckpoint _lease;
     private AnalysisScratchBlock[][] _directory;
     private readonly int _blocks;
     private readonly object _gate = new();
-    private int _cachedBlock = -1;
-    private byte[]? _cache;
+    private readonly AnalysisScratchReadCache.Owner _cacheOwner = new();
     private bool _disposed;
     internal ulong Count { get; }
     internal AnalysisScratchVectorCheckpoint(AnalysisScratchCheckpoint lease, AnalysisScratchBlock[][] directory, int blocks, ulong count)
@@ -171,12 +170,12 @@ internal sealed class AnalysisScratchVectorCheckpoint : IDisposable
             if (id == 0 || id > Count) throw new ArgumentOutOfRangeException(nameof(id));
             int at = AnalysisScratchBlockReader.Find(_directory, _blocks, id);
             var block = _directory[at / AnalysisScratchVector.DirectoryPage][at % AnalysisScratchVector.DirectoryPage];
-            if (_cachedBlock != at)
+            if (!AnalysisScratchReadCache.Shared.TryGet(_cacheOwner, at, out var bytes))
             {
-                byte[] bytes = _lease.Read(block.Address, cancellation);
-                AnalysisScratchBlockReader.Validate(bytes, block); _cache = bytes; _cachedBlock = at;
+                bytes = _lease.Read(block.Address, cancellation);
+                AnalysisScratchBlockReader.Validate(bytes, block); AnalysisScratchReadCache.Shared.Put(_cacheOwner, at, bytes);
             }
-            return AnalysisScratchBlockReader.Extract(_cache!, checked((int)(id - block.First)));
+            return AnalysisScratchBlockReader.Extract(bytes, checked((int)(id - block.First)));
         }
     }
 
@@ -184,7 +183,7 @@ internal sealed class AnalysisScratchVectorCheckpoint : IDisposable
     {
         lock (_gate)
         {
-            if (_disposed) return; _disposed = true; _cache = null; _directory = [];
+            if (_disposed) return; _disposed = true; AnalysisScratchReadCache.Shared.RemoveOwner(_cacheOwner); _directory = [];
             _lease.Dispose();
         }
     }
