@@ -68,8 +68,11 @@ The [NTFS cleanup-recovery follow-up](NTFS_CLEANUP_RECOVERY.md) adds an exclusiv
 native target/catalog inspection and a separate bounded reconciliation history distinguishing confirmed unlinks from
 observed absence. Eight actual crash-to-recovery paths and five changed/stale/busy/incomplete refusals pass within all
 144 Windows native cases; common/UI regressions pass on all three platforms. Recovery preserves archive bytes and can
-finish exact private cleanup. Restoration, crashes during recovery itself, production actions and broader gates remain
-unfinished; profiles stay disabled.
+finish exact private cleanup.
+The [recovery-process crash follow-up](NTFS_RECOVERY_PROCESS_CRASHES.md) adds shared reconciliation sequencing and
+31 actual recovery-parent kill cases, covering all six intent/unlink/outcome boundaries and persisted failure holds.
+All 175 Windows native cases and the three-platform common/UI regressions pass. Restoration, production actions and
+broader gates remain unfinished; profiles stay disabled.
 The [private creation process-crash follow-up](PRIVATE_CREATION_PROCESS_CRASHES.md) passes ten new publication/metadata
 boundaries and thirteen neighboring crash cases on each platform. It leaves production and recovery authority unchanged.
 The [TAR.GZ worker pipeline](TAR_GZIP_WORKER_PIPELINE.md) adds strict wrapper-aware assessment, streamed create/update

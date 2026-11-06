@@ -345,8 +345,11 @@ other platform routes and remaining qualification/production gates are still req
 The [NTFS cleanup-recovery follow-up](../validation/archive-writing/NTFS_CLEANUP_RECOVERY.md) retains and strictly
 rehydrates the actual journal, freshly checks the target and catalog through native handles, and resumes private
 artifact cleanup using a separate deletion/absence reconciliation protocol. All 144 Windows native cases and the
-three-platform common/UI regressions pass. This preserves archive bytes; restoration, recovery-operation crash
-qualification, production recovery actions and the remaining plan gates still require implementation/validation.
+three-platform common/UI regressions pass. This preserves archive bytes.
+The [recovery-process crash follow-up](../validation/archive-writing/NTFS_RECOVERY_PROCESS_CRASHES.md) moves sequencing
+into a shared coordinator and passes 31 actual recovery-parent kill cases, including all six intent/unlink/outcome
+boundaries and persisted failure holds, within 175 passing native cases. Common/UI regressions pass on all three
+platforms. Restoration, production recovery actions and the remaining plan gates still require implementation/validation.
 
 ### 7.5 Outer metadata and provenance
 
