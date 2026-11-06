@@ -856,6 +856,10 @@ Tasks:
    The [ordinary-user Darwin footprint probe](../validation/archive-writing/MACOS_FOOTPRINT_LIMIT_PROBE.md) observes
    `KERN_NO_ACCESS` for the SDK-declared 64 MiB setter request; its 96 MiB control succeeds. This direct route does not
    close the Mac memory gate. Implement and qualify another enforceable route without weakening the resource invariant.
+   The [ordinary-user Linux VM experiment](../validation/archive-writing/MACOS_VIRTUAL_MACHINE_BOUNDARY_SPIKE.md)
+   demonstrates a supported public-entitlement host, a healthy 32 MiB control and a guest cgroup stopping allocation
+   at exactly 1 GiB. Integrate the actual archive worker and stream broker, then qualify the complete guest/host memory
+   envelope and other boundary gates. Guest physical RAM is not a host-process RSS ceiling; no profile is enabled.
 4. Implement/measure local create-no-replace and reviewed replacement capability probes with held directories and identity-aware retention. Include object-bound cleanup and durability distinctions.
 5. Provide typed reason codes for unavailable safe-save support. No codec may fall back to an unbounded/in-process transform if startup/policy fails.
 

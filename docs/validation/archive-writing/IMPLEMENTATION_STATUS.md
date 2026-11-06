@@ -245,6 +245,13 @@ UID 501. Its 64 MiB request returns `KERN_NO_ACCESS`; a control touches 96 MiB w
 Both children exit/reap. That direct per-user call does not provide a boundary in this environment. Another enforceable
 Mac worker-memory route and full qualification remain required; no profile is enabled.
 
+The [supported Linux VM candidate](MACOS_VIRTUAL_MACHINE_BOUNDARY_SPIKE.md) starts and stops under ordinary Mac UID 501
+with the public virtualization entitlement. Its owned Linux allocation child runs as UID 1000 and cannot raise its
+cgroup limit: a 32 MiB control completes, while a larger allocation is OOM-killed at an exact 1 GiB peak. All owned
+children are reaped. This is mechanism evidence, not archive-worker or production qualification. Actual worker/broker
+integration, the complete guest/host memory envelope, all remaining confinement/resource/lifetime gates and guest-system
+source/build/license closure remain open. Fixed guest RAM does not establish a whole-host/helper RSS bound.
+
 ## Outstanding work
 
 The later [Linux worker checkpoint](LINUX_ARCHIVE_WORKER_CHECKPOINT.md) adds 41 cases. Its final native Ubuntu replay

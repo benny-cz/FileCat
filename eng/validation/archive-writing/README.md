@@ -62,6 +62,10 @@ setter with an owned, finite allocation experiment. The ordinary-user request wa
 worker memory containment. Reproduction, exact results and evidence are in
 [the footprint report](../../../docs/validation/archive-writing/MACOS_FOOTPRINT_LIMIT_PROBE.md).
 
+The separate [Mac Linux VM tooling](macos-vm/README.md) tests an ordinary-user public-entitlement alternative with
+an owned Linux allocation child. A healthy control completes and the kernel enforces a 1 GiB guest cgroup ceiling.
+It does not yet run archive roles or qualify the full guest/host envelope; production profiles remain disabled.
+
 The observed Mac's matching compiler is `/Library/Developer/CommandLineTools/usr/bin/clang` (21.0.0) and its sysroot is
 `/Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk`. Use these explicitly rather than changing global `xcode-select`.
 In an owned fixture, arrange `probe.app/Contents/MacOS/archive-probe`, copy `mac-probe-info.plist` as `Contents/Info.plist`,
