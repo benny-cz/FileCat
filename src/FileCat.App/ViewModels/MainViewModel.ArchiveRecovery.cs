@@ -33,7 +33,7 @@ public sealed partial class MainViewModel
             approved = Dialogs is OverlayDialogService overlay
                 ? await overlay.ConfirmWithCancellationAsync("Review archive cleanup", details, action, danger: true,
                     scope.StopSource.Token, ["Keep current archive", $"Remove {review.FilesToRemove.Count:N0} retained files"],
-                    summaryHeading: "Cleanup choices", detailsHeading: "Reviewed retained files", collapseDetails: false, warnings: warnings)
+                    summaryHeading: "Cleanup summary", detailsHeading: "Reviewed retained files", collapseDetails: false, warnings: warnings)
                 : await Dialogs.ConfirmAsync("Review archive cleanup", details + (warnings.Length == 0 ? "" : "\n\n" + warnings[0]), action, danger: true);
             scope.Check(); if (!approved) return false;
             scope.SetPhase(RecoveryActionPhase.Applying, "Cleaning up reviewed retained files; the archive is kept…");
@@ -46,7 +46,8 @@ public sealed partial class MainViewModel
             await SaveArchiveCleanupReport(record);
             await Services.Io.Run(Services.Providers.For(location).GetDeviceKey(location), IoPriority.Normal, _ =>
             { review.Finish(); closed = true; return true; });
-            record = record with { ClosureConfirmed = true, Action = "Archive cleanup completed", Report = record.Report + "\nRecovery tracking closure confirmed.\n" };
+            record = record with { ClosureConfirmed = true, Action = "Archive cleanup completed",
+                Report = review.Report("User-approved exact cleanup completed.") + "\nRecovery tracking closure confirmed.\n" };
             string? reportProblem = null;
             try { await SaveArchiveCleanupReport(record); }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException)

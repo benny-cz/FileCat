@@ -53,6 +53,7 @@ public sealed class ArchiveRetainedCleanupNativeUiTests
                 var facts = Assert.Single(JournalRecovery.ReadArchiveTransactions(journal).ContentRecoveries);
                 Assert.True(facts.IsResolved); Assert.Equal(0u, facts.AbsentMask); Assert.Equal(63u, facts.DeletedMask);
                 Assert.True(Assert.Single(RecoveryReviewStore.Load(services.Paths.JournalDirectory)).ClosureConfirmed);
+                Assert.DoesNotContain("has not yet been confirmed", Assert.Single(RecoveryReviewStore.Load(services.Paths.JournalDirectory)).Report);
             }
             else Assert.Equal(journalBefore, Hash(journal));
             Assert.Equal(content.PrivateOutput!.Sha256, before);

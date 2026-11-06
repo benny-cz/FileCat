@@ -108,6 +108,9 @@ guidance still points only to the report. The final report also retains its pre-
 footer. These findings are queued for the next development iteration; this is not the
 final independent review and does not claim the drawer is free of known findings.
 
+The subsequent [drawer follow-up](ARCHIVE_CLEANUP_DRAWER_FOLLOWUP.md) fixes those reproduced presentation findings and
+repeats the relevant three-platform, native and actual guest desktop checks with the final candidate.
+
 ## Qualification limits
 
 Complete native restoration UI, Unix cleanup/recovery/publication, wider metadata/security/alias/durability/resource

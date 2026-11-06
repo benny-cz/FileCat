@@ -42,7 +42,7 @@ public partial class OperationsView : UserControl
         RecoveryScroll.PropertyChanged += (_, e) =>
         {
             if (e.Property == ScrollViewer.ExtentProperty || e.Property == ScrollViewer.ViewportProperty)
-            { RevealStop(null); RevealArchiveCleanup(); }
+            { RevealStop(null); RevealRecoveryAction(); }
         };
         DetailsDrawer.PropertyChanged += (_, e) =>
         {
@@ -185,7 +185,7 @@ public partial class OperationsView : UserControl
         {
             _heightRefreshQueued = false;
             RefreshDrawerHeight();
-            Dispatcher.UIThread.Post(RevealArchiveCleanup, DispatcherPriority.Loaded);
+            Dispatcher.UIThread.Post(RevealRecoveryAction, DispatcherPriority.Loaded);
         }, DispatcherPriority.Background);
     }
 
@@ -235,9 +235,10 @@ public partial class OperationsView : UserControl
     private void ApplyDrawerHeight(double height)
     {
         DetailsDrawer.Height = height;
-        // With no history to scan, give the selected archive review the space otherwise spent on an empty list.
+        // With no history to scan, give archive review/reports the space otherwise spent on an empty list.
         // Other recovery/history combinations retain their compact allocation.
-        RecoveryScroll.MaxHeight = Center is { Jobs.Count: 0, SelectedInterrupted.CanReviewArchiveCleanup: true }
+        RecoveryScroll.MaxHeight = Center is { Jobs.Count: 0 } center &&
+            (center.SelectedInterrupted?.CanReviewArchiveCleanup == true || center.HasReviewedRecovery)
             ? Math.Clamp(height - 60, 35, 400) : Math.Clamp(height * .25, 35, 180);
     }
 
@@ -600,11 +601,14 @@ public partial class OperationsView : UserControl
         else if (top.Y < 0) RecoveryScroll.Offset = offset.WithY(offset.Y + top.Y);
     }
 
-    private void RevealArchiveCleanup()
+    private void RevealRecoveryAction()
     {
-        if (Center is not { IsOpen: true, Jobs.Count: 0, SelectedInterrupted: { CanReviewArchiveCleanup: true, IsActionBusy: false } selected }) return;
-        var action = RecoveryScroll.GetVisualDescendants().OfType<Button>()
-            .FirstOrDefault(button => ReferenceEquals(button.Tag, selected) && button.Content as string == selected.CleanupLabel && button.IsEffectivelyVisible);
+        if (Center is not { IsOpen: true, Jobs.Count: 0 } center) return;
+        var buttons = RecoveryScroll.GetVisualDescendants().OfType<Button>();
+        var action = center.SelectedInterrupted is { CanReviewArchiveCleanup: true, IsActionBusy: false } selected
+            ? buttons.FirstOrDefault(button => ReferenceEquals(button.Tag, selected) && button.Content as string == selected.CleanupLabel && button.IsEffectivelyVisible)
+            : center.SelectedInterrupted is null && center.HasReviewedRecovery
+                ? buttons.FirstOrDefault(button => button.Tag is RecoveryReviewRecord && button.IsEffectivelyVisible) : null;
         if (action?.TranslatePoint(default, RecoveryScroll) is not { } top) return;
         double bottom = top.Y + action.Bounds.Height, viewport = RecoveryScroll.Viewport.Height;
         if (bottom > viewport) RecoveryScroll.Offset = RecoveryScroll.Offset.WithY(RecoveryScroll.Offset.Y + Math.Min(bottom - viewport, top.Y));

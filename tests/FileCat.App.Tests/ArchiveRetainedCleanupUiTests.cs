@@ -3,6 +3,8 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Avalonia;
+using Avalonia.Automation;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
@@ -18,6 +20,31 @@ namespace FileCat.App.Tests;
 
 public sealed class ArchiveRetainedCleanupUiTests
 {
+    [AvaloniaTheory]
+    [InlineData(1280, 800)]
+    [InlineData(900, 640)]
+    [InlineData(640, 420)]
+    public async Task Completed_archive_cleanup_report_has_a_visible_action_and_concise_accessible_row(int width, int height)
+    {
+        using var f = await Fixture.Create("cancel");
+        var record = new RecoveryReviewRecord(f.Job.JournalPath, f.Job.Title, f.Job.Kind, DateTime.UtcNow,
+            "Archive cleanup completed", "Private full report detail belongs in its viewer, not the row name. " + f.Archive, true);
+        f.Vm.Operations.Interrupted.Clear(); f.Vm.Operations.AddReviewedRecovery(record); f.Vm.Operations.UpdateSummary();
+        f.Vm.Operations.AnnounceRecovery("Recovery cleanup finished; the report is retained.");
+        f.Window.Width = width; f.Window.Height = height;
+        for (int i = 0; i < 4; i++) { Dispatcher.UIThread.RunJobs(); f.Window.UpdateLayout(); await Task.Delay(10); }
+        var view = Assert.Single(f.Window.GetVisualDescendants().OfType<OperationsView>());
+        var viewport = view.FindControl<ScrollViewer>("RecoveryScroll")!;
+        var list = Assert.Single(view.GetVisualDescendants().OfType<ListBox>(), l => AutomationProperties.GetName(l) == "Reviewed recovery reports");
+        var item = Assert.Single(list.GetVisualDescendants().OfType<ListBoxItem>());
+        string name = ControlAutomationPeer.CreatePeerForElement(item).GetName();
+        var action = Assert.IsType<Button>(f.Button("Open recovery report"));
+        double top = action.TranslatePoint(default, viewport)!.Value.Y, bottom = top + action.Bounds.Height;
+        Assert.True(name == record.Display && top >= -.5 && bottom <= viewport.Viewport.Height + .5,
+            $"Report row name must match its concise display ({name.Length}/{record.Display.Length} characters), with its action visible: {top}..{bottom} in {viewport.Viewport.Height} DIP.");
+        f.AssertAllPresent(); Assert.Null(f.Lease);
+    }
+
     [AvaloniaTheory]
     [InlineData(1280, 800)]
     [InlineData(900, 640)]
@@ -47,6 +74,7 @@ public sealed class ArchiveRetainedCleanupUiTests
     {
         using var f = await Fixture.Create(mode); byte[] before = Fixture.Bytes(f.Job.JournalPath);
         var row = Assert.Single(f.Vm.Operations.Interrupted); Assert.True(row.CanCleanup); Assert.Equal("Review retained files…", row.CleanupLabel);
+        Assert.Contains("Review retained files", row.Details);
         Task<bool> operation = f.Vm.CleanupInterruptedAsync(f.Job);
         if (mode == "cancel-acquisition")
         {
@@ -80,7 +108,8 @@ public sealed class ArchiveRetainedCleanupUiTests
         {
             Assert.All(f.Catalog.Artifacts, item => Assert.False(File.Exists(item.Path)));
             Assert.Equal(6, f.Lease.Deleted); Assert.True(Assert.Single(recovery.ContentRecoveries).IsResolved);
-            Assert.Contains("Recovery tracking closure confirmed", record.Report); return;
+            Assert.Contains("Recovery tracking closure confirmed", record.Report);
+            Assert.DoesNotContain("has not yet been confirmed", record.Report); return;
         }
         if (mode == "changed-target") { Assert.Equal("later user contents", File.ReadAllText(f.Archive)); f.AssertAllPresent(); return; }
         Assert.False(File.Exists(f.Catalog.Artifacts[0].Path));

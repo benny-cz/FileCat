@@ -393,6 +393,12 @@ All three platforms pass 273 common UI checks; Windows passes two actual native 
 cancellation and the approved six-file outcome. Further drawer findings, restoration UI, Unix adapters and all wider
 implementation/qualification gates remain required; this enables no writer profile.
 
+The [drawer follow-up](../validation/archive-writing/ARCHIVE_CLEANUP_DRAWER_FOLLOWUP.md) fixes reproduced retained-report
+row names, completed-button clipping, stale guidance and inconsistent closure headings. All three platforms pass 276
+full UI cases; Windows repeats its two actual native UI cases and 227 administrator/222 standard-user native matrices,
+with five privileged skips. The final guest desktop confirms the corrected complete flow and clean process exit.
+Restoration actions and the remaining implementation/qualification work are still required.
+
 ### 7.5 Outer metadata and provenance
 
 Treat outer-file metadata separately from metadata of archived members. Updates preserve the existing archive's owner, ACL/mode, relevant attributes, creation time where promised, and origin/quarantine marks. Content-changing mtime follows existing FileCat policy and must be stated/tested. Hard links to the old archive remain attached to the old object; warn once when link count is known and greater than one. Do not silently update all hard-link names.

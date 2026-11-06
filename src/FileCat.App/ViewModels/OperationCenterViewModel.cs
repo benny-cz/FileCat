@@ -317,7 +317,7 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job, bool arc
 {
     public InterruptedJob Job { get; } = job;
     public string Title => $"{Formatters.SafeName(Job.Title)} (interrupted {Job.CreatedUtc.ToLocalTime():g})";
-    public string Details => Job.ArchiveTransactions.HasRecords ? InterruptedRecoveryReport.ArchiveSummary(Job) :
+    public string Details => Job.ArchiveTransactions.HasRecords ? ArchiveDetails :
         $"{Job.SourceCount:N0} source items · " + (Job.OpenIntents.Count == 0
         ? $"{Job.CompletedSteps:N0} steps had finished. No step was in progress."
         : $"{Job.CompletedSteps:N0} steps had finished; {Job.OpenIntents.Count} step(s) were in progress and are inspected before anything is changed.") +
@@ -326,6 +326,10 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job, bool arc
               RecoveryGuidance : "") +
         (InterruptedRecoveryReport.HasUnreviewedRemoteUpload(Job)
             ? " " + InterruptedRecoveryReport.RemoteUploadReviewWarning(Job) : "");
+
+    private string ArchiveDetails => CanReviewArchiveCleanup
+        ? "Review retained files to check the current archive before choosing cleanup. The archive will be kept."
+        : InterruptedRecoveryReport.ArchiveSummary(Job);
 
     private string RecoveryGuidance => CanReviewNewTransfer
         ? Job.TransferIntentProblem?.Contains("Review a new transfer", StringComparison.OrdinalIgnoreCase) == true

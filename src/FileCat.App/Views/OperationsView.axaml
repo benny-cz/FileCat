@@ -141,6 +141,11 @@
         <TextBlock Text="Reviewed recovery reports" Classes="small muted" Margin="10,0,0,2" IsVisible="{Binding HasReviewedRecovery}" />
         <ListBox ItemsSource="{Binding ReviewedRecovery}" MaxHeight="70" IsVisible="{Binding HasReviewedRecovery}" Margin="8,0,8,4" Classes="choices"
                  AutomationProperties.Name="Reviewed recovery reports">
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem" x:DataType="services:RecoveryReviewRecord">
+              <Setter Property="AutomationProperties.Name" Value="{Binding Display}" />
+            </Style>
+          </ListBox.Styles>
           <ListBox.ItemTemplate>
             <DataTemplate x:DataType="services:RecoveryReviewRecord">
               <Grid ColumnDefinitions="*,Auto">
