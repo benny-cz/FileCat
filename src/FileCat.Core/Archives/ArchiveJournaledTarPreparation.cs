@@ -17,7 +17,7 @@ internal sealed class ArchivePreparedTar<T>(T stage, ArchiveVerifiedNativeStage 
 
 /// <summary>
 /// Unregistered TAR preparation with private native sidecars and journal phase ordering. No publication, cleanup,
-/// metadata application or ReadyToPublish claim. Capture/global budgets and final platform qualification remain gates.
+/// replacement or ReadyToPublish claim. Creation origin is applied before verification; capture/global budgets and final platform qualification remain gates.
 /// </summary>
 internal static class ArchiveJournaledTarPreparation
 {
@@ -95,7 +95,18 @@ internal static class ArchiveJournaledTarPreparation
             var verified = await ArchiveRetainedTarPipeline.RebuildAndVerifyAsync(plan, original, inputs, stage!, transform, verifier, ct,
                 beforeRebuild: () => { ReviewSidecars(); Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Rebuilding)); },
                 beforeVerification: sealedStage => { ReviewSidecars(); Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Verifying, finalizedStage: sealedStage.Version)); },
-                beforeFinalizing: () => Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Finalizing))).ConfigureAwait(false);
+                beforeFinalizing: () => Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Finalizing)),
+                finalizeMetadata: original is null ? sealedStage =>
+                {
+                    ReviewInputs(); ReviewSidecars();
+                    if (stage is not IArchiveCreatePublicationStage publication) throw Invalid();
+                    var evidence = sidecars.Single(s => s.Observation.Version.Identity == facts!.OriginEvidenceIdentity);
+                    var version = evidence.Observation.Version;
+                    var origin = ArchiveCreationOrigin.Review(evidence.File.OpenReadView(evidence.Observation, ct), new(version.Length, version.Sha256),
+                        new(facts!.Nonce, facts.Profile, ArchiveOriginOperation.Create, inputs.Count),
+                        inputs.OrderBy(p => p.Key).Select(p => p.Value.Reviewed), sealedStage.Origin.Format, ct);
+                    return publication.ApplyCreationOrigin(sealedStage, origin, ct);
+                } : null).ConfigureAwait(false);
             await Task.Run(() =>
             {
                 Keep(ArchiveJournaledSidecar.WriteVerifiedManifest(journal, facts!, setup.Verified, create, verified.Verification, ct));

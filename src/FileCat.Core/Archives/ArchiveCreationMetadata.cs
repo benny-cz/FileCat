@@ -16,8 +16,10 @@ internal abstract class ArchiveCreatePublicationReview
     protected ArchiveCreatePublicationReview(object issuer, ArchiveFileObservation stage, string targetLeaf, ArchiveCreationBackend backend, byte[] witness)
     {
         ArgumentNullException.ThrowIfNull(issuer); ArgumentNullException.ThrowIfNull(stage);
-        if (!Enum.IsDefined(backend) || witness.Length > ArchiveCreationMetadata.MaximumWitnessBytes || stage.Origin.State != ArchiveOriginState.Absent)
-            throw new ArgumentException("Invalid private unmarked creation witness.");
+        if (!Enum.IsDefined(backend) || witness.Length > ArchiveCreationMetadata.MaximumWitnessBytes ||
+            stage.Origin.State != ArchiveOriginState.Absent && backend != ArchiveCreationBackend.WindowsNtfs)
+            throw new ArgumentException("Invalid private creation witness.");
+        ArchiveCreationOrigin.RequireSupported(stage.Origin);
         ArchiveTransactionFacts.ValidateText(targetLeaf, 1024);
         this.issuer = issuer; Stage = stage; TargetLeaf = targetLeaf; Backend = backend; this.witness = witness.ToArray();
     }
@@ -27,12 +29,13 @@ internal abstract class ArchiveCreatePublicationReview
 
 internal interface IArchiveCreatePublicationStage : IArchiveRetainedStage
 {
+    ArchiveFileObservation ApplyCreationOrigin(ArchiveFileObservation sealedStage, ArchiveOriginSnapshot required, CancellationToken ct);
     ArchiveCreatePublicationReview ReviewCreate(ArchiveFileObservation verified, string targetLeaf, CancellationToken ct);
     void ClaimNewName(string leaf, ArchiveCreatePublicationReview review, CancellationToken ct);
     ArchiveFileObservation ReviewPublished(string leaf, ArchiveCreatePublicationReview review, CancellationToken ct);
 }
 
-/// <summary>Bounded parent evidence for the explicit creator-private, unmarked new-file policy, not a backup descriptor.</summary>
+/// <summary>Bounded parent evidence for creator-private new files, not an update or backup descriptor.</summary>
 internal sealed class ArchiveCreationMetadata
 {
     internal const int MaximumBytes = 512 * 1024, MaximumWitnessBytes = MaximumBytes - 64 * 1024;
@@ -51,10 +54,11 @@ internal sealed class ArchiveCreationMetadata
             Path.GetFileName(facts.StagePath) != review.Stage.LeafName || Path.GetFileName(facts.ArchivePath) != review.TargetLeaf) throw new ArgumentException("Creation evidence differs from its verified stage scope.");
         nonce = facts.Nonce; profile = facts.Profile; stage = review.Stage.Version; parent = facts.ParentIdentity; archive = facts.ArchivePath;
         using var output = new BoundedBuffer(MaximumBytes); using var writer = new BinaryWriter(output, ArchiveWritePolicy.Utf8, leaveOpen: true);
-        writer.Write("FCCMETA1"u8); writer.Write((ushort)1); writer.Write((ushort)0);
+        bool marked = review.Stage.Origin.State == ArchiveOriginState.Present;
+        writer.Write("FCCMETA1"u8); writer.Write((ushort)(marked ? 2 : 1)); writer.Write((ushort)0);
         writer.Write(facts.Nonce.ToByteArray(bigEndian: true)); writer.Write((int)facts.Profile.Format); writer.Write(facts.Profile.Version);
         writer.Write(facts.Profile.CompressionLevel); writer.Write(facts.Profile.DictionaryBytes);
-        writer.Write(1); // Explicit private-creator-only, unmarked new-file policy. Never an update/backup policy.
+        writer.Write(marked ? 2 : 1); // 1: private unmarked; 2: private Windows zone-only. Never an update/backup policy.
         writer.Write((int)review.Backend); Text(review.Stage.ParentIdentity); Text(review.Stage.LeafName); Text(review.TargetLeaf); Text(review.Stage.Version.Identity);
         writer.Write(review.Stage.Version.Length); writer.Write(Convert.FromHexString(review.Stage.Version.Sha256));
         writer.Write(Convert.FromHexString(review.Stage.MetadataDigest)); writer.Write(review.Witness.Length); writer.Write(review.Witness);

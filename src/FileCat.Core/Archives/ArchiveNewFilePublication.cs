@@ -5,8 +5,8 @@ namespace FileCat.Core.Archives;
 internal sealed record ArchiveNewFilePublicationResult(ArchiveFileObservation Published, ArchiveTransactionFacts Facts);
 
 /// <summary>
-/// Unregistered new-file transaction for explicitly creator-private, unmarked outputs. No replacement, metadata
-/// copying, generic cleanup or profile enablement. Retained evidence is reported as a committed cleanup warning.
+/// Unregistered new-file transaction for explicitly creator-private outputs with qualified creation provenance.
+/// No replacement, generic cleanup or profile enablement. Retained evidence is reported as a committed cleanup warning.
 /// </summary>
 internal static class ArchiveNewFilePublication
 {
@@ -71,7 +71,6 @@ internal static class ArchiveNewFilePublication
             {
                 cancellation.ThrowIfCancellationRequested();
                 if (binding is null || !prepared.Verified.Inputs.TryGetValue(id, out var expected) || !binding.Reviewed.Matches(expected)) throw Unsupported();
-                if (expected.Origin.State != ArchiveOriginState.Absent) throw Unsupported();
                 binding.File.Review(expected, cancellation);
             }
         }
@@ -84,14 +83,12 @@ internal static class ArchiveNewFilePublication
         {
             var evidence = prepared.Sidecars.Single(s => s.Observation.Version.Identity == facts.OriginEvidenceIdentity);
             var version = evidence.Observation.Version;
-            using var view = evidence.File.OpenReadView(evidence.Observation, cancellation);
-            using var reader = new ArchiveOriginEvidenceReader(view, new(version.Length, version.Sha256),
-                new(facts.Nonce, facts.Profile, ArchiveOriginOperation.Create, inputs.Count), cancellation);
-            while (reader.ReadNext() is { } record)
-                if (record.Origin.State != ArchiveOriginState.Absent) throw Unsupported();
-            if (!reader.IsComplete) throw Unsupported();
+            var required = ArchiveCreationOrigin.Review(evidence.File.OpenReadView(evidence.Observation, cancellation), new(version.Length, version.Sha256),
+                new(facts.Nonce, facts.Profile, ArchiveOriginOperation.Create, inputs.Count),
+                inputs.OrderBy(p => p.Key).Select(p => p.Value.Reviewed), prepared.Verified.Stage.Origin.Format, cancellation);
+            if (required.Digest != prepared.Verified.Stage.Origin.Digest) throw Unsupported();
         }
     }
     private static ArchiveWriteException Unsupported() => new(ArchiveWriteReason.PublicationUnavailable,
-        "This transaction does not qualify for private unmarked new-file publication; retain its evidence without replacement.");
+        "This transaction does not qualify for private new-file publication with its required provenance; retain its evidence without replacement.");
 }

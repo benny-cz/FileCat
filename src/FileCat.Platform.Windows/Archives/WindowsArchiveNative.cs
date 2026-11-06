@@ -109,19 +109,35 @@ internal static unsafe partial class WindowsArchiveNative
     }
 
     internal static void RequireOnlyDataStream(SafeFileHandle handle, long expectedLength)
+        => RequireCreationStreams(handle, expectedLength, ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier));
+
+    internal static void RequireCreationStreams(SafeFileHandle handle, long expectedLength, ArchiveOriginSnapshot origin)
     {
-        // A new unmarked private archive needs exactly the unnamed data stream. A fixed bounded query suffices:
-        // overflow, a following entry or any other name refuses rather than allocating from an untrusted list size.
-        byte* bytes = stackalloc byte[256]; new Span<byte>(bytes, 256).Clear(); IoStatus io = default;
-        int status = NtQueryInformationFile(handle, &io, bytes, 256, 22 /* FileStreamInformation */);
-        if (status != 0 || io.Information is < 24 or > 256 || *(uint*)bytes != 0 ||
-            *(long*)(bytes + 8) != expectedLength || *(long*)(bytes + 16) < 0) throw UnexpectedStreams();
-        uint length = *(uint*)(bytes + 4);
-        if (length != 0 && (length != 14 || io.Information < 24 + length || !new ReadOnlySpan<char>((char*)(bytes + 24), 7).SequenceEqual("::$DATA")))
-            throw UnexpectedStreams();
+        // Closed bounded inventory: exactly the unnamed data and, when required, Zone.Identifier. Never allocate
+        // from an untrusted native list size or accept a partial/overflow query as proof that other streams are absent.
+        ArchiveCreationOrigin.RequireSupported(origin);
+        if (origin.Format != ArchiveOriginFormat.WindowsZoneIdentifier) throw UnexpectedStreams();
+        byte* bytes = stackalloc byte[512]; new Span<byte>(bytes, 512).Clear(); IoStatus io = default;
+        int status = NtQueryInformationFile(handle, &io, bytes, 512, 22 /* FileStreamInformation */);
+        if (status != 0 || io.Information is < 24 or > 512) throw UnexpectedStreams();
+        int total = checked((int)io.Information), offset = 0, count = 0; bool data = false, zone = false;
+        while (true)
+        {
+            if (++count > 2 || offset > total - 24) throw UnexpectedStreams();
+            byte* entry = bytes + offset; uint next = *(uint*)entry, length = *(uint*)(entry + 4);
+            if ((length & 1) != 0 || length > total - offset - 24 || *(long*)(entry + 16) < 0) throw UnexpectedStreams();
+            var name = new ReadOnlySpan<char>((char*)(entry + 24), (int)length / 2); long size = *(long*)(entry + 8);
+            if ((length == 0 || name.SequenceEqual("::$DATA")) && !data && size == expectedLength) data = true;
+            else if (name.SequenceEqual(":Zone.Identifier:$DATA") && !zone && origin.State == ArchiveOriginState.Present && size == origin.Bytes.Length) zone = true;
+            else throw UnexpectedStreams();
+            if (next == 0) break;
+            if ((next & 7) != 0 || next < 24 + length || next > total - offset - 24) throw UnexpectedStreams();
+            offset += (int)next;
+        }
+        if (!data || zone != (origin.State == ArchiveOriginState.Present)) throw UnexpectedStreams();
     }
     private static ArchiveWriteException UnexpectedStreams() => new(ArchiveWriteReason.PublicationUnavailable,
-        "The new archive's complete unnamed-stream-only state could not be established.");
+        "The new archive's complete data and required origin stream inventory could not be established.");
 
     internal static void DeleteExact(SafeFileHandle handle)
     {

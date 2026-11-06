@@ -1,12 +1,12 @@
 # FileCat Archive Writing — Implementation, Security, UX/UI, and Qualification Plan
 
-> **Status:** Proposed implementation plan; no new writer is implemented or qualified by this document.
+> **Status:** Implementation in progress on `codex/archive-writing`; no new writer is enabled or release-qualified. Track completed components, evidence and remaining gates in [implementation status](../validation/archive-writing/IMPLEMENTATION_STATUS.md).
 >
 > **Reviewed:** 4 November 2026, Europe/Prague.
 > **Repository baseline:** 4282929753f062f5bb2cc130e8316b133e5c8e03.
 > **Product requirement:** Extend archive writing while FileCat's own code remains MIT-licensed and new engines introduce no copyleft, proprietary runtime requirement, or restriction on fields of use.
 > **Security requirement:** Assume no archive content is valid. The complete write pipeline must be fuzzing-safe: bounded rejection or a verified result, without a process crash, uncontrolled allocation, hang, unauthorized filesystem effect, or loss of an existing file.
-> **Deliverable boundary:** This plan changes no production behavior, dependencies, existing ADRs, or release qualification. Implementation and qualification evidence remain future work.
+> **Deliverable boundary:** This document defines the requirements; a component checkpoint does not establish format or release qualification. Keep the acceptance gates open until the complete implementation and required platform evidence satisfy them.
 
 ## Contents
 
@@ -508,7 +508,7 @@ Expose the consequence the user needs, not implementation terminology. “The wh
 
 ### 11.3 Add/replace members with F5
 
-Capture the destination archive location and local selected inputs. Reject Move and unsupported transfer filters before planning. Evaluate collisions recursively against the full catalog, not only top-level selected names. An add-folder merge must not implicitly replace nested members without review.
+Capture the destination archive location, local selected inputs and explicit copy/move intent. Admit local move-into only through the qualified route in §11.6.1; reject unsupported source/destination pairs and transfer filters before planning. Evaluate collisions recursively against the full catalog, not only top-level selected names. An add-folder merge must not implicitly replace nested members without review.
 
 The review lists additions, replacements, skipped inputs and file/folder type conflicts. Default conflicting entries to Skip. “Replace N existing members” is explicit and danger-styled, with the affected set fixed in the plan. Preserve duplicate existing entries as distinct identities; when an incoming name matches several occurrences, initial bulk-add replacement is unavailable for that name, with Skip as the safe choice. Do not pick the first occurrence silently.
 
@@ -820,7 +820,7 @@ Tasks:
 1. Add async complete assessment with Unknown/Assessing/Writable/ReadOnly states, stable version tokens and nonblocking capability reads. Retire cached results on publication, source change and provider release.
 2. Deliver create/add/replace/remove/rename/folder journeys, recursive collision review, exclusion review, exact duplicate scope, format/suffix handling and operation-center phases.
 3. Register format-aware edit sessions and bounded record migration, retain owned commit copies and explicit rebase/save-copy behavior. Protect ZIP and remote sessions.
-4. Replace ZIP-only UI assumptions with typed supported-operation checks at every entry point. Preserve unsupported source/destination pairs and move/clipboard restrictions.
+4. Replace ZIP-only UI assumptions with typed supported-operation checks at every entry point. Preserve unsupported source/destination pairs and move-out/clipboard restrictions; qualify explicit local move-into under §11.6.1.
 5. Fix danger/default/focus semantics in archive-specific dialogs; add keyboard, spoken-output, scaling/theme and stale-context tests. Make cancellation and retained-backup outcomes consistent.
 6. Run full format/RID/filesystem release gates, notices/SBOM qualification and the required fuzz campaigns before enabling production registry entries.
 

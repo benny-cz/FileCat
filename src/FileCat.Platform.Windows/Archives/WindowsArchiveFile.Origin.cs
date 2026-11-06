@@ -90,10 +90,12 @@ internal sealed partial class WindowsArchiveFile
             // field, through the original held artifact, after the writing stream closes; retain all other fields.
             SetBasic(handle, new BasicInfo { LastWriteTime = before.LastWriteTime });
             WindowsArchiveNative.Flush(handle);
-            var observed = ReadOrigin(cancellationToken);
+            // Finish readback after the metadata effect even if cancellation arrives during the native write.
+            var observed = ReadOrigin(CancellationToken.None);
             parent.CheckPrivate(handle);
             if (observed.Digest != origin.Digest || GetBasic(handle).LastWriteTime != before.LastWriteTime)
                 throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "The archive origin mark or timestamp could not be verified; retain the artifact.");
+            cancellationToken.ThrowIfCancellationRequested();
         }
     }
 

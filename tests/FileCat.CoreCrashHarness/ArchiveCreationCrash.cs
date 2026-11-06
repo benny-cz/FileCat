@@ -69,6 +69,8 @@ internal static class ArchiveCreationCrash
         { var result = native.SealEvidence(ct); if (metadata && point == "metadata-sealed") Wait(point); return result; }
         public void StopWrites() => native.StopWrites();
         public void Dispose() => native.Dispose();
+        public ArchiveFileObservation ApplyCreationOrigin(ArchiveFileObservation sealedStage, ArchiveOriginSnapshot required, CancellationToken ct)
+            => ((IArchiveCreatePublicationStage)native).ApplyCreationOrigin(sealedStage, required, ct);
         public ArchiveCreatePublicationReview ReviewCreate(ArchiveFileObservation verified, string target, CancellationToken ct)
             => ((IArchiveCreatePublicationStage)native).ReviewCreate(verified, target, ct);
         public void ClaimNewName(string target, ArchiveCreatePublicationReview review, CancellationToken ct)
@@ -103,7 +105,19 @@ internal static class ArchiveCreationCrash
         public Stream Output => process.StandardOutput.BaseStream;
         public bool HasExited => disposed || process.HasExited;
         public uint ExitCode => disposed ? exit : (uint)process.ExitCode;
-        public TimeSpan TotalProcessorTime { get { if (!disposed) { try { cpu = process.TotalProcessorTime; } catch (System.ComponentModel.Win32Exception) when (process.HasExited) { } } return cpu; } }
+        public TimeSpan TotalProcessorTime
+        {
+            get
+            {
+                if (!disposed)
+                {
+                    try { cpu = process.TotalProcessorTime; }
+                    // macOS can report exit between the liveness and CPU queries using either exception type.
+                    catch (Exception ex) when ((ex is System.ComponentModel.Win32Exception or InvalidOperationException) && process.HasExited) { }
+                }
+                return cpu;
+            }
+        }
         public bool ErrorLimitExceeded { get; private set; }
         public void RequestCancellation() => cancellation.Dispose();
         public void Kill() { if (!disposed && !process.HasExited) process.Kill(entireProcessTree: true); }

@@ -5,6 +5,31 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed partial class WindowsArchiveStorageTests
 {
+    [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public void A_zone_only_creation_mark_is_bound_through_exclusive_publication_and_late_streams_refuse(bool extraStream)
+    {
+        RequireWindows(); using var root = new Fixture(); using var directory = WindowsArchiveDirectory.Open(root.Root);
+        using var stage = directory.CreateArtifact(Guid.NewGuid(), WindowsArchiveArtifactKind.Stage, 1024);
+        var publication = (IArchiveCreatePublicationStage)stage; var ct = TestContext.Current.CancellationToken;
+        publication.BeginRebuild(1024, ct).Write([1, 2, 3]); var sealedStage = publication.SealForVerification(ct);
+        var required = ArchiveWindowsOriginZone.ZoneOnly(4); var finalized = publication.ApplyCreationOrigin(sealedStage, required, ct);
+        Assert.Equal(sealedStage.Version, finalized.Version); Assert.Equal(required.Digest, finalized.Origin.Digest);
+        Assert.Equal(sealedStage.MemberModified, finalized.MemberModified);
+        var review = publication.ReviewCreate(finalized, "result.tar", ct);
+        if (extraStream)
+        {
+            using (var added = new FileStream(stage.DisplayPath + ":unexpected", FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete)) added.WriteByte(7);
+            Assert.Equal(ArchiveWriteReason.PublicationUnavailable, Assert.Throws<ArchiveWriteException>(() => publication.ClaimNewName("result.tar", review, ct)).Reason);
+            Assert.False(File.Exists(root.PathOf("result.tar"))); return;
+        }
+        publication.ClaimNewName("result.tar", review, ct); var published = publication.ReviewPublished("result.tar", review, ct);
+        Assert.Equal(required.Digest, published.Origin.Digest); Assert.Equal(sealedStage.Version, published.Version);
+        Assert.Equal(new byte[] { 1, 2, 3 }, Bytes(stage.DisplayPath));
+        Assert.Equal(required.Bytes.ToArray(), Bytes(stage.DisplayPath + ":Zone.Identifier"));
+        Assert.Throws<ArchiveWriteException>(() => publication.ApplyCreationOrigin(finalized, ArchiveOriginSnapshot.Absent(required.Format), ct));
+    }
+
     [Fact]
     public void An_added_named_stream_refuses_private_creation_without_claiming_the_final_name()
     {

@@ -8,6 +8,26 @@ internal sealed partial class WindowsArchiveFile
         : ArchiveCreatePublicationReview(issuer, stage, targetLeaf, ArchiveCreationBackend.WindowsNtfs, witness)
     { internal WindowsArchiveOuterMetadata Metadata { get; } = metadata; }
 
+    ArchiveFileObservation IArchiveCreatePublicationStage.ApplyCreationOrigin(ArchiveFileObservation sealedStage, ArchiveOriginSnapshot required, CancellationToken ct)
+    {
+        lock (parent.Gate)
+        {
+            EnsureLive(); ct.ThrowIfCancellationRequested(); ArchiveCreationOrigin.RequireSupported(required);
+            if (!artifact || !createdWritable || createdKind != WindowsArchiveArtifactKind.Stage || !rebuildClaimed || evidenceClaimed || writable || namespaceChanged || !mayRename)
+                throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "Creation origin requires the sealed rebuilt stage.");
+            ((IArchiveRetainedFile)this).Review(sealedStage, ct);
+            var before = CaptureOuterMetadata(ct);
+            WindowsArchiveNative.RequireOnlyDataStream(handle, sealedStage.Version.Length);
+            CopyOriginNoReplace(required, ct);
+            var observed = ObserveRetained(ct); var after = CaptureOuterMetadata(ct);
+            if (observed.Version != sealedStage.Version || observed.Origin.Digest != required.Digest || before.Identity != after.Identity ||
+                before.CreationTime != after.CreationTime || before.LastWriteTime != after.LastWriteTime || before.Attributes != after.Attributes ||
+                before.LinkCount != after.LinkCount || !before.SecurityDescriptor.SequenceEqual(after.SecurityDescriptor)) throw PublicationChanged();
+            WindowsArchiveNative.RequireCreationStreams(handle, observed.Version.Length, required);
+            return observed;
+        }
+    }
+
     ArchiveCreatePublicationReview IArchiveCreatePublicationStage.ReviewCreate(ArchiveFileObservation verified, string targetLeaf, CancellationToken ct)
     {
         lock (parent.Gate)
@@ -16,17 +36,18 @@ internal sealed partial class WindowsArchiveFile
             if (!artifact || !createdWritable || createdKind != WindowsArchiveArtifactKind.Stage || !rebuildClaimed || evidenceClaimed || writable || namespaceChanged || !mayRename)
                 throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "Only this transaction's sealed rebuilt private stage can create a new archive.");
             parent.VerifyNamespace(); parent.RequireName(KnownName, Identity); parent.CheckPrivate(handle);
-            WindowsArchiveNative.RequireOnlyDataStream(handle, verified.Version.Length);
+            ArchiveCreationOrigin.RequireSupported(verified.Origin);
+            WindowsArchiveNative.RequireCreationStreams(handle, verified.Version.Length, verified.Origin);
             var observed = ObserveRetained(ct); var metadata = CaptureOuterMetadata(ct);
-            if (!observed.Matches(verified) || metadata.Digest != verified.MetadataDigest || metadata.Origin.State != ArchiveOriginState.Absent)
+            if (!observed.Matches(verified) || metadata.Digest != verified.MetadataDigest)
                 throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The private creation stage changed after verification.");
             byte[] witness = ArchiveCreationMetadata.EncodeWitness(w =>
             {
-                w.Write(1); w.Write(WindowsArchiveOuterMetadata.QueriedSecurityInformation);
+                w.Write(metadata.Origin.State == ArchiveOriginState.Present ? 2 : 1); w.Write(WindowsArchiveOuterMetadata.QueriedSecurityInformation);
                 w.Write(metadata.CreationTime); w.Write(metadata.LastWriteTime); w.Write(metadata.Attributes); w.Write(metadata.LinkCount);
                 w.Write(metadata.SecurityDescriptor.Length); w.Write(metadata.SecurityDescriptor);
                 w.Write((int)metadata.Origin.Format); w.Write((int)metadata.Origin.State);
-                w.Write(1); // Complete unnamed-data-stream-only query succeeded on this retained object.
+                w.Write(metadata.Origin.State == ArchiveOriginState.Present ? 2 : 1); // Complete data + optional exact origin stream inventory.
                 // This is the observed permission/label subset on the same newly created object, not an update
                 // descriptor or a claim that unqueried audit/resource-policy fields were absent or copied.
             });
@@ -38,7 +59,7 @@ internal sealed partial class WindowsArchiveFile
         lock (parent.Gate)
         {
             review.RequireIssuer(this); if (review is not CreationReview native || namespaceChanged || leaf != review.TargetLeaf) throw PublicationChanged();
-            WindowsArchiveNative.RequireOnlyDataStream(handle, review.Stage.Version.Length);
+            WindowsArchiveNative.RequireCreationStreams(handle, review.Stage.Version.Length, review.Stage.Origin);
             RenameNoReplace(leaf, review.Stage.Version, native.Metadata, ct);
         }
     }
@@ -49,9 +70,9 @@ internal sealed partial class WindowsArchiveFile
             EnsureLive(); review.RequireIssuer(this); ct.ThrowIfCancellationRequested();
             if (review is not CreationReview native || !namespaceChanged || KnownName != leaf || leaf != review.TargetLeaf || writable) throw PublicationChanged();
             parent.VerifyNamespace(); parent.RequireName(leaf, Identity); parent.CheckPrivate(handle);
-            WindowsArchiveNative.RequireOnlyDataStream(handle, review.Stage.Version.Length);
+            WindowsArchiveNative.RequireCreationStreams(handle, review.Stage.Version.Length, review.Stage.Origin);
             var observed = ObserveRetained(ct);
-            if (observed.Version != review.Stage.Version || observed.MetadataDigest != native.Metadata.Digest || observed.Origin.State != ArchiveOriginState.Absent) throw PublicationChanged();
+            if (observed.Version != review.Stage.Version || observed.MetadataDigest != native.Metadata.Digest || observed.Origin.Digest != review.Stage.Origin.Digest) throw PublicationChanged();
             return observed;
         }
     }

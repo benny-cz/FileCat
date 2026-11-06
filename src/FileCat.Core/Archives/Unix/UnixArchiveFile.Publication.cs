@@ -6,6 +6,22 @@ internal sealed partial class UnixArchiveFile
         : ArchiveCreatePublicationReview(issuer, stage, targetLeaf, UnixArchiveNative.Mac ? ArchiveCreationBackend.MacApfs : ArchiveCreationBackend.LinuxExt4, witness)
     { internal ArchiveUnixOuterMetadata Metadata { get; } = metadata; }
 
+    ArchiveFileObservation IArchiveCreatePublicationStage.ApplyCreationOrigin(ArchiveFileObservation sealedStage, ArchiveOriginSnapshot required, CancellationToken ct)
+    {
+        lock (parent.Gate)
+        {
+            Live(); ct.ThrowIfCancellationRequested();
+            if (required.State != ArchiveOriginState.Absent)
+                throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, "Marked creation needs a qualified native origin representation.");
+            if (!artifact || !createdWritable || createdKind != UnixArchiveArtifactKind.Stage || !rebuildClaimed || evidenceClaimed || writable || namespaceChanged)
+                throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "Creation origin requires the sealed rebuilt stage.");
+            ((IArchiveRetainedFile)this).Review(sealedStage, ct);
+            CopyOriginNoReplace(required, ct);
+            var observed = ObserveRetained(ct); if (!observed.Matches(sealedStage) || observed.Origin.Digest != required.Digest) throw Changed();
+            return observed;
+        }
+    }
+
     ArchiveCreatePublicationReview IArchiveCreatePublicationStage.ReviewCreate(ArchiveFileObservation verified, string targetLeaf, CancellationToken ct)
     {
         lock (parent.Gate)

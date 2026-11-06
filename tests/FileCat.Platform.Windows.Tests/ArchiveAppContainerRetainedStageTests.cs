@@ -11,6 +11,66 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed partial class ArchiveAppContainerTests
 {
     [Theory]
+    [InlineData(false, ArchiveWriteFormat.Tar)] [InlineData(true, ArchiveWriteFormat.Tar)]
+    [InlineData(false, ArchiveWriteFormat.TarGzip)] [InlineData(true, ArchiveWriteFormat.TarGzip)]
+    [InlineData(false, ArchiveWriteFormat.TarBzip2)] [InlineData(true, ArchiveWriteFormat.TarBzip2)]
+    [InlineData(false, ArchiveWriteFormat.TarZstd)] [InlineData(true, ArchiveWriteFormat.TarZstd)]
+    public async Task Marked_NTFS_creation_applies_all_input_provenance_before_fresh_confined_verification_and_publication(bool application, ArchiveWriteFormat format)
+    {
+        string executable = Probe(); var ct = TestContext.Current.CancellationToken;
+        if (application)
+        {
+            string? assets = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_APP_ASSETS");
+            Assert.True(assets is not null && Path.IsPathFullyQualified(assets)); ArchiveAppContainer.ProvisionRuntimeReadAccess(assets!);
+            executable = Path.Combine(assets!, "FileCat.exe");
+        }
+        string root = Directory.CreateTempSubdirectory("filecat-marked-creation-").FullName;
+        var leases = new List<WindowsArchiveFile>();
+        try
+        {
+            using var directory = WindowsArchiveDirectory.Open(root);
+            var captured = new Dictionary<int, ArchiveRetainedBinding>();
+            foreach (int id in new[] { 3, 1, 4, 2 })
+            {
+                string leaf = "input" + id, path = Path.Combine(root, leaf); File.WriteAllBytes(path, [(byte)id]);
+                if (id != 4) File.WriteAllText(path + ":Zone.Identifier", $"[ZoneTransfer]\r\nZoneId={(id == 1 ? 4 : id == 2 ? 3 : 0)}\r\nHostUrl=https://example.test/source{id}\r\n");
+                var input = directory.OpenSource(leaf); leases.Add(input); captured.Add(id, new(input, ((IArchiveRetainedFile)input).Observe(ct)));
+            }
+            var profile = new ArchiveWriteProfile(format);
+            var plan = ArchiveTarTransformPlan.Create(profile, null, captured.Select(p => p.Value.Reviewed.Input(p.Key)).ToArray(), [],
+                captured.Keys.Select(id => new ArchiveTransformAddition("file" + id, ArchiveMemberType.File, id)).ToArray(), ct);
+            string target = Path.Combine(root, "result.tar");
+            using var journal = JobJournal.Create(Path.Combine(root, "journals"), new Job(new JobRequest { Kind = JobKind.ArchiveUpdate,
+                Archive = new(target, null, [], Profile: profile) }, "marked creation", "owned", [], []));
+            using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, target, plan, null, captured,
+                (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (WindowsArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
+                new((nonce, cpu) => application ? ArchiveAppContainer.StartTransform(executable, nonce, cpu) : ArchiveAppContainer.Start(executable, "archive-transform " + nonce, cpu)),
+                new((nonce, cpu) =>
+                {
+                    ArchiveJournaledTarAssertions.Phase(journal, ArchiveTransactionPhase.Verifying);
+                    var facts = Assert.Single(JournalRecovery.ReadArchiveTransactions(journal.Path).Transactions);
+                    Assert.Equal(ArchiveWindowsOriginZone.ZoneOnly(4).Bytes.ToArray(), ReadShared(facts.StagePath + ":Zone.Identifier"));
+                    return application ? ArchiveAppContainer.StartVerification(executable, nonce, cpu) : ArchiveAppContainer.Start(executable, "archive-verify " + nonce, cpu);
+                }), ct);
+            ArchiveJournaledTarAssertions.Complete(prepared, journal, plan, ct);
+            Assert.Equal(ArchiveWindowsOriginZone.ZoneOnly(4).Digest, prepared.Verified.Stage.Origin.Digest);
+            await ArchiveJournaledTarAssertions.PublishNew(prepared, journal, captured, directory.CreateArtifact, ct);
+            Assert.Equal(ArchiveWindowsOriginZone.ZoneOnly(4).Bytes.ToArray(), ReadShared(target + ":Zone.Identifier"));
+            var metadata = Assert.Single(JournalRecovery.ReadArchiveTransactions(journal.Path).Transactions).Sidecars.Single(s => s.Role == ArchiveSidecarRole.CreationMetadata);
+            Assert.Equal(2, BinaryPrimitives.ReadUInt16LittleEndian(ReadShared(metadata.Path).AsSpan(8, 2)));
+            foreach (var binding in captured.Values) binding.File.Review(binding.Reviewed, ct);
+        }
+        finally { foreach (var input in leases) input.Dispose(); Directory.Delete(root, true); }
+
+        static byte[] ReadShared(string path)
+        {
+            using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            Assert.InRange(file.Length, 0, ArchiveCreationMetadata.MaximumBytes);
+            byte[] bytes = new byte[(int)file.Length]; file.ReadExactly(bytes); Assert.Equal(-1, file.ReadByte()); return bytes;
+        }
+    }
+
+    [Theory]
     [InlineData(false)] [InlineData(true)]
     public async Task A_huge_Zstandard_window_refuses_before_decoder_allocation_inside_LPAC(bool application)
     {

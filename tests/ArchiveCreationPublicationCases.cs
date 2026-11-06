@@ -55,6 +55,8 @@ internal static class ArchiveCreationPublicationCases
         public ArchiveFileObservation SealForVerification(CancellationToken ct) => inner.SealForVerification(ct);
         public void StopWrites() => inner.StopWrites();
         public void Dispose() { if (owns) inner.Dispose(); }
+        public ArchiveFileObservation ApplyCreationOrigin(ArchiveFileObservation sealedStage, ArchiveOriginSnapshot required, CancellationToken ct)
+            => ((IArchiveCreatePublicationStage)inner).ApplyCreationOrigin(sealedStage, required, ct);
         public ArchiveCreatePublicationReview ReviewCreate(ArchiveFileObservation verified, string target, CancellationToken ct) => ((IArchiveCreatePublicationStage)inner).ReviewCreate(verified, target, ct);
         public void ClaimNewName(string leaf, ArchiveCreatePublicationReview review, CancellationToken ct)
         { beforeClaim?.Invoke(); ((IArchiveCreatePublicationStage)inner).ClaimNewName(leaf, review, ct); afterClaim?.Invoke(); }
