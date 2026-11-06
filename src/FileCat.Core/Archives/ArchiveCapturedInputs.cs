@@ -25,8 +25,39 @@ internal sealed class ArchiveCapturedInputs : IDisposable
     private IReadOnlyList<ArchiveTransformInput>? frozenInputs;
     private int disposed;
     private bool poisoned;
+    private Action<string, string, CancellationToken>? selectionDestinationReview;
 
     internal ArchiveCapturedInputs() { stopToken = stopped.Token; budget.AddMetadata(0, 2048); }
+    internal void SetSelectionDestinationReview(Action<string, string, CancellationToken> review)
+    {
+        ArgumentNullException.ThrowIfNull(review);
+        lock (gate)
+        {
+            Live(sealedRequired: false);
+            if (frozenBindings is not null || selectionDestinationReview is not null) throw Invalid();
+            selectionDestinationReview = review;
+        }
+    }
+    internal void ReviewSelectionDestination(string path, string identity, CancellationToken ct)
+    {
+        Live(sealedRequired: true);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, stopToken);
+        using var permit = ArchiveCapturedInputLeases.Rent(cancellation.Token);
+        selectionDestinationReview?.Invoke(path, identity, cancellation.Token);
+        Live(sealedRequired: true); cancellation.Token.ThrowIfCancellationRequested();
+    }
+    // The flattened selection, path graph, exclusions and source factories live alongside these bindings.
+    // Charge them to this same owner so plan admission cannot omit their retained cost.
+    internal void RetainSelection(long nameChars, long heapBytes)
+    {
+        lock (gate)
+        {
+            Live(sealedRequired: false);
+            if (frozenBindings is not null) throw new InvalidOperationException("The captured input set is sealed.");
+            try { budget.AddNameChars(nameChars); budget.AddMetadata(0, heapBytes); }
+            catch { poisoned = true; throw; }
+        }
+    }
     internal IReadOnlyDictionary<int, ArchiveRetainedBinding> Bindings { get { lock (gate) { Live(sealedRequired: true); return frozenBindings!; } } }
     internal IReadOnlyDictionary<int, ArchiveCapturedDirectory> Directories { get { lock (gate) { Live(sealedRequired: true); return frozenDirectories!; } } }
     internal IReadOnlyList<ArchiveTransformInput> Inputs { get { lock (gate) { Live(sealedRequired: true); return frozenInputs!; } } }

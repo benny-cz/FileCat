@@ -1015,8 +1015,11 @@ Tasks:
    identity, time/mode and opaque origin using the same member/cost/lease budgets. The subsequent
    [directory workflow bridge](../validation/archive-writing/DIRECTORY_WORKFLOW_BRIDGE.md) carries explicit folder
    records through plans, the versioned worker wire, origin evidence, fresh verification and final publication review.
-   Complete recursive enumeration, global source-root/transient-memory ownership and production UI/qualification
-   before exposing folder writes; the bridge is not a recursive selection implementation or a production registration.
+   The [bounded recursive-selection checkpoint](../validation/archive-writing/RECURSIVE_SELECTION_CAPTURE.md) now
+   freezes roots, walks native namespaces without per-member handles, flattens folders/files and refuses destinations
+   inside excluded input subtrees. Complete global source-root/transient-memory ownership, snapshot policy, native
+   scale/RID coverage and exclusion/collision review UI before exposing folder writes; unsupported-name sample detail
+   remains unfinished. This component checkpoint is not production registration or completion of AW2.
 5. Introduce the worker-backed ZIP transform as a separate change; enforce strict verification and complete expected manifests for the new path. Compare functional outputs against the existing ZIP behavior and explicitly document any safety tightening.
 6. Remove unowned finally/File.Delete and pathname-only archive cleanup from the new shared route. Do not weaken existing code before the replacement path is qualified.
 

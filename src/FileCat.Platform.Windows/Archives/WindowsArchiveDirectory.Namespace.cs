@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
+using System.Text;
 using FileCat.Core.Archives;
 using FileCat.Platform.Windows.Elevation;
 using Microsoft.Win32.SafeHandles;
@@ -22,7 +23,7 @@ internal static unsafe partial class WindowsArchiveNative
     // Stream only one native batch; retain fixed-size entry digests, not names or directory handles per child.
     // Sorting makes the result independent of kernel enumeration order. This is immediate membership evidence,
     // not an atomic recursive tree snapshot or authority to delete a source tree.
-    internal static string SourceDirectoryNamespace(SafeFileHandle held, CancellationToken ct)
+    internal static string SourceDirectoryNamespace(SafeFileHandle held, CancellationToken ct, Action<string?, ulong, uint>? visit = null)
     {
         var entries = new List<NamespaceDigest>(); byte[] buffer = new byte[64 << 10]; long nameBytes = 0, nativeBytes = 0;
         int records = 0; bool restart = true;
@@ -53,6 +54,13 @@ internal static unsafe partial class WindowsArchiveNative
                     {
                         if (entries.Count == ArchiveWritePolicy.MaxMembers || length > ArchiveWritePolicy.MaxMetadataBytes - nameBytes) throw ArchiveWriteBudget.Limit();
                         nameBytes += length;
+                        if (visit is not null)
+                        {
+                            string? leaf;
+                            try { leaf = StrictNamespaceUnicode.GetString(name); }
+                            catch (DecoderFallbackException) { leaf = null; }
+                            visit(leaf, BinaryPrimitives.ReadUInt64LittleEndian(record[96..]), BinaryPrimitives.ReadUInt32LittleEndian(record[56..]));
+                        }
                         // File ID, exact UTF-16 spelling and object kind; exclude changing access timestamps/indexes.
                         entryHash.AppendData(record.Slice(96, 8));
                         BinaryPrimitives.WriteUInt32LittleEndian(fields, length);
@@ -79,6 +87,7 @@ internal static unsafe partial class WindowsArchiveNative
         return Convert.ToHexString(hash.GetHashAndReset());
     }
     private static ArchiveWriteException NamespaceInvalid() => new(ArchiveWriteReason.SourceChanged, "The source folder's complete immediate namespace could not be reviewed.");
+    private static readonly UnicodeEncoding StrictNamespaceUnicode = new(false, false, true);
     [LibraryImport("ntdll.dll", EntryPoint = "NtQueryDirectoryFile")]
     private static partial int QueryDirectory(SafeFileHandle directory, nint @event, nint apc, nint context,
         IoStatus* status, void* information, uint length, uint informationClass, byte single, nint name, byte restart);

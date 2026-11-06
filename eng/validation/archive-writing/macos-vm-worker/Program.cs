@@ -70,6 +70,8 @@ if (args is ["captured-host", var captureNative, var captureKernel, var captureI
     return await NativeCapturedInputs.Run(captureNative, captureKernel, captureInitrd, captureResults);
 if (args is ["directory-host", var directoryNative, var directoryKernel, var directoryInitrd, var directoryResults] && OperatingSystem.IsMacOS())
     return await NativeCapturedDirectories.Run(directoryNative, directoryKernel, directoryInitrd, directoryResults);
+if (args is ["recursive-host", var recursiveNative, var recursiveKernel, var recursiveInitrd, var recursiveResults] && OperatingSystem.IsMacOS())
+    return await NativeRecursiveSelection.Run(recursiveNative, recursiveKernel, recursiveInitrd, recursiveResults);
 if (args is not ["host", var native, var kernel, var initrd, var results] || !OperatingSystem.IsMacOS()) return 64;
 Directory.CreateDirectory(results);
 using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(5));

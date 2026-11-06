@@ -4,12 +4,14 @@ namespace FileCat.Core.Archives.Unix;
 
 internal sealed partial class UnixArchiveDirectory
 {
+    internal void RequireSelectionRoot() { lock (Gate) { RequireCapacity(); VerifyNamespace(); } }
     internal void CaptureSourceDirectory(ArchiveCapturedInputs inputs, int id, string leaf, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(inputs); UnixArchiveNative.Leaf(leaf);
         inputs.CaptureDirectory(id, token => ObserveSourceDirectory(leaf, token), ct);
     }
 
+    internal ArchiveDirectoryObservation ObserveSelectionDirectory(string leaf, CancellationToken ct) => ObserveSourceDirectory(leaf, ct);
     private ArchiveDirectoryObservation ObserveSourceDirectory(string leaf, CancellationToken ct)
     {
         lock (Gate)

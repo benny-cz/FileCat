@@ -65,6 +65,7 @@ internal static class ArchiveJournaledTarPreparation
                         d.Reviewed.ParentIdentity == stageName.ParentIdentity && string.Equals(d.Reviewed.LeafName, targetLeaf, pathComparison)))
                     throw Invalid();
                 CheckReservation(stageName, ArchiveArtifactKind.Stage, stageBound);
+                plan.CaptureOwner?.ReviewSelectionDestination(Path.GetDirectoryName(stageName.Path)!, stageName.ParentIdentity, ct);
                 CheckReservation(expectedName, ArchiveArtifactKind.Manifest, expectedLength);
                 CheckReservation(originName, ArchiveArtifactKind.Provenance, originLength);
                 CheckReservation(verifiedName, ArchiveArtifactKind.Manifest, expectedLength);

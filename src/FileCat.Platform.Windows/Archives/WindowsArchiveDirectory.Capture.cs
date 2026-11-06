@@ -10,12 +10,15 @@ namespace FileCat.Platform.Windows.Archives;
 
 internal sealed partial class WindowsArchiveDirectory
 {
+    internal void RequireSelectionRoot() { lock (Gate) { EnsureOpen(); RequireCapacity(); VerifyNamespace(); } }
+    internal static void ValidateSelectionLeaf(string leaf) => ValidateLeaf(leaf);
     internal void CaptureSourceDirectory(ArchiveCapturedInputs inputs, int id, string leaf, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(inputs); ValidateLeaf(leaf);
         inputs.CaptureDirectory(id, token => ObserveSourceDirectory(leaf, token), ct);
     }
 
+    internal ArchiveDirectoryObservation ObserveSelectionDirectory(string leaf, CancellationToken ct) => ObserveSourceDirectory(leaf, ct);
     private ArchiveDirectoryObservation ObserveSourceDirectory(string leaf, CancellationToken ct)
     {
         lock (Gate)

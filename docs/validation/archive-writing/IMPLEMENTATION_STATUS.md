@@ -4,9 +4,12 @@ This is an **incomplete implementation**, not format or release qualification. T
 [the archive writing plan](../../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md). No new writer is enabled in the
 application. An explicit new-profile job refuses instead of entering the legacy ZIP executor.
 
-Current user-requested finishing order: complete the implementation/validation loop, analyze license-compatible RAR
-writing options and implement/validate a viable option where possible, then perform the independent UX/UI/functional/
-security review and fix/retest its findings.
+Current user-requested order (6 November): record the in-flight recursive-selection checkpoint, then pursue AW10a's
+independent compressed RAR encoder investigation before broad UI/interface finalization. The user explicitly chose
+option 3 with fallback to option 1: on a documented feasibility no-go, implement stored RAR5 and optional installed
+`rar` compression where lawful and qualified. This fallback is authorized. Finish the RAR work and remaining common
+implementation/validation gates, then perform the independent UX/UI/functional/security review and fix/retest findings.
+The decision is committed in `b657a243`; implementation and release qualification remain open.
 
 ## Source and workspace
 
@@ -20,6 +23,13 @@ security review and fix/retest its findings.
   It contains those foundation production and test sources, applied over the baseline source archive.
 
 ## Implemented foundations
+
+The [bounded recursive-selection checkpoint](RECURSIVE_SELECTION_CAPTURE.md) freezes exact roots, uses native
+directory enumeration and lazy ancestor-bound file leases, preserves empty folders and records explicit exclusions.
+Native destination-ancestor checks refuse staging inside excluded source subtrees. Mac/Ubuntu suites, 220 native
+Windows regressions, ten final recursive Windows cases and eight actual Mac-hosted ARM64 VM helpers pass; independent
+readers verify all four TAR-family outputs. Global preparation/snapshot/resource ownership, full review UI and all
+remaining format/RID/package/fuzz gates remain open; unsupported-name samples need finer leaf detail before UI use.
 
 The [shared Linux native-open follow-up](UNIX_ARM64_OPEN_FLAGS.md) fixes remaining x64-only flags in Unix archive
 storage, mount-info reads and POSIX ACL directory opens. Actual ARM64 guest directory/file/link probes pass as part

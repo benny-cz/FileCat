@@ -31,6 +31,12 @@ public sealed class LocalIconFileLease : IDisposable
 {
     private readonly List<SafeFileHandle> _handles = [];
     internal SafeFileHandle LastHandle => _handles[^1];
+    // Caller owns this live lease. All components remain pinned against rename/delete during the check.
+    internal bool ContainsAnyIdentity(IReadOnlySet<string> identities, CancellationToken ct)
+    {
+        foreach (var held in _handles) { ct.ThrowIfCancellationRequested(); if (identities.Contains(ProtectedHexFile.Identity(held).ToString())) return true; }
+        return false;
+    }
 
     /// <summary>
     /// The links icons and thumbnails go through. Junctions and mount points are followed, since they lead only to local
