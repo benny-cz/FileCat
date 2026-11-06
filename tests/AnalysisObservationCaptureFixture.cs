@@ -117,6 +117,22 @@ internal static partial class AnalysisObservationCaptureFixture
             UInt128 allocated = 0; foreach (var fact in allocation.Rows) { Assert.True(fact.Measurement.IsKnown); allocated = checked(allocated + fact.Measurement.Value!.Value); }
             var onDisk = (await reader.SummarizeAsync(AnalysisMetric.OnDisk, cancellation)).Totals;
             Assert.Equal(allocated, onDisk.Known); Assert.Equal((UInt128)0, onDisk.IdentityUnverified); Assert.True(onDisk.CompatibleBasis);
+            UInt128 sharedAllocation = 0;
+            foreach (var fact in allocation.Rows.Where(f => f.ObjectId == first.ObjectId)) sharedAllocation = checked(sharedAllocation + fact.Measurement.Value!.Value);
+            foreach (var metric in Enum.GetValues<AnalysisMetric>())
+            {
+                await using var filtered = await reader.BuildHierarchyAsync(metric, new("name:original.bin"), cancellation);
+                UInt128 expected = metric switch { AnalysisMetric.Files => 1, AnalysisMetric.OnDisk => sharedAllocation, _ => (UInt128)payload.Length };
+                Assert.Equal(expected, filtered.Totals.Known); Assert.Equal(1UL, filtered.Totals.MatchingPaths); Assert.Empty(filtered.Totals.Missing);
+                Assert.Equal(first.Id, Assert.Single((await filtered.ReadMatchingFilesAsync(cancellation: cancellation)).Rows).Path.Id);
+                var context = await filtered.ReadAsync(second.Id, cancellation); Assert.False(context.IsMatch); Assert.Equal(0UL, context.Totals.MatchingPaths);
+                if (metric is AnalysisMetric.UniqueFileSize or AnalysisMetric.OnDisk)
+                {
+                    Assert.True(context.IsVisible); Assert.True(context.HasChargesElsewhere);
+                    var bucket = Assert.Single(await filtered.ReadBucketsAsync(first.ParentId, cancellation)); Assert.Equal(expected, bucket.Totals.Known); Assert.Equal(2UL, bucket.ObservedAliases);
+                }
+                else Assert.False(context.IsVisible);
+            }
             Assert.Equal(payload, File.ReadAllBytes(original)); Assert.Equal(payload, File.ReadAllBytes(alias));
         }
         finally

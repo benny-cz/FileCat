@@ -19,7 +19,7 @@ public sealed partial class AnalysisDatasetLease
 }
 
 /// <summary>Immutable accounting evidence, without source bindings or operation authority.</summary>
-public sealed class AnalysisObjectChargeIndex : IAsyncDisposable
+public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
 {
     private static readonly SemaphoreSlim Builds = new(AnalysisLimits.ActiveScans, AnalysisLimits.ActiveScans);
     private readonly AnalysisOwnedDatasetIo<State> _owned;
@@ -34,15 +34,15 @@ public sealed class AnalysisObjectChargeIndex : IAsyncDisposable
     /// <summary>Folds charges into real directory rows and explicit shared/directory-self buckets.</summary>
     public Task<AnalysisDatasetHierarchy> BuildHierarchyAsync(CancellationToken cancellation = default) =>
         _owned.UseAsync(state => AnalysisDatasetHierarchy.BuildAsync(state.Graph, Descriptor, Metric, state.PlacementEntries(cancellation),
-            Totals.CompatibleBasis, _io, _device, cancellation));
+            Totals.CompatibleBasis, _io, _device, cancellation, state.Query));
 
     internal static async Task<AnalysisObjectChargeIndex> BuildAsync(AnalysisIndexedGraphReader source, AnalysisDatasetDescriptor descriptor,
-        AnalysisMetric metric, DeviceIoScheduler io, string device, CancellationToken cancellation)
+        AnalysisMetric metric, DeviceIoScheduler io, string device, CancellationToken cancellation, AnalysisIndexedFilter? query = null)
     {
         await Builds.WaitAsync(cancellation).ConfigureAwait(false); State? state = null;
         try
         {
-            state = await AnalysisIo.Run(io, device, _ => State.Create(source, metric), cancellation).ConfigureAwait(false);
+            state = await AnalysisIo.Run(io, device, _ => State.Create(source, metric, query), cancellation).ConfigureAwait(false);
             while (!state.Finished)
                 await AnalysisIo.Run(io, device, token =>
                 {
@@ -111,10 +111,10 @@ public sealed class AnalysisObjectChargeIndex : IAsyncDisposable
         }, cancellation);
     public ValueTask DisposeAsync() => _owned.DisposeAsync();
 
-    private enum Stage { Objects, Aliases, AliasAncestors, CommonAncestor, Facts, Emit, UnknownAliases, Directories, DirectoryOwner, Done }
+    private enum Stage { Objects, Aliases, AliasAncestors, CommonAncestor, Facts, Emit, UnknownAliases, Directories, DirectoryOwner, MatchObjects, MatchFacts, MatchAliases, MatchAncestors, MatchEvaluate, Done }
     private sealed record Component(StorageFact Fact, ulong Row);
     private sealed record Row(ulong Id, ulong Parent, ulong Path, ulong Object, ulong Fact, ulong Aliases, AnalysisMeasurement Measurement, byte Flags);
-    private sealed class State : IAnalysisScratchOwned
+    private sealed partial class State : IAnalysisScratchOwned
     {
         private readonly AnalysisIndexedGraphReader _graph;
         internal AnalysisScratchWorkspace? Workspace;
@@ -147,13 +147,13 @@ public sealed class AnalysisObjectChargeIndex : IAsyncDisposable
         internal AnalysisIndexedGraphReader Graph => _graph;
         private State(AnalysisIndexedGraphReader graph, AnalysisScratchWorkspace workspace, AnalysisScratchVector writer, AnalysisMetric metric)
         { _graph = graph; Workspace = workspace; _writer = writer; Metric = metric; _bases = graph.Header.Roots.Select(_ => new HashSet<string>(StringComparer.Ordinal)).ToArray(); }
-        internal static State Create(AnalysisIndexedGraphReader source, AnalysisMetric metric)
+        internal static State Create(AnalysisIndexedGraphReader source, AnalysisMetric metric, AnalysisIndexedFilter? query)
         {
             var graph = source.Retain(); AnalysisScratchWorkspace? workspace = null; AnalysisScratchArena? arena = null; AnalysisScratchVector? writer = null;
             try
             {
                 workspace = graph.BorrowWorkspace(); arena = workspace.CreateArena(); writer = new(arena); arena = null;
-                return new(graph, workspace, writer, metric);
+                return new(graph, workspace, writer, metric) { Query = query };
             }
             catch { try { writer?.Dispose(); arena?.Dispose(); } finally { try { workspace?.Dispose(); } finally { graph.Dispose(); } } throw; }
         }
@@ -167,6 +167,7 @@ public sealed class AnalysisObjectChargeIndex : IAsyncDisposable
                     var entry = _graph.ReadIndex(AnalysisIndexedGraphRevision.ObjectIdentities, _object, token);
                     if (_identity is not null && !_identity.AsSpan().SequenceEqual(entry.Key))
                     { if (_first is not null) { PrepareEmission(); return entry.Key.Length; } Reset(); }
+                    if (_identity is null) _groupFirst = _object;
                     _identity = entry.Key; _object++; _current = _graph.ReadObject(entry.Value, token);
                     _objectRow = entry.Value; _currentPaths = 0; _aliases = _graph.Aliases(_current.Id, token); _alias = 0; _stage = Stage.Aliases;
                     return 1024L + entry.Key.Length + (_current.VersionEvidence?.Length ?? 0) * 2L;
@@ -182,7 +183,8 @@ public sealed class AnalysisObjectChargeIndex : IAsyncDisposable
                     if (_first is null) { _first = _current; _representative = node.Node.Id; _representativeObject = _objectRow; }
                     _changed |= _first!.LogicalLength != _current!.LogicalLength;
                     if (_current.VersionEvidence is { } version) { if (_version is null) _version = version; else _changed |= _version != version; }
-                    _count = checked(_count + 1); _paths = checked(_paths + 1); _currentPaths++; _roots |= 1U << node.RootIndex;
+                    if (Query is null) _count = checked(_count + 1);
+                    _paths = checked(_paths + 1); _currentPaths++; _roots |= 1U << node.RootIndex;
                     if (_paths == 1) _parent = node.Node.ParentId;
                     else if (_parent != 0 && _parent != node.Node.ParentId && _first.VerifiedIdentity is not null)
                     { _ancestors.Clear(); _ancestors.Add(0); _walk = node.Node.ParentId; _steps = 0; _stage = Stage.AliasAncestors; }
@@ -202,6 +204,7 @@ public sealed class AnalysisObjectChargeIndex : IAsyncDisposable
                 case Stage.Emit:
                     if (_emit == EmissionCount)
                     {
+                        if (Query is not null) { FinishFilteredEmission(); return 1; }
                         if (_directoryEmission) { Reset(); _stage = _pendingDirectory is null ? Stage.Directories : Stage.DirectoryOwner; }
                         else if (_first!.VerifiedIdentity is null) _stage = Stage.UnknownAliases;
                         else { Reset(); _stage = Stage.Objects; }
@@ -236,6 +239,8 @@ public sealed class AnalysisObjectChargeIndex : IAsyncDisposable
                         if (root < 0) throw Invalid(); _roots = 1U << root; AddComponent(pending);
                     }
                     _stage = Stage.Directories; return PathBytes(_directory);
+                case Stage.MatchObjects: case Stage.MatchFacts: case Stage.MatchAliases: case Stage.MatchAncestors: case Stage.MatchEvaluate:
+                    return MatchStep(token);
                 default: throw Invalid();
             }
         }
@@ -260,17 +265,24 @@ public sealed class AnalysisObjectChargeIndex : IAsyncDisposable
                 throw new IOException("The analysis charge component buffer limit was reached.");
             _components.Add(fact.ComponentId, component); _componentBytes += cost;
         }
-        private int EmissionCount => _override is not null || Metric == AnalysisMetric.UniqueFileSize ? 1 : _selected.Length;
+        private int EmissionCount => _override is not null || Metric != AnalysisMetric.OnDisk ? 1 : _selected.Length;
         private void PrepareEmission()
         {
             _directoryEmission = _directory is not null;
             if (_directoryEmission && !_directory!.IncludedByPolicy) { Reset(); _stage = _pendingDirectory is null ? Stage.Directories : Stage.DirectoryOwner; return; }
-            _override = _changed ? AnalysisMeasurement.Missing(MeasurementState.Changed) : null;
+            _override = _changed && Metric is (AnalysisMetric.UniqueFileSize or AnalysisMetric.OnDisk) ? AnalysisMeasurement.Missing(MeasurementState.Changed) : null;
             if (Metric == AnalysisMetric.OnDisk && _override is null)
             {
                 if (_conflictingComponents) throw new InvalidDataException("Conflicting component observations.");
                 _selected = AnalysisAggregate.SelectComponents(_components.Values.Select(c => c.Fact).ToArray()).Select(f => _components[f.ComponentId]).ToArray();
                 if (_selected.Length == 0) _override = AnalysisMeasurement.Missing(MeasurementState.Unsupported);
+            }
+            if (Query is not null) { BeginMatching(); return; }
+            BeginEmission();
+        }
+        private void BeginEmission()
+        {
+            if (Metric == AnalysisMetric.OnDisk && _override is null)
                 foreach (var component in _selected)
                     for (int n = 0; n < _bases.Length; n++) if ((_roots & (1U << n)) != 0 && !_bases[n].Contains(component.Fact.BasisId))
                     {
@@ -278,19 +290,21 @@ public sealed class AnalysisObjectChargeIndex : IAsyncDisposable
                         if (cost > AnalysisLimits.PendingBytes / 4 - _basisBytes) throw new IOException("The analysis charge measurement-basis buffer limit was reached.");
                         _bases[n].Add(component.Fact.BasisId); _basisBytes += cost;
                     }
-            }
             _emit = 0;
-            if (!_directoryEmission && _first!.VerifiedIdentity is null) { _alias = 0; _stage = Stage.UnknownAliases; }
+            if (Query is null && !_directoryEmission && _first!.VerifiedIdentity is null) { _alias = 0; _stage = Stage.UnknownAliases; }
             else _stage = Stage.Emit;
         }
         private void Emit(CancellationToken token)
         {
-            bool uncertain = _directoryEmission ? _directory!.ObservedIdentity is null : _first!.VerifiedIdentity is null;
-            var measurement = _override ?? (Metric == AnalysisMetric.UniqueFileSize ? _first!.LogicalLength : _selected[_emit].Fact.Measurement);
+            bool logical = Metric is AnalysisMetric.FileSize or AnalysisMetric.Files;
+            bool uncertain = !logical && (_directoryEmission ? _directory!.ObservedIdentity is null : _first!.VerifiedIdentity is null);
+            var measurement = logical ? Metric == AnalysisMetric.Files ? AnalysisMeasurement.Known(1) : _matchObj!.LogicalLength :
+                _override ?? (Metric == AnalysisMetric.UniqueFileSize ? _first!.LogicalLength : _selected[_emit].Fact.Measurement);
             ulong fact = _override is null && Metric == AnalysisMetric.OnDisk ? _selected[_emit].Row : 0;
-            byte flags = (byte)((!_directoryEmission && !uncertain && _paths > 1 ? 1 : 0) | (uncertain ? 2 : 0) | (_directoryEmission ? 4 : 0));
-            _writer!.Append(Encode(new(_writer.AcceptedCount + 1, _parent, _representative, _directoryEmission ? 0 : _representativeObject, fact,
-                _directoryEmission ? 0 : uncertain ? 1 : _paths, measurement, flags)), token); _emit++;
+            byte flags = (byte)((!_emitForPath && !_directoryEmission && !uncertain && _paths > 1 ? 1 : 0) | (uncertain ? 2 : 0) | (_directoryEmission ? 4 : 0));
+            _writer!.Append(Encode(new(_writer.AcceptedCount + 1, _emitForPath ? _matchNode!.ParentId : _parent, _emitForPath ? _matchNode!.Id : _representative,
+                _directoryEmission ? 0 : _emitForPath ? _matchObjRow : _representativeObject, fact,
+                _directoryEmission ? 0 : _emitForPath || uncertain ? 1 : _paths, measurement, flags)), token); _emit++;
             if (measurement.IsKnown)
             {
                 if (uncertain) _unverified = checked(_unverified + measurement.Value!.Value); else _known = checked(_known + measurement.Value!.Value);

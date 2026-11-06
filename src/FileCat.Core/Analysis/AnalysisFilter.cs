@@ -7,16 +7,28 @@ namespace FileCat.Core.Analysis;
 public enum AnalysisTruth { False, True, Unknown }
 public sealed record AnalysisFilterItem(AnalysisNode Node, AnalysisObject? Object, string RelativePath,
     AnalysisMeasurement Allocation, Int128? Delta = null, string? Change = null, bool Stale = false, bool Unreadable = false,
-    MeasurementState? ActiveState = null, bool? RelativePathTextAvailable = null, AnalysisDelta? ExactDelta = null);
+    MeasurementState? ActiveState = null, bool? RelativePathTextAvailable = null, AnalysisDelta? ExactDelta = null)
+{
+    internal IAnalysisRootMembership? RootMembership { get; init; }
+}
+internal interface IAnalysisRootMembership { AnalysisTruth IsMember(string root); }
+[Flags] internal enum AnalysisFilterNeeds { None = 0, Object = 1, Allocation = 2, State = 4, Path = 8, Roots = 16 }
 
 /// <summary>Bounded declarative query parser. It has no filesystem, reflection or executable expression access.</summary>
 public sealed class AnalysisFilter
 {
     private readonly Func<AnalysisFilterItem, AnalysisTruth> _evaluate;
-    private AnalysisFilter(Func<AnalysisFilterItem, AnalysisTruth> evaluate) => _evaluate = evaluate;
+    internal AnalysisFilterNeeds Needs { get; }
+    internal bool NamespaceOnly { get; }
+    private AnalysisFilter(Func<AnalysisFilterItem, AnalysisTruth> evaluate, AnalysisFilterNeeds needs, bool namespaceOnly)
+    { _evaluate = evaluate; Needs = needs; NamespaceOnly = namespaceOnly; }
     public AnalysisTruth Evaluate(AnalysisFilterItem item) => _evaluate(item);
     public static AnalysisFilter Parse(string text, TimeZoneInfo zone, bool caseSensitive = false, bool comparison = false,
-        IReadOnlyList<RootBinding>? roots = null, AnalysisRootScopeIndex? rootScopes = null, bool allowDateOnly = true) => new(new Parser(text, zone, caseSensitive, comparison, roots, rootScopes, allowDateOnly).Parse());
+        IReadOnlyList<RootBinding>? roots = null, AnalysisRootScopeIndex? rootScopes = null, bool allowDateOnly = true)
+    {
+        var parser = new Parser(text, zone, caseSensitive, comparison, roots, rootScopes, allowDateOnly); var expression = parser.Parse();
+        return new(expression, parser.Needs, parser.NamespaceOnly);
+    }
 
     public static AnalysisTruth Not(AnalysisTruth v) => v switch { AnalysisTruth.True => AnalysisTruth.False, AnalysisTruth.False => AnalysisTruth.True, _ => AnalysisTruth.Unknown };
     public static AnalysisTruth And(AnalysisTruth a, AnalysisTruth b) => a == AnalysisTruth.False || b == AnalysisTruth.False ? AnalysisTruth.False : a == AnalysisTruth.True && b == AnalysisTruth.True ? AnalysisTruth.True : AnalysisTruth.Unknown;
@@ -58,6 +70,8 @@ public sealed class AnalysisFilter
         private readonly AnalysisRootScopeIndex? _rootScopes;
         private readonly bool _allowDateOnly;
         private int _at, _terms;
+        internal AnalysisFilterNeeds Needs;
+        internal bool NamespaceOnly = true;
         private sealed record Token(string Value, bool Quoted = false);
         public Parser(string text, TimeZoneInfo zone, bool sensitive, bool comparison, IReadOnlyList<RootBinding>? roots, AnalysisRootScopeIndex? rootScopes, bool allowDateOnly)
         {
@@ -144,12 +158,22 @@ public sealed class AnalysisFilter
                         while (Consume(":")) v += ":" + Take().Value;
                     p = Field(t.Value, op, v);
                 }
-                else p = i => AnalysisRawNames.HasLosslessText(i.Node) ? Truth(i.Node.Name.Contains(t.Value, _case)) : AnalysisTruth.Unknown;
+                else { NamespaceOnly = false; p = i => AnalysisRawNames.HasLosslessText(i.Node) ? Truth(i.Node.Name.Contains(t.Value, _case)) : AnalysisTruth.Unknown; }
             }
             return not ? i => Not(p(i)) : p;
         }
         private Func<AnalysisFilterItem, AnalysisTruth> Field(string field, string op, string value)
         {
+            NamespaceOnly &= field == "root";
+            Needs |= field switch
+            {
+                "size" or "modified" or "modified-before" => AnalysisFilterNeeds.Object,
+                "allocated" => AnalysisFilterNeeds.Allocation,
+                "state" => AnalysisFilterNeeds.State,
+                "path" => AnalysisFilterNeeds.Path,
+                "root" => AnalysisFilterNeeds.Roots,
+                _ => AnalysisFilterNeeds.None
+            };
             if (field is "size" or "allocated" or "delta")
             {
                 if (op == ":") throw new FormatException("Byte fields require a comparison operator.");
@@ -243,7 +267,7 @@ public sealed class AnalysisFilter
                 var binding = matches[0]; string rootId = value;
                 return item =>
                 {
-                    var member = _rootScopes?.IsMember(rootId, item.Node) ?? (binding.Disposition == AnalysisRootDisposition.Active
+                    var member = item.RootMembership?.IsMember(rootId) ?? _rootScopes?.IsMember(rootId, item.Node) ?? (binding.Disposition == AnalysisRootDisposition.Active
                         ? Truth(item.Node.RootId == rootId) : AnalysisTruth.Unknown);
                     return op == "!=" ? Not(member) : member;
                 };

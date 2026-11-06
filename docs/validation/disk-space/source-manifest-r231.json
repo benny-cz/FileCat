@@ -1,0 +1,78 @@
+{
+  "purpose": "Indexed all-metric filtering with preserved shared attribution, explicit unknown cohorts and exact matching-member pages; Windows deferred",
+  "gitBase": "eec1c428",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "18efd7d6cf58355f90d3f64a670bc21df3864205e3ee261dc0f8e45abd7a62e2"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "6af995475d110b11a3e6a1e0cf319831220263a8fb926b477039c03a7903cfc0"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+      "sha256": "8eb52a9586d11369bfffdd3057c148e2747e157c1a077e2a29528fea387d6952"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisFilter.cs",
+      "sha256": "3c94dc651206ac998edb6913e314a618030c0f9f2708a7b7e61606517a3caa4f"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedFilter.cs",
+      "sha256": "31fdb222973ce634efb5c2fdf58348b137ab872aed9410aacc3e044e2a15d396"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObjectCharges.cs",
+      "sha256": "932f1a42c0794b91cd831d8c97ae5a4f3301c29758fcf6b1bf8ac7081b57f030"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObjectCharges.Filter.cs",
+      "sha256": "ab4a5cfd7dfb899ec5e507964fb9630c75f9a25f79eff331acdd5c03976745c7"
+    },
+    {
+      "path": "tests/AnalysisObservationCaptureFixture.cs",
+      "sha256": "8e424f5f551936b25d143be066d01a57a963383b196263184f607066f8fff0be"
+    },
+    {
+      "path": "tests/AnalysisSourceFrontierFixture.cs",
+      "sha256": "81deded2e9f5bdac8ff60b07c2cc90193387a0c0afdd12c3c417d189c5e55449"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.Filters.cs",
+      "sha256": "703ab2a84565c425c4ff5d073b4c6438d5f5e24bb4f45df17b185bae474122a3"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r231.tgz",
+      "sha256": "87e5b24ae1ec926a321e13d170d99114ee04550a13dfd25d852818c6b8f815de"
+    },
+    {
+      "path": ".tmp/dsa-native-r231.tgz",
+      "sha256": "2524785f2f428ad4d71d3930271b4b16a1817fbb8b736cf6cddaa9322d2c1b32"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r231.sh",
+      "sha256": "faddb69249dca436200c5e8718e0b3238d69cd0ee4df0a20a85e6655ea3262dd"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r231.ps1",
+      "sha256": "8aec8fcfd00bde172c94be0dabdc4ae29492dbfd46cc7208cb139a0be209318f"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r231.ps1",
+      "sha256": "28f3ccd182a1c1545a7bc2ca28cc99ef053241e6858b9991594ef74aa245edb7"
+    }
+  ],
+  "reports": [
+    "mac-core-r231.xml",
+    "ubuntu-core-r231.xml",
+    "indexed-filter-build-r230.txt",
+    "windows-deferred-r231.json"
+  ],
+  "remaining": "Grouping/color/scoped and complete selection projection; indexed frontend adoption; original inventory-ID mapping and streaming import/export; cross-process profile quota; native 1M/10M and Windows/platform/UI qualification; remaining feature packets and final independent review."
+}
