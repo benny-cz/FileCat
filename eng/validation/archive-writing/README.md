@@ -57,6 +57,11 @@ unrelated file read/write, a loopback connection, `fork` after `RLIMIT_NPROC=0`,
 attempted 1 GiB `RLIMIT_AS`. No large mapping is touched and both mappings are immediately unmapped. A successfully created
 mapping above the intended allowance is a failed resource gate, even if disk/network denials work.
 
+The separate `macos-footprint-probe.c` and `run-macos-footprint-probe.py` investigate the SDK-declared physical-footprint
+setter with an owned, finite allocation experiment. The ordinary-user request was refused; this does not qualify
+worker memory containment. Reproduction, exact results and evidence are in
+[the footprint report](../../../docs/validation/archive-writing/MACOS_FOOTPRINT_LIMIT_PROBE.md).
+
 The observed Mac's matching compiler is `/Library/Developer/CommandLineTools/usr/bin/clang` (21.0.0) and its sysroot is
 `/Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk`. Use these explicitly rather than changing global `xcode-select`.
 In an owned fixture, arrange `probe.app/Contents/MacOS/archive-probe`, copy `mac-probe-info.plist` as `Contents/Info.plist`,

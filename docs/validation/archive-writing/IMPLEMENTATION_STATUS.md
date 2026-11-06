@@ -240,6 +240,10 @@ cases pass on Windows and Mac. See the [assessment report](ASSESSMENT_VALIDATION
 The Mac ad-hoc signed App Sandbox probe admitted its own executable read and refused unrelated file read/write,
 network access and `fork`. Its attempted absolute 1 GiB `RLIMIT_AS` returned EINVAL and a 2 GiB mapping still succeeded.
 The hard whole-process memory gate remains **unqualified**; no Mac writer is enabled from these partial denials.
+The [Darwin footprint-limit follow-up](MACOS_FOOTPRINT_LIMIT_PROBE.md) tests the SDK-declared Mach setter as ordinary
+UID 501. Its 64 MiB request returns `KERN_NO_ACCESS`; a control touches 96 MiB with a 102,105,568-byte physical footprint.
+Both children exit/reap. That direct per-user call does not provide a boundary in this environment. Another enforceable
+Mac worker-memory route and full qualification remain required; no profile is enabled.
 
 ## Outstanding work
 

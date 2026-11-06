@@ -853,6 +853,9 @@ Tasks:
 1. Implement bounded framed proxy-stream IPC with fixed source IDs, nonces, request sequencing, seek/write bounds, aggregate IO counters and parent-owned stage authority.
 2. Implement cooperative cancellation, hard process memory/CPU/time control, parent-death handling, stderr limits and full exit/reaping. Test invalid frames before allowing any archive payload.
 3. Complete Windows/Linux/macOS confinement spikes using supported APIs. Produce actual healthy-operation and denied-access evidence; establish exactly which RIDs/kernels/package modes qualify.
+   The [ordinary-user Darwin footprint probe](../validation/archive-writing/MACOS_FOOTPRINT_LIMIT_PROBE.md) observes
+   `KERN_NO_ACCESS` for the SDK-declared 64 MiB setter request; its 96 MiB control succeeds. This direct route does not
+   close the Mac memory gate. Implement and qualify another enforceable route without weakening the resource invariant.
 4. Implement/measure local create-no-replace and reviewed replacement capability probes with held directories and identity-aware retention. Include object-bound cleanup and durability distinctions.
 5. Provide typed reason codes for unavailable safe-save support. No codec may fall back to an unbounded/in-process transform if startup/policy fails.
 
