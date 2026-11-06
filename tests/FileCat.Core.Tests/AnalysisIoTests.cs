@@ -9,6 +9,30 @@ public sealed class AnalysisIoCapacityCollection;
 [Collection("Analysis I/O capacity")]
 public sealed class AnalysisIoTests
 {
+    [Fact]
+    public async Task PrivateDirectoryReleaseKeepsItsActualWorkerThroughSchedulerShutdown()
+    {
+        using var io = new DeviceIoScheduler(); using var entered = new ManualResetEventSlim(); using var release = new ManualResetEventSlim();
+        int caller = Environment.CurrentManagedThreadId;
+        var directory = new ClosingDirectory(() => { entered.Set(); release.Wait(TimeSpan.FromSeconds(10)); });
+        var closing = AnalysisIo.ReleaseAsync(io, Key(), directory);
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken)); io.Dispose();
+            Assert.False(closing.IsCompleted); Assert.Equal(1, directory.Calls); Assert.NotEqual(caller, directory.Thread);
+        }
+        finally { release.Set(); await closing.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken); }
+        Assert.Equal(1, directory.Calls);
+    }
+    private sealed class ClosingDirectory(Action close) : AnalysisPrivateDirectory
+    {
+        internal int Calls, Thread;
+        internal override void Verify() => throw new NotSupportedException();
+        internal override (UInt128 Capacity, UInt128 Available) Space() => throw new NotSupportedException();
+        internal override AnalysisPrivateFile CreateStaging() => throw new NotSupportedException();
+        internal override AnalysisPrivateFile OpenRead(string name) => throw new NotSupportedException();
+        public override void Dispose() { Thread = Environment.CurrentManagedThreadId; Interlocked.Increment(ref Calls); close(); }
+    }
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary process.");
     private static string Key() => "analysis-io-fixture-" + Guid.NewGuid().ToString("N");

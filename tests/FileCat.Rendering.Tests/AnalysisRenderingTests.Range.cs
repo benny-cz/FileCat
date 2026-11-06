@@ -15,6 +15,36 @@ namespace FileCat.Rendering.Tests;
 
 public sealed partial class AnalysisRenderingTests
 {
+    private static Func<string> TraceTableGesture(Window window, DiskSpaceViewModel model)
+    {
+        var events = new List<string>();
+        int Interaction() => (int)typeof(DiskSpaceViewModel).GetField("_interaction", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(model)!;
+        string State(PointerEventArgs args)
+        {
+            var source = args.Source as Visual;
+            var row = source as ListBoxItem ?? source?.GetVisualAncestors().OfType<ListBoxItem>().FirstOrDefault();
+            return $"pointer={args.Pointer.Id} source={args.Source?.GetType().Name} row={(row?.Content as AnalysisTreeItem)?.Key} interaction={Interaction()} rows={model.Rows.Length} marks={string.Join(',', model.Selection.Marks.Order())}";
+        }
+        window.AddHandler(InputElement.PointerPressedEvent, (_, args) => events.Add("down " + State(args)), RoutingStrategies.Bubble, handledEventsToo: true);
+        window.AddHandler(InputElement.PointerReleasedEvent, (_, args) => events.Add("up " + State(args)), RoutingStrategies.Bubble, handledEventsToo: true);
+        return () => $"Final interaction={Interaction()} rows={model.Rows.Length} scope={model.Selection.Scope}; " + string.Join(" | ", events.TakeLast(12));
+    }
+    private static async Task ShowRangeWindow(Window window, DiskSpaceViewModel model)
+    {
+        var prepared = model.Tree; window.Show();
+        // Attaching starts a new projection. Observe its publication and render its hit tree
+        // before retaining a container: the preceding headless frame can target an old row.
+        await Until(() => !ReferenceEquals(model.Tree, prepared)); Frame(window);
+    }
+    private static Point RangeRowPoint(Window window, ListBoxItem row, double x = 65)
+    {
+        Frame(window);
+        var point = row.TranslatePoint(new Point(x, row.Bounds.Height / 2), window)!.Value;
+        var hit = window.InputHitTest(point) as Visual;
+        Assert.True(hit == row || hit?.GetVisualAncestors().Contains(row) == true,
+            $"Point {point} missed retained row {row.Bounds}; hit {hit?.GetType().Name}.");
+        return point;
+    }
     private static AnalysisSnapshot RangeFixture()
     {
         var snapshot = Fixture();
@@ -32,6 +62,25 @@ public sealed partial class AnalysisRenderingTests
         await model.RebuildAsync(true); model.Focus("n:2", open: true); await Until(() => model.Selection.Scope == "n:2");
         Assert.Equal(new[] { "a.txt", "b.txt", "c.txt", "source.cs", "Unknown\\u202E.bin" }, model.Rows.Select(r => r.Name));
         return model;
+    }
+
+    [AvaloniaFact]
+    public async Task InitialTextNotificationCannotReplaceAnExplicitProjectionWithTheUneditedQuery()
+    {
+        using var styles = new ProductStyles(); using var model = await RangeModel();
+        var window = new DiskSpaceWindow { Height = 960 }; window.AddSession(model); window.Show();
+        try
+        {
+            model.Query = "name:b.txt"; await model.RebuildAsync(true);
+            await Until(() => model.Rows.Length == 1);
+            // Cross the actual debounce interval while dispatching the initial queued notification.
+            await Task.Delay(600, TestContext.Current.CancellationToken); Frame(window);
+            Assert.Equal("name:b.txt", model.Query); Assert.Equal("n:8", Assert.Single(model.Rows).Key);
+            var query = window.GetVisualDescendants().OfType<TextBox>().Single(control => AutomationProperties.GetName(control) == "Filter observations");
+            query.Text = "name:c.txt";
+            await Until(() => model.Query == "name:c.txt" && model.Rows.Length == 1 && model.Rows[0].Key == "n:9");
+        }
+        finally { window.ForceClose(); }
     }
 
     [AvaloniaFact]
@@ -111,14 +160,14 @@ public sealed partial class AnalysisRenderingTests
     public async Task ModifiedPointerAndKeyboardRangesMarkOnceAndPreserveCheckboxSpace(RawInputModifiers toggle)
     {
         using var styles = new ProductStyles(); using var model = await RangeModel();
-        var window = new DiskSpaceWindow { Height = 960 }; window.AddSession(model); window.Show();
+        var window = new DiskSpaceWindow { Height = 960 }; window.AddSession(model); await ShowRangeWindow(window, model); var diagnostic = TraceTableGesture(window, model);
         try
         {
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             var list = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Ranked analysis entries");
             void Click(int index, RawInputModifiers modifiers, double x = 65)
             {
-                var row = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(index)); var point = row.TranslatePoint(new Point(x, row.Bounds.Height / 2), window)!.Value;
+                var row = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(index)); var point = RangeRowPoint(window, row, x);
                 window.MouseMove(point); window.MouseDown(point, MouseButton.Left, modifiers); window.MouseUp(point, MouseButton.Left, modifiers);
                 Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             }
@@ -126,7 +175,7 @@ public sealed partial class AnalysisRenderingTests
             Click(0, toggle); Assert.Empty(model.Selection.Marks); // Same selected row must still toggle.
             Click(0, RawInputModifiers.None); Click(4, RawInputModifiers.Shift, x: 20);
             Assert.Equal(new ulong[] { 4, 6, 7, 8, 9 }, model.Selection.Marks.Order());
-            Click(1, RawInputModifiers.Shift); Assert.Equal(new ulong[] { 7, 8 }, model.Selection.Marks.Order());
+            Click(1, RawInputModifiers.Shift); Assert.True(new ulong[] { 7, 8 }.SequenceEqual(model.Selection.Marks.Order()), diagnostic());
             Assert.Equal("n:8", model.Selection.Focus); Assert.Equal("n:2", model.Selection.Scope); Assert.Empty(model.Selection.Basket);
             window.KeyPress(Key.End, RawInputModifiers.Shift, PhysicalKey.End, null); window.KeyRelease(Key.End, RawInputModifiers.Shift, PhysicalKey.End, null);
             Assert.Equal(new ulong[] { 4, 6, 7, 8, 9 }, model.Selection.Marks.Order());
@@ -144,11 +193,31 @@ public sealed partial class AnalysisRenderingTests
             Assert.IsType<CheckBox>(window.FocusManager!.GetFocusedElement());
             window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, null); window.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, null);
             Assert.Equal(new ulong[] { 7 }, model.Selection.Marks);
-            var heldRow = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(2)); var heldPoint = heldRow.TranslatePoint(new Point(65, heldRow.Bounds.Height / 2), window)!.Value;
+            var heldRow = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(2)); var heldPoint = RangeRowPoint(window, heldRow);
             window.MouseMove(heldPoint); window.MouseDown(heldPoint, MouseButton.Left, RawInputModifiers.Shift);
             model.Query = "name:b.txt"; await model.RebuildAsync(true); Assert.Equal(5, model.Rows.Length);
-            window.MouseUp(heldPoint, MouseButton.Left, RawInputModifiers.Shift); await Until(() => model.Rows.Length == 1);
+            window.MouseUp(RangeRowPoint(window, heldRow), MouseButton.Left, RawInputModifiers.Shift); await Until(() => model.Rows.Length == 1, diagnostic);
             Assert.Equal(new ulong[] { 7, 8, 9 }, model.Selection.Marks.Order()); Assert.Empty(model.Selection.Basket);
+        }
+        finally { window.ForceClose(); }
+    }
+
+    [AvaloniaFact]
+    public async Task TableReleaseOutsideTheMovedListRetiresItsCapturedPublicationFreeze()
+    {
+        using var styles = new ProductStyles(); using var model = await RangeModel();
+        var window = new DiskSpaceWindow { Height = 960 }; window.AddSession(model); await ShowRangeWindow(window, model);
+        try
+        {
+            var list = window.GetVisualDescendants().OfType<ListBox>().Single(control => AutomationProperties.GetName(control) == "Ranked analysis entries");
+            var row = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
+            var point = RangeRowPoint(window, row);
+            window.MouseMove(point); window.MouseDown(point, MouseButton.Left, RawInputModifiers.Shift);
+            model.Query = "name:b.txt"; await model.RebuildAsync(true); Assert.Equal(5, model.Rows.Length);
+            list.RenderTransform = new Avalonia.Media.TranslateTransform(0, 300); Frame(window);
+            window.MouseUp(new Point(window.ClientSize.Width - 10, 10), MouseButton.Left, RawInputModifiers.Shift);
+            await Until(() => model.Rows.Length == 1);
+            Assert.Equal(new ulong[] { 7 }, model.Selection.Marks); Assert.Empty(model.Selection.Basket);
         }
         finally { window.ForceClose(); }
     }
@@ -157,7 +226,7 @@ public sealed partial class AnalysisRenderingTests
     public async Task HandledRowReleaseRetiresTheTableFreezeAfterItsCapturedAction()
     {
         using var styles = new ProductStyles(); using var model = await RangeModel();
-        var window = new DiskSpaceWindow { Height = 960 }; window.AddSession(model); window.Show();
+        var window = new DiskSpaceWindow { Height = 960 }; window.AddSession(model); await ShowRangeWindow(window, model); var diagnostic = TraceTableGesture(window, model);
         try
         {
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
@@ -165,10 +234,10 @@ public sealed partial class AnalysisRenderingTests
             var row = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
             bool handled = false;
             row.AddHandler(InputElement.PointerReleasedEvent, (_, args) => { handled = true; args.Handled = true; }, RoutingStrategies.Bubble, handledEventsToo: true);
-            var point = row.TranslatePoint(new Point(65, row.Bounds.Height / 2), window)!.Value;
+            var point = RangeRowPoint(window, row);
             window.MouseMove(point); window.MouseDown(point, MouseButton.Left);
             model.Query = "name:b.txt"; await model.RebuildAsync(true); Assert.Equal(5, model.Rows.Length);
-            window.MouseUp(point, MouseButton.Left); Assert.True(handled); await Until(() => model.Rows.Length == 1);
+            window.MouseUp(RangeRowPoint(window, row), MouseButton.Left); Assert.True(handled, diagnostic()); await Until(() => model.Rows.Length == 1, diagnostic);
             Assert.Empty(model.Selection.Marks); Assert.Empty(model.Selection.Basket);
         }
         finally { window.ForceClose(); }

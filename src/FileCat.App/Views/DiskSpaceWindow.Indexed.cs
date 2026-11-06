@@ -7,6 +7,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using FileCat.App.Controls.DiskSpace;
 using FileCat.App.Controls;
@@ -120,15 +121,51 @@ public sealed partial class DiskSpaceWindow
             _next = ActionButton("Next entries", () => _ = NextPageAsync(), "Show the next page of captured entries.");
             pageBar.Children.Add(_previous); pageBar.Children.Add(_next); pageBar.Children.Add(_range); _main.Children.Add(pageBar);
             AutomationProperties.SetName(_list, "Indexed analysis entries");
-            Avalonia.Controls.ScrollViewer.SetHorizontalScrollBarVisibility(_list, Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
+            Avalonia.Controls.ScrollViewer.SetHorizontalScrollBarVisibility(_list, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
+            _list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
+                { Setters = { new Setter(ContentControl.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
             _list.ItemTemplate = new FuncDataTemplate<AnalysisHierarchyRow>((row, _) =>
             {
                 if (row is null) return new TextBlock(); var item = AnalysisIndexedChart.Row(row, _explorer.Metric);
-                var grid = new Grid { ColumnDefinitions = new("3*,2*,2*,*,2*"), MinWidth = 760, Margin = new Thickness(6, 3) };
-                string[] cells = [item.Name, DiskSpaceViewModel.ValueText(item, _explorer.Metric), DiskSpaceViewModel.LogicalText(item), item.Files.ToString("N0"),
-                    item.SharedElsewhere ? "Shared at ancestor" : item.Unknown ? "Partial / unknown" : item.MetadataState.ToString()];
-                for (int column = 0; column < cells.Length; column++) { var text = new TextBlock { Text = cells[column], TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 0, 12, 0) }; Grid.SetColumn(text, column); grid.Children.Add(text); }
-                AutomationProperties.SetName(grid, string.Join("; ", cells)); ToolTip.SetTip(grid, new RichTip(item.Name, detail: string.Join(" · ", cells.Skip(1)))); return grid;
+                var grid = new Grid { ColumnDefinitions = new("3*,2*,2*,2*,2*"), MinHeight = 32, Margin = new Thickness(6, 3) };
+                string[] cells = [item.Name, DiskSpaceViewModel.ValueText(item, _explorer.Metric), DiskSpaceViewModel.LogicalText(item),
+                    !item.IncludedByPolicy ? "Excluded" : item.IsNonFileLeaf ? "Not counted" : item.Files.ToString("N0"), DiskSpaceViewModel.StatusText(item)];
+                for (int column = 0; column < cells.Length; column++)
+                {
+                    var text = new TextBlock { Text = cells[column], TextWrapping = column == 0 ? TextWrapping.NoWrap : TextWrapping.Wrap,
+                        TextTrimming = column == 0 ? TextTrimming.CharacterEllipsis : TextTrimming.None, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+                    Grid.SetColumn(text, column); grid.Children.Add(text);
+                }
+                bool? stacked = null;
+                void FitRow()
+                {
+                    if (grid.Bounds.Width <= 0) return;
+                    bool compact = grid.Bounds.Width < 40 * ((TextBlock)grid.Children[0]).FontSize;
+                    if (stacked == compact) return; stacked = compact;
+                    grid.ColumnDefinitions = new(compact ? "*,*" : "3*,2*,2*,2*,2*");
+                    grid.RowDefinitions = new(compact ? "Auto,Auto,Auto" : "Auto");
+                    string[] labels = ["", "Active metric: ", "File size: ", "File paths: ", "State: "];
+                    for (int column = 0; column < cells.Length; column++)
+                    {
+                        var text = (TextBlock)grid.Children[column];
+                        Grid.SetRow(text, compact && column > 0 ? 1 + (column - 1) / 2 : 0);
+                        Grid.SetColumn(text, compact ? column == 0 ? 0 : (column - 1) % 2 : column);
+                        Grid.SetColumnSpan(text, compact && column == 0 ? 2 : 1);
+                        text.Text = (compact ? labels[column] : "") + cells[column];
+                        text.Margin = new Thickness(0, 0, 12, compact ? 4 : 0);
+                    }
+                }
+                grid.SizeChanged += (_, _) => FitRow();
+                bool fitQueued = false;
+                grid.Children[0].PropertyChanged += (_, change) =>
+                {
+                    // Changing row layout/text inside inherited-font propagation can mutate
+                    // Avalonia's property-store traversal. Relayout after that traversal ends.
+                    if (change.Property != TextBlock.FontSizeProperty || fitQueued) return;
+                    fitQueued = true; Dispatcher.UIThread.Post(() => { fitQueued = false; FitRow(); }, DispatcherPriority.Loaded);
+                };
+                string? explanation = DiskSpaceViewModel.EntryExplanation(item);
+                AutomationProperties.SetName(grid, string.Join("; ", cells)); ToolTip.SetTip(grid, new RichTip(item.Name, detail: string.Join(" · ", cells.Skip(1)) + (explanation is null ? "" : "\n" + explanation))); return grid;
             });
             _main.Children.Add(new TextBlock { Text = "Name · Active metric · File size · File paths · State", TextWrapping = TextWrapping.Wrap }); _main.Children.Add(_list);
             _main.Children.Add(ActionButton("Explore selected folder", () => { if (_list.SelectedItem is AnalysisHierarchyRow { Path.Kind: AnalysisKind.Directory } row) _ = NavigateAsync(row.Path.Id); }, "Open the selected folder within this analysis."));
@@ -316,6 +353,7 @@ public sealed partial class DiskSpaceWindow
                 text.AppendLine("Active metric: " + DiskSpaceViewModel.ValueText(item, explorer.Metric, true) + " · File size: " + DiskSpaceViewModel.LogicalText(item, true));
                 text.AppendLine($"Metadata: {item.MetadataState}; origin: {explorer.Descriptor.Origin}; coverage: {explorer.Descriptor.Coverage}; observed revision: {explorer.Descriptor.Identity.Revision}.");
                 text.AppendLine("Name encoding: " + detail.Row.Path.NameEncoding + "; captured path ID: " + path);
+                if (DiskSpaceViewModel.EntryExplanation(item) is { } explanation) text.AppendLine(explanation);
                 if (!detail.Row.Path.RawName.IsDefaultOrEmpty) text.AppendLine("Raw name bytes: " + Convert.ToHexString(detail.Row.Path.RawName.AsSpan(0, Math.Min(256, detail.Row.Path.RawName.Length))) + (detail.Row.Path.RawName.Length > 256 ? "…" : ""));
                 text.AppendLine($"Aliases {detail.Aliases.Offset:N0}–{detail.Aliases.NextOffset:N0} of {detail.Aliases.Total:N0}:");
                 foreach (var entry in detail.Aliases.Rows) text.AppendLine($"  {entry.Id}: {AnalysisNames.DisplayName(entry, 128)} (parent {entry.ParentId})");

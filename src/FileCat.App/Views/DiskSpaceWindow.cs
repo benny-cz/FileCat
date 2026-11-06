@@ -308,17 +308,33 @@ public sealed partial class DiskSpaceWindow : Window
                 if (e.Key is Key.Enter or Key.Space) HandleKeys(e);
             }, RoutingStrategies.Tunnel);
             _list.DoubleTapped += (_, e) => { if (e.KeyModifiers == KeyModifiers.None && _list.SelectedItem is AnalysisTreeItem item) ActivateItem(item.Key, false, true); };
-            bool tablePress = false;
+            bool tablePress = false, releaseWired = false; IPointer? tablePointer = null;
             _list.AddHandler(PointerPressedEvent, (_, e) =>
             {
                 if (!tablePress && e.GetCurrentPoint(_list).Properties.IsLeftButtonPressed)
-                { tablePress = true; Model.Interaction(true); }
+                { tablePress = true; tablePointer = e.Pointer; Model.Interaction(true); }
             }, RoutingStrategies.Tunnel, handledEventsToo: true);
-            void EndTablePress() { if (tablePress) { tablePress = false; Model.Interaction(false); } }
+            void EndTablePress() { if (tablePress) { tablePress = false; tablePointer = null; Model.Interaction(false); } }
+            void ReleaseTablePress(object? sender, PointerReleasedEventArgs args)
+            { if (ReferenceEquals(args.Pointer, tablePointer)) EndTablePress(); }
+            void DeactivateTablePress(object? sender, EventArgs args) => EndTablePress();
             // Row selection and mark checkboxes can handle release before it bubbles here.
             // Retire the view freeze after their captured action, including handled releases.
-            _list.AddHandler(PointerReleasedEvent, (_, _) => EndTablePress(), RoutingStrategies.Bubble, handledEventsToo: true);
-            _list.PointerCaptureLost += (_, _) => EndTablePress(); _list.DetachedFromVisualTree += (_, _) => EndTablePress();
+            _list.AddHandler(PointerReleasedEvent, ReleaseTablePress, RoutingStrategies.Bubble, handledEventsToo: true);
+            _list.PointerCaptureLost += (_, _) => EndTablePress();
+            // Chrome/layout can move the list before release. Retire only this pointer's
+            // gesture at the owning window even when its release no longer visits the list.
+            _list.AttachedToVisualTree += (_, _) =>
+            {
+                if (releaseWired) return; releaseWired = true;
+                _window.AddHandler(PointerReleasedEvent, ReleaseTablePress, RoutingStrategies.Bubble, handledEventsToo: true);
+                _window.Deactivated += DeactivateTablePress;
+            };
+            _list.DetachedFromVisualTree += (_, _) =>
+            {
+                if (releaseWired) { releaseWired = false; _window.RemoveHandler(PointerReleasedEvent, ReleaseTablePress); _window.Deactivated -= DeactivateTablePress; }
+                EndTablePress();
+            };
             string[] headings = ["Mark", "Name", "Active metric", "File size", "Files", "State"];
             for (int i = 0; i < headings.Length; i++) { var h = new TextBlock { Text = headings[i], TextTrimming = TextTrimming.CharacterEllipsis }; Grid.SetColumn(h, i); _tableHeader.Children.Add(h); }
             _tableHeader.SizeChanged += (_, _) => FitColumns(_tableHeader);
@@ -342,7 +358,10 @@ public sealed partial class DiskSpaceWindow : Window
             _metric.SelectionChanged += (_, _) => { if (_updating) return; Model.Metric = (AnalysisMetric)Math.Max(0, _metric.SelectedIndex); _ = Model.RebuildAsync(true); };
             _sort.SelectionChanged += (_, _) => { if (_updating || _sort.SelectedIndex < 0) return; Model.Sort = (AnalysisTableSort)_sort.SelectedIndex; _ = Model.RebuildAsync(true); };
             _sortDirection.SelectionChanged += (_, _) => { if (_updating || _sortDirection.SelectedIndex < 0) return; Model.SortDescending = _sortDirection.SelectedIndex == 0; _ = Model.RebuildAsync(true); };
-            _query.TextChanged += (_, _) => { if (_updating) return; _filterTimer.Stop(); _filterTimer.Start(); };
+            // TextChanged is queued, so an initial value notification can arrive after this
+            // subscription and start a stale debounce. Observe actual property edits instead.
+            _query.PropertyChanged += (_, change) =>
+            { if (change.Property != TextBox.TextProperty || _updating) return; _filterTimer.Stop(); _filterTimer.Start(); };
             _case.IsCheckedChanged += (_, _) => { Model.CaseSensitive = _case.IsChecked == true; _ = Model.RebuildAsync(true); };
             _rootFilter.SelectionChanged += (_, _) => { if (!_updating && _rootFilter.SelectedItem is RootChoice choice) { Model.RootFilter = choice.Id; _ = Model.RebuildAsync(true); } };
             _unknown.Click += (_, _) => { Model.ShowUnknownFilterResults = !Model.ShowUnknownFilterResults; _ = Model.RebuildAsync(true); };

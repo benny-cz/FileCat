@@ -68,14 +68,23 @@ internal sealed partial class HarnessApp : Application
         };
         _window.SizeChanged += (_, _) => { if (_window.IsVisible) WriteReport("open"); };
         desktop.MainWindow = _window;
-        desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
-        AddLiveSession();
-        _window.Closed += (_, _) =>
+        desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        if (!Program.IndexedProbe) AddLiveSession();
+        _window.Closed += async (_, _) =>
         {
             _deadline.Stop();
+            _indexedLifetime.Cancel();
+            try
+            {
+                await _window.WaitForIndexedCloseAsync();
+                await _indexedProbeTask;
+                if (_indexedAcquisition is { } indexed) await indexed.DisposeAsync();
+            }
+            catch (Exception error) { _indexedProbeError ??= error.GetType().Name + ": " + error.Message; }
             var unchanged = _originals.All(p => File.Exists(p.Key) && Hash(p.Key) == p.Value);
             WriteReport("closed", unchanged);
-            _services.Dispose();
+            try { _services.Dispose(); }
+            finally { _indexedLifetime.Dispose(); desktop.Shutdown(); }
         };
         _deadline.Tick += (_, _) =>
         {
@@ -85,6 +94,7 @@ internal sealed partial class HarnessApp : Application
         _deadline.Start(); _window.Show(); WriteReport("ready");
         if (Program.WindowsInput) BeginWindowsInput();
         if (Program.ProfileProbe) _ = ProfileProbeAsync();
+        if (Program.IndexedProbe) _indexedProbeTask = IndexedProbeAsync();
     }
 
     private async Task ProfileProbeAsync()
@@ -201,7 +211,8 @@ internal sealed partial class HarnessApp : Application
             selectedTab = _tabs?.SelectedIndex, tabHeaders = _tabs?.Items.OfType<TabItem>().Select(tab => tab.Header as string).ToArray(),
             appSha256 = _appHash, harnessSha256 = _harnessHash,
             profileProbe = Program.ProfileProbe, profileProbeFinished = _profileProbeFinished, profileProbeError = _profileProbeError, profileProbeCaptureError = _profileProbeCaptureError,
-            savedOrderingProbe = _savedOrderingProbe, acquisitionProbe = _acquisitionProbe
+            savedOrderingProbe = _savedOrderingProbe, acquisitionProbe = _acquisitionProbe,
+            indexedProbeRequested = Program.IndexedProbe, indexedProbeFinished = _indexedProbeFinished, indexedProbeError = _indexedProbeError, indexedProbe = _indexedProbe
         };
         File.WriteAllText(Path.Combine(_run, "report.json"), JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }) + "\n");
     }
@@ -219,10 +230,11 @@ internal static class Program
     internal static bool ProfileProbe { get; private set; }
     internal static bool SavedOrderingProbe { get; private set; }
     internal static bool AcquisitionProbe { get; private set; }
+    internal static bool IndexedProbe { get; private set; }
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe"))) return 64;
+        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe"))) return 64;
         LargeText = args.Contains("--large-text", StringComparer.Ordinal);
         Compact = args.Contains("--compact", StringComparer.Ordinal);
         WindowsInput = args.Contains("--windows-input", StringComparer.Ordinal);
@@ -230,8 +242,10 @@ internal static class Program
         SavedOrderingProbe = args.Contains("--saved-ordering-probe", StringComparer.Ordinal);
         AcquisitionProbe = args.Contains("--acquisition-probe", StringComparer.Ordinal);
         ProfileProbe = args.Contains("--profile-probe", StringComparer.Ordinal) || SavedOrderingProbe || AcquisitionProbe;
+        IndexedProbe = args.Contains("--indexed-probe", StringComparer.Ordinal);
         if (ProfileProbe && WindowsInput) return 64;
-        if ((WindowsInput || ProfileProbe && OperatingSystem.IsWindows()) && !HarnessApp.WindowsInputVmAllowed()) return 77;
+        if (IndexedProbe && (ProfileProbe || WindowsInput)) return 64;
+        if ((WindowsInput || (ProfileProbe || IndexedProbe) && OperatingSystem.IsWindows()) && !HarnessApp.WindowsInputVmAllowed()) return 77;
         if (AnalysisAdmission.Refusal() is not null) return 77;
         foreach (var process in Process.GetProcessesByName("FileCat"))
             using (process) if (process.Id != Environment.ProcessId) return 75;

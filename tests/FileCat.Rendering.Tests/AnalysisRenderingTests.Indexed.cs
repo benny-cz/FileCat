@@ -222,7 +222,7 @@ public sealed partial class AnalysisRenderingTests
         internal byte[] Payload { get; } = [1, 2, 3];
         internal AnalysisDatasetLease? Lease;
         private IndexedFixture() { Root = Path.Combine(_parent, "indexed-window-" + Guid.NewGuid().ToString("N")); }
-        internal static async Task<IndexedFixture> CreateAsync(bool unverified = false)
+        internal static async Task<IndexedFixture> CreateAsync(bool unverified = false, bool namespaceEntry = false)
         {
             var fixture = new IndexedFixture(); Directory.CreateDirectory(Path.Combine(fixture.Root, "source", "folder"));
             File.WriteAllBytes(fixture.PayloadPath, fixture.Payload); File.WriteAllBytes(Path.Combine(fixture.Root, "source", "folder", "second.bin"), [9]);
@@ -233,12 +233,12 @@ public sealed partial class AnalysisRenderingTests
             try
             {
                 storage = await AnalysisIo.Run(fixture._io, device, _ => OperatingSystem.IsWindows() ? (AnalysisPrivateDirectory)new WindowsAnalysisPrivateDirectory(fixture.Root, "private") : new UnixAnalysisPrivateDirectory(fixture.Root, "private"), TestContext.Current.CancellationToken);
-                source = await AnalysisIo.Run(fixture._io, device, _ => unverified ? new UnverifiedFiles(Prepare(Path.Combine(fixture.Root, "source"))) : Prepare(Path.Combine(fixture.Root, "source")), TestContext.Current.CancellationToken);
+                source = await AnalysisIo.Run(fixture._io, device, _ => unverified || namespaceEntry ? new UnverifiedFiles(Prepare(Path.Combine(fixture.Root, "source")), unverified, namespaceEntry) : Prepare(Path.Combine(fixture.Root, "source")), TestContext.Current.CancellationToken);
                 session = new AnalysisCoordinator(fixture._io, "indexed-window-fixture").Start([source], storage: new(device,
-                    () => Interlocked.Exchange(ref storage, null) ?? throw new InvalidOperationException("Private owner transferred."), [new(device, () => unverified ? new UnverifiedFiles(Prepare(fixture.PrivatePath)) : Prepare(fixture.PrivatePath))], PreviewPaths: 2)); source = null;
+                    () => Interlocked.Exchange(ref storage, null) ?? throw new InvalidOperationException("Private owner transferred."), [new(device, () => unverified || namespaceEntry ? new UnverifiedFiles(Prepare(fixture.PrivatePath), unverified) : Prepare(fixture.PrivatePath))], PreviewPaths: 2)); source = null;
                 await session.Completion.WaitAsync(TimeSpan.FromSeconds(45), TestContext.Current.CancellationToken);
                 Assert.Equal(AnalysisPhase.Finished, session.Snapshot().Phase); Assert.Equal(0UL, session.SourceCloseFailures);
-                fixture.Lease = await session.AcquireDatasetAsync(TestContext.Current.CancellationToken); Assert.NotNull(fixture.Lease); Assert.Equal(305UL, fixture.Lease.Descriptor.Paths); completed = true; return fixture;
+                fixture.Lease = await session.AcquireDatasetAsync(TestContext.Current.CancellationToken); Assert.NotNull(fixture.Lease); Assert.Equal(namespaceEntry ? 306UL : 305UL, fixture.Lease.Descriptor.Paths); completed = true; return fixture;
             }
             finally
             {
@@ -249,14 +249,23 @@ public sealed partial class AnalysisRenderingTests
             }
         }
         private static IAnalysisBackend Prepare(string path) => OperatingSystem.IsWindows() ? new WindowsAnalysisBackend(path) : new UnixAnalysisBackend(path);
-        private sealed class UnverifiedFiles(IAnalysisBackend inner) : IAnalysisBackend
+        private sealed class UnverifiedFiles(IAnalysisBackend inner, bool unverified = true, bool namespaceEntry = false) : IAnalysisBackend
         {
             public RootBinding Root => inner.Root;
             public AnalysisEntry RootEntry => inner.RootEntry;
             public string Basis => inner.Basis;
             public string IoDeviceKey => inner.IoDeviceKey;
-            public IEnumerable<AnalysisEntry> Children(AnalysisEntry directory, CancellationToken cancellation) =>
-                inner.Children(directory, cancellation).Select(entry => entry.Kind == AnalysisKind.File ? entry with { Identity = null } : entry);
+            public IEnumerable<AnalysisEntry> Children(AnalysisEntry directory, CancellationToken cancellation)
+            {
+                foreach (var entry in inner.Children(directory, cancellation)) yield return unverified && entry.Kind == AnalysisKind.File ? entry with { Identity = null } : entry;
+                if (namespaceEntry && directory.RelativeName.IsEmpty)
+                {
+                    const string name = "namespace-link";
+                    byte[] raw = OperatingSystem.IsWindows() ? System.Text.Encoding.Unicode.GetBytes(name) : System.Text.Encoding.UTF8.GetBytes(name);
+                    yield return new([], name, [.. raw], AnalysisKind.Link, null, AnalysisMeasurement.Missing(MeasurementState.Unsupported),
+                        AnalysisMeasurement.Missing(MeasurementState.Unsupported), AnalysisMeasurement.Missing(MeasurementState.Unsupported), null, "", NameEncoding: OperatingSystem.IsWindows() ? "utf16le" : "utf8");
+                }
+            }
             public void ValidateReadScope(AnalysisEntry directory) => inner.ValidateReadScope(directory);
             private IAnalysisBackend Inner => inner;
             public AnalysisRootContainment ContainsRoot(IAnalysisBackend other) => inner.ContainsRoot(other is UnverifiedFiles weak ? weak.Inner : other);

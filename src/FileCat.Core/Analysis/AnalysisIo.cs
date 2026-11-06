@@ -28,6 +28,13 @@ public static class AnalysisIo
         return RunCore(scheduler, source.IoDeviceKey, _ => { source.Dispose(); return true; }, CancellationToken.None, releaseOnly: true);
     }
 
+    /// <summary>Closes an existing private-directory capability through bounded cleanup, including scheduler shutdown.</summary>
+    public static Task ReleaseAsync(DeviceIoScheduler scheduler, string device, AnalysisPrivateDirectory directory)
+    {
+        ArgumentNullException.ThrowIfNull(directory);
+        return RunCore(scheduler, device, _ => { directory.Dispose(); return true; }, CancellationToken.None, releaseOnly: true);
+    }
+
     internal static Task ReleaseScratchAsync(DeviceIoScheduler scheduler, string device, IAnalysisScratchOwned source) =>
         RunCore(scheduler, device, _ => { source.Dispose(); return true; }, CancellationToken.None, releaseOnly: true);
 
