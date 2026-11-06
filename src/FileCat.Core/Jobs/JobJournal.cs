@@ -29,6 +29,8 @@ public sealed class JobJournal : IDisposable
     private bool _disposed;
     private bool _finished;
     private bool _manualRecovery;
+    private bool _archiveRecoveryOnly;
+    private Action? _archiveRecoveryLeaseReview;
     private readonly ArchiveTransactionCollector _archiveTransactions = new();
 
     private JobJournal(string path, FileStream stream)
@@ -49,6 +51,7 @@ public sealed class JobJournal : IDisposable
     /// </summary>
     public void ArchiveTransaction(ArchiveTransactionFacts facts)
     {
+        if (_archiveRecoveryOnly) throw new InvalidOperationException("Recovery cannot rewrite archive preparation facts.");
         ArgumentNullException.ThrowIfNull(facts);
         if (facts.RecordVersion != ArchiveTransactionFacts.SchemaVersion)
             throw new InvalidOperationException("Legacy archive facts are read-only; create and review a fresh transaction.");
@@ -66,6 +69,7 @@ public sealed class JobJournal : IDisposable
     /// <summary>Durably record the separate same-object data recipe; never reinterpret replacement facts.</summary>
     internal void ArchiveContentUpdate(ArchiveContentUpdateFacts facts)
     {
+        if (_archiveRecoveryOnly) throw new InvalidOperationException("Recovery requires its own reconciliation records.");
         ArgumentNullException.ThrowIfNull(facts);
         lock (_lock)
         {
@@ -89,6 +93,7 @@ public sealed class JobJournal : IDisposable
 
     internal void ArchiveContentCleanup(ArchiveContentCleanupFacts facts)
     {
+        if (_archiveRecoveryOnly) throw new InvalidOperationException("Recovery cannot manufacture live creator cleanup authority.");
         ArgumentNullException.ThrowIfNull(facts);
         lock (_lock)
         {
@@ -106,6 +111,27 @@ public sealed class JobJournal : IDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_finished || _manualRecovery) throw new InvalidOperationException("The archive journal requires review or is finished.");
             _archiveTransactions.RequireCurrentCleanup(facts);
+        }
+    }
+    internal void ArchiveContentRecovery(ArchiveContentRecoveryFacts facts)
+    {
+        ArgumentNullException.ThrowIfNull(facts);
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!_archiveRecoveryOnly || _finished) throw new InvalidOperationException("Recovery requires the retained unfinished journal writer.");
+            _archiveTransactions.ValidateNextRecovery(facts);
+            try { Write(facts.ToJson(), sync: true); } catch { RequireRecovery(); throw; }
+            _archiveTransactions.AcceptRecovery(facts);
+        }
+    }
+    internal void RequireCurrentArchiveContentRecovery(ArchiveContentRecoveryFacts facts)
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!_archiveRecoveryOnly || _finished || _manualRecovery) throw new InvalidOperationException("No current writable archive reconciliation scope.");
+            _archiveRecoveryLeaseReview?.Invoke(); _archiveTransactions.RequireCurrentRecovery(facts);
         }
     }
 
@@ -296,12 +322,15 @@ public sealed class JobJournal : IDisposable
             Write(new JsonObject { ["t"] = "end", ["state"] = state.ToString(), ["summary"] = summary, ["time"] = DateTime.UtcNow.ToString("O") }, sync: true);
             _finished = true;
             // A job that ended needs no rerun: its manifest goes with it.
-            try { File.Delete(ManifestPathOf(Path)); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            if (!_archiveRecoveryOnly)
+                try { File.Delete(ManifestPathOf(Path)); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
     }
 
     private void Write(JsonObject record, bool sync)
     {
+        if (_archiveRecoveryOnly && record["t"]?.GetValue<string>() is not ("archive-content-recovery" or "end"))
+            throw new InvalidOperationException("This retained recovery writer only appends reconciliation and closure records.");
         var json = record.ToJsonString();
         var bytes = Encoding.UTF8.GetBytes(json);
         if (bytes.Length > MaxJournalLineBytes - 10)
@@ -311,11 +340,15 @@ public sealed class JobJournal : IDisposable
         lock (_lock)
         {
             if (_disposed) return;
+            _archiveRecoveryLeaseReview?.Invoke();
+            if (_archiveRecoveryOnly && _stream.Length > ArchiveWritePolicy.MaxMetadataBytes - line.Length)
+                throw new IOException("The retained recovery journal exceeds its physical bound.");
             _stream.Write(line);
             _pendingBatched++;
             if (sync || _pendingBatched >= 256 || DateTime.UtcNow - _lastFlush > TimeSpan.FromMilliseconds(500))
             {
                 _stream.Flush(flushToDisk: sync);
+                _archiveRecoveryLeaseReview?.Invoke();
                 _pendingBatched = 0;
                 _lastFlush = DateTime.UtcNow;
             }
@@ -339,8 +372,11 @@ public sealed class JobJournal : IDisposable
 
     /// <summary>CRC-checked records are yielded one at a time so recovery does not retain completed steps.</summary>
     internal static IEnumerable<JournalRecord> ReadRecords(string path, Action? damagedRecord = null)
+        => ReadRecords(ReadBoundedLines(path), damagedRecord);
+
+    private static IEnumerable<JournalRecord> ReadRecords(IEnumerable<string> lines, Action? damagedRecord)
     {
-        foreach (var line in ReadBoundedLines(path))
+        foreach (var line in lines)
         {
             // A torn line (crash mid-write) fails its checksum and is skipped; records appended later by
             // recovery still count.
@@ -364,6 +400,11 @@ public sealed class JobJournal : IDisposable
         using var input = OperatingSystem.IsWindows()
             ? new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 64 * 1024)
             : new FileStream(OpenUnixRegularFile(path), FileAccess.Read, 64 * 1024);
+        foreach (var line in ReadBoundedLines(input, requireTerminated: false)) yield return line;
+    }
+
+    private static IEnumerable<string> ReadBoundedLines(Stream input, bool requireTerminated)
+    {
         var chunk = new byte[64 * 1024];
         var line = new ArrayBufferWriter<byte>(1024);
         bool first = true;
@@ -375,7 +416,7 @@ public sealed class JobJournal : IDisposable
                 byte value = chunk[i];
                 if (value == (byte)'\n')
                 {
-                    string text = DecodeLine(line, first);
+                    string text = DecodeLine(line, first, requireTerminated);
                     first = false;
                     line.Clear();
                     yield return text;
@@ -389,16 +430,69 @@ public sealed class JobJournal : IDisposable
                 }
             }
         }
-        if (line.WrittenCount != 0) yield return DecodeLine(line, first);
+        if (line.WrittenCount != 0)
+        {
+            if (requireTerminated) throw new IOException("The retained archive journal has an incomplete final line.");
+            yield return DecodeLine(line, first);
+        }
     }
 
-    private static string DecodeLine(ArrayBufferWriter<byte> line, bool first)
+    private static string DecodeLine(ArrayBufferWriter<byte> line, bool first, bool strict = false)
     {
         ReadOnlySpan<byte> bytes = line.WrittenSpan;
         if (bytes.Length > 0 && bytes[^1] == (byte)'\r') bytes = bytes[..^1];
         if (first && bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
             bytes = bytes[3..];
-        return Encoding.UTF8.GetString(bytes);
+        return (strict ? new UTF8Encoding(false, true) : Encoding.UTF8).GetString(bytes);
+    }
+
+    /// <summary>Consumes an already-bound exclusive native writer. This never reopens the display path.</summary>
+    internal static JobJournal ReopenArchiveRecovery(string displayPath, FileStream retained, string expectedSha256, Action reviewLease, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(retained); ArgumentNullException.ThrowIfNull(reviewLease);
+        try
+        {
+            ArchiveTransactionFacts.ValidatePath(displayPath); ArchiveWritePolicy.ValidateDigest(expectedSha256);
+            if (!retained.CanRead || !retained.CanWrite || !retained.CanSeek || retained.Length is <= 0 or > ArchiveWritePolicy.MaxMetadataBytes)
+                throw new IOException("An exclusive bounded regular archive journal is required.");
+            reviewLease(); string before = Hash(); if (before != expectedSha256) throw new IOException("The archive journal changed since review.");
+            var journal = new JobJournal(displayPath, retained) { _archiveRecoveryOnly = true, _archiveRecoveryLeaseReview = reviewLease };
+            retained.Position = 0; bool began = false, damaged = false; int count = 0;
+            foreach (var record in ReadRecords(ReadBoundedLines(retained, requireTerminated: true), () => damaged = true))
+            {
+                ct.ThrowIfCancellationRequested(); if (++count > 4096) throw new IOException("The archive recovery history exceeds its record bound.");
+                if (record.Type == "begin")
+                { if (began || record.Get("kind") != nameof(JobKind.ArchiveUpdate)) throw new IOException("An unfinished standalone archive journal is required."); began = true; }
+                else if (!record.Type.StartsWith("archive-", StringComparison.Ordinal) && record.Type != "note")
+                    throw new IOException("Mixed or finished journal recovery requires separate review.");
+                journal._archiveTransactions.Read(record.Type, record.Node);
+            }
+            if (!began || damaged || !journal._archiveTransactions.Snapshot.HasRecords || journal._archiveTransactions.Snapshot.Problem is not null)
+                throw new IOException("The archive recovery journal is incomplete, damaged or unsupported.");
+            reviewLease(); if (Hash() != before) throw new IOException("The archive journal changed during retained review.");
+            retained.Position = retained.Length; return journal;
+
+            string Hash()
+            {
+                retained.Position = 0; long length = retained.Length, consumed = 0;
+                using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256); byte[] buffer = new byte[128 * 1024];
+                for (int read; (read = retained.Read(buffer)) != 0;)
+                { ct.ThrowIfCancellationRequested(); consumed = checked(consumed + read); if (consumed > ArchiveWritePolicy.MaxMetadataBytes) throw new IOException("Archive journal grew beyond its bound."); hash.AppendData(buffer, 0, read); }
+                if (consumed != length || retained.Length != length) throw new IOException("Archive journal length changed during review.");
+                return Convert.ToHexString(hash.GetHashAndReset());
+            }
+        }
+        catch { retained.Dispose(); throw; }
+    }
+
+    internal ArchiveTransactionRecovery RetainedArchiveRecovery()
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!_archiveRecoveryOnly || _finished || _manualRecovery) throw new InvalidOperationException("No current retained archive recovery writer.");
+            _archiveRecoveryLeaseReview?.Invoke(); return _archiveTransactions.Snapshot;
+        }
     }
 
     [DllImport("libc", EntryPoint = "flock", SetLastError = true)]

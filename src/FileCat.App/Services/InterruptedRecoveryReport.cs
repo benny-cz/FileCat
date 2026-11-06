@@ -180,6 +180,16 @@ internal static class InterruptedRecoveryReport
                 Line("Sealed artifact metadata SHA-256: " + artifact.MetadataSha256);
             }
         }
+        foreach (var recovery in job.ArchiveTransactions.ContentRecoveries)
+        {
+            Line($"Archive recovery {recovery.Nonce:N}, sequence {recovery.Sequence}, recorded phase {recovery.Phase}, verified target {recovery.TargetState}");
+            Line("Reviewed archive identity: " + JsonSerializer.Serialize(recovery.Target.Identity) + ", SHA-256 " + recovery.Target.Sha256);
+            var catalog = job.ArchiveTransactions.ContentCleanups.SingleOrDefault(c => c.Nonce == recovery.Nonce);
+            if (catalog is not null)
+                for (int i = recovery.InitialCount; i < recovery.ReviewedCount; i++)
+                    Detail((recovery.AbsentMask & (1u << i)) != 0 ? "Artifact recorded absent during recovery (not inspected)" :
+                        "Artifact recorded deleted during recovery (not inspected)", catalog.Artifacts[i].Path);
+        }
         Line();
         if (deleted is not null)
             foreach (string path in deleted) Detail("Deleted by cleanup", path);

@@ -83,7 +83,7 @@ public sealed class ArchiveContentCleanupJournalTests
         { result.Add(current = current.Advance(ArchiveContentCleanupPhase.DeleteIntent)); result.Add(current = current.Advance(ArchiveContentCleanupPhase.Deleted)); }
         result.Add(current.Advance(ArchiveContentCleanupPhase.Completed)); return result;
     }
-    private sealed class Fixture : IDisposable
+    internal sealed class Fixture : IDisposable
     {
         private readonly TempDir root = new(); private readonly Guid nonce = Guid.NewGuid();
         private readonly ArchiveOriginSnapshot absent = ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier);

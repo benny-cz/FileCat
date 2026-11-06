@@ -118,6 +118,34 @@ internal sealed class WindowsArchiveDirectory : IDisposable, IArchiveDestination
         return OpenExisting(leaf, maximumLength, artifact: true, mayRename: true, expected);
     }
 
+    internal WindowsArchiveFile? OpenRecoveryArtifactOrAbsent(string leaf, FileIdentity expected, WindowsArchiveArtifactKind kind, long maximumLength)
+    {
+        ValidateLeaf(leaf); ValidateLimit(kind, maximumLength);
+        if (!Enum.IsDefined(kind)) throw new ArgumentException("Invalid recovery artifact kind.");
+        lock (Gate)
+        {
+            EnsureOpen(); RequireCapacity(); VerifyNamespace();
+            int status = TryOpen(Handle, leaf, GenericRead | Delete | Synchronize | 0x20000, ShareRead, NtFile.Open,
+                NonDirectoryFile | OpenReparsePoint, out var handle);
+            if (status == NameNotFound) { handle.Dispose(); return null; }
+            if (status < 0) { handle.Dispose(); throw Error(status, "Open the exact recovery artifact or confirm name absence"); }
+            return Adopt(handle, leaf, maximumLength, true, false, true, expected, kind);
+        }
+    }
+    internal void RequireRecoveryNameAbsent(string leaf)
+    {
+        ValidateLeaf(leaf);
+        lock (Gate)
+        {
+            EnsureOpen(); VerifyNamespace();
+            int status = TryOpen(Handle, leaf, ReadAttributes | Synchronize, ShareAll, NtFile.Open, OpenReparsePoint, out var handle);
+            handle.Dispose();
+            if (status == NameNotFound) return;
+            if (status < 0) throw Error(status, "Confirm recovery artifact name absence");
+            throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "A processed archive artifact name is occupied; keep that object for review.");
+        }
+    }
+
     private WindowsArchiveFile OpenExisting(string leaf, long maximumLength, bool artifact, bool mayRename, FileIdentity? expected)
     {
         ValidateLeaf(leaf); ValidateLimit(WindowsArchiveArtifactKind.Stage, maximumLength);

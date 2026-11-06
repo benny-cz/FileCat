@@ -64,6 +64,12 @@ mutation and implements creator-owned, object-bound unlink with durable per-obje
 snapshot last. All 131 Windows native cases pass, including twenty deletion crashes; common/UI and prior regressions
 pass on all three platforms. Completed cleanup clears only its own recovery hold. Interrupted-cleanup resumption,
 native recovery/restoration, broader qualification and production workflows remain unfinished.
+The [NTFS cleanup-recovery follow-up](NTFS_CLEANUP_RECOVERY.md) adds an exclusive retained journal reopener, fresh
+native target/catalog inspection and a separate bounded reconciliation history distinguishing confirmed unlinks from
+observed absence. Eight actual crash-to-recovery paths and five changed/stale/busy/incomplete refusals pass within all
+144 Windows native cases; common/UI regressions pass on all three platforms. Recovery preserves archive bytes and can
+finish exact private cleanup. Restoration, crashes during recovery itself, production actions and broader gates remain
+unfinished; profiles stay disabled.
 The [private creation process-crash follow-up](PRIVATE_CREATION_PROCESS_CRASHES.md) passes ten new publication/metadata
 boundaries and thirteen neighboring crash cases on each platform. It leaves production and recovery authority unchanged.
 The [TAR.GZ worker pipeline](TAR_GZIP_WORKER_PIPELINE.md) adds strict wrapper-aware assessment, streamed create/update

@@ -45,6 +45,30 @@ internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, 
             WindowsArchiveNative.RequireCreationStreams(handle, actual.Version.Length, actual.Origin);
         }
     }
+    internal void ReviewRecoveredCleanup(ArchiveContentCleanupArtifact expected, string parentIdentity, CancellationToken ct)
+    {
+        lock (parent.Gate)
+        {
+            EnsureLive(); ct.ThrowIfCancellationRequested();
+            if (!artifact || createdWritable || writable || namespaceChanged || !mayRename || createdKind != (WindowsArchiveArtifactKind)expected.Kind ||
+                parent.Identity.ToString() != parentIdentity || !string.Equals(DisplayPath, expected.Path, StringComparison.OrdinalIgnoreCase))
+                throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "Recovery requires the exact catalog-bound native artifact.");
+            parent.VerifyNamespace(); parent.RequireName(KnownName, Identity); parent.CheckPrivate(handle);
+            var actual = ObserveRetained(ct);
+            if (actual.Version != expected.Version || actual.MetadataDigest != expected.MetadataSha256 || actual.Origin.Digest != expected.OriginSha256) throw ChangedRetained();
+            WindowsArchiveNative.RequireCreationStreams(handle, actual.Version.Length, actual.Origin);
+        }
+    }
+    /// <summary>The recovery coordinator must durably record intent under its exclusive retained journal first.</summary>
+    internal void DeleteRecoveredCleanup(ArchiveContentCleanupArtifact expected, string parentIdentity, CancellationToken ct)
+    {
+        lock (parent.Gate)
+        {
+            ReviewRecoveredCleanup(expected, parentIdentity, ct); var metadata = CaptureOuterMetadata(ct);
+            if (metadata.Digest != expected.MetadataSha256) throw ChangedRetained();
+            DeleteReviewed(expected.Version, metadata, ct);
+        }
+    }
     internal WindowsArchiveFile CreateSiblingArtifact(ArchiveArtifactReservation reservation)
     {
         lock (parent.Gate) { EnsureLive(); return parent.CreateArtifact(reservation); }

@@ -25,11 +25,20 @@ public sealed partial class WindowsArchiveStorageTests
     [InlineData("cleanup-intent-3")] [InlineData("cleanup-unlinked-3")] [InlineData("cleanup-recorded-3")]
     [InlineData("cleanup-intent-4")] [InlineData("cleanup-unlinked-4")] [InlineData("cleanup-recorded-4")]
     [InlineData("cleanup-intent-5")] [InlineData("cleanup-unlinked-5")] [InlineData("cleanup-recorded-5")]
+    [InlineData("recover:snapshot-recorded")] [InlineData("recover:private-ready")]
+    [InlineData("recover:native-committed")] [InlineData("recover:committed-recorded")]
+    [InlineData("recover:cleanup-intent-0")] [InlineData("recover:cleanup-unlinked-0")]
+    [InlineData("recover:cleanup-recorded-2")] [InlineData("recover:cleanup-unlinked-5")]
+    [InlineData("changed-target:committed-recorded")] [InlineData("changed-artifact:committed-recorded")]
+    [InlineData("stale-journal:committed-recorded")] [InlineData("busy-journal:committed-recorded")]
+    [InlineData("missing-catalog:snapshot-created")]
     public async Task Real_content_process_crashes_preserve_the_original_or_committed_bytes_and_all_recorded_evidence(string point)
     {
         RequireWindows();
         if (Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_TXF_NATIVE") != "1") Assert.Skip("Run the explicit NTFS transaction qualification lane.");
-        using var fixture = new Fixture(); string root = fixture.Root;
+        string mode = ""; int separator = point.IndexOf(':');
+        if (separator >= 0) { mode = point[..separator]; point = point[(separator + 1)..]; }
+        using var fixture = new CrashFixture(); string root = fixture.Root;
         File.WriteAllText(Path.Combine(root, "sentinel"), "owned unchanged sentinel");
         var checkout = new DirectoryInfo(AppContext.BaseDirectory);
         while (checkout is not null && !File.Exists(Path.Combine(checkout.FullName, "FileCat.slnx"))) checkout = checkout.Parent;
@@ -54,7 +63,9 @@ public sealed partial class WindowsArchiveStorageTests
             }
             finally { await Reap(process); }
         }
-        if (point.StartsWith("cleanup-", StringComparison.Ordinal)) { AssertCleanupCrash(root, point); return; }
+        fixture.AwaitReleasedHandles();
+        if (point.StartsWith("cleanup-", StringComparison.Ordinal))
+        { AssertCleanupCrash(root, point); if (mode.Length != 0) AssertRecovery(root, mode); return; }
         string[] before = Snapshot();
         using var baseline = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "baseline.json")));
         var initial = baseline.RootElement; string journals = Path.Combine(root, "journals");
@@ -119,10 +130,61 @@ public sealed partial class WindowsArchiveStorageTests
             if (facts.Snapshot is not null) Assert.Equal(facts.Snapshot, version);
             Assert.Throws<ArchiveWriteException>(() => snapshot.BeginContentTransaction(((IArchiveRetainedFile)snapshot).Observe(TestContext.Current.CancellationToken), Guid.NewGuid(), TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken));
         }
+        if (mode.Length != 0) AssertRecovery(root, mode);
         string[] Snapshot() => Directory.GetFiles(root, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
             .Select(path => Path.GetRelativePath(root, path) + ":" + Hash(path)).ToArray();
         static string Hash(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
         static FileIdentity Identity(string value) => new(Convert.ToUInt64(value[..16], 16), value[17..]);
+    }
+    private static void AssertRecovery(string root, string mode)
+    {
+        var job = Assert.Single(JournalRecovery.Scan(Path.Combine(root, "journals"), keepFinished: 0, maxAge: TimeSpan.Zero));
+        var content = Assert.Single(job.ArchiveTransactions.ContentUpdates);
+        var catalog = job.ArchiveTransactions.ContentCleanups.SingleOrDefault();
+        string expected = Hash(job.JournalPath); string target = Path.Combine(root, "original.tar"); string originalTarget = Hash(target);
+        if (mode == "changed-target") File.WriteAllBytes(target, "a later user version"u8.ToArray());
+        if (mode == "changed-artifact") File.SetLastWriteTimeUtc(catalog!.Artifacts[^1].Path, DateTime.UnixEpoch.AddSeconds(1700001234));
+        if (mode == "stale-journal")
+        {
+            string json = "{\"t\":\"note\",\"msg\":\"a later journal revision\"}";
+            File.AppendAllText(job.JournalPath, $"{FileCat.Core.Jobs.Crc32.HashToUInt32(System.Text.Encoding.UTF8.GetBytes(json)):x8} {json}\n");
+        }
+        string[] before = Snapshot();
+        if (mode != "recover")
+        {
+            if (mode == "busy-journal")
+            {
+                using var busy = new FileStream(job.JournalPath, FileMode.Open, FileAccess.ReadWrite, FileShare.Read);
+                Refused();
+            }
+            else Refused();
+            Assert.Equal(before, Snapshot()); return;
+            void Refused()
+            {
+                var error = Record.Exception(() => { using var rejected = WindowsArchiveCleanupRecovery.Open(job.JournalPath, expected, content.Nonce, TestContext.Current.CancellationToken); });
+                Assert.True(error is ArchiveWriteException or IOException or System.ComponentModel.Win32Exception, error?.ToString());
+            }
+        }
+        using (var recovered = WindowsArchiveCleanupRecovery.Open(job.JournalPath, expected, content.Nonce, TestContext.Current.CancellationToken))
+        {
+            uint absent = 0, remaining = 0;
+            for (int i = catalog!.DeletedCount; i < catalog.Artifacts.Count; i++)
+            { remaining |= 1u << i; if (!File.Exists(catalog.Artifacts[i].Path)) absent |= 1u << i; }
+            var outcome = recovered.ResumeCleanup(TestContext.Current.CancellationToken);
+            Assert.True(outcome.IsResolved); Assert.Equal(catalog!.Artifacts.Count, outcome.ReviewedCount);
+            Assert.Equal(absent, outcome.AbsentMask); Assert.Equal(remaining & ~absent, outcome.DeletedMask);
+            Assert.Equal(originalTarget, Hash(target)); Assert.All(catalog.Artifacts, artifact => Assert.False(File.Exists(artifact.Path)));
+            Assert.Same(outcome, recovered.ResumeCleanup(TestContext.Current.CancellationToken));
+            Assert.False(JournalRecovery.ReadArchiveTransactions(job.JournalPath).RequiresReview);
+            recovered.Finish("native recovery retained the verified archive and reconciled every private artifact");
+        }
+        var final = JournalRecovery.ReadArchiveTransactions(job.JournalPath);
+        Assert.False(final.RequiresReview); Assert.True(Assert.Single(final.ContentRecoveries).IsResolved);
+        Assert.Equal(originalTarget, Hash(target)); Assert.Equal("owned unchanged sentinel", File.ReadAllText(Path.Combine(root, "sentinel")));
+        static string Hash(string path)
+        { using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite); return Convert.ToHexString(SHA256.HashData(stream)); }
+        string[] Snapshot() => Directory.GetFiles(root, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
+            .Select(path => Path.GetRelativePath(root, path) + ":" + Hash(path)).ToArray();
     }
     private static void AssertCleanupCrash(string root, string point)
     {
@@ -182,5 +244,35 @@ public sealed partial class WindowsArchiveStorageTests
         if (!process.HasExited) process.Kill(entireProcessTree: true);
         // Cleanup must finish even when the test's cancellation token has fired.
         await process.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(15), CancellationToken.None);
+    }
+
+    private sealed class CrashFixture : IDisposable
+    {
+        private readonly Fixture fixture = new();
+        public string Root => fixture.Root;
+        public void AwaitReleasedHandles() => AfterRundown(() =>
+        {
+            var held = new List<FileStream>();
+            try
+            {
+                foreach (string path in Directory.EnumerateFiles(Root, "*", SearchOption.AllDirectories))
+                    held.Add(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None));
+            }
+            finally { foreach (var file in held) file.Dispose(); }
+        }, "exclusive evidence-readiness check");
+        public void Dispose() => AfterRundown(fixture.Dispose, "cleanup");
+        private static void AfterRundown(Action action, string operation)
+        {
+            // The killed process is reaped above, but Windows can still be completing native handle/transaction
+            // rundown. Retry only the two sharing errors, only for this owned crash fixture, and report any delay.
+            var elapsed = Stopwatch.StartNew(); int retries = 0;
+            while (true)
+            {
+                try { action(); break; }
+                catch (IOException error) when ((error.HResult & 0xffff) is 32 or 33 && elapsed.Elapsed < TimeSpan.FromSeconds(5))
+                { retries++; Thread.Sleep(25); }
+            }
+            if (retries != 0) TestContext.Current.TestOutputHelper!.WriteLine($"Crash fixture {operation} waited {elapsed.ElapsedMilliseconds} ms for {retries} sharing violations after process exit.");
+        }
     }
 }
