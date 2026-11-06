@@ -18,7 +18,7 @@ public enum AnalysisTaint { OrdinarySensitive = 1, PrivilegedDerived = 2, Import
 public enum IdentityAssurance { Unknown, Verified }
 public enum AnalysisAssurance { ObservedMetadata, ReviewedObject, ComparedContent }
 public enum AnalysisNameRules { Provider, Windows, Unix }
-public enum AnalysisRootDisposition { Active, Covered, ExcludedUnverifiedOverlap }
+public enum AnalysisRootDisposition { Active, Covered, ExcludedUnverifiedOverlap, UnavailablePrivateBoundary, ExcludedPrivateState }
 public enum AnalysisSelectionKind { ExplicitPaths, WholeFolder, FilteredMembersOnly, RealGroupMembers, VisibleMatches }
 
 public readonly record struct AnalysisMeasurement

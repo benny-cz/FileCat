@@ -4,18 +4,24 @@ using FileCat.Core.Threading;
 namespace FileCat.Core.Analysis;
 
 /// <summary>Application-owned native preparation; these factories are never decoded from inventory data.</summary>
-public sealed record AnalysisPrivateRoot(string DeviceKey, Func<IAnalysisBackend> Prepare);
+public sealed record AnalysisPrivateRoot(string DeviceKey, Func<IAnalysisBackend> Prepare)
+{
+    // A held ancestor of an unavailable boundary is not itself declared private. Only native
+    // sources proven disjoint in both directions may be read while that boundary is unavailable.
+    public bool RequiresDisjointSource { get; init; }
+}
 public sealed record AnalysisStorageOptions(string DeviceKey, Func<AnalysisPrivateDirectory> CreateDirectory, ImmutableArray<AnalysisPrivateRoot> ProtectedRoots, int PreviewPaths = 4096)
 {
     // Trusted application configuration, never reconstructed from an inventory's profile correlation ID.
     public Func<AnalysisProfileQuota>? CreateProfileQuota { get; init; }
     public string? ProfileDeviceKey { get; init; }
     public bool AllowMemoryFallback { get; init; }
+    public bool MemoryOnly { get; init; }
     internal AnalysisIoDevices Devices => new(DeviceKey, ProfileDeviceKey);
     internal void Validate()
     {
         if (string.IsNullOrWhiteSpace(DeviceKey) || DeviceKey.Length > 1024 || CreateDirectory is null || ProtectedRoots.IsDefaultOrEmpty || ProtectedRoots.Length > AnalysisLimits.Roots ||
-            PreviewPaths is < 1 or > 65536 || ProtectedRoots.Any(p => p is null || p.Prepare is null || string.IsNullOrWhiteSpace(p.DeviceKey) || p.DeviceKey.Length > 1024))
+            PreviewPaths is < 1 or > 65536 || MemoryOnly && !AllowMemoryFallback || ProtectedRoots.Any(p => p is null || p.Prepare is null || string.IsNullOrWhiteSpace(p.DeviceKey) || p.DeviceKey.Length > 1024))
             throw new ArgumentException("Secure analysis storage requires explicit bounded private-root preparation.");
         _ = Devices;
     }
@@ -27,6 +33,7 @@ public sealed partial class AnalysisSession
     private readonly List<IAnalysisBackend> _protected = [];
     private readonly HashSet<string> _protectedIdentities = new(StringComparer.Ordinal);
     private readonly HashSet<IAnalysisBackend> _protectedSources = new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<IAnalysisBackend> _unavailableSources = new(ReferenceEqualityComparer.Instance);
     private readonly Queue<AnalysisIssue> _captureIssues = [];
     private readonly CancellationTokenSource _finalizeCancel = new();
     private AnalysisObservationWriter? _writer;
@@ -60,11 +67,19 @@ public sealed partial class AnalysisSession
                 if (source.Root.Assurance != IdentityAssurance.Verified || source.RootEntry.Kind != AnalysisKind.Directory || source.RootEntry.Identity is not { Length: > 0 } identity ||
                     _sources.Any(s => s.Root.Assurance != IdentityAssurance.Verified))
                     throw new IOException("Private-state exclusion could not be qualified for these sources.");
-                _protectedIdentities.Add(identity);
+                if (!protection.RequiresDisjointSource) _protectedIdentities.Add(identity);
                 foreach (var candidate in _sources)
                 {
                     var containment = candidate.RootEntry.Identity == identity ? AnalysisRootContainment.Covered :
-                        await AnalysisIo.Run(_io, protection.DeviceKey, _ => source.ContainsRoot(candidate), _cancel.Token).ConfigureAwait(false);
+                        await AnalysisIo.Run(_io, new(protection.DeviceKey, candidate.IoDeviceKey), _ => source.ContainsRoot(candidate), _cancel.Token).ConfigureAwait(false);
+                    if (protection.RequiresDisjointSource)
+                    {
+                        var reverse = containment == AnalysisRootContainment.Disjoint
+                            ? await AnalysisIo.Run(_io, new(protection.DeviceKey, candidate.IoDeviceKey), _ => candidate.ContainsRoot(source), _cancel.Token).ConfigureAwait(false)
+                            : AnalysisRootContainment.Unavailable;
+                        if (containment != AnalysisRootContainment.Disjoint || reverse != AnalysisRootContainment.Disjoint) _unavailableSources.Add(candidate);
+                        continue;
+                    }
                     if (containment == AnalysisRootContainment.Unavailable) throw new IOException("Private-state containment could not be qualified for these sources.");
                     if (containment == AnalysisRootContainment.Covered) _protectedSources.Add(candidate);
                 }
@@ -74,9 +89,26 @@ public sealed partial class AnalysisSession
         { protectionFailure = error; }
         // Qualify membership before scratch creation changes a private directory's version. Even an
         // explicitly selected private file root contributes only excluded evidence, never its metadata.
-        lock (_sync) _roots = _roots.Select((root, i) => _protectedSources.Contains(_sources[i]) ? root with { ObservedObjectIdentity = null } : root).ToImmutableArray();
         if (protectionFailure is not null) throw new IOException("Private-state exclusion could not be qualified for these sources.", protectionFailure);
+        if (_unavailableSources.Count != 0)
+        {
+            lock (_sync) _roots = _roots.Select((root, i) => _unavailableSources.Contains(_sources[i])
+                ? root with { Disposition = AnalysisRootDisposition.UnavailablePrivateBoundary, CoveredByRootId = null, CoveredRelativePath = null,
+                    ObservedObjectIdentity = null, SourceIdentity = null, Assurance = IdentityAssurance.Unknown } : root).ToImmutableArray();
+            foreach (var root in _roots.Where(r => r.Disposition == AnalysisRootDisposition.UnavailablePrivateBoundary))
+                Issue("private-analysis-boundary-unavailable", state: MeasurementState.Unsupported, rootId: root.Id);
+            // A selected safe child can still run when its previously covering root is unavailable.
+            // Recompute coverage among the remaining held sources so nested selections cannot double count.
+            await NormalizeRootsAsync().ConfigureAwait(false);
+        }
+        lock (_sync) _roots = _roots.Select((root, i) => _protectedSources.Contains(_sources[i]) && root.Disposition != AnalysisRootDisposition.UnavailablePrivateBoundary
+            ? root with { ObservedObjectIdentity = null, SourceIdentity = null, Assurance = IdentityAssurance.Unknown,
+                Disposition = root.Disposition == AnalysisRootDisposition.Covered ? AnalysisRootDisposition.ExcludedPrivateState : root.Disposition,
+                CoveredByRootId = null, CoveredRelativePath = null } : root).ToImmutableArray();
+        foreach (var root in _roots.Where(r => r.Disposition == AnalysisRootDisposition.ExcludedPrivateState))
+            Issue("private-analysis-state-excluded", state: MeasurementState.Excluded, rootId: root.Id);
         lock (_sync) _activeDevice = _storage.Devices;
+        if (_storage.MemoryOnly) { await SwitchToMemoryAsync().ConfigureAwait(false); return; }
         try
         {
             _writer = await AnalysisObservationWriter.CreateAsync(_io, _storage.Devices, _storage.CreateDirectory, _identity, _roots, _policy, _cancel.Token, _storage.CreateProfileQuota).ConfigureAwait(false);

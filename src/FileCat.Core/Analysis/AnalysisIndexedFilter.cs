@@ -56,7 +56,8 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
         var result = new AnalysisIndexedFilter(filter, request, source.Count(AnalysisIndexedGraph.Paths));
         try
         {
-            foreach (var root in source.Header.Roots) result._scopes[root.Id] = new(root.Disposition == AnalysisRootDisposition.Active ? root.Id : null, null, root.Disposition == AnalysisRootDisposition.Active);
+            foreach (var root in source.Header.Roots) result._scopes[root.Id] = new(root.Disposition == AnalysisRootDisposition.Active ? root.Id : null, null,
+                root.Disposition is AnalysisRootDisposition.Active or AnalysisRootDisposition.ExcludedPrivateState);
             if (request.RootId is not null || (filter.Needs & AnalysisFilterNeeds.Roots) != 0)
                 foreach (var root in source.Header.Roots.Where(r => r.Disposition == AnalysisRootDisposition.Covered))
                     await result.ResolveAsync(source, root, io, device, cancellation).ConfigureAwait(false);

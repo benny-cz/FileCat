@@ -29,7 +29,7 @@ public sealed partial class AnalysisRenderingTests
             await session.Completion.WaitAsync(TimeSpan.FromMinutes(3), TestContext.Current.CancellationToken);
             Assert.Equal(AnalysisPhase.Finished, session.Snapshot().Phase); Assert.True(session.DatasetDescriptor!.Paths > 4_096);
             Assert.True(session.Snapshot().Nodes.Length <= 4_096); Assert.Equal(0UL, session.SourceCloseFailures);
-            Assert.Equal(acquisition.Profile.ProfileId, session.DatasetDescriptor.Identity.HostProfileIdentity!.ProfileId);
+            Assert.NotNull(acquisition.Profile); Assert.Equal(acquisition.Profile.ProfileId, session.DatasetDescriptor.Identity.HostProfileIdentity!.ProfileId);
             Assert.Throws<InvalidOperationException>(() => acquisition.Start([]));
             lease = await session.AcquireDatasetAsync(TestContext.Current.CancellationToken); Assert.NotNull(lease);
             ulong offset = 0; int excluded = 0;
@@ -72,13 +72,14 @@ public sealed partial class AnalysisRenderingTests
     }
 
     [AvaloniaFact]
-    public async Task CorruptPrivateIdentityPreservesBytesAndRefusesIndexedScratchPreparation()
+    public async Task CorruptPrivateIdentityPreservesBytesAndPreparesMemoryWithoutCreatingScratch()
     {
         OrdinaryPreparation(); using var fixture = new PreparationFixture();
         await using (var initial = await AnalysisIndexedAcquisition.PrepareAsync(fixture.Services, TestContext.Current.CancellationToken)) { }
         string path = fixture.Services.Paths.AnalysisPrivateStateFile; const string corrupt = "{\"schema\":\"future\",\"profile\":\"private-canary\"}";
         File.WriteAllText(path, corrupt); Directory.Delete(fixture.Services.Paths.AnalysisScratchDirectory, recursive: false);
-        await Assert.ThrowsAsync<InvalidDataException>(() => AnalysisIndexedAcquisition.PrepareAsync(fixture.Services, TestContext.Current.CancellationToken));
+        await using var fallback = await AnalysisIndexedAcquisition.PrepareAsync(fixture.Services, TestContext.Current.CancellationToken);
+        Assert.Null(fallback.Profile); Assert.StartsWith("ephemeral:", fallback.ProfileIdentity); Assert.NotNull(fallback.MemoryPreparationNotice);
         Assert.Equal(corrupt, File.ReadAllText(path)); Assert.False(Directory.Exists(fixture.Services.Paths.AnalysisScratchDirectory));
     }
     private static IAnalysisBackend NativeRoot(string path) => OperatingSystem.IsWindows() ? new WindowsAnalysisBackend(path) : new UnixAnalysisBackend(path);

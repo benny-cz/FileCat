@@ -1,0 +1,67 @@
+{
+  "purpose": "Native memory preparation, disjoint scope, retained view and query subset; no full qualification",
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "pid": 65059,
+  "bundleSha256": "8eff748333af449fceee8bb4a0adff912d7f11088dde128bd0bb39563c13f0a0",
+  "binaries": {
+    "FileCat.dll": "002617c181e9d3ee6f82b4bb2e47d0657fe7f99544a074d363fdef92bd7476d8",
+    "FileCat.Core.dll": "7b49e293dc0375020657d172d65bd098bc908dc04234345affbec8336cd5c99c",
+    "DiskSpaceHarness.dll": "896f06938f7f8a0092b26c100d85a86f30d5399bcc6b1b95e0d10745b5fba898",
+    "FileCat": "f36d3b999f86fa50d7a27ca0e6657b77c395f135e32cebc29bacd26d4ee0f912"
+  },
+  "passed": false,
+  "error": "RuntimeError: TimeoutException: The native indexed window did not publish the requested captured view.",
+  "exitCode": 0,
+  "closed": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "closed",
+    "sourceUnchanged": true,
+    "deadlineClosed": false,
+    "processId": 65059,
+    "platform": "macOS 27.0.1",
+    "architecture": "Arm64",
+    "run": "/Users/benny/FileCatValidation/dsa-20261106-r425-memory-mac/app/native-validation/dsa-488123506298497bb70accf2af5c62d9",
+    "fixture": "/Users/benny/FileCatValidation/dsa-20261106-r425-memory-mac/app/native-validation/dsa-488123506298497bb70accf2af5c62d9/fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": false,
+    "lastVisibleWidth": 1180,
+    "lastVisibleHeight": 763,
+    "lastVisibleScale": 2,
+    "lastScreen": {
+      "bounds": "0, 0, 1440, 900",
+      "workingArea": "0, 30, 1440, 791",
+      "Scaling": 1,
+      "position": "130, 30",
+      "frameSize": "1180, 791"
+    },
+    "largeText": false,
+    "compact": false,
+    "sharedProfile": false,
+    "sessions": 0,
+    "createdSessions": 1,
+    "lastObservation": null,
+    "selectedTab": 0,
+    "tabHeaders": [
+      "Analysis 1"
+    ],
+    "appSha256": "002617c181e9d3ee6f82b4bb2e47d0657fe7f99544a074d363fdef92bd7476d8",
+    "harnessSha256": "896f06938f7f8a0092b26c100d85a86f30d5399bcc6b1b95e0d10745b5fba898",
+    "profileProbe": false,
+    "profileProbeFinished": false,
+    "profileProbeError": null,
+    "profileProbeCaptureError": null,
+    "savedOrderingProbe": null,
+    "acquisitionProbe": null,
+    "indexedProbeRequested": true,
+    "indexedProbeFinished": false,
+    "indexedProbeError": "TimeoutException: The native indexed window did not publish the requested captured view.",
+    "indexedProbe": null,
+    "memoryFallbackProbeRequested": true
+  },
+  "finalProcessObservation": {
+    "apps": [],
+    "tests": []
+  }
+}

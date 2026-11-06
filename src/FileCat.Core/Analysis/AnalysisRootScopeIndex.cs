@@ -58,6 +58,7 @@ public sealed class AnalysisRootScopeIndex
         foreach (var root in snapshot.Roots)
         {
             if (root.Disposition == AnalysisRootDisposition.Active) { _scopes[root.Id] = new(root.Id, null, true); continue; }
+            if (root.Disposition == AnalysisRootDisposition.ExcludedPrivateState) { _scopes[root.Id] = new(null, null, true); continue; }
             _scopes[root.Id] = new(null, null, false);
             if (root.Disposition != AnalysisRootDisposition.Covered || root.CoveredByRootId is not { } covering ||
                 root.CoveredRelativePath is not { } relative || root.ObservedObjectIdentity is not { } identity ||

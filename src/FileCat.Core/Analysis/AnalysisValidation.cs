@@ -30,6 +30,8 @@ public static class AnalysisValidation
                 foreach (string locator in new[] { root.CanonicalLocator, root.DisplayLocator })
                     if (Uri.TryCreate(locator, UriKind.Absolute, out var uri) && uri.UserInfo.Length > 0) throw Invalid();
             rootMap.Add(root.Id, root);
+            if (root.Disposition is AnalysisRootDisposition.UnavailablePrivateBoundary or AnalysisRootDisposition.ExcludedPrivateState &&
+                (root.Assurance != IdentityAssurance.Unknown || root.SourceIdentity is not null || root.ObservedObjectIdentity is not null)) throw Invalid();
         }
         foreach (var root in s.Roots)
             if (root.Disposition == AnalysisRootDisposition.Covered

@@ -569,8 +569,10 @@ public sealed partial class DiskSpaceWindow : Window
                     if (tree.Projection.IncludesUnknownFilterResults) _coverage.Text += " Showing uncertain filter results, not confirmed matches.";
                     else if (tree.Projection.UnknownFilterNodes.Count > 0) _coverage.Text += $" {tree.Projection.UnknownFilterNodes.Count:N0} uncertain filter results are excluded from confirmed matches.";
                     if (tree.Projection.FilterText != Model.Query) _coverage.Text += " The previous valid filter remains displayed while the new query is applied.";
-                    if (Model.Running || tree.Snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy) _coverage.Text += " Known results so far; table ranking can change.";
+                    if (Model.Running) _coverage.Text += " Known results so far; table ranking can change.";
+                    else if (tree.Snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy) _coverage.Text += " Recorded partial results; unread scopes remain unknown.";
                     if (Model.ContinuityNotice is { } continuity) _coverage.Text += " " + continuity;
+                    if (Model.AcquisitionNotice is { } acquisition) _coverage.Text += " " + acquisition;
                     if (tree.Projection.Metric == AnalysisMetric.UniqueFileSize && totals.IdentityUnverified > 0)
                         _coverage.Text += $" {totals.IdentityUnverified} path bytes have unverified identities and are excluded from unique chart area.";
                 }

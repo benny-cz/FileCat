@@ -237,9 +237,11 @@ public sealed partial class AnalysisSession : IDisposable
     }
     private async Task NormalizeRootsAsync()
     {
-        var roots = _roots.ToArray(); var active = new List<int>();
+        var roots = _roots.Select(root => root.Disposition == AnalysisRootDisposition.UnavailablePrivateBoundary ? root :
+            root with { Disposition = AnalysisRootDisposition.Active, CoveredByRootId = null, CoveredRelativePath = null }).ToArray(); var active = new List<int>();
         // Parents are considered before children regardless of selection order. IDs keep their captured binding.
-        foreach (int child in Enumerable.Range(0, roots.Length).OrderBy(i => roots[i].CanonicalLocator.Length).ThenBy(i => i))
+        foreach (int child in Enumerable.Range(0, roots.Length).Where(i => roots[i].Disposition != AnalysisRootDisposition.UnavailablePrivateBoundary)
+            .OrderBy(i => roots[i].CanonicalLocator.Length).ThenBy(i => i))
         {
             _cancel.Token.ThrowIfCancellationRequested(); bool uncertain = false; int? coveredBy = null;
             foreach (int parent in active.Where(p => AnalysisRootPaths.Potential(roots[p], roots[child])))

@@ -94,7 +94,7 @@ internal sealed partial class HarnessApp : Application
         _deadline.Start(); _window.Show(); WriteReport("ready");
         if (Program.WindowsInput) BeginWindowsInput();
         if (Program.ProfileProbe) _ = ProfileProbeAsync();
-        if (Program.IndexedProbe) _indexedProbeTask = IndexedProbeAsync();
+        if (Program.IndexedProbe) _indexedProbeTask = Program.MemoryFallbackProbe ? MemoryFallbackProbeAsync() : IndexedProbeAsync();
     }
 
     private async Task ProfileProbeAsync()
@@ -212,7 +212,8 @@ internal sealed partial class HarnessApp : Application
             appSha256 = _appHash, harnessSha256 = _harnessHash,
             profileProbe = Program.ProfileProbe, profileProbeFinished = _profileProbeFinished, profileProbeError = _profileProbeError, profileProbeCaptureError = _profileProbeCaptureError,
             savedOrderingProbe = _savedOrderingProbe, acquisitionProbe = _acquisitionProbe,
-            indexedProbeRequested = Program.IndexedProbe, indexedProbeFinished = _indexedProbeFinished, indexedProbeError = _indexedProbeError, indexedProbe = _indexedProbe
+            indexedProbeRequested = Program.IndexedProbe, indexedProbeFinished = _indexedProbeFinished, indexedProbeError = _indexedProbeError, indexedProbe = _indexedProbe,
+            memoryFallbackProbeRequested = Program.MemoryFallbackProbe, memoryProbeStage = _memoryProbeStage, memoryProbeView = _memoryProbeView
         };
         File.WriteAllText(Path.Combine(_run, "report.json"), JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }) + "\n");
     }
@@ -231,10 +232,11 @@ internal static class Program
     internal static bool SavedOrderingProbe { get; private set; }
     internal static bool AcquisitionProbe { get; private set; }
     internal static bool IndexedProbe { get; private set; }
+    internal static bool MemoryFallbackProbe { get; private set; }
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe"))) return 64;
+        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe"))) return 64;
         LargeText = args.Contains("--large-text", StringComparer.Ordinal);
         Compact = args.Contains("--compact", StringComparer.Ordinal);
         WindowsInput = args.Contains("--windows-input", StringComparer.Ordinal);
@@ -242,7 +244,9 @@ internal static class Program
         SavedOrderingProbe = args.Contains("--saved-ordering-probe", StringComparer.Ordinal);
         AcquisitionProbe = args.Contains("--acquisition-probe", StringComparer.Ordinal);
         ProfileProbe = args.Contains("--profile-probe", StringComparer.Ordinal) || SavedOrderingProbe || AcquisitionProbe;
-        IndexedProbe = args.Contains("--indexed-probe", StringComparer.Ordinal);
+        MemoryFallbackProbe = args.Contains("--memory-fallback-probe", StringComparer.Ordinal);
+        IndexedProbe = args.Contains("--indexed-probe", StringComparer.Ordinal) || MemoryFallbackProbe;
+        if (MemoryFallbackProbe && args.Contains("--indexed-probe", StringComparer.Ordinal)) return 64;
         if (ProfileProbe && WindowsInput) return 64;
         if (IndexedProbe && (ProfileProbe || WindowsInput)) return 64;
         if ((WindowsInput || (ProfileProbe || IndexedProbe) && OperatingSystem.IsWindows()) && !HarnessApp.WindowsInputVmAllowed()) return 77;

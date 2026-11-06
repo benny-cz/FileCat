@@ -135,7 +135,8 @@
     "Actual APFS/ext4 rename-and-restore controls show an unchanged anchored UUID can coexist with a replacement exclusion capability. Native held-object comparison now rejects that mismatch for both inventory and scratch preparation. Final79-case Mac/Ubuntu suites and78pass/oneUnix-only-skip Windows suite pass; updated core/native and native indexed509-path source/exit/scratch subsets pass on all3. No public gate enabled.",
     "Internal native indexed acquisition now shares profile capacity through 32 immutable private-file tokens and nonblocking kernel locks, independent of IPC namespaces. Actual Ubuntu separate-namespace controls reject the IPC-only prototype and prove file-backed refusal, process-death recovery and unchanged metadata. Native same-profile/retained-owner/foreign-state/crossprocess controls and all3 indexed workflows pass. Mixed profile/scratch device admission, public fallback and full resource/package qualification remain required.",
     "Profile and scratch device keys now share ordered bounded admission through capture, frontier, sorting, indexed views/readers and cleanup. The existing watchdog tracks both actual dependencies; cancellation and shutdown retain both turns until actual return. Six new admission/lifetime controls plus existing scheduler regressions and native indexed workflows pass on all3 runtimes. Distinct native-volume, package/resource and safe public fallback qualification remain pending.",
-    "Opt-in Core fallback now retains qualified private-root exclusion and closes unpublished scratch before using the full bounded memory store. Runtime progress reports the mode and actual counts; cancellation, unqualified protection and later published-prefix failures cannot restart in memory. Native NTFS/APFS/ext4 fixtures preserve64 regular files/private canaries; failure/lifetime controls pass on all3 runtimes. Application preparation/public-view fallback and pressure/resource qualification remain open; the opt-in remains off in App acquisition."
+    "Opt-in Core fallback now retains qualified private-root exclusion and closes unpublished scratch before using the full bounded memory store. Runtime progress reports the mode and actual counts; cancellation, unqualified protection and later published-prefix failures cannot restart in memory. Native NTFS/APFS/ext4 fixtures preserve64 regular files/private canaries; failure/lifetime controls pass on all3 runtimes. Application preparation/public-view fallback and pressure/resource qualification remain open; the opt-in remains off in App acquisition.",
+    "Internal App preparation now preserves unsupported private state, uses ephemeral correlation when UUID continuity is unavailable and retains native private boundaries or disjoint-only ancestor guards. Unread roots carry explicit partial state; safe selected children are reactivated without double counting. Covered private selections redact identities and have known-empty direct/memory/indexed filter scope. Completed results choose indexed or leased memory views, retaining the shared memory reservation after acquisition closure. Native memory/query/folder-open/owned-exit workflows and FileCat-only visual-tree renders pass on all3 platforms; public lifecycle and full qualification remain open."
   ],
   "validation": {
     "windowsCore": {
@@ -1035,10 +1036,127 @@
       "publicSpillEnabled": false,
       "nativeInputQualified": false,
       "finalIndependentReviewPerformed": false
+    },
+    "appMemoryPreparationAndHandoff": {
+      "status": "internal-app-native-functional-and-visual-tree-subset-passed",
+      "core": {
+        "mac": {
+          "total": 597,
+          "passed": 595,
+          "failed": 0,
+          "skipped": 2,
+          "seconds": 17.439,
+          "evidence": "mac-core-r422.xml"
+        },
+        "ubuntu": {
+          "total": 597,
+          "passed": 595,
+          "failed": 0,
+          "skipped": 2,
+          "seconds": 49.151,
+          "evidence": "ubuntu-core-r422.xml"
+        },
+        "windows": {
+          "total": 615,
+          "passed": 574,
+          "failed": 0,
+          "skipped": 41,
+          "seconds": 11.805,
+          "evidence": "windows-core-r422.xml"
+        }
+      },
+      "windowsNative": {
+        "total": 37,
+        "passed": 37,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 23.883,
+        "evidence": "windows-native-r422.xml"
+      },
+      "render": {
+        "mac": {
+          "total": 83,
+          "passed": 83,
+          "failed": 0,
+          "skipped": 0,
+          "seconds": 34.241,
+          "evidence": "mac-render-r432.xml"
+        },
+        "ubuntu": {
+          "total": 83,
+          "passed": 83,
+          "failed": 0,
+          "skipped": 0,
+          "seconds": 58.376,
+          "evidence": "ubuntu-render-r432.xml"
+        },
+        "windows": {
+          "total": 83,
+          "passed": 82,
+          "failed": 0,
+          "skipped": 1,
+          "seconds": 47.148,
+          "evidence": "windows-render-r432.xml"
+        }
+      },
+      "native": {
+        "mac": {
+          "passed": true,
+          "pid": 67778,
+          "matchingPaths": 509,
+          "queryMatches": 1,
+          "unavailableRoots": 1,
+          "sourceUnchanged": true,
+          "ownedProcessExited": true,
+          "scratchCreated": false,
+          "evidence": "mac-native-memory-r435.json"
+        },
+        "ubuntu": {
+          "passed": true,
+          "pid": 670119,
+          "matchingPaths": 509,
+          "queryMatches": 1,
+          "unavailableRoots": 1,
+          "sourceUnchanged": true,
+          "ownedProcessExited": true,
+          "scratchCreated": false,
+          "evidence": "ubuntu-native-memory-r435.json"
+        },
+        "windows": {
+          "passed": true,
+          "pid": 10180,
+          "matchingPaths": 509,
+          "queryMatches": 1,
+          "unavailableRoots": 1,
+          "sourceUnchanged": true,
+          "ownedProcessExited": true,
+          "scratchCreated": false,
+          "evidence": "windows-native-memory-r435.json"
+        }
+      },
+      "postChecks": [
+        "windows-post-app-memory-r436.json",
+        "mac-post-app-memory-r436.txt",
+        "ubuntu-post-app-memory-r436.txt"
+      ],
+      "manifest": "source-manifest-r435.json",
+      "rejectedProbeReceipts": [
+        "mac-native-memory-rejected-r425.json",
+        "ubuntu-native-memory-rejected-r425.json",
+        "mac-native-memory-diagnostic-r427.json"
+      ],
+      "diagnosis": "Harness used ancestor-only NavigateToScope to enter a child. The separate r427 diagnostic records completed retained/query state and unchanged scope at scope-open. Corrected harness uses the product folder-open route; production code is unchanged by that fixture correction.",
+      "captureScope": "Only FileCat visual-tree pixels rendered from the actual native process/window. All3 inspected. No system/desktop capture or privacy-helper changes; compositor/native-input/a11y qualification remains open.",
+      "testingCoordination": "Mac and Windows native runs postponed when other test instances were detected. No other process was closed or restarted.",
+      "internalAppFallbackEnabled": true,
+      "publicAcquisitionEnabled": false,
+      "publicSpillEnabled": false,
+      "nativeInputQualified": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
-    "W1 indexed integration: finish App preparation fallback when private UUID/directory setup fails and connect the public indexed-or-memory view transition. Core initial fallback now retains native private exclusion with all3 functional evidence; it remains opt-in/off in App acquisition. Qualify memory pressure/partial stop, actual mixed-volume/native device identity, package/session/domain agreement, original inventory IDs/streaming persistence, end-to-end1M/10M and every resource limit before enabling spill.",
+    "W1 indexed integration: the internal App now prepares preserving memory fallback and hands completed acquisitions to indexed or retained memory views. Connect the qualified public start/progress/stop/view lifecycle without enabling unqualified spill. Finish memory pressure/partial-stop and actual mixed-volume/native-device identity qualification, package/session/domain agreement, original inventory IDs/streaming persistence, end-to-end1M/10M and every resource limit.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: grouping/color dimensions, scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",

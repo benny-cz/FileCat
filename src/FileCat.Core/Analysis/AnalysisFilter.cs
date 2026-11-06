@@ -268,7 +268,7 @@ public sealed class AnalysisFilter
                 return item =>
                 {
                     var member = item.RootMembership?.IsMember(rootId) ?? _rootScopes?.IsMember(rootId, item.Node) ?? (binding.Disposition == AnalysisRootDisposition.Active
-                        ? Truth(item.Node.RootId == rootId) : AnalysisTruth.Unknown);
+                        ? Truth(item.Node.RootId == rootId) : binding.Disposition == AnalysisRootDisposition.ExcludedPrivateState ? AnalysisTruth.False : AnalysisTruth.Unknown);
                     return op == "!=" ? Not(member) : member;
                 };
             }

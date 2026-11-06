@@ -104,7 +104,9 @@ public sealed partial class AnalysisIndexedSessionTests
     {
         internal bool Closed, Enumerated, IncludePrivate, PrivateEnumerated; internal bool Verified = true;
         internal Action? BeforeClose, BeforeEnumerate;
-        public RootBinding Root => new("r", "file", "/" + identity, "/" + identity, "fixture", Verified ? IdentityAssurance.Verified : IdentityAssurance.Unknown, identity) { NameRules = AnalysisNameRules.Unix };
+        internal string? Locator;
+        internal Func<IAnalysisBackend, AnalysisRootContainment>? Relation;
+        public RootBinding Root => new("r", "file", Locator ?? "/" + identity, Locator ?? "/" + identity, "fixture", Verified ? IdentityAssurance.Verified : IdentityAssurance.Unknown, identity) { NameRules = AnalysisNameRules.Unix };
         public AnalysisEntry RootEntry => Entry(identity, AnalysisKind.Directory);
         public string Basis => "basis";
         public string IoDeviceKey => "source-" + identity;
@@ -119,7 +121,7 @@ public sealed partial class AnalysisIndexedSessionTests
         internal static AnalysisEntry Entry(string name, AnalysisKind kind = AnalysisKind.File) => new([], name, [], kind, name,
             AnalysisMeasurement.Known(1), AnalysisMeasurement.Known(4096), AnalysisMeasurement.Known(1), DateTimeOffset.UnixEpoch, "v", ObservedUtc: DateTimeOffset.UtcNow);
         public void ValidateReadScope(AnalysisEntry directory) { ObjectDisposedException.ThrowIf(Closed, this); }
-        public AnalysisRootContainment ContainsRoot(IAnalysisBackend other) => AnalysisRootContainment.Disjoint;
+        public AnalysisRootContainment ContainsRoot(IAnalysisBackend other) => Relation?.Invoke(other) ?? AnalysisRootContainment.Disjoint;
         public void Dispose() { Closed = true; BeforeClose?.Invoke(); }
     }
     private sealed class MemoryDirectory : AnalysisPrivateDirectory

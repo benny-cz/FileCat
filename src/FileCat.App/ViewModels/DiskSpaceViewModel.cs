@@ -19,6 +19,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     private AnalysisSession? _session;
     private AnalysisSnapshotLease? _lease;
     private AnalysisSnapshot? _observation;
+    private AnalysisSnapshotLease? _capturedOwner;
     private CancellationTokenSource? _projectionCancel;
     private (AnalysisTree Tree, AnalysisOrderedRows Order, AnalysisSnapshotLease? Lease, string Scope, AnalysisTableSort Sort, bool Descending)? _pending;
     private bool _disposed, _building, _rebuildRequested;
@@ -38,6 +39,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     public string Status { get; private set; } = "Choose locations. Standard analysis reads metadata, not file contents.";
     public string? FilterError { get; private set; }
     public string? ResolvedTargets { get; private set; }
+    public string? AcquisitionNotice { get; private set; }
     public bool Dirty { get; private set; }
     public bool IsPreparing { get; private set; }
     public AnalysisPhase Phase { get; private set; } = AnalysisPhase.Ready;
@@ -57,7 +59,23 @@ public sealed partial class DiskSpaceViewModel : IDisposable
             ? AnalysisPhase.Stopped : observations.Phase;
         try { _zone = TimeZoneInfo.FindSystemTimeZoneById(observations.Identity.TimeZoneId); }
         catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException) { _zone = null; }
+        var unavailable = observations.Roots.Where(r => r.Disposition == AnalysisRootDisposition.UnavailablePrivateBoundary).ToArray();
+        if (unavailable.Length != 0) AcquisitionNotice = "Not read because a private-state boundary could not be verified: " +
+            string.Join(", ", unavailable.Select(r => AnalysisNames.Display(r.Label, 120) + " [" + AnalysisNames.Display(r.Id, 64) + "]")) + ". Other verified locations remain available.";
         Status = "Observation view. Current filesystem actions require an explicit live source binding.";
+    }
+    // Transfers one captured-data owner, not source/backend authority. The store's shared memory
+    // reservation remains held through this view, its publications and any canceled actual workers.
+    internal DiskSpaceViewModel(AnalysisSnapshotLease observations, AppServices? services, bool memoryFallback) : this(observations.Snapshot)
+    {
+        _capturedOwner = observations; _services = services;
+        if (memoryFallback)
+        {
+            AcquisitionNotice = "Secure scratch is unavailable. This analysis uses bounded memory." + (AcquisitionNotice is { } notice ? " " + notice : "");
+            Status = "Memory analysis. Current filesystem actions require a fresh live source binding.";
+        }
+        if (observations.Snapshot.Identity.HostProfileIdentity is not { HasHostContext: true })
+            ContinuityNotice = "Host/profile continuity is unknown. Comparison uses recorded paths.";
     }
     public async Task StartAsync(IReadOnlyList<string> roots)
     {
@@ -171,7 +189,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         {
             var built = await Task.Run<(AnalysisTree Tree, AnalysisOrderedRows Order)?>(() =>
             {
-                nextLease = _session?.AcquireSnapshot() ?? _inventory?.Retain();
+                nextLease = _session?.AcquireSnapshot() ?? _inventory?.Retain() ?? _capturedOwner?.Retain();
                 var s = nextLease?.Snapshot ?? _observation;
                 if (s is null) return null;
                 var rootScopes = new AnalysisRootScopeIndex(s, token);
@@ -415,6 +433,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         _preparationCancel?.Cancel();
         _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _session?.Dispose(); ReleasePrepared(); _lease?.Dispose(); _pending?.Lease?.Dispose();
         _inventory?.Dispose();
+        _capturedOwner?.Dispose(); _capturedOwner = null;
         Comparison?.Dispose(); Comparison = null; _comparisonPrevious?.Dispose(); _comparisonPrevious = null; _comparisonCurrent?.Dispose(); _comparisonCurrent = null;
         _rowOrderCancel?.Cancel(); _orderedRows?.Dispose(); _pending?.Order.Dispose();
         _rangeBaseline = _rangePublishedMarks = null; _rangeOrderOwner = null; _tableAnchor = null;

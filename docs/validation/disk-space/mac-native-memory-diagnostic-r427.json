@@ -1,0 +1,82 @@
+{
+  "purpose": "Native memory preparation, disjoint scope, retained view and query subset; no full qualification",
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "pid": 65991,
+  "bundleSha256": "1d8b9f9a3f5e62af3f364bd1cfc89e7e6cff51e2b47b9fafff922854cac0a684",
+  "binaries": {
+    "FileCat.dll": "002617c181e9d3ee6f82b4bb2e47d0657fe7f99544a074d363fdef92bd7476d8",
+    "FileCat.Core.dll": "7b49e293dc0375020657d172d65bd098bc908dc04234345affbec8336cd5c99c",
+    "DiskSpaceHarness.dll": "ed2cb7426146167f0ae4badc2cd11f5eb830596c32608c3948a12a2abfdb9e3a",
+    "FileCat": "f36d3b999f86fa50d7a27ca0e6657b77c395f135e32cebc29bacd26d4ee0f912"
+  },
+  "passed": false,
+  "error": "RuntimeError: TimeoutException: The native indexed window did not publish the requested captured view.",
+  "exitCode": 0,
+  "closed": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "closed",
+    "sourceUnchanged": true,
+    "deadlineClosed": false,
+    "processId": 65991,
+    "platform": "macOS 27.0.1",
+    "architecture": "Arm64",
+    "run": "/Users/benny/FileCatValidation/dsa-20261106-r427-memory-mac/app/native-validation/dsa-0c2d465ad91a40b6b816cc27d1921d65",
+    "fixture": "/Users/benny/FileCatValidation/dsa-20261106-r427-memory-mac/app/native-validation/dsa-0c2d465ad91a40b6b816cc27d1921d65/fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": false,
+    "lastVisibleWidth": 1180,
+    "lastVisibleHeight": 763,
+    "lastVisibleScale": 2,
+    "lastScreen": {
+      "bounds": "0, 0, 1440, 900",
+      "workingArea": "0, 30, 1440, 791",
+      "Scaling": 1,
+      "position": "130, 30",
+      "frameSize": "1180, 791"
+    },
+    "largeText": false,
+    "compact": false,
+    "sharedProfile": false,
+    "sessions": 0,
+    "createdSessions": 1,
+    "lastObservation": null,
+    "selectedTab": 0,
+    "tabHeaders": [
+      "Analysis 1"
+    ],
+    "appSha256": "002617c181e9d3ee6f82b4bb2e47d0657fe7f99544a074d363fdef92bd7476d8",
+    "harnessSha256": "ed2cb7426146167f0ae4badc2cd11f5eb830596c32608c3948a12a2abfdb9e3a",
+    "profileProbe": false,
+    "profileProbeFinished": false,
+    "profileProbeError": null,
+    "profileProbeCaptureError": null,
+    "savedOrderingProbe": null,
+    "acquisitionProbe": null,
+    "indexedProbeRequested": true,
+    "indexedProbeFinished": false,
+    "indexedProbeError": "TimeoutException: The native indexed window did not publish the requested captured view.",
+    "indexedProbe": null,
+    "memoryFallbackProbeRequested": true,
+    "memoryProbeStage": "scope-open",
+    "memoryProbeView": {
+      "Query": "",
+      "applied": "",
+      "matchingPaths": 509,
+      "paths": 518,
+      "rows": 1,
+      "scope": "scope",
+      "Status": "Memory analysis. Current filesystem actions require a fresh live source binding.",
+      "FilterError": null,
+      "issues": [
+        "private-analysis-boundary-unavailable",
+        "navigation-link-not-followed"
+      ]
+    }
+  },
+  "finalProcessObservation": {
+    "apps": [],
+    "tests": []
+  }
+}

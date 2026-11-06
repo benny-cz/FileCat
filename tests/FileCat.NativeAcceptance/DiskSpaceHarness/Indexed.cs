@@ -25,7 +25,7 @@ internal sealed partial class HarnessApp
             var services = _services!; var window = _window!;
             if (OperatingSystem.IsWindows()) WindowsGuestInput.DesktopGuard();
             _indexedAcquisition = await AnalysisIndexedAcquisition.PrepareAsync(services, _indexedLifetime.Token);
-            var profile = _indexedAcquisition.Profile;
+            var profile = _indexedAcquisition.Profile ?? throw new IOException("The native indexed fixture did not retain a private profile identity.");
             source = await AnalysisIo.Run(services.Io, PathUtil.GetDeviceKey(_fixture), _ => OperatingSystem.IsWindows()
                 ? (IAnalysisBackend)new WindowsAnalysisBackend(_fixture) : new UnixAnalysisBackend(_fixture), _indexedLifetime.Token);
             _indexedLifetime.Token.ThrowIfCancellationRequested();
