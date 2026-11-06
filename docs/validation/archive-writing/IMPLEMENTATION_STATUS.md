@@ -10,7 +10,7 @@ The equivalent [7z source/coverage analysis](SEVENZIP_FEASIBILITY.md) now select
 existing permitted encoders and reviewed missing public-domain codec/filter paths. It verifies 29 pinned writer/header
 candidates and 21 SDK candidates; no 7z source was imported and no new 7z runtime qualification is claimed.
 
-The priority decision is in plan §4.3.1: bounded RAR C# implementation first, then needed 7z codecs/filters/container;
+The priority decision is in plan §4.3.2: bounded RAR C# implementation first, then needed 7z codecs/filters/container;
 strict catalogs and shared worker/transaction/capture/resource integration; complete workflows/UI; large guarded
 three-platform qualification batches plus actual six-RID/package/fuzz gates; final independent UX/UI/function/security
 review and fix/retest. Prepare coherent source/dependency/runner packets and collect evidence/cleanup in each batch.
@@ -24,6 +24,12 @@ and over-budget dictionaries/models need explicit policies. Neither analysis ena
 The user chose option 3 with fallback to option 1: a documented feasibility no-go authorizes stored RAR5 and optional
 installed `rar` compression where lawful and qualified. The primary route has not received a no-go; fallback is not
 activated. The goal remains active and implementation/release qualification and independent final review remain open.
+
+The subsequent 7 November instruction makes **password support required for both RAR and 7z**, superseding initial
+unencrypted-only policy. Plan §4.3.1 requires payload/header encryption, password-aware read/browse/extract/update/edit
+and fresh verification, bounded KDF/cipher handling, session-only secret grants and complete UI/negative/native tests.
+Current reader refusal text and missing RAR decryption/7z encoder paths remain implementation gaps. Passwords/keys
+must not enter persistent settings, journals/logs/evidence or process arguments.
 
 ## Source and workspace
 

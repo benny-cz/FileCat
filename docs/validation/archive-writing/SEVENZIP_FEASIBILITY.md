@@ -1,5 +1,11 @@
 # 7z writing: licence, method coverage and integration decision
 
+**Scope amendment, 7 November 2026:** the user subsequently requires password support for both formats, including
+payload/header encryption and password-aware reading/verification/workflows. Earlier unencrypted-only statements
+below describe the reviewed starting point and are superseded by plan §4.3.1. Encryption/KDF/source closure and
+runtime qualification remain required work; no earlier codec/source result proves password support.
+
+
 **Decision, 7 November 2026:** use a bounded FileCat 7z writing/verification layer with audited permissive encoders
 and needed filters. Reuse the existing permitted codecs and suitable pinned MIT serialization primitives; extend or
 replace their narrow writer orchestration. Add missing needed encoders from individually reviewed public-domain SDK

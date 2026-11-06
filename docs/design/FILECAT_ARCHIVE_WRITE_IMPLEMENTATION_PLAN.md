@@ -48,7 +48,7 @@ The product promises preservation within a clearly defined archive profile, not 
 | R0 | Existing ZIP behavior remains qualified; new infrastructure is disabled | AW0–AW2 | No new format advertised |
 | R1, smallest useful release | Create and fully update admitted TAR and TAR.GZ/TGZ archives, including external edit commits | AW0–AW4 | Ships without 7z, XZ, ISO, or standalone compression |
 | R1b | Add TAR.BZ2 and TAR.ZST using already vendored encoders | AW5 plus all inherited gates | May join R1 if qualified; otherwise follows independently |
-| R2 | Create and update a narrow unencrypted, non-solid 7z profile | AW6 | Its source audit never blocks R1 |
+| R2 | Create and update a non-solid 7z profile with qualified password modes | AW6 | Its source audit never blocks R1 |
 | R3 | Standalone GZ/BZ2/ZST creation and single-payload replacement | AW7 | Does not depend on XZ |
 | Optional later work | XZ/TAR.XZ and standalone XZ; data ISO creation | AW8 and AW9, separately | Each requires its own qualification and licence manifest |
 | RAR, separately qualified | Independent compressed RAR5 first if feasible; otherwise bundled stored RAR5 and optional installed `rar` for compression | AW10 with inherited shared gates | Research starts after the current recursive-capture checkpoint, before broad UI/interface finalization; no RAR capability until its own gates pass |
@@ -122,7 +122,7 @@ of a compression preset. Minimal prototype interoperability cannot stand for com
 | TAR.GZ / TGZ | Yes | Profile | Profile | Yes | Profile | TAR engine over .NET GZipStream; wrapper metadata/stream-boundary admission required | Medium |
 | TAR.BZ2 | Yes | Profile | Profile | Yes | Profile | TAR engine over vendored BZip2Stream; finalize and validate the whole stream | Small–medium incremental |
 | TAR.ZST | Yes | Profile | Profile | Yes | Profile | TAR engine over vendored CompressionStream; standard single frame, no dictionary/skippable frames initially | Small–medium incremental |
-| Non-solid 7z, qualified codecs/filters in §8.4, no encryption | Yes | Profile | Profile | Yes | Profile | Selectively restored writer; exact metadata and coder graph must be reproducible | High audit/qualification cost |
+| Non-solid 7z, qualified codecs/filters/password modes in §8.4 | Yes | Profile | Profile | Yes | Profile | Selectively restored writer; exact metadata and coder graph must be reproducible | High audit/qualification cost |
 | GZ / BZ2 / ZST single payload | One regular file | Replace the sole payload only | No internal delete/rename | No | After AW7 qualification | Compression stream; displayed payload name is not a multi-file namespace | Medium |
 | XZ / TAR.XZ | Later | Later profile | TAR only, later profile | TAR only | Later profile | Encoder/container writer not presently available; see AW8 | High |
 | ISO 9660 data image | Later creation | No existing-image update | No existing-image update | Later creation | No | DiscUtils CDBuilder, Joliet data image only | Medium, independent |
@@ -189,7 +189,34 @@ The upstream writer accepts only LZMA/LZMA2, ignores its generic compression lev
 its narrow orchestration is not the complete implementation target. Prefer bounded FileCat container/verification code,
 reviewed suitable MIT primitives, existing permitted codecs and missing reviewed SDK ports. No candidate is yet imported.
 
-### 4.3.1 Implementation priority after both analyses
+### 4.3.1 Password support — required scope amendment
+
+**User instruction, 7 November 2026:** include password support for both RAR and 7z. This supersedes earlier
+unencrypted-only exclusions wherever they conflict. Implement payload encryption and optional encrypted headers/file
+names, plus opening, browsing, extraction, fresh verification, updates and edit commit using supplied passwords.
+FileCat must reopen its encrypted output; write-only encryption is not completion. Inventory historical RAR cipher
+variants and concrete unsupported gaps explicitly. New RAR output targets the independently selected RAR5 AES-256
+profile; new 7z output targets its standard AES-256 coder/header mode. Compression coverage remains required.
+
+- Extend the exact permitted-source/format ledger for both KDF/encryption layouts. Use framework cryptographic
+  primitives where suitable and retain exact component terms. Do not inspect restricted UnRAR source to fill a gap.
+  Password scope is not authorization to import restricted code or require a proprietary tool.
+- Bound password bytes, KDF work/iterations, salt/IV/cipher/header lengths, padding and intermediate allocations before
+  derivation/decryption. Use fresh cryptographic salts/IVs. Independent tools must accept output. Malformed/truncated
+  ciphertext, excessive KDF claims and incorrect passwords must refuse predictably. CRC/password checks do not grant
+  cryptographic authentication; do not promise tamper resistance the formats lack.
+- Add versioned secret grants to the worker protocol with session/job-local lifetime and zeroing of owned mutable
+  buffers. Passwords/keys must not enter command lines, logs, exceptions, journals, recovery reports, evidence or normal
+  settings. Do not claim complete erasure of immutable strings/framework copies. Lost secrets require a new prompt.
+- Add create-password/confirmation and hide-file-names controls, open/wrong-password/cancel/retry flows and preserved
+  encryption settings on update. Never silently strip encryption or fall back to plaintext output. Define nested
+  archive/edit cache secret lifetime and cleanup behavior. Existing encrypted-reader refusal text must be replaced.
+- Fresh confined verification uses separately supplied secret grants. Account for every KDF/decrypt/encode pass in
+  time/memory/traffic budgets. Test Unicode/empty-password policy, encrypted empty members/directories/headers,
+  required codecs, cancellation/crash/retry/source changes on all three platforms. Existing AES APIs and this scope
+  amendment alone do not qualify a password profile.
+
+### 4.3.2 Implementation priority after both analyses
 
 **Decision, 7 November 2026:** both feasibility analyses are recorded. Execute in the following dependency order;
 packet numbers do not impose a different order. This is an implementation priority, not permission to omit a gate.
@@ -202,7 +229,7 @@ packet numbers do not impose a different order. This is an implementation priori
    and verification routes, worker protocol/profile versions and common transaction integration for both formats.
    Resolve remaining capture/snapshot/global-memory ownership and known exclusion-name detail before exposing them.
    Codec code receives numeric stream grants, never pathname/publication/deletion authority.
-3. **Complete shared workflows/UI:** enable only fully qualified profiles; cover create, add, replace, rename, delete,
+3. **Complete shared workflows/UI:** include required password/read/write/header-encryption scope from §4.3.1 and enable only fully qualified profiles; cover create, add, replace, rename, delete,
    edit commit, collision/exclusion review and move-into with verified publication before source deletion. Reuse the
    common workflows rather than finalizing interfaces around TAR alone. Keep precise capability/refusal messages.
 4. **Large platform qualification batches:** prepare one exact source/dependency/runner packet, then run guarded
@@ -249,7 +276,7 @@ packet. Continue independent qualification work during machine/result waits. No 
 | After the chosen route's functional, native, crash, resource, licence and fuzz gates pass | Integrate the qualified feature and include it in final independent review | Actual supported platform/profile evidence and truthful UI; unsupported combinations remain read-only |
 
 **Primary path: independent compression.** Investigate a minimal, non-solid RAR5 compressed profile, initially
-without encryption, multipart sets, SFX, recovery records or executable filters. Do not require reproduction of RAR's
+with required optional password/data/header encryption (§4.3.1), without multipart sets, SFX, recovery records or executable filters. Do not require reproduction of RAR's
 proprietary optimization strategy or compression ratio. Before product integration, AW10a must establish all of:
 
 1. A source/knowledge ledger identifying the published specifications and independently authored, permissively
@@ -540,7 +567,7 @@ Add these typed states and platform tests before enabling marked-input creation/
 
 Add versioned archive transaction records to JobJournal's existing CRC-line protocol. Keep every record below MaxJournalLineBytes and write large catalogs/manifests as bounded checksummed sidecars. Required facts: operation/schema version, profile, task nonce, archive/parent identities, original baseline, exclusive stage identity/path, reserved retained-target path, finalized/verified stage length/hash, provenance/metadata snapshot digest, current publication phase, actual retired/published identities and unresolved-artifact paths. Persist intents before each visible rename/replacement and facts needed to identify a retained original before risking the original.
 
-Do not serialize live streams, arbitrary provider objects or a complete polymorphic engine into JSON. No passwords exist in initial profiles. Future secret-bearing options must never enter journals.
+Do not serialize live streams, arbitrary provider objects or a complete polymorphic engine into JSON. RAR/7z password options use the separate session-only secret grants in §4.3.1; no secrets enter journals or ordinary profile JSON.
 
 Recovery classifies staged-only, verified-but-unpublished, published-with-retained-original, committed-with-cleanup-warning and ambiguous states. Missing/torn/unsupported records mean conservative review. It cannot infer that a stage is valid merely because it exists, or resume a changed member plan from a list of disk sources. “Retry” means constructing and reviewing a fresh plan unless a later resumable protocol is independently designed.
 
@@ -599,7 +626,7 @@ Library EOF is not necessarily physical EOF or a complete wrapper: explicitly di
 
 ### 8.4 7z profile
 
-Initial 7z output is unencrypted and non-solid. LZMA2 is the default, not the full needed encoder set. Required
+Initial 7z output is non-solid with optional password/data/header encryption required by §4.3.1. LZMA2 is the default, not the full needed encoder set. Required
 feasible coverage is Copy, LZMA, LZMA2, PPMd7 with the 7z range coder, BZip2, raw Deflate and the Zstandard method
 already read by FileCat. Qualify each independently. Needed transforms are x86 BCJ, ARM/ARMT/ARM64, PPC, IA64,
 SPARC, RISC-V, Delta 1–256, four-stream BCJ2 and Swap2/Swap4; graphs must have bounded intermediates and matching
@@ -614,7 +641,7 @@ and declare/review new-input precision policy or refuse unrepresentable input; d
 
 Before updating, validate the signature and start/next-header CRCs, checked next-header offsets/lengths, encoded-header budgets, pack/unpack sizes, stream/coder counts, folder bindings, stream indices, entry-to-stream mapping, CRC presence, metadata presence and empty file/directory distinctions. Do not assume a library list represents all physical streams or properties.
 
-Refuse encrypted headers/data, solid folders, unknown properties, additional/unused streams not faithfully understood, multipart/SFX prefixes, links, and unsupported coder/filter graphs. Accept only separately qualified codec/filter graphs from the required inventory and explicit directories whose complete metadata the actual writer reproduces. Do not determine eligibility from a FileCat producer string.
+Admit encrypted headers/data only after §4.3.1 qualification; refuse unqualified encryption, solid folders, unknown properties, additional/unused streams not faithfully understood, multipart/SFX prefixes, links, and unsupported coder/filter graphs. Accept only separately qualified codec/filter graphs from the required inventory and explicit directories whose complete metadata the actual writer reproduces. Do not determine eligibility from a FileCat producer string.
 
 Preserve member order, raw names, empty files versus directories, mtime and any present attributes/creation/access times. If the writer API cannot set a present field, that source is read-only; either add a narrowly audited setter plus tests or keep it unsupported. Reflection shows internal attribute storage exists but does not prove public preservation. Never assume a public Write(name, stream, mtime) call keeps attributes.
 
@@ -626,8 +653,8 @@ Optional ISO creation uses a new, nonbootable ISO 9660/Joliet data image, explic
 
 ### 8.6 RAR5 profiles selected through AW10
 
-RAR is no longer excluded as a whole. The initial candidate is a single-volume, non-solid, unencrypted RAR5
-profile with regular files and explicit directories. AW10a selects and pins the exact compression-version/method
+RAR is no longer excluded as a whole. The initial candidate is a single-volume, non-solid RAR5 profile with
+regular files, explicit directories and optional password/data/header encryption under §4.3.1. AW10a selects and pins the exact compression-version/method
 subset only after establishing a viable independent encoder. Do not implicitly require RAR7 decoding or import
 older RAR engines. A per-member stored method may be used where compression is ineffective if it is represented
 in assessment and verification. No recovery records, SFX, redirections, alternate streams, executable filters,
@@ -1145,10 +1172,10 @@ Tasks:
 
 The [RAR-equivalent 7z source/coverage analysis](../validation/archive-writing/SEVENZIP_FEASIBILITY.md) is recorded.
 Implement its needed feasible codecs, filters/graphs and bounded header modes. Distinguish unimplemented coverage,
-initial non-solid/unencrypted profile policy, format/resource limits and proven blockers. No external tool is selected
+initial non-solid policy and required password scope, format/resource limits and proven blockers. No external tool is selected
 as a required dependency; a future external fallback needs its own exact licence, containment and verification gates.
 
-**Outcome:** R2 delivers the narrow non-solid, unencrypted 7z profile without importing excluded source. **Dependencies:** AW0–AW4; source audit can proceed independently but cannot enable a writer before AW1/AW2 qualification. **Effort:** high.
+**Outcome:** R2 delivers the narrow non-solid 7z profile including qualified password modes without importing excluded source. **Dependencies:** AW0–AW4; source audit can proceed independently but cannot enable a writer before AW1/AW2 qualification. **Effort:** high.
 
 **Files/components:** selective upstream source manifest, ThirdParty/SharpCompress writer/header components and project, Writing/SevenZipRewriteEngine, strict 7z feature observer, 7z tests/corpus, profile options, notices and ArtifactSbom metadata.
 
@@ -1157,10 +1184,10 @@ Tasks:
 1. Retrieve and verify the exact pinned writer source; resolve every candidate filename/blob/hash in section 4.3 and its complete transitive code closure. Exclude or replace unknown/nonconforming components. Keep any source upgrade a separate proposal.
 2. Inspect each count/length/dictionary/coder allocation and loop before accepting untrusted source headers or writer options. Extend the fork's guards where needed; preserve existing read patches.
 3. Implement seekable stage proxy encoding, explicit directory/empty-file handling and qualified metadata setters. If source attributes/timestamps cannot be faithfully reproduced, refuse that input profile.
-4. Implement/qualify the required codec/filter inventory in §8.4, raw/compressed headers and real bounded presets. Extend missing metadata fields; refuse any unqualified source graph or unreproducible metadata. No solid/encryption/SFX/multipart conversion; no password controls.
+4. Implement/qualify the required codec/filter inventory in §8.4, raw/compressed headers and real bounded presets. Extend missing metadata fields; refuse any unqualified source graph or unreproducible metadata. No implicit solid/SFX/multipart conversion. Implement §4.3.1 password controls and preserve qualified encryption; never silently decrypt an update.
 5. Reuse common transactions/UI/sessions. Run independent 7-Zip validation and dedicated graph/encoded-header/write fuzz campaigns on the actual trimmed assembly and exact runtime matrix.
 
-**Invariants:** all, especially INV-01/02/06/07/09/18. **UX:** explain unsupported solid/encrypted/metadata profiles; do not expose ineffective generic compression settings. **Licensing:** signed-off file-level manifest, notices, modified-source inventory and artifact graph absent excluded codecs. **Evidence:** AT01–22 plus FZ03; exact dependency and interoperability evidence. **Exit gate:** no unresolved source origin, allocation path, metadata-loss or fuzz finding. **Fallback:** 7z remains read-only; TAR releases continue independently.
+**Invariants:** all, especially INV-01/02/06/07/09/18. **UX:** include password/hide-name/retry/cancel flows and explain unqualified solid/encryption/metadata profiles; do not expose ineffective generic compression settings. **Licensing:** signed-off file-level manifest, notices, modified-source inventory and artifact graph absent excluded codecs. **Evidence:** AT01–22 plus FZ03; exact dependency and interoperability evidence. **Exit gate:** no unresolved source origin, allocation path, metadata-loss or fuzz finding. **Fallback:** 7z remains read-only; TAR releases continue independently.
 
 ### AW7 — Standalone GZ/BZ2/ZST
 
