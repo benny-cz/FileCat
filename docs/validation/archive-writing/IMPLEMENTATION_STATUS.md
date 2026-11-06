@@ -252,6 +252,14 @@ children are reaped. This is mechanism evidence, not archive-worker or productio
 integration, the complete guest/host memory envelope, all remaining confinement/resource/lifetime gates and guest-system
 source/build/license closure remain open. Fixed guest RAM does not establish a whole-host/helper RSS bound.
 
+The [actual managed guest workflow](MACOS_MANAGED_VM_ARCHIVE_WORKERS.md) now passes create, assess, replace and fresh
+verify for TAR/gzip/BZip2/Zstd via the existing production clients/roles and a second raw serial stream. Its final
+ordinary-user Mac runner records 16 distinct zero-exit/reaped helpers, natural shutdown, exact independent BSD tar/
+native-Zstd payload checks and byte-identical original allocation probes. Terminal readiness, interactive Console
+byte conversion and post-exit diagnostic failures were fixed during the spike. Production registration, all remaining
+resource/confinement/lifetime/package gates and guest-source/license closure remain open. Small cgroup peaks exclude
+some prepopulated initramfs/runtime file pages and must not be reported as full process/VM/host memory qualification.
+
 ## Outstanding work
 
 The later [Linux worker checkpoint](LINUX_ARCHIVE_WORKER_CHECKPOINT.md) adds 41 cases. Its final native Ubuntu replay

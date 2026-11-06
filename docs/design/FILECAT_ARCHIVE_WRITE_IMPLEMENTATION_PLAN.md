@@ -557,7 +557,7 @@ The parent controls all final filesystem mutation. Worker receipts are untrusted
 |---|---|---|
 | Windows x64/ARM64 | Reuse proven suspended-start, explicit inherited-handle list, job membership/lifetime and diagnostics controls. Qualify an AppContainer or equivalent supported restriction with no network capability and only required runtime-read assets; low integrity alone does not deny file reads/network. Inherited proxy pipes are the normal data path | Demonstrate unrelated file read/write, network, child-process and handle inheritance denial while healthy large archives succeed. Refuse elevated/unknown fallback |
 | Linux x64/ARM64 | Qualify supported kernel restrictions for filesystem/network and child processes; Landlock plus seccomp is a candidate requiring kernel/architecture-specific validation. Warm necessary runtime assets before restriction and permit only measured runtime reads, not the user's home | Demonstrate policy installation before consuming archive input, memory/CPU/lifetime enforcement and real kernel denial tests. Unsupported kernel/policy disables affected write feature; do not install helper tools silently |
-| macOS ARM64 | Investigate a separately signed/entitled helper using supported App Sandbox facilities and stream-only inputs. Do not ship deprecated sandbox_init experiments or assume ordinary Process.Start is containment | Require actual signed release-candidate denial/lifetime/resource evidence; defer affected operation if no supported boundary is established |
+| macOS ARM64 | Qualify a separately signed/entitled helper using supported App Sandbox facilities, or a supported VM boundary with stream-only guest inputs and explicit guest/trusted-host budgets. Do not ship deprecated sandbox_init experiments or assume ordinary Process.Start is containment | Require actual signed release-candidate denial/lifetime/resource evidence, including the complete VM/host envelope where applicable; defer affected operation if no supported boundary is established |
 
 Exact system calls/entitlements and packaging details must be settled in AW1's platform spike before any writer reaches production. They are qualification blockers, not a reason to implement an unrestricted fallback. Keep each unavailable RID's reason actionable and avoid claiming that a process boundary proves filesystem or network isolation.
 
@@ -860,6 +860,10 @@ Tasks:
    demonstrates a supported public-entitlement host, a healthy 32 MiB control and a guest cgroup stopping allocation
    at exactly 1 GiB. Integrate the actual archive worker and stream broker, then qualify the complete guest/host memory
    envelope and other boundary gates. Guest physical RAM is not a host-process RSS ceiling; no profile is enabled.
+   The [managed guest workflow](../validation/archive-writing/MACOS_MANAGED_VM_ARCHIVE_WORKERS.md) now passes real
+   create/assess/replace/fresh-verify roles for all four implemented TAR profiles through stream-only IPC, with independent
+   output extraction and 16 reaped helpers. Complete production integration and all remaining resource/confinement/
+   lifetime/distribution gates; the healthy prototype completes no AW1 qualification packet.
 4. Implement/measure local create-no-replace and reviewed replacement capability probes with held directories and identity-aware retention. Include object-bound cleanup and durability distinctions.
 5. Provide typed reason codes for unavailable safe-save support. No codec may fall back to an unbounded/in-process transform if startup/policy fails.
 

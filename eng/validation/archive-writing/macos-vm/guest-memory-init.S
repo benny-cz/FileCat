@@ -101,7 +101,11 @@ _start:
     bl open_write
     mov x0, #-100
     adr x1, cg_leaf
+#ifdef FILECAT_MANAGED_WORKER
+    mov x2, #0x1ed
+#else
     mov x2, #0x1c0
+#endif
     mov x8, #34
     svc #0
     cmp x0, #0
@@ -116,7 +120,7 @@ _start:
     bl open_write
     adr x0, cg_pids
     adr x1, two
-    mov x2, #1
+    mov x2, #(two_end-two)
     bl open_write
     adr x0, limit_label
     mov x1, #(limit_label_end-limit_label)
@@ -205,6 +209,9 @@ child:
     adr x0, escape_denied
     mov x1, #(escape_denied_end-escape_denied)
     bl puts
+#ifdef FILECAT_MANAGED_WORKER
+    b managed_worker
+#endif
     mov x21, #FILECAT_ALLOCATION_CHUNKS
     mov x23, #0
 allocation_loop:
@@ -360,7 +367,12 @@ limit_value: .ascii "1073741824"
 #endif
 limit_value_end:
 zero: .ascii "0"
+#ifdef FILECAT_MANAGED_WORKER
+two: .ascii "128"
+#else
 two: .ascii "2"
+#endif
+two_end:
 ready: .ascii "FILECAT_GUEST_READY module_status="
 ready_end:
 limit_label: .ascii "FILECAT_LIMIT="
@@ -383,3 +395,6 @@ unenforced: .ascii "FILECAT_CONTROL_COMPLETED\n"
 unenforced: .ascii "FILECAT_LIMIT_NOT_ENFORCED\n"
 #endif
 unenforced_end:
+#ifdef FILECAT_MANAGED_WORKER
+#include "../macos-vm-worker/managed-init.inc"
+#endif

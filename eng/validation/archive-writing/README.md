@@ -66,6 +66,11 @@ The separate [Mac Linux VM tooling](macos-vm/README.md) tests an ordinary-user p
 an owned Linux allocation child. A healthy control completes and the kernel enforces a 1 GiB guest cgroup ceiling.
 It does not yet run archive roles or qualify the full guest/host envelope; production profiles remain disabled.
 
+The follow-up [managed guest harness](macos-vm-worker/README.md) runs the actual production TAR-family assessment,
+transform and fresh verification roles over a separate raw serial stream. Four profiles complete with 16 reaped
+helpers and independent payload extraction. Full guest/host resource/confinement/lifetime and package qualification
+remain open; no production backend is registered.
+
 The observed Mac's matching compiler is `/Library/Developer/CommandLineTools/usr/bin/clang` (21.0.0) and its sysroot is
 `/Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk`. Use these explicitly rather than changing global `xcode-select`.
 In an owned fixture, arrange `probe.app/Contents/MacOS/archive-probe`, copy `mac-probe-info.plist` as `Contents/Info.plist`,
