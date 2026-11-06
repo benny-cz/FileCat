@@ -260,8 +260,10 @@ evidence if no conforming implementation is feasible; the final independent revi
 The existing local ZIP route now replaces the F5/manual-delete refusal with F6 move intent, verified publication,
 unchanged-source removal, skipped-input retention, queue/name propagation and honest partial results. Real-file/native
 adapter and headless UI checks passed on Windows, Mac and Ubuntu; counts, immutable evidence and limitations are in
-`LOCAL_MOVE_INTO_ZIP.md`. Native interactive GUI acceptance and the complete crash/namespace/metadata/scale qualification
-are still open. This checkpoint does not enable new profiles or complete the common transaction boundary.
+`LOCAL_MOVE_INTO_ZIP.md`. The follow-up `ZIP_MOVE_NATIVE_GUI.md` adds Mac keyboard/AX and Ubuntu desktop journeys and fixes
+edited target mapping, safe conflict defaults and singular summaries, with 85 passing adjacent UI checks on each
+platform. Native Windows desktop, complete Mac visual acceptance and full crash/namespace/metadata/scale qualification
+are still open. These checkpoints do not enable new profiles or complete the common transaction boundary.
 
 The amended plan §11.6.1 also applies to future qualified formats. RAR feasibility should lead to an implementation
 where lawful and feasible, before the final independent review. The main implementation loop and those final phases

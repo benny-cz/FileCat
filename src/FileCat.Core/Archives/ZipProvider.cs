@@ -200,6 +200,9 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     public int CopiesOf(Location folder, string name) =>
         GetIndex(folder).Children.TryGetValue(folder.Path, out var list) ? list.Count(n => !n.IsDirectory && n.Name == name) : 0;
 
+    /// <summary>Advisory transfer mapping; call on a device worker, just as for enumeration. Implicit folders count.</summary>
+    internal bool DirectoryExists(Location folder) => GetIndex(folder).Children.ContainsKey(folder.Path);
+
     /// <summary>Why the archive cannot be changed here, or null when it can.</summary>
     public string? WhyReadOnly(Location location)
     {

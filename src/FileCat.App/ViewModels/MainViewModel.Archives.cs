@@ -140,9 +140,9 @@ public sealed partial class MainViewModel
                 {
                     HorizontalAlignment = HorizontalAlignment.Left,
                     TextWrapping = TextWrapping.Wrap, MaxWidth = 620,
-                    Text = $"{Formatters.Plural(clashes, "item has a name", "items have names")} that already exist in {Path.GetFileName(archive)}. Replace the members with the new files, or keep the members and skip those files?",
+                    Text = $"{Formatters.Plural(clashes, "item has a name that already exists", "items have names that already exist")} in {Path.GetFileName(archive)}. Replace the members with the new files, or keep the members and skip those files?",
                 },
-                [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Skip existing", "skip"), new DialogButton("Replace", "replace", IsDefault: true)]);
+                [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Skip existing", "skip", IsDefault: true), new DialogButton("Replace", "replace")]);
             if (answer is not ("skip" or "replace")) return;
             replace = answer as string == "replace";
         }

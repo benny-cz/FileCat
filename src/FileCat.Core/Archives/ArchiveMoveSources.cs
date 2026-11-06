@@ -212,8 +212,10 @@ internal sealed class ArchiveMoveSources
             for (int i = 0; i < roots.Count; i++)
             { if (roots[i].Removed) job.RootCompleted(i); else job.RootFailed(i); }
             int kept = inputs.Count(i => !i.Value.Removed);
-            job.SetSummary(kept == 0 ? $"Archive saved; moved {removedFiles:N0} files and {removedDirectories:N0} folders."
-                : $"Archive saved; removed {removedFiles:N0} original files and {removedDirectories:N0} folders; {kept:N0} source items were not confirmed removed" + (job.IsCancellationRequested ? "; move canceled." : "."));
+            string files = removedFiles == 1 ? "file" : "files", folders = removedDirectories == 1 ? "folder" : "folders";
+            job.SetSummary(kept == 0 ? $"Archive saved; moved {removedFiles:N0} {files} and {removedDirectories:N0} {folders}."
+                : $"Archive saved; removed {removedFiles:N0} original {files} and {removedDirectories:N0} {folders}; {kept:N0} source " +
+                    (kept == 1 ? "item was" : "items were") + " not confirmed removed" + (job.IsCancellationRequested ? "; move canceled." : "."));
         }
     }
 

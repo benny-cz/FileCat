@@ -66,6 +66,11 @@ are Avalonia headless UI tests with real filesystem jobs. They are not native in
 Native desktop journeys, the remaining metadata/namespace/crash/scale matrix and full independent final review remain
 required. No claim of absence of all possible bugs or full archive-writing completion follows from this checkpoint.
 
+The subsequent [native desktop follow-up](ZIP_MOVE_NATIVE_GUI.md) adds Mac keyboard/AX and Ubuntu desktop journeys,
+fixes edited archive destinations, changes the conflict default to Skip existing and corrects singular summaries.
+Its 85-case regression evidence supersedes the 71-case UI counts below for that follow-up's tested source. Native
+Windows desktop, complete Mac visual acceptance and the larger qualification matrices remain open.
+
 | Run | Real-file/core checks | UI and adjacent preparation/destination/scope checks |
 |---|---|---|
 | Windows first guest pass | 13 passed/26 skipped core; 17 passed/1 skipped actual Windows move adapter | 71 passed |

@@ -318,6 +318,33 @@ public sealed partial class MainViewModel
         return await Services.Io.Run(PathUtil.GetDeviceKey(path), IoPriority.Interactive, ct =>
         {
             ct.ThrowIfCancellationRequested();
+            // The filesystem provider also accepts paths below a ZIP file. Rebind those paths on the device worker
+            // before treating a non-existent child as a filesystem folder. The accepted mapping stays in the draft.
+            if (unchangedLocation?.Scheme == Schemes.Zip && Services.Zip.TryParse(path, null, out var archiveLocation) && archiveLocation is not null)
+            {
+                ct.ThrowIfCancellationRequested();
+                if ((Services.Zip.GetCapabilities(archiveLocation) & LocationCapabilities.TransferTarget) == 0)
+                    return new TransferDestinationResolution(null, null,
+                        Services.Zip.ExplainUnavailable(archiveLocation, LocationCapabilities.TransferTarget), string.Empty);
+                if (archiveLocation.Path.Length > 0 && Core.Archives.ArchivePaths.Problem(archiveLocation.Path) is { } problem)
+                    return new TransferDestinationResolution(null, null, problem, string.Empty);
+                if (Services.Zip.DirectoryExists(archiveLocation))
+                    return new TransferDestinationResolution(archiveLocation, null, null,
+                        "→ into the archive folder " + Formatters.SafeName(Services.Providers.Display(archiveLocation)));
+                var parent = Services.Zip.GetParent(archiveLocation);
+                if (parent?.Scheme == Schemes.Zip && Services.Zip.DirectoryExists(parent))
+                {
+                    string name = Services.Zip.GetNameInParent(archiveLocation)!;
+                    if (!endsWithSep && items.Count == 1)
+                        return new TransferDestinationResolution(parent, name, null,
+                            $"→ as “{Formatters.SafeName(name)}” in {Formatters.SafeName(Services.Providers.Display(parent))}");
+                    if (Services.Zip.CopiesOf(parent, name) > 0)
+                        return new TransferDestinationResolution(null, null,
+                            "An archive file already uses this folder name. Choose another folder.", string.Empty);
+                }
+                return new TransferDestinationResolution(archiveLocation, null, null,
+                    "→ the archive folder " + Formatters.SafeName(Services.Providers.Display(archiveLocation)) + " will be created");
+            }
             if (TransferDestinationDirectoryExists(path))
                 return new TransferDestinationResolution(loc, null, null, "→ into the folder " + Formatters.SafeName(path));
             if (!endsWithSep && items.Count == 1)
