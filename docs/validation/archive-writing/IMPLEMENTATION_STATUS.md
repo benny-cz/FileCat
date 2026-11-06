@@ -59,6 +59,11 @@ contracts and validates sixteen actual externally killed snapshot/prepare/commit
 native cases pass; common/UI and prior creation/crash regressions pass on all three platforms. Recovery retains every
 surviving artifact, including a committed file whose outcome append was interrupted. Active restoration/cleanup,
 deletion crash points, broader filesystem/resource/alias qualification and the remaining plan are still unfinished.
+The [live NTFS cleanup follow-up](LIVE_NTFS_ARTIFACT_CLEANUP.md) persists a complete sealed-artifact catalog before target
+mutation and implements creator-owned, object-bound unlink with durable per-object intents/outcomes and the original
+snapshot last. All 131 Windows native cases pass, including twenty deletion crashes; common/UI and prior regressions
+pass on all three platforms. Completed cleanup clears only its own recovery hold. Interrupted-cleanup resumption,
+native recovery/restoration, broader qualification and production workflows remain unfinished.
 The [private creation process-crash follow-up](PRIVATE_CREATION_PROCESS_CRASHES.md) passes ten new publication/metadata
 boundaries and thirteen neighboring crash cases on each platform. It leaves production and recovery authority unchanged.
 The [TAR.GZ worker pipeline](TAR_GZIP_WORKER_PIPELINE.md) adds strict wrapper-aware assessment, streamed create/update

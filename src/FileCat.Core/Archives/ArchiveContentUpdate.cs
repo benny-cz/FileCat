@@ -4,12 +4,60 @@ namespace FileCat.Core.Archives;
 
 /// <summary>Owns the committed read pin and retained snapshot. Disposal closes handles; it never deletes artifacts.</summary>
 internal sealed class ArchiveContentUpdateResult<T>(IArchiveContentTransaction transaction, T snapshot,
-    ArchiveFileObservation published, ArchiveContentUpdateFacts facts) : IDisposable where T : class, IArchiveContentUpdateStage
+    ArchiveFileObservation published, ArchiveContentUpdateFacts facts, ArchiveContentUpdateReview review,
+    ArchiveContentCleanupFacts cleanup, IReadOnlyList<IArchiveContentUpdateStage> artifacts) : IDisposable where T : class, IArchiveContentUpdateStage
 {
+    private readonly object gate = new(); private bool disposed;
     internal ArchiveFileObservation Published { get; } = published;
     internal ArchiveContentUpdateFacts Facts { get; } = facts;
     internal T Snapshot { get; } = snapshot;
-    public void Dispose() { try { transaction.Dispose(); } finally { Snapshot.Dispose(); } }
+    internal ArchiveContentCleanupFacts CleanupFacts { get; private set; } = cleanup;
+    internal ArchiveContentCleanupFacts Cleanup(JobJournal journal, CancellationToken ct)
+    {
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            journal.RequireCurrentArchiveContentUpdate(Facts); journal.RequireCurrentArchiveContentCleanup(CleanupFacts);
+            if (CleanupFacts.IsResolved) return CleanupFacts;
+            try
+            {
+                if (CleanupFacts.Phase is not (ArchiveContentCleanupPhase.Cataloged or ArchiveContentCleanupPhase.Deleted) ||
+                    artifacts.Count != CleanupFacts.Artifacts.Count) throw new InvalidOperationException("This live cleanup cannot be resumed from an uncertain operation.");
+                Current(); transaction.ReviewPublished(review, ct);
+                for (int i = CleanupFacts.DeletedCount; i < artifacts.Count; i++)
+                    artifacts[i].ReviewOwnedCleanup(CleanupFacts.Artifacts[i], CleanupFacts.ParentIdentity, ct);
+                while (CleanupFacts.DeletedCount < artifacts.Count)
+                {
+                    ct.ThrowIfCancellationRequested(); Current(); transaction.ReviewPublished(review, ct);
+                    int index = CleanupFacts.DeletedCount; var expected = CleanupFacts.Artifacts[index]; var file = artifacts[index];
+                    file.ReviewOwnedCleanup(expected, CleanupFacts.ParentIdentity, ct);
+                    Append(CleanupFacts.Advance(ArchiveContentCleanupPhase.DeleteIntent));
+                    Current(); ct.ThrowIfCancellationRequested(); transaction.ReviewPublished(review, ct);
+                    file.DeleteOwnedCleanup(expected, CleanupFacts.ParentIdentity, ct);
+                    // Once unlink may have happened, record the outcome and observe the target without cancellation.
+                    Append(CleanupFacts.Advance(ArchiveContentCleanupPhase.Deleted));
+                    transaction.ReviewPublished(review, CancellationToken.None);
+                }
+                Append(CleanupFacts.Advance(ArchiveContentCleanupPhase.Completed)); return CleanupFacts;
+            }
+            catch
+            {
+                journal.RequireRecovery();
+                try { Append(CleanupFacts.Advance(ArchiveContentCleanupPhase.NeedsReview)); } catch { }
+                throw;
+            }
+            void Current() { journal.RequireCurrentArchiveContentUpdate(Facts); journal.RequireCurrentArchiveContentCleanup(CleanupFacts); }
+            void Append(ArchiveContentCleanupFacts next) { journal.ArchiveContentCleanup(next); CleanupFacts = next; }
+        }
+    }
+    public void Dispose()
+    {
+        lock (gate)
+        {
+            if (disposed) return; disposed = true;
+            try { transaction.Dispose(); } finally { Snapshot.Dispose(); }
+        }
+    }
 }
 
 /// <summary>
@@ -51,6 +99,17 @@ internal static class ArchiveContentUpdate
             Current();
             var retained = transaction.RetainOriginal(snapshot, ct);
             Append(facts!.Advance(ArchiveContentUpdatePhase.SnapshotSealed, snapshot: retained.Version));
+            var cleanupFiles = new List<IArchiveContentUpdateStage> { prepared.Stage };
+            var cleanupRows = new List<ArchiveContentCleanupArtifact> { ArchiveContentCleanupArtifact.Capture(preparation.StagePath, ArchiveArtifactKind.Stage, prepared.Verified.Stage) };
+            foreach (var evidence in preparation.Sidecars)
+            {
+                var held = prepared.Sidecars.Single(sidecar => sidecar.Observation.Version == evidence.Version);
+                cleanupFiles.Add(held.File); cleanupRows.Add(ArchiveContentCleanupArtifact.Capture(evidence.Path,
+                    evidence.Role == ArchiveSidecarRole.OriginEvidence ? ArchiveArtifactKind.Provenance : ArchiveArtifactKind.Manifest, held.Observation));
+            }
+            cleanupFiles.Add(snapshot); cleanupRows.Add(ArchiveContentCleanupArtifact.Capture(facts!.SnapshotPath, ArchiveArtifactKind.Stage, retained));
+            var cleanup = ArchiveContentCleanupFacts.Reserve(preparation, facts!, cleanupRows);
+            journal.ArchiveContentCleanup(cleanup); // Includes the sealed snapshot metadata, before private target mutation.
             Current(); ReviewInputs(ct); ReviewSidecars(ct);
             if (ReviewOrigin(ct).Digest != requiredOrigin.Digest) throw Invalid();
             var ready = transaction.PrepareOutput(prepared.Stage, prepared.Verified, requiredOrigin, ct);
@@ -64,7 +123,7 @@ internal static class ArchiveContentUpdate
             published = transaction.ReviewPublished(ready, CancellationToken.None);
             Append(facts!.Advance(ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts, published: published.Version));
             transferred = true;
-            return new(transaction, snapshot, published, facts!);
+            return new(transaction, snapshot, published, facts!, ready, cleanup, Array.AsReadOnly(cleanupFiles.ToArray()));
         }
         catch
         {

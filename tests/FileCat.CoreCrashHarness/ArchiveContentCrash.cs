@@ -8,7 +8,8 @@ internal static class ArchiveContentCrash
 {
     internal static readonly string[] Points = ["snapshot-reserved", "snapshot-created-unrecorded", "snapshot-identified", "snapshot-created",
         "transaction-opened-unrecorded", "transaction-opened", "snapshot-sealed", "snapshot-recorded", "private-ready", "ready",
-        "commit-intent", "native-committed", "committed-recorded", "rollback-before", "rollback-after", "rollback-recorded"];
+        "commit-intent", "native-committed", "committed-recorded", "rollback-before", "rollback-after", "rollback-recorded",
+        "cleanup-cataloged", "cleanup-completed", .. Enumerable.Range(0, 6).SelectMany(i => new[] { "cleanup-intent-" + i, "cleanup-unlinked-" + i, "cleanup-recorded-" + i })];
 
     internal static async Task<int> Run(string root, string point, string windowsAssembly, string probe)
     {
@@ -44,9 +45,11 @@ internal static class ArchiveContentCrash
             throw new IOException("All three distinct actual worker roles must be reaped before native update crash qualification.");
         try
         {
-            using var result = ArchiveContentUpdate.Publish(journal, prepared, new Source(source, point),
+            using var result = ArchiveContentUpdate.Publish(journal, prepared, new Source(source, point, CurrentCleanup),
                 new Dictionary<int, ArchiveRetainedBinding> { [3] = new(input, inputState) }, Create, TimeSpan.FromMinutes(2), CancellationToken.None);
             WaitIf("committed-recorded", point);
+            if (point.StartsWith("cleanup-", StringComparison.Ordinal))
+            { WaitIf("cleanup-cataloged", point); result.Cleanup(journal, CancellationToken.None); WaitIf("cleanup-completed", point); }
         }
         catch (InjectedRollback) when (point == "rollback-recorded")
         {
@@ -58,13 +61,14 @@ internal static class ArchiveContentCrash
         ArchiveCreationCrash.Worker Start(Guid nonce, string role)
         { var child = ArchiveCreationCrash.Worker.Start(probe, nonce, role); children.Add(child); return child; }
         ArchiveContentUpdateFacts? Current() => JournalRecovery.ReadArchiveTransactions(journal.Path).ContentUpdates.SingleOrDefault();
+        ArchiveContentCleanupFacts? CurrentCleanup() => JournalRecovery.ReadArchiveTransactions(journal.Path).ContentCleanups.SingleOrDefault();
         Stage Create(ArchiveArtifactReservation reservation)
         {
             bool snapshot = Current()?.SnapshotPath == reservation.Path;
             if (snapshot) WaitIf("snapshot-reserved", point);
             var native = (IArchiveContentUpdateStage)store.Create(reservation);
             if (snapshot) WaitIf("snapshot-created-unrecorded", point);
-            return new(native, snapshot, point, Current);
+            return new(native, snapshot, point, Current, CurrentCleanup);
         }
     }
     private static void WaitIf(string checkpoint, string point)
@@ -74,7 +78,7 @@ internal static class ArchiveContentCrash
         throw new InvalidOperationException("The driver must terminate this actual process externally.");
     }
     private sealed class InjectedRollback : IOException;
-    private sealed class Source(IArchiveContentUpdateSource native, string point) : IArchiveContentUpdateSource
+    private sealed class Source(IArchiveContentUpdateSource native, string point, Func<ArchiveContentCleanupFacts?> cleanup) : IArchiveContentUpdateSource
     {
         public ArchiveContentUpdateRecipe Recipe => native.Recipe;
         public string ObjectIdentity => native.ObjectIdentity;
@@ -86,10 +90,10 @@ internal static class ArchiveContentCrash
         {
             WaitIf("snapshot-created", point);
             var transaction = native.BeginContentTransaction(reviewed, nonce, timeout, ct);
-            WaitIf("transaction-opened-unrecorded", point); return new Transaction(transaction, point);
+            WaitIf("transaction-opened-unrecorded", point); return new Transaction(transaction, point, cleanup);
         }
     }
-    private sealed class Transaction(IArchiveContentTransaction native, string point) : IArchiveContentTransaction
+    private sealed class Transaction(IArchiveContentTransaction native, string point, Func<ArchiveContentCleanupFacts?> cleanup) : IArchiveContentTransaction
     {
         public Guid TransactionId => native.TransactionId;
         public ArchiveFileObservation RetainOriginal(IArchiveContentUpdateStage snapshot, CancellationToken ct)
@@ -107,11 +111,17 @@ internal static class ArchiveContentCrash
         }
         public ArchiveFileObservation Commit(ArchiveContentUpdateReview review, CancellationToken ct)
         { WaitIf("commit-intent", point); var result = native.Commit(review, ct); WaitIf("native-committed", point); return result; }
-        public ArchiveFileObservation ReviewPublished(ArchiveContentUpdateReview review, CancellationToken ct) => native.ReviewPublished(review, ct);
+        public ArchiveFileObservation ReviewPublished(ArchiveContentUpdateReview review, CancellationToken ct)
+        {
+            var result = native.ReviewPublished(review, ct); var facts = cleanup();
+            if (facts?.Phase == ArchiveContentCleanupPhase.Deleted) WaitIf("cleanup-recorded-" + (facts.DeletedCount - 1), point);
+            return result;
+        }
         public void Rollback() { WaitIf("rollback-before", point); native.Rollback(); WaitIf("rollback-after", point); }
         public void Dispose() => native.Dispose();
     }
-    private sealed class Stage(IArchiveContentUpdateStage native, bool snapshot, string point, Func<ArchiveContentUpdateFacts?> current) : IArchiveContentUpdateStage
+    private sealed class Stage(IArchiveContentUpdateStage native, bool snapshot, string point, Func<ArchiveContentUpdateFacts?> current,
+        Func<ArchiveContentCleanupFacts?> cleanup) : IArchiveContentUpdateStage
     {
         internal IArchiveContentUpdateStage Native => native;
         public string ObjectIdentity => native.ObjectIdentity;
@@ -122,6 +132,12 @@ internal static class ArchiveContentCrash
         public string ReviewCreation(ArchiveArtifactReservation reservation, CancellationToken ct) => native.ReviewCreation(reservation, ct);
         public string ReviewContentSnapshotCreation(ArchiveArtifactReservation reservation, CancellationToken ct)
         { string policy = native.ReviewContentSnapshotCreation(reservation, ct); if (snapshot) WaitIf("snapshot-identified", point); return policy; }
+        public void ReviewOwnedCleanup(ArchiveContentCleanupArtifact expected, string parentIdentity, CancellationToken ct) => native.ReviewOwnedCleanup(expected, parentIdentity, ct);
+        public void DeleteOwnedCleanup(ArchiveContentCleanupArtifact expected, string parentIdentity, CancellationToken ct)
+        {
+            int index = (cleanup() ?? throw new IOException("No durable cleanup intent.")).DeletedCount;
+            WaitIf("cleanup-intent-" + index, point); native.DeleteOwnedCleanup(expected, parentIdentity, ct); WaitIf("cleanup-unlinked-" + index, point);
+        }
         public Stream BeginRebuild(long maximum, CancellationToken ct) => native.BeginRebuild(maximum, ct);
         public ArchiveFileObservation SealForVerification(CancellationToken ct) => native.SealForVerification(ct);
         public Stream BeginEvidence(ArchiveArtifactReservation reservation, CancellationToken ct) => native.BeginEvidence(reservation, ct);

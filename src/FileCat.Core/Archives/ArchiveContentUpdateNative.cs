@@ -6,6 +6,8 @@ internal enum ArchiveContentUpdateRecipe { WindowsNtfsTransactionalData = 1 }
 internal interface IArchiveContentUpdateStage : IArchiveRetainedStage
 {
     string ReviewContentSnapshotCreation(ArchiveArtifactReservation reservation, CancellationToken ct);
+    void ReviewOwnedCleanup(ArchiveContentCleanupArtifact expected, string parentIdentity, CancellationToken ct);
+    void DeleteOwnedCleanup(ArchiveContentCleanupArtifact expected, string parentIdentity, CancellationToken ct);
 }
 
 internal interface IArchiveContentUpdateSource : IArchiveRetainedFile

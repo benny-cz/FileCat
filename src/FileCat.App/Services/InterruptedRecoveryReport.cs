@@ -17,11 +17,11 @@ internal static class InterruptedRecoveryReport
         var facts = job.ArchiveTransactions;
         if (facts.Problem is not null)
             return "Archive recovery records are incomplete or unsupported. Keep the current archive and retained files; Review report lists the recorded locations.";
-        if (facts.ContentUpdates.Any(t => t.Phase != ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts) ||
-            facts.Transactions.Any(t => !t.IsResolved && t.Phase != ArchiveTransactionPhase.CommittedWithRetainedArtifacts &&
+        if (facts.ContentUpdates.Any(t => !facts.IsContentResolved(t.Nonce) && t.Phase != ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts) ||
+            facts.Transactions.Any(t => !t.IsResolved && !facts.IsContentResolved(t.Nonce) && t.Phase != ArchiveTransactionPhase.CommittedWithRetainedArtifacts &&
                 !facts.ContentUpdates.Any(c => c.Nonce == t.Nonce && c.Phase == ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts)))
             return "The archive update's final outcome has not been confirmed. Keep the current archive and retained files; open Review report for recorded locations.";
-        if (facts.ContentUpdates.Count != 0 || facts.Transactions.Any(t => t.Phase == ArchiveTransactionPhase.CommittedWithRetainedArtifacts))
+        if (facts.ContentUpdates.Any(t => !facts.IsContentResolved(t.Nonce)) || facts.Transactions.Any(t => !facts.IsContentResolved(t.Nonce) && t.Phase == ArchiveTransactionPhase.CommittedWithRetainedArtifacts))
             return "An archive update was recorded as committed, with retained files still needing review. Keep those files and open Review report.";
         return "No unresolved archive transaction was recorded. Open Review report before closing this recovery record; the files have not been inspected.";
     }
@@ -168,6 +168,17 @@ internal static class InterruptedRecoveryReport
             if (content.Snapshot is { } snapshot) Line("Retained original SHA-256: " + snapshot.Sha256);
             if (content.NativeTransactionId is { } transactionId) Line("Recorded native transaction: " + transactionId.ToString("D"));
             if (content.Published is { } published) Line("Recorded committed object: " + JsonSerializer.Serialize(published.Identity) + ", SHA-256 " + published.Sha256);
+        }
+        foreach (var cleanup in job.ArchiveTransactions.ContentCleanups)
+        {
+            Line($"Private archive artifact cleanup {cleanup.Nonce:N}, sequence {cleanup.Sequence}, recorded phase {cleanup.Phase}, confirmed deletions {cleanup.DeletedCount} of {cleanup.Artifacts.Count}");
+            for (int i = 0; i < cleanup.Artifacts.Count; i++)
+            {
+                var artifact = cleanup.Artifacts[i];
+                Detail(i < cleanup.DeletedCount ? "Recorded deleted artifact (not inspected)" : "Recorded remaining artifact (not inspected)", artifact.Path);
+                Line("Recorded artifact identity: " + JsonSerializer.Serialize(artifact.Version.Identity) + ", SHA-256 " + artifact.Version.Sha256);
+                Line("Sealed artifact metadata SHA-256: " + artifact.MetadataSha256);
+            }
         }
         Line();
         if (deleted is not null)

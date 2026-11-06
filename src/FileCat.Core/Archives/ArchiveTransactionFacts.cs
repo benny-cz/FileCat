@@ -457,7 +457,11 @@ public sealed class ArchiveTransactionFacts
 public sealed record ArchiveTransactionRecovery(IReadOnlyList<ArchiveTransactionFacts> Transactions, bool HasRecords, string? Problem)
 {
     public IReadOnlyList<ArchiveContentUpdateFacts> ContentUpdates { get; init; } = [];
-    public bool RequiresReview => HasRecords && (Problem is not null || ContentUpdates.Count != 0 || Transactions.Any(t => !t.IsResolved));
+    public IReadOnlyList<ArchiveContentCleanupFacts> ContentCleanups { get; init; } = [];
+    public bool IsContentResolved(Guid nonce) => ContentUpdates.Any(content => content.Nonce == nonce && content.Phase == ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts) &&
+        ContentCleanups.Any(cleanup => cleanup.Nonce == nonce && cleanup.IsResolved);
+    public bool RequiresReview => HasRecords && (Problem is not null || ContentUpdates.Any(t => !IsContentResolved(t.Nonce)) ||
+        Transactions.Any(t => !t.IsResolved && !IsContentResolved(t.Nonce)));
 }
 
 internal sealed class ArchiveTransactionCollector
@@ -465,17 +469,18 @@ internal sealed class ArchiveTransactionCollector
     private const int MaxTransactions = 16;
     private readonly Dictionary<Guid, ArchiveTransactionFacts> latest = [];
     private readonly Dictionary<Guid, ArchiveContentUpdateFacts> content = [];
+    private readonly Dictionary<Guid, ArchiveContentCleanupFacts> cleanup = [];
     private bool hasRecords;
     private bool damaged;
     private bool legacy;
     private bool began, ended;
     private int? headerVersion;
     private string? problem;
-    public bool RequiresReview => hasRecords && (problem is not null || damaged || legacy || content.Count != 0 || latest.Values.Any(t => !t.IsResolved));
+    public bool RequiresReview => Snapshot.RequiresReview;
     public ArchiveTransactionRecovery Snapshot => new(Array.AsReadOnly(latest.Values.ToArray()), hasRecords,
         problem ?? (legacy ? "This legacy archive journal lacks complete provenance evidence; retain its recorded artifacts for archive-specific review." :
             hasRecords && damaged ? "The archive transaction journal contains damaged or incomplete records." : null))
-        { ContentUpdates = Array.AsReadOnly(content.Values.ToArray()) };
+        { ContentUpdates = Array.AsReadOnly(content.Values.ToArray()), ContentCleanups = Array.AsReadOnly(cleanup.Values.ToArray()) };
     public void DamagedRecord() => damaged = true;
     public void ValidateNext(ArchiveTransactionFacts facts)
     {
@@ -496,6 +501,19 @@ internal sealed class ArchiveTransactionCollector
     {
         if (problem is not null || damaged || !ReferenceEquals(content.GetValueOrDefault(facts.Nonce), facts))
             throw new InvalidOperationException("The supplied content-update facts are not the current durable parent facts.");
+    }
+    internal void ValidateNextCleanup(ArchiveContentCleanupFacts facts)
+    {
+        if (problem is not null || damaged) throw new InvalidOperationException("The archive transaction journal is not writable.");
+        if (!content.TryGetValue(facts.Nonce, out var current)) throw new ArgumentException("Cleanup requires an existing content transaction.");
+        facts.ValidateAfter(Current(facts.Nonce), current, cleanup.GetValueOrDefault(facts.Nonce));
+    }
+    internal void AcceptCleanup(ArchiveContentCleanupFacts facts)
+    { ValidateNextCleanup(facts); cleanup[facts.Nonce] = facts; hasRecords = true; }
+    internal void RequireCurrentCleanup(ArchiveContentCleanupFacts facts)
+    {
+        if (problem is not null || damaged || !ReferenceEquals(cleanup.GetValueOrDefault(facts.Nonce), facts))
+            throw new InvalidOperationException("The supplied cleanup facts are not the current durable parent facts.");
     }
     internal void RequireCurrent(ArchiveTransactionFacts facts)
     {
@@ -537,6 +555,11 @@ internal sealed class ArchiveTransactionCollector
         if (ended) damaged = true;
         try
         {
+            if (type == ArchiveContentCleanupFacts.RecordType)
+            {
+                if (headerVersion != ArchiveTransactionFacts.SchemaVersion) throw new ArgumentException("The cleanup header is unsupported.");
+                AcceptCleanup(ArchiveContentCleanupFacts.Parse(node)); return;
+            }
             if (type == ArchiveContentUpdateFacts.RecordType)
             {
                 if (headerVersion != ArchiveTransactionFacts.SchemaVersion) throw new ArgumentException("The content-update header is unsupported.");

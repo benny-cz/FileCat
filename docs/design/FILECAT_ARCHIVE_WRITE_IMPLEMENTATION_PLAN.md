@@ -336,6 +336,12 @@ actual native transactions. It preserves ambiguous outcomes for object-bound rec
 outcome append. This establishes process-crash behavior; active restoration/cleanup and their deletion crash matrix,
 power-loss claims and the remaining qualification gates stay open.
 
+The [live NTFS artifact-cleanup follow-up](../validation/archive-writing/LIVE_NTFS_ARTIFACT_CLEANUP.md) records a sealed
+identity/byte/metadata/origin catalog before target mutation, then journals each exact creator-owned unlink and deletes
+the old-data snapshot last. Twenty actual deletion-boundary crashes and all 131 Windows native cases pass; common/UI
+regressions pass on all three platforms. Fresh recovery/restoration authority, interrupted-cleanup reconciliation,
+other platform routes and remaining qualification/production gates are still required.
+
 ### 7.5 Outer metadata and provenance
 
 Treat outer-file metadata separately from metadata of archived members. Updates preserve the existing archive's owner, ACL/mode, relevant attributes, creation time where promised, and origin/quarantine marks. Content-changing mtime follows existing FileCat policy and must be stated/tested. Hard links to the old archive remain attached to the old object; warn once when link count is known and greater than one. Do not silently update all hard-link names.

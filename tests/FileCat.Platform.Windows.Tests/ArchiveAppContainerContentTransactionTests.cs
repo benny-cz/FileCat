@@ -21,6 +21,13 @@ public sealed partial class ArchiveAppContainerTests
     [InlineData(ArchiveWriteFormat.TarGzip, "journaled-commit")]
     [InlineData(ArchiveWriteFormat.TarBzip2, "journaled-commit")]
     [InlineData(ArchiveWriteFormat.TarZstd, "journaled-commit")]
+    [InlineData(ArchiveWriteFormat.Tar, "journaled-cleanup")]
+    [InlineData(ArchiveWriteFormat.TarGzip, "journaled-cleanup")]
+    [InlineData(ArchiveWriteFormat.TarBzip2, "journaled-cleanup")]
+    [InlineData(ArchiveWriteFormat.TarZstd, "journaled-cleanup")]
+    [InlineData(ArchiveWriteFormat.Tar, "journaled-cleanup-canceled")]
+    [InlineData(ArchiveWriteFormat.Tar, "journaled-cleanup-closed-snapshot")]
+    [InlineData(ArchiveWriteFormat.Tar, "journaled-cleanup-changed-snapshot")]
     [InlineData(ArchiveWriteFormat.TarGzip, "commit")]
     [InlineData(ArchiveWriteFormat.TarGzip, "rollback")]
     [InlineData(ArchiveWriteFormat.TarGzip, "abandon")]
@@ -75,9 +82,10 @@ public sealed partial class ArchiveAppContainerTests
                 (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (WindowsArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
                 new((nonce, cpu) => ArchiveAppContainer.Start(executable, "archive-transform " + nonce, cpu)),
                 new((nonce, cpu) => ArchiveAppContainer.Start(executable, "archive-verify " + nonce, cpu)), ct);
-            using var backup = outcome == "journaled-commit" ? null : directory.CreateArtifact(Guid.NewGuid(), WindowsArchiveArtifactKind.Stage, baseline.Version.Length);
+            bool journaled = outcome.StartsWith("journaled-", StringComparison.Ordinal);
+            using var backup = journaled ? null : directory.CreateArtifact(Guid.NewGuid(), WindowsArchiveArtifactKind.Stage, baseline.Version.Length);
             var required = ArchiveWindowsOriginZone.Parse(baseline.Origin).RaiseTo(4);
-            if (outcome == "journaled-commit")
+            if (journaled)
             {
                 using var result = WindowsArchiveContentUpdate.Publish(journal, prepared, original,
                     new Dictionary<int, ArchiveRetainedBinding> { [3] = new(input, inputState) }, TimeSpan.FromSeconds(30), ct);
@@ -89,9 +97,37 @@ public sealed partial class ArchiveAppContainerTests
                 Assert.Equal(result.Facts.ToJson().ToJsonString(), Assert.Single(recovered.ContentUpdates).ToJson().ToJsonString());
                 Assert.Equal(oldBytes, ReadContentShared(result.Snapshot.DisplayPath));
                 Assert.Equal(ArchiveWindowsOriginZone.ZoneOnly(3).Bytes, ReadContentShared(result.Snapshot.DisplayPath + ":Zone.Identifier"));
+                Assert.Equal(((IArchiveRetainedFile)result.Snapshot).Observe(ct).MetadataDigest, Assert.Single(recovered.ContentCleanups).Artifacts[^1].MetadataSha256);
                 Assert.Equal(new[] { "SnapshotReserved", "SnapshotCreated", "TransactionOpened", "SnapshotSealed", "Ready", "CommitIntent", "CommittedWithRetainedArtifacts" },
                     JobJournal.ReadAll(journal.Path).Where(record => record.Type == ArchiveContentUpdateFacts.RecordType).Select(record => record.Get("phase")).ToArray());
-                Assert.Throws<IOException>(() => journal.Finish(JobState.Completed, "retained artifacts require review"));
+                if (outcome == "journaled-cleanup")
+                {
+                    var cleaned = result.Cleanup(journal, ct);
+                    Assert.True(cleaned.IsResolved); Assert.Equal(cleaned.Artifacts.Count, cleaned.DeletedCount);
+                    Assert.Same(cleaned, result.Cleanup(journal, ct));
+                    Assert.All(cleaned.Artifacts, artifact => Assert.False(File.Exists(artifact.Path)));
+                    Assert.False(journal.NeedsRecovery); Assert.False(JournalRecovery.ReadArchiveTransactions(journal.Path).RequiresReview);
+                    journal.Finish(JobState.Completed, "native update and exact private artifact cleanup complete");
+                }
+                else if (outcome.StartsWith("journaled-cleanup-", StringComparison.Ordinal))
+                {
+                    if (outcome == "journaled-cleanup-canceled")
+                    {
+                        using var canceled = new CancellationTokenSource(); canceled.Cancel();
+                        Assert.Throws<OperationCanceledException>(() => result.Cleanup(journal, canceled.Token));
+                    }
+                    else if (outcome == "journaled-cleanup-closed-snapshot")
+                    { result.Snapshot.Dispose(); Assert.Throws<ObjectDisposedException>(() => result.Cleanup(journal, ct)); }
+                    else
+                    {
+                        File.SetLastWriteTimeUtc(result.Snapshot.DisplayPath, DateTime.UnixEpoch.AddSeconds(1700001234));
+                        Assert.Throws<ArchiveWriteException>(() => result.Cleanup(journal, ct));
+                    }
+                    Assert.Equal(ArchiveContentCleanupPhase.NeedsReview, result.CleanupFacts.Phase); Assert.Equal(0, result.CleanupFacts.DeletedCount);
+                    Assert.All(result.CleanupFacts.Artifacts, artifact => Assert.True(File.Exists(artifact.Path)));
+                    Assert.True(journal.NeedsRecovery); Assert.Throws<IOException>(() => journal.Finish(JobState.Completed, "cleanup refused"));
+                }
+                else Assert.Throws<IOException>(() => journal.Finish(JobState.Completed, "retained artifacts require review"));
             }
             else using (var transaction = original.BeginContentTransaction(baseline, Guid.NewGuid(), TimeSpan.FromSeconds(30), ct))
             {
@@ -144,7 +180,7 @@ public sealed partial class ArchiveAppContainerTests
             Assert.Equal(metadata.Identity, actual.Identity); Assert.Equal(metadata.CreationTime, actual.CreationTime);
             Assert.Equal(metadata.Attributes, actual.Attributes);
             Assert.Equal(metadata.SecurityDescriptor.ToArray(), actual.SecurityDescriptor.ToArray());
-            bool committedOutcome = outcome is "commit" or "cancel-before-commit" or "commit-with-parent-disposed" or "journaled-commit";
+            bool committedOutcome = journaled || outcome is "commit" or "cancel-before-commit" or "commit-with-parent-disposed";
             Assert.Equal(committedOutcome ? required.Bytes : oldMark, ReadContentShared(path + ":Zone.Identifier"));
             if (!committedOutcome) { Assert.Equal(oldBytes, ReadContentShared(path)); Assert.Equal(metadata.LastWriteTime, actual.LastWriteTime); }
             else
@@ -159,7 +195,7 @@ public sealed partial class ArchiveAppContainerTests
                 Assert.All(members.Values, bytes => Assert.Equal("after"u8.ToArray(), bytes));
             }
             if (backup is not null) Assert.True(File.Exists(backup.DisplayPath));
-            Assert.True(File.Exists(((WindowsArchiveFile)prepared.Stage).DisplayPath));
+            Assert.Equal(outcome != "journaled-cleanup", File.Exists(((WindowsArchiveFile)prepared.Stage).DisplayPath));
         }
         finally { Directory.Delete(root, recursive: true); }
     }

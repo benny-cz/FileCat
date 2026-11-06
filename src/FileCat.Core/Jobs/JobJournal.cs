@@ -87,6 +87,28 @@ public sealed class JobJournal : IDisposable
         }
     }
 
+    internal void ArchiveContentCleanup(ArchiveContentCleanupFacts facts)
+    {
+        ArgumentNullException.ThrowIfNull(facts);
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished) throw new InvalidOperationException("A finished journal cannot record archive cleanup.");
+            _archiveTransactions.ValidateNextCleanup(facts);
+            try { Write(facts.ToJson(), sync: true); } catch { RequireRecovery(); throw; }
+            _archiveTransactions.AcceptCleanup(facts);
+        }
+    }
+    internal void RequireCurrentArchiveContentCleanup(ArchiveContentCleanupFacts facts)
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished || _manualRecovery) throw new InvalidOperationException("The archive journal requires review or is finished.");
+            _archiveTransactions.RequireCurrentCleanup(facts);
+        }
+    }
+
     internal void RequireCurrentArchiveTransaction(ArchiveTransactionFacts facts)
     {
         ArgumentNullException.ThrowIfNull(facts);
