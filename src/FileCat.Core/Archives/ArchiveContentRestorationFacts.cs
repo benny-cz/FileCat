@@ -78,12 +78,13 @@ public sealed class ArchiveContentRestorationFacts
         if (previous is null)
         { if (Sequence != 1 || Attempt != 1 || Phase != ArchiveContentRestorationPhase.CommitIntent) throw Invalid(); return; }
         bool retry = Attempt == previous.Attempt + 1 && Phase == ArchiveContentRestorationPhase.CommitIntent &&
-            RestoreNonce != previous.RestoreNonce && NativeTransactionId != previous.NativeTransactionId;
+            previous.Phase is ArchiveContentRestorationPhase.CommitIntent or ArchiveContentRestorationPhase.NeedsReview &&
+            RestoreNonce != previous.RestoreNonce && RestoreJournalPath != previous.RestoreJournalPath && NativeTransactionId != previous.NativeTransactionId;
         bool sameAttempt = Attempt == previous.Attempt && RestoreNonce == previous.RestoreNonce && RestoreJournalPath == previous.RestoreJournalPath && NativeTransactionId == previous.NativeTransactionId &&
             previous.Phase == ArchiveContentRestorationPhase.CommitIntent && Phase is ArchiveContentRestorationPhase.Committed or ArchiveContentRestorationPhase.NeedsReview;
         if (!(retry || sameAttempt) || Sequence != previous.Sequence + 1 || Nonce != previous.Nonce || ContentSha256 != previous.ContentSha256 ||
             CleanupSha256 != previous.CleanupSha256 || Before != previous.Before || BeforeMetadataSha256 != previous.BeforeMetadataSha256 ||
-            BeforeOriginSha256 != previous.BeforeOriginSha256 || Restored != previous.Restored || RestoredMetadataSha256 != previous.RestoredMetadataSha256 ||
+            BeforeOriginSha256 != previous.BeforeOriginSha256 || Restored != previous.Restored || (!retry && RestoredMetadataSha256 != previous.RestoredMetadataSha256) ||
             RestoredOriginSha256 != previous.RestoredOriginSha256) throw Invalid();
     }
     internal string Sha256 => Digest(ToJson());

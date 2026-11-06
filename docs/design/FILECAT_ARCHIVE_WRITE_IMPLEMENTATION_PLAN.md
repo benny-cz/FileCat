@@ -365,6 +365,13 @@ administrator cases and 182 genuine standard-user cases pass, with five administ
 latest-source preparation/report checks pass on all three platforms. Actual restoration process-crash/failure tests,
 production recovery actions and the remaining qualification gates are still required before enabling a profile.
 
+The [restoration-process crash follow-up](../validation/archive-writing/SNAPSHOT_RESTORATION_PROCESS_CRASHES.md)
+passes twelve actual externally terminated restoration boundaries and a second fresh attempt after uncertain intent.
+It fixes the retry history's obsolete modification-time digest constraint and requires distinct new job/journal/
+native transaction identities. All 200 administrator native cases and 195 standard-user cases pass, with five
+administrator-only skips; common/UI and supplemental independent-fixture checks pass on all three platforms.
+Cancellation/failure injection, restoration cleanup-deletion crashes and the other production/release gates remain open.
+
 ### 7.5 Outer metadata and provenance
 
 Treat outer-file metadata separately from metadata of archived members. Updates preserve the existing archive's owner, ACL/mode, relevant attributes, creation time where promised, and origin/quarantine marks. Content-changing mtime follows existing FileCat policy and must be stated/tested. Hard links to the old archive remain attached to the old object; warn once when link count is known and greater than one. Do not silently update all hard-link names.

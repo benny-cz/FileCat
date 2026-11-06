@@ -84,6 +84,12 @@ bytes. It adds durable linked restoration facts, restored-target cleanup reconci
 All 187 administrator native cases and 182 standard-user cases pass (five administrator-only skips); common/UI
 regressions pass on Windows, Mac and Ubuntu. Restoration process-crash/failure qualification, production actions
 and the broader gates remain unfinished; writer profiles stay disabled.
+The [restoration-process crash follow-up](SNAPSHOT_RESTORATION_PROCESS_CRASHES.md) passes twelve actual external
+parent-termination boundaries and a fresh retry after uncertain intent. It reproduces and fixes a retry refused
+because a fresh write has a new modification-time metadata digest, while enforcing distinct job/journal/transaction
+identities and immutable same-attempt outcomes. All 200 administrator native cases and 195 standard-user cases pass
+(five administrator-only skips), with passing common/UI/independent-fixture checks on Windows, Mac and Ubuntu.
+Cancellation/failure matrices, restoration cleanup-deletion crashes, production actions and wider gates remain open.
 The [private creation process-crash follow-up](PRIVATE_CREATION_PROCESS_CRASHES.md) passes ten new publication/metadata
 boundaries and thirteen neighboring crash cases on each platform. It leaves production and recovery authority unchanged.
 The [TAR.GZ worker pipeline](TAR_GZIP_WORKER_PIPELINE.md) adds strict wrapper-aware assessment, streamed create/update

@@ -29,6 +29,9 @@ if (args is ["--archive-content-crash", var contentRoot, var contentPoint, var c
 if (args is ["--archive-content-recovery-crash", var recoveryRoot, var recoveryPoint, var recoveryAssembly])
     return ArchiveContentRecoveryCrash.Run(recoveryRoot, recoveryPoint, recoveryAssembly);
 
+if (args is ["--archive-content-restore-crash", var restoreRoot, var restorePoint, var restoreAssembly])
+    return await ArchiveContentRestorationCrash.Run(restoreRoot, restorePoint, restoreAssembly);
+
 if (args is ["--archive-boundary-parent", var platformAssembly, var archiveProbe] && OperatingSystem.IsWindows())
 {
     // Test-only crash host: deliberately load the platform adapter supplied by the native test without adding

@@ -43,9 +43,30 @@ public sealed class ArchiveContentRestorationJournalTests
         node["sequence"] = 3; node["attempt"] = 2;
         Assert.Throws<ArgumentException>(() => journal.ArchiveContentRestoration(ArchiveContentRestorationFacts.Parse(node)));
         node["restoreNonce"] = Guid.NewGuid().ToString("N"); node["transaction"] = Guid.NewGuid().ToString("N");
+        node["restoreJournal"] = Path.Combine(Path.GetDirectoryName(path)!, "another-fresh-restore.jsonl");
         journal.ArchiveContentRestoration(ArchiveContentRestorationFacts.Parse(node));
         Assert.Equal(2, Assert.Single(journal.RetainedArchiveRecovery().ContentRestorations).Attempt);
         Assert.True(journal.NeedsRecovery); Assert.Throws<IOException>(() => journal.Finish(JobState.Completed, "an intent never proves publication"));
+    }
+
+    [Fact]
+    public void A_fresh_retry_can_record_a_new_write_time_but_requires_a_distinct_journal_and_cannot_follow_success()
+    {
+        using var f = new ArchiveContentCleanupJournalTests.Fixture(); string path;
+        using (var live = f.Writer()) { path = live.Path; f.Catalog(live); f.Commit(live); }
+        using var journal = Open(path); var old = journal.RetainedArchiveRecovery(); var node = Intent(old, path);
+        var first = ArchiveContentRestorationFacts.Parse(node); journal.ArchiveContentRestoration(first);
+        node["sequence"] = 2; node["attempt"] = 2; node["restoreNonce"] = Guid.NewGuid().ToString("N"); node["transaction"] = Guid.NewGuid().ToString("N");
+        Assert.Throws<ArgumentException>(() => journal.ArchiveContentRestoration(ArchiveContentRestorationFacts.Parse(node)));
+        node["restoreJournal"] = Path.Combine(Path.GetDirectoryName(path)!, "another-fresh-job.jsonl");
+        node["restoredMetadata"] = new string('E', 64);
+        var retry = ArchiveContentRestorationFacts.Parse(node); journal.ArchiveContentRestoration(retry);
+        var actual = new ArchiveFileObservation(retry.Restored, "parent", "archive.tar", retry.RestoredMetadataSha256,
+            ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier), null, null);
+        journal.ArchiveContentRestoration(retry.Advance(ArchiveContentRestorationPhase.Committed, actual));
+        node["sequence"] = 4; node["attempt"] = 3; node["restoreNonce"] = Guid.NewGuid().ToString("N"); node["transaction"] = Guid.NewGuid().ToString("N");
+        node["restoreJournal"] = Path.Combine(Path.GetDirectoryName(path)!, "third-fresh-job.jsonl");
+        Assert.Throws<ArgumentException>(() => journal.ArchiveContentRestoration(ArchiveContentRestorationFacts.Parse(node)));
     }
 
     [Theory]
