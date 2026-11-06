@@ -1,0 +1,226 @@
+{
+  "purpose": "Native held private-directory/exclusion-root object agreement, including actual Unix rename-and-restore counterexample.",
+  "gitBase": "29553ee63d840e27607fdb1857b74b8d4efb148c",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "c92aa6cf51c81a3b68ae9b4cdcf18f52c62c72a25532011a7fee526ef4a3d75d"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "f341bbce865708cc53d94a8d553e8382c6ee7d2f9e60b7c124ee33de279fdbb6"
+    },
+    {
+      "path": "docs/validation/disk-space/README.md",
+      "sha256": "0b5df191f802792ec0d035c1a9852b7bd488af46b8fa51596758ac8ac51ff255"
+    },
+    {
+      "path": "src/FileCat.App/Services/AnalysisIndexedAcquisition.cs",
+      "sha256": "f15034cce90c765c04ec67afb2bee1c9f9a72b7a54a4cbc4b48c64fc8efa88c4"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.cs",
+      "sha256": "88ceae3b426e6b6d31c7ed5b150a9f00e2d1381ace58bbb848bfa4e32b88c486"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/UnixAnalysisPrivateDirectory.cs",
+      "sha256": "d98d31b5d752a2977affbfd51997c8ad54974ad0ccdf637e6fcf9720c4929ac5"
+    },
+    {
+      "path": "src/FileCat.Platform.Windows/Analysis/WindowsAnalysisBackend.cs",
+      "sha256": "6c0bcf2a5003cce2a19d7ad3349730e7c2e56813fa27d0af992c0ba76745ea23"
+    },
+    {
+      "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.cs",
+      "sha256": "04228613223f65e7bdc81932f78f6597137b9fa08ee6877a2f69fe81c68d0a1d"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.IndexedPrivateIdentity.cs",
+      "sha256": "98d8f3bf08d9c1fb019566ea4b5542205d97dcaffc5540e9c46ec5d14bc4b80d"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r368.tgz",
+      "sha256": "6a03ad3ecf84a411fc6ecae5f7cebadd92582bdfcd21ef04408953a97f7dd89a"
+    },
+    {
+      "path": ".tmp/dsa-native-r368.tgz",
+      "sha256": "eb61b90f9433b168280181006a40dd3f1714296635c5180a39b24fdca10c20f1"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r369.tgz",
+      "sha256": "dffb006561a7006ae156eab6c205851599fdafe241d3fc78231621bc136975fa"
+    },
+    {
+      "path": ".tmp/dsa-render-linux-r369.tgz",
+      "sha256": "42903471dafc6b2bedff4a9254d885f1a37464c9c1cde177d6d55059e4fc5ffa"
+    },
+    {
+      "path": ".tmp/dsa-render-windows-r369.tgz",
+      "sha256": "c61f7dbda8a2d913ed39fc09fee8e4218926108c4981739386fc70f3fc651c4e"
+    },
+    {
+      "path": ".tmp/desktop-r371-mac.tgz",
+      "sha256": "1fa5a0edf157c1bacfa58fccf974e94d2fb0bb582e1456a59a0267a82056a9d4"
+    },
+    {
+      "path": ".tmp/desktop-r371-linux.tgz",
+      "sha256": "99060260e8330b50e4a5367bcbb909a74309a516149129cef8dff76e5a0d1375"
+    },
+    {
+      "path": ".tmp/desktop-r371-windows.tgz",
+      "sha256": "9558a01afcb48394bb2d1b3d2ee56bd68cca7c97d080da629227e8ed20df95b1"
+    }
+  ],
+  "binaries": [
+    {
+      "path": ".tmp/render-r369-linux/FileCat.dll",
+      "sha256": "1d2ef26415ffe7a0177e5e80452352ee133845afc36f3c453628bfffb451a069"
+    },
+    {
+      "path": ".tmp/render-r369-linux/FileCat.Core.dll",
+      "sha256": "354c81759923e6f058a04811fd285300ea6d81aa31b122ad6ff33ad09c51ec0d"
+    },
+    {
+      "path": ".tmp/render-r369-linux/FileCat.Platform.Windows.dll",
+      "sha256": "0a15efed3fc05bb428ea719d47ed79e73cc26e61982a0a372852d4d712895e8f"
+    },
+    {
+      "path": ".tmp/render-r369-linux/FileCat.Rendering.Tests.dll",
+      "sha256": "588a24149306c4a78f6998bdaa458ec40d574eedc2c8c48c84c7137bebe72c73"
+    },
+    {
+      "path": ".tmp/core-r368/FileCat.Core.Tests.dll",
+      "sha256": "88de2fc44af25337dcacb2e7a2c94024234faa54b2604aa5ca50da0ea88b3ddf"
+    },
+    {
+      "path": ".tmp/native-r368/FileCat.Platform.Windows.Tests.dll",
+      "sha256": "50868cfd8dcb02a4a793aa2294ec8b1c0353526044cb5acb488cade7aa4b1867"
+    },
+    {
+      "path": ".tmp/desktop-r371-linux/DiskSpaceHarness.dll",
+      "sha256": "b5fd7bd5228d2dbc84775264d7d8351d60a0258b877484f052304ec5e6de39e2"
+    }
+  ],
+  "reports": [
+    {
+      "path": "docs/validation/disk-space/mac-core-r368.xml",
+      "sha256": "adfe4b59182328e5aa9cf9106280ebacc86615cf621eba7722b5d5058503f3d7"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r368.xml",
+      "sha256": "2726b381e0e08b58637a97d43b8deb5d90b4640969dd1398fd001e6ee3c5a01a"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r368.xml",
+      "sha256": "5ee9ff48d55133ebb79a334097cb0c9a753908d4920bee42aea085afd625aae0"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-r368.xml",
+      "sha256": "ca48d6ceb4f96f1417d7b7136ae70f1b7e2f4cd9fade92af4f71bf73648e2e43"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-render-r369.xml",
+      "sha256": "1088dbf384a4438b2573b296f384f4fea202d7451f30fcb99c71a7f3c6f526f4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-render-r369.xml",
+      "sha256": "1421b9af45f1edfa1ac625c28e9d63b608af3564875015bc2394aee793471b24"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-render-r369.xml",
+      "sha256": "d3870d6b87fa745c088995db13c0bc38910f6a04400cfa3017e8efd99a7efe63"
+    },
+    {
+      "path": "docs/validation/disk-space/private-root-agreement-build-r367.txt",
+      "sha256": "f1cc8264c2634fac968f0b72cfc291f5af658956a5c577526a7cb4bee2ee3725"
+    },
+    {
+      "path": "docs/validation/disk-space/private-root-harness-build-r370.txt",
+      "sha256": "5420cfa6fbd4b50e8c5c52af18d8078a4e3664ad96b151d8424fe9495f82d413"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-indexed-r371.json",
+      "sha256": "1abcfe8d6f91901f7c53cef71ef53625fb2a009d009c98d8c462b92508bc97c5"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-native-indexed-r371.json",
+      "sha256": "59b1ecfaf9358da934bb11aa2ce4f35299471e0e6f8b6dd0a5afebe81028858f"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-native-indexed-r371.json",
+      "sha256": "b28634a75eac1e2518a5e3d0b165fd0caa6a00192312d0f54194969557e1917b"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-post-private-root-r375.txt",
+      "sha256": "2dd90e4c3e2fef04e9bcd9359b61778b8e3179fe17a28434438392200ce56baf"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-post-private-root-r375.txt",
+      "sha256": "2dd90e4c3e2fef04e9bcd9359b61778b8e3179fe17a28434438392200ce56baf"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-post-private-root-r375.json",
+      "sha256": "30b4d7f8efc9ee2acd1ddabb5d0686f27c6449ec93978b2c305f50944039dbfe"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-native-indexed-r371.py",
+      "sha256": "699d786d3381f74accf8da5bc560b1db37ef51482adcb9d2f345645e51fa6c48"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-indexed-r371.ps1",
+      "sha256": "97e182ecfbe913767919f65b64c3e1b71937766301f81f497289f331c9f543b2"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-mac-r369.sh",
+      "sha256": "e1fc759770641696609c7c5b26eb5bad7bfcf68e889c0e18a094319856059df0"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-linux-r369.sh",
+      "sha256": "f63c8c12fa906f74cdc05ff92d30e52a49f360afa4394e4e9fb4f6d23d5c74a6"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-render-r369.ps1",
+      "sha256": "7a3a767ffed355f686512fff5905af8d094782aee443b817fa1dd0bc51f8c39e"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r368.sh",
+      "sha256": "b7b24256ecdd49f2649c78b63f098f390b7a82f5f22d3d7f05b14dd833256d5e"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r368.ps1",
+      "sha256": "ec8533ca9eb41831f75a178653a3e464da1463498c229b20467c65a48996e3f8"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r368.ps1",
+      "sha256": "4e00de2b0ea415e1634f76795ffa2d78fdaff0ed94deaabac7f58fbd749ad0ed"
+    }
+  ],
+  "captures": [
+    {
+      "path": "docs/validation/disk-space/renders/windows-native-indexed-r371.png",
+      "sha256": "9db65b405f3a5072ab260050fb24c8dc6219381e57e9090a41004643b0d12101"
+    },
+    {
+      "path": "docs/validation/disk-space/renders/ubuntu-native-indexed-r371.png",
+      "sha256": "f16ee42291fadcac1e7a96a862eb0c94cece307df7fa96c0018111bc288f734c"
+    },
+    {
+      "path": ".tmp/native-indexed-r371/mac.png",
+      "sha256": "1f7ed6d1bb6171afcba493e521fc27d62da6705fcf77b2888f83615abed63a8e"
+    }
+  ],
+  "nativeStaging": "Generic RID-native apphost/dependency set from r95, every managed assembly/config from terminal r370 build; exact App/Core/Windows assemblies agree with r369 and Core bytes with r368. Not full package qualification.",
+  "nativeCaptureScope": "Windows/Ubuntu owned windows; Mac authorized main display, unrelated desktop ignored and original retained locally. All inspected; no physical-input or assistive-technology qualification.",
+  "results": "Mac/Ubuntu core570pass/two skips, Windows core554pass/36 skips, Windows native32pass. Mac/Ubuntu render79pass, Windows78pass/one explicit Unix-only skip. Native indexed subset all3 passes,509 unchanged regular paths, owned exits and empty scratch; r375 process checks clear.",
+  "windowsObservation": "First state receipt unavailable; completed XML retrieved, actual process exit observed through VMware Tools. Separate slow WMI diagnostic failed, not qualification. Final native controller refuses every dotnet process via Get-Process; no suite/VM restart.",
+  "publicSpillEnabled": false,
+  "nativeInputQualified": false,
+  "finalIndependentReviewPerformed": false,
+  "remaining": "IPC-domain/package agreement and public bounded-memory fallback/admission; grouping/color/scoped selection/marks/baskets; indexed persistence/original IDs/import/export/compare; whole-pipeline1M/10M/resource and complete native platform/desktop/package matrices; other mandatory feature/security packets; final independent review. Product/action/helper gates remain off.",
+  "hostReceiptUtc": "2026-11-06T15:23:30.3747653+01:00"
+}

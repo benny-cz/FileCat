@@ -1,0 +1,7 @@
+{
+  "nonce": "r375",
+  "hostObservedAtUtc": "2026-11-06T14:21:57.0437059+00:00",
+  "source": "VMware Tools direct process inventory",
+  "filecatOrDotnet": [],
+  "qualification": "Owned Windows native receipt also records actual process exit; controller conservatively refuses every dotnet process without WMI."
+}

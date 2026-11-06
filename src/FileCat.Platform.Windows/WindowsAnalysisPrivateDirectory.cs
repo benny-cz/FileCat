@@ -78,6 +78,13 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
         Private(Root, directory: true);
     }
 
+    public override bool MatchesRoot(IAnalysisBackend root)
+    {
+        Verify();
+        return root is Analysis.WindowsAnalysisBackend && root.Root.Assurance == IdentityAssurance.Verified && root.RootEntry.Kind == AnalysisKind.Directory &&
+            root.RootEntry.Identity is { } identity && identity == Analysis.WindowsAnalysisBackend.CaptureDirectoryIdentity(Root);
+    }
+
     internal override (UInt128 Capacity, UInt128 Available) Space()
     {
         char* fs = stackalloc char[64];

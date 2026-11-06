@@ -4,6 +4,8 @@ namespace FileCat.Core.Analysis;
 public abstract class AnalysisPrivateDirectory : IDisposable
 {
     internal AnalysisPrivateDirectory() { }
+    /// <summary>Compare this held native directory with an application-prepared exclusion root on an admitted worker. This does not grant operation authority.</summary>
+    public virtual bool MatchesRoot(IAnalysisBackend root) => false;
     internal abstract void Verify();
     internal abstract (UInt128 Capacity, UInt128 Available) Space();
     internal abstract AnalysisPrivateFile CreateStaging();

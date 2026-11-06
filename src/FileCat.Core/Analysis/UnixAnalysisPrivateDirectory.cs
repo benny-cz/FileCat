@@ -71,6 +71,14 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
         Private(Root, directory: true, links: null);
     }
 
+    public override bool MatchesRoot(IAnalysisBackend root)
+    {
+        Verify();
+        var identity = _chain[^1].Identity;
+        return root is UnixAnalysisBackend && root.Root.Assurance == IdentityAssurance.Verified && root.RootEntry.Kind == AnalysisKind.Directory &&
+            root.RootEntry.Identity == $"{(_mac ? "darwin" : "linux")}:{identity.Device:X}:{identity.Inode:X}";
+    }
+
     internal override (UInt128 Capacity, UInt128 Available) Space()
     {
         byte* fs = stackalloc byte[4096]; new Span<byte>(fs, 4096).Clear();

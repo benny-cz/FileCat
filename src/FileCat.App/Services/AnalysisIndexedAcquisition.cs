@@ -31,9 +31,11 @@ internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
         {
             await AnalysisIo.Run(services.Io, PathUtil.GetDeviceKey(owner._privatePaths[0]), token =>
             {
-                using var store = new AnalysisPrivateInventoryStore(OpenDirectory(owner._privatePaths[0]));
+                var directory = OpenDirectory(owner._privatePaths[0]);
+                using var store = new AnalysisPrivateInventoryStore(directory);
                 owner._profile = new AnalysisPrivateProfileState(store).LoadOrCreate(token);
                 owner._protection[0] = PrepareRoot(owner._privatePaths[0]);
+                RequireSamePrivateRoot(directory, owner._protection[0]!);
                 // Revalidate the original anchored store after preparing the exclusion capability.
                 // A substituted private directory cannot supply the UUID for another directory.
                 if (new AnalysisPrivateProfileState(store).LoadOrCreate(token) != owner._profile)
@@ -43,12 +45,18 @@ internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
             await AnalysisIo.Run(services.Io, PathUtil.GetDeviceKey(owner._privatePaths[1]), token =>
             {
                 token.ThrowIfCancellationRequested(); owner._scratch = OpenDirectory(owner._privatePaths[1]);
-                owner._protection[1] = PrepareRoot(owner._privatePaths[1]); return true;
+                owner._protection[1] = PrepareRoot(owner._privatePaths[1]);
+                RequireSamePrivateRoot(owner._scratch, owner._protection[1]!); return true;
             }, cancellation).ConfigureAwait(false);
             owner.Profile = await AnalysisIo.Run(services.Io, "analysis-host-context", _ => AnalysisNativeHostProfile.Read(owner._profile), cancellation).ConfigureAwait(false);
             cancellation.ThrowIfCancellationRequested(); return owner;
         }
         catch { await owner.DisposeAsync().ConfigureAwait(false); throw; }
+    }
+
+    internal static void RequireSamePrivateRoot(AnalysisPrivateDirectory directory, IAnalysisBackend protection)
+    {
+        if (!directory.MatchesRoot(protection)) throw new IOException("The private directory and its exclusion root identify different native objects.");
     }
 
     // Sources are already captured/reviewed native capabilities. Ownership transfers on successful

@@ -230,6 +230,17 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
         }
         catch { reservation.Dispose(); throw; }
     }
+    internal static string? CaptureDirectoryIdentity(SafeFileHandle handle)
+    {
+        var buffer = new char[32768]; uint length;
+        fixed (char* p = buffer) length = GetFinalPathNameByHandle(handle, p, (uint)buffer.Length, 2);
+        if (length == 0 || length >= buffer.Length) throw new IOException("The private directory namespace is unavailable.");
+        var parts = new string(buffer, 0, (int)length).Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2 || parts[0] != "Device" || !parts[1].StartsWith("HarddiskVolume", StringComparison.Ordinal))
+            throw new IOException("The private directory namespace is unqualified.");
+        var entry = Observe(handle, [], [], parts[1]);
+        return entry.Kind == AnalysisKind.Directory ? entry.Identity : null;
+    }
     private static AnalysisEntry Observe(SafeFileHandle h, ImmutableArray<byte> relative, byte[] raw, string sourceNamespace)
     {
         byte* standard = stackalloc byte[24]; byte* basic = stackalloc byte[40]; byte* id = stackalloc byte[24];

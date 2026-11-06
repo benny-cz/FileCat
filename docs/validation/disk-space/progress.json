@@ -131,7 +131,8 @@
     "Internal native indexed preparation retains strict trusted local profile/quota and exclusion/scratch capabilities through one acquisition, with admitted cleanup and independent dataset readers. A 4,100-file native fixture traverses all pages beyond the preview, excludes private-name canaries and preserves state/neighbors; corrupt identity refuses scratch. Public acquisition and IPC-domain/fallback gates remain open.",
     "Indexed namespace rows, tooltip, accessibility and inspector distinguish Not measured/Not counted/Link not followed from real zero. Wide columns share space and compact/large-text rows use labelled values. Native capture exposed a squeezed count column; live font-change regression rejected synchronous inherited-property relayout, which now posts a coalesced update.",
     "Legacy table freeze retires on handled or moved-list release at the owning window, capture loss, detach and deactivation. Pointer fixtures await the attached projection and assert a fresh rendered hit. A queued initial TextChanged debounce could reset an explicit query; synchronous text-property edits fix it. The new one-case Mac control fails with the old App; final77-case suites pass on all3 platforms.",
-    "Native indexed fixtures on Windows VM, Mac and Ubuntu each verify518 paths/508 objects/509 regular paths, retained-reader Name ascending/Table/link inspection after owner closure, unchanged509 source hashes, empty owned scratch and actual owned exit. This self-driving subset is not physical-input/full desktop, package or resource qualification."
+    "Native indexed fixtures on Windows VM, Mac and Ubuntu each verify518 paths/508 objects/509 regular paths, retained-reader Name ascending/Table/link inspection after owner closure, unchanged509 source hashes, empty owned scratch and actual owned exit. This self-driving subset is not physical-input/full desktop, package or resource qualification.",
+    "Actual APFS/ext4 rename-and-restore controls show an unchanged anchored UUID can coexist with a replacement exclusion capability. Native held-object comparison now rejects that mismatch for both inventory and scratch preparation. Final79-case Mac/Ubuntu suites and78pass/oneUnix-only-skip Windows suite pass; updated core/native and native indexed509-path source/exit/scratch subsets pass on all3. No public gate enabled."
   ],
   "validation": {
     "windowsCore": {
@@ -139,8 +140,8 @@
       "passed": 554,
       "failed": 0,
       "skipped": 36,
-      "seconds": 13.255,
-      "evidence": "windows-core-r312.xml"
+      "seconds": 10.848,
+      "evidence": "windows-core-r368.xml"
     },
     "windowsHostNative": {
       "total": 14,
@@ -154,41 +155,39 @@
       "passed": 32,
       "failed": 0,
       "skipped": 0,
-      "seconds": 21.207,
-      "evidence": "windows-native-r312.xml",
-      "status": "ordinary-user-native-regressions-passed",
-      "detail": "32 native NTFS/filesystem/private-storage controls; ordinary Windows VM account, no host testing."
+      "seconds": 20.403,
+      "evidence": "windows-native-r368.xml"
     },
     "macosArm64": {
       "total": 572,
       "passed": 570,
       "failed": 0,
       "skipped": 2,
-      "seconds": 12.5,
-      "evidence": "mac-core-r312.xml"
+      "seconds": 12.559,
+      "evidence": "mac-core-r368.xml"
     },
     "headlessRendering": {
-      "total": 77,
-      "passed": 77,
+      "total": 79,
+      "passed": 78,
       "failed": 0,
-      "skipped": 0,
-      "seconds": 50.346,
-      "evidence": "windows-render-r359.xml",
-      "detail": "77 cases per platform in final r359; Mac33.059s, Ubuntu53.061s, Windows50.346s. Distinct from native UI qualification."
+      "skipped": 1,
+      "seconds": 48.627,
+      "evidence": "windows-render-r369.xml",
+      "detail": "Mac/Ubuntu79pass; Windows78pass/one Unix-only rename-and-restore skip. Distinct from native input/a11y/full desktop qualification."
     },
     "solutionBuild": {
       "warnings": 0,
       "errors": 0,
-      "evidence": "indexed-acquisition-build-r358.txt",
-      "harnessEvidence": "indexed-harness-build-r360.txt"
+      "evidence": "private-root-agreement-build-r367.txt",
+      "harnessEvidence": "private-root-harness-build-r370.txt"
     },
     "ubuntu": {
       "total": 572,
       "passed": 570,
       "failed": 0,
       "skipped": 2,
-      "seconds": 49.838,
-      "evidence": "ubuntu-core-r312.xml"
+      "seconds": 49.165,
+      "evidence": "ubuntu-core-r368.xml"
     },
     "nativeDesktop": {
       "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification. r62 native accessibility/keyboard link inspection verifies the visible omitted-target explanation, measured-zero distinction and retained mark, with 509 unchanged source paths and owned exit.",
@@ -738,6 +737,48 @@
         "mac-post-acquisition-r366.txt",
         "ubuntu-post-acquisition-r366.txt"
       ]
+    },
+    "privateRootAgreement": {
+      "status": "internal-native-object-agreement-subset-passed",
+      "mac": {
+        "total": 79,
+        "passed": 79,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 35.649,
+        "evidence": "mac-render-r369.xml"
+      },
+      "ubuntu": {
+        "total": 79,
+        "passed": 79,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 58.153,
+        "evidence": "ubuntu-render-r369.xml"
+      },
+      "windows": {
+        "total": 79,
+        "passed": 78,
+        "failed": 0,
+        "skipped": 1,
+        "seconds": 48.627,
+        "evidence": "windows-render-r369.xml"
+      },
+      "nativeReceipts": [
+        "windows-native-indexed-r371.json",
+        "mac-native-indexed-r371.json",
+        "ubuntu-native-indexed-r371.json"
+      ],
+      "postChecks": [
+        "windows-post-private-root-r375.json",
+        "mac-post-private-root-r375.txt",
+        "ubuntu-post-private-root-r375.txt"
+      ],
+      "proof": "Actual Unix A->B->A directory transition retains the original valid UUID while the exclusion backend identifies B. Held-object comparison refuses B and still accepts A. Native Windows same/different-directory check passes; Unix rename fixture is explicitly skipped there.",
+      "windowsObservation": "Completed XML retrieved after unavailable initial state read; VMware Tools confirms no test processes. A separate WMI diagnostic failed and is excluded. Native controller refuses every dotnet process via Get-Process. No suite/VM restarted.",
+      "publicSpillEnabled": false,
+      "nativeInputQualified": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
