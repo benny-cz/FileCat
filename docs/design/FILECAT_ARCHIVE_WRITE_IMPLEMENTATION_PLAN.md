@@ -351,6 +351,12 @@ into a shared coordinator and passes 31 actual recovery-parent kill cases, inclu
 boundaries and persisted failure holds, within 175 passing native cases. Common/UI regressions pass on all three
 platforms. Restoration, production recovery actions and the remaining plan gates still require implementation/validation.
 
+The [ordinary standard-user follow-up](../validation/archive-writing/WINDOWS_STANDARD_USER_QUALIFICATION.md) passes
+170 native cases with five administrator-only skips under an actual non-administrator account with its profile loaded.
+Raw token-group observations reject filtered administrator membership. Complete runtime transfer and all 469 actual
+file hashes are checked, including all 261 app files against SPDX. This closes that explicit Windows identity/artifact
+validation gap; restoration, production actions and the remaining platform/format/resource/release gates stay open.
+
 ### 7.5 Outer metadata and provenance
 
 Treat outer-file metadata separately from metadata of archived members. Updates preserve the existing archive's owner, ACL/mode, relevant attributes, creation time where promised, and origin/quarantine marks. Content-changing mtime follows existing FileCat policy and must be stated/tested. Hard links to the old archive remain attached to the old object; warn once when link count is known and greater than one. Do not silently update all hard-link names.

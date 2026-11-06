@@ -5,7 +5,8 @@ param(
     [Parameter(Mandatory = $true)][string]$ApplicationAssets,
     [Parameter(Mandatory = $true)][string]$VSTestConsole,
     [Parameter(Mandatory = $true)][string]$EvidenceDirectory,
-    [ValidateSet('Release', 'Debug')][string]$Configuration = 'Release'
+    [ValidateSet('Release', 'Debug')][string]$Configuration = 'Release',
+    [switch]$RequireStandardUser
 )
 $ErrorActionPreference = 'Stop'
 $taskCheckout = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
@@ -30,7 +31,9 @@ $taskPrefix = Join-Path $EvidenceDirectory $taskRun
 $taskPreviousOptIn = $env:FILECAT_ARCHIVE_CONTAINMENT
 $taskPreviousAssets = $env:FILECAT_ARCHIVE_PROBE_ASSETS
 $taskPreviousApplicationAssets = $env:FILECAT_ARCHIVE_APP_ASSETS
+$taskPreviousStandardUser = $env:FILECAT_ARCHIVE_TEST_REQUIRE_STANDARD_USER
 try {
+    $env:FILECAT_ARCHIVE_TEST_REQUIRE_STANDARD_USER = if ($RequireStandardUser) { '1' } else { $null }
     $env:FILECAT_ARCHIVE_CONTAINMENT = '1'
     $env:FILECAT_ARCHIVE_PROBE_ASSETS = $ProbeAssets
     $env:FILECAT_ARCHIVE_APP_ASSETS = $ApplicationAssets
@@ -39,6 +42,9 @@ try {
     $taskExit = $LASTEXITCODE
     $taskFacts = Get-Content -LiteralPath ($taskPrefix + '.facts.json') -Raw | ConvertFrom-Json
     if ($taskFacts.after -ne 8192) { throw 'The actual test parent did not establish medium integrity.' }
+    if ($RequireStandardUser -and ($taskFacts.beforeAdministratorsGroup -ne $false -or $taskFacts.afterAdministratorsGroup -ne $false)) {
+        throw 'Standard-user qualification requires an observed token without Administrators membership, including deny-only membership.'
+    }
     Get-Content -LiteralPath ($taskPrefix + '.out.log')
     Write-Output "Evidence: $taskPrefix"
     if ($taskExit -ne 0) { throw "Native archive qualification failed (exit $taskExit). Inspect the facts, stdout, stderr and TRX." }
@@ -47,4 +53,5 @@ finally {
     $env:FILECAT_ARCHIVE_CONTAINMENT = $taskPreviousOptIn
     $env:FILECAT_ARCHIVE_PROBE_ASSETS = $taskPreviousAssets
     $env:FILECAT_ARCHIVE_APP_ASSETS = $taskPreviousApplicationAssets
+    $env:FILECAT_ARCHIVE_TEST_REQUIRE_STANDARD_USER = $taskPreviousStandardUser
 }

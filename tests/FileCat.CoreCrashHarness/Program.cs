@@ -11,6 +11,9 @@ using FileCat.Core.Archives;
 if (args.Length > 0 && args[0] == "--archive-test-medium")
     return await ArchiveTestMedium.Run(args[1..]);
 
+if (args is ["--archive-test-token-groups", var tokenGroupsOutput])
+    return ArchiveTestMedium.ProbeTokenGroups(tokenGroupsOutput);
+
 if (args is ["--archive-stage-crash", var artifactRoot, var crashPoint, var nativeAssembly])
     return ArchiveStageCrash.Run(artifactRoot, crashPoint, nativeAssembly);
 

@@ -73,6 +73,11 @@ The [recovery-process crash follow-up](NTFS_RECOVERY_PROCESS_CRASHES.md) adds sh
 31 actual recovery-parent kill cases, covering all six intent/unlink/outcome boundaries and persisted failure holds.
 All 175 Windows native cases and the three-platform common/UI regressions pass. Restoration, production actions and
 broader gates remain unfinished; profiles stay disabled.
+The [ordinary Windows standard-user follow-up](WINDOWS_STANDARD_USER_QUALIFICATION.md) passes 170 native cases with
+five expected administrator-only skips, with a loaded real user profile and raw token-group proof of absent Admin SID.
+It also fixes the validation transfer procedure: complete app/probe packages and all 469 actual hashes are checked,
+including all 261 app files against SPDX. Earlier host inventories do not establish exact incremental runtime transfer.
+This closes that explicit identity/artifact validation gap; the broader implementation and qualification gates remain open.
 The [private creation process-crash follow-up](PRIVATE_CREATION_PROCESS_CRASHES.md) passes ten new publication/metadata
 boundaries and thirteen neighboring crash cases on each platform. It leaves production and recovery authority unchanged.
 The [TAR.GZ worker pipeline](TAR_GZIP_WORKER_PIPELINE.md) adds strict wrapper-aware assessment, streamed create/update
