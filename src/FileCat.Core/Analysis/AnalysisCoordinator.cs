@@ -10,6 +10,7 @@ public sealed record AnalysisProgress(int ObservedPaths, ulong Issues, AnalysisP
     public int PreviewPaths { get; init; }
     public bool PreviewLimited { get; init; }
     public bool DatasetReady { get; init; }
+    public bool MemoryFallback { get; init; }
 }
 
 public sealed class AnalysisCoordinator(DeviceIoScheduler io, string? profileIdentity = null)
@@ -422,8 +423,8 @@ public sealed partial class AnalysisSession : IDisposable
     private void Report()
     {
         AnalysisProgress p;
-        lock (_sync) { if (_disposed) return; p = new(_storage is null ? _store.Count : _capturedPaths, _store.IssueCount, _phase) { SourceCloseFailures = _sourceCloseFailures,
-            PreviewPaths = _store.Count, PreviewLimited = _previewLimited, DatasetReady = _dataset is not null }; }
+        lock (_sync) { if (_disposed) return; p = new(_storage is null || _memoryFallback ? _store.Count : _capturedPaths, _store.IssueCount, _phase) { SourceCloseFailures = _sourceCloseFailures,
+            PreviewPaths = _store.Count, PreviewLimited = _previewLimited, DatasetReady = _dataset is not null, MemoryFallback = _memoryFallback }; }
         // Observers do not own traversal or handle lifetimes. A released/broken UI subscription cannot
         // skip independent closes, strand a scan reservation or turn valid observations into a producer failure.
         try { _progress?.Report(p); } catch (Exception) { }

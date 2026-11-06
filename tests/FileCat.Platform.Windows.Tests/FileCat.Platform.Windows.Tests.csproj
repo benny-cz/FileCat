@@ -34,5 +34,6 @@
     <Compile Include="..\AnalysisObservationCaptureFixture.cs" Link="AnalysisObservationCaptureFixture.cs" />
     <Compile Include="..\AnalysisSourceFrontierFixture.cs" Link="AnalysisSourceFrontierFixture.cs" />
     <Compile Include="..\AnalysisFileQuotaCases.cs" Link="AnalysisFileQuotaCases.cs" />
+    <Compile Include="..\AnalysisNativeMemoryFallbackCases.cs" Link="AnalysisNativeMemoryFallbackCases.cs" />
   </ItemGroup>
 </Project>

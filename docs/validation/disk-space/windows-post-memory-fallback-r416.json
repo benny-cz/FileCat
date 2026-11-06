@@ -1,0 +1,11 @@
+{
+  "nonce": "r416",
+  "hostObservedAtUtc": "2026-11-06T16:21:39.8151787+00:00",
+  "source": "VMware Tools direct process inventory",
+  "filecatOrDotnet": [],
+  "ownedTestReceipts": [
+    "windows-core-r415.xml",
+    "windows-native-r415.xml",
+    "windows-render-r411.xml"
+  ]
+}

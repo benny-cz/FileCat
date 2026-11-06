@@ -134,7 +134,8 @@
     "Native indexed fixtures on Windows VM, Mac and Ubuntu each verify518 paths/508 objects/509 regular paths, retained-reader Name ascending/Table/link inspection after owner closure, unchanged509 source hashes, empty owned scratch and actual owned exit. This self-driving subset is not physical-input/full desktop, package or resource qualification.",
     "Actual APFS/ext4 rename-and-restore controls show an unchanged anchored UUID can coexist with a replacement exclusion capability. Native held-object comparison now rejects that mismatch for both inventory and scratch preparation. Final79-case Mac/Ubuntu suites and78pass/oneUnix-only-skip Windows suite pass; updated core/native and native indexed509-path source/exit/scratch subsets pass on all3. No public gate enabled.",
     "Internal native indexed acquisition now shares profile capacity through 32 immutable private-file tokens and nonblocking kernel locks, independent of IPC namespaces. Actual Ubuntu separate-namespace controls reject the IPC-only prototype and prove file-backed refusal, process-death recovery and unchanged metadata. Native same-profile/retained-owner/foreign-state/crossprocess controls and all3 indexed workflows pass. Mixed profile/scratch device admission, public fallback and full resource/package qualification remain required.",
-    "Profile and scratch device keys now share ordered bounded admission through capture, frontier, sorting, indexed views/readers and cleanup. The existing watchdog tracks both actual dependencies; cancellation and shutdown retain both turns until actual return. Six new admission/lifetime controls plus existing scheduler regressions and native indexed workflows pass on all3 runtimes. Distinct native-volume, package/resource and safe public fallback qualification remain pending."
+    "Profile and scratch device keys now share ordered bounded admission through capture, frontier, sorting, indexed views/readers and cleanup. The existing watchdog tracks both actual dependencies; cancellation and shutdown retain both turns until actual return. Six new admission/lifetime controls plus existing scheduler regressions and native indexed workflows pass on all3 runtimes. Distinct native-volume, package/resource and safe public fallback qualification remain pending.",
+    "Opt-in Core fallback now retains qualified private-root exclusion and closes unpublished scratch before using the full bounded memory store. Runtime progress reports the mode and actual counts; cancellation, unqualified protection and later published-prefix failures cannot restart in memory. Native NTFS/APFS/ext4 fixtures preserve64 regular files/private canaries; failure/lifetime controls pass on all3 runtimes. Application preparation/public-view fallback and pressure/resource qualification remain open; the opt-in remains off in App acquisition."
   ],
   "validation": {
     "windowsCore": {
@@ -954,10 +955,90 @@
       "publicSpillEnabled": false,
       "nativeInputQualified": false,
       "finalIndependentReviewPerformed": false
+    },
+    "initialMemoryFallback": {
+      "status": "opt-in-core-native-functional-subset-passed",
+      "core": {
+        "mac": {
+          "total": 594,
+          "passed": 592,
+          "failed": 0,
+          "skipped": 2,
+          "seconds": 16.033,
+          "evidence": "mac-core-r415.xml"
+        },
+        "ubuntu": {
+          "total": 594,
+          "passed": 592,
+          "failed": 0,
+          "skipped": 2,
+          "seconds": 74.437,
+          "evidence": "ubuntu-core-r415.xml"
+        },
+        "windows": {
+          "total": 612,
+          "passed": 571,
+          "failed": 0,
+          "skipped": 41,
+          "seconds": 12.04,
+          "evidence": "windows-core-r415.xml"
+        }
+      },
+      "windowsNative": {
+        "total": 37,
+        "passed": 37,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 21.872,
+        "evidence": "windows-native-r415.xml"
+      },
+      "render": {
+        "mac": {
+          "total": 79,
+          "passed": 79,
+          "failed": 0,
+          "skipped": 0,
+          "seconds": 34.678,
+          "evidence": "mac-render-r411.xml"
+        },
+        "ubuntu": {
+          "total": 79,
+          "passed": 79,
+          "failed": 0,
+          "skipped": 0,
+          "seconds": 49.98,
+          "evidence": "ubuntu-render-r411.xml"
+        },
+        "windows": {
+          "total": 79,
+          "passed": 78,
+          "failed": 0,
+          "skipped": 1,
+          "seconds": 46.051,
+          "evidence": "windows-render-r411.xml"
+        }
+      },
+      "manifest": "source-manifest-r415.json",
+      "postChecks": [
+        "windows-post-memory-fallback-r416.json",
+        "mac-post-memory-fallback-r416.txt",
+        "ubuntu-post-memory-fallback-r416.txt"
+      ],
+      "rejectedFixtureReceipts": [
+        "mac-core-r410.xml",
+        "ubuntu-core-r410.xml",
+        "windows-core-r410.xml"
+      ],
+      "fixtureDiagnosis": "Initial Stop fixture required scratch closure while the session retained a stopped dataset. All3 final diagnostics confirm source closed, dataset retained and directory open until actual session/dataset-owner closure. Production Core hash is unchanged; final tests require closure after that owner closes.",
+      "limitation": "Core opt-in only; App preparation/private-profile failure handling and public acquisition/view transition remain required. Existing shared memory cap remains authoritative but complete pressure/partial-stop/resource and native UI/package qualification is not established.",
+      "appFallbackEnabled": false,
+      "publicSpillEnabled": false,
+      "nativeInputQualified": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
-    "W1 indexed integration: native file-backed quota and paired profile/scratch admission have internal all3 evidence. Implement safe bounded-memory fallback before public acquisition. Qualify actual mixed-volume/native device identity, package/session/domain agreement, original inventory IDs/streaming persistence, end-to-end1M/10M and every resource limit before enabling spill.",
+    "W1 indexed integration: finish App preparation fallback when private UUID/directory setup fails and connect the public indexed-or-memory view transition. Core initial fallback now retains native private exclusion with all3 functional evidence; it remains opt-in/off in App acquisition. Qualify memory pressure/partial stop, actual mixed-volume/native device identity, package/session/domain agreement, original inventory IDs/streaming persistence, end-to-end1M/10M and every resource limit before enabling spill.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: grouping/color dimensions, scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",

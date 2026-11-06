@@ -24,6 +24,18 @@ public sealed class AnalysisStore(bool canonicalPathIds = false, int pathLimit =
     public bool Limited { get; private set; }
     public int Count => _nodes.Count;
 
+    // A failed unpublished scratch initialization may switch only before any path was accepted.
+    // The shared memory reservation remains authoritative; this lifts only the indexed UI preview cap.
+    internal void UseBoundedMemory()
+    {
+        lock (_sync)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_sealed || _nodes.Count != 0) throw new InvalidOperationException("Memory fallback requires an empty accepting store.");
+            pathLimit = AnalysisLimits.Observations;
+        }
+    }
+
     public ulong? Append(AnalysisEntry e, ulong parent, string rootId, string basis, bool includeDirectoryAllocation = false)
     {
         lock (_sync) return AppendLocked(e, parent, rootId, basis, includeDirectoryAllocation);

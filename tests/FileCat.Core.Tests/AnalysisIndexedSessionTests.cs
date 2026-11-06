@@ -4,7 +4,7 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Tests;
 
-public sealed class AnalysisIndexedSessionTests
+public sealed partial class AnalysisIndexedSessionTests
 {
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary process.");
@@ -103,7 +103,7 @@ public sealed class AnalysisIndexedSessionTests
     private sealed class Backend(int count, string identity = "source") : IAnalysisBackend
     {
         internal bool Closed, Enumerated, IncludePrivate, PrivateEnumerated; internal bool Verified = true;
-        internal Action? BeforeClose;
+        internal Action? BeforeClose, BeforeEnumerate;
         public RootBinding Root => new("r", "file", "/" + identity, "/" + identity, "fixture", Verified ? IdentityAssurance.Verified : IdentityAssurance.Unknown, identity) { NameRules = AnalysisNameRules.Unix };
         public AnalysisEntry RootEntry => Entry(identity, AnalysisKind.Directory);
         public string Basis => "basis";
@@ -111,6 +111,7 @@ public sealed class AnalysisIndexedSessionTests
         public IEnumerable<AnalysisEntry> Children(AnalysisEntry directory, CancellationToken cancellation)
         {
             Enumerated = true;
+            BeforeEnumerate?.Invoke();
             if (directory.Identity == "private") { PrivateEnumerated = true; yield return Entry("must-not-enumerate"); yield break; }
             if (IncludePrivate) yield return Entry("private", AnalysisKind.Directory);
             for (int n = 0; n < count; n++) { cancellation.ThrowIfCancellationRequested(); yield return Entry("file-" + n); }
@@ -123,7 +124,7 @@ public sealed class AnalysisIndexedSessionTests
     }
     private sealed class MemoryDirectory : AnalysisPrivateDirectory
     {
-        internal bool Closed; internal Action? BeforeNextWrite;
+        internal bool Closed; internal Action? BeforeNextWrite; internal int Writes;
         internal override void Verify() => ObjectDisposedException.ThrowIf(Closed, this);
         internal override (UInt128 Capacity, UInt128 Available) Space() => ((UInt128)1024 * 1024 * 1024, (UInt128)1024 * 1024 * 1024);
         internal override AnalysisPrivateScratchFile CreateScratch() => new MemoryFile(this);
@@ -137,7 +138,7 @@ public sealed class AnalysisIndexedSessionTests
         public override long Length => _bytes.Length;
         public override void Verify() { }
         public override int ReadAt(Span<byte> buffer, long offset) { _bytes.Position = offset; return _bytes.Read(buffer); }
-        public override void WriteAt(ReadOnlySpan<byte> buffer, long offset) { var before = directory.BeforeNextWrite; directory.BeforeNextWrite = null; before?.Invoke(); _bytes.Position = offset; _bytes.Write(buffer); }
+        public override void WriteAt(ReadOnlySpan<byte> buffer, long offset) { directory.Writes++; var before = directory.BeforeNextWrite; directory.BeforeNextWrite = null; before?.Invoke(); _bytes.Position = offset; _bytes.Write(buffer); }
         public override void Dispose() => _bytes.Dispose();
     }
 }

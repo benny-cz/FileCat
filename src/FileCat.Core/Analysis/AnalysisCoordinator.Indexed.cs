@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using FileCat.Core.Threading;
 
 namespace FileCat.Core.Analysis;
 
@@ -9,6 +10,7 @@ public sealed record AnalysisStorageOptions(string DeviceKey, Func<AnalysisPriva
     // Trusted application configuration, never reconstructed from an inventory's profile correlation ID.
     public Func<AnalysisProfileQuota>? CreateProfileQuota { get; init; }
     public string? ProfileDeviceKey { get; init; }
+    public bool AllowMemoryFallback { get; init; }
     internal AnalysisIoDevices Devices => new(DeviceKey, ProfileDeviceKey);
     internal void Validate()
     {
@@ -30,10 +32,11 @@ public sealed partial class AnalysisSession
     private AnalysisObservationWriter? _writer;
     private AnalysisDataset? _dataset;
     private Task _datasetClose = Task.CompletedTask;
-    private bool _previewLimited, _indexing, _captureIssueOverflow;
+    private bool _previewLimited, _indexing, _captureIssueOverflow, _memoryFallback;
     private int _capturedPaths;
     public Task DatasetCloseCompletion { get { lock (_sync) return _datasetClose; } }
     public AnalysisDatasetDescriptor? DatasetDescriptor { get { lock (_sync) return _dataset?.Descriptor; } }
+    public bool UsesMemoryFallback { get { lock (_sync) return _memoryFallback; } }
     public Task<AnalysisDatasetLease?> AcquireDatasetAsync(CancellationToken cancellation = default)
     {
         lock (_sync)
@@ -72,12 +75,31 @@ public sealed partial class AnalysisSession
         // Qualify membership before scratch creation changes a private directory's version. Even an
         // explicitly selected private file root contributes only excluded evidence, never its metadata.
         lock (_sync) _roots = _roots.Select((root, i) => _protectedSources.Contains(_sources[i]) ? root with { ObservedObjectIdentity = null } : root).ToImmutableArray();
-        lock (_sync) _activeDevice = _storage.Devices;
-        _writer = await AnalysisObservationWriter.CreateAsync(_io, _storage.Devices, _storage.CreateDirectory, _identity, _roots, _policy, _cancel.Token, _storage.CreateProfileQuota).ConfigureAwait(false);
-        if (_cancel.IsCancellationRequested) { _writer.RequestStop(); _cancel.Token.ThrowIfCancellationRequested(); }
         if (protectionFailure is not null) throw new IOException("Private-state exclusion could not be qualified for these sources.", protectionFailure);
-        await PublishEnumerationAsync().ConfigureAwait(false);
-        await FlushCaptureIssuesAsync().ConfigureAwait(false);
+        lock (_sync) _activeDevice = _storage.Devices;
+        try
+        {
+            _writer = await AnalysisObservationWriter.CreateAsync(_io, _storage.Devices, _storage.CreateDirectory, _identity, _roots, _policy, _cancel.Token, _storage.CreateProfileQuota).ConfigureAwait(false);
+            if (_cancel.IsCancellationRequested) { _writer.RequestStop(); _cancel.Token.ThrowIfCancellationRequested(); }
+            await PublishEnumerationAsync().ConfigureAwait(false);
+            await FlushCaptureIssuesAsync().ConfigureAwait(false);
+        }
+        catch (Exception error) when (CanUseMemory(error)) { await SwitchToMemoryAsync().ConfigureAwait(false); }
+    }
+    private bool CanUseMemory(Exception error) => _storage?.AllowMemoryFallback == true && !_cancel.IsCancellationRequested &&
+        _capturedPaths == 0 && !_memoryFallback && (error is IOException or UnauthorizedAccessException or NotSupportedException) &&
+        _storage.Devices.Keys.All(key => _io.GetHealth(key) == DeviceHealth.Responsive) && AnalysisAdmission.Refusal() is null;
+    private async Task SwitchToMemoryAsync()
+    {
+        // No native work is abandoned and no second disk or store is opened. Failure to close the
+        // unpublished scratch owner refuses fallback; private-root capabilities stay held for traversal.
+        if (_writer is { } writer) { await writer.DisposeAsync().ConfigureAwait(false); _writer = null; }
+        _cancel.Token.ThrowIfCancellationRequested();
+        lock (_sync)
+        {
+            _store.UseBoundedMemory(); _memoryFallback = true; _captureIssues.Clear(); _captureIssueOverflow = false;
+        }
+        Report();
     }
     private Task PublishEnumerationAsync()
     {
@@ -104,7 +126,12 @@ public sealed partial class AnalysisSession
     private async Task<ulong?> AppendObservationAsync(AnalysisEntry entry, ulong parent, string root, string basis)
     {
         if (_writer is null) return _store.Append(entry, parent, root, basis, _policy.ComponentPreset == "detailed");
-        return (await AppendCapturedBatchAsync([entry], parent, root, basis).ConfigureAwait(false))[0];
+        try { return (await AppendCapturedBatchAsync([entry], parent, root, basis).ConfigureAwait(false))[0]; }
+        catch (Exception error) when (CanUseMemory(error))
+        {
+            await OnStorageDeviceAsync(async () => { await SwitchToMemoryAsync().ConfigureAwait(false); return true; }).ConfigureAwait(false);
+            return _store.Append(entry, parent, root, basis, _policy.ComponentPreset == "detailed");
+        }
     }
     private async Task<ImmutableArray<ulong>> AppendCapturedBatchAsync(IReadOnlyList<AnalysisEntry> entries, ulong parent, string root, string basis)
     {
@@ -144,7 +171,7 @@ public sealed partial class AnalysisSession
     }
     private void QueueCaptureIssue(string code, ulong? node, MeasurementState state, string? root)
     {
-        if (_storage is null || _cancel.IsCancellationRequested) return;
+        if (_storage is null || _memoryFallback || _cancel.IsCancellationRequested) return;
         if (_captureIssues.Count >= AnalysisLimits.BatchRecords * 2)
         { _captureIssueOverflow = true; _partial = true; _writer?.RequestStop(); return; }
         _captureIssues.Enqueue(new(code, node, state) { RootId = root });

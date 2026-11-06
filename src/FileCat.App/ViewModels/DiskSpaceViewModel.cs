@@ -139,6 +139,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         Phase = progress.Phase; Dirty = true;
         SourceCloseFailures = progress.SourceCloseFailures;
         SetStatus($"{progress.Phase} · {progress.ObservedPaths:N0} observed paths · {progress.Issues:N0} issues. Values are observations over time." +
+            (progress.MemoryFallback ? " Secure scratch is unavailable. Using bounded memory; analysis stops with partial results if the memory limit is reached." : "") +
             (SourceCloseFailures == 0 ? "" : $" Source cleanup reported {SourceCloseFailures:N0} " + (SourceCloseFailures == 1 ? "failure" : "failures") + "; close was not retried."));
     }
     public void PauseOrResume() { if (Phase == AnalysisPhase.Paused || Phase == AnalysisPhase.Pausing) _session?.Resume(); else _session?.Pause(); }
