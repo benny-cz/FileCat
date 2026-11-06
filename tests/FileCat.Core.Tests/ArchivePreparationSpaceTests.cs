@@ -9,6 +9,17 @@ namespace FileCat.Core.Tests;
 public sealed class ArchivePreparationSpaceTests
 {
     [Fact]
+    public void Same_object_publication_charges_the_old_byte_copy_and_private_data_shadow_separately()
+    {
+        var estimate = new ArchiveSpaceEstimate(10000, 30000, 4000, 5000, retainedOriginalCopyBytes: 10000, publicationScratchBytes: 30000);
+        Assert.Equal(10000, estimate.RetainedOriginalCopyBytes); Assert.Equal(30000, estimate.PublicationScratchBytes);
+        Assert.Equal(30000 + 4000 + 5000 + 10000 + 30000 + (64L << 20), estimate.AdditionalBytes);
+        Assert.Equal(10000 + estimate.AdditionalBytes, estimate.TotalFootprintBytes);
+        Assert.Throws<ArchiveWriteException>(() => new ArchiveSpaceEstimate(0, 1024, 0, 0, -1));
+        Assert.Throws<ArchiveWriteException>(() => new ArchiveSpaceEstimate(0, 1024, 0, 0, 0, long.MaxValue));
+    }
+
+    [Fact]
     public void Full_stage_evidence_snapshots_and_margin_are_additional_while_original_is_already_allocated()
     {
         var estimate = new ArchiveSpaceEstimate(10000, 30000, 4000, 5000);

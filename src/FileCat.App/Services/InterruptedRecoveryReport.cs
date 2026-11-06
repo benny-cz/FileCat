@@ -17,9 +17,11 @@ internal static class InterruptedRecoveryReport
         var facts = job.ArchiveTransactions;
         if (facts.Problem is not null)
             return "Archive recovery records are incomplete or unsupported. Keep the current archive and retained files; Review report lists the recorded locations.";
-        if (facts.Transactions.Any(t => !t.IsResolved && t.Phase != ArchiveTransactionPhase.CommittedWithRetainedArtifacts))
+        if (facts.ContentUpdates.Any(t => t.Phase != ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts) ||
+            facts.Transactions.Any(t => !t.IsResolved && t.Phase != ArchiveTransactionPhase.CommittedWithRetainedArtifacts &&
+                !facts.ContentUpdates.Any(c => c.Nonce == t.Nonce && c.Phase == ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts)))
             return "The archive update's final outcome has not been confirmed. Keep the current archive and retained files; open Review report for recorded locations.";
-        if (facts.Transactions.Any(t => t.Phase == ArchiveTransactionPhase.CommittedWithRetainedArtifacts))
+        if (facts.ContentUpdates.Count != 0 || facts.Transactions.Any(t => t.Phase == ArchiveTransactionPhase.CommittedWithRetainedArtifacts))
             return "An archive update was recorded as committed, with retained files still needing review. Keep those files and open Review report.";
         return "No unresolved archive transaction was recorded. Open Review report before closing this recovery record; the files have not been inspected.";
     }
@@ -155,6 +157,17 @@ internal static class InterruptedRecoveryReport
                 Version("Observed retired object", transaction.Retired);
                 if (transaction.SecuritySnapshotSha256 is { } digest) Line("Security/provenance snapshot SHA-256: " + digest);
             }
+        }
+        foreach (var content in job.ArchiveTransactions.ContentUpdates)
+        {
+            Line($"Same-object archive update {content.Nonce:N}, facts v{ArchiveContentUpdateFacts.SchemaVersion}, sequence {content.Sequence}, recorded phase {content.Phase}");
+            Detail("Retained original-byte snapshot (not inspected)", content.SnapshotPath);
+            Line("This recipe updates the existing file's data. Its snapshot is a separate file; no recorded path grants restore or deletion authority.");
+            Line("Snapshot byte limit: " + content.SnapshotMaximumLength.ToString(CultureInfo.InvariantCulture));
+            if (content.SnapshotIdentity is { } identity) Line("Recorded snapshot identity: " + JsonSerializer.Serialize(identity));
+            if (content.Snapshot is { } snapshot) Line("Retained original SHA-256: " + snapshot.Sha256);
+            if (content.NativeTransactionId is { } transactionId) Line("Recorded native transaction: " + transactionId.ToString("D"));
+            if (content.Published is { } published) Line("Recorded committed object: " + JsonSerializer.Serialize(published.Identity) + ", SHA-256 " + published.Sha256);
         }
         Line();
         if (deleted is not null)

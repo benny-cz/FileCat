@@ -10,16 +10,21 @@ internal sealed record ArchiveSpaceEstimate
     internal long StageBytes { get; }
     internal long EvidenceBytes { get; }
     internal long KnownSnapshotBytes { get; }
+    internal long RetainedOriginalCopyBytes { get; }
+    internal long PublicationScratchBytes { get; }
     internal long AdditionalBytes { get; }
     internal long TotalFootprintBytes { get; }
 
-    internal ArchiveSpaceEstimate(long originalBytes, long stageBytes, long evidenceBytes, long knownSnapshotBytes)
+    internal ArchiveSpaceEstimate(long originalBytes, long stageBytes, long evidenceBytes, long knownSnapshotBytes,
+        long retainedOriginalCopyBytes = 0, long publicationScratchBytes = 0)
     {
         if (originalBytes is < 0 or > ArchiveWritePolicy.MaxPhysicalBytes || stageBytes is < 1024 or > ArchiveWritePolicy.MaxPhysicalBytes ||
-            evidenceBytes is < 0 or > ArchiveWritePolicy.MaxMetadataBytes || knownSnapshotBytes is < 0 or > ArchiveWritePolicy.MaxLogicalBytes)
+            evidenceBytes is < 0 or > ArchiveWritePolicy.MaxMetadataBytes || knownSnapshotBytes is < 0 or > ArchiveWritePolicy.MaxLogicalBytes ||
+            retainedOriginalCopyBytes is < 0 or > ArchiveWritePolicy.MaxPhysicalBytes || publicationScratchBytes is < 0 or > ArchiveWritePolicy.MaxPhysicalBytes)
             throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "The archive space estimate exceeds its reviewed byte bounds.");
         OriginalBytes = originalBytes; StageBytes = stageBytes; EvidenceBytes = evidenceBytes; KnownSnapshotBytes = knownSnapshotBytes;
-        AdditionalBytes = checked(stageBytes + evidenceBytes + knownSnapshotBytes + SafetyMarginBytes);
+        RetainedOriginalCopyBytes = retainedOriginalCopyBytes; PublicationScratchBytes = publicationScratchBytes;
+        AdditionalBytes = checked(stageBytes + evidenceBytes + knownSnapshotBytes + retainedOriginalCopyBytes + publicationScratchBytes + SafetyMarginBytes);
         // The retained original is already allocated and excluded from available bytes. Display its footprint
         // separately; do not charge its existing allocation a second time against free space.
         TotalFootprintBytes = checked(originalBytes + AdditionalBytes);

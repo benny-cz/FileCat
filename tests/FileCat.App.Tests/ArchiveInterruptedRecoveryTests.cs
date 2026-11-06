@@ -34,6 +34,9 @@ public sealed class ArchiveInterruptedRecoveryTests
     [InlineData("legacy")]
     [InlineData("legacy-committed")]
     [InlineData("origin-warning")]
+    [InlineData("content-committed")]
+    [InlineData("content-intent")]
+    [InlineData("content-mixed")]
     public async Task Archive_rows_offer_read_only_reporting_and_keep_all_recorded_files(string state)
     {
         using var f = await Fixture.Create(state);
@@ -42,7 +45,7 @@ public sealed class ArchiveInterruptedRecoveryTests
         Dispatcher.UIThread.RunJobs(); f.Window.UpdateLayout();
         var row = Assert.Single(f.Vm.Operations.Interrupted);
         Assert.False(row.CanCleanup); Assert.False(row.CanMarkReviewed); Assert.False(row.CanRunAgain); Assert.False(row.CanReviewNewTransfer);
-        Assert.Contains(state is "committed-warning" or "origin-warning" ? "recorded as committed" : state is "unknown" or "legacy" or "legacy-committed" ? "incomplete or unsupported" : "not been confirmed", row.Details);
+        Assert.Contains(state is "committed-warning" or "origin-warning" or "content-committed" ? "recorded as committed" : state is "unknown" or "legacy" or "legacy-committed" ? "incomplete or unsupported" : "not been confirmed", row.Details);
         var buttons = f.Window.GetVisualDescendants().OfType<Button>().Where(b => b.IsVisible).ToList();
         Assert.DoesNotContain(buttons, b => b.Content as string is "Clean up partial files" or "Mark reviewed…");
         Assert.Contains(buttons, b => AutomationProperties.GetName(b) == row.ReviewReportLabel);
@@ -83,6 +86,14 @@ public sealed class ArchiveInterruptedRecoveryTests
                 Assert.Contains(new string('B', 64), report.Text);
             }
             if (state == "unknown") Assert.Contains("Journal review warning:", report.Text);
+            if (state.StartsWith("content-", StringComparison.Ordinal))
+            {
+                var content = Assert.Single(f.Interrupted.ArchiveTransactions.ContentUpdates);
+                Assert.Contains("Same-object archive update", report.Text);
+                Assert.Contains(JsonSerializer.Serialize(content.SnapshotPath), report.Text);
+                Assert.Contains("Retained original-byte snapshot (not inspected)", report.Text);
+                Assert.Contains("no recorded path grants restore or deletion authority", report.Text);
+            }
             report.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Copy all")
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Wait(() => report.StatusText == "The whole report is on the clipboard.");
@@ -172,8 +183,9 @@ public sealed class ArchiveInterruptedRecoveryTests
                     ArchiveTransactionPhase.ReadyToPublish, ArchiveTransactionPhase.Publishing, ArchiveTransactionPhase.Reconciling,
                     ArchiveTransactionPhase.Cleaning, ArchiveTransactionPhase.CommittedWithRetainedArtifacts };
                 if (state == "legacy-committed") phases[^1] = ArchiveTransactionPhase.Committed;
-                for (int i = 0; i < (state is "committed-warning" or "mixed" or "origin-warning" or "legacy-committed" ? phases.Length : 1); i++)
-                    writer.ArchiveTransaction(new(nonce, i + 1, profile, phases[i], archive, "parent-object", original, stagePath, state == "unrecorded-stage" ? null : stage.Identity,
+                bool contentUpdate = state.StartsWith("content-", StringComparison.Ordinal);
+                for (int i = 0; i < (contentUpdate ? 4 : state is "committed-warning" or "mixed" or "origin-warning" or "legacy-committed" ? phases.Length : 1); i++)
+                    writer.ArchiveTransaction(new(nonce, i + 1, profile, contentUpdate && i == 3 ? ArchiveTransactionPhase.Verifying : phases[i], archive, "parent-object", original, stagePath, state == "unrecorded-stage" ? null : stage.Identity,
                         i >= 3 ? stage : null, i >= 3 ? retainedPath : null, i >= 3 ? manifestPath : null, i >= 3 ? manifest : null,
                         i >= 3 ? new string('E', 64) : null, i >= 5 ? stage : null, i >= 5 ? original : null,
                         i == 7 && state != "legacy-committed" ? [state == "origin-warning" ? originPath : retainedPath] : [],
@@ -182,8 +194,25 @@ public sealed class ArchiveInterruptedRecoveryTests
                         [new(ArchiveSidecarRole.ExpectedOutput, manifestPath, 4096),
                          new(ArchiveSidecarRole.OriginEvidence, originPath, 4096, origin.Identity, originSources: 1),
                          new(ArchiveSidecarRole.VerifiedOutput, Path.Combine(root, ".owned-observed-manifest"), 4096)] : null));
+                if (contentUpdate)
+                {
+                    var baseline = new ArchiveFileObservation(original, "parent-object", Path.GetFileName(archive), new string('E', 64),
+                        ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier), null, null);
+                    var reservation = new ArchiveArtifactReservation(new object(), nonce, ArchiveArtifactKind.Stage, root, "parent-object", original.Length);
+                    File.WriteAllText(reservation.Path, "owned content snapshot");
+                    var content = ArchiveContentUpdateFacts.Reserve(writer.CurrentArchiveTransaction(nonce), reservation, baseline, baseline.Origin);
+                    writer.ArchiveContentUpdate(content);
+                    Add(content.Advance(ArchiveContentUpdatePhase.SnapshotCreated, snapshotIdentity: "content-snapshot", creationPolicy: new string('E', 64)));
+                    Add(content.Advance(ArchiveContentUpdatePhase.TransactionOpened, transactionId: Guid.NewGuid()));
+                    Add(content.Advance(ArchiveContentUpdatePhase.SnapshotSealed, snapshot: new("content-snapshot", original.Length, original.Sha256)));
+                    Add(content.Advance(ArchiveContentUpdatePhase.Ready, privateOutput: new(new(original.Identity, stage.Length, stage.Sha256), "parent-object",
+                        baseline.LeafName, new string('F', 64), baseline.Origin, null, null)));
+                    Add(content.Advance(ArchiveContentUpdatePhase.CommitIntent));
+                    if (state != "content-intent") Add(content.Advance(ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts, published: content.PrivateOutput));
+                    void Add(ArchiveContentUpdateFacts next) { writer.ArchiveContentUpdate(next); content = next; }
+                }
                 if (state == "legacy-committed") writer.Finish(JobState.Completed, "historical completed archive");
-                if (state == "mixed") writer.ArchiveTransaction(new(Guid.NewGuid(), 1, profile, ArchiveTransactionPhase.Reserved,
+                if (state is "mixed" or "content-mixed") writer.ArchiveTransaction(new(Guid.NewGuid(), 1, profile, ArchiveTransactionPhase.Reserved,
                     Path.Combine(root, "second.tar"), "parent-object", null, Path.Combine(root, ".second-stage"), "second-stage-object"));
             }
             if (state == "unknown")
@@ -221,6 +250,8 @@ public sealed class ArchiveInterruptedRecoveryTests
             Assert.Equal("owned rebuilt archive", File.ReadAllText(StagePath));
             Assert.Equal("owned original archive", File.ReadAllText(RetainedPath));
             Assert.Equal("owned provenance", File.ReadAllText(OriginPath));
+            foreach (var content in Interrupted.ArchiveTransactions.ContentUpdates)
+                Assert.Equal("owned content snapshot", File.ReadAllText(content.SnapshotPath));
             Assert.Equal(JournalBytes, File.ReadAllBytes(Interrupted.JournalPath));
             Assert.True(JournalRecovery.IsInterrupted(Interrupted));
         }

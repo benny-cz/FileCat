@@ -323,6 +323,13 @@ checksummed old-data retention, exact identity/version admission and complete du
 it must not weaken current leases, silently update other hard-link names or enable an unqualified overwrite fallback.
 TxF availability/deprecation and the full hard-link requirement remain explicit gates.
 
+The subsequent [journaled content-update integration](../validation/archive-writing/WINDOWS_TRANSACTIONAL_CONTENT_INTEGRATION.md)
+implements that separate recipe, checksummed private old-data retention, complete ordered provenance binding and the
+transaction-to-normal-reader pin transfer. Its 20 end-to-end native cases and the existing 68 confined-worker cases
+pass on Windows. Common recovery/UI regressions pass on Windows, Mac and Ubuntu. This bridge remains unregistered:
+the complete crash/recovery/cleanup matrix, broader resource/metadata/alias qualification and production admission
+must still be completed before enabling a profile. Its retained data copy does not itself authorize restoration.
+
 ### 7.5 Outer metadata and provenance
 
 Treat outer-file metadata separately from metadata of archived members. Updates preserve the existing archive's owner, ACL/mode, relevant attributes, creation time where promised, and origin/quarantine marks. Content-changing mtime follows existing FileCat policy and must be stated/tested. Hard links to the old archive remain attached to the old object; warn once when link count is known and greater than one. Do not silently update all hard-link names.

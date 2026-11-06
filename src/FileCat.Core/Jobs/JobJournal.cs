@@ -63,6 +63,30 @@ public sealed class JobJournal : IDisposable
         }
     }
 
+    /// <summary>Durably record the separate same-object data recipe; never reinterpret replacement facts.</summary>
+    internal void ArchiveContentUpdate(ArchiveContentUpdateFacts facts)
+    {
+        ArgumentNullException.ThrowIfNull(facts);
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished) throw new InvalidOperationException("A finished journal cannot record an archive content update.");
+            _archiveTransactions.ValidateNextContent(facts);
+            try { Write(facts.ToJson(), sync: true); }
+            catch { RequireRecovery(); throw; }
+            _archiveTransactions.AcceptContent(facts);
+        }
+    }
+    internal void RequireCurrentArchiveContentUpdate(ArchiveContentUpdateFacts facts)
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished || _manualRecovery) throw new InvalidOperationException("The archive journal requires review or is finished.");
+            _archiveTransactions.RequireCurrentContent(facts);
+        }
+    }
+
     internal void RequireCurrentArchiveTransaction(ArchiveTransactionFacts facts)
     {
         ArgumentNullException.ThrowIfNull(facts);

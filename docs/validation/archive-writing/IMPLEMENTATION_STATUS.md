@@ -46,8 +46,14 @@ a late changed stage before publication. Audit/other unqueried security state, m
 replacement remain unfinished.
 The [NTFS transactional-content investigation](WINDOWS_TRANSACTIONAL_CONTENT_SPIKE.md) passes 12 owned native probes,
 including a read-only pin across commit and independent preservation checks for seeded audit/resource/CAP descriptors.
-It changes no production route or source-lease contract. Typed recipe, old-data snapshot, journal/recovery, hard-link,
-durability and application integration remain required before any such backend could be qualified.
+It changed no production route or source-lease contract. At that investigation checkpoint, the typed recipe, old-data
+snapshot, journal/recovery, hard-link, durability and application integration were still required for qualification.
+The subsequent [journaled NTFS integration](WINDOWS_TRANSACTIONAL_CONTENT_INTEGRATION.md) adds the separate typed
+content-update recipe, verified private original-byte retention with provenance, exact preparation/input binding and
+the transaction-to-normal-reader pin transfer. All 88 Windows confined-worker/native cases pass, including 20 new
+actual update cases across the four TAR profiles; common recovery/UI regressions pass on all three platforms. One
+native-discovered identity/digest contract mismatch is fixed and the failed evidence retained. Complete crash/recovery/
+cleanup, broader metadata/resources/aliases and production admission remain unfinished; the bridge stays unregistered.
 The [private creation process-crash follow-up](PRIVATE_CREATION_PROCESS_CRASHES.md) passes ten new publication/metadata
 boundaries and thirteen neighboring crash cases on each platform. It leaves production and recovery authority unchanged.
 The [TAR.GZ worker pipeline](TAR_GZIP_WORKER_PIPELINE.md) adds strict wrapper-aware assessment, streamed create/update

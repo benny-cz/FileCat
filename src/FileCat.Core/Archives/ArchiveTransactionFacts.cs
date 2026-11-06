@@ -456,34 +456,50 @@ public sealed class ArchiveTransactionFacts
 /// <summary>Bounded recovery facts. Even a valid digest here never authorizes pathname deletion or publication replay.</summary>
 public sealed record ArchiveTransactionRecovery(IReadOnlyList<ArchiveTransactionFacts> Transactions, bool HasRecords, string? Problem)
 {
-    public bool RequiresReview => HasRecords && (Problem is not null || Transactions.Any(t => !t.IsResolved));
+    public IReadOnlyList<ArchiveContentUpdateFacts> ContentUpdates { get; init; } = [];
+    public bool RequiresReview => HasRecords && (Problem is not null || ContentUpdates.Count != 0 || Transactions.Any(t => !t.IsResolved));
 }
 
 internal sealed class ArchiveTransactionCollector
 {
     private const int MaxTransactions = 16;
     private readonly Dictionary<Guid, ArchiveTransactionFacts> latest = [];
+    private readonly Dictionary<Guid, ArchiveContentUpdateFacts> content = [];
     private bool hasRecords;
     private bool damaged;
     private bool legacy;
     private bool began, ended;
     private int? headerVersion;
     private string? problem;
-    public bool RequiresReview => hasRecords && (problem is not null || damaged || legacy || latest.Values.Any(t => !t.IsResolved));
+    public bool RequiresReview => hasRecords && (problem is not null || damaged || legacy || content.Count != 0 || latest.Values.Any(t => !t.IsResolved));
     public ArchiveTransactionRecovery Snapshot => new(Array.AsReadOnly(latest.Values.ToArray()), hasRecords,
         problem ?? (legacy ? "This legacy archive journal lacks complete provenance evidence; retain its recorded artifacts for archive-specific review." :
-            hasRecords && damaged ? "The archive transaction journal contains damaged or incomplete records." : null));
+            hasRecords && damaged ? "The archive transaction journal contains damaged or incomplete records." : null))
+        { ContentUpdates = Array.AsReadOnly(content.Values.ToArray()) };
     public void DamagedRecord() => damaged = true;
     public void ValidateNext(ArchiveTransactionFacts facts)
     {
         if (problem is not null || damaged) throw new InvalidOperationException("The archive transaction journal is not writable.");
+        if (content.ContainsKey(facts.Nonce)) throw new InvalidOperationException("A content-update recipe has frozen this preparation.");
         if (!latest.ContainsKey(facts.Nonce) && latest.Count >= MaxTransactions) throw new ArgumentException("Too many archive transactions.");
         facts.ValidateAfter(latest.GetValueOrDefault(facts.Nonce));
     }
     public void Accept(ArchiveTransactionFacts facts) { ValidateNext(facts); latest[facts.Nonce] = facts; hasRecords = true; }
+    internal void ValidateNextContent(ArchiveContentUpdateFacts facts)
+    {
+        if (problem is not null || damaged) throw new InvalidOperationException("The archive transaction journal is not writable.");
+        facts.ValidateAfter(Current(facts.Nonce), content.GetValueOrDefault(facts.Nonce));
+    }
+    internal void AcceptContent(ArchiveContentUpdateFacts facts)
+    { ValidateNextContent(facts); content[facts.Nonce] = facts; hasRecords = true; }
+    internal void RequireCurrentContent(ArchiveContentUpdateFacts facts)
+    {
+        if (problem is not null || damaged || !ReferenceEquals(content.GetValueOrDefault(facts.Nonce), facts))
+            throw new InvalidOperationException("The supplied content-update facts are not the current durable parent facts.");
+    }
     internal void RequireCurrent(ArchiveTransactionFacts facts)
     {
-        if (problem is not null || damaged || !ReferenceEquals(latest.GetValueOrDefault(facts.Nonce), facts))
+        if (problem is not null || damaged || content.ContainsKey(facts.Nonce) || !ReferenceEquals(latest.GetValueOrDefault(facts.Nonce), facts))
             throw new InvalidOperationException("The supplied archive facts are not the current durable parent facts.");
     }
     internal ArchiveTransactionFacts Current(Guid nonce) => latest.GetValueOrDefault(nonce) ??
@@ -521,6 +537,11 @@ internal sealed class ArchiveTransactionCollector
         if (ended) damaged = true;
         try
         {
+            if (type == ArchiveContentUpdateFacts.RecordType)
+            {
+                if (headerVersion != ArchiveTransactionFacts.SchemaVersion) throw new ArgumentException("The content-update header is unsupported.");
+                AcceptContent(ArchiveContentUpdateFacts.Parse(node)); return;
+            }
             var facts = ArchiveTransactionFacts.Parse(node);
             if (headerVersion is { } declared && declared != facts.RecordVersion)
                 throw new ArgumentException("Archive fact schema differs from its durable header.");
