@@ -65,7 +65,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.Contains("Private profile continuity could not be loaded or created", model.ContinuityNotice); Assert.False(model.HasPrivateStorage);
             await Assert.ThrowsAsync<InvalidOperationException>(() => model.SaveNewAsync("refused.fcdsa", TestContext.Current.CancellationToken));
         }
-        finally { window.ForceClose(); model.Dispose(); await window.WaitForIndexedCloseAsync(); await model.CloseCompletion; }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); model.Dispose(); await window.WaitForIndexedCloseAsync(); await model.CloseCompletion; }
         Assert.Equal(state, File.ReadAllBytes(fixture.Services.Paths.AnalysisPrivateStateFile)); Assert.False(Directory.Exists(fixture.Services.Paths.AnalysisScratchDirectory));
         Assert.Equal("safe", File.ReadAllText(Path.Combine(input, "safe.bin")));
     }

@@ -58,7 +58,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.True(window.IsVisible); Assert.Equal(1, window.SessionCount);
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(), b => b.IsEffectivelyVisible && b.Content as string == "Keep open");
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
         var tabsWindow = new DiskSpaceWindow();
         try
         {
@@ -71,7 +71,7 @@ public sealed partial class AnalysisRenderingTests
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(new[] { "Analysis 1", "Analysis 3", "Analysis 4" }, tabs.Items.OfType<TabItem>().Select(t => t.Header as string));
         }
-        finally { tabsWindow.ForceClose(); }
+        finally { tabsWindow.ForceClose(); await tabsWindow.WaitForIndexedCloseAsync(); }
     }
     [AvaloniaFact]
     public async Task UncertainPredicateResultsAreAnExplicitCohortAndDateOnlyUsesTheCapturedZone()
@@ -116,7 +116,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal("Unknown", DiskSpaceViewModel.LogicalText(missing.Tree!.Items["n:6"], true));
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("File size: Unknown", StringComparison.Ordinal) == true);
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaFact]
@@ -145,7 +145,7 @@ public sealed partial class AnalysisRenderingTests
             for (int i = 0; i < 100 && model.Tree.Projection.Metric != AnalysisMetric.FileSize; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
             Assert.Equal((UInt128)98503, model.Tree.ScopeValue(AnalysisTree.RootKey));
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
     [AvaloniaFact]
     public async Task ReviewCancelBindingRoutesFromOverlayAndEnterOnAFileOpensDetails()
@@ -178,7 +178,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Cancel / Keep files" && b.IsEffectivelyVisible);
             Assert.True(window.IsVisible); Assert.Equal("n:4", model.Selection.Focus);
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaFact]
@@ -215,7 +215,7 @@ public sealed partial class AnalysisRenderingTests
                 frame.Save(Path.Combine(output, $"{theme}-380-short-large-text.png"), new PngBitmapEncoderOptions());
             }
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     private sealed class ProductStyles : IDisposable
@@ -307,6 +307,6 @@ public sealed partial class AnalysisRenderingTests
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("source.cs", StringComparison.Ordinal) == true);
             Assert.Contains(window.GetVisualDescendants().OfType<Button>(), b => b.Content as string == "Close details" && b.IsEffectivelyVisible);
         }
-        finally { window.ForceClose(); model.Dispose(); Application.Current.Styles.Remove(styles); Application.Current.Styles.Remove(fluent); ThemeManager.Apply(theme); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); model.Dispose(); Application.Current.Styles.Remove(styles); Application.Current.Styles.Remove(fluent); ThemeManager.Apply(theme); }
     }
 }

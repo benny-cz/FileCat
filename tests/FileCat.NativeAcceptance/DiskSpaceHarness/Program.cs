@@ -133,7 +133,7 @@ internal sealed partial class HarnessApp : Application
     private void AddLiveSession()
     {
         if (_window is null || _services is null) return;
-        if (_window.SessionCount >= AnalysisLimits.Sessions) { _window.ExplainSessionLimit(); return; }
+        if (!_window.CanAddSession) { _window.ExplainSessionLimit(); return; }
         var model = new DiskSpaceViewModel(_services); _models.Add(model);
         model.Changed += () =>
         {

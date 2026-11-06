@@ -12,6 +12,7 @@ public sealed partial class DiskSpaceViewModel
     private TaskCompletionSource? _bindingCompletion;
     private Exception? _bindingCloseError;
     private bool _privateStorageUnavailable;
+    private readonly AnalysisViewWork _actualWork = new();
     internal Task CloseCompletion { get; private set; } = Task.CompletedTask;
 
     private static string? PrivateBoundaryNotice(AnalysisSnapshot observations)
@@ -135,11 +136,12 @@ public sealed partial class DiskSpaceViewModel
         try { await Task.WhenAll(closes); }
         catch (Exception error) { _bindingCloseError ??= error; throw; }
     }
-    private async Task CloseAcquisitionAsync()
+    private async Task CloseAcquisitionAsync(Task actualWork)
     {
         if (_bindingCompletion is { } binding) await binding.Task;
         Exception? failure = _bindingCloseError;
         try { await ReleaseUnstartedAsync(); } catch (Exception error) { failure ??= error; }
+        try { await actualWork; } catch (Exception error) { failure ??= error; }
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 }

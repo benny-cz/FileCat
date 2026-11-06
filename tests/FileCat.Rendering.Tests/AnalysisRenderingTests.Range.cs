@@ -80,7 +80,7 @@ public sealed partial class AnalysisRenderingTests
             query.Text = "name:c.txt";
             await Until(() => model.Query == "name:c.txt" && model.Rows.Length == 1 && model.Rows[0].Key == "n:9");
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaFact]
@@ -151,7 +151,7 @@ public sealed partial class AnalysisRenderingTests
             ulong expected = forward ? 7ul : 6ul;
             Assert.Equal("n:" + expected, model.Selection.Focus); Assert.Equal(new[] { expected }, model.Selection.Marks); Assert.Empty(model.Selection.Basket);
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaTheory]
@@ -199,7 +199,7 @@ public sealed partial class AnalysisRenderingTests
             window.MouseUp(RangeRowPoint(window, heldRow), MouseButton.Left, RawInputModifiers.Shift); await Until(() => model.Rows.Length == 1, diagnostic);
             Assert.Equal(new ulong[] { 7, 8, 9 }, model.Selection.Marks.Order()); Assert.Empty(model.Selection.Basket);
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaFact]
@@ -219,7 +219,7 @@ public sealed partial class AnalysisRenderingTests
             await Until(() => model.Rows.Length == 1);
             Assert.Equal(new ulong[] { 7 }, model.Selection.Marks); Assert.Empty(model.Selection.Basket);
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaFact]
@@ -240,6 +240,6 @@ public sealed partial class AnalysisRenderingTests
             window.MouseUp(RangeRowPoint(window, row), MouseButton.Left); Assert.True(handled, diagnostic()); await Until(() => model.Rows.Length == 1, diagnostic);
             Assert.Empty(model.Selection.Marks); Assert.Empty(model.Selection.Basket);
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 }

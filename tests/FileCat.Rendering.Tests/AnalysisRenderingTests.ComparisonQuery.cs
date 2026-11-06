@@ -35,7 +35,7 @@ public sealed partial class AnalysisRenderingTests
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.IsEffectivelyVisible && t.Text == "Comparison entry");
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaFact]
@@ -68,7 +68,7 @@ public sealed partial class AnalysisRenderingTests
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Clear comparison query").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(3, rows.ItemCount); Assert.False(unknown.IsVisible);
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaFact]

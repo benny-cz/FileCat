@@ -43,15 +43,16 @@ public sealed partial class DiskSpaceWindow : Window
             try { await Task.WhenAll(tasks); } catch { /* The observer records the first close failure. */ }
             await Task.Yield();
         }
-        if (_indexedCloseError is not null) throw new IOException("An indexed analysis owner could not close.", _indexedCloseError);
+        if (_indexedCloseError is not null) throw new IOException("An analysis owner could not close.", _indexedCloseError);
     }
-    private void TrackIndexedClose(Task close)
+    private void TrackIndexedClose(Task actualClose, AnalysisSessionAdmission.Slot admission)
     {
+        Task close = admission.CloseAfterAsync(actualClose);
         _indexedClosures.Add(close); _ = ObserveAsync();
         async Task ObserveAsync()
         {
             try { await close; }
-            catch (Exception error) { _indexedCloseError ??= error; if (!_closed) { _notice.Text = "Analysis handles could not be closed. Wait before starting another analysis."; _notice.IsVisible = true; } }
+            catch (Exception error) { _indexedCloseError ??= error; if (!_closed) { _notice.Text = "An analysis could not close completely. Its place remains reserved until FileCat restarts."; _notice.IsVisible = true; } }
             finally { _indexedClosures.Remove(close); }
         }
     }
@@ -63,6 +64,7 @@ public sealed partial class DiskSpaceWindow : Window
     private bool _forceClose, _askingClose;
     private long _nextTabNumber;
     public int SessionCount => _sessions.Count;
+    internal bool CanAddSession => !_closed && AnalysisSessionAdmission.Shared.HasCapacity;
     protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => new DescendantFocusWindowAutomationPeer(this);
     public DiskSpaceWindow(Action? newAnalysis = null, Func<Keymap>? keymap = null)
     {
@@ -105,13 +107,17 @@ public sealed partial class DiskSpaceWindow : Window
     public void AddSession(DiskSpaceViewModel model, IReadOnlyList<string>? roots = null)
     {
         if (_closed) throw new ObjectDisposedException(nameof(DiskSpaceWindow));
-        if (_sessions.Count + _pendingIndexed + _indexedClosures.Count >= AnalysisLimits.Sessions) throw new InvalidOperationException("Eight analyses are open or closing. Wait for an analysis to close before adding another.");
-        var view = new SessionView(this, model, roots ?? []);
-        AddView(view);
+        AddReservedSession(model, roots ?? [], AnalysisSessionAdmission.Shared.Acquire());
+    }
+    private void AddReservedSession(DiskSpaceViewModel model, IReadOnlyList<string> roots, AnalysisSessionAdmission.Slot admission)
+    {
+        SessionView? view = null;
+        try { ObjectDisposedException.ThrowIf(_closed, this); view = new SessionView(this, model, roots, admission); AddView(view); }
+        catch { if (view is not null) view.Dispose(); else _ = admission.CloseAfterAsync(Task.CompletedTask); throw; }
     }
     private void AddView(IAnalysisSessionView view)
     {
-        _notice.IsVisible = false;
+        _notice.IsVisible = _indexedCloseError is not null;
         string label = (view.IsComparison ? "Comparison " : "Analysis ") + checked(++_nextTabNumber);
         var item = new AnalysisTabItem { Header = label, Content = view.CreateViewport(), Padding = new Thickness(12, 6),
             Margin = new Thickness(0, 0, 4, 0), MinHeight = 32 };
@@ -140,11 +146,11 @@ public sealed partial class DiskSpaceWindow : Window
                 !view.IsComparison ? "Stop and close" : "Discard comparison", true, "Keep open")) return;
         if (_forceClose || (at = _sessions.IndexOf(view)) < 0) return;
         view.Dispose(); _sessions.RemoveAt(at); _items.RemoveAt(at); _tabs.ItemsSource = _items.ToArray();
-        _notice.IsVisible = false;
+        _notice.IsVisible = _indexedCloseError is not null;
         if (_items.Count > 0) _tabs.SelectedIndex = Math.Min(at, _items.Count - 1);
     }
     public void ForceClose() { _forceClose = true; Close(); }
-    public void ExplainSessionLimit() { _notice.Text = "Eight analyses are open. Close an analysis before adding another."; _notice.IsVisible = true; }
+    public void ExplainSessionLimit() { _notice.Text = AnalysisSessionAdmission.Shared.Refusal; _notice.IsVisible = true; }
     private static Button ActionButton(string text, Action action, string help)
     {
         var button = new Button { Content = text }; button.Click += (_, _) => action();
@@ -196,6 +202,8 @@ public sealed partial class DiskSpaceWindow : Window
     private sealed partial class SessionView : Grid, IAnalysisSessionView
     {
         private readonly DiskSpaceWindow _window;
+        private readonly AnalysisSessionAdmission.Slot _admission;
+        private readonly AnalysisViewWork _actualWork = new();
         public DiskSpaceViewModel Model { get; }
         public bool HasTemporaryWork => Model.HasTemporaryWork;
         public bool IsComparison => Model.Comparison is not null;
@@ -240,9 +248,9 @@ public sealed partial class DiskSpaceWindow : Window
         private bool _updating, _disposed;
         private ImmutableArray<AnalysisTreeItem> _shownRows;
         private long _tableFocusRevision;
-        public SessionView(DiskSpaceWindow window, DiskSpaceViewModel model, IReadOnlyList<string> roots)
+        public SessionView(DiskSpaceWindow window, DiskSpaceViewModel model, IReadOnlyList<string> roots, AnalysisSessionAdmission.Slot admission)
         {
-            _window = window; Model = model;
+            _window = window; Model = model; _admission = admission;
             _query.Text = Model.Query; _case.IsChecked = Model.CaseSensitive; _metric.SelectedIndex = (int)Model.Metric;
             _mode.SelectedIndex = Model.Chart switch { "Sunburst" => 1, "Table" => 2, _ => 0 };
             _sort.SelectedIndex = (int)Model.Sort; _sortDirection.SelectedIndex = Model.SortDescending ? 0 : 1;
@@ -480,13 +488,17 @@ public sealed partial class DiskSpaceWindow : Window
         }
         private async Task ChooseFoldersAsync()
         {
+            if (_disposed) return;
+            using var actualWork = _actualWork.Enter();
             var folders = await _window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Analyze folders", AllowMultiple = true });
-            foreach (var folder in folders) if (folder.TryGetLocalPath() is { } path) AddChosenLocation(path);
+            foreach (var folder in folders) using (folder) if (!_disposed && folder.TryGetLocalPath() is { } path) AddChosenLocation(path);
         }
         private async Task ChooseFilesAsync()
         {
+            if (_disposed) return;
+            using var actualWork = _actualWork.Enter();
             var files = await _window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = "Analyze files", AllowMultiple = true });
-            foreach (var file in files) if (file.TryGetLocalPath() is { } path) AddChosenLocation(path);
+            foreach (var file in files) using (file) if (!_disposed && file.TryGetLocalPath() is { } path) AddChosenLocation(path);
         }
         private void AddChosenLocation(string path)
         {
@@ -627,11 +639,15 @@ public sealed partial class DiskSpaceWindow : Window
         }
         private async Task CopyPathAsync()
         {
+            if (_disposed) return;
+            using var actualWork = _actualWork.Enter();
             if (Model.FocusedPath() is { } path && _window.Clipboard is { } clipboard) await clipboard.SetTextAsync(path);
             else Model.SetStatus("A lossless literal path is unavailable for this selection. Raw source names remain in its observations.");
         }
         private async Task InspectAsync()
         {
+            if (_disposed) return;
+            using var actualWork = _actualWork.Enter();
             var body = new StackPanel { Spacing = 8 };
             body.Children.Add(new TextBlock { Text = _inspector.Text, TextWrapping = TextWrapping.Wrap });
             body.Children.Add(ActionButton("Copy path", () => _ = CopyPathAsync(), "Copy the literal observation path."));
@@ -644,6 +660,8 @@ public sealed partial class DiskSpaceWindow : Window
         }
         private async Task ReviewAsync()
         {
+            if (_disposed) return;
+            using var actualWork = _actualWork.Enter();
             var captured = Model.Selection.Basket.Order().ToImmutableArray(); var tree = Model.Tree;
             string paths = tree is null ? "" : string.Join(Environment.NewLine, captured.Take(200).Select(id => AnalysisNames.Display(tree.Items.GetValueOrDefault(AnalysisTree.Key(id))?.Name ?? "Missing observation")));
             var body = new StackPanel { Spacing = 8 };
@@ -698,8 +716,9 @@ public sealed partial class DiskSpaceWindow : Window
         public void Dispose()
         {
             if (_disposed) return; _disposed = true; _timer.Stop(); _filterTimer.Stop(); Model.Changed -= Refresh;
+            var actualWork = _actualWork.CloseAsync();
             _treemap.Clear(); _sunburst.Clear(); _list.ItemsSource = null; ReleaseComparisonView(); Model.Dispose();
-            _window.TrackIndexedClose(Model.CloseCompletion);
+            _window.TrackIndexedClose(Task.WhenAll(Model.CloseCompletion, actualWork), _admission);
         }
     }
 }

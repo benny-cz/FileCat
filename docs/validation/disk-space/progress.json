@@ -137,7 +137,8 @@
     "Profile and scratch device keys now share ordered bounded admission through capture, frontier, sorting, indexed views/readers and cleanup. The existing watchdog tracks both actual dependencies; cancellation and shutdown retain both turns until actual return. Six new admission/lifetime controls plus existing scheduler regressions and native indexed workflows pass on all3 runtimes. Distinct native-volume, package/resource and safe public fallback qualification remain pending.",
     "Opt-in Core fallback now retains qualified private-root exclusion and closes unpublished scratch before using the full bounded memory store. Runtime progress reports the mode and actual counts; cancellation, unqualified protection and later published-prefix failures cannot restart in memory. Native NTFS/APFS/ext4 fixtures preserve64 regular files/private canaries; failure/lifetime controls pass on all3 runtimes. Application preparation/public-view fallback and pressure/resource qualification remain open; the opt-in remains off in App acquisition.",
     "Internal App preparation now preserves unsupported private state, uses ephemeral correlation when UUID continuity is unavailable and retains native private boundaries or disjoint-only ancestor guards. Unread roots carry explicit partial state; safe selected children are reactivated without double counting. Covered private selections redact identities and have known-empty direct/memory/indexed filter scope. Completed results choose indexed or leased memory views, retaining the shared memory reservation after acquisition closure. Native memory/query/folder-open/owned-exit workflows and FileCat-only visual-tree renders pass on all3 platforms; public lifecycle and full qualification remain open.",
-    "The normal development Start flow now shares native private-profile/boundary preparation with indexed acquisition while remaining bounded-memory. Resolved-target review retains the same capabilities; Stop/Close at initial scanning cannot start work. Window closure waits for actual binding/acquisition cleanup, and unsupported private state disables private Save. Five added lifecycle cases pass on all3 runtimes; native normal Start/query/navigation/close preserves509 generated regular paths on each platform."
+    "The normal development Start flow now shares native private-profile/boundary preparation with indexed acquisition while remaining bounded-memory. Resolved-target review retains the same capabilities; Stop/Close at initial scanning cannot start work. Window closure waits for actual binding/acquisition cleanup, and unsupported private state disables private Save. Five added lifecycle cases pass on all3 runtimes; native normal Start/query/navigation/close preserves509 generated regular paths on each platform.",
+    "Eight analyses are now admitted process-wide across windows, pending indexed opens and reserved Open/Compare destinations. A closed window keeps its slot until accepted projection/navigation/query/persistence/dialog work returns and releases its leases; explicitly requested saves can finish after view closure. Unverified failed close retains a slot until process exit with an accurate reason. Six new controls plus updated cleanup pass94 presentation cases on Mac/Ubuntu and93 plus one Unix-only skip on Windows. Actual native cross-window/late-projection refusal and exact reuse pass on all3; full resource/native-input qualification remains open."
   ],
   "validation": {
     "windowsCore": {
@@ -1278,10 +1279,130 @@
         "evidence": "windows-native-r444.xml"
       },
       "provenanceVerification": "Core source is unchanged in this checkpoint; generated AssemblyInformationalVersion embeds base4ef61910. Its rebuilt binary differs from r422 and matches the final r444 Core/native bundles plus r441 rendering and r442 native desktop builds."
+    },
+    "processWideViewLifetime": {
+      "status": "process-wide-admission-and-actual-work-native-functional-subset-passed",
+      "render": {
+        "mac": {
+          "total": 94,
+          "passed": 94,
+          "failed": 0,
+          "skipped": 0,
+          "seconds": 36.12,
+          "evidence": "mac-render-r453.xml"
+        },
+        "ubuntu": {
+          "total": 94,
+          "passed": 94,
+          "failed": 0,
+          "skipped": 0,
+          "seconds": 59.453,
+          "evidence": "ubuntu-render-r453.xml"
+        },
+        "windows": {
+          "total": 94,
+          "passed": 93,
+          "failed": 0,
+          "skipped": 1,
+          "seconds": 50.987,
+          "evidence": "windows-render-r453.xml"
+        }
+      },
+      "core": {
+        "mac": {
+          "total": 597,
+          "passed": 595,
+          "failed": 0,
+          "skipped": 2,
+          "seconds": 16.882,
+          "evidence": "mac-core-r449.xml"
+        },
+        "ubuntu": {
+          "total": 597,
+          "passed": 595,
+          "failed": 0,
+          "skipped": 2,
+          "seconds": 65.181,
+          "evidence": "ubuntu-core-r449.xml"
+        },
+        "windows": {
+          "total": 615,
+          "passed": 574,
+          "failed": 0,
+          "skipped": 41,
+          "seconds": 13.411,
+          "evidence": "windows-core-r449.xml"
+        }
+      },
+      "windowsNative": {
+        "total": 37,
+        "passed": 37,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 27.384,
+        "evidence": "windows-native-r449.xml"
+      },
+      "native": {
+        "mac": {
+          "passed": true,
+          "pid": 72627,
+          "processWideSessionCapAndActualProjectionCloseVerified": true,
+          "matchingPaths": 509,
+          "queryMatches": 1,
+          "unavailableRoots": 1,
+          "sourceUnchanged": true,
+          "ownedProcessExited": true,
+          "evidence": "mac-native-memory-r454.json"
+        },
+        "ubuntu": {
+          "passed": true,
+          "pid": 682156,
+          "processWideSessionCapAndActualProjectionCloseVerified": true,
+          "matchingPaths": 509,
+          "queryMatches": 1,
+          "unavailableRoots": 1,
+          "sourceUnchanged": true,
+          "ownedProcessExited": true,
+          "evidence": "ubuntu-native-memory-r454.json"
+        },
+        "windows": {
+          "passed": true,
+          "pid": 5468,
+          "processWideSessionCapAndActualProjectionCloseVerified": true,
+          "matchingPaths": 509,
+          "queryMatches": 1,
+          "unavailableRoots": 1,
+          "sourceUnchanged": true,
+          "ownedProcessExited": true,
+          "evidence": "windows-native-memory-r454.json"
+        }
+      },
+      "builds": [
+        "build-r446.txt",
+        "build-render-r453.txt",
+        "harness-build-r454.txt",
+        "build-final-r456.txt"
+      ],
+      "postChecks": [
+        "mac-post-lifetime-r455.json",
+        "ubuntu-post-lifetime-r455.json",
+        "windows-post-lifetime-r455.json"
+      ],
+      "manifest": "source-manifest-r454.json",
+      "processWideEightSessionAdmission": true,
+      "pendingOpenAdmissionReserved": true,
+      "actualProjectionNavigationPersistenceTracked": true,
+      "failedCloseRetainsAdmission": true,
+      "captureScope": "Only the actual owned FileCat window visual tree, inspected on all3. No compositor, physical-input, complete accessibility or full resource qualification.",
+      "publicAcquisitionEnabled": false,
+      "publicSpillEnabled": false,
+      "nativeInputQualified": false,
+      "fullResourceGateQualified": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
-    "W1: the normal development bounded-memory Start/progress/Stop/view path now shares private-boundary preparation and actual acquisition closure. Finish the qualified public entry/lifecycle and indexed transition without enabling unqualified spill; CPU/projection and failed-close session accounting, memory pressure/partial-stop, actual mixed-volume/native-device identity, package/session/domain agreement, original inventory IDs/streaming persistence, end-to-end1M/10M and every resource limit remain required.",
+    "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, bounded queue/CPU admission, actual mixed-volume/native-device identity, package/session/domain agreement, original inventory IDs/streaming persistence, end-to-end1M/10M and every resource limit remain required.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: grouping/color dimensions, scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",

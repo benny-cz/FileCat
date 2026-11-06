@@ -24,7 +24,7 @@ public sealed partial class DiskSpaceWindow
         AnalysisFilterRequest? filter = null, CancellationToken cancellation = default)
     {
         Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
-        if (_sessions.Count + _pendingIndexed + _indexedClosures.Count >= AnalysisLimits.Sessions) throw new InvalidOperationException("Eight analyses are open or closing. Wait for an analysis to close before adding another.");
+        AnalysisSessionAdmission.Slot? admission = AnalysisSessionAdmission.Shared.Acquire();
         if (_pendingIndexed++ == 0) _indexedIdle = new(TaskCreationOptions.RunContinuationsAsynchronously);
         AnalysisDatasetLease? retained = null; AnalysisDatasetExplorer? explorer = null;
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _indexedLifetime.Token);
@@ -34,23 +34,32 @@ public sealed partial class DiskSpaceWindow
             explorer = await AnalysisDatasetExplorer.CreateAsync(retained, metric, filter, linked.Token);
             await Task.WhenAll(explorer.LoadPageAsync(cancellation: linked.Token), explorer.LoadChartAsync(cancellation: linked.Token));
             linked.Token.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
-            var view = new IndexedSessionView(this, retained, explorer, filter ?? new(""));
-            AddView(view); retained = null; var result = explorer; explorer = null; return result;
+            var view = new IndexedSessionView(this, retained, explorer, filter ?? new(""), admission);
+            try { AddView(view); }
+            catch { retained = null; explorer = null; admission = null; view.Dispose(); throw; }
+            retained = null; admission = null; var result = explorer; explorer = null; return result;
         }
         finally
         {
-            try { if (explorer is not null) await explorer.DisposeAsync(); }
+            try
+            {
+                Task close = ClosePreparedAsync();
+                if (admission is not null) await admission.CloseAfterAsync(close); else await close;
+            }
             finally
             {
-                try { if (retained is not null) await retained.DisposeAsync(); }
-                finally { if (--_pendingIndexed == 0) { _indexedIdle.TrySetResult(); if (_closed) _indexedLifetime.Dispose(); } }
+                if (--_pendingIndexed == 0) { _indexedIdle.TrySetResult(); if (_closed) _indexedLifetime.Dispose(); }
             }
+            async Task ClosePreparedAsync()
+            { try { if (explorer is not null) await explorer.DisposeAsync(); } finally { if (retained is not null) await retained.DisposeAsync(); } }
         }
     }
 
     private sealed class IndexedSessionView : StackPanel, IAnalysisSessionView
     {
         private readonly DiskSpaceWindow _window;
+        private readonly AnalysisSessionAdmission.Slot _admission;
+        private readonly AnalysisViewWork _actualWork = new();
         private readonly AnalysisDatasetLease _source;
         private AnalysisDatasetExplorer _explorer;
         private AnalysisExplorerPage? _shownPage;
@@ -88,9 +97,9 @@ public sealed partial class DiskSpaceWindow
         public bool HasTemporaryWork => _source.Descriptor.Persistence == AnalysisPersistence.Temporary;
         public bool IsComparison => false;
 
-        internal IndexedSessionView(DiskSpaceWindow window, AnalysisDatasetLease source, AnalysisDatasetExplorer explorer, AnalysisFilterRequest filter)
+        internal IndexedSessionView(DiskSpaceWindow window, AnalysisDatasetLease source, AnalysisDatasetExplorer explorer, AnalysisFilterRequest filter, AnalysisSessionAdmission.Slot admission)
         {
-            _window = window; _source = source; _explorer = explorer; _rootId = filter.RootId;
+            _window = window; _source = source; _explorer = explorer; _rootId = filter.RootId; _admission = admission;
             Spacing = 10; Margin = new Thickness(10);
             _metric.SelectedIndex = (int)explorer.Metric; _query.Text = filter.Text; _case.IsChecked = filter.CaseSensitive; _unknown.IsChecked = filter.UnknownOnly;
             _roots.ItemsSource = new[] { "All captured locations" }.Concat(source.Descriptor.Roots.Select(root => AnalysisNames.Display(root.Label, 120) + " [" + AnalysisNames.Display(root.Id, 64) + "]")).ToArray();
@@ -227,6 +236,7 @@ public sealed partial class DiskSpaceWindow
         }
         private async Task BuildLoopAsync()
         {
+            using var actualWork = _actualWork.Enter();
             _building = true;
             try
             {
@@ -256,6 +266,7 @@ public sealed partial class DiskSpaceWindow
         private async Task<bool> NavigateAsync(ulong parent, ulong offset = 0, bool record = true)
         {
             if (_disposed) return false;
+            using var actualWork = _actualWork.Enter();
             int version = ++_navigation; ++_inspection; _navigationCancel?.Cancel();
             using var cancel = new CancellationTokenSource(); _navigationCancel = cancel; var explorer = _explorer;
             var old = (_scope, _offset); _status.Text = "Loading captured entries…";
@@ -341,6 +352,8 @@ public sealed partial class DiskSpaceWindow
         }
         private async Task InspectAsync(ulong path, ulong alias = 0, ulong fact = 0, ulong issue = 0)
         {
+            if (_disposed) return;
+            using var actualWork = _actualWork.Enter();
             if (_disposed) return; int version = ++_inspection; _focus = path; var explorer = _explorer;
             foreach (var button in _evidence) button.IsEnabled = false;
             _inspectorStatus.Text = "Loading captured metadata…";
@@ -388,11 +401,17 @@ public sealed partial class DiskSpaceWindow
         public void Dispose()
         {
             if (_disposed) return; _disposed = true; ++_navigation; ++_inspection; _buildCancel?.Cancel(); _navigationCancel?.Cancel();
+            var actualWork = _actualWork.CloseAsync();
             _treemap.Clear(); _sunburst.Clear(); _list.ItemsSource = null; _details.Text = ""; _breadcrumbs.Children.Clear(); _buckets.Children.Clear();
             _shownPage = null; _shownChart = null; _shownInspection = null;
-            _window.TrackIndexedClose(CloseAsync());
+            _window.TrackIndexedClose(CloseAsync(actualWork), _admission);
         }
-        private async Task CloseAsync()
-        { try { await _buildTask; } finally { try { await _explorer.DisposeAsync(); } finally { await _source.DisposeAsync(); } } }
+        private async Task CloseAsync(Task actualWork)
+        {
+            // Explorer disposal cancels its inspection/page/chart lanes. View continuations
+            // must also unwind before their admission can be reused in another window.
+            try { await _buildTask; }
+            finally { try { await _explorer.DisposeAsync(); } finally { try { await actualWork; } finally { await _source.DisposeAsync(); } } }
+        }
     }
 }

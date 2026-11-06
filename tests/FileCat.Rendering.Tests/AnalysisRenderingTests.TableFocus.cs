@@ -49,7 +49,7 @@ public sealed partial class AnalysisRenderingTests
                 Assert.True(editor.Focus()); model.Sort = AnalysisTableSort.Name;
                 await model.RebuildAsync(true); Frame(); Assert.Same(editor, window.FocusManager?.GetFocusedElement());
             }
-            finally { window.ForceClose(); }
+            finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
         }
     }
 }

@@ -46,7 +46,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.True(stop.IsEnabled); stop.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
             Assert.True(model.IsPreparing); Assert.False(run.IsCompleted); Assert.Contains("Stopping location binding", model.Status);
         }
-        finally { gate.Set(); await run.WaitAsync(TimeSpan.FromSeconds(10)); window.ForceClose(); }
+        finally { gate.Set(); await run.WaitAsync(TimeSpan.FromSeconds(10)); window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
         await source.Closed.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(1, calls); Assert.Equal(1, source.CloseCalls); Assert.False(model.Running);
         Assert.NotEqual(fixture.UiThread, source.CloseThread);

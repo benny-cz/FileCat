@@ -48,7 +48,7 @@ public sealed partial class AnalysisRenderingTests
                 window.KeyRelease(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
                 await Until(() => model.Selection.Scope == "n:1");
             }
-            finally { window.ForceClose(); }
+            finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
         }
     }
     [AvaloniaFact]
@@ -111,7 +111,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal("n:4", model.Selection.Focus); Assert.Contains(4ul, model.Selection.Marks); Assert.Contains(4ul, model.Selection.Basket);
             Assert.Equal((UInt128)98304, model.Tree!.ScopeValue(AnalysisTree.RootKey));
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaFact]
@@ -132,7 +132,7 @@ public sealed partial class AnalysisRenderingTests
             await Until(() => model.Selection.Scope == "n:5");
             Assert.Equal("Level 5", model.Breadcrumbs[^1].Label); Assert.Equal("n:9", model.Selection.Focus);
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
     private static async Task Until(Func<bool> predicate, Func<string>? diagnostic = null)
     {

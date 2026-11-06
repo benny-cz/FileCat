@@ -40,21 +40,21 @@ internal sealed partial class HarnessApp
             }
             else
             {
-            _indexedAcquisition = await AnalysisIndexedAcquisition.PrepareAsync(services, _indexedLifetime.Token);
-            if (_indexedAcquisition.Profile is not null || _indexedAcquisition.MemoryPreparationNotice is null || Directory.Exists(services.Paths.AnalysisScratchDirectory))
-                throw new IOException("The generated unsupported private state did not produce preserving memory preparation.");
-            foreach (string path in new[] { _fixture, parent })
-                sources.Add(await AnalysisIo.Run(services.Io, PathUtil.GetDeviceKey(path), _ => OperatingSystem.IsWindows()
-                    ? (IAnalysisBackend)new WindowsAnalysisBackend(path) : new UnixAnalysisBackend(path), _indexedLifetime.Token));
-            session = _indexedAcquisition.Start(sources); sources.Clear();
-            using var stop = _indexedLifetime.Token.Register(session.Stop);
-            await session.Completion.WaitAsync(TimeSpan.FromMinutes(3));
-            snapshot = session.Snapshot();
-            var acquired = await window.AddAcquiredSessionAsync(session, cancellation: _indexedLifetime.Token);
-            model = acquired.Memory ?? throw new InvalidDataException("The unavailable scratch acquisition did not select its memory view.");
-            if (acquired.Indexed is not null) throw new InvalidDataException("The unavailable scratch acquisition unexpectedly selected an indexed view.");
-            _models.Add(model);
-            await _indexedAcquisition.DisposeAsync(); _indexedAcquisition = null;
+                _indexedAcquisition = await AnalysisIndexedAcquisition.PrepareAsync(services, _indexedLifetime.Token);
+                if (_indexedAcquisition.Profile is not null || _indexedAcquisition.MemoryPreparationNotice is null || Directory.Exists(services.Paths.AnalysisScratchDirectory))
+                    throw new IOException("The generated unsupported private state did not produce preserving memory preparation.");
+                foreach (string path in new[] { _fixture, parent })
+                    sources.Add(await AnalysisIo.Run(services.Io, PathUtil.GetDeviceKey(path), _ => OperatingSystem.IsWindows()
+                        ? (IAnalysisBackend)new WindowsAnalysisBackend(path) : new UnixAnalysisBackend(path), _indexedLifetime.Token));
+                session = _indexedAcquisition.Start(sources); sources.Clear();
+                using var stop = _indexedLifetime.Token.Register(session.Stop);
+                await session.Completion.WaitAsync(TimeSpan.FromMinutes(3));
+                snapshot = session.Snapshot();
+                var acquired = await window.AddAcquiredSessionAsync(session, cancellation: _indexedLifetime.Token);
+                model = acquired.Memory ?? throw new InvalidDataException("The unavailable scratch acquisition did not select its memory view.");
+                if (acquired.Indexed is not null) throw new InvalidDataException("The unavailable scratch acquisition unexpectedly selected an indexed view.");
+                _models.Add(model);
+                await _indexedAcquisition.DisposeAsync(); _indexedAcquisition = null;
             }
             AnalysisValidation.Validate(snapshot, _indexedLifetime.Token);
             _memoryProbeStage = "source-complete";
@@ -90,6 +90,8 @@ internal sealed partial class HarnessApp
                 throw new InvalidDataException("The native memory view did not preserve its scope, continuity and storage explanation.");
             if (Hash(services.Paths.AnalysisPrivateStateFile) != stateHash || Hash(neighbor) != neighborHash || Directory.Exists(services.Paths.AnalysisScratchDirectory))
                 throw new IOException("The generated private state or unavailable scratch location changed.");
+            if (Program.MemoryLifecycleProbe)
+            { _memoryProbeStage = "native-session-lifetime"; ObserveView(); await ViewLifetimeProbeAsync(snapshot); }
             _memoryProbeStage = "capture"; ObserveView();
             await Task.Delay(300); window.UpdateLayout();
             // Render only this actual native process's own FileCat visual tree. No screen API,
@@ -104,7 +106,7 @@ internal sealed partial class HarnessApp
                 matchingPaths = model.Tree!.Projection.Totals.MatchingPaths, queryMatches,
                 unavailableRoots = snapshot.Roots.Count(r => r.Disposition == AnalysisRootDisposition.UnavailablePrivateBoundary),
                 privateNamesObserved = false, sourceCloseFailures = model.SourceCloseFailures, acquisitionOwnerClosed = !Program.MemoryLifecycleProbe,
-                publicStartLifecycle = Program.MemoryLifecycleProbe,
+                publicStartLifecycle = Program.MemoryLifecycleProbe, processWideSessionCapAndActualProjectionCloseVerified = Program.MemoryLifecycleProbe,
                 stateUnchanged = Hash(services.Paths.AnalysisPrivateStateFile) == stateHash, neighborUnchanged = Hash(neighbor) == neighborHash,
                 privateStateSha256 = stateHash, neighborSha256 = neighborHash, privateStateFile = services.Paths.AnalysisPrivateStateFile,
                 neighborFile = neighbor, scratch = services.Paths.AnalysisScratchDirectory, scratchCreated = false,

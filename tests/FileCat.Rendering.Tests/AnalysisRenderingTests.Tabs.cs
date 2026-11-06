@@ -18,7 +18,7 @@ namespace FileCat.Rendering.Tests;
 public sealed partial class AnalysisRenderingTests
 {
     [AvaloniaFact]
-    public void AllEightTabsStayReachableAtNarrowWidthAndLargeTextInEveryTheme()
+    public async Task AllEightTabsStayReachableAtNarrowWidthAndLargeTextInEveryTheme()
     {
         using var styles = new ProductStyles();
         foreach (string theme in new[] { "Classic", "ClassicDark", "Cyberpunk", "Steampunk", "Psychedelic", "DosCommander", "HighContrast" })
@@ -57,7 +57,7 @@ public sealed partial class AnalysisRenderingTests
                 window.KeyRelease(Key.Left, RawInputModifiers.None, PhysicalKey.ArrowLeft, null);
                 Dispatcher.UIThread.RunJobs(); Assert.Equal(AnalysisLimits.Sessions - 2, tabs.SelectedIndex);
             }
-            finally { window.ForceClose(); }
+            finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
         }
     }
 }

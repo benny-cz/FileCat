@@ -14,7 +14,7 @@ namespace FileCat.Rendering.Tests;
 public sealed partial class AnalysisRenderingTests
 {
     [AvaloniaFact]
-    public void ReadySetupKeepsStartVisibleWithLargeTextAndEightNarrowTabsWithoutBindingSources()
+    public async Task ReadySetupKeepsStartVisibleWithLargeTextAndEightNarrowTabsWithoutBindingSources()
     {
         OrdinaryPreparation(); using var fixture = new PreparationFixture(); using var styles = new ProductStyles();
         ThemeManager.Apply("ClassicDark"); int bindings = 0;
@@ -34,11 +34,11 @@ public sealed partial class AnalysisRenderingTests
             Assert.Contains(window.GetVisualDescendants().OfType<Button>(), b => b.IsEffectivelyVisible && b.Content as string == "Open saved…");
             Assert.Equal(0, bindings);
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaFact]
-    public void RemovingAndAddingLocationsKeepsAccessibleEditorAndRemoveNamesUnique()
+    public async Task RemovingAndAddingLocationsKeepsAccessibleEditorAndRemoveNamesUnique()
     {
         OrdinaryPreparation(); using var fixture = new PreparationFixture(); using var styles = new ProductStyles();
         using var model = new DiskSpaceViewModel(fixture.Services); var window = new DiskSpaceWindow();
@@ -59,6 +59,6 @@ public sealed partial class AnalysisRenderingTests
             var removes = window.GetVisualDescendants().OfType<Button>().Where(b => b.Content as string == "Remove").ToArray();
             Assert.Equal(3, removes.Length); Assert.Equal(3, removes.Select(AutomationProperties.GetName).Distinct().Count());
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 }

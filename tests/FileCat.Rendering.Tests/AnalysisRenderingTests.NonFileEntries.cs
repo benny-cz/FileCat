@@ -58,7 +58,7 @@ public sealed partial class AnalysisRenderingTests
                 model.Focus("n:7"); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
                 Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), c => c.Text?.Contains("target was not followed or measured", StringComparison.Ordinal) == true);
             }
-            finally { window.ForceClose(); }
+            finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
         }
     }
 }

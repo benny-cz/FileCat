@@ -107,6 +107,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         if (_disposed || Comparison is not null) return;
         if (_building) { if (force) { _rebuildRequested = true; _projectionCancel?.Cancel(); } return; }
         if (!force && !Dirty && Tree is not null) return;
+        using var actualWork = _actualWork.Enter();
         _building = true; Dirty = false;
         int generation = ++_generation;
         _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _projectionCancel = new();
@@ -234,7 +235,8 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         if (!tree.Items.ContainsKey(scope) && !scope.StartsWith("other:", StringComparison.Ordinal))
         { SetStatus("That captured location is no longer present in this revision."); return; }
         // Navigation can outlive the tab while its actual CPU worker unwinds cancellation.
-        using var retained = _lease?.Retain();
+        AnalysisSnapshotLease? retained = null;
+        IDisposable? actualWork = null;
         var cancellation = new CancellationTokenSource(); _rowOrderCancel = cancellation;
         AnalysisOrderedRows? order = null;
         // Keep chart/table/breadcrumb/history on one published scope until actual admission
@@ -242,6 +244,8 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         Interaction(true);
         try
         {
+            actualWork = _actualWork.Enter();
+            retained = _lease?.Retain();
             while (true)
             {
                 order = await Task.Run(() => _orderRows(tree.ChildrenOf(scope), sort, descending, cancellation.Token), cancellation.Token);
@@ -254,12 +258,14 @@ public sealed partial class DiskSpaceViewModel : IDisposable
             try { SetStatus("Viewing captured location: " + AnalysisNames.Display(tree.NameOf(scope), 120) + "."); } finally { previous?.Dispose(); }
         }
         catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) when (_disposed) { }
         catch (Exception ex) when (ex is InvalidDataException or OverflowException or InvalidOperationException)
         { SetStatus("This scope could not be displayed: " + AnalysisNames.Display(ex.Message, 240)); }
         finally
         {
             order?.Dispose(); if (ReferenceEquals(_rowOrderCancel, cancellation)) _rowOrderCancel = null;
-            cancellation.Dispose(); Interaction(false);
+            try { cancellation.Dispose(); Interaction(false); }
+            finally { retained?.Dispose(); actualWork?.Dispose(); }
         }
     }
     public void ToggleFocusedMark() { if (Selection.Focus is { } key) Focus(key, toggleMark: true); }
@@ -351,6 +357,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     public void Dispose()
     {
         if (_disposed) return; _disposed = true; ++_generation;
+        var actualWork = _actualWork.CloseAsync();
         _preparationCancel?.Cancel();
         _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _session?.Stop(); _lease?.Dispose(); _pending?.Lease?.Dispose();
         _inventory?.Dispose();
@@ -359,7 +366,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         _rowOrderCancel?.Cancel(); _orderedRows?.Dispose(); _pending?.Order.Dispose();
         _rangeBaseline = _rangePublishedMarks = null; _rangeOrderOwner = null; _tableAnchor = null;
         Tree = null; Rows = []; _observation = null; _pending = null; Changed = null;
-        CloseCompletion = CloseAcquisitionAsync();
+        CloseCompletion = CloseAcquisitionAsync(actualWork);
     }
     private sealed class LatestProgress(IUiDispatcher ui, Action<AnalysisProgress> consume) : IProgress<AnalysisProgress>
     {

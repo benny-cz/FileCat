@@ -56,7 +56,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.Contains(window.GetVisualDescendants().OfType<ComboBox>(), c => c.IsEffectivelyVisible && c.SelectedItem as string == "Name");
             Assert.Contains(window.GetVisualDescendants().OfType<ComboBox>(), c => c.IsEffectivelyVisible && c.SelectedItem as string == "Ascending");
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaFact]
@@ -107,7 +107,7 @@ public sealed partial class AnalysisRenderingTests
             cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Task.Yield();
             Assert.False(Directory.Exists(fixture.Services.Paths.AnalysisSnapshotsDirectory));
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaFact]
@@ -132,7 +132,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.False(window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Pause").IsEnabled);
             Assert.False(window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Stop").IsEnabled);
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     private static AnalysisInventory ImportedFixture(AnalysisSnapshot? snapshot = null)
@@ -203,10 +203,11 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)); saving = model.SaveNewAsync("retained.fcdsa");
-            model.Dispose(); Assert.False(saving.IsCompleted);
+            model.Dispose(); Assert.False(saving.IsCompleted); Assert.False(model.CloseCompletion.IsCompleted);
         }
         finally { gate.Set(); await blocker.WaitAsync(TimeSpan.FromSeconds(10)); }
         var receipt = await saving!.WaitAsync(TimeSpan.FromSeconds(10));
+        await model.CloseCompletion.WaitAsync(TimeSpan.FromSeconds(10));
         using var opener = new DiskSpaceViewModel(fixture.Services);
         using var loaded = await opener.OpenSavedAsync(receipt.Name); await loaded.RebuildAsync(true);
         Assert.Equal(identity, loaded.Tree!.Snapshot.Identity);
@@ -231,6 +232,6 @@ public sealed partial class AnalysisRenderingTests
             cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Task.Yield();
             Assert.False(Directory.Exists(fixture.Services.Paths.AnalysisSnapshotsDirectory)); Assert.False(model.IsSaving);
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 }

@@ -16,6 +16,7 @@ public sealed partial class DiskSpaceViewModel
         AnalysisComparisonSide side, CancellationToken cancellation)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        using var actualWork = _actualWork.Enter();
         var comparison = Comparison ?? throw new InvalidOperationException("Choose a comparison before applying a comparison query.");
         using var before = _comparisonPrevious!.Retain(); using var current = _comparisonCurrent!.Retain();
         AnalysisComparisonResult.ReadLease? rows = comparison.Retain(); AnalysisComparisonQueryResult? result = null;
@@ -49,6 +50,8 @@ public sealed partial class DiskSpaceViewModel
     internal async Task<DiskSpaceViewModel> CompareSavedAsync(string name, AnalysisSavedEntry? entry,
         AnalysisSnapshotLease captured, AnalysisMetric metric, CancellationToken cancellation)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        using var actualWork = _actualWork.Enter();
         using var inputs = await PrepareComparisonAsync(name, entry, captured, metric, cancellation);
         return await inputs.BuildAsync(null, cancellation);
     }
@@ -57,6 +60,7 @@ public sealed partial class DiskSpaceViewModel
         AnalysisSnapshotLease captured, AnalysisMetric metric, CancellationToken cancellation)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        using var actualWork = _actualWork.Enter();
         if (!CanCompare) throw new InvalidOperationException("Choose a published inventory with private profile storage before comparing.");
         if (AnalysisAdmission.Refusal() is { } refusal) throw new InvalidOperationException(refusal);
         AnalysisPrivateInventoryStore.ValidateName(name);

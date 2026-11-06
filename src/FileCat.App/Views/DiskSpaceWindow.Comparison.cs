@@ -93,6 +93,7 @@ public sealed partial class DiskSpaceWindow
             async Task ApplyQuery()
             {
                 if (_disposed || !apply.IsEnabled) return;
+                using var actualWork = _actualWork.Enter();
                 _comparisonQueryCancel?.Cancel(); using var cancel = new CancellationTokenSource(); _comparisonQueryCancel = cancel;
                 int generation = ++_comparisonQueryGeneration; apply.IsEnabled = false;
                 string expression = query.Text ?? ""; bool caseSensitive = sensitive.IsChecked == true; var side = (AnalysisComparisonSide)querySide.SelectedIndex;
@@ -176,6 +177,8 @@ public sealed partial class DiskSpaceWindow
 
         private async Task InspectComparisonAsync()
         {
+            if (_disposed) return;
+            using var actualWork = _actualWork.Enter();
             if (_disposed || _window._dialogs.IsOpen || Model.Comparison is not { } comparison) return;
             if (_comparisonRows?.SelectedItem is not AnalysisComparisonRow row) { _comparisonRows?.Focus(); return; }
             var body = new StackPanel { Spacing = 8 };

@@ -73,7 +73,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal(2, window.SessionCount); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.IsEffectivelyVisible && t.Text?.Contains("Explicit structural comparison", StringComparison.Ordinal) == true);
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaFact]
@@ -99,7 +99,7 @@ public sealed partial class AnalysisRenderingTests
                     bitmap.Save(Path.Combine(output, $"{theme}-{width}.png"), new PngBitmapEncoderOptions());
                 }
             }
-            finally { window.ForceClose(); }
+            finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
         }
     }
 
@@ -142,7 +142,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal(1, window.SessionCount);
             using var next = await CompareStructurallyAsync(current, "before.fcdsa"); Assert.NotNull(next.Comparison);
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaFact]
@@ -203,7 +203,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.True(keep.IsDefault); Assert.True(keep.IsCancel); Assert.True(window.IsVisible);
             keep.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaFact]
@@ -222,7 +222,7 @@ public sealed partial class AnalysisRenderingTests
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Cancel" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs(); Assert.Equal(1, window.SessionCount); Assert.False(Directory.Exists(fixture.Services.Paths.AnalysisSnapshotsDirectory));
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaFact]

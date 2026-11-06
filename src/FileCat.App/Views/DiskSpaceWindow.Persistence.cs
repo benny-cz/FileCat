@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using FileCat.App.ViewModels;
+using FileCat.App.Services;
 using FileCat.Core.Analysis;
 
 namespace FileCat.App.Views;
@@ -22,6 +23,7 @@ public sealed partial class DiskSpaceWindow
         private async Task SaveAsync()
         {
             if (_disposed || _persistenceBusy || !Model.CanSave) return;
+            using var actualWork = _actualWork.Enter();
             _persistenceBusy = true; Model.Interaction(true); Refresh();
             try
             {
@@ -55,7 +57,10 @@ public sealed partial class DiskSpaceWindow
         {
             if (_disposed || _persistenceBusy || !Model.HasPrivateStorage) return;
             if (comparing && !Model.CanCompare) return;
-            if (_window.SessionCount >= AnalysisLimits.Sessions) { _window.ExplainSessionLimit(); return; }
+            using var actualWork = _actualWork.Enter();
+            if (!_window.CanAddSession) { _window.ExplainSessionLimit(); return; }
+            AnalysisSessionAdmission.Slot? destination = AnalysisSessionAdmission.Shared.Acquire();
+            var openingWork = new AnalysisViewWork();
             _persistenceBusy = true; Refresh();
             AnalysisCatalogSnapshot? catalogLease = null; bool closed = false;
             AnalysisSnapshotLease? captured = null; bool interaction = false; var metric = Model.Metric;
@@ -76,7 +81,9 @@ public sealed partial class DiskSpaceWindow
                 choices.SelectionChanged += (_, _) => { if (choices.SelectedItem is SavedChoice choice) name.Text = choice.Name; };
                 browse.Click += async (_, _) =>
                 {
-                    if (browsing || closed) return;
+                    if (_disposed || browsing || closed) return;
+                    using var actualBrowse = _actualWork.Enter();
+                    using var actualOpening = openingWork.Enter();
                     browsing = true; browse.IsEnabled = false; catalogStatus.Text = "Reading this profile's private catalog…";
                     try
                     {
@@ -125,12 +132,18 @@ public sealed partial class DiskSpaceWindow
                 }
                 else loaded = await WithInventoryProgress("Opening inventory", token => Model.OpenSavedAsync(name.Text!, selected, token));
                 if (_disposed || !_window.IsVisible) { loaded.Dispose(); return; }
-                if (_window.SessionCount >= AnalysisLimits.Sessions) { loaded.Dispose(); _window.ExplainSessionLimit(); return; }
-                try { _window.AddSession(loaded); } catch { loaded.Dispose(); throw; }
+                var admission = destination!; destination = null;
+                try { _window.AddReservedSession(loaded, [], admission); } catch { loaded.Dispose(); throw; }
             }
             catch (OperationCanceledException) { Model.SetStatus(comparing ? "Comparison canceled. No partial comparison was published." : "Opening the inventory was canceled."); }
             catch (Exception ex) when (InventoryError(ex)) { Model.SetStatus((comparing ? "Comparison unavailable: " : "Inventory was not opened: ") + AnalysisNames.Display(ex.Message, 400)); }
-            finally { closed = true; browseCancel.Cancel(); catalogLease?.Dispose(); captured?.Dispose(); if (interaction) Model.Interaction(false); _persistenceBusy = false; Refresh(); }
+            finally
+            {
+                closed = true; browseCancel.Cancel(); catalogLease?.Dispose(); captured?.Dispose();
+                if (interaction) Model.Interaction(false); _persistenceBusy = false; Refresh();
+                var actualOpening = openingWork.CloseAsync();
+                if (destination is not null) await destination.CloseAfterAsync(actualOpening); else await actualOpening;
+            }
         }
 
         private async Task<T> WithInventoryProgress<T>(string title, Func<CancellationToken, Task<T>> run)

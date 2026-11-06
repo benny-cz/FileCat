@@ -36,6 +36,7 @@ public sealed partial class DiskSpaceViewModel
     internal async Task<AnalysisInventoryReceipt> SaveNewAsync(string name, AnalysisSnapshotLease captured, CancellationToken cancellation)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        using var actualWork = _actualWork.Enter();
         if (!HasPrivateStorage || IsSaving) throw new InvalidOperationException("Private inventory storage is unavailable or already saving.");
         if (AnalysisAdmission.Refusal() is { } refusal) throw new InvalidOperationException(refusal);
         AnalysisPrivateInventoryStore.ValidateName(name);
@@ -79,6 +80,7 @@ public sealed partial class DiskSpaceViewModel
     public async Task<AnalysisCatalogSnapshot> ReadSavedCatalogAsync(CancellationToken cancellation = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        using var actualWork = _actualWork.Enter();
         if (!HasPrivateStorage) throw new InvalidOperationException("Private inventory storage is unavailable.");
         string path = _services!.Paths.AnalysisSnapshotsDirectory;
         return await RunPrivateIoAsync(path, token => { using var store = OpenPrivateStore(path); return new AnalysisSavedCatalog(store).Read(token); }, cancellation);
@@ -87,6 +89,7 @@ public sealed partial class DiskSpaceViewModel
     public async Task<DiskSpaceViewModel> OpenSavedAsync(string name, AnalysisSavedEntry? entry, CancellationToken cancellation = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        using var actualWork = _actualWork.Enter();
         if (!HasPrivateStorage) throw new InvalidOperationException("Private inventory storage is unavailable.");
         if (AnalysisAdmission.Refusal() is { } refusal) throw new InvalidOperationException(refusal);
         AnalysisPrivateInventoryStore.ValidateName(name);
