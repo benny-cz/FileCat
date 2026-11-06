@@ -38,6 +38,7 @@ for log in logs:
     assert host['parent'] > 1 and host['parentExited'] is False and host['parentExitEvent'] is False
     assert host['parentMonitorFailed'] is False and host['stopReason'] == 'none'
     assert host['stopRequested'] is False and host['stopCompleted'] is False and host['stopError'] == ''
+    assert host['serialPorts'] == 3 and all(host[key] is False for key in ('cancellationRequested', 'cancellationSent', 'cancellationMalformed'))
     assert all(host[key] == '' for key in ('guestError', 'startError', 'validationError'))
     assert all(host[key] == 0 for key in ('balloonDevices', 'networkDevices', 'storageDevices'))
     assert host['pid'] not in seen

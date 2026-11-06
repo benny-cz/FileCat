@@ -7,5 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../../../src/FileCat.Archives/FileCat.Archives.csproj" />
+    <!-- Reuse the actual bounded transport without broadening Core's production friend/API surface. -->
+    <Compile Include="../../../../src/FileCat.Core/Archives/ArchiveWorkerTransport.cs" Link="ArchiveWorkerTransport.cs" />
   </ItemGroup>
 </Project>

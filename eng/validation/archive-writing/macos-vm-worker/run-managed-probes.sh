@@ -42,6 +42,8 @@ for name in ('macos-vm', 'macos-vm-worker'):
         if source.is_file() and source.suffix in ('.py', '.S', '.m', '.plist', '.cs', '.csproj', '.inc', '.sh', '.md'):
             shutil.copyfile(source, target / source.name)
 PY
+mkdir "$results/sources/production"
+cp src/FileCat.Core/Archives/ArchiveWorkerTransport.cs "$results/sources/production/ArchiveWorkerTransport.cs"
 project=eng/validation/archive-writing/macos-vm-worker/FileCat.ArchiveVmProbe.csproj
 "$dotnet" --info > "$results/dotnet.txt"
 "$dotnet" publish "$project" -c Release -r linux-musl-arm64 --self-contained true -o "$results/guest-publish" -p:FileCatUpdateDependencyLocks=true -p:RuntimeIdentifiers=linux-musl-arm64 -p:RuntimeFrameworkVersion=10.0.12 -p:NuGetAudit=false --disable-build-servers -v minimal > "$results/guest-build.log" 2>&1
@@ -56,3 +58,6 @@ codesign --force --sign - --identifier io.filecat.archive-linux-vm-worker --enti
 "$dotnet" "$results/host-publish/FileCat.ArchiveVmProbe.dll" host "$results/FileCat.ArchiveLinuxVmWorker" "$results/input/kernel.Image" "$results/input/initrd-worker.cpio" "$results/results" > "$results/host-run.log" 2>&1
 python3 eng/validation/archive-writing/macos-vm-worker/verify-worker-run.py --root "$results" > "$results/oracle.log"
 python3 eng/validation/archive-writing/macos-vm-worker/verify-parent-death.py --native "$results/FileCat.ArchiveLinuxVmWorker" --kernel "$results/input/kernel.Image" --initrd "$results/input/initrd-worker.cpio" --output "$results/parent-death" > "$results/parent-death.log"
+"$dotnet" "$results/host-publish/FileCat.ArchiveVmProbe.dll" cancel-host "$results/FileCat.ArchiveLinuxVmWorker" "$results/input/kernel.Image" "$results/input/initrd-worker.cpio" "$results/cancellation" > "$results/cancellation.log" 2>&1
+python3 eng/validation/archive-writing/macos-vm-worker/verify-cancellation.py --root "$results" > "$results/cancellation-oracle.log"
+python3 eng/validation/archive-writing/macos-vm-worker/verify-helper-death.py --native "$results/FileCat.ArchiveLinuxVmWorker" --kernel "$results/input/kernel.Image" --initrd "$results/input/initrd-worker.cpio" --output "$results/helper-death" > "$results/helper-death.log"

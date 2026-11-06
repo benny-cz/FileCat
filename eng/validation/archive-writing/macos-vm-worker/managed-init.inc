@@ -71,6 +71,33 @@ managed_worker:
     mov x0, x20
     mov x8, #57
     svc #0
+    mov x0, #-100
+    adr x1, managed_cancel_tty
+    mov x2, #0x100
+    mov x8, #56
+    svc #0
+    cmp x0, #3
+    b.ne fatal
+    mov x20, x0
+    mov x1, #0x5401
+    add x2, x19, #256
+    mov x8, #29
+    svc #0
+    cmp x0, #0
+    b.lt fatal
+    str wzr, [x19, #256]
+    str wzr, [x19, #260]
+    str wzr, [x19, #268]
+    strb wzr, [x19, #278]
+    mov w9, #1
+    strb w9, [x19, #279]
+    mov x0, x20
+    mov x1, #0x5402
+    add x2, x19, #256
+    mov x8, #29
+    svc #0
+    cmp x0, #0
+    b.lt fatal
     adr x0, managed_executable
     str x0, [x19, #512]
     adr x9, managed_argument
@@ -87,6 +114,7 @@ managed_worker:
     svc #0
     b fatal
 managed_tty: .asciz "/dev/hvc1"
+managed_cancel_tty: .asciz "/dev/hvc2"
 managed_executable: .asciz "/worker/FileCat.ArchiveVmProbe"
 managed_argument: .asciz "guest"
 managed_invariant: .asciz "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1"

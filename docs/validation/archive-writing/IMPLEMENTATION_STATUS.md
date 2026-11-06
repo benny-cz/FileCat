@@ -267,6 +267,15 @@ eight invalid-parent cases refuse before VM setup. Active guests reach state zer
 all direct parents are reaped and all helpers disappear after adopter reaping. This qualifies that private experiment's
 observed lifetime mechanism, not the production backend or complete package/resource/cancellation gates.
 
+The [dedicated cancellation/helper-death follow-up](MACOS_VM_CANCELLATION.md) adds a verified inherited FIFO and third
+raw serial channel, reusing Core's bounded transport with the guest token. Four live cancellation cases pass: actual
+assessment/session cancellation and blocked input exit cooperatively in 29–59 ms, while full output and a spinning
+guest complete explicit VM stops in about 1.52 seconds. Ten bad descriptors refuse before setup. Twelve direct helper
+SIGTERM/SIGKILL cases also observe the newly created dedicated virtualization provider exiting/disappearing with all
+protocol/control pipes held open, including full unread output. The 16 healthy roles and 20 parent-death/8 invalid-parent
+cases regress successfully. Startup/release cancellation, the complete resource/confinement/package and guest-license
+gates remain open; no production backend is registered.
+
 ## Outstanding work
 
 The later [Linux worker checkpoint](LINUX_ARCHIVE_WORKER_CHECKPOINT.md) adds 41 cases. Its final native Ubuntu replay

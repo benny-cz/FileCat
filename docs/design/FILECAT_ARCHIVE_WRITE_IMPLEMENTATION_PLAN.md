@@ -868,6 +868,10 @@ Tasks:
    SIGKILL/SIGTERM parent-death cases with the observer retaining protocol pipes, plus eight invalid-parent refusals
    and the 16-role healthy regression. Complete dedicated cooperative cancellation, direct helper death and installed
    release qualification; do not treat this development mechanism as a registered production backend.
+   The [dedicated cancellation and helper-death experiment](../validation/archive-writing/MACOS_VM_CANCELLATION.md)
+   now passes actual-session/blocked-input cooperative exits, bounded VM stops for full output and a spinning guest,
+   ten invalid-descriptor refusals and twelve direct helper-death/provider-exit cases with pipes retained. Complete
+   startup/release cancellation and the remaining resource/confinement/package gates before production admission.
 4. Implement/measure local create-no-replace and reviewed replacement capability probes with held directories and identity-aware retention. Include object-bound cleanup and durability distinctions.
 5. Provide typed reason codes for unavailable safe-save support. No codec may fall back to an unbounded/in-process transform if startup/policy fails.
 

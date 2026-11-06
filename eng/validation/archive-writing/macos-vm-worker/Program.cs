@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -22,8 +23,8 @@ if (args is ["guest"])
     using var diagnostics = new FileStream(new SafeFileHandle((nint)2, ownsHandle: false), FileAccess.Write);
     diagnostics.Write(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { guestWorker = true, uid = Native.getuid(), runtime = Environment.Version.ToString(), memoryLimit = 1073741824, limitRaiseDenied = denied }) + "\n"));
     diagnostics.Flush();
-    using var input = new FileStream(new SafeFileHandle((nint)0, ownsHandle: false), FileAccess.Read);
-    using var output = new FileStream(new SafeFileHandle((nint)1, ownsHandle: false), FileAccess.Write);
+    return GuestCancellation.Run(diagnostics, (input, output, ct) =>
+    {
     output.Write("FCVMRDY1"u8); output.Flush();
     byte[] header = new byte[32]; input.ReadExactly(header);
     if (!header.AsSpan(0, 8).SequenceEqual("FCVMIPC1"u8) || header.AsSpan(25).IndexOfAnyExcept((byte)0) >= 0) return 64;
@@ -31,12 +32,14 @@ if (args is ["guest"])
     if (nonce == Guid.Empty) return 64;
     return header[24] switch
     {
-        1 => ArchiveAssessmentWorker.RunAfterIsolation(input, output, nonce),
-        2 => ArchiveTransformWorker.RunAfterIsolation(input, output, nonce),
-        3 => ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, nonce),
+        1 => ArchiveAssessmentWorker.RunAfterIsolation(input, output, nonce, ct),
+        2 => ArchiveTransformWorker.RunAfterIsolation(input, output, nonce, ct),
+        3 => ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, nonce, ct),
         4 => SpinProbe(output),
+        5 => FloodProbe(output, ct),
         _ => 64
     };
+    });
 }
 static int SpinProbe(Stream output)
 {
@@ -44,6 +47,14 @@ static int SpinProbe(Stream output)
     // Controlled adversarial lifetime probe: no protocol reads or EOF-based exit after this marker.
     while (true) Thread.SpinWait(100000);
 }
+static int FloodProbe(Stream output, CancellationToken ct)
+{
+    output.Write("FCVMFLOD"u8); output.Flush();
+    byte[] bytes = new byte[65524];
+    while (true) { ct.ThrowIfCancellationRequested(); output.Write(bytes); }
+}
+if (args is ["cancel-host", var cancelNative, var cancelKernel, var cancelInitrd, var cancelResults] && OperatingSystem.IsMacOS())
+    return await CancellationProbes.Run(cancelNative, cancelKernel, cancelInitrd, cancelResults);
 if (args is not ["host", var native, var kernel, var initrd, var results] || !OperatingSystem.IsMacOS()) return 64;
 Directory.CreateDirectory(results);
 using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(5));
@@ -108,6 +119,7 @@ sealed class VmProcess : IArchiveWorkerProcess
     readonly Process process;
     readonly Task diagnostics;
     bool overflow;
+    AnonymousPipeServerStream? cancellation;
     TimeSpan cpu;
     uint exit;
     public bool Reaped { get; private set; }
@@ -136,8 +148,14 @@ sealed class VmProcess : IArchiveWorkerProcess
         var start = new ProcessStartInfo(native) { RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
         start.ArgumentList.Add(kernel); start.ArgumentList.Add(initrd); start.ArgumentList.Add("1536");
         start.ArgumentList.Add(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        try { process = Process.Start(start) ?? throw new IOException("VM helper did not start."); }
-        catch { trace.Dispose(); diagnosticFile.Dispose(); throw; }
+        try
+        {
+            cancellation = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
+            start.ArgumentList.Add(cancellation.GetClientHandleAsString());
+            process = Process.Start(start) ?? throw new IOException("VM helper did not start.");
+            cancellation.DisposeLocalCopyOfClientHandle();
+        }
+        catch { trace.Dispose(); diagnosticFile.Dispose(); cancellation?.Dispose(); throw; }
         Id = process.Id;
         Input = process.StandardInput.BaseStream; Output = new PrefixTrace(process.StandardOutput.BaseStream, trace);
         diagnostics = Task.Run(async () =>
@@ -177,6 +195,7 @@ sealed class VmProcess : IArchiveWorkerProcess
         }
     }
     public bool ErrorLimitExceeded => Volatile.Read(ref overflow);
+    public void RequestCancellation() => Interlocked.Exchange(ref cancellation, null)?.Dispose();
     public void Kill()
     {
         if (Reaped) return;
@@ -189,6 +208,7 @@ sealed class VmProcess : IArchiveWorkerProcess
         try { Kill(); await process.WaitForExitAsync(); await diagnostics; }
         finally
         {
+            RequestCancellation();
             if (process.HasExited) { exit = unchecked((uint)process.ExitCode); Reaped = true; }
             Input.Dispose(); Output.Dispose(); process.Dispose();
         }

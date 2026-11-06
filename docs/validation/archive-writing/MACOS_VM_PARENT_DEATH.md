@@ -93,3 +93,7 @@ Every hash/length is verified after transfer into the private worktree's ignored
 `.tmp/test-results/archive-writing/macos-vm-parent-v1`. All **16 code snapshots** match the final implementation. The two
 captured READMEs remain as they were at startup; this report and the post-run README clarification distinguish the newly
 tested parent guard from the still-unqualified direct-helper-death/cancellation path.
+
+The subsequent [dedicated cancellation checkpoint](MACOS_VM_CANCELLATION.md) implements the separate channel and
+tests cooperative and bounded forced stops plus direct helper-death/provider teardown. Startup/release and full
+resource/confinement/package qualification remain open.

@@ -76,6 +76,10 @@ while its observer keeps both protocol pipes open, plus eight invalid-parent ref
 zero are required for active cases. This is development lifetime evidence; direct helper death, cooperative cancellation
 and full release qualification remain open. See the [parent-death report](../../../docs/validation/archive-writing/MACOS_VM_PARENT_DEATH.md).
 
+The [cancellation follow-up](../../../docs/validation/archive-writing/MACOS_VM_CANCELLATION.md) adds a dedicated inherited
+pipe and third guest serial channel, actual session/blocked-IO/CPU cancellation probes, strict descriptor refusals and
+direct helper-death checks against the dedicated virtualization provider. Startup/release and full resource gates remain open.
+
 The observed Mac's matching compiler is `/Library/Developer/CommandLineTools/usr/bin/clang` (21.0.0) and its sysroot is
 `/Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk`. Use these explicitly rather than changing global `xcode-select`.
 In an owned fixture, arrange `probe.app/Contents/MacOS/archive-probe`, copy `mac-probe-info.plist` as `Contents/Info.plist`,

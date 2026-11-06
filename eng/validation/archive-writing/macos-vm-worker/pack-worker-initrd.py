@@ -29,6 +29,7 @@ for directory in ('dev', 'proc', 'sys', 'sys/fs', 'sys/fs/cgroup', 'lib', 'usr',
     add(directory, stat.S_IFDIR | (0o1777 if directory == 'tmp' else 0o755))
 add('dev/console', stat.S_IFCHR | 0o600, major=5, minor=1)
 add('dev/hvc1', stat.S_IFCHR | 0o666, major=229, minor=1)
+add('dev/hvc2', stat.S_IFCHR | 0o444, major=229, minor=2)
 add('dev/null', stat.S_IFCHR | 0o666, major=1, minor=3)
 add('dev/urandom', stat.S_IFCHR | 0o444, major=1, minor=9)
 add('dev/random', stat.S_IFCHR | 0o444, major=1, minor=8)

@@ -13,15 +13,16 @@ import time
 import uuid
 
 if len(sys.argv) > 1 and sys.argv[1] == '--gated-exec':
-    parent, native, kernel, initrd = sys.argv[2:]
+    parent, native, kernel, initrd, cancellation = sys.argv[2:]
     if os.read(0, 1) != b'X': raise SystemExit(64)
-    os.execv(native, [native, kernel, initrd, '1536', parent])
+    os.execv(native, [native, kernel, initrd, '1536', parent, cancellation])
 if len(sys.argv) > 1 and sys.argv[1] == '--launcher':
-    native, kernel, initrd, control, mode = sys.argv[2:]
-    command = [native, kernel, initrd, '1536', str(os.getpid())]
+    native, kernel, initrd, control, mode, cancellation = sys.argv[2:]
+    command = [native, kernel, initrd, '1536', str(os.getpid()), cancellation]
     if mode == 'before-exec':
-        command = [sys.executable, __file__, '--gated-exec', str(os.getpid()), native, kernel, initrd]
-    child = subprocess.Popen(command, stdin=0, stdout=1, stderr=2, close_fds=True)
+        command = [sys.executable, __file__, '--gated-exec', str(os.getpid()), native, kernel, initrd, cancellation]
+    child = subprocess.Popen(command, stdin=0, stdout=1, stderr=2, close_fds=True, pass_fds=(int(cancellation),))
+    os.close(int(cancellation))
     os.write(int(control), (json.dumps(dict(parent=os.getpid(), child=child.pid)) + '\n').encode())
     os.close(int(control))
     while True: signal.pause()
@@ -69,14 +70,16 @@ def probe(mode, death_signal, index):
     idle()
     path = args.output / f'{index:02}-{mode}-{death_signal}.log'
     control_read, control_write = os.pipe()
+    cancellation_read, cancellation_write = os.pipe()
     child_pid = None
     watcher = None
     with path.open('xb') as log:
         try:
-            parent = subprocess.Popen([sys.executable, __file__, '--launcher', str(args.native), str(args.kernel), str(args.initrd), str(control_write), mode],
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=log, pass_fds=(control_write,), start_new_session=True)
+            parent = subprocess.Popen([sys.executable, __file__, '--launcher', str(args.native), str(args.kernel), str(args.initrd), str(control_write), mode, str(cancellation_read)],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=log, pass_fds=(control_write, cancellation_read), start_new_session=True)
         finally:
             os.close(control_write)
+            os.close(cancellation_read)
         try:
             message = bytearray()
             while not message.endswith(b'\n'):
@@ -136,6 +139,7 @@ def probe(mode, death_signal, index):
                 assert host['parentExited'] is True and host['parentMonitorFailed'] is False and host['stopReason'] == 'parent'
                 assert host['state'] == 0 and host['stopError'] == host['startError'] == host['validationError'] == host['guestError'] == ''
                 assert host['valid'] is True
+                assert host['cancellationRequested'] is False and host['cancellationSent'] is False and host['cancellationMalformed'] is False
                 if mode in ('blocked', 'busy'):
                     assert host['started'] is True and host['stopRequested'] is True and host['stopCompleted'] is True and host['forcedStop'] is True
                     assert 'FILECAT_WAIT_STATUS=' not in text and 'FILECAT_GUEST_FINISHED' not in text
@@ -155,12 +159,17 @@ def probe(mode, death_signal, index):
                 else:
                     raise AssertionError('Unexpected process identity; retained diagnostics and did not signal it.')
             parent.stdin.close(); parent.stdout.close()
+            os.close(cancellation_write)
 
 idle()
 malformed = []
 for value, expected in [('1', 64), ('0', 64), ('-2', 64), ('+2', 64), ('02', 64), ('2147483648', 64), ('not-a-pid', 64),
                         (str(os.getppid()), 65)]:
-    result = subprocess.run([str(args.native), str(args.kernel), str(args.initrd), '1536', value], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
+    reader, writer = os.pipe()
+    try:
+        result = subprocess.run([str(args.native), str(args.kernel), str(args.initrd), '1536', value, str(reader)], pass_fds=(reader,), stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
+    finally:
+        os.close(reader); os.close(writer)
     assert result.returncode == expected and not result.stdout and not result.stderr
     malformed.append(dict(argument=value, exit=expected))
 results = []

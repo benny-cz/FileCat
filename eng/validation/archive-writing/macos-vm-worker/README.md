@@ -21,15 +21,26 @@ only the first 512 protocol bytes are retained for diagnosis. No network/storage
 The guest cgroup ceiling, 1536 MiB guest physical RAM and host-helper memory are different quantities. Initramfs/runtime
 file pages populated before the child are not all charged to that child's cgroup. The small healthy memory peaks
 therefore do not establish a whole-process footprint or the full guest/host budget. Aggregate host/VM CPU accounting,
-cooperative cancellation, direct helper death, hostile assets/IPC, large/hostile workloads, setup races,
-signing/distribution, startup/UX costs and the complete resource envelope remain unqualified. The prototype's cancellation
-fallback kills the native helper; its resulting VM teardown is not yet qualified. Healthy tests complete no full AW packet.
+startup/release cancellation, hostile assets/IPC, large/hostile workloads, setup races,
+signing/distribution, startup/UX costs and the complete resource envelope remain unqualified. Healthy tests complete no full AW packet.
 
 The native development host now requires its actual parent PID, registers a synchronous `kqueue` process-exit watch
 before VM setup, checks parent identity again and polls both the kernel event and parent relation. Parent death stops
 the VM through the public stop API with bounded start/stop waits and an observed stopped state. Startup/stop deadlines
-use the monotonic clock. This closes a prototype lifetime gap; installed signing/entitlement modes, dedicated cooperative
-cancellation, direct helper death and full resource/process-denial qualification remain open.
+use the monotonic clock. Installed signing/entitlement modes and full resource/process-denial qualification remain open.
+
+The parent now owns a dedicated inherited anonymous-pipe writer. Closing it requests cancellation without writing
+archive protocol bytes. The native host verifies an inherited read-only FIFO, polls EOF separately and relays one
+byte through a third raw serial port. Guest init supplies only fixed read-only fd 3. The guest reuses Core's actual
+bounded transport source with its cancellation token, without adding a production API/friend. A real assessment
+session and blocked-input case exit cooperatively; full output can require the bounded hard fallback. A guest that
+ignores cancellation is stopped through the VM API after 1.5 seconds, leaving margin before Core's two-second kill.
+
+Four cancellation cases and ten invalid-descriptor refusals are verified independently. Twelve direct SIGTERM/SIGKILL
+helper-death cases cover blocked input, a spinning guest and full unread output. The observer holds protocol/control
+pipes open, identifies the uniquely created same-UID dedicated virtualization provider and requires its kernel exit
+and disappearance after helper death. It never signals that provider or a baseline VM. These measured development
+cases support the hard-stop fallback; they do not qualify every release/package/startup state or the full backend.
 
 The runner also performs 8 invalid-parent cases and 20 owned-parent SIGKILL/SIGTERM cases: before native exec, after
 guard setup, with a guest blocked waiting for a request, and with a guest spinning without protocol reads. Its observer
@@ -69,3 +80,6 @@ owned ELF/initramfs, per-role diagnostics/protocol prefixes, stages, expected pa
 `verified.json`. Successful reports explicitly retain `production_backend_qualified: false`.
 `parent-death/facts.json` records every forced-death case, signal, exact parent/helper identity, kernel exit status,
 VM outcome and elapsed time. The observer never signals another tester and the idle census runs between cases.
+`cancellation/facts.json`, `cancellation/verified.json` and `helper-death/facts.json` retain cooperative versus forced
+outcomes, actual session cancellation/reaping, descriptor refusals, dedicated provider identities/exit events and
+unread-output byte counts. The final runner includes each check; every production qualification flag remains false.
