@@ -59,18 +59,25 @@ public sealed class AnalysisPrivateInventoryStore(AnalysisPrivateDirectory direc
         lock (_gate)
         {
             Guard(); cancellation.ThrowIfCancellationRequested();
-            using var file = directory.CreateStaging();
-            using var stream = new GuardedWriteStream(file.Stream, () => { Guard(); file.Verify(); }, directory.Space, cancellation);
-            using (var buffered = new BufferedStream(stream, 64 * 1024))
+            bool published = false;
+            try
             {
-                write(buffered);
-                buffered.Flush();
+                var file = directory.CreateStaging(); using var close = new AnalysisWorkerClose(file);
+                using var stream = new GuardedWriteStream(file.Stream, () => { Guard(); file.Verify(); }, directory.Space, cancellation);
+                using (var buffered = new BufferedStream(stream, 64 * 1024))
+                {
+                    write(buffered);
+                    buffered.Flush();
+                }
+                cancellation.ThrowIfCancellationRequested(); Guard(); file.Verify();
+                file.Flush();
+                cancellation.ThrowIfCancellationRequested(); Guard(); file.Verify();
+                try { file.PublishNew(name); published = true; }
+                catch (AnalysisPublicationUncertainException) { published = true; throw; }
+                return stream.Written;
             }
-            cancellation.ThrowIfCancellationRequested(); Guard(); file.Verify();
-            file.Flush();
-            cancellation.ThrowIfCancellationRequested(); Guard(); file.Verify();
-            file.PublishNew(name);
-            return stream.Written;
+            catch (AnalysisPublicationUncertainException) { throw; }
+            catch (Exception error) when (published) { throw new AnalysisPublicationUncertainException(name, error); }
         }
     }
 
@@ -85,9 +92,9 @@ public sealed class AnalysisPrivateInventoryStore(AnalysisPrivateDirectory direc
             ValidateName(name); store.Guard(); cancellation.ThrowIfCancellationRequested();
             var file = directory.CreateStaging();
             try { return new(store, file, name, cancellation, directory.Space); }
-            catch { file.Dispose(); throw; }
+            catch { AnalysisIo.CloseOnWorker(file); throw; }
         }
-        catch { store.Dispose(); throw; }
+        catch { AnalysisIo.CloseOnWorker(store); throw; }
     }
     internal sealed class DatasetWrite : IAnalysisScratchOwned
     {
@@ -141,7 +148,7 @@ public sealed class AnalysisPrivateInventoryStore(AnalysisPrivateDirectory direc
         lock (_gate)
         {
             Guard(); cancellation.ThrowIfCancellationRequested();
-            using var file = directory.OpenRead(name); file.Verify();
+            var file = directory.OpenRead(name); using var close = new AnalysisWorkerClose(file); file.Verify();
             if (file.Stream.Length < 1 || file.Stream.Length > maximum) throw new InvalidDataException("Private analysis metadata exceeds its size limit.");
             using var source = new GuardedReadStream(file.Stream, () => { Guard(); file.Verify(); }, cancellation);
             using var result = new MemoryStream(); byte[] buffer = new byte[64 * 1024];
@@ -166,10 +173,15 @@ public sealed class AnalysisPrivateInventoryStore(AnalysisPrivateDirectory direc
         lock (_gate)
         {
             Guard(); cancellation.ThrowIfCancellationRequested();
-            using var file = directory.OpenRead(name);
-            file.Verify();
-            using var stream = new GuardedReadStream(file.Stream, () => { Guard(); file.Verify(); }, cancellation);
-            return AnalysisInventoryFormat.Read(stream, cancellation);
+            AnalysisInventory? loaded = null;
+            try
+            {
+                var file = directory.OpenRead(name); using var close = new AnalysisWorkerClose(file);
+                file.Verify();
+                using var stream = new GuardedReadStream(file.Stream, () => { Guard(); file.Verify(); }, cancellation);
+                return loaded = AnalysisInventoryFormat.Read(stream, cancellation);
+            }
+            catch { loaded?.Dispose(); throw; }
         }
     }
 
@@ -188,9 +200,9 @@ public sealed class AnalysisPrivateInventoryStore(AnalysisPrivateDirectory direc
                 if (file.Stream.Length is < 0 or > AnalysisLimits.InventoryBytes) throw new InvalidDataException("Inventory exceeds 8 GiB.");
                 return new(store, file, cancellation);
             }
-            catch { file.Dispose(); throw; }
+            catch { AnalysisIo.CloseOnWorker(file); throw; }
         }
-        catch { store.Dispose(); throw; }
+        catch { AnalysisIo.CloseOnWorker(store); throw; }
     }
     internal sealed class DatasetRead : IAnalysisScratchOwned
     {
@@ -232,7 +244,7 @@ public sealed class AnalysisPrivateInventoryStore(AnalysisPrivateDirectory direc
 
     public void Dispose()
     {
-        lock (_gate) { if (_disposed) return; _disposed = true; if (!leaveOpen) directory.Dispose(); }
+        lock (_gate) { if (_disposed) return; _disposed = true; if (!leaveOpen) AnalysisIo.CloseOnWorker(directory); }
     }
 
     internal static UInt128 RequiredReserve(UInt128 capacity) =>

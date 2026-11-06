@@ -24,13 +24,14 @@ public sealed partial class DiskSpaceWindow
         AnalysisFilterRequest? filter = null, CancellationToken cancellation = default) =>
         AddPreparedIndexedSessionAsync(token => source.RetainAsync(token), metric, filter, null, cancellation);
 
-    private async Task<AnalysisDatasetExplorer> AddPreparedIndexedSessionAsync(Func<CancellationToken, Task<AnalysisDatasetLease>> prepareSource,
+    internal async Task<AnalysisDatasetExplorer> AddPreparedIndexedSessionAsync(Func<CancellationToken, Task<AnalysisDatasetLease>> prepareSource,
         AnalysisMetric metric, AnalysisFilterRequest? filter, AnalysisSavedView? saved, CancellationToken cancellation)
     {
         Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
-        AnalysisSessionAdmission.Slot? admission = AnalysisSessionAdmission.Shared.Acquire();
+        AnalysisSessionAdmission.Slot? admission = _admissionPool.Acquire();
         if (_pendingIndexed++ == 0) _indexedIdle = new(TaskCreationOptions.RunContinuationsAsynchronously);
         AnalysisDatasetLease? retained = null; AnalysisDatasetExplorer? explorer = null;
+        Exception? unconfirmed = null;
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _indexedLifetime.Token);
         try
         {
@@ -56,19 +57,32 @@ public sealed partial class DiskSpaceWindow
             catch { retained = null; explorer = null; admission = null; view.Dispose(); throw; }
             retained = null; admission = null; var result = explorer; explorer = null; return result;
         }
+        catch (Exception error) when (AnalysisCloseUnconfirmedException.IsPresent(error)) { unconfirmed = error; throw; }
         finally
         {
             try
             {
                 Task close = ClosePreparedAsync();
-                if (admission is not null) await admission.CloseAfterAsync(close); else await close;
+                try { if (admission is not null) await admission.CloseAfterAsync(close); else await close; }
+                catch (Exception error) when (AnalysisCloseUnconfirmedException.IsPresent(error)) { RecordIndexedCloseFailure(error); throw; }
             }
             finally
             {
                 if (--_pendingIndexed == 0) { _indexedIdle.TrySetResult(); if (_closed) _indexedLifetime.Dispose(); }
             }
             async Task ClosePreparedAsync()
-            { try { if (explorer is not null) await explorer.DisposeAsync(); } finally { if (retained is not null) await retained.DisposeAsync(); } }
+            {
+                Exception? failure = unconfirmed;
+                void Remember(Exception error) => failure = failure is null ? error : new AggregateException(failure, error);
+                try { if (explorer is not null) await explorer.DisposeAsync(); } catch (Exception error) { Remember(error as AnalysisCloseUnconfirmedException ?? new AnalysisCloseUnconfirmedException(error)); }
+                try { if (retained is not null) await retained.DisposeAsync(); } catch (Exception error) { Remember(error as AnalysisCloseUnconfirmedException ?? new AnalysisCloseUnconfirmedException(error)); }
+                if (failure is not null)
+                {
+                    if (failure is not AnalysisCloseUnconfirmedException && AnalysisCloseUnconfirmedException.IsPresent(failure))
+                        throw new AnalysisCloseUnconfirmedException(failure);
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+                }
+            }
         }
     }
 
@@ -256,7 +270,7 @@ public sealed partial class DiskSpaceWindow
         }
         private Task RebuildAsync()
         {
-            if (_disposed) return Task.CompletedTask; _again = true; _buildCancel?.Cancel();
+            if (_disposed || _actualWork.HasUnconfirmedClose) return Task.CompletedTask; _again = true; _buildCancel?.Cancel();
             return _building ? _buildTask : _buildTask = BuildLoopAsync();
         }
         private void OrderChanged()
@@ -289,15 +303,20 @@ public sealed partial class DiskSpaceWindow
                         var old = _explorer; _explorer = next; next = null; Publish(_explorer); await old.DisposeAsync();
                     }
                     catch (OperationCanceledException) when (cancel.IsCancellationRequested) { }
-                    catch (Exception error) when (Expected(error)) { if (!_disposed && !cancel.IsCancellationRequested) _status.Text = "The previous view remains displayed. " + AnalysisNames.Display(error.Message, 500); }
-                    finally { if (next is not null) await next.DisposeAsync(); if (ReferenceEquals(_buildCancel, cancel)) _buildCancel = null; }
+                    catch (Exception error) when (Expected(error)) { RememberViewCloseFailure(error); if (!_disposed && !cancel.IsCancellationRequested) _status.Text = "The previous view remains displayed. " + AnalysisNames.Display(error.Message, 500); }
+                    finally
+                    {
+                        try { if (next is not null) await next.DisposeAsync(); }
+                        catch (Exception error) { RememberViewCloseFailure(error); throw; }
+                        finally { if (ReferenceEquals(_buildCancel, cancel)) _buildCancel = null; }
+                    }
                 }
             }
             finally { _building = false; }
         }
         private async Task<bool> NavigateAsync(ulong parent, ulong offset = 0, bool record = true)
         {
-            if (_disposed) return false;
+            if (_disposed || _actualWork.HasUnconfirmedClose) return false;
             using var actualWork = _actualWork.Enter();
             int version = ++_navigation; ++_inspection; _navigationCancel?.Cancel();
             using var cancel = new CancellationTokenSource(); _navigationCancel = cancel; var explorer = _explorer;
@@ -311,7 +330,7 @@ public sealed partial class DiskSpaceWindow
                 if (parent != _scope) { _pageOffsets.Clear(); _focus = 0; } _scope = parent; _offset = offset; Publish(explorer); return true;
             }
             catch (OperationCanceledException) when (cancel.IsCancellationRequested) { return false; }
-            catch (Exception error) when (Expected(error)) { if (!_disposed && version == _navigation) _status.Text = "The previous view remains displayed. " + AnalysisNames.Display(error.Message, 500); return false; }
+            catch (Exception error) when (Expected(error)) { RememberViewCloseFailure(error); if (!_disposed && version == _navigation) _status.Text = "The previous view remains displayed. " + AnalysisNames.Display(error.Message, 500); return false; }
             finally { if (ReferenceEquals(_navigationCancel, cancel)) _navigationCancel = null; }
         }
         private async Task HistoryAsync(bool forward)
@@ -384,7 +403,7 @@ public sealed partial class DiskSpaceWindow
         }
         private async Task InspectAsync(ulong path, ulong alias = 0, ulong fact = 0, ulong issue = 0)
         {
-            if (_disposed) return;
+            if (_disposed || _actualWork.HasUnconfirmedClose) return;
             using var actualWork = _actualWork.Enter();
             if (_disposed) return; int version = ++_inspection; _focus = path; var explorer = _explorer;
             foreach (var button in _evidence) button.IsEnabled = false;
@@ -411,7 +430,7 @@ public sealed partial class DiskSpaceWindow
                 _evidence[2].IsEnabled = fact > 0; _evidence[3].IsEnabled = detail.Facts.HasMore; _evidence[4].IsEnabled = issue > 0; _evidence[5].IsEnabled = detail.Issues.HasMore;
                 UpdateCharts();
             }
-            catch (Exception error) when (Expected(error)) { if (!_disposed && version == _inspection) { _inspectorStatus.Text = "Inspector unavailable."; _details.Text = AnalysisNames.Display(error.Message, 500); } }
+            catch (Exception error) when (Expected(error)) { RememberViewCloseFailure(error); if (!_disposed && version == _inspection) { _inspectorStatus.Text = "Inspector unavailable."; _details.Text = AnalysisNames.Display(error.Message, 500); } }
         }
         private Task EvidenceAsync(int action)
         {
@@ -430,6 +449,11 @@ public sealed partial class DiskSpaceWindow
         private static void Push(List<(ulong Parent, ulong Offset)> history, (ulong Parent, ulong Offset) value)
         { if (history.Count == AnalysisLimits.NavigationHistory) history.RemoveAt(0); history.Add(value); }
         private static bool Expected(Exception error) => error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or FormatException or OverflowException or OperationCanceledException;
+        private void RememberViewCloseFailure(Exception error)
+        {
+            _actualWork.RecordUnconfirmedClose(error);
+            if (AnalysisCloseUnconfirmedException.IsPresent(error)) _window.RecordIndexedCloseFailure(error);
+        }
         public void Dispose()
         {
             if (_disposed) return; _disposed = true; ++_navigation; ++_inspection; _buildCancel?.Cancel(); _navigationCancel?.Cancel();

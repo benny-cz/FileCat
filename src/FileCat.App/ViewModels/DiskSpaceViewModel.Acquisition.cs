@@ -140,8 +140,8 @@ public sealed partial class DiskSpaceViewModel
     {
         if (_bindingCompletion is { } binding) await binding.Task;
         Exception? failure = _bindingCloseError;
-        try { await ReleaseUnstartedAsync(); } catch (Exception error) { failure ??= error; }
-        try { await actualWork; } catch (Exception error) { failure ??= error; }
+        try { await ReleaseUnstartedAsync(); } catch (Exception error) { failure = AnalysisViewWork.PreserveCloseFailure(failure, error); }
+        try { await actualWork; } catch (Exception error) { failure = AnalysisViewWork.PreserveCloseFailure(failure, error); }
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 }

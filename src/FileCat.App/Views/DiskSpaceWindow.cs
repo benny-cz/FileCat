@@ -35,6 +35,7 @@ public sealed partial class DiskSpaceWindow : Window
     private TaskCompletionSource _indexedIdle = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly HashSet<Task> _indexedClosures = [];
     private Exception? _indexedCloseError;
+    private readonly AnalysisSessionAdmission _admissionPool;
     internal async Task WaitForIndexedCloseAsync()
     {
         while (_pendingIndexed != 0 || _indexedClosures.Count != 0)
@@ -52,9 +53,19 @@ public sealed partial class DiskSpaceWindow : Window
         async Task ObserveAsync()
         {
             try { await close; }
-            catch (Exception error) { _indexedCloseError ??= error; if (!_closed) { _notice.Text = "An analysis could not close completely. Its place remains reserved until FileCat restarts."; _notice.IsVisible = true; } }
+            catch (Exception error) { RecordIndexedCloseFailure(error); }
             finally { _indexedClosures.Remove(close); }
         }
+    }
+    private void RecordIndexedCloseFailure(Exception error)
+    {
+        _indexedCloseError ??= error;
+        if (!_closed) { _notice.Text = AnalysisSessionAdmission.FailedCloseMessage; _notice.IsVisible = true; }
+    }
+    private void RefreshIndexedCloseNotice()
+    {
+        _notice.IsVisible = _indexedCloseError is not null || _admissionPool.HasFailedClose;
+        if (_notice.IsVisible) _notice.Text = AnalysisSessionAdmission.FailedCloseMessage;
     }
     private readonly Panel _overlay = new() { IsVisible = false };
     private readonly OverlayDialogService _dialogs;
@@ -64,10 +75,13 @@ public sealed partial class DiskSpaceWindow : Window
     private bool _forceClose, _askingClose;
     private long _nextTabNumber;
     public int SessionCount => _sessions.Count;
-    internal bool CanAddSession => !_closed && AnalysisSessionAdmission.Shared.HasCapacity;
+    internal bool CanAddSession => !_closed && _admissionPool.HasCapacity;
     protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => new DescendantFocusWindowAutomationPeer(this);
-    public DiskSpaceWindow(Action? newAnalysis = null, Func<Keymap>? keymap = null)
+    public DiskSpaceWindow(Action? newAnalysis = null, Func<Keymap>? keymap = null) : this(newAnalysis, keymap, AnalysisSessionAdmission.Shared) { }
+    internal DiskSpaceWindow(Action? newAnalysis, Func<Keymap>? keymap, AnalysisSessionAdmission admissionPool)
     {
+        _admissionPool = admissionPool;
+        if (_admissionPool.HasFailedClose) { _notice.Text = AnalysisSessionAdmission.FailedCloseMessage; _notice.IsVisible = true; }
         var defaults = new Keymap(CommandRegistry.CreateDefault());
         _keymap = keymap ?? (() => defaults);
         _newAnalysis = newAnalysis; Title = "Disk space — FileCat"; Width = 1180; Height = 780; MinWidth = 360; MinHeight = 360;
@@ -107,7 +121,7 @@ public sealed partial class DiskSpaceWindow : Window
     public void AddSession(DiskSpaceViewModel model, IReadOnlyList<string>? roots = null)
     {
         if (_closed) throw new ObjectDisposedException(nameof(DiskSpaceWindow));
-        AddReservedSession(model, roots ?? [], AnalysisSessionAdmission.Shared.Acquire());
+        AddReservedSession(model, roots ?? [], _admissionPool.Acquire());
     }
     private void AddReservedSession(DiskSpaceViewModel model, IReadOnlyList<string> roots, AnalysisSessionAdmission.Slot admission)
     {
@@ -117,7 +131,7 @@ public sealed partial class DiskSpaceWindow : Window
     }
     private void AddView(IAnalysisSessionView view)
     {
-        _notice.IsVisible = _indexedCloseError is not null;
+        RefreshIndexedCloseNotice();
         string label = (view.IsComparison ? "Comparison " : "Analysis ") + checked(++_nextTabNumber);
         var item = new AnalysisTabItem { Header = label, Content = view.CreateViewport(), Padding = new Thickness(12, 6),
             Margin = new Thickness(0, 0, 4, 0), MinHeight = 32 };
@@ -146,11 +160,11 @@ public sealed partial class DiskSpaceWindow : Window
                 !view.IsComparison ? "Stop and close" : "Discard comparison", true, "Keep open")) return;
         if (_forceClose || (at = _sessions.IndexOf(view)) < 0) return;
         view.Dispose(); _sessions.RemoveAt(at); _items.RemoveAt(at); _tabs.ItemsSource = _items.ToArray();
-        _notice.IsVisible = _indexedCloseError is not null;
+        RefreshIndexedCloseNotice();
         if (_items.Count > 0) _tabs.SelectedIndex = Math.Min(at, _items.Count - 1);
     }
     public void ForceClose() { _forceClose = true; Close(); }
-    public void ExplainSessionLimit() { _notice.Text = AnalysisSessionAdmission.Shared.Refusal; _notice.IsVisible = true; }
+    public void ExplainSessionLimit() { _notice.Text = _admissionPool.Refusal; _notice.IsVisible = true; }
     private static Button ActionButton(string text, Action action, string help)
     {
         var button = new Button { Content = text }; button.Click += (_, _) => action();

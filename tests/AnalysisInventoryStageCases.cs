@@ -76,6 +76,19 @@ internal static class AnalysisInventoryStageCases
             }
             Assert.Equal(0, workspace!.ReservedBytes); Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(parent, "scratch")));
             Assert.Equal(before, Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(file))));
+            AnalysisScratchWorkspace? refused = null; TrackingDirectory? failedInput = null;
+            try
+            {
+                await AnalysisIo.Run(io, "native-stage", _ => { refused = new(open(parent, "negative-scratch")); return true; }, token);
+                var pending = AnalysisInventoryFormat.StagePrivateAsync(refused!, io, "native-stage", "native-stage", "source.fcdsa",
+                    () => failedInput = new(open(parent, "input")) { FailFileClose = true }, token);
+                try { await Assert.ThrowsAsync<AnalysisCloseUnconfirmedException>(() => pending); }
+                finally { if (pending.IsCompletedSuccessfully) await (await pending).DisposeAsync(); }
+                Assert.True(failedInput!.FileClosed); Assert.True(failedInput.Closed);
+            }
+            finally { if (refused is not null) await AnalysisIo.ReleaseScratchAsync(io, "native-stage", refused); }
+            Assert.Equal(0, refused!.ReservedBytes); Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(parent, "negative-scratch")));
+            Assert.Equal(before, Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(file))));
         }
         finally
         {
@@ -85,12 +98,21 @@ internal static class AnalysisInventoryStageCases
     }
     private sealed class TrackingDirectory(AnalysisPrivateDirectory inner) : AnalysisPrivateDirectory
     {
-        internal bool Closed;
+        internal bool Closed, FileClosed, FailFileClose;
         internal override void Verify() => inner.Verify();
         internal override (UInt128 Capacity, UInt128 Available) Space() => inner.Space();
         internal override AnalysisPrivateScratchFile CreateScratch() => inner.CreateScratch();
         internal override AnalysisPrivateFile CreateStaging() => inner.CreateStaging();
-        internal override AnalysisPrivateFile OpenRead(string name) => inner.OpenRead(name);
+        internal override AnalysisPrivateFile OpenRead(string name) => new TrackingInput(inner.OpenRead(name), this);
         public override void Dispose() { inner.Dispose(); Closed = true; }
+    }
+    private sealed class TrackingInput(AnalysisPrivateFile inner, TrackingDirectory owner) : AnalysisPrivateFile
+    {
+        public override Stream Stream => inner.Stream;
+        public override void Verify() => inner.Verify();
+        public override void Flush() => inner.Flush();
+        public override void PublishNew(string name) => inner.PublishNew(name);
+        public override void Dispose()
+        { inner.Dispose(); owner.FileClosed = true; if (owner.FailFileClose) throw new IOException("Injected native input-close result."); }
     }
 }

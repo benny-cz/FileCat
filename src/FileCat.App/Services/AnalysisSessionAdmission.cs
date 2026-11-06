@@ -9,6 +9,8 @@ internal sealed class AnalysisSessionAdmission
     private readonly object _gate = new();
     private int _reserved;
     private bool _failedClose;
+    internal const string FailedCloseMessage = "An analysis could not close completely. Its place remains reserved until FileCat restarts.";
+    internal bool HasFailedClose { get { lock (_gate) return _failedClose; } }
     internal bool HasCapacity { get { lock (_gate) return _reserved < AnalysisLimits.Sessions; } }
     internal string Refusal { get { lock (_gate) return "Eight analyses are open or still closing. " + (_failedClose
         ? "Some could not close completely. Preserve your work and restart FileCat if no analysis finishes closing."

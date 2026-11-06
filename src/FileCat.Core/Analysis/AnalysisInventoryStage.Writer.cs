@@ -43,7 +43,7 @@ public static partial class AnalysisInventoryFormat
                 build.Raw = build.Workspace.CreateArena(); build.Log = new(build.Raw);
                 var arena = build.Workspace.CreateArena();
                 try { build.Tables = new(arena, AnalysisLimits.Observations, AnalysisLimits.Observations, AnalysisLimits.Observations, AnalysisLimits.Issues); }
-                catch { arena.Dispose(); throw; }
+                catch { AnalysisIo.CloseOnWorker(arena); throw; }
                 return true;
             }, cancellation).ConfigureAwait(false);
             Manifest? manifest = null; AnalysisCoverageRecord? coverage = null;

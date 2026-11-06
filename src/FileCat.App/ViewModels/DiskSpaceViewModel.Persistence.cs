@@ -9,7 +9,7 @@ public sealed partial class DiskSpaceViewModel
     private AnalysisInventory? _inventory;
     private SessionIdentity? _savedRevision;
     public bool IsSaving { get; private set; }
-    public bool HasPrivateStorage => _services is not null && !_services.Io.IsStopped && !_privateStorageUnavailable;
+    public bool HasPrivateStorage => _services is not null && !_services.Io.IsStopped && !_privateStorageUnavailable && !_actualWork.HasUnconfirmedClose;
     public bool CanSave => !_disposed && HasPrivateStorage && Tree is not null && _lease is not null && !IsSaving;
     public string? SavedInventoryName { get; private set; }
     public string? SavedDirectory => _services?.Paths.AnalysisSnapshotsDirectory;
@@ -135,6 +135,7 @@ public sealed partial class DiskSpaceViewModel
         }
         services.Io.HealthChanged += HealthChanged;
         try { return await AnalysisIo.Run(services.Io, device, work, stop.Token); }
+        catch (Exception error) { _actualWork.RecordUnconfirmedClose(error); throw; }
         finally
         {
             services.Io.HealthChanged -= HealthChanged;

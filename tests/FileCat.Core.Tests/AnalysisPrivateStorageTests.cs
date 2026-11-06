@@ -57,6 +57,18 @@ public sealed partial class AnalysisPrivateStorageTests
         Assert.True(directory.FileDisposed);
     }
 
+    [Theory]
+    [InlineData("close")]
+    [InlineData("postcommit-close")]
+    public void FileCloseFailureAfterPublicationRemainsBothUncertainAndUnconfirmed(string fault)
+    {
+        Ordinary(); using var cancel = new CancellationTokenSource(); using var directory = new FaultDirectory(fault, cancel);
+        using var store = new AnalysisPrivateInventoryStore(directory);
+        var error = Assert.Throws<AnalysisPublicationUncertainException>(() => store.SaveNew("closed.fcdsa", AnalysisAccountingTests.Golden(), InventoryId, Cancellation));
+        Assert.True(directory.Published); Assert.True(directory.FileDisposed); Assert.Equal(1, directory.Publications);
+        Assert.True(AnalysisCloseUnconfirmedException.IsPresent(error)); Assert.IsType<AnalysisCloseUnconfirmedException>(error.InnerException);
+    }
+
     [Fact]
     public void ReserveHasTheSpecifiedMinimumPercentageAndCap()
     {
@@ -182,9 +194,9 @@ public sealed partial class AnalysisPrivateStorageTests
             public override void PublishNew(string name)
             {
                 owner.Publications++; owner.Published = true;
-                if (fault == "postcommit") throw new AnalysisPublicationUncertainException(name, new IOException("Postcommit sync failed."));
+                if (fault is "postcommit" or "postcommit-close") throw new AnalysisPublicationUncertainException(name, new IOException("Postcommit sync failed."));
             }
-            public override void Dispose() { owner.FileDisposed = true; _stream.Dispose(); }
+            public override void Dispose() { owner.FileDisposed = true; _stream.Dispose(); if (fault is "close" or "postcommit-close") throw new IOException("Injected file-close result."); }
         }
         private sealed class FaultStream(string fault) : MemoryStream
         {

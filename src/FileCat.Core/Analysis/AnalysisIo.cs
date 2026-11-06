@@ -6,6 +6,8 @@ public sealed class AnalysisDeviceUnavailableException() : IOException("The devi
 
 // Only trusted scratch owners implement this marker. Cleanup cannot admit new source work or decoded paths.
 internal interface IAnalysisScratchOwned : IDisposable;
+internal readonly struct AnalysisWorkerClose(IDisposable source) : IDisposable
+{ public void Dispose() => AnalysisIo.CloseOnWorker(source); }
 
 /// <summary>
 /// Shared analysis admission for actual native work, including preparation and retained-handle cleanup.
@@ -25,18 +27,39 @@ public static class AnalysisIo
     public static Task ReleaseAsync(DeviceIoScheduler scheduler, IAnalysisBackend source)
     {
         ArgumentNullException.ThrowIfNull(source);
-        return RunCore(scheduler, source.IoDeviceKey, _ => { source.Dispose(); return true; }, CancellationToken.None, releaseOnly: true);
+        return CloseCore(scheduler, () => source.IoDeviceKey, source.Dispose);
     }
 
     /// <summary>Closes an existing private-directory capability through bounded cleanup, including scheduler shutdown.</summary>
     public static Task ReleaseAsync(DeviceIoScheduler scheduler, AnalysisIoDevices device, AnalysisPrivateDirectory directory)
     {
         ArgumentNullException.ThrowIfNull(directory);
-        return RunCore(scheduler, device, _ => { directory.Dispose(); return true; }, CancellationToken.None, releaseOnly: true);
+        return CloseCore(scheduler, () => device, directory.Dispose);
     }
 
     internal static Task ReleaseScratchAsync(DeviceIoScheduler scheduler, AnalysisIoDevices device, IAnalysisScratchOwned source) =>
-        RunCore(scheduler, device, _ => { source.Dispose(); return true; }, CancellationToken.None, releaseOnly: true);
+        CloseCore(scheduler, () => device, source.Dispose);
+
+    // Called only by trusted native setup/rollback code already on its admitted worker.
+    internal static void CloseOnWorker(IDisposable source)
+    {
+        try { source.Dispose(); }
+        catch (Exception error) { throw AnalysisCloseUnconfirmedException.From(error); }
+    }
+    private static async Task CloseCore(DeviceIoScheduler scheduler, Func<AnalysisIoDevices> devices, Action close)
+    {
+        try
+        {
+            await RunCore(scheduler, devices(), _ =>
+            {
+                // In particular, an OCE thrown by Dispose is a failed close, not a queued
+                // scheduler cancellation eligible for the shutdown release-worker handoff.
+                try { close(); return true; }
+                catch (Exception error) { throw AnalysisCloseUnconfirmedException.From(error); }
+            }, CancellationToken.None, releaseOnly: true).ConfigureAwait(false);
+        }
+        catch (Exception error) { throw AnalysisCloseUnconfirmedException.From(error); }
+    }
 
     public static IAsyncDisposable OwnCursor(DeviceIoScheduler scheduler, AnalysisIoDevices device, IEnumerator<AnalysisEntry> cursor) =>
         new Cursor(scheduler, device, cursor);
@@ -47,8 +70,7 @@ public static class AnalysisIo
         public ValueTask DisposeAsync()
         {
             var owned = Interlocked.Exchange(ref _cursor, null);
-            return owned is null ? ValueTask.CompletedTask : new(RunCore(scheduler, device,
-                _ => { owned.Dispose(); return true; }, CancellationToken.None, releaseOnly: true));
+            return owned is null ? ValueTask.CompletedTask : new(CloseCore(scheduler, () => device, owned.Dispose));
         }
     }
 

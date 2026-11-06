@@ -32,7 +32,7 @@ internal sealed partial class AnalysisIndexedAcquisition
                         CheckPreparation(0, cancellation);
                         var directory = OpenDirectory(_privatePaths[0]);
                         try { RequireSamePrivateRoot(directory, _protection[0] ?? throw new IOException("The prepared private profile is unavailable.")); return directory; }
-                        catch { directory.Dispose(); throw; }
+                        catch { DisposePreparedOnWorker(directory); throw; }
                     }, reviewedEntry, cancellation).ConfigureAwait(false);
         }
     }

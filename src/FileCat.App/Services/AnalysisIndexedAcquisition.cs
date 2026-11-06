@@ -90,7 +90,13 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
         catch { await owner.DisposeAsync().ConfigureAwait(false); throw; }
     }
 
-    private static bool StorageUnavailable(Exception error) => error is IOException or InvalidDataException or UnauthorizedAccessException or NotSupportedException;
+    private static bool StorageUnavailable(Exception error) => !AnalysisCloseUnconfirmedException.IsPresent(error) &&
+        error is IOException or InvalidDataException or UnauthorizedAccessException or NotSupportedException;
+    private static void DisposePreparedOnWorker(IDisposable source)
+    {
+        try { source.Dispose(); }
+        catch (Exception error) when (error is not AnalysisCloseUnconfirmedException) { throw new AnalysisCloseUnconfirmedException(error); }
+    }
     private void UseMemoryPreparation() => MemoryPreparationNotice = "Secure private storage is unavailable. Using bounded memory; existing private state was preserved.";
     private void CheckPreparation(int index, CancellationToken cancellation)
     {
@@ -109,10 +115,10 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
             catch (Exception error) when (StorageUnavailable(error)) { }
             if (root is not null)
             {
-                try { CheckPreparation(index, cancellation); } catch { root.Dispose(); throw; }
+                try { CheckPreparation(index, cancellation); } catch { DisposePreparedOnWorker(root); throw; }
                 if (root.RootEntry.Kind == AnalysisKind.Directory)
                 { _protection[index] = root; _ancestorGuard[index] = depth != 0; return; }
-                root.Dispose(); // Still on this preparation's actual admitted worker.
+                DisposePreparedOnWorker(root); // Still on this preparation's actual admitted worker.
             }
             UseMemoryPreparation();
             path = Path.GetDirectoryName(path) ?? throw new IOException("A native private-state boundary could not be captured.");
@@ -147,7 +153,7 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
     {
         var directory = Interlocked.Exchange(ref _quotaDirectory, null) ?? throw new IOException("Private profile capacity ownership has already transferred.");
         try { return AnalysisProfileQuota.Open(_profile, directory); }
-        catch { directory.Dispose(); throw; } // Factory runs on the admitted storage worker.
+        catch { DisposePreparedOnWorker(directory); throw; } // Factory runs on the admitted storage worker.
     }
     private IAnalysisBackend TakeProtection(int index) => Interlocked.Exchange(ref _protection[index], null)
         ?? throw new IOException("Private exclusion ownership has already transferred.");
@@ -177,24 +183,27 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
     {
         await _imports.CloseAsync().ConfigureAwait(false);
         Exception? failure = null;
+        void Remember(Exception error) => failure = AnalysisViewWork.PreserveCloseFailure(failure, error);
         if (_session is { } session)
         {
             try { session.Stop(); }
-            catch (Exception error) { failure = error; }
+            catch (Exception error) { Remember(error); }
             try { await session.Completion.ConfigureAwait(false); }
-            catch (Exception error) { failure ??= error; }
+            catch (Exception error) { Remember(error); }
             try { session.Dispose(); }
-            catch (Exception error) { failure ??= error; }
+            catch (Exception error) { Remember(error); }
             try { await session.DatasetCloseCompletion.ConfigureAwait(false); }
-            catch (Exception error) { failure ??= error; }
+            catch (Exception error) { Remember(error); }
+            if (session.SourceCloseFailures != 0)
+                Remember(new AnalysisCloseUnconfirmedException(new IOException("Captured analysis sources reported unconfirmed closure.")));
         }
         for (int index = 0; index < _protection.Length; index++)
         {
             if (Interlocked.Exchange(ref _protection[index], null) is not { } protection) continue;
             try { await AnalysisIo.ReleaseAsync(_services.Io, protection).ConfigureAwait(false); }
-            catch (Exception error) { failure ??= error; }
+            catch (Exception error) { Remember(error); }
         }
-        try { await CloseUnusedStorageAsync().ConfigureAwait(false); } catch (Exception error) { failure ??= error; }
+        try { await CloseUnusedStorageAsync().ConfigureAwait(false); } catch (Exception error) { Remember(error); }
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
     private async Task CloseUnusedStorageAsync()
@@ -203,12 +212,12 @@ internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
         if (Interlocked.Exchange(ref _scratch, null) is { } scratch)
         {
             try { await AnalysisIo.ReleaseAsync(_services.Io, PathUtil.GetDeviceKey(_privatePaths[1]), scratch).ConfigureAwait(false); }
-            catch (Exception error) { failure ??= error; }
+            catch (Exception error) { failure = AnalysisViewWork.PreserveCloseFailure(failure, error); }
         }
         if (Interlocked.Exchange(ref _quotaDirectory, null) is { } quotaDirectory)
         {
             try { await AnalysisIo.ReleaseAsync(_services.Io, PathUtil.GetDeviceKey(_privatePaths[0]), quotaDirectory).ConfigureAwait(false); }
-            catch (Exception error) { failure ??= error; }
+            catch (Exception error) { failure = AnalysisViewWork.PreserveCloseFailure(failure, error); }
         }
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }

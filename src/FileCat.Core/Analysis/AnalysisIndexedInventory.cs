@@ -37,12 +37,17 @@ public sealed class AnalysisIndexedInventory : IAsyncDisposable
             await AnalysisIo.Run(io, devices, _ =>
             {
                 AnalysisPrivateDirectory? scratch = createScratch();
+                AnalysisProfileQuota? quota = null;
                 try
                 {
-                    using var quota = createProfileQuota() ?? throw new InvalidOperationException("Private profile capacity ownership is required for an indexed inventory load.");
+                    quota = createProfileQuota() ?? throw new InvalidOperationException("Private profile capacity ownership is required for an indexed inventory load.");
                     workspace = new(scratch, AnalysisLimits.ScratchBytes, AnalysisScratchBudget.Shared, quota); scratch = null;
                 }
-                finally { scratch?.Dispose(); }
+                finally
+                {
+                    try { if (quota is not null) AnalysisIo.CloseOnWorker(quota); }
+                    finally { if (scratch is not null) AnalysisIo.CloseOnWorker(scratch); }
+                }
                 return true;
             }, cancellation).ConfigureAwait(false);
             result = await AnalysisInventoryFormat.LoadPrivateIndexedAsync(workspace!, io, storageDevices, inputDevice, name, openInput,

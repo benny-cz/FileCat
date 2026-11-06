@@ -91,7 +91,8 @@ public sealed partial class AnalysisInventoryStageTests
         await Assert.ThrowsAsync<NotSupportedException>(() => AnalysisInventoryFormat.StagePrivateAsync(workspace, io, new("a", "b"), "c", "source.fcdsa", () => { calls++; return new MemoryDirectory(); }, Cancellation));
         Assert.Equal(0, calls); Assert.Equal(0, scratch.LiveFiles);
         var input = new MemoryDirectory { Input = AnalysisInventoryStageCases.Bytes(1), FailInputClose = true };
-        await Assert.ThrowsAsync<IOException>(() => AnalysisInventoryFormat.StagePrivateAsync(workspace, io, "stage-output", "stage-input", "source.fcdsa", () => input, Cancellation));
+        var closeFailure = await Assert.ThrowsAsync<AnalysisCloseUnconfirmedException>(() => AnalysisInventoryFormat.StagePrivateAsync(workspace, io, "stage-output", "stage-input", "source.fcdsa", () => input, Cancellation));
+        Assert.IsType<IOException>(closeFailure.InnerException);
         Assert.True(input.Closed); Assert.True(input.InputClosed); Assert.Equal(0, scratch.LiveFiles); Assert.Equal(0, workspace.ReservedBytes);
     }
     [Fact]

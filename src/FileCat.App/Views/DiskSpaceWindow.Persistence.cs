@@ -59,7 +59,7 @@ public sealed partial class DiskSpaceWindow
             if (comparing && !Model.CanCompare) return;
             using var actualWork = _actualWork.Enter();
             if (!_window.CanAddSession) { _window.ExplainSessionLimit(); return; }
-            AnalysisSessionAdmission.Slot? destination = AnalysisSessionAdmission.Shared.Acquire();
+            AnalysisSessionAdmission.Slot? destination = _window._admissionPool.Acquire();
             var openingWork = new AnalysisViewWork();
             _persistenceBusy = true; Refresh();
             AnalysisCatalogSnapshot? catalogLease = null; bool closed = false;
