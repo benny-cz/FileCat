@@ -45,6 +45,7 @@ PY
 mkdir "$results/sources/production"
 cp src/FileCat.Core/Archives/ArchiveWorkerTransport.cs "$results/sources/production/ArchiveWorkerTransport.cs"
 cp src/FileCat.Core/Archives/Linux/LinuxArchiveGuestIsolation.cs src/FileCat.Core/Archives/Linux/LinuxArchiveGuestTransport.cs src/FileCat.Core/Archives/Linux/LinuxArchiveProcessPolicy.cs src/FileCat.Core/Archives/Linux/LinuxArchiveIsolation.cs src/FileCat.Core/Archives/Linux/LinuxArchiveNative.cs "$results/sources/production/"
+cp src/FileCat.Core/FileSystem/LinuxOpenFlags.cs src/FileCat.Core/FileSystem/LinuxPosixAcl.cs src/FileCat.Core/Archives/Unix/UnixArchiveNative.cs src/FileCat.Core/Archives/Unix/UnixArchiveVolume.cs "$results/sources/production/"
 cp src/FileCat.ArchiveWorker/Program.cs "$results/sources/production/ArchiveWorker.Program.cs"
 cp src/FileCat.ArchiveWorker/FileCat.ArchiveWorker.csproj src/FileCat.ArchiveWorker/packages.lock.json "$results/sources/production/"
 cp src/FileCat.Core/FileCat.Core.csproj src/ThirdParty/SharpCompress/FileCat.SharpCompress.csproj "$results/sources/production/"

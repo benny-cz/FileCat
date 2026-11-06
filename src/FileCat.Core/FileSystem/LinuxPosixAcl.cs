@@ -9,7 +9,7 @@ internal static partial class LinuxPosixAcl
     private const string AccessAcl = "system.posix_acl_access";
     private const string DefaultAcl = "system.posix_acl_default";
     private const int NoData = 61, NotSupported = 95;
-    private const int OpenDirectoryFlags = 0x10000 | 0x20000 | 0x80000; // O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
+    private static int OpenDirectoryFlags => LinuxOpenFlags.Current.Directory | LinuxOpenFlags.Current.NoFollow | LinuxOpenFlags.CloseOnExec;
     private const int MaxAclBytes = 1024 * 1024;
 
     internal readonly record struct DirectoryMetadata(FileIdentity Identity, uint Mode, byte[]? Access, byte[]? Default)
@@ -96,7 +96,7 @@ internal static partial class LinuxPosixAcl
     private static bool Same(byte[]? a, byte[]? b) =>
         a is null ? b is null : b is not null && a.AsSpan().SequenceEqual(b);
 
-    private static SafeFileHandle OpenDirectory(string path)
+    internal static SafeFileHandle OpenDirectory(string path)
     {
         int fd = Open(path, OpenDirectoryFlags);
         if (fd < 0) throw Failure("open the folder without following a link");

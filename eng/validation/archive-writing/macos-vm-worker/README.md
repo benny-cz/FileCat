@@ -101,6 +101,6 @@ outcomes, actual session cancellation/reaping, descriptor refusals, dedicated pr
 unread-output byte counts. The final runner includes each check; every production qualification flag remains false.
 `memory-envelope/*.json` preserves all native accounting samples, maxima and allocation/output outcomes. Its independent
 verifier checks the samples and eight refused RAM arguments. The ABI facts/tool binary remain alongside the evidence.
-`production-policy/facts.json` checks dependency closure, 23 actual kernel grant/denial probes and five production
+`production-policy/facts.json` checks dependency closure, 29 actual kernel grant/denial probes and five production
 startup refusals. `process-inventory/facts.json` injects an extra root or ordinary process and requires refusal before
 protocol readiness. Diagnostic injected images are outside production packaging.

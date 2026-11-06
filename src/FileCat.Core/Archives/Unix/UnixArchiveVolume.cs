@@ -64,7 +64,7 @@ internal sealed unsafe partial record UnixArchiveVolume(string FileSystem, ulong
     }
     private static string ReadMountInfo()
     {
-        int fd = Open("/proc/self/mountinfo", 0x80000 | 0x20000 | 0x800); using var handle = UnixArchiveNative.Handle(fd);
+        int fd = Open("/proc/self/mountinfo", UnixArchiveNative.SafeOpen); using var handle = UnixArchiveNative.Handle(fd);
         byte* stat = stackalloc byte[256];
         if (StatFs(fd, stat) != 0 || *(ulong*)stat != 0x9fa0 /* actual procfs */) throw UnixArchiveNative.Unavailable();
         byte[] bytes = new byte[(1 << 20) + 1]; int total = 0;

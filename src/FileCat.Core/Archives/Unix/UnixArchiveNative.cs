@@ -9,8 +9,8 @@ namespace FileCat.Core.Archives.Unix;
 internal static unsafe partial class UnixArchiveNative
 {
     internal static bool Mac => OperatingSystem.IsMacOS();
-    internal static int SafeOpen => Mac ? 0x1000000 | 0x100 | 4 : 0x80000 | 0x20000 | 0x800;
-    internal static int DirectoryFlag => Mac ? 0x100000 : 0x10000;
+    internal static int SafeOpen => Mac ? 0x1000000 | 0x100 | 4 : LinuxOpenFlags.CloseOnExec | LinuxOpenFlags.Current.NoFollow | 0x800;
+    internal static int DirectoryFlag => Mac ? 0x100000 : LinuxOpenFlags.Current.Directory;
     internal static readonly UTF8Encoding Utf8 = new(false, true);
     internal static void RequirePlatform()
     {

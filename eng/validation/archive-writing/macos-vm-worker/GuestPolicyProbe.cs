@@ -2,6 +2,8 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using FileCat.Core.Archives;
 using FileCat.Core.Archives.Linux;
+using FileCat.Core.Archives.Unix;
+using FileCat.Core.FileSystem;
 
 internal static class GuestPolicyProbe
 {
@@ -16,6 +18,16 @@ internal static class GuestPolicyProbe
             return result == -1 && error == 1;
         }
         bool create = false, control = false, sealedRead = false, hostRead = false, directoryLink = false, fileLink = false;
+        bool archiveDirectoryLink = false, archiveFileLink = false, aclDirectoryLink = false, aclFileAsDirectory = false;
+        using (var runtime = UnixArchiveNative.PinDirectory("/worker"))
+        using (var file = UnixArchiveNative.Child(runtime, "FileCat.Core.dll"))
+            if (UnixFiles.Stat(file) is not { IsRegular: true }) return 90;
+        try { using var link = UnixArchiveNative.PinDirectory("/sealed/linked-runtime"); } catch (IOException) { archiveDirectoryLink = true; }
+        using (var directory = UnixArchiveNative.PinDirectory("/sealed"))
+            try { using var link = UnixArchiveNative.Child(directory, "control-link"); } catch (IOException) { archiveFileLink = true; }
+        using (var runtime = LinuxPosixAcl.OpenDirectory("/worker")) { }
+        try { using var link = LinuxPosixAcl.OpenDirectory("/sealed/linked-runtime"); } catch (IOException) { aclDirectoryLink = true; }
+        try { using var file = LinuxPosixAcl.OpenDirectory("/worker/FileCat.Core.dll"); } catch (IOException) { aclFileAsDirectory = true; }
         using (var runtime = LinuxArchiveNative.OpenDirectory("/worker")) { }
         try { using var link = LinuxArchiveNative.OpenDirectory("/sealed/linked-runtime"); } catch (ArchiveWriteException) { directoryLink = true; }
         using (var directory = LinuxArchiveNative.OpenDirectory("/sealed"))
@@ -28,6 +40,9 @@ internal static class GuestPolicyProbe
         var fields = new Dictionary<string, bool>
         {
             ["runtimeRead"] = File.ReadAllBytes(typeof(ArchivePlan).Assembly.Location).Length > 0,
+            ["archiveDirectoryAndFileOpened"] = true, ["archiveDirectoryLinkDenied"] = archiveDirectoryLink,
+            ["archiveFileLinkDenied"] = archiveFileLink, ["aclDirectoryOpened"] = true,
+            ["aclDirectoryLinkDenied"] = aclDirectoryLink, ["aclFileAsDirectoryDenied"] = aclFileAsDirectory,
             ["directoryLinkDenied"] = directoryLink, ["fileLinkDenied"] = fileLink,
             ["createDenied"] = create, ["controlWriteDenied"] = control, ["sealedReadDenied"] = sealedRead, ["hostReadDenied"] = hostRead,
             ["tcpDenied"] = Denied(198, 2, 1), ["udpDenied"] = Denied(198, 2, 2), ["unixSocketDenied"] = Denied(198, 1, 1),

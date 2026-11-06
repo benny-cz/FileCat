@@ -21,6 +21,11 @@ security review and fix/retest its findings.
 
 ## Implemented foundations
 
+The [shared Linux native-open follow-up](UNIX_ARM64_OPEN_FLAGS.md) fixes remaining x64-only flags in Unix archive
+storage, mount-info reads and POSIX ACL directory opens. Actual ARM64 guest directory/file/link probes pass as part
+of 29 exact kernel checks; all 16 archive roles and lifecycle suites pass. The affected 211-case suite passes with
+explicit platform skips on Windows, Mac and Ubuntu. Host/provider memory and the remaining production gates stay open.
+
 The [dedicated VM archive-worker checkpoint](DEDICATED_VM_ARCHIVE_WORKER.md) adds a non-UI worker and writing-only
 dependency graph, strict shared guest bootstrap/transport and canonical locked musl publication. Live ARM64 guests
 exposed and fixed architecture-specific open flags and musl clone/signal bugs. Both tested bundles complete 16 actual

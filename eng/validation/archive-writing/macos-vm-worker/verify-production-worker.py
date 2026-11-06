@@ -42,7 +42,13 @@ def launch(name,image,header,policy=False):
    if policy:
     assert read_exact(p.stdout.fileno(),8)==b'FCVMPOL1'
     size=int.from_bytes(read_exact(p.stdout.fileno(),4),'little');assert 0<size<=8192
-    fields=json.loads(read_exact(p.stdout.fileno(),size));assert len(fields)>=18 and all(value is True for value in fields.values()),fields
+    fields=json.loads(read_exact(p.stdout.fileno(),size))
+    expected={'runtimeRead','directoryLinkDenied','fileLinkDenied','createDenied','controlWriteDenied','sealedReadDenied','hostReadDenied',
+     'tcpDenied','udpDenied','unixSocketDenied','processCloneDenied','execDenied','execAtDenied','openAt2Denied','limitRaiseDenied',
+     'parentSignalDenied','namespaceMutationDenied','ownThreadSignalProbeAllowed','supervisorThreadSignalDenied',
+     'unapprovedThreadSignalDenied','tracingDenied','newNamespaceDenied','parentDeathClearDenied','archiveDirectoryAndFileOpened',
+     'archiveDirectoryLinkDenied','archiveFileLinkDenied','aclDirectoryOpened','aclDirectoryLinkDenied','aclFileAsDirectoryDenied'}
+    assert fields.keys()==expected and all(value is True for value in fields.values()),fields
    assert p.wait(timeout=10)==0
    remaining=p.stdout.read();assert remaining==b''
    text=logpath.read_text();rows=[json.loads(line.removeprefix('FILECAT_HOST_FACTS '))for line in text.splitlines()if line.startswith('FILECAT_HOST_FACTS ')]
