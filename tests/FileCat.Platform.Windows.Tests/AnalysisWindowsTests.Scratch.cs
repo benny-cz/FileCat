@@ -6,6 +6,15 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed partial class AnalysisWindowsTests
 {
     [Fact]
+    public async Task NativeMetadataCaptureCoalescesActualHardLinksWithoutReadingFileContent()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows native fixtures.");
+        using var fixture = new PrivateFixture();
+        await FileCat.Tests.AnalysisObservationCaptureFixture.VerifyNative(fixture.Path, path => new Analysis.WindowsAnalysisBackend(path),
+            () => new WindowsAnalysisPrivateDirectory(fixture.Path, "scratch"), TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task NativeTypedGraphKeepsItsExactRelatedIndexesAfterOwnerClosure()
     {
         Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows native fixtures.");

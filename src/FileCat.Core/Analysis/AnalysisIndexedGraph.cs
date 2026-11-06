@@ -10,7 +10,11 @@ internal sealed record AnalysisIndexedGraphHeader(SessionIdentity Identity, Immu
     AnalysisPhase Phase, NamespaceCoverage Coverage, AnalysisFreshness Freshness = AnalysisFreshness.Observed,
     AnalysisOrigin Origin = AnalysisOrigin.LiveSession, AnalysisTaint Taint = AnalysisTaint.OrdinarySensitive)
 {
-    internal void Validate() => AnalysisValidation.Validate(new(Identity, Roots, [], [], [], [], Policy, Phase, Coverage, Freshness, Origin, Taint));
+    internal AnalysisPersistence Persistence { get; init; } = AnalysisPersistence.Temporary;
+    internal ImmutableDictionary<MeasurementState, ulong> IssueTotals { get; init; } = ImmutableDictionary<MeasurementState, ulong>.Empty;
+    internal ImmutableDictionary<AnalysisBoundaryKind, ulong> BoundaryTotals { get; init; } = ImmutableDictionary<AnalysisBoundaryKind, ulong>.Empty;
+    internal void Validate() => AnalysisValidation.Validate(new(Identity, Roots, [], [], [], [], Policy, Phase, Coverage, Freshness, Origin, Taint)
+        { Persistence = Persistence, IssueTotals = IssueTotals, BoundaryTotals = BoundaryTotals });
 }
 
 /// <summary>
@@ -87,17 +91,25 @@ internal sealed class AnalysisIndexedGraph : IAnalysisScratchOwned
 
     internal async Task<AnalysisIndexedGraphRevision> SealAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, string device,
         SessionIdentity identity, AnalysisPhase phase, NamespaceCoverage coverage, CancellationToken cancellation = default)
+        => await SealAsync(workspace, io, device, _header with { Identity = identity, Phase = phase, Coverage = coverage }, cancellation).ConfigureAwait(false);
+
+    internal async Task<AnalysisIndexedGraphRevision> SealAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, string device,
+        AnalysisIndexedGraphHeader header, CancellationToken cancellation = default)
     {
+        ArgumentNullException.ThrowIfNull(header);
+        header = header with { Taint = header.Origin == AnalysisOrigin.ImportedInventory ? AnalysisPrivacy.Imported(header.Taint) : AnalysisPrivacy.Join(header.Taint) };
         var data = await AnalysisIo.Run(io, device, token =>
         {
             lock (_gate)
             {
                 ObjectDisposedException.ThrowIf(_disposed, this);
-                var start = _header.Identity;
+                var start = _header.Identity; var identity = header.Identity;
                 if (identity is null || identity.SessionId != start.SessionId || identity.Epoch != start.Epoch || identity.StartedUtc != start.StartedUtc ||
                     identity.HostProfile != start.HostProfile || identity.TimeZoneId != start.TimeZoneId || identity.Revision < start.Revision || identity.ObservedUtc < _observed)
                     throw new InvalidOperationException("An indexed graph cannot change acquisition identity or predate its observations.");
-                var final = _header with { Identity = identity, Phase = phase, Coverage = coverage }; final.Validate();
+                if (header.Roots != _header.Roots || header.Policy != _header.Policy || header.Origin != _header.Origin ||
+                    AnalysisPrivacy.Join(header.Taint) != _header.Taint) throw new InvalidOperationException("An indexed graph cannot replace its roots, policy or privacy classification.");
+                var final = header; final.Validate();
                 if (_sealedHeader is { } prior && prior != final)
                     throw new InvalidOperationException("A frozen indexed graph cannot be reinterpreted with another header.");
                 _sealedHeader = final;
@@ -124,7 +136,8 @@ internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
     private readonly AnalysisSortedIndex[] _indexes;
     private readonly AnalysisGraphConsumers _consumers = new();
     private bool _disposed;
-    internal AnalysisIndexedGraphHeader Header { get; }
+    internal AnalysisIndexedGraphHeader Header { get; private set; }
+    internal ulong Count(int table) { lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); return _data.Count(table); } }
     private AnalysisIndexedGraphRevision(AnalysisIndexedGraphHeader header, AnalysisScratchCompositeRevision data, AnalysisSortedIndex[] indexes)
     { Header = header; _data = data; _indexes = indexes; }
 
@@ -142,7 +155,7 @@ internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
             }
             var result = new AnalysisIndexedGraphRevision(header, data, ownership.Indexes.ToArray());
             var reader = await AnalysisIo.Run(io, device, _ => result.Acquire(), cancellation).ConfigureAwait(false);
-            try { await AnalysisIndexedGraphValidation.ValidateAsync(reader, io, device, cancellation).ConfigureAwait(false); }
+            try { result.Header = await AnalysisIndexedGraphValidation.ValidateAsync(reader, io, device, cancellation).ConfigureAwait(false); }
             finally { await AnalysisIo.ReleaseScratchAsync(io, device, reader).ConfigureAwait(false); }
             ownership.Transferred = true; return result;
         }

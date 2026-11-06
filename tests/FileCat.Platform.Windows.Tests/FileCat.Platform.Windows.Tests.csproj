@@ -31,5 +31,6 @@
   <ItemGroup>
     <Compile Include="..\AnalysisScratchCrashFixture.cs" Link="AnalysisScratchCrashFixture.cs" />
     <Compile Include="..\AnalysisIndexedGraphFixture.cs" Link="AnalysisIndexedGraphFixture.cs" />
+    <Compile Include="..\AnalysisObservationCaptureFixture.cs" Link="AnalysisObservationCaptureFixture.cs" />
   </ItemGroup>
 </Project>

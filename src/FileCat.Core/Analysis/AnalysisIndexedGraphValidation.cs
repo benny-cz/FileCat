@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using FileCat.Core.Threading;
 
 namespace FileCat.Core.Analysis;
@@ -5,7 +6,7 @@ namespace FileCat.Core.Analysis;
 /// <summary>Bounded streaming graph checks; equality uses full captured keys rather than hash identity.</summary>
 internal static class AnalysisIndexedGraphValidation
 {
-    internal static async Task ValidateAsync(AnalysisIndexedGraphReader reader, DeviceIoScheduler io, string device, CancellationToken cancellation)
+    internal static async Task<AnalysisIndexedGraphHeader> ValidateAsync(AnalysisIndexedGraphReader reader, DeviceIoScheduler io, string device, CancellationToken cancellation)
     {
         reader.Header.Validate();
         foreach (int index in new[] { AnalysisIndexedGraphRevision.Children, AnalysisIndexedGraphRevision.ObjectIds, AnalysisIndexedGraphRevision.FactIds })
@@ -119,6 +120,8 @@ internal static class AnalysisIndexedGraphValidation
         ValidateComponents(components);
 
         ulong issueAt = 1, issues = reader.Count(AnalysisIndexedGraph.Issues);
+        var sampledIssues = new Dictionary<MeasurementState, ulong>();
+        var sampledBoundaries = new Dictionary<AnalysisBoundaryKind, ulong>();
         while (issueAt <= issues)
             await AnalysisIo.Run(io, device, token =>
             {
@@ -126,6 +129,9 @@ internal static class AnalysisIndexedGraphValidation
                 while (issueAt <= issues && records++ < AnalysisLimits.BatchRecords && bytes < AnalysisLimits.BatchBytes)
                 {
                     token.ThrowIfCancellationRequested(); var issue = reader.ReadIssue(issueAt++, token);
+                    sampledIssues[issue.State] = checked(sampledIssues.GetValueOrDefault(issue.State) + 1);
+                    if (AnalysisCoverage.BoundaryKind(issue.Code) is { } boundary)
+                        sampledBoundaries[boundary] = checked(sampledBoundaries.GetValueOrDefault(boundary) + 1);
                     bytes += issue.Code.Length * 3 + (issue.RootId?.Length ?? 0) * 3 + 32;
                     if (issue.NodeId is { } node)
                     {
@@ -136,6 +142,14 @@ internal static class AnalysisIndexedGraphValidation
                 }
                 return true;
             }, cancellation).ConfigureAwait(false);
+        if (reader.Header.IssueTotals.Count != 0 && sampledIssues.Any(p => !reader.Header.IssueTotals.TryGetValue(p.Key, out ulong total) || total < p.Value) ||
+            reader.Header.BoundaryTotals.Count != 0 && sampledBoundaries.Any(p => !reader.Header.BoundaryTotals.TryGetValue(p.Key, out ulong total) || total < p.Value))
+            throw AnalysisIndexedGraph.Invalid();
+        return reader.Header with
+        {
+            IssueTotals = reader.Header.IssueTotals.Count == 0 ? sampledIssues.ToImmutableDictionary() : reader.Header.IssueTotals,
+            BoundaryTotals = reader.Header.BoundaryTotals.Count == 0 ? sampledBoundaries.ToImmutableDictionary() : reader.Header.BoundaryTotals
+        };
     }
     private static void ValidateComponents(List<StorageFact> facts)
     { if (facts.Count != 0) AnalysisAggregate.SelectComponents(facts.ToArray()); }
