@@ -95,6 +95,12 @@ native cases before/after commit and during backup handling, with separate exact
 uncataloged evidence. All 209 administrator native cases and 204 standard-user cases pass (five administrator-only
 skips), with passing Mac/Ubuntu builds and Windows-only guards. No production fix is needed for these cases. Broader
 fault/resource coverage, restoration cleanup-deletion crashes and the remaining production/release gates stay open.
+The [restoration cleanup-crash follow-up](SNAPSHOT_RESTORATION_CLEANUP_CRASHES.md) passes all eighteen per-artifact
+intent/unlink/outcome kill points. Fresh scopes distinguish observed absence from confirmed deletion, reconcile each
+catalog separately and preserve the old source snapshot through new-job cleanup. All 227 administrator native cases
+and 222 standard-user cases pass (five administrator-only skips), plus passing Mac/Ubuntu builds and Windows guards.
+No production fix is needed. Wider fault/resources, metadata/security/aliases/durability, production recovery actions
+and remaining format/platform/workflow gates are unfinished.
 The [private creation process-crash follow-up](PRIVATE_CREATION_PROCESS_CRASHES.md) passes ten new publication/metadata
 boundaries and thirteen neighboring crash cases on each platform. It leaves production and recovery authority unchanged.
 The [TAR.GZ worker pipeline](TAR_GZIP_WORKER_PIPELINE.md) adds strict wrapper-aware assessment, streamed create/update

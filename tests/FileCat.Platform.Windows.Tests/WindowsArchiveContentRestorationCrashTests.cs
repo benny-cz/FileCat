@@ -8,7 +8,14 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed partial class WindowsArchiveStorageTests
 {
+    public static IEnumerable<object[]> RestorationCleanupCrashPoints()
+    {
+        for (int i = 0; i < 6; i++)
+            foreach (string phase in new[] { "intent", "unlinked", "recorded" }) yield return [$"cleanup-{phase}-{i}"];
+    }
+
     [Theory]
+    [MemberData(nameof(RestorationCleanupCrashPoints))]
     [InlineData("opened")]
     [InlineData("stage-created")]
     [InlineData("prepared")]
@@ -64,8 +71,9 @@ public sealed partial class WindowsArchiveStorageTests
             await CompleteRestorationTestProcess(harness, ["--archive-content-restore-crash", root, "finish", native]);
             fixture.AwaitReleasedHandles(); point = "closed";
         }
-        bool committed = point is "native-committed" or "published-reviewed" or "recorded" or "cleanup-completed" or "closed";
-        bool recorded = point is "recorded" or "cleanup-completed" or "closed";
+        bool cleanupCrash = point.StartsWith("cleanup-", StringComparison.Ordinal) && point != "cleanup-completed";
+        bool committed = cleanupCrash || point is "native-committed" or "published-reviewed" or "recorded" or "cleanup-completed" or "closed";
+        bool recorded = cleanupCrash || point is "recorded" or "cleanup-completed" or "closed";
         bool intent = committed || point == "intent";
         string target = Path.Combine(root, "original.tar"), expected = committed ? originalHash : currentHash;
         Assert.Equal(expected, RecoveryCrashHash(target));
@@ -110,13 +118,29 @@ public sealed partial class WindowsArchiveStorageTests
             Assert.NotNull(freshContent); Assert.NotEqual(oldContent.Nonce, freshContent.Nonce);
             Assert.NotEqual(oldContent.SnapshotPath, freshContent.SnapshotPath);
             bool cleaned = point is "cleanup-completed" or "closed";
-            Assert.All(freshCatalog.Artifacts, row => Assert.Equal(!cleaned, File.Exists(row.Path)));
+            int physical = cleaned ? freshCatalog.Artifacts.Count : 0;
+            if (cleanupCrash)
+            {
+                string[] parts = point.Split('-'); int index = int.Parse(parts[2], System.Globalization.CultureInfo.InvariantCulture);
+                int reviewed = parts[1] == "recorded" ? index + 1 : index;
+                physical = reviewed + (parts[1] == "unlinked" ? 1 : 0);
+                Assert.Equal(reviewed, freshCatalog.DeletedCount);
+                Assert.Equal(parts[1] == "recorded" ? ArchiveContentCleanupPhase.Deleted : ArchiveContentCleanupPhase.DeleteIntent, freshCatalog.Phase);
+            }
+            for (int i = 0; i < freshCatalog.Artifacts.Count; i++) Assert.Equal(i >= physical, File.Exists(freshCatalog.Artifacts[i].Path));
+            Assert.Equal(physical < freshCatalog.Artifacts.Count, File.Exists(freshContent.SnapshotPath));
             if (!cleaned)
             {
-                Assert.Equal(currentHash, RecoveryCrashHash(freshContent.SnapshotPath));
+                if (File.Exists(freshContent.SnapshotPath)) Assert.Equal(currentHash, RecoveryCrashHash(freshContent.SnapshotPath));
                 using var cleanup = WindowsArchiveCleanupRecovery.Open(freshJournal, RecoveryCrashHash(freshJournal), freshContent.Nonce, ct);
                 var outcome = cleanup.ResumeCleanup(ct);
                 Assert.Equal(committed ? ArchiveContentRecoveryTarget.PublishedIntact : ArchiveContentRecoveryTarget.OriginalIntact, outcome.TargetState);
+                if (cleanupCrash)
+                {
+                    uint remaining = ((1u << freshCatalog.Artifacts.Count) - 1) & ~((1u << freshCatalog.DeletedCount) - 1);
+                    uint absent = point.StartsWith("cleanup-unlinked-", StringComparison.Ordinal) ? 1u << freshCatalog.DeletedCount : 0;
+                    Assert.Equal(absent, outcome.AbsentMask); Assert.Equal(remaining & ~absent, outcome.DeletedMask);
+                }
                 cleanup.Finish("fresh restoration job independently reconciled after actual process death");
             }
             Assert.All(freshCatalog.Artifacts, row => Assert.False(File.Exists(row.Path)));

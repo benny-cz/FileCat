@@ -8,7 +8,8 @@ using FileCat.Core.Jobs;
 internal static class ArchiveContentRestorationCrash
 {
     internal static readonly string[] Points = ["opened", "stage-created", "prepared", "transaction-opened", "backup-sealed",
-        "private-ready", "intent", "native-committed", "published-reviewed", "recorded", "cleanup-completed", "closed"];
+        "private-ready", "intent", "native-committed", "published-reviewed", "recorded", "cleanup-completed", "closed",
+        .. Enumerable.Range(0, 6).SelectMany(i => new[] { "cleanup-intent-" + i, "cleanup-unlinked-" + i, "cleanup-recorded-" + i })];
     internal static readonly string[] Faults = ["cancel-opened", "cancel-prepared", "cancel-intent", "cancel-native-committed",
         "cancel-published-reviewed", "fail-backup-sealed", "fail-intent", "fail-native-committed", "fail-published-reviewed"];
 
@@ -34,7 +35,7 @@ internal static class ArchiveContentRestorationCrash
         using var cancellation = new CancellationTokenSource();
         try
         {
-            using var restored = await ArchiveContentRestoration.RestoreAsync(new Lease(native, Boundary, CheckWorkers), fresh,
+            using var restored = await ArchiveContentRestoration.RestoreAsync(new Lease(native, Boundary, CheckWorkers, CurrentCleanup), fresh,
                 new((nonce, cpu) => Start("archive-assess", nonce, cpu)), new((nonce, cpu) => Start("archive-verify", nonce, cpu)), TimeSpan.FromMinutes(2), cancellation.Token);
             CheckWorkers(); WaitIf("recorded", point);
             if (Faults.Contains(point))
@@ -67,6 +68,7 @@ internal static class ArchiveContentRestorationCrash
             if (point == "cancel-opened") { if (children.Count != 0) throw new IOException("Pre-claim cancellation started a parser."); }
             else CheckWorkers();
         }
+        ArchiveContentCleanupFacts? CurrentCleanup() => JournalRecovery.ReadArchiveTransactions(fresh.Path).ContentCleanups.SingleOrDefault();
 
         IArchiveWorkerProcess Start(string role, Guid nonce, TimeSpan cpu)
         {
@@ -90,7 +92,8 @@ internal static class ArchiveContentRestorationCrash
         Console.WriteLine("archive-content-restore-checkpoint:" + point); Console.Out.Flush(); Console.ReadLine();
         throw new InvalidOperationException("The driver must terminate this actual restoration process externally.");
     }
-    private sealed class Lease(IArchiveContentRestorationLease native, Action<string> boundary, Action checkWorkers) : IArchiveContentRestorationLease
+    private sealed class Lease(IArchiveContentRestorationLease native, Action<string> boundary, Action checkWorkers,
+        Func<ArchiveContentCleanupFacts?> cleanup) : IArchiveContentRestorationLease
     {
         private bool stageCreated;
         public JobJournal Journal => native.Journal;
@@ -101,21 +104,21 @@ internal static class ArchiveContentRestorationCrash
         public ArchiveRetainedBinding Snapshot => native.Snapshot;
         public IArchiveContentUpdateSource TargetSource
         {
-            get { checkWorkers(); boundary("prepared"); return new Source(native.TargetSource, boundary); }
+            get { checkWorkers(); boundary("prepared"); return new Source(native.TargetSource, boundary, cleanup); }
         }
         public ArchiveArtifactReservation Reserve(Guid nonce, ArchiveArtifactKind kind, long maximum) => native.Reserve(nonce, kind, maximum);
         public IArchiveContentUpdateStage Create(ArchiveArtifactReservation reservation)
         {
             var file = native.Create(reservation);
             if (!stageCreated && reservation.Kind == ArchiveArtifactKind.Stage) { stageCreated = true; boundary("stage-created"); }
-            return file;
+            return new Stage(file, boundary, cleanup);
         }
         public void Claim(CancellationToken ct) { native.Claim(ct); boundary("opened"); }
         public void Review(CancellationToken ct) => native.Review(ct);
         public void ReviewSnapshot(CancellationToken ct) => native.ReviewSnapshot(ct);
         public void Dispose() => native.Dispose();
     }
-    private sealed class Source(IArchiveContentUpdateSource native, Action<string> boundary) : IArchiveContentUpdateSource
+    private sealed class Source(IArchiveContentUpdateSource native, Action<string> boundary, Func<ArchiveContentCleanupFacts?> cleanup) : IArchiveContentUpdateSource
     {
         public ArchiveContentUpdateRecipe Recipe => native.Recipe;
         public string ObjectIdentity => native.ObjectIdentity;
@@ -126,21 +129,56 @@ internal static class ArchiveContentRestorationCrash
         public IArchiveContentTransaction BeginContentTransaction(ArchiveFileObservation reviewed, Guid nonce, TimeSpan timeout, CancellationToken ct)
         {
             var transaction = native.BeginContentTransaction(reviewed, nonce, timeout, ct);
-            boundary("transaction-opened"); return new Transaction(transaction, boundary);
+            boundary("transaction-opened"); return new Transaction(transaction, boundary, cleanup);
         }
     }
-    private sealed class Transaction(IArchiveContentTransaction native, Action<string> boundary) : IArchiveContentTransaction
+    private sealed class Transaction(IArchiveContentTransaction native, Action<string> boundary, Func<ArchiveContentCleanupFacts?> cleanup) : IArchiveContentTransaction
     {
         public Guid TransactionId => native.TransactionId;
         public ArchiveFileObservation RetainOriginal(IArchiveContentUpdateStage snapshot, CancellationToken ct)
-        { var result = native.RetainOriginal(snapshot, ct); boundary("backup-sealed"); return result; }
+        { var result = native.RetainOriginal(((Stage)snapshot).Native, ct); boundary("backup-sealed"); return result; }
         public ArchiveContentUpdateReview PrepareOutput(IArchiveContentUpdateStage output, ArchiveVerifiedNativeStage verified, ArchiveOriginSnapshot origin, CancellationToken ct)
-        { var result = native.PrepareOutput(output, verified, origin, ct); boundary("private-ready"); return result; }
+        { var result = native.PrepareOutput(((Stage)output).Native, verified, origin, ct); boundary("private-ready"); return result; }
         public ArchiveFileObservation Commit(ArchiveContentUpdateReview review, CancellationToken ct)
         { boundary("intent"); var result = native.Commit(review, ct); boundary("native-committed"); return result; }
         public ArchiveFileObservation ReviewPublished(ArchiveContentUpdateReview review, CancellationToken ct)
-        { var result = native.ReviewPublished(review, ct); boundary("published-reviewed"); return result; }
+        {
+            var result = native.ReviewPublished(review, ct); boundary("published-reviewed");
+            var facts = cleanup();
+            if (facts?.Phase == ArchiveContentCleanupPhase.Deleted) boundary("cleanup-recorded-" + (facts.DeletedCount - 1));
+            return result;
+        }
         public void Rollback() => native.Rollback();
+        public void Dispose() => native.Dispose();
+    }
+
+    private sealed class Stage(IArchiveContentUpdateStage native, Action<string> boundary, Func<ArchiveContentCleanupFacts?> cleanup)
+        : IArchiveContentUpdateStage, IArchiveCreatePublicationStage
+    {
+        internal IArchiveContentUpdateStage Native => native;
+        private IArchiveCreatePublicationStage Publication => (IArchiveCreatePublicationStage)native;
+        public string ObjectIdentity => native.ObjectIdentity;
+        public ArchiveFileObservation Observe(CancellationToken ct) => native.Observe(ct);
+        public void Review(ArchiveFileObservation expected, CancellationToken ct) => native.Review(expected, ct);
+        public Stream OpenReadView(ArchiveFileObservation expected, CancellationToken ct) => native.OpenReadView(expected, ct);
+        public string ReviewCreation(ArchiveArtifactReservation reservation, CancellationToken ct) => native.ReviewCreation(reservation, ct);
+        public string ReviewContentSnapshotCreation(ArchiveArtifactReservation reservation, CancellationToken ct) => native.ReviewContentSnapshotCreation(reservation, ct);
+        public void ReviewOwnedCleanup(ArchiveContentCleanupArtifact expected, string parentIdentity, CancellationToken ct) => native.ReviewOwnedCleanup(expected, parentIdentity, ct);
+        public void DeleteOwnedCleanup(ArchiveContentCleanupArtifact expected, string parentIdentity, CancellationToken ct)
+        {
+            int index = (cleanup() ?? throw new IOException("No durable restoration cleanup intent.")).DeletedCount;
+            boundary("cleanup-intent-" + index); native.DeleteOwnedCleanup(expected, parentIdentity, ct); boundary("cleanup-unlinked-" + index);
+        }
+        public Stream BeginRebuild(long maximum, CancellationToken ct) => native.BeginRebuild(maximum, ct);
+        public ArchiveFileObservation SealForVerification(CancellationToken ct) => native.SealForVerification(ct);
+        public Stream BeginEvidence(ArchiveArtifactReservation reservation, CancellationToken ct) => native.BeginEvidence(reservation, ct);
+        public ArchiveFileObservation SealEvidence(CancellationToken ct) => native.SealEvidence(ct);
+        public ArchiveFileObservation ApplyCreationOrigin(ArchiveFileObservation sealedStage, ArchiveOriginSnapshot required, CancellationToken ct)
+            => Publication.ApplyCreationOrigin(sealedStage, required, ct);
+        public ArchiveCreatePublicationReview ReviewCreate(ArchiveFileObservation verified, string targetLeaf, CancellationToken ct) => Publication.ReviewCreate(verified, targetLeaf, ct);
+        public void ClaimNewName(string leaf, ArchiveCreatePublicationReview review, CancellationToken ct) => Publication.ClaimNewName(leaf, review, ct);
+        public ArchiveFileObservation ReviewPublished(string leaf, ArchiveCreatePublicationReview review, CancellationToken ct) => Publication.ReviewPublished(leaf, review, ct);
+        public void StopWrites() => native.StopWrites();
         public void Dispose() => native.Dispose();
     }
 }

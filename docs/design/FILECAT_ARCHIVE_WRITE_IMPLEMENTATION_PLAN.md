@@ -378,6 +378,13 @@ visible despite cancellation and uncertain post-commit errors. All 209 administr
 cases pass, with five administrator-only skips, plus passing Mac/Ubuntu builds and platform guards. Wider worker/IO/
 resource faults, restoration cleanup-deletion crashes and the other production/release gates remain required.
 
+The [restoration cleanup-crash follow-up](../validation/archive-writing/SNAPSHOT_RESTORATION_CLEANUP_CRASHES.md)
+passes all eighteen fresh-catalog deletion intent/unlink/outcome termination boundaries. Recovery reconciles each
+catalog independently and distinguishes unrecorded unlink observations from confirmed deletion while preserving
+the restored archive and old source snapshot. All 227 administrator native cases and 222 standard-user cases pass,
+with five administrator-only skips, plus passing Mac/Ubuntu builds and guards. Wider fault/resource, metadata/security/
+alias/durability, production recovery actions and remaining format/platform/workflow gates still require work.
+
 ### 7.5 Outer metadata and provenance
 
 Treat outer-file metadata separately from metadata of archived members. Updates preserve the existing archive's owner, ACL/mode, relevant attributes, creation time where promised, and origin/quarantine marks. Content-changing mtime follows existing FileCat policy and must be stated/tested. Hard links to the old archive remain attached to the old object; warn once when link count is known and greater than one. Do not silently update all hard-link names.
