@@ -7,6 +7,14 @@ namespace FileCat.Core.Tests;
 public sealed partial class AnalysisPrivateStorageTests
 {
     [Fact]
+    public async Task UnixNativeCoordinatorUsesIndexedStorageAndExcludesItsProtectedDirectory()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix native indexed coordinator fixture."); Ordinary(); using var fixture = new NativeFixture();
+        await FileCat.Tests.AnalysisObservationCaptureFixture.VerifyCoordinator(fixture.Path, path => new UnixAnalysisBackend(path),
+            path => new UnixAnalysisPrivateDirectory(path, "private"), Cancellation);
+    }
+
+    [Fact]
     public async Task UnixNativeMetadataCaptureCoalescesActualHardLinksWithoutReadingFileContent()
     {
         Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix native capture fixture."); Ordinary(); using var fixture = new NativeFixture();

@@ -106,15 +106,18 @@
     "Native r153/r154 synthetic 1M/10M graphs pass complete typed-record and all-six-index key/value/order/count readback on NTFS/APFS/ext4. Fixtures use a binary hierarchy, first-half directories, second-half single-alias files, fixed-width synthetic IDs, 24-character names and one 64 KiB raw name per 16,384; Windows uses UTF-16LE and Mac/Ubuntu UTF-8. Related ranges, imported privacy, owner-closed readers, foreign-neighbor preservation, actual owned exits and zero session/parent quota are verified. Ubuntu needed an extended controller deadline for 10M; the interrupted attempt is excluded. This does not qualify source traversal, arbitrary identities/alias distributions, connected production store/projection/UI or the full feature.",
     "Captured native metadata now has a private coherent tape and streamed exact-identity coalescing. Canonical object IDs derive from the first observed path; a sorted mapping restores every dense path without a full identity dictionary. Unverified files remain distinct, full identity keys remain exact, and contradictory logical/version/allocation/link observations retain aliases with Changed measurements and issue/freshness evidence. Last complete raw publications survive a later failed flush as partial; transient index failures can retry the frozen prefix.",
     "The public observation writer admits an application-owned private directory factory, bounds each batch and shared pending payload, detaches backend-relative bytes/Ancestry, and returns an inert dataset. Rejected batch writes cannot publish a first half. The dataset API exposes immutable counts/header plus bounded asynchronous pages and exact related queries. Queued/running operations retain native ownership until actual completion; disposal uses admitted cleanup including scheduler shutdown, and closed wrappers release their metadata backing references.",
-    "Native NTFS/APFS/ext4 fixtures traverse actual hard links, Unicode names and a nested zero-length file, close the source backend before finalization, then use the public writer/read API after producer/owner closure. Canonical aliases/counts/measurements and unchanged file bytes pass; scratch files are gone after the final lease closes. Exact issue counters continue past the 10,000-row sample cap. Already-Changed file/directory/issue evidence preserves Possibly stale, and canceled issue sampling cannot advance counters. Coordinator/UI/frontier and large-source qualification remain unfinished."
+    "Native NTFS/APFS/ext4 fixtures traverse actual hard links, Unicode names and a nested zero-length file, close the source backend before finalization, then use the public writer/read API after producer/owner closure. Canonical aliases/counts/measurements and unchanged file bytes pass; scratch files are gone after the final lease closes. Exact issue counters continue past the 10,000-row sample cap. Already-Changed file/directory/issue evidence preserves Possibly stale, and canceled issue sampling cannot advance counters. Coordinator/UI/frontier and large-source qualification remain unfinished.",
+    "The production coordinator now accepts explicit application-owned private-storage preparation, streams native batches beyond a bounded managed preview, preserves canonical path/object IDs in that preview, excludes verified private directory identities before traversal and refuses traversal when private-state protection cannot be qualified. Sources and protected backends close before final indexing. Main-window adoption and full source-scale qualification remain pending.",
+    "Stop freezes the last accepted raw publication with a nonblocking atomic state change even when a native flush is blocked. A later physical flush cannot publish rows after Stop. Indexing freezes the final preview before reserving a newer dataset revision, so repeated preview polling cannot overtake that revision. Explicit index failures retain partial preview evidence.",
+    "Actual NTFS/APFS/ext4 coordinator fixtures scan a source containing hard links, a nested zero file and the configured private scratch directory. A private canary is excluded and never traversed; results continue beyond a two-row preview. Full dataset queries, retained-reader use after session closure, unchanged source/canary bytes and final scratch cleanup pass on all three platforms. These small fixtures do not qualify the complete UI or release matrix."
   ],
   "validation": {
     "windowsCore": {
-      "total": 427,
-      "passed": 400,
+      "total": 433,
+      "passed": 405,
       "failed": 0,
-      "skipped": 27,
-      "evidence": "windows-core-r171.xml"
+      "skipped": 28,
+      "evidence": "windows-core-r179.xml"
     },
     "windowsHostNative": {
       "total": 14,
@@ -124,20 +127,20 @@
       "evidence": "windows-host-native-r32.xml"
     },
     "windowsVm": {
-      "total": 28,
-      "passed": 28,
+      "total": 29,
+      "passed": 29,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-native-r171.xml",
+      "evidence": "windows-native-r179.xml",
       "status": "ordinary-user-native-regressions-passed",
-      "detail": "28 native NTFS/filesystem/private-storage controls, including actual metadata capture through the public observation writer and paged dataset after source closure. Rejected operation-feasibility counterexamples remain rejected."
+      "detail": "29 native NTFS/filesystem/private-storage controls, including production coordinator capture beyond its preview, qualified private-state exclusion, unchanged source bytes and final cleanup."
     },
     "macosArm64": {
-      "total": 409,
-      "passed": 408,
+      "total": 415,
+      "passed": 414,
       "failed": 0,
       "skipped": 1,
-      "evidence": "mac-core-r171.xml"
+      "evidence": "mac-core-r179.xml"
     },
     "headlessRendering": {
       "total": 64,
@@ -150,14 +153,14 @@
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "capture-writer-build-r170.txt"
+      "evidence": "session-build-r178.txt"
     },
     "ubuntu": {
-      "total": 409,
-      "passed": 408,
+      "total": 415,
+      "passed": 414,
       "failed": 0,
       "skipped": 1,
-      "evidence": "ubuntu-core-r171.xml"
+      "evidence": "ubuntu-core-r179.xml"
     },
     "nativeDesktop": {
       "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification. r62 native accessibility/keyboard link inspection verifies the visible omitted-target explanation, measured-zero distinction and retained mark, with 509 unchanged source paths and owned exit.",
@@ -330,6 +333,13 @@
       "mac": "mac-core-r171.xml",
       "ubuntu": "ubuntu-core-r171.xml",
       "scope": "Actual native metadata traversal of six fixture paths including two hard-link aliases, Unicode and nested known-zero file. Source backend closes before finalization; public API queries remain exact after producer/owner closure; fixture bytes unchanged and scratch cleanup verified. Core controls cover alias changes/unverified identities, sample cap/exact counters, raw failure/retry, page byte limits, real queued ownership and shutdown release. This is not production coordinator/UI/frontier integration or full source-scale/release qualification."
+    },
+    "indexedCoordinator": {
+      "status": "opt-in-coordinator-subset-passed-all-three",
+      "windows": "windows-native-r179.xml",
+      "mac": "mac-core-r179.xml",
+      "ubuntu": "ubuntu-core-r179.xml",
+      "scope": "Native six-path fixture with a private directory/canary, two hard-link aliases, nested zero file and two-row preview. Core counterexamples cover unverified exclusion, blocked raw flush Stop, canonical preview IDs, source/protection closure, retained reader ownership and preview polling during indexing. Main UI, spillable source frontier, complete coverage metadata, full source-scale and release qualification remain pending."
     }
   },
   "nextWork": [

@@ -59,7 +59,18 @@ internal sealed class AnalysisScratchComposite : IDisposable
         }
     }
     private AnalysisScratchCompositePublication Publication(long generation) =>
-        new(generation, _arena.CommittedEnd, _tables.Select(t => t.CapturePublication()).ToArray());
+        new(_arena, generation, _arena.CommittedEnd, _tables.Select(t => t.CapturePublication()).ToArray());
+    internal AnalysisScratchCompositePublication PublishedToken()
+    { lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); return _published; } }
+    internal AnalysisScratchCompositeRevision Acquire(AnalysisScratchCompositePublication publication)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!ReferenceEquals(publication.Owner, _arena)) throw new InvalidDataException("The publication belongs to another store.");
+            return AnalysisScratchCompositeRevision.Open(publication, _arena.CapturePublished(publication.End));
+        }
+    }
 
     internal AnalysisScratchCompositeRevision AcquireCommitted()
     {
@@ -89,7 +100,7 @@ internal sealed class AnalysisScratchComposite : IDisposable
     }
 }
 
-internal sealed record AnalysisScratchCompositePublication(long Generation, long End, AnalysisScratchVectorPublication[] Tables);
+internal sealed record AnalysisScratchCompositePublication(AnalysisScratchArena Owner, long Generation, long End, AnalysisScratchVectorPublication[] Tables);
 
 /// <summary>One independently admitted consumer, with component views borrowed from that consumer's native lifetime.</summary>
 internal sealed class AnalysisScratchCompositeRevision : IDisposable

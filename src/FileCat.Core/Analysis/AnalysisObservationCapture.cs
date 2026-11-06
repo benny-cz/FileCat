@@ -23,7 +23,7 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
     private readonly Dictionary<AnalysisBoundaryKind, ulong> _boundaries = [];
     private ulong _paths, _samples;
     private DateTimeOffset _observed;
-    private AnalysisCapturePublication _published;
+    private AnalysisCaptureState _publication;
     private AnalysisIndexedGraphHeader? _frozen;
     private bool _failed, _sealed, _disposed;
 
@@ -37,11 +37,21 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
         for (int i = 0; i < header.Roots.Length; i++) _roots.Add(header.Roots[i].Id, i);
         _rootNodes = new ulong[header.Roots.Length]; _observed = header.Identity.StartedUtc;
         _raw = new(arena, AnalysisLimits.Observations, AnalysisLimits.Observations, AnalysisLimits.Observations, AnalysisLimits.Issues);
-        _published = Metadata();
+        _publication = new(Metadata(), false);
     }
     internal ulong Count { get { lock (_gate) return _paths; } }
     internal bool Failed { get { lock (_gate) return _failed || _raw.Failed; } }
     internal void StopAccepting() { lock (_gate) _failed = true; }
+    // The UI never takes a lock held across native writes. The CAS is the publication linearization
+    // point: a flush that finishes afterward cannot advance the stopped view.
+    internal void RequestStop()
+    {
+        while (true)
+        {
+            var current = Volatile.Read(ref _publication); if (current.Stopped) return;
+            if (ReferenceEquals(Interlocked.CompareExchange(ref _publication, new(current.Published, true), current), current)) return;
+        }
+    }
 
     internal ulong Append(AnalysisEntry entry, ulong parent, string rootId, string basis, bool directoryAllocation = false, CancellationToken cancellation = default)
     {
@@ -99,15 +109,23 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
     {
         lock (_gate)
         {
-            GuardWriter(); var metadata = Metadata();
-            try { _raw.Publish(cancellation); _published = metadata; }
+            GuardWriter();
+            try
+            {
+                _raw.Publish(cancellation); var metadata = Metadata();
+                while (true)
+                {
+                    var current = Volatile.Read(ref _publication); if (current.Stopped) break;
+                    if (ReferenceEquals(Interlocked.CompareExchange(ref _publication, new(metadata, false), current), current)) break;
+                }
+            }
             catch { _failed = true; throw; }
         }
     }
-    private AnalysisCapturePublication Metadata() => new(_observed, _issues.ToImmutableDictionary(), _boundaries.ToImmutableDictionary());
+    private AnalysisCapturePublication Metadata() => new(_raw.PublishedToken(), _observed, _issues.ToImmutableDictionary(), _boundaries.ToImmutableDictionary());
 
     internal async Task<AnalysisIndexedGraphRevision> CompleteAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, string device,
-        SessionIdentity identity, AnalysisPhase phase, NamespaceCoverage coverage, CancellationToken cancellation = default)
+        SessionIdentity identity, AnalysisPhase phase, NamespaceCoverage coverage, CancellationToken cancellation = default, AnalysisFreshness freshness = AnalysisFreshness.Observed)
     {
         var frozen = await AnalysisIo.Run(io, device, token =>
         {
@@ -116,17 +134,17 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
                 ObjectDisposedException.ThrowIf(_disposed, this);
                 if (!_sealed)
                 {
-                    if (!Failed) Publish(token);
+                    if (!Failed && !Volatile.Read(ref _publication).Stopped) Publish(token);
                     _sealed = true;
                 }
-                var metadata = _published; var start = _header.Identity;
+                var state = Volatile.Read(ref _publication); var metadata = state.Published; var start = _header.Identity;
                 if (identity.SessionId != start.SessionId || identity.Epoch != start.Epoch || identity.StartedUtc != start.StartedUtc || identity.HostProfile != start.HostProfile ||
                     identity.TimeZoneId != start.TimeZoneId || identity.Revision < start.Revision || identity.ObservedUtc < metadata.Observed) throw AnalysisIndexedGraph.Invalid();
-                var final = _header with { Identity = identity, Phase = phase, Coverage = Failed ? NamespaceCoverage.Partial : coverage,
-                    IssueTotals = metadata.Issues, BoundaryTotals = metadata.Boundaries };
+                var final = _header with { Identity = identity, Phase = phase, Coverage = Failed || state.Stopped ? NamespaceCoverage.Partial : coverage,
+                    Freshness = freshness, IssueTotals = metadata.Issues, BoundaryTotals = metadata.Boundaries };
                 if (_frozen is { } previous && previous != final) throw new InvalidOperationException("The captured prefix cannot be reinterpreted by a retry.");
                 final.Validate(); _frozen = final;
-                return (Header: final, Data: _raw.AcquireCommitted());
+                return (Header: final, Data: _raw.Acquire(metadata.Data));
             }
         }, cancellation).ConfigureAwait(false);
         return await AnalysisObservationCoalescer.BuildAsync(frozen.Header, frozen.Data, workspace, io, device, cancellation).ConfigureAwait(false);
@@ -135,11 +153,13 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (_sealed) throw new InvalidOperationException("The observation capture is frozen.");
+        if (Volatile.Read(ref _publication).Stopped) throw new OperationCanceledException("The observation capture was stopped.");
         if (Failed) throw new IOException("Observation storage stopped. Keep the last complete published prefix.");
     }
     public void Dispose() { lock (_gate) { if (_disposed) return; _disposed = true; _raw.Dispose(); } }
     internal static string Id(char prefix, ulong path) => prefix + path.ToString("D8", CultureInfo.InvariantCulture);
-    private sealed record AnalysisCapturePublication(DateTimeOffset Observed, ImmutableDictionary<MeasurementState, ulong> Issues, ImmutableDictionary<AnalysisBoundaryKind, ulong> Boundaries);
+    private sealed record AnalysisCapturePublication(AnalysisScratchCompositePublication Data, DateTimeOffset Observed, ImmutableDictionary<MeasurementState, ulong> Issues, ImmutableDictionary<AnalysisBoundaryKind, ulong> Boundaries);
+    private sealed record AnalysisCaptureState(AnalysisCapturePublication Published, bool Stopped);
 }
 
 internal sealed record AnalysisCapturedFile(ulong PathId, AnalysisObject Object, StorageFact Fact);

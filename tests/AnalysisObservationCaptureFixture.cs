@@ -7,6 +7,44 @@ namespace FileCat.Tests;
 
 internal static partial class AnalysisObservationCaptureFixture
 {
+    internal static async Task VerifyCoordinator(string parent, Func<string, IAnalysisBackend> prepare, Func<string, AnalysisPrivateDirectory> openPrivate, CancellationToken cancellation)
+    {
+        string sourcePath = Path.Combine(parent, "indexed-source"), privatePath = Path.Combine(sourcePath, "private");
+        Directory.CreateDirectory(sourcePath); Directory.CreateDirectory(Path.Combine(sourcePath, "folder"));
+        using var io = new DeviceIoScheduler(); string device = "native-indexed-session-" + Guid.NewGuid().ToString("N");
+        AnalysisPrivateDirectory? directory = await AnalysisIo.Run(io, device, _ => openPrivate(sourcePath), cancellation);
+        File.WriteAllText(Path.Combine(privatePath, "canary.txt"), "do not enumerate private analysis state");
+        string original = Path.Combine(sourcePath, "one.bin"), alias = Path.Combine(sourcePath, "two.bin"); File.WriteAllBytes(original, [7, 8]);
+        Assert.True(OperatingSystem.IsWindows() ? WindowsLink(alias, original, IntPtr.Zero) : UnixLink(original, alias) == 0);
+        File.WriteAllBytes(Path.Combine(sourcePath, "folder", "zero.txt"), []);
+        IAnalysisBackend? source = null; AnalysisSession? session = null; AnalysisDatasetLease? dataset = null;
+        try
+        {
+            source = await AnalysisIo.Run(io, device, _ => prepare(sourcePath), cancellation);
+            var options = new AnalysisStorageOptions(device, () => Interlocked.Exchange(ref directory, null) ?? throw new InvalidOperationException("Private directory ownership already transferred."),
+                [new(device, () => prepare(privatePath))], PreviewPaths: 2);
+            session = new AnalysisCoordinator(io, "native-indexed-session").Start([source], storage: options); source = null;
+            await session.Completion.WaitAsync(TimeSpan.FromSeconds(30), cancellation);
+            var preview = session.Snapshot(); AnalysisValidation.Validate(preview, cancellation); Assert.Equal(2, preview.Nodes.Length); Assert.Equal(NamespaceCoverage.Partial, preview.Coverage);
+            dataset = await session.AcquireDatasetAsync(cancellation); Assert.NotNull(dataset); Assert.Equal(6UL, dataset.Descriptor.Paths); Assert.Equal(2UL, dataset.Descriptor.Objects);
+            var paths = await dataset.ReadPathsAsync(0, cancellation: cancellation); Assert.DoesNotContain(paths.Rows, p => p.Name == "canary.txt");
+            var excluded = Assert.Single(paths.Rows, p => p.Name == "private"); Assert.False(excluded.IncludedByPolicy); Assert.Equal(MeasurementState.Excluded, excluded.MetadataState);
+            var one = Assert.Single(paths.Rows, p => p.Name == "one.bin"); var two = Assert.Single(paths.Rows, p => p.Name == "two.bin"); Assert.Equal(one.ObjectId, two.ObjectId);
+            Assert.Equal(2UL, (await dataset.ReadAliasesAsync(one.ObjectId!, 0, cancellation: cancellation)).Total);
+            Assert.Equal(0UL, session.SourceCloseFailures); session.Dispose(); await session.DatasetCloseCompletion;
+            Assert.Equal(new byte[] { 7, 8 }, File.ReadAllBytes(original)); Assert.Equal(new byte[] { 7, 8 }, File.ReadAllBytes(alias));
+            Assert.Equal("do not enumerate private analysis state", File.ReadAllText(Path.Combine(privatePath, "canary.txt")));
+        }
+        finally
+        {
+            if (dataset is not null) await dataset.DisposeAsync();
+            session?.Dispose(); if (session is not null) await session.DatasetCloseCompletion;
+            if (source is not null) await AnalysisIo.ReleaseAsync(io, source);
+            if (directory is not null) await AnalysisIo.Run(io, device, _ => { directory.Dispose(); return true; }, CancellationToken.None);
+        }
+        Assert.Equal(new[] { Path.Combine(privatePath, "canary.txt") }, Directory.GetFiles(privatePath));
+    }
+
     internal static async Task VerifyNative(string parent, Func<string, IAnalysisBackend> prepare, Func<AnalysisPrivateDirectory> create, CancellationToken cancellation)
     {
         string sourcePath = Path.Combine(parent, "source"); Directory.CreateDirectory(sourcePath); Directory.CreateDirectory(Path.Combine(sourcePath, "folder"));

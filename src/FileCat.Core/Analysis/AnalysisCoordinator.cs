@@ -7,6 +7,9 @@ public sealed record AnalysisProgress(int ObservedPaths, ulong Issues, AnalysisP
 {
     // Runtime resource lifecycle, separate from an already frozen metadata revision.
     public ulong SourceCloseFailures { get; init; }
+    public int PreviewPaths { get; init; }
+    public bool PreviewLimited { get; init; }
+    public bool DatasetReady { get; init; }
 }
 
 public sealed class AnalysisCoordinator(DeviceIoScheduler io, string? profileIdentity = null)
@@ -14,20 +17,21 @@ public sealed class AnalysisCoordinator(DeviceIoScheduler io, string? profileIde
     private readonly string _profileIdentity = profileIdentity ?? "ephemeral:" + Guid.NewGuid().ToString("N");
     // Ownership of prepared sources transfers to the session, including blocked native requests.
     public AnalysisSession Start(IReadOnlyList<IAnalysisBackend> sources, IProgress<AnalysisProgress>? progress = null,
-        AnalysisComponentPreset components = AnalysisComponentPreset.Standard)
+        AnalysisComponentPreset components = AnalysisComponentPreset.Standard, AnalysisStorageOptions? storage = null)
     {
         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
         if (sources.Count is < 1 or > AnalysisLimits.Roots) throw new ArgumentException("Select between 1 and 32 roots.", nameof(sources));
         if (!Enum.IsDefined(components)) throw new ArgumentOutOfRangeException(nameof(components));
-        return new(io, sources.ToArray(), progress, _profileIdentity, components);
+        storage?.Validate();
+        return new(io, sources.ToArray(), progress, _profileIdentity, components, storage);
     }
 }
 
-public sealed class AnalysisSession : IDisposable
+public sealed partial class AnalysisSession : IDisposable
 {
     private static readonly SemaphoreSlim GlobalScans = new(AnalysisLimits.ActiveScans);
     private readonly object _sync = new();
-    private readonly AnalysisStore _store = new();
+    private readonly AnalysisStore _store;
     private readonly CancellationTokenSource _cancel = new();
     private readonly DeviceIoScheduler _io;
     private readonly IAnalysisBackend[] _sources;
@@ -49,8 +53,9 @@ public sealed class AnalysisSession : IDisposable
     public ulong SourceCloseFailures { get { lock (_sync) return _sourceCloseFailures; } }
     public Task Completion { get; }
     internal AnalysisSession(DeviceIoScheduler io, IAnalysisBackend[] sources, IProgress<AnalysisProgress>? progress, string profileIdentity,
-        AnalysisComponentPreset components)
+        AnalysisComponentPreset components, AnalysisStorageOptions? storage = null)
     {
+        _storage = storage; _store = new(storage is not null, storage?.PreviewPaths ?? AnalysisLimits.Observations);
         _io = io; _sources = sources; _progress = progress;
         _roots = sources.Select((s, i) => s.Root with { Id = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), Kind = s.RootEntry.Kind,
             ObservedObjectIdentity = s.RootEntry.Identity }).ToImmutableArray();
@@ -58,7 +63,8 @@ public sealed class AnalysisSession : IDisposable
         var firstObservation = sources.Select(s => s.RootEntry.ObservedUtc ?? now).Append(now).Min();
         _identity = new(Guid.NewGuid(), 1, 1, profileIdentity, firstObservation, now);
         _policy = new() { BasisIds = sources.Select(s => s.Basis).Distinct().ToImmutableArray(), PackagePolicy = "contents-included",
-            ComponentPreset = components == AnalysisComponentPreset.DetailedAllocation ? "detailed" : "standard", Limits = AnalysisLimits.EffectivePolicy };
+            ComponentPreset = components == AnalysisComponentPreset.DetailedAllocation ? "detailed" : "standard", Limits = AnalysisLimits.EffectivePolicy,
+            Exclusions = storage is null ? [] : ["filecat-private-analysis-state"] };
         _io.HealthChanged += OnDeviceHealth;
         Completion = Task.Run(ProduceAsync);
     }
@@ -73,10 +79,12 @@ public sealed class AnalysisSession : IDisposable
     private AnalysisSnapshot Capture()
     {
         var snapshot = _store.Snapshot(_identity with { Revision = checked(++_revision), ObservedUtc = DateTimeOffset.UtcNow }, _roots, _policy,
-            _phase, _partial || _phase != AnalysisPhase.Finished ? NamespaceCoverage.Partial : NamespaceCoverage.CompleteUnderPolicy) with { Freshness = _freshness };
+            _phase, _partial || _previewLimited || _phase != AnalysisPhase.Finished ? NamespaceCoverage.Partial : NamespaceCoverage.CompleteUnderPolicy) with { Freshness = _freshness };
         if (snapshot.Freshness == AnalysisFreshness.Observed && snapshot.Facts.Any(f => f.Measurement.State == MeasurementState.Changed))
             snapshot = snapshot with { Freshness = AnalysisFreshness.PossiblyStale };
-        return snapshot with { CoverageDetails = AnalysisCoverage.Create(snapshot, _enumerationRequested, _enumerationCompleted, _enumerationFailed) };
+        ulong requested = _previewLimited ? Math.Min(_enumerationRequested, (ulong)snapshot.Nodes.Count(n => n.Kind == AnalysisKind.Directory)) : _enumerationRequested;
+        ulong completed = Math.Min(_enumerationCompleted, requested), failed = Math.Min(_enumerationFailed, requested - completed);
+        return snapshot with { CoverageDetails = AnalysisCoverage.Create(snapshot, requested, completed, failed) };
     }
     public AnalysisSnapshotLease AcquireSnapshot()
     {
@@ -140,6 +148,7 @@ public sealed class AnalysisSession : IDisposable
         {
             if (_disposed || _workerFinished || _phase == AnalysisPhase.Stopped) return;
             if (issue is not null) { _store.Issue(issue); _freshness = AnalysisFreshness.SourceUnavailable; }
+            _writer?.RequestStop(); if (_indexing) _finalizeCancel.Cancel();
             _cancel.Cancel(); _store.Seal(); _partial = true; _phase = AnalysisPhase.Stopped; _final = Capture();
         }
         Report();
@@ -161,6 +170,7 @@ public sealed class AnalysisSession : IDisposable
             await GlobalScans.WaitAsync(_cancel.Token).ConfigureAwait(false); admitted = true;
             if (_io.IsStopped) throw new OperationCanceledException("Analysis I/O has stopped.");
             await NormalizeRootsAsync().ConfigureAwait(false);
+            await PrepareStorageAsync().ConfigureAwait(false);
             for (int i = 0; i < _sources.Length; i++)
             {
                 _cancel.Token.ThrowIfCancellationRequested();
@@ -171,7 +181,7 @@ public sealed class AnalysisSession : IDisposable
                 if (_io.GetHealth(device) == DeviceHealth.NotResponding) { Issue("device-not-responding"); continue; }
                 using var turn = await AnalysisScanDevices.AcquireAsync(device, _cancel.Token).ConfigureAwait(false);
                 await WalkAsync(source, root, device).ConfigureAwait(false);
-                if (_store.Limited) break;
+                if (_store.Limited && _writer is null) break;
             }
         }
         catch (OperationCanceledException) when (_cancel.IsCancellationRequested) { }
@@ -209,6 +219,7 @@ public sealed class AnalysisSession : IDisposable
             }
             finally
             {
+                await FinishStorageAsync().ConfigureAwait(false);
                 lock (_sync) _activeDevice = null;
                 _io.HealthChanged -= OnDeviceHealth;
                 if (admitted) GlobalScans.Release();
@@ -269,8 +280,11 @@ public sealed class AnalysisSession : IDisposable
     }
     private async Task WalkAsync(IAnalysisBackend source, RootBinding root, string device)
     {
-        var rootId = _store.Append(source.RootEntry, 0, root.Id, source.Basis, _policy.ComponentPreset == "detailed");
+        bool protectedRoot = IsProtected(source.RootEntry);
+        var rootEntry = protectedRoot ? ExcludedPrivate(source.RootEntry) : source.RootEntry;
+        var rootId = await AppendObservationAsync(rootEntry, 0, root.Id, source.Basis).ConfigureAwait(false);
         if (!rootId.HasValue) { Issue("memory-or-observation-limit"); return; }
+        if (protectedRoot) { Issue("private-analysis-state-excluded", rootId, MeasurementState.Excluded); return; }
         if (source.RootEntry.Kind != AnalysisKind.Directory) return;
         if (source.RootEntry.Cloud == true) { Issue("cloud-directory-not-enumerated", rootId, MeasurementState.Excluded); return; }
         var pending = new Stack<(AnalysisEntry Entry, ulong Id, int Depth, long Bytes)>();
@@ -278,7 +292,7 @@ public sealed class AnalysisSession : IDisposable
         lock (_sync) _enumerationRequested++;
         long pendingBytes = 0;
         var clock = System.Diagnostics.Stopwatch.StartNew();
-        while (pending.Count > 0 && !_store.Limited)
+        while (pending.Count > 0 && (!_store.Limited || _writer is not null))
         {
             _cancel.Token.ThrowIfCancellationRequested();
             var (entry, id, depth, cost) = pending.Pop(); pendingBytes -= cost;
@@ -304,10 +318,15 @@ public sealed class AnalysisSession : IDisposable
                 _cancel.Token.ThrowIfCancellationRequested();
                 finished = batch.Finished;
                 carry = batch.Carry;
-                foreach (var child in batch.Entries)
+                var storedIds = _writer is null ? default : await AppendCapturedBatchAsync(batch.Entries.Select(e => IsProtected(e) ? ExcludedPrivate(e) : e).ToArray(), id, root.Id, source.Basis).ConfigureAwait(false);
+                for (int childAt = 0; childAt < batch.Entries.Count; childAt++)
                 {
-                    var childId = _store.Append(child, id, root.Id, source.Basis, _policy.ComponentPreset == "detailed");
+                    var observedChild = batch.Entries[childAt];
+                    bool protectedChild = IsProtected(observedChild);
+                    var child = protectedChild ? ExcludedPrivate(observedChild) : observedChild;
+                    ulong? childId = storedIds.IsDefault ? _store.Append(child, id, root.Id, source.Basis, _policy.ComponentPreset == "detailed") : storedIds[childAt];
                     if (childId is null) { Issue("memory-or-observation-limit", id); return; }
+                    if (protectedChild) { Issue("private-analysis-state-excluded", childId, MeasurementState.Excluded); continue; }
                     if (child.IssueCode is { } issueCode) Issue(issueCode, childId, child.MetadataState);
                     if (!child.IncludedByPolicy || child.MetadataState != MeasurementState.Known) continue;
                     if (child.Kind is AnalysisKind.Link or AnalysisKind.Special)
@@ -319,6 +338,7 @@ public sealed class AnalysisSession : IDisposable
                     pending.Push((child, childId.Value, depth + 1, bytes)); pendingBytes += bytes;
                     lock (_sync) _enumerationRequested++;
                 }
+                await FlushCaptureIssuesAsync().ConfigureAwait(false);
                 if (batch.Limited) { Issue("producer-record-limit", id); break; }
                 if (batch.Error is { } error) { Issue(error, id); break; }
                 if (finished) succeeded = true;
@@ -359,13 +379,15 @@ public sealed class AnalysisSession : IDisposable
         {
             if (state != MeasurementState.Excluded) _partial = true;
             if ((state == MeasurementState.Changed || code == "source-changed-or-boundary") && _freshness == AnalysisFreshness.Observed) _freshness = AnalysisFreshness.PossiblyStale;
-            _store.Issue(code, node, state, rootId);
+            _store.Issue(code, node is { } id && id > (ulong)_store.Count ? null : node, state, rootId);
+            QueueCaptureIssue(code, node, state, rootId);
         }
     }
     private void Report()
     {
         AnalysisProgress p;
-        lock (_sync) { if (_disposed) return; p = new(_store.Count, _store.IssueCount, _phase) { SourceCloseFailures = _sourceCloseFailures }; }
+        lock (_sync) { if (_disposed) return; p = new(_storage is null ? _store.Count : _capturedPaths, _store.IssueCount, _phase) { SourceCloseFailures = _sourceCloseFailures,
+            PreviewPaths = _store.Count, PreviewLimited = _previewLimited, DatasetReady = _dataset is not null }; }
         // Observers do not own traversal or handle lifetimes. A released/broken UI subscription cannot
         // skip independent closes, strand a scan reservation or turn valid observations into a producer failure.
         try { _progress?.Report(p); } catch (Exception) { }
@@ -376,14 +398,15 @@ public sealed class AnalysisSession : IDisposable
         lock (_sync)
         {
             if (_disposed) return;
-            _disposed = true; _final = null;
+            _disposed = true; _finalizeCancel.Cancel(); _final = null;
             if (_workerFinished && _snapshotLeases == 0) Release();
         }
     }
     private void Release()
     {
         if (_released) return;
-        _released = true; _store.Dispose(); _cancel.Dispose();
+        _released = true; _store.Dispose(); _cancel.Dispose(); _finalizeCancel.Dispose();
+        if (_dataset is { } dataset) { _dataset = null; _datasetClose = dataset.DisposeAsync().AsTask(); }
     }
 }
 

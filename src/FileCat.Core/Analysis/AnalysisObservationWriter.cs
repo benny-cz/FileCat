@@ -14,8 +14,10 @@ public sealed class AnalysisObservationWriter : IAsyncDisposable
     private static long s_pendingBytes;
     private readonly AnalysisOwnedDatasetIo<Owner> _owned;
     private readonly DeviceIoScheduler _io; private readonly string _device;
+    private AnalysisObservationCapture? _stopTarget;
     private AnalysisObservationWriter(Owner owner, DeviceIoScheduler io, string device)
-    { _io = io; _device = device; _owned = new(owner, io, device); }
+    { _io = io; _device = device; _owned = new(owner, io, device); _stopTarget = owner.Capture; }
+    public void RequestStop() => Volatile.Read(ref _stopTarget)?.RequestStop();
 
     // The factory is application-owned configuration, not a callback restored from an inventory.
     public static async Task<AnalysisObservationWriter> CreateAsync(DeviceIoScheduler io, string device, Func<AnalysisPrivateDirectory> createDirectory,
@@ -80,18 +82,18 @@ public sealed class AnalysisObservationWriter : IAsyncDisposable
     public Task RecordIssueAsync(string code, ulong? node = null, MeasurementState state = MeasurementState.Failed, string? root = null, CancellationToken cancellation = default) =>
         _owned.RunAsync((owner, token) => { owner.Capture.Issue(code, node, state, root, token); owner.Capture.Publish(token); return true; }, cancellation);
 
-    public async Task<AnalysisDataset> CompleteAsync(SessionIdentity identity, AnalysisPhase phase, NamespaceCoverage coverage, CancellationToken cancellation = default)
+    public async Task<AnalysisDataset> CompleteAsync(SessionIdentity identity, AnalysisPhase phase, NamespaceCoverage coverage, CancellationToken cancellation = default, AnalysisFreshness freshness = AnalysisFreshness.Observed)
     {
         var dataset = await _owned.UseAsync(async owner =>
         {
-            var revision = await owner.Capture.CompleteAsync(owner.Workspace, _io, _device, identity, phase, coverage, cancellation).ConfigureAwait(false);
+            var revision = await owner.Capture.CompleteAsync(owner.Workspace, _io, _device, identity, phase, coverage, cancellation, freshness).ConfigureAwait(false);
             try { return new AnalysisDataset(revision, _io, _device); }
             catch { await AnalysisIo.ReleaseScratchAsync(_io, _device, revision).ConfigureAwait(false); throw; }
         }).ConfigureAwait(false);
         try { await DisposeAsync().ConfigureAwait(false); return dataset; }
         catch { await dataset.DisposeAsync().ConfigureAwait(false); throw; }
     }
-    public ValueTask DisposeAsync() => _owned.DisposeAsync();
+    public ValueTask DisposeAsync() { Interlocked.Exchange(ref _stopTarget, null); return _owned.DisposeAsync(); }
     private sealed class Owner(AnalysisScratchWorkspace workspace, AnalysisObservationCapture capture) : IAnalysisScratchOwned
     {
         internal readonly AnalysisScratchWorkspace Workspace = workspace;
