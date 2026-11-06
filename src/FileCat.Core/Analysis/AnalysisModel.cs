@@ -88,7 +88,11 @@ public sealed record AnalysisCoverageRecord(ulong EnumerationRequested, ulong En
     public ulong EnumerationPending => checked(EnumerationRequested - EnumerationCompleted - EnumerationFailed);
     public ImmutableArray<string> StaleRootIds { get; init; } = [];
     public ImmutableDictionary<AnalysisBoundaryKind, ulong> BoundaryTotals { get; init; } = ImmutableDictionary<AnalysisBoundaryKind, ulong>.Empty;
+    public AnalysisCoverageQualification? Qualification { get; init; }
 }
+/// <summary>Historical knowledge limits, distinct from zero counts or complete stale-scope evidence.</summary>
+public sealed record AnalysisCoverageQualification(bool EnumerationKnown, ulong EligibleDirectories,
+    bool StaleScopesComplete, bool HasUnlocatedStaleScopes);
 public sealed record AnalysisSnapshot(SessionIdentity Identity, ImmutableArray<RootBinding> Roots,
     ImmutableArray<AnalysisNode> Nodes, ImmutableArray<AnalysisObject> Objects, ImmutableArray<StorageFact> Facts,
     ImmutableArray<AnalysisIssue> Issues, ScanPolicy Policy, AnalysisPhase Phase, NamespaceCoverage Coverage,

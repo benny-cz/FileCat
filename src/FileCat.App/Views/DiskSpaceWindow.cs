@@ -575,6 +575,12 @@ public sealed partial class DiskSpaceWindow : Window
                     _coverage.Text += tree.Snapshot.Policy.ComponentPreset == "detailed"
                         ? " Detailed: directory allocation requested; extra component coverage unknown."
                         : " Standard: reported allocation; extra component coverage unknown.";
+                    if (tree.Snapshot.CoverageDetails?.Qualification is { } qualification)
+                    {
+                        if (!qualification.EnumerationKnown) _coverage.Text += " Enumeration counts are unavailable for this captured revision.";
+                        if (!qualification.StaleScopesComplete) _coverage.Text += " Stale-location samples are incomplete; unlisted locations may also be stale.";
+                        if (qualification.HasUnlocatedStaleScopes) _coverage.Text += " Some staleness cannot be assigned to a recorded location.";
+                    }
                     ToolTip.SetTip(_coverage, new RichTip("Measurement coverage", detail: tree.ComponentCoverageDescription));
                     AutomationProperties.SetHelpText(_coverage, tree.ComponentCoverageDescription);
                     if (!totals.CompatibleBasis) _coverage.Text += " These locations report different allocation components. Choose a location for its On disk view; File size and Files remain available together.";

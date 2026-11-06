@@ -160,7 +160,14 @@ public static partial class AnalysisInventoryFormat
     }
     private static (AnalysisCoverageRecord, ImmutableDictionary<MeasurementState, ulong>) ReadCoverage(JsonElement r)
     {
-        Fields(r, "kind", "requested", "completed", "failed", "denominatorFinal", "boundaries", "boundaryTotals", "excludedIssues", "failedIssues", "pendingIssues", "measurements", "issueTotals", "identityVerified", "identityUnverified", "staleNodes", "staleRoots");
+        string[] fields = ["kind", "requested", "completed", "failed", "denominatorFinal", "boundaries", "boundaryTotals", "excludedIssues", "failedIssues", "pendingIssues", "measurements", "issueTotals", "identityVerified", "identityUnverified", "staleNodes", "staleRoots"];
+        AnalysisCoverageQualification? qualification = null;
+        if (r.TryGetProperty("qualification", out var q))
+        {
+            Fields(r, [.. fields, "qualification"]); Array(q, 4, 4);
+            qualification = new(Boolean(q[0]), Id(q[1]), Boolean(q[2]), Boolean(q[3]));
+        }
+        else Fields(r, fields);
         var boundaryRecords = r.GetProperty("boundaryTotals"); Array(boundaryRecords, 0, 5);
         var boundaries = ImmutableDictionary.CreateBuilder<AnalysisBoundaryKind, ulong>();
         foreach (var pair in boundaryRecords.EnumerateArray()) { Array(pair, 2, 2); boundaries.Add(EnumValue<AnalysisBoundaryKind>(pair[0]), Id(pair[1])); }
@@ -168,7 +175,7 @@ public static partial class AnalysisInventoryFormat
         return (new(Id(r.GetProperty("requested")), Id(r.GetProperty("completed")), Id(r.GetProperty("failed")), Boolean(r.GetProperty("denominatorFinal")),
             Id(r.GetProperty("boundaries")), Id(r.GetProperty("excludedIssues")), Id(r.GetProperty("failedIssues")), Id(r.GetProperty("pendingIssues")),
             StateCounts(r.GetProperty("measurements")), Id(r.GetProperty("identityVerified")), Id(r.GetProperty("identityUnverified")),
-            nodes.EnumerateArray().Select(Id).ToImmutableArray()) { BoundaryTotals = boundaries.ToImmutable(), StaleRootIds = Strings(r.GetProperty("staleRoots"), AnalysisLimits.Roots, 20) }, StateCounts(r.GetProperty("issueTotals")));
+            nodes.EnumerateArray().Select(Id).ToImmutableArray()) { BoundaryTotals = boundaries.ToImmutable(), StaleRootIds = Strings(r.GetProperty("staleRoots"), AnalysisLimits.Roots, 20), Qualification = qualification }, StateCounts(r.GetProperty("issueTotals")));
     }
 
     private static void ValidateJson(ReadOnlySpan<byte> line)

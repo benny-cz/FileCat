@@ -94,82 +94,15 @@ public static partial class AnalysisInventoryFormat
         var objects = snapshot.Objects.Select((o, i) => (o.Id, WireId: Decimal((ulong)i + 1))).ToDictionary(p => p.Id, p => p.WireId, StringComparer.Ordinal);
         var counts = new ulong[Kinds.Length]; long bytes = 0; ulong records = 0;
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        Record(0, w =>
-        {
-            w.WriteString("schema", "1"); w.WriteString("inventory", inventoryId.ToString("D")); w.WriteString("producer", Producer);
-            w.WriteString("session", snapshot.Identity.SessionId.ToString("D")); Number(w, "epoch", (ulong)snapshot.Identity.Epoch);
-            Number(w, "revision", (ulong)snapshot.Identity.Revision); w.WriteString("hostProfile", snapshot.Identity.HostProfile);
-            Date(w, "started", snapshot.Identity.StartedUtc); Date(w, "observed", snapshot.Identity.ObservedUtc);
-            w.WriteString("timeZone", snapshot.Identity.TimeZoneId);
-            w.WriteStartArray("roots");
-            foreach (var r in snapshot.Roots)
-            {
-                w.WriteStartArray(); w.WriteStringValue(roots[r.Id]); w.WriteStringValue(r.Scheme);
-                TaggedText(w, r.DisplayLocator); TaggedText(w, r.CanonicalLocator); w.WriteStringValue(r.SourceIdentity);
-                w.WriteStringValue(r.Assurance.ToString()); TaggedText(w, r.Label); w.WriteStringValue(r.Kind.ToString());
-                w.WriteStringValue(r.NameRules.ToString()); w.WriteStringValue(r.TraversalBoundary); w.WriteStringValue(r.ConnectionIdentityReference);
-                w.WriteStringValue(r.Disposition.ToString()); w.WriteStringValue(r.CoveredByRootId is { } parent ? roots[parent] : null);
-                if (r.CoveredRelativePath is { } path) TaggedText(w, path); else w.WriteNullValue();
-                w.WriteStringValue(r.ObservedObjectIdentity); w.WriteEndArray();
-            }
-            w.WriteEndArray(); w.WritePropertyName("policy"); w.WriteRawValue(snapshot.Policy.CanonicalBytes());
-            w.WriteString("policyFingerprint", snapshot.Policy.Fingerprint);
-            w.WriteString("historicalPhase", snapshot.Phase.ToString()); w.WriteString("coverage", snapshot.Coverage.ToString());
-            w.WriteString("freshness", snapshot.Freshness.ToString()); Number(w, "historicalTaint", (ulong)snapshot.Taint);
-        });
-        foreach (var o in snapshot.Objects) Record(1, w =>
-        {
-            w.WriteString("id", objects[o.Id]); w.WriteString("identity", o.VerifiedIdentity); Measurement(w, "length", o.LogicalLength);
-            Measurement(w, "links", o.LinkCount); Date(w, "modified", o.ModifiedUtc); w.WriteString("version", o.VersionEvidence);
-            Number(w, "precision", o.ModifiedPrecisionTicks);
-        });
-        foreach (var n in snapshot.Nodes) Record(2, w =>
-        {
-            Number(w, "id", n.Id); w.WriteString("root", roots[n.RootId]); Number(w, "parent", n.ParentId);
-            w.WriteString("encoding", n.NameEncoding);
-            w.WriteBase64String("raw", n.RawName.IsEmpty ? AnalysisRawNames.Encode(n.NameEncoding, n.Name) : n.RawName.AsSpan());
-            w.WriteString("entryKind", n.Kind.ToString()); w.WriteString("object", n.ObjectId is { } id ? objects[id] : null);
-            NullableBoolean(w, "sparse", n.Sparse); NullableBoolean(w, "compressed", n.Compressed); NullableBoolean(w, "cloud", n.Cloud);
-            w.WriteString("metadata", n.MetadataState.ToString()); w.WriteBoolean("included", n.IncludedByPolicy);
-            w.WriteString("identity", n.ObservedIdentity);
-            w.WritePropertyName("times");
-            if (n.Times is not { } t) w.WriteNullValue();
-            else
-            {
-                w.WriteStartArray(); DateValue(w, t.ObservedUtc); DateValue(w, t.ModifiedUtc); w.WriteStringValue(Decimal(t.ModifiedPrecisionTicks));
-                DateValue(w, t.CreatedUtc); NullableNumber(w, t.CreatedPrecisionTicks); DateValue(w, t.ChangedUtc); NullableNumber(w, t.ChangedPrecisionTicks); w.WriteEndArray();
-            }
-        });
+        Record(0, w => WriteManifest(w, snapshot, inventoryId, id => roots[id]));
+        foreach (var o in snapshot.Objects) Record(1, w => WriteObject(w, o, objects[o.Id]));
+        foreach (var n in snapshot.Nodes) Record(2, w => WritePath(w, n, id => roots[id], id => objects[id]));
         ulong factId = 0;
-        foreach (var f in snapshot.Facts) Record(3, w =>
-        {
-            Number(w, "id", ++factId); w.WriteString("object", f.ObjectId is { } id ? objects[id] : null);
-            if (f.DirectoryId is { } directory) Number(w, "directory", directory); else w.WriteNull("directory");
-            w.WriteString("component", f.ComponentId); w.WriteString("basis", f.BasisId); Measurement(w, "measurement", f.Measurement);
-            w.WriteString("method", f.Method); Date(w, "observed", f.ObservedUtc);
-            w.WriteStartArray("includes"); foreach (string component in f.Includes) w.WriteStringValue(component); w.WriteEndArray();
-            w.WriteBoolean("mayShare", f.MayShareExtents);
-        });
-        foreach (var issue in snapshot.Issues) Record(4, w =>
-        {
-            w.WriteString("code", issue.Code); if (issue.NodeId is { } id) Number(w, "node", id); else w.WriteNull("node");
-            w.WriteString("root", issue.RootId is { } root ? roots[root] : null); w.WriteString("state", issue.State.ToString());
-        });
+        foreach (var f in snapshot.Facts) Record(3, w => WriteFact(w, f, ++factId, id => objects[id]));
+        foreach (var issue in snapshot.Issues) Record(4, w => WriteIssue(w, issue, id => roots[id]));
         var coverage = snapshot.CoverageDetails ?? AnalysisCoverage.Create(snapshot);
-        Record(5, w =>
-        {
-            Number(w, "requested", coverage.EnumerationRequested); Number(w, "completed", coverage.EnumerationCompleted); Number(w, "failed", coverage.EnumerationFailed);
-            w.WriteBoolean("denominatorFinal", coverage.DenominatorFinal); Number(w, "boundaries", coverage.Boundaries);
-            w.WriteStartArray("boundaryTotals");
-            foreach (var pair in coverage.BoundaryTotals.OrderBy(p => p.Key)) { w.WriteStartArray(); w.WriteStringValue(pair.Key.ToString()); w.WriteStringValue(Decimal(pair.Value)); w.WriteEndArray(); }
-            w.WriteEndArray();
-            Number(w, "excludedIssues", coverage.ExcludedIssues); Number(w, "failedIssues", coverage.FailedIssues); Number(w, "pendingIssues", coverage.PendingIssues);
-            StateCounts(w, "measurements", coverage.MeasurementStates);
-            StateCounts(w, "issueTotals", snapshot.IssueTotals.Count > 0 ? snapshot.IssueTotals : snapshot.Issues.GroupBy(i => i.State).ToImmutableDictionary(g => g.Key, g => (ulong)g.Count()));
-            Number(w, "identityVerified", coverage.IdentityVerifiedPaths); Number(w, "identityUnverified", coverage.IdentityUnverifiedPaths);
-            w.WriteStartArray("staleNodes"); foreach (ulong id in coverage.StaleScopeNodes) w.WriteStringValue(Decimal(id)); w.WriteEndArray();
-            w.WriteStartArray("staleRoots"); foreach (string id in coverage.StaleRootIds) w.WriteStringValue(roots[id]); w.WriteEndArray();
-        });
+        Record(5, w => WriteCoverage(w, coverage, snapshot.IssueTotals.Count > 0 ? snapshot.IssueTotals :
+            snapshot.Issues.GroupBy(i => i.State).ToImmutableDictionary(g => g.Key, g => (ulong)g.Count()), id => roots[id]));
         string digest = Convert.ToHexStringLower(hash.GetHashAndReset());
         Emit(w =>
         {

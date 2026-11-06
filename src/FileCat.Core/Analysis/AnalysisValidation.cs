@@ -3,7 +3,7 @@ using System.Text;
 
 namespace FileCat.Core.Analysis;
 
-public static class AnalysisValidation
+public static partial class AnalysisValidation
 {
     public static void Validate(AnalysisSnapshot s, CancellationToken cancellation = default)
     {
@@ -134,6 +134,12 @@ public static class AnalysisValidation
             if (coverage.EnumerationRequested > (ulong)s.Nodes.Count(n => n.Kind == AnalysisKind.Directory) || coverage.EnumerationCompleted > coverage.EnumerationRequested ||
                 coverage.EnumerationFailed > coverage.EnumerationRequested - coverage.EnumerationCompleted) throw Invalid();
             var expected = AnalysisCoverage.Create(s, coverage.EnumerationRequested, coverage.EnumerationCompleted, coverage.EnumerationFailed);
+            if (coverage.Qualification is { } qualification)
+            {
+                ValidateQualifiedCoverage(s, coverage, qualification, nodes, objectMap, aliases, factObjects, cancellation);
+                expected = expected with { DenominatorFinal = qualification.EnumerationKnown && s.Phase == AnalysisPhase.Finished && s.Coverage == NamespaceCoverage.CompleteUnderPolicy,
+                    StaleScopeNodes = coverage.StaleScopeNodes, StaleRootIds = coverage.StaleRootIds };
+            }
             if (coverage.BoundaryTotals is null || !coverage.BoundaryTotals.OrderBy(p => p.Key).SequenceEqual(expected.BoundaryTotals.OrderBy(p => p.Key)) ||
                 coverage.DenominatorFinal != expected.DenominatorFinal || coverage.Boundaries != expected.Boundaries || coverage.ExcludedIssues != expected.ExcludedIssues ||
                 coverage.FailedIssues != expected.FailedIssues || coverage.PendingIssues != expected.PendingIssues || coverage.IdentityVerifiedPaths != expected.IdentityVerifiedPaths ||

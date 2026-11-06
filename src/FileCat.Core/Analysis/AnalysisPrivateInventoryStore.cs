@@ -74,6 +74,57 @@ public sealed class AnalysisPrivateInventoryStore(AnalysisPrivateDirectory direc
         }
     }
 
+    // The async dataset save owns this new store exclusively. Every call, including disposal,
+    // runs on the captured source+destination Background turn; no monitor spans an await.
+    internal static DatasetWrite BeginDatasetWrite(AnalysisPrivateDirectory directory, string name, CancellationToken cancellation)
+    {
+        ArgumentNullException.ThrowIfNull(directory);
+        var store = new AnalysisPrivateInventoryStore(directory);
+        try
+        {
+            ValidateName(name); store.Guard(); cancellation.ThrowIfCancellationRequested();
+            var file = directory.CreateStaging();
+            try { return new(store, file, name, cancellation, directory.Space); }
+            catch { file.Dispose(); throw; }
+        }
+        catch { store.Dispose(); throw; }
+    }
+    internal sealed class DatasetWrite : IAnalysisScratchOwned
+    {
+        private readonly AnalysisPrivateInventoryStore _store;
+        private AnalysisPrivateFile? _file;
+        private readonly string _name;
+        private readonly CancellationToken _cancel;
+        private readonly GuardedWriteStream _guarded;
+        private BufferedStream? _buffer;
+        internal Stream Stream => _buffer ?? throw new ObjectDisposedException(nameof(DatasetWrite));
+        internal DatasetWrite(AnalysisPrivateInventoryStore store, AnalysisPrivateFile file, string name, CancellationToken cancellation,
+            Func<(UInt128 Capacity, UInt128 Available)> space)
+        {
+            _store = store; _file = file; _name = name; _cancel = cancellation;
+            _guarded = new(file.Stream, () => { store.Guard(); file.Verify(); }, space, cancellation);
+            _buffer = new(_guarded, 64 * 1024);
+        }
+        internal void FlushBatch() { _cancel.ThrowIfCancellationRequested(); _buffer!.Flush(); }
+        internal AnalysisInventoryReceipt Commit(Guid inventoryId)
+        {
+            var file = _file ?? throw new ObjectDisposedException(nameof(DatasetWrite));
+            _cancel.ThrowIfCancellationRequested(); _buffer!.Flush();
+            _cancel.ThrowIfCancellationRequested(); _store.Guard(); file.Verify(); file.Flush();
+            _cancel.ThrowIfCancellationRequested(); _store.Guard(); file.Verify(); file.PublishNew(_name);
+            return new(inventoryId, _name, _guarded.Written);
+        }
+        public void Dispose()
+        {
+            // Deliberately discard buffered unfinished bytes. BufferedStream.Dispose would flush
+            // after cancellation/failure. The separately owned native file owns its underlying
+            // stream and is ALWAYS closed, whether publication succeeded or remained anonymous.
+            _buffer = null;
+            try { Interlocked.Exchange(ref _file, null)?.Dispose(); }
+            finally { _store.Dispose(); }
+        }
+    }
+
     // Reserved metadata is available only to the trusted catalog/private-state codec. Public inventory
     // SaveNew/Load still require .fcdsa, so decoded names cannot select arbitrary JSON/profile artifacts.
     internal long WriteMetadataNew(string name, byte[] bytes, CancellationToken cancellation)

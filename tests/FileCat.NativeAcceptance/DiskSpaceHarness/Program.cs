@@ -54,6 +54,7 @@ internal sealed partial class HarnessApp : Application
         Directory.CreateDirectory(_run);
         _fixture = Path.Combine(_run, "fixture"); Directory.CreateDirectory(_fixture);
         CreateFixture();
+        if (Program.IndexedInventoryProbe) for (int i = 0; i < 4200; i++) Add($"Streamed/row-{i:D4}.bin", 1);
         PlatformFactory.WindowsFactory = () => new FileCat.Platform.Windows.WindowsPlatform();
         string profileRoot = Program.SharedProfile ? Path.Combine(AppContext.BaseDirectory, "native-validation-shared-profile") : Path.Combine(_run, "data");
         _services = AppServices.CreateForPaths(AppPaths.Resolve(dataRoot: profileRoot));
@@ -213,7 +214,7 @@ internal sealed partial class HarnessApp : Application
             profileProbe = Program.ProfileProbe, profileProbeFinished = _profileProbeFinished, profileProbeError = _profileProbeError, profileProbeCaptureError = _profileProbeCaptureError,
             savedOrderingProbe = _savedOrderingProbe, acquisitionProbe = _acquisitionProbe,
             indexedProbeRequested = Program.IndexedProbe, indexedProbeFinished = _indexedProbeFinished, indexedProbeError = _indexedProbeError, indexedProbe = _indexedProbe,
-            memoryFallbackProbeRequested = Program.MemoryFallbackProbe, memoryLifecycleProbeRequested = Program.MemoryLifecycleProbe,
+            indexedInventoryProbeRequested = Program.IndexedInventoryProbe, inventoryProbe = _inventoryProbe, memoryFallbackProbeRequested = Program.MemoryFallbackProbe, memoryLifecycleProbeRequested = Program.MemoryLifecycleProbe,
             memoryProbeStage = _memoryProbeStage, memoryProbeView = _memoryProbeView
         };
         File.WriteAllText(Path.Combine(_run, "report.json"), JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }) + "\n");
@@ -235,10 +236,11 @@ internal static class Program
     internal static bool IndexedProbe { get; private set; }
     internal static bool MemoryFallbackProbe { get; private set; }
     internal static bool MemoryLifecycleProbe { get; private set; }
+    internal static bool IndexedInventoryProbe { get; private set; }
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe"))) return 64;
+        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe" or "--indexed-inventory-probe"))) return 64;
         LargeText = args.Contains("--large-text", StringComparer.Ordinal);
         Compact = args.Contains("--compact", StringComparer.Ordinal);
         WindowsInput = args.Contains("--windows-input", StringComparer.Ordinal);
@@ -249,7 +251,9 @@ internal static class Program
         MemoryLifecycleProbe = args.Contains("--memory-lifecycle-probe", StringComparer.Ordinal);
         if (MemoryLifecycleProbe && args.Contains("--memory-fallback-probe", StringComparer.Ordinal)) return 64;
         MemoryFallbackProbe = args.Contains("--memory-fallback-probe", StringComparer.Ordinal) || MemoryLifecycleProbe;
-        IndexedProbe = args.Contains("--indexed-probe", StringComparer.Ordinal) || MemoryFallbackProbe;
+        IndexedInventoryProbe = args.Contains("--indexed-inventory-probe", StringComparer.Ordinal);
+        if (IndexedInventoryProbe && (MemoryFallbackProbe || args.Contains("--indexed-probe", StringComparer.Ordinal))) return 64;
+        IndexedProbe = args.Contains("--indexed-probe", StringComparer.Ordinal) || MemoryFallbackProbe || IndexedInventoryProbe;
         if (MemoryFallbackProbe && args.Contains("--indexed-probe", StringComparer.Ordinal)) return 64;
         if (ProfileProbe && WindowsInput) return 64;
         if (IndexedProbe && (ProfileProbe || WindowsInput)) return 64;

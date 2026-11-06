@@ -15,6 +15,13 @@ public sealed class AnalysisIoDevices
             ? [primary] : [.. new[] { primary, related }.Order(StringComparer.OrdinalIgnoreCase)];
     }
     internal bool Contains(string key) => Keys.Contains(key, StringComparer.OrdinalIgnoreCase);
+    internal AnalysisIoDevices Include(string key)
+    {
+        Validate(key);
+        if (Contains(key)) return this;
+        if (Keys.Length != 1) throw new NotSupportedException("This operation would require more than two captured devices.");
+        return new(Primary, key);
+    }
     private static void Validate(string key)
     {
         if (string.IsNullOrWhiteSpace(key) || key.Length > 1024)

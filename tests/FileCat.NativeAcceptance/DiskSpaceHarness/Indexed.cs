@@ -36,8 +36,9 @@ internal sealed partial class HarnessApp
             lease = await session.AcquireDatasetAsync() ?? throw new IOException("The native indexed dataset was not published.");
             var descriptor = lease.Descriptor;
             var explorer = await window.AddIndexedSessionAsync(lease, AnalysisMetric.OnDisk);
-            await lease.DisposeAsync(); lease = null;
             await _indexedAcquisition.DisposeAsync(); _indexedAcquisition = null;
+            if (Program.IndexedInventoryProbe) await IndexedInventoryProbeAsync(lease);
+            await lease.DisposeAsync(); lease = null;
             var list = window.GetVisualDescendants().OfType<ListBox>().Single(control => AutomationProperties.GetName(control) == "Indexed analysis entries");
             var root = list.Items.OfType<AnalysisHierarchyRow>().Single(); list.SelectedItem = root;
             window.GetVisualDescendants().OfType<Button>().Single(button => button.Content as string == "Explore selected folder")
@@ -73,7 +74,8 @@ internal sealed partial class HarnessApp
                 privateStateSha256 = Hash(services.Paths.AnalysisPrivateStateFile), profile = profile.ProfileId,
                 scratch = services.Paths.AnalysisScratchDirectory, nativeDesktopInputQualified = false
             };
-            if (OperatingSystem.IsWindows())
+            if (Program.IndexedInventoryProbe) await RenderInventoryWindowAsync();
+            else if (OperatingSystem.IsWindows())
             {
                 WindowsGuestInput.ActivateFromDesktop(window.TryGetPlatformHandle()?.Handle ?? 0);
                 await Task.Delay(600); WindowsCapture("indexed-probe");

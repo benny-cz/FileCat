@@ -4,7 +4,8 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Tests;
 
-public sealed class AnalysisDatasetTests
+[Collection("Analysis bounded work capacity")]
+public sealed partial class AnalysisDatasetTests
 {
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary process.");
