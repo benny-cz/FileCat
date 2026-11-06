@@ -188,8 +188,8 @@ internal sealed class AnalysisScratchArena : IDisposable
             try { _file.Dispose(); }
             finally
             {
-                try { _directory.Dispose(); }
-                finally { _budget.Release(_reserved); _reserved = 0; CryptographicOperations.ZeroMemory(_key); }
+                try { _budget.Release(_reserved); }
+                finally { try { _directory.Dispose(); } finally { _reserved = 0; CryptographicOperations.ZeroMemory(_key); } }
             }
         }
     }
@@ -246,11 +246,12 @@ internal sealed class AnalysisScratchBudget
     private readonly object _gate = new();
     private readonly long _limit;
     private readonly AnalysisScratchBudget? _parent;
+    private readonly AnalysisProfileQuota? _quota;
     private long _reserved;
-    internal AnalysisScratchBudget(long limit, AnalysisScratchBudget? parent = null)
+    internal AnalysisScratchBudget(long limit, AnalysisScratchBudget? parent = null, AnalysisProfileQuota? quota = null)
     {
         if (limit is < 1 or > AnalysisLimits.ProfileScratchBytes || parent is not null && limit > parent._limit) throw new ArgumentOutOfRangeException(nameof(limit));
-        _limit = limit; _parent = parent;
+        _limit = limit; _parent = parent; _quota = quota;
     }
     internal long ReservedBytes => Volatile.Read(ref _reserved);
     internal bool TryReserve(long bytes)
@@ -259,6 +260,11 @@ internal sealed class AnalysisScratchBudget
         lock (_gate)
         {
             if (bytes > _limit - _reserved || _parent is not null && !_parent.TryReserve(bytes)) return false;
+            try
+            {
+                if (_quota is not null && !_quota.TryReserve(bytes)) { _parent?.Release(bytes); return false; }
+            }
+            catch { _parent?.Release(bytes); throw; }
             _reserved += bytes; return true;
         }
     }
@@ -267,7 +273,9 @@ internal sealed class AnalysisScratchBudget
         lock (_gate)
         {
             if (bytes < 0 || bytes > _reserved) throw new InvalidOperationException("The private scratch reservation does not belong to this budget.");
-            _reserved -= bytes; _parent?.Release(bytes);
+            _reserved -= bytes;
+            try { _quota?.Release(bytes); }
+            finally { _parent?.Release(bytes); }
         }
     }
 }

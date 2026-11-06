@@ -8,6 +8,9 @@ using FileCat.Core.Search;
 using FileCat.Core.State;
 using FileCat.Core.Analysis;
 
+if (args is ["--analysis-quota-hold", var quotaProfile, var quotaBytes, var quotaSession])
+    return AnalysisQuotaHold.Run(quotaProfile, quotaBytes, quotaSession);
+
 if (args is ["--analysis-scratch-vector", var recordText, var vectorParent])
     return ScratchScale.Run(int.Parse(recordText, System.Globalization.CultureInfo.InvariantCulture), vectorParent);
 if (args is ["--analysis-scratch-paths", var pathText, var pathsParent])

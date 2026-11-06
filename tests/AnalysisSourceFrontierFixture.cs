@@ -22,7 +22,8 @@ internal static class AnalysisSourceFrontierFixture
         {
             source = await AnalysisIo.Run(io, device, _ => prepare(sourcePath), cancellation);
             session = new AnalysisCoordinator(io, "native-frontier").Start([source], storage: new(device,
-                () => Interlocked.Exchange(ref storage, null) ?? throw new InvalidOperationException("Private ownership transferred."), [new(device, () => prepare(privatePath))], PreviewPaths: 2)); source = null;
+                () => Interlocked.Exchange(ref storage, null) ?? throw new InvalidOperationException("Private ownership transferred."), [new(device, () => prepare(privatePath))], PreviewPaths: 2)
+                { CreateProfileQuota = () => AnalysisProfileQuota.Open(Guid.NewGuid()) }); source = null;
             await session.Completion.WaitAsync(TimeSpan.FromMinutes(3), cancellation);
             Assert.Equal(0UL, session.SourceCloseFailures); Assert.Equal(AnalysisPhase.Finished, session.Snapshot().Phase);
             Assert.Equal((ulong)(directories * 2 + 2), session.DatasetDescriptor!.Paths); Assert.Equal(NamespaceCoverage.CompleteUnderPolicy, session.DatasetDescriptor.Coverage);

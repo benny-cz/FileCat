@@ -24,13 +24,20 @@ public sealed class AnalysisObservationWriter : IAsyncDisposable
 
     // The factory is application-owned configuration, not a callback restored from an inventory.
     public static async Task<AnalysisObservationWriter> CreateAsync(DeviceIoScheduler io, string device, Func<AnalysisPrivateDirectory> createDirectory,
-        SessionIdentity acquisition, ImmutableArray<RootBinding> roots, ScanPolicy policy, CancellationToken cancellation = default)
+        SessionIdentity acquisition, ImmutableArray<RootBinding> roots, ScanPolicy policy, CancellationToken cancellation = default, Func<AnalysisProfileQuota>? createProfileQuota = null)
     {
         ArgumentNullException.ThrowIfNull(createDirectory);
         var header = new AnalysisIndexedGraphHeader(acquisition, roots, policy, AnalysisPhase.Scanning, NamespaceCoverage.Partial); header.Validate();
         var owner = await AnalysisIo.Run(io, device, _ =>
         {
-            var workspace = new AnalysisScratchWorkspace(createDirectory());
+            AnalysisProfileQuota? quota = null; AnalysisPrivateDirectory? directory = null; AnalysisScratchWorkspace workspace;
+            try
+            {
+                quota = createProfileQuota?.Invoke(); directory = createDirectory();
+                workspace = new(directory, AnalysisLimits.ScratchBytes, AnalysisScratchBudget.Shared, quota);
+                quota?.Dispose(); // Workspace/reader ownership independently retains its capacity owner.
+            }
+            catch { try { directory?.Dispose(); } finally { quota?.Dispose(); } throw; }
             try
             {
                 var arena = workspace.CreateArena();

@@ -178,9 +178,9 @@ public sealed partial class AnalysisDatasetSummaryTests
     }
 
     private static async Task<AnalysisDataset> Build(AnalysisSnapshot snapshot, DeviceIoScheduler io, MemoryDirectory? directory = null, string device = Device, AnalysisEnumerationProgress? enumeration = null,
-        long sessionLimit = AnalysisLimits.ScratchBytes, Action<AnalysisScratchWorkspace>? afterSeal = null)
+        long sessionLimit = AnalysisLimits.ScratchBytes, Action<AnalysisScratchWorkspace>? afterSeal = null, AnalysisProfileQuota? quota = null)
     {
-        directory ??= new(); using var workspace = new AnalysisScratchWorkspace(directory, sessionLimit, AnalysisScratchBudget.Shared);
+        directory ??= new(); using var workspace = new AnalysisScratchWorkspace(directory, sessionLimit, AnalysisScratchBudget.Shared, quota);
         var header = new AnalysisIndexedGraphHeader(snapshot.Identity, snapshot.Roots, snapshot.Policy, snapshot.Phase, snapshot.Coverage, Origin: AnalysisOrigin.ImportedInventory) { Enumeration = enumeration };
         using var graph = new AnalysisIndexedGraph(workspace.CreateArena(), header);
         foreach (var node in snapshot.Nodes) graph.AppendPath(node, Cancellation);
@@ -193,7 +193,7 @@ public sealed partial class AnalysisDatasetSummaryTests
     }
     private sealed class MemoryDirectory : AnalysisPrivateDirectory
     {
-        internal bool Closed; internal Action? BeforeNextRead;
+        internal bool Closed; internal Action? BeforeNextRead; internal long WrittenBytes;
         internal override void Verify() => ObjectDisposedException.ThrowIf(Closed, this);
         internal override (UInt128 Capacity, UInt128 Available) Space() => ((UInt128)1 << 34, (UInt128)1 << 34);
         internal override AnalysisPrivateScratchFile CreateScratch() => new MemoryFile(this);
@@ -207,7 +207,7 @@ public sealed partial class AnalysisDatasetSummaryTests
         public override long Length => _bytes.Length;
         public override void Verify() { }
         public override int ReadAt(Span<byte> buffer, long offset) { var before = directory.BeforeNextRead; directory.BeforeNextRead = null; before?.Invoke(); _bytes.Position = offset; return _bytes.Read(buffer); }
-        public override void WriteAt(ReadOnlySpan<byte> buffer, long offset) { _bytes.Position = offset; _bytes.Write(buffer); }
+        public override void WriteAt(ReadOnlySpan<byte> buffer, long offset) { directory.WrittenBytes += buffer.Length; _bytes.Position = offset; _bytes.Write(buffer); }
         public override void Dispose() => _bytes.Dispose();
     }
 }

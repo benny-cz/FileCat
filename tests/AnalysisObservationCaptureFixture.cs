@@ -63,7 +63,8 @@ internal static partial class AnalysisObservationCaptureFixture
             var header = new AnalysisIndexedGraphHeader(new(Guid.NewGuid(), 1, 1, "native-capture-fixture", start, now) { TimeZoneId = "UTC" },
                 [source.Root with { Id = "r", Kind = source.RootEntry.Kind, ObservedObjectIdentity = source.RootEntry.Identity }],
                 new() { BasisIds = [source.Basis], Limits = AnalysisLimits.EffectivePolicy }, AnalysisPhase.Scanning, NamespaceCoverage.Partial);
-            writer = await AnalysisObservationWriter.CreateAsync(io, scratchDevice, create, header.Identity, header.Roots, header.Policy, cancellation);
+            writer = await AnalysisObservationWriter.CreateAsync(io, scratchDevice, create, header.Identity, header.Roots, header.Policy, cancellation,
+                () => AnalysisProfileQuota.Open(Guid.NewGuid()));
             ulong root = (await writer.AppendBatchAsync([new(source.RootEntry, 0, "r", source.Basis)], cancellation))[0];
             var pending = new Stack<(AnalysisEntry Entry, ulong Node)>(); pending.Push((source.RootEntry, root));
             var capturedNames = new Dictionary<string, ulong>(StringComparer.Ordinal);

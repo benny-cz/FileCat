@@ -6,6 +6,8 @@ namespace FileCat.Core.Analysis;
 public sealed record AnalysisPrivateRoot(string DeviceKey, Func<IAnalysisBackend> Prepare);
 public sealed record AnalysisStorageOptions(string DeviceKey, Func<AnalysisPrivateDirectory> CreateDirectory, ImmutableArray<AnalysisPrivateRoot> ProtectedRoots, int PreviewPaths = 4096)
 {
+    // Trusted application configuration, never reconstructed from an inventory's profile correlation ID.
+    public Func<AnalysisProfileQuota>? CreateProfileQuota { get; init; }
     internal void Validate()
     {
         if (string.IsNullOrWhiteSpace(DeviceKey) || DeviceKey.Length > 1024 || CreateDirectory is null || ProtectedRoots.IsDefaultOrEmpty || ProtectedRoots.Length > AnalysisLimits.Roots ||
@@ -68,7 +70,7 @@ public sealed partial class AnalysisSession
         // explicitly selected private file root contributes only excluded evidence, never its metadata.
         lock (_sync) _roots = _roots.Select((root, i) => _protectedSources.Contains(_sources[i]) ? root with { ObservedObjectIdentity = null } : root).ToImmutableArray();
         lock (_sync) _activeDevice = _storage.DeviceKey;
-        _writer = await AnalysisObservationWriter.CreateAsync(_io, _storage.DeviceKey, _storage.CreateDirectory, _identity, _roots, _policy, _cancel.Token).ConfigureAwait(false);
+        _writer = await AnalysisObservationWriter.CreateAsync(_io, _storage.DeviceKey, _storage.CreateDirectory, _identity, _roots, _policy, _cancel.Token, _storage.CreateProfileQuota).ConfigureAwait(false);
         if (_cancel.IsCancellationRequested) { _writer.RequestStop(); _cancel.Token.ThrowIfCancellationRequested(); }
         if (protectionFailure is not null) throw new IOException("Private-state exclusion could not be qualified for these sources.", protectionFailure);
         await PublishEnumerationAsync().ConfigureAwait(false);
