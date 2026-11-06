@@ -35,12 +35,12 @@ public sealed record AnalysisDatasetPage<T>(ulong Offset, ulong Total, Immutable
 public sealed class AnalysisDataset : IAsyncDisposable
 {
     private readonly AnalysisOwnedDatasetIo<AnalysisIndexedGraphRevision> _owned;
-    private readonly DeviceIoScheduler _io; private readonly string _device;
+    private readonly DeviceIoScheduler _io; private readonly AnalysisIoDevices _device;
     public AnalysisDatasetDescriptor Descriptor { get; }
-    internal AnalysisDataset(AnalysisIndexedGraphRevision revision, DeviceIoScheduler io, string device)
+    internal AnalysisDataset(AnalysisIndexedGraphRevision revision, DeviceIoScheduler io, AnalysisIoDevices device)
     {
         ArgumentNullException.ThrowIfNull(revision); ArgumentNullException.ThrowIfNull(io);
-        if (string.IsNullOrWhiteSpace(device) || device.Length > 1024) throw new ArgumentException("A captured bounded scratch device key is required.", nameof(device));
+        ArgumentNullException.ThrowIfNull(device);
         var h = revision.Header; _io = io; _device = device;
         Descriptor = new(h.Identity, h.Roots, h.Policy, h.Phase, h.Coverage, h.Freshness, h.Origin, h.Taint, h.Persistence,
             revision.Count(AnalysisIndexedGraph.Paths), revision.Count(AnalysisIndexedGraph.Objects), revision.Count(AnalysisIndexedGraph.Facts), revision.Count(AnalysisIndexedGraph.Issues), h.IssueTotals, h.BoundaryTotals,
@@ -56,9 +56,9 @@ public sealed class AnalysisDataset : IAsyncDisposable
 public sealed partial class AnalysisDatasetLease : IAsyncDisposable
 {
     private readonly AnalysisOwnedDatasetIo<AnalysisIndexedGraphReader> _owned;
-    private readonly DeviceIoScheduler _io; private readonly string _device;
+    private readonly DeviceIoScheduler _io; private readonly AnalysisIoDevices _device;
     public AnalysisDatasetDescriptor Descriptor { get; }
-    internal AnalysisDatasetLease(AnalysisIndexedGraphReader reader, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, string device)
+    internal AnalysisDatasetLease(AnalysisIndexedGraphReader reader, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, AnalysisIoDevices device)
     { Descriptor = descriptor; _io = io; _device = device; _owned = new(reader, io, device); }
     public Task<AnalysisDatasetLease> RetainAsync(CancellationToken cancellation = default) =>
         _owned.RunAsync((reader, _) => new AnalysisDatasetLease(reader.Retain(), Descriptor, _io, _device), cancellation);
@@ -133,7 +133,7 @@ public sealed partial class AnalysisDatasetLease : IAsyncDisposable
 }
 
 /// <summary>Real queued/running work retains the owner through actual completion, including scheduler shutdown.</summary>
-internal sealed class AnalysisOwnedDatasetIo<T>(T resource, DeviceIoScheduler io, string device) : IAsyncDisposable where T : class, IAnalysisScratchOwned
+internal sealed class AnalysisOwnedDatasetIo<T>(T resource, DeviceIoScheduler io, AnalysisIoDevices device) : IAsyncDisposable where T : class, IAnalysisScratchOwned
 {
     private T? _resource = resource;
     private readonly object _gate = new(); private int _active; private bool _disposed, _closing;

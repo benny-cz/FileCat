@@ -10,7 +10,7 @@ internal static class AnalysisObservationCoalescer
     // Consumes the retained raw publication on success or failure. The capture owner and workspace
     // remain caller-owned, including a retry after transient indexing failure.
     internal static async Task<AnalysisIndexedGraphRevision> BuildAsync(AnalysisIndexedGraphHeader header, AnalysisScratchCompositeRevision raw,
-        AnalysisScratchWorkspace workspace, DeviceIoScheduler io, string device, CancellationToken cancellation)
+        AnalysisScratchWorkspace workspace, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
     {
         var owned = new Ownership(raw);
         AnalysisIndexedGraphRevision? result = null;
@@ -141,7 +141,7 @@ internal static class AnalysisObservationCoalescer
     }
 
     private static async Task CopyAsync(int table, Action<byte[], CancellationToken> consume, AnalysisScratchCompositeRevision raw,
-        DeviceIoScheduler io, string device, CancellationToken cancellation)
+        DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
     {
         ulong next = 1, count = raw.Count(table);
         while (next <= count)

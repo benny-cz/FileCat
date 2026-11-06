@@ -46,7 +46,7 @@ public sealed partial class AnalysisSession : IDisposable
     private long _revision;
     private TaskCompletionSource? _resume;
     private AnalysisSnapshot? _final;
-    private string? _activeDevice;
+    private AnalysisIoDevices? _activeDevice;
     private AnalysisFreshness _freshness;
     private ulong _enumerationRequested, _enumerationCompleted, _enumerationFailed;
     private ulong _sourceCloseFailures;
@@ -158,7 +158,7 @@ public sealed partial class AnalysisSession : IDisposable
         if (health != DeviceHealth.NotResponding) return;
         lock (_sync)
         {
-            if (_disposed || _workerFinished || !string.Equals(_activeDevice, key, StringComparison.OrdinalIgnoreCase)) return;
+            if (_disposed || _workerFinished || _activeDevice?.Contains(key) != true) return;
         }
         Stop("device-not-responding");
     }

@@ -133,7 +133,8 @@
     "Legacy table freeze retires on handled or moved-list release at the owning window, capture loss, detach and deactivation. Pointer fixtures await the attached projection and assert a fresh rendered hit. A queued initial TextChanged debounce could reset an explicit query; synchronous text-property edits fix it. The new one-case Mac control fails with the old App; final77-case suites pass on all3 platforms.",
     "Native indexed fixtures on Windows VM, Mac and Ubuntu each verify518 paths/508 objects/509 regular paths, retained-reader Name ascending/Table/link inspection after owner closure, unchanged509 source hashes, empty owned scratch and actual owned exit. This self-driving subset is not physical-input/full desktop, package or resource qualification.",
     "Actual APFS/ext4 rename-and-restore controls show an unchanged anchored UUID can coexist with a replacement exclusion capability. Native held-object comparison now rejects that mismatch for both inventory and scratch preparation. Final79-case Mac/Ubuntu suites and78pass/oneUnix-only-skip Windows suite pass; updated core/native and native indexed509-path source/exit/scratch subsets pass on all3. No public gate enabled.",
-    "Internal native indexed acquisition now shares profile capacity through 32 immutable private-file tokens and nonblocking kernel locks, independent of IPC namespaces. Actual Ubuntu separate-namespace controls reject the IPC-only prototype and prove file-backed refusal, process-death recovery and unchanged metadata. Native same-profile/retained-owner/foreign-state/crossprocess controls and all3 indexed workflows pass. Mixed profile/scratch device admission, public fallback and full resource/package qualification remain required."
+    "Internal native indexed acquisition now shares profile capacity through 32 immutable private-file tokens and nonblocking kernel locks, independent of IPC namespaces. Actual Ubuntu separate-namespace controls reject the IPC-only prototype and prove file-backed refusal, process-death recovery and unchanged metadata. Native same-profile/retained-owner/foreign-state/crossprocess controls and all3 indexed workflows pass. Mixed profile/scratch device admission, public fallback and full resource/package qualification remain required.",
+    "Profile and scratch device keys now share ordered bounded admission through capture, frontier, sorting, indexed views/readers and cleanup. The existing watchdog tracks both actual dependencies; cancellation and shutdown retain both turns until actual return. Six new admission/lifetime controls plus existing scheduler regressions and native indexed workflows pass on all3 runtimes. Distinct native-volume, package/resource and safe public fallback qualification remain pending."
   ],
   "validation": {
     "windowsCore": {
@@ -873,10 +874,90 @@
       "publicSpillEnabled": false,
       "nativeInputQualified": false,
       "finalIndependentReviewPerformed": false
+    },
+    "profileScratchDeviceAdmission": {
+      "status": "internal-paired-key-admission-subset-passed",
+      "core": {
+        "mac": {
+          "total": 588,
+          "passed": 586,
+          "failed": 0,
+          "skipped": 2,
+          "seconds": 16.198,
+          "evidence": "mac-core-r402.xml"
+        },
+        "ubuntu": {
+          "total": 588,
+          "passed": 586,
+          "failed": 0,
+          "skipped": 2,
+          "seconds": 48.419,
+          "evidence": "ubuntu-core-r402.xml"
+        },
+        "windows": {
+          "total": 606,
+          "passed": 566,
+          "failed": 0,
+          "skipped": 40,
+          "seconds": 12.042,
+          "evidence": "windows-core-r402.xml"
+        }
+      },
+      "windowsNative": {
+        "total": 36,
+        "passed": 36,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 19.885,
+        "evidence": "windows-native-r402.xml"
+      },
+      "render": {
+        "mac": {
+          "total": 79,
+          "passed": 79,
+          "failed": 0,
+          "skipped": 0,
+          "seconds": 33.994,
+          "evidence": "mac-render-r403.xml"
+        },
+        "ubuntu": {
+          "total": 79,
+          "passed": 79,
+          "failed": 0,
+          "skipped": 0,
+          "seconds": 47.035,
+          "evidence": "ubuntu-render-r403.xml"
+        },
+        "windows": {
+          "total": 79,
+          "passed": 78,
+          "failed": 0,
+          "skipped": 1,
+          "seconds": 42.372,
+          "evidence": "windows-render-r403.xml"
+        }
+      },
+      "nativeReceipts": [
+        "windows-native-indexed-r405.json",
+        "mac-native-indexed-r405.json",
+        "ubuntu-native-indexed-r405.json"
+      ],
+      "postChecks": [
+        "windows-post-multidevice-r406.json",
+        "mac-post-multidevice-r406.txt",
+        "ubuntu-post-multidevice-r406.txt"
+      ],
+      "manifest": "source-manifest-r405.json",
+      "macPostponement": "Initial native run refused before extraction/launch while another archive VM tester was active. Fresh clear observation then ran the unchanged archive and driver.",
+      "macVisualEvidence": "No new visual acceptance: automatic approval review rejected transfer of a full-display capture because unrelated private desktop information could be included. Only generated JSON and process check retrieved. A window-only route is required for further capture.",
+      "limitation": "Trusted-key admission, actual watchdog and retained ownership evidence; actual mixed-volume and native device-key identity/alias qualification remain open. Unix current provider conservatively groups local volumes. No priority/resource/package/public-fallback gate closed.",
+      "publicSpillEnabled": false,
+      "nativeInputQualified": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
-    "W1 indexed integration: native file-backed profile capacity now has all3 evidence and an actual separate-IPC-namespace proof. Implement profile/scratch multi-device admission/quarantine and safe bounded-memory fallback before public acquisition. Qualify package/session/domain agreement, original inventory IDs/streaming persistence, end-to-end1M/10M and every resource limit before enabling spill.",
+    "W1 indexed integration: native file-backed quota and paired profile/scratch admission have internal all3 evidence. Implement safe bounded-memory fallback before public acquisition. Qualify actual mixed-volume/native device identity, package/session/domain agreement, original inventory IDs/streaming persistence, end-to-end1M/10M and every resource limit before enabling spill.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: grouping/color dimensions, scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",

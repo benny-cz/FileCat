@@ -6,7 +6,7 @@ namespace FileCat.Core.Analysis;
 /// <summary>Bounded streaming graph checks; equality uses full captured keys rather than hash identity.</summary>
 internal static class AnalysisIndexedGraphValidation
 {
-    internal static async Task<AnalysisIndexedGraphHeader> ValidateAsync(AnalysisIndexedGraphReader reader, DeviceIoScheduler io, string device, CancellationToken cancellation)
+    internal static async Task<AnalysisIndexedGraphHeader> ValidateAsync(AnalysisIndexedGraphReader reader, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
     {
         reader.Header.Validate();
         var coverage = new AnalysisIndexedCoverage(reader.Header);

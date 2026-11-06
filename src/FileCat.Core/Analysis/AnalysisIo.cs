@@ -18,7 +18,7 @@ public static class AnalysisIo
     private static readonly Dictionary<string, Device> Devices = new(StringComparer.OrdinalIgnoreCase);
     private sealed class Device { public readonly SemaphoreSlim Turn = new(1, 1); public int References; }
 
-    public static Task<T> Run<T>(DeviceIoScheduler scheduler, string device, Func<CancellationToken, T> work,
+    public static Task<T> Run<T>(DeviceIoScheduler scheduler, AnalysisIoDevices device, Func<CancellationToken, T> work,
         CancellationToken cancellation = default) => RunCore(scheduler, device, work, cancellation, releaseOnly: false);
 
     /// <summary>Transfers an owned metadata backend to bounded cleanup; it is never disposed by a UI continuation.</summary>
@@ -29,19 +29,19 @@ public static class AnalysisIo
     }
 
     /// <summary>Closes an existing private-directory capability through bounded cleanup, including scheduler shutdown.</summary>
-    public static Task ReleaseAsync(DeviceIoScheduler scheduler, string device, AnalysisPrivateDirectory directory)
+    public static Task ReleaseAsync(DeviceIoScheduler scheduler, AnalysisIoDevices device, AnalysisPrivateDirectory directory)
     {
         ArgumentNullException.ThrowIfNull(directory);
         return RunCore(scheduler, device, _ => { directory.Dispose(); return true; }, CancellationToken.None, releaseOnly: true);
     }
 
-    internal static Task ReleaseScratchAsync(DeviceIoScheduler scheduler, string device, IAnalysisScratchOwned source) =>
+    internal static Task ReleaseScratchAsync(DeviceIoScheduler scheduler, AnalysisIoDevices device, IAnalysisScratchOwned source) =>
         RunCore(scheduler, device, _ => { source.Dispose(); return true; }, CancellationToken.None, releaseOnly: true);
 
-    public static IAsyncDisposable OwnCursor(DeviceIoScheduler scheduler, string device, IEnumerator<AnalysisEntry> cursor) =>
+    public static IAsyncDisposable OwnCursor(DeviceIoScheduler scheduler, AnalysisIoDevices device, IEnumerator<AnalysisEntry> cursor) =>
         new Cursor(scheduler, device, cursor);
 
-    private sealed class Cursor(DeviceIoScheduler scheduler, string device, IEnumerator<AnalysisEntry> cursor) : IAsyncDisposable
+    private sealed class Cursor(DeviceIoScheduler scheduler, AnalysisIoDevices device, IEnumerator<AnalysisEntry> cursor) : IAsyncDisposable
     {
         private IEnumerator<AnalysisEntry>? _cursor = cursor;
         public ValueTask DisposeAsync()
@@ -52,20 +52,23 @@ public static class AnalysisIo
         }
     }
 
-    private static async Task<T> RunCore<T>(DeviceIoScheduler scheduler, string device, Func<CancellationToken, T> work,
+    private static async Task<T> RunCore<T>(DeviceIoScheduler scheduler, AnalysisIoDevices device, Func<CancellationToken, T> work,
         CancellationToken cancellation, bool releaseOnly)
     {
-        ArgumentNullException.ThrowIfNull(scheduler); ArgumentNullException.ThrowIfNull(work);
-        if (string.IsNullOrWhiteSpace(device) || device.Length > 1024) throw new ArgumentException("A bounded provider device key is required.", nameof(device));
-        if (!releaseOnly && scheduler.GetHealth(device) == DeviceHealth.NotResponding) throw new AnalysisDeviceUnavailableException();
+        ArgumentNullException.ThrowIfNull(scheduler); ArgumentNullException.ThrowIfNull(work); ArgumentNullException.ThrowIfNull(device);
+        bool Unavailable() => device.Keys.Any(key => scheduler.GetHealth(key) == DeviceHealth.NotResponding);
+        if (!releaseOnly && Unavailable()) throw new AnalysisDeviceUnavailableException();
         using var admission = await Admit(device, cancellation).ConfigureAwait(false);
-        T Invoke(CancellationToken _)
+        T Invoke(DeviceIoScheduler actualScheduler)
         {
             try
             {
                 cancellation.ThrowIfCancellationRequested();
-                if (!releaseOnly && scheduler.GetHealth(device) == DeviceHealth.NotResponding) throw new AnalysisDeviceUnavailableException();
+                if (!releaseOnly && Unavailable()) throw new AnalysisDeviceUnavailableException();
                 if (!releaseOnly && AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
+                // Includes synchronous capacity-owner work on the profile device. Its completion, not
+                // a canceled await, retires both health observations and the shared device admissions.
+                using var observed = actualScheduler.ObserveActualDevices(device.Keys);
                 return work(cancellation);
             }
             finally { admission.Dispose(); }
@@ -73,14 +76,14 @@ public static class AnalysisIo
         // DeviceIoScheduler cancellation is intentionally NOT the caller's token. Its shutdown cancels queued
         // delegates only; running delegates remain owned until Execute returns. The admission therefore covers
         // real work and quarantined calls, rather than the lifetime of an early-canceled awaiting task.
-        var actual = scheduler.Run(device, IoPriority.Background, Invoke, CancellationToken.None);
+        var actual = scheduler.Run(device.Primary, IoPriority.Background, _ => Invoke(scheduler), CancellationToken.None);
         try { return await actual.ConfigureAwait(false); }
         catch (OperationCanceledException) when (releaseOnly && actual.IsCanceled && scheduler.IsStopped)
         {
             // An application shutdown may retire its queue before an owned handle release enters it. Only
             // release of existing metadata capabilities can use this one-thread process-wide close worker.
             // It retains the SAME global/device admission, and cannot execute scans, persistence or new opens.
-            return await CloseWorker.Scheduler.Run("analysis-owned-handle-release", IoPriority.Background, Invoke, CancellationToken.None).ConfigureAwait(false);
+            return await CloseWorker.Scheduler.Run("analysis-owned-handle-release", IoPriority.Background, _ => Invoke(CloseWorker.Scheduler), CancellationToken.None).ConfigureAwait(false);
         }
     }
 
@@ -89,21 +92,29 @@ public static class AnalysisIo
         internal static readonly DeviceIoScheduler Scheduler = new(threadsPerDevice: 1, maxThreadsPerDevice: 1);
     }
 
-    private static async Task<IDisposable> Admit(string key, CancellationToken cancellation)
+    private static async Task<IDisposable> Admit(AnalysisIoDevices keys, CancellationToken cancellation)
     {
         await Requests.WaitAsync(cancellation).ConfigureAwait(false);
-        Device device;
-        lock (Gate)
-        {
-            if (!Devices.TryGetValue(key, out device!)) Devices.Add(key, device = new());
-            device.References++;
-        }
+        var acquired = new List<(string Key, Device Device)>(keys.Keys.Length);
         try
         {
-            await device.Turn.WaitAsync(cancellation).ConfigureAwait(false);
-            return new Admission(key, device);
+            // Every caller uses the same total order, including reversed primary/profile pairs.
+            // A waiting/canceled set owns only its acquired turns and releases each exactly once.
+            foreach (string key in keys.Keys)
+            {
+                Device device;
+                lock (Gate)
+                {
+                    if (!Devices.TryGetValue(key, out device!)) Devices.Add(key, device = new());
+                    device.References++;
+                }
+                try { await device.Turn.WaitAsync(cancellation).ConfigureAwait(false); }
+                catch { Forget(key, device); throw; }
+                acquired.Add((key, device));
+            }
+            return new Admission(acquired);
         }
-        catch { Forget(key, device); Requests.Release(); throw; }
+        catch { new Admission(acquired).Dispose(); throw; }
     }
     private static void Forget(string key, Device device)
     {
@@ -113,13 +124,17 @@ public static class AnalysisIo
             Devices.Remove(key); device.Turn.Dispose();
         }
     }
-    private sealed class Admission(string key, Device device) : IDisposable
+    private sealed class Admission(List<(string Key, Device Device)> acquired) : IDisposable
     {
         private int _released;
         public void Dispose()
         {
             if (Interlocked.Exchange(ref _released, 1) != 0) return;
-            device.Turn.Release(); Forget(key, device); Requests.Release();
+            for (int i = acquired.Count - 1; i >= 0; i--)
+            {
+                var (key, device) = acquired[i]; device.Turn.Release(); Forget(key, device);
+            }
+            Requests.Release();
         }
     }
 }

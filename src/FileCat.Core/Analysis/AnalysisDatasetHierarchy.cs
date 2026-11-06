@@ -52,11 +52,11 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
     public AnalysisTotals Totals { get; }
     // File-size columns use the SAME selected paths as the active metric, never a re-evaluated predicate.
     public AnalysisLogicalTotals LogicalTotals { get; }
-    private AnalysisDatasetHierarchy(State state, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, string device)
+    private AnalysisDatasetHierarchy(State state, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, AnalysisIoDevices device)
     { Descriptor = descriptor; Metric = state.Metric; Filter = state.FilterSummary; Totals = state.Total.Export(state.Compatible); LogicalTotals = state.TotalLogical.ExportLogical(); _owned = new(state, io, device); }
 
     internal static async Task<AnalysisDatasetHierarchy> BuildAsync(AnalysisIndexedGraphReader source, AnalysisDatasetDescriptor descriptor,
-        AnalysisMetric metric, IEnumerable<AnalysisSortInput>? charges, bool compatible, DeviceIoScheduler io, string device, CancellationToken cancellation, AnalysisIndexedFilter? query = null)
+        AnalysisMetric metric, IEnumerable<AnalysisSortInput>? charges, bool compatible, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation, AnalysisIndexedFilter? query = null)
     {
         await Builds.WaitAsync(cancellation).ConfigureAwait(false); State? state = null;
         try

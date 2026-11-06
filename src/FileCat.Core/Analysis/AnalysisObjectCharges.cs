@@ -24,11 +24,11 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
     private static readonly SemaphoreSlim Builds = new(AnalysisLimits.ActiveScans, AnalysisLimits.ActiveScans);
     private readonly AnalysisOwnedDatasetIo<State> _owned;
     private readonly DeviceIoScheduler _io;
-    private readonly string _device;
+    private readonly AnalysisIoDevices _device;
     public AnalysisDatasetDescriptor Descriptor { get; }
     public AnalysisMetric Metric { get; }
     public AnalysisTotals Totals { get; }
-    private AnalysisObjectChargeIndex(State state, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, string device)
+    private AnalysisObjectChargeIndex(State state, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, AnalysisIoDevices device)
     { Descriptor = descriptor; Metric = state.Metric; Totals = state.Totals(); _owned = new(state, io, device); _io = io; _device = device; }
 
     /// <summary>Folds charges into real directory rows and explicit shared/directory-self buckets.</summary>
@@ -37,7 +37,7 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
             Totals.CompatibleBasis, _io, _device, cancellation, state.Query));
 
     internal static async Task<AnalysisObjectChargeIndex> BuildAsync(AnalysisIndexedGraphReader source, AnalysisDatasetDescriptor descriptor,
-        AnalysisMetric metric, DeviceIoScheduler io, string device, CancellationToken cancellation, AnalysisIndexedFilter? query = null)
+        AnalysisMetric metric, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation, AnalysisIndexedFilter? query = null)
     {
         await Builds.WaitAsync(cancellation).ConfigureAwait(false); State? state = null;
         try

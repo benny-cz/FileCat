@@ -25,11 +25,11 @@ public sealed class AnalysisLogicalHierarchy : IAsyncDisposable
     private readonly AnalysisOwnedDatasetIo<State> _owned;
     public AnalysisDatasetDescriptor Descriptor { get; }
     public AnalysisLogicalTotals Totals { get; }
-    private AnalysisLogicalHierarchy(State state, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, string device)
+    private AnalysisLogicalHierarchy(State state, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, AnalysisIoDevices device)
     { Descriptor = descriptor; Totals = state.Total.Export(); _owned = new(state, io, device); }
 
     internal static async Task<AnalysisLogicalHierarchy> BuildAsync(AnalysisIndexedGraphReader source, AnalysisDatasetDescriptor descriptor,
-        DeviceIoScheduler io, string device, CancellationToken cancellation)
+        DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
     {
         await Builds.WaitAsync(cancellation).ConfigureAwait(false); State? state = null;
         try

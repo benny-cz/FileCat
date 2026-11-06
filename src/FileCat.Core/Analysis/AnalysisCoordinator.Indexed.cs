@@ -8,11 +8,14 @@ public sealed record AnalysisStorageOptions(string DeviceKey, Func<AnalysisPriva
 {
     // Trusted application configuration, never reconstructed from an inventory's profile correlation ID.
     public Func<AnalysisProfileQuota>? CreateProfileQuota { get; init; }
+    public string? ProfileDeviceKey { get; init; }
+    internal AnalysisIoDevices Devices => new(DeviceKey, ProfileDeviceKey);
     internal void Validate()
     {
         if (string.IsNullOrWhiteSpace(DeviceKey) || DeviceKey.Length > 1024 || CreateDirectory is null || ProtectedRoots.IsDefaultOrEmpty || ProtectedRoots.Length > AnalysisLimits.Roots ||
             PreviewPaths is < 1 or > 65536 || ProtectedRoots.Any(p => p is null || p.Prepare is null || string.IsNullOrWhiteSpace(p.DeviceKey) || p.DeviceKey.Length > 1024))
             throw new ArgumentException("Secure analysis storage requires explicit bounded private-root preparation.");
+        _ = Devices;
     }
 }
 
@@ -69,8 +72,8 @@ public sealed partial class AnalysisSession
         // Qualify membership before scratch creation changes a private directory's version. Even an
         // explicitly selected private file root contributes only excluded evidence, never its metadata.
         lock (_sync) _roots = _roots.Select((root, i) => _protectedSources.Contains(_sources[i]) ? root with { ObservedObjectIdentity = null } : root).ToImmutableArray();
-        lock (_sync) _activeDevice = _storage.DeviceKey;
-        _writer = await AnalysisObservationWriter.CreateAsync(_io, _storage.DeviceKey, _storage.CreateDirectory, _identity, _roots, _policy, _cancel.Token, _storage.CreateProfileQuota).ConfigureAwait(false);
+        lock (_sync) _activeDevice = _storage.Devices;
+        _writer = await AnalysisObservationWriter.CreateAsync(_io, _storage.Devices, _storage.CreateDirectory, _identity, _roots, _policy, _cancel.Token, _storage.CreateProfileQuota).ConfigureAwait(false);
         if (_cancel.IsCancellationRequested) { _writer.RequestStop(); _cancel.Token.ThrowIfCancellationRequested(); }
         if (protectionFailure is not null) throw new IOException("Private-state exclusion could not be qualified for these sources.", protectionFailure);
         await PublishEnumerationAsync().ConfigureAwait(false);
@@ -86,8 +89,8 @@ public sealed partial class AnalysisSession
     private bool IsProtected(AnalysisEntry entry) => entry.Identity is { } identity && _protectedIdentities.Contains(identity);
     private async Task<T> OnStorageDeviceAsync<T>(Func<Task<T>> work)
     {
-        string? previous;
-        lock (_sync) { previous = _activeDevice; _activeDevice = _storage!.DeviceKey; }
+        AnalysisIoDevices? previous;
+        lock (_sync) { previous = _activeDevice; _activeDevice = _storage!.Devices; }
         try { return await work().ConfigureAwait(false); }
         finally { lock (_sync) _activeDevice = previous; }
     }
@@ -117,8 +120,8 @@ public sealed partial class AnalysisSession
                 if (batch.Count != 0 && bytes + cost > AnalysisLimits.BatchBytes) break;
                 bytes += cost; batch.Add(new(e, parent, root, basis, _policy.ComponentPreset == "detailed")); next++;
             }
-            string? previous;
-            lock (_sync) { previous = _activeDevice; _activeDevice = _storage!.DeviceKey; }
+            AnalysisIoDevices? previous;
+            lock (_sync) { previous = _activeDevice; _activeDevice = _storage!.Devices; }
             ImmutableArray<ulong> ids;
             try { ids = await _writer!.AppendBatchAsync(batch.ToImmutable(), _cancel.Token).ConfigureAwait(false); }
             finally { lock (_sync) _activeDevice = previous; }
@@ -153,8 +156,8 @@ public sealed partial class AnalysisSession
         {
             AnalysisIssue issue;
             lock (_sync) { if (_captureIssues.Count == 0) return; issue = _captureIssues.Dequeue(); }
-            string? previous;
-            lock (_sync) { previous = _activeDevice; _activeDevice = _storage!.DeviceKey; }
+            AnalysisIoDevices? previous;
+            lock (_sync) { previous = _activeDevice; _activeDevice = _storage!.Devices; }
             try { await _writer.RecordIssueAsync(issue.Code, issue.NodeId, issue.State, issue.RootId, _cancel.Token).ConfigureAwait(false); }
             finally { lock (_sync) _activeDevice = previous; }
         }
@@ -173,7 +176,7 @@ public sealed partial class AnalysisSession
             lock (_sync)
             {
                 if (_disposed) return;
-                _indexing = true; _activeDevice = _storage!.DeviceKey;
+                _indexing = true; _activeDevice = _storage!.Devices;
                 phase = _phase is AnalysisPhase.Stopped or AnalysisPhase.Failed ? _phase : AnalysisPhase.Finished;
                 coverage = _partial || phase != AnalysisPhase.Finished ? NamespaceCoverage.Partial : NamespaceCoverage.CompleteUnderPolicy;
                 freshness = _freshness;

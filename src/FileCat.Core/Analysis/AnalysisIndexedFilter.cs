@@ -41,7 +41,7 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
         try { _truth = new byte[truths]; _context = new byte[contexts]; }
         catch { lock (BudgetGate) Reserved -= _reservation; throw; }
     }
-    internal static async Task<AnalysisIndexedFilter> CreateAsync(AnalysisIndexedGraphReader source, AnalysisFilterRequest request, DeviceIoScheduler io, string device, CancellationToken cancellation)
+    internal static async Task<AnalysisIndexedFilter> CreateAsync(AnalysisIndexedGraphReader source, AnalysisFilterRequest request, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
     {
         ArgumentNullException.ThrowIfNull(request); ArgumentNullException.ThrowIfNull(request.Text);
         if (request.RootId is not null && !source.Header.Roots.Any(r => r.Id == request.RootId)) throw new FormatException("Choose a captured root ID.");
@@ -65,7 +65,7 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
         catch { result.Dispose(); throw; }
     }
     // Covered roots have at most32 bindings. Resolve by observed identity AND the recorded namespace alias.
-    private async Task ResolveAsync(AnalysisIndexedGraphReader source, RootBinding root, DeviceIoScheduler io, string device, CancellationToken cancellation)
+    private async Task ResolveAsync(AnalysisIndexedGraphReader source, RootBinding root, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
     {
         if (root.CoveredByRootId is not { } covering || root.CoveredRelativePath is not { } relative || root.ObservedObjectIdentity is not { } identity) return;
         string[] parts = relative.Length == 0 ? [] : relative.Split('/'); if (parts.Length > AnalysisLimits.Depth) return;

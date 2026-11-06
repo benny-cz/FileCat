@@ -13,9 +13,9 @@ public sealed class AnalysisObservationWriter : IAsyncDisposable
 {
     private static long s_pendingBytes;
     private readonly AnalysisOwnedDatasetIo<Owner> _owned;
-    private readonly DeviceIoScheduler _io; private readonly string _device;
+    private readonly DeviceIoScheduler _io; private readonly AnalysisIoDevices _device;
     private AnalysisObservationCapture? _stopTarget;
-    private AnalysisObservationWriter(Owner owner, DeviceIoScheduler io, string device)
+    private AnalysisObservationWriter(Owner owner, DeviceIoScheduler io, AnalysisIoDevices device)
     { _io = io; _device = device; _owned = new(owner, io, device); _stopTarget = owner.Capture; }
     public void RequestStop() => Volatile.Read(ref _stopTarget)?.RequestStop();
     internal void RequestStop(string? issueCode) => Volatile.Read(ref _stopTarget)?.RequestStop(issueCode);
@@ -23,7 +23,7 @@ public sealed class AnalysisObservationWriter : IAsyncDisposable
         _owned.RunAsync((owner, token) => { owner.Capture.Enumeration(progress, token); owner.Capture.Publish(token); return true; }, cancellation);
 
     // The factory is application-owned configuration, not a callback restored from an inventory.
-    public static async Task<AnalysisObservationWriter> CreateAsync(DeviceIoScheduler io, string device, Func<AnalysisPrivateDirectory> createDirectory,
+    public static async Task<AnalysisObservationWriter> CreateAsync(DeviceIoScheduler io, AnalysisIoDevices device, Func<AnalysisPrivateDirectory> createDirectory,
         SessionIdentity acquisition, ImmutableArray<RootBinding> roots, ScanPolicy policy, CancellationToken cancellation = default, Func<AnalysisProfileQuota>? createProfileQuota = null)
     {
         ArgumentNullException.ThrowIfNull(createDirectory);

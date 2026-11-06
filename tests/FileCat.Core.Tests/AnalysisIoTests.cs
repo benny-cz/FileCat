@@ -7,7 +7,7 @@ namespace FileCat.Core.Tests;
 public sealed class AnalysisIoCapacityCollection;
 
 [Collection("Analysis I/O capacity")]
-public sealed class AnalysisIoTests
+public sealed partial class AnalysisIoTests
 {
     [Fact]
     public async Task PrivateDirectoryReleaseKeepsItsActualWorkerThroughSchedulerShutdown()

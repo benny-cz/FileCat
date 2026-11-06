@@ -46,14 +46,14 @@ internal sealed class AnalysisDatasetSummarizer
     { _reader = reader; _metric = metric; _bases = reader.Header.Roots.Select(_ => new HashSet<string>(StringComparer.Ordinal)).ToArray(); }
 
     internal static async Task<AnalysisDatasetSummary> RunAsync(AnalysisIndexedGraphReader reader, AnalysisMetric metric,
-        DeviceIoScheduler io, string device, CancellationToken cancellation)
+        DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
     {
         await Summaries.WaitAsync(cancellation).ConfigureAwait(false);
         try { return await ComputeAsync(reader, metric, io, device, cancellation).ConfigureAwait(false); }
         finally { Summaries.Release(); }
     }
     private static async Task<AnalysisDatasetSummary> ComputeAsync(AnalysisIndexedGraphReader reader, AnalysisMetric metric,
-        DeviceIoScheduler io, string device, CancellationToken cancellation)
+        DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
     {
         var state = new AnalysisDatasetSummarizer(reader, metric);
         while (state._stage != Stage.Done)

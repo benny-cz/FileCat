@@ -23,12 +23,12 @@ internal sealed class AnalysisFrontierScopeException(ulong path) : IOException("
 internal sealed class AnalysisSourceFrontier : IAsyncDisposable
 {
     private readonly AnalysisOwnedDatasetIo<State> _owned;
-    private readonly DeviceIoScheduler _io; private readonly string _device;
-    private AnalysisSourceFrontier(State state, DeviceIoScheduler io, string device) { _io = io; _device = device; _owned = new(state, io, device); }
+    private readonly DeviceIoScheduler _io; private readonly AnalysisIoDevices _device;
+    private AnalysisSourceFrontier(State state, DeviceIoScheduler io, AnalysisIoDevices device) { _io = io; _device = device; _owned = new(state, io, device); }
 
     // Called only on the captured private workspace's admitted worker. The live backend remains held
     // by the session; neither a caller-supplied pathname nor inventory data enters this factory.
-    internal static AnalysisSourceFrontier Create(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, string device,
+    internal static AnalysisSourceFrontier Create(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, AnalysisIoDevices device,
         AnalysisEntry root, RootBinding binding, ulong path)
     {
         if (root.Ancestry is not { BindingId: var id, Parent: null } witness || id == Guid.Empty ||
@@ -109,7 +109,7 @@ internal sealed class AnalysisSourceFrontier : IAsyncDisposable
                 !proof.RelativeName.AsSpan().SequenceEqual(entry.RelativeName.AsSpan()) || !row.Raw.AsSpan().SequenceEqual(Raw(entry)))
                 throw new AnalysisSourceChangedException();
         }
-        internal async Task<AnalysisFrontierDirectory?> PopAsync(DeviceIoScheduler io, string device, CancellationToken cancellation)
+        internal async Task<AnalysisFrontierDirectory?> PopAsync(DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
         {
             var first = await AnalysisIo.Run(io, device, token =>
             {

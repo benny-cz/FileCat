@@ -98,11 +98,11 @@ internal sealed class AnalysisIndexedGraph : IAnalysisScratchOwned
         }
     }
 
-    internal async Task<AnalysisIndexedGraphRevision> SealAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, string device,
+    internal async Task<AnalysisIndexedGraphRevision> SealAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, AnalysisIoDevices device,
         SessionIdentity identity, AnalysisPhase phase, NamespaceCoverage coverage, CancellationToken cancellation = default)
         => await SealAsync(workspace, io, device, _header with { Identity = identity, Phase = phase, Coverage = coverage }, cancellation).ConfigureAwait(false);
 
-    internal async Task<AnalysisIndexedGraphRevision> SealAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, string device,
+    internal async Task<AnalysisIndexedGraphRevision> SealAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, AnalysisIoDevices device,
         AnalysisIndexedGraphHeader header, CancellationToken cancellation = default)
     {
         ArgumentNullException.ThrowIfNull(header);
@@ -153,7 +153,7 @@ internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
 
     // Consumes data on success OR failure; workspace remains caller owned.
     internal static async Task<AnalysisIndexedGraphRevision> BuildAsync(AnalysisIndexedGraphHeader header, AnalysisScratchCompositeRevision data,
-        AnalysisScratchWorkspace workspace, DeviceIoScheduler io, string device, CancellationToken cancellation)
+        AnalysisScratchWorkspace workspace, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
     {
         var ownership = new GraphBuildOwnership(data);
         try

@@ -36,7 +36,7 @@ public sealed class InlineDispatcher : IUiDispatcher
 /// quarantined, a replacement may start (up to a hard cap), and the device reports "not responding".
 /// Thread usage is bounded per device, not per tab.
 /// </summary>
-public sealed class DeviceIoScheduler : IDisposable
+public sealed partial class DeviceIoScheduler : IDisposable
 {
     private readonly ConcurrentDictionary<string, DeviceQueue> _devices = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _watchdog;
@@ -62,7 +62,8 @@ public sealed class DeviceIoScheduler : IDisposable
     public event Action<string, DeviceHealth>? HealthChanged;
 
     public DeviceHealth GetHealth(string deviceKey) =>
-        _devices.TryGetValue(deviceKey, out var q) ? q.Health : DeviceHealth.Responsive;
+        (_devices.TryGetValue(deviceKey, out var q) && q.Health == DeviceHealth.NotResponding) || ObservedNotResponding(deviceKey)
+            ? DeviceHealth.NotResponding : DeviceHealth.Responsive;
 
     public Task Run(string deviceKey, IoPriority priority, Action<CancellationToken> work, CancellationToken ct = default) =>
         Run<bool>(deviceKey, priority, c => { work(c); return true; }, ct);
@@ -86,11 +87,14 @@ public sealed class DeviceIoScheduler : IDisposable
     {
         if (_disposed) return;
         foreach (var q in _devices.Values) q.Watch();
+        WatchObserved();
     }
 
     internal void RaiseHealth(string key, DeviceHealth health)
     {
-        try { HealthChanged?.Invoke(key, health); }
+        // A queue's return must not announce recovery while another actual operation still holds
+        // this device as a related dependency. Publish the aggregate state at notification time.
+        try { HealthChanged?.Invoke(key, GetHealth(key)); }
         catch (Exception ex) { Debug.WriteLine(ex); }
     }
 

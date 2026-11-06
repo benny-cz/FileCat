@@ -163,7 +163,7 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
     private AnalysisCapturePublication Metadata() => new(_raw.PublishedToken(), _observed, _issues.ToImmutableDictionary(), _boundaries.ToImmutableDictionary(), _enumeration,
         new(_staleEvents, _header.Roots.Where((_, i) => (_staleRoots & (1U << i)) != 0).Select(root => root.Id).ToImmutableArray(), _unlocatedStale));
 
-    internal async Task<AnalysisIndexedGraphRevision> CompleteAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, string device,
+    internal async Task<AnalysisIndexedGraphRevision> CompleteAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, AnalysisIoDevices device,
         SessionIdentity identity, AnalysisPhase phase, NamespaceCoverage coverage, CancellationToken cancellation = default, AnalysisFreshness freshness = AnalysisFreshness.Observed)
     {
         var frozen = await AnalysisIo.Run(io, device, token =>

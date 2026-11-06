@@ -23,7 +23,7 @@ internal static class AnalysisExternalSort
 
     // The caller owns source. Its MoveNext/Current may only read this workspace's captured device;
     // no source enumeration, connection or content work can be smuggled into an index build.
-    internal static async Task<AnalysisSortedIndex> BuildAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, string device,
+    internal static async Task<AnalysisSortedIndex> BuildAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, AnalysisIoDevices device,
         IEnumerator<AnalysisSortEntry> source, CancellationToken cancellation = default, int runMemoryBytes = RunMemoryBytes)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -35,7 +35,7 @@ internal static class AnalysisExternalSort
 
     // A null entry is one consumed input row with no indexed value. Its captured byte cost still
     // counts toward the worker/observation bound; sparse input cannot hide an unbounded MoveNext loop.
-    internal static async Task<AnalysisSortedIndex> BuildSparseAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, string device,
+    internal static async Task<AnalysisSortedIndex> BuildSparseAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, AnalysisIoDevices device,
         IEnumerator<AnalysisSortInput> source, CancellationToken cancellation = default, int runMemoryBytes = RunMemoryBytes)
     {
         ArgumentNullException.ThrowIfNull(workspace); ArgumentNullException.ThrowIfNull(io); ArgumentNullException.ThrowIfNull(source);

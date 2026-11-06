@@ -71,7 +71,7 @@ internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
             var storage = new AnalysisStorageOptions(PathUtil.GetDeviceKey(_privatePaths[1]),
                 () => Interlocked.Exchange(ref _scratch, null) ?? throw new IOException("Private scratch ownership has already transferred."),
                 [new(PathUtil.GetDeviceKey(_privatePaths[0]), () => TakeProtection(0)), new(PathUtil.GetDeviceKey(_privatePaths[1]), () => TakeProtection(1))])
-            { CreateProfileQuota = OpenProfileQuota };
+            { CreateProfileQuota = OpenProfileQuota, ProfileDeviceKey = PathUtil.GetDeviceKey(_privatePaths[0]) };
             return _session = new AnalysisCoordinator(_services.Io, Profile.ToString()).Start(sources, progress, components, storage);
         }
     }
