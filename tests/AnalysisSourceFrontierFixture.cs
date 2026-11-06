@@ -61,6 +61,22 @@ internal static class AnalysisSourceFrontierFixture
                 }
                 Assert.Equal((ulong)directories, count);
             }
+            var allocation = (await reader.SummarizeAsync(AnalysisMetric.OnDisk, cancellation)).Totals;
+            Assert.True(allocation.CompatibleBasis); Assert.Empty(allocation.Missing); Assert.Equal((UInt128)0, allocation.IdentityUnverified);
+            await using (var hierarchy = await reader.BuildHierarchyAsync(AnalysisMetric.OnDisk, cancellation))
+            {
+                Assert.Equal(allocation.Known, hierarchy.Totals.Known); Assert.Equal(allocation.IdentityUnverified, hierarchy.Totals.IdentityUnverified);
+                Assert.Equal((ulong)directories, hierarchy.Totals.MatchingPaths); Assert.Empty(hierarchy.Totals.Missing); Assert.Empty(await hierarchy.ReadBucketsAsync(1, cancellation));
+                var root = await hierarchy.ReadAsync(1, cancellation); Assert.Equal(allocation.Known, root.Totals.Known); Assert.False(root.HasChargesElsewhere);
+                ulong count = 0;
+                for (ulong offset = 0;;)
+                {
+                    var page = await hierarchy.ReadChildrenAsync(1, offset: offset, cancellation: cancellation); count += (ulong)page.Rows.Length;
+                    foreach (var row in page.Rows) { Assert.Equal(row.Path.IncludedByPolicy ? 1UL : 0UL, row.Totals.MatchingPaths); Assert.False(row.HasChargesElsewhere); Assert.Empty(row.Totals.Missing); }
+                    if (!page.HasMore) break; offset = page.NextOffset;
+                }
+                Assert.Equal((ulong)directories + 1, count);
+            }
             ulong files = 0, folders = 0;
             for (ulong offset = 0; offset < reader.Descriptor.Paths;)
             {

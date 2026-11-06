@@ -23,11 +23,18 @@ public sealed class AnalysisObjectChargeIndex : IAsyncDisposable
 {
     private static readonly SemaphoreSlim Builds = new(AnalysisLimits.ActiveScans, AnalysisLimits.ActiveScans);
     private readonly AnalysisOwnedDatasetIo<State> _owned;
+    private readonly DeviceIoScheduler _io;
+    private readonly string _device;
     public AnalysisDatasetDescriptor Descriptor { get; }
     public AnalysisMetric Metric { get; }
     public AnalysisTotals Totals { get; }
     private AnalysisObjectChargeIndex(State state, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, string device)
-    { Descriptor = descriptor; Metric = state.Metric; Totals = state.Totals(); _owned = new(state, io, device); }
+    { Descriptor = descriptor; Metric = state.Metric; Totals = state.Totals(); _owned = new(state, io, device); _io = io; _device = device; }
+
+    /// <summary>Folds charges into real directory rows and explicit shared/directory-self buckets.</summary>
+    public Task<AnalysisDatasetHierarchy> BuildHierarchyAsync(CancellationToken cancellation = default) =>
+        _owned.UseAsync(state => AnalysisDatasetHierarchy.BuildAsync(state.Graph, Descriptor, Metric, state.PlacementEntries(cancellation),
+            Totals.CompatibleBasis, _io, _device, cancellation));
 
     internal static async Task<AnalysisObjectChargeIndex> BuildAsync(AnalysisIndexedGraphReader source, AnalysisDatasetDescriptor descriptor,
         AnalysisMetric metric, DeviceIoScheduler io, string device, CancellationToken cancellation)
@@ -137,6 +144,7 @@ public sealed class AnalysisObjectChargeIndex : IAsyncDisposable
         private UInt128 _known, _unverified;
         internal bool Finished => _stage == Stage.Done;
         internal ulong Count => _rows!.Count;
+        internal AnalysisIndexedGraphReader Graph => _graph;
         private State(AnalysisIndexedGraphReader graph, AnalysisScratchWorkspace workspace, AnalysisScratchVector writer, AnalysisMetric metric)
         { _graph = graph; Workspace = workspace; _writer = writer; Metric = metric; _bases = graph.Header.Roots.Select(_ => new HashSet<string>(StringComparer.Ordinal)).ToArray(); }
         internal static State Create(AnalysisIndexedGraphReader source, AnalysisMetric metric)
@@ -313,6 +321,18 @@ public sealed class AnalysisObjectChargeIndex : IAsyncDisposable
                 key[8] = value.Measurement.IsKnown ? (byte)0 : (byte)1;
                 Write128(key.AsSpan(9), UInt128.MaxValue - (value.Measurement.Value ?? 0)); Key(value.Id).CopyTo(key, 25);
                 yield return new(new(key, row), 128);
+            }
+        }
+        internal IEnumerable<AnalysisSortInput> PlacementEntries(CancellationToken token)
+        {
+            for (ulong row = 1; row <= _rows!.Count; row++)
+            {
+                token.ThrowIfCancellationRequested(); var value = Decode(_rows.Read(row, token));
+                ulong placement = (value.Flags & 5) != 0 ? value.Parent : value.Path;
+                var key = new byte[50]; Key(placement).CopyTo(key, 0); Key(value.Id).CopyTo(key, 8);
+                Key(value.Path).CopyTo(key, 16); Key(value.Aliases).CopyTo(key, 24); Write128(key.AsSpan(32), value.Measurement.Value ?? 0);
+                key[48] = (byte)value.Measurement.State; key[49] = value.Flags;
+                yield return new(new(key, value.Id), 128);
             }
         }
         internal AnalysisObjectCharge Read(ulong row, CancellationToken token, out long cost)

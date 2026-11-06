@@ -118,7 +118,8 @@
     "Exact stale-event/root evidence continues after the detailed issue cap. Nonblocking device Stop records an unsampled failure and unlocated stale evidence without taking the native-write lock. Native Mac/Ubuntu wide and replacement fixtures verify full enumeration beyond the preview and actual failed-scope counts; counter regression, sample-cap, orphan, conflicting completeness and blocked-flush Stop controls pass. Windows remains deferred while another tester is active.",
     "Graph revisions/readers now retain a borrowable private workspace capability and the original session/profile quota after producer and factory-owner closure. Derived logical hierarchy builds use that capability without reopening a pathname or source. Failure cleanup releases partially created readers/arenas; the 28 KiB session fixture refuses the additional hierarchy and preserves the original dataset.",
     "Unfiltered File size/Files hierarchy totals now fold through the exact child index with a bounded ancestor stack, emitting postorder private rows and external indexes for path lookup and ranked child pages. Known bytes stay UInt128, missing logical states remain separate from known zero/file counts, pages retain complete raw metadata and bounded payload, and retained hierarchies remain readable after original dataset/lease closure. Native Mac/Ubuntu 6,002-path fixtures read every ranked root child after scan-owner closure; source/canary bytes and scratch cleanup pass. Unique/On disk shared attribution, filtering and main-window adoption remain required.",
-    "Unfiltered Unique file size/On disk object charge indexes now retain shared-charge placement at the included observed-alias common ancestor, exact alias counts, original object/component references and explicit measurement states. External exact identity grouping and one-ancestor-per-step LCA work avoid an inventory-sized alias array. Unverified identity remains per-path evidence and is never asserted unique chart area; directory self remains a separate non-file charge; incompatible cross-root allocation suppresses a combined page. Bounded ranked-parent and streaming pages retain the original dataset after owner closure and share its session/profile quota. Component and basis buffers have explicit byte bounds. Filters, all-metric hierarchy/UI integration and large-source qualification remain required."
+    "Unfiltered Unique file size/On disk object charge indexes now retain shared-charge placement at the included observed-alias common ancestor, exact alias counts, original object/component references and explicit measurement states. External exact identity grouping and one-ancestor-per-step LCA work avoid an inventory-sized alias array. Unverified identity remains per-path evidence and is never asserted unique chart area; directory self remains a separate non-file charge; incompatible cross-root allocation suppresses a combined page. Bounded ranked-parent and streaming pages retain the original dataset after owner closure and share its session/profile quota. Component and basis buffers have explicit byte bounds. Filters, all-metric hierarchy/UI integration and large-source qualification remain required.",
+    "Unfiltered hierarchy now supports all four metrics using a bounded ancestor fold and an externally sorted charge-placement stream. Verified shared charges remain at their recorded LCA; single-path and unverified amounts enter their real file rows, directory self and shared files have explicit separate buckets, and alias/context rows never count the same area twice. Exact path counts remain separate from bucket object/component/observed-alias counts. Rows distinguish measured zero from charges elsewhere; parent totals, ranked pages and buckets retain checked UInt128 values and per-state missing evidence. Incompatible combined allocation is disabled while individual roots retain their own numbers. Hierarchy ownership spans actual I/O and survives source/charge-owner closure; original session quota and overflow/cancellation controls preserve the source. Native APFS/ext4 wide fixtures now fold On disk as well as reading all logical and unique-charge pages. Filters, grouping/scoped projection, UI adoption and native scale/resource qualification remain required."
   ],
   "validation": {
     "windowsCore": {
@@ -145,12 +146,12 @@
       "detail": "29 native NTFS/filesystem/private-storage controls, including production coordinator capture beyond its preview, qualified private-state exclusion, unchanged source bytes and final cleanup."
     },
     "macosArm64": {
-      "total": 466,
-      "passed": 465,
+      "total": 485,
+      "passed": 484,
       "failed": 0,
       "skipped": 1,
-      "seconds": 41.528,
-      "evidence": "mac-core-r216.xml"
+      "seconds": 78.321,
+      "evidence": "mac-core-r219.xml"
     },
     "headlessRendering": {
       "total": 64,
@@ -163,15 +164,15 @@
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "charges-build-r215.txt"
+      "evidence": "all-metric-hierarchy-build-r218.txt"
     },
     "ubuntu": {
-      "total": 466,
-      "passed": 465,
+      "total": 485,
+      "passed": 484,
       "failed": 0,
       "skipped": 1,
-      "seconds": 193.885,
-      "evidence": "ubuntu-core-r216.xml"
+      "seconds": 321.198,
+      "evidence": "ubuntu-core-r219.xml"
     },
     "nativeDesktop": {
       "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification. r62 native accessibility/keyboard link inspection verifies the visible omitted-target explanation, measured-zero distinction and retained mark, with 509 unchanged source paths and owned exit.",
@@ -378,35 +379,38 @@
       "windows": "windows-deferred-r203.json",
       "scope": "Exact unfiltered File size/Files directory rollups, path lookup and ranked bounded pages; native 6,002 paths/3,001 root children after owner closure, missing measurements, >64-bit values, overflow/cancellation and shared original-session quota. Not yet Unique/On disk LCA charge projection, filtering, UI integration or native large-source/resource qualification."
     },
-    "currentWindowsQualification": {
-      "status": "deferred-shared-vm-busy",
-      "observedAtUtc": "2026-11-06T06:28:58.3885626Z",
-      "processes": [
-        {
-          "ProcessId": 5316,
-          "Name": "dotnet.exe"
-        },
-        {
-          "ProcessId": 4836,
-          "Name": "dotnet.exe"
-        },
-        {
-          "ProcessId": 5708,
-          "Name": "FileCat.Platform.Windows.Tests.exe"
-        },
-        {
-          "ProcessId": 5604,
-          "Name": "dotnet.exe"
-        }
-      ],
-      "note": "Live guest CIM observation; other tester processes preserved. No current Windows qualification."
-    },
     "objectChargeIndex": {
       "status": "unfiltered-charge-index-subset-passed-mac-and-ubuntu-windows-deferred",
       "mac": "mac-core-r216.xml",
       "ubuntu": "ubuntu-core-r216.xml",
       "windows": "windows-deferred-r216.json",
       "scope": "Golden totals/parent placement, full-identity groups, version conflicts, unknown identity, component coverage, directory self, cross-root virtual parent/incompatible bases, 3,000 aliases and interactive yield, explicit session-budget exhaustion, payload refusal/recovery, retained-owner closure and native 6,002-path/3,000-unique-charge fixture. No filters, full hierarchy/chart/table integration, native 1M/10M or final independent review qualification."
+    },
+    "currentWindowsQualification": {
+      "status": "deferred-shared-vm-busy",
+      "observedAtUtc": "2026-11-06T06:53:46.2506840Z",
+      "processes": [
+        {
+          "ProcessId": 8844,
+          "Name": "dotnet.exe"
+        },
+        {
+          "ProcessId": 320,
+          "Name": "dotnet.exe"
+        },
+        {
+          "ProcessId": 5384,
+          "Name": "FileCat.Platform.Windows.Tests.exe"
+        }
+      ],
+      "note": "Live guest CIM observation; other tester processes preserved. No current Windows qualification."
+    },
+    "allMetricHierarchy": {
+      "status": "unfiltered-all-metric-hierarchy-passed-mac-and-ubuntu-windows-deferred",
+      "mac": "mac-core-r219.xml",
+      "ubuntu": "ubuntu-core-r219.xml",
+      "windows": "windows-deferred-r219.json",
+      "scope": "Golden totals, real-child/bucket area partition, cross-root LCA, separate incompatible-root amounts, measured zero versus context, unverified unique area, directory self above 64 bits, exact large rows/buckets/ranking, retained and closing-owner I/O lifetime, quota/overflow/cancellation; native 6,002 paths/3,001 root children and qualified known On disk after source-owner close. No filters/grouping/scoped projection, frontend adoption, native 1M/10M/resource matrix or final independent review qualification."
     }
   },
   "nextWork": [
