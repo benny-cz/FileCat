@@ -10,16 +10,18 @@ public sealed partial class AnalysisRenderingTests
     public async Task StartingAgainCannotRetagExistingSelectionsOrReplaceTheirAcquisition()
     {
         OrdinaryPreparation(); using var fixture = new PreparationFixture(); int prepared = 0;
-        using var model = new DiskSpaceViewModel(fixture.Services, path => { prepared++; return new PreparedSource(path); });
+        using var model = new DiskSpaceViewModel(fixture.Services, path => { prepared++; return NativeRoot(path); });
         await model.StartAsync([fixture.Root]); await Until(() => model.Phase == AnalysisPhase.Finished); await model.RebuildAsync(true);
-        var identity = model.Tree!.Snapshot.Identity; model.Focus("n:1", toggleMark: true); model.StageSelection();
+        var identity = model.Tree!.Snapshot.Identity; var root = Assert.Single(model.Tree.Snapshot.Roots);
+        model.Focus("n:1", toggleMark: true); model.StageSelection();
         var marks = model.Selection.Marks; var basket = model.Selection.Basket;
         using var captured = model.CaptureDisplayedRevision();
         await model.StartAsync([fixture.Root + "-different"]); await Until(() => !model.Running); await model.RebuildAsync(true);
         Assert.Equal(identity.SessionId, model.Tree!.Snapshot.Identity.SessionId); Assert.Equal(identity.Epoch, model.Tree.Snapshot.Identity.Epoch);
-        Assert.Equal(fixture.Root, Assert.Single(model.Tree.Snapshot.Roots).CanonicalLocator); Assert.Equal(1, prepared);
+        Assert.Equal(root, Assert.Single(model.Tree.Snapshot.Roots)); Assert.Equal(1, prepared);
         Assert.Same(marks, model.Selection.Marks); Assert.Same(basket, model.Selection.Basket); Assert.Equal("n:1", model.Selection.Focus);
         Assert.Equal(identity.SessionId, captured.Snapshot.Identity.SessionId); Assert.Contains("New analysis", model.Status);
+        model.Dispose(); await model.CloseCompletion;
     }
 
     [AvaloniaFact]

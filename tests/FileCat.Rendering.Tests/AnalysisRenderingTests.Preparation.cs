@@ -23,6 +23,8 @@ public sealed partial class AnalysisRenderingTests
         var deadline = DateTime.UtcNow.AddSeconds(5);
         while ((model.SourceCloseFailures == 0 || model.Running) && DateTime.UtcNow < deadline) await Task.Delay(10);
         Assert.Equal(1ul, model.SourceCloseFailures); Assert.Contains("Source cleanup reported 1 failure", model.Status);
+        // This synthetic source cannot qualify against native private boundaries. Its unread
+        // scope and independently failing close still produce finished, partial observations.
         Assert.Equal(AnalysisPhase.Finished, model.Phase); Assert.Equal(1, source.CloseCalls);
         await model.RebuildAsync(true); Assert.Equal(NamespaceCoverage.Partial, model.Tree!.Snapshot.Coverage);
     }
@@ -79,10 +81,11 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)); model.Dispose();
-            Assert.False(run.IsCompleted); Assert.Equal(0, source.CloseCalls);
+            Assert.False(run.IsCompleted); Assert.False(model.CloseCompletion.IsCompleted); Assert.Equal(0, source.CloseCalls);
         }
         finally { gate.Set(); await run.WaitAsync(TimeSpan.FromSeconds(10)); }
         await source.Closed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await model.CloseCompletion.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(1, source.CloseCalls); Assert.NotEqual(fixture.UiThread, source.CloseThread);
     }
 

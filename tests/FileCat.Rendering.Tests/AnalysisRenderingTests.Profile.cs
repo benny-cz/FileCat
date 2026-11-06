@@ -22,14 +22,15 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             using (var services = AppServices.CreateForPaths(paths))
-            using (var model = new DiskSpaceViewModel(services, path => new PreparedSource(path)))
+            using (var model = new DiskSpaceViewModel(services, NativeRoot))
             {
                 await model.StartAsync([root]); await Until(() => model.Phase == AnalysisPhase.Finished); await model.RebuildAsync(true);
                 first = Assert.IsType<AnalysisHostProfileIdentity>(model.Tree!.Snapshot.Identity.HostProfileIdentity);
                 Assert.True(first.HasHostContext); Assert.Null(model.ContinuityNotice); state = File.ReadAllBytes(paths.AnalysisPrivateStateFile);
+                model.Dispose(); await model.CloseCompletion;
             }
             using (var services = AppServices.CreateForPaths(paths))
-            using (var model = new DiskSpaceViewModel(services, path => new PreparedSource(path)))
+            using (var model = new DiskSpaceViewModel(services, NativeRoot))
             {
                 await model.StartAsync([root]); await Until(() => model.Phase == AnalysisPhase.Finished); await model.RebuildAsync(true);
                 Assert.Equal(first, model.Tree!.Snapshot.Identity.HostProfileIdentity); Assert.Equal(state, File.ReadAllBytes(paths.AnalysisPrivateStateFile));
@@ -45,6 +46,7 @@ public sealed partial class AnalysisRenderingTests
                     foreach (string secret in new[] { canary, first.ProfileId.ToString("D"), first.ProfileId.ToString("N"), first.HostToken! })
                         Assert.DoesNotContain(secret, text, StringComparison.OrdinalIgnoreCase);
                 }
+                model.Dispose(); await model.CloseCompletion;
             }
         }
         finally { Directory.Delete(root, true); }
@@ -54,11 +56,11 @@ public sealed partial class AnalysisRenderingTests
     public async Task CorruptPrivateStatePreservesBytesAndStillAllowsMetadataWithAVisibleContinuityReason()
     {
         OrdinaryPreparation(); using var fixture = new PreparationFixture(); using var styles = new ProductStyles();
-        using (var initial = new DiskSpaceViewModel(fixture.Services, path => new PreparedSource(path)))
-        { await initial.StartAsync([fixture.Root]); await Until(() => initial.Phase == AnalysisPhase.Finished); }
+        using (var initial = new DiskSpaceViewModel(fixture.Services, NativeRoot))
+        { await initial.StartAsync([fixture.Root]); await Until(() => initial.Phase == AnalysisPhase.Finished); initial.Dispose(); await initial.CloseCompletion; }
         const string corrupt = "{\"schema\":\"future-private-profile\",\"PRIVATE_ROOT_CANARY\":\"must remain untouched\"}";
         File.WriteAllText(fixture.Services.Paths.AnalysisPrivateStateFile, corrupt);
-        using var model = new DiskSpaceViewModel(fixture.Services, path => new PreparedSource(path));
+        using var model = new DiskSpaceViewModel(fixture.Services, NativeRoot);
         await model.StartAsync([fixture.Root]); await Until(() => model.Phase == AnalysisPhase.Finished); await model.RebuildAsync(true);
         Assert.StartsWith("ephemeral:", model.Tree!.Snapshot.Identity.HostProfile); Assert.Null(model.Tree.Snapshot.Identity.HostProfileIdentity);
         Assert.NotNull(model.ContinuityNotice); Assert.Equal(corrupt, File.ReadAllText(fixture.Services.Paths.AnalysisPrivateStateFile));
@@ -68,6 +70,6 @@ public sealed partial class AnalysisRenderingTests
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), c => c.IsEffectivelyVisible && c.Text?.Contains("Private profile continuity could not be loaded or created", StringComparison.Ordinal) == true);
         }
-        finally { window.ForceClose(); }
+        finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 }

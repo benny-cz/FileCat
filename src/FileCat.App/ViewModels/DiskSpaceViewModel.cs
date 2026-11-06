@@ -59,9 +59,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
             ? AnalysisPhase.Stopped : observations.Phase;
         try { _zone = TimeZoneInfo.FindSystemTimeZoneById(observations.Identity.TimeZoneId); }
         catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException) { _zone = null; }
-        var unavailable = observations.Roots.Where(r => r.Disposition == AnalysisRootDisposition.UnavailablePrivateBoundary).ToArray();
-        if (unavailable.Length != 0) AcquisitionNotice = "Not read because a private-state boundary could not be verified: " +
-            string.Join(", ", unavailable.Select(r => AnalysisNames.Display(r.Label, 120) + " [" + AnalysisNames.Display(r.Id, 64) + "]")) + ". Other verified locations remain available.";
+        AcquisitionNotice = PrivateBoundaryNotice(observations);
         Status = "Observation view. Current filesystem actions require an explicit live source binding.";
     }
     // Transfers one captured-data owner, not source/backend authority. The store's shared memory
@@ -69,6 +67,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     internal DiskSpaceViewModel(AnalysisSnapshotLease observations, AppServices? services, bool memoryFallback) : this(observations.Snapshot)
     {
         _capturedOwner = observations; _services = services;
+        _privateStorageUnavailable = observations.Snapshot.Identity.HostProfileIdentity is null;
         if (memoryFallback)
         {
             AcquisitionNotice = "Secure scratch is unavailable. This analysis uses bounded memory." + (AcquisitionNotice is { } notice ? " " + notice : "");
@@ -76,73 +75,6 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         }
         if (observations.Snapshot.Identity.HostProfileIdentity is not { HasHostContext: true })
             ContinuityNotice = "Host/profile continuity is unknown. Comparison uses recorded paths.";
-    }
-    public async Task StartAsync(IReadOnlyList<string> roots)
-    {
-        if (_disposed || IsPreparing || Running || _services is null) return;
-        // A tab owns one acquisition. Replacing it would reinterpret old numeric focus,
-        // marks and basket IDs against another dataset, including an imported/comparison view.
-        // Explicit refresh needs its own qualified epoch transition; it is not Start again.
-        if (_session is not null || _inventory is not null || _observation is not null || Comparison is not null)
-        { SetStatus("Choose New analysis to start another scan. This view and its selections keep their existing observations."); return; }
-        if (roots.Count is < 1 or > AnalysisLimits.Roots)
-        { SetStatus("Choose between one and 32 explicit locations."); return; }
-        roots = roots.Take(AnalysisLimits.Roots + 1).ToImmutableArray();
-        if (roots.Count is < 1 or > AnalysisLimits.Roots || roots.Any(string.IsNullOrWhiteSpace))
-        { SetStatus("Choose between one and 32 explicit locations."); return; }
-        if (AnalysisAdmission.Refusal() is { } refusal) { SetStatus(refusal); return; }
-        using var preparation = new CancellationTokenSource(); _preparationCancel = preparation;
-        IsPreparing = true; SetStatus("Binding the selected locations…");
-        void HealthChanged(string device, DeviceHealth health)
-        {
-            if (health != DeviceHealth.NotResponding) return;
-            _services.Ui.Post(() =>
-            {
-                if (_disposed || !ReferenceEquals(_preparationCancel, preparation) || device != _preparationDevice) return;
-                preparation.Cancel();
-                SetStatus("Location binding stopped because the device is not responding. Its native request remains owned until it returns.");
-            });
-        }
-        _services.Io.HealthChanged += HealthChanged;
-        try
-        {
-            string profileIdentity = await ResolveHostProfileAsync(preparation.Token);
-            preparation.Token.ThrowIfCancellationRequested();
-            if (_disposed) return;
-            if (!_preparedInput.SequenceEqual(roots, StringComparer.Ordinal) || _prepared.Count != roots.Count)
-            {
-                ReleasePrepared();
-                foreach (string path in roots)
-                {
-                    preparation.Token.ThrowIfCancellationRequested();
-                    string requested = Path.GetFullPath(path);
-                    _preparationDevice = PathUtil.GetDeviceKey(requested);
-                    var source = await AnalysisIo.Run(_services.Io, _preparationDevice, _ => _prepareSource(requested), preparation.Token);
-                    if (_disposed || preparation.IsCancellationRequested)
-                    { _ = ReleasePreparedSourceAsync(source); preparation.Token.ThrowIfCancellationRequested(); return; }
-                    _prepared.Add(source);
-                }
-                _preparedInput = roots.ToImmutableArray();
-                ResolvedTargets = string.Join(Environment.NewLine, _prepared.Select(p => AnalysisNames.Display(p.Root.CanonicalLocator)));
-                bool changed = _prepared.Where((p, i) => !SameLocator(p.Root.CanonicalLocator, Path.GetFullPath(roots[i]))).Any();
-                if (changed) { SetStatus("Review the resolved locations shown below, then choose Start analysis again to use those captured targets."); return; }
-            }
-            preparation.Token.ThrowIfCancellationRequested();
-            _session?.Dispose();
-            _session = new AnalysisCoordinator(_services.Io, profileIdentity).Start(_prepared.ToArray(), new LatestProgress(_services.Ui, UpdateProgress), Components);
-            _prepared.Clear(); _preparedInput = []; Phase = AnalysisPhase.Scanning; SourceCloseFailures = 0; Dirty = true;
-            SetStatus("Scanning metadata. Known results so far; allocation can share physical blocks.");
-        }
-        catch (OperationCanceledException) when (preparation.IsCancellationRequested)
-        { ReleasePrepared(); SetStatus("Location binding stopped. No new scan was started."); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException)
-        { ReleasePrepared(); SetStatus("Analysis could not start: " + AnalysisNames.Display(ex.Message, 500)); }
-        finally
-        {
-            _services.Io.HealthChanged -= HealthChanged;
-            if (ReferenceEquals(_preparationCancel, preparation)) { _preparationCancel = null; _preparationDevice = null; }
-            IsPreparing = false; Changed?.Invoke();
-        }
     }
     private static IAnalysisBackend Prepare(string path) => OperatingSystem.IsWindows()
         ? new FileCat.Platform.Windows.Analysis.WindowsAnalysisBackend(path) : new UnixAnalysisBackend(path);
@@ -157,7 +89,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         Phase = progress.Phase; Dirty = true;
         SourceCloseFailures = progress.SourceCloseFailures;
         SetStatus($"{progress.Phase} · {progress.ObservedPaths:N0} observed paths · {progress.Issues:N0} issues. Values are observations over time." +
-            (progress.MemoryFallback ? " Secure scratch is unavailable. Using bounded memory; analysis stops with partial results if the memory limit is reached." : "") +
+            (progress.MemoryFallback ? " Using bounded memory; analysis stops with partial results if the memory limit is reached." : "") +
             (SourceCloseFailures == 0 ? "" : $" Source cleanup reported {SourceCloseFailures:N0} " + (SourceCloseFailures == 1 ? "failure" : "failures") + "; close was not retried."));
     }
     public void PauseOrResume() { if (Phase == AnalysisPhase.Paused || Phase == AnalysisPhase.Pausing) _session?.Resume(); else _session?.Pause(); }
@@ -264,6 +196,9 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     }
     private void Publish(AnalysisTree tree, AnalysisOrderedRows order, AnalysisSnapshotLease? lease)
     {
+        if (_session is not null)
+            AcquisitionNotice = (_acquisition?.MemoryPreparationNotice ?? "This analysis uses bounded memory. It stops with partial results if the memory limit is reached.") +
+                (PrivateBoundaryNotice(tree.Snapshot) is { } notice ? " " + notice : "");
         RebindTableRangeOrder(tree, order);
         var old = _lease; var oldOrder = _orderedRows; _lease = lease; _orderedRows = order; Tree = tree; Rows = order.Rows; _observation = tree.Snapshot;
         try { Changed?.Invoke(); } finally { old?.Dispose(); oldOrder?.Dispose(); }
@@ -413,31 +348,18 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         while (value >= 1024 && at < units.Length - 1) { value /= 1024; at++; }
         return value.ToString(at == 0 ? "N0" : "N1", CultureInfo.CurrentCulture) + " " + units[at];
     }
-    private void ReleasePrepared()
-    {
-        var owned = _prepared.ToArray(); _prepared.Clear(); _preparedInput = []; ResolvedTargets = null;
-        foreach (var source in owned) _ = ReleasePreparedSourceAsync(source);
-    }
-    private async Task ReleasePreparedSourceAsync(IAnalysisBackend source)
-    {
-        if (_services is null) throw new InvalidOperationException("A prepared source requires its owning I/O scheduler.");
-        try { await AnalysisIo.ReleaseAsync(_services.Io, source).ConfigureAwait(false); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-        {
-            _services.Ui.Post(() => { if (!_disposed) SetStatus("Analysis handles could not be closed: " + ex.GetType().Name); });
-        }
-    }
     public void Dispose()
     {
         if (_disposed) return; _disposed = true; ++_generation;
         _preparationCancel?.Cancel();
-        _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _session?.Dispose(); ReleasePrepared(); _lease?.Dispose(); _pending?.Lease?.Dispose();
+        _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _session?.Stop(); _lease?.Dispose(); _pending?.Lease?.Dispose();
         _inventory?.Dispose();
         _capturedOwner?.Dispose(); _capturedOwner = null;
         Comparison?.Dispose(); Comparison = null; _comparisonPrevious?.Dispose(); _comparisonPrevious = null; _comparisonCurrent?.Dispose(); _comparisonCurrent = null;
         _rowOrderCancel?.Cancel(); _orderedRows?.Dispose(); _pending?.Order.Dispose();
         _rangeBaseline = _rangePublishedMarks = null; _rangeOrderOwner = null; _tableAnchor = null;
         Tree = null; Rows = []; _observation = null; _pending = null; Changed = null;
+        CloseCompletion = CloseAcquisitionAsync();
     }
     private sealed class LatestProgress(IUiDispatcher ui, Action<AnalysisProgress> consume) : IProgress<AnalysisProgress>
     {

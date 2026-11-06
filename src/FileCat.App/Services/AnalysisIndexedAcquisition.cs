@@ -12,6 +12,7 @@ namespace FileCat.App.Services;
 internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
 {
     private readonly AppServices _services;
+    private readonly bool _indexedStorage;
     private readonly string[] _privatePaths;
     private readonly IAnalysisBackend?[] _protection = new IAnalysisBackend?[2];
     private readonly bool[] _ancestorGuard = new bool[2];
@@ -24,16 +25,18 @@ internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
     internal AnalysisHostProfileIdentity? Profile { get; private set; }
     internal string ProfileIdentity => Profile?.ToString() ?? _ephemeralProfile;
     internal string? MemoryPreparationNotice { get; private set; }
-    private AnalysisIndexedAcquisition(AppServices services)
-    { _services = services; _privatePaths = [services.Paths.AnalysisSnapshotsDirectory, services.Paths.AnalysisScratchDirectory]; }
+    private AnalysisIndexedAcquisition(AppServices services, bool indexedStorage)
+    { _services = services; _indexedStorage = indexedStorage; _privatePaths = [services.Paths.AnalysisSnapshotsDirectory, services.Paths.AnalysisScratchDirectory]; }
 
-    internal static async Task<AnalysisIndexedAcquisition> PrepareAsync(AppServices services, CancellationToken cancellation = default)
+    internal static async Task<AnalysisIndexedAcquisition> PrepareAsync(AppServices services, CancellationToken cancellation = default,
+        bool indexedStorage = true, Action<string>? preparationDeviceChanged = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         if (AnalysisAdmission.Refusal() is { } refusal) throw new InvalidOperationException(refusal);
-        cancellation.ThrowIfCancellationRequested(); var owner = new AnalysisIndexedAcquisition(services);
+        cancellation.ThrowIfCancellationRequested(); var owner = new AnalysisIndexedAcquisition(services, indexedStorage);
         try
         {
+            preparationDeviceChanged?.Invoke(PathUtil.GetDeviceKey(owner._privatePaths[0]));
             await AnalysisIo.Run(services.Io, PathUtil.GetDeviceKey(owner._privatePaths[0]), token =>
             {
                 owner.CheckPreparation(0, token);
@@ -61,6 +64,7 @@ internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
                 }
                 return true;
             }, cancellation).ConfigureAwait(false);
+            preparationDeviceChanged?.Invoke(PathUtil.GetDeviceKey(owner._privatePaths[1]));
             await AnalysisIo.Run(services.Io, PathUtil.GetDeviceKey(owner._privatePaths[1]), token =>
             {
                 owner.CheckPreparation(1, token);
@@ -73,9 +77,12 @@ internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
                 if (owner._scratch is { } directory && !owner._ancestorGuard[1]) RequireSamePrivateRoot(directory, owner._protection[1]!);
                 return true;
             }, cancellation).ConfigureAwait(false);
-            if (owner.MemoryPreparationNotice is not null) await owner.CloseUnusedStorageAsync().ConfigureAwait(false);
+            if (!indexedStorage || owner.MemoryPreparationNotice is not null) await owner.CloseUnusedStorageAsync().ConfigureAwait(false);
             if (owner._profile != Guid.Empty)
+            {
+                preparationDeviceChanged?.Invoke("analysis-host-context");
                 owner.Profile = await AnalysisIo.Run(services.Io, "analysis-host-context", _ => AnalysisNativeHostProfile.Read(owner._profile), cancellation).ConfigureAwait(false);
+            }
             cancellation.ThrowIfCancellationRequested(); return owner;
         }
         catch { await owner.DisposeAsync().ConfigureAwait(false); throw; }
@@ -129,8 +136,8 @@ internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
                 () => Interlocked.Exchange(ref _scratch, null) ?? throw new IOException("Private scratch ownership has already transferred."),
                 [new(PathUtil.GetDeviceKey(_privatePaths[0]), () => TakeProtection(0)) { RequiresDisjointSource = _ancestorGuard[0] },
                  new(PathUtil.GetDeviceKey(_privatePaths[1]), () => TakeProtection(1)) { RequiresDisjointSource = _ancestorGuard[1] }])
-            { CreateProfileQuota = MemoryPreparationNotice is null ? OpenProfileQuota : null, ProfileDeviceKey = PathUtil.GetDeviceKey(_privatePaths[0]),
-                AllowMemoryFallback = true, MemoryOnly = MemoryPreparationNotice is not null };
+            { CreateProfileQuota = _indexedStorage && MemoryPreparationNotice is null ? OpenProfileQuota : null, ProfileDeviceKey = PathUtil.GetDeviceKey(_privatePaths[0]),
+                AllowMemoryFallback = true, MemoryOnly = !_indexedStorage || MemoryPreparationNotice is not null };
             return _session = new AnalysisCoordinator(_services.Io, ProfileIdentity).Start(sources, progress, components, storage);
         }
     }

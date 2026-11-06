@@ -136,7 +136,8 @@
     "Internal native indexed acquisition now shares profile capacity through 32 immutable private-file tokens and nonblocking kernel locks, independent of IPC namespaces. Actual Ubuntu separate-namespace controls reject the IPC-only prototype and prove file-backed refusal, process-death recovery and unchanged metadata. Native same-profile/retained-owner/foreign-state/crossprocess controls and all3 indexed workflows pass. Mixed profile/scratch device admission, public fallback and full resource/package qualification remain required.",
     "Profile and scratch device keys now share ordered bounded admission through capture, frontier, sorting, indexed views/readers and cleanup. The existing watchdog tracks both actual dependencies; cancellation and shutdown retain both turns until actual return. Six new admission/lifetime controls plus existing scheduler regressions and native indexed workflows pass on all3 runtimes. Distinct native-volume, package/resource and safe public fallback qualification remain pending.",
     "Opt-in Core fallback now retains qualified private-root exclusion and closes unpublished scratch before using the full bounded memory store. Runtime progress reports the mode and actual counts; cancellation, unqualified protection and later published-prefix failures cannot restart in memory. Native NTFS/APFS/ext4 fixtures preserve64 regular files/private canaries; failure/lifetime controls pass on all3 runtimes. Application preparation/public-view fallback and pressure/resource qualification remain open; the opt-in remains off in App acquisition.",
-    "Internal App preparation now preserves unsupported private state, uses ephemeral correlation when UUID continuity is unavailable and retains native private boundaries or disjoint-only ancestor guards. Unread roots carry explicit partial state; safe selected children are reactivated without double counting. Covered private selections redact identities and have known-empty direct/memory/indexed filter scope. Completed results choose indexed or leased memory views, retaining the shared memory reservation after acquisition closure. Native memory/query/folder-open/owned-exit workflows and FileCat-only visual-tree renders pass on all3 platforms; public lifecycle and full qualification remain open."
+    "Internal App preparation now preserves unsupported private state, uses ephemeral correlation when UUID continuity is unavailable and retains native private boundaries or disjoint-only ancestor guards. Unread roots carry explicit partial state; safe selected children are reactivated without double counting. Covered private selections redact identities and have known-empty direct/memory/indexed filter scope. Completed results choose indexed or leased memory views, retaining the shared memory reservation after acquisition closure. Native memory/query/folder-open/owned-exit workflows and FileCat-only visual-tree renders pass on all3 platforms; public lifecycle and full qualification remain open.",
+    "The normal development Start flow now shares native private-profile/boundary preparation with indexed acquisition while remaining bounded-memory. Resolved-target review retains the same capabilities; Stop/Close at initial scanning cannot start work. Window closure waits for actual binding/acquisition cleanup, and unsupported private state disables private Save. Five added lifecycle cases pass on all3 runtimes; native normal Start/query/navigation/close preserves509 generated regular paths on each platform."
   ],
   "validation": {
     "windowsCore": {
@@ -1153,10 +1154,134 @@
       "publicSpillEnabled": false,
       "nativeInputQualified": false,
       "finalIndependentReviewPerformed": false
+    },
+    "boundedMemoryStartLifecycle": {
+      "status": "development-bounded-memory-native-functional-and-visual-tree-subset-passed",
+      "render": {
+        "mac": {
+          "total": 88,
+          "passed": 88,
+          "failed": 0,
+          "skipped": 0,
+          "seconds": 34.929,
+          "evidence": "mac-render-r441.xml"
+        },
+        "ubuntu": {
+          "total": 88,
+          "passed": 88,
+          "failed": 0,
+          "skipped": 0,
+          "seconds": 55.012,
+          "evidence": "ubuntu-render-r441.xml"
+        },
+        "windows": {
+          "total": 88,
+          "passed": 87,
+          "failed": 0,
+          "skipped": 1,
+          "seconds": 48.255,
+          "evidence": "windows-render-r441.xml"
+        }
+      },
+      "native": {
+        "mac": {
+          "passed": true,
+          "pid": 70049,
+          "matchingPaths": 509,
+          "queryMatches": 1,
+          "unavailableRoots": 1,
+          "sourceUnchanged": true,
+          "ownedProcessExited": true,
+          "scratchCreated": false,
+          "publicStartLifecycle": true,
+          "evidence": "mac-native-memory-r442.json"
+        },
+        "ubuntu": {
+          "passed": true,
+          "pid": 675739,
+          "matchingPaths": 509,
+          "queryMatches": 1,
+          "unavailableRoots": 1,
+          "sourceUnchanged": true,
+          "ownedProcessExited": true,
+          "scratchCreated": false,
+          "publicStartLifecycle": true,
+          "evidence": "ubuntu-native-memory-r442.json"
+        },
+        "windows": {
+          "passed": true,
+          "pid": 8380,
+          "matchingPaths": 509,
+          "queryMatches": 1,
+          "unavailableRoots": 1,
+          "sourceUnchanged": true,
+          "ownedProcessExited": true,
+          "scratchCreated": false,
+          "publicStartLifecycle": true,
+          "evidence": "windows-native-memory-r442.json"
+        }
+      },
+      "builds": [
+        "build-r438.txt",
+        "build-render-r441.txt",
+        "harness-build-r442.txt"
+      ],
+      "postChecks": [
+        "windows-post-lifecycle-r443.json",
+        "mac-post-lifecycle-r443.txt",
+        "ubuntu-post-lifecycle-r443.txt",
+        "mac-post-lifecycle-r445.json",
+        "ubuntu-post-lifecycle-r445.json",
+        "windows-post-lifecycle-r445.json"
+      ],
+      "manifest": "source-manifest-r442.json",
+      "ongoingReviewFix": "Stop/Close at the initial Scanning Changed notification now wins before acquisition starts; canceled initial state returns to Ready. Both reentrant cases are regression tested.",
+      "fixtureCorrections": "r438 exposed native Windows locator prefix and synthetic-source terminal-phase assertions plus an unshown headless window. Corrected fixtures pass r440; the added production reentrancy fix and two controls pass final r441. Unix controllers were corrected to LF before any r438 test execution; busy gates postponed both Unix suites until free.",
+      "captureScope": "Only FileCat visual-tree pixels from each actual native window; all3 inspected. Ubuntu has a small fitted client with scrollable content. No system capture, compositor/native-input/a11y or complete UX qualification.",
+      "boundedMemoryLifecycleConnected": true,
+      "publicAcquisitionEnabled": false,
+      "publicSpillEnabled": false,
+      "nativeInputQualified": false,
+      "finalIndependentReviewPerformed": false,
+      "core": {
+        "mac": {
+          "total": 597,
+          "passed": 595,
+          "failed": 0,
+          "skipped": 2,
+          "seconds": 15.837,
+          "evidence": "mac-core-r444.xml"
+        },
+        "ubuntu": {
+          "total": 597,
+          "passed": 595,
+          "failed": 0,
+          "skipped": 2,
+          "seconds": 44.028,
+          "evidence": "ubuntu-core-r444.xml"
+        },
+        "windows": {
+          "total": 615,
+          "passed": 574,
+          "failed": 0,
+          "skipped": 41,
+          "seconds": 10.989,
+          "evidence": "windows-core-r444.xml"
+        }
+      },
+      "windowsNative": {
+        "total": 37,
+        "passed": 37,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 19.995,
+        "evidence": "windows-native-r444.xml"
+      },
+      "provenanceVerification": "Core source is unchanged in this checkpoint; generated AssemblyInformationalVersion embeds base4ef61910. Its rebuilt binary differs from r422 and matches the final r444 Core/native bundles plus r441 rendering and r442 native desktop builds."
     }
   },
   "nextWork": [
-    "W1 indexed integration: the internal App now prepares preserving memory fallback and hands completed acquisitions to indexed or retained memory views. Connect the qualified public start/progress/stop/view lifecycle without enabling unqualified spill. Finish memory pressure/partial-stop and actual mixed-volume/native-device identity qualification, package/session/domain agreement, original inventory IDs/streaming persistence, end-to-end1M/10M and every resource limit.",
+    "W1: the normal development bounded-memory Start/progress/Stop/view path now shares private-boundary preparation and actual acquisition closure. Finish the qualified public entry/lifecycle and indexed transition without enabling unqualified spill; CPU/projection and failed-close session accounting, memory pressure/partial-stop, actual mixed-volume/native-device identity, package/session/domain agreement, original inventory IDs/streaming persistence, end-to-end1M/10M and every resource limit remain required.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: grouping/color dimensions, scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",

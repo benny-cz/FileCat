@@ -699,6 +699,7 @@ public sealed partial class DiskSpaceWindow : Window
         {
             if (_disposed) return; _disposed = true; _timer.Stop(); _filterTimer.Stop(); Model.Changed -= Refresh;
             _treemap.Clear(); _sunburst.Clear(); _list.ItemsSource = null; ReleaseComparisonView(); Model.Dispose();
+            _window.TrackIndexedClose(Model.CloseCompletion);
         }
     }
 }
