@@ -148,7 +148,7 @@ public sealed partial class AnalysisSession : IDisposable
         {
             if (_disposed || _workerFinished || _phase == AnalysisPhase.Stopped) return;
             if (issue is not null) { _store.Issue(issue); _freshness = AnalysisFreshness.SourceUnavailable; }
-            _writer?.RequestStop(); if (_indexing) _finalizeCancel.Cancel();
+            _writer?.RequestStop(issue); if (_indexing) _finalizeCancel.Cancel();
             _cancel.Cancel(); _store.Seal(); _partial = true; _phase = AnalysisPhase.Stopped; _final = Capture();
         }
         Report();
@@ -286,6 +286,8 @@ public sealed partial class AnalysisSession : IDisposable
         if (!rootId.HasValue) { Issue("memory-or-observation-limit"); return; }
         if (protectedRoot) { Issue("private-analysis-state-excluded", rootId, MeasurementState.Excluded); return; }
         if (source.RootEntry.Kind != AnalysisKind.Directory) return;
+        if (!source.RootEntry.IncludedByPolicy || source.RootEntry.MetadataState != MeasurementState.Known)
+        { Issue(source.RootEntry.IssueCode ?? "root-enumeration-unavailable", rootId, source.RootEntry.MetadataState); return; }
         if (source.RootEntry.Cloud == true) { Issue("cloud-directory-not-enumerated", rootId, MeasurementState.Excluded); return; }
         var pending = new Stack<(AnalysisEntry Entry, ulong Id, int Depth, long Bytes)>();
         AnalysisSourceFrontier? frontier = null;
@@ -297,6 +299,7 @@ public sealed partial class AnalysisSession : IDisposable
                 frontier = await OnStorageDeviceAsync(() => _writer.CreateSourceFrontierAsync(source.RootEntry, root, rootId.Value, _cancel.Token)).ConfigureAwait(false);
             else pending.Push((source.RootEntry, rootId.Value, 0, 0));
             lock (_sync) _enumerationRequested++;
+            await PublishEnumerationAsync().ConfigureAwait(false);
             while (!_store.Limited || _writer is not null)
             {
                 _cancel.Token.ThrowIfCancellationRequested();
@@ -304,7 +307,7 @@ public sealed partial class AnalysisSession : IDisposable
                 if (frontier is not null)
                 {
                     try { ticket = await OnStorageDeviceAsync(() => frontier.PopAsync(_cancel.Token)).ConfigureAwait(false); }
-                    catch (AnalysisFrontierScopeException error) { Issue("frontier-read-witness-limit", error.Path); lock (_sync) _enumerationFailed++; continue; }
+                    catch (AnalysisFrontierScopeException error) { Issue("frontier-read-witness-limit", error.Path); lock (_sync) _enumerationFailed++; await PublishEnumerationAsync().ConfigureAwait(false); continue; }
                     if (ticket is null) break;
                     (entry, id, depth) = (ticket.Entry, ticket.Path, ticket.Depth);
                 }
@@ -313,7 +316,7 @@ public sealed partial class AnalysisSession : IDisposable
                     if (!pending.TryPop(out var next)) break;
                     (entry, id, depth) = (next.Entry, next.Id, next.Depth); pendingBytes -= next.Bytes;
                 }
-                if (depth >= AnalysisLimits.Depth) { Issue("depth-limit", id); lock (_sync) _enumerationFailed++; continue; }
+                if (depth >= AnalysisLimits.Depth) { Issue("depth-limit", id); lock (_sync) _enumerationFailed++; await PublishEnumerationAsync().ConfigureAwait(false); continue; }
                 var enumeration = await AnalysisIo.Run(_io, device, _ => source.Children(entry, _cancel.Token).GetEnumerator(), _cancel.Token).ConfigureAwait(false);
                 await using var cursorOwner = AnalysisIo.OwnCursor(_io, device, enumeration);
                 bool finished = false;
@@ -363,6 +366,7 @@ public sealed partial class AnalysisSession : IDisposable
                         await OnStorageDeviceAsync(async () => { await frontier!.PushAsync(ticket!, children, _cancel.Token).ConfigureAwait(false); return true; }).ConfigureAwait(false);
                         lock (_sync) _enumerationRequested = checked(_enumerationRequested + (ulong)children.Length);
                     }
+                    await PublishEnumerationAsync().ConfigureAwait(false);
                     await FlushCaptureIssuesAsync().ConfigureAwait(false);
                     if (batch.Limited) { Issue("producer-record-limit", id); break; }
                     if (batch.Error is { } error) { Issue(error, id); break; }
@@ -370,6 +374,7 @@ public sealed partial class AnalysisSession : IDisposable
                     if (clock.ElapsedMilliseconds >= 250) { Report(); clock.Restart(); }
                 }
                 lock (_sync) { if (succeeded) _enumerationCompleted++; else _enumerationFailed++; }
+                await PublishEnumerationAsync().ConfigureAwait(false);
             }
         }
         finally

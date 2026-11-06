@@ -18,6 +18,9 @@ public sealed class AnalysisObservationWriter : IAsyncDisposable
     private AnalysisObservationWriter(Owner owner, DeviceIoScheduler io, string device)
     { _io = io; _device = device; _owned = new(owner, io, device); _stopTarget = owner.Capture; }
     public void RequestStop() => Volatile.Read(ref _stopTarget)?.RequestStop();
+    internal void RequestStop(string? issueCode) => Volatile.Read(ref _stopTarget)?.RequestStop(issueCode);
+    internal Task PublishEnumerationAsync(AnalysisEnumerationProgress progress, CancellationToken cancellation) =>
+        _owned.RunAsync((owner, token) => { owner.Capture.Enumeration(progress, token); owner.Capture.Publish(token); return true; }, cancellation);
 
     // The factory is application-owned configuration, not a callback restored from an inventory.
     public static async Task<AnalysisObservationWriter> CreateAsync(DeviceIoScheduler io, string device, Func<AnalysisPrivateDirectory> createDirectory,

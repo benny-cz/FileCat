@@ -71,7 +71,15 @@ public sealed partial class AnalysisSession
         _writer = await AnalysisObservationWriter.CreateAsync(_io, _storage.DeviceKey, _storage.CreateDirectory, _identity, _roots, _policy, _cancel.Token).ConfigureAwait(false);
         if (_cancel.IsCancellationRequested) { _writer.RequestStop(); _cancel.Token.ThrowIfCancellationRequested(); }
         if (protectionFailure is not null) throw new IOException("Private-state exclusion could not be qualified for these sources.", protectionFailure);
+        await PublishEnumerationAsync().ConfigureAwait(false);
         await FlushCaptureIssuesAsync().ConfigureAwait(false);
+    }
+    private Task PublishEnumerationAsync()
+    {
+        if (_writer is null) return Task.CompletedTask;
+        AnalysisEnumerationProgress progress;
+        lock (_sync) progress = new(_enumerationRequested, _enumerationCompleted, _enumerationFailed);
+        return OnStorageDeviceAsync(async () => { await _writer.PublishEnumerationAsync(progress, _cancel.Token).ConfigureAwait(false); return true; });
     }
     private bool IsProtected(AnalysisEntry entry) => entry.Identity is { } identity && _protectedIdentities.Contains(identity);
     private async Task<T> OnStorageDeviceAsync<T>(Func<Task<T>> work)

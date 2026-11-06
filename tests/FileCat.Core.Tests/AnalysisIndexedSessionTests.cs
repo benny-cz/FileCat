@@ -19,6 +19,9 @@ public sealed class AnalysisIndexedSessionTests
         await session.Completion.WaitAsync(TimeSpan.FromSeconds(20), Cancellation);
         var preview = session.Snapshot(); Assert.Equal(4, preview.Nodes.Length); Assert.Equal(NamespaceCoverage.Partial, preview.Coverage); AnalysisValidation.Validate(preview, Cancellation);
         Assert.True(source.Closed); Assert.True(protection.Closed); Assert.Equal(251UL, session.DatasetDescriptor!.Paths);
+        var coverage = session.DatasetDescriptor.CoverageDetails; Assert.True(coverage.EnumerationKnown); Assert.True(coverage.Observations.DenominatorFinal);
+        Assert.Equal(1UL, coverage.Observations.EnumerationRequested); Assert.Equal(1UL, coverage.Observations.EnumerationCompleted); Assert.Equal(0UL, coverage.UnscheduledDirectories);
+        Assert.Equal(250UL, coverage.Observations.IdentityVerifiedPaths); Assert.Equal(250UL, coverage.Observations.MeasurementStates[MeasurementState.Known]);
         await using var dataset = await session.AcquireDatasetAsync(Cancellation); Assert.NotNull(dataset);
         var all = await dataset.ReadPathsAsync(0, AnalysisLimits.BatchRecords, Cancellation); Assert.Equal(251, all.Rows.Length); Assert.False(all.HasMore);
         foreach (var path in preview.Nodes) Assert.Equal(path.ObjectId, all.Rows.Single(n => n.Id == path.Id).ObjectId);
@@ -77,20 +80,24 @@ public sealed class AnalysisIndexedSessionTests
             new(Guid.NewGuid(), 1, 1, "fixture", DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch),
             [new("r", "file", "/source", "/source", null, IdentityAssurance.Unknown, "source")], new(), AnalysisPhase.Scanning, NamespaceCoverage.Partial);
         using var workspace = new AnalysisScratchWorkspace(directory); using var capture = new AnalysisObservationCapture(workspace.CreateArena(), header);
-        capture.Append(Backend.Entry("root", AnalysisKind.Directory), 0, "r", "basis", cancellation: Cancellation); capture.Publish(Cancellation);
+        capture.Append(Backend.Entry("root", AnalysisKind.Directory), 0, "r", "basis", cancellation: Cancellation);
+        capture.Enumeration(new(1, 0, 0), Cancellation); capture.Publish(Cancellation);
         capture.Append(Backend.Entry("late"), 1, "r", "basis", cancellation: Cancellation);
         using var entered = new ManualResetEventSlim(); using var release = new ManualResetEventSlim(); directory.BeforeNextWrite = () => { entered.Set(); release.Wait(Cancellation); };
         var flush = Task.Run(() => capture.Publish(Cancellation), Cancellation);
         try
         {
             Assert.True(entered.Wait(TimeSpan.FromSeconds(3), Cancellation));
-            await Task.Run(capture.RequestStop, Cancellation).WaitAsync(TimeSpan.FromSeconds(2), Cancellation);
+            await Task.Run(() => capture.RequestStop("device-not-responding"), Cancellation).WaitAsync(TimeSpan.FromSeconds(2), Cancellation);
         }
         finally { release.Set(); }
         await flush;
-        using var revision = await capture.CompleteAsync(workspace, io, "stop-prefix", header.Identity with { Revision = 2, ObservedUtc = DateTimeOffset.UtcNow }, AnalysisPhase.Stopped, NamespaceCoverage.Partial, Cancellation);
+        Assert.Throws<OperationCanceledException>(() => capture.Enumeration(new(1, 1, 0), Cancellation));
+        using var revision = await capture.CompleteAsync(workspace, io, "stop-prefix", header.Identity with { Revision = 2, ObservedUtc = DateTimeOffset.UtcNow }, AnalysisPhase.Stopped, NamespaceCoverage.Partial, Cancellation, AnalysisFreshness.SourceUnavailable);
         using var reader = revision.Acquire(); Assert.Equal(1UL, reader.Count(AnalysisIndexedGraph.Paths));
         Assert.Equal(AnalysisPhase.Stopped, reader.Header.Phase); Assert.Equal(0UL, reader.Count(AnalysisIndexedGraph.Objects));
+        Assert.Equal(1UL, reader.Header.IssueTotals[MeasurementState.Failed]); Assert.Equal(0UL, reader.Count(AnalysisIndexedGraph.Issues));
+        Assert.Equal(1UL, reader.Header.CoverageDetails!.Observations.EnumerationPending); Assert.True(reader.Header.CoverageDetails.HasUnlocatedStaleScopes);
     }
 
     private sealed class Backend(int count, string identity = "source") : IAnalysisBackend

@@ -2,8 +2,28 @@ using System.Collections.Immutable;
 
 namespace FileCat.Core.Analysis;
 
+public sealed record AnalysisEnumerationProgress(ulong Requested, ulong Completed, ulong Failed)
+{
+    public ulong Pending => checked(Requested - Completed - Failed);
+    internal void Validate()
+    {
+        if (Requested > AnalysisLimits.Observations || Completed > Requested || Failed > Requested - Completed)
+            throw new InvalidDataException("Invalid enumeration coverage.");
+    }
+}
+
+/// <summary>Full-revision coverage. Unknown enumeration and incomplete stale samples remain explicit.</summary>
+public sealed record AnalysisDatasetCoverage(AnalysisCoverageRecord Observations, bool EnumerationKnown,
+    ulong EligibleDirectories, bool StaleScopesComplete, bool HasUnlocatedStaleScopes)
+{
+    public ulong? UnscheduledDirectories => EnumerationKnown ? checked(EligibleDirectories - Observations.EnumerationRequested) : null;
+}
+
+internal sealed record AnalysisStaleEvidence(ulong Events, ImmutableArray<string> RootIds, bool Unlocated);
+
 public static class AnalysisCoverage
 {
+    internal static bool IsStaleIssue(string code, MeasurementState state) => state == MeasurementState.Changed || code is "source-changed-or-boundary" or "changed-during-observation" or "device-not-responding";
     public static AnalysisBoundaryKind? BoundaryKind(string code) => code switch
     {
         "source-mount-boundary" or "source-volume-boundary" => AnalysisBoundaryKind.Mount,

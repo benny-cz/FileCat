@@ -6,7 +6,7 @@ namespace FileCat.Core.Analysis;
 public sealed record AnalysisDatasetDescriptor(SessionIdentity Identity, ImmutableArray<RootBinding> Roots, ScanPolicy Policy,
     AnalysisPhase Phase, NamespaceCoverage Coverage, AnalysisFreshness Freshness, AnalysisOrigin Origin, AnalysisTaint Taint,
     AnalysisPersistence Persistence, ulong Paths, ulong Objects, ulong Facts, ulong SampledIssues,
-    ImmutableDictionary<MeasurementState, ulong> IssueTotals, ImmutableDictionary<AnalysisBoundaryKind, ulong> BoundaryTotals)
+    ImmutableDictionary<MeasurementState, ulong> IssueTotals, ImmutableDictionary<AnalysisBoundaryKind, ulong> BoundaryTotals, AnalysisDatasetCoverage CoverageDetails)
 {
     public ulong Issues => IssueTotals.Values.Aggregate(0UL, (sum, value) => checked(sum + value));
 }
@@ -43,7 +43,8 @@ public sealed class AnalysisDataset : IAsyncDisposable
         if (string.IsNullOrWhiteSpace(device) || device.Length > 1024) throw new ArgumentException("A captured bounded scratch device key is required.", nameof(device));
         var h = revision.Header; _io = io; _device = device;
         Descriptor = new(h.Identity, h.Roots, h.Policy, h.Phase, h.Coverage, h.Freshness, h.Origin, h.Taint, h.Persistence,
-            revision.Count(AnalysisIndexedGraph.Paths), revision.Count(AnalysisIndexedGraph.Objects), revision.Count(AnalysisIndexedGraph.Facts), revision.Count(AnalysisIndexedGraph.Issues), h.IssueTotals, h.BoundaryTotals);
+            revision.Count(AnalysisIndexedGraph.Paths), revision.Count(AnalysisIndexedGraph.Objects), revision.Count(AnalysisIndexedGraph.Facts), revision.Count(AnalysisIndexedGraph.Issues), h.IssueTotals, h.BoundaryTotals,
+            h.CoverageDetails ?? throw new InvalidDataException("Indexed coverage was not validated."));
         _owned = new(revision, io, device);
     }
     public Task<AnalysisDatasetLease> AcquireAsync(CancellationToken cancellation = default) =>

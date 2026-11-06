@@ -4,7 +4,7 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Tests;
 
-public sealed class AnalysisDatasetSummaryTests
+public sealed partial class AnalysisDatasetSummaryTests
 {
     private const string Device = "summary-fixture";
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -177,10 +177,10 @@ public sealed class AnalysisDatasetSummaryTests
         Assert.Equal((UInt128)80, (await readerC.SummarizeAsync(AnalysisMetric.OnDisk, Cancellation)).Totals.Known); Assert.True(read);
     }
 
-    private static async Task<AnalysisDataset> Build(AnalysisSnapshot snapshot, DeviceIoScheduler io, MemoryDirectory? directory = null, string device = Device)
+    private static async Task<AnalysisDataset> Build(AnalysisSnapshot snapshot, DeviceIoScheduler io, MemoryDirectory? directory = null, string device = Device, AnalysisEnumerationProgress? enumeration = null)
     {
         directory ??= new(); using var workspace = new AnalysisScratchWorkspace(directory);
-        var header = new AnalysisIndexedGraphHeader(snapshot.Identity, snapshot.Roots, snapshot.Policy, snapshot.Phase, snapshot.Coverage, Origin: AnalysisOrigin.ImportedInventory);
+        var header = new AnalysisIndexedGraphHeader(snapshot.Identity, snapshot.Roots, snapshot.Policy, snapshot.Phase, snapshot.Coverage, Origin: AnalysisOrigin.ImportedInventory) { Enumeration = enumeration };
         using var graph = new AnalysisIndexedGraph(workspace.CreateArena(), header);
         foreach (var node in snapshot.Nodes) graph.AppendPath(node, Cancellation);
         foreach (var obj in snapshot.Objects) graph.AppendObject(obj with { ObservedAliases = [] }, Cancellation);

@@ -23,11 +23,18 @@ internal static class AnalysisObservationCoalescer
                 catch { arena.Dispose(); throw; }
             }, cancellation).ConfigureAwait(false);
             var issues = header.IssueTotals.ToDictionary(); var boundaries = header.BoundaryTotals.ToDictionary();
+            ulong staleEvents = header.StaleEvidence?.Events ?? 0;
+            var staleRoots = (header.StaleEvidence?.RootIds ?? []).ToHashSet(StringComparer.Ordinal);
             ulong sampled = 0; bool changed = header.IssueTotals.GetValueOrDefault(MeasurementState.Changed) != 0;
             void Issue(string code, ulong node, MeasurementState state, CancellationToken token)
             {
                 issues[state] = checked(issues.GetValueOrDefault(state) + 1);
                 if (AnalysisCoverage.BoundaryKind(code) is { } boundary) boundaries[boundary] = checked(boundaries.GetValueOrDefault(boundary) + 1);
+                if (AnalysisCoverage.IsStaleIssue(code, state))
+                {
+                    staleEvents = checked(staleEvents + 1);
+                    staleRoots.Add(AnalysisIndexedPathCodec.Decode(raw.Read(AnalysisObservationCapture.Paths, node, token), node, header.Roots).Node.RootId);
+                }
                 if (sampled < AnalysisLimits.Issues) { owned.Graph.AppendIssue(new(code, node, state), token); sampled++; }
             }
             await CopyAsync(AnalysisObservationCapture.Issues, (bytes, token) => { owned.Graph.AppendIssue(AnalysisIndexedValueCodec.DecodeIssue(bytes), token); sampled++; }, raw, io, device, cancellation).ConfigureAwait(false);
@@ -118,7 +125,8 @@ internal static class AnalysisObservationCoalescer
                 var fact = AnalysisIndexedValueCodec.DecodeFact(bytes); changed |= fact.Measurement.State == MeasurementState.Changed; owned.Graph.AppendFact(fact, token);
             }, raw, io, device, cancellation).ConfigureAwait(false);
             var final = header with { Freshness = changed && header.Freshness == AnalysisFreshness.Observed ? AnalysisFreshness.PossiblyStale : header.Freshness,
-                IssueTotals = issues.ToImmutableDictionary(), BoundaryTotals = boundaries.ToImmutableDictionary() };
+                IssueTotals = issues.ToImmutableDictionary(), BoundaryTotals = boundaries.ToImmutableDictionary(),
+                StaleEvidence = new(staleEvents, staleRoots.Order(StringComparer.Ordinal).ToImmutableArray(), header.StaleEvidence?.Unlocated ?? false) };
             result = await owned.Graph.SealAsync(workspace, io, device, final, cancellation).ConfigureAwait(false); return result;
         }
         finally

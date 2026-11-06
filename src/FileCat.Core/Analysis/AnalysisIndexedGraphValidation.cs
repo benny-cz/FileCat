@@ -9,6 +9,7 @@ internal static class AnalysisIndexedGraphValidation
     internal static async Task<AnalysisIndexedGraphHeader> ValidateAsync(AnalysisIndexedGraphReader reader, DeviceIoScheduler io, string device, CancellationToken cancellation)
     {
         reader.Header.Validate();
+        var coverage = new AnalysisIndexedCoverage(reader.Header);
         foreach (int index in new[] { AnalysisIndexedGraphRevision.Children, AnalysisIndexedGraphRevision.ObjectIds, AnalysisIndexedGraphRevision.FactIds })
         {
             ulong next = 1, count = reader.IndexCount(index); byte[]? previous = null;
@@ -39,6 +40,7 @@ internal static class AnalysisIndexedGraphValidation
                 while (path <= pathCount && records < AnalysisLimits.BatchRecords && bytes < AnalysisLimits.BatchBytes)
                 {
                     token.ThrowIfCancellationRequested(); var current = reader.ReadPathRecord(path++, token); var node = current.Node;
+                    coverage.Path(node);
                     if (node.Times is { } times && (times.ObservedUtc < reader.Header.Identity.StartedUtc || times.ObservedUtc > reader.Header.Identity.ObservedUtc)) throw AnalysisIndexedGraph.Invalid();
                     if (node.ParentId == 0)
                     { if (roots[current.RootIndex]) throw AnalysisIndexedGraph.Invalid(); roots[current.RootIndex] = true; }
@@ -60,6 +62,8 @@ internal static class AnalysisIndexedGraphValidation
         ulong alias = 1, aliases = reader.IndexCount(AnalysisIndexedGraphRevision.Aliases), objectAt = 1;
         ulong objects = reader.IndexCount(AnalysisIndexedGraphRevision.ObjectIds);
         AnalysisSortEntry? objectEntry = null; AnalysisObject? currentObject = null;
+        ulong objectFact = 1, objectFactCount = reader.IndexCount(AnalysisIndexedGraphRevision.FactOwners);
+        AnalysisSortEntry? objectFactEntry = null; bool changedFacts = false;
         while (alias <= aliases)
             await AnalysisIo.Run(io, device, token =>
             {
@@ -71,14 +75,56 @@ internal static class AnalysisIndexedGraphValidation
                     var member = reader.ReadIndex(AnalysisIndexedGraphRevision.Aliases, alias, token);
                     objectEntry ??= reader.ReadIndex(AnalysisIndexedGraphRevision.ObjectIds, objectAt, token);
                     int order = objectEntry.Value.Key.AsSpan().SequenceCompareTo(member.Key);
-                    if (order < 0) { bytes += objectEntry.Value.Key.Length + 12; objectAt++; objectEntry = null; currentObject = null; records++; continue; }
+                    if (order < 0)
+                    {
+                        if (currentObject is null)
+                        {
+                            var orphan = reader.ReadObject(objectEntry.Value.Value, token); coverage.Object(orphan, false);
+                            bytes += (orphan.VerifiedIdentity?.Length ?? 0) * 2 + (orphan.VersionEvidence?.Length ?? 0) * 2;
+                        }
+                        bytes += objectEntry.Value.Key.Length + 1024; objectAt++; objectEntry = null; currentObject = null; records++; continue;
+                    }
                     if (order > 0) throw AnalysisIndexedGraph.Invalid();
-                    currentObject ??= reader.ReadObject(objectEntry.Value.Value, token);
+                    if (currentObject is null)
+                    {
+                        currentObject = reader.ReadObject(objectEntry.Value.Value, token); changedFacts = false; coverage.Object(currentObject, true);
+                        records++; bytes += 1024 + (currentObject.VerifiedIdentity?.Length ?? 0) * 2 + (currentObject.VersionEvidence?.Length ?? 0) * 2; continue;
+                    }
+                    if (objectFact <= objectFactCount)
+                    {
+                        objectFactEntry ??= reader.ReadIndex(AnalysisIndexedGraphRevision.FactOwners, objectFact, token);
+                        var factEntry = objectFactEntry.Value;
+                        int ownerOrder = factEntry.Key[0] == 0 ? factEntry.Key.AsSpan(1).SequenceCompareTo(objectEntry.Value.Key) : 1;
+                        if (ownerOrder <= 0)
+                        {
+                            if (ownerOrder == 0)
+                            {
+                                var fact = reader.ReadFact(factEntry.Value, token); changedFacts |= fact.Measurement.State == MeasurementState.Changed;
+                                bytes += 1024 + fact.Includes.Sum(s => s.Length * 3 + 4);
+                            }
+                            bytes += factEntry.Key.Length + 12; records++; objectFact++; objectFactEntry = null; continue;
+                        }
+                    }
                     var node = reader.ReadPath(member.Value, token);
                     if (node.ObjectId != currentObject.Id || node.ObservedIdentity is not null && currentObject.VerifiedIdentity != node.ObservedIdentity ||
                         node.MetadataState != MeasurementState.Known && (node.ObservedIdentity is not null || currentObject.VerifiedIdentity is not null || currentObject.LogicalLength.State != node.MetadataState))
                         throw AnalysisIndexedGraph.Invalid();
+                    coverage.Alias(node, currentObject, changedFacts);
                     alias++; records++; bytes += member.Key.Length + node.Name.Length * 2 + node.RawName.Length + 128;
+                }
+                return true;
+            }, cancellation).ConfigureAwait(false);
+
+        if (currentObject is not null) objectAt++;
+        while (objectAt <= objects)
+            await AnalysisIo.Run(io, device, token =>
+            {
+                int records = 0, bytes = 0;
+                while (objectAt <= objects && records++ < AnalysisLimits.BatchRecords && bytes < AnalysisLimits.BatchBytes)
+                {
+                    token.ThrowIfCancellationRequested(); var entry = reader.ReadIndex(AnalysisIndexedGraphRevision.ObjectIds, objectAt++, token);
+                    var value = reader.ReadObject(entry.Value, token); coverage.Object(value, false);
+                    bytes += 1024 + entry.Key.Length + (value.VerifiedIdentity?.Length ?? 0) * 2 + (value.VersionEvidence?.Length ?? 0) * 2;
                 }
                 return true;
             }, cancellation).ConfigureAwait(false);
@@ -104,6 +150,8 @@ internal static class AnalysisIndexedGraphValidation
                         if (order > 0) throw AnalysisIndexedGraph.Invalid();
                     }
                     var fact = reader.ReadFact(entry.Value, token);
+                    AnalysisNode? directoryNode = fact.DirectoryId is { } directoryId ? reader.ReadPath(directoryId, token) : null;
+                    coverage.Fact(fact, directoryNode, fact.Measurement.State != MeasurementState.Changed || fact.ObjectId is null || reader.Aliases(fact.ObjectId, token).Count != 0);
                     if (fact.ObservedUtc < reader.Header.Identity.StartedUtc || fact.ObservedUtc > reader.Header.Identity.ObservedUtc) throw AnalysisIndexedGraph.Invalid();
                     if (newOwner)
                     {
@@ -136,19 +184,28 @@ internal static class AnalysisIndexedGraphValidation
                     if (issue.NodeId is { } node)
                     {
                         if (node > pathCount) throw AnalysisIndexedGraph.Invalid();
-                        if (issue.RootId is { } root && reader.ReadPath(node, token).RootId != root) throw AnalysisIndexedGraph.Invalid();
+                        var pathNode = reader.ReadPath(node, token);
+                        if (issue.RootId is { } root && pathNode.RootId != root) throw AnalysisIndexedGraph.Invalid();
+                        coverage.Issue(issue with { RootId = pathNode.RootId });
                     }
-                    else if (issue.RootId is { } root && !reader.Header.Roots.Any(r => r.Id == root)) throw AnalysisIndexedGraph.Invalid();
+                    else
+                    {
+                        if (issue.RootId is { } root && !reader.Header.Roots.Any(r => r.Id == root)) throw AnalysisIndexedGraph.Invalid();
+                        coverage.Issue(issue);
+                    }
                 }
                 return true;
             }, cancellation).ConfigureAwait(false);
         if (reader.Header.IssueTotals.Count != 0 && sampledIssues.Any(p => !reader.Header.IssueTotals.TryGetValue(p.Key, out ulong total) || total < p.Value) ||
             reader.Header.BoundaryTotals.Count != 0 && sampledBoundaries.Any(p => !reader.Header.BoundaryTotals.TryGetValue(p.Key, out ulong total) || total < p.Value))
             throw AnalysisIndexedGraph.Invalid();
+        var issueTotals = reader.Header.IssueTotals.Count == 0 ? sampledIssues.ToImmutableDictionary() : reader.Header.IssueTotals;
+        var boundaryTotals = reader.Header.BoundaryTotals.Count == 0 ? sampledBoundaries.ToImmutableDictionary() : reader.Header.BoundaryTotals;
+        var freshness = coverage.Changed && reader.Header.Freshness == AnalysisFreshness.Observed ? AnalysisFreshness.PossiblyStale : reader.Header.Freshness;
         return reader.Header with
         {
-            IssueTotals = reader.Header.IssueTotals.Count == 0 ? sampledIssues.ToImmutableDictionary() : reader.Header.IssueTotals,
-            BoundaryTotals = reader.Header.BoundaryTotals.Count == 0 ? sampledBoundaries.ToImmutableDictionary() : reader.Header.BoundaryTotals
+            IssueTotals = issueTotals, BoundaryTotals = boundaryTotals, Freshness = freshness,
+            CoverageDetails = coverage.Complete(issueTotals, boundaryTotals, issues, freshness)
         };
     }
     private static void ValidateComponents(List<StorageFact> facts)

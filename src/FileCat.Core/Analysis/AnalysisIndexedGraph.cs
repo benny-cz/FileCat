@@ -13,8 +13,17 @@ internal sealed record AnalysisIndexedGraphHeader(SessionIdentity Identity, Immu
     internal AnalysisPersistence Persistence { get; init; } = AnalysisPersistence.Temporary;
     internal ImmutableDictionary<MeasurementState, ulong> IssueTotals { get; init; } = ImmutableDictionary<MeasurementState, ulong>.Empty;
     internal ImmutableDictionary<AnalysisBoundaryKind, ulong> BoundaryTotals { get; init; } = ImmutableDictionary<AnalysisBoundaryKind, ulong>.Empty;
-    internal void Validate() => AnalysisValidation.Validate(new(Identity, Roots, [], [], [], [], Policy, Phase, Coverage, Freshness, Origin, Taint)
-        { Persistence = Persistence, IssueTotals = IssueTotals, BoundaryTotals = BoundaryTotals });
+    internal AnalysisEnumerationProgress? Enumeration { get; init; }
+    internal AnalysisStaleEvidence? StaleEvidence { get; init; }
+    internal AnalysisDatasetCoverage? CoverageDetails { get; init; }
+    internal void Validate()
+    {
+        AnalysisValidation.Validate(new(Identity, Roots, [], [], [], [], Policy, Phase, Coverage, Freshness, Origin, Taint)
+            { Persistence = Persistence, IssueTotals = IssueTotals, BoundaryTotals = BoundaryTotals });
+        Enumeration?.Validate();
+        if (StaleEvidence is { } stale && (stale.RootIds.IsDefault || stale.RootIds.Length > Roots.Length || stale.RootIds.Distinct(StringComparer.Ordinal).Count() != stale.RootIds.Length ||
+            stale.RootIds.Any(id => !Roots.Any(root => root.Id == id)) || stale.Events > IssueTotals.Values.Aggregate(0UL, (sum, value) => checked(sum + value)))) throw AnalysisIndexedGraph.Invalid();
+    }
 }
 
 /// <summary>

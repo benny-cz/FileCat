@@ -113,7 +113,9 @@
     "The dataset streams exact unfiltered totals for all four metrics using a seventh full-identity index, bounded component/basis state, global two-summary buffer admission and bounded Background turns. Distinct verified object records group once; unknown identity remains per-path/separately labelled. Golden accounting, missing/zero states, directory self, version conflicts, incompatible bases, overflow, 3,000-alias scheduling and actual blocked/queued ownership controls pass. Current Mac/Ubuntu native tests pass; final Windows retest is deferred because another tester remains active.",
     "Opt-in native scanning now spills pending directories into a private authenticated live-only tape under the same workspace/quota. Only the currently held root supplies a process-owned binding witness; no binding ID is serialized. Popped records reconstruct bounded exact raw ancestry for repeated native validation, never an operation approval. Foreign tickets, wrong same-binding parents and rejected batches cannot schedule children; excessive witness payload keeps readable siblings queued. Actual Mac/Ubuntu scans retain every one of 3,000 directories/files beyond the two-row preview and reject a queued native directory replacement. Main-window adoption and native large-source/resource qualification remain pending.",
     "A native red regression proved that an explicitly selected file inside private storage was wrongly Known. Private containment is now qualified before scratch creation; contained roots are excluded and timestamps/flags/native object identities are omitted. Unsupported backend containment is Unavailable rather than falsely Disjoint. The corrected native regression passes on Mac/Ubuntu and preserves the original file. The first rejected test used a symlinked macOS temp path; that fixture setup error is separately recorded.",
-    "The existing Windows immediate post-kill namespace assertion failed once in r184. Thirty fresh probes removed scratch immediately and preserved the canary; the native cause is unproven. The fixture now separately observes exact child exit and automatic namespace retirement within two seconds, logs delay and never manually deletes/reopens scratch to pass. Windows uses five owned children per case, with final execution still deferred. Windows drivers conservatively postpone unreadable cross-account dotnet processes."
+    "The existing Windows immediate post-kill namespace assertion failed once in r184. Thirty fresh probes removed scratch immediately and preserved the canary; the native cause is unproven. The fixture now separately observes exact child exit and automatic namespace retirement within two seconds, logs delay and never manually deletes/reopens scratch to pass. Windows uses five owned children per case, with final execution still deferred. Windows drivers conservatively postpone unreadable cross-account dotnet processes.",
+    "Indexed datasets now expose validated full-graph coverage independently of bounded previews: known versus unknown enumeration, eligible/unscheduled directories, requested/completed/failed/pending counts, exact fact measurement states, verified/unverified file paths and bounded stale scopes with explicit incomplete/unlocated flags. Enumeration counters publish with the raw metadata prefix, remain monotonic and freeze with Stop; complete-under-policy claims inconsistent with the graph are rejected. Changed allocations mark every alias, and unreferenced changed objects are explicitly unlocated.",
+    "Exact stale-event/root evidence continues after the detailed issue cap. Nonblocking device Stop records an unsampled failure and unlocated stale evidence without taking the native-write lock. Native Mac/Ubuntu wide and replacement fixtures verify full enumeration beyond the preview and actual failed-scope counts; counter regression, sample-cap, orphan, conflicting completeness and blocked-flush Stop controls pass. Windows remains deferred while another tester is active."
   ],
   "validation": {
     "windowsCore": {
@@ -140,11 +142,11 @@
       "detail": "29 native NTFS/filesystem/private-storage controls, including production coordinator capture beyond its preview, qualified private-state exclusion, unchanged source bytes and final cleanup."
     },
     "macosArm64": {
-      "total": 439,
-      "passed": 438,
+      "total": 449,
+      "passed": 448,
       "failed": 0,
       "skipped": 1,
-      "evidence": "mac-core-r196.xml"
+      "evidence": "mac-core-r198.xml"
     },
     "headlessRendering": {
       "total": 64,
@@ -157,14 +159,14 @@
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "frontier-build-r195.txt"
+      "evidence": "coverage-build-r197.txt"
     },
     "ubuntu": {
-      "total": 439,
-      "passed": 438,
+      "total": 449,
+      "passed": 448,
       "failed": 0,
       "skipped": 1,
-      "evidence": "ubuntu-core-r196.xml"
+      "evidence": "ubuntu-core-r198.xml"
     },
     "nativeDesktop": {
       "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification. r62 native accessibility/keyboard link inspection verifies the visible omitted-target explanation, measured-zero distinction and retained mark, with 509 unchanged source paths and owned exit.",
@@ -345,29 +347,6 @@
       "ubuntu": "ubuntu-core-r179.xml",
       "scope": "Native six-path fixture with a private directory/canary, two hard-link aliases, nested zero file and two-row preview. Core counterexamples cover unverified exclusion, blocked raw flush Stop, canonical preview IDs, source/protection closure, retained reader ownership and preview polling during indexing. Main UI, spillable source frontier, complete coverage metadata, full source-scale and release qualification remain pending."
     },
-    "currentWindowsQualification": {
-      "status": "deferred-shared-vm-busy",
-      "observedAtUtc": "2026-11-06T04:57:42.7291812+00:00",
-      "processes": [
-        {
-          "ProcessId": 10656,
-          "Name": "dotnet.exe"
-        },
-        {
-          "ProcessId": 1572,
-          "Name": "dotnet.exe"
-        },
-        {
-          "ProcessId": 9872,
-          "Name": "FileCat.Platform.Windows.Tests.exe"
-        },
-        {
-          "ProcessId": 5036,
-          "Name": "FileCat.WorkerProbe.exe"
-        }
-      ],
-      "note": "Other implementor test processes were observed live via guest CIM, preserved, and Windows testing postponed. No current Windows qualification is claimed."
-    },
     "indexedCaptureFrontierAndSummary": {
       "status": "native-subset-passed-mac-and-ubuntu-windows-deferred",
       "mac": "mac-core-r196.xml",
@@ -379,6 +358,40 @@
       "crashRejected": "windows-native-r184.xml",
       "crashDiagnostic": "windows-crash-probe-r184.json",
       "crashScope": "Two-second automatic namespace cleanup after actual child exit; final Windows execution pending. The earlier immediate-visibility cause remains unproven."
+    },
+    "currentWindowsQualification": {
+      "status": "deferred-shared-vm-busy",
+      "observedAtUtc": "2026-11-06T05:18:13.1237967Z",
+      "processes": [
+        {
+          "ProcessId": 11220,
+          "Name": "dotnet.exe"
+        },
+        {
+          "ProcessId": 6572,
+          "Name": "dotnet.exe"
+        },
+        {
+          "ProcessId": 7204,
+          "Name": "FileCat.Platform.Windows.Tests.exe"
+        },
+        {
+          "ProcessId": 4620,
+          "Name": "dotnet.exe"
+        },
+        {
+          "ProcessId": 9048,
+          "Name": "FileCat.WorkerProbe.exe"
+        }
+      ],
+      "note": "Observed through live guest CIM. Other tester processes preserved; this source revision is not Windows-qualified."
+    },
+    "indexedCoverage": {
+      "status": "full-graph-coverage-subset-passed-mac-and-ubuntu-windows-deferred",
+      "mac": "mac-core-r198.xml",
+      "ubuntu": "ubuntu-core-r198.xml",
+      "windows": "windows-deferred-r198.json",
+      "scope": "Publication-coherent enumeration, graph-derived measurement/identity counters, bounded complete/incomplete stale scopes and exact affected-root evidence after sampling. Native 6,002-path wide scan and queued replacement, plus blocked-write Stop and adversarial graph controls. Does not qualify remaining frontend/import/export/source-scale/feature gates."
     }
   },
   "nextWork": [

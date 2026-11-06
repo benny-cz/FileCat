@@ -22,6 +22,10 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
     private readonly Dictionary<MeasurementState, ulong> _issues = [];
     private readonly Dictionary<AnalysisBoundaryKind, ulong> _boundaries = [];
     private ulong _paths, _samples;
+    private AnalysisEnumerationProgress? _enumeration;
+    private ulong _staleEvents;
+    private uint _staleRoots;
+    private bool _unlocatedStale;
     private DateTimeOffset _observed;
     private AnalysisCaptureState _publication;
     private AnalysisIndexedGraphHeader? _frozen;
@@ -44,12 +48,31 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
     internal void StopAccepting() { lock (_gate) _failed = true; }
     // The UI never takes a lock held across native writes. The CAS is the publication linearization
     // point: a flush that finishes afterward cannot advance the stopped view.
-    internal void RequestStop()
+    internal void RequestStop() => RequestStop(null);
+    internal void RequestStop(string? issueCode)
     {
+        if (issueCode is { Length: > 256 } || issueCode is not null && (issueCode.Length == 0 || issueCode.Contains('\0'))) throw new ArgumentException("Invalid stop issue.", nameof(issueCode));
         while (true)
         {
             var current = Volatile.Read(ref _publication); if (current.Stopped) return;
-            if (ReferenceEquals(Interlocked.CompareExchange(ref _publication, new(current.Published, true), current), current)) return;
+            var metadata = current.Published;
+            if (issueCode is not null)
+            {
+                metadata = metadata with { Issues = metadata.Issues.SetItem(MeasurementState.Failed, checked(metadata.Issues.GetValueOrDefault(MeasurementState.Failed) + 1)) };
+                if (AnalysisCoverage.IsStaleIssue(issueCode, MeasurementState.Failed))
+                    metadata = metadata with { Stale = metadata.Stale with { Events = checked(metadata.Stale.Events + 1), Unlocated = true } };
+            }
+            if (ReferenceEquals(Interlocked.CompareExchange(ref _publication, new(metadata, true), current), current)) return;
+        }
+    }
+    internal void Enumeration(AnalysisEnumerationProgress value, CancellationToken cancellation)
+    {
+        lock (_gate)
+        {
+            GuardWriter(); cancellation.ThrowIfCancellationRequested(); value.Validate();
+            if (value.Requested > _paths || _enumeration is { } old && (value.Requested < old.Requested || value.Completed < old.Completed || value.Failed < old.Failed))
+                throw new InvalidDataException("Enumeration coverage cannot advance beyond captured paths or move backward.");
+            _enumeration = value;
         }
     }
 
@@ -99,10 +122,25 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
             GuardWriter(); cancellation.ThrowIfCancellationRequested();
             if (node is { } id && (id == 0 || id > _paths) || rootId is { } root && !_roots.ContainsKey(root)) throw AnalysisIndexedGraph.Invalid();
             var issue = new AnalysisIssue(code, node, state) { RootId = rootId }; byte[] bytes = AnalysisIndexedValueCodec.EncodeIssue(issue);
+            int? staleRoot = null;
+            if (AnalysisCoverage.IsStaleIssue(code, state))
+            {
+                if (node is { } path)
+                {
+                    staleRoot = AnalysisIndexedPathCodec.Decode(_raw.ReadCurrent(Paths, path, cancellation), path, _header.Roots).RootIndex;
+                    if (rootId is not null && _header.Roots[staleRoot.Value].Id != rootId) throw AnalysisIndexedGraph.Invalid();
+                }
+                else if (rootId is not null) staleRoot = _roots[rootId];
+            }
             try { if (_samples < AnalysisLimits.Issues) { _raw.Append(Issues, bytes, cancellation); _samples++; } }
             catch { _failed = true; throw; }
             _issues[state] = checked(_issues.GetValueOrDefault(state) + 1);
             if (AnalysisCoverage.BoundaryKind(code) is { } boundary) _boundaries[boundary] = checked(_boundaries.GetValueOrDefault(boundary) + 1);
+            if (AnalysisCoverage.IsStaleIssue(code, state))
+            {
+                _staleEvents = checked(_staleEvents + 1);
+                if (staleRoot is { } ordinal) _staleRoots |= 1U << ordinal; else _unlocatedStale = true;
+            }
         }
     }
     internal void Publish(CancellationToken cancellation = default)
@@ -122,7 +160,8 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
             catch { _failed = true; throw; }
         }
     }
-    private AnalysisCapturePublication Metadata() => new(_raw.PublishedToken(), _observed, _issues.ToImmutableDictionary(), _boundaries.ToImmutableDictionary());
+    private AnalysisCapturePublication Metadata() => new(_raw.PublishedToken(), _observed, _issues.ToImmutableDictionary(), _boundaries.ToImmutableDictionary(), _enumeration,
+        new(_staleEvents, _header.Roots.Where((_, i) => (_staleRoots & (1U << i)) != 0).Select(root => root.Id).ToImmutableArray(), _unlocatedStale));
 
     internal async Task<AnalysisIndexedGraphRevision> CompleteAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, string device,
         SessionIdentity identity, AnalysisPhase phase, NamespaceCoverage coverage, CancellationToken cancellation = default, AnalysisFreshness freshness = AnalysisFreshness.Observed)
@@ -141,7 +180,7 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
                 if (identity.SessionId != start.SessionId || identity.Epoch != start.Epoch || identity.StartedUtc != start.StartedUtc || identity.HostProfile != start.HostProfile ||
                     identity.TimeZoneId != start.TimeZoneId || identity.Revision < start.Revision || identity.ObservedUtc < metadata.Observed) throw AnalysisIndexedGraph.Invalid();
                 var final = _header with { Identity = identity, Phase = phase, Coverage = Failed || state.Stopped ? NamespaceCoverage.Partial : coverage,
-                    Freshness = freshness, IssueTotals = metadata.Issues, BoundaryTotals = metadata.Boundaries };
+                    Freshness = freshness, IssueTotals = metadata.Issues, BoundaryTotals = metadata.Boundaries, Enumeration = metadata.Enumeration, StaleEvidence = metadata.Stale };
                 if (_frozen is { } previous && previous != final) throw new InvalidOperationException("The captured prefix cannot be reinterpreted by a retry.");
                 final.Validate(); _frozen = final;
                 return (Header: final, Data: _raw.Acquire(metadata.Data));
@@ -158,7 +197,8 @@ internal sealed class AnalysisObservationCapture : IAnalysisScratchOwned
     }
     public void Dispose() { lock (_gate) { if (_disposed) return; _disposed = true; _raw.Dispose(); } }
     internal static string Id(char prefix, ulong path) => prefix + path.ToString("D8", CultureInfo.InvariantCulture);
-    private sealed record AnalysisCapturePublication(AnalysisScratchCompositePublication Data, DateTimeOffset Observed, ImmutableDictionary<MeasurementState, ulong> Issues, ImmutableDictionary<AnalysisBoundaryKind, ulong> Boundaries);
+    private sealed record AnalysisCapturePublication(AnalysisScratchCompositePublication Data, DateTimeOffset Observed, ImmutableDictionary<MeasurementState, ulong> Issues,
+        ImmutableDictionary<AnalysisBoundaryKind, ulong> Boundaries, AnalysisEnumerationProgress? Enumeration, AnalysisStaleEvidence Stale);
     private sealed record AnalysisCaptureState(AnalysisCapturePublication Published, bool Stopped);
 }
 

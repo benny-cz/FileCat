@@ -26,6 +26,9 @@ internal static class AnalysisSourceFrontierFixture
             await session.Completion.WaitAsync(TimeSpan.FromMinutes(3), cancellation);
             Assert.Equal(0UL, session.SourceCloseFailures); Assert.Equal(AnalysisPhase.Finished, session.Snapshot().Phase);
             Assert.Equal((ulong)(directories * 2 + 2), session.DatasetDescriptor!.Paths); Assert.Equal(NamespaceCoverage.CompleteUnderPolicy, session.DatasetDescriptor.Coverage);
+            var coverage = session.DatasetDescriptor.CoverageDetails; Assert.True(coverage.EnumerationKnown); Assert.True(coverage.Observations.DenominatorFinal);
+            Assert.Equal((ulong)directories + 1, coverage.Observations.EnumerationRequested); Assert.Equal((ulong)directories + 1, coverage.Observations.EnumerationCompleted);
+            Assert.Equal(0UL, coverage.Observations.EnumerationFailed); Assert.Equal(0UL, coverage.UnscheduledDirectories); Assert.Equal((ulong)directories, coverage.Observations.IdentityVerifiedPaths);
             reader = await session.AcquireDatasetAsync(cancellation); Assert.NotNull(reader);
             session.Dispose(); await session.DatasetCloseCompletion;
             Assert.Equal((UInt128)directories, (await reader.SummarizeAsync(AnalysisMetric.Files, cancellation)).Totals.Known);
@@ -76,6 +79,9 @@ internal static class AnalysisSourceFrontierFixture
                 [new(device, () => new RacingBackend(prepare(Path.Combine(sourcePath, "private")), () => { }))], PreviewPaths: 2)); source = null;
             await session.Completion.WaitAsync(TimeSpan.FromSeconds(30), cancellation); Assert.True(replaced); Assert.Equal(0UL, session.SourceCloseFailures);
             reader = await session.AcquireDatasetAsync(cancellation); Assert.NotNull(reader); Assert.Equal(NamespaceCoverage.Partial, reader.Descriptor.Coverage);
+            var coverage = reader.Descriptor.CoverageDetails; Assert.True(coverage.EnumerationKnown); Assert.Equal(2UL, coverage.Observations.EnumerationRequested);
+            Assert.Equal(1UL, coverage.Observations.EnumerationCompleted); Assert.Equal(1UL, coverage.Observations.EnumerationFailed);
+            Assert.False(coverage.Observations.DenominatorFinal); Assert.Contains("1", coverage.Observations.StaleRootIds);
             for (ulong offset = 0; offset < reader.Descriptor.Paths;)
             {
                 var page = await reader.ReadPathsAsync(offset, cancellation: cancellation);

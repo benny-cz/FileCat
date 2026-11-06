@@ -18,6 +18,33 @@ public sealed class AnalysisObservationCaptureTests
         capture.CompleteAsync(workspace, io, Device, header.Identity with { Revision = 2, ObservedUtc = Start.AddSeconds(10) }, AnalysisPhase.Finished, NamespaceCoverage.CompleteUnderPolicy, Cancellation);
 
     [Fact]
+    public async Task StaleEvidencePastTheIssueSampleCapRetainsExactRootAndIncompleteScopeEvidence()
+    {
+        Ordinary(); using var workspace = new AnalysisScratchWorkspace(new MemoryDirectory()); using var io = new DeviceIoScheduler(); var header = Header;
+        using var capture = new AnalysisObservationCapture(workspace.CreateArena(), header);
+        capture.Append(Entry("source", AnalysisKind.Directory, null), 0, "r", "basis", cancellation: Cancellation);
+        for (int n = 0; n < AnalysisLimits.Issues; n++) capture.Issue("special-entry-not-traversed", 1, MeasurementState.Excluded, cancellation: Cancellation);
+        capture.Issue("source-changed-or-boundary", 1, MeasurementState.Failed, cancellation: Cancellation);
+        using var revision = await Complete(capture, workspace, io, header); var coverage = revision.Header.CoverageDetails!;
+        Assert.Equal(AnalysisFreshness.PossiblyStale, revision.Header.Freshness); Assert.Equal(1UL, revision.Header.IssueTotals[MeasurementState.Failed]);
+        Assert.Equal(new[] { "r" }, coverage.Observations.StaleRootIds); Assert.False(coverage.StaleScopesComplete); Assert.False(coverage.HasUnlocatedStaleScopes);
+        Assert.Empty(coverage.Observations.StaleScopeNodes);
+    }
+
+    [Fact]
+    public async Task EnumerationPublicationRejectsBackwardCountsWithoutChangingTheAcceptedResult()
+    {
+        Ordinary(); using var workspace = new AnalysisScratchWorkspace(new MemoryDirectory()); using var io = new DeviceIoScheduler(); var header = Header;
+        using var capture = new AnalysisObservationCapture(workspace.CreateArena(), header);
+        capture.Append(Entry("source", AnalysisKind.Directory, null), 0, "r", "basis", cancellation: Cancellation);
+        capture.Enumeration(new(1, 0, 0), Cancellation); capture.Publish(Cancellation); capture.Enumeration(new(1, 1, 0), Cancellation); capture.Publish(Cancellation);
+        Assert.Throws<InvalidDataException>(() => capture.Enumeration(new(1, 0, 0), Cancellation));
+        Assert.Throws<InvalidDataException>(() => capture.Enumeration(new(2, 1, 0), Cancellation));
+        using var revision = await Complete(capture, workspace, io, header);
+        Assert.Equal(1UL, revision.Header.CoverageDetails!.Observations.EnumerationCompleted); Assert.True(revision.Header.CoverageDetails.Observations.DenominatorFinal);
+    }
+
+    [Fact]
     public async Task ExactIdentityAliasesCoalesceWhileUnverifiedFilesStayDistinctAndEveryRawPathSurvives()
     {
         Ordinary(); var directory = new MemoryDirectory(); using var workspace = new AnalysisScratchWorkspace(directory); using var io = new DeviceIoScheduler(); var header = Header;
