@@ -107,6 +107,13 @@ ADR-07/ADR-06 need a proposed archive-worker amendment because the new hostile-i
 
 Legend: **Yes** means proposed support after that row's gates pass, not availability today. **Profile** means only a completely assessed, preservation-compatible archive. **No** means intentionally unavailable. Every update is a rebuild, including deletion and rename.
 
+**Compression coverage requirement (user instruction, 7 November):** inventory RAR algorithm/container versions,
+methods/presets and filters, and 7z codecs, filters/coder graphs and modes. Distinguish encoding from decoding and
+working implementations from feasible work still to do. Implement every needed, feasible method; document each gap
+with its actual evidence, constraint, safe UI state and alternative. A scope exclusion is not technical impossibility,
+an absent upstream writer API is not proof of infeasibility, and changing a header method label is not implementation
+of a compression preset. Minimal prototype interoperability cannot stand for complete encoder support.
+
 | Format/profile | Create | Add / replace | Delete / rename | Empty folder | External edit commit | Engine and conditions | Effort |
 |---|---|---|---|---|---|---|---|
 | Existing ZIP | Existing | Existing | Existing | Existing | Existing | Existing System.IO.Compression; preserve current qualified restrictions | Regression-sensitive shared refactor |
@@ -186,6 +193,12 @@ encoding, proceed with an independent stored RAR5 writer and optional user-insta
 fallback is already authorized; it does not require another preference/permission round. A materially different
 scope or licence obligation still requires a new decision. Neither path is implemented or release-qualified by this
 document, and merely taking longer than expected is not proof of infeasibility.
+
+The [independent compressed RAR5 feasibility checkpoint](../validation/archive-writing/RAR5_FEASIBILITY.md) now
+supports technical go for the primary path, with genuine compression and exact independent content/metadata
+readback. It does not activate the fallback, complete the broader method matrix or qualify a production profile.
+The requested 7z analysis follows this record before broad codec/backend integration. Keep the required coverage
+gaps visible through implementation and qualification.
 
 Licence research and a backend decision do not depend on finishing every unrelated codec's fuzz campaign,
 installer matrix or UI acceptance run. Postponing RAR until those interfaces are finalized risks redesigning them.
@@ -889,6 +902,13 @@ Minimum durations are proposed acceptance floors, not evidence already obtained 
 
 All AT groups below are required specifications, not tests already present. Add tests to the existing suites named here; create small purpose-specific fixtures rather than an entire parallel framework. Existing read and ZIP tests remain relevant.
 
+**Machine batching (user instruction, 7 November):** prepare the largest coherent reviewed candidate and dependency
+bundle before acquiring a test-machine window. Prefer one guarded run per machine covering build, method/codec
+coverage, relevant broad regressions, independent readback, native workflow/resource cases, evidence collection and
+owned-process cleanup. Bind results to exact source/binary identities and return an aggregate result. Postpone when
+another tester is active. A real finding justifies an adaptive fix/retest; batching never turns failed checks into
+success or permits leaving this task's FileCat/test processes running when releasing the machine.
+
 | ID | Verification group | Required evidence / acceptance | Expected home |
 |---|---|---|---|
 | AT01 | Create/update happy paths | All supported operations; empty final archive; recursive folders; explicit empty directories; exact output manifest; no accidental source removal | Core.Tests new TarWriteTests / ArchiveWriteContractTests |
@@ -1076,6 +1096,12 @@ Tasks:
 
 ### AW6 — Audited limited 7z writing
 
+Before restoring or replacing the writer, perform the user's requested RAR-equivalent licence, source/reuse,
+independent-implementation and external-tool feasibility review. Enumerate the relevant codecs, filters/coder graphs,
+header-compression and solid/encryption modes; reconcile the needed encoder coverage with the pinned source and
+document every unsupported item honestly. Do not call a decoder an encoder or turn missing implementation work
+into an unsupported/impossible claim. Implement the resulting required feasible coverage under the inherited gates.
+
 **Outcome:** R2 delivers the narrow non-solid, unencrypted 7z profile without importing excluded source. **Dependencies:** AW0–AW4; source audit can proceed independently but cannot enable a writer before AW1/AW2 qualification. **Effort:** high.
 
 **Files/components:** selective upstream source manifest, ThirdParty/SharpCompress writer/header components and project, Writing/SevenZipRewriteEngine, strict 7z feature observer, 7z tests/corpus, profile options, notices and ArtifactSbom metadata.
@@ -1127,6 +1153,11 @@ packet after recording the current recursive-selection checkpoint, before broad 
 research can use native-test waits. Product integration depends on qualified AW1/AW2 publication/isolation and all
 inherited workflow gates. Packet numbering does not require waiting for AW8/AW9. RAR does not waive or postpone
 the remaining common implementation work. **Effort:** high and feasibility-dependent; no completion date promised.
+
+**User-requested follow-up:** after the RAR feasibility analysis/go-no-go record, perform the same licence,
+implementation/reuse, independent-codec and external-tool feasibility review for 7z, then reconcile AW6 with its
+findings before broad backend/UI integration. The 7z review does not wait for complete RAR production qualification
+and does not predetermine that existing permitted 7z encoders must be replaced with a new codec.
 
 **AW10a — Primary feasibility and implementation.** Create a dated source/knowledge provenance ledger and
 licence/format decision using §4.5's go/no-go criteria. Investigate permitted independently authored material without

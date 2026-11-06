@@ -4,12 +4,20 @@ This is an **incomplete implementation**, not format or release qualification. T
 [the archive writing plan](../../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md). No new writer is enabled in the
 application. An explicit new-profile job refuses instead of entering the legacy ZIP executor.
 
-Current user-requested order (6 November): record the in-flight recursive-selection checkpoint, then pursue AW10a's
-independent compressed RAR encoder investigation before broad UI/interface finalization. The user explicitly chose
+Current user-requested order (6/7 November): the recursive-selection checkpoint is recorded in `685fe564`, and the
+[independent compressed RAR5 feasibility investigation](RAR5_FEASIBILITY.md) supports technical go for the primary
+route. Perform the equivalent 7z analysis next, before broad codec/backend integration. The user explicitly chose
 option 3 with fallback to option 1: on a documented feasibility no-go, implement stored RAR5 and optional installed
 `rar` compression where lawful and qualified. This fallback is authorized. Finish the RAR work and remaining common
 implementation/validation gates, then perform the independent UX/UI/functional/security review and fix/retest findings.
-The decision is committed in `b657a243`; implementation and release qualification remain open.
+The decision is committed in `b657a243`; implementation and release qualification remain open. The subsequent user
+instruction adds an equivalent 7z feasibility/licensing/reuse/external-backend review immediately after the RAR
+analysis, with its findings incorporated into AW6 before broad backend/UI integration.
+
+Both encoders require explicit method/version/filter/mode inventories and all needed feasible encoding paths; gaps
+must distinguish missing work, profile policy and demonstrated blockers. The minimal RAR prototype does not meet
+that complete coverage requirement. Use larger guarded per-machine batches for builds, codec coverage, regressions,
+independent readers, evidence collection and cleanup; adaptively rerun when a finding requires a fix.
 
 ## Source and workspace
 

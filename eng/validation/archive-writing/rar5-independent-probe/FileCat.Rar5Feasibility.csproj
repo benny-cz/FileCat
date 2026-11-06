@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Private feasibility readback; never packaged or registered as an archive worker/provider. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RuntimeIdentifiers></RuntimeIdentifiers>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../../src/FileCat.Archives/FileCat.Archives.csproj" />
+  </ItemGroup>
+</Project>
