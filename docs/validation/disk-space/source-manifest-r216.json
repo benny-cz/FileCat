@@ -1,0 +1,72 @@
+{
+  "purpose": "Unfiltered shared-object charge index and bounded LCA evidence; Windows deferred; no feature/action authorization",
+  "gitBase": "da73d871",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "8812c5220e0dc9aee63b271e0f90f38b96b647994cde812a3e5f0ac3651c9f6a"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "99ec2bdd94e21f76e5e6cfc1b9c41916c84ab4f32e79743ce35d00275b700335"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObjectCharges.cs",
+      "sha256": "6ac73c1b335e07b81acee051b1da6324f110a177b5cd240241d09e805f43a648"
+    },
+    {
+      "path": "tests/AnalysisSourceFrontierFixture.cs",
+      "sha256": "cd6db032446c803da8fb3da9ba8473a36f05ed4c1d2c362b1611cc4d47cd0327"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.cs",
+      "sha256": "72d64f3a414e3caea775c6bd9da804e9d5540c51ed674caf23254d92e7a6f35f"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.Charges.cs",
+      "sha256": "77f02ff0deed2299cdfcb6ae02486120133f63bb8a70c2a826b2ffd07bff970d"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisPrivateRootExclusionTests.cs",
+      "sha256": "be580d2929363d49526b65fd78a663d30178eee74cb7749100cbf3b7cc41da54"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisPrivateStorageTests.cs",
+      "sha256": "9b43d9976307e99ca749c766da9340153f103f40eb86a352e53a72afcceb4df7"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r216.tgz",
+      "sha256": "4f904976a1816008c8d005b40d040a6f226029fddc5b4597d3e00fe801ce6909"
+    },
+    {
+      "path": ".tmp/dsa-native-r216.tgz",
+      "sha256": "932cdb1d88f169534493a1af9e9e3d213e1703b9954c1b9e8dc284a656b127c2"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r216.sh",
+      "sha256": "1cc1b3a21e004465ec48663cc59243979d76eafd540c01e515464ed83fcfa455"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r216.ps1",
+      "sha256": "2ffdbc163fa70492fb446e7ae629bc49a926313f8b5705eca7d6eaca1730c6c9"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r216.ps1",
+      "sha256": "28c0ae187b326c28f074a8024abc35c8084b4b15a63f12d179136dc3c4bbac61"
+    }
+  ],
+  "reports": [
+    "mac-core-r216.xml",
+    "ubuntu-core-r216.xml",
+    "charges-build-r215.txt",
+    "mac-core-r206.xml",
+    "ubuntu-core-r208.xml",
+    "windows-deferred-r216.json"
+  ],
+  "remaining": "All-metric hierarchy, filter/scoped projection and frontend/window adoption; original inventory-ID mapping; streaming inventory/import/export; native source-scale/resource and Windows qualification; remaining feature packets and final independent review."
+}

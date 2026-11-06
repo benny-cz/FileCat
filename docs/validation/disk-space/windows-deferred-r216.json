@@ -1,0 +1,23 @@
+{
+  "status": "deferred-shared-vm-busy",
+  "observedAtUtc": "2026-11-06T06:28:58.3885626Z",
+  "processes": [
+    {
+      "ProcessId": 5316,
+      "Name": "dotnet.exe"
+    },
+    {
+      "ProcessId": 4836,
+      "Name": "dotnet.exe"
+    },
+    {
+      "ProcessId": 5708,
+      "Name": "FileCat.Platform.Windows.Tests.exe"
+    },
+    {
+      "ProcessId": 5604,
+      "Name": "dotnet.exe"
+    }
+  ],
+  "note": "Live guest CIM observation; other tester processes preserved. No current Windows qualification."
+}

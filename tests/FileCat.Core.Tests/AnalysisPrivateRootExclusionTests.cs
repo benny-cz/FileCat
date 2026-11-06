@@ -2,6 +2,10 @@ using FileCat.Core.Analysis;
 
 namespace FileCat.Core.Tests;
 
+[CollectionDefinition("Analysis native source device")]
+public sealed class AnalysisNativeSourceDeviceCollection;
+
+[Collection("Analysis native source device")]
 public sealed class AnalysisPrivateRootExclusionTests
 {
     [Fact]

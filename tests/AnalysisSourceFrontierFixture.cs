@@ -48,6 +48,19 @@ internal static class AnalysisSourceFrontierFixture
                 }
                 Assert.Equal((ulong)directories + 1, count);
             }
+            await using (var charges = await reader.BuildObjectChargesAsync(AnalysisMetric.UniqueFileSize, cancellation))
+            {
+                Assert.Equal((UInt128)directories, charges.Totals.Known); Assert.Equal((ulong)directories, charges.Totals.MatchingPaths);
+                Assert.Equal((UInt128)0, charges.Totals.IdentityUnverified); Assert.Empty(charges.Totals.Missing);
+                ulong count = 0;
+                for (ulong offset = 0;;)
+                {
+                    var page = await charges.ReadAllChargesAsync(offset, cancellation: cancellation); count += (ulong)page.Rows.Length;
+                    foreach (var charge in page.Rows) { Assert.False(charge.Shared); Assert.Equal(1UL, charge.ObservedAliases); Assert.Equal((UInt128)1, charge.Measurement.Value); }
+                    if (!page.HasMore) break; offset = page.NextOffset;
+                }
+                Assert.Equal((ulong)directories, count);
+            }
             ulong files = 0, folders = 0;
             for (ulong offset = 0; offset < reader.Descriptor.Paths;)
             {

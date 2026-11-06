@@ -178,7 +178,7 @@ public sealed partial class AnalysisDatasetSummaryTests
     }
 
     private static async Task<AnalysisDataset> Build(AnalysisSnapshot snapshot, DeviceIoScheduler io, MemoryDirectory? directory = null, string device = Device, AnalysisEnumerationProgress? enumeration = null,
-        long sessionLimit = AnalysisLimits.ScratchBytes)
+        long sessionLimit = AnalysisLimits.ScratchBytes, Action<AnalysisScratchWorkspace>? afterSeal = null)
     {
         directory ??= new(); using var workspace = new AnalysisScratchWorkspace(directory, sessionLimit, AnalysisScratchBudget.Shared);
         var header = new AnalysisIndexedGraphHeader(snapshot.Identity, snapshot.Roots, snapshot.Policy, snapshot.Phase, snapshot.Coverage, Origin: AnalysisOrigin.ImportedInventory) { Enumeration = enumeration };
@@ -187,7 +187,8 @@ public sealed partial class AnalysisDatasetSummaryTests
         foreach (var obj in snapshot.Objects) graph.AppendObject(obj with { ObservedAliases = [] }, Cancellation);
         foreach (var fact in snapshot.Facts) graph.AppendFact(fact, Cancellation);
         var revision = await graph.SealAsync(workspace, io, device, snapshot.Identity, snapshot.Phase, snapshot.Coverage, Cancellation);
-        return new(revision, io, device);
+        try { afterSeal?.Invoke(workspace); return new(revision, io, device); }
+        catch { await AnalysisIo.ReleaseScratchAsync(io, device, revision); throw; }
     }
     private sealed class MemoryDirectory : AnalysisPrivateDirectory
     {

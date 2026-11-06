@@ -5,6 +5,7 @@ using FileCat.Core.State;
 
 namespace FileCat.Core.Tests;
 
+[Collection("Analysis native source device")]
 public sealed partial class AnalysisPrivateStorageTests
 {
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary process.");
