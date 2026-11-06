@@ -864,6 +864,10 @@ Tasks:
    create/assess/replace/fresh-verify roles for all four implemented TAR profiles through stream-only IPC, with independent
    output extraction and 16 reaped helpers. Complete production integration and all remaining resource/confinement/
    lifetime/distribution gates; the healthy prototype completes no AW1 qualification packet.
+   The [native-host parent guard](../validation/archive-writing/MACOS_VM_PARENT_DEATH.md) also passes 20 actual
+   SIGKILL/SIGTERM parent-death cases with the observer retaining protocol pipes, plus eight invalid-parent refusals
+   and the 16-role healthy regression. Complete dedicated cooperative cancellation, direct helper death and installed
+   release qualification; do not treat this development mechanism as a registered production backend.
 4. Implement/measure local create-no-replace and reviewed replacement capability probes with held directories and identity-aware retention. Include object-bound cleanup and durability distinctions.
 5. Provide typed reason codes for unavailable safe-save support. No codec may fall back to an unbounded/in-process transform if startup/policy fails.
 

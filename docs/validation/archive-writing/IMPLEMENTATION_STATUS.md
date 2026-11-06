@@ -260,6 +260,13 @@ byte conversion and post-exit diagnostic failures were fixed during the spike. P
 resource/confinement/lifetime/package gates and guest-source/license closure remain open. Small cgroup peaks exclude
 some prepopulated initramfs/runtime file pages and must not be reported as full process/VM/host memory qualification.
 
+The native development host's [parent-death follow-up](MACOS_VM_PARENT_DEATH.md) adds an actual-parent check, installed
+kernel exit watch, monotonic deadlines and bounded explicit VM stop. The 16 healthy archive roles still pass. Twenty
+owned-parent SIGKILL/SIGTERM cases pass with protocol pipes deliberately kept open, including blocked/spinning guests;
+eight invalid-parent cases refuse before VM setup. Active guests reach state zero through successful stop completion,
+all direct parents are reaped and all helpers disappear after adopter reaping. This qualifies that private experiment's
+observed lifetime mechanism, not the production backend or complete package/resource/cancellation gates.
+
 ## Outstanding work
 
 The later [Linux worker checkpoint](LINUX_ARCHIVE_WORKER_CHECKPOINT.md) adds 41 cases. Its final native Ubuntu replay

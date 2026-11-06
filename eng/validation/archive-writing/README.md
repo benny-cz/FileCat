@@ -71,6 +71,11 @@ transform and fresh verification roles over a separate raw serial stream. Four p
 helpers and independent payload extraction. Full guest/host resource/confinement/lifetime and package qualification
 remain open; no production backend is registered.
 
+The managed harness also checks the native host's actual-parent guard with 20 owned-parent SIGKILL/SIGTERM cases
+while its observer keeps both protocol pipes open, plus eight invalid-parent refusals. VM-stop completion and state
+zero are required for active cases. This is development lifetime evidence; direct helper death, cooperative cancellation
+and full release qualification remain open. See the [parent-death report](../../../docs/validation/archive-writing/MACOS_VM_PARENT_DEATH.md).
+
 The observed Mac's matching compiler is `/Library/Developer/CommandLineTools/usr/bin/clang` (21.0.0) and its sysroot is
 `/Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk`. Use these explicitly rather than changing global `xcode-select`.
 In an owned fixture, arrange `probe.app/Contents/MacOS/archive-probe`, copy `mac-probe-info.plist` as `Contents/Info.plist`,

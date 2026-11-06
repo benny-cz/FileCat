@@ -34,8 +34,15 @@ if (args is ["guest"])
         1 => ArchiveAssessmentWorker.RunAfterIsolation(input, output, nonce),
         2 => ArchiveTransformWorker.RunAfterIsolation(input, output, nonce),
         3 => ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, nonce),
+        4 => SpinProbe(output),
         _ => 64
     };
+}
+static int SpinProbe(Stream output)
+{
+    output.Write("FCVMBUSY"u8); output.Flush();
+    // Controlled adversarial lifetime probe: no protocol reads or EOF-based exit after this marker.
+    while (true) Thread.SpinWait(100000);
 }
 if (args is not ["host", var native, var kernel, var initrd, var results] || !OperatingSystem.IsMacOS()) return 64;
 Directory.CreateDirectory(results);
@@ -128,6 +135,7 @@ sealed class VmProcess : IArchiveWorkerProcess
         catch { trace.Dispose(); throw; }
         var start = new ProcessStartInfo(native) { RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
         start.ArgumentList.Add(kernel); start.ArgumentList.Add(initrd); start.ArgumentList.Add("1536");
+        start.ArgumentList.Add(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
         try { process = Process.Start(start) ?? throw new IOException("VM helper did not start."); }
         catch { trace.Dispose(); diagnosticFile.Dispose(); throw; }
         Id = process.Id;

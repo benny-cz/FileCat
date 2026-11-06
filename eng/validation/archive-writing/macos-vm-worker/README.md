@@ -21,9 +21,21 @@ only the first 512 protocol bytes are retained for diagnosis. No network/storage
 The guest cgroup ceiling, 1536 MiB guest physical RAM and host-helper memory are different quantities. Initramfs/runtime
 file pages populated before the child are not all charged to that child's cgroup. The small healthy memory peaks
 therefore do not establish a whole-process footprint or the full guest/host budget. Aggregate host/VM CPU accounting,
-cooperative cancellation, parent death of the native host, hostile assets/IPC, large/hostile workloads, setup races,
+cooperative cancellation, direct helper death, hostile assets/IPC, large/hostile workloads, setup races,
 signing/distribution, startup/UX costs and the complete resource envelope remain unqualified. The prototype's cancellation
-fallback stops the VM; it is not an admitted production cancellation route. Healthy tests complete no full AW packet.
+fallback kills the native helper; its resulting VM teardown is not yet qualified. Healthy tests complete no full AW packet.
+
+The native development host now requires its actual parent PID, registers a synchronous `kqueue` process-exit watch
+before VM setup, checks parent identity again and polls both the kernel event and parent relation. Parent death stops
+the VM through the public stop API with bounded start/stop waits and an observed stopped state. Startup/stop deadlines
+use the monotonic clock. This closes a prototype lifetime gap; installed signing/entitlement modes, dedicated cooperative
+cancellation, direct helper death and full resource/process-denial qualification remain open.
+
+The runner also performs 8 invalid-parent cases and 20 owned-parent SIGKILL/SIGTERM cases: before native exec, after
+guard setup, with a guest blocked waiting for a request, and with a guest spinning without protocol reads. Its observer
+keeps both protocol ends open after parent death, so EOF cannot satisfy the stop test. Kernel process-exit status,
+explicit VM-stop completion/state zero, direct parent reaping and orphan absence after adopter reaping are checked.
+All these are development experiments; their reports retain `production_backend_qualified: false`.
 
 Use a task-owned source snapshot on the authorized Mac, with the SDK and CLI tools already installed. The runner changes
 only that snapshot's build/restore outputs and its new evidence directory, including generating private musl restore
@@ -55,3 +67,5 @@ bash /absolute/private/repo/eng/validation/archive-writing/macos-vm-worker/run-m
 The output contains both published app/runtime bundles, build/tool identities, source snapshots, signed native helper,
 owned ELF/initramfs, per-role diagnostics/protocol prefixes, stages, expected payloads, child lifetimes and independent
 `verified.json`. Successful reports explicitly retain `production_backend_qualified: false`.
+`parent-death/facts.json` records every forced-death case, signal, exact parent/helper identity, kernel exit status,
+VM outcome and elapsed time. The observer never signals another tester and the idle census runs between cases.

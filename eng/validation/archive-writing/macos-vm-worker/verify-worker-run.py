@@ -35,6 +35,9 @@ for log in logs:
     assert host['uid'] == host['euid'] and host['uid'] > 0 and host['cpus'] == 1 and host['memoryBytes'] == 1536 << 20
     assert all(host[key] is True for key in ('valid', 'started', 'guestStopped'))
     assert host['forcedStop'] is False and host['state'] == 0
+    assert host['parent'] > 1 and host['parentExited'] is False and host['parentExitEvent'] is False
+    assert host['parentMonitorFailed'] is False and host['stopReason'] == 'none'
+    assert host['stopRequested'] is False and host['stopCompleted'] is False and host['stopError'] == ''
     assert all(host[key] == '' for key in ('guestError', 'startError', 'validationError'))
     assert all(host[key] == 0 for key in ('balloonDevices', 'networkDevices', 'storageDevices'))
     assert host['pid'] not in seen

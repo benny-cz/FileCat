@@ -77,7 +77,10 @@ initramfs/runtime file pages populated before the child are not all charged to t
 RAM is distinct from the 1 GiB child cgroup ceiling and from host-helper RSS**. The full guest/trusted-host memory and
 CPU envelope, process denial, cooperative cancellation, native-host parent death, hostile setup/assets/IPC, large
 archives, startup/performance/UX and installed release signing/package behavior still require implementation and proof.
-The development wrapper's stop-the-VM cancellation fallback is unqualified for production.
+The development wrapper kills the native helper on cancellation; resulting VM teardown is unqualified for production.
+
+The subsequent [parent-guard checkpoint](MACOS_VM_PARENT_DEATH.md) adds and tests explicit VM stop when that helper's
+parent dies, with healthy-role regression. It does not complete direct helper-death or cancellation qualification.
 
 Exact kernel, OS library, CLR, dependency/source/build/license/notice and corresponding-source closure is required
 before any guest assets ship. This private fixture selects libraries from pinned Alpine minirootfs/libgcc/libstdc++
@@ -98,4 +101,5 @@ The frozen `macos-vm-managed-evidence-v1.tar.gz` has SHA-256
 `files.json` include source/base bundles, 17 source snapshots, published host/guest runtime assets, native helper,
 ELF/initramfs, tool/build/signing logs, 16 role logs/prefixes, stages, expected payloads, lifetimes, independent results,
 original library fixtures and default-probe byte comparisons. All hashes/lengths are verified after SSH transfer into
-the private worktree's ignored `.tmp/test-results/archive-writing/macos-vm-managed-v1`; all 17 snapshots match the repo.
+the private worktree's ignored `.tmp/test-results/archive-writing/macos-vm-managed-v1`; all 17 snapshots match the
+sources at the original `a3104cad` checkpoint.
