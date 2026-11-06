@@ -1,0 +1,78 @@
+{
+  "purpose": "Native exact external index storage; not full analysis scale qualification",
+  "archiveSha256": "9abb43dd0cfe7d00ea6ac82af094b6d49f00f253ca1955225a08e27292d55047",
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "architecture": "arm64",
+  "runs": [
+    {
+      "records": 1000000,
+      "processId": 37926,
+      "exitCode": 0,
+      "ownedProcessExited": true,
+      "measurement": {
+        "purpose": "Native exact external index storage only; not source traversal or full analysis/aggregation/query/chart/export qualification",
+        "records": 1000000,
+        "inputOrder": "reverse binary key order",
+        "ordinaryKeyBytes": 24,
+        "longKeyBytes": 65536,
+        "longKeyEvery": 1024,
+        "writeSeconds": 3.1273817,
+        "readSeconds": 0.6035165,
+        "scratchBytes": 104074376,
+        "sampledPeakSessionScratchBytes": 207406540,
+        "sampledIntervalMilliseconds": 50,
+        "privateMemoryAvailable": false,
+        "baselinePrivateBytes": null,
+        "sampledPeakPrivateIncrement": null,
+        "privateMemoryBudgetVerified": false,
+        "privateMemoryBasis": "Unavailable from this runtime; working-set samples are not private bytes",
+        "sampledPeakWorkingSetIncrement": 54837248,
+        "verifiedEveryRecord": true,
+        "exactRangesVerified": true,
+        "retainedReaderSurvivedOwnerClosure": true,
+        "checksum": 500000500000,
+        "ownedArtifactsRemoved": true,
+        "remainingQuotaBytes": 0,
+        "passed": true
+      }
+    },
+    {
+      "records": 10000000,
+      "processId": 37942,
+      "exitCode": 0,
+      "ownedProcessExited": true,
+      "measurement": {
+        "purpose": "Native exact external index storage only; not source traversal or full analysis/aggregation/query/chart/export qualification",
+        "records": 10000000,
+        "inputOrder": "reverse binary key order",
+        "ordinaryKeyBytes": 24,
+        "longKeyBytes": 65536,
+        "longKeyEvery": 1024,
+        "writeSeconds": 30.189633,
+        "readSeconds": 6.3540181,
+        "scratchBytes": 1041054392,
+        "sampledPeakSessionScratchBytes": 2082197656,
+        "sampledIntervalMilliseconds": 50,
+        "privateMemoryAvailable": false,
+        "baselinePrivateBytes": null,
+        "sampledPeakPrivateIncrement": null,
+        "privateMemoryBudgetVerified": false,
+        "privateMemoryBasis": "Unavailable from this runtime; working-set samples are not private bytes",
+        "sampledPeakWorkingSetIncrement": 117964800,
+        "verifiedEveryRecord": true,
+        "exactRangesVerified": true,
+        "retainedReaderSurvivedOwnerClosure": true,
+        "checksum": 50000005000000,
+        "ownedArtifactsRemoved": true,
+        "remainingQuotaBytes": 0,
+        "passed": true
+      }
+    }
+  ],
+  "hashes": {
+    "FileCat.Core.dll": "108d3faa4f90cbdbc5c8fcfcdb7963673e3cb99ba200bedd396af0772b6810b6",
+    "FileCat.CoreCrashHarness.dll": "fd4ae18202127132d6b00b83c9d2a1a2eb44645b6f792ed4401d19f18349439a",
+    "FileCat.Platform.Windows.dll": "83dbb366ad3ca2056b2bc6108c507082d4345e2717407a235d1c78bdb6e291c4"
+  },
+  "passed": true
+}

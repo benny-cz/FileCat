@@ -18,18 +18,19 @@ internal sealed class AnalysisScratchVector : IDisposable
     private readonly List<AnalysisScratchBlock[]> _directory = [];
     private readonly object _gate = new();
     private readonly int _recordLimit, _blockLimit;
+    private readonly bool _ownsArena;
     private int _used = DirectoryBytes, _pending, _blocks;
     private ulong _accepted, _committed;
     private bool _failed, _disposed;
     private int _cachedBlock = -1;
     private byte[]? _cache;
 
-    internal AnalysisScratchVector(AnalysisScratchArena arena, int recordLimit = AnalysisLimits.Observations, int blockLimit = MaximumBlocks)
+    internal AnalysisScratchVector(AnalysisScratchArena arena, int recordLimit = AnalysisLimits.Observations, int blockLimit = MaximumBlocks, bool ownsArena = true)
     {
         ArgumentNullException.ThrowIfNull(arena);
         if (recordLimit is < 1 or > AnalysisLimits.Observations) throw new ArgumentOutOfRangeException(nameof(recordLimit));
         if (blockLimit is < 1 or > MaximumBlocks) throw new ArgumentOutOfRangeException(nameof(blockLimit));
-        _arena = arena; _recordLimit = recordLimit; _blockLimit = blockLimit; ResetBuffer();
+        _arena = arena; _recordLimit = recordLimit; _blockLimit = blockLimit; _ownsArena = ownsArena; ResetBuffer();
     }
     internal ulong AcceptedCount { get { lock (_gate) return _accepted; } }
     internal ulong CommittedCount { get { lock (_gate) return _committed; } }
@@ -106,28 +107,47 @@ internal sealed class AnalysisScratchVector : IDisposable
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            var lease = _arena.Capture();
-            try
+            var publication = CapturePublication(); using var lease = _arena.Capture();
+            return publication.Open(lease);
+        }
+    }
+
+    internal AnalysisScratchVectorPublication CapturePublication()
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            int pages = (_blocks + DirectoryPage - 1) / DirectoryPage;
+            var directory = new AnalysisScratchBlock[pages][];
+            for (int i = 0; i < pages; i++)
             {
-                int pages = (_blocks + DirectoryPage - 1) / DirectoryPage;
-                var directory = new AnalysisScratchBlock[pages][];
-                for (int i = 0; i < pages; i++)
-                {
-                    int count = Math.Min(DirectoryPage, _blocks - i * DirectoryPage);
-                    // Full pages never mutate again. Only the incomplete tail is copied for this revision.
-                    directory[i] = count == DirectoryPage ? _directory[i] : _directory[i].AsSpan(0, count).ToArray();
-                }
-                return new(lease, directory, _blocks, _committed);
+                int count = Math.Min(DirectoryPage, _blocks - i * DirectoryPage);
+                directory[i] = count == DirectoryPage ? _directory[i] : _directory[i].AsSpan(0, count).ToArray();
             }
-            catch { lease.Dispose(); throw; }
+            long requiredEnd = _blocks == 0 ? 0 : AnalysisScratchArena.RecordEnd(_directory[(_blocks - 1) / DirectoryPage][(_blocks - 1) % DirectoryPage].Address);
+            return new(_arena, directory, _blocks, _committed, requiredEnd);
         }
     }
 
     public void Dispose()
-    { lock (_gate) { if (_disposed) return; _disposed = true; _cache = null; _directory.Clear(); _arena.Dispose(); } }
+    { lock (_gate) { if (_disposed) return; _disposed = true; _cache = null; _directory.Clear(); if (_ownsArena) _arena.Dispose(); } }
 }
 
 internal readonly record struct AnalysisScratchBlock(ulong First, int Count, AnalysisScratchRecord Address);
+
+/// <summary>Immutable directory metadata only. Opening a view requires a retained checkpoint from its owning arena.</summary>
+internal sealed class AnalysisScratchVectorPublication(AnalysisScratchArena arena, AnalysisScratchBlock[][] directory, int blocks, ulong count, long requiredEnd)
+{
+    internal ulong Count => count;
+    internal AnalysisScratchVectorCheckpoint Open(AnalysisScratchCheckpoint checkpoint)
+    {
+        if (!arena.Owns(checkpoint) || checkpoint.End < requiredEnd)
+            throw new InvalidDataException("The record table does not belong to this committed scratch revision.");
+        var lease = checkpoint.Borrow();
+        try { return new(lease, directory, blocks, count); }
+        catch { lease.Dispose(); throw; }
+    }
+}
 
 /// <summary>A bounded immutable directory and one-block read cache, used on admitted workers.</summary>
 internal sealed class AnalysisScratchVectorCheckpoint : IDisposable

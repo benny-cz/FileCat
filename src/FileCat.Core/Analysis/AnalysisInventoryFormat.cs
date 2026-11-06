@@ -35,7 +35,7 @@ public sealed class AnalysisInventory : IDisposable
         lock (state)
         {
             if (state.Snapshot is not { } snapshot) throw new ObjectDisposedException(nameof(AnalysisInventory));
-            if (state.Consumers >= 8) throw new InvalidOperationException("This inventory already has eight retained consumers.");
+            if (state.Consumers >= AnalysisLimits.SnapshotConsumers) throw new InvalidOperationException("This inventory already has eight retained consumers.");
             state.References++; state.Consumers++;
             return new(snapshot, () => Release(state, consumer: true), () => Retain(state));
         }

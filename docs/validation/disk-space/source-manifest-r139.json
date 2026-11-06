@@ -1,0 +1,134 @@
+{
+  "purpose": "Coherent private tables, value codecs and exact external indexes; no feature/capability authorization",
+  "gitBase": "2d42250e3f5bd91d374aaa0dadeea00ad42d87bd",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "5dadf77e13dcdd15413b5906e625b42d267ea8871930be0910db9a9f9a236f29"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "6b0ac9c4fb2b6fb1898e46e47748726d271646e081eb5d19c1835dfb3ffdb3ac"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisCoordinator.cs",
+      "sha256": "0ca0fd152de02a5ed589975785e8d3447750fa9a47658bc38aac168dd4583273"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisExternalSort.cs",
+      "sha256": "b08ed0720074e934c36a25396569e8b805365ea97928d802a490c85230b53344"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedValueCodec.cs",
+      "sha256": "8d4d1d6f47d502e73099a361abc6a0ac5ff1dc47bce349ce87234a3591cf5d44"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisInventoryFormat.cs",
+      "sha256": "afe411c871ee4aee1ef9787ea6b69d504ce48ffab668f0a06c9ed70e37abf47c"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIo.cs",
+      "sha256": "c7987f4422c2975202d049d2537ac4b96307f13669b12c551d63112504c1ed8b"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisLimits.cs",
+      "sha256": "b25d0f905b0038885b92c971e182bd8a1f73c73fb9001c1b883a31e56b03baa3"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchArena.cs",
+      "sha256": "574f2f230d0f10665fb3ffa28455cb57123dd30391c8ed052bd637ee162bbabb"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchComposite.cs",
+      "sha256": "26250bb6c782752df7848fc640e4ba5b1bee8f56d6bc195bf5670d1817b0cf56"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchVector.cs",
+      "sha256": "8f57929c89454ee10adf4ec5975ca4fa14d3799f340cca10159e648c56e978b3"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchWorkspace.cs",
+      "sha256": "3a9cc70f25cddbee2506b334147e6e61c746e26e4b695422f9e127398d2c41d6"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisExternalSortTests.cs",
+      "sha256": "ac7710a791b84ff45f7d69baf4b6a414f2645e61250cdf6ba09b7bd6fdde30da"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisIndexedValueCodecTests.cs",
+      "sha256": "568d65c77630f4e64b149efd6c5967994f6fb211adb9d5246b4d076feecb062c"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisPrivateStorageTests.Scratch.cs",
+      "sha256": "7a65191cf0a66f8e7c189f432465bc2ef1b2995f2f43af403a70d059c61ba138"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisScratchCompositeTests.cs",
+      "sha256": "0555535a222f76c50e34c44937ca34616fecc5ebc8b45626402a04c8b8c485ba"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisScratchWorkspaceTests.cs",
+      "sha256": "ab2b3703157972e6241c620ba04d7b7521c40b1a17b84d2331b63bcacaed60d5"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+      "sha256": "dbd1c3c54551fb201b4640418fab372dd7827635c66f2caf22290b080a4bbc6b"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/ScratchSortScale.cs",
+      "sha256": "bec050f91d2b5c0607b2ced4e85244a580ca1380cd906f15868f24e9da55b2f0"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.Scratch.cs",
+      "sha256": "02a2089127f818b5d9b44ad344b306937868f8b2b5ca02ad1c92258cf81dd333"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r138.tgz",
+      "sha256": "f1af0f8fee480d0a37641f9bad860f26144e24e89e8e1410b75d606bfd5c2f06"
+    },
+    {
+      "path": ".tmp/dsa-native-r138.tgz",
+      "sha256": "6c1116f688e0f88f98ceabdff4b9584f68daa38bd0af0aaaa1cb2f2e5430cd66"
+    },
+    {
+      "path": ".tmp/scratch-scale-r139.tgz",
+      "sha256": "9abb43dd0cfe7d00ea6ac82af094b6d49f00f253ca1955225a08e27292d55047"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r138.sh",
+      "sha256": "2731e4cdb0231db3164c4dd5fa5df0507eb327df4b1d60851ad9805aa4349752"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r138.ps1",
+      "sha256": "147f0436d1d25056f8906f126a0212f1a640da65546000b422532b971205ba7d"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r138.ps1",
+      "sha256": "b0db620fca8146a8963da13b78be489d37ee94334255568056e35df6068fcaad"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-scratch-scale-r139.py",
+      "sha256": "b6add512cb34614895789797d024b4cc596b6eb6805b23dbfe3f08e0ab68a00d"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-scratch-scale-r139.ps1",
+      "sha256": "67d60fe3a1cf0581541e65fadcf68c2bc10910ca5d6340de9c694dad2848e27f"
+    }
+  ],
+  "reports": [
+    "windows-core-r138.xml",
+    "mac-core-r138.xml",
+    "ubuntu-core-r138.xml",
+    "windows-native-r138.xml",
+    "windows-sort-scale-r139.json",
+    "mac-sort-scale-r139.json",
+    "ubuntu-sort-scale-r139.json",
+    "sort-build-r137.txt"
+  ],
+  "remaining": "Typed graph relationships and complete validation; native traversal/witness/frontier integration; bounded aggregation/query/projection/table/import/export; cross-process profile quota/own-artifact exclusion and complete qualification; remaining full plan and final independent review."
+}

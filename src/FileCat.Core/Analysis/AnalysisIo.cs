@@ -4,6 +4,9 @@ namespace FileCat.Core.Analysis;
 
 public sealed class AnalysisDeviceUnavailableException() : IOException("The device is not responding. Wait until it responds before starting new analysis work there.");
 
+// Only trusted scratch owners implement this marker. Cleanup cannot admit new source work or decoded paths.
+internal interface IAnalysisScratchOwned : IDisposable;
+
 /// <summary>
 /// Shared analysis admission for actual native work, including preparation and retained-handle cleanup.
 /// Cancellation never completes an already running native request before its delegate returns.
@@ -24,6 +27,9 @@ public static class AnalysisIo
         ArgumentNullException.ThrowIfNull(source);
         return RunCore(scheduler, source.IoDeviceKey, _ => { source.Dispose(); return true; }, CancellationToken.None, releaseOnly: true);
     }
+
+    internal static Task ReleaseScratchAsync(DeviceIoScheduler scheduler, string device, IAnalysisScratchOwned source) =>
+        RunCore(scheduler, device, _ => { source.Dispose(); return true; }, CancellationToken.None, releaseOnly: true);
 
     public static IAsyncDisposable OwnCursor(DeviceIoScheduler scheduler, string device, IEnumerator<AnalysisEntry> cursor) =>
         new Cursor(scheduler, device, cursor);

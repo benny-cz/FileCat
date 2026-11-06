@@ -1,0 +1,86 @@
+namespace FileCat.Core.Analysis;
+
+/// <summary>
+/// One verified native directory and one session byte ceiling for data, sorting runs and indexes.
+/// Each returned arena is independently owned by its caller; reader-retained arenas keep their directory
+/// and both budget levels after this factory closes. There is no path-based reopening or recursive cleanup.
+/// </summary>
+internal sealed class AnalysisScratchWorkspace : IAnalysisScratchOwned
+{
+    private readonly object _gate = new();
+    private readonly AnalysisSharedPrivateDirectory _directory;
+    private readonly AnalysisScratchBudget _budget;
+    private bool _disposed;
+    internal AnalysisScratchWorkspace(AnalysisPrivateDirectory directory)
+        : this(directory, AnalysisLimits.ScratchBytes, AnalysisScratchBudget.Shared) { }
+    internal AnalysisScratchWorkspace(AnalysisPrivateDirectory directory, long sessionLimit, AnalysisScratchBudget profileBudget)
+    {
+        ArgumentNullException.ThrowIfNull(directory); ArgumentNullException.ThrowIfNull(profileBudget);
+        if (sessionLimit is < 1 or > AnalysisLimits.ScratchBytes) throw new ArgumentOutOfRangeException(nameof(sessionLimit));
+        _budget = new(sessionLimit, profileBudget); _directory = new(directory);
+    }
+    internal long ReservedBytes => _budget.ReservedBytes;
+    internal AnalysisScratchArena CreateArena()
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            var directory = _directory.Borrow();
+            try { return new(directory, _budget, AnalysisLimits.ScratchBytes); }
+            catch { directory.Dispose(); throw; }
+        }
+    }
+    public void Dispose() { lock (_gate) { if (_disposed) return; _disposed = true; _directory.Dispose(); } }
+}
+
+/// <summary>Internal native directory lifetime sharing; the underlying no-follow capability remains authoritative.</summary>
+internal sealed class AnalysisSharedPrivateDirectory : AnalysisPrivateDirectory
+{
+    private sealed class Shared(AnalysisPrivateDirectory directory)
+    {
+        internal readonly AnalysisPrivateDirectory Directory = directory;
+        internal readonly object Lifetime = new(), Io = new();
+        internal int References = 1;
+    }
+    private readonly Shared _shared;
+    private readonly object _gate = new();
+    private bool _disposed;
+    internal AnalysisSharedPrivateDirectory(AnalysisPrivateDirectory directory) => _shared = new(directory);
+    private AnalysisSharedPrivateDirectory(Shared shared) => _shared = shared;
+    internal AnalysisSharedPrivateDirectory Borrow()
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            lock (_shared.Lifetime)
+            {
+                if (_shared.References >= AnalysisLimits.Components + 1) throw new IOException("The private scratch directory lease limit was reached.");
+                var result = new AnalysisSharedPrivateDirectory(_shared); _shared.References++; return result;
+            }
+        }
+    }
+    private T Use<T>(Func<AnalysisPrivateDirectory, T> work)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            lock (_shared.Io) return work(_shared.Directory);
+        }
+    }
+    internal override void Verify() => Use(directory => { directory.Verify(); return true; });
+    internal override (UInt128 Capacity, UInt128 Available) Space() => Use(directory => directory.Space());
+    internal override AnalysisPrivateScratchFile CreateScratch() => Use(directory => directory.CreateScratch());
+    internal override AnalysisPrivateFile CreateStaging() => Use(directory => directory.CreateStaging());
+    internal override AnalysisPrivateFile OpenRead(string name) => Use(directory => directory.OpenRead(name));
+    internal override string[] Entries(CancellationToken cancellation) => Use(directory => directory.Entries(cancellation));
+    public override void Dispose()
+    {
+        bool release;
+        lock (_gate)
+        {
+            if (_disposed) return; _disposed = true;
+            lock (_shared.Lifetime) release = --_shared.References == 0;
+        }
+        if (release) lock (_shared.Io) _shared.Directory.Dispose();
+    }
+}

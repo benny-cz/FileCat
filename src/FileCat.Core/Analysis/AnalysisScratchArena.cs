@@ -35,6 +35,7 @@ internal sealed class AnalysisScratchArena : IDisposable
     }
 
     internal long ReservedBytes { get { lock (_gate) return _reserved; } }
+    internal long CommittedEnd { get { lock (_gate) return _end; } }
     internal bool Failed { get { lock (_gate) return _failed; } }
     private void Guard()
     {
@@ -93,11 +94,40 @@ internal sealed class AnalysisScratchArena : IDisposable
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_ownerClosed, this);
-            // These are short-lived revision owners, not per-record managed metadata.
-            if (_references >= AnalysisLimits.Sessions + 1) throw new IOException("The private scratch revision lease limit was reached.");
-            _references++; return new(this, _end);
+            return CaptureCore(_end);
         }
     }
+
+    internal AnalysisScratchCheckpoint CapturePublished(long end)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_ownerClosed, this);
+            if (end < 0 || end > _end) throw new InvalidDataException("The private scratch publication exceeds its committed extent.");
+            return CaptureCore(end);
+        }
+    }
+
+    internal AnalysisScratchCheckpoint RetainReader(AnalysisScratchCheckpoint source)
+    {
+        lock (_gate)
+        {
+            // A reader may retain its old revision after the writer closes; a disposed source cannot.
+            if (!Owns(source)) throw new ObjectDisposedException(nameof(source));
+            return CaptureCore(source.End);
+        }
+    }
+
+    private AnalysisScratchCheckpoint CaptureCore(long end)
+    {
+        if (_references >= AnalysisLimits.SnapshotConsumers + (_ownerClosed ? 0 : 1))
+            throw new IOException("The private scratch revision lease limit was reached.");
+        // Allocate before claiming the native lifetime reservation, including allocation failure.
+        var result = new AnalysisScratchCheckpoint(this, end); _references++; return result;
+    }
+
+    internal bool Owns(AnalysisScratchCheckpoint checkpoint) => ReferenceEquals(checkpoint.Owner, this);
+    internal static long RecordEnd(AnalysisScratchRecord record) => checked(record.Offset + HeaderBytes + record.Length + TagBytes);
 
     internal byte[] Read(AnalysisScratchCheckpoint checkpoint, AnalysisScratchRecord record, CancellationToken cancellation)
     {
@@ -173,36 +203,71 @@ internal readonly record struct AnalysisScratchRecord(long Offset, int Length);
 
 internal sealed class AnalysisScratchCheckpoint : IDisposable
 {
-    private AnalysisScratchArena? _owner;
-    internal AnalysisScratchArena? Owner => Volatile.Read(ref _owner);
+    private sealed class Shared(AnalysisScratchArena owner)
+    {
+        internal readonly AnalysisScratchArena Owner = owner;
+        internal int References = 1;
+    }
+    private Shared? _shared;
+    internal AnalysisScratchArena? Owner => Volatile.Read(ref _shared)?.Owner;
     internal long End { get; }
-    internal AnalysisScratchCheckpoint(AnalysisScratchArena owner, long end) { _owner = owner; End = end; }
+    internal AnalysisScratchCheckpoint(AnalysisScratchArena owner, long end) { _shared = new(owner); End = end; }
+    private AnalysisScratchCheckpoint(Shared shared, long end) { _shared = shared; End = end; }
+
+    // Component views borrow one outer consumer's lifetime. They do not bypass the consumer limit:
+    // creating another independently retained revision uses RetainReader instead.
+    internal AnalysisScratchCheckpoint Borrow()
+    {
+        var shared = Volatile.Read(ref _shared) ?? throw new ObjectDisposedException(nameof(AnalysisScratchCheckpoint));
+        lock (shared)
+        {
+            if (!ReferenceEquals(_shared, shared)) throw new ObjectDisposedException(nameof(AnalysisScratchCheckpoint));
+            if (shared.References >= AnalysisLimits.Components + 1) throw new IOException("The scratch revision component limit was reached.");
+            var result = new AnalysisScratchCheckpoint(shared, End); shared.References++; return result;
+        }
+    }
+    internal AnalysisScratchCheckpoint RetainReader() =>
+        (Owner ?? throw new ObjectDisposedException(nameof(AnalysisScratchCheckpoint))).RetainReader(this);
     internal byte[] Read(AnalysisScratchRecord record, CancellationToken cancellation = default) =>
         (Owner ?? throw new ObjectDisposedException(nameof(AnalysisScratchCheckpoint))).Read(this, record, cancellation);
-    public void Dispose() => Interlocked.Exchange(ref _owner, null)?.Release();
+    public void Dispose()
+    {
+        var shared = Interlocked.Exchange(ref _shared, null);
+        if (shared is null) return;
+        bool release; lock (shared) release = --shared.References == 0;
+        if (release) shared.Owner.Release();
+    }
 }
 
 /// <summary>One process-wide ceiling, shared by all analysis profiles, including reader-retained files.</summary>
 internal sealed class AnalysisScratchBudget
 {
     internal static readonly AnalysisScratchBudget Shared = new(AnalysisLimits.ProfileScratchBytes);
+    private readonly object _gate = new();
     private readonly long _limit;
+    private readonly AnalysisScratchBudget? _parent;
     private long _reserved;
-    internal AnalysisScratchBudget(long limit)
+    internal AnalysisScratchBudget(long limit, AnalysisScratchBudget? parent = null)
     {
-        if (limit is < 1 or > AnalysisLimits.ProfileScratchBytes) throw new ArgumentOutOfRangeException(nameof(limit));
-        _limit = limit;
+        if (limit is < 1 or > AnalysisLimits.ProfileScratchBytes || parent is not null && limit > parent._limit) throw new ArgumentOutOfRangeException(nameof(limit));
+        _limit = limit; _parent = parent;
     }
     internal long ReservedBytes => Volatile.Read(ref _reserved);
     internal bool TryReserve(long bytes)
     {
         if (bytes < 0) throw new ArgumentOutOfRangeException(nameof(bytes));
-        while (true)
+        lock (_gate)
         {
-            long before = Volatile.Read(ref _reserved);
-            if (bytes > _limit - before) return false;
-            if (Interlocked.CompareExchange(ref _reserved, before + bytes, before) == before) return true;
+            if (bytes > _limit - _reserved || _parent is not null && !_parent.TryReserve(bytes)) return false;
+            _reserved += bytes; return true;
         }
     }
-    internal void Release(long bytes) => Interlocked.Add(ref _reserved, -bytes);
+    internal void Release(long bytes)
+    {
+        lock (_gate)
+        {
+            if (bytes < 0 || bytes > _reserved) throw new InvalidOperationException("The private scratch reservation does not belong to this budget.");
+            _reserved -= bytes; _parent?.Release(bytes);
+        }
+    }
 }

@@ -82,3 +82,22 @@ Native r126 writes and reads 1M and 10M typed synthetic path observations on eac
 |ubuntu|8.905 / 4.672|91.825 / 46.929|1876657550|27430912 bytes|
 
 These controls do not close the complete plan or its release gates. The final independent UX/UI/functional/security review remains pending until the full implementation/testing loop is complete.
+
+## Coherent tables, related values and exact external indexes
+
+One scratch publication now captures up to 16 related vectors at a single generation and native extent. Component views borrow one outer consumer; separately retained readers count against the eight-consumer bound even after the writer closes. A failed multi-table flush leaves the preceding entire publication readable rather than publishing a partial graph. This is a raw storage contract; typed graph relationships remain the producer's responsibility.
+
+Strict bounded object, storage-fact and issue codecs preserve exact UInt128 measurements, known zero and missing states, observation times and precision, owner/component/basis/include references and issue node/root state. Supplied object aliases are refused by the base codec because they require a separate index. No source, traversal ticket or action authority is encoded.
+
+A workspace shares its verified native directory across separately owned arenas. Data and temporary sorting runs reserve both a session budget and the parent process-wide budget before writes. Retained readers keep both byte reservations and the native directory after workspace/arena owners close. This is not cross-process profile accounting, which remains unfinished.
+
+The exact external sorter accepts bounded binary keys, clones a reused input buffer, caps each in-memory run at 16 MiB and bounds the run count at 256. It orders full binary keys and values without hashing away equality. Source/spool/merge work enters the shared background admission in batches; CPU sorting runs outside the device worker. Runs share one spool arena and checkpoint; writer buffers are released before merging. The spool is retired after successful merge or failure. Immutable readers support exact and prefix ranges without materializing all matching IDs. Cancellation, malformed input, partial native writes, shared quota exhaustion, retained readers and owner closure have controls.
+
+The r138 suites pass: Windows 392 total/367 passed/25 platform skips; Mac 374/373/1; Ubuntu 374/373/1; Windows native 26/26. The r137 solution build has zero warnings/errors. Native r139 tests sort and read back 1M and 10M reversed records on all three guests. Ordinary keys have 24 bytes, with one 64 KiB key per 1024 records. Every key and value, terminal exact ranges, whole-index prefix and checksum are checked after closing the index owner and workspace. Every child exits with code 0, removes its owned artifacts and releases quota. Memory is sampled every 50 ms, not asserted to be an absolute peak; Mac private bytes remain unavailable.
+| Guest | 1M write/read seconds | 10M write/read seconds | 10M peak sampled session scratch bytes | 10M sampled private-byte increment |
+|---|---|---|---|---|
+|windows|5.177 / 1.364|52.426 / 13.884|2082197656|122687488 bytes|
+|mac|3.127 / 0.604|30.190 / 6.354|2082197656|Unavailable|
+|ubuntu|13.096 / 2.704|128.623 / 26.828|2082197656|183132160 bytes|
+
+The production AnalysisStore and managed snapshots are still bounded partial implementations. These internal components do not establish a connected graph, native traversal/frontier indexes, aggregation/query/projection/table/import/export, complete resource qualification, or any new capability authorization. The complete plan and the final independent UX/UI/functional/security review remain pending.

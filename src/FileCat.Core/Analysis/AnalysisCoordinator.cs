@@ -91,7 +91,7 @@ public sealed class AnalysisSession : IDisposable
         lock (_sync)
         {
             ObjectDisposedException.ThrowIf(_released, this);
-            if (_snapshotLeases >= 8) throw new InvalidOperationException("This analysis already has eight active snapshot consumers.");
+            if (_snapshotLeases >= AnalysisLimits.SnapshotConsumers) throw new InvalidOperationException("This analysis already has eight active snapshot consumers.");
             _snapshotLeases++;
             return new(snapshot, () =>
             {
