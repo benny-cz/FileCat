@@ -1,0 +1,16 @@
+{
+  "observedUtc": "2026-11-06T20:12:26.441675+00:00",
+  "exitCode": 0,
+  "processes": {
+    "apps": [],
+    "tests": [
+      "695991 dotnet test tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --disable-build-servers -p:NuGetAudit=false --filter FullyQualifiedName~ArchiveCapturedInputsTests|FullyQualifiedName~UnixArchiveStorageTests|FullyQualifiedName~ArchiveUnixOuterMetadataTests|FullyQualifiedName~ArchiveUnixExtendedAttributeTests --logger trx;LogFileName=captured-directories-v1.trx --results-directory results",
+      "696013 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/MSBuild.dll /noautoresponse /nologo /nodemode:1 /nodeReuse:false /low:false",
+      "696014 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/MSBuild.dll /noautoresponse /nologo /nodemode:1 /nodeReuse:false /low:false",
+      "696015 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/MSBuild.dll /noautoresponse /nologo /nodemode:1 /nodeReuse:false /low:false",
+      "696016 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/MSBuild.dll /noautoresponse /nologo /nodemode:1 /nodeReuse:false /low:false",
+      "696106 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/MSBuild.dll /noautoresponse /nologo /nodemode:1 /nodeReuse:false /low:false",
+      "696107 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/MSBuild.dll /noautoresponse /nologo /nodemode:1 /nodeReuse:false /low:false"
+    ]
+  }
+}

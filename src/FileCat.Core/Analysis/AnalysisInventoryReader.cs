@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace FileCat.Core.Analysis;
@@ -16,70 +15,51 @@ public static partial class AnalysisInventoryFormat
         try
         {
             Reserve(4L * AnalysisLimits.RecordBytes, ref reservation);
-            var lines = new Lines(source); using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            var lines = new Lines(source); using var decoder = new RecordDecoder(bytes => Reserve(checked(2048L + bytes * 8L), ref reservation));
             Manifest? manifest = null; AnalysisCoverageRecord? coverage = null;
             var objects = new List<AnalysisObject>(); var nodes = new List<AnalysisNode>(); var facts = new List<StorageFact>(); var issues = new List<AnalysisIssue>();
             var objectIds = new HashSet<string>(StringComparer.Ordinal); var nodeIds = new HashSet<ulong>(); var factIds = new HashSet<string>(StringComparer.Ordinal);
-            var issueTotals = ImmutableDictionary<MeasurementState, ulong>.Empty; var counts = new ulong[Kinds.Length];
-            int stage = 0; ulong records = 0;
+            var issueTotals = ImmutableDictionary<MeasurementState, ulong>.Empty;
             while (lines.Next(cancellation) is { } line)
             {
-                cancellation.ThrowIfCancellationRequested();
-                if (++records > AnalysisLimits.InventoryRecords) throw Invalid("Inventory record limit reached.");
-                ValidateJson(line.Span);
-                using var document = JsonDocument.Parse(line, new JsonDocumentOptions { MaxDepth = AnalysisLimits.JsonDepth });
-                var r = document.RootElement; string kind = String(r.GetProperty("kind"), 32);
-                if (kind == "trailer")
+                var record = decoder.Read(line, cancellation);
+                if (record.Kind == RecordKind.Trailer) continue;
+                switch (record.Kind)
                 {
-                    Fields(r, "kind", "counts", "sha256");
-                    if (manifest is null || coverage is null) throw Invalid("Incomplete inventory.");
-                    var declared = r.GetProperty("counts"); Fields(declared, Kinds);
-                    for (int i = 0; i < Kinds.Length; i++) if (Id(declared.GetProperty(Kinds[i])) != counts[i]) throw Invalid("Inventory record counts do not match.");
-                    if (String(r.GetProperty("sha256"), 64) != Convert.ToHexStringLower(hash.GetHashAndReset())) throw Invalid("Inventory checksum does not match.");
-                    if (lines.Next(cancellation) is not null) throw Invalid("Data follows the inventory trailer.");
-                    var aliases = nodes.Where(n => n.ObjectId is not null).ToLookup(n => n.ObjectId!, StringComparer.Ordinal);
-                    var codes = issues.Where(i => i.NodeId.HasValue).ToLookup(i => i.NodeId!.Value);
-                    var snapshot = new AnalysisSnapshot(manifest.Identity, manifest.Roots,
-                        nodes.Select(n => n with { IssueCodes = codes[n.Id].Select(i => i.Code).Distinct(StringComparer.Ordinal).ToImmutableArray() }).ToImmutableArray(),
-                        objects.Select(o => o with { ObservedAliases = aliases[o.Id].Select(n => n.Id).ToImmutableArray() }).ToImmutableArray(),
-                        facts.ToImmutableArray(), issues.ToImmutableArray(), manifest.Policy, manifest.Phase, manifest.Coverage, manifest.Freshness,
-                        AnalysisOrigin.ImportedInventory, AnalysisPrivacy.Imported(manifest.Taint))
-                        { CoverageDetails = coverage, IssueTotals = issueTotals, BoundaryTotals = coverage.BoundaryTotals, Persistence = AnalysisPersistence.Temporary };
-                    AnalysisValidation.Validate(snapshot, cancellation);
-                    // Recompute every metric before accepting the inventory, including checked total arithmetic.
-                    // No supplied summary can hide an overflowing or contradictory fact set.
-                    foreach (var metric in Enum.GetValues<AnalysisMetric>()) _ = AnalysisAggregate.Project(snapshot, metric, cancellation: cancellation);
-                    var result = new AnalysisInventory(manifest.Id, snapshot, reservation); reservation = 0; return result;
-                }
-                int index = System.Array.IndexOf(Kinds, kind);
-                if (index < 0 || index < stage || manifest is null && index != 0 || index == 0 && manifest is not null || index == 5 && coverage is not null) throw Invalid("Unknown or out-of-order inventory record.");
-                stage = index; counts[index]++;
-                if (counts[index] > (ulong)(index switch { 1 or 2 => AnalysisLimits.Observations, 4 => AnalysisLimits.Issues, _ => AnalysisLimits.InventoryRecords })) throw Invalid("Inventory kind limit reached.");
-                Reserve(checked(2048L + line.Length * 8L), ref reservation);
-                hash.AppendData(line.Span); hash.AppendData(Lf);
-                switch (index)
-                {
-                    case 0: manifest = ReadManifest(r); break;
-                    case 1:
-                        var obj = ReadObject(r); if (!objectIds.Add(obj.Id)) throw Invalid(); objects.Add(obj); break;
-                    case 2:
-                        var node = ReadNode(r);
+                    case RecordKind.Manifest: manifest = record.Manifest!; break;
+                    case RecordKind.Object:
+                        var obj = record.Object!; if (!objectIds.Add(obj.Id)) throw Invalid(); objects.Add(obj); break;
+                    case RecordKind.Path:
+                        var node = record.Path!;
                         if (node.ParentId != 0 && !nodeIds.Contains(node.ParentId) || !nodeIds.Add(node.Id) || node.ObjectId is { } o && !objectIds.Contains(o)) throw Invalid("Invalid path-node reference or order.");
                         nodes.Add(node); break;
-                    case 3:
-                        var fact = ReadFact(r); if (!factIds.Add(fact.Id)) throw Invalid(); facts.Add(fact); break;
-                    case 4: issues.Add(ReadIssue(r)); break;
-                    case 5: (coverage, issueTotals) = ReadCoverage(r); break;
+                    case RecordKind.Fact:
+                        var fact = record.Fact!; if (!factIds.Add(fact.Id)) throw Invalid(); facts.Add(fact); break;
+                    case RecordKind.Issue: issues.Add(record.Issue!); break;
+                    case RecordKind.Coverage: coverage = record.Coverage!; issueTotals = record.IssueTotals!; break;
                 }
             }
-            throw Invalid("Inventory ended without its mandatory trailer.");
+            decoder.Complete();
+            if (manifest is null || coverage is null) throw Invalid("Incomplete inventory.");
+            var aliases = nodes.Where(n => n.ObjectId is not null).ToLookup(n => n.ObjectId!, StringComparer.Ordinal);
+            var codes = issues.Where(i => i.NodeId.HasValue).ToLookup(i => i.NodeId!.Value);
+            var snapshot = new AnalysisSnapshot(manifest.Identity, manifest.Roots,
+                nodes.Select(n => n with { IssueCodes = codes[n.Id].Select(i => i.Code).Distinct(StringComparer.Ordinal).ToImmutableArray() }).ToImmutableArray(),
+                objects.Select(o => o with { ObservedAliases = aliases[o.Id].Select(n => n.Id).ToImmutableArray() }).ToImmutableArray(),
+                facts.ToImmutableArray(), issues.ToImmutableArray(), manifest.Policy, manifest.Phase, manifest.Coverage, manifest.Freshness,
+                AnalysisOrigin.ImportedInventory, AnalysisPrivacy.Imported(manifest.Taint))
+                { CoverageDetails = coverage, IssueTotals = issueTotals, BoundaryTotals = coverage.BoundaryTotals, Persistence = AnalysisPersistence.Temporary };
+            AnalysisValidation.Validate(snapshot, cancellation);
+            // Recompute all metrics only after verified EOF, graph and coverage validation.
+            foreach (var metric in Enum.GetValues<AnalysisMetric>()) _ = AnalysisAggregate.Project(snapshot, metric, cancellation: cancellation);
+            var result = new AnalysisInventory(manifest.Id, snapshot, reservation); reservation = 0; return result;
         }
         catch (Exception ex) when (ex is JsonException or FormatException or InvalidOperationException or KeyNotFoundException or OverflowException or ArgumentException)
         { throw new InvalidDataException("Invalid analysis inventory encoding or schema.", ex); }
         finally { Release(reservation); }
     }
 
-    private sealed record Manifest(Guid Id, SessionIdentity Identity, ImmutableArray<RootBinding> Roots, ScanPolicy Policy,
+    internal sealed record Manifest(Guid Id, SessionIdentity Identity, ImmutableArray<RootBinding> Roots, ScanPolicy Policy,
         AnalysisPhase Phase, NamespaceCoverage Coverage, AnalysisFreshness Freshness, AnalysisTaint Taint);
     private static Manifest ReadManifest(JsonElement r)
     {

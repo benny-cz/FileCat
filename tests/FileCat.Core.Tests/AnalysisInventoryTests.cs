@@ -12,7 +12,7 @@ public sealed class AnalysisBoundedWorkCapacityCollection;
 // This class deliberately exhausts process-wide import admission. Other inventory consumers must
 // finish first; an unrelated concurrent load being refused is correct production behavior.
 [Collection("Analysis bounded work capacity")]
-public sealed class AnalysisInventoryTests
+public sealed partial class AnalysisInventoryTests
 {
     [Fact]
     public void RetainedInventoryRevisionSurvivesOwnerCloseAndRemainsInert()

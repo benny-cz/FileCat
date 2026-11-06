@@ -1,0 +1,269 @@
+{
+  "purpose": "Shared one-record container decoder, terminal failure/cancellation, verified EOF completion and retained-data memory admission before typed allocation",
+  "gitBase": "dbedf12a0d06e8cfadc5b5cd8d6de824ff64f6f7",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "12d600a810730ccce95b615b5571aeaca9620251f9bb384b76fae804f99416ed"
+    },
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_STREAMING_INVENTORY.md",
+      "sha256": "938061ed1453289349a905483ab26cfd439fce557fd8b87b313a51f1ee640a9b"
+    },
+    {
+      "path": "docs/validation/disk-space/README.md",
+      "sha256": "e5dbb7844171a090e06659d51204c7ef826fca8b6aabac54edf408a74274912b"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "cfc3c11ac2a386af140aa58798bd7da54faa4b0ba15bf35e72cf05141def6ca2"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisInventoryReader.cs",
+      "sha256": "7478db1d557fe27cc3f56e7b575fc9004ffe60bfdf75f4760fbf7d66e5bae91b"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisInventoryRecordDecoder.cs",
+      "sha256": "7bc754d8838bd7b870c75b7433bb8fd01a193be39f337262bc07bb2bee9a6ce4"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisInventoryTests.Decoder.cs",
+      "sha256": "ff67ecfa5018e65475c357720f530bc8c12e76892b64a67b006619c97edd2049"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisInventoryTests.cs",
+      "sha256": "16686d94a2bf8ff129195dd9417398cf49c2a1753c5647fee93884d09c528262"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r478.txt",
+      "sha256": "6f689f2a9095de1fd099238ca6f9918de40f05d3a4393f13874ea5470d8ea317"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-r479.xml",
+      "sha256": "6e30031f47f0ec41d1c03e1a264cbab13585f028a46472df2dacdda6b084791f"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-r479.log",
+      "sha256": "f10ee519216f8cccb7402968b751954a201869e2ba5cda80eef3308fa0f97a6b"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-decoder-process-identities-r481.json",
+      "sha256": "d03c6259dc512f405b82b2261774f40e6e34be61bd85170fdab59a3dd86435ee"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-decoder-process-identities-r481.json",
+      "sha256": "33f4fd189a902544b6acbc7409c21ac01925c5d1ce3e7b0f9788be6aef4daba2"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r479.xml",
+      "sha256": "f087450a91d8bb3087b2e02e223df08f7ddf567f559059cc7344a7b8143fee60"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r479.log",
+      "sha256": "9c235e8d42951a744922566cf97943390412595e901066036ccd11c4d735550a"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-render-r480.xml",
+      "sha256": "e0b64d55788952e215b3115507f39658a3ba1065a496c592061a1448aec04099"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-render-r480.log",
+      "sha256": "8f1d4e93aa3461b35bce8f916391b57881284d6d62cdf2ab2dbfee1f1c1dfa41"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-post-decoder-r481.json",
+      "sha256": "6e9e2a18490638153333b8ef09be33458e51fdb4c83a5bf82b9905face51b368"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r479.xml",
+      "sha256": "b9c928839026c3221cc482ac0a1c9921b14256f7cd1e3d5203042d1febdbff1c"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r479.log",
+      "sha256": "8a41ff1018f66f2087800c61c709ef90a0051eed7bfe2814aa0b07fabaab9d1e"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-render-r480.xml",
+      "sha256": "3896f0974d4d6f7e11944e89e6b344e032573dc3f6f6ccacacc7f457d1a3a1e1"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-render-r480.log",
+      "sha256": "053e57806558aa62ecc54ed8bb08b204acd934e1181d33ea5b04e1dfc9c8dfa1"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-post-decoder-r481.json",
+      "sha256": "a1ae1e6122754c5901d408a29681e881a3c41137d4f9c456906157a43467f672"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r479.xml",
+      "sha256": "e56da12d07d91cb02b3927ab17a72d787d687b7f11dbdf9639f593481512491a"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r479.log",
+      "sha256": "7a9c5804954ea10de357562560bfe98ed8542020bda75978e16cbd4724bdeb7e"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-render-r480.xml",
+      "sha256": "06f88b26e06723a7340cb6f38728122d3dd0e53e706aacb6985139454f337fce"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-render-r480.log",
+      "sha256": "5e221a095fcc4d80a76e0c6856274c286a9a6b05a9e7195504ab16f6f90e5ab6"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-post-decoder-r481.json",
+      "sha256": "cd2eb6fbd033f0cb9e96b291073856f78c1a313166556a6f0b0981d722a320c5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r479.sh",
+      "sha256": "9613d45e2470567e956b8eecdcfa7296e6d23921000328089f138abca25c74a0"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r479.ps1",
+      "sha256": "5a0cca471615a011ca2a36258a3462f83a0cad170c07969aa1bc3e67b0f621e5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r479.ps1",
+      "sha256": "5c354be78a721bde58e5ffe72394edc998a6161a886b1f409ec6e8c4f4323e39"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-mac-r480.sh",
+      "sha256": "58e0c85a32a4c0958e43561ca24e3d2b35c8899be44ce6ac2ed67db19a7813f1"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-linux-r480.sh",
+      "sha256": "8b0178c6b72247abbac9cd2b10f1941234c8baac20752dbe9c7b591d1860a888"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-render-r480.ps1",
+      "sha256": "8d8bd2d9d74bdb9f34ea8e687dc4f51e039cdd47077ef3e072c73daa362f429c"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/pack-decoder-r479.ps1",
+      "sha256": "f5f2cb4a89e33c356e65f95b747803e868c821a4e3923d5b98cf140827f6d8e8"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/collect-decoder-r481.ps1",
+      "sha256": "39594ce5a34fcde1a4b2f253446130f51ff2958a96abe0e3b36da5573f8ce63c"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/inspect-decoder-processes-r481.py",
+      "sha256": "5fc6859e36c5ae9bb012ae86e0e1daf35a667ce753a3249e7281a118b9039cea"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/observe-decoder-processes-r481.ps1",
+      "sha256": "c864ac4f7d09556128d4626bf599fd93979b89f1e8de0c783b571086e397e7f1"
+    }
+  ],
+  "binaries": [
+    {
+      "path": "src/FileCat.Core/bin/Debug/net10.0/FileCat.Core.dll",
+      "sha256": "077c602ee8719f6098bb1bed895e1187ac0fba1d88a0e3b2462c16a2ae5619e5"
+    },
+    {
+      "path": "src/FileCat.App/bin/Debug/net10.0/FileCat.dll",
+      "sha256": "584a53d870fbeffba40ae7c765df7325d44ee44edaee932d4d118050aab98ca9"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.Tests.dll",
+      "sha256": "8dd036ce6280b8d654d1aba1d0ff3ac0aed948efed0058247ad2b945b687c2e7"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/bin/Debug/net10.0/FileCat.Platform.Windows.Tests.dll",
+      "sha256": "160aa990a361943d868f9a0fabd03db5663b81de9601cdea4a9a4290d0bb36f9"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/bin/Debug/net10.0/FileCat.Rendering.Tests.dll",
+      "sha256": "0adf7ce4119ab77a88990f350b247383ff0a792687b2897db6c94340f2dba339"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-core-r479.tgz",
+      "sha256": "4bc21e7bd05d3023e42f8280e14631eb16fe417a73354813799dd436eb2bb256"
+    },
+    {
+      "name": "dsa-native-r479.tgz",
+      "sha256": "9c9b3220b1e8e3606e8afe8006b22c92e22a0c547c36269367183494d5f2606c"
+    },
+    {
+      "name": "dsa-render-mac-r480.tgz",
+      "sha256": "ee0e63968532f4c09fd8f0de2b42d9e3f955bbb1697d3455134852a7424ec4a2"
+    },
+    {
+      "name": "dsa-render-linux-r480.tgz",
+      "sha256": "1bce0770448053cd21c772217eeff781b2f6b81f531c0a02a388450b23a083bd"
+    },
+    {
+      "name": "dsa-render-windows-r480.tgz",
+      "sha256": "32de0873ccde71b44c50e6aa173494457adfb076e198534930b4812459eedc59"
+    }
+  ],
+  "matrix": {
+    "windows-native-r479.xml": {
+      "total": "38",
+      "passed": "38",
+      "failed": "0",
+      "skipped": "0",
+      "time": "23.980"
+    },
+    "mac-core-r479.xml": {
+      "total": "622",
+      "passed": "620",
+      "failed": "0",
+      "skipped": "2",
+      "time": "16.414"
+    },
+    "mac-render-r480.xml": {
+      "total": "95",
+      "passed": "95",
+      "failed": "0",
+      "skipped": "0",
+      "time": "35.889"
+    },
+    "ubuntu-core-r479.xml": {
+      "total": "622",
+      "passed": "620",
+      "failed": "0",
+      "skipped": "2",
+      "time": "54.010"
+    },
+    "ubuntu-render-r480.xml": {
+      "total": "95",
+      "passed": "95",
+      "failed": "0",
+      "skipped": "0",
+      "time": "70.528"
+    },
+    "windows-core-r479.xml": {
+      "total": "640",
+      "passed": "598",
+      "failed": "0",
+      "skipped": "42",
+      "time": "13.099"
+    },
+    "windows-render-r480.xml": {
+      "total": "95",
+      "passed": "94",
+      "failed": "0",
+      "skipped": "1",
+      "time": "59.182"
+    }
+  },
+  "finalSolutionBuild": "r478 zero warnings/errors, terminal observed before packaging; same final Core assembly in all test payloads",
+  "qualification": {
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "publicIndexedPersistenceEnabled": false,
+    "completeStreamingReaderImplemented": false,
+    "originalIdGraphExplorerAdoptionImplemented": false,
+    "nativeDesktopInputQualified": false,
+    "fullResourceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  },
+  "processExitEvidence": "Windows post-check empty. Initial Mac/Ubuntu post-run inventories included activity; Ubuntu identified another archive-validation checkout. No processes were stopped or tests restarted. Retained follow-up command inventories are empty on both Unix guests."
+}
