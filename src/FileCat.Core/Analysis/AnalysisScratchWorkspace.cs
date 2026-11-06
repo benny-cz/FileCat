@@ -20,6 +20,18 @@ internal sealed class AnalysisScratchWorkspace : IAnalysisScratchOwned
         _budget = new(sessionLimit, profileBudget); _directory = new(directory);
     }
     internal long ReservedBytes => _budget.ReservedBytes;
+    private AnalysisScratchWorkspace(AnalysisSharedPrivateDirectory directory, AnalysisScratchBudget budget)
+    { _directory = directory; _budget = budget; }
+    internal AnalysisScratchWorkspace Borrow()
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            var directory = _directory.Borrow();
+            try { return new(directory, _budget); }
+            catch { directory.Dispose(); throw; }
+        }
+    }
     internal AnalysisScratchArena CreateArena()
     {
         lock (_gate)

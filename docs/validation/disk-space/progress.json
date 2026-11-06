@@ -115,7 +115,9 @@
     "A native red regression proved that an explicitly selected file inside private storage was wrongly Known. Private containment is now qualified before scratch creation; contained roots are excluded and timestamps/flags/native object identities are omitted. Unsupported backend containment is Unavailable rather than falsely Disjoint. The corrected native regression passes on Mac/Ubuntu and preserves the original file. The first rejected test used a symlinked macOS temp path; that fixture setup error is separately recorded.",
     "The existing Windows immediate post-kill namespace assertion failed once in r184. Thirty fresh probes removed scratch immediately and preserved the canary; the native cause is unproven. The fixture now separately observes exact child exit and automatic namespace retirement within two seconds, logs delay and never manually deletes/reopens scratch to pass. Windows uses five owned children per case, with final execution still deferred. Windows drivers conservatively postpone unreadable cross-account dotnet processes.",
     "Indexed datasets now expose validated full-graph coverage independently of bounded previews: known versus unknown enumeration, eligible/unscheduled directories, requested/completed/failed/pending counts, exact fact measurement states, verified/unverified file paths and bounded stale scopes with explicit incomplete/unlocated flags. Enumeration counters publish with the raw metadata prefix, remain monotonic and freeze with Stop; complete-under-policy claims inconsistent with the graph are rejected. Changed allocations mark every alias, and unreferenced changed objects are explicitly unlocated.",
-    "Exact stale-event/root evidence continues after the detailed issue cap. Nonblocking device Stop records an unsampled failure and unlocated stale evidence without taking the native-write lock. Native Mac/Ubuntu wide and replacement fixtures verify full enumeration beyond the preview and actual failed-scope counts; counter regression, sample-cap, orphan, conflicting completeness and blocked-flush Stop controls pass. Windows remains deferred while another tester is active."
+    "Exact stale-event/root evidence continues after the detailed issue cap. Nonblocking device Stop records an unsampled failure and unlocated stale evidence without taking the native-write lock. Native Mac/Ubuntu wide and replacement fixtures verify full enumeration beyond the preview and actual failed-scope counts; counter regression, sample-cap, orphan, conflicting completeness and blocked-flush Stop controls pass. Windows remains deferred while another tester is active.",
+    "Graph revisions/readers now retain a borrowable private workspace capability and the original session/profile quota after producer and factory-owner closure. Derived logical hierarchy builds use that capability without reopening a pathname or source. Failure cleanup releases partially created readers/arenas; the 28 KiB session fixture refuses the additional hierarchy and preserves the original dataset.",
+    "Unfiltered File size/Files hierarchy totals now fold through the exact child index with a bounded ancestor stack, emitting postorder private rows and external indexes for path lookup and ranked child pages. Known bytes stay UInt128, missing logical states remain separate from known zero/file counts, pages retain complete raw metadata and bounded payload, and retained hierarchies remain readable after original dataset/lease closure. Native Mac/Ubuntu 6,002-path fixtures read every ranked root child after scan-owner closure; source/canary bytes and scratch cleanup pass. Unique/On disk shared attribution, filtering and main-window adoption remain required."
   ],
   "validation": {
     "windowsCore": {
@@ -142,11 +144,11 @@
       "detail": "29 native NTFS/filesystem/private-storage controls, including production coordinator capture beyond its preview, qualified private-state exclusion, unchanged source bytes and final cleanup."
     },
     "macosArm64": {
-      "total": 449,
-      "passed": 448,
+      "total": 454,
+      "passed": 453,
       "failed": 0,
       "skipped": 1,
-      "evidence": "mac-core-r198.xml"
+      "evidence": "mac-core-r203.xml"
     },
     "headlessRendering": {
       "total": 64,
@@ -159,14 +161,14 @@
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "coverage-build-r197.txt"
+      "evidence": "hierarchy-build-r202.txt"
     },
     "ubuntu": {
-      "total": 449,
-      "passed": 448,
+      "total": 454,
+      "passed": 453,
       "failed": 0,
       "skipped": 1,
-      "evidence": "ubuntu-core-r198.xml"
+      "evidence": "ubuntu-core-r203.xml"
     },
     "nativeDesktop": {
       "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification. r62 native accessibility/keyboard link inspection verifies the visible omitted-target explanation, measured-zero distinction and retained mark, with 509 unchanged source paths and owned exit.",
@@ -359,6 +361,13 @@
       "crashDiagnostic": "windows-crash-probe-r184.json",
       "crashScope": "Two-second automatic namespace cleanup after actual child exit; final Windows execution pending. The earlier immediate-visibility cause remains unproven."
     },
+    "indexedCoverage": {
+      "status": "full-graph-coverage-subset-passed-mac-and-ubuntu-windows-deferred",
+      "mac": "mac-core-r198.xml",
+      "ubuntu": "ubuntu-core-r198.xml",
+      "windows": "windows-deferred-r198.json",
+      "scope": "Publication-coherent enumeration, graph-derived measurement/identity counters, bounded complete/incomplete stale scopes and exact affected-root evidence after sampling. Native 6,002-path wide scan and queued replacement, plus blocked-write Stop and adversarial graph controls. Does not qualify remaining frontend/import/export/source-scale/feature gates."
+    },
     "currentWindowsQualification": {
       "status": "deferred-shared-vm-busy",
       "observedAtUtc": "2026-11-06T05:18:13.1237967Z",
@@ -384,14 +393,14 @@
           "Name": "FileCat.WorkerProbe.exe"
         }
       ],
-      "note": "Observed through live guest CIM. Other tester processes preserved; this source revision is not Windows-qualified."
+      "note": "Observed through live guest CIM. Other tester processes preserved; no current Windows qualification."
     },
-    "indexedCoverage": {
-      "status": "full-graph-coverage-subset-passed-mac-and-ubuntu-windows-deferred",
-      "mac": "mac-core-r198.xml",
-      "ubuntu": "ubuntu-core-r198.xml",
-      "windows": "windows-deferred-r198.json",
-      "scope": "Publication-coherent enumeration, graph-derived measurement/identity counters, bounded complete/incomplete stale scopes and exact affected-root evidence after sampling. Native 6,002-path wide scan and queued replacement, plus blocked-write Stop and adversarial graph controls. Does not qualify remaining frontend/import/export/source-scale/feature gates."
+    "logicalHierarchy": {
+      "status": "unfiltered-logical-hierarchy-subset-passed-mac-and-ubuntu-windows-deferred",
+      "mac": "mac-core-r203.xml",
+      "ubuntu": "ubuntu-core-r203.xml",
+      "windows": "windows-deferred-r203.json",
+      "scope": "Exact unfiltered File size/Files directory rollups, path lookup and ranked bounded pages; native 6,002 paths/3,001 root children after owner closure, missing measurements, >64-bit values, overflow/cancellation and shared original-session quota. Not yet Unique/On disk LCA charge projection, filtering, UI integration or native large-source/resource qualification."
     }
   },
   "nextWork": [

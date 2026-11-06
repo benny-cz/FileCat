@@ -177,9 +177,10 @@ public sealed partial class AnalysisDatasetSummaryTests
         Assert.Equal((UInt128)80, (await readerC.SummarizeAsync(AnalysisMetric.OnDisk, Cancellation)).Totals.Known); Assert.True(read);
     }
 
-    private static async Task<AnalysisDataset> Build(AnalysisSnapshot snapshot, DeviceIoScheduler io, MemoryDirectory? directory = null, string device = Device, AnalysisEnumerationProgress? enumeration = null)
+    private static async Task<AnalysisDataset> Build(AnalysisSnapshot snapshot, DeviceIoScheduler io, MemoryDirectory? directory = null, string device = Device, AnalysisEnumerationProgress? enumeration = null,
+        long sessionLimit = AnalysisLimits.ScratchBytes)
     {
-        directory ??= new(); using var workspace = new AnalysisScratchWorkspace(directory);
+        directory ??= new(); using var workspace = new AnalysisScratchWorkspace(directory, sessionLimit, AnalysisScratchBudget.Shared);
         var header = new AnalysisIndexedGraphHeader(snapshot.Identity, snapshot.Roots, snapshot.Policy, snapshot.Phase, snapshot.Coverage, Origin: AnalysisOrigin.ImportedInventory) { Enumeration = enumeration };
         using var graph = new AnalysisIndexedGraph(workspace.CreateArena(), header);
         foreach (var node in snapshot.Nodes) graph.AppendPath(node, Cancellation);

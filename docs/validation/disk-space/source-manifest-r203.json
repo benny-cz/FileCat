@@ -1,0 +1,70 @@
+{
+  "purpose": "Private retained-workspace logical hierarchy and ranked pages; current Windows qualification deferred; no feature/action authorization",
+  "gitBase": "8291395b",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "08621a83ea19f31fdd0847f22dddeeabf5916dd5c955d564e69eadd545e21177"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "fe6c05973e54b9d151c9d1e67bd12383a82d3a4b419a1578ba221b88df05b9b6"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedGraph.cs",
+      "sha256": "495264a390a142f905f3dec0c05038d5ec305c5d8aa7585a28231570e4b32949"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisLogicalHierarchy.cs",
+      "sha256": "3328533e83edf26185e128735887ad4854d0cab0c8ea1119c7ed642e71181bda"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchWorkspace.cs",
+      "sha256": "6b743eab07a8d56c85dff5bd26d7333569eacf75f5ed5e6bd40a3d85ef858f28"
+    },
+    {
+      "path": "tests/AnalysisSourceFrontierFixture.cs",
+      "sha256": "bff86e9f7434f4b42c818a98e5e8d141e74e169985a444707fcb02de718b6b0e"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.cs",
+      "sha256": "0a8eb0ffc3cdf93d8ed206e76038938d5dc6d0899a3ec5b4dc6378b74b334362"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.Hierarchy.cs",
+      "sha256": "1c73c2f73ef7e4238bb53934506daa3de3d4be989f1bcce3e297b6e848c9533f"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r203.tgz",
+      "sha256": "2d9743e78eebfba810830e21076b6324faa5f438caae6863e38f497f993a66ca"
+    },
+    {
+      "path": ".tmp/dsa-native-r203.tgz",
+      "sha256": "6a53aadf822947c688130448875b5e201142af5caff42bd29a97a09217bee7aa"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r203.sh",
+      "sha256": "23ed9095149782ce0a80b88118268b6b808d8fedfb0c7caeb74f415bcfdc91b8"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r203.ps1",
+      "sha256": "35403dc949d7ac9d3869e41312a483fd1c3ab840879490e27715b6138399c551"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r203.ps1",
+      "sha256": "27223e7d8d9bf9efd7305c32242d162ee352e78dbe8ecb11e030eee9f00b886e"
+    }
+  ],
+  "reports": [
+    "mac-core-r203.xml",
+    "ubuntu-core-r203.xml",
+    "hierarchy-build-r202.txt",
+    "windows-deferred-r203.json"
+  ],
+  "remaining": "Unique/On disk LCA charge projection, filters and ranked frontend/window adoption; original inventory-ID mapping; streaming inventory/import/export; native source-scale/resource and Windows qualification; remaining feature packets and final independent review."
+}

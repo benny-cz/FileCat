@@ -34,6 +34,20 @@ internal static class AnalysisSourceFrontierFixture
             Assert.Equal((UInt128)directories, (await reader.SummarizeAsync(AnalysisMetric.Files, cancellation)).Totals.Known);
             Assert.Equal((UInt128)directories, (await reader.SummarizeAsync(AnalysisMetric.FileSize, cancellation)).Totals.Known);
             Assert.Equal((UInt128)directories, (await reader.SummarizeAsync(AnalysisMetric.UniqueFileSize, cancellation)).Totals.Known);
+            await using (var hierarchy = await reader.BuildLogicalHierarchyAsync(cancellation))
+            {
+                Assert.Equal((UInt128)directories, hierarchy.Totals.KnownBytes); Assert.Equal((ulong)directories, hierarchy.Totals.Files);
+                var root = await hierarchy.ReadAsync(1, cancellation); Assert.Equal((ulong)directories, root.Totals.Files);
+                ulong count = 0;
+                for (ulong offset = 0;;)
+                {
+                    var page = await hierarchy.ReadChildrenAsync(1, AnalysisLogicalSort.FileSize, offset, cancellation: cancellation);
+                    count += (ulong)page.Rows.Length;
+                    foreach (var row in page.Rows.Where(r => r.Path.IncludedByPolicy)) { Assert.Equal((UInt128)1, row.Totals.KnownBytes); Assert.Equal(1UL, row.Totals.Files); }
+                    if (!page.HasMore) break; offset = page.NextOffset;
+                }
+                Assert.Equal((ulong)directories + 1, count);
+            }
             ulong files = 0, folders = 0;
             for (ulong offset = 0; offset < reader.Descriptor.Paths;)
             {

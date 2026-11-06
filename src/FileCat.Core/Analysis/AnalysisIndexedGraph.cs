@@ -143,12 +143,13 @@ internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
     private readonly object _gate = new();
     private readonly AnalysisScratchCompositeRevision _data;
     private readonly AnalysisSortedIndex[] _indexes;
+    private readonly AnalysisScratchWorkspace _workspace;
     private readonly AnalysisGraphConsumers _consumers = new();
     private bool _disposed;
     internal AnalysisIndexedGraphHeader Header { get; private set; }
     internal ulong Count(int table) { lock (_gate) { ObjectDisposedException.ThrowIf(_disposed, this); return _data.Count(table); } }
-    private AnalysisIndexedGraphRevision(AnalysisIndexedGraphHeader header, AnalysisScratchCompositeRevision data, AnalysisSortedIndex[] indexes)
-    { Header = header; _data = data; _indexes = indexes; }
+    private AnalysisIndexedGraphRevision(AnalysisIndexedGraphHeader header, AnalysisScratchCompositeRevision data, AnalysisSortedIndex[] indexes, AnalysisScratchWorkspace workspace)
+    { Header = header; _data = data; _indexes = indexes; _workspace = workspace; }
 
     // Consumes data on success OR failure; workspace remains caller owned.
     internal static async Task<AnalysisIndexedGraphRevision> BuildAsync(AnalysisIndexedGraphHeader header, AnalysisScratchCompositeRevision data,
@@ -162,7 +163,8 @@ internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
                 using var source = Entries(kind, header.Roots, data, cancellation).GetEnumerator();
                 ownership.Indexes.Add(await AnalysisExternalSort.BuildSparseAsync(workspace, io, device, source, cancellation).ConfigureAwait(false));
             }
-            var result = new AnalysisIndexedGraphRevision(header, data, ownership.Indexes.ToArray());
+            ownership.Workspace = workspace.Borrow();
+            var result = new AnalysisIndexedGraphRevision(header, data, ownership.Indexes.ToArray(), ownership.Workspace);
             var reader = await AnalysisIo.Run(io, device, _ => result.Acquire(), cancellation).ConfigureAwait(false);
             try { result.Header = await AnalysisIndexedGraphValidation.ValidateAsync(reader, io, device, cancellation).ConfigureAwait(false); }
             finally { await AnalysisIo.ReleaseScratchAsync(io, device, reader).ConfigureAwait(false); }
@@ -207,7 +209,7 @@ internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            return AnalysisIndexedGraphReader.Open(Header, _consumers.Reserve(), () => _data.Borrow(), i => _indexes[i].Acquire());
+            return AnalysisIndexedGraphReader.Open(Header, _consumers.Reserve(), () => _data.Borrow(), i => _indexes[i].Acquire(), () => _workspace.Borrow());
         }
     }
     public void Dispose()
@@ -216,13 +218,13 @@ internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
         {
             if (_disposed) return; _disposed = true;
             try { foreach (var index in _indexes) index.Dispose(); }
-            finally { _data.Dispose(); }
+            finally { try { _data.Dispose(); } finally { _workspace.Dispose(); } }
         }
     }
     private sealed class GraphBuildOwnership(AnalysisScratchCompositeRevision data) : IAnalysisScratchOwned
     {
-        internal readonly List<AnalysisSortedIndex> Indexes = []; internal bool Transferred;
-        public void Dispose() { if (Transferred) return; try { foreach (var index in Indexes) index.Dispose(); } finally { data.Dispose(); } }
+        internal readonly List<AnalysisSortedIndex> Indexes = []; internal bool Transferred; internal AnalysisScratchWorkspace? Workspace;
+        public void Dispose() { if (Transferred) return; try { foreach (var index in Indexes) index.Dispose(); } finally { try { data.Dispose(); } finally { Workspace?.Dispose(); } } }
     }
 }
 
@@ -232,23 +234,25 @@ internal sealed class AnalysisIndexedGraphReader : IAnalysisScratchOwned
     private readonly AnalysisScratchCompositeRevision _data;
     private readonly AnalysisSortedIndexReader[] _indexes;
     private readonly AnalysisGraphConsumers.Ticket _consumer;
+    private readonly AnalysisScratchWorkspace _workspace;
     internal AnalysisIndexedGraphHeader Header { get; }
     private AnalysisIndexedGraphReader(AnalysisIndexedGraphHeader header, AnalysisGraphConsumers.Ticket consumer,
-        AnalysisScratchCompositeRevision data, AnalysisSortedIndexReader[] indexes)
-    { Header = header; _consumer = consumer; _data = data; _indexes = indexes; }
+        AnalysisScratchCompositeRevision data, AnalysisSortedIndexReader[] indexes, AnalysisScratchWorkspace workspace)
+    { Header = header; _consumer = consumer; _data = data; _indexes = indexes; _workspace = workspace; }
     internal static AnalysisIndexedGraphReader Open(AnalysisIndexedGraphHeader header, AnalysisGraphConsumers.Ticket consumer,
-        Func<AnalysisScratchCompositeRevision> dataSource, Func<int, AnalysisSortedIndexReader> indexSource)
+        Func<AnalysisScratchCompositeRevision> dataSource, Func<int, AnalysisSortedIndexReader> indexSource, Func<AnalysisScratchWorkspace> workspaceSource)
     {
-        AnalysisScratchCompositeRevision? data = null; var indexes = new AnalysisSortedIndexReader[AnalysisIndexedGraphRevision.IndexCount];
+        AnalysisScratchCompositeRevision? data = null; var indexes = new AnalysisSortedIndexReader[AnalysisIndexedGraphRevision.IndexCount]; AnalysisScratchWorkspace? workspace = null;
         try
         {
             data = dataSource(); for (int i = 0; i < indexes.Length; i++) indexes[i] = indexSource(i);
-            return new(header, consumer, data, indexes);
+            workspace = workspaceSource(); return new(header, consumer, data, indexes, workspace);
         }
-        catch { try { foreach (var index in indexes) index?.Dispose(); } finally { try { data?.Dispose(); } finally { consumer.Dispose(); } } throw; }
+        catch { try { foreach (var index in indexes) index?.Dispose(); } finally { try { data?.Dispose(); } finally { try { workspace?.Dispose(); } finally { consumer.Dispose(); } } } throw; }
     }
     internal AnalysisIndexedGraphReader Retain()
-    { lock (_gate) { Guard(); return Open(Header, _consumer.Retain(), () => _data.Borrow(), i => _indexes[i].Retain()); } }
+    { lock (_gate) { Guard(); return Open(Header, _consumer.Retain(), () => _data.Borrow(), i => _indexes[i].Retain(), () => _workspace.Borrow()); } }
+    internal AnalysisScratchWorkspace BorrowWorkspace() { lock (_gate) { Guard(); return _workspace.Borrow(); } }
     internal ulong Count(int table) { lock (_gate) { Guard(); return _data.Count(table); } }
     internal AnalysisNode ReadPath(ulong id, CancellationToken cancellation = default)
     { lock (_gate) { Guard(); return ReadPathRecord(id, cancellation).Node; } }
@@ -279,7 +283,7 @@ internal sealed class AnalysisIndexedGraphReader : IAnalysisScratchOwned
         {
             if (_disposed) return; _disposed = true;
             try { foreach (var index in _indexes) index.Dispose(); }
-            finally { try { _data.Dispose(); } finally { _consumer.Dispose(); } }
+            finally { try { _data.Dispose(); } finally { try { _workspace.Dispose(); } finally { _consumer.Dispose(); } } }
         }
     }
 }
