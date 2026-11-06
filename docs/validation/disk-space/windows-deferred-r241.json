@@ -1,0 +1,33 @@
+{
+  "status": "deferred-shared-vm-busy",
+  "recordedAtUtc": "2026-11-06T09:13:05.8653300+00:00",
+  "nonce": "disk-space-r242",
+  "guestReportedAtUtc": "2026-11-06T10:12:03.8063222+01:00",
+  "processes": [
+    {
+      "ProcessId": 8892,
+      "Name": "dotnet.exe"
+    },
+    {
+      "ProcessId": 6804,
+      "Name": "dotnet.exe"
+    },
+    {
+      "ProcessId": 5468,
+      "Name": "FileCat.Platform.Windows.Tests.exe"
+    },
+    {
+      "ProcessId": 6296,
+      "Name": "dotnet.exe"
+    },
+    {
+      "ProcessId": 10916,
+      "Name": "dotnet.exe"
+    },
+    {
+      "ProcessId": 8940,
+      "Name": "FileCat.WorkerProbe.exe"
+    }
+  ],
+  "note": "Fresh uniquely named guest query/receipt, other implementor processes preserved. Guest clock reports approximately one hour ahead of host UTC; guest file timestamps are not an authoritative host observation time. No current Windows qualification."
+}

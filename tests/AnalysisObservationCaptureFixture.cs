@@ -138,12 +138,14 @@ internal static partial class AnalysisObservationCaptureFixture
                 Assert.True(await explorer.LoadPageAsync(first.ParentId, maximum: 1, cancellation: cancellation));
                 Assert.Single(explorer.Page!.Children.Rows); Assert.True(explorer.Page.Children.HasMore);
                 Assert.Equal(sharedAllocation, Assert.Single(explorer.Page.Buckets).Totals.Known);
+                Assert.Equal((UInt128)payload.Length, explorer.LogicalTotals.KnownBytes); Assert.Equal(1UL, explorer.LogicalTotals.Files);
                 Assert.True(await explorer.InspectAsync(first.Id, maximum: 1, cancellation: cancellation));
                 var inspection = explorer.Inspection!; Assert.Equal(obj.VerifiedIdentity, inspection.Object!.VerifiedIdentity);
                 Assert.Equal((UInt128)payload.Length, inspection.Object.LogicalLength.Value); Assert.Equal(2UL, inspection.Aliases.Total);
                 Assert.True(inspection.Aliases.HasMore); Assert.Single(inspection.Facts.Rows); Assert.True(inspection.AncestorsComplete);
                 Assert.True(await explorer.InspectAsync(second.Id, aliasOffset: 1, maximum: 1, cancellation: cancellation));
                 Assert.False(explorer.Inspection!.Row.IsMatch); Assert.True(explorer.Inspection.Row.HasChargesElsewhere);
+                Assert.Equal((UInt128)0, explorer.Inspection.Row.Logical.KnownBytes); Assert.Equal(0UL, explorer.Inspection.Row.Logical.Files);
                 Assert.False(explorer.Inspection.Aliases.HasMore);
             }
             Assert.Equal(payload, File.ReadAllBytes(original)); Assert.Equal(payload, File.ReadAllBytes(alias));

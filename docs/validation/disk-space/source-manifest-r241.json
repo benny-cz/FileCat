@@ -1,0 +1,72 @@
+{
+  "purpose": "Same-active-query indexed logical-size columns independent of shared metric accounting",
+  "gitBase": "9238da28",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "5b58ca240daa1c053e66af3c6b0f4c5a9a3ba02759a73eaa6faca2864b716d5c"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "b485d8f3a1309fc8aaeedb60c52297d35ab6cb05cd8883e3e524123dc061963a"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetExplorer.cs",
+      "sha256": "5c250447e38505bd7f5b96f4da23d45c1345ca320446b116336759a04d66be75"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+      "sha256": "d24c4477176758f8a72f90efaa3e134f6cca5d0f34c4d5acf05323e5f119359f"
+    },
+    {
+      "path": "tests/AnalysisObservationCaptureFixture.cs",
+      "sha256": "74d2eeb889be6abca2bb3b7c4f000c596f73a79463909635817ef126b8b41f3b"
+    },
+    {
+      "path": "tests/AnalysisSourceFrontierFixture.cs",
+      "sha256": "ef2fbf1d362a519c083c059b31b57243a0392fca7393c407ebafde24ee47b9ac"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.LogicalColumns.cs",
+      "sha256": "2685f80badf8c45bfa322a323dd64538f1f324b4f52aae50eb02d277641684ff"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r241.tgz",
+      "sha256": "cc3927403674430928942077042e1cf7a1ec6616a83006886192cbcbe3692815"
+    },
+    {
+      "path": ".tmp/dsa-native-r241.tgz",
+      "sha256": "757ecbbb44fa843a55def73dfd5430fad558ec7cc35250237856db983a8da805"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r241.sh",
+      "sha256": "556c3f10dec880f0fe89e12ec8ed6c6a642a098861163f770b5fd63e942bc591"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r241.ps1",
+      "sha256": "fa12fa8cac938dc51c2c53b7cb445e87b0ef8004996aec0e8e6c01c4026ed56f"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r241.ps1",
+      "sha256": "384d433c0cf8bd5ad85279b89273792d89d14bba47fcef5052d70261747a57c5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-occupancy-r242.ps1",
+      "sha256": "158a3162b6d091e6fe74708680e583b3e589a6ee4fa89f0fb2185580375655e3"
+    }
+  ],
+  "reports": [
+    "mac-core-r241.xml",
+    "ubuntu-core-r241.xml",
+    "indexed-logical-build-r240.txt",
+    "mac-post-logical-r241.txt",
+    "ubuntu-post-logical-r241.txt",
+    "windows-deferred-r241.json"
+  ],
+  "remaining": "Indexed frontend/chart adoption, complete sorting/grouping/scoped selection, streaming persistence/original inventory IDs, cross-process quota, native 1M/10M/resource and Windows/platform/UI qualification, remaining mandatory packets and final independent review."
+}

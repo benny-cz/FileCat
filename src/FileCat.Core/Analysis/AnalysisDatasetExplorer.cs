@@ -31,6 +31,7 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
     public AnalysisMetric Metric => _hierarchy.Metric;
     public AnalysisFilterSummary? Filter => _hierarchy.Filter;
     public AnalysisTotals Totals => _hierarchy.Totals;
+    public AnalysisLogicalTotals LogicalTotals => _hierarchy.LogicalTotals;
     public AnalysisExplorerPage? Page { get { lock (_gate) return _page; } }
     public AnalysisExplorerInspection? Inspection { get { lock (_gate) return _inspection; } }
     public int PendingRequests { get { lock (_gate) return _active; } }
