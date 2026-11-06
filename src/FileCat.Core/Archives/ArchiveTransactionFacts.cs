@@ -459,6 +459,7 @@ public sealed record ArchiveTransactionRecovery(IReadOnlyList<ArchiveTransaction
     public IReadOnlyList<ArchiveContentUpdateFacts> ContentUpdates { get; init; } = [];
     public IReadOnlyList<ArchiveContentCleanupFacts> ContentCleanups { get; init; } = [];
     public IReadOnlyList<ArchiveContentRecoveryFacts> ContentRecoveries { get; init; } = [];
+    public IReadOnlyList<ArchiveContentRestorationFacts> ContentRestorations { get; init; } = [];
     public bool IsContentResolved(Guid nonce) => ContentRecoveries.Any(recovery => recovery.Nonce == nonce && recovery.IsResolved) ||
         ContentUpdates.Any(content => content.Nonce == nonce && content.Phase == ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts) &&
         ContentCleanups.Any(cleanup => cleanup.Nonce == nonce && cleanup.IsResolved);
@@ -473,6 +474,7 @@ internal sealed class ArchiveTransactionCollector
     private readonly Dictionary<Guid, ArchiveContentUpdateFacts> content = [];
     private readonly Dictionary<Guid, ArchiveContentCleanupFacts> cleanup = [];
     private readonly Dictionary<Guid, ArchiveContentRecoveryFacts> recovery = [];
+    private readonly Dictionary<Guid, ArchiveContentRestorationFacts> restoration = [];
     private bool hasRecords;
     private bool damaged;
     private bool legacy;
@@ -484,7 +486,7 @@ internal sealed class ArchiveTransactionCollector
         problem ?? (legacy ? "This legacy archive journal lacks complete provenance evidence; retain its recorded artifacts for archive-specific review." :
             hasRecords && damaged ? "The archive transaction journal contains damaged or incomplete records." : null))
         { ContentUpdates = Array.AsReadOnly(content.Values.ToArray()), ContentCleanups = Array.AsReadOnly(cleanup.Values.ToArray()),
-            ContentRecoveries = Array.AsReadOnly(recovery.Values.ToArray()) };
+            ContentRecoveries = Array.AsReadOnly(recovery.Values.ToArray()), ContentRestorations = Array.AsReadOnly(restoration.Values.ToArray()) };
     public void DamagedRecord() => damaged = true;
     public void ValidateNext(ArchiveTransactionFacts facts)
     {
@@ -497,7 +499,7 @@ internal sealed class ArchiveTransactionCollector
     internal void ValidateNextContent(ArchiveContentUpdateFacts facts)
     {
         if (problem is not null || damaged) throw new InvalidOperationException("The archive transaction journal is not writable.");
-        if (recovery.ContainsKey(facts.Nonce)) throw new InvalidOperationException("Recovery has frozen the original content-update history.");
+        if (recovery.ContainsKey(facts.Nonce) || restoration.ContainsKey(facts.Nonce)) throw new InvalidOperationException("Recovery has frozen the original content-update history.");
         facts.ValidateAfter(Current(facts.Nonce), content.GetValueOrDefault(facts.Nonce));
     }
     internal void AcceptContent(ArchiveContentUpdateFacts facts)
@@ -510,7 +512,7 @@ internal sealed class ArchiveTransactionCollector
     internal void ValidateNextCleanup(ArchiveContentCleanupFacts facts)
     {
         if (problem is not null || damaged) throw new InvalidOperationException("The archive transaction journal is not writable.");
-        if (recovery.ContainsKey(facts.Nonce)) throw new InvalidOperationException("Recovery has frozen the original cleanup history.");
+        if (recovery.ContainsKey(facts.Nonce) || restoration.ContainsKey(facts.Nonce)) throw new InvalidOperationException("Recovery has frozen the original cleanup history.");
         if (!content.TryGetValue(facts.Nonce, out var current)) throw new ArgumentException("Cleanup requires an existing content transaction.");
         facts.ValidateAfter(Current(facts.Nonce), current, cleanup.GetValueOrDefault(facts.Nonce));
     }
@@ -526,7 +528,7 @@ internal sealed class ArchiveTransactionCollector
         if (problem is not null || damaged) throw new InvalidOperationException("The archive transaction journal is not writable.");
         if (!content.TryGetValue(facts.Nonce, out var source) || !cleanup.TryGetValue(facts.Nonce, out var artifacts))
             throw new ArgumentException("Recovery requires the recorded content and sealed artifact catalog.");
-        facts.ValidateAfter(Current(facts.Nonce), source, artifacts, recovery.GetValueOrDefault(facts.Nonce));
+        facts.ValidateAfter(Current(facts.Nonce), source, artifacts, recovery.GetValueOrDefault(facts.Nonce), restoration.GetValueOrDefault(facts.Nonce));
     }
     internal void AcceptRecovery(ArchiveContentRecoveryFacts facts)
     { ValidateNextRecovery(facts); recovery[facts.Nonce] = facts; hasRecords = true; }
@@ -535,6 +537,15 @@ internal sealed class ArchiveTransactionCollector
         if (problem is not null || damaged || !ReferenceEquals(recovery.GetValueOrDefault(facts.Nonce), facts))
             throw new InvalidOperationException("The supplied recovery facts are not the current durable parent facts.");
     }
+    internal void ValidateNextRestoration(ArchiveContentRestorationFacts facts)
+    {
+        if (problem is not null || damaged || recovery.ContainsKey(facts.Nonce)) throw new InvalidOperationException("Cleanup reconciliation has frozen archive restoration history.");
+        if (!content.TryGetValue(facts.Nonce, out var source) || !cleanup.TryGetValue(facts.Nonce, out var artifacts))
+            throw new ArgumentException("Restoration requires the recorded content and sealed artifact catalog.");
+        facts.ValidateAfter(Current(facts.Nonce), source, artifacts, restoration.GetValueOrDefault(facts.Nonce));
+    }
+    internal void AcceptRestoration(ArchiveContentRestorationFacts facts)
+    { ValidateNextRestoration(facts); restoration[facts.Nonce] = facts; hasRecords = true; }
     internal void RequireCurrent(ArchiveTransactionFacts facts)
     {
         if (problem is not null || damaged || content.ContainsKey(facts.Nonce) || !ReferenceEquals(latest.GetValueOrDefault(facts.Nonce), facts))
@@ -542,6 +553,8 @@ internal sealed class ArchiveTransactionCollector
     }
     internal ArchiveTransactionFacts Current(Guid nonce) => latest.GetValueOrDefault(nonce) ??
         throw new InvalidOperationException("The archive transaction has no durable parent facts.");
+    internal ArchiveContentUpdateFacts CurrentContent(Guid nonce) => content.GetValueOrDefault(nonce) ??
+        throw new InvalidOperationException("The archive content update has no durable parent facts.");
     public void Read(string type, JsonObject node)
     {
         // A later header/end cannot turn out-of-order archive history into a completed transaction.
@@ -575,6 +588,11 @@ internal sealed class ArchiveTransactionCollector
         if (ended) damaged = true;
         try
         {
+            if (type == ArchiveContentRestorationFacts.RecordType)
+            {
+                if (headerVersion != ArchiveTransactionFacts.SchemaVersion) throw new ArgumentException("The restoration header is unsupported.");
+                AcceptRestoration(ArchiveContentRestorationFacts.Parse(node)); return;
+            }
             if (type == ArchiveContentRecoveryFacts.RecordType)
             {
                 if (headerVersion != ArchiveTransactionFacts.SchemaVersion) throw new ArgumentException("The recovery header is unsupported.");

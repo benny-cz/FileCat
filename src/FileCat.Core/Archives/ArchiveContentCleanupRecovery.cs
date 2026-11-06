@@ -31,7 +31,8 @@ internal sealed class ArchiveContentCleanupRecovery : IDisposable
         {
             Facts = lease.Journal.RetainedArchiveRecovery().ContentRecoveries.SingleOrDefault(f => f.Nonce == lease.Candidate.Nonce);
             if (Facts is not null && (Facts.Target != lease.Candidate.Target || Facts.TargetMetadataSha256 != lease.Candidate.TargetMetadataSha256 ||
-                Facts.TargetOriginSha256 != lease.Candidate.TargetOriginSha256 || Facts.TargetState != lease.Candidate.TargetState)) throw Changed();
+                Facts.TargetOriginSha256 != lease.Candidate.TargetOriginSha256 || Facts.TargetState != lease.Candidate.TargetState ||
+                Facts.RestorationSha256 != lease.Candidate.RestorationSha256)) throw Changed();
         }
         catch { lease.Dispose(); throw; }
     }

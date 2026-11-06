@@ -53,7 +53,8 @@ internal sealed class WindowsArchiveCleanupRecovery : IDisposable
                     target = directory.OpenSource(Path.GetFileName(preparation.ArchivePath));
                     try
                     {
-                        candidate = ArchiveContentRecoveryFacts.Begin(preparation, content, catalog, ((IArchiveRetainedFile)target).Observe(ct));
+                        candidate = ArchiveContentRecoveryFacts.Begin(preparation, content, catalog, ((IArchiveRetainedFile)target).Observe(ct),
+                            recovery.ContentRestorations.SingleOrDefault(f => f.Nonce == nonce));
                         if (facts is not null && (facts.Target != candidate.Target || facts.TargetMetadataSha256 != candidate.TargetMetadataSha256 ||
                             facts.TargetOriginSha256 != candidate.TargetOriginSha256 || facts.TargetState != candidate.TargetState)) throw Changed();
                         files = new WindowsArchiveFile?[catalog.Artifacts.Count];

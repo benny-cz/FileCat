@@ -78,6 +78,12 @@ five expected administrator-only skips, with a loaded real user profile and raw 
 It also fixes the validation transfer procedure: complete app/probe packages and all 469 actual hashes are checked,
 including all 261 app files against SPDX. Earlier host inventories do not establish exact incremental runtime transfer.
 This closes that explicit identity/artifact validation gap; the broader implementation and qualification gates remain open.
+The [fresh snapshot-restoration follow-up](SNAPSHOT_RESTORATION.md) uses new confined assessment/verification, a fresh
+job and native transaction, and a separate current-version rollback copy before restoring exact retained original
+bytes. It adds durable linked restoration facts, restored-target cleanup reconciliation and read-only reporting.
+All 187 administrator native cases and 182 standard-user cases pass (five administrator-only skips); common/UI
+regressions pass on Windows, Mac and Ubuntu. Restoration process-crash/failure qualification, production actions
+and the broader gates remain unfinished; writer profiles stay disabled.
 The [private creation process-crash follow-up](PRIVATE_CREATION_PROCESS_CRASHES.md) passes ten new publication/metadata
 boundaries and thirteen neighboring crash cases on each platform. It leaves production and recovery authority unchanged.
 The [TAR.GZ worker pipeline](TAR_GZIP_WORKER_PIPELINE.md) adds strict wrapper-aware assessment, streamed create/update

@@ -17,6 +17,11 @@ internal static class InterruptedRecoveryReport
         var facts = job.ArchiveTransactions;
         if (facts.Problem is not null)
             return "Archive recovery records are incomplete or unsupported. Keep the current archive and retained files; Review report lists the recorded locations.";
+        var restorations = facts.ContentRestorations.Where(t => !facts.IsContentResolved(t.Nonce)).ToArray();
+        if (restorations.Any(t => t.Phase != ArchiveContentRestorationPhase.Committed))
+            return "An archive restoration was interrupted. Keep the current archive and retained versions; open Review report for the linked restore job and recorded locations.";
+        if (restorations.Length != 0)
+            return "A retained archive version was recorded as restored. Temporary files still need review; open Review report for the linked restore job and retained versions.";
         if (facts.ContentUpdates.Any(t => !facts.IsContentResolved(t.Nonce) && t.Phase != ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts) ||
             facts.Transactions.Any(t => !t.IsResolved && !facts.IsContentResolved(t.Nonce) && t.Phase != ArchiveTransactionPhase.CommittedWithRetainedArtifacts &&
                 !facts.ContentUpdates.Any(c => c.Nonce == t.Nonce && c.Phase == ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts)))
@@ -189,6 +194,16 @@ internal static class InterruptedRecoveryReport
                 for (int i = recovery.InitialCount; i < recovery.ReviewedCount; i++)
                     Detail((recovery.AbsentMask & (1u << i)) != 0 ? "Artifact recorded absent during recovery (not inspected)" :
                         "Artifact recorded deleted during recovery (not inspected)", catalog.Artifacts[i].Path);
+        }
+        foreach (var restoration in job.ArchiveTransactions.ContentRestorations)
+        {
+            Line($"Archive restoration {restoration.Nonce:N}, facts v{ArchiveContentRestorationFacts.SchemaVersion}, sequence {restoration.Sequence}, attempt {restoration.Attempt}, recorded phase {restoration.Phase}");
+            Detail("Linked fresh restore journal (not inspected)", restoration.RestoreJournalPath);
+            Line("Fresh restore transaction: " + restoration.RestoreNonce.ToString("N") + ", native transaction: " + restoration.NativeTransactionId.ToString("D"));
+            Line("Archive before restoration: identity " + JsonSerializer.Serialize(restoration.Before.Identity) + ", SHA-256 " + restoration.Before.Sha256);
+            Line("Expected restored archive: identity " + JsonSerializer.Serialize(restoration.Restored.Identity) + ", SHA-256 " + restoration.Restored.Sha256);
+            Line("Restored origin evidence SHA-256: " + restoration.RestoredOriginSha256);
+            Line("The fresh restore job has its own rollback snapshot of the version being replaced. A restore intent alone does not confirm publication; no recorded path grants replay authority.");
         }
         Line();
         if (deleted is not null)

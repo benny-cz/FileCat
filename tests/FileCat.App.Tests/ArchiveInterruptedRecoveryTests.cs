@@ -25,6 +25,31 @@ namespace FileCat.App.Tests;
 public sealed class ArchiveInterruptedRecoveryTests
 {
     [AvaloniaTheory]
+    [InlineData(ArchiveContentRestorationPhase.CommitIntent)]
+    [InlineData(ArchiveContentRestorationPhase.Committed)]
+    [InlineData(ArchiveContentRestorationPhase.NeedsReview)]
+    public async Task Restoration_reports_distinguish_a_recorded_commit_from_interruption_and_escape_the_linked_journal(ArchiveContentRestorationPhase phase)
+    {
+        using var f = await Fixture.Create("content-committed"); var content = Assert.Single(f.Interrupted.ArchiveTransactions.ContentUpdates);
+        string linked = Path.Combine(Path.GetDirectoryName(f.Interrupted.JournalPath)!, "restore\ncopy.jsonl");
+        var node = new JsonObject
+        {
+            ["t"] = "archive-content-restoration", ["v"] = 1, ["nonce"] = content.Nonce.ToString("N"), ["sequence"] = phase == ArchiveContentRestorationPhase.CommitIntent ? 1 : 2,
+            ["attempt"] = 1, ["phase"] = phase.ToString(), ["content"] = new string('A', 64), ["cleanup"] = new string('B', 64),
+            ["restoreNonce"] = Guid.NewGuid().ToString("N"), ["restoreJournal"] = linked, ["transaction"] = Guid.NewGuid().ToString("N"),
+            ["before"] = Version(content.PrivateOutput!), ["beforeMetadata"] = content.PrivateMetadataSha256, ["beforeOrigin"] = content.RequiredOriginSha256,
+            ["restored"] = Version(new(content.PrivateOutput!.Identity, content.Snapshot!.Length, content.Snapshot.Sha256)),
+            ["restoredMetadata"] = content.PrivateMetadataSha256, ["restoredOrigin"] = content.RequiredOriginSha256,
+        };
+        var job = f.Interrupted with { ArchiveTransactions = f.Interrupted.ArchiveTransactions with { ContentRestorations = [ArchiveContentRestorationFacts.Parse(node)] } };
+        string summary = InterruptedRecoveryReport.ArchiveSummary(job);
+        Assert.Contains(phase == ArchiveContentRestorationPhase.Committed ? "recorded as restored" : "restoration was interrupted", summary);
+        string report = InterruptedRecoveryReport.Format(job, "read-only restoration report", [], [], new([], [], false), false);
+        Assert.Contains("Linked fresh restore journal (not inspected)", report); Assert.Contains("restore\\ncopy", report); Assert.DoesNotContain("restore\ncopy", report);
+        Assert.Contains("its own rollback snapshot", report); Assert.Contains("does not confirm publication", report);
+        static JsonObject Version(ArchiveObjectVersion value) => new() { ["identity"] = value.Identity, ["length"] = value.Length, ["sha256"] = value.Sha256 };
+    }
+    [AvaloniaTheory]
     [InlineData("reserved")]
     [InlineData("unrecorded-stage")]
     [InlineData("sidecar-reserved")]

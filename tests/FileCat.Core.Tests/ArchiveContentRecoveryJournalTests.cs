@@ -86,7 +86,7 @@ public sealed class ArchiveContentRecoveryJournalTests
             case "count": node["count"] = 7; break;
             case "overlap": node["deletedMask"] = 1; node["absentMask"] = 1; break;
             case "skip": node["reviewed"] = 1; node["deletedMask"] = 1; break;
-            case "unknown": node["v"] = 2; break;
+            case "unknown": node["v"] = ArchiveContentRecoveryFacts.SchemaVersion + 1; break;
         }
         Assert.Throws<ArgumentException>(() => journal.ArchiveContentRecovery(ArchiveContentRecoveryFacts.Parse(node)));
         Assert.Equal(1, Assert.Single(journal.RetainedArchiveRecovery().ContentRecoveries).Sequence);

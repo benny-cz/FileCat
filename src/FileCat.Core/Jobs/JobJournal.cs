@@ -135,6 +135,29 @@ public sealed class JobJournal : IDisposable
         }
     }
 
+    internal void ArchiveContentRestoration(ArchiveContentRestorationFacts facts)
+    {
+        ArgumentNullException.ThrowIfNull(facts);
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!_archiveRecoveryOnly || _finished || _manualRecovery) throw new InvalidOperationException("Restoration requires the retained unfinished archive journal writer.");
+            _archiveTransactions.ValidateNextRestoration(facts);
+            try { Write(facts.ToJson(), sync: true); } catch { RequireRecovery(); throw; }
+            _archiveTransactions.AcceptRestoration(facts);
+        }
+    }
+
+    internal ArchiveContentUpdateFacts CurrentArchiveContentUpdate(Guid nonce)
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_archiveRecoveryOnly || _finished || _manualRecovery) throw new InvalidOperationException("No current live archive content writer.");
+            var facts = _archiveTransactions.CurrentContent(nonce); _archiveTransactions.RequireCurrentContent(facts); return facts;
+        }
+    }
+
     internal void RequireCurrentArchiveTransaction(ArchiveTransactionFacts facts)
     {
         ArgumentNullException.ThrowIfNull(facts);
@@ -329,7 +352,7 @@ public sealed class JobJournal : IDisposable
 
     private void Write(JsonObject record, bool sync)
     {
-        if (_archiveRecoveryOnly && record["t"]?.GetValue<string>() is not ("archive-content-recovery" or "end"))
+        if (_archiveRecoveryOnly && record["t"]?.GetValue<string>() is not ("archive-content-recovery" or "archive-content-restoration" or "end"))
             throw new InvalidOperationException("This retained recovery writer only appends reconciliation and closure records.");
         var json = record.ToJsonString();
         var bytes = Encoding.UTF8.GetBytes(json);

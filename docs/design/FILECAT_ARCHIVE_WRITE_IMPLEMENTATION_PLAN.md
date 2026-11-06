@@ -357,6 +357,14 @@ Raw token-group observations reject filtered administrator membership. Complete 
 file hashes are checked, including all 261 app files against SPDX. This closes that explicit Windows identity/artifact
 validation gap; restoration, production actions and the remaining platform/format/resource/release gates stay open.
 
+The [fresh snapshot-restoration follow-up](../validation/archive-writing/SNAPSHOT_RESTORATION.md) now restores exact
+retained original bytes through a fresh job, confined assessment/verification and the explicit native NTFS recipe.
+It first seals a separate rollback copy of the current version and records a durable link in the old journal before
+commit. Cleanup can reconcile the exact restored target, including an interrupted outcome append. All 187 native
+administrator cases and 182 genuine standard-user cases pass, with five administrator-only skips; common/UI and
+latest-source preparation/report checks pass on all three platforms. Actual restoration process-crash/failure tests,
+production recovery actions and the remaining qualification gates are still required before enabling a profile.
+
 ### 7.5 Outer metadata and provenance
 
 Treat outer-file metadata separately from metadata of archived members. Updates preserve the existing archive's owner, ACL/mode, relevant attributes, creation time where promised, and origin/quarantine marks. Content-changing mtime follows existing FileCat policy and must be stated/tested. Hard links to the old archive remain attached to the old object; warn once when link count is known and greater than one. Do not silently update all hard-link names.
