@@ -77,6 +77,17 @@ internal static class AnalysisSourceFrontierFixture
                 }
                 Assert.Equal((ulong)directories + 1, count);
             }
+            await using (var explorer = await AnalysisDatasetExplorer.CreateAsync(reader, AnalysisMetric.FileSize, cancellation: cancellation))
+            {
+                ulong count = 0;
+                for (ulong offset = 0;;)
+                {
+                    Assert.True(await explorer.LoadPageAsync(1, offset: offset, maximum: 64, cancellation: cancellation));
+                    var page = explorer.Page!; Assert.InRange(page.Children.Rows.Length, 1, 64); count += (ulong)page.Children.Rows.Length;
+                    if (!page.Children.HasMore) break; offset = page.Children.NextOffset;
+                }
+                Assert.Equal((ulong)directories + 1, count); Assert.Equal((ulong)directories, explorer.Totals.MatchingPaths);
+            }
             await using (var filtered = await reader.BuildHierarchyAsync(AnalysisMetric.FileSize, new("path:directory-0000/file.bin"), cancellation))
             {
                 Assert.Equal((UInt128)1, filtered.Totals.Known); Assert.Equal(1UL, filtered.Totals.MatchingPaths); Assert.Equal(1UL, filtered.Filter!.DefinitePaths); Assert.Equal(0UL, filtered.Filter.UnknownPaths);

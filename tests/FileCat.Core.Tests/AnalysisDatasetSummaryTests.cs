@@ -186,6 +186,7 @@ public sealed partial class AnalysisDatasetSummaryTests
         foreach (var node in snapshot.Nodes) graph.AppendPath(node, Cancellation);
         foreach (var obj in snapshot.Objects) graph.AppendObject(obj with { ObservedAliases = [] }, Cancellation);
         foreach (var fact in snapshot.Facts) graph.AppendFact(fact, Cancellation);
+        foreach (var issue in snapshot.Issues) graph.AppendIssue(issue, Cancellation);
         var revision = await graph.SealAsync(workspace, io, device, snapshot.Identity, snapshot.Phase, snapshot.Coverage, Cancellation);
         try { afterSeal?.Invoke(workspace); return new(revision, io, device); }
         catch { await AnalysisIo.ReleaseScratchAsync(io, device, revision); throw; }
