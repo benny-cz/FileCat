@@ -44,6 +44,10 @@ The [Windows resource-policy follow-up](WINDOWS_RESOURCE_POLICY_OBSERVATIONS.md)
 identifiers with the retained security snapshot, detects value changes without payload/time/DACL changes, and refuses
 a late changed stage before publication. Audit/other unqueried security state, metadata application and existing-file
 replacement remain unfinished.
+The [NTFS transactional-content investigation](WINDOWS_TRANSACTIONAL_CONTENT_SPIKE.md) passes 12 owned native probes,
+including a read-only pin across commit and independent preservation checks for seeded audit/resource/CAP descriptors.
+It changes no production route or source-lease contract. Typed recipe, old-data snapshot, journal/recovery, hard-link,
+durability and application integration remain required before any such backend could be qualified.
 The [private creation process-crash follow-up](PRIVATE_CREATION_PROCESS_CRASHES.md) passes ten new publication/metadata
 boundaries and thirteen neighboring crash cases on each platform. It leaves production and recovery authority unchanged.
 The [TAR.GZ worker pipeline](TAR_GZIP_WORKER_PIPELINE.md) adds strict wrapper-aware assessment, streamed create/update

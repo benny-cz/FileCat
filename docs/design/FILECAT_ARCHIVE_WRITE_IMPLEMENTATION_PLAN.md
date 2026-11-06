@@ -316,6 +316,13 @@ Atomic exchange is not conditional compare-and-swap. If a late different target 
 
 Creation always claims the final name without replacement, including a destination that appears after review. Never delete the occupant to “finish” a creation. Directory permissions and object type are checked again through held handles before publication.
 
+**Candidate investigation (6 November 2026):** [Owned NTFS transaction probes](../validation/archive-writing/WINDOWS_TRANSACTIONAL_CONTENT_SPIKE.md)
+demonstrate atomic same-object data/origin updates, preservation of seeded audit/security state and a transaction-bound
+read pin across commit. This is not a qualified publication backend. Any integration needs a separate typed recipe,
+checksummed old-data retention, exact identity/version admission and complete durability/recovery/resource/alias tests;
+it must not weaken current leases, silently update other hard-link names or enable an unqualified overwrite fallback.
+TxF availability/deprecation and the full hard-link requirement remain explicit gates.
+
 ### 7.5 Outer metadata and provenance
 
 Treat outer-file metadata separately from metadata of archived members. Updates preserve the existing archive's owner, ACL/mode, relevant attributes, creation time where promised, and origin/quarantine marks. Content-changing mtime follows existing FileCat policy and must be stated/tested. Hard links to the old archive remain attached to the old object; warn once when link count is known and greater than one. Do not silently update all hard-link names.
