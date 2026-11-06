@@ -1,0 +1,21 @@
+{
+    "purpose":  "Native related graph and exact index storage; not full analysis scale qualification",
+    "archiveSha256":  "2c074283706714bbef910fb6319651449f65ab8b885d904f11f0bd3dbacc2384",
+    "platform":  "Microsoft Windows NT 10.0.26340.0",
+    "runs":  [
+                 {
+                     "records":  1000000,
+                     "processId":  5036,
+                     "exitCode":  -1,
+                     "ownedProcessExited":  true,
+                     "measurement":  null,
+                     "error":  "Storage scale failed \r\nAt C:\\FileCatDsa20261104R2\\windows-scratch-scale-r149.ps1:32 char:209\r\n+ ... ytes -ne 0){throw (\u0027Storage scale failed \u0027+(Get-Content -LiteralPath  ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (Storage scale failed :String) [], RuntimeExcepti \r\n   on\r\n    + FullyQualifiedErrorId : Storage scale failed \r\n \r\n"
+                 }
+             ],
+    "hashes":  {
+                   "FileCat.Core.dll":  "d3d1f4c856941f147820eacb11a38809629b34255b497124b9de603b844c4a84",
+                   "FileCat.CoreCrashHarness.dll":  "65d3c972c881cdcf76d33aa86eee0625ecac804041f3e592944d8dce48859cb7",
+                   "FileCat.Platform.Windows.dll":  "4a2922a4250ee054079433332e133a40f31c805dacd73616033140524c7190ca"
+               },
+    "error":  "Storage scale failed \r\nAt C:\\FileCatDsa20261104R2\\windows-scratch-scale-r149.ps1:32 char:209\r\n+ ... ytes -ne 0){throw (\u0027Storage scale failed \u0027+(Get-Content -LiteralPath  ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (Storage scale failed :String) [], RuntimeExcepti \r\n   on\r\n    + FullyQualifiedErrorId : Storage scale failed \r\n \r\n"
+}

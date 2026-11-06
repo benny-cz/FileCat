@@ -89,6 +89,19 @@ public sealed class AnalysisIndexedGraphTests
     }
 
     [Fact]
+    public async Task EarlierParentValidationDoesNotEvictTheSequentialPathCacheForEveryObservation()
+    {
+        Ordinary(); var directory = new MemoryDirectory(); using var workspace = new AnalysisScratchWorkspace(directory); using var io = new DeviceIoScheduler(); var header = Header;
+        using var graph = await Create(workspace, io, header);
+        for (ulong id = 1; id <= 5000; id++)
+            graph.AppendPath(new(id, "root", id / 2, "folder-" + id, AnalysisKind.Directory), Cancellation);
+        using var revision = await Seal(graph, workspace, io, header, Cancellation);
+        Assert.True(directory.ReadBytes < 16L * 1024 * 1024, $"Excessive parent-validation read volume: {directory.ReadBytes} bytes.");
+        using var reader = revision.Acquire(); Assert.Equal(5000UL, reader.Count(AnalysisIndexedGraph.Paths));
+        Assert.Equal(2500UL, reader.ReadPath(5000, Cancellation).ParentId);
+    }
+
+    [Fact]
     public async Task WholeGraphConsumersStayBoundedAndRetainAfterOwnerClosureWithoutSpendingOneLeasePerTable()
     {
         Ordinary(); using var workspace = new AnalysisScratchWorkspace(new MemoryDirectory()); using var io = new DeviceIoScheduler(); var header = Header;
@@ -134,7 +147,7 @@ public sealed class AnalysisIndexedGraphTests
 
     private sealed class MemoryDirectory : AnalysisPrivateDirectory
     {
-        internal bool Closed, FailNextWrite; internal int LiveFiles, Creates, FailAtCreate = -1;
+        internal bool Closed, FailNextWrite; internal int LiveFiles, Creates, FailAtCreate = -1; internal long ReadBytes;
         internal override void Verify() => ObjectDisposedException.ThrowIf(Closed, this);
         internal override (UInt128 Capacity, UInt128 Available) Space() => ((UInt128)1024 * 1024 * 1024, (UInt128)1024 * 1024 * 1024);
         internal override AnalysisPrivateScratchFile CreateScratch()
@@ -148,7 +161,8 @@ public sealed class AnalysisIndexedGraphTests
         private readonly MemoryStream _bytes = new(); private bool _closed;
         public override long Length => _bytes.Length;
         public override void Verify() { }
-        public override int ReadAt(Span<byte> buffer, long offset) { _bytes.Position = offset; return _bytes.Read(buffer); }
+        public override int ReadAt(Span<byte> buffer, long offset)
+        { _bytes.Position = offset; int read = _bytes.Read(buffer); Interlocked.Add(ref directory.ReadBytes, read); return read; }
         public override void WriteAt(ReadOnlySpan<byte> buffer, long offset)
         {
             _bytes.Position = offset;

@@ -110,8 +110,26 @@ Sealing freezes observation input, then builds exact full-key indexes for childr
 
 Graph readers keep all related data/index lifetimes after writer, revision owner and workspace close. The whole-graph consumer ceiling is eight, independent of the number of component views, including reader retention after owner closure. Indexed aliases and related values are paged by exact ranges; base records do not materialize full alias or issue lists.
 
-Sparse sorting now accepts explicit consumed-row byte costs. A skipped directory is a counted work step, so a directory-only alias source cannot run millions of hidden MoveNext iterations. A one-worker regression queues interactive work during skipped 64KiB rows and verifies service after at most four such rows. Cancellation and invalid sparse inputs use the same admitted cleanup path.
+Sparse sorting now accepts explicit consumed-row byte costs. A skipped directory is a counted work step, so a directory-only alias source cannot run millions of hidden MoveNext iterations. A one-worker regression queues interactive work during skipped 64 KiB rows and verifies service after at most four such rows. Cancellation and invalid sparse inputs use the same admitted cleanup path.
 
 Final r147 controls pass on Windows 407 total/381 passed/26 platform skips, Mac 389/388/1, Ubuntu 389/388/1 and Windows native 27/27. The r146 solution build has zero warnings/errors. Shared native NTFS/APFS/ext4 storage probes create 1000 paths, 250 objects/facts and sampled issues, validate exact children/aliases/object lookups and imported classification after all owners close, then verify zero quota and an untouched foreign neighbor. All runners return successfully. The earlier r145 compile failure was a test's wrong scheduler enum name; it was corrected to Interactive before final build and guest runs.
 
 This remains an internal typed storage/index component. Production AnalysisStore/scanner/snapshot and projection APIs still use the bounded managed implementation. Full graph 1M/10M resource tests, complete coverage/issue-total metadata, arbitrary inventory-ID mapping, qualified source/frontier integration, aggregation/query/chart/table/import/export and the rest of the full plan remain pending. The final independent UX/UI/functional/security review has not been performed.
+
+## Parent-cache correction and related-graph scale
+
+The initial larger related-graph run exposed repeated cache eviction: structural validation alternated the current row and its earlier parent through one one-block path cache. Validation now retains a separate bounded parent reader/cache and releases it through actual admitted cleanup. The bounded regression uses 5000 synthetic directory paths. It reads 269,244,225 bytes with the previous Core and fails the 16 MiB limit; the corrected case passes. The Mac negative control has 13 cases/12 passed/one expected read-volume failure. The initial r149 Windows/Mac 1M workers were deliberately stopped, both observed exited, and are excluded from acceptance; Ubuntu r149 was postponed for a competing tester. Other busy-stage refusals are also excluded.
+
+Final r152 controls pass: Windows 408 total/382 passed/26 platform skips, Mac 390/389/1, Ubuntu 390/389/1 and Windows native 27/27. The r150 full solution build has zero warnings/errors.
+
+Native r153/r154 creates synthetic graphs of 1M and 10M paths, with a binary hierarchy, first-half directories and second-half single-alias files; there are half as many objects/facts and one sampled issue per 4096 paths. Fixed-width synthetic object IDs preserve numeric order. Ordinary names have 24 characters, with one 64 KiB raw name per 16,384; Windows uses UTF-16LE and Mac/Ubuntu UTF-8. Every typed table field and every entry in all six exact indexes is read back and checked for source key/value, strict order and count. Exact related ranges and imported classification are checked after the writer, graph owner and workspace close. Every owned child exits with code 0, removes owned data, preserves a caller-owned neighbor and leaves both session and parent quotas at zero.
+
+Ubuntu's first 10M run reached the 900-second controller deadline and was observed terminated. Its 1M run passed. Only the unfinished 10M case was rerun in fresh r154 with 1800 seconds and identical archive/assembly hashes. Raw receipts are retained beside an explicitly combined acceptance report; the interrupted run is excluded.
+
+This is storage-only evidence from Debug test/harness binaries on native NTFS/APFS/ext4. It does not establish actual source enumeration, arbitrary-ID import, different identity/alias distributions, connected AnalysisStore/scanner/snapshot/projection/table/chart/export, release-package performance or the complete release gate. The current graph header also still needs complete coverage/issue-total integration. Memory samples are periodic 50 ms observations, not absolute peaks; Mac private bytes are unavailable. The final independent UX/UI/functional/security review remains pending.
+
+| Guest |1M write/index+validation/read seconds |10M write/index+validation/read seconds |10M final/sampled peak scratch bytes |10M sampled private-byte increment |
+|---|---|---|---|---|
+|windows|7.921 / 32.697 / 12.383|81.493 / 356.247 / 138.376|3481735878 / 3755421045|131108864 bytes|
+|mac|3.977 / 18.123 / 5.295|39.152 / 187.686 / 54.486|3001765194 / 3127197577|Unavailable|
+|ubuntu|13.322 / 63.036 / 23.543|136.552 / 680.718 / 263.670|3001765194 / 3127416333|143683584 bytes|

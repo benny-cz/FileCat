@@ -26,6 +26,11 @@ internal static class AnalysisIndexedGraphValidation
         }
 
         ulong path = 1, pathCount = reader.Count(AnalysisIndexedGraph.Paths); var roots = new bool[reader.Header.Roots.Length];
+        // Sequential rows and their earlier parents have independent one-block caches. Alternating
+        // through one cache would reload/authenticate both blocks for almost every observation.
+        var parents = await AnalysisIo.Run(io, device, _ => reader.Retain(), cancellation).ConfigureAwait(false);
+        try
+        {
         while (path <= pathCount)
             await AnalysisIo.Run(io, device, token =>
             {
@@ -38,7 +43,7 @@ internal static class AnalysisIndexedGraphValidation
                     { if (roots[current.RootIndex]) throw AnalysisIndexedGraph.Invalid(); roots[current.RootIndex] = true; }
                     else
                     {
-                        var parent = reader.ReadPathRecord(node.ParentId, token);
+                        var parent = parents.ReadPathRecord(node.ParentId, token);
                         if (parent.RootIndex != current.RootIndex || parent.Depth + 1 != current.Depth || parent.Node.Kind != AnalysisKind.Directory ||
                             !parent.Node.IncludedByPolicy || parent.Node.MetadataState != MeasurementState.Known) throw AnalysisIndexedGraph.Invalid();
                     }
@@ -46,6 +51,8 @@ internal static class AnalysisIndexedGraphValidation
                 }
                 return true;
             }, cancellation).ConfigureAwait(false);
+        }
+        finally { await AnalysisIo.ReleaseScratchAsync(io, device, parents).ConfigureAwait(false); }
 
         // Merge the exact object-ID and alias indexes. A hostile long gap of unreferenced objects also
         // counts against the worker batch, so it cannot monopolize one admitted device delegate.

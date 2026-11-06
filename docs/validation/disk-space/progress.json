@@ -101,15 +101,17 @@
     "Related private record tables now publish one coherent immutable generation under one consumer lease; failure during a later table flush retains the previous entire generation. Independent reader retention remains bounded to eight after owner closure. Strict inert object/fact/issue codecs preserve exact UInt128/state/time/reference fields and reject unsupported supplied alias lists instead of discarding them.",
     "A workspace shares one native no-follow directory and one hierarchical session/profile-process scratch budget across independently owned data, spool and index arenas. Temporary external sorting clones bounded binary keys, sorts outside device workers, merges admitted record/byte batches, retains exact duplicate-key ranges, retires the spool, and leaves immutable exact-key/prefix readers alive after owners close. Native 1M/10M reverse-key storage readback passes on Windows, Mac and Ubuntu. These remain internal storage components; production graph/scanner/projection integration and the full plan remain unfinished.",
     "An internal typed graph now freezes paths/objects/facts/issues at one publication and builds exact children, object-ID, alias, fact-owner, fact-ID and issue-owner indexes. Streaming validation refuses duplicate IDs/siblings, missing or contradictory object/alias relationships, wrong fact owners, conflicting/cyclic component sets and dangling/cross-root issues before a graph reader is returned. Whole-graph readers retain their inert header and all indexes after owner closure, with an eight-consumer ceiling. Failed temporary indexing can retry the identical frozen header; failed raw publication refuses further publication. Production scanner/store/projection integration remains unfinished.",
-    "Sparse index sources report each consumed row and its byte cost, including rows that yield no index entry. A single-worker scheduling control proves interactive work gets a turn after four64KiB skipped rows. Native related-graph storage probes on NTFS/APFS/ext4 verify1000 paths,250 objects/facts, exact aliases/children/object lookups, imported classification, retained owner-closed readers, foreign-neighbor preservation and zero residual quota. These are synthetic storage observations, not actual source traversal or full graph-scale/feature qualification."
+    "Sparse index sources report each consumed row and its byte cost, including rows that yield no index entry. A single-worker scheduling control proves interactive work gets a turn after four64KiB skipped rows. Native related-graph storage probes on NTFS/APFS/ext4 verify1000 paths,250 objects/facts, exact aliases/children/object lookups, imported classification, retained owner-closed readers, foreign-neighbor preservation and zero residual quota. These are synthetic storage observations, not actual source traversal or full graph-scale/feature qualification.",
+    "A larger native graph run exposed repeated leaf/parent cache eviction during structural validation. Parent traversal now retains a separate bounded reader/cache, released on admitted workers. The old Core reads 269,244,225 bytes for 5,000 synthetic paths and fails the new 16 MiB read-volume limit; final corrected controls pass on Windows, Mac and Ubuntu. The initial r149 native graph runs were deliberately interrupted and remain rejected evidence; Ubuntu r149 was postponed for another tester.",
+    "Native r153/r154 synthetic 1M/10M graphs pass complete typed-record and all-six-index key/value/order/count readback on NTFS/APFS/ext4. Fixtures use a binary hierarchy, first-half directories, second-half single-alias files, fixed-width synthetic IDs, 24-character names and one 64 KiB raw name per 16,384; Windows uses UTF-16LE and Mac/Ubuntu UTF-8. Related ranges, imported privacy, owner-closed readers, foreign-neighbor preservation, actual owned exits and zero session/parent quota are verified. Ubuntu needed an extended controller deadline for 10M; the interrupted attempt is excluded. This does not qualify source traversal, arbitrary identities/alias distributions, connected production store/projection/UI or the full feature."
   ],
   "validation": {
     "windowsCore": {
-      "total": 407,
-      "passed": 381,
+      "total": 408,
+      "passed": 382,
       "failed": 0,
       "skipped": 26,
-      "evidence": "windows-core-r147.xml"
+      "evidence": "windows-core-r152.xml"
     },
     "windowsHostNative": {
       "total": 14,
@@ -123,16 +125,16 @@
       "passed": 27,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-native-r147.xml",
+      "evidence": "windows-native-r152.xml",
       "status": "ordinary-user-native-regressions-passed",
-      "detail": "27 native NTFS/filesystem/private-storage controls, including the owner-closed related graph fixture. Rejected operation-feasibility counterexamples remain rejected."
+      "detail": "27 native NTFS/filesystem/private-storage controls pass with separate parent validation caches. Rejected operation-feasibility counterexamples remain rejected."
     },
     "macosArm64": {
-      "total": 389,
-      "passed": 388,
+      "total": 390,
+      "passed": 389,
       "failed": 0,
       "skipped": 1,
-      "evidence": "mac-core-r147.xml"
+      "evidence": "mac-core-r152.xml"
     },
     "headlessRendering": {
       "total": 64,
@@ -145,14 +147,14 @@
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "graph-build-r146.txt"
+      "evidence": "graph-cache-build-r150.txt"
     },
     "ubuntu": {
-      "total": 389,
-      "passed": 388,
+      "total": 390,
+      "passed": 389,
       "failed": 0,
       "skipped": 1,
-      "evidence": "ubuntu-core-r147.xml"
+      "evidence": "ubuntu-core-r152.xml"
     },
     "nativeDesktop": {
       "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification. r62 native accessibility/keyboard link inspection verifies the visible omitted-target explanation, measured-zero distinction and retained mark, with 509 unchanged source paths and owned exit.",
@@ -307,6 +309,17 @@
       "mac": "mac-core-r147.xml",
       "ubuntu": "ubuntu-core-r147.xml",
       "scope": "Bounded synthetic1000-path/250-object/fact graph stored through native private files. Exact aliases/children/object lookups and retained readers after graph/writer/workspace closure, imported privacy, foreign-neighbor preservation and zero quota verified. Core controls cover refusal, immutable headers, eight-consumer bound and sparse scheduling. No source traversal, production AnalysisStore/scanner/projection integration, full graph1M/10M qualification, coverage totals/header completion or final independent review."
+    },
+    "indexedRelatedGraphScale": {
+      "status": "native-synthetic-graph-storage-subset-passed-all-three",
+      "windows": "windows-graph-scale-r153.json",
+      "mac": "mac-graph-scale-r153.json",
+      "ubuntu": "ubuntu-graph-scale-accepted-r154.json",
+      "scope": "Synthetic 1M/10M paths, half as many objects/facts and sampled issues. Full typed tables and all 6 indexes read back after graph/writer/workspace closure, exact related ranges, imported classification, foreign neighbors and zero quota. Fixed-width object IDs and single aliases are declared; arbitrary identity order and hard-link distributions, actual source traversal/frontier, production integration, full process/UI/resource qualification and final review remain pending.",
+      "negativeControl": "mac-cache-red-r151.xml",
+      "rejected": "windows-graph-scale-rejected-r149.json; mac-graph-scale-rejected-r149.json; Ubuntu10M r153 controller deadline",
+      "ubuntuDeadline": "1M r153 passed;10M r153 hit900 seconds, was observed terminated, and only10M retried with identical binaries in fresh r154 with1800 seconds. Raw receipts retained.",
+      "macPrivateBytes": "Unavailable; separately labelled working-set samples do not substitute for private bytes."
     }
   },
   "nextWork": [

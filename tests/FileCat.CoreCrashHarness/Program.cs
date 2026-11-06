@@ -14,6 +14,8 @@ if (args is ["--analysis-scratch-paths", var pathText, var pathsParent])
     return ScratchPathScale.Run(int.Parse(pathText, System.Globalization.CultureInfo.InvariantCulture), pathsParent);
 if (args is ["--analysis-sort-index", var sortText, var sortParent])
     return await ScratchSortScale.RunAsync(int.Parse(sortText, System.Globalization.CultureInfo.InvariantCulture), sortParent);
+if (args is ["--analysis-indexed-graph", var graphText, var graphParent])
+    return await ScratchGraphScale.RunAsync(int.Parse(graphText, System.Globalization.CultureInfo.InvariantCulture), graphParent);
 
 if (args is ["--analysis-scratch-hold", var scratchParent])
 {
