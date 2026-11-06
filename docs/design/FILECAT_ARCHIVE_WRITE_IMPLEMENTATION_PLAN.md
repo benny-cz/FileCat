@@ -122,7 +122,7 @@ of a compression preset. Minimal prototype interoperability cannot stand for com
 | TAR.GZ / TGZ | Yes | Profile | Profile | Yes | Profile | TAR engine over .NET GZipStream; wrapper metadata/stream-boundary admission required | Medium |
 | TAR.BZ2 | Yes | Profile | Profile | Yes | Profile | TAR engine over vendored BZip2Stream; finalize and validate the whole stream | Small–medium incremental |
 | TAR.ZST | Yes | Profile | Profile | Yes | Profile | TAR engine over vendored CompressionStream; standard single frame, no dictionary/skippable frames initially | Small–medium incremental |
-| Non-solid 7z, LZMA/LZMA2, no encryption | Yes | Profile | Profile | Yes | Profile | Selectively restored writer; exact metadata and coder graph must be reproducible | High audit/qualification cost |
+| Non-solid 7z, qualified codecs/filters in §8.4, no encryption | Yes | Profile | Profile | Yes | Profile | Selectively restored writer; exact metadata and coder graph must be reproducible | High audit/qualification cost |
 | GZ / BZ2 / ZST single payload | One regular file | Replace the sole payload only | No internal delete/rename | No | After AW7 qualification | Compression stream; displayed payload name is not a multi-file namespace | Medium |
 | XZ / TAR.XZ | Later | Later profile | TAR only, later profile | TAR only | Later profile | Encoder/container writer not presently available; see AW8 | High |
 | ISO 9660 data image | Later creation | No existing-image update | No existing-image update | Later creation | No | DiscUtils CDBuilder, Joliet data image only | Medium, independent |
@@ -154,7 +154,7 @@ For standalone streams, a second selected file produces a validation message off
 | .NET TAR / gzip | Existing runtime dependency; source and retained runtime notices use MIT with native-component notices where applicable | No new package. Keep actual runtime notices and verify deployed runtime, not only SDK documentation |
 | Vendored bzip2 encoder | [Component inventory](../../licenses/sharpcompress/COMPONENTS.md), [output stream header](../../src/ThirdParty/SharpCompress/Compressors/BZip2/CBZip2OutputStream.cs): Apache-2.0 | Reuse; ensure encoder's notice is present in trimmed release artifacts |
 | Vendored Zstandard encoder | Same inventory: ZstdSharp MIT plus original zstd BSD-3-Clause choice | Reuse; unsafe managed port requires security qualification despite permissive terms |
-| Restored 7z writer | Pinned upstream docs establish a non-solid LZMA/LZMA2 writer; local removal inventory establishes it is absent | Source-file audit and dependency closure required before restoration; no assumption that every needed file inherits the root MIT licence |
+| Bounded 7z writer | [Exact-source review](../validation/archive-writing/SEVENZIP_FEASIBILITY.md) pins 29 MIT writer/header candidates and 21 public-domain SDK candidates; existing codecs have their own retained terms | Extend/replace narrow orchestration for required codecs/filters; complete per-file origin/compile/reachability audit before import; no wholesale restore |
 | liblzma candidate | Current [XZ COPYING](https://github.com/tukaani-project/xz/blob/master/COPYING) identifies liblzma as 0BSD; surrounding tools/scripts can have other terms | Optional AW8 candidate only; pin release and inspect its actual library, wrapper and build outputs |
 | LZMA SDK candidate | Vendor [SDK page](https://www.7-zip.org/sdk.html) describes public-domain SDK code, including XZ functionality | Alternative AW8 source; inspect the selected SDK distribution's actual files; do not substitute the full 7-Zip tree |
 | Full 7-Zip | [Vendor licence](https://www.7-zip.org/license.txt): LGPL main licence and extra component terms including UnRAR restrictions | Not selected; LGPL can coexist with MIT code under conditions, but is unnecessary for the proposed permissive path |
@@ -179,7 +179,42 @@ The cached test-only SharpCompress 0.50.5 assembly was inspected through reflect
 | Common/SevenZip/SevenZipSignatureHeaderWriter and SevenZipWriteExtensions | Seekable signature backpatch and format encoding | Same source verification gate |
 | Existing LZMA/LZMA2 encoders, CRC and stream adapters | Encoding support already partly present | Compare actual references; prefer FileCat's audited CRC implementation over restoring excluded classes |
 
-The manifest is a candidate restoration list, not a statement that every filename or licence was fetched and verified during planning. AW6 must write a machine-readable inventory containing upstream path, commit/blob, SHA-256, origin, licence, modifications, reason needed and dependency references for every added file. Any additional required type becomes an explicit reviewed manifest entry. Keep RAR, PPMd/H, excluded ZIP decoders, other formats, writer factories and any unknown-provenance CRC implementation absent.
+The manifest is a candidate restoration list, not a statement that every filename or licence was fetched and verified during planning. AW6 must write a machine-readable inventory containing upstream path, commit/blob, SHA-256, origin, licence, modifications, reason needed and dependency references for every added file. Any additional required type becomes an explicit reviewed manifest entry. Keep restricted RAR/PPMd-H source, excluded ZIP decoders, other formats, writer factories and unknown-provenance CRC absent. The separately pinned public-domain SDK PPMd7 encoder is a distinct permitted candidate, not restoration of the excluded H model.
+
+The [7 November 7z source/coverage decision](../validation/archive-writing/SEVENZIP_FEASIBILITY.md) and its
+[exact source ledger](../../eng/validation/archive-writing/sevenzip-feasibility/reference-sources.json) now resolve
+physical candidate retrieval: 29 pinned SharpCompress files and 21 public-domain SDK files have verified Git blob
+and SHA-256 identities. This does not complete origin/reachability, compiled dependency closure or runtime qualification.
+The upstream writer accepts only LZMA/LZMA2, ignores its generic compression level and lacks needed metadata setters;
+its narrow orchestration is not the complete implementation target. Prefer bounded FileCat container/verification code,
+reviewed suitable MIT primitives, existing permitted codecs and missing reviewed SDK ports. No candidate is yet imported.
+
+### 4.3.1 Implementation priority after both analyses
+
+**Decision, 7 November 2026:** both feasibility analyses are recorded. Execute in the following dependency order;
+packet numbers do not impose a different order. This is an implementation priority, not permission to omit a gate.
+
+1. **Codec/container work:** port the independently proven RAR5 compression into bounded stream-only C# code first,
+   with genuine presets, exact framing/CRC/times, negative cases and per-method inventory. Then implement the needed
+   7z container/codecs/filters from §8.4, reusing permitted encoders and adding missing reviewed paths. Keep engines
+   unregistered while incomplete. Separate reviewable commits inside this chunk are appropriate; no VM session per file.
+2. **Strict analysis and shared integration:** complete raw feature catalogs, preservation manifests, bounded source
+   and verification routes, worker protocol/profile versions and common transaction integration for both formats.
+   Resolve remaining capture/snapshot/global-memory ownership and known exclusion-name detail before exposing them.
+   Codec code receives numeric stream grants, never pathname/publication/deletion authority.
+3. **Complete shared workflows/UI:** enable only fully qualified profiles; cover create, add, replace, rename, delete,
+   edit commit, collision/exclusion review and move-into with verified publication before source deletion. Reuse the
+   common workflows rather than finalizing interfaces around TAR alone. Keep precise capability/refusal messages.
+4. **Large platform qualification batches:** prepare one exact source/dependency/runner packet, then run guarded
+   Windows/Mac/Ubuntu sessions covering builds, all relevant methods/presets, broad regressions, independent content
+   and metadata readback, worker/native/resource/failure cases, immutable evidence and owned-process cleanup. Include
+   actual six-RID/package/fuzz gates as required; three desktop sessions alone do not satisfy six-RID qualification.
+   Defer occupied machines and fix/retest actual failures in coherent follow-up batches.
+5. **Independent final review:** after remaining required plan work and qualification, review UX/UI/function/security
+   afresh, fix findings and recheck affected acceptance paths. Optional AW8/AW9 retain their separately stated gates.
+
+Method availability is earned per exact implementation/artifact; neither a broad support label nor one successful
+round-trip completes an inventory. The authorized RAR fallback is used only on a documented primary-route no-go.
 
 ### 4.4 Release obligations
 
@@ -197,8 +232,9 @@ document, and merely taking longer than expected is not proof of infeasibility.
 The [independent compressed RAR5 feasibility checkpoint](../validation/archive-writing/RAR5_FEASIBILITY.md) now
 supports technical go for the primary path, with genuine compression and exact independent content/metadata
 readback. It does not activate the fallback, complete the broader method matrix or qualify a production profile.
-The requested 7z analysis follows this record before broad codec/backend integration. Keep the required coverage
-gaps visible through implementation and qualification.
+The equivalent [7z analysis](../validation/archive-writing/SEVENZIP_FEASIBILITY.md) now selects a permitted-source
+primary route and enumerates missing codec/filter/metadata work. Keep both required coverage inventories visible
+through implementation and qualification; neither analysis enables a production writer.
 
 Licence research and a backend decision do not depend on finishing every unrelated codec's fuzz campaign,
 installer matrix or UI acceptance run. Postponing RAR until those interfaces are finalized risks redesigning them.
@@ -563,11 +599,22 @@ Library EOF is not necessarily physical EOF or a complete wrapper: explicitly di
 
 ### 8.4 7z profile
 
-Initial 7z output is unencrypted, non-solid LZMA2, with LZMA optionally exposed only after separate qualification. It requires a seekable output stream; use a parent-owned seekable stage proxy rather than a full in-memory archive. Exact supported dictionary/properties and header-compression behavior are versioned profile fields.
+Initial 7z output is unencrypted and non-solid. LZMA2 is the default, not the full needed encoder set. Required
+feasible coverage is Copy, LZMA, LZMA2, PPMd7 with the 7z range coder, BZip2, raw Deflate and the Zstandard method
+already read by FileCat. Qualify each independently. Needed transforms are x86 BCJ, ARM/ARMT/ARM64, PPC, IA64,
+SPARC, RISC-V, Delta 1–256, four-stream BCJ2 and Swap2/Swap4; graphs must have bounded intermediates and matching
+reader/manifest support. Add real encoding where absent (including PPMd, delta direction, BCJ2 and swaps), not a
+method relabel. Deflate64 and arbitrary plugin methods remain documented unimplemented gaps, not demonstrated
+impossibilities. The [coverage decision](../validation/archive-writing/SEVENZIP_FEASIBILITY.md) controls that inventory.
+
+Use a parent-owned seekable stage proxy, not a full in-memory archive. Raw and compressed headers, exact bounded
+dictionary/model/filter properties and real codec presets are versioned profile fields. Do not wire UI levels to
+the pinned writer's unused property. 7z FILETIME has 100 ns precision: preserve existing representable values exactly
+and declare/review new-input precision policy or refuse unrepresentable input; do not promise arbitrary nanoseconds.
 
 Before updating, validate the signature and start/next-header CRCs, checked next-header offsets/lengths, encoded-header budgets, pack/unpack sizes, stream/coder counts, folder bindings, stream indices, entry-to-stream mapping, CRC presence, metadata presence and empty file/directory distinctions. Do not assume a library list represents all physical streams or properties.
 
-Refuse encrypted headers/data, solid folders, unknown properties, additional/unused streams not faithfully understood, multipart/SFX prefixes, links, and unsupported coder/filter graphs. Initially accept only independently encoded LZMA/LZMA2 file streams and explicit directories whose metadata the restored writer actually reproduces. Do not determine eligibility from a FileCat producer string.
+Refuse encrypted headers/data, solid folders, unknown properties, additional/unused streams not faithfully understood, multipart/SFX prefixes, links, and unsupported coder/filter graphs. Accept only separately qualified codec/filter graphs from the required inventory and explicit directories whose complete metadata the actual writer reproduces. Do not determine eligibility from a FileCat producer string.
 
 Preserve member order, raw names, empty files versus directories, mtime and any present attributes/creation/access times. If the writer API cannot set a present field, that source is read-only; either add a narrowly audited setter plus tests or keep it unsupported. Reflection shows internal attribute storage exists but does not prove public preservation. Never assume a public Write(name, stream, mtime) call keeps attributes.
 
@@ -1096,11 +1143,10 @@ Tasks:
 
 ### AW6 — Audited limited 7z writing
 
-Before restoring or replacing the writer, perform the user's requested RAR-equivalent licence, source/reuse,
-independent-implementation and external-tool feasibility review. Enumerate the relevant codecs, filters/coder graphs,
-header-compression and solid/encryption modes; reconcile the needed encoder coverage with the pinned source and
-document every unsupported item honestly. Do not call a decoder an encoder or turn missing implementation work
-into an unsupported/impossible claim. Implement the resulting required feasible coverage under the inherited gates.
+The [RAR-equivalent 7z source/coverage analysis](../validation/archive-writing/SEVENZIP_FEASIBILITY.md) is recorded.
+Implement its needed feasible codecs, filters/graphs and bounded header modes. Distinguish unimplemented coverage,
+initial non-solid/unencrypted profile policy, format/resource limits and proven blockers. No external tool is selected
+as a required dependency; a future external fallback needs its own exact licence, containment and verification gates.
 
 **Outcome:** R2 delivers the narrow non-solid, unencrypted 7z profile without importing excluded source. **Dependencies:** AW0–AW4; source audit can proceed independently but cannot enable a writer before AW1/AW2 qualification. **Effort:** high.
 
@@ -1111,7 +1157,7 @@ Tasks:
 1. Retrieve and verify the exact pinned writer source; resolve every candidate filename/blob/hash in section 4.3 and its complete transitive code closure. Exclude or replace unknown/nonconforming components. Keep any source upgrade a separate proposal.
 2. Inspect each count/length/dictionary/coder allocation and loop before accepting untrusted source headers or writer options. Extend the fork's guards where needed; preserve existing read patches.
 3. Implement seekable stage proxy encoding, explicit directory/empty-file handling and qualified metadata setters. If source attributes/timestamps cannot be faithfully reproduced, refuse that input profile.
-4. Create and update only independently encoded LZMA/LZMA2 sources with reproducible metadata. No solid/encryption/SFX/multipart conversion; no password controls.
+4. Implement/qualify the required codec/filter inventory in §8.4, raw/compressed headers and real bounded presets. Extend missing metadata fields; refuse any unqualified source graph or unreproducible metadata. No solid/encryption/SFX/multipart conversion; no password controls.
 5. Reuse common transactions/UI/sessions. Run independent 7-Zip validation and dedicated graph/encoded-header/write fuzz campaigns on the actual trimmed assembly and exact runtime matrix.
 
 **Invariants:** all, especially INV-01/02/06/07/09/18. **UX:** explain unsupported solid/encrypted/metadata profiles; do not expose ineffective generic compression settings. **Licensing:** signed-off file-level manifest, notices, modified-source inventory and artifact graph absent excluded codecs. **Evidence:** AT01–22 plus FZ03; exact dependency and interoperability evidence. **Exit gate:** no unresolved source origin, allocation path, metadata-loss or fuzz finding. **Fallback:** 7z remains read-only; TAR releases continue independently.
@@ -1275,7 +1321,7 @@ Routine choices are resolved in this plan. The remaining items require source re
 |---|---|---|---|
 | Q01 | Supported confined worker launch and hard resource controls on each exact RID/package | AW1 native spike with healthy processing plus forbidden file/network/process probes, parent death and resource tests | No new writes on an unqualified RID; do not use an ordinary unrestricted fallback |
 | Q02 | Exact reviewed-replacement and cleanup semantics per local FS | Real-object race/crash/mark/metadata tests and durability statement; investigate existing Windows bound primitives and supported Unix operations | Creation only where safe; replacement read-only otherwise |
-| Q03 | Exact pinned 7z writer files, origins and complete dependency closure | Fetch pinned source, match archive/hash, establish filenames/blobs/licences and review required CRC/adapters | Blocks AW6 only; candidate type list is not a completed audit |
+| Q03 | Complete pinned 7z origin/reachability and compiled dependency closure | Candidate retrieval/hash verification resolved by 7 November ledger; finish per-file audit, CRC replacement and actual build/artifact closure | Blocks AW6 production admission; source inventory is not a completed import audit |
 | Q04 | TAR metadata precision and raw-feature visibility through pinned .NET 10 runtime | Boundary fixtures for PAX/GNU/global keys, UID/GID/ranges/time precision and raw/decoded agreement | Refuse unrepresentable/unknown source features; no silent conversion |
 | Q05 | BZip2 strict EOF and Zstd frame boundary/window behavior in the actual fork | Code inspection plus concatenation/truncation/window fuzz cases and independent oracle | Keep that wrapper read-only if strictness cannot be established |
 | Q06 | Aggregate marked-input representation on every output filesystem | Typed provenance design, OS/native tests and actual write/readback of required marks | Refuse marked publication that cannot preserve classification; absent evidence is not “unmarked” |
@@ -1369,7 +1415,7 @@ The baseline table links the principal source files. Additional relevant materia
 
 Verified through source/document inspection: existing ZIP write architecture and race tests; non-ZIP read-only provider behavior; relevant command/session/job/recovery boundaries; retained encoder APIs; current component notices and packaging hooks. Inspected the cached test-only SharpCompress 0.50.5 assembly's writer types/options/methods and cached DiscUtils XML to distinguish actual pinned API presence from newer upstream claims. No writer was executed to claim production behavior.
 
-Primary web sources above were checked. Exact pinned 7z writer source files were not retrievable through the available source lookup, and a direct host lookup failed; therefore their file-level audit remains Q03 rather than an invented completed manifest. Native confinement/publication spikes, implemented writer tests, independent interoperability, builds, fuzz campaigns and release qualification were not performed in this planning task.
+Primary web sources above were checked. Initial planning could not retrieve the exact 7z source. The 7 November follow-up now verifies the candidate paths/blobs/hashes and records codec/filter gaps; full import/compiled closure remains Q03. That source review does not establish native confinement, production writer interoperability, fuzz or release qualification. Later implementation evidence is tracked separately in the status and validation records.
 
 The plan itself is not implementation or release evidence. The shared TAR/gzip, wrapper, 7z and standalone work
 remains required; AW8/AW9 remain separately qualified optional work. The user's 6 November RAR decision adds AW10a

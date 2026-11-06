@@ -4,20 +4,26 @@ This is an **incomplete implementation**, not format or release qualification. T
 [the archive writing plan](../../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md). No new writer is enabled in the
 application. An explicit new-profile job refuses instead of entering the legacy ZIP executor.
 
-Current user-requested order (6/7 November): the recursive-selection checkpoint is recorded in `685fe564`, and the
-[independent compressed RAR5 feasibility investigation](RAR5_FEASIBILITY.md) supports technical go for the primary
-route. Perform the equivalent 7z analysis next, before broad codec/backend integration. The user explicitly chose
-option 3 with fallback to option 1: on a documented feasibility no-go, implement stored RAR5 and optional installed
-`rar` compression where lawful and qualified. This fallback is authorized. Finish the RAR work and remaining common
-implementation/validation gates, then perform the independent UX/UI/functional/security review and fix/retest findings.
-The decision is committed in `b657a243`; implementation and release qualification remain open. The subsequent user
-instruction adds an equivalent 7z feasibility/licensing/reuse/external-backend review immediately after the RAR
-analysis, with its findings incorporated into AW6 before broad backend/UI integration.
+Current user-requested order (7 November): the recursive-selection checkpoint is recorded in `685fe564`;
+[independent compressed RAR5 feasibility](RAR5_FEASIBILITY.md), committed in `4672ac14`, supports technical go.
+The equivalent [7z source/coverage analysis](SEVENZIP_FEASIBILITY.md) now selects bounded FileCat container code,
+existing permitted encoders and reviewed missing public-domain codec/filter paths. It verifies 29 pinned writer/header
+candidates and 21 SDK candidates; no 7z source was imported and no new 7z runtime qualification is claimed.
 
-Both encoders require explicit method/version/filter/mode inventories and all needed feasible encoding paths; gaps
-must distinguish missing work, profile policy and demonstrated blockers. The minimal RAR prototype does not meet
-that complete coverage requirement. Use larger guarded per-machine batches for builds, codec coverage, regressions,
-independent readers, evidence collection and cleanup; adaptively rerun when a finding requires a fix.
+The priority decision is in plan §4.3.1: bounded RAR C# implementation first, then needed 7z codecs/filters/container;
+strict catalogs and shared worker/transaction/capture/resource integration; complete workflows/UI; large guarded
+three-platform qualification batches plus actual six-RID/package/fuzz gates; final independent UX/UI/function/security
+review and fix/retest. Prepare coherent source/dependency/runner packets and collect evidence/cleanup in each batch.
+Do not create one machine session per small edit or omit needed coverage because upstream lacks an encoder.
+
+Both encoders require explicit method/version/filter/mode inventories and all needed feasible encoding paths. Gaps
+must distinguish missing work, profile policy and demonstrated blockers. RAR methods/presets beyond the prototype
+and 7z PPMd/delta/BCJ2/swaps/metadata/header paths remain work, not impossible features. 7z FILETIME's 100 ns limit
+and over-budget dictionaries/models need explicit policies. Neither analysis enables a production profile.
+
+The user chose option 3 with fallback to option 1: a documented feasibility no-go authorizes stored RAR5 and optional
+installed `rar` compression where lawful and qualified. The primary route has not received a no-go; fallback is not
+activated. The goal remains active and implementation/release qualification and independent final review remain open.
 
 ## Source and workspace
 
