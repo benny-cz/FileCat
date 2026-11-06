@@ -23,7 +23,7 @@ public sealed partial class ArchiveCapturedInputsTests
         Assert.Equal(ArchiveOriginEvidenceRecord.EmptySha256, binding.Reviewed.Version.Sha256);
         Assert.Equal(123456789, binding.Reviewed.Modified.Nanoseconds); binding.Review(Ct); Assert.Equal(1001, observed);
         var failure = Assert.Throws<ArchiveWriteException>(() => captured.CreatePlan(new(ArchiveWriteFormat.Tar), null, [], [], Ct));
-        Assert.Equal(ArchiveWriteReason.UnsupportedFeature, failure.Reason); // No silently discarded folder scope.
+        Assert.Equal(ArchiveWriteReason.InvalidRequest, failure.Reason); // No silently discarded folder scope.
     }
 
     [Theory]

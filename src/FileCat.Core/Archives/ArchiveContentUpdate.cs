@@ -164,6 +164,7 @@ internal static class ArchiveContentUpdate
                 if (binding is null || !prepared.Verified.Inputs.TryGetValue(id, out var expected) || !binding.Reviewed.Matches(expected)) throw Invalid();
                 binding.File.Review(expected, cancellation);
             }
+            foreach (var directory in prepared.Verified.Directories.Values) directory.Review(cancellation);
         }
         void ReviewSidecars(CancellationToken cancellation)
         {
@@ -176,8 +177,9 @@ internal static class ArchiveContentUpdate
             var version = evidence.Observation.Version;
             if (version != preparation.OriginEvidence) throw Invalid();
             return ArchiveUpdateOrigin.ReviewWindows(((IArchiveRetainedFile)evidence.File).OpenReadView(evidence.Observation, cancellation),
-                new(version.Length, version.Sha256), new(preparation.Nonce, preparation.Profile, ArchiveOriginOperation.Update, checked(inputs.Count + 1)),
-                baseline, inputs.OrderBy(pair => pair.Key).Select(pair => pair.Value.Reviewed), cancellation);
+                new(version.Length, version.Sha256), new(preparation.Nonce, preparation.Profile, ArchiveOriginOperation.Update, checked(inputs.Count + prepared.Verified.Directories.Count + 1)),
+                baseline, inputs.OrderBy(pair => pair.Key).Select(pair => pair.Value.Reviewed), cancellation,
+                prepared.Verified.Directories.OrderBy(p => p.Key).Select(p => p.Value.Reviewed));
         }
     }
     private static ArchiveWriteException Invalid() => new(ArchiveWriteReason.NeedsReview,

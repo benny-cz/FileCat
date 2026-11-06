@@ -9,9 +9,12 @@ internal sealed class ArchiveVerifiedNativeStage
     internal ArchiveVerificationResult Verification { get; }
     internal ArchiveFileObservation? Original { get; }
     internal IReadOnlyDictionary<int, ArchiveFileObservation> Inputs { get; }
+    internal IReadOnlyDictionary<int, ArchiveCapturedDirectory> Directories { get; }
     internal ArchiveVerifiedNativeStage(ArchiveFileObservation stage, ArchiveVerificationResult verification,
-        ArchiveFileObservation? original, Dictionary<int, ArchiveFileObservation> inputs)
-    { Stage = stage; Verification = verification; Original = original; Inputs = new ReadOnlyDictionary<int, ArchiveFileObservation>(inputs); }
+        ArchiveFileObservation? original, Dictionary<int, ArchiveFileObservation> inputs,
+        IReadOnlyDictionary<int, ArchiveCapturedDirectory>? directories = null)
+    { Stage = stage; Verification = verification; Original = original; Inputs = new ReadOnlyDictionary<int, ArchiveFileObservation>(inputs);
+        Directories = directories ?? ArchiveTarTransformPlan.NoDirectories; }
 }
 
 /// <summary>
@@ -50,6 +53,11 @@ internal static class ArchiveRetainedTarPipeline
                     if (binding.Reviewed.Input(id) != expected) throw Changed();
                     binding.File.Review(binding.Reviewed, ct);
                 }
+                foreach (var directory in plan.Directories.Values)
+                {
+                    ct.ThrowIfCancellationRequested(); if (!identities.Add(directory.Reviewed.Version.Identity)) throw Changed();
+                    directory.Review(ct);
+                }
                 return ArchiveTransformWire.Prepare(plan, ct);
             }, ct).ConfigureAwait(false);
             Stream output = await Task.Run(() => { beforeRebuild?.Invoke(); return stage.BeginRebuild(invocation.Request.OutputLengthBound, ct); }, ct).ConfigureAwait(false);
@@ -72,9 +80,10 @@ internal static class ArchiveRetainedTarPipeline
                 stage.Review(sealedState, ct);
                 original?.File.Review(original.Reviewed, ct);
                 foreach (var binding in inputs.Values) { ct.ThrowIfCancellationRequested(); binding.File.Review(binding.Reviewed, ct); }
+                foreach (var directory in plan.Directories.Values) directory.Review(ct);
             }, ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
-            return new(sealedState, verified, original?.Reviewed, inputs.ToDictionary(p => p.Key, p => p.Value.Reviewed));
+            return new(sealedState, verified, original?.Reviewed, inputs.ToDictionary(p => p.Key, p => p.Value.Reviewed), plan.Directories);
         }
         finally { stage.StopWrites(); }
     }

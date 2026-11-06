@@ -21,7 +21,7 @@ internal sealed partial class WindowsArchiveDirectory
         lock (Gate)
         {
             ct.ThrowIfCancellationRequested(); EnsureOpen(); RequireCapacity(); VerifyNamespace();
-            using var held = OpenOrThrow(Handle, leaf, ReadAttributes | Synchronize | 0x20000 /* READ_CONTROL */,
+            using var held = OpenOrThrow(Handle, leaf, ListDirectory | ReadAttributes | Synchronize | 0x20000 /* READ_CONTROL */,
                 ShareAll, NtFile.Open, DirectoryFile | OpenReparsePoint, "Capture selected folder");
             var identity = ProtectedHexFile.Identity(held);
             var first = Observe(); var second = Observe();
@@ -39,6 +39,7 @@ internal sealed partial class WindowsArchiveDirectory
                 Span<byte> changed = stackalloc byte[8]; BinaryPrimitives.WriteInt64LittleEndian(changed, basic.ChangeTime);
                 using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
                 hash.AppendData(Convert.FromHexString(metadata.Digest)); hash.AppendData(changed);
+                hash.AppendData(Convert.FromHexString(WindowsArchiveNative.SourceDirectoryNamespace(held, ct)));
                 ArchiveTimestamp modified;
                 try { modified = new DateTimeOffset(DateTime.FromFileTimeUtc(basic.LastWriteTime), TimeSpan.Zero); }
                 catch (ArgumentOutOfRangeException)

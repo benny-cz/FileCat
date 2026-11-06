@@ -899,9 +899,11 @@ Tasks:
    with the plan, and the broker bounds source switching. This does not complete recursive selection capture,
    private source snapshots, global preparation-memory admission or production wiring; those remain required.
    [Native directory observations](../validation/archive-writing/NATIVE_DIRECTORY_CAPTURE.md) now retain folder
-   identity, time/mode and opaque origin using the same member/cost/lease budgets. Complete recursive enumeration,
-   directory-aware plans/wire records, durable directory provenance and final publication review before accepting
-   those records in a write. File-only preparation continues to refuse a captured folder scope.
+   identity, time/mode and opaque origin using the same member/cost/lease budgets. The subsequent
+   [directory workflow bridge](../validation/archive-writing/DIRECTORY_WORKFLOW_BRIDGE.md) carries explicit folder
+   records through plans, the versioned worker wire, origin evidence, fresh verification and final publication review.
+   Complete recursive enumeration, global source-root/transient-memory ownership and production UI/qualification
+   before exposing folder writes; the bridge is not a recursive selection implementation or a production registration.
 5. Introduce the worker-backed ZIP transform as a separate change; enforce strict verification and complete expected manifests for the new path. Compare functional outputs against the existing ZIP behavior and explicitly document any safety tightening.
 6. Remove unowned finally/File.Delete and pathname-only archive cleanup from the new shared route. Do not weaken existing code before the replacement path is qualified.
 

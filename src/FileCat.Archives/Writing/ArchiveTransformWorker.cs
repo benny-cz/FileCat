@@ -21,7 +21,7 @@ public static class ArchiveTransformWorker
             using var source = request.Source is { } original ? new ArchiveProxyStream(connection, 0, original.SourceLength, original.SourceLength) : null;
             using var stage = new ArchiveProxyStream(connection, ArchiveIoAuthority.StageId, 0, request.OutputLengthBound, writable: true);
             var edits = request.Edits.Select(e => new TarWriteEdit(e.Kind, e.Key, e.NewName, e.InputId)).ToArray();
-            var additions = request.Additions.Select(a => new TarWriteAddition(a.Name, a.Type, a.InputId)).ToArray();
+            var additions = request.Additions.Select(a => new TarWriteAddition(a.Name, a.Type, a.InputId, a.DirectoryMetadata)).ToArray();
             var inputs = request.Inputs.ToDictionary(p => p.Key, p => new TarInputDescriptor(p.Key, p.Value.Length, p.Value.Sha256, p.Value.ModifiedTimestamp, p.Value.Mode));
             Stream Open(int id) => new ArchiveProxyStream(connection, id, request.Inputs[id].Length, request.Inputs[id].Length);
             TarRewriteManifest transformed; byte os = 255, block = 9; byte? flags = null;

@@ -30,9 +30,22 @@ internal sealed record ArchiveDirectoryObservation
 }
 
 /// <summary>Reobserves the fixed native parent/leaf; callers cannot substitute a path at review time.</summary>
-internal sealed class ArchiveCapturedDirectory(ArchiveCapturedInputs owner,
+internal sealed class ArchiveCapturedDirectory(ArchiveCapturedInputs owner, int id,
     Func<CancellationToken, ArchiveDirectoryObservation> observe, ArchiveDirectoryObservation captured)
 {
+    internal ArchiveCapturedInputs Owner { get; } = owner;
+    internal int Id { get; } = id;
     internal ArchiveDirectoryObservation Reviewed { get; } = captured;
-    internal void Review(CancellationToken ct) => owner.ReviewDirectory(observe, Reviewed, ct);
+    internal void Review(CancellationToken ct) => Owner.ReviewDirectory(observe, Reviewed, ct);
+}
+
+internal readonly record struct ArchiveCapturedOriginSource(ArchiveOriginSourceKind Kind, ArchiveObjectVersion Version, ArchiveOriginSnapshot Origin);
+internal static class ArchiveCapturedOriginSources
+{
+    internal static IEnumerable<ArchiveCapturedOriginSource> Enumerate(IEnumerable<ArchiveFileObservation> files,
+        IEnumerable<ArchiveDirectoryObservation>? directories)
+    {
+        foreach (var file in files) yield return new(ArchiveOriginSourceKind.File, file.Version, file.Origin);
+        foreach (var directory in directories ?? []) yield return new(ArchiveOriginSourceKind.Directory, directory.Version, directory.Origin);
+    }
 }

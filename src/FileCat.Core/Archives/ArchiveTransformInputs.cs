@@ -40,16 +40,36 @@ public sealed record ArchiveTransformEdit
 }
 
 /// <summary>One flattened file or explicit directory addition; no source path or implicit recursion.</summary>
+public sealed record ArchiveTransformDirectoryMetadata
+{
+    public ArchiveTimestamp Modified { get; }
+    public int Mode { get; }
+    public ArchiveTransformDirectoryMetadata(ArchiveTimestamp modified, int mode = 0x1ed)
+    {
+        if ((mode & ~0x1ff) != 0) throw ArchiveManifestMember.Invalid();
+        Modified = modified; Mode = mode;
+    }
+}
+
 public sealed record ArchiveTransformAddition
 {
     public string Name { get; }
     public ArchiveMemberType Type { get; }
     public int? InputId { get; }
+    public ArchiveTransformDirectoryMetadata? DirectoryMetadata { get; }
+    internal ArchiveCapturedDirectory? CapturedDirectory { get; }
     public ArchiveTransformAddition(string name, ArchiveMemberType type, int? inputId = null)
+        : this(name, type, inputId, type == ArchiveMemberType.Directory ? new(new(0, 0)) : null, null) { }
+    public ArchiveTransformAddition(string name, ArchiveTransformDirectoryMetadata directoryMetadata)
+        : this(name, ArchiveMemberType.Directory, null, directoryMetadata, null) { }
+    private ArchiveTransformAddition(string name, ArchiveMemberType type, int? inputId,
+        ArchiveTransformDirectoryMetadata? directoryMetadata, ArchiveCapturedDirectory? capturedDirectory)
     {
         ArchiveWritePolicy.ValidateName(name, type);
         if (!Enum.IsDefined(type) || type == ArchiveMemberType.File && inputId is not > 0 ||
-            type == ArchiveMemberType.Directory && inputId is not null) throw ArchiveManifestMember.Invalid();
-        Name = name; Type = type; InputId = inputId;
+            type == ArchiveMemberType.Directory && inputId is not null || (type == ArchiveMemberType.Directory) != (directoryMetadata is not null)) throw ArchiveManifestMember.Invalid();
+        Name = name; Type = type; InputId = inputId; DirectoryMetadata = directoryMetadata; CapturedDirectory = capturedDirectory;
     }
+    internal static ArchiveTransformAddition FromCapturedDirectory(string name, ArchiveCapturedDirectory directory)
+        => new(name, ArchiveMemberType.Directory, null, new(directory.Reviewed.Modified, directory.Reviewed.Mode), directory);
 }

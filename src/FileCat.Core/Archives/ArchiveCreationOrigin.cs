@@ -4,17 +4,18 @@ namespace FileCat.Core.Archives;
 internal static class ArchiveCreationOrigin
 {
     internal static ArchiveOriginSnapshot Review(Stream ownedEvidence, ArchiveOriginEvidenceInfo evidence,
-        ArchiveOriginEvidenceScope scope, IEnumerable<ArchiveFileObservation> captured, ArchiveOriginFormat format, CancellationToken ct)
+        ArchiveOriginEvidenceScope scope, IEnumerable<ArchiveFileObservation> captured, ArchiveOriginFormat format, CancellationToken ct,
+        IEnumerable<ArchiveDirectoryObservation>? directories = null)
     {
         using var input = ownedEvidence;
         if (scope.Operation != ArchiveOriginOperation.Create || !Enum.IsDefined(format)) throw Invalid();
         using var reader = new ArchiveOriginEvidenceReader(ownedEvidence, evidence, scope, ct);
-        using var expected = captured.GetEnumerator();
+        using var expected = ArchiveCapturedOriginSources.Enumerate(captured, directories).GetEnumerator();
         bool marked = false; int maximum = 0, count = 0;
         while (reader.ReadNext() is { } record)
         {
             ct.ThrowIfCancellationRequested();
-            if (!expected.MoveNext() || record.Kind != ArchiveOriginSourceKind.File || record.Source != expected.Current.Version ||
+            if (!expected.MoveNext() || record.Kind != expected.Current.Kind || record.Source != expected.Current.Version ||
                 record.Origin.Digest != expected.Current.Origin.Digest || record.Origin.Format != format || record.Origin.State == ArchiveOriginState.Unavailable)
                 throw Invalid();
             count++;

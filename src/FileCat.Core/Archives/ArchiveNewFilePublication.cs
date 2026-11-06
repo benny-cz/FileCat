@@ -73,6 +73,7 @@ internal static class ArchiveNewFilePublication
                 if (binding is null || !prepared.Verified.Inputs.TryGetValue(id, out var expected) || !binding.Reviewed.Matches(expected)) throw Unsupported();
                 binding.File.Review(expected, cancellation);
             }
+            foreach (var directory in prepared.Verified.Directories.Values) directory.Review(cancellation);
         }
         void ReviewSidecars(CancellationToken cancellation)
         {
@@ -84,8 +85,9 @@ internal static class ArchiveNewFilePublication
             var evidence = prepared.Sidecars.Single(s => s.Observation.Version.Identity == facts.OriginEvidenceIdentity);
             var version = evidence.Observation.Version;
             var required = ArchiveCreationOrigin.Review(evidence.File.OpenReadView(evidence.Observation, cancellation), new(version.Length, version.Sha256),
-                new(facts.Nonce, facts.Profile, ArchiveOriginOperation.Create, inputs.Count),
-                inputs.OrderBy(p => p.Key).Select(p => p.Value.Reviewed), prepared.Verified.Stage.Origin.Format, cancellation);
+                new(facts.Nonce, facts.Profile, ArchiveOriginOperation.Create, checked(inputs.Count + prepared.Verified.Directories.Count)),
+                inputs.OrderBy(p => p.Key).Select(p => p.Value.Reviewed), prepared.Verified.Stage.Origin.Format, cancellation,
+                prepared.Verified.Directories.OrderBy(p => p.Key).Select(p => p.Value.Reviewed));
             if (required.Digest != prepared.Verified.Stage.Origin.Digest) throw Unsupported();
         }
     }

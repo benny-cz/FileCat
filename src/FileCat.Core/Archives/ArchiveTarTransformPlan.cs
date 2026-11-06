@@ -18,12 +18,16 @@ public sealed class ArchiveTarTransformPlan
     public ArchiveWriteManifest Expected { get; }
     internal ArchiveCapturedInputCost CaptureCost { get; }
     internal ArchiveCapturedInputs? CaptureOwner { get; }
+    internal IReadOnlyDictionary<int, ArchiveCapturedDirectory> Directories { get; }
+    internal static readonly IReadOnlyDictionary<int, ArchiveCapturedDirectory> NoDirectories =
+        new ReadOnlyDictionary<int, ArchiveCapturedDirectory>(new Dictionary<int, ArchiveCapturedDirectory>());
 
     private ArchiveTarTransformPlan(ArchiveAssessment? source, Dictionary<int, ArchiveTransformInput> inputs,
         ArchiveTransformEdit[] edits, ArchiveTransformAddition[] additions, ArchiveWriteManifest expected, ArchiveCapturedInputCost captureCost, ArchiveCapturedInputs? captureOwner)
     {
         Source = source; Inputs = new ReadOnlyDictionary<int, ArchiveTransformInput>(inputs);
         Edits = Array.AsReadOnly(edits); Additions = Array.AsReadOnly(additions); Expected = expected; CaptureCost = captureCost; CaptureOwner = captureOwner;
+        Directories = captureOwner?.Directories ?? NoDirectories;
     }
 
     public static ArchiveTarTransformPlan Create(ArchiveAssessment? source, IReadOnlyList<ArchiveTransformInput> inputs,
@@ -87,6 +91,7 @@ public sealed class ArchiveTarTransformPlan
         var changes = new Dictionary<ArchiveMemberKey, ArchiveTransformEdit>();
         var frozenEdits = new ArchiveTransformEdit[edits.Count];
         var usedInputs = new HashSet<int>();
+        var usedDirectories = new HashSet<int>();
         long requestedBytes = source?.Manifest.LogicalBytes ?? 0;
         for (int i = 0; i < edits.Count; i++)
         {
@@ -112,15 +117,23 @@ public sealed class ArchiveTarTransformPlan
         {
             ct.ThrowIfCancellationRequested(); var addition = additions[i] ?? throw ArchiveManifestMember.Invalid();
             RequestName(addition.Name);
+            if (addition.CapturedDirectory is { } directory)
+            {
+                if (captureOwner is null || !ReferenceEquals(directory.Owner, captureOwner) ||
+                    !captureOwner.Directories.TryGetValue(directory.Id, out var expectedDirectory) || !ReferenceEquals(directory, expectedDirectory) ||
+                    addition.DirectoryMetadata != new ArchiveTransformDirectoryMetadata(directory.Reviewed.Modified, directory.Reviewed.Mode)) throw Changed();
+                usedDirectories.Add(directory.Id);
+            }
             var input = addition.InputId is { } id ? Use(id) : null;
-            var modified = input?.ModifiedTimestamp ?? new ArchiveTimestamp(0, 0);
+            var modified = input?.ModifiedTimestamp ?? addition.DirectoryMetadata?.Modified ?? new ArchiveTimestamp(0, 0);
             if (ustar) modified = ArchiveTimestamp.FromUnixSeconds(decimal.Truncate(modified.UnixSeconds));
             Add(addition.Name, addition.Type, input?.Length ?? 0,
                 input?.Sha256 ?? "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
-                AddedMetadata(input?.Mode ?? 0x1ed, modified), changed: true);
+                AddedMetadata(input?.Mode ?? addition.DirectoryMetadata?.Mode ?? 0x1ed, modified), changed: true);
             frozenAdditions[i] = addition;
         }
         if (usedInputs.Count != captured.Count) throw ArchiveManifestMember.Invalid(); // no unrelated read grants
+        if (usedDirectories.Count != (captureOwner?.Directories.Count ?? 0)) throw ArchiveManifestMember.Invalid();
         ValidateNamespace(planned, ct);
         // A headerless empty TAR has no PAX extension and is observed as USTAR, including a PAX remove-all update.
         // Zstandard output always includes a content checksum, including updates of valid unchecked input frames.

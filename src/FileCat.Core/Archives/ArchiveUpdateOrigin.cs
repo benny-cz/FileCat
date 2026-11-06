@@ -4,15 +4,18 @@ namespace FileCat.Core.Archives;
 internal static class ArchiveUpdateOrigin
 {
     internal static ArchiveOriginSnapshot ReviewWindows(Stream ownedEvidence, ArchiveOriginEvidenceInfo evidence,
-        ArchiveOriginEvidenceScope scope, ArchiveFileObservation original, IEnumerable<ArchiveFileObservation> captured, CancellationToken ct)
-        => Review(ownedEvidence, evidence, scope, original, captured, windows: true, ct);
+        ArchiveOriginEvidenceScope scope, ArchiveFileObservation original, IEnumerable<ArchiveFileObservation> captured, CancellationToken ct,
+        IEnumerable<ArchiveDirectoryObservation>? directories = null)
+        => Review(ownedEvidence, evidence, scope, original, captured, windows: true, ct, directories);
 
     internal static ArchiveOriginSnapshot ReviewUnmarked(Stream ownedEvidence, ArchiveOriginEvidenceInfo evidence,
-        ArchiveOriginEvidenceScope scope, ArchiveFileObservation original, IEnumerable<ArchiveFileObservation> captured, CancellationToken ct)
-        => Review(ownedEvidence, evidence, scope, original, captured, windows: false, ct);
+        ArchiveOriginEvidenceScope scope, ArchiveFileObservation original, IEnumerable<ArchiveFileObservation> captured, CancellationToken ct,
+        IEnumerable<ArchiveDirectoryObservation>? directories = null)
+        => Review(ownedEvidence, evidence, scope, original, captured, windows: false, ct, directories);
 
     private static ArchiveOriginSnapshot Review(Stream ownedEvidence, ArchiveOriginEvidenceInfo evidence,
-        ArchiveOriginEvidenceScope scope, ArchiveFileObservation original, IEnumerable<ArchiveFileObservation> captured, bool windows, CancellationToken ct)
+        ArchiveOriginEvidenceScope scope, ArchiveFileObservation original, IEnumerable<ArchiveFileObservation> captured, bool windows, CancellationToken ct,
+        IEnumerable<ArchiveDirectoryObservation>? directories)
     {
         using var input = ownedEvidence;
         if (scope.Operation != ArchiveOriginOperation.Update) throw Invalid();
@@ -25,11 +28,11 @@ internal static class ArchiveUpdateOrigin
         if (first is null || first.Kind != ArchiveOriginSourceKind.OriginalArchive || first.Source != original.Version ||
             first.Origin.Digest != original.Origin.Digest) throw Invalid();
         int count = 1;
-        using var expected = captured.GetEnumerator();
+        using var expected = ArchiveCapturedOriginSources.Enumerate(captured, directories).GetEnumerator();
         while (reader.ReadNext() is { } record)
         {
             ct.ThrowIfCancellationRequested();
-            if (!expected.MoveNext() || record.Kind != ArchiveOriginSourceKind.File || record.Source != expected.Current.Version ||
+            if (!expected.MoveNext() || record.Kind != expected.Current.Kind || record.Source != expected.Current.Version ||
                 record.Origin.Digest != expected.Current.Origin.Digest) throw Invalid();
             if (windows)
             {

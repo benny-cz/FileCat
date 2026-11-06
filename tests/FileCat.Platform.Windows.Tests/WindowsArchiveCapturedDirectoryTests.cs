@@ -6,6 +6,33 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed partial class WindowsArchiveStorageTests
 {
     [Fact]
+    public void Directory_namespace_review_handles_multiple_native_batches_and_exact_Unicode_names()
+    {
+        RequireWindows(); var ct = TestContext.Current.CancellationToken; using var fixture = new Fixture();
+        string path = Directory.CreateDirectory(fixture.PathOf("folder")).FullName;
+        for (int id = 0; id < 1000; id++) File.WriteAllBytes(Path.Combine(path, "界-" + id + "-" + new string('x', 100)), []);
+        using var directory = WindowsArchiveDirectory.Open(fixture.Root); using var captured = new ArchiveCapturedInputs();
+        directory.CaptureSourceDirectory(captured, 1, "folder", ct); captured.Seal(ct); captured.Directories[1].Review(ct);
+        var modified = Directory.GetLastWriteTimeUtc(path);
+        File.Move(Path.Combine(path, "界-999-" + new string('x', 100)), Path.Combine(path, "renamed-界")); Directory.SetLastWriteTimeUtc(path, modified);
+        Assert.Equal(ArchiveWriteReason.SourceChanged, Assert.Throws<ArchiveWriteException>(() => captured.Directories[1].Review(ct)).Reason);
+    }
+
+    [Fact]
+    public void Directory_namespace_review_detects_each_new_child_despite_restored_write_time()
+    {
+        RequireWindows(); var ct = TestContext.Current.CancellationToken; using var fixture = new Fixture();
+        string path = Directory.CreateDirectory(fixture.PathOf("folder")).FullName;
+        using var directory = WindowsArchiveDirectory.Open(fixture.Root);
+        for (int id = 0; id < 64; id++)
+        {
+            using var captured = new ArchiveCapturedInputs(); directory.CaptureSourceDirectory(captured, 1, "folder", ct); captured.Seal(ct);
+            var modified = Directory.GetLastWriteTimeUtc(path); File.WriteAllBytes(Path.Combine(path, "child-" + id), [1]); Directory.SetLastWriteTimeUtc(path, modified);
+            Assert.Equal(ArchiveWriteReason.SourceChanged, Assert.Throws<ArchiveWriteException>(() => captured.Directories[1].Review(ct)).Reason);
+        }
+    }
+
+    [Fact]
     public void Directory_capture_keeps_native_identity_time_mode_and_no_per_folder_handle()
     {
         RequireWindows(); var ct = TestContext.Current.CancellationToken; using var fixture = new Fixture();

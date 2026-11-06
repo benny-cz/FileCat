@@ -6,7 +6,7 @@ using FileCat.Core.Archives;
 namespace FileCat.Archives.Writing;
 
 internal sealed record TarInputDescriptor(int Id, long Length, string Sha256, ArchiveTimestamp Modified, int Mode = 0x1a4);
-internal sealed record TarWriteAddition(string Name, ArchiveMemberType Type, int? InputId = null);
+internal sealed record TarWriteAddition(string Name, ArchiveMemberType Type, int? InputId = null, ArchiveTransformDirectoryMetadata? DirectoryMetadata = null);
 internal sealed record TarWriteEdit(ArchiveChangeKind Kind, ArchiveMemberKey Key, string? NewName = null, int? InputId = null);
 internal sealed record TarRewriteManifest(TarEntryFormat Format, IReadOnlyList<TarWriteMember> Members);
 
@@ -100,14 +100,15 @@ internal static class TarRewriteEngine
             TarInputDescriptor? input = null;
             if (addition.Type == ArchiveMemberType.File)
             {
+                if (addition.DirectoryMetadata is not null) throw Invalid("A regular file cannot carry directory metadata.");
                 if (addition.InputId is not { } id || !inputs.TryGetValue(id, out input)) throw Invalid("A file addition needs a captured input.");
                 ChargeInput(input.Length);
             }
             else if (addition.InputId is not null) throw Invalid("A directory cannot carry a file payload.");
-            decimal modified = input?.Modified.UnixSeconds ?? 0;
+            decimal modified = input?.Modified.UnixSeconds ?? addition.DirectoryMetadata?.Modified.UnixSeconds ?? 0;
             if (format == TarEntryFormat.Ustar) modified = decimal.Truncate(modified);
             var member = new TarWriteMember(addition.Name, addition.Type, 0, input?.Length ?? 0,
-                input?.Mode ?? 0x1ed, 0, 0, "", "", modified, null, null,
+                input?.Mode ?? addition.DirectoryMetadata?.Mode ?? 0x1ed, 0, 0, "", "", modified, null, null,
                 input?.Sha256 ?? Convert.ToHexString(SHA256.HashData([])), 0);
             ReserveMember(budget, member, format);
             planned.Add((member, addition.InputId, true));

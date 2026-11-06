@@ -36,7 +36,7 @@ public sealed record ArchiveTransformReceipt(long Length, string ManifestDigest,
 /// <summary>Bounded canonical TAR transform records. No paths, expected-output digests or worker-selected grants.</summary>
 public static class ArchiveTransformWire
 {
-    public static ReadOnlySpan<byte> Hello => [1, 0, 3, 0, 2, 0, 0, 0];
+    public static ReadOnlySpan<byte> Hello => [1, 0, 4, 0, 2, 0, 0, 0];
 
     public static ArchiveTarTransformInvocation Prepare(ArchiveTarTransformPlan plan, CancellationToken ct = default)
     {
@@ -46,7 +46,8 @@ public static class ArchiveTransformWire
         for (int i = 0; i < edits.Length; i++)
         { ct.ThrowIfCancellationRequested(); var edit = plan.Edits[i]; edits[i] = new(edit.Kind, edit.Key, edit.NewName, Alias(edit.InputId)); }
         for (int i = 0; i < additions.Length; i++)
-        { ct.ThrowIfCancellationRequested(); var addition = plan.Additions[i]; additions[i] = new(addition.Name, addition.Type, Alias(addition.InputId)); }
+        { ct.ThrowIfCancellationRequested(); var addition = plan.Additions[i]; additions[i] = addition.DirectoryMetadata is { } metadata
+            ? new(addition.Name, metadata) : new(addition.Name, addition.Type, Alias(addition.InputId)); }
         var source = plan.Source is { } old ? new ArchiveAssessmentRequest(old.Manifest.Profile, old.SourceLength, old.SourceSha256) : null;
         return new(new(source, inputs, edits, additions, OutputBound(plan.Expected, ct), plan.Expected.Profile), plan.Expected, captured);
 
@@ -99,7 +100,7 @@ public static class ArchiveTransformWire
         if (request.Source is not null && request.Source.Profile != request.Profile) throw Fault();
         records.Write(ArchiveControlRecord.TransformRequest, Encode(w =>
         {
-            w.Write((ushort)2); w.Write((int)request.Profile.Format); w.Write(request.Profile.Version);
+            w.Write((ushort)3); w.Write((int)request.Profile.Format); w.Write(request.Profile.Version);
             w.Write(request.Profile.CompressionLevel); w.Write(request.Profile.DictionaryBytes); w.Write(request.Source is not null);
             if (request.Source is { } source) { w.Write(source.SourceLength); Digest(w, source.SourceSha256); }
             w.Write(request.Inputs.Count); w.Write(request.Edits.Count); w.Write(request.Additions.Count); w.Write(request.OutputLengthBound);
@@ -127,7 +128,11 @@ public static class ArchiveTransformWire
         {
             ct.ThrowIfCancellationRequested();
             records.Write(ArchiveControlRecord.TransformAddition, Encode(w =>
-            { w.Write((ushort)1); Text(w, addition.Name); w.Write((int)addition.Type); w.Write(addition.InputId ?? 0); }));
+            {
+                w.Write((ushort)2); Text(w, addition.Name); w.Write((int)addition.Type); w.Write(addition.InputId ?? 0);
+                w.Write(addition.DirectoryMetadata is not null);
+                if (addition.DirectoryMetadata is { } metadata) { w.Write(metadata.Modified.Seconds); w.Write(metadata.Modified.Nanoseconds); w.Write(metadata.Mode); }
+            }));
             progress?.Invoke();
         }
     }
@@ -136,7 +141,7 @@ public static class ArchiveTransformWire
     {
         try
         {
-            ct.ThrowIfCancellationRequested(); var reader = new Packet(records.Read(ArchiveControlRecord.TransformRequest)); reader.Schema(2);
+            ct.ThrowIfCancellationRequested(); var reader = new Packet(records.Read(ArchiveControlRecord.TransformRequest)); reader.Schema(3);
             var profile = new ArchiveWriteProfile((ArchiveWriteFormat)reader.Integer(), reader.Integer(), reader.Integer(), reader.Integer());
             if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd)) throw Fault();
             ArchiveAssessmentRequest? source = reader.Flag() ? new(profile, reader.Long(), reader.Digest()) : null;
@@ -169,8 +174,11 @@ public static class ArchiveTransformWire
             for (int i = 0; i < additionCount; i++)
             {
                 ct.ThrowIfCancellationRequested(); byte[] data = records.Read(ArchiveControlRecord.TransformAddition); budget.AddMetadata(data.Length, 0);
-                var packet = new Packet(data); packet.Schema(); string name = packet.Text(budget); var type = (ArchiveMemberType)packet.Integer();
-                int? id = Input(packet.Integer()); packet.End(); additions.Add(new(name, type, id));
+                var packet = new Packet(data); packet.Schema(2); string name = packet.Text(budget); var type = (ArchiveMemberType)packet.Integer();
+                int? id = Input(packet.Integer()); bool directory = packet.Flag();
+                if ((type == ArchiveMemberType.Directory) != directory || directory && id is not null) throw Fault();
+                ArchiveTransformDirectoryMetadata? metadata = directory ? new(new(packet.Long(), packet.Integer()), packet.Integer()) : null;
+                packet.End(); additions.Add(metadata is not null ? new(name, metadata) : new(name, type, id));
             }
             if (used.Count != inputs.Count) throw Fault();
             return new(source, inputs, edits.ToArray(), additions.ToArray(), bound, profile);

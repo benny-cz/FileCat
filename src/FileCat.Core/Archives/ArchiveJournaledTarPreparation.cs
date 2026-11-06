@@ -34,9 +34,6 @@ internal static class ArchiveJournaledTarPreparation
         if (string.IsNullOrEmpty(targetLeaf) || original is not null && !string.Equals(original.Reviewed.LeafName, targetLeaf, pathComparison)) throw Invalid();
         if (captured.Count != plan.Inputs.Count || captured.Count > ArchiveWritePolicy.MaxMembers || (original is null) != (plan.Source is null)) throw Invalid();
         ArchiveCapturedInputs.RequirePlanCost(plan, captured);
-        // New folder capture must supply its own retained metadata/origin snapshot before that operation can use this bridge.
-        if (plan.Additions.Any(a => a.Type == ArchiveMemberType.Directory))
-            throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "New directories require retained folder metadata and provenance capture.");
         var inputs = captured.ToDictionary(); var sidecars = new List<ArchiveSealedSidecar<T>>(); T? stage = null;
         ArchiveTransactionFacts? facts = null; ArchiveSpaceReview? space = null;
         try
@@ -45,9 +42,10 @@ internal static class ArchiveJournaledTarPreparation
             {
                 ReviewInputs();
                 Guid nonce = Guid.NewGuid(); var profile = plan.Expected.Profile;
-                var records = new List<ArchiveOriginEvidenceRecord>(inputs.Count + (original is null ? 0 : 1));
+                var records = new List<ArchiveOriginEvidenceRecord>(inputs.Count + plan.Directories.Count + (original is null ? 0 : 1));
                 if (original is not null) records.Add(new(ArchiveOriginSourceKind.OriginalArchive, original.Reviewed.Version, original.Reviewed.Origin));
                 foreach (var pair in inputs.OrderBy(p => p.Key)) { ct.ThrowIfCancellationRequested(); records.Add(new(ArchiveOriginSourceKind.File, pair.Value.Reviewed.Version, pair.Value.Reviewed.Origin)); }
+                foreach (var pair in plan.Directories.OrderBy(p => p.Key)) { ct.ThrowIfCancellationRequested(); records.Add(new(ArchiveOriginSourceKind.Directory, pair.Value.Reviewed.Version, pair.Value.Reviewed.Origin)); }
                 var originScope = new ArchiveOriginEvidenceScope(nonce, profile, original is null ? ArchiveOriginOperation.Create : ArchiveOriginOperation.Update, records.Count);
                 long expectedLength = ArchiveManifestSidecar.EncodedLength(plan.Expected, ct);
                 long assessedLength = plan.Source is null ? 0 : ArchiveManifestSidecar.EncodedLength(plan.Source.Manifest, ct);
@@ -62,7 +60,9 @@ internal static class ArchiveJournaledTarPreparation
                 var assessedName = plan.Source is null ? null : reserve(nonce, ArchiveArtifactKind.Manifest, assessedLength);
                 var metadataName = original is not null ? null : reserve(nonce, ArchiveArtifactKind.Manifest, ArchiveCreationMetadata.MaximumBytes);
                 if (original is not null && original.Reviewed.ParentIdentity != stageName.ParentIdentity ||
-                    inputs.Values.Any(b => b.Reviewed.ParentIdentity == stageName.ParentIdentity && string.Equals(b.Reviewed.LeafName, targetLeaf, pathComparison)))
+                    inputs.Values.Any(b => b.Reviewed.ParentIdentity == stageName.ParentIdentity && string.Equals(b.Reviewed.LeafName, targetLeaf, pathComparison)) ||
+                    plan.Directories.Values.Any(d => d.Reviewed.Version.Identity == stageName.ParentIdentity ||
+                        d.Reviewed.ParentIdentity == stageName.ParentIdentity && string.Equals(d.Reviewed.LeafName, targetLeaf, pathComparison)))
                     throw Invalid();
                 CheckReservation(stageName, ArchiveArtifactKind.Stage, stageBound);
                 CheckReservation(expectedName, ArchiveArtifactKind.Manifest, expectedLength);
@@ -104,8 +104,9 @@ internal static class ArchiveJournaledTarPreparation
                     var evidence = sidecars.Single(s => s.Observation.Version.Identity == facts!.OriginEvidenceIdentity);
                     var version = evidence.Observation.Version;
                     var origin = ArchiveCreationOrigin.Review(evidence.File.OpenReadView(evidence.Observation, ct), new(version.Length, version.Sha256),
-                        new(facts!.Nonce, facts.Profile, ArchiveOriginOperation.Create, inputs.Count),
-                        inputs.OrderBy(p => p.Key).Select(p => p.Value.Reviewed), sealedStage.Origin.Format, ct);
+                        new(facts!.Nonce, facts.Profile, ArchiveOriginOperation.Create, checked(inputs.Count + plan.Directories.Count)),
+                        inputs.OrderBy(p => p.Key).Select(p => p.Value.Reviewed), sealedStage.Origin.Format, ct,
+                        plan.Directories.OrderBy(p => p.Key).Select(p => p.Value.Reviewed));
                     return publication.ApplyCreationOrigin(sealedStage, origin, ct);
                 } : null).ConfigureAwait(false);
             await Task.Run(() =>
@@ -141,6 +142,11 @@ internal static class ArchiveJournaledTarPreparation
                 ct.ThrowIfCancellationRequested();
                 if (binding is null || !plan.Inputs.TryGetValue(id, out var expected) || binding.Reviewed.Input(id) != expected || !identities.Add(binding.Reviewed.Version.Identity)) throw Invalid();
                 binding.File.Review(binding.Reviewed, ct);
+            }
+            foreach (var directory in plan.Directories.Values)
+            {
+                ct.ThrowIfCancellationRequested(); if (!identities.Add(directory.Reviewed.Version.Identity)) throw Invalid();
+                directory.Review(ct);
             }
         }
     }

@@ -94,7 +94,7 @@ internal sealed class ArchiveCapturedInputs : IDisposable
                     checked(2 * chars + observed.Origin.Bytes.Length));
                 if (!identities.Add(observed.Version.Identity)) throw Changed();
                 token.ThrowIfCancellationRequested();
-                directories.Add(id, new(this, observe, observed));
+                directories.Add(id, new(this, id, observe, observed));
             }
             catch { poisoned = true; throw; }
         }
@@ -123,27 +123,30 @@ internal sealed class ArchiveCapturedInputs : IDisposable
 
     internal ArchiveTarTransformPlan CreatePlan(ArchiveWriteProfile profile, ArchiveAssessment? source,
         IReadOnlyList<ArchiveTransformEdit> edits, IReadOnlyList<ArchiveTransformAddition> additions, CancellationToken ct)
-    { lock (gate) { Live(sealedRequired: true); RequireDirectoryPlanSupport(); return ArchiveTarTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this); } }
+    { lock (gate) { Live(sealedRequired: true); return ArchiveTarTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this); } }
+
+    internal ArchiveTransformAddition DirectoryAddition(string name, int id)
+    {
+        lock (gate)
+        {
+            Live(sealedRequired: true);
+            if (!directories.TryGetValue(id, out var directory)) throw Invalid();
+            return ArchiveTransformAddition.FromCapturedDirectory(name, directory);
+        }
+    }
 
     internal static void RequirePlanCost(ArchiveTarTransformPlan plan, IReadOnlyDictionary<int, ArchiveRetainedBinding> captured)
     {
         if (plan.CaptureOwner is { } owner)
         {
-            owner.RequireDirectoryPlanSupport();
             var expected = owner.Bindings;
-            if (plan.CaptureCost != owner.Cost || expected.Count != captured.Count || captured.Any(pair =>
+            if (!ReferenceEquals(plan.Directories, owner.Directories) || plan.CaptureCost != owner.Cost || expected.Count != captured.Count || captured.Any(pair =>
                 !expected.TryGetValue(pair.Key, out var binding) || !ReferenceEquals(binding, pair.Value))) throw Invalid();
             return;
         }
         foreach (var binding in captured.Values)
             if (binding?.File is IArchiveCapturedInputFile) throw Invalid();
         if (plan.CaptureCost != default) throw Invalid();
-    }
-
-    private void RequireDirectoryPlanSupport()
-    {
-        if (directories.Count != 0) throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature,
-            "Captured folders require directory-aware planning, provenance and publication review.");
     }
 
     private void Live(bool sealedRequired)
