@@ -1,0 +1,91 @@
+{
+  "purpose": "Internal typed graph with related exact indexes; no feature/capability authorization",
+  "gitBase": "134c883d98e49538fcf96c548b2c5ed840b2b8cc",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "ea0cbdc7279d93c7fee074ac16931f4a7d794b88583685b0aebd9aab31ea259e"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "0aaf1e33e9e2069268830e1af2479e140302f12146b9f4d1d286d0569a49192e"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisExternalSort.cs",
+      "sha256": "f732594f0ae81a9c4f5ec4b4b8f5d8dc4e85830a9dd3944d4fb388b608d5cd2d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedGraph.cs",
+      "sha256": "ba46828baa92f189d8426253934fca0a7e59d46ebd4750c3104ff347903b475a"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedGraphValidation.cs",
+      "sha256": "7211a9fadb4ac75535b65a5702bc255107fd0fe8729189827f4742570d5940fc"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchComposite.cs",
+      "sha256": "3efba0397ba16d1e518416ddbcaa4915cca5538bc82cd067e8ec1f291a27627f"
+    },
+    {
+      "path": "tests/AnalysisIndexedGraphFixture.cs",
+      "sha256": "9c9f6dc0283fb12e05fc7930094af5c6ce7a8e997d5bb90084c7275ce538d092"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisExternalSortTests.cs",
+      "sha256": "f23ee97032d0cee705303dd8700731c6f761a5d762a5a9cac37e5a75490101ea"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisIndexedGraphTests.cs",
+      "sha256": "08684175e2158ce74025528ae80616dad112f69e5f75729d7e17239b46114ad8"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisPrivateStorageTests.Scratch.cs",
+      "sha256": "0a579735b69b06c5f94d08930dc8d282740680379521b494d8eb7c6ea6b05717"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj",
+      "sha256": "829732a4e5248b58a6a4962eb649a6056d49602fd0b1c287f4122859c7b06f32"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.Scratch.cs",
+      "sha256": "31ccc0825b61eebf0b2e0be5209b75f93ed7242747cae5eac0f8917c236f0175"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj",
+      "sha256": "79a1384ec133bd97d1351e015b17ddb4a480c79341bc94d47644a5ca6fa96da5"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r147.tgz",
+      "sha256": "1f6e142411b570a90a238079b8112665c3ade9f80608d7e4b60a5d1d18b8771e"
+    },
+    {
+      "path": ".tmp/dsa-native-r147.tgz",
+      "sha256": "2c0b1ef5ea47c0f3e795ec5b9dd8a0f14b041a2c7dd6e2a60bd71dc61b80b186"
+    }
+  ],
+  "controllers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r147.sh",
+      "sha256": "d336f79f7480b1043ecdadb40d91972d01066a9d10beaf24fc509a3b816d71fb"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r147.ps1",
+      "sha256": "fe229d1c9233722ecb4963bc63fa5884f0d2097ae3f3c6884a4423c68dfd0b94"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r147.ps1",
+      "sha256": "42fe44b815c8908b06d92b924d6c2e7fd8a1dfce71eac500c271cebcff6cb989"
+    }
+  ],
+  "reports": [
+    "windows-core-r147.xml",
+    "mac-core-r147.xml",
+    "ubuntu-core-r147.xml",
+    "windows-native-r147.xml",
+    "graph-build-r146.txt"
+  ],
+  "remaining": "Full graph1M/10M scale, complete coverage/issue totals and inventory-ID mapping; production native traversal/frontier/store/snapshot integration; bounded aggregation/query/projection/table/import/export; cross-process profile quota and complete native/resource qualification; remaining full plan and final independent review."
+}

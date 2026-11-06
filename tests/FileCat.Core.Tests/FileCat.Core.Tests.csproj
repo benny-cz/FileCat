@@ -33,5 +33,6 @@
   <ItemGroup>
     <Compile Include="..\TestCleanup.cs" Link="TestCleanup.cs" />
     <Compile Include="..\AnalysisScratchCrashFixture.cs" Link="AnalysisScratchCrashFixture.cs" />
+    <Compile Include="..\AnalysisIndexedGraphFixture.cs" Link="AnalysisIndexedGraphFixture.cs" />
   </ItemGroup>
 </Project>

@@ -66,6 +66,46 @@ public sealed class AnalysisExternalSortTests
     }
 
     [Fact]
+    public async Task SparseWorkStepsRemainCancelableAndDoNotCreateIndexEntries()
+    {
+        Ordinary(); var directory = new MemoryDirectory(); using var workspace = new AnalysisScratchWorkspace(directory); using var io = new DeviceIoScheduler();
+        IEnumerable<AnalysisSortInput> Source(CancellationTokenSource? stop)
+        {
+            for (int row = 0; row < 2000; row++)
+            { if (row == 600) stop?.Cancel(); yield return new(row == 1999 ? new AnalysisSortEntry([0xff], 17) : null, 64 * 1024); }
+        }
+        using (var source = Source(null).GetEnumerator())
+        using (var index = await AnalysisExternalSort.BuildSparseAsync(workspace, io, "sparse-sort", source, Cancellation))
+        using (var reader = index.Acquire())
+        { Assert.Equal(1UL, reader.Count); Assert.Equal(17UL, reader.Read(1, Cancellation).Value); }
+        Assert.Equal(0, directory.LiveFiles); Assert.Equal(0, workspace.ReservedBytes);
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(Cancellation); using var canceled = Source(stop).GetEnumerator();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => AnalysisExternalSort.BuildSparseAsync(workspace, io, "sparse-cancel", canceled, stop.Token));
+        Assert.Equal(0, directory.LiveFiles); Assert.Equal(0, workspace.ReservedBytes);
+    }
+
+    [Fact]
+    public async Task SparseInputYieldsTheDeviceWorkerAtItsCapturedByteLimit()
+    {
+        Ordinary(); using var workspace = new AnalysisScratchWorkspace(new MemoryDirectory());
+        using var io = new DeviceIoScheduler(threadsPerDevice: 1, maxThreadsPerDevice: 1);
+        const string device = "sparse-byte-scheduling"; int observed = 0; Task<int>? foreground = null;
+        IEnumerable<AnalysisSortInput> Source()
+        {
+            for (int row = 0; row < 1000; row++)
+            {
+                observed++;
+                if (row == 0) foreground = io.Run(device, IoPriority.Interactive, _ => observed);
+                yield return new(null, 64 * 1024);
+            }
+        }
+        using var source = Source().GetEnumerator();
+        using var result = await AnalysisExternalSort.BuildSparseAsync(workspace, io, device, source, Cancellation);
+        Assert.NotNull(foreground); Assert.InRange(await foreground, 1, AnalysisLimits.BatchBytes / (64 * 1024));
+        Assert.Equal(0UL, result.Count);
+    }
+
+    [Fact]
     public async Task SourceIterationAndCleanupUseAdmittedWorkersAndSourceOwnershipStaysWithCaller()
     {
         Ordinary(); using var workspace = new AnalysisScratchWorkspace(new MemoryDirectory()); using var io = new DeviceIoScheduler();

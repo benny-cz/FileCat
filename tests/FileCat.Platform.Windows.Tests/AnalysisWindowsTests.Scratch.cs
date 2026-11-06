@@ -6,6 +6,14 @@ namespace FileCat.Platform.Windows.Tests;
 public sealed partial class AnalysisWindowsTests
 {
     [Fact]
+    public async Task NativeTypedGraphKeepsItsExactRelatedIndexesAfterOwnerClosure()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows native fixtures.");
+        using var fixture = new PrivateFixture();
+        await FileCat.Tests.AnalysisIndexedGraphFixture.VerifyNative(() => new WindowsAnalysisPrivateDirectory(fixture.Path, "scratch"), fixture.Path, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task NativeExternalIndexKeepsExactRangesAndReleasesRunArtifacts()
     {
         Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows native fixtures.");

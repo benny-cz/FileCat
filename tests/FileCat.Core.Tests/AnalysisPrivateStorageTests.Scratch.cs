@@ -7,6 +7,13 @@ namespace FileCat.Core.Tests;
 public sealed partial class AnalysisPrivateStorageTests
 {
     [Fact]
+    public async Task UnixNativeTypedGraphKeepsItsExactRelatedIndexesAfterOwnerClosure()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix native indexed graph fixture."); Ordinary(); using var fixture = new NativeFixture();
+        await FileCat.Tests.AnalysisIndexedGraphFixture.VerifyNative(() => new UnixAnalysisPrivateDirectory(fixture.Path, "scratch"), fixture.Path, Cancellation);
+    }
+
+    [Fact]
     public async Task UnixNativeExternalIndexKeepsExactRangesAndReleasesRunArtifacts()
     {
         Assert.SkipWhen(OperatingSystem.IsWindows(), "Unix native external index fixture."); Ordinary(); using var fixture = new NativeFixture();

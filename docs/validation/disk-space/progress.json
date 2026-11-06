@@ -99,15 +99,17 @@
     "Typed private path records retain one reversible native name, exact times/precision/nullable flags, opaque object/observed-identity references and a bounded root ordinal. Base records refuse supplied issue references until the separate issue index exists. Strict decoding rejects truncation, trailing bytes, invalid tags/extents/UTF-8 and loss of invalid Unix raw bytes. No backend ancestry, live binding or operation approval is serialized.",
     "An indexed path writer resolves pending parents without external snapshot leases, enforces dense IDs, parent/root/depth and readable-ancestor structure, and publishes only immutable committed prefixes. Captured headers preserve acquisition/epoch/profile/timezone/privacy; a revision cannot be retagged to changed records or times. Lineage is bounded by depth/locator bytes and never truncates an oversized path. Native 1M/10M typed path readback verifies every field, retained count, inert classification, lineage and owned cleanup on all three guests. This remains an internal path component; active AnalysisStore, sibling/object/fact/issue indexes and full query/projection/export integration remain unfinished.",
     "Related private record tables now publish one coherent immutable generation under one consumer lease; failure during a later table flush retains the previous entire generation. Independent reader retention remains bounded to eight after owner closure. Strict inert object/fact/issue codecs preserve exact UInt128/state/time/reference fields and reject unsupported supplied alias lists instead of discarding them.",
-    "A workspace shares one native no-follow directory and one hierarchical session/profile-process scratch budget across independently owned data, spool and index arenas. Temporary external sorting clones bounded binary keys, sorts outside device workers, merges admitted record/byte batches, retains exact duplicate-key ranges, retires the spool, and leaves immutable exact-key/prefix readers alive after owners close. Native 1M/10M reverse-key storage readback passes on Windows, Mac and Ubuntu. These remain internal storage components; production graph/scanner/projection integration and the full plan remain unfinished."
+    "A workspace shares one native no-follow directory and one hierarchical session/profile-process scratch budget across independently owned data, spool and index arenas. Temporary external sorting clones bounded binary keys, sorts outside device workers, merges admitted record/byte batches, retains exact duplicate-key ranges, retires the spool, and leaves immutable exact-key/prefix readers alive after owners close. Native 1M/10M reverse-key storage readback passes on Windows, Mac and Ubuntu. These remain internal storage components; production graph/scanner/projection integration and the full plan remain unfinished.",
+    "An internal typed graph now freezes paths/objects/facts/issues at one publication and builds exact children, object-ID, alias, fact-owner, fact-ID and issue-owner indexes. Streaming validation refuses duplicate IDs/siblings, missing or contradictory object/alias relationships, wrong fact owners, conflicting/cyclic component sets and dangling/cross-root issues before a graph reader is returned. Whole-graph readers retain their inert header and all indexes after owner closure, with an eight-consumer ceiling. Failed temporary indexing can retry the identical frozen header; failed raw publication refuses further publication. Production scanner/store/projection integration remains unfinished.",
+    "Sparse index sources report each consumed row and its byte cost, including rows that yield no index entry. A single-worker scheduling control proves interactive work gets a turn after four64KiB skipped rows. Native related-graph storage probes on NTFS/APFS/ext4 verify1000 paths,250 objects/facts, exact aliases/children/object lookups, imported classification, retained owner-closed readers, foreign-neighbor preservation and zero residual quota. These are synthetic storage observations, not actual source traversal or full graph-scale/feature qualification."
   ],
   "validation": {
     "windowsCore": {
-      "total": 392,
-      "passed": 367,
+      "total": 407,
+      "passed": 381,
       "failed": 0,
-      "skipped": 25,
-      "evidence": "windows-core-r138.xml"
+      "skipped": 26,
+      "evidence": "windows-core-r147.xml"
     },
     "windowsHostNative": {
       "total": 14,
@@ -117,20 +119,20 @@
       "evidence": "windows-host-native-r32.xml"
     },
     "windowsVm": {
-      "total": 26,
-      "passed": 26,
+      "total": 27,
+      "passed": 27,
       "failed": 0,
       "skipped": 0,
-      "evidence": "windows-native-r138.xml",
+      "evidence": "windows-native-r147.xml",
       "status": "ordinary-user-native-regressions-passed",
-      "detail": "26 NTFS/native/private-storage controls, including shared table publication, workspace lifetime and exact external sort. Rejected operation-feasibility counterexamples remain rejected."
+      "detail": "27 native NTFS/filesystem/private-storage controls, including the owner-closed related graph fixture. Rejected operation-feasibility counterexamples remain rejected."
     },
     "macosArm64": {
-      "total": 374,
-      "passed": 373,
+      "total": 389,
+      "passed": 388,
       "failed": 0,
       "skipped": 1,
-      "evidence": "mac-core-r138.xml"
+      "evidence": "mac-core-r147.xml"
     },
     "headlessRendering": {
       "total": 64,
@@ -143,14 +145,14 @@
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "sort-build-r137.txt"
+      "evidence": "graph-build-r146.txt"
     },
     "ubuntu": {
-      "total": 374,
-      "passed": 373,
+      "total": 389,
+      "passed": 388,
       "failed": 0,
       "skipped": 1,
-      "evidence": "ubuntu-core-r138.xml"
+      "evidence": "ubuntu-core-r147.xml"
     },
     "nativeDesktop": {
       "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification. r62 native accessibility/keyboard link inspection verifies the visible omitted-target explanation, measured-zero distinction and retained mark, with 509 unchanged source paths and owned exit.",
@@ -298,6 +300,13 @@
       "ubuntu": "ubuntu-sort-scale-r139.json",
       "scope": "1M/10M reverse binary key/value records,24-byte ordinary keys and one64KiB key per1024. Every returned key/value, exact and whole-prefix ranges, retained reader after workspace/index owner closure, actual child exits, owned artifact removal and zero quota verified. This is not source traversal, a connected analysis graph, aggregation/query/chart/table/export or full resource qualification. Shared profile budget is process-local; cross-process accounting is unfinished.",
       "macPrivateBytes": "Unavailable; working-set samples are separately labelled and do not substitute for private bytes."
+    },
+    "indexedRelatedGraph": {
+      "status": "native-synthetic-storage-subset-passed-all-three",
+      "windows": "windows-native-r147.xml",
+      "mac": "mac-core-r147.xml",
+      "ubuntu": "ubuntu-core-r147.xml",
+      "scope": "Bounded synthetic1000-path/250-object/fact graph stored through native private files. Exact aliases/children/object lookups and retained readers after graph/writer/workspace closure, imported privacy, foreign-neighbor preservation and zero quota verified. Core controls cover refusal, immutable headers, eight-consumer bound and sparse scheduling. No source traversal, production AnalysisStore/scanner/projection integration, full graph1M/10M qualification, coverage totals/header completion or final independent review."
     }
   },
   "nextWork": [

@@ -132,6 +132,16 @@ internal sealed class AnalysisScratchCompositeRevision : IDisposable
             return Open(_publication, _lease.RetainReader());
         }
     }
+    // A typed owner counts its whole graph consumers separately. Its related table views share this
+    // underlying consumer rather than consuming an extra native reader for each graph component.
+    internal AnalysisScratchCompositeRevision Borrow()
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return Open(_publication, _lease.Borrow());
+        }
+    }
     private void Guard(int table)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

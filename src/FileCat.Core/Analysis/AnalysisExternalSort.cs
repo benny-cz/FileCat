@@ -4,6 +4,7 @@ using FileCat.Core.Threading;
 namespace FileCat.Core.Analysis;
 
 internal readonly record struct AnalysisSortEntry(byte[] Key, ulong Value);
+internal readonly record struct AnalysisSortInput(AnalysisSortEntry? Entry, int Bytes);
 internal readonly record struct AnalysisIndexRange(ulong First, ulong Count);
 
 /// <summary>
@@ -24,11 +25,23 @@ internal static class AnalysisExternalSort
     internal static async Task<AnalysisSortedIndex> BuildAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, string device,
         IEnumerator<AnalysisSortEntry> source, CancellationToken cancellation = default, int runMemoryBytes = RunMemoryBytes)
     {
+        ArgumentNullException.ThrowIfNull(source);
+        IEnumerable<AnalysisSortInput> Steps()
+        { while (source.MoveNext()) { var item = source.Current; yield return new(item, (item.Key?.Length ?? 0) + 12); } }
+        using var steps = Steps().GetEnumerator();
+        return await BuildSparseAsync(workspace, io, device, steps, cancellation, runMemoryBytes).ConfigureAwait(false);
+    }
+
+    // A null entry is one consumed input row with no indexed value. Its captured byte cost still
+    // counts toward the worker/observation bound; sparse input cannot hide an unbounded MoveNext loop.
+    internal static async Task<AnalysisSortedIndex> BuildSparseAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, string device,
+        IEnumerator<AnalysisSortInput> source, CancellationToken cancellation = default, int runMemoryBytes = RunMemoryBytes)
+    {
         ArgumentNullException.ThrowIfNull(workspace); ArgumentNullException.ThrowIfNull(io); ArgumentNullException.ThrowIfNull(source);
         if (runMemoryBytes is < 1024 or > RunMemoryBytes) throw new ArgumentOutOfRangeException(nameof(runMemoryBytes));
         await Sorts.WaitAsync(cancellation).ConfigureAwait(false);
         var cleanup = new Cleanup(); var runs = cleanup.Runs; var entries = new List<AnalysisSortEntry>();
-        AnalysisSortEntry? carry = null; long bytes = 0, total = 0; bool finished = false;
+        AnalysisSortEntry? carry = null; long bytes = 0, total = 0, inputs = 0; bool finished = false;
         AnalysisSortedIndex? result = null;
         try
         {
@@ -45,7 +58,11 @@ internal static class AnalysisExternalSort
                         else
                         {
                             if (!source.MoveNext()) { finished = true; return false; }
-                            var item = source.Current;
+                            if (++inputs > AnalysisLimits.Observations) throw new IOException("The analysis index input-row limit was reached.");
+                            var input = source.Current;
+                            if (input.Bytes is < 1 or > AnalysisScratchVector.MaximumRecordBytes) throw Invalid();
+                            batchBytes += input.Bytes;
+                            if (input.Entry is not { } item) { batch++; continue; }
                             if (item.Key is null || item.Key.Length is < 1 or > MaximumKeyBytes || item.Value == 0) throw Invalid();
                             if (++total > AnalysisLimits.Observations) throw new IOException("The analysis index record limit was reached.");
                             entry = new(item.Key.ToArray(), item.Value);
