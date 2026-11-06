@@ -86,8 +86,8 @@ internal static unsafe partial class WindowsArchiveNative
 
     internal static byte[] ReadOuterSecurity(SafeFileHandle handle)
     {
-        // This is the explicitly queried permission/label subset. It does NOT imply that an audit SACL, resource
-        // policy or other unqueried security metadata is absent; a release preservation profile must address those.
+        // This explicitly includes the readable resource attributes/CAP alongside permissions and the label.
+        // It does not imply that audit or other unqueried security state is absent; preservation must address those.
         int error = GetSecurityInfo(handle, 1 /* SE_FILE_OBJECT */, WindowsArchiveOuterMetadata.QueriedSecurityInformation,
             out _, out _, out _, out _, out nint pointer);
         try

@@ -9,13 +9,14 @@ using FileCat.Platform.Windows.Elevation;
 namespace FileCat.Platform.Windows.Archives;
 
 /// <summary>
-/// Immutable observations of the named permission/label subset and outer fields on one held file. This is neither a
-/// complete Windows backup-security descriptor nor a preservation/cleanup authorization. In particular, audit SACL,
-/// resource attributes/CAP and other unqueried state have not been established absent. No release profile is enabled.
+/// Immutable observations of the named permission/label/resource-policy subset and outer fields on one held file.
+/// This is neither a complete backup-security descriptor nor preservation/cleanup authority. Audit and other
+/// unqueried security state have not been established absent. No release profile is enabled.
 /// </summary>
 internal sealed class WindowsArchiveOuterMetadata
 {
-    public const uint QueriedSecurityInformation = 1 | 2 | 4 | 0x10; // owner, group, DACL, mandatory label; READ_CONTROL.
+    // Each requested component is readable with READ_CONTROL; never silently retry with fewer components.
+    public const uint QueriedSecurityInformation = 1 | 2 | 4 | 0x10 | 0x20 | 0x40; // owner, group, DACL, label, resource attributes, CAP.
     public const int MaxSecurityBytes = 128 * 1024;
     private readonly byte[] security;
     public FileIdentity Identity { get; }

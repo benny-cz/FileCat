@@ -6,7 +6,7 @@ using FileCat.Platform.Windows.Archives;
 
 namespace FileCat.Platform.Windows.Tests;
 
-public sealed class WindowsArchiveMetadataTests
+public sealed partial class WindowsArchiveMetadataTests
 {
     private static void RequireWindows()
     {

@@ -50,7 +50,7 @@ owned-view disposal, all three typed-absence formats and refusal of unqualified 
 |---|---|---|---|
 | macOS 27.0.1 ARM64 / APFS, .NET 10.0.12 | 1,461 passed, 65 skipped; 1,526 total | 239 passed | Native retained preparation/publication and crash cases are included in Core |
 | Ubuntu x64 / ext4, .NET 10.0.14 | 1,474 passed, 52 skipped; 1,526 total | 239 passed | 61 passed, one skipped; 62 total |
-| Windows 11 x64 VM / NTFS, .NET 10.0.14 | 1,314 passed, 212 skipped; 1,526 total | 239 passed | Corrected storage/confined-worker retry deferred while another tester is active |
+| Windows 11 x64 VM / NTFS, .NET 10.0.14 | 1,314 passed, 212 skipped; 1,526 total | 239 passed | Corrected storage: 124 passed, 57 skipped; 181 total. Confined worker lane: all 68 passed |
 | Windows 11 x64 host / NTFS, .NET 10.0.14 | Additional focused Core: 29 passed | — | Storage: 122 passed, one skipped; 123 total. Confined worker lane: 63 passed, five skipped; 68 total |
 
 Mac and Ubuntu independent readers each checked 12 TAR.ZST, 11 TAR.BZ2, 11 TAR.GZ and eight exact-timestamp outputs.
@@ -68,6 +68,9 @@ transform and verifier workers, checking that the native mark exists before veri
 All eight new confined marked-creation cases passed. The five native lane skips require an elevated parent, while
 the actual host launcher recorded integrity 8192 before and after and exit zero. The earlier VM Core/UI parents
 recorded 12288 before / 8192 after and exit zero. These do not establish all ordinary-user or installed-package gates.
+After the other tester exited, the VM completed the corrected storage and native replay with exit zero, integrity
+12288 before / 8192 after, no native skips and all eight marked-creation cases passing. Host storage uses the
+WindowsArchive/WindowsFileOperations filter; VM storage uses the broader archive/edit-session filter above.
 
 ## Evidence and remaining gates
 
@@ -81,6 +84,7 @@ Windows test-only sharing corrections follow that archive; the tested production
 - Mac final evidence: `C2E7F28A50A258062F85D19D4F13C5FED25B632FEA5220A799389C8862A7AC85`.
 - Ubuntu final evidence: `9F88E2C17C29C6C5621F7A25052C4A3EDD095B4ABCE537C41362907269B52850`.
 - Windows host final native evidence: `12C12364F73066BFB4DD0FEE8DE9F665ECC1DE321ADAF0F1C32FEDD6DAD75A31`.
+- Windows VM corrected storage/native evidence: `C0CE9B552261B71C09FF773E70A68C8A0D3BB0973861601719CA9F63DDDDCE0A`.
 
 The refreshed win-x64 development application SPDX inventory is retained at ignored
 `.tmp/test-results/archive-writing/creation-origin-artifacts-v1/application-final.spdx.json`, SHA-256
