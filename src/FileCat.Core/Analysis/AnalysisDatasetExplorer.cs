@@ -20,10 +20,11 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
     private readonly AnalysisDatasetLease _dataset;
     private readonly AnalysisDatasetHierarchy _hierarchy;
     private readonly object _gate = new();
-    private readonly Lane _pages = new(), _inspections = new();
+    private readonly Lane _pages = new(), _inspections = new(), _charts = new();
     private readonly TaskCompletionSource _closed = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private AnalysisExplorerPage? _page;
     private AnalysisExplorerInspection? _inspection;
+    private AnalysisIndexedChart? _chart;
     private int _active;
     private bool _disposed, _closing;
 
@@ -34,7 +35,13 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
     public AnalysisLogicalTotals LogicalTotals => _hierarchy.LogicalTotals;
     public AnalysisExplorerPage? Page { get { lock (_gate) return _page; } }
     public AnalysisExplorerInspection? Inspection { get { lock (_gate) return _inspection; } }
+    public AnalysisIndexedChart? Chart { get { lock (_gate) return _chart; } }
     public int PendingRequests { get { lock (_gate) return _active; } }
+    public Task<bool> LoadChartAsync(ulong parent = 0, CancellationToken cancellation = default)
+    {
+        if (parent > Descriptor.Paths) throw new ArgumentOutOfRangeException(nameof(parent));
+        return RequestAsync(_charts, token => AnalysisIndexedChart.BuildAsync(_hierarchy, parent, token), value => _chart = value, cancellation);
+    }
 
     private AnalysisDatasetExplorer(AnalysisDatasetLease dataset, AnalysisDatasetHierarchy hierarchy)
     { _dataset = dataset; _hierarchy = hierarchy; }
@@ -176,13 +183,13 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        Request? page, inspection; bool close;
+        Request? page, inspection, chart; bool close;
         lock (_gate)
         {
-            _disposed = true; _page = null; _inspection = null;
-            page = _pages.Current; inspection = _inspections.Current; close = BeginClose();
+            _disposed = true; _page = null; _inspection = null; _chart = null;
+            page = _pages.Current; inspection = _inspections.Current; chart = _charts.Current; close = BeginClose();
         }
-        page?.Cancel(); inspection?.Cancel();
+        page?.Cancel(); inspection?.Cancel(); chart?.Cancel();
         if (close) _ = CloseAsync();
         return new(_closed.Task);
     }
@@ -194,7 +201,7 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
         {
             try { await _hierarchy.DisposeAsync().ConfigureAwait(false); }
             finally { await _dataset.DisposeAsync().ConfigureAwait(false); }
-            _pages.Turn.Dispose(); _inspections.Turn.Dispose(); _closed.TrySetResult();
+            _pages.Turn.Dispose(); _inspections.Turn.Dispose(); _charts.Turn.Dispose(); _closed.TrySetResult();
         }
         catch (Exception error) { _closed.TrySetException(error); }
     }

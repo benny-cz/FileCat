@@ -68,6 +68,9 @@ public static class AnalysisNames
         // Literal backslashes must remain distinguishable from the visible Unicode escapes above.
         return Display(node.Name.Replace("\\", "\\\\", StringComparison.Ordinal), maximum, escapeTrailing: true);
     }
+    public static string DisplayName(AnalysisPathMetadata path, int maximum = 4096) => DisplayName(
+        new AnalysisNode(path.Id, path.RootId, path.ParentId, path.Name, path.Kind)
+            { NameEncoding = path.NameEncoding, RawName = path.RawName }, maximum);
     public static string? NameEvidence(AnalysisNode node)
     {
         if (AnalysisRawNames.HasLosslessText(node)) return null;

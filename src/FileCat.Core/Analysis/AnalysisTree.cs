@@ -18,11 +18,12 @@ public sealed record AnalysisTreeItem(string Key, string ParentKey, string Name,
 }
 
 /// <summary>One exact hierarchy shared by charts, the ranked table and navigation. Geometry never computes accounting.</summary>
-public sealed class AnalysisTree
+public sealed class AnalysisTree : IAnalysisChartData
 {
     public const string RootKey = "scope";
     public AnalysisSnapshot Snapshot { get; }
     public AnalysisProjection Projection { get; }
+    public AnalysisMetric Metric => Projection.Metric;
     public bool FilterApplied { get; }
     public string ComponentCoverageDescription { get; }
     public ulong BoundaryCount { get; }
@@ -34,7 +35,7 @@ public sealed class AnalysisTree
         BoundaryCount = snapshot.CoverageDetails?.Boundaries ?? AnalysisCoverage.Create(snapshot).Boundaries; }
     public static string Key(ulong id) => "n:" + id.ToString(CultureInfo.InvariantCulture);
     public static string OtherKey(string parent, int skipped) => skipped > 0 ? "other:" + skipped.ToString(CultureInfo.InvariantCulture) + ":" + parent : throw new ArgumentOutOfRangeException(nameof(skipped));
-    private static bool Other(string key, out int skipped, out string parent)
+    internal static bool Other(string key, out int skipped, out string parent)
     {
         skipped = 0; parent = "";
         if (!key.StartsWith("other:", StringComparison.Ordinal)) return false;

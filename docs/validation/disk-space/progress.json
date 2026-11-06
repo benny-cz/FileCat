@@ -123,15 +123,17 @@
     "Immutable scratch checkpoints now share a process-wide 32 MiB block cache with byte/entry reservations, a 512-entry cap, LRU eviction and a sealed empty owner-token type. The cache retains no native owner and removes the checkpoint entries on disposal. Blocks enter only after HMAC and structural validation; record copies remain isolated. Controlled alternating reads drop from 23,074 backing ReadAt calls to 47 on both Mac and Ubuntu, with native wide-tree fixtures also passing faster. Cache budget, concurrent ownership, eviction, checkpoint disposal, source-owner closure and existing corruption/lifetime regressions pass. Native1M/10M full-pipeline/resource and Windows qualification remain required.",
     "Indexed hierarchy now accepts bounded declarative filters for all four metrics, with compact truth/context membership under a shared 8 MiB construction budget. Full observed-alias LCA precedes eligibility; filters include each eligible object once and only its contribution, preserve nonmatching aliases as visible context and keep exact matching-file pages separate. Definite and unknown-only cohorts, covered-root identity+namespace membership, captured dates, case, metadata flags and raw-name path uncertainty are explicit. Namespace-only scopes retain independent directory self; file predicates omit it. Selected result arithmetic ignores hidden huge values, coherent component duplicates deduplicate, and existing source/lease ownership survives query errors and closure. Native real-hard-link all-metric filters and 6,002-path exact-member filtering pass on Mac/Ubuntu after source close. Grouping, full scope/selection/UI adoption and remaining scale/feature qualification remain required.",
     "Bounded indexed explorer reader retains one captured dataset/query, pages real children and accounting buckets, and independently pages inspector aliases/facts/issues. Bounded ancestor evidence explicitly reports truncation and preserves raw names. Page and inspector lanes independently cancel superseded work, retain only complete publications, cap queued/running requests at eight, and close through actual I/O completion. Mac/Ubuntu regressions include request bursts, cancellation/failure/closure, all-metric filtered hard-link accounting, native aliases and 6,002-path pagination after source closure. This is a backend adoption prerequisite; the window still uses the managed tree, and no UI or full scale gate is closed.",
-    "Indexed hierarchy and explorer expose exact logical-size columns over the same matching paths as the active metric/filter. Per-path logical totals and five missing states fold through captured ancestors independently of shared allocation/unique charges, retain checked UInt128 arithmetic, exclude context aliases and preserve logical totals when incompatible allocation bases suppress combined chart area. Native hard-link and 6,002-path controls and all-metric/state/missing/overflow regressions pass on Mac/Ubuntu. Frontend adoption, additional sorts and remaining mandatory gates remain open."
+    "Indexed hierarchy and explorer expose exact logical-size columns over the same matching paths as the active metric/filter. Per-path logical totals and five missing states fold through captured ancestors independently of shared allocation/unique charges, retain checked UInt128 arithmetic, exclude context aliases and preserve logical totals when incompatible allocation bases suppress combined chart area. Native hard-link and 6,002-path controls and all-metric/state/missing/overflow regressions pass on Mac/Ubuntu. Frontend adoption, additional sorts and remaining mandatory gates remain open.",
+    "Internal indexed tabs now share the modeless analysis window, close review and both production chart controls. Bounded chart accounting includes exact shared/directory buckets and unloaded suffixes; table entries, inspector aliases/facts/issues and captured breadcrumbs page without full snapshot arrays. Wide layouts place a read-only keyboard/copy inspector beside charts/table; narrow layouts retain scrolling. Filters/metrics publish complete coherent views, hold publication through chart gestures and bind callbacks to the displayed immutable page. Eight-tab admission includes pending initialization/closure; close waits for real I/O. Actual Mac/Ubuntu/Windows core, native source controls and 70-per-platform rendered interaction regressions pass. A handled row/checkbox gesture freeze defect in the legacy table is fixed and has a pre-fix negative control. Public acquisition still uses the legacy bounded-memory path until cross-process quota and remaining indexed/product gates are satisfied."
   ],
   "validation": {
     "windowsCore": {
-      "total": 433,
-      "passed": 405,
+      "total": 557,
+      "passed": 526,
       "failed": 0,
-      "skipped": 28,
-      "evidence": "windows-core-r179.xml"
+      "skipped": 31,
+      "seconds": 9.317,
+      "evidence": "windows-core-r248.xml"
     },
     "windowsHostNative": {
       "total": 14,
@@ -150,12 +152,12 @@
       "detail": "29 native NTFS/filesystem/private-storage controls, including production coordinator capture beyond its preview, qualified private-state exclusion, unchanged source bytes and final cleanup."
     },
     "macosArm64": {
-      "total": 533,
-      "passed": 532,
+      "total": 539,
+      "passed": 538,
       "failed": 0,
       "skipped": 1,
-      "seconds": 11.73,
-      "evidence": "mac-core-r241.xml"
+      "seconds": 11.816,
+      "evidence": "mac-core-r248.xml"
     },
     "headlessRendering": {
       "total": 64,
@@ -168,15 +170,15 @@
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "indexed-logical-build-r240.txt"
+      "evidence": "indexed-window-build-r263.txt"
     },
     "ubuntu": {
-      "total": 533,
-      "passed": 532,
+      "total": 539,
+      "passed": 538,
       "failed": 0,
       "skipped": 1,
-      "seconds": 55.023,
-      "evidence": "ubuntu-core-r241.xml"
+      "seconds": 42.832,
+      "evidence": "ubuntu-core-r248.xml"
     },
     "nativeDesktop": {
       "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification. r62 native accessibility/keyboard link inspection verifies the visible omitted-target explanation, measured-zero distinction and retained mark, with 509 unchanged source paths and owned exit.",
@@ -222,18 +224,20 @@
       "evidence": "ubuntu-stat-consumers-r24.xml"
     },
     "macHeadlessRendering": {
-      "total": 49,
-      "passed": 49,
+      "total": 70,
+      "passed": 70,
       "failed": 0,
       "skipped": 0,
-      "evidence": "mac-analysis-render-r61.xml"
+      "seconds": 32.604,
+      "evidence": "mac-render-r264.xml"
     },
     "ubuntuHeadlessRendering": {
-      "total": 49,
-      "passed": 49,
+      "total": 70,
+      "passed": 70,
       "failed": 0,
       "skipped": 0,
-      "evidence": "ubuntu-analysis-render-r61.xml"
+      "seconds": 44.607,
+      "evidence": "ubuntu-render-r264.xml"
     },
     "windowFit": {
       "detail": "Headless fit regression plus actual Mac Retina geometry/visual workflow; broader native DPI/multi-monitor acceptance remains pending.",
@@ -424,45 +428,79 @@
       "windows": "windows-deferred-r239.json",
       "scope": "Retained immutable query, bounded page/inspector/ancestor payloads, independent latest-request publication, eight-request admission, actual-I/O closure, native hard-link/source/canary cleanup. Main-window adoption, logical-size columns under the same active predicate, grouping/selection, cross-process quota, 1M/10M/resource and Windows/UI/final review remain required."
     },
-    "currentWindowsQualification": {
-      "status": "deferred-shared-vm-busy",
-      "recordedAtUtc": "2026-11-06T09:13:05.8653300+00:00",
-      "nonce": "disk-space-r242",
-      "guestReportedAtUtc": "2026-11-06T10:12:03.8063222+01:00",
-      "processes": [
-        {
-          "ProcessId": 8892,
-          "Name": "dotnet.exe"
-        },
-        {
-          "ProcessId": 6804,
-          "Name": "dotnet.exe"
-        },
-        {
-          "ProcessId": 5468,
-          "Name": "FileCat.Platform.Windows.Tests.exe"
-        },
-        {
-          "ProcessId": 6296,
-          "Name": "dotnet.exe"
-        },
-        {
-          "ProcessId": 10916,
-          "Name": "dotnet.exe"
-        },
-        {
-          "ProcessId": 8940,
-          "Name": "FileCat.WorkerProbe.exe"
-        }
-      ],
-      "note": "Fresh uniquely named guest query/receipt, other implementor processes preserved. Guest clock reports approximately one hour ahead of host UTC; guest file timestamps are not an authoritative host observation time. No current Windows qualification."
-    },
     "indexedLogicalColumns": {
       "status": "same-active-query-logical-columns-passed-mac-and-ubuntu-windows-deferred",
       "mac": "mac-core-r241.xml",
       "ubuntu": "ubuntu-core-r241.xml",
       "windows": "windows-deferred-r241.json",
       "scope": "Independent logical-size rollups for exact active-query members, five missing states, checked 128-bit totals, original shared attribution/context, incompatible allocation bases, native hard-link/wide-source controls. No frontend or native scale/resource/UI/final review qualification."
+    },
+    "currentWindowsQualification": {
+      "status": "current-core-native-filesystem-and-headless-window-passed",
+      "core": {
+        "total": 557,
+        "passed": 526,
+        "failed": 0,
+        "skipped": 31,
+        "seconds": 9.317,
+        "evidence": "windows-core-r248.xml"
+      },
+      "nativeFilesystem": {
+        "total": 32,
+        "passed": 32,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 20.663,
+        "evidence": "windows-native-r248.xml"
+      },
+      "headlessRendering": {
+        "total": 70,
+        "passed": 70,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 41.414,
+        "evidence": "windows-render-r264.xml"
+      },
+      "postCheck": "windows-post-window-r264.json",
+      "note": "Ordinary filecatdsa_r2 guest process. Headless Skia interaction/render tests plus real filesystem metadata fixtures; this does not qualify native desktop input, assistive technology, display/package matrix or complete feature gates."
+    },
+    "indexedWindow": {
+      "status": "bounded-internal-window-and-chart-adoption-passed-all-three-platforms",
+      "windows": {
+        "total": 70,
+        "passed": 70,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 41.414,
+        "evidence": "windows-render-r264.xml"
+      },
+      "mac": {
+        "total": 70,
+        "passed": 70,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 32.604,
+        "evidence": "mac-render-r264.xml"
+      },
+      "ubuntu": {
+        "total": 70,
+        "passed": 70,
+        "failed": 0,
+        "skipped": 0,
+        "seconds": 44.607,
+        "evidence": "ubuntu-render-r264.xml"
+      },
+      "negativeControl": {
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "skipped": 0,
+        "seconds": 1.567,
+        "evidence": "mac-render-r265.xml"
+      },
+      "coreAssemblyMatchesNativeSourceTests": true,
+      "nativeDesktopQualified": false,
+      "remaining": "Public indexed acquisition/profile quota, complete sort/group/member/mark/basket and persistence/compare/action flows, native scale/resource and full desktop/theme/DPI/a11y/package qualification, remaining mandatory packets and final independent review."
     }
   },
   "nextWork": [

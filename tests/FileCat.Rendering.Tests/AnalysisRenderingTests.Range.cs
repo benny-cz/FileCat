@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using FileCat.App.ViewModels;
@@ -148,6 +149,27 @@ public sealed partial class AnalysisRenderingTests
             model.Query = "name:b.txt"; await model.RebuildAsync(true); Assert.Equal(5, model.Rows.Length);
             window.MouseUp(heldPoint, MouseButton.Left, RawInputModifiers.Shift); await Until(() => model.Rows.Length == 1);
             Assert.Equal(new ulong[] { 7, 8, 9 }, model.Selection.Marks.Order()); Assert.Empty(model.Selection.Basket);
+        }
+        finally { window.ForceClose(); }
+    }
+
+    [AvaloniaFact]
+    public async Task HandledRowReleaseRetiresTheTableFreezeAfterItsCapturedAction()
+    {
+        using var styles = new ProductStyles(); using var model = await RangeModel();
+        var window = new DiskSpaceWindow { Height = 960 }; window.AddSession(model); window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            var list = window.GetVisualDescendants().OfType<ListBox>().Single(control => AutomationProperties.GetName(control) == "Ranked analysis entries");
+            var row = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
+            bool handled = false;
+            row.AddHandler(InputElement.PointerReleasedEvent, (_, args) => { handled = true; args.Handled = true; }, RoutingStrategies.Bubble, handledEventsToo: true);
+            var point = row.TranslatePoint(new Point(65, row.Bounds.Height / 2), window)!.Value;
+            window.MouseMove(point); window.MouseDown(point, MouseButton.Left);
+            model.Query = "name:b.txt"; await model.RebuildAsync(true); Assert.Equal(5, model.Rows.Length);
+            window.MouseUp(point, MouseButton.Left); Assert.True(handled); await Until(() => model.Rows.Length == 1);
+            Assert.Empty(model.Selection.Marks); Assert.Empty(model.Selection.Basket);
         }
         finally { window.ForceClose(); }
     }

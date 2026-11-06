@@ -1,0 +1,8 @@
+{
+  "status": "clear",
+  "nonce": "disk-space-r267",
+  "recordedAtUtc": "2026-11-06T10:11:07.2921111+00:00",
+  "guestReportedAtUtc": "2026-11-06T11:11:05.8489455+01:00",
+  "processes": [],
+  "note": "Fresh unique guest receipt, no FileCat or dotnet process remains. All owned test processes exited."
+}

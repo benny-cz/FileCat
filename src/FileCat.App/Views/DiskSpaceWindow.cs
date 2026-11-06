@@ -28,7 +28,33 @@ public sealed partial class DiskSpaceWindow : Window
 {
     private readonly TabControl _tabs = new();
     private readonly List<TabItem> _items = [];
-    private readonly List<SessionView> _sessions = [];
+    private readonly List<IAnalysisSessionView> _sessions = [];
+    private readonly CancellationTokenSource _indexedLifetime = new();
+    private int _pendingIndexed;
+    private bool _closed;
+    private TaskCompletionSource _indexedIdle = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly HashSet<Task> _indexedClosures = [];
+    private Exception? _indexedCloseError;
+    internal async Task WaitForIndexedCloseAsync()
+    {
+        while (_pendingIndexed != 0 || _indexedClosures.Count != 0)
+        {
+            var tasks = _indexedClosures.ToList(); if (_pendingIndexed != 0) tasks.Add(_indexedIdle.Task);
+            try { await Task.WhenAll(tasks); } catch { /* The observer records the first close failure. */ }
+            await Task.Yield();
+        }
+        if (_indexedCloseError is not null) throw new IOException("An indexed analysis owner could not close.", _indexedCloseError);
+    }
+    private void TrackIndexedClose(Task close)
+    {
+        _indexedClosures.Add(close); _ = ObserveAsync();
+        async Task ObserveAsync()
+        {
+            try { await close; }
+            catch (Exception error) { _indexedCloseError ??= error; if (!_closed) { _notice.Text = "Analysis handles could not be closed. Wait before starting another analysis."; _notice.IsVisible = true; } }
+            finally { _indexedClosures.Remove(close); }
+        }
+    }
     private readonly Panel _overlay = new() { IsVisible = false };
     private readonly OverlayDialogService _dialogs;
     private readonly Action? _newAnalysis;
@@ -68,20 +94,25 @@ public sealed partial class DiskSpaceWindow : Window
         Closing += (_, e) =>
         {
             if (_forceClose) return;
-            if (_sessions.Any(s => s.Model.HasTemporaryWork))
+            if (_sessions.Any(s => s.HasTemporaryWork))
             {
                 e.Cancel = true;
                 if (!_askingClose) _ = ConfirmCloseAsync();
             }
         };
-        Closed += (_, _) => { _dialogs.CancelAll(); foreach (var session in _sessions) session.Dispose(); _sessions.Clear(); };
+        Closed += (_, _) => { _closed = true; _indexedLifetime.Cancel(); _dialogs.CancelAll(); foreach (var session in _sessions) session.Dispose(); _sessions.Clear(); if (_pendingIndexed == 0) _indexedLifetime.Dispose(); };
     }
     public void AddSession(DiskSpaceViewModel model, IReadOnlyList<string>? roots = null)
     {
-        if (_sessions.Count >= AnalysisLimits.Sessions) throw new InvalidOperationException("Eight analyses are open. Close an analysis before adding another.");
+        if (_closed) throw new ObjectDisposedException(nameof(DiskSpaceWindow));
+        if (_sessions.Count + _pendingIndexed + _indexedClosures.Count >= AnalysisLimits.Sessions) throw new InvalidOperationException("Eight analyses are open or closing. Wait for an analysis to close before adding another.");
         var view = new SessionView(this, model, roots ?? []);
+        AddView(view);
+    }
+    private void AddView(IAnalysisSessionView view)
+    {
         _notice.IsVisible = false;
-        string label = (model.Comparison is null ? "Analysis " : "Comparison ") + checked(++_nextTabNumber);
+        string label = (view.IsComparison ? "Comparison " : "Analysis ") + checked(++_nextTabNumber);
         var item = new AnalysisTabItem { Header = label, Content = view.CreateViewport(), Padding = new Thickness(12, 6),
             Margin = new Thickness(0, 0, 4, 0), MinHeight = 32 };
         item.Bind(FontSizeProperty, this.GetObservable(FontSizeProperty));
@@ -103,10 +134,10 @@ public sealed partial class DiskSpaceWindow : Window
         int at = _tabs.SelectedIndex;
         if (at < 0 || at >= _sessions.Count) return;
         var view = _sessions[at];
-        if (view.Model.HasTemporaryWork &&
-            !await _dialogs.ConfirmAsync(view.Model.Comparison is null ? "Close analysis?" : "Close comparison?",
-                view.Model.Comparison is null ? "Stop this metadata scan and discard its temporary results and unsaved review references?" : "Discard this temporary comparison and its display settings? The saved inventories remain available.",
-                view.Model.Comparison is null ? "Stop and close" : "Discard comparison", true, "Keep open")) return;
+        if (view.HasTemporaryWork &&
+            !await _dialogs.ConfirmAsync(!view.IsComparison ? "Close analysis?" : "Close comparison?",
+                !view.IsComparison ? "Stop this metadata scan and discard its temporary results and unsaved review references?" : "Discard this temporary comparison and its display settings? The saved inventories remain available.",
+                !view.IsComparison ? "Stop and close" : "Discard comparison", true, "Keep open")) return;
         if (_forceClose || (at = _sessions.IndexOf(view)) < 0) return;
         view.Dispose(); _sessions.RemoveAt(at); _items.RemoveAt(at); _tabs.ItemsSource = _items.ToArray();
         _notice.IsVisible = false;
@@ -155,10 +186,19 @@ public sealed partial class DiskSpaceWindow : Window
         public ToggleState ToggleState => _owner.IsSelected ? ToggleState.On : ToggleState.Off;
         public void Toggle() => Invoke();
     }
-    private sealed partial class SessionView : Grid, IDisposable
+    private interface IAnalysisSessionView : IDisposable
+    {
+        bool HasTemporaryWork { get; }
+        bool IsComparison { get; }
+        ScrollViewer CreateViewport();
+        void HandleKeys(KeyEventArgs args);
+    }
+    private sealed partial class SessionView : Grid, IAnalysisSessionView
     {
         private readonly DiskSpaceWindow _window;
         public DiskSpaceViewModel Model { get; }
+        public bool HasTemporaryWork => Model.HasTemporaryWork;
+        public bool IsComparison => Model.Comparison is not null;
         private readonly StackPanel _setup = new() { Spacing = 6, Margin = new Thickness(10) };
         private readonly ScrollViewer _setupViewport;
         private readonly StackPanel _roots = new() { Spacing = 5 };
@@ -269,9 +309,16 @@ public sealed partial class DiskSpaceWindow : Window
             }, RoutingStrategies.Tunnel);
             _list.DoubleTapped += (_, e) => { if (e.KeyModifiers == KeyModifiers.None && _list.SelectedItem is AnalysisTreeItem item) ActivateItem(item.Key, false, true); };
             bool tablePress = false;
-            _list.PointerPressed += (_, _) => { if (!tablePress) { tablePress = true; Model.Interaction(true); } };
+            _list.AddHandler(PointerPressedEvent, (_, e) =>
+            {
+                if (!tablePress && e.GetCurrentPoint(_list).Properties.IsLeftButtonPressed)
+                { tablePress = true; Model.Interaction(true); }
+            }, RoutingStrategies.Tunnel, handledEventsToo: true);
             void EndTablePress() { if (tablePress) { tablePress = false; Model.Interaction(false); } }
-            _list.PointerReleased += (_, _) => EndTablePress(); _list.PointerCaptureLost += (_, _) => EndTablePress();
+            // Row selection and mark checkboxes can handle release before it bubbles here.
+            // Retire the view freeze after their captured action, including handled releases.
+            _list.AddHandler(PointerReleasedEvent, (_, _) => EndTablePress(), RoutingStrategies.Bubble, handledEventsToo: true);
+            _list.PointerCaptureLost += (_, _) => EndTablePress(); _list.DetachedFromVisualTree += (_, _) => EndTablePress();
             string[] headings = ["Mark", "Name", "Active metric", "File size", "Files", "State"];
             for (int i = 0; i < headings.Length; i++) { var h = new TextBlock { Text = headings[i], TextTrimming = TextTrimming.CharacterEllipsis }; Grid.SetColumn(h, i); _tableHeader.Children.Add(h); }
             _tableHeader.SizeChanged += (_, _) => FitColumns(_tableHeader);

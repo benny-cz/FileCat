@@ -14,7 +14,7 @@ namespace FileCat.App.Controls.DiskSpace;
 public abstract class AnalysisChartControl : Control
 {
     protected sealed record Part(string Key, Rect Bounds, double Start = 0, double Sweep = 0, int Depth = 0, bool Branch = false);
-    private sealed record View(AnalysisTree Tree, string Scope, string? Focus, ImmutableHashSet<ulong> Marks);
+    private sealed record View(IAnalysisChartData Tree, string Scope, string? Focus, ImmutableHashSet<ulong> Marks);
     private View? _view, _pending;
     private ImmutableArray<Part> _parts = [];
     private readonly Dictionary<string, AnalysisTreeItem> _displayItems = new(StringComparer.Ordinal);
@@ -27,7 +27,7 @@ public abstract class AnalysisChartControl : Control
     public event Action<string, bool, bool>? Activated;
     public event Action<bool>? InteractionChanged;
     protected abstract string ViewName { get; }
-    protected AnalysisTree? Tree => _view?.Tree;
+    protected IAnalysisChartData? Tree => _view?.Tree;
     protected string Scope => _view?.Scope ?? AnalysisTree.RootKey;
     protected abstract ImmutableArray<Part> Layout(ImmutableArray<AnalysisTreeItem> rows, Rect bounds, UInt128 total);
     protected abstract bool Contains(Part part, Point point);
@@ -43,7 +43,7 @@ public abstract class AnalysisChartControl : Control
         GotFocus += (_, _) => ShowTip(_view?.Focus);
     }
     private void ThemeChanged() => InvalidateVisual();
-    public void SetView(AnalysisTree tree, string scope, string? focus, ImmutableHashSet<ulong> marks)
+    public void SetView(IAnalysisChartData tree, string scope, string? focus, ImmutableHashSet<ulong> marks)
     {
         var next = new View(tree, scope, focus, marks);
         if (_pressed) { _pending = next; return; }
@@ -110,7 +110,7 @@ public abstract class AnalysisChartControl : Control
                 {
                     Text(context, (marked ? "✓ " : "") + AnalysisNames.Display(item.Name, 90), part.Bounds.TopLeft + new Vector(7, 5), focused ? p.FocusText : p.Text, part.Bounds.Width - 14);
                     if (part.Bounds.Height >= TileLabelHeight)
-                        Text(context, FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, tree.Projection.Metric), part.Bounds.TopLeft + new Vector(7, 6 + _labelLineHeight), focused ? p.FocusText : p.TextMuted, part.Bounds.Width - 14);
+                        Text(context, FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, tree.Metric), part.Bounds.TopLeft + new Vector(7, 6 + _labelLineHeight), focused ? p.FocusText : p.TextMuted, part.Bounds.Width - 14);
                 }
             }
         }
@@ -177,13 +177,13 @@ public abstract class AnalysisChartControl : Control
     {
         var item = key is null ? null : Item(key);
         if (item is null) { ToolTip.SetTip(this, null); return; }
-        string metric = Tree?.Projection.Metric.ToString() ?? "Measure";
+        string metric = Tree?.Metric.ToString() ?? "Measure";
         var names = new Stack<string>(); string current = item.Key;
         for (int depth = 0; Tree is { } tree && depth < AnalysisLimits.Depth; depth++)
         { names.Push(tree.NameOf(current)); if (current == AnalysisTree.RootKey) break; current = tree.ParentOf(current); }
         UInt128 denominator = Tree?.ScopeValue(Scope) ?? 0;
         string percent = item.IsNonFileLeaf || !item.IncludedByPolicy ? "Not included in file measures" : denominator == 0 ? "Unknown percentage" : ((double)item.Value / (double)denominator).ToString("P1", CultureInfo.CurrentCulture) + " of current scope's known measure";
-        var tip = new RichTip(AnalysisNames.Display(string.Join(" / ", names), 240), detail: $"{metric}: {FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, Tree?.Projection.Metric ?? AnalysisMetric.OnDisk, true)}. {percent}. File size: {FileCat.App.ViewModels.DiskSpaceViewModel.LogicalText(item, true)}." +
+        var tip = new RichTip(AnalysisNames.Display(string.Join(" / ", names), 240), detail: $"{metric}: {FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, Tree?.Metric ?? AnalysisMetric.OnDisk, true)}. {percent}. File size: {FileCat.App.ViewModels.DiskSpaceViewModel.LogicalText(item, true)}." +
             (item.IdentityUnverified > 0 ? $" Includes {item.IdentityUnverified} identity-unverified path bytes; aliases may repeat." : ""),
             hints: [FileCat.App.ViewModels.DiskSpaceViewModel.EntryExplanation(item) ?? (item.SharedElsewhere ? "Shared allocation is attributed at the common parent." : item.Unknown ? "Measurement or namespace coverage is incomplete." : "Observed metadata; allocation can share physical blocks."), "More in inspector."]) { MaxWidth = 420 };
         ToolTip.SetTip(this, tip); ToolTip.SetShowDelay(this, 450);
