@@ -311,9 +311,9 @@ public sealed partial class JobViewModel : ObservableObject
     }
 }
 
-public enum RecoveryActionPhase { Idle, Reviewing, AwaitingApproval, Applying, Submitted }
+public enum RecoveryActionPhase { Idle, Reviewing, AwaitingApproval, Applying, Submitted, Completed }
 
-public sealed partial class InterruptedJobViewModel(InterruptedJob job) : ObservableObject
+public sealed partial class InterruptedJobViewModel(InterruptedJob job, bool archiveCleanupAvailable = false) : ObservableObject
 {
     public InterruptedJob Job { get; } = job;
     public string Title => $"{Formatters.SafeName(Job.Title)} (interrupted {Job.CreatedUtc.ToLocalTime():g})";
@@ -332,13 +332,15 @@ public sealed partial class InterruptedJobViewModel(InterruptedJob job) : Observ
             ? "" : " Review a new transfer to choose its scope and options again."
         : " The recorded scope cannot be prefilled here. Select the sources and destination again; cleanup and the recovery report remain available.";
 
-    public string CleanupLabel => Job.OpenIntents.Any(i => i.Operation == JobJournal.RenameViaOp) ? "Finish renaming…"
+    public string CleanupLabel => Job.ArchiveTransactions.HasRecords ? "Review retained files…"
+        : Job.OpenIntents.Any(i => i.Operation == JobJournal.RenameViaOp) ? "Finish renaming…"
         : InterruptedRecoveryReport.HasUnreviewedRemoteUpload(Job) ? "Review local cleanup…"
         : "Clean up partial files";
     public string ReviewReportLabel => "Review retained recovery report for " + Formatters.SafeName(Job.Title);
     public string MarkReviewedLabel => "Mark interrupted recovery reviewed for " + Formatters.SafeName(Job.Title);
     public string HideLabel => "Hide interrupted recovery notice for " + Formatters.SafeName(Job.Title);
-    public bool CanCleanup => !Job.ArchiveTransactions.HasRecords;
+    public bool CanCleanup => !Job.ArchiveTransactions.HasRecords || archiveCleanupAvailable;
+    public bool CanReviewArchiveCleanup => Job.ArchiveTransactions.HasRecords && archiveCleanupAvailable;
     public bool CanMarkReviewed => !Job.ArchiveTransactions.RequiresReview;
 
     /// <summary>Continuation requires complete, supported original meaning as well as known source paths.</summary>
@@ -699,9 +701,10 @@ public sealed partial class OperationCenterViewModel : ObservableObject
     public void LoadInterrupted(IEnumerable<InterruptedJob> jobs)
     {
         Interrupted.Clear();
-        foreach (var j in jobs) Interrupted.Add(new InterruptedJobViewModel(j));
+        foreach (var j in jobs) Interrupted.Add(new InterruptedJobViewModel(j, CanReviewArchiveCleanup?.Invoke(j) == true));
         UpdateSummary();
     }
+    internal Func<InterruptedJob, bool>? CanReviewArchiveCleanup { get; set; }
 
     public void LoadReviewedRecovery(IEnumerable<RecoveryReviewRecord> records)
     {

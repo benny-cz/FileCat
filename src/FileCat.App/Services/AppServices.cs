@@ -168,6 +168,10 @@ public sealed class AppServices : IDisposable
 
     public Core.Jobs.JobManager Jobs { get; }
 
+    // Native authority is retained by the adapter through the complete approval/action lifetime.
+    internal Func<string, Guid, CancellationToken, Core.Archives.IArchiveContentCleanupRecoveryLease>? ArchiveCleanupLease { get; set; }
+        = OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveCleanupRecovery.OpenCurrentLease : null;
+
     /// <summary>SFTP connections (leases, host keys, secrets); the main window supplies the prompts.</summary>
     public Remote.Sftp.SftpConnections Sftp { get; }
     public Remote.Sftp.SftpProvider SftpProvider { get; }

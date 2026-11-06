@@ -16,6 +16,10 @@ internal sealed class WindowsArchiveCleanupRecovery : IDisposable
     internal static WindowsArchiveCleanupRecovery Open(string journalPath, string expectedJournalSha256, Guid nonce, CancellationToken ct)
         => new(OpenLease(journalPath, expectedJournalSha256, nonce, ct));
     internal static IArchiveContentCleanupRecoveryLease OpenLease(string journalPath, string expectedJournalSha256, Guid nonce, CancellationToken ct)
+        => OpenLeaseCore(journalPath, expectedJournalSha256, nonce, ct);
+    internal static IArchiveContentCleanupRecoveryLease OpenCurrentLease(string journalPath, Guid nonce, CancellationToken ct)
+        => OpenLeaseCore(journalPath, null, nonce, ct);
+    private static IArchiveContentCleanupRecoveryLease OpenLeaseCore(string journalPath, string? expectedJournalSha256, Guid nonce, CancellationToken ct)
     {
         try { return new NativeLease(journalPath, expectedJournalSha256, nonce, ct); }
         catch (Exception error) when (error is ArgumentException or InvalidOperationException)
@@ -36,9 +40,10 @@ internal sealed class WindowsArchiveCleanupRecovery : IDisposable
         public ArchiveContentCleanupFacts Catalog => catalog;
         public ArchiveContentRecoveryFacts Candidate => candidate;
 
-        internal NativeLease(string journalPath, string expectedJournalSha256, Guid nonce, CancellationToken ct)
+        internal NativeLease(string journalPath, string? expectedJournalSha256, Guid nonce, CancellationToken ct)
         {
-            journalLease = WindowsArchiveRecoveryJournal.Open(journalPath, expectedJournalSha256, ct);
+            journalLease = expectedJournalSha256 is null ? WindowsArchiveRecoveryJournal.OpenCurrent(journalPath, ct)
+                : WindowsArchiveRecoveryJournal.Open(journalPath, expectedJournalSha256, ct);
             try
             {
                 var recovery = journalLease.Journal.RetainedArchiveRecovery();

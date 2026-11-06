@@ -33,7 +33,7 @@ public sealed partial class MainViewModel
         }
         public void Stop()
         {
-            if (Phase is RecoveryActionPhase.Idle or RecoveryActionPhase.Submitted) return;
+            if (Phase is RecoveryActionPhase.Idle or RecoveryActionPhase.Submitted or RecoveryActionPhase.Completed) return;
             StopSource.Cancel();
             SetPhase(Phase, Phase == RecoveryActionPhase.Applying
                 ? "Stopping after the current safe step; completed changes are kept."
@@ -82,7 +82,9 @@ public sealed partial class MainViewModel
     {
         _recoveryReviews.Remove(scope.JournalPath);
         _interruptedActions.Remove(scope.JournalPath);
-        scope.SetPhase(RecoveryActionPhase.Idle, scope.Phase == RecoveryActionPhase.Submitted
+        scope.SetPhase(RecoveryActionPhase.Idle, scope.Phase == RecoveryActionPhase.Completed
+            ? "Recovery cleanup finished; the report is retained."
+            : scope.Phase == RecoveryActionPhase.Submitted
             ? "Recovery action submitted. Check its operation and tracking status above."
             : scope.Stopped ? "Review stopped. Any completed cleanup is kept; the recovery journal remains available."
             : scope.Phase == RecoveryActionPhase.Applying
@@ -344,7 +346,7 @@ public sealed partial class MainViewModel
         {
             if (!await MutationIoAsync(job.JournalPath, () => JournalRecovery.IsInterrupted(job), scope.Check)) return false;
             job = await RefreshArchiveRecoveryAsync(job, scope);
-            if (job.ArchiveTransactions.HasRecords) { Notify(ArchiveReviewRequired, true); return false; }
+            if (job.ArchiveTransactions.HasRecords) return await CleanupArchiveRetainedAsync(job, scope);
             var review = reviewed = await ReviewInterruptedAsync(job, scope);
             var renames = new List<JournalRecovery.RenameReview>(); var unreviewedRenames = new List<string>(); bool renameLimited = false;
             long renameBytes = JournalRecovery.StagedReviewByteLimit; int renameItems = 1000;

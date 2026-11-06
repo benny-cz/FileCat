@@ -41,7 +41,8 @@ public partial class OperationsView : UserControl
         // changes: the action starting, a status line wrapping, the window settling around the drawer.
         RecoveryScroll.PropertyChanged += (_, e) =>
         {
-            if (e.Property == ScrollViewer.ExtentProperty || e.Property == ScrollViewer.ViewportProperty) RevealStop(null);
+            if (e.Property == ScrollViewer.ExtentProperty || e.Property == ScrollViewer.ViewportProperty)
+            { RevealStop(null); RevealArchiveCleanup(); }
         };
         DetailsDrawer.PropertyChanged += (_, e) =>
         {
@@ -167,7 +168,8 @@ public partial class OperationsView : UserControl
         if (e.PropertyName == nameof(OperationCenterViewModel.Selected))
             ObserveSelected(Center?.Selected);
         if (e.PropertyName is nameof(OperationCenterViewModel.Selected) or nameof(OperationCenterViewModel.IsOpen)
-            or nameof(OperationCenterViewModel.HasInterrupted) or nameof(OperationCenterViewModel.HasReviewedRecovery))
+            or nameof(OperationCenterViewModel.HasInterrupted) or nameof(OperationCenterViewModel.HasReviewedRecovery)
+            or nameof(OperationCenterViewModel.SelectedInterrupted))
             QueueDrawerHeightRefresh();
     }
 
@@ -183,6 +185,7 @@ public partial class OperationsView : UserControl
         {
             _heightRefreshQueued = false;
             RefreshDrawerHeight();
+            Dispatcher.UIThread.Post(RevealArchiveCleanup, DispatcherPriority.Loaded);
         }, DispatcherPriority.Background);
     }
 
@@ -232,7 +235,10 @@ public partial class OperationsView : UserControl
     private void ApplyDrawerHeight(double height)
     {
         DetailsDrawer.Height = height;
-        RecoveryScroll.MaxHeight = Math.Clamp(height * .25, 35, 180);
+        // With no history to scan, give the selected archive review the space otherwise spent on an empty list.
+        // Other recovery/history combinations retain their compact allocation.
+        RecoveryScroll.MaxHeight = Center is { Jobs.Count: 0, SelectedInterrupted.CanReviewArchiveCleanup: true }
+            ? Math.Clamp(height - 60, 35, 400) : Math.Clamp(height * .25, 35, 180);
     }
 
     private void SetDrawerHeight(double requested, bool userChoice)
@@ -592,6 +598,17 @@ public partial class OperationsView : UserControl
         var offset = RecoveryScroll.Offset;
         if (bottom > viewport) RecoveryScroll.Offset = offset.WithY(offset.Y + Math.Min(bottom - viewport, top.Y));
         else if (top.Y < 0) RecoveryScroll.Offset = offset.WithY(offset.Y + top.Y);
+    }
+
+    private void RevealArchiveCleanup()
+    {
+        if (Center is not { IsOpen: true, Jobs.Count: 0, SelectedInterrupted: { CanReviewArchiveCleanup: true, IsActionBusy: false } selected }) return;
+        var action = RecoveryScroll.GetVisualDescendants().OfType<Button>()
+            .FirstOrDefault(button => ReferenceEquals(button.Tag, selected) && button.Content as string == selected.CleanupLabel && button.IsEffectivelyVisible);
+        if (action?.TranslatePoint(default, RecoveryScroll) is not { } top) return;
+        double bottom = top.Y + action.Bounds.Height, viewport = RecoveryScroll.Viewport.Height;
+        if (bottom > viewport) RecoveryScroll.Offset = RecoveryScroll.Offset.WithY(RecoveryScroll.Offset.Y + Math.Min(bottom - viewport, top.Y));
+        else if (top.Y < 0) RecoveryScroll.Offset = RecoveryScroll.Offset.WithY(RecoveryScroll.Offset.Y + top.Y);
     }
 
     private void OnHideInterrupted(object? sender, RoutedEventArgs e)

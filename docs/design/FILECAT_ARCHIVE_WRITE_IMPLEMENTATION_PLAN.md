@@ -385,6 +385,14 @@ the restored archive and old source snapshot. All 227 administrator native cases
 with five administrator-only skips, plus passing Mac/Ubuntu builds and guards. Wider fault/resource, metadata/security/
 alias/durability, production recovery actions and remaining format/platform/workflow gates still require work.
 
+The [retained archive cleanup action](../validation/archive-writing/RETAINED_ARCHIVE_CLEANUP_UI.md) now connects a
+fresh handle-bound NTFS review to explicit approval and exact catalog reconciliation, preserving archive bytes and
+retaining honest deletion/absence/closure reports. It fixes a clipped action reproduced on the actual Windows guest.
+All three platforms pass 273 common UI checks; Windows passes two actual native UI checks, all 227 administrator and
+222 standard-user native cases, with five administrator-only skips. Guest-only desktop validation confirms safe Enter
+cancellation and the approved six-file outcome. Further drawer findings, restoration UI, Unix adapters and all wider
+implementation/qualification gates remain required; this enables no writer profile.
+
 ### 7.5 Outer metadata and provenance
 
 Treat outer-file metadata separately from metadata of archived members. Updates preserve the existing archive's owner, ACL/mode, relevant attributes, creation time where promised, and origin/quarantine marks. Content-changing mtime follows existing FileCat policy and must be stated/tested. Hard links to the old archive remain attached to the old object; warn once when link count is known and greater than one. Do not silently update all hard-link names.
