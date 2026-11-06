@@ -21,15 +21,19 @@ internal static class WindowFit
         // and an X11 window can report a placeholder position before the window manager places it, which a fit would
         // pin to the corner.
         if (OperatingSystem.IsLinux()) return;
-        void Later() => Dispatcher.UIThread.Post(() => Fit(window, fitting), DispatcherPriority.Background);
+        bool closed = false; Action? detachScreens = null;
+        void Later() => Dispatcher.UIThread.Post(() => { if (!closed) Fit(window, fitting); }, DispatcherPriority.Background);
         void ScreensChanged(object? sender, EventArgs e) => Later();
         window.Opened += (_, _) =>
         {
+            if (closed) return;
             Later();
-            window.Screens.Changed += ScreensChanged;
+            var screens = window.Screens;
+            screens.Changed += ScreensChanged;
+            detachScreens = () => screens.Changed -= ScreensChanged;
         };
         window.ScalingChanged += (_, _) => Later();
-        window.Closed += (_, _) => window.Screens.Changed -= ScreensChanged;
+        window.Closed += (_, _) => { closed = true; detachScreens?.Invoke(); detachScreens = null; };
     }
 
     /// <summary>Shrinks and moves a normal window whose frame reaches past its screen's working area; returns whether it did.</summary>

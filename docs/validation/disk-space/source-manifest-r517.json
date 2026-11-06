@@ -1,0 +1,312 @@
+{
+  "purpose": "Private catalog-aware indexed loader, native profile ownership and internal saved-window restoration; normal opener parity still pending",
+  "observedUtc": "2026-11-06T22:43:08.767353+00:00",
+  "gitBase": "cc3775ad918b2574e491015c3773558b977e8275",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/Services/AnalysisIndexedAcquisition.Inventory.cs",
+      "sha256": "dc91304bd491a3b40eb6013f338ea36f4a33194abb302b988ff3ed156249a1a1"
+    },
+    {
+      "path": "src/FileCat.App/Services/AnalysisIndexedAcquisition.cs",
+      "sha256": "d28f1c9d117dbaec363d6711142d9fc11e3ad3bac14d639ba1e99780693c41ab"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+      "sha256": "9568ccfe7c657e79ad7e017e594916ac956f5aafa4b7baf5a111acc9c7790071"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedInventory.cs",
+      "sha256": "3acef6961aa68f74f77e25512ed5ecf65ed8e57d85b856a5f9f90600f9bcef85"
+    },
+    {
+      "path": "src/FileCat.App/Views/WindowFit.cs",
+      "sha256": "e23df7560bb4deefcd0bf3bf68357135109962c0ef4d7c4021e84f32026f3501"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDataset.cs",
+      "sha256": "26d711154a2c77346b935b354e2564b5f4b22e03716664775873fc06e986155d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedInventory.cs",
+      "sha256": "bc684af1f18f18dc9cd3b70a066f4b7fdc3c6b4e112ab2b5329fa5982c329c4c"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisInventoryFramer.cs",
+      "sha256": "8c6cc935da2ab5c566d0dc74e57a9311cc9b53a5963b326eabbd29a707d6d710"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisInventoryStage.Writer.cs",
+      "sha256": "0410379b85fdea4131ed8e511e945bcbe04dccf66f4981c336765be83f0cc9e9"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisInventoryStage.cs",
+      "sha256": "7acf45dcecac6c4cf4f92e315092f34bec254de7139688a4f906928086ae790a"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisProfileQuota.cs",
+      "sha256": "3e5385ef96a86331077a179327e49e469ad7b218af5a9d2b7e53bf38d5282ac7"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisInventoryStageTests.Load.cs",
+      "sha256": "aed3b703d53cdeb782a75856101655171e6a987d09a105cafc6f948af6aee445"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.IndexedInventory.cs",
+      "sha256": "6f2c119aa6e1843583d12d2a05227389463d6a547d2ce709bbb345113f58e289"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r506.txt",
+      "sha256": "49db2ecb76c2f13d7eec4a99322f0bea8d51b2111c3712d6d5d9028679b6a688"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r510.txt",
+      "sha256": "72450c8353411fc66f8d1a1ed3124816de6b03930226968698fb9f20fbe02df9"
+    },
+    {
+      "path": "docs/validation/disk-space/build-render-r515.txt",
+      "sha256": "8384fc52716855aa3ca8e3bf95324a6f2b1fa4f42df589ad64d31a432c760095"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-r511.xml",
+      "sha256": "d69fc845e62ee39f022d9dc733759c131fbeefa225b2259a9e127218299adcab"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-r511.log",
+      "sha256": "0040b9948543aef061769bab9df8910cee6f4d3e2f85b970b0f1c3e584ea3a06"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-render-r512.xml",
+      "sha256": "c186a514f86ad16b89aa1d78e8a7e4ff697d26f2368e65f2f59d3ce268160c14"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-render-r512.log",
+      "sha256": "b2fbcd057aabfa7f3e3f709814d39746eebaf44f4e9c1c702ea2dd2bf9f3fa81"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r511.xml",
+      "sha256": "821fffdbbbb9e477d788b661ae8d8901b380f324bf345b1c8c434bbdddadb8be"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r511.log",
+      "sha256": "01c8e9e504115d6844ae88cda7bea8c36cff8ef65481b84d89f66cbd6a02d33f"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-render-r516.xml",
+      "sha256": "268988f4391e2e722f55c3b8fbbb1791b30ab1018ee037bfc69c160482e59bac"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-render-r516.log",
+      "sha256": "2b2affa7bf446c0ceaed933efbeb2f68dd7937b412387bca1d4510a3b1a92064"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-post-staging-r517.json",
+      "sha256": "bcaf431b25d97d7980a4a3edc3941cc1dc1e4a89a2403b361d5d7d654a85fe81"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r511.xml",
+      "sha256": "6c7d4b1570f2ac21239b0c36fb820fdc4eb572ee618bea8bf8955bd4096fddc8"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r511.log",
+      "sha256": "98d2c8a96e05ac2ea8f16d7c0c7af1aa36720f945e4e65a50dfd38405ed4befc"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-render-r516.xml",
+      "sha256": "0ce08293d8c537dc6764ad8c4b16593797edf3be4a3701fb19df52423516690a"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-render-r516.log",
+      "sha256": "f84ac61905a79bb02d9cad409699cf764b669184fcbd8f456ca0e17fabb6f6d5"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-post-staging-r517.json",
+      "sha256": "3be1f10813f65e6d118a20f4c5be9fc199f579340c13188d46cdbc9c10581490"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r511.xml",
+      "sha256": "95da324f4c428d2ae10c69967623e6d7b67d698bf2986c0c74c4d0d1bc035011"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r511.log",
+      "sha256": "fb81d9de445b52946205b5b35bfd4d3de4dfbc75ae66e73a448c4d2e635486a9"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-render-r516.xml",
+      "sha256": "731f94adfc16cabd324ce1bc1aeb86817afb4d77d16fc53170a76a93682e1c8d"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-render-r516.log",
+      "sha256": "c21a283da0107b3b0250d30b8990a510525039075f0fa90be39282619ed49e83"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-post-staging-r517.json",
+      "sha256": "575e32f0a47243379935ebba2e9d5905e620403332523cb0cd19f93036ab516e"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r511.sh",
+      "sha256": "088bdfed473c768edcb756a3bf67753a2578773f689d70da3e9ce7a251b44f10"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r511.ps1",
+      "sha256": "1ec9f6d2a38fbf96659c5feac20754b5bd681571f9151b41b301ce4dd22b960c"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r511.ps1",
+      "sha256": "74ff7e1fad91216940c2844da06d0e3d15b6971e01ac4570e7cd7487d91e4469"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-mac-r516.sh",
+      "sha256": "394fe7e4ca2787503be185f84442b17f25742a35027933de1e932cacc383f8f6"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-linux-r516.sh",
+      "sha256": "085186c944f3ff1f9bd1f4a85b4c5b834a2b10534c6a4a6b8ca482f694f0dc03"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-render-r516.ps1",
+      "sha256": "74e460cad0fbd5f9060f48f0869ca6d91d0c7615633c13eee84a17462b084130"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-core-r511.tgz",
+      "sha256": "5f12c660c90e2ca37e3972672624babeb41d7c86687ed06d10f718869bd4b7b8"
+    },
+    {
+      "name": "dsa-native-r511.tgz",
+      "sha256": "0bbe1808434cad774b3feb33f1450a93b9b4bf87c0cd8668717afdcbd4d48f98"
+    },
+    {
+      "name": "dsa-render-mac-r516.tgz",
+      "sha256": "ac33dbbdbdb1727a32d3f5f5c5f40ea5f0469795c452e51c6b96cdc8a340766a"
+    },
+    {
+      "name": "dsa-render-linux-r516.tgz",
+      "sha256": "6af4bdb7422622b4d538fedf6642f7186e87d46fbf391c26cdcf0294fc996eff"
+    },
+    {
+      "name": "dsa-render-windows-r516.tgz",
+      "sha256": "973f417b79629e93a3ff8920fbebaad420f218e8eee03072920136e1df695a2d"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r511": "8ebe6e861bf69abb5a3c28b3ada1330a23985b0aab8f788d9029b2baaaa869a7",
+    "native-r511": "8ebe6e861bf69abb5a3c28b3ada1330a23985b0aab8f788d9029b2baaaa869a7",
+    "render-r516-mac": "8ebe6e861bf69abb5a3c28b3ada1330a23985b0aab8f788d9029b2baaaa869a7",
+    "render-r516-linux": "8ebe6e861bf69abb5a3c28b3ada1330a23985b0aab8f788d9029b2baaaa869a7",
+    "render-r516-windows": "8ebe6e861bf69abb5a3c28b3ada1330a23985b0aab8f788d9029b2baaaa869a7"
+  },
+  "productionAppHashes": {
+    "render-r516-mac": "512551e635a0b42b0dc39bf67dd15671fda028addb5448a1554de3ca4c22d5d1",
+    "render-r516-linux": "512551e635a0b42b0dc39bf67dd15671fda028addb5448a1554de3ca4c22d5d1",
+    "render-r516-windows": "512551e635a0b42b0dc39bf67dd15671fda028addb5448a1554de3ca4c22d5d1"
+  },
+  "matrix": {
+    "windows-native-r511.xml": {
+      "total": "39",
+      "passed": "39",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "35.161"
+    },
+    "mac-core-r511.xml": {
+      "total": "668",
+      "passed": "666",
+      "failed": "0",
+      "skipped": "2",
+      "errors": "0",
+      "time": "19.551"
+    },
+    "mac-render-r516.xml": {
+      "total": "105",
+      "passed": "105",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "37.465"
+    },
+    "ubuntu-core-r511.xml": {
+      "total": "668",
+      "passed": "666",
+      "failed": "0",
+      "skipped": "2",
+      "errors": "0",
+      "time": "89.854"
+    },
+    "ubuntu-render-r516.xml": {
+      "total": "105",
+      "passed": "105",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "46.343"
+    },
+    "windows-core-r511.xml": {
+      "total": "686",
+      "passed": "643",
+      "failed": "0",
+      "skipped": "43",
+      "errors": "0",
+      "time": "19.620"
+    },
+    "windows-render-r516.xml": {
+      "total": "105",
+      "passed": "104",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "49.894"
+    }
+  },
+  "newCoreControls": 11,
+  "newRenderControls": 10,
+  "fixedFailedRuns": {
+    "results": {
+      "mac-render-r512.xml": {
+        "total": "103",
+        "passed": "99",
+        "failed": "4",
+        "skipped": "0",
+        "errors": "0",
+        "time": "38.753"
+      }
+    },
+    "archiveSha256": "6e27be992a21c1b4c5fe4a043b9878a553e72f13dab975569e6b144344620c13",
+    "cause": "Four Mac negative-load cases closed an unopened window: WindowFit accessed window.Screens after backend disposal.",
+    "fix": "Detach from captured screen service; never query Screens on close, and suppress queued fitting after closure. Final direct unopened/opened lifetime cases and all four rejection cases pass all3."
+  },
+  "interimUiReviewFixes": [
+    "Offline imported/unverified and privileged-derived status visible with sensitive-metadata context",
+    "Read-only imports do not claim an active/unsaved metadata scan at close"
+  ],
+  "excludedCompileFailure": "build-r506.txt: app could not access a private Core scratch type. Corrected with narrow data-only loader ownership rather than broad friend-assembly access.",
+  "finalBuilds": [
+    "build-r510.txt: full solution; zero warnings/errors",
+    "build-render-r515.txt: final app/rendering and window lifecycle controls; zero warnings/errors"
+  ],
+  "recovery": "Core/native completed before the power outage. Missing prior process handle plus terminal build log verified completion. Mac reachable, both powered-off VMs restarted nogui; guest readiness and occupancy verified. Final rendering completed on all3 after recovery.",
+  "processExitEvidence": "Final authoritative inventories empty on all3, own test handles terminal; no other processes stopped and no host app/input testing.",
+  "qualification": {
+    "privateCatalogAwareIndexedLoadImplemented": true,
+    "internalSavedIndexedWindowRestorationImplemented": true,
+    "normalSavedOpenerMigratedToIndexed": false,
+    "indexedPersistenceComparisonParityImplemented": false,
+    "generalExternalFileInputImplemented": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "publicIndexedPersistenceEnabled": false,
+    "globalPendingCpuDeviceAliasGateQualified": false,
+    "faultedImportPreparationCloseAdmissionQualified": false,
+    "fullResourceGateQualified": false,
+    "nativeDesktopInputQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

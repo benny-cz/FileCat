@@ -64,6 +64,8 @@ public sealed partial class AnalysisDatasetLease : IAsyncDisposable
         _owned.RunAsync((reader, _) => new AnalysisDatasetLease(reader.Retain(), Descriptor, _io, _device), cancellation);
     public Task<AnalysisDatasetPage<AnalysisPathMetadata>> ReadPathsAsync(ulong offset, int maximum = 256, CancellationToken cancellation = default) =>
         _owned.RunAsync((reader, token) => Page(offset, maximum, Descriptor.Paths, n => AnalysisPathMetadata.From(reader.ReadPathRow(n + 1, token)), PathBytes, token), cancellation);
+    public Task<AnalysisPathMetadata> ReadPathAsync(ulong id, CancellationToken cancellation = default) =>
+        _owned.RunAsync((reader, token) => AnalysisPathMetadata.From(reader.ReadPath(id, token)), cancellation);
     public Task<AnalysisDatasetPage<AnalysisObjectMetadata>> ReadObjectsAsync(ulong offset, int maximum = 256, CancellationToken cancellation = default) =>
         _owned.RunAsync((reader, token) => Page(offset, maximum, Descriptor.Objects, n => AnalysisObjectMetadata.From(reader.ReadObject(n + 1, token)),
             o => 256 + o.Id.Length * 2 + (o.VerifiedIdentity?.Length ?? 0) * 2 + (o.VersionEvidence?.Length ?? 0) * 2, token), cancellation);

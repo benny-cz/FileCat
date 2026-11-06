@@ -9,7 +9,7 @@ namespace FileCat.App.Services;
 /// Retains native private-profile preparation through an indexed acquisition. Internal until the
 /// native source, IPC-domain, resource and package gates allow the public acquisition switch.
 /// </summary>
-internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
+internal sealed partial class AnalysisIndexedAcquisition : IAsyncDisposable
 {
     private readonly AppServices _services;
     private readonly bool _indexedStorage;
@@ -20,6 +20,8 @@ internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
     private AnalysisPrivateDirectory? _scratch, _quotaDirectory;
     private AnalysisSession? _session;
     private Task? _close;
+    private readonly AnalysisViewWork _imports = new();
+    private bool _importStarted;
     private Guid _profile;
     private readonly string _ephemeralProfile = "ephemeral:" + Guid.NewGuid().ToString("N");
     internal AnalysisHostProfileIdentity? Profile { get; private set; }
@@ -131,7 +133,7 @@ internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_close is not null, this);
-            if (_session is not null) throw new InvalidOperationException("This indexed preparation already owns an acquisition.");
+            if (_session is not null || _importStarted) throw new InvalidOperationException("This indexed preparation already owns an acquisition or inventory load.");
             var storage = new AnalysisStorageOptions(PathUtil.GetDeviceKey(_privatePaths[1]),
                 () => Interlocked.Exchange(ref _scratch, null) ?? throw new IOException("Private scratch ownership has already transferred."),
                 [new(PathUtil.GetDeviceKey(_privatePaths[0]), () => TakeProtection(0)) { RequiresDisjointSource = _ancestorGuard[0] },
@@ -173,6 +175,7 @@ internal sealed class AnalysisIndexedAcquisition : IAsyncDisposable
     }
     private async Task CloseAsync()
     {
+        await _imports.CloseAsync().ConfigureAwait(false);
         Exception? failure = null;
         if (_session is { } session)
         {

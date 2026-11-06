@@ -83,6 +83,7 @@ public static partial class AnalysisInventoryFormat
             }
             // EOF is observed by the actual source read, never inferred from a trailer or timeout.
             build.Decoder!.Complete();
+            data.SourceBytes = build.Frame!.BytesRead;
             if (manifest is null || coverage is null) throw Invalid("Incomplete inventory.");
             await AnalysisIo.Run(io, devices, token =>
             {

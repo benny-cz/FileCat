@@ -22,10 +22,11 @@ internal sealed partial class AnalysisInventoryStage : IAsyncDisposable
     private readonly AnalysisIoDevices _devices;
     private readonly ulong[] _counts;
     internal Guid InventoryId { get; }
+    internal long SourceBytes { get; }
     internal AnalysisTaint Taint { get; }
     internal AnalysisInventoryStage(Contents data, DeviceIoScheduler io, AnalysisIoDevices devices)
     {
-        InventoryId = data.Header!.Historical.Id; Taint = data.Header.Taint;
+        InventoryId = data.Header!.Historical.Id; SourceBytes = data.SourceBytes; Taint = data.Header.Taint;
         _counts = Enumerable.Range(0, 4).Select(data.Metadata!.Count).ToArray();
         _io = io; _devices = devices; _owned = new(data, io, devices);
     }
@@ -98,7 +99,7 @@ internal sealed partial class AnalysisInventoryStage : IAsyncDisposable
         internal AnalysisScratchCheckpoint? Raw;
         internal AnalysisScratchCompositeRevision? Metadata;
         internal AnalysisInventoryStageHeader? Header;
-        internal long RawBytes, Reservation;
+        internal long RawBytes, SourceBytes, Reservation;
         internal RecordLocator Locator(int table, ulong row, CancellationToken cancellation) => RecordLocator.Decode(Metadata!.Read(table, row, cancellation), table, RawBytes);
         internal IEnumerable<AnalysisInventoryPathIdentity> PathIdentities(CancellationToken cancellation)
         {

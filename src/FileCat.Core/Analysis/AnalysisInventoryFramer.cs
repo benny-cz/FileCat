@@ -17,6 +17,7 @@ public static partial class AnalysisInventoryFormat
         private int _position, _available, _length;
         private long _bytes;
         private bool _ready, _ended, _failed;
+        internal long BytesRead => _bytes;
         internal RecordFramer(Stream source, long byteLimit = AnalysisLimits.InventoryBytes, int recordLimit = AnalysisLimits.RecordBytes)
         {
             ArgumentNullException.ThrowIfNull(source);

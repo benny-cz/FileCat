@@ -20,8 +20,12 @@ namespace FileCat.App.Views;
 public sealed partial class DiskSpaceWindow
 {
     // Internal until the indexed acquisition/profile-quota and complete product gates are qualified.
-    internal async Task<AnalysisDatasetExplorer> AddIndexedSessionAsync(AnalysisDatasetLease source, AnalysisMetric metric = AnalysisMetric.OnDisk,
-        AnalysisFilterRequest? filter = null, CancellationToken cancellation = default)
+    internal Task<AnalysisDatasetExplorer> AddIndexedSessionAsync(AnalysisDatasetLease source, AnalysisMetric metric = AnalysisMetric.OnDisk,
+        AnalysisFilterRequest? filter = null, CancellationToken cancellation = default) =>
+        AddPreparedIndexedSessionAsync(token => source.RetainAsync(token), metric, filter, null, cancellation);
+
+    private async Task<AnalysisDatasetExplorer> AddPreparedIndexedSessionAsync(Func<CancellationToken, Task<AnalysisDatasetLease>> prepareSource,
+        AnalysisMetric metric, AnalysisFilterRequest? filter, AnalysisSavedView? saved, CancellationToken cancellation)
     {
         Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
         AnalysisSessionAdmission.Slot? admission = AnalysisSessionAdmission.Shared.Acquire();
@@ -30,11 +34,24 @@ public sealed partial class DiskSpaceWindow
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _indexedLifetime.Token);
         try
         {
-            retained = await source.RetainAsync(linked.Token);
+            retained = await prepareSource(linked.Token);
+            string? restoreNotice = null; ulong scope = 0;
+            if (saved is not null)
+            {
+                AnalysisSavedCatalog.ValidateView(saved); metric = saved.Metric;
+                string? root = saved.Root;
+                if (root is not null && !retained.Descriptor.Roots.Any(r => r.Id == root))
+                { root = null; restoreNotice = "The saved location is absent. Showing all captured locations."; }
+                filter = new(saved.Query, saved.CaseSensitive, saved.ShowUnknown, root);
+                var restored = await RestoreIndexedScopeAsync(retained, saved.Scope, linked.Token);
+                scope = restored.Scope; string? scopeNotice = restored.Notice;
+                if (scopeNotice is not null) restoreNotice = restoreNotice is null ? scopeNotice : restoreNotice + " " + scopeNotice;
+            }
             explorer = await AnalysisDatasetExplorer.CreateAsync(retained, metric, filter, linked.Token);
-            await Task.WhenAll(explorer.LoadPageAsync(cancellation: linked.Token), explorer.LoadChartAsync(cancellation: linked.Token));
+            await Task.WhenAll(explorer.LoadPageAsync(scope, saved is null ? AnalysisHierarchySort.Metric : SavedIndexedSort(saved.Sort),
+                cancellation: linked.Token, descending: saved?.SortDescending ?? true), explorer.LoadChartAsync(scope, linked.Token));
             linked.Token.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
-            var view = new IndexedSessionView(this, retained, explorer, filter ?? new(""), admission);
+            var view = new IndexedSessionView(this, retained, explorer, filter ?? new(""), admission, saved, restoreNotice);
             try { AddView(view); }
             catch { retained = null; explorer = null; admission = null; view.Dispose(); throw; }
             retained = null; admission = null; var result = explorer; explorer = null; return result;
@@ -94,14 +111,21 @@ public sealed partial class DiskSpaceWindow
         private int _navigation, _inspection;
         private bool _disposed, _building, _again, _publishing;
         private string? _rootId;
-        public bool HasTemporaryWork => _source.Descriptor.Persistence == AnalysisPersistence.Temporary;
+        public bool HasTemporaryWork => _source.Descriptor.Origin == AnalysisOrigin.LiveSession && _source.Descriptor.Persistence == AnalysisPersistence.Temporary;
         public bool IsComparison => false;
 
-        internal IndexedSessionView(DiskSpaceWindow window, AnalysisDatasetLease source, AnalysisDatasetExplorer explorer, AnalysisFilterRequest filter, AnalysisSessionAdmission.Slot admission)
+        internal IndexedSessionView(DiskSpaceWindow window, AnalysisDatasetLease source, AnalysisDatasetExplorer explorer, AnalysisFilterRequest filter,
+            AnalysisSessionAdmission.Slot admission, AnalysisSavedView? saved = null, string? restoreNotice = null)
         {
             _window = window; _source = source; _explorer = explorer; _rootId = filter.RootId; _admission = admission;
             Spacing = 10; Margin = new Thickness(10);
             _metric.SelectedIndex = (int)explorer.Metric; _query.Text = filter.Text; _case.IsChecked = filter.CaseSensitive; _unknown.IsChecked = filter.UnknownOnly;
+            _scope = explorer.Page?.ParentId ?? 0;
+            if (saved is not null)
+            {
+                _sort.SelectedIndex = (int)SavedIndexedSort(saved.Sort); _descending.IsChecked = saved.SortDescending;
+                _chartMode.SelectedIndex = saved.Chart == "Sunburst" ? 1 : saved.Chart == "Table" ? 2 : 0;
+            }
             _roots.ItemsSource = new[] { "All captured locations" }.Concat(source.Descriptor.Roots.Select(root => AnalysisNames.Display(root.Label, 120) + " [" + AnalysisNames.Display(root.Id, 64) + "]")).ToArray();
             _roots.SelectedIndex = filter.RootId is null ? 0 : 1 + Array.FindIndex(source.Descriptor.Roots.ToArray(), root => root.Id == filter.RootId);
             AutomationProperties.SetName(_query, "Filter indexed observations"); AutomationProperties.SetName(_metric, "Indexed metric");
@@ -121,7 +145,14 @@ public sealed partial class DiskSpaceWindow
             _forward = ActionButton("Forward", () => _ = HistoryAsync(true), "Return to the next analysis scope.");
             _parent = ActionButton("Parent", () => _ = NavigateAsync(_shownPage?.Scope?.Path.ParentId ?? 0), "Explore the captured parent directory.");
             navigation.Children.Add(_back); navigation.Children.Add(_forward); navigation.Children.Add(_parent);
-            Children.Add(toolbar); Children.Add(filters); Children.Add(_summary); Children.Add(_status); Children.Add(navigation);
+            string provenance = source.Descriptor.Origin == AnalysisOrigin.ImportedInventory
+                ? "Offline imported observations · unverified. Recorded locations are not connected."
+                : "Captured observations.";
+            if (source.Descriptor.Taint.HasFlag(AnalysisTaint.PrivilegedDerived)) provenance += " Privileged-derived metadata.";
+            provenance += " File metadata can be sensitive.";
+            var provenanceLabel = new TextBlock { Text = provenance, TextWrapping = TextWrapping.Wrap };
+            AutomationProperties.SetName(provenanceLabel, "Analysis provenance: " + provenance);
+            Children.Add(provenanceLabel); Children.Add(toolbar); Children.Add(filters); Children.Add(_summary); Children.Add(_status); Children.Add(navigation);
             Children.Add(new ScrollViewer { Content = _breadcrumbs, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto });
             _body.Children.Add(_main); _body.Children.Add(_inspector); Children.Add(_body);
             _main.Children.Add(_treemap); _main.Children.Add(_sunburst); _main.Children.Add(_buckets);
@@ -199,6 +230,7 @@ public sealed partial class DiskSpaceWindow
             PropertyChanged += (_, change) => { if (change.Property == BoundsProperty) LayoutMode(Bounds.Width); };
             LayoutMode(window.Width);
             Publish(explorer);
+            if (restoreNotice is not null) _status.Text += " " + restoreNotice;
         }
         private void LayoutMode(double width)
         {

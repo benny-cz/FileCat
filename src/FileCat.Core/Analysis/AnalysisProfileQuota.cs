@@ -30,7 +30,8 @@ public sealed class AnalysisProfileQuota : IDisposable
     private Exception? _failure;
 
     // Construct only from application-owned private profile state. Parsed SessionIdentity data must
-    // not pick an IPC namespace; importers have no reason to call this method.
+    // not pick an IPC namespace. Import storage must use the destination application's
+    // prepared private profile, never the imported inventory's historical profile.
     internal static AnalysisProfileQuota Open(Guid privateProfileId)
     {
         if (privateProfileId == Guid.Empty) throw new ArgumentException("A private profile ID is required.", nameof(privateProfileId));
