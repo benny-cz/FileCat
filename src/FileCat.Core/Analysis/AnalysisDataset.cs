@@ -63,7 +63,7 @@ public sealed partial class AnalysisDatasetLease : IAsyncDisposable
     public Task<AnalysisDatasetLease> RetainAsync(CancellationToken cancellation = default) =>
         _owned.RunAsync((reader, _) => new AnalysisDatasetLease(reader.Retain(), Descriptor, _io, _device), cancellation);
     public Task<AnalysisDatasetPage<AnalysisPathMetadata>> ReadPathsAsync(ulong offset, int maximum = 256, CancellationToken cancellation = default) =>
-        _owned.RunAsync((reader, token) => Page(offset, maximum, Descriptor.Paths, n => AnalysisPathMetadata.From(reader.ReadPath(n + 1, token)), PathBytes, token), cancellation);
+        _owned.RunAsync((reader, token) => Page(offset, maximum, Descriptor.Paths, n => AnalysisPathMetadata.From(reader.ReadPathRow(n + 1, token)), PathBytes, token), cancellation);
     public Task<AnalysisDatasetPage<AnalysisObjectMetadata>> ReadObjectsAsync(ulong offset, int maximum = 256, CancellationToken cancellation = default) =>
         _owned.RunAsync((reader, token) => Page(offset, maximum, Descriptor.Objects, n => AnalysisObjectMetadata.From(reader.ReadObject(n + 1, token)),
             o => 256 + o.Id.Length * 2 + (o.VerifiedIdentity?.Length ?? 0) * 2 + (o.VersionEvidence?.Length ?? 0) * 2, token), cancellation);
@@ -82,15 +82,16 @@ public sealed partial class AnalysisDatasetLease : IAsyncDisposable
     public Task<AnalysisDatasetPage<AnalysisPathMetadata>> ReadChildrenAsync(int rootOrdinal, ulong parent, ulong offset, int maximum = 256, CancellationToken cancellation = default) =>
         _owned.RunAsync((reader, token) =>
         {
-            if ((uint)rootOrdinal >= (uint)Descriptor.Roots.Length || parent > Descriptor.Paths) throw new ArgumentOutOfRangeException(nameof(rootOrdinal));
+            if ((uint)rootOrdinal >= (uint)Descriptor.Roots.Length) throw new ArgumentOutOfRangeException(nameof(rootOrdinal));
+            reader.RequireParent(parent, token);
             var range = reader.Children(rootOrdinal, parent, token);
-            return Page(offset, maximum, range.Count, n => AnalysisPathMetadata.From(reader.ReadPath(reader.ReadIndex(AnalysisIndexedGraphRevision.Children, range.First + n, token).Value, token)), PathBytes, token);
+            return Page(offset, maximum, range.Count, n => AnalysisPathMetadata.From(reader.ReadPathRow(reader.ReadIndex(AnalysisIndexedGraphRevision.Children, range.First + n, token).Value, token)), PathBytes, token);
         }, cancellation);
     public Task<AnalysisDatasetPage<AnalysisPathMetadata>> ReadAliasesAsync(string objectId, ulong offset, int maximum = 256, CancellationToken cancellation = default) =>
         _owned.RunAsync((reader, token) =>
         {
             var range = reader.Aliases(objectId, token);
-            return Page(offset, maximum, range.Count, n => AnalysisPathMetadata.From(reader.ReadPath(reader.ReadIndex(AnalysisIndexedGraphRevision.Aliases, range.First + n, token).Value, token)), PathBytes, token);
+            return Page(offset, maximum, range.Count, n => AnalysisPathMetadata.From(reader.ReadPathRow(reader.ReadIndex(AnalysisIndexedGraphRevision.Aliases, range.First + n, token).Value, token)), PathBytes, token);
         }, cancellation);
     public Task<AnalysisDatasetPage<StorageFact>> ReadObjectFactsAsync(string objectId, ulong offset, int maximum = 256, CancellationToken cancellation = default) =>
         _owned.RunAsync((reader, token) =>
@@ -101,14 +102,14 @@ public sealed partial class AnalysisDatasetLease : IAsyncDisposable
     public Task<AnalysisDatasetPage<AnalysisIssue>> ReadPathIssuesAsync(ulong node, ulong offset, int maximum = 256, CancellationToken cancellation = default) =>
         _owned.RunAsync((reader, token) =>
         {
-            if (node == 0 || node > Descriptor.Paths) throw new ArgumentOutOfRangeException(nameof(node));
+            _ = reader.PathRow(node, token);
             var range = reader.Find(AnalysisIndexedGraphRevision.IssueOwners, AnalysisGraphKeys.IssueOwner(node, null, Descriptor.Roots), cancellation: token);
             return Page(offset, maximum, range.Count, n => reader.ReadIssue(reader.ReadIndex(AnalysisIndexedGraphRevision.IssueOwners, range.First + n, token).Value, token), IssueBytes, token);
         }, cancellation);
     public Task<AnalysisDatasetPage<StorageFact>> ReadDirectoryFactsAsync(ulong node, ulong offset, int maximum = 256, CancellationToken cancellation = default) =>
         _owned.RunAsync((reader, token) =>
         {
-            if (node == 0 || node > Descriptor.Paths) throw new ArgumentOutOfRangeException(nameof(node));
+            _ = reader.PathRow(node, token);
             var range = reader.Find(AnalysisIndexedGraphRevision.FactOwners, AnalysisGraphKeys.FactOwner(null, node), cancellation: token);
             return Page(offset, maximum, range.Count, n => reader.ReadFact(reader.ReadIndex(AnalysisIndexedGraphRevision.FactOwners, range.First + n, token).Value, token), FactBytes, token);
         }, cancellation);

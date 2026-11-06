@@ -12,6 +12,7 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
     private static readonly object BudgetGate = new();
     private static long Reserved;
     private readonly long _reservation;
+    private readonly AnalysisIndexedGraphReader _source;
     private byte[]? _truth, _context;
     private readonly Dictionary<string, Scope> _scopes = new(StringComparer.Ordinal);
     private readonly HashSet<ulong> _ancestors = [];
@@ -29,9 +30,9 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
     internal bool NeedsRootWalk => _scopes.Values.Any(s => s.Known && s.Ancestor.HasValue);
     internal bool NamespaceOnly => Filter.NamespaceOnly && !Request.UnknownOnly;
     private sealed record Scope(string? Root, ulong? Ancestor, bool Known);
-    private AnalysisIndexedFilter(AnalysisFilter filter, AnalysisFilterRequest request, ulong paths)
+    private AnalysisIndexedFilter(AnalysisFilter filter, AnalysisFilterRequest request, AnalysisIndexedGraphReader source)
     {
-        Filter = filter; Request = request;
+        Filter = filter; Request = request; _source = source; ulong paths = source.Count(AnalysisIndexedGraph.Paths);
         int truths = checked((int)((paths + 3) / 4)), contexts = checked((int)((paths + 7) / 8)); _reservation = truths + contexts;
         lock (BudgetGate)
         {
@@ -53,7 +54,7 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
             catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException) { zone = null; }
             return AnalysisFilter.Parse(request.Text, zone ?? TimeZoneInfo.Utc, request.CaseSensitive, roots: source.Header.Roots, allowDateOnly: zone is not null);
         }, cancellation).ConfigureAwait(false);
-        var result = new AnalysisIndexedFilter(filter, request, source.Count(AnalysisIndexedGraph.Paths));
+        var result = new AnalysisIndexedFilter(filter, request, source);
         try
         {
             foreach (var root in source.Header.Roots) result._scopes[root.Id] = new(root.Disposition == AnalysisRootDisposition.Active ? root.Id : null, null,
@@ -81,7 +82,7 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
                     token.ThrowIfCancellationRequested();
                     if (candidate is null)
                     {
-                        var node = source.ReadPath(at++, token); bytes += Cost(node);
+                        var node = source.ReadPathRow(at++, token); bytes += Cost(node);
                         if (node.RootId != covering || node.Kind != root.Kind) continue;
                         string? observed = node.ObservedIdentity;
                         if (observed is null && node.ObjectId is { } id)
@@ -161,16 +162,20 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
         _walking = false; _textAvailable = true;
         return Evaluate(null, AnalysisMeasurement.Missing(MeasurementState.Unsupported), MeasurementState.Known, freshness) == AnalysisTruth.True;
     }
-    internal void Record(ulong path, AnalysisTruth truth)
+    internal void Record(ulong path, AnalysisTruth truth, CancellationToken cancellation = default)
     {
+        path = _source.PathRow(path, cancellation);
         int at = checked((int)((path - 1) / 4)), shift = (int)((path - 1) % 4) * 2;
         _truth![at] = (byte)((_truth[at] & ~(3 << shift)) | ((int)truth << shift));
         if (truth == AnalysisTruth.True) DefinitePaths++; else if (truth == AnalysisTruth.Unknown) UnknownPaths++;
     }
-    internal AnalysisTruth Truth(ulong path) => (AnalysisTruth)((_truth![checked((int)((path - 1) / 4))] >> ((int)((path - 1) % 4) * 2)) & 3);
-    internal bool Matches(ulong path) => Truth(path) == (Request.UnknownOnly ? AnalysisTruth.Unknown : AnalysisTruth.True);
-    internal void Context(ulong path) => _context![checked((int)((path - 1) / 8))] |= (byte)(1 << (int)((path - 1) % 8));
-    internal bool IsContext(ulong path) => (_context![checked((int)((path - 1) / 8))] & (1 << (int)((path - 1) % 8))) != 0;
+    internal AnalysisTruth Truth(ulong path, CancellationToken cancellation = default)
+    { path = _source.PathRow(path, cancellation); return (AnalysisTruth)((_truth![checked((int)((path - 1) / 4))] >> ((int)((path - 1) % 4) * 2)) & 3); }
+    internal bool Matches(ulong path, CancellationToken cancellation = default) => Truth(path, cancellation) == (Request.UnknownOnly ? AnalysisTruth.Unknown : AnalysisTruth.True);
+    internal void Context(ulong path, CancellationToken cancellation = default)
+    { path = _source.PathRow(path, cancellation); _context![checked((int)((path - 1) / 8))] |= (byte)(1 << (int)((path - 1) % 8)); }
+    internal bool IsContext(ulong path, CancellationToken cancellation = default)
+    { path = _source.PathRow(path, cancellation); return (_context![checked((int)((path - 1) / 8))] & (1 << (int)((path - 1) % 8))) != 0; }
     internal AnalysisFilterSummary Summary => new(Request, DefinitePaths, UnknownPaths);
     public void Dispose()
     {

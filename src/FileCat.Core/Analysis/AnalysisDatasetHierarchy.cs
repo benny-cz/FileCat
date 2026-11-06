@@ -99,7 +99,7 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
     public Task<AnalysisHierarchyRow> ReadAsync(ulong path, CancellationToken cancellation = default) =>
         _owned.RunAsync((state, token) =>
         {
-            if (path == 0 || path > Descriptor.Paths) throw new ArgumentOutOfRangeException(nameof(path));
+            _ = state.Graph.PathRow(path, token);
             var range = state.Indexes[0].FindRange(Key(path), token); if (range.Count != 1) throw Invalid();
             return state.Read(state.Indexes[0].Read(range.First, token).Value, token);
         }, cancellation);
@@ -107,7 +107,8 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
         ulong offset = 0, int maximum = 256, CancellationToken cancellation = default, bool descending = true) =>
         _owned.RunAsync((state, token) =>
         {
-            if (parent > Descriptor.Paths || !Enum.IsDefined(sort) || maximum is < 1 or > AnalysisLimits.BatchRecords) throw new ArgumentOutOfRangeException(nameof(parent));
+            if (!Enum.IsDefined(sort) || maximum is < 1 or > AnalysisLimits.BatchRecords) throw new ArgumentOutOfRangeException(nameof(parent));
+            state.Graph.RequireParent(parent, token);
             int kind = sort switch { AnalysisHierarchySort.FileSize => 5, AnalysisHierarchySort.Name => 6, AnalysisHierarchySort.MetadataState => 7, _ => (int)sort + 1 };
             var index = state.Indexes[kind]; var range = index.PrefixRange(Key(parent), token);
             // Direction reverses measured values only. Missing values retain their explicit trailing
@@ -133,7 +134,7 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
     public Task<ImmutableArray<AnalysisHierarchyBucket>> ReadBucketsAsync(ulong parent, CancellationToken cancellation = default) =>
         _owned.RunAsync((state, token) =>
         {
-            if (parent > Descriptor.Paths) throw new ArgumentOutOfRangeException(nameof(parent));
+            state.Graph.RequireParent(parent, token);
             if (parent == 0 && !Totals.CompatibleBasis) return ImmutableArray<AnalysisHierarchyBucket>.Empty;
             var range = state.Indexes[3].PrefixRange(Key(parent), token); if (range.Count > 2) throw Invalid();
             var rows = ImmutableArray.CreateBuilder<AnalysisHierarchyBucket>();
@@ -208,6 +209,7 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
     private sealed class State : IAnalysisScratchOwned
     {
         private readonly AnalysisIndexedGraphReader _graph;
+        internal AnalysisIndexedGraphReader Graph => _graph;
         internal AnalysisScratchWorkspace? Workspace;
         internal AnalysisSortedIndexReader? Placements;
         internal readonly List<AnalysisSortedIndexReader> Indexes = [];
@@ -248,7 +250,7 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
                 if (key.Length != 50 || BinaryPrimitives.ReadUInt64BigEndian(key) != frame.Id || BinaryPrimitives.ReadUInt64BigEndian(key.AsSpan(8)) != entry.Value || key[48] > 5 || key[49] > 7) throw Invalid();
                 ulong path = BinaryPrimitives.ReadUInt64BigEndian(key.AsSpan(16)), aliases = BinaryPrimitives.ReadUInt64BigEndian(key.AsSpan(24));
                 UInt128 value = Read128(key.AsSpan(32)); var status = (MeasurementState)key[48];
-                if (path is < 1 or > AnalysisLimits.Observations || aliases > AnalysisLimits.Observations || status != MeasurementState.Known && value != 0) throw Invalid();
+                if (path == 0 || aliases > AnalysisLimits.Observations || status != MeasurementState.Known && value != 0) throw Invalid();
                 var measurement = status == MeasurementState.Known ? AnalysisMeasurement.Known(value) : AnalysisMeasurement.Missing(status); bool unverified = (key[49] & 2) != 0;
                 frame.Amount.Measure(measurement, unverified); frame.OwnCharge = true; frame.Visible = true; _placed++;
                 if ((key[49] & 1) != 0) (frame.Shared ??= new(AnalysisHierarchyBucketKind.SharedFiles)).Add(path, aliases, measurement, unverified);
@@ -274,16 +276,16 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
             }
             return 512;
         }
-        private long Push(ulong id, CancellationToken token)
+        private long Push(ulong row, CancellationToken token)
         {
-            var path = _graph.ReadPathRecord(id, token); var node = path.Node;
+            var path = _graph.ReadPathRowRecord(row, token); var node = path.Node; ulong id = node.Id;
             if (_pending.Count > AnalysisLimits.Depth + 1) throw Invalid();
             bool includedFile = node.Kind == AnalysisKind.File && node.IncludedByPolicy;
-            bool match = includedFile && (_query?.Matches(id) ?? true), context = includedFile && (_query?.IsContext(id) ?? false);
+            bool match = includedFile && (_query?.Matches(id, token) ?? true), context = includedFile && (_query?.IsContext(id, token) ?? false);
             var frame = new Frame(id, node.ParentId, node.Kind == AnalysisKind.Directory ? _graph.Children(path.RootIndex, id, token) : default, Charges(id, token),
                 node.Kind == AnalysisKind.Directory && node.IncludedByPolicy && _graph.Header.Coverage != NamespaceCoverage.CompleteUnderPolicy, match || context)
             {
-                Match = match, Truth = includedFile ? _query?.Truth(id) ?? AnalysisTruth.True : AnalysisTruth.False,
+                Match = match, Truth = includedFile ? _query?.Truth(id, token) ?? AnalysisTruth.True : AnalysisTruth.False,
                 Visible = _query is null || match || context || node.Kind == AnalysisKind.Directory && node.IncludedByPolicy && _query.NamespaceMatches(node, _pending.Select(f => f.Id), _graph.Header.Freshness)
             };
             long cost = 1024L + node.Name.Length * 2L + node.RawName.Length;
@@ -383,7 +385,7 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
     {
         if (bytes.Length != 168 || BinaryPrimitives.ReadUInt32LittleEndian(bytes) != 0x32484441 || bytes[108] > 47 || bytes[109] != 0 || bytes[110] != 0 || bytes[111] != 0) throw Invalid();
         ulong id = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(4)), parent = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(12));
-        if (id is < 1 or > AnalysisLimits.Observations || parent >= id) throw Invalid();
+        if (id == 0 || parent == id) throw Invalid();
         var frame = new Frame(id, parent, default, default, (bytes[108] & 1) != 0, false)
         { Elsewhere = (bytes[108] & 2) != 0, Match = (bytes[108] & 4) != 0, Visible = (bytes[108] & 8) != 0, Truth = (AnalysisTruth)(bytes[108] >> 4) };
         frame.Amount.Known = Read128(bytes.AsSpan(20)); frame.Amount.Unverified = Read128(bytes.AsSpan(36)); _ = checked(frame.Amount.Known + frame.Amount.Unverified);
@@ -409,7 +411,7 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
         ulong parent = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(4)), objects = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(96));
         ulong aliases = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(104)), charges = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(112));
         var kind = (AnalysisHierarchyBucketKind)bytes[12];
-        if (parent > AnalysisLimits.Observations || objects is < 1 or > AnalysisLimits.Observations || aliases > AnalysisLimits.Observations || charges < objects || charges > AnalysisLimits.Observations ||
+        if (objects is < 1 or > AnalysisLimits.Observations || aliases > AnalysisLimits.Observations || charges < objects || charges > AnalysisLimits.Observations ||
             (kind == AnalysisHierarchyBucketKind.DirectoryAllocation ? parent == 0 || objects != 1 || aliases != 0 : aliases < objects * 2)) throw Invalid();
         var amount = new Amount { Known = Read128(bytes.AsSpan(16)), Unverified = Read128(bytes.AsSpan(32)) }; _ = checked(amount.Known + amount.Unverified);
         ReadMissing(bytes.AsSpan(48), amount); return new(parent, kind, amount.Export(), objects, aliases, charges);

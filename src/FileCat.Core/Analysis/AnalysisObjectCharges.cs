@@ -72,7 +72,8 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
     public Task<AnalysisDatasetPage<AnalysisObjectCharge>> ReadChargesAsync(ulong parent, ulong offset = 0, int maximum = 256, CancellationToken cancellation = default) =>
         _owned.RunAsync((state, token) =>
         {
-            if (parent > Descriptor.Paths || maximum is < 1 or > AnalysisLimits.BatchRecords) throw new ArgumentOutOfRangeException(nameof(parent));
+            if (maximum is < 1 or > AnalysisLimits.BatchRecords) throw new ArgumentOutOfRangeException(nameof(parent));
+            state.Graph.RequireParent(parent, token);
             if (!Totals.CompatibleBasis)
             {
                 if (offset != 0) throw new ArgumentOutOfRangeException(nameof(offset));
@@ -178,7 +179,7 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
                         _facts = _graph.Find(AnalysisIndexedGraphRevision.FactOwners, AnalysisGraphKeys.FactOwner(_current!.Id, null), cancellation: token);
                         _fact = 0; _stage = Stage.Facts; return 1;
                     }
-                    var node = _graph.ReadPathRecord(_graph.ReadIndex(AnalysisIndexedGraphRevision.Aliases, _aliases.First + _alias++, token).Value, token);
+                    var node = _graph.ReadPathRowRecord(_graph.ReadIndex(AnalysisIndexedGraphRevision.Aliases, _aliases.First + _alias++, token).Value, token);
                     if (node.Node is not { Kind: AnalysisKind.File, IncludedByPolicy: true }) return PathBytes(node.Node);
                     if (_first is null) { _first = _current; _representative = node.Node.Id; _representativeObject = _objectRow; }
                     _changed |= _first!.LogicalLength != _current!.LogicalLength;
@@ -213,7 +214,7 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
                     Emit(token); return 128;
                 case Stage.UnknownAliases:
                     if (_alias == _aliases.Count) { Reset(); _stage = Stage.Objects; return 1; }
-                    var unknown = _graph.ReadPath(_graph.ReadIndex(AnalysisIndexedGraphRevision.Aliases, _aliases.First + _alias++, token).Value, token);
+                    var unknown = _graph.ReadPathRow(_graph.ReadIndex(AnalysisIndexedGraphRevision.Aliases, _aliases.First + _alias++, token).Value, token);
                     if (unknown is { Kind: AnalysisKind.File, IncludedByPolicy: true })
                     { _representative = unknown.Id; _parent = unknown.ParentId; _emit = 0; _stage = Stage.Emit; }
                     return PathBytes(unknown);
@@ -377,7 +378,7 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
         if (bytes.Length != 72 || BinaryPrimitives.ReadUInt32LittleEndian(bytes) != 0x31434f41 || bytes[68] > 5 || bytes[69] > 7 || bytes[70] != 0 || bytes[71] != 0) throw Invalid();
         ulong[] fields = new ulong[6]; for (int n = 0; n < fields.Length; n++) fields[n] = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(4 + n * 8));
         UInt128 value = Read128(bytes.AsSpan(52)); var state = (MeasurementState)bytes[68];
-        if (fields[0] == 0 || fields[1] > AnalysisLimits.Observations || fields[2] is < 1 or > AnalysisLimits.Observations || fields[3] > AnalysisLimits.Observations || fields[5] > AnalysisLimits.Observations || state != MeasurementState.Known && value != 0) throw Invalid();
+        if (fields[0] == 0 || fields[2] == 0 || fields[3] > AnalysisLimits.Observations || fields[5] > AnalysisLimits.Observations || state != MeasurementState.Known && value != 0) throw Invalid();
         bool directory = (bytes[69] & 4) != 0, shared = (bytes[69] & 1) != 0, uncertain = (bytes[69] & 2) != 0;
         if (directory ? fields[3] != 0 || fields[5] != 0 || shared || fields[1] != fields[2] : fields[3] == 0 || fields[5] == 0 || shared != (fields[5] > 1) || uncertain && fields[5] != 1) throw Invalid();
         return new(fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], state == MeasurementState.Known ? AnalysisMeasurement.Known(value) : AnalysisMeasurement.Missing(state), bytes[69]);

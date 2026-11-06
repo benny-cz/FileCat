@@ -35,7 +35,7 @@ internal static class AnalysisInventoryStageCases
         var token = TestContext.Current.CancellationToken; const int files = 5200;
         string parent = Path.Combine(Environment.CurrentDirectory, ".tmp", "inventory-stage-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(parent);
         string file = Path.Combine(parent, "input", "source.fcdsa");
-        using var io = new DeviceIoScheduler(); AnalysisScratchWorkspace? workspace = null; TrackingDirectory? input = null; AnalysisInventoryPathMap? map = null;
+        using var io = new DeviceIoScheduler(); AnalysisScratchWorkspace? workspace = null; TrackingDirectory? input = null; AnalysisInventoryPathMap? map = null; AnalysisDataset? dataset = null;
         try
         {
             byte[] bytes = Bytes(files, largeRecord: true);
@@ -56,15 +56,30 @@ internal static class AnalysisInventoryStageCases
                 Assert.Equal(ulong.MaxValue, first.Path!.Id); Assert.Equal(1UL, last.Path!.Id); Assert.Equal(ulong.MaxValue, last.Path.ParentId);
                 Assert.Equal((UInt128)7, (await stage.ReadAsync(AnalysisInventoryFormat.RecordKind.Object, 1, token)).Object!.LogicalLength.Value);
                 map = await stage.BuildPathMapAsync(token);
+                dataset = await stage.BuildDatasetAsync(token);
             }
             Assert.Equal((ulong)files + 1, await map.ResolveAsync(1, token)); Assert.Equal(1UL, (await map.ReadAsync((ulong)files + 1, token)).ParentRow);
             await map.DisposeAsync(); map = null;
+            await using (var lease = await dataset.AcquireAsync(token))
+            {
+                await dataset.DisposeAsync(); dataset = null;
+                Assert.Equal(ulong.MaxValue, (await lease.ReadPathsAsync(0, 1, token)).Rows[0].Id);
+                Assert.Equal(1UL, (await lease.ReadPathsAsync((ulong)files, 1, token)).Rows[0].Id);
+                Assert.Equal((UInt128)4096, (await lease.SummarizeAsync(AnalysisMetric.OnDisk, token)).Totals.Known);
+                await using (var hierarchy = await lease.BuildHierarchyAsync(AnalysisMetric.OnDisk, new("name:file-5200"), token))
+                    Assert.Equal(1UL, Assert.Single((await hierarchy.ReadMatchingFilesAsync(cancellation: token)).Rows).Path.Id);
+                await lease.SaveNewAsync("saved.fcdsa", Guid.NewGuid(), "native-stage", () => open(parent, "output"), token);
+                using var saved = File.OpenRead(Path.Combine(parent, "output", "saved.fcdsa"));
+                using var reopened = AnalysisInventoryFormat.Read(saved, token);
+                Assert.Equal(ulong.MaxValue, reopened.Snapshot.Nodes[0].Id); Assert.Equal(1UL, reopened.Snapshot.Nodes[^1].Id);
+                Assert.Equal(ulong.MaxValue, reopened.Snapshot.Nodes[^1].ParentId); Assert.NotNull(reopened.Snapshot.CoverageDetails!.Qualification);
+            }
             Assert.Equal(0, workspace!.ReservedBytes); Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(parent, "scratch")));
             Assert.Equal(before, Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(file))));
         }
         finally
         {
-            try { if (map is not null) await map.DisposeAsync(); }
+            try { try { if (map is not null) await map.DisposeAsync(); } finally { if (dataset is not null) await dataset.DisposeAsync(); } }
             finally { try { if (workspace is not null) await AnalysisIo.ReleaseScratchAsync(io, "native-stage", workspace); } finally { Directory.Delete(parent, true); } }
         }
     }

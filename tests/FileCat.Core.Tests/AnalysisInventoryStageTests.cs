@@ -6,7 +6,7 @@ using FileCat.Tests;
 namespace FileCat.Core.Tests;
 
 [Collection("Analysis bounded work capacity")]
-public sealed class AnalysisInventoryStageTests
+public sealed partial class AnalysisInventoryStageTests
 {
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary process.");
@@ -125,7 +125,7 @@ public sealed class AnalysisInventoryStageTests
     }
     private sealed class MemoryDirectory : AnalysisPrivateDirectory
     {
-        internal byte[] Input = []; internal bool Closed, InputClosed, FailInputClose; internal int LiveFiles; internal Action? OnRead;
+        internal byte[] Input = []; internal bool Closed, InputClosed, FailInputClose; internal int LiveFiles; internal Action? OnRead, OnScratchRead;
         internal override void Verify() => ObjectDisposedException.ThrowIf(Closed, this);
         internal override (UInt128 Capacity, UInt128 Available) Space() => ((UInt128)1024 * 1024 * 1024, (UInt128)1024 * 1024 * 1024);
         internal override AnalysisPrivateScratchFile CreateScratch() { LiveFiles++; return new ScratchFile(this); }
@@ -149,7 +149,7 @@ public sealed class AnalysisInventoryStageTests
         private readonly MemoryStream _bytes = new(); private bool _closed;
         public override long Length => _bytes.Length;
         public override void Verify() => ObjectDisposedException.ThrowIf(_closed, this);
-        public override int ReadAt(Span<byte> buffer, long offset) { _bytes.Position = offset; return _bytes.Read(buffer); }
+        public override int ReadAt(Span<byte> buffer, long offset) { owner.OnScratchRead?.Invoke(); _bytes.Position = offset; return _bytes.Read(buffer); }
         public override void WriteAt(ReadOnlySpan<byte> buffer, long offset) { _bytes.Position = offset; _bytes.Write(buffer); }
         public override void Dispose() { if (_closed) return; _closed = true; _bytes.Dispose(); owner.LiveFiles--; }
     }

@@ -81,7 +81,7 @@ internal sealed class AnalysisDatasetSummarizer
             case Stage.Paths:
                 if (_path > _reader.Count(AnalysisIndexedGraph.Paths))
                 { _stage = _metric is AnalysisMetric.Files or AnalysisMetric.FileSize ? Stage.Done : Stage.Objects; return 1; }
-                var path = _reader.ReadPath(_path++, token);
+                var path = _reader.ReadPathRow(_path++, token);
                 if (path.Kind == AnalysisKind.File && path.IncludedByPolicy)
                 {
                     _count = checked(_count + 1);
@@ -111,7 +111,7 @@ internal sealed class AnalysisDatasetSummarizer
                 if (_alias < _aliases.Count)
                 {
                     var alias = _reader.ReadIndex(AnalysisIndexedGraphRevision.Aliases, _aliases.First + _alias++, token);
-                    var member = _reader.ReadPathRecord(alias.Value, token);
+                    var member = _reader.ReadPathRowRecord(alias.Value, token);
                     if (member.Node.Kind == AnalysisKind.File && member.Node.IncludedByPolicy)
                     { _currentPaths = checked(_currentPaths + 1); _currentRoots |= 1U << member.RootIndex; }
                     return 1024L + member.Node.Name.Length * 2L + member.Node.RawName.Length;

@@ -66,7 +66,7 @@ public static partial class AnalysisInventoryFormat
     private static readonly byte[] Lf = [(byte)'\n'];
     private static readonly string[] Kinds = ["manifest", "object", "path-node", "storage-fact", "issue", "coverage"];
     internal static void Release(long bytes) => Interlocked.Add(ref s_importReserved, -bytes);
-    private static void Reserve(long bytes, ref long reservation)
+    internal static void Reserve(long bytes, ref long reservation)
     {
         while (true)
         {

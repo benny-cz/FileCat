@@ -44,11 +44,17 @@ internal static class AnalysisIndexedPathCodec
 
     internal static AnalysisIndexedPathRecord Decode(ReadOnlySpan<byte> bytes, ulong expectedId, ImmutableArray<RootBinding> roots)
     {
+        var result = DecodeRow(bytes, roots);
+        if (result.Node.Id != expectedId) throw Invalid();
+        return result;
+    }
+    internal static AnalysisIndexedPathRecord DecodeRow(ReadOnlySpan<byte> bytes, ImmutableArray<RootBinding> roots)
+    {
         if (bytes.Length > AnalysisScratchVector.MaximumRecordBytes) throw Invalid();
         var reader = new Reader(bytes);
         if (reader.UInt32() != Format) throw Invalid();
         ulong id = reader.UInt64(), parent = reader.UInt64(); int root = reader.Byte(), depth = reader.UInt16();
-        if (id != expectedId || roots.IsDefault || root >= roots.Length) throw Invalid();
+        if (roots.IsDefault || root >= roots.Length) throw Invalid();
         var kind = (AnalysisKind)reader.Byte(); var metadata = (MeasurementState)reader.Byte();
         bool? sparse = NullableFlag(reader.Byte()), compressed = NullableFlag(reader.Byte()), cloud = NullableFlag(reader.Byte());
         bool included = reader.Boolean();
@@ -79,7 +85,7 @@ internal static class AnalysisIndexedPathCodec
     private static void Validate(AnalysisNode node, int root, int depth, ImmutableArray<RootBinding> roots, int rawBytes)
     {
         if (roots.IsDefault || roots.Length is < 1 or > AnalysisLimits.Roots || root < 0 || root >= roots.Length ||
-            node.RootId != roots[root].Id || node.Id is < 1 or > AnalysisLimits.Observations || node.ParentId >= node.Id ||
+            node.RootId != roots[root].Id || node.Id == 0 || node.ParentId == node.Id ||
             depth is < 0 or > AnalysisLimits.Depth || (node.ParentId == 0) != (depth == 0) || !Enum.IsDefined(node.Kind) || !Enum.IsDefined(node.MetadataState) ||
             !node.IncludedByPolicy != (node.MetadataState == MeasurementState.Excluded) ||
             node.Name is not { Length: > 0 and <= AnalysisLimits.RawNameBytes } || node.Name.Contains('\0') ||

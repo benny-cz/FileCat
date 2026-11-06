@@ -16,11 +16,15 @@ internal sealed record AnalysisIndexedGraphHeader(SessionIdentity Identity, Immu
     internal AnalysisEnumerationProgress? Enumeration { get; init; }
     internal AnalysisStaleEvidence? StaleEvidence { get; init; }
     internal AnalysisDatasetCoverage? CoverageDetails { get; init; }
+    // Computed by the table producer; never restored from inventory data.
+    internal bool DensePathIds { get; init; } = true;
+    internal AnalysisCoverageRecord? ImportedCoverage { get; init; }
     internal void Validate()
     {
         AnalysisValidation.Validate(new(Identity, Roots, [], [], [], [], Policy, Phase, Coverage, Freshness, Origin, Taint)
             { Persistence = Persistence, IssueTotals = IssueTotals, BoundaryTotals = BoundaryTotals });
         Enumeration?.Validate();
+        if (ImportedCoverage is not null && Origin != AnalysisOrigin.ImportedInventory) throw AnalysisIndexedGraph.Invalid();
         if (StaleEvidence is { } stale && (stale.RootIds.IsDefault || stale.RootIds.Length > Roots.Length || stale.RootIds.Distinct(StringComparer.Ordinal).Count() != stale.RootIds.Length ||
             stale.RootIds.Any(id => !Roots.Any(root => root.Id == id)) || stale.Events > IssueTotals.Values.Aggregate(0UL, (sum, value) => checked(sum + value)))) throw AnalysisIndexedGraph.Invalid();
     }
@@ -43,7 +47,7 @@ internal sealed class AnalysisIndexedGraph : IAnalysisScratchOwned
     private readonly ulong[] _counts = new ulong[4];
     private DateTimeOffset _observed;
     private AnalysisIndexedGraphHeader? _sealedHeader;
-    private bool _sealed, _disposed;
+    private bool _sealed, _disposed, _densePathIds = true;
 
     // The caller retains arena ownership on constructor failure.
     internal AnalysisIndexedGraph(AnalysisScratchArena arena, AnalysisIndexedGraphHeader header)
@@ -56,22 +60,30 @@ internal sealed class AnalysisIndexedGraph : IAnalysisScratchOwned
     }
 
     internal void AppendPath(AnalysisNode node, CancellationToken cancellation = default)
+        => AppendPathCore(node, node is null ? 0 : node.ParentId, requireDense: true, cancellation);
+    // parentRow is obtained from the validated original-ID map. Validate its actual stored ID
+    // before using it; the numeric values of an observation and its parent carry no ordering.
+    internal void AppendPathWithParentRow(AnalysisNode node, ulong parentRow, CancellationToken cancellation = default)
+        => AppendPathCore(node, parentRow, requireDense: false, cancellation);
+    private void AppendPathCore(AnalysisNode node, ulong parentRow, bool requireDense, CancellationToken cancellation)
     {
         lock (_gate)
         {
             GuardWriter(); cancellation.ThrowIfCancellationRequested();
-            if (node is null || node.Id != _counts[Paths] + 1 || !_roots.TryGetValue(node.RootId, out int root)) throw Invalid();
+            ulong row = _counts[Paths] + 1;
+            if (node is null || node.Id == 0 || requireDense && node.Id != row || !_roots.TryGetValue(node.RootId, out int root)) throw Invalid();
             int depth = 0;
-            if (node.ParentId == 0) { if (_rootNodes[root] != 0) throw Invalid(); }
+            if (node.ParentId == 0) { if (parentRow != 0 || _rootNodes[root] != 0) throw Invalid(); }
             else
             {
-                if (node.ParentId >= node.Id) throw Invalid();
-                var parent = AnalysisIndexedPathCodec.Decode(_tables.ReadCurrent(Paths, node.ParentId, cancellation), node.ParentId, _header.Roots);
+                if (parentRow == 0 || parentRow >= row) throw Invalid();
+                var parent = AnalysisIndexedPathCodec.Decode(_tables.ReadCurrent(Paths, parentRow, cancellation), node.ParentId, _header.Roots);
                 if (parent.RootIndex != root || parent.Node.Kind != AnalysisKind.Directory || !parent.Node.IncludedByPolicy || parent.Node.MetadataState != MeasurementState.Known) throw Invalid();
                 depth = checked(parent.Depth + 1);
             }
             if (node.Times is { } times && times.ObservedUtc < _header.Identity.StartedUtc) throw Invalid();
             _tables.Append(Paths, AnalysisIndexedPathCodec.Encode(node, root, depth, _header.Roots), cancellation); _counts[Paths]++;
+            _densePathIds &= node.Id == row;
             if (node.ParentId == 0) _rootNodes[root] = node.Id;
             if (node.Times is { } observed && observed.ObservedUtc > _observed) _observed = observed.ObservedUtc;
         }
@@ -118,7 +130,7 @@ internal sealed class AnalysisIndexedGraph : IAnalysisScratchOwned
                     throw new InvalidOperationException("An indexed graph cannot change acquisition identity or predate its observations.");
                 if (header.Roots != _header.Roots || header.Policy != _header.Policy || header.Origin != _header.Origin ||
                     AnalysisPrivacy.Join(header.Taint) != _header.Taint) throw new InvalidOperationException("An indexed graph cannot replace its roots, policy or privacy classification.");
-                var final = header; final.Validate();
+                var final = header with { DensePathIds = _densePathIds }; final.Validate();
                 if (_sealedHeader is { } prior && prior != final)
                     throw new InvalidOperationException("A frozen indexed graph cannot be reinterpreted with another header.");
                 _sealedHeader = final;
@@ -139,7 +151,7 @@ internal sealed class AnalysisIndexedGraph : IAnalysisScratchOwned
 /// <summary>Owns one validated immutable prefix and its exact indexes; it has no live filesystem capability.</summary>
 internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
 {
-    internal const int Children = 0, ObjectIds = 1, Aliases = 2, FactOwners = 3, FactIds = 4, IssueOwners = 5, ObjectIdentities = 6, IndexCount = 7;
+    internal const int Children = 0, ObjectIds = 1, Aliases = 2, FactOwners = 3, FactIds = 4, IssueOwners = 5, ObjectIdentities = 6, PathIds = 7, IndexCount = 8;
     private readonly object _gate = new();
     private readonly AnalysisScratchCompositeRevision _data;
     private readonly AnalysisSortedIndex[] _indexes;
@@ -175,15 +187,16 @@ internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
 
     private static IEnumerable<AnalysisSortInput> Entries(int kind, ImmutableArray<RootBinding> roots, AnalysisScratchCompositeRevision data, CancellationToken cancellation)
     {
-        int table = kind switch { Children or Aliases => AnalysisIndexedGraph.Paths, ObjectIds or ObjectIdentities => AnalysisIndexedGraph.Objects,
+        int table = kind switch { Children or Aliases or PathIds => AnalysisIndexedGraph.Paths, ObjectIds or ObjectIdentities => AnalysisIndexedGraph.Objects,
             FactOwners or FactIds => AnalysisIndexedGraph.Facts, _ => AnalysisIndexedGraph.Issues };
         for (ulong id = 1, count = data.Count(table); id <= count; id++)
         {
             cancellation.ThrowIfCancellationRequested(); byte[] bytes = data.Read(table, id, cancellation);
             if (table == AnalysisIndexedGraph.Paths)
             {
-                var path = AnalysisIndexedPathCodec.Decode(bytes, id, roots);
+                var path = AnalysisIndexedPathCodec.DecodeRow(bytes, roots);
                 if (kind == Children) yield return new(new(AnalysisGraphKeys.Child(path), id), bytes.Length);
+                else if (kind == PathIds) yield return new(new(AnalysisGraphKeys.PathId(path.Node.Id), id), bytes.Length);
                 else yield return new(path.Node.ObjectId is { } objectId ? new AnalysisSortEntry(AnalysisGraphKeys.Text(objectId), id) : null, bytes.Length);
             }
             else if (table == AnalysisIndexedGraph.Objects)
@@ -257,7 +270,24 @@ internal sealed class AnalysisIndexedGraphReader : IAnalysisScratchOwned
     internal AnalysisNode ReadPath(ulong id, CancellationToken cancellation = default)
     { lock (_gate) { Guard(); return ReadPathRecord(id, cancellation).Node; } }
     internal AnalysisIndexedPathRecord ReadPathRecord(ulong id, CancellationToken cancellation)
-    { lock (_gate) { Guard(); return AnalysisIndexedPathCodec.Decode(_data.Read(AnalysisIndexedGraph.Paths, id, cancellation), id, Header.Roots); } }
+    { lock (_gate) { Guard(); return AnalysisIndexedPathCodec.Decode(_data.Read(AnalysisIndexedGraph.Paths, PathRow(id, cancellation), cancellation), id, Header.Roots); } }
+    internal AnalysisNode ReadPathRow(ulong row, CancellationToken cancellation = default) => ReadPathRowRecord(row, cancellation).Node;
+    internal AnalysisIndexedPathRecord ReadPathRowRecord(ulong row, CancellationToken cancellation = default)
+    { lock (_gate) { Guard(); return AnalysisIndexedPathCodec.DecodeRow(_data.Read(AnalysisIndexedGraph.Paths, row, cancellation), Header.Roots); } }
+    internal ulong? FindPathRow(ulong id, CancellationToken cancellation = default)
+    {
+        lock (_gate)
+        {
+            Guard(); if (id == 0) return null;
+            if (Header.DensePathIds) return id <= Count(AnalysisIndexedGraph.Paths) ? id : null;
+            var range = Find(AnalysisIndexedGraphRevision.PathIds, AnalysisGraphKeys.PathId(id), cancellation: cancellation);
+            if (range.Count == 0) return null;
+            if (range.Count != 1) throw AnalysisIndexedGraph.Invalid();
+            return ReadIndex(AnalysisIndexedGraphRevision.PathIds, range.First, cancellation).Value;
+        }
+    }
+    internal ulong PathRow(ulong id, CancellationToken cancellation = default) => FindPathRow(id, cancellation) ?? throw new ArgumentOutOfRangeException(nameof(id));
+    internal void RequireParent(ulong id, CancellationToken cancellation) { if (id != 0) _ = PathRow(id, cancellation); }
     internal AnalysisObject ReadObject(ulong row, CancellationToken cancellation = default)
     { lock (_gate) { Guard(); return AnalysisIndexedValueCodec.DecodeObject(_data.Read(AnalysisIndexedGraph.Objects, row, cancellation)); } }
     internal StorageFact ReadFact(ulong row, CancellationToken cancellation = default)
@@ -309,6 +339,8 @@ internal sealed class AnalysisGraphConsumers
 
 internal static class AnalysisGraphKeys
 {
+    internal static byte[] PathId(ulong id)
+    { if (id == 0) throw AnalysisIndexedGraph.Invalid(); var key = new byte[8]; BinaryPrimitives.WriteUInt64BigEndian(key, id); return key; }
     private static readonly UTF8Encoding Utf8 = new(false, true);
     internal static byte[] ObjectIdentity(AnalysisObject obj)
     {
@@ -327,7 +359,7 @@ internal static class AnalysisGraphKeys
     }
     internal static byte[] ChildPrefix(int root, ulong parent)
     {
-        if (root is < 0 or >= AnalysisLimits.Roots || parent > AnalysisLimits.Observations) throw new ArgumentOutOfRangeException(nameof(root));
+        if (root is < 0 or >= AnalysisLimits.Roots) throw new ArgumentOutOfRangeException(nameof(root));
         var key = new byte[9]; key[0] = (byte)root; BinaryPrimitives.WriteUInt64BigEndian(key.AsSpan(1), parent); return key;
     }
     internal static byte[] Child(AnalysisIndexedPathRecord path)

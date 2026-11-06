@@ -62,9 +62,9 @@ public sealed partial class AnalysisObjectChargeIndex
                     _queryFacts.Add(fact.ComponentId, fact); _queryFactBytes += bytes; return bytes;
                 case Stage.MatchAliases:
                     if (_matchAlias == _matchAliases.Count) { _stage = Stage.MatchObjects; return 1; }
-                    _matchNode = _graph.ReadPath(_graph.ReadIndex(AnalysisIndexedGraphRevision.Aliases, _matchAliases.First + _matchAlias++, token).Value, token);
+                    _matchNode = _graph.ReadPathRow(_graph.ReadIndex(AnalysisIndexedGraphRevision.Aliases, _matchAliases.First + _matchAlias++, token).Value, token);
                     if (_matchNode is not { Kind: AnalysisKind.File, IncludedByPolicy: true }) return PathBytes(_matchNode);
-                    if (_contextPass) { query.Context(_matchNode.Id); return PathBytes(_matchNode); }
+                    if (_contextPass) { query.Context(_matchNode.Id, token); return PathBytes(_matchNode); }
                     query.Begin(_matchNode); _stage = Stage.MatchAncestors; return PathBytes(_matchNode);
                 case Stage.MatchAncestors:
                     if (query.Walking) return query.Walk(_graph, token);
@@ -75,8 +75,8 @@ public sealed partial class AnalysisObjectChargeIndex
                     {
                         if (truth == AnalysisTruth.True) BeginEmission(); else FinishQueryGroup(); return query.EvaluationBytes;
                     }
-                    query.Record(_matchNode!.Id, truth);
-                    if (!query.Matches(_matchNode.Id)) { _stage = Stage.MatchAliases; return query.EvaluationBytes; }
+                    query.Record(_matchNode!.Id, truth, token);
+                    if (!query.Matches(_matchNode.Id, token)) { _stage = Stage.MatchAliases; return query.EvaluationBytes; }
                     _count = checked(_count + 1); _eligible = true;
                     if (Metric is AnalysisMetric.FileSize or AnalysisMetric.Files || _first!.VerifiedIdentity is null)
                     { _emitForPath = true; BeginEmission(); }

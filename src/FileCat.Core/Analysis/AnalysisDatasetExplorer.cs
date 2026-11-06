@@ -42,7 +42,6 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
     public int PendingRequests { get { lock (_gate) return _active; } }
     public Task<bool> LoadChartAsync(ulong parent = 0, CancellationToken cancellation = default)
     {
-        if (parent > Descriptor.Paths) throw new ArgumentOutOfRangeException(nameof(parent));
         return RequestAsync(_charts, token => AnalysisIndexedChart.BuildAsync(_hierarchy, parent, token), value => _chart = value, cancellation);
     }
 
@@ -76,7 +75,7 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
         ulong offset = 0, int maximum = 128, CancellationToken cancellation = default, bool descending = true)
     {
         ValidateMaximum(maximum);
-        if (parent > Descriptor.Paths || !Enum.IsDefined(sort)) throw new ArgumentOutOfRangeException(nameof(parent));
+        if (!Enum.IsDefined(sort)) throw new ArgumentOutOfRangeException(nameof(sort));
         return RequestAsync(_pages, async token =>
         {
             var scope = parent == 0 ? null : await _hierarchy.ReadAsync(parent, token).ConfigureAwait(false);
@@ -94,7 +93,7 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
         int maximum = 128, CancellationToken cancellation = default)
     {
         ValidateMaximum(maximum);
-        if (path == 0 || path > Descriptor.Paths) throw new ArgumentOutOfRangeException(nameof(path));
+        if (path == 0) throw new ArgumentOutOfRangeException(nameof(path));
         return RequestAsync(_inspections, async token =>
         {
             var row = await _hierarchy.ReadAsync(path, token).ConfigureAwait(false);

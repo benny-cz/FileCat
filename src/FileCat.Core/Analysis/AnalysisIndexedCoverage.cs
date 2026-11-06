@@ -10,18 +10,21 @@ internal sealed class AnalysisIndexedCoverage(AnalysisIndexedGraphHeader header)
     private readonly HashSet<string> _roots = (header.StaleEvidence?.RootIds ?? []).ToHashSet(StringComparer.Ordinal);
     private bool _complete = true, _unlocated = header.StaleEvidence?.Unlocated ?? false;
     private ulong _sampledStale;
+    private readonly AnalysisIndexedImportedCoverage? _imported = header.ImportedCoverage is { } supplied ? new(header, supplied) : null;
+    internal ulong Directories;
     internal ulong EligibleDirectories, VerifiedPaths, UnverifiedPaths;
     internal bool Changed = header.StaleEvidence is { Events: > 0 };
 
     internal void Path(AnalysisNode node)
     {
+        if (node.Kind == AnalysisKind.Directory) Directories++;
         if (node.Kind == AnalysisKind.Directory && node.IncludedByPolicy && node.MetadataState == MeasurementState.Known && node.Cloud != true) EligibleDirectories++;
         if (node.MetadataState == MeasurementState.Changed) Stale(node.Id, node.RootId);
     }
     internal void Object(AnalysisObject value, bool hasAliases)
     {
         if (value.LogicalLength.State == MeasurementState.Changed || value.LinkCount.State == MeasurementState.Changed)
-        { Changed = true; if (!hasAliases) _unlocated = true; }
+        { Changed = true; if (!hasAliases) { _unlocated = true; _imported?.Unlocated(); } }
     }
     internal void Alias(AnalysisNode node, AnalysisObject value, bool changedFacts)
     {
@@ -36,19 +39,20 @@ internal sealed class AnalysisIndexedCoverage(AnalysisIndexedGraphHeader header)
         {
             Changed = true;
             if (directory is not null) Stale(directory.Id, directory.RootId);
-            else if (!hasAliases) _unlocated = true;
+            else if (!hasAliases) { _unlocated = true; _imported?.Unlocated(); }
         }
     }
-    internal void Issue(AnalysisIssue issue)
+    internal void Issue(AnalysisIssue issue, string? resolvedRoot = null)
     {
+        _imported?.Issue(issue, resolvedRoot);
         if (!AnalysisCoverage.IsStaleIssue(issue.Code, issue.State)) return;
         _sampledStale++;
         if (issue.NodeId is { } node) AddNode(node);
-        if (issue.RootId is { } root) _roots.Add(root);
+        if ((issue.RootId ?? resolvedRoot) is { } root) _roots.Add(root);
         if (issue.NodeId is null && issue.RootId is null) _unlocated = true;
         Changed = true;
     }
-    internal void Stale(ulong node, string root) { Changed = true; AddNode(node); _roots.Add(root); }
+    internal void Stale(ulong node, string root) { Changed = true; _imported?.Node(node, root); AddNode(node); _roots.Add(root); }
     private void AddNode(ulong node)
     {
         if (_nodes.Contains(node)) return;
@@ -75,6 +79,7 @@ internal sealed class AnalysisIndexedCoverage(AnalysisIndexedGraphHeader header)
             checked(issues.GetValueOrDefault(MeasurementState.Failed) + issues.GetValueOrDefault(MeasurementState.Changed)), issues.GetValueOrDefault(MeasurementState.Pending),
             _measurements.ToImmutableDictionary(), VerifiedPaths, UnverifiedPaths, _nodes.Order().ToImmutableArray())
             { BoundaryTotals = boundaries, StaleRootIds = _roots.Order(StringComparer.Ordinal).ToImmutableArray() };
-        return new(record, enumeration is not null, EligibleDirectories, _complete && !_unlocated, _unlocated);
+        return _imported is null ? new(record, enumeration is not null, EligibleDirectories, _complete && !_unlocated, _unlocated)
+            : _imported.Complete(record, Directories, EligibleDirectories, _complete && !_unlocated, _unlocated);
     }
 }

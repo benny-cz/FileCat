@@ -15,7 +15,7 @@ internal sealed record AnalysisInventoryStageHeader(AnalysisInventoryFormat.Mani
 /// A schema/trailer-verified private staging area, NOT a validated inventory or live source.
 /// Cross-record graph, coverage and accounting checks must still precede inventory publication.
 /// </summary>
-internal sealed class AnalysisInventoryStage : IAsyncDisposable
+internal sealed partial class AnalysisInventoryStage : IAsyncDisposable
 {
     private readonly AnalysisOwnedDatasetIo<Contents> _owned;
     private readonly DeviceIoScheduler _io;
@@ -33,11 +33,11 @@ internal sealed class AnalysisInventoryStage : IAsyncDisposable
     internal Task<AnalysisInventoryStageHeader> ReadHeaderAsync(CancellationToken cancellation = default) =>
         _owned.RunAsync((data, _) => data.Header!, cancellation);
     internal Task<AnalysisInventoryFormat.DecodedRecord> ReadAsync(AnalysisInventoryFormat.RecordKind kind, ulong row,
-        CancellationToken cancellation = default)
+        CancellationToken cancellation = default) => _owned.UseAsync(data => ReadRecordAsync(data, kind, row, cancellation));
+    private async Task<AnalysisInventoryFormat.DecodedRecord> ReadRecordAsync(Contents data, AnalysisInventoryFormat.RecordKind kind, ulong row,
+        CancellationToken cancellation)
     {
         int table = Table(kind);
-        return _owned.UseAsync(async data =>
-        {
             await Reads.WaitAsync(cancellation).ConfigureAwait(false);
             try
             {
@@ -59,7 +59,6 @@ internal sealed class AnalysisInventoryStage : IAsyncDisposable
                 return await Task.Run(() => AnalysisInventoryFormat.DecodeStagedRecord(kind, bytes, cancellation), cancellation).ConfigureAwait(false);
             }
             finally { Reads.Release(); }
-        });
     }
     internal Task<AnalysisInventoryPathMap> BuildPathMapAsync(CancellationToken cancellation = default) =>
         _owned.UseAsync(async data =>

@@ -1,0 +1,441 @@
+{
+  "purpose": "Internal staged inventory graph/coverage/accounting validation and opaque original-ID dataset adoption",
+  "observedUtc": "2026-11-06T22:00:28.110458+00:00",
+  "gitBase": "c461b493216f381a7302cb022adb3239e80cb25f",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDataset.cs",
+      "sha256": "d8d4cf92e2edec23a8297c8242d3dc9d3e0249817aaa721392e9ea3d0724e74a"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetExplorer.cs",
+      "sha256": "eed320099836e0b251f3bf09734f8216486db2643481b51f36822f2feb32b2cb"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+      "sha256": "a7b93345735f84a4a6be7b861ca189af844a69e1b924209222f421bbc6535b35"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetSummary.cs",
+      "sha256": "4cd67f18a051d4592320c6e91277136ed8c4c86a2c31f4d54170764616bd4e51"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedCoverage.cs",
+      "sha256": "c10ffbcc42224b81efcf149a87395f50361b6a4d49becaec1a0c9a93c957ab63"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedFilter.cs",
+      "sha256": "28e0d5e98524c9ff17c1691170771748d326147c2eb86609404f07cc6c36762f"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedGraph.cs",
+      "sha256": "de0a7c4b28726df5c156512a7ffd61799ef68389eb5b6a7cfc27ab42bf8b8d95"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedGraphValidation.cs",
+      "sha256": "e5f4e423ee369669ee0e0577bfe50c91402498d806d15682cff4a215db507bba"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedImportedCoverage.cs",
+      "sha256": "e09814911e45cc3d60cb0587331429476bbbb55cda9a2a8fe8c342509c38452f"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedPathCodec.cs",
+      "sha256": "acba2d60a7c9d36fad156fe82f148e5e3d88235426f1366730c3a63739faddde"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisInventoryDatasetWriter.cs",
+      "sha256": "be0de075a3f5a3d2aaf11456dfe4c331619ec6accc8fb4184d114ffd6e3c28a0"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisInventoryFormat.cs",
+      "sha256": "544844773b55382b71872ac95542372518f5a65a502c98842695fca18d609b32"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisInventoryStage.Dataset.cs",
+      "sha256": "11da8a34e17d8fd217ccb08a9018d0396223e60c8b6de206945280a6c6b96fae"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisInventoryStage.cs",
+      "sha256": "60f40640ace56d8c5cdda9f9f8fd7b5d7e05ee365845ee8855fdadb7c4bc85f8"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisLogicalHierarchy.cs",
+      "sha256": "eb4d9702b64e3a8946b7a0d06a7d9f3a5923705772678bbb9f596108db79a2af"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObjectCharges.Filter.cs",
+      "sha256": "29b7abe599558ce7003cae8d73cfaac54e5998e271987bbf786bc1ef8588f83b"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObjectCharges.cs",
+      "sha256": "5716181206dfd799e5922a1c26b78e461c50e9ae95aa11cb9d6caf36effbf47b"
+    },
+    {
+      "path": "tests/AnalysisInventoryStageCases.cs",
+      "sha256": "8fab4b203ce0ad9c76d531eb4193b814b7f306969aa59bf0fd540c8047563231"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisIndexedPathCodecTests.cs",
+      "sha256": "cc432715bbf0675a86bbe6738baa2eb6efca5a3e6d9012336e740265b8700b21"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisInventoryStageTests.Dataset.cs",
+      "sha256": "5a5b8ec8b28960b21b90ba698b0386175da85a754a07574f163682efc8e026e7"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisInventoryStageTests.cs",
+      "sha256": "fba79fad8c1c6ba6e1bd941701abf7216c9fb402633ed407ae3a4376c7880a25"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r493.txt",
+      "sha256": "cfef4790147fe2739413382016c9c15fd7e5e57a47d3a37e3d235ea8fe4fd51b"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r495.txt",
+      "sha256": "6b69daab79aa107bf717ef7bdc54fa24936723e24045bf3030164087a4d33268"
+    },
+    {
+      "path": "docs/validation/disk-space/build-core-r499.txt",
+      "sha256": "ba01f4a6c6540eb9a8c0c40e492538299feb291c418b4d71f312075f67880cc0"
+    },
+    {
+      "path": "docs/validation/disk-space/build-core-r503.txt",
+      "sha256": "f2f4a6b92a464d98c92ac1338ff52e0df52936d189c21eceda700e54c0a2e4fa"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-r500.xml",
+      "sha256": "d823f55c6c91f9ffeef8486083c519e579876d64246bd69acabf082e85929ec1"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-native-r500.log",
+      "sha256": "91bd720429fbb1993eb3a9169bda2070df645b797ef3a0afb01aaa36d685f6b9"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r496.xml",
+      "sha256": "2aa23017ba6012d8d2793bcb332755cd289b2403883cd9810e3c748c34042d23"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r496.log",
+      "sha256": "e6966381539e6ec99e6cbdf68e4f8b63a4ac8c9366989523174b0ac7b3402bc1"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r500.xml",
+      "sha256": "832abf3b7ff2dfabcfdc9f98c5cb216f4ec54bf6e540d9fb7a7ed479d3cd7bbf"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r500.log",
+      "sha256": "e46f7a88aef9acc1e6d3e2e2f7094757229a06114d2b13200a58626060c7b3fd"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r504.xml",
+      "sha256": "0234e453e39999ca0cf546e0edaa5d4e218a9df3d4de70de2a3df2b462934764"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-core-r504.log",
+      "sha256": "1600018090c040f35680a4cd95c4a29d05da10cdbf717dae59ad73ba2b954ab9"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-render-r501.xml",
+      "sha256": "c23032593d0ba521aa77965ef95e7fba2085e73dad5bf3fc09d5105c97573865"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-render-r501.log",
+      "sha256": "e90a2fa729686d789cd76d2cd532d091843f4679572d8a91db486f08ae4d104f"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-post-staging-r498.json",
+      "sha256": "f9e5c1755007600e78229b170892f602afe949c462f8a4e794e9169c0a099f61"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-post-staging-r502.json",
+      "sha256": "4fef95cac32fa227544c3871aad018bb70e8ee1d8b40b203e097a8e08d0ce253"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-post-staging-r505.json",
+      "sha256": "72d8bc1a1fb99794112499ff54e2ecfe6fbce3b001a156c789d87811584f570f"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r496.xml",
+      "sha256": "8139ed70efb3188ad376e5813bfbb584aabb854d4197daf7f1dcc6b20ef3441e"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r496.log",
+      "sha256": "8608fbfefd7ba04d32d041e3ce95dba66ec4fed43e409eb9ecce037b250db0f4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r500.xml",
+      "sha256": "dfd59b9df1633d18633a96618aca44d47f8abf230ba132d9739ac664165a794e"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r500.log",
+      "sha256": "38ced66d2e3ee320df5a5ff1de994f63c4ca3e53758607e04f82f44c99303707"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r504.xml",
+      "sha256": "08cfc91ba8a1403e1ae111dd05a7d0fd7135007ec3171b385830fd7c53f5564f"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-core-r504.log",
+      "sha256": "720b2ba84b92c78d3750e1cc363314787727c2cc07aa083216d2b26095c8f833"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-render-r501.xml",
+      "sha256": "51cd75db2d6873f45694552c42abc39eb07f447fd201c0cde1366dff47d97176"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-render-r501.log",
+      "sha256": "11d5a1dc6d398f4375f2f60ddbe26e1bb43d18e7490116ba6367f45a817276f4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-post-staging-r498.json",
+      "sha256": "8725cae131862defb1c21253e3b41e6c32b31ceee976fc2f691a987af7aa007b"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-post-staging-r502.json",
+      "sha256": "504457b3cd900a082c3ef9e9a35237b7a87dff6eb13fc7ce8febdd87211585e9"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-post-staging-r505.json",
+      "sha256": "5b81e384158534dd92c74323c01c11b05f30851b58d47703145dffb8d8a6c812"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r496.xml",
+      "sha256": "bb99d9c37fa67b71f18fffb8c511bd1a1a56e28880b0c97e72fe14f90ea07b13"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r496.log",
+      "sha256": "654ffec219f6ad8912d49dd1c7f4f44e730c99be8457bfbb38f10c0ebf4735c4"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r500.xml",
+      "sha256": "38d98b9124935da7298599e7c138138b325ce599470edacaba65c14e7d338dea"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r500.log",
+      "sha256": "27e02be244bcfbf5783479f9ee8e75c96a2eca6f64e16cea291848d1ff97e8c1"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r504.xml",
+      "sha256": "6451f1123e7d6f70d2c81db1c3a6e393ccf7c63693c4fac4fee054e97cd2730c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-core-r504.log",
+      "sha256": "22a7035fffb53a1fc0e020beccc0c85ddc8180a990953d0ba7f972c4d8a8ec5b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-render-r501.xml",
+      "sha256": "e46dc8b955d4fa1a5440d35a03ea44d487c874b32fa61538d23d3611cc32ea17"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-render-r501.log",
+      "sha256": "b9d2ef8c444360aee6123207906373ae2fcafb9491c271fde112656900232798"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-post-staging-r498.json",
+      "sha256": "fc9fb3fb2c18d115a9cec3cfe384fbf7f379e8ca4b16f840c685218d606bac33"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-post-staging-r502.json",
+      "sha256": "86498dfc8551409cf1369d0f53ac8936355bbe2a6e3f4951ddf29e44adfa08a6"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-post-staging-r505.json",
+      "sha256": "0679c77e8b9464be253fad7f5bbe4b4368c766ab645bf52bb3c78875c418614d"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r504.sh",
+      "sha256": "ffb6e5343531e4bc97b1ea786d1b7cbd6246f7ba415d1e08c51eb215b6aad643"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r504.ps1",
+      "sha256": "1b870df5651a8b3aae934ba6cf3c9b7abc9f784893c70c05154d065da3743781"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r500.ps1",
+      "sha256": "de4d1f06eace86aacb5697bf9b36229922cb96fbcbbb1e5cf3ba1367e6d26639"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-mac-r501.sh",
+      "sha256": "7bec10686d6c726aa2b5ad367277b57e20db6ff73111a5352e2bcf77bca62346"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-linux-r501.sh",
+      "sha256": "6a2c906f6e783d6618eb0ca739fec46473965df45aa2d416482e0bf91ad2c9f5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-render-r501.ps1",
+      "sha256": "5328faf71d7310a049757dccfb7ae03f73204971514d6bb7babcad4cdbf46e28"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-core-r504.tgz",
+      "sha256": "873d5f0fba1acc0f3b9f45998bd36cd402deb717549f0f6386ad88491e7cf2cf"
+    },
+    {
+      "name": "dsa-native-r500.tgz",
+      "sha256": "83679197fba05a076cc0e06a93d65d7bf26f6ab141ab7a5d9924a9bce9e7b4e5"
+    },
+    {
+      "name": "dsa-render-mac-r501.tgz",
+      "sha256": "c6e1b56c53f3497082d29a9c75d0c71e809e17cda2c205d201d4f482a5401a06"
+    },
+    {
+      "name": "dsa-render-linux-r501.tgz",
+      "sha256": "3ea6980c210d86a80f72db2c1f3d50198a66501714c04bd3b05e0df6d317c4fb"
+    },
+    {
+      "name": "dsa-render-windows-r501.tgz",
+      "sha256": "8267191e1fc839a92464bb21f17679c976880d62b4d8e51779c600a45b15e13f"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r504": "79c2034451fec166130ea68089bb4dca50ba75587ec89ca26e81d0a0889f1bb8",
+    "native-r500": "79c2034451fec166130ea68089bb4dca50ba75587ec89ca26e81d0a0889f1bb8",
+    "render-r501-mac": "79c2034451fec166130ea68089bb4dca50ba75587ec89ca26e81d0a0889f1bb8",
+    "render-r501-linux": "79c2034451fec166130ea68089bb4dca50ba75587ec89ca26e81d0a0889f1bb8",
+    "render-r501-windows": "79c2034451fec166130ea68089bb4dca50ba75587ec89ca26e81d0a0889f1bb8"
+  },
+  "matrix": {
+    "windows-native-r500.xml": {
+      "total": "39",
+      "passed": "39",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "56.670"
+    },
+    "mac-core-r500.xml": {
+      "total": "656",
+      "passed": "654",
+      "failed": "0",
+      "skipped": "2",
+      "errors": "0",
+      "time": "18.833"
+    },
+    "mac-core-r504.xml": {
+      "total": "657",
+      "passed": "655",
+      "failed": "0",
+      "skipped": "2",
+      "errors": "0",
+      "time": "19.123"
+    },
+    "mac-render-r501.xml": {
+      "total": "95",
+      "passed": "95",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "36.538"
+    },
+    "ubuntu-core-r500.xml": {
+      "total": "656",
+      "passed": "654",
+      "failed": "0",
+      "skipped": "2",
+      "errors": "0",
+      "time": "116.724"
+    },
+    "ubuntu-core-r504.xml": {
+      "total": "657",
+      "passed": "655",
+      "failed": "0",
+      "skipped": "2",
+      "errors": "0",
+      "time": "93.624"
+    },
+    "ubuntu-render-r501.xml": {
+      "total": "95",
+      "passed": "95",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "61.667"
+    },
+    "windows-core-r500.xml": {
+      "total": "674",
+      "passed": "631",
+      "failed": "0",
+      "skipped": "43",
+      "errors": "0",
+      "time": "19.330"
+    },
+    "windows-core-r504.xml": {
+      "total": "675",
+      "passed": "632",
+      "failed": "0",
+      "skipped": "43",
+      "errors": "0",
+      "time": "19.581"
+    },
+    "windows-render-r501.xml": {
+      "total": "95",
+      "passed": "94",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "57.513"
+    }
+  },
+  "newCoreControls": 19,
+  "excludedFixtureFailures": {
+    "results": {
+      "mac-core-r496.xml": {
+        "total": "656",
+        "passed": "650",
+        "failed": "4",
+        "skipped": "2",
+        "errors": "0",
+        "time": "19.568"
+      },
+      "ubuntu-core-r496.xml": {
+        "total": "656",
+        "passed": "650",
+        "failed": "4",
+        "skipped": "2",
+        "errors": "0",
+        "time": "93.950"
+      },
+      "windows-core-r496.xml": {
+        "total": "674",
+        "passed": "627",
+        "failed": "4",
+        "skipped": "43",
+        "errors": "0",
+        "time": "20.967"
+      }
+    },
+    "archiveSha256": "ae99ca3928f7b1921b6c219f7061685d9ad4112ea1f2daab25be935d302fdf79",
+    "reason": "Four fixture/expectation errors per platform: numeric-parent-order assumption, pre-export object alias key, two nonnumeric poisoned wire references. Final tests corrected, cancellation case added; production unchanged after build-r495."
+  },
+  "excludedCompileFailure": "build-r493.txt: one AnalysisIssue fixture constructor error; corrected initializer, later builds clean",
+  "finalBuilds": [
+    "build-r495.txt: full solution; zero warnings/errors",
+    "build-core-r499.txt: test-only corrections; zero warnings/errors",
+    "build-core-r503.txt: test-only blocked-read cancellation control; zero warnings/errors"
+  ],
+  "nativeProbe": "5201 original-ID paths plus1 MiB record: private source->stage->validated dataset, close stage/workspace, retained filtering, complete save/reopen, source SHA unchanged, zero scratch files/reservation after actual close.",
+  "processExitEvidence": "Authoritative final inventories empty on all3; actual runner handles completed. No other processes stopped and no host application/input tests.",
+  "qualification": {
+    "internalPrivateInventoryDatasetLoadImplemented": true,
+    "stagedGraphCoverageAccountingAdoptionImplemented": true,
+    "originalIdGraphExplorerDataModelImplemented": true,
+    "completeStreamingImportAndPublicAdoptionImplemented": false,
+    "generalExternalFileInputImplemented": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "publicIndexedPersistenceEnabled": false,
+    "globalPendingCpuDeviceAliasGateQualified": false,
+    "fullResourceGateQualified": false,
+    "nativeDesktopInputQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

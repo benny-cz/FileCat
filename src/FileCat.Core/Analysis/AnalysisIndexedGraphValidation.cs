@@ -10,7 +10,7 @@ internal static class AnalysisIndexedGraphValidation
     {
         reader.Header.Validate();
         var coverage = new AnalysisIndexedCoverage(reader.Header);
-        foreach (int index in new[] { AnalysisIndexedGraphRevision.Children, AnalysisIndexedGraphRevision.ObjectIds, AnalysisIndexedGraphRevision.FactIds })
+        foreach (int index in new[] { AnalysisIndexedGraphRevision.Children, AnalysisIndexedGraphRevision.ObjectIds, AnalysisIndexedGraphRevision.FactIds, AnalysisIndexedGraphRevision.PathIds })
         {
             ulong next = 1, count = reader.IndexCount(index); byte[]? previous = null;
             while (next <= count)
@@ -39,13 +39,15 @@ internal static class AnalysisIndexedGraphValidation
                 int records = 0, bytes = 0;
                 while (path <= pathCount && records < AnalysisLimits.BatchRecords && bytes < AnalysisLimits.BatchBytes)
                 {
-                    token.ThrowIfCancellationRequested(); var current = reader.ReadPathRecord(path++, token); var node = current.Node;
+                    token.ThrowIfCancellationRequested(); ulong row = path++; var current = reader.ReadPathRowRecord(row, token); var node = current.Node;
+                    if (reader.Header.DensePathIds && node.Id != row) throw AnalysisIndexedGraph.Invalid();
                     coverage.Path(node);
                     if (node.Times is { } times && (times.ObservedUtc < reader.Header.Identity.StartedUtc || times.ObservedUtc > reader.Header.Identity.ObservedUtc)) throw AnalysisIndexedGraph.Invalid();
                     if (node.ParentId == 0)
                     { if (roots[current.RootIndex]) throw AnalysisIndexedGraph.Invalid(); roots[current.RootIndex] = true; }
                     else
                     {
+                        if (reader.FindPathRow(node.ParentId, token) is not { } parentRow || parentRow >= row) throw AnalysisIndexedGraph.Invalid();
                         var parent = parents.ReadPathRecord(node.ParentId, token);
                         if (parent.RootIndex != current.RootIndex || parent.Depth + 1 != current.Depth || parent.Node.Kind != AnalysisKind.Directory ||
                             !parent.Node.IncludedByPolicy || parent.Node.MetadataState != MeasurementState.Known) throw AnalysisIndexedGraph.Invalid();
@@ -105,7 +107,7 @@ internal static class AnalysisIndexedGraphValidation
                             bytes += factEntry.Key.Length + 12; records++; objectFact++; objectFactEntry = null; continue;
                         }
                     }
-                    var node = reader.ReadPath(member.Value, token);
+                    var node = reader.ReadPathRow(member.Value, token);
                     if (node.ObjectId != currentObject.Id || node.ObservedIdentity is not null && currentObject.VerifiedIdentity != node.ObservedIdentity ||
                         node.MetadataState != MeasurementState.Known && (node.ObservedIdentity is not null || currentObject.VerifiedIdentity is not null || currentObject.LogicalLength.State != node.MetadataState))
                         throw AnalysisIndexedGraph.Invalid();
@@ -150,7 +152,9 @@ internal static class AnalysisIndexedGraphValidation
                         if (order > 0) throw AnalysisIndexedGraph.Invalid();
                     }
                     var fact = reader.ReadFact(entry.Value, token);
-                    AnalysisNode? directoryNode = fact.DirectoryId is { } directoryId ? reader.ReadPath(directoryId, token) : null;
+                    AnalysisNode? directoryNode = null;
+                    if (fact.DirectoryId is { } directoryId)
+                    { if (reader.FindPathRow(directoryId, token) is null) throw AnalysisIndexedGraph.Invalid(); directoryNode = reader.ReadPath(directoryId, token); }
                     coverage.Fact(fact, directoryNode, fact.Measurement.State != MeasurementState.Changed || fact.ObjectId is null || reader.Aliases(fact.ObjectId, token).Count != 0);
                     if (fact.ObservedUtc < reader.Header.Identity.StartedUtc || fact.ObservedUtc > reader.Header.Identity.ObservedUtc) throw AnalysisIndexedGraph.Invalid();
                     if (newOwner)
@@ -183,10 +187,10 @@ internal static class AnalysisIndexedGraphValidation
                     bytes += issue.Code.Length * 3 + (issue.RootId?.Length ?? 0) * 3 + 32;
                     if (issue.NodeId is { } node)
                     {
-                        if (node > pathCount) throw AnalysisIndexedGraph.Invalid();
+                        if (reader.FindPathRow(node, token) is null) throw AnalysisIndexedGraph.Invalid();
                         var pathNode = reader.ReadPath(node, token);
                         if (issue.RootId is { } root && pathNode.RootId != root) throw AnalysisIndexedGraph.Invalid();
-                        coverage.Issue(issue with { RootId = pathNode.RootId });
+                        coverage.Issue(issue, pathNode.RootId);
                     }
                     else
                     {

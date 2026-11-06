@@ -142,7 +142,8 @@
     "Full native indexed revisions now save create-new in bounded paired-device turns, with two actual-lifetime save reservations, retained owner closure, exact native captured IDs, whole tables and explicit uncertain-publication failures. Coverage qualification round-trips unknown enumeration and incomplete/unlocated staleness with strict data-only validation and persistent UI notices; streaming import/arbitrary imported IDs and public indexed catalog adoption remain open.",
     "Internal original-ID mapping now uses immutable private scratch rows plus an exact external ID index, preserving arbitrary UInt64 IDs independently of file order and rejecting duplicate/zero/self/missing/forward parents. Actual cancellation/query/cleanup ownership and native private-file retirement pass all3. Full indexed import/graph/explorer adoption remains unfinished.",
     "The existing inventory loader now shares a strict per-record container decoder with no stream I/O or earlier-payload retention. EOF completion, terminal failed/canceled states, reusable-buffer independence and retained-data admission before typed allocation pass all3; graph/coverage/accounting checks still precede successful inert load. Complete asynchronous framing/staging/indexed import remains open.",
-    "Incremental strict LF framing now serves the existing loader and the internal private staging pipeline. Whole records, including1 MiB and5,201-path native fixtures, enter authenticated bounded scratch blocks without an inventory-sized managed collection. Actual EOF/source-close handoff, scratch-only later queries, original-ID map retention, cancellation/close/device/import-slot controls pass all3. A stage is not yet a graph/coverage/accounting-validated imported inventory."
+    "Incremental strict LF framing now serves the existing loader and the internal private staging pipeline. Whole records, including1 MiB and5,201-path native fixtures, enter authenticated bounded scratch blocks without an inventory-sized managed collection. Actual EOF/source-close handoff, scratch-only later queries, original-ID map retention, cancellation/close/device/import-slot controls pass all3. A stage is not yet a graph/coverage/accounting-validated imported inventory.",
+    "Private staged inventories now become fully graph/coverage/accounting-validated indexed datasets retaining opaque original path IDs throughout queries, filters, charts, explorer data models and complete saves. All19 new adoption controls and native5201-path import/filter/save/reopen/actual-cleanup probes pass all3; general external-file and catalog/UI import adoption remain required."
   ],
   "validation": {
     "windowsCore": {
@@ -1767,10 +1768,148 @@
       "fullResourceGateQualified": false,
       "nativeDesktopInputQualified": false,
       "finalIndependentReviewPerformed": false
+    },
+    "inventoryStagedGraphAdoption": {
+      "scope": "Internal private-inventory dataset load, not full external-file/catalog/UI adoption",
+      "newCoreControls": 19,
+      "nativePaths": 5201,
+      "largestRecordBytes": 1048576,
+      "sourceBytesUnchanged": true,
+      "actualCleanupVerified": true,
+      "graphBuildsConcurrent": 2,
+      "graphBuildReservationMiB": 24,
+      "retainedStageReservationMiB": 8,
+      "matrix": {
+        "windows-native-r500.xml": {
+          "total": "39",
+          "passed": "39",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "56.670"
+        },
+        "mac-core-r500.xml": {
+          "total": "656",
+          "passed": "654",
+          "failed": "0",
+          "skipped": "2",
+          "errors": "0",
+          "time": "18.833"
+        },
+        "mac-core-r504.xml": {
+          "total": "657",
+          "passed": "655",
+          "failed": "0",
+          "skipped": "2",
+          "errors": "0",
+          "time": "19.123"
+        },
+        "mac-render-r501.xml": {
+          "total": "95",
+          "passed": "95",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "36.538"
+        },
+        "ubuntu-core-r500.xml": {
+          "total": "656",
+          "passed": "654",
+          "failed": "0",
+          "skipped": "2",
+          "errors": "0",
+          "time": "116.724"
+        },
+        "ubuntu-core-r504.xml": {
+          "total": "657",
+          "passed": "655",
+          "failed": "0",
+          "skipped": "2",
+          "errors": "0",
+          "time": "93.624"
+        },
+        "ubuntu-render-r501.xml": {
+          "total": "95",
+          "passed": "95",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "61.667"
+        },
+        "windows-core-r500.xml": {
+          "total": "674",
+          "passed": "631",
+          "failed": "0",
+          "skipped": "43",
+          "errors": "0",
+          "time": "19.330"
+        },
+        "windows-core-r504.xml": {
+          "total": "675",
+          "passed": "632",
+          "failed": "0",
+          "skipped": "43",
+          "errors": "0",
+          "time": "19.581"
+        },
+        "windows-render-r501.xml": {
+          "total": "95",
+          "passed": "94",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "57.513"
+        }
+      },
+      "excludedFixtureFailures": {
+        "mac-core-r496.xml": {
+          "total": "656",
+          "passed": "650",
+          "failed": "4",
+          "skipped": "2",
+          "errors": "0",
+          "time": "19.568"
+        },
+        "ubuntu-core-r496.xml": {
+          "total": "656",
+          "passed": "650",
+          "failed": "4",
+          "skipped": "2",
+          "errors": "0",
+          "time": "93.950"
+        },
+        "windows-core-r496.xml": {
+          "total": "674",
+          "passed": "627",
+          "failed": "4",
+          "skipped": "43",
+          "errors": "0",
+          "time": "20.967"
+        }
+      },
+      "postChecks": [
+        "mac-post-staging-r505.json",
+        "ubuntu-post-staging-r505.json",
+        "windows-post-staging-r505.json"
+      ],
+      "manifest": "source-manifest-r505.json",
+      "internalPrivateInventoryDatasetLoadImplemented": true,
+      "stagedGraphCoverageAccountingAdoptionImplemented": true,
+      "originalIdGraphExplorerDataModelImplemented": true,
+      "completeStreamingImportAndPublicAdoptionImplemented": false,
+      "generalExternalFileInputImplemented": false,
+      "productCommandRegistered": false,
+      "publicIndexedSpillEnabled": false,
+      "publicIndexedPersistenceEnabled": false,
+      "globalPendingCpuDeviceAliasGateQualified": false,
+      "fullResourceGateQualified": false,
+      "nativeDesktopInputQualified": false,
+      "actionsHelperContentEnabled": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
-    "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, bounded queue/CPU admission, actual mixed-volume/native-device identity, package/session/domain agreement, complete streaming graph/coverage/accounting validation and original-ID adoption after the new bounded private staging (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required.",
+    "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, bounded queue/CPU admission, actual mixed-volume/native-device identity, package/session/domain agreement, catalog/explorer loading through the now validated staged original-ID dataset, guarded general external-file input and full streaming-import adoption (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: grouping/color dimensions, scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",

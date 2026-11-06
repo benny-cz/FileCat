@@ -63,7 +63,7 @@ public sealed class AnalysisLogicalHierarchy : IAsyncDisposable
     public Task<AnalysisLogicalHierarchyRow> ReadAsync(ulong path, CancellationToken cancellation = default) =>
         _owned.RunAsync((state, token) =>
         {
-            if (path == 0 || path > Descriptor.Paths) throw new ArgumentOutOfRangeException(nameof(path));
+            _ = state.Graph.PathRow(path, token);
             var range = state.Indexes[0].FindRange(Key(path), token);
             if (range.Count != 1) throw Invalid();
             return state.Read(state.Indexes[0].Read(range.First, token).Value, token);
@@ -71,7 +71,8 @@ public sealed class AnalysisLogicalHierarchy : IAsyncDisposable
     public Task<AnalysisDatasetPage<AnalysisLogicalHierarchyRow>> ReadChildrenAsync(ulong parent, AnalysisLogicalSort sort, ulong offset = 0, int maximum = 256, CancellationToken cancellation = default) =>
         _owned.RunAsync((state, token) =>
         {
-            if (parent > Descriptor.Paths || !Enum.IsDefined(sort) || maximum is < 1 or > AnalysisLimits.BatchRecords) throw new ArgumentOutOfRangeException(nameof(parent));
+            if (!Enum.IsDefined(sort) || maximum is < 1 or > AnalysisLimits.BatchRecords) throw new ArgumentOutOfRangeException(nameof(parent));
+            state.Graph.RequireParent(parent, token);
             var index = state.Indexes[(int)sort + 1]; var range = index.PrefixRange(Key(parent), token);
             if (offset > range.Count) throw new ArgumentOutOfRangeException(nameof(offset));
             var rows = ImmutableArray.CreateBuilder<AnalysisLogicalHierarchyRow>(); long bytes = 0;
@@ -138,9 +139,9 @@ public sealed class AnalysisLogicalHierarchy : IAsyncDisposable
             if (_pending.Count == 0) Total.Add(parent.Amount); else _pending.Peek().Amount.Add(parent.Amount);
             return 128;
         }
-        private long Push(ulong id, CancellationToken token)
+        private long Push(ulong row, CancellationToken token)
         {
-            var path = Graph.ReadPathRecord(id, token); var node = path.Node;
+            var path = Graph.ReadPathRowRecord(row, token); var node = path.Node; ulong id = node.Id;
             if (_pending.Count > AnalysisLimits.Depth) throw Invalid();
             var children = node.Kind == AnalysisKind.Directory ? Graph.Children(path.RootIndex, id, token) : default;
             var frame = new Frame(id, node.ParentId, children, node.IncludedByPolicy && node.Kind == AnalysisKind.Directory && Graph.Header.Coverage != NamespaceCoverage.CompleteUnderPolicy);
@@ -202,7 +203,7 @@ public sealed class AnalysisLogicalHierarchy : IAsyncDisposable
     {
         if (bytes.Length != 94 || BinaryPrimitives.ReadUInt32LittleEndian(bytes) != 0x31484c41 || bytes[92] > 1 || bytes[93] != 0) throw Invalid();
         ulong id = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(4)), parent = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(12));
-        if (id is < 1 or > AnalysisLimits.Observations || parent >= id) throw Invalid();
+        if (id == 0 || parent == id) throw Invalid();
         var frame = new Frame(id, parent, default, bytes[92] != 0); frame.Amount.Bytes = Read128(bytes.AsSpan(20)); frame.Amount.Files = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(36));
         if (frame.Amount.Files > AnalysisLimits.Observations) throw Invalid(); ulong missing = 0;
         for (int n = 0; n < 6; n++) { frame.Amount.Missing[n] = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(44 + n * 8)); missing = checked(missing + frame.Amount.Missing[n]); }

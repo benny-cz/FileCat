@@ -106,7 +106,7 @@ public static partial class AnalysisInventoryFormat
                     var obj = _reader.ReadObject(_row, cancellation); CheckText(obj.Id, obj.VerifiedIdentity, obj.VersionEvidence);
                     string objectId = Decimal(_row++); Record(1, w => WriteObject(w, obj, objectId)); break;
                 case 2:
-                    var path = _reader.ReadPath(_row++, cancellation); CheckText(path.RootId, path.ObjectId, path.ObservedIdentity, path.NameEncoding);
+                    var path = _reader.ReadPathRow(_row++, cancellation); CheckText(path.RootId, path.ObjectId, path.ObservedIdentity, path.NameEncoding);
                     Record(2, w => WritePath(w, path, id => _roots[id], id => ObjectId(id, cancellation))); break;
                 case 3:
                     var fact = _reader.ReadFact(_row, cancellation); CheckText(fact.Id, fact.ObjectId, fact.ComponentId, fact.BasisId, fact.Method); CheckText(fact.Includes.ToArray());

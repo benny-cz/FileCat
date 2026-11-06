@@ -90,7 +90,7 @@ public sealed class AnalysisIndexedPathCodecTests
         var invalid = new[]
         {
             Child with { IssueCodes = ["captured-issue"] }, Child with { IssueCodes = default }, Child with { RawName = default },
-            Child with { ParentId = 2 }, Child with { ParentId = ulong.MaxValue }, Child with { RootId = "another-root" },
+            Child with { ParentId = 2 }, Child with { RootId = "another-root" },
             Child with { ObjectId = null }, Child with { Kind = AnalysisKind.Directory }, Child with { Name = "../escape" },
             Child with { IncludedByPolicy = false }, Child with { MetadataState = MeasurementState.Failed },
             Child with { ObservedIdentity = "unpaired-\ud800" }, Child with { Times = Child.Times! with { ModifiedPrecisionTicks = 0 } },
@@ -99,5 +99,9 @@ public sealed class AnalysisIndexedPathCodecTests
         foreach (var node in invalid) Assert.Throws<InvalidDataException>(() => AnalysisIndexedPathCodec.Encode(node, 0, 1, Roots));
         Assert.Throws<InvalidDataException>(() => AnalysisIndexedPathCodec.Encode(Child, 0, 0, Roots));
         Assert.Throws<InvalidDataException>(() => AnalysisIndexedPathCodec.Encode(Child, 0, AnalysisLimits.Depth + 1, Roots));
+        var opaque = Child with { ParentId = ulong.MaxValue };
+        Assert.Equal(ulong.MaxValue, AnalysisIndexedPathCodec.Decode(AnalysisIndexedPathCodec.Encode(opaque, 0, 1, Roots), opaque.Id, Roots).Node.ParentId);
+        opaque = opaque with { Id = ulong.MaxValue, ParentId = 2 };
+        Assert.Equal(ulong.MaxValue, AnalysisIndexedPathCodec.DecodeRow(AnalysisIndexedPathCodec.Encode(opaque, 0, 1, Roots), Roots).Node.Id);
     }
 }
