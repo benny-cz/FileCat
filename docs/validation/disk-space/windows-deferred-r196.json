@@ -1,0 +1,23 @@
+{
+  "status": "deferred-shared-vm-busy",
+  "observedAtUtc": "2026-11-06T04:57:42.7291812+00:00",
+  "processes": [
+    {
+      "ProcessId": 10656,
+      "Name": "dotnet.exe"
+    },
+    {
+      "ProcessId": 1572,
+      "Name": "dotnet.exe"
+    },
+    {
+      "ProcessId": 9872,
+      "Name": "FileCat.Platform.Windows.Tests.exe"
+    },
+    {
+      "ProcessId": 5036,
+      "Name": "FileCat.WorkerProbe.exe"
+    }
+  ],
+  "note": "Other implementor test processes were observed live via guest CIM, preserved, and Windows testing postponed. No current Windows qualification is claimed."
+}

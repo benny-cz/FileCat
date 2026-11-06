@@ -19,6 +19,7 @@ public sealed partial class AnalysisSession
     private readonly AnalysisStorageOptions? _storage;
     private readonly List<IAnalysisBackend> _protected = [];
     private readonly HashSet<string> _protectedIdentities = new(StringComparer.Ordinal);
+    private readonly HashSet<IAnalysisBackend> _protectedSources = new(ReferenceEqualityComparer.Instance);
     private readonly Queue<AnalysisIssue> _captureIssues = [];
     private readonly CancellationTokenSource _finalizeCancel = new();
     private AnalysisObservationWriter? _writer;
@@ -40,25 +41,50 @@ public sealed partial class AnalysisSession
     private async Task PrepareStorageAsync()
     {
         if (_storage is null) return;
+        Exception? protectionFailure = null;
+        try
+        {
+            foreach (var protection in _storage.ProtectedRoots)
+            {
+                lock (_sync) _activeDevice = protection.DeviceKey;
+                var source = await AnalysisIo.Run(_io, protection.DeviceKey, _ => protection.Prepare(), _cancel.Token).ConfigureAwait(false);
+                _protected.Add(source);
+                if (source.Root.Assurance != IdentityAssurance.Verified || source.RootEntry.Kind != AnalysisKind.Directory || source.RootEntry.Identity is not { Length: > 0 } identity ||
+                    _sources.Any(s => s.Root.Assurance != IdentityAssurance.Verified))
+                    throw new IOException("Private-state exclusion could not be qualified for these sources.");
+                _protectedIdentities.Add(identity);
+                foreach (var candidate in _sources)
+                {
+                    var containment = candidate.RootEntry.Identity == identity ? AnalysisRootContainment.Covered :
+                        await AnalysisIo.Run(_io, protection.DeviceKey, _ => source.ContainsRoot(candidate), _cancel.Token).ConfigureAwait(false);
+                    if (containment == AnalysisRootContainment.Unavailable) throw new IOException("Private-state containment could not be qualified for these sources.");
+                    if (containment == AnalysisRootContainment.Covered) _protectedSources.Add(candidate);
+                }
+            }
+        }
+        catch (Exception error) when (!_cancel.IsCancellationRequested && error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or InvalidOperationException)
+        { protectionFailure = error; }
+        // Qualify membership before scratch creation changes a private directory's version. Even an
+        // explicitly selected private file root contributes only excluded evidence, never its metadata.
+        lock (_sync) _roots = _roots.Select((root, i) => _protectedSources.Contains(_sources[i]) ? root with { ObservedObjectIdentity = null } : root).ToImmutableArray();
         lock (_sync) _activeDevice = _storage.DeviceKey;
         _writer = await AnalysisObservationWriter.CreateAsync(_io, _storage.DeviceKey, _storage.CreateDirectory, _identity, _roots, _policy, _cancel.Token).ConfigureAwait(false);
         if (_cancel.IsCancellationRequested) { _writer.RequestStop(); _cancel.Token.ThrowIfCancellationRequested(); }
-        foreach (var protection in _storage.ProtectedRoots)
-        {
-            lock (_sync) _activeDevice = protection.DeviceKey;
-            var source = await AnalysisIo.Run(_io, protection.DeviceKey, _ => protection.Prepare(), _cancel.Token).ConfigureAwait(false);
-            _protected.Add(source);
-            if (source.Root.Assurance != IdentityAssurance.Verified || source.RootEntry.Kind != AnalysisKind.Directory || source.RootEntry.Identity is not { } identity ||
-                _sources.Any(s => s.Root.Assurance != IdentityAssurance.Verified))
-                throw new IOException("Private-state exclusion could not be qualified for these sources.");
-            _protectedIdentities.Add(identity);
-        }
+        if (protectionFailure is not null) throw new IOException("Private-state exclusion could not be qualified for these sources.", protectionFailure);
         await FlushCaptureIssuesAsync().ConfigureAwait(false);
     }
     private bool IsProtected(AnalysisEntry entry) => entry.Identity is { } identity && _protectedIdentities.Contains(identity);
+    private async Task<T> OnStorageDeviceAsync<T>(Func<Task<T>> work)
+    {
+        string? previous;
+        lock (_sync) { previous = _activeDevice; _activeDevice = _storage!.DeviceKey; }
+        try { return await work().ConfigureAwait(false); }
+        finally { lock (_sync) _activeDevice = previous; }
+    }
     private static AnalysisEntry ExcludedPrivate(AnalysisEntry entry) => entry with
     {
         Identity = null, Version = "", IncludedByPolicy = false, MetadataState = MeasurementState.Excluded,
+        ModifiedUtc = null, Sparse = null, Compressed = null, Cloud = null,
         LogicalLength = AnalysisMeasurement.Missing(MeasurementState.Excluded), Allocation = AnalysisMeasurement.Missing(MeasurementState.Excluded),
         Links = AnalysisMeasurement.Missing(MeasurementState.Excluded), IssueCode = "private-analysis-state-excluded"
     };

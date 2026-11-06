@@ -82,6 +82,9 @@ public sealed class AnalysisObservationWriter : IAsyncDisposable
     public Task RecordIssueAsync(string code, ulong? node = null, MeasurementState state = MeasurementState.Failed, string? root = null, CancellationToken cancellation = default) =>
         _owned.RunAsync((owner, token) => { owner.Capture.Issue(code, node, state, root, token); owner.Capture.Publish(token); return true; }, cancellation);
 
+    internal Task<AnalysisSourceFrontier> CreateSourceFrontierAsync(AnalysisEntry root, RootBinding binding, ulong path, CancellationToken cancellation) =>
+        _owned.RunAsync((owner, _) => AnalysisSourceFrontier.Create(owner.Workspace, _io, _device, root, binding, path), cancellation);
+
     public async Task<AnalysisDataset> CompleteAsync(SessionIdentity identity, AnalysisPhase phase, NamespaceCoverage coverage, CancellationToken cancellation = default, AnalysisFreshness freshness = AnalysisFreshness.Observed)
     {
         var dataset = await _owned.UseAsync(async owner =>

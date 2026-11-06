@@ -130,7 +130,7 @@ internal sealed class AnalysisIndexedGraph : IAnalysisScratchOwned
 /// <summary>Owns one validated immutable prefix and its exact indexes; it has no live filesystem capability.</summary>
 internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
 {
-    internal const int Children = 0, ObjectIds = 1, Aliases = 2, FactOwners = 3, FactIds = 4, IssueOwners = 5, IndexCount = 6;
+    internal const int Children = 0, ObjectIds = 1, Aliases = 2, FactOwners = 3, FactIds = 4, IssueOwners = 5, ObjectIdentities = 6, IndexCount = 7;
     private readonly object _gate = new();
     private readonly AnalysisScratchCompositeRevision _data;
     private readonly AnalysisSortedIndex[] _indexes;
@@ -164,7 +164,7 @@ internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
 
     private static IEnumerable<AnalysisSortInput> Entries(int kind, ImmutableArray<RootBinding> roots, AnalysisScratchCompositeRevision data, CancellationToken cancellation)
     {
-        int table = kind switch { Children or Aliases => AnalysisIndexedGraph.Paths, ObjectIds => AnalysisIndexedGraph.Objects,
+        int table = kind switch { Children or Aliases => AnalysisIndexedGraph.Paths, ObjectIds or ObjectIdentities => AnalysisIndexedGraph.Objects,
             FactOwners or FactIds => AnalysisIndexedGraph.Facts, _ => AnalysisIndexedGraph.Issues };
         for (ulong id = 1, count = data.Count(table); id <= count; id++)
         {
@@ -175,7 +175,11 @@ internal sealed class AnalysisIndexedGraphRevision : IAnalysisScratchOwned
                 if (kind == Children) yield return new(new(AnalysisGraphKeys.Child(path), id), bytes.Length);
                 else yield return new(path.Node.ObjectId is { } objectId ? new AnalysisSortEntry(AnalysisGraphKeys.Text(objectId), id) : null, bytes.Length);
             }
-            else if (table == AnalysisIndexedGraph.Objects) yield return new(new(AnalysisGraphKeys.Text(AnalysisIndexedValueCodec.DecodeObject(bytes).Id), id), bytes.Length);
+            else if (table == AnalysisIndexedGraph.Objects)
+            {
+                var obj = AnalysisIndexedValueCodec.DecodeObject(bytes);
+                yield return new(new(kind == ObjectIds ? AnalysisGraphKeys.Text(obj.Id) : AnalysisGraphKeys.ObjectIdentity(obj), id), bytes.Length);
+            }
             else if (table == AnalysisIndexedGraph.Facts)
             {
                 var fact = AnalysisIndexedValueCodec.DecodeFact(bytes);
@@ -293,6 +297,15 @@ internal sealed class AnalysisGraphConsumers
 internal static class AnalysisGraphKeys
 {
     private static readonly UTF8Encoding Utf8 = new(false, true);
+    internal static byte[] ObjectIdentity(AnalysisObject obj)
+    {
+        string text = obj.VerifiedIdentity ?? obj.Id;
+        if (text is not { Length: > 0 and <= 4096 } || text.Contains('\0')) throw AnalysisIndexedGraph.Invalid();
+        byte[] bytes;
+        try { bytes = Utf8.GetBytes(text); } catch (EncoderFallbackException) { throw AnalysisIndexedGraph.Invalid(); }
+        if (bytes.Length > 4096) throw AnalysisIndexedGraph.Invalid();
+        var key = new byte[bytes.Length + 1]; key[0] = obj.VerifiedIdentity is null ? (byte)1 : (byte)0; bytes.CopyTo(key, 1); return key;
+    }
     internal static byte[] Text(string text)
     {
         if (text is not { Length: > 0 and <= 512 } || text.Contains('\0')) throw AnalysisIndexedGraph.Invalid();

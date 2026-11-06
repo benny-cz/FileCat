@@ -52,7 +52,7 @@ public sealed class AnalysisDataset : IAsyncDisposable
 }
 
 /// <summary>Read-only observations; no member binds a source, opens content or authorizes a job.</summary>
-public sealed class AnalysisDatasetLease : IAsyncDisposable
+public sealed partial class AnalysisDatasetLease : IAsyncDisposable
 {
     private readonly AnalysisOwnedDatasetIo<AnalysisIndexedGraphReader> _owned;
     private readonly DeviceIoScheduler _io; private readonly string _device;

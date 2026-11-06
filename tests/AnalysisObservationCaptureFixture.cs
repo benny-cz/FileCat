@@ -110,6 +110,13 @@ internal static partial class AnalysisObservationCaptureFixture
             Assert.Equal("café-😀.txt", paths.Rows.Single(n => n.Id == capturedNames["café-😀.txt"]).Name);
             var empty = paths.Rows.Single(n => n.Id == capturedNames["empty.txt"]);
             Assert.Equal(AnalysisMeasurement.Known(0), objects.Rows.Single(o => o.Id == empty.ObjectId).LogicalLength);
+            Assert.Equal((UInt128)4, (await reader.SummarizeAsync(AnalysisMetric.Files, cancellation)).Totals.Known);
+            Assert.Equal((UInt128)(payload.Length * 2 + 3), (await reader.SummarizeAsync(AnalysisMetric.FileSize, cancellation)).Totals.Known);
+            Assert.Equal((UInt128)(payload.Length + 3), (await reader.SummarizeAsync(AnalysisMetric.UniqueFileSize, cancellation)).Totals.Known);
+            var allocation = await reader.ReadFactsAsync(0, cancellation: cancellation);
+            UInt128 allocated = 0; foreach (var fact in allocation.Rows) { Assert.True(fact.Measurement.IsKnown); allocated = checked(allocated + fact.Measurement.Value!.Value); }
+            var onDisk = (await reader.SummarizeAsync(AnalysisMetric.OnDisk, cancellation)).Totals;
+            Assert.Equal(allocated, onDisk.Known); Assert.Equal((UInt128)0, onDisk.IdentityUnverified); Assert.True(onDisk.CompatibleBasis);
             Assert.Equal(payload, File.ReadAllBytes(original)); Assert.Equal(payload, File.ReadAllBytes(alias));
         }
         finally

@@ -29,7 +29,17 @@ internal static class AnalysisScratchCrashFixture
             string path = Path.Combine(parent, "scratch"), foreign = Path.Combine(path, "user-file.txt");
             File.WriteAllText(foreign, "preserve me");
             child.Kill(); await child.WaitForExitAsync(cancellation).WaitAsync(TimeSpan.FromSeconds(10), cancellation);
-            Assert.Equal("preserve me", File.ReadAllText(foreign)); Assert.Equal(new[] { foreign }, Directory.GetFileSystemEntries(path));
+            // Process exit and observable namespace retirement are separate native outcomes. Keep
+            // checking the canary and never delete/reopen the child's scratch file to make this pass.
+            // A process signal alone must not be reported as successful scratch cleanup.
+            var clock = Stopwatch.StartNew(); string[] entries = Directory.GetFileSystemEntries(path); int initial = entries.Length;
+            while (!entries.SequenceEqual(new[] { foreign }) && clock.Elapsed < TimeSpan.FromSeconds(2))
+            {
+                Assert.Equal("preserve me", File.ReadAllText(foreign));
+                await Task.Delay(10, cancellation); entries = Directory.GetFileSystemEntries(path);
+            }
+            Console.WriteLine($"Owned scratch child exited; initial entries={initial}, final entries={entries.Length}, cleanup observation={clock.Elapsed.TotalMilliseconds:F3}ms.");
+            Assert.Equal("preserve me", File.ReadAllText(foreign)); Assert.Equal(new[] { foreign }, entries);
         }
         finally
         {

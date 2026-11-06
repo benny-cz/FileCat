@@ -122,7 +122,8 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
-        if (other is not WindowsAnalysisBackend source || _namespace != source._namespace || _volume != source._volume) return AnalysisRootContainment.Disjoint;
+        if (other is not WindowsAnalysisBackend source) return AnalysisRootContainment.Unavailable;
+        if (_namespace != source._namespace || _volume != source._volume) return AnalysisRootContainment.Disjoint;
         bool Current(WindowsAnalysisBackend backend)
         {
             var observed = Observe(backend._root.Value, [], [], backend._namespace);

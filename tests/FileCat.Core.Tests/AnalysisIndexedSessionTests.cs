@@ -111,6 +111,7 @@ public sealed class AnalysisIndexedSessionTests
         internal static AnalysisEntry Entry(string name, AnalysisKind kind = AnalysisKind.File) => new([], name, [], kind, name,
             AnalysisMeasurement.Known(1), AnalysisMeasurement.Known(4096), AnalysisMeasurement.Known(1), DateTimeOffset.UnixEpoch, "v", ObservedUtc: DateTimeOffset.UtcNow);
         public void ValidateReadScope(AnalysisEntry directory) { ObjectDisposedException.ThrowIf(Closed, this); }
+        public AnalysisRootContainment ContainsRoot(IAnalysisBackend other) => AnalysisRootContainment.Disjoint;
         public void Dispose() { Closed = true; BeforeClose?.Invoke(); }
     }
     private sealed class MemoryDirectory : AnalysisPrivateDirectory

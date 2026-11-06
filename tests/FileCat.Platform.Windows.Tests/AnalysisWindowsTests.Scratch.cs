@@ -95,8 +95,11 @@ public sealed partial class AnalysisWindowsTests
     public async Task NativeScratchDeleteOnCloseSurvivesAbruptProcessDeath()
     {
         Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows native fixtures.");
-        using var fixture = new PrivateFixture();
-        await FileCat.Tests.AnalysisScratchCrashFixture.KillOwnedChild(fixture.Path, TestContext.Current.CancellationToken);
+        for (int repeat = 0; repeat < 5; repeat++)
+        {
+            using var fixture = new PrivateFixture();
+            await FileCat.Tests.AnalysisScratchCrashFixture.KillOwnedChild(fixture.Path, TestContext.Current.CancellationToken);
+        }
     }
 
     [Fact]

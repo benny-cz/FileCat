@@ -280,7 +280,7 @@ public sealed partial class AnalysisSession : IDisposable
     }
     private async Task WalkAsync(IAnalysisBackend source, RootBinding root, string device)
     {
-        bool protectedRoot = IsProtected(source.RootEntry);
+        bool protectedRoot = _protectedSources.Contains(source) || IsProtected(source.RootEntry);
         var rootEntry = protectedRoot ? ExcludedPrivate(source.RootEntry) : source.RootEntry;
         var rootId = await AppendObservationAsync(rootEntry, 0, root.Id, source.Basis).ConfigureAwait(false);
         if (!rootId.HasValue) { Issue("memory-or-observation-limit"); return; }
@@ -288,63 +288,94 @@ public sealed partial class AnalysisSession : IDisposable
         if (source.RootEntry.Kind != AnalysisKind.Directory) return;
         if (source.RootEntry.Cloud == true) { Issue("cloud-directory-not-enumerated", rootId, MeasurementState.Excluded); return; }
         var pending = new Stack<(AnalysisEntry Entry, ulong Id, int Depth, long Bytes)>();
-        pending.Push((source.RootEntry, rootId.Value, 0, 0));
-        lock (_sync) _enumerationRequested++;
+        AnalysisSourceFrontier? frontier = null;
         long pendingBytes = 0;
         var clock = System.Diagnostics.Stopwatch.StartNew();
-        while (pending.Count > 0 && (!_store.Limited || _writer is not null))
+        try
         {
-            _cancel.Token.ThrowIfCancellationRequested();
-            var (entry, id, depth, cost) = pending.Pop(); pendingBytes -= cost;
-            if (depth >= AnalysisLimits.Depth) { Issue("depth-limit", id); lock (_sync) _enumerationFailed++; continue; }
-            var enumeration = await AnalysisIo.Run(_io, device, _ => source.Children(entry, _cancel.Token).GetEnumerator(), _cancel.Token).ConfigureAwait(false);
-            await using var cursorOwner = AnalysisIo.OwnCursor(_io, device, enumeration);
-            bool finished = false;
-            bool succeeded = false;
-            AnalysisEntry? carry = null;
-            while (!finished)
+            if (_writer is not null && source.RootEntry.Ancestry is not null)
+                frontier = await OnStorageDeviceAsync(() => _writer.CreateSourceFrontierAsync(source.RootEntry, root, rootId.Value, _cancel.Token)).ConfigureAwait(false);
+            else pending.Push((source.RootEntry, rootId.Value, 0, 0));
+            lock (_sync) _enumerationRequested++;
+            while (!_store.Limited || _writer is not null)
             {
                 _cancel.Token.ThrowIfCancellationRequested();
-                await PauseBoundaryAsync().ConfigureAwait(false);
-                Batch batch;
-                try
+                AnalysisEntry entry; ulong id; int depth; AnalysisFrontierDirectory? ticket = null;
+                if (frontier is not null)
                 {
-                    // Never cancel the scheduler task early: it owns the enumerator and its native handles until
-                    // the call returns. Stop freezes observations immediately while retaining device admission.
-                    batch = await AnalysisIo.Run(_io, device, _ => ReadBatch(source, entry, enumeration, carry), _cancel.Token).ConfigureAwait(false);
+                    try { ticket = await OnStorageDeviceAsync(() => frontier.PopAsync(_cancel.Token)).ConfigureAwait(false); }
+                    catch (AnalysisFrontierScopeException error) { Issue("frontier-read-witness-limit", error.Path); lock (_sync) _enumerationFailed++; continue; }
+                    if (ticket is null) break;
+                    (entry, id, depth) = (ticket.Entry, ticket.Path, ticket.Depth);
                 }
-                catch (AnalysisSourceChangedException) { Issue("source-changed-or-boundary", id); break; }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Issue("enumeration-unavailable", id); break; }
-                _cancel.Token.ThrowIfCancellationRequested();
-                finished = batch.Finished;
-                carry = batch.Carry;
-                var storedIds = _writer is null ? default : await AppendCapturedBatchAsync(batch.Entries.Select(e => IsProtected(e) ? ExcludedPrivate(e) : e).ToArray(), id, root.Id, source.Basis).ConfigureAwait(false);
-                for (int childAt = 0; childAt < batch.Entries.Count; childAt++)
+                else
                 {
-                    var observedChild = batch.Entries[childAt];
-                    bool protectedChild = IsProtected(observedChild);
-                    var child = protectedChild ? ExcludedPrivate(observedChild) : observedChild;
-                    ulong? childId = storedIds.IsDefault ? _store.Append(child, id, root.Id, source.Basis, _policy.ComponentPreset == "detailed") : storedIds[childAt];
-                    if (childId is null) { Issue("memory-or-observation-limit", id); return; }
-                    if (protectedChild) { Issue("private-analysis-state-excluded", childId, MeasurementState.Excluded); continue; }
-                    if (child.IssueCode is { } issueCode) Issue(issueCode, childId, child.MetadataState);
-                    if (!child.IncludedByPolicy || child.MetadataState != MeasurementState.Known) continue;
-                    if (child.Kind is AnalysisKind.Link or AnalysisKind.Special)
-                        Issue(child.Kind == AnalysisKind.Link ? "navigation-link-not-followed" : "special-entry-not-traversed", childId, MeasurementState.Excluded);
-                    if (child.Kind != AnalysisKind.Directory) continue;
-                    if (child.Cloud == true) { Issue("cloud-directory-not-enumerated", childId, MeasurementState.Excluded); continue; }
-                    long bytes = 2048L + child.RelativeName.Length * 2L + child.RawName.Length * 4L;
-                    if (pendingBytes + bytes > AnalysisLimits.PendingBytes / 2) { Issue("pending-payload-limit", childId); continue; }
-                    pending.Push((child, childId.Value, depth + 1, bytes)); pendingBytes += bytes;
-                    lock (_sync) _enumerationRequested++;
+                    if (!pending.TryPop(out var next)) break;
+                    (entry, id, depth) = (next.Entry, next.Id, next.Depth); pendingBytes -= next.Bytes;
                 }
-                await FlushCaptureIssuesAsync().ConfigureAwait(false);
-                if (batch.Limited) { Issue("producer-record-limit", id); break; }
-                if (batch.Error is { } error) { Issue(error, id); break; }
-                if (finished) succeeded = true;
-                if (clock.ElapsedMilliseconds >= 250) { Report(); clock.Restart(); }
+                if (depth >= AnalysisLimits.Depth) { Issue("depth-limit", id); lock (_sync) _enumerationFailed++; continue; }
+                var enumeration = await AnalysisIo.Run(_io, device, _ => source.Children(entry, _cancel.Token).GetEnumerator(), _cancel.Token).ConfigureAwait(false);
+                await using var cursorOwner = AnalysisIo.OwnCursor(_io, device, enumeration);
+                bool finished = false;
+                bool succeeded = false;
+                AnalysisEntry? carry = null;
+                while (!finished)
+                {
+                    _cancel.Token.ThrowIfCancellationRequested();
+                    await PauseBoundaryAsync().ConfigureAwait(false);
+                    Batch batch;
+                    try
+                    {
+                        // Never cancel the scheduler task early: it owns the enumerator and its native handles until
+                        // the call returns. Stop freezes observations immediately while retaining device admission.
+                        batch = await AnalysisIo.Run(_io, device, _ => ReadBatch(source, entry, enumeration, carry), _cancel.Token).ConfigureAwait(false);
+                    }
+                    catch (AnalysisSourceChangedException) { Issue("source-changed-or-boundary", id); break; }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Issue("enumeration-unavailable", id); break; }
+                    _cancel.Token.ThrowIfCancellationRequested();
+                    finished = batch.Finished;
+                    carry = batch.Carry;
+                    var storedIds = _writer is null ? default : await AppendCapturedBatchAsync(batch.Entries.Select(e => IsProtected(e) ? ExcludedPrivate(e) : e).ToArray(), id, root.Id, source.Basis).ConfigureAwait(false);
+                    var frontierChildren = frontier is null ? null : ImmutableArray.CreateBuilder<AnalysisFrontierChild>();
+                    for (int childAt = 0; childAt < batch.Entries.Count; childAt++)
+                    {
+                        var observedChild = batch.Entries[childAt];
+                        bool protectedChild = IsProtected(observedChild);
+                        var child = protectedChild ? ExcludedPrivate(observedChild) : observedChild;
+                        ulong? childId = storedIds.IsDefault ? _store.Append(child, id, root.Id, source.Basis, _policy.ComponentPreset == "detailed") : storedIds[childAt];
+                        if (childId is null) { Issue("memory-or-observation-limit", id); return; }
+                        if (protectedChild) { Issue("private-analysis-state-excluded", childId, MeasurementState.Excluded); continue; }
+                        if (child.IssueCode is { } issueCode) Issue(issueCode, childId, child.MetadataState);
+                        if (!child.IncludedByPolicy || child.MetadataState != MeasurementState.Known) continue;
+                        if (child.Kind is AnalysisKind.Link or AnalysisKind.Special)
+                            Issue(child.Kind == AnalysisKind.Link ? "navigation-link-not-followed" : "special-entry-not-traversed", childId, MeasurementState.Excluded);
+                        if (child.Kind != AnalysisKind.Directory) continue;
+                        if (child.Cloud == true) { Issue("cloud-directory-not-enumerated", childId, MeasurementState.Excluded); continue; }
+                        if (frontierChildren is not null) { frontierChildren.Add(new(child, childId.Value)); continue; }
+                        long bytes = 2048L + child.RelativeName.Length * 2L + child.RawName.Length * 4L;
+                        if (pendingBytes + bytes > AnalysisLimits.PendingBytes / 2) { Issue("pending-payload-limit", childId); continue; }
+                        pending.Push((child, childId.Value, depth + 1, bytes)); pendingBytes += bytes;
+                        lock (_sync) _enumerationRequested++;
+                    }
+                    if (frontierChildren is { Count: > 0 })
+                    {
+                        var children = frontierChildren.ToImmutable();
+                        await OnStorageDeviceAsync(async () => { await frontier!.PushAsync(ticket!, children, _cancel.Token).ConfigureAwait(false); return true; }).ConfigureAwait(false);
+                        lock (_sync) _enumerationRequested = checked(_enumerationRequested + (ulong)children.Length);
+                    }
+                    await FlushCaptureIssuesAsync().ConfigureAwait(false);
+                    if (batch.Limited) { Issue("producer-record-limit", id); break; }
+                    if (batch.Error is { } error) { Issue(error, id); break; }
+                    if (finished) succeeded = true;
+                    if (clock.ElapsedMilliseconds >= 250) { Report(); clock.Restart(); }
+                }
+                lock (_sync) { if (succeeded) _enumerationCompleted++; else _enumerationFailed++; }
             }
-            lock (_sync) { if (succeeded) _enumerationCompleted++; else _enumerationFailed++; }
+        }
+        finally
+        {
+            if (frontier is not null)
+                await OnStorageDeviceAsync(async () => { await frontier.DisposeAsync().ConfigureAwait(false); return true; }).ConfigureAwait(false);
         }
     }
     private sealed record Batch(List<AnalysisEntry> Entries, bool Finished, bool Limited, AnalysisEntry? Carry = null, string? Error = null);

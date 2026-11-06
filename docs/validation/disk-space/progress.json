@@ -109,7 +109,11 @@
     "Native NTFS/APFS/ext4 fixtures traverse actual hard links, Unicode names and a nested zero-length file, close the source backend before finalization, then use the public writer/read API after producer/owner closure. Canonical aliases/counts/measurements and unchanged file bytes pass; scratch files are gone after the final lease closes. Exact issue counters continue past the 10,000-row sample cap. Already-Changed file/directory/issue evidence preserves Possibly stale, and canceled issue sampling cannot advance counters. Coordinator/UI/frontier and large-source qualification remain unfinished.",
     "The production coordinator now accepts explicit application-owned private-storage preparation, streams native batches beyond a bounded managed preview, preserves canonical path/object IDs in that preview, excludes verified private directory identities before traversal and refuses traversal when private-state protection cannot be qualified. Sources and protected backends close before final indexing. Main-window adoption and full source-scale qualification remain pending.",
     "Stop freezes the last accepted raw publication with a nonblocking atomic state change even when a native flush is blocked. A later physical flush cannot publish rows after Stop. Indexing freezes the final preview before reserving a newer dataset revision, so repeated preview polling cannot overtake that revision. Explicit index failures retain partial preview evidence.",
-    "Actual NTFS/APFS/ext4 coordinator fixtures scan a source containing hard links, a nested zero file and the configured private scratch directory. A private canary is excluded and never traversed; results continue beyond a two-row preview. Full dataset queries, retained-reader use after session closure, unchanged source/canary bytes and final scratch cleanup pass on all three platforms. These small fixtures do not qualify the complete UI or release matrix."
+    "Actual NTFS/APFS/ext4 coordinator fixtures scan a source containing hard links, a nested zero file and the configured private scratch directory. A private canary is excluded and never traversed; results continue beyond a two-row preview. Full dataset queries, retained-reader use after session closure, unchanged source/canary bytes and final scratch cleanup pass on all three platforms. These small fixtures do not qualify the complete UI or release matrix.",
+    "The dataset streams exact unfiltered totals for all four metrics using a seventh full-identity index, bounded component/basis state, global two-summary buffer admission and bounded Background turns. Distinct verified object records group once; unknown identity remains per-path/separately labelled. Golden accounting, missing/zero states, directory self, version conflicts, incompatible bases, overflow, 3,000-alias scheduling and actual blocked/queued ownership controls pass. Current Mac/Ubuntu native tests pass; final Windows retest is deferred because another tester remains active.",
+    "Opt-in native scanning now spills pending directories into a private authenticated live-only tape under the same workspace/quota. Only the currently held root supplies a process-owned binding witness; no binding ID is serialized. Popped records reconstruct bounded exact raw ancestry for repeated native validation, never an operation approval. Foreign tickets, wrong same-binding parents and rejected batches cannot schedule children; excessive witness payload keeps readable siblings queued. Actual Mac/Ubuntu scans retain every one of 3,000 directories/files beyond the two-row preview and reject a queued native directory replacement. Main-window adoption and native large-source/resource qualification remain pending.",
+    "A native red regression proved that an explicitly selected file inside private storage was wrongly Known. Private containment is now qualified before scratch creation; contained roots are excluded and timestamps/flags/native object identities are omitted. Unsupported backend containment is Unavailable rather than falsely Disjoint. The corrected native regression passes on Mac/Ubuntu and preserves the original file. The first rejected test used a symlinked macOS temp path; that fixture setup error is separately recorded.",
+    "The existing Windows immediate post-kill namespace assertion failed once in r184. Thirty fresh probes removed scratch immediately and preserved the canary; the native cause is unproven. The fixture now separately observes exact child exit and automatic namespace retirement within two seconds, logs delay and never manually deletes/reopens scratch to pass. Windows uses five owned children per case, with final execution still deferred. Windows drivers conservatively postpone unreadable cross-account dotnet processes."
   ],
   "validation": {
     "windowsCore": {
@@ -136,11 +140,11 @@
       "detail": "29 native NTFS/filesystem/private-storage controls, including production coordinator capture beyond its preview, qualified private-state exclusion, unchanged source bytes and final cleanup."
     },
     "macosArm64": {
-      "total": 415,
-      "passed": 414,
+      "total": 439,
+      "passed": 438,
       "failed": 0,
       "skipped": 1,
-      "evidence": "mac-core-r179.xml"
+      "evidence": "mac-core-r196.xml"
     },
     "headlessRendering": {
       "total": 64,
@@ -153,14 +157,14 @@
     "solutionBuild": {
       "errors": 0,
       "warnings": 0,
-      "evidence": "session-build-r178.txt"
+      "evidence": "frontier-build-r195.txt"
     },
     "ubuntu": {
-      "total": 415,
-      "passed": 414,
+      "total": 439,
+      "passed": 438,
       "failed": 0,
       "skipped": 1,
-      "evidence": "ubuntu-core-r179.xml"
+      "evidence": "ubuntu-core-r196.xml"
     },
     "nativeDesktop": {
       "macos": "Native scan/save/compare/query/close subset passed in r35. Native compact eight-tab/large-text AXPress, selected values, padded pointer/Left and monotonic captions pass in r38;509 fixture paths unchanged, owned process exited. Full matrix remains pending. Initial compact380x430/eight-tab/20-DIP Start activation and actual metadata scan pass in r41,509 unchanged paths and owned exit. r46 native AX selection/Return/Space, name menu ordering and breadcrumb/Back pass; owned exit,509 unchanged source paths. Coordinate activation is not physical pointer qualification. r60 final chart/focus implementation repeats the native accessibility/keyboard subset successfully, with 509 unchanged paths, unchanged authorized capture helper and owned exit. This remains distinct from physical Mac pointer/full assistive-technology qualification. r62 native accessibility/keyboard link inspection verifies the visible omitted-target explanation, measured-zero distinction and retained mark, with 509 unchanged source paths and owned exit.",
@@ -340,6 +344,41 @@
       "mac": "mac-core-r179.xml",
       "ubuntu": "ubuntu-core-r179.xml",
       "scope": "Native six-path fixture with a private directory/canary, two hard-link aliases, nested zero file and two-row preview. Core counterexamples cover unverified exclusion, blocked raw flush Stop, canonical preview IDs, source/protection closure, retained reader ownership and preview polling during indexing. Main UI, spillable source frontier, complete coverage metadata, full source-scale and release qualification remain pending."
+    },
+    "currentWindowsQualification": {
+      "status": "deferred-shared-vm-busy",
+      "observedAtUtc": "2026-11-06T04:57:42.7291812+00:00",
+      "processes": [
+        {
+          "ProcessId": 10656,
+          "Name": "dotnet.exe"
+        },
+        {
+          "ProcessId": 1572,
+          "Name": "dotnet.exe"
+        },
+        {
+          "ProcessId": 9872,
+          "Name": "FileCat.Platform.Windows.Tests.exe"
+        },
+        {
+          "ProcessId": 5036,
+          "Name": "FileCat.WorkerProbe.exe"
+        }
+      ],
+      "note": "Other implementor test processes were observed live via guest CIM, preserved, and Windows testing postponed. No current Windows qualification is claimed."
+    },
+    "indexedCaptureFrontierAndSummary": {
+      "status": "native-subset-passed-mac-and-ubuntu-windows-deferred",
+      "mac": "mac-core-r196.xml",
+      "ubuntu": "ubuntu-core-r196.xml",
+      "windows": "windows-deferred-r196.json",
+      "scope": "Whole-dataset unfiltered summaries, live-only spillable directory frontier, 6,002-path native tree with 3,000 directories/files and a private canary, queued directory replacement and explicit private-file root exclusion. Native source bytes and final scratch cleanup verified. Not yet main UI, filtered/scoped projection, original inventory-ID mapping, full coverage metadata or native 1M/10M source/resource qualification.",
+      "privateRootNegative": "mac-private-root-red-r194.xml",
+      "rejectedSetup": "mac-private-root-rejected-setup-r192.xml",
+      "crashRejected": "windows-native-r184.xml",
+      "crashDiagnostic": "windows-crash-probe-r184.json",
+      "crashScope": "Two-second automatic namespace cleanup after actual child exit; final Windows execution pending. The earlier immediate-visibility cause remains unproven."
     }
   },
   "nextWork": [

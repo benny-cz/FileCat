@@ -124,7 +124,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
-        if (other is not UnixAnalysisBackend source) return AnalysisRootContainment.Disjoint;
+        if (other is not UnixAnalysisBackend source) return AnalysisRootContainment.Unavailable;
         if (_device != source._device || _mount != source._mount) return AnalysisRootContainment.Disjoint;
         if (!Same(RootEntry, Stat(_root)) || !source.Same(source.RootEntry, source.Stat(source._root))) throw new AnalysisSourceChangedException();
         if (!_identitySupported || !source._identitySupported) return AnalysisRootContainment.Unavailable;
