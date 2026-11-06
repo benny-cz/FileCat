@@ -90,6 +90,11 @@ because a fresh write has a new modification-time metadata digest, while enforci
 identities and immutable same-attempt outcomes. All 200 administrator native cases and 195 standard-user cases pass
 (five administrator-only skips), with passing common/UI/independent-fixture checks on Windows, Mac and Ubuntu.
 Cancellation/failure matrices, restoration cleanup-deletion crashes, production actions and wider gates remain open.
+The [restoration cancellation/failure follow-up](SNAPSHOT_RESTORATION_FAILURES.md) passes nine additional actual
+native cases before/after commit and during backup handling, with separate exact catalog reconciliation and retained
+uncataloged evidence. All 209 administrator native cases and 204 standard-user cases pass (five administrator-only
+skips), with passing Mac/Ubuntu builds and Windows-only guards. No production fix is needed for these cases. Broader
+fault/resource coverage, restoration cleanup-deletion crashes and the remaining production/release gates stay open.
 The [private creation process-crash follow-up](PRIVATE_CREATION_PROCESS_CRASHES.md) passes ten new publication/metadata
 boundaries and thirteen neighboring crash cases on each platform. It leaves production and recovery authority unchanged.
 The [TAR.GZ worker pipeline](TAR_GZIP_WORKER_PIPELINE.md) adds strict wrapper-aware assessment, streamed create/update

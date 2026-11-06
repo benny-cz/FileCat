@@ -372,6 +372,12 @@ native transaction identities. All 200 administrator native cases and 195 standa
 administrator-only skips; common/UI and supplemental independent-fixture checks pass on all three platforms.
 Cancellation/failure injection, restoration cleanup-deletion crashes and the other production/release gates remain open.
 
+The [restoration cancellation/failure follow-up](../validation/archive-writing/SNAPSHOT_RESTORATION_FAILURES.md)
+passes nine additional actual native cancellation/IO-failure boundaries, including committed effects that must remain
+visible despite cancellation and uncertain post-commit errors. All 209 administrator native cases and 204 standard-user
+cases pass, with five administrator-only skips, plus passing Mac/Ubuntu builds and platform guards. Wider worker/IO/
+resource faults, restoration cleanup-deletion crashes and the other production/release gates remain required.
+
 ### 7.5 Outer metadata and provenance
 
 Treat outer-file metadata separately from metadata of archived members. Updates preserve the existing archive's owner, ACL/mode, relevant attributes, creation time where promised, and origin/quarantine marks. Content-changing mtime follows existing FileCat policy and must be stated/tested. Hard links to the old archive remain attached to the old object; warn once when link count is known and greater than one. Do not silently update all hard-link names.

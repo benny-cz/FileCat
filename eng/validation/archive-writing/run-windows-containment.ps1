@@ -37,7 +37,7 @@ try {
     $env:FILECAT_ARCHIVE_CONTAINMENT = '1'
     $env:FILECAT_ARCHIVE_PROBE_ASSETS = $ProbeAssets
     $env:FILECAT_ARCHIVE_APP_ASSETS = $ApplicationAssets
-    $taskFilter = 'FullyQualifiedName~ArchiveAppContainerTests|FullyQualifiedName~RestrictedProcessLowTokenTests|FullyQualifiedName~RestrictedProcessFallbackTests|FullyQualifiedName~SandboxedWorkerEnvironmentTests|FullyQualifiedName~Real_content_process_crashes|FullyQualifiedName~Real_recovery_process_crashes|FullyQualifiedName~Real_restoration_process_crashes'
+    $taskFilter = 'FullyQualifiedName~ArchiveAppContainerTests|FullyQualifiedName~RestrictedProcessLowTokenTests|FullyQualifiedName~RestrictedProcessFallbackTests|FullyQualifiedName~SandboxedWorkerEnvironmentTests|FullyQualifiedName~Real_content_process_crashes|FullyQualifiedName~Real_recovery_process_crashes|FullyQualifiedName~Real_restoration_process_crashes|FullyQualifiedName~Real_restoration_failures_and_cancellation'
     & $taskDotnet $taskHarness --archive-test-medium $taskPrefix $taskDotnet exec $VSTestConsole $taskTests "/TestCaseFilter:$taskFilter" "/Logger:trx;LogFileName=$taskRun.trx" "/ResultsDirectory:$EvidenceDirectory"
     $taskExit = $LASTEXITCODE
     $taskFacts = Get-Content -LiteralPath ($taskPrefix + '.facts.json') -Raw | ConvertFrom-Json

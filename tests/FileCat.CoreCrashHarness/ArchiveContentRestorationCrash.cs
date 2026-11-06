@@ -9,11 +9,13 @@ internal static class ArchiveContentRestorationCrash
 {
     internal static readonly string[] Points = ["opened", "stage-created", "prepared", "transaction-opened", "backup-sealed",
         "private-ready", "intent", "native-committed", "published-reviewed", "recorded", "cleanup-completed", "closed"];
+    internal static readonly string[] Faults = ["cancel-opened", "cancel-prepared", "cancel-intent", "cancel-native-committed",
+        "cancel-published-reviewed", "fail-backup-sealed", "fail-intent", "fail-native-committed", "fail-published-reviewed"];
 
     internal static async Task<int> Run(string root, string point, string windowsAssembly)
     {
         if (!OperatingSystem.IsWindows() || !Path.IsPathFullyQualified(root) || !Directory.Exists(root) ||
-            (!Points.Contains(point) && point != "finish") || !Path.IsPathFullyQualified(windowsAssembly)) return 64;
+            (!Points.Contains(point) && !Faults.Contains(point) && point != "finish") || !Path.IsPathFullyQualified(windowsAssembly)) return 64;
         var job = JournalRecovery.Scan(Path.Combine(root, "journals"), keepFinished: 0, maxAge: TimeSpan.Zero).Single();
         var content = job.ArchiveTransactions.ContentUpdates.Single();
         string digest = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(job.JournalPath)));
@@ -29,12 +31,42 @@ internal static class ArchiveContentRestorationCrash
         if (!Path.IsPathFullyQualified(assets)) throw new IOException("Confined probe assets must be absolute.");
         workerType.GetMethod("ProvisionRuntimeReadAccess", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!.Invoke(null, [assets]);
         var children = new List<object>();
-        using var restored = await ArchiveContentRestoration.RestoreAsync(new Lease(native, point, CheckWorkers), fresh,
-            new((nonce, cpu) => Start("archive-assess", nonce, cpu)), new((nonce, cpu) => Start("archive-verify", nonce, cpu)), TimeSpan.FromMinutes(2), CancellationToken.None);
-        CheckWorkers(); WaitIf("recorded", point);
-        restored.Update.Cleanup(fresh, CancellationToken.None); WaitIf("cleanup-completed", point);
-        fresh.Finish(JobState.Completed, "fresh restoration and its separate private cleanup completed"); WaitIf("closed", point);
-        return point == "finish" ? 0 : 65;
+        using var cancellation = new CancellationTokenSource();
+        try
+        {
+            using var restored = await ArchiveContentRestoration.RestoreAsync(new Lease(native, Boundary, CheckWorkers), fresh,
+                new((nonce, cpu) => Start("archive-assess", nonce, cpu)), new((nonce, cpu) => Start("archive-verify", nonce, cpu)), TimeSpan.FromMinutes(2), cancellation.Token);
+            CheckWorkers(); WaitIf("recorded", point);
+            if (Faults.Contains(point))
+            {
+                if (!cancellation.IsCancellationRequested || point is not ("cancel-native-committed" or "cancel-published-reviewed"))
+                    throw new IOException("The requested pre-commit cancellation or injected failure was not observed.");
+                File.WriteAllText(Path.Combine(root, "restore-fault.txt"), "committed-despite-cancel"); return 0;
+            }
+            restored.Update.Cleanup(fresh, CancellationToken.None); WaitIf("cleanup-completed", point);
+            fresh.Finish(JobState.Completed, "fresh restoration and its separate private cleanup completed"); WaitIf("closed", point);
+            return point == "finish" ? 0 : 65;
+        }
+        catch (OperationCanceledException) when (Faults.Contains(point) && point.StartsWith("cancel-", StringComparison.Ordinal) && cancellation.IsCancellationRequested)
+        { CheckFaultWorkers(); File.WriteAllText(Path.Combine(root, "restore-fault.txt"), "cancelled"); return 0; }
+        catch (InjectedFailure) when (Faults.Contains(point))
+        { CheckFaultWorkers(); File.WriteAllText(Path.Combine(root, "restore-fault.txt"), "failed"); return 0; }
+
+        void Boundary(string checkpoint)
+        {
+            if (point == "fail-" + checkpoint) throw new InjectedFailure();
+            if (point == "cancel-" + checkpoint)
+            {
+                cancellation.Cancel();
+                if (checkpoint is not ("native-committed" or "published-reviewed")) cancellation.Token.ThrowIfCancellationRequested();
+            }
+            WaitIf(checkpoint, point);
+        }
+        void CheckFaultWorkers()
+        {
+            if (point == "cancel-opened") { if (children.Count != 0) throw new IOException("Pre-claim cancellation started a parser."); }
+            else CheckWorkers();
+        }
 
         IArchiveWorkerProcess Start(string role, Guid nonce, TimeSpan cpu)
         {
@@ -51,13 +83,14 @@ internal static class ArchiveContentRestorationCrash
             File.WriteAllText(Path.Combine(root, "restore-workers.txt"), string.Join(',', children.Select(child => workerType.GetProperty("ProcessId")!.GetValue(child))));
         }
     }
+    private sealed class InjectedFailure : IOException;
     private static void WaitIf(string checkpoint, string point)
     {
         if (checkpoint != point) return;
         Console.WriteLine("archive-content-restore-checkpoint:" + point); Console.Out.Flush(); Console.ReadLine();
         throw new InvalidOperationException("The driver must terminate this actual restoration process externally.");
     }
-    private sealed class Lease(IArchiveContentRestorationLease native, string point, Action checkWorkers) : IArchiveContentRestorationLease
+    private sealed class Lease(IArchiveContentRestorationLease native, Action<string> boundary, Action checkWorkers) : IArchiveContentRestorationLease
     {
         private bool stageCreated;
         public JobJournal Journal => native.Journal;
@@ -68,21 +101,21 @@ internal static class ArchiveContentRestorationCrash
         public ArchiveRetainedBinding Snapshot => native.Snapshot;
         public IArchiveContentUpdateSource TargetSource
         {
-            get { checkWorkers(); WaitIf("prepared", point); return new Source(native.TargetSource, point); }
+            get { checkWorkers(); boundary("prepared"); return new Source(native.TargetSource, boundary); }
         }
         public ArchiveArtifactReservation Reserve(Guid nonce, ArchiveArtifactKind kind, long maximum) => native.Reserve(nonce, kind, maximum);
         public IArchiveContentUpdateStage Create(ArchiveArtifactReservation reservation)
         {
             var file = native.Create(reservation);
-            if (!stageCreated && reservation.Kind == ArchiveArtifactKind.Stage) { stageCreated = true; WaitIf("stage-created", point); }
+            if (!stageCreated && reservation.Kind == ArchiveArtifactKind.Stage) { stageCreated = true; boundary("stage-created"); }
             return file;
         }
-        public void Claim(CancellationToken ct) { native.Claim(ct); WaitIf("opened", point); }
+        public void Claim(CancellationToken ct) { native.Claim(ct); boundary("opened"); }
         public void Review(CancellationToken ct) => native.Review(ct);
         public void ReviewSnapshot(CancellationToken ct) => native.ReviewSnapshot(ct);
         public void Dispose() => native.Dispose();
     }
-    private sealed class Source(IArchiveContentUpdateSource native, string point) : IArchiveContentUpdateSource
+    private sealed class Source(IArchiveContentUpdateSource native, Action<string> boundary) : IArchiveContentUpdateSource
     {
         public ArchiveContentUpdateRecipe Recipe => native.Recipe;
         public string ObjectIdentity => native.ObjectIdentity;
@@ -93,20 +126,20 @@ internal static class ArchiveContentRestorationCrash
         public IArchiveContentTransaction BeginContentTransaction(ArchiveFileObservation reviewed, Guid nonce, TimeSpan timeout, CancellationToken ct)
         {
             var transaction = native.BeginContentTransaction(reviewed, nonce, timeout, ct);
-            WaitIf("transaction-opened", point); return new Transaction(transaction, point);
+            boundary("transaction-opened"); return new Transaction(transaction, boundary);
         }
     }
-    private sealed class Transaction(IArchiveContentTransaction native, string point) : IArchiveContentTransaction
+    private sealed class Transaction(IArchiveContentTransaction native, Action<string> boundary) : IArchiveContentTransaction
     {
         public Guid TransactionId => native.TransactionId;
         public ArchiveFileObservation RetainOriginal(IArchiveContentUpdateStage snapshot, CancellationToken ct)
-        { var result = native.RetainOriginal(snapshot, ct); WaitIf("backup-sealed", point); return result; }
+        { var result = native.RetainOriginal(snapshot, ct); boundary("backup-sealed"); return result; }
         public ArchiveContentUpdateReview PrepareOutput(IArchiveContentUpdateStage output, ArchiveVerifiedNativeStage verified, ArchiveOriginSnapshot origin, CancellationToken ct)
-        { var result = native.PrepareOutput(output, verified, origin, ct); WaitIf("private-ready", point); return result; }
+        { var result = native.PrepareOutput(output, verified, origin, ct); boundary("private-ready"); return result; }
         public ArchiveFileObservation Commit(ArchiveContentUpdateReview review, CancellationToken ct)
-        { WaitIf("intent", point); var result = native.Commit(review, ct); WaitIf("native-committed", point); return result; }
+        { boundary("intent"); var result = native.Commit(review, ct); boundary("native-committed"); return result; }
         public ArchiveFileObservation ReviewPublished(ArchiveContentUpdateReview review, CancellationToken ct)
-        { var result = native.ReviewPublished(review, ct); WaitIf("published-reviewed", point); return result; }
+        { var result = native.ReviewPublished(review, ct); boundary("published-reviewed"); return result; }
         public void Rollback() => native.Rollback();
         public void Dispose() => native.Dispose();
     }
