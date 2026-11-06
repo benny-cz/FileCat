@@ -60,6 +60,13 @@ public sealed partial class AnalysisRenderingTests
             var replacement = list.Items.OfType<AnalysisHierarchyRow>().ToArray();
             Assert.True(replacement.Zip(replacement.Skip(1)).All(pair => pair.First.Logical.KnownBytes <= pair.Second.Logical.KnownBytes));
             Assert.DoesNotContain(replacement, row => row.Path.Kind == AnalysisKind.Directory);
+            order.SelectedIndex = 3;
+            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text?.EndsWith("Name · Ascending", StringComparison.Ordinal) == true)); Frame(window);
+            var names = list.Items.OfType<AnalysisHierarchyRow>().Select(row => row.Path.Name).ToArray();
+            Assert.Equal(names.Order(StringComparer.OrdinalIgnoreCase), names);
+            order.SelectedIndex = 4;
+            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text?.EndsWith("Metadata state · Ascending", StringComparison.Ordinal) == true)); Frame(window);
+            Assert.All(list.Items.OfType<AnalysisHierarchyRow>(), row => Assert.Equal(MeasurementState.Known, row.Path.MetadataState));
             Assert.Equal(fixture.Payload, File.ReadAllBytes(fixture.PayloadPath));
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }

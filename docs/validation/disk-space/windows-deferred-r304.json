@@ -1,0 +1,26 @@
+{
+    "nonce":  "disk-space-r304",
+    "observedAtUtc":  "2026-11-06T12:05:06.7922400+00:00",
+    "processes":  [
+                      {
+                          "ProcessId":  7524,
+                          "Name":  "dotnet.exe",
+                          "CommandLine":  "\"C:\\Program Files\\dotnet\\dotnet.exe\" C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\snapshot-restoration-v1\\src\\tests\\FileCat.CoreCrashHarness\\bin\\Release\\net10.0\\FileCat.CoreCrashHarness.dll --archive-test-medium C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\standard-user-results-v1\\archive-cleanup-ui-v3\\native\\containment-20261106T120202Z-4fc4d51cc661493fac57f50c9eb2e691 \"C:\\Program Files\\dotnet\\dotnet.exe\" exec C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\dotnet\\sdk\\10.0.101\\vstest.console.dll C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\snapshot-restoration-v1\\src\\tests\\FileCat.Platform.Windows.Tests\\bin\\Release\\net10.0\\FileCat.Platform.Windows.Tests.dll /TestCaseFilter:FullyQualifiedName~ArchiveAppContainerTests|FullyQualifiedName~RestrictedProcessLowTokenTests|FullyQualifiedName~RestrictedProcessFallbackTests|FullyQualifiedName~SandboxedWorkerEnvironmentTests|FullyQualifiedName~Real_content_process_crashes|FullyQualifiedName~Real_recovery_process_crashes|FullyQualifiedName~Real_restoration_process_crashes|FullyQualifiedName~Real_restoration_failures_and_cancellation /Logger:trx;LogFileName=containment-20261106T120202Z-4fc4d51cc661493fac57f50c9eb2e691.trx /ResultsDirectory:C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\standard-user-results-v1\\archive-cleanup-ui-v3\\native"
+                      },
+                      {
+                          "ProcessId":  3624,
+                          "Name":  "dotnet.exe",
+                          "CommandLine":  "\"C:\\Program Files\\dotnet\\dotnet.exe\" exec C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\dotnet\\sdk\\10.0.101\\vstest.console.dll C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\snapshot-restoration-v1\\src\\tests\\FileCat.Platform.Windows.Tests\\bin\\Release\\net10.0\\FileCat.Platform.Windows.Tests.dll /TestCaseFilter:FullyQualifiedName~ArchiveAppContainerTests|FullyQualifiedName~RestrictedProcessLowTokenTests|FullyQualifiedName~RestrictedProcessFallbackTests|FullyQualifiedName~SandboxedWorkerEnvironmentTests|FullyQualifiedName~Real_content_process_crashes|FullyQualifiedName~Real_recovery_process_crashes|FullyQualifiedName~Real_restoration_process_crashes|FullyQualifiedName~Real_restoration_failures_and_cancellation /Logger:trx;LogFileName=containment-20261106T120202Z-4fc4d51cc661493fac57f50c9eb2e691.trx /ResultsDirectory:C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\standard-user-results-v1\\archive-cleanup-ui-v3\\native"
+                      },
+                      {
+                          "ProcessId":  6832,
+                          "Name":  "FileCat.Platform.Windows.Tests.exe",
+                          "CommandLine":  "\"C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\snapshot-restoration-v1\\src\\tests\\FileCat.Platform.Windows.Tests\\bin\\Release\\net10.0\\FileCat.Platform.Windows.Tests.exe\" @@ \"C:\\Users\\fcarchive42829297\\AppData\\Local\\Temp\\tmpvn2rsg.tmp\""
+                      },
+                      {
+                          "ProcessId":  1356,
+                          "Name":  "dotnet.exe",
+                          "CommandLine":  "\"C:\\Program Files\\dotnet\\dotnet.exe\" C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\snapshot-restoration-v1\\src\\tests\\FileCat.CoreCrashHarness\\bin\\Release\\net10.0\\FileCat.CoreCrashHarness.dll --archive-content-recovery-crash C:\\Users\\fcarchive42829297\\AppData\\Local\\Temp\\filecat-archive-storage-zcevxlw2.hvo completed C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\snapshot-restoration-v1\\src\\tests\\FileCat.Platform.Windows.Tests\\bin\\Release\\net10.0\\FileCat.Platform.Windows.dll"
+                      }
+                  ]
+}

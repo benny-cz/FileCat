@@ -57,7 +57,7 @@ public sealed partial class DiskSpaceWindow
         private AnalysisExplorerInspection? _shownInspection;
         private readonly ComboBox _metric = new() { ItemsSource = new[] { "File size", "Unique file size", "On disk — reported", "Files" }, MinWidth = 180 };
         private readonly ComboBox _chartMode = new() { ItemsSource = new[] { "Treemap", "Sunburst", "Table" }, SelectedIndex = 0 };
-        private readonly ComboBox _sort = new() { ItemsSource = new[] { "Active metric", "File paths", "File size" }, SelectedIndex = 0 };
+        private readonly ComboBox _sort = new() { ItemsSource = new[] { "Active metric", "File paths", "File size", "Name", "Metadata state" }, SelectedIndex = 0 };
         private readonly CheckBox _descending = new() { Content = "Descending", IsChecked = true };
         private readonly ComboBox _roots = new() { MinWidth = 160 };
         private readonly TextBox _query = new() { PlaceholderText = "Search within observations…", MinWidth = 200, MaxLength = AnalysisLimits.QueryBytes };
@@ -264,7 +264,7 @@ public sealed partial class DiskSpaceWindow
             _status.Text = (explorer.Descriptor.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Complete under captured policy." : "Partial namespace observations; known results so far.") +
                 (explorer.Filter is { } filter ? $" {filter.DefinitePaths:N0} definite matches; {filter.UnknownPaths:N0} uncertain results." : "") + (explorer.Chart?.DetailLimited == true ? " Small chart items are summarized; use the table for every entry." : "");
             _range.Text = page.Children.Total == 0 ? "No entries" : $"Entries {page.Children.Offset + 1:N0}–{page.Children.NextOffset:N0} of {page.Children.Total:N0}";
-            _range.Text += " · " + (page.Sort == AnalysisHierarchySort.FileSize ? "File size" : page.Sort == AnalysisHierarchySort.Files ? "File paths" : "Active metric") +
+            _range.Text += " · " + (page.Sort switch { AnalysisHierarchySort.FileSize => "File size", AnalysisHierarchySort.Files => "File paths", AnalysisHierarchySort.Name => "Name", AnalysisHierarchySort.MetadataState => "Metadata state", _ => "Active metric" }) +
                 (page.Descending ? " · Descending" : " · Ascending");
             _breadcrumbs.Children.Clear(); _breadcrumbs.Children.Add(ActionButton("All locations", () => _ = NavigateAsync(0), "Explore captured locations."));
             if (!page.AncestorsComplete) _breadcrumbs.Children.Add(new TextBlock { Text = "…" });

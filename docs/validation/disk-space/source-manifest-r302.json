@@ -1,0 +1,146 @@
+{
+  "purpose": "Bounded indexed Name/metadata-state ordering, native ordinal-casing defect correction, all-nonzero-UTF16 key order and captured Unicode/max-name/state regressions",
+  "gitBase": "e44e6043",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "docs/design/FILECAT_DISK_SPACE_EXPLORATION.md",
+      "sha256": "e927f653b27308e29f9ff377fe57aab04282deae4d6ff8759da206fd25993d1b"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "a6b77f2034ecc81ae0761b0758d1622ddd94db2951c53cc47f8228de2ce1c260"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+      "sha256": "f9e82cad29c1fee77da9c83c2e30c7c7889572a7bc0e424952cb77e57026d869"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+      "sha256": "210b5b2c898e8242dc2fb4bcb1fc0d23d468f56b328654774441a11dd43fec31"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisExternalSort.cs",
+      "sha256": "2585f8072a263a5bd5546332ed3aa6fa0242a383b982cc2875d921a3f028a254"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisHierarchyNameKey.cs",
+      "sha256": "1cad7dd73a38fab5025d3bb049d31c396d78928c5e562aa4bdf41dd14615c259"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.Ordering.cs",
+      "sha256": "aae3b1d5211af5bb79a809b7acb0190859f57bccb98f54308b584c510aa411ac"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisHierarchyNameKeyTests.cs",
+      "sha256": "6bbbff840ea80e75b5e2658f0672b5cf59a818a7048faef08e0b95c367e5848b"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Indexed.cs",
+      "sha256": "07fb58e2916ef9e5e847a963fac3e6d1a6721adf3a98e0e42fe41b6124343e7e"
+    }
+  ],
+  "bundles": [
+    {
+      "path": ".tmp/dsa-core-r302.tgz",
+      "sha256": "51d61cfd421ac8514c534b84fd9c8559b79cf97d9783478db6e50a4b4bbd6f8c"
+    },
+    {
+      "path": ".tmp/dsa-native-r302.tgz",
+      "sha256": "683b680b9566eb7cca46e026955a3f2e31eead8f207995ebae5c0e9685c96f05"
+    },
+    {
+      "path": ".tmp/dsa-render-mac-r302.tgz",
+      "sha256": "c7fe951d739faac4ddc18abdabe5377f0ca9f22fc6446f97c83d3bdc80ea1a7a"
+    },
+    {
+      "path": ".tmp/dsa-render-linux-r302.tgz",
+      "sha256": "de50bdcf68ff6b2923aff483558f27d4aebd5406282d59c2750699b03bd29de4"
+    },
+    {
+      "path": ".tmp/dsa-render-windows-r302.tgz",
+      "sha256": "26502de2f2c6e2f067f1aae9e12c2049a5532e71038200b811c583673ccc43ad"
+    },
+    {
+      "path": ".tmp/dsa-core-r300.tgz",
+      "sha256": "51a86beb4b5d9b26dad428b25f6f6dd5508123d1e5e65ea05ee2a12c9ca45b15"
+    }
+  ],
+  "assemblies": [
+    {
+      "path": ".tmp/core-r302/FileCat.Core.dll",
+      "sha256": "2a8d724ab27f2f236ee72844c54d7b5db18a0437ca914d8036d34bbef00cd5b1"
+    },
+    {
+      "path": ".tmp/core-r302/FileCat.Core.Tests.dll",
+      "sha256": "ccaa29ea36db24c4461034c2e80dbafa12312b8cb5d5627b4cca61189b364f76"
+    },
+    {
+      "path": ".tmp/render-r302-mac/FileCat.Core.dll",
+      "sha256": "2a8d724ab27f2f236ee72844c54d7b5db18a0437ca914d8036d34bbef00cd5b1"
+    },
+    {
+      "path": ".tmp/render-r302-mac/FileCat.dll",
+      "sha256": "eb311911cc35c162579bef025f7a270b5fcb75f2c0e3bd8042eda1cb23e74ca4"
+    },
+    {
+      "path": ".tmp/render-r302-mac/FileCat.Rendering.Tests.dll",
+      "sha256": "b2635b2e3e856d0e833ea234182eb766673026b8a24d7ff8218f86a54cf5c269"
+    },
+    {
+      "path": ".tmp/core-r300/FileCat.Core.dll",
+      "sha256": "54be2c8e3050fa618dd1a21ec89290b6a82bec873bfbacb76b4b6b575effac61"
+    },
+    {
+      "path": ".tmp/core-r300/FileCat.Core.Tests.dll",
+      "sha256": "9e58f305d9929db352e8cf0ad23b1d7c42d988a31b4c529867a2b6add00e4139"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/unix-core-r302.sh",
+      "sha256": "cd9fb18edc9f7006dce965c0c0f7145079d064f308d7a6405ec41b877ba7f420"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-core-r302.ps1",
+      "sha256": "eec0dbd4b836a950e8d3ec83f6660929c19dcabd263286e6244355f693350779"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-native-tests-r302.ps1",
+      "sha256": "bfa3fc7977bb0d783db8e62dcb8e3b324f54c2118d1772f0a47a3b5068a931c7"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-mac-r302.sh",
+      "sha256": "d99493b4d05e9fbd92b4a1fd4c05e103fa47ad67f7d7fcef4ccafa6b938f609d"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/unix-render-linux-r302.sh",
+      "sha256": "b4b9a54e65c1aea8ac6137b6a9fe7146ac04bb0f5ee11c6f527b93e17bd4de79"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-render-r302.ps1",
+      "sha256": "835d3a91b1f538e7f7a4d6b1b7424abbdd38f56a231f9dac35433de6e022ecd4"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/windows-occupancy-r304.ps1",
+      "sha256": "1537ba842ffd7df8d910c18c46417c31d52eae859db8db0218f93bf86f8a99c7"
+    }
+  ],
+  "reports": [
+    "mac-core-r302.xml",
+    "ubuntu-core-r302.xml",
+    "mac-render-r302.xml",
+    "ubuntu-render-r302.xml",
+    "mac-core-r300.xml",
+    "ubuntu-core-r300.xml",
+    "mac-post-name-state-r302.txt",
+    "ubuntu-post-name-state-r302.txt",
+    "windows-deferred-r304.json",
+    "indexed-name-state-build-r301.txt"
+  ],
+  "negativeControl": "Actual Mac/Ubuntu r300 Unicode/prefix order cases both fail in both directions: invariant text uppercasing maps long s differently from ordinal-ignore-case ordering. Rejected binary/archive hashes are separate from corrected final source and r302 passes.",
+  "hostWindowsReceiptUtc": "2026-11-06T12:05:08.3009923+00:00",
+  "windowsStatus": "Deferred for other implementor native containment/crash tests; no latest Windows run.",
+  "nativeDesktopInputTested": false,
+  "remaining": "Windows latest/ICU/NLS/package regressions; indexed grouping/color/scoped selection; public acquisition/profile-domain/fallback; persistence and all remaining mandatory native/scale/resource/package/desktop qualification; final independent review. Public spill/product/action/helper gates stay off."
+}

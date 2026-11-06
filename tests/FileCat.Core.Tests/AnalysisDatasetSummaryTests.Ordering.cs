@@ -6,6 +6,59 @@ namespace FileCat.Core.Tests;
 public sealed partial class AnalysisDatasetSummaryTests
 {
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task IndexedNameOrderAgreesWithOrdinalIgnoreCaseForNativeUnicodeAndPrefixNames(bool descending)
+    {
+        Ordinary(); using var io = new DeviceIoScheduler(); var snapshot = AnalysisAccountingTests.Golden();
+        string[] names = ["A", "a", "aa", "alpha", "B", "i", "I", "ı", "İ", "ſ", "K", "ß", "ẞ", "σ", "Σ", "ς", "µ", "Μ", "μ", "𐐨", "𐐀", "\uD800"];
+        var nodes = snapshot.Nodes;
+        for (int at = 0; at < names.Length; at++) nodes = nodes.Add(new AnalysisNode((ulong)at + 7, "r", 2, names[at], AnalysisKind.Link) { NameEncoding = "utf16le" });
+        snapshot = snapshot with { Nodes = nodes };
+        await using var dataset = await Build(snapshot, io); await using var lease = await dataset.AcquireAsync(Cancellation);
+        await using var hierarchy = await lease.BuildHierarchyAsync(AnalysisMetric.Files, Cancellation);
+        var rows = await hierarchy.ReadChildrenAsync(2, AnalysisHierarchySort.Name, cancellation: Cancellation, descending: descending);
+        var children = nodes.Where(node => node.ParentId == 2);
+        var expected = descending ? children.OrderByDescending(node => node.Name, StringComparer.OrdinalIgnoreCase).ThenBy(node => node.Id) : children.OrderBy(node => node.Name, StringComparer.OrdinalIgnoreCase).ThenByDescending(node => node.Id);
+        Assert.Equal(expected.Select(node => node.Id), rows.Rows.Select(row => row.Path.Id));
+        var page = await hierarchy.ReadChildrenAsync(2, AnalysisHierarchySort.Name, offset: 3, maximum: 4, cancellation: Cancellation, descending: descending);
+        Assert.Equal(expected.Skip(3).Take(4).Select(node => node.Id), page.Rows.Select(row => row.Path.Id));
+        Assert.Equal(AnalysisNames.DisplayName(nodes[^1]), AnalysisNames.DisplayName(rows.Rows.Single(row => row.Path.Id == nodes[^1].Id).Path));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task IndexedMetadataStateOrderKeepsKnownBeforeAllUnavailableStatesInBothDirections(bool descending)
+    {
+        Ordinary(); using var io = new DeviceIoScheduler(); var snapshot = AnalysisAccountingTests.Golden();
+        var nodes = snapshot.Nodes; ulong id = 7;
+        foreach (var state in Enum.GetValues<MeasurementState>().Where(state => state != MeasurementState.Known))
+            nodes = nodes.Add(new AnalysisNode(id++, "r", 2, state.ToString(), AnalysisKind.Link) { MetadataState = state, IncludedByPolicy = state != MeasurementState.Excluded });
+        snapshot = snapshot with { Nodes = nodes };
+        await using var dataset = await Build(snapshot, io); await using var lease = await dataset.AcquireAsync(Cancellation);
+        await using var hierarchy = await lease.BuildHierarchyAsync(AnalysisMetric.Files, Cancellation);
+        var rows = await hierarchy.ReadChildrenAsync(2, AnalysisHierarchySort.MetadataState, cancellation: Cancellation, descending: descending);
+        Assert.All(rows.Rows.Take(2), row => Assert.Equal(MeasurementState.Known, row.Path.MetadataState));
+        var missing = rows.Rows.Skip(2).Select(row => row.Path.MetadataState);
+        var expected = Enum.GetValues<MeasurementState>().Where(state => state != MeasurementState.Known);
+        Assert.Equal(descending ? expected.OrderDescending() : expected.Order(), missing);
+        Assert.Equal(3UL, hierarchy.LogicalTotals.Files); // Namespace evidence never becomes a matching file.
+    }
+
+    [Fact]
+    public async Task IndexedNameKeyCanExceed64KiBWithoutTruncatingItsCapturedName()
+    {
+        Ordinary(); using var io = new DeviceIoScheduler(); var snapshot = AnalysisAccountingTests.Golden(); string name = new('a', AnalysisLimits.RawNameBytes);
+        snapshot = snapshot with { Nodes = snapshot.Nodes.SetItem(3, snapshot.Nodes[3] with { Name = name }) };
+        await using var dataset = await Build(snapshot, io); await using var lease = await dataset.AcquireAsync(Cancellation);
+        await using var hierarchy = await lease.BuildHierarchyAsync(AnalysisMetric.Files, Cancellation);
+        var rows = await hierarchy.ReadChildrenAsync(2, AnalysisHierarchySort.Name, cancellation: Cancellation, descending: false);
+        Assert.Equal(name, rows.Rows[0].Path.Name); Assert.Equal(4UL, rows.Rows[0].Path.Id);
+        Assert.Equal("z.bin", rows.Rows[1].Path.Name);
+    }
+
+    [Theory]
     [InlineData(AnalysisMetric.FileSize)]
     [InlineData(AnalysisMetric.UniqueFileSize)]
     [InlineData(AnalysisMetric.OnDisk)]

@@ -14,7 +14,8 @@ internal readonly record struct AnalysisIndexRange(ulong First, ulong Count);
 /// </summary>
 internal static class AnalysisExternalSort
 {
-    internal const int MaximumKeyBytes = AnalysisLimits.RawNameBytes + 64, MaximumRuns = 256;
+    // A captured name can expand from one-byte native text to two-byte ordinal UTF-16 units.
+    internal const int MaximumKeyBytes = AnalysisLimits.RawNameBytes * 2 + 64, MaximumRuns = 256;
     internal const int RunMemoryBytes = 16 * 1024 * 1024;
     private static readonly SemaphoreSlim Sorts = new(AnalysisLimits.ActiveScans, AnalysisLimits.ActiveScans);
     internal static readonly IComparer<AnalysisSortEntry> Order = Comparer<AnalysisSortEntry>.Create((a, b) =>
