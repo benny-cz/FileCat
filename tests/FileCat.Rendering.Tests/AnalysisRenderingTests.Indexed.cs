@@ -183,11 +183,11 @@ public sealed partial class AnalysisRenderingTests
             window.MouseMove(point); window.MouseDown(point, MouseButton.Left); pressed = true;
             window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationProperties.GetName(text) == "Filter indexed observations").Text = "name:match-target.bin";
             Click(window, "Apply filter");
-            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Query ready. Finish the current chart gesture to display it."));
+            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Query ready. Finish the current interaction to display it."));
             Assert.Same(original, list.ItemsSource); Assert.Equal(303UL, Assert.Single(list.Items.OfType<AnalysisHierarchyRow>()).Logical.Files);
             window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Indexed table order").SelectedIndex = 2;
             window.GetVisualDescendants().OfType<CheckBox>().Single(check => AutomationProperties.GetName(check) == "Indexed descending table order").IsChecked = false;
-            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Query ready. Finish the current chart gesture to display it."));
+            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Query ready. Finish the current interaction to display it."));
             Assert.Same(original, list.ItemsSource);
             window.MouseUp(point, MouseButton.Left); pressed = false;
             await Until(() => Assert.Single(list.Items.OfType<AnalysisHierarchyRow>()).Logical.Files == 1);

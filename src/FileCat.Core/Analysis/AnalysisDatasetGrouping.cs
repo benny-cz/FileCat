@@ -49,6 +49,8 @@ public sealed partial class AnalysisObjectChargeIndex
 public sealed partial class AnalysisDatasetGrouping : IAsyncDisposable
 {
     private readonly AnalysisOwnedDatasetIo<State> _owned;
+    private readonly DeviceIoScheduler _io;
+    private readonly AnalysisIoDevices _device;
     public AnalysisDatasetDescriptor Descriptor { get; }
     public AnalysisMetric Metric { get; }
     public AnalysisFilterSummary? Filter { get; }
@@ -60,7 +62,7 @@ public sealed partial class AnalysisDatasetGrouping : IAsyncDisposable
     private AnalysisDatasetGrouping(State state, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, AnalysisIoDevices device, AnalysisFilterSummary? filter)
     {
         Descriptor = descriptor; Metric = state.Metric; Filter = filter; Dimension = state.Dimension; Totals = state.Totals;
-        LogicalTotals = state.LogicalTotals; Count = state.Summaries!.Count; _owned = new(state, io, device);
+        LogicalTotals = state.LogicalTotals; Count = state.Summaries!.Count; _owned = new(state, io, device); _io = io; _device = device;
     }
     private async Task<T> ReadAsync<T>(Func<State, CancellationToken, T> read, CancellationToken cancellation)
     { using var admission = AnalysisExplorerAdmission.Acquire(); return await _owned.RunAsync(read, cancellation).ConfigureAwait(false); }

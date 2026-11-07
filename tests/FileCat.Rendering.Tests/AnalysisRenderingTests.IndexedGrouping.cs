@@ -244,7 +244,7 @@ public sealed partial class AnalysisRenderingTests
             var chart = window.GetVisualDescendants().OfType<TreemapControl>().Single(); var point = chart.TranslatePoint(new Point(30, 30), window)!.Value;
             window.MouseMove(point); window.MouseDown(point, MouseButton.Left); pressed = true;
             GroupingSelector(window).SelectedIndex = (int)AnalysisGroupingDimension.Extension;
-            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Query ready. Finish the current chart gesture to display it."));
+            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Query ready. Finish the current interaction to display it."));
             Assert.Same(original, list.ItemsSource);
             window.MouseUp(point, MouseButton.Left); pressed = false; await Until(() => GroupReady(window)); Frame(window);
             original = list.ItemsSource;

@@ -100,6 +100,7 @@ public sealed partial class DiskSpaceWindow
         private void SelectEntry()
         {
             if (_publishing || _disposed) return;
+            _basketInspection = null;
             switch (_list.SelectedItem)
             {
                 case AnalysisDatasetGroup group: InspectGroup(group); break;
@@ -199,7 +200,7 @@ public sealed partial class DiskSpaceWindow
             if (_focus != 0) _ = InspectAsync(_focus);
             else if (_list.SelectedItem is AnalysisDatasetGroup selected) InspectGroup(selected);
         }
-        private void ActivateGroupChart(string key, bool enter)
+        private void ActivateGroupChart(string key, bool enter, bool mark = false)
         {
             if (_disposed || _groupPage is not { } page) return;
             if (key == page.Chart.RemainderKey)
@@ -218,6 +219,7 @@ public sealed partial class DiskSpaceWindow
             }
             else if (item.NodeId is { } path)
             {
+                if (mark) ToggleMark(path);
                 _selectedGroupedItem = item; _groupFocus = null; ResetCharges(_groupKey, path);
                 _publishing = true;
                 try { _list.SelectedItem = page.Rows.OfType<AnalysisDatasetGroupRow>().FirstOrDefault(row => row.Member.Path.Id == path); } finally { _publishing = false; }
@@ -239,7 +241,9 @@ public sealed partial class DiskSpaceWindow
         private void InspectGroup(AnalysisDatasetGroup group)
         {
             if (_disposed || _grouping is not { } groups) return;
+            _basketInspection = null;
             ++_inspection; _focus = 0; _groupFocus = group.Definition.Key; _selectedGroupedItem = null; _shownInspection = null;
+            RefreshSelection();
             foreach (var button in _evidence) button.IsEnabled = false;
             _details.Text = group.Definition.Label + "\nAccounting group · " + AnalysisGroupingRules.Title(groups.Dimension) + "\nActive metric: " + Amount(group.Totals, groups.Metric) +
                 $"\n{group.Members:N0} captured members / references; {group.Charges:N0} accounting charges.\nFile size: {DiskSpaceViewModel.Bytes(group.Logical.KnownBytes)} known; {group.Logical.UnknownFiles:N0} unknown path sizes.\n" +

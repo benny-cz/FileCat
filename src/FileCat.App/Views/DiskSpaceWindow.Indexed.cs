@@ -9,6 +9,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FileCat.App.Controls.DiskSpace;
 using FileCat.App.Controls;
 using FileCat.App.Services;
@@ -127,7 +128,7 @@ public sealed partial class DiskSpaceWindow
         private bool? _wide;
         private readonly StackPanel _breadcrumbs = new() { Orientation = Orientation.Horizontal, Spacing = 6 };
         private readonly StackPanel _buckets = new() { Spacing = 4 };
-        private readonly ListBox _list = new() { MinHeight = 220, MaxHeight = 420 };
+        private readonly ListBox _list = new() { MinHeight = 220, MaxHeight = 420, Focusable = true };
         private readonly TreemapControl _treemap = new() { Height = 300 };
         private readonly SunburstControl _sunburst = new() { Height = 300, IsVisible = false };
         private readonly Button _previous, _next, _parent, _back, _forward;
@@ -138,11 +139,13 @@ public sealed partial class DiskSpaceWindow
         private Task _buildTask = Task.CompletedTask;
         private TaskCompletionSource? _interactionEnd;
         private bool _interacting;
+        private int _interactionDepth;
         private ulong _scope, _offset, _focus;
         private int _navigation, _inspection;
         private bool _disposed, _building, _again, _publishing;
         private string? _rootId;
-        public bool HasTemporaryWork => _source.Descriptor.Origin == AnalysisOrigin.LiveSession && _source.Descriptor.Persistence == AnalysisPersistence.Temporary;
+        public bool HasTemporaryWork => _selection.Marks.Count != 0 || _selection.Basket.Count != 0 ||
+            _source.Descriptor.Origin == AnalysisOrigin.LiveSession && _source.Descriptor.Persistence == AnalysisPersistence.Temporary;
         public bool IsComparison => false;
 
         internal IndexedSessionView(DiskSpaceWindow window, AnalysisDatasetLease source, AnalysisDatasetExplorer explorer, AnalysisFilterRequest filter,
@@ -242,9 +245,10 @@ public sealed partial class DiskSpaceWindow
                     fitQueued = true; Dispatcher.UIThread.Post(() => { fitQueued = false; FitRow(); }, DispatcherPriority.Loaded);
                 };
                 string? explanation = DiskSpaceViewModel.EntryExplanation(item);
-                AutomationProperties.SetName(grid, string.Join("; ", cells)); ToolTip.SetTip(grid, new RichTip(item.Name, detail: string.Join(" · ", cells.Skip(1)) + (explanation is null ? "" : "\n" + explanation))); return grid;
+                AutomationProperties.SetName(grid, string.Join("; ", cells)); ToolTip.SetTip(grid, new RichTip(item.Name, detail: string.Join(" · ", cells.Skip(1)) + (explanation is null ? "" : "\n" + explanation))); return MarkedRow(item, grid);
             });
-            _main.Children.Add(new TextBlock { Text = "Name · Active metric · File size · File paths · State", TextWrapping = TextWrapping.Wrap }); _main.Children.Add(_list);
+            _main.Children.Add(new TextBlock { Text = "Mark · Name · Active metric · File size · File paths · State", TextWrapping = TextWrapping.Wrap }); _main.Children.Add(_list);
+            AddSelectionControls();
             _exploreFolder = ActionButton("Explore selected folder", () => { if (_list.SelectedItem is AnalysisHierarchyRow { Path.Kind: AnalysisKind.Directory } row) _ = NavigateAsync(row.Path.Id); }, "Open the selected folder within this analysis.");
             _main.Children.Add(_exploreFolder);
             _exploreGroup = ActionButton("Explore selected group", ExploreGroup, "Open the captured members of the selected accounting group.");
@@ -260,7 +264,12 @@ public sealed partial class DiskSpaceWindow
             _inspector.Children.Add(evidence); AddGroupEvidence();
             _inspector.Children.Add(new TextBlock { Text = "These observations do not authorize filesystem changes.", TextWrapping = TextWrapping.Wrap });
             _list.SelectionChanged += (_, _) => SelectEntry();
-            _list.DoubleTapped += (_, _) => OpenEntry();
+            _list.DoubleTapped += (_, args) =>
+            {
+                if (args.KeyModifiers != KeyModifiers.None || args.Source is Control source &&
+                    (source is CheckBox || source.GetVisualAncestors().OfType<CheckBox>().Any())) return;
+                OpenEntry();
+            };
             _metric.SelectionChanged += (_, _) => _ = RebuildAsync();
             _group.SelectionChanged += (_, _) => _ = RebuildAsync();
             _roots.SelectionChanged += (_, _) => { _rootId = _roots.SelectedIndex > 0 ? _source.Descriptor.Roots[_roots.SelectedIndex - 1].Id : null; _ = RebuildAsync(); };
@@ -283,19 +292,22 @@ public sealed partial class DiskSpaceWindow
         }
         private void Interaction(bool active)
         {
-            if (_disposed) return; _interacting = active; _color.IsEnabled = !active;
-            if (active) _interactionEnd = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            else { _interactionEnd?.TrySetResult(); _interactionEnd = null; }
+            if (_disposed) return;
+            if (active) { if (_interactionDepth++ == 0) { _interacting = true; _interactionEnd = new(TaskCreationOptions.RunContinuationsAsynchronously); } }
+            else if (_interactionDepth > 0 && --_interactionDepth == 0) { _interacting = false; _interactionEnd?.TrySetResult(); _interactionEnd = null; }
+            _color.IsEnabled = !_interacting;
         }
         private Task WaitForInteractionAsync(CancellationToken cancellation) => _interacting && _interactionEnd is { } end ? end.Task.WaitAsync(cancellation) : Task.CompletedTask;
         public ScrollViewer CreateViewport() => new() { Content = this, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
         private void ActivateChart(string key, bool mark, bool enter)
         {
-            if (_grouping is not null) { ActivateGroupChart(key, enter); return; }
+            _basketInspection = null;
+            if (_grouping is not null) { ActivateGroupChart(key, enter, mark); return; }
             if (_shownChart is not { } chart) return;
             if (chart.Remainders.TryGetValue(key, out var remainder)) { _ = NavigateAsync(remainder.Parent, remainder.Offset); return; }
             if (!chart.Items.TryGetValue(key, out var item) || item.NodeId is not { } id)
             { _details.Text = "This accounting group is not a filesystem entry. Explore its parent in the table to inspect the captured file paths."; return; }
+            if (mark) ToggleMark(id);
             if (enter && item.Kind == AnalysisKind.Directory) _ = NavigateAsync(id); else _ = InspectAsync(id);
         }
         private Task RebuildAsync()
@@ -341,7 +353,7 @@ public sealed partial class DiskSpaceWindow
                             nextGroups = await _source.BuildGroupingAsync(metric, dimension, request, cancel.Token);
                             nextPage = await LoadGroupedPageAsync(nextGroups, null, 0, GroupSort(), _descending.IsChecked == true, cancel.Token);
                         }
-                        if (_interacting) _status.Text = "Query ready. Finish the current chart gesture to display it.";
+                        if (_interacting) _status.Text = "Query ready. Finish the current interaction to display it.";
                         await WaitForInteractionAsync(cancel.Token);
                         cancel.Token.ThrowIfCancellationRequested(); if (_disposed) return;
                         ++_navigation; ++_inspection; _navigationCancel?.Cancel(); _focus = 0; _scope = _offset = 0;
@@ -455,6 +467,7 @@ public sealed partial class DiskSpaceWindow
         }
         private void Buttons()
         {
+            RefreshSelection();
             if (_grouping is not null) { GroupButtons(); return; }
             _previous.IsEnabled = _offset > 0; _next.IsEnabled = _shownPage?.Children.HasMore == true; _parent.IsEnabled = _parent.IsVisible = _scope != 0;
             _back.IsEnabled = _past.Count > 0; _forward.IsEnabled = _future.Count > 0; _back.IsVisible = _forward.IsVisible = _past.Count != 0 || _future.Count != 0; }
@@ -468,13 +481,13 @@ public sealed partial class DiskSpaceWindow
             string? focus = _focus == 0 ? _groupFocus : AnalysisTree.Key(_focus);
             var color = (AnalysisColorDimension)Math.Clamp(_color.SelectedIndex, 0, 2);
             _legend.SetView(color, chart.ObservedUtc);
-            _treemap.SetView(chart, scope, focus, ImmutableHashSet<ulong>.Empty, color); _sunburst.SetView(chart, scope, focus, ImmutableHashSet<ulong>.Empty, color);
+            _treemap.SetView(chart, scope, focus, _selection.Marks, color); _sunburst.SetView(chart, scope, focus, _selection.Marks, color);
         }
         private async Task InspectAsync(ulong path, ulong alias = 0, ulong fact = 0, ulong issue = 0)
         {
             if (_disposed || _actualWork.HasUnconfirmedClose) return;
             using var actualWork = _actualWork.Enter();
-            if (_disposed) return; int version = ++_inspection; _focus = path; var explorer = _explorer;
+            if (_disposed) return; int version = ++_inspection; _focus = path; RefreshSelection(); var explorer = _explorer;
             foreach (var button in _evidence) button.IsEnabled = false;
             _inspectorStatus.Text = "Loading captured metadata…";
             try
@@ -485,11 +498,21 @@ public sealed partial class DiskSpaceWindow
                 var metric = _grouping?.Metric ?? explorer.Metric;
                 var text = new System.Text.StringBuilder();
                 text.AppendLine((detail.AncestorsComplete ? "" : "… / ") + string.Join(" / ", detail.Ancestors.Select(p => AnalysisNames.DisplayName(p, 128)).Append(AnalysisNames.DisplayName(detail.Row.Path, 256))));
-                text.AppendLine("Active metric: " + DiskSpaceViewModel.ValueText(item, metric, true) + " · File size: " + DiskSpaceViewModel.LogicalText(item, true));
-                if (_grouping is not null) text.AppendLine("Active metric is the amount assigned to this entry in the displayed accounting group. File size describes the captured path; shared charges are shown once in their accounting group.");
+                bool basketOnly = _basketInspection == path;
+                if (basketOnly)
+                {
+                    string length = detail.Object is { LogicalLength: { IsKnown: true } measured } ? measured.Value!.Value.ToString(CultureInfo.InvariantCulture) + " bytes" : detail.Object?.LogicalLength.State.ToString() ?? "Unknown";
+                    text.AppendLine("Captured file size: " + (detail.Row.Path.Kind != AnalysisKind.File ? "Not a file" : length));
+                    text.AppendLine("Captured basket entry. Its metadata is independent of the current query; no amount assigned by the current group is shown.");
+                }
+                else
+                {
+                    text.AppendLine("Active metric: " + DiskSpaceViewModel.ValueText(item, metric, true) + " · File size: " + DiskSpaceViewModel.LogicalText(item, true));
+                    if (_grouping is not null) text.AppendLine("Active metric is the amount assigned to this entry in the displayed accounting group. File size describes the captured path; shared charges are shown once in their accounting group.");
+                }
                 text.AppendLine($"Metadata: {item.MetadataState}; origin: {explorer.Descriptor.Origin}; coverage: {explorer.Descriptor.Coverage}; observed revision: {explorer.Descriptor.Identity.Revision}.");
                 text.AppendLine("Name encoding: " + detail.Row.Path.NameEncoding + "; captured path ID: " + path);
-                if (DiskSpaceViewModel.EntryExplanation(item) is { } explanation) text.AppendLine(explanation);
+                if (!basketOnly && DiskSpaceViewModel.EntryExplanation(item) is { } explanation) text.AppendLine(explanation);
                 if (!detail.Row.Path.RawName.IsDefaultOrEmpty) text.AppendLine("Raw name bytes: " + Convert.ToHexString(detail.Row.Path.RawName.AsSpan(0, Math.Min(256, detail.Row.Path.RawName.Length))) + (detail.Row.Path.RawName.Length > 256 ? "…" : ""));
                 text.AppendLine($"Aliases {detail.Aliases.Offset:N0}–{detail.Aliases.NextOffset:N0} of {detail.Aliases.Total:N0}:");
                 foreach (var entry in detail.Aliases.Rows) text.AppendLine($"  {entry.Id}: {AnalysisNames.DisplayName(entry, 128)} (parent {entry.ParentId})");
@@ -513,6 +536,8 @@ public sealed partial class DiskSpaceWindow
         public void HandleKeys(KeyEventArgs args)
         {
             if (_disposed || args.Handled || _query.IsKeyboardFocusWithin) return;
+            if (args.Key == Key.Space && _list.IsKeyboardFocusWithin && _window.FocusManager?.GetFocusedElement() is not CheckBox)
+            { if (_focus != 0) ToggleMark(_focus); args.Handled = true; return; }
             if (args.Key == Key.Enter && _list.IsKeyboardFocusWithin)
             { OpenEntry(); args.Handled = true; }
             else if (args.Key == Key.Enter && _grouping is not null && (_treemap.IsKeyboardFocusWithin || _sunburst.IsKeyboardFocusWithin) && _groupPage is { } grouped)
@@ -535,6 +560,7 @@ public sealed partial class DiskSpaceWindow
         public void Dispose()
         {
             if (_disposed) return; _disposed = true; ++_navigation; ++_inspection; _buildCancel?.Cancel(); _navigationCancel?.Cancel();
+            _memberCaptureCancel?.Cancel(); _selectionLifetime.Cancel(); _selection.ClearMarks(); _selection.ClearBasket();
             var actualWork = _actualWork.CloseAsync();
             _treemap.Clear(); _sunburst.Clear(); _list.ItemsSource = null; _details.Text = ""; _breadcrumbs.Children.Clear(); _buckets.Children.Clear();
             _shownPage = null; _shownChart = null; _shownInspection = null;
@@ -546,7 +572,7 @@ public sealed partial class DiskSpaceWindow
             // Explorer disposal cancels its inspection/page/chart lanes. View continuations
             // must also unwind before their admission can be reused in another window.
             try { await _buildTask; }
-            finally { try { await _explorer.DisposeAsync(); } finally { try { await actualWork; } finally { try { if (_grouping is not null) await _grouping.DisposeAsync(); } finally { await _source.DisposeAsync(); } } } }
+            finally { try { await _explorer.DisposeAsync(); } finally { try { await actualWork; } finally { try { if (_grouping is not null) await _grouping.DisposeAsync(); } finally { try { await _source.DisposeAsync(); } finally { _selectionLifetime.Dispose(); } } } } }
         }
     }
 }
