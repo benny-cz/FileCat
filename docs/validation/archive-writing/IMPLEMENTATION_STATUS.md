@@ -28,6 +28,11 @@ compressed-byte consumption, chunk/history/property checks and owned-buffer clea
 comparison covers 224 accept/refuse vectors. It is a prerequisite for the complete 7z catalog; encoded-header and
 member graph integration still remain open, and the component does not enable a production writer.
 
+The [complete 7z header verifier](SEVENZIP_HEADER_VERIFICATION.md) now connects that strict LZMA/LZMA2 component to
+the encoded-header graph, with exact Copy and AES consumption, bounded padding and aggregate decoder reservations.
+Successful framing observations require complete header endings. Logical member graphs and the complete strict
+catalog still remain open; no production profile is enabled.
+
 The [RAR5 preservation assembly component](RAR5_PRESERVATION.md) now represents exact optional semantic metadata
 and archive/header features, adds per-member packed SHA-256 witnesses to the complete logical catalog, and assembles
 retained compressed/encrypted content together with newly encoded inputs. The 115-case component matrix and

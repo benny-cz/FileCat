@@ -2,8 +2,6 @@ using System.Buffers.Binary;
 using System.Security.Cryptography;
 using FileCat.Core.Archives;
 using SharpCompress.Common.SevenZip;
-using SharpCompress.Compressors.LZMA;
-using SharpCompress.Compressors.LZMA.Utilities;
 
 namespace FileCat.Archives.Writing;
 
@@ -15,8 +13,7 @@ internal sealed record SevenZipPhysicalCatalog(string Revision, long Length, byt
     long NextHeaderOffset, long NextHeaderLength, SevenZipRawStreams? EncodedHeader, SevenZipRawStreams Streams,
     SevenZipRawFiles Files, bool MainStreamsPresent, long RetainedHeapBytes)
 {
-    // Decoding and CRC establish metadata bytes, not complete consumption/ending of every compressed header coder.
-    internal bool EncodedHeaderEndVerified => EncodedHeader is null;
+    internal bool EncodedHeaderEndVerified { get; init; }
 }
 
 /// <summary>
@@ -63,14 +60,11 @@ internal static class StrictSevenZipFraming
                 CheckPackedExtents(encoded.Packed, headerOffset);
                 var folder = encoded.Folders[0];
                 if (folder.Encrypted && password is null) throw Unsupported("A password is required to assess encrypted 7z headers.");
-                AdmitHeaderDecoder(folder);
                 foreach (var pack in encoded.Packed) CheckPacked(input, pack, ct);
-                var shape = ToDecoderFolder(folder);
                 long packedLength = encoded.Packed.Sum(pack => pack.Length);
                 if (folder.Length > 64L << 20 && folder.Length / Math.Max(1, packedLength) > 1000) throw Limit();
                 using var range = new HeaderRange(input, encoded.Packed[0].Offset, packedLength, ct);
-                using var decoder = DecoderStreamHelper.CreateDecoderStream(range, 0, encoded.Packed.Select(pack => pack.Length).ToArray(),
-                    shape, new Password(password));
+                using var decoder = new StrictSevenZipHeaderDecoder(range, packedLength, folder, password, budget, ct);
                 decoded = HeaderBuffer.Read(decoder, folder.Length, budget, ct);
                 if (decoder.ReadByte() != -1) throw Invalid("The decoded 7z header exceeds its declared size.");
                 if (encoded.MemberCrc32[0] is { } expected && ArchiveCrc32.Compute(decoded.Bytes) != expected)
@@ -93,7 +87,7 @@ internal static class StrictSevenZipFraming
             if (covered != headerOffset) throw Unsupported("Unreferenced 7z data cannot be preserved by this profile.");
             if (Scan(input, length, all, ct) != revision) throw Changed();
             return new(revision, length, signature[7], headerOffset, (long)size, encoded, observations.Streams,
-                observations.Files, observations.MainStreamsPresent, budget.RetainedHeapBytes);
+                observations.Files, observations.MainStreamsPresent, budget.RetainedHeapBytes) { EncodedHeaderEndVerified = true };
         }
         catch (ArchiveWriteException) { throw; }
         catch (InvalidDataException ex) when (ex.InnerException is ArchiveWriteException) { throw (ArchiveWriteException)ex.InnerException; }
@@ -113,44 +107,6 @@ internal static class StrictSevenZipFraming
         _packStreams = folder.PackedInputs.ToList(), _unpackSizes = folder.UnpackedSizes.ToList(), _unpackCrc = folder.Crc32,
     };
 
-    private static void AdmitHeaderDecoder(SevenZipRawFolder folder)
-    {
-        foreach (long size in folder.UnpackedSizes) if (size > ArchiveWritePolicy.MaxMetadataBytes) throw Limit();
-        foreach (var coder in folder.Coders)
-        {
-            ulong method = SevenZipStrictMetadata.Method(coder); var p = coder.Properties.AsSpan(); long dictionary;
-            switch (method)
-            {
-                case 0: break;
-                case 0x21:
-                    if (p[0] > 40) throw Invalid("The 7z LZMA2 header property is invalid.");
-                    dictionary = p[0] == 40 ? uint.MaxValue : (2L | (p[0] & 1)) << ((p[0] >> 1) + 11);
-                    if (dictionary > MaximumHeaderDictionaryBytes) throw Limit();
-                    break;
-                case 0x030101:
-                    if (p[0] >= 225) throw Invalid("The 7z LZMA header property is invalid.");
-                    if (BinaryPrimitives.ReadUInt32LittleEndian(p[1..]) > MaximumHeaderDictionaryBytes) throw Limit();
-                    break;
-                case 0x06f10701:
-                    int salt = (p[0] >> 7) & 1, iv = (p[0] >> 6) & 1, prefix = 1;
-                    if ((p[0] & 0xc0) != 0)
-                    {
-                        if (p.Length < 2) throw Invalid("The 7z AES header properties end early.");
-                        salt += p[1] >> 4; iv += p[1] & 15; prefix = 2;
-                    }
-                    if (p.Length != prefix + salt + iv) throw Invalid("The 7z AES header properties have unaccounted bytes.");
-                    int power = p[0] & 63;
-                    if (power > 24 && power != 63) throw Limit();
-                    break;
-                default: throw Unsupported("This encoded-header codec needs further strict decoder/resource qualification.");
-            }
-        }
-    }
-    private sealed class Password(SevenZipReadPasswordSession? session) : IPasswordProvider
-    {
-        public string? CryptoGetTextPassword() => null;
-        public SevenZipAesDecryptorFactory? ArchiveDecryptorFactory => session is null ? null : session.CreateDecryptor;
-    }
     private static void CheckPackedExtents(IReadOnlyList<SevenZipRawPack> packs, long before)
     {
         long next = packs.Count == 0 ? before : packs[0].Offset;

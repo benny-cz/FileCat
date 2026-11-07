@@ -41,7 +41,7 @@ public sealed class StrictSevenZipFramingTests
         Assert.InRange(source.MaximumRead, 1, ArchiveIoAuthority.MaximumReadBytes); Assert.True(source.CanRead);
         Assert.True(source.BytesRead >= 2L * archive.Length); Assert.Equal(archive.Length, source.Position);
         Assert.Equal(header != 0 || protection == 2, observed.EncodedHeader is not null);
-        Assert.Equal(observed.EncodedHeader is null, observed.EncodedHeaderEndVerified);
+        Assert.True(observed.EncodedHeaderEndVerified);
         Assert.Equal(entries.Length, observed.Files.Members.Count);
         for (int index = 0; index < entries.Length; index++)
         {
@@ -239,6 +239,22 @@ public sealed class StrictSevenZipFramingTests
     {
         using var source = new MemoryStream(Container([1, 2, 3], RawHeader(Streams([1, 1, 0], 3, 3, folderCrc: 1), FileRecords("file"))));
         var catalog = StrictSevenZipFraming.Read(source, Ct); Assert.Equal(1u, Assert.Single(catalog.Files.Members).Crc32);
+    }
+
+    [Theory]
+    [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(3)] [InlineData(4)]
+    public void Encoded_header_end_and_extent_damage_refuses_even_when_the_outer_checksums_are_valid(int damage)
+    {
+        byte[] inner = RawHeader([], FileRecords("empty", empty: true));
+        byte[] packed = [1, 0, (byte)(inner.Length - 1), .. inner, 0]; int declared = inner.Length;
+        using (var valid = new MemoryStream(Container(packed, [23, .. Streams([1, 0x21, 0x21, 1, 0], packed.Length, declared)])))
+            Assert.True(StrictSevenZipFraming.Read(valid, Ct).EncodedHeaderEndVerified);
+        if (damage == 0) packed = [.. packed, 0x7e];
+        if (damage == 1) packed = packed[..^1];
+        if (damage == 2) declared--;
+        if (damage == 3) declared++;
+        if (damage == 4) packed = [.. packed, 1, 0, 0, 0];
+        Refuse(Container(packed, [23, .. Streams([1, 0x21, 0x21, 1, 0], packed.Length, declared)]), ArchiveWriteReason.InvalidArchive);
     }
 
     [Theory]

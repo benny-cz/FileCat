@@ -30,6 +30,7 @@ internal sealed class StrictLzmaReadStream : Stream
         if (!source.CanRead || packedLength < (lzma2 ? 1 : 5) || length < 0 || maximumDictionaryBytes is < 4096 or > MaximumDictionaryBytes)
             throw Invalid();
         if (packedLength > ArchiveWritePolicy.MaxPhysicalBytes || length > ArchiveWritePolicy.MaxPayloadBytes) throw Limit();
+        if (properties.Length != (lzma2 ? 1 : 5)) throw Invalid();
         byte[] admitted = properties.ToArray(); long dictionary;
         if (lzma2)
         {

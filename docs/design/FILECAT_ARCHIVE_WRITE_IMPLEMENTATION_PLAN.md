@@ -71,6 +71,10 @@ including encrypted payload copies and newly encoded inputs. Connect that compon
 role-bound worker requests and native transactions while completing the remaining strict 7z graph checks. These are
 the immediate implementation dependencies for the shared create/update/edit/F6/password workflows.
 
+[Complete encoded-header verification](../validation/archive-writing/SEVENZIP_HEADER_VERIFICATION.md) now connects
+the strict LZMA/LZMA2 and exact Copy/AES layers to the 7z framing pass. Complete member graph/catalog verification
+and the shared parent/worker/native adapters remain the next integration work.
+
 ### 1.3 Scope boundaries
 
 - Keep the existing ZIP implementation and tests as a behavioral baseline. Refactor only the shared safety boundary that new formats require.

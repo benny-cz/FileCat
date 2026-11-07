@@ -1,5 +1,8 @@
 # Strict 7z framing and metadata checkpoint
 
+The subsequent [complete encoded-header verifier](SEVENZIP_HEADER_VERIFICATION.md) closes this checkpoint's
+explicit header-ending gap. Its separate source/evidence record leaves logical member verification unfinished.
+
 **7 November 2026.** `StrictSevenZipFraming` and its bounded header/metadata readers now observe the admitted
 non-solid container completely, independently from tolerant browsing. The observer checks signature/version,
 start/next-header CRC, complete physical extents/EOF, disjoint exhaustive packed-stream ownership and recorded

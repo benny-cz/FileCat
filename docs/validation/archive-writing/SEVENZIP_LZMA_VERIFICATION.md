@@ -1,5 +1,8 @@
 # Exact LZMA/LZMA2 verification component
 
+The subsequent [7z header graph integration](SEVENZIP_HEADER_VERIFICATION.md) now uses this component for complete
+encoded-header endings. Logical member graph/catalog integration remains unfinished.
+
 **7 November 2026.** The internal `StrictLzmaReadStream` now verifies one complete, size-bounded LZMA or LZMA2
 coder extent. Declared output size alone cannot establish completion. It requires real input bytes, a valid
 range prefix and terminal state, exact compressed-byte consumption, no pending match, and the correct physical
