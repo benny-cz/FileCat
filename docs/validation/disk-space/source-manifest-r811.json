@@ -1,0 +1,871 @@
+{
+  "purpose": "Captured-name ordering, raw evidence and bounded geometry reads for folder/group Other views; full W0-W8 remains open",
+  "observedUtc": "2026-11-07T15:27:24.009478+00:00",
+  "gitBase": "b1801eeb5a898f5c455053bec8013d1177baf50f",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/Controls/DiskSpace/AnalysisChartControl.cs",
+      "sha256": "733a2ec9befbf32e6777f827e9c078cad7ff150edb5e497c21cd7bacfb851520"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Geometry.cs",
+      "sha256": "4c20cb606ea5fedae3f7e86d69ee8a573d54fac979b91b560abf6bf99cf818c6"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.SubsetState.cs",
+      "sha256": "c345e499fe4c37f8d9f97ebffcb5937c63dc28bb70a3d81c8b5236e582690297"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+      "sha256": "91ad5047e4167369aeb9d7132b856ba8067b0c0d2b4931ba1bb8e6957001a226"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.Geometry.cs",
+      "sha256": "339e4f49a5510c5af7313986f7b9fdbaf36ef426cfaffc864560bf0f82e06939"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisGroupedChart.cs",
+      "sha256": "eb5e0d7a3aaf1ff740acc4ddbfa5fe6fe6a5c272a826bd729e5e38b6996b97dc"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisGroupedChart.Geometry.cs",
+      "sha256": "79b52046349d8e88edd558cdf64f7bfc2135a9eeaab62b603d31f0c0658caca9"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisHierarchyNameKey.cs",
+      "sha256": "0c4f3460a48ebf790a942e9a385dfb9b56b6b944a7d735c2b67b84bc1493c931"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedChart.cs",
+      "sha256": "931ec4679c6fa4b856565df483a1178212bc2a34b411ee3de9a5c3341f27d983"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisNames.cs",
+      "sha256": "4632edb7872a752502eb78ce9229031e8c83eabb5c9ab7635a90ce1e16504abc"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTableOrder.cs",
+      "sha256": "f5c55e6a985bd40b24cbcdf7b718ec9b26fb374c802c8e0e8e096820451532b7"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+      "sha256": "e7499883e1f88379f84104ddfd6c284688eab921654ea851c78358e7a0e7790e"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTree.Grouping.cs",
+      "sha256": "1312d82b8c3f0fd50c3b776abbccf2f415e8d9359d1a3b5c71a3093248752c20"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.RawNames.cs",
+      "sha256": "df5d6581c4188d250f6311effdf57f9f5de7955c0b8f6aa33809174ce4d836a0"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisHierarchyNameKeyTests.cs",
+      "sha256": "867012a3bba0fb0492b263c7110a3863f935f4ab6914faf35dc97b3f434df123"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.RawNames.cs",
+      "sha256": "e9a9d3631349c8469bb16283cdaab00d09dccd43d957d463463a93d030797758"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r802.txt",
+      "sha256": "bbfc409a4b00c43a75e5cdd836f22919a253d09a5ac51c7ac7bdd90f8c32876a"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r803.txt",
+      "sha256": "3915364f526cc5c6fcaa1a563bab1255a1adca29cc9fd72a347197f61d033916"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r808.txt",
+      "sha256": "9b2eb6e2706640181f3eb8e8e73e3441a8f538d45530cf22189fbca382887b0c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-pre-r805-busy-initial.json",
+      "sha256": "6ff231cb6759089eacda6cab33ffc7fec7cb5f7a891c3da4bdd8db0fede12051"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-pre-r809-busy-initial.json",
+      "sha256": "19b845d38f1c8b389b31f2f74cdeebec456ede8d4fac86a4184cd7c8756341bb"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-busy-diagnostic-r809.json",
+      "sha256": "5b8a14514a50d437ed7566ccfa1d8cc6fc0e776acfa3e5c1f6528f058bd8d6ad"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r809-core-r809.xml",
+      "sha256": "5e7c4a9b880c6ce6b765d1959fcac4472c5349f8bd62022c0b06bdeae1a9eed4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r809-core-r809.log",
+      "sha256": "e5a2a76b135e379b9c27b208f7e01d6c6095840006cfbfcd95c1a79ea88839aa"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r809-render-r809.xml",
+      "sha256": "6d25d3f286f31ec7d9a907b18d54dfa9f78093f1e367afdf87b7cf256dbfc5b5"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r809-render-r809.log",
+      "sha256": "10bdb6fd4ad513c09b52579f6ff0e511d100449ea3e78eaaf1d68693fec7bc53"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r809-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r809-post.json",
+      "sha256": "813bec9d276e0a835c1965b84d1989ede84ab4e58d95cce2d17355a3f20d2afd"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-pre-r809.json",
+      "sha256": "f5ca97d955b56513d1f5d1595ce092561475f7d84ce2cd7bc8568b961e615bea"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r809-core-r809.xml",
+      "sha256": "63af7accf3ae43b264e92fd06a17718a504b2701cabc67f2f0a2421b29a2f8ea"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r809-core-r809.log",
+      "sha256": "1553bb1fce79a34848cd5baa02f1d5ea69b3839f6a6245524fc7d498234ec427"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r809-render-r809.xml",
+      "sha256": "329624ddab9d08e2cf6b4fb955c5b45c33a3b7df71af9a5ce8851dec9045a2d6"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r809-render-r809.log",
+      "sha256": "9b2b353f45203572a0dfdc01f5b6664c6d8d4aec1f8455c0778469dfce3bb8c5"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r809-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r809-post.json",
+      "sha256": "fb11f93e007f60dc05bea6b96924a9cb02b4937ec46ef471ff44a724cdc3a561"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-pre-r809.json",
+      "sha256": "d8c2210ae52a3d7be6f06a7b3ff6c31807ebbadc172552c3bab7fdc9babc270b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r809-core-r809.xml",
+      "sha256": "1a70d9aab167ec2f09f3b4f67138af992d791a33723b18607ffa88974e1af142"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r809-core-r809.log",
+      "sha256": "3235e53c45c8c2c8744cfa5532b07efd142063146041ad3728b38949e4cbeb4a"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r809-native-r809.xml",
+      "sha256": "d7c726130a274c3e07f58fd71f5b09b09e9c8acecbedda06959d85f8b8c7ce3f"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r809-native-r809.log",
+      "sha256": "06e2ba55a2754ae45ddd113a083ff1a0ea39412a9fb4f30d8d0e7a6b66ce2df0"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r809-render-r809.xml",
+      "sha256": "e7037a88407f5c02294a8f32b6ce468225c57f7d2d79f37154479b10e7758c68"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r809-render-r809.log",
+      "sha256": "cbffcd4e2a9b8f3ba50b931886f7de085aa76c863c04fa06bf9f5e6b57929ede"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r809-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r809-post.json",
+      "sha256": "7c188d9ca92e095169fe18fec0426b9bbd60c43a62df94a1e967c6db4b940ab5"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-pre-r809.json",
+      "sha256": "30d533788dbfb79a91610960894e8e712b4d46fef66d049c0411306212038216"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r804.txt",
+      "sha256": "d29b8f7e83473d11d3b97595df4a456fa8a75b6731a4e318b3e6dcd364aeb85e"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r805-core-r805.xml",
+      "sha256": "75cb9378ec8b8dc7352bd8f17eb8230565840cff92d8ca94d6aad3141fabb118"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r805-core-r805.log",
+      "sha256": "c4642cc0eca4086506f55349f570ecb58522dba63cd929c2c806d819f678df87"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r805-render-r805.xml",
+      "sha256": "35db63e84396247aa8a9c7c45766a1bd52aa4e30c8edf9353368c169dd558fd3"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r805-render-r805.log",
+      "sha256": "87a919144e4f492df31c44ad539b66cff179718b0d0bef0a832799b632dfab02"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r805-state.txt",
+      "sha256": "8c55364535dd24e23b2bc7634300d570199001b59fa364b714efae9f1e48cced"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r805-post.json",
+      "sha256": "423cfd29ffc574d52ca86e4b7ceedd506214c8672ecb3c9abe722b7301c089bb"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-pre-r805.json",
+      "sha256": "4a6a13f01833bd28fa988718bb263e708564d1bb57e51142deca31070914d720"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r805-core-r805.xml",
+      "sha256": "1b4d05f8b39c460e9fee93c8b0aa159e8f2ca938f7dbf995c5e1aa882214f035"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r805-core-r805.log",
+      "sha256": "ac9236613088213f967a49012db8f3fe370b04ec8df889ef7d4bd19fe84e740d"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r805-render-r805.xml",
+      "sha256": "a56ed2ccd1db1bc51bd324648210e548dd39d85f976b03e345b06630c5edada8"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r805-render-r805.log",
+      "sha256": "df95d200b08aba89e4dd8bd46584c3681a9d37f40d8ee6cd388204eb23a6098e"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r805-state.txt",
+      "sha256": "8c55364535dd24e23b2bc7634300d570199001b59fa364b714efae9f1e48cced"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r805-post.json",
+      "sha256": "2acb8e21811436b15dffb22bc16d5b65be4461bfbce08d79be7f4dca27a852d2"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-pre-r805.json",
+      "sha256": "b3f04081c52fbeaf0f320d6630758404054a64692381c57b82db7dc0128068f5"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/preflight-indexed-r732.ps1",
+      "sha256": "74594887c0fb548b398b8e6f5794ec0f2e757fce942f88cb9e711407646c4aa5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/deploy-batch.ps1",
+      "sha256": "8ce277c94e470b75424b010ee2a0170634028fb488d3c96798fba247c3b686ce"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/collect-batch.ps1",
+      "sha256": "442692a6d4fbbbcbd80f84ca598bfdbe462487f27874dc1547b0f41c8f18f624"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/finalize-raw-names.py",
+      "sha256": "7b9841d272db33691302faec5d12fd3c2709b599a79a1ba75536e1c6c4e8c1fd"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r809.sh",
+      "sha256": "0158aec95aad281924e8e5b8b49f24c3b4f8cbc3e5a3681ed7d55adc176d67cc"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r809.sh",
+      "sha256": "1fd6e97fee5f2ad8e0270c081cb772e8f24911a2f0cbabf075062eed765f32ee"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r809.ps1",
+      "sha256": "d0baa9fbd0bbcd2e87d14bbabf4cfb514c8f87046285d8e4a85db76bf73cf34f"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r805.sh",
+      "sha256": "427bc1ecb2b08052ffae2c531c5d169bb35d57268d8401092ac85d086ab3ad0d"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r805.sh",
+      "sha256": "d8bb00b758dc28f91315f70b55f4d0ab087ecb8a1dde8922a23af51963d819e9"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r805.ps1",
+      "sha256": "223999e5862aab7b189689b614005664e01c6887c2f1ec39e85b264bcd0b8fc1"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r809.tgz",
+      "sha256": "6359323457e73754730c5ac1d82267faa12a3a1fdd832760434b08bb5b951d4f"
+    },
+    {
+      "name": "dsa-batch-linux-r809.tgz",
+      "sha256": "b0d9d1fceb8c41fe62f2e1bfe954d9ac4b6473d34294a6f536d312bbe6eb5523"
+    },
+    {
+      "name": "dsa-batch-windows-r809.tgz",
+      "sha256": "fde96ca406711912e3fc1ee854fa14c05aa9f62c2c87ad8ef6708353c52d744f"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r809": "99fc1261b88eb8532b27cd6f33d96ccd6ad69b36db530d579aba54feaaccc8a0",
+    "native-r809": "99fc1261b88eb8532b27cd6f33d96ccd6ad69b36db530d579aba54feaaccc8a0",
+    "render-r810-mac": "99fc1261b88eb8532b27cd6f33d96ccd6ad69b36db530d579aba54feaaccc8a0",
+    "render-r810-linux": "99fc1261b88eb8532b27cd6f33d96ccd6ad69b36db530d579aba54feaaccc8a0",
+    "render-r810-windows": "99fc1261b88eb8532b27cd6f33d96ccd6ad69b36db530d579aba54feaaccc8a0"
+  },
+  "productionAppHashes": {
+    "render-r810-mac": "437091a662c59f6ff1f1f6bd2d8b33919a3ad25b02eb2eab68bd31e4b791764b",
+    "render-r810-linux": "437091a662c59f6ff1f1f6bd2d8b33919a3ad25b02eb2eab68bd31e4b791764b",
+    "render-r810-windows": "437091a662c59f6ff1f1f6bd2d8b33919a3ad25b02eb2eab68bd31e4b791764b"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r809": "12b1ddc298f3f3176db51f119e0091be5de31dc95c0f308fdcb53570752d0e97",
+    "render-r810-mac": "12b1ddc298f3f3176db51f119e0091be5de31dc95c0f308fdcb53570752d0e97",
+    "render-r810-linux": "12b1ddc298f3f3176db51f119e0091be5de31dc95c0f308fdcb53570752d0e97",
+    "render-r810-windows": "12b1ddc298f3f3176db51f119e0091be5de31dc95c0f308fdcb53570752d0e97"
+  },
+  "matrix": {
+    "mac-batch-r809-core-r809.xml": {
+      "total": "1360",
+      "passed": "1356",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "30.025"
+    },
+    "mac-batch-r809-render-r809.xml": {
+      "total": "254",
+      "passed": "254",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "89.864"
+    },
+    "ubuntu-batch-r809-core-r809.xml": {
+      "total": "1360",
+      "passed": "1356",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "98.966"
+    },
+    "ubuntu-batch-r809-render-r809.xml": {
+      "total": "254",
+      "passed": "254",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "134.853"
+    },
+    "windows-batch-r809-core-r809.xml": {
+      "total": "1378",
+      "passed": "1330",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "57.443"
+    },
+    "windows-batch-r809-native-r809.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "36.262"
+    },
+    "windows-batch-r809-render-r809.xml": {
+      "total": "254",
+      "passed": "253",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "161.261"
+    }
+  },
+  "targetedControls": {
+    "mac": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisHierarchyNameKeyTests.RawNameKeysStayInsideTheExistingBoundForMaximumCapturedRepresentations",
+        "FileCat.Core.Tests.AnalysisHierarchyNameKeyTests.RawNameKeysIncludeSupplementaryScalarsReplacementCharactersAndUnpairedUnitsInRuntimeOrder",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"utf8\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"utf8\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"utf16le\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"utf16le\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"unix-bytes\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"unix-bytes\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"utf8\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"utf8\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"utf16le\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"utf16le\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"unix-bytes\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"unix-bytes\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"utf8\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"utf8\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"utf16le\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"utf16le\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"unix-bytes\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"unix-bytes\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"utf8\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"utf8\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"utf16le\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"utf16le\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"unix-bytes\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"unix-bytes\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: FileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: FileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: UniqueFileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: UniqueFileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: OnDisk, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: OnDisk, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: Files, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: Files, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: Files, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: FileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: FileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: UniqueFileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: UniqueFileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: OnDisk, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: OnDisk, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: Files, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: Files, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: Files, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: FileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: FileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: UniqueFileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: UniqueFileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: OnDisk, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: OnDisk, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: Files, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: Files, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: Files, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: FileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: FileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: UniqueFileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: UniqueFileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: OnDisk, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: OnDisk, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: Files, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: Files, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: Files, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"utf8\\\", grouped: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"utf16le\\\", grouped: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"unix-bytes\\\", grouped: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"utf8\\\", grouped: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"utf16le\\\", grouped: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"unix-bytes\\\", grouped: True)"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf8\\\", mode: \\\"Treemap\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf16le\\\", mode: \\\"Treemap\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"unix-bytes\\\", mode: \\\"Treemap\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf8\\\", mode: \\\"Sunburst\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf16le\\\", mode: \\\"Sunburst\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"unix-bytes\\\", mode: \\\"Sunburst\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf8\\\", mode: \\\"Treemap\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf16le\\\", mode: \\\"Treemap\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"unix-bytes\\\", mode: \\\"Treemap\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf8\\\", mode: \\\"Sunburst\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf16le\\\", mode: \\\"Sunburst\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"unix-bytes\\\", mode: \\\"Sunburst\\\", grouped: True)"
+      ]
+    },
+    "ubuntu": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisHierarchyNameKeyTests.RawNameKeysIncludeSupplementaryScalarsReplacementCharactersAndUnpairedUnitsInRuntimeOrder",
+        "FileCat.Core.Tests.AnalysisHierarchyNameKeyTests.RawNameKeysStayInsideTheExistingBoundForMaximumCapturedRepresentations",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"utf8\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"utf8\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"utf16le\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"utf16le\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"unix-bytes\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"unix-bytes\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"utf8\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"utf8\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"utf16le\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"utf16le\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"unix-bytes\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"unix-bytes\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"utf8\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"utf8\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"utf16le\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"utf16le\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"unix-bytes\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"unix-bytes\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"utf8\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"utf8\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"utf16le\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"utf16le\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"unix-bytes\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"unix-bytes\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"utf8\\\", grouped: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"utf16le\\\", grouped: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"unix-bytes\\\", grouped: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"utf8\\\", grouped: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"utf16le\\\", grouped: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"unix-bytes\\\", grouped: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: FileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: FileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: UniqueFileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: UniqueFileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: OnDisk, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: OnDisk, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: Files, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: Files, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: Files, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: FileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: FileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: UniqueFileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: UniqueFileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: OnDisk, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: OnDisk, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: Files, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: Files, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: Files, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: FileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: FileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: UniqueFileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: UniqueFileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: OnDisk, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: OnDisk, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: Files, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: Files, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: Files, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: FileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: FileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: UniqueFileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: UniqueFileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: OnDisk, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: OnDisk, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: Files, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: Files, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: Files, encoding: \\\"unix-bytes\\\")"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf8\\\", mode: \\\"Treemap\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf16le\\\", mode: \\\"Treemap\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"unix-bytes\\\", mode: \\\"Treemap\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf8\\\", mode: \\\"Sunburst\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf16le\\\", mode: \\\"Sunburst\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"unix-bytes\\\", mode: \\\"Sunburst\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf8\\\", mode: \\\"Treemap\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf16le\\\", mode: \\\"Treemap\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"unix-bytes\\\", mode: \\\"Treemap\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf8\\\", mode: \\\"Sunburst\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf16le\\\", mode: \\\"Sunburst\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"unix-bytes\\\", mode: \\\"Sunburst\\\", grouped: True)"
+      ]
+    },
+    "windows": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisHierarchyNameKeyTests.RawNameKeysStayInsideTheExistingBoundForMaximumCapturedRepresentations",
+        "FileCat.Core.Tests.AnalysisHierarchyNameKeyTests.RawNameKeysIncludeSupplementaryScalarsReplacementCharactersAndUnpairedUnitsInRuntimeOrder",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"utf8\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"utf8\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"utf16le\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"utf16le\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"unix-bytes\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"unix-bytes\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"utf8\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"utf8\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"utf16le\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"utf16le\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"unix-bytes\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"unix-bytes\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"utf8\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"utf8\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"utf16le\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"utf16le\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"unix-bytes\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"unix-bytes\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"utf8\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"utf8\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"utf16le\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"utf16le\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"unix-bytes\\\", filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"unix-bytes\\\", filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: FileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: FileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: UniqueFileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: UniqueFileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: OnDisk, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: OnDisk, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: Files, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: Files, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: FileType, metric: Files, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: FileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: FileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: UniqueFileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: UniqueFileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: OnDisk, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: OnDisk, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: Files, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: Files, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: Extension, metric: Files, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: FileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: FileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: UniqueFileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: UniqueFileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: OnDisk, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: OnDisk, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: Files, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: Files, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: Files, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: FileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: FileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: UniqueFileSize, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: UniqueFileSize, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: OnDisk, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: OnDisk, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: Files, encoding: \\\"utf8\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: Files, encoding: \\\"utf16le\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: Files, encoding: \\\"unix-bytes\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"utf8\\\", grouped: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"utf16le\\\", grouped: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"unix-bytes\\\", grouped: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"utf8\\\", grouped: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"utf16le\\\", grouped: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameMaximumRecordsBoundGeometryWorkInsteadOfCountingOnlyShortLabels(encoding: \\\"unix-bytes\\\", grouped: True)"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf8\\\", mode: \\\"Treemap\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf16le\\\", mode: \\\"Treemap\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"unix-bytes\\\", mode: \\\"Treemap\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf8\\\", mode: \\\"Sunburst\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf16le\\\", mode: \\\"Sunburst\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"unix-bytes\\\", mode: \\\"Sunburst\\\", grouped: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf8\\\", mode: \\\"Treemap\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf16le\\\", mode: \\\"Treemap\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"unix-bytes\\\", mode: \\\"Treemap\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf8\\\", mode: \\\"Sunburst\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"utf16le\\\", mode: \\\"Sunburst\\\", grouped: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.RawNameSavedOtherNativePrivateWindowRetainsExactBytesInspectorAndKeyboardTip(encoding: \\\"unix-bytes\\\", mode: \\\"Sunburst\\\", grouped: True)"
+      ]
+    }
+  },
+  "postCollectionProcesses": {
+    "mac": [
+      "52442 52441 /Users/benny/.dotnet/dotnet test tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --disable-build-servers -p:NuGetAudit=false -m:1 --filter FullyQualifiedName~Captured_RAR_files_and_directories_publish_only_after_journaled_native_sealing_and_fresh_verification --logger trx;LogFileName=archive-worker-secrets.trx --results-directory /Users/benny/FileCatValidation/archive-writing-42829297/rar5-native-v5/results",
+      "52462 52442 dotnet exec /Users/benny/.dotnet/sdk/10.0.101/vstest.console.dll --framework:.NETCoreApp,Version=v10.0 --testCaseFilter:FullyQualifiedName~Captured_RAR_files_and_directories_publish_only_after_journaled_native_sealing_and_fresh_verification --logger:trx;LogFileName=archive-worker-secrets.trx --resultsDirectory:/Users/benny/FileCatValidation/archive-writing-42829297/rar5-native-v5/results /Users/benny/FileCatValidation/archive-writing-42829297/rar5-native-source-v5/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll --logger:Console;Verbosity=minimal --artifactsProcessingMode-collect --testSessionCorrelationId:52442_ce41ae6d-23cd-4538-b2c1-f912e4a6a49f",
+      "52463 52462 /Users/benny/.dotnet/dotnet exec --runtimeconfig /Users/benny/FileCatValidation/archive-writing-42829297/rar5-native-source-v5/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.runtimeconfig.json --depsfile /Users/benny/FileCatValidation/archive-writing-42829297/rar5-native-source-v5/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.deps.json /Users/benny/FileCatValidation/archive-writing-42829297/rar5-native-source-v5/tests/FileCat.Core.Tests/bin/Release/net10.0/testhost.dll --port 50277 --endpoint 127.0.0.1:050277 --role client --parentprocessid 52462 --telemetryoptedin false",
+      "52479 52463 /Users/benny/FileCatValidation/archive-writing-42829297/rar5-native-source-v5/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests @@ /var/folders/zy/bsrr65210bj1s85fr6g0l0dr0000gn/T/tmprPrQZN.tmp",
+      "52598 52479 /Users/benny/.dotnet/dotnet /Users/benny/FileCatValidation/archive-writing-42829297/rar5-native-source-v5/tests/FileCat.WorkerProbe/bin/Release/net10.0/FileCat.WorkerProbe.dll archive-verify-v2 85a8e6fe-4e8f-4a80-9ef5-3ffb5446d16d --archive-cancellation-handle 110"
+    ],
+    "ubuntu": [
+      " 347756  347755 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet test tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --disable-build-servers -p:NuGetAudit=false -m:1 --filter FullyQualifiedName~Captured_RAR_files_and_directories_publish_only_after_journaled_native_sealing_and_fresh_verification --logger trx;LogFileName=archive-worker-secrets.trx --results-directory /home/benny/FileCatValidation/archive-writing-42829297/rar5-native-v5/results",
+      " 347967  347756 dotnet exec /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/vstest.console.dll --framework:.NETCoreApp,Version=v10.0 --testCaseFilter:FullyQualifiedName~Captured_RAR_files_and_directories_publish_only_after_journaled_native_sealing_and_fresh_verification --logger:trx;LogFileName=archive-worker-secrets.trx --resultsDirectory:/home/benny/FileCatValidation/archive-writing-42829297/rar5-native-v5/results /home/benny/FileCatValidation/archive-writing-42829297/rar5-native-source-v5/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll --logger:Console;Verbosity=minimal --artifactsProcessingMode-collect --testSessionCorrelationId:347756_ec38a65d-154c-43db-a083-0fae7f4ef7be",
+      " 347980  347967 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet exec --runtimeconfig /home/benny/FileCatValidation/archive-writing-42829297/rar5-native-source-v5/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.runtimeconfig.json --depsfile /home/benny/FileCatValidation/archive-writing-42829297/rar5-native-source-v5/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.deps.json /home/benny/FileCatValidation/archive-writing-42829297/rar5-native-source-v5/tests/FileCat.Core.Tests/bin/Release/net10.0/testhost.dll --port 36781 --endpoint 127.0.0.1:036781 --role client --parentprocessid 347967 --telemetryoptedin false",
+      " 348030  347980 /home/benny/FileCatValidation/archive-writing-42829297/rar5-native-source-v5/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests @@ /tmp/tmpN5Izds.tmp",
+      " 348607  348030 /home/benny/.dotnet/dotnet /home/benny/FileCatValidation/archive-writing-42829297/rar5-native-source-v5/tests/FileCat.WorkerProbe/bin/Release/net10.0/FileCat.WorkerProbe.dll archive-transform-v2 d787f8d0-f778-4a3c-9dff-c2d2de644a16 --archive-cancellation-handle 113"
+    ],
+    "windows": [
+      "pid=8060, owner=DESKTOP-A60F1NE\\Admin, cmd=dotnet.exe"
+    ]
+  },
+  "newCoreControls": 80,
+  "newRenderingControls": 12,
+  "supersededFailedBatches": [
+    {
+      "candidate": "r805",
+      "sources": [
+        {
+          "path": "src/FileCat.App/Controls/DiskSpace/AnalysisChartControl.cs",
+          "sha256": "733a2ec9befbf32e6777f827e9c078cad7ff150edb5e497c21cd7bacfb851520"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Geometry.cs",
+          "sha256": "4c20cb606ea5fedae3f7e86d69ee8a573d54fac979b91b560abf6bf99cf818c6"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.SubsetState.cs",
+          "sha256": "c345e499fe4c37f8d9f97ebffcb5937c63dc28bb70a3d81c8b5236e582690297"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+          "sha256": "91ad5047e4167369aeb9d7132b856ba8067b0c0d2b4931ba1bb8e6957001a226"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.Geometry.cs",
+          "sha256": "339e4f49a5510c5af7313986f7b9fdbaf36ef426cfaffc864560bf0f82e06939"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisGroupedChart.cs",
+          "sha256": "eb5e0d7a3aaf1ff740acc4ddbfa5fe6fe6a5c272a826bd729e5e38b6996b97dc"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisGroupedChart.Geometry.cs",
+          "sha256": "79b52046349d8e88edd558cdf64f7bfc2135a9eeaab62b603d31f0c0658caca9"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisIndexedChart.cs",
+          "sha256": "931ec4679c6fa4b856565df483a1178212bc2a34b411ee3de9a5c3341f27d983"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisNames.cs",
+          "sha256": "4632edb7872a752502eb78ce9229031e8c83eabb5c9ab7635a90ce1e16504abc"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisTableOrder.cs",
+          "sha256": "f5c55e6a985bd40b24cbcdf7b718ec9b26fb374c802c8e0e8e096820451532b7"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+          "sha256": "e7499883e1f88379f84104ddfd6c284688eab921654ea851c78358e7a0e7790e"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisTree.Grouping.cs",
+          "sha256": "1312d82b8c3f0fd50c3b776abbccf2f415e8d9359d1a3b5c71a3093248752c20"
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.RawNames.cs",
+          "sha256": "df5d6581c4188d250f6311effdf57f9f5de7955c0b8f6aa33809174ce4d836a0"
+        },
+        {
+          "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.RawNames.cs",
+          "sha256": "e9a9d3631349c8469bb16283cdaab00d09dccd43d957d463463a93d030797758"
+        }
+      ],
+      "matrix": {
+        "mac-batch-r805-core-r805.xml": {
+          "total": "1358",
+          "passed": "1342",
+          "failed": "12",
+          "skipped": "4",
+          "errors": "0",
+          "time": "30.287"
+        },
+        "mac-batch-r805-render-r805.xml": {
+          "total": "254",
+          "passed": "254",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "93.114"
+        },
+        "ubuntu-batch-r805-core-r805.xml": {
+          "total": "1358",
+          "passed": "1342",
+          "failed": "12",
+          "skipped": "4",
+          "errors": "0",
+          "time": "103.355"
+        },
+        "ubuntu-batch-r805-render-r805.xml": {
+          "total": "254",
+          "passed": "254",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "137.242"
+        }
+      },
+      "targetedControls": {
+        "mac": {},
+        "ubuntu": {},
+        "windows": {}
+      },
+      "postCollectionProcesses": {
+        "mac": [],
+        "ubuntu": [
+          " 343620  343619 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet test tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --disable-build-servers -p:NuGetAudit=false -m:1 --filter FullyQualifiedName~Captured_RAR_files_and_directories_publish_only_after_journaled_native_sealing_and_fresh_verification --logger trx;LogFileName=archive-worker-secrets.trx --results-directory /home/benny/FileCatValidation/archive-writing-42829297/rar5-native-v4/results"
+        ],
+        "windows": {
+          "notStarted": true,
+          "reason": "Foreign test instances; superseded candidate was never run here",
+          "processes": [
+            "pid=1196, owner=DESKTOP-A60F1NE\\fcarchive42829297, cmd=dotnet.exe",
+            "pid=10036, owner=DESKTOP-A60F1NE\\fcarchive42829297, cmd=FileCat.Platform.Windows.Tests.exe",
+            "pid=4268, owner=, cmd=dotnet.exe"
+          ]
+        }
+      },
+      "failures": {
+        "mac": [
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: Files, encoding: \\\"unix-bytes\\\")",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: Files, encoding: \\\"unix-bytes\\\")",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"unix-bytes\\\", filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"unix-bytes\\\", filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"unix-bytes\\\", filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"unix-bytes\\\", filtered: False)"
+        ],
+        "ubuntu": [
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: FileSize, encoding: \\\"unix-bytes\\\", filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: UniqueFileSize, encoding: \\\"unix-bytes\\\", filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: OnDisk, encoding: \\\"unix-bytes\\\", filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameFolderGeometryOrdersAndExactOtherCapturesKeepDistinctCapturedNames(metric: Files, encoding: \\\"unix-bytes\\\", filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: ModifiedAge, metric: Files, encoding: \\\"unix-bytes\\\")",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: FileSize, encoding: \\\"unix-bytes\\\")",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: UniqueFileSize, encoding: \\\"unix-bytes\\\")",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: OnDisk, encoding: \\\"unix-bytes\\\")",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.RawNameGroupedGeometryNameOrderAndOtherEvidenceSurviveSourceClosure(dimension: CapturedLocation, metric: Files, encoding: \\\"unix-bytes\\\")"
+        ],
+        "windows": []
+      },
+      "qualified": false,
+      "allRunnersAndCollectorsTerminal": true
+    }
+  ],
+  "finalBuild": "build-r808.txt: full solution zero warnings/errors",
+  "testScope": "Actual ordinary guest runtimes, native private saved stores and headless window controls, managed reference/ownership controls and applicable suites. Full physical desktop, complete accounting/interaction and 1M/10M/resource qualification remain pending.",
+  "batchWorkflow": "One immutable bundle/platform, sequential applicable suites, integrity and per-phase foreign-instance gates, one collection/completed machine.",
+  "ownedProcessExitEvidence": "Every original runner and collector terminal; post inventories contain no owned candidate instances. Identifiable foreign processes were preserved. No host application/input tests.",
+  "qualification": {
+    "capturedNameOrderingAndBoundedRawEvidenceImplemented": true,
+    "indexedGeometryAccountsDecodedNamesAndEvidence": true,
+    "groupSubsetUsesSingleDecodedGeometryObservation": true,
+    "folderAndGroupedRawNameSuffixControlsPassedAllThree": true,
+    "nativePrivateSavedWindowRawEvidenceControlsPassedAllThree": true,
+    "newControlsPassedAllThree": true,
+    "indexedOtherExactSubsetPersistenceParityQualified": false,
+    "fullMixedBasisUnknownAndUnverifiedSubsetQualificationComplete": false,
+    "fullNativeDesktopOtherQualified": false,
+    "fullResourceGateQualified": false,
+    "fullMillionTenMillionQualificationComplete": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

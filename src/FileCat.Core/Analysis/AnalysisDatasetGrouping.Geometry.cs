@@ -43,8 +43,8 @@ public sealed partial class AnalysisDatasetGrouping
             while (offset + (ulong)rows.Count < range.Count && rows.Count < maximum)
             {
                 token.ThrowIfCancellationRequested(); var entry = index.Read(range.First + offset + (ulong)rows.Count, token);
-                var item = GeometryItem(overview, entry, token);
-                if (!Fits(1024L + item.Name.Length * 2L + item.Key.Length * 2L, ref bytes)) break; rows.Add(item);
+                var item = GeometryItem(overview, entry, token, out long cost);
+                if (!Fits(cost, ref bytes)) break; rows.Add(item);
             }
             return new(offset, range.Count, rows.ToImmutable());
         }
@@ -77,28 +77,37 @@ public sealed partial class AnalysisDatasetGrouping
                 }
             }
         }
-        internal AnalysisTreeItem GeometryItem(bool overview, AnalysisSortEntry entry, CancellationToken token)
+        internal AnalysisTreeItem GeometryItem(bool overview, AnalysisSortEntry entry, CancellationToken token) => GeometryItem(overview, entry, token, out _);
+        internal AnalysisTreeItem GeometryItem(bool overview, AnalysisSortEntry entry, CancellationToken token, out long bytes) => GeometryItem(overview, entry, token, out bytes, out _);
+        internal AnalysisTreeItem GeometryItem(bool overview, AnalysisSortEntry entry, CancellationToken token, out long bytes, out AnalysisTotals amount)
         {
             if (entry.Key.Length == 0 || entry.Key[^1] > 1) throw Invalid();
             AnalysisTreeItem item;
             if (overview)
             {
                 if ((entry.Value & (GeometryBucket | GeometryReference)) != 0) throw Invalid();
-                item = AnalysisGroupedChart.GroupItem(DecodeSummary(Summaries!.Read(entry.Value, token)), Dimension, Metric, AnalysisTree.RootKey);
+                var data = Summaries!.Read(entry.Value, token); bytes = 1024L + data.Length * 3L;
+                var group = DecodeSummary(data); amount = group.Totals;
+                item = AnalysisGroupedChart.GroupItem(group, Dimension, Metric, AnalysisTree.RootKey);
             }
             else if ((entry.Value & GeometryBucket) != 0)
             {
                 if ((entry.Value & GeometryReference) != 0) throw Invalid();
-                var group = DecodeSummary(Summaries!.Read(entry.Value & ~GeometryBucket, token)); if (!HasSharedBucket(group)) throw Invalid();
+                var data = Summaries!.Read(entry.Value & ~GeometryBucket, token); bytes = 1024L + data.Length * 3L;
+                var group = DecodeSummary(data); if (!HasSharedBucket(group)) throw Invalid();
+                amount = group.Shared;
                 item = SharedGeometryItem(group, Metric);
             }
-            else item = MemberGeometryItem(entry.Value, token, out _);
+            else item = MemberGeometryItem(entry.Value, token, out bytes, out amount);
+            bytes += 512L + item.Name.Length * 2L + item.Key.Length * 2L + (item.NameEvidence?.Length ?? 0) * 2L;
             item = item with { Unknown = entry.Key[^1] != 0 };
             if (!entry.Key.AsSpan().SequenceEqual(GeometryKey(item, overview))) throw Invalid(); return item;
         }
-        private AnalysisTreeItem MemberGeometryItem(ulong source, CancellationToken token, out long bytes)
+        private AnalysisTreeItem MemberGeometryItem(ulong source, CancellationToken token, out long bytes) => MemberGeometryItem(source, token, out bytes, out _);
+        private AnalysisTreeItem MemberGeometryItem(ulong source, CancellationToken token, out long bytes, out AnalysisTotals amount)
         {
             var row = ReadMemberRow(source, token, out var definition, out var kind, out bytes);
+            amount = row.Assigned;
             var result = AnalysisGroupedChart.MemberItem(row, definition.Key, Metric);
             return result with { Key = kind == AnalysisGroupKind.SharedAcrossGroups ? "group-reference:" + definition.Key + ":" + result.Key : result.Key,
                 Unknown = result.Unknown || row.Member.Path.MetadataState != MeasurementState.Known };

@@ -21,6 +21,9 @@ public sealed record AnalysisTreeItem(string Key, string ParentKey, string Name,
     public string? ChargeLocation { get; init; }
     public bool IsFilterContext { get; init; }
     public AnalysisLogicalTotals? ReferenceLogical { get; init; }
+    // Only the bounded-memory tree keeps this reference to its already owned
+    // snapshot name. Indexed chart projections never retain full ordering names.
+    internal string? CapturedOrderName { get; init; }
     // Known namespace metadata for these entries is not a measured zero for their targets.
     public bool IsNonFileLeaf => !Synthetic && (Kind is AnalysisKind.Link or AnalysisKind.Special);
 }
@@ -130,6 +133,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
                 !filterApplied || matching || projection.AliasContextNodes.Contains(node.Id) || node.Kind == AnalysisKind.Directory && node.IncludedByPolicy && namespaceVisible?.Invoke(node) == true,
                 node.Kind == AnalysisKind.Directory ? "folder" : AnalysisClassification.Family(node.Name));
             item.MetadataState = node.MetadataState; item.IncludedByPolicy = node.IncludedByPolicy;
+            item.CapturedOrderName = node.Name;
             item.FilterContext = projection.AliasContextNodes.Contains(node.Id) && !matching;
             item.SharedElsewhere = item.FilterContext;
             item.ModifiedUtc = node.Times?.ModifiedUtc; item.ModifiedPrecisionTicks = node.Times?.ModifiedPrecisionTicks ?? 0;
@@ -256,6 +260,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
         public AnalysisMeasurement? PathLogical;
         public AnalysisPathStatistics? ReferenceLogical;
         public string? NameEvidence;
+        public string? CapturedOrderName;
         public DateTimeOffset? ModifiedUtc;
         public ulong ModifiedPrecisionTicks;
         public List<string> Children = [];
@@ -263,6 +268,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
         public AnalysisTreeItem Freeze() => new(key, Parent, name, node, kind, synthetic, Visible, Value, Logical, Files, Unknown,
             SharedElsewhere, family, Children.ToImmutableArray(), Members.Order().ToImmutableArray())
             { IdentityUnverified = Unverified, MetadataState = MetadataState, IncludedByPolicy = IncludedByPolicy, IsFilterContext = FilterContext,
-                LogicalUnknown = LogicalUnknown, ReferenceLogical = ReferenceLogical?.Export(), NameEvidence = NameEvidence, ModifiedUtc = ModifiedUtc, ModifiedPrecisionTicks = ModifiedPrecisionTicks };
+                LogicalUnknown = LogicalUnknown, ReferenceLogical = ReferenceLogical?.Export(), NameEvidence = NameEvidence, CapturedOrderName = CapturedOrderName,
+                ModifiedUtc = ModifiedUtc, ModifiedPrecisionTicks = ModifiedPrecisionTicks };
     }
 }

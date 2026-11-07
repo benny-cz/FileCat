@@ -76,13 +76,15 @@ public static class AnalysisTableOrder
         int missing = Missing(a).CompareTo(Missing(b)); if (missing != 0) return missing;
         int result = field switch
         {
-            AnalysisTableSort.Name => StringComparer.OrdinalIgnoreCase.Compare(a.Name, b.Name),
+            AnalysisTableSort.Name => StringComparer.OrdinalIgnoreCase.Compare(a.CapturedOrderName ?? a.Name, b.CapturedOrderName ?? b.Name),
             AnalysisTableSort.FileSize => (a.ReferenceLogical?.KnownBytes ?? a.LogicalSize).CompareTo(b.ReferenceLogical?.KnownBytes ?? b.LogicalSize),
             AnalysisTableSort.FilePaths => (a.ReferenceLogical?.Files ?? a.Files).CompareTo(b.ReferenceLogical?.Files ?? b.Files),
             AnalysisTableSort.MeasurementState => a.MetadataState.CompareTo(b.MetadataState),
             _ => a.Value.CompareTo(b.Value)
         };
         if (result != 0) return descending ? -Math.Sign(result) : Math.Sign(result);
+        if (field == AnalysisTableSort.Name && a.CapturedOrderName is not null && b.CapturedOrderName is not null && a.NodeId is { } left && b.NodeId is { } right)
+            return descending ? left.CompareTo(right) : right.CompareTo(left);
         result = StringComparer.Ordinal.Compare(a.Name, b.Name);
         return result != 0 ? result : StringComparer.Ordinal.Compare(a.Key, b.Key);
     }

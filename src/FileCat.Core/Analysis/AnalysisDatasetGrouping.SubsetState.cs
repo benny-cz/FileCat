@@ -62,13 +62,11 @@ public sealed partial class AnalysisDatasetGrouping
             for (ulong at = (ulong)Skipped; at < Geometry.Count; at++)
             {
                 token.ThrowIfCancellationRequested(); var entry = GeometryIndex.Read(Geometry.First + at, token);
-                var item = Snapshot.GeometryItem(Overview, entry, token); Unknown |= item.Unknown;
-                if (Overview) Amount.Add(DecodeSummary(Snapshot.Summaries!.Read(entry.Value, token)).Totals);
-                else if ((entry.Value & GeometryBucket) != 0)
-                { Shared = true; Amount.Add(DecodeSummary(Snapshot.Summaries!.Read(entry.Value & ~GeometryBucket, token)).Shared); }
-                else { Amount.Add(Snapshot.ReadMemberRow(entry.Value, token, out _, out _, out _).Assigned); Rows = checked(Rows + 1); }
+                var item = Snapshot.GeometryItem(Overview, entry, token, out long workBytes, out var amount); Unknown |= item.Unknown; Amount.Add(amount);
+                if (!Overview && (entry.Value & GeometryBucket) != 0) Shared = true;
+                else if (!Overview) Rows = checked(Rows + 1);
                 if (Overview) Rows = checked(Rows + 1);
-                yield return new(new(Number(entry.Value), entry.Value), 2048 + item.Name.Length * 2);
+                yield return new(new(Number(entry.Value), entry.Value), checked((int)Math.Max(workBytes, 2048L + item.Name.Length * 2L + (item.NameEvidence?.Length ?? 0) * 2L)));
             }
         }
         internal IEnumerable<AnalysisSortInput> PathEntries(CancellationToken token)
@@ -181,8 +179,8 @@ public sealed partial class AnalysisDatasetGrouping
             while (offset + (ulong)rows.Count < count && rows.Count < maximum)
             {
                 var entry = GeometryIndex.Read(Geometry.First + (ulong)Skipped + offset + (ulong)rows.Count, token);
-                var item = Snapshot.GeometryItem(Overview, entry, token);
-                if (!Fits(1024 + item.Name.Length * 2L, ref bytes)) break; rows.Add(item with { ParentKey = ScopeKey });
+                var item = Snapshot.GeometryItem(Overview, entry, token, out long workBytes);
+                if (!Fits(workBytes, ref bytes)) break; rows.Add(item with { ParentKey = ScopeKey });
             }
             return new(offset, count, rows.ToImmutable());
         }

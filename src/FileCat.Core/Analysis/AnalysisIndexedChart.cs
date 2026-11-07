@@ -118,7 +118,7 @@ public sealed class AnalysisIndexedChart : IAnalysisChartData
 
         bool Add(AnalysisTreeItem item)
         {
-            long cost = 640L + item.Key.Length * 2L + item.ParentKey.Length * 2L + item.Name.Length * 2L;
+            long cost = 640L + item.Key.Length * 2L + item.ParentKey.Length * 2L + item.Name.Length * 2L + (item.NameEvidence?.Length ?? 0) * 2L;
             if (items.Count >= AnalysisLimits.ChartLeaves || cost > byteLimit - bytes) return false;
             if (items.TryAdd(item.Key, item)) bytes += cost; return true;
         }
@@ -132,7 +132,7 @@ public sealed class AnalysisIndexedChart : IAnalysisChartData
             path.Kind, false, row.IsVisible, value, row.Logical.KnownBytes, row.Logical.Files, row.HasUnmeasuredEvidence || row.NamespaceIncomplete || row.Totals.Missing.Count != 0 ||
             metric == AnalysisMetric.UniqueFileSize && row.Totals.IdentityUnverified != 0, row.HasChargesElsewhere, path.Kind == AnalysisKind.Directory ? "folder" : AnalysisClassification.Family(path.Name), [], [])
         { IdentityUnverified = row.Totals.IdentityUnverified, LogicalUnknown = row.HasUnmeasuredLogicalEvidence || row.Logical.UnknownFiles != 0, MetadataState = path.MetadataState, IncludedByPolicy = path.IncludedByPolicy,
-            ModifiedUtc = row.ModifiedUtc, ModifiedPrecisionTicks = row.ModifiedPrecisionTicks,
+            ModifiedUtc = row.ModifiedUtc, ModifiedPrecisionTicks = row.ModifiedPrecisionTicks, NameEvidence = AnalysisNames.NameEvidence(path),
             IsFilterContext = row.IsFilterContext };
     }
 }

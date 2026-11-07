@@ -63,7 +63,7 @@ public sealed partial class AnalysisGroupedChart
         return new(explorer.Metric, explorer.Descriptor.Identity.ObservedUtc, scope, items, children, remainders, limited);
         bool Add(AnalysisTreeItem item)
         {
-            long cost = 768L + item.Name.Length * 2L + item.Key.Length * 2L + item.ParentKey.Length * 2L;
+            long cost = 768L + item.Name.Length * 2L + item.Key.Length * 2L + item.ParentKey.Length * 2L + (item.NameEvidence?.Length ?? 0) * 2L;
             if (items.ContainsKey(item.Key)) return true;
             if (items.Count >= AnalysisLimits.ChartLeaves || cost > AnalysisLimits.PendingBytes / 4 - bytes) return false;
             items.Add(item.Key, item); bytes += cost; return true;

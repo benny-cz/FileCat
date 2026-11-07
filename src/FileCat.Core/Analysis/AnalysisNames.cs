@@ -78,6 +78,8 @@ public static class AnalysisNames
         int take = Math.Min(raw.Length, 256);
         return "Raw name (" + node.NameEncoding + "): " + Convert.ToHexString(raw[..take]) + (take < raw.Length ? "…" : "");
     }
+    public static string? NameEvidence(AnalysisPathMetadata path) => NameEvidence(
+        new AnalysisNode(path.Id, path.RootId, path.ParentId, path.Name, path.Kind) { NameEncoding = path.NameEncoding, RawName = path.RawName });
     public static string DisplayPath(string path, AnalysisNameRules rules)
     {
         if (rules == AnalysisNameRules.Provider) return Display(path, escapeTrailing: true);

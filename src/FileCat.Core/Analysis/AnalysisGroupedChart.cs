@@ -66,7 +66,8 @@ public sealed partial class AnalysisGroupedChart : IAnalysisChartData
             row.SharedElsewhere, path.Kind == AnalysisKind.Directory ? "folder" : AnalysisClassification.Family(path.Name), [], [])
         { CapturedDepth = row.Member.CapturedDepth, ModifiedUtc = row.Member.ModifiedUtc, ModifiedPrecisionTicks = row.Member.ModifiedPrecisionTicks,
             IdentityUnverified = row.Assigned.IdentityUnverified, LogicalUnknown = !row.Member.LogicalLength.IsKnown, MetadataState = path.MetadataState,
-            IncludedByPolicy = path.IncludedByPolicy, ChargeLocation = row.SharedElsewhere ? "Shared charge shown in its accounting group" : null };
+            IncludedByPolicy = path.IncludedByPolicy, NameEvidence = AnalysisNames.NameEvidence(path),
+            ChargeLocation = row.SharedElsewhere ? "Shared charge shown in its accounting group" : null };
     }
     private static AnalysisGroupedChart Create(SessionIdentity identity, AnalysisMetric metric, string scope, string name, AnalysisTotals totals, AnalysisLogicalTotals logical,
         List<AnalysisTreeItem> children, bool more, ulong offset)

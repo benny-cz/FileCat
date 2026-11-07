@@ -10,7 +10,14 @@ internal static class AnalysisHierarchyNameKey
         if (name.Length is < 1 or > AnalysisLimits.RawNameBytes || name.Contains('\0') || id == 0) throw new InvalidDataException("Invalid captured ordering name.");
         string upper = name.ToUpperInvariant();
         if (upper.Length != name.Length) throw new IOException("The runtime cannot represent this captured name's bounded ordinal order.");
-        byte[] key = new byte[checked(18 + name.Length * 2)]; BinaryPrimitives.WriteUInt64BigEndian(key, parent);
+        int encoded = 0;
+        for (int at = 0; at < name.Length; at++)
+        {
+            bool pair = char.IsHighSurrogate(name[at]) && at + 1 < name.Length && char.IsLowSurrogate(name[at + 1]);
+            encoded = checked(encoded + (pair ? 5 : name[at] == char.MaxValue ? 3 : 2)); if (pair) at++;
+        }
+        if (encoded > AnalysisExternalSort.MaximumKeyBytes - 18) throw new IOException("A captured name exceeds the bounded ordering-key payload.");
+        byte[] key = new byte[18 + encoded]; BinaryPrimitives.WriteUInt64BigEndian(key, parent); int output = 8;
         for (int at = 0; at < name.Length;)
         {
             int width = char.IsHighSurrogate(name[at]) && at + 1 < name.Length && char.IsLowSurrogate(name[at + 1]) ? 2 : 1;
@@ -18,12 +25,26 @@ internal static class AnalysisHierarchyNameKey
             // actual public comparer before using a candidate, including valid surrogate pairs.
             // This also respects the runtime's configured ICU/NLS/invariant comparison behavior.
             bool equivalent = name.AsSpan(at, width).Equals(upper.AsSpan(at, width), StringComparison.OrdinalIgnoreCase);
-            for (int unit = 0; unit < width; unit++)
-                BinaryPrimitives.WriteUInt16BigEndian(key.AsSpan(8 + (at + unit) * 2), unchecked((ushort)~(equivalent ? upper[at + unit] : name[at + unit])));
+            var value = equivalent ? upper : name;
+            if (width == 2)
+            {
+                // Ordinal-ignore-case compares valid supplementary scalars after
+                // BMP values, rather than sorting their first UTF-16 surrogate.
+                int scalar = char.ConvertToUtf32(value[at], value[at + 1]);
+                key[output++] = 0; key[output++] = 0; key[output++] = unchecked((byte)~(scalar >> 16));
+                BinaryPrimitives.WriteUInt16BigEndian(key.AsSpan(output), unchecked((ushort)~scalar)); output += 2;
+            }
+            else
+            {
+                char unit = value[at]; BinaryPrimitives.WriteUInt16BigEndian(key.AsSpan(output), unchecked((ushort)~unit)); output += 2;
+                // U+FFFF is the escape prefix; its zero suffix precedes all
+                // supplementary scalars. Other BMP/unpaired units stay compact.
+                if (unit == char.MaxValue) key[output++] = byte.MaxValue;
+            }
             at += width;
         }
         // A captured name contains no NUL; the complemented terminator distinguishes prefixes.
-        key[8 + name.Length * 2] = key[9 + name.Length * 2] = byte.MaxValue;
-        BinaryPrimitives.WriteUInt64BigEndian(key.AsSpan(10 + name.Length * 2), id); return key;
+        key[output] = key[output + 1] = byte.MaxValue;
+        BinaryPrimitives.WriteUInt64BigEndian(key.AsSpan(output + 2), id); return key;
     }
 }

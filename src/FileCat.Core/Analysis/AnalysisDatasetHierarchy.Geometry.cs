@@ -31,7 +31,7 @@ public sealed partial class AnalysisDatasetHierarchy
         while (offset + (ulong)rows.Count < range.Count && rows.Count < maximum)
         {
             token.ThrowIfCancellationRequested(); ulong source = index.Read(range.First + offset + (ulong)rows.Count, token).Value;
-            var item = state.GeometryItem(source, token); long cost = 1024L + item.Name.Length * 2L;
+            var item = state.GeometryItem(source, token, out long cost);
             if (cost > AnalysisLimits.BatchBytes) throw Invalid(); if (cost > AnalysisLimits.BatchBytes - bytes) break;
             rows.Add(item); bytes += cost;
         }
@@ -40,9 +40,17 @@ public sealed partial class AnalysisDatasetHierarchy
 
     private sealed partial class State
     {
-        internal AnalysisTreeItem GeometryItem(ulong source, CancellationToken token) => (source & AnalysisGeometryOrder.BucketToken) != 0
-            ? AnalysisGeometryOrder.Bucket(ReadBucket(source & ~AnalysisGeometryOrder.BucketToken, token), Metric)
-            : AnalysisIndexedChart.Row(Read(source, token), Metric);
+        internal AnalysisTreeItem GeometryItem(ulong source, CancellationToken token) => GeometryItem(source, token, out _);
+        internal AnalysisTreeItem GeometryItem(ulong source, CancellationToken token, out long bytes)
+        {
+            if ((source & AnalysisGeometryOrder.BucketToken) != 0)
+            { bytes = 2048; return AnalysisGeometryOrder.Bucket(ReadBucket(source & ~AnalysisGeometryOrder.BucketToken, token), Metric); }
+            var row = Read(source, token, out bytes); var item = AnalysisIndexedChart.Row(row, Metric);
+            // Account for the captured record decoded to create this small projection,
+            // including bounded object metadata, not only its shortened display label.
+            bytes += 512L + item.Name.Length * 2L + (item.NameEvidence?.Length ?? 0) * 2L;
+            return item;
+        }
 
         internal State Retain()
         {

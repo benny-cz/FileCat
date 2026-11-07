@@ -442,15 +442,21 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
                 yield return new(new(key, row), bytes);
             }
         }
-        internal AnalysisHierarchyRow Read(ulong row, CancellationToken token)
+        internal AnalysisHierarchyRow Read(ulong row, CancellationToken token) => Read(row, token, out _);
+        internal AnalysisHierarchyRow Read(ulong row, CancellationToken token, out long bytes)
         {
             var value = Decode(_rows!.Read(row, token)); var path = _graph.ReadPath(value.Id, token); if (path.ParentId != value.Parent) throw Invalid();
+            bytes = 512L + path.Name.Length * 2L + path.RawName.Length + path.RootId.Length * 2L +
+                (path.ObjectId?.Length ?? 0) * 2L + (path.ObservedIdentity?.Length ?? 0) * 2L;
             DateTimeOffset? modified = path.Times?.ModifiedUtc; ulong precision = path.Times?.ModifiedPrecisionTicks ?? 0;
             if (path.Times is null && path.ObjectId is { } objectId)
             {
                 var objects = _graph.Find(AnalysisIndexedGraphRevision.ObjectIds, AnalysisGraphKeys.Text(objectId), cancellation: token);
                 if (objects.Count == 1)
-                { var observed = _graph.ReadObject(_graph.ReadIndex(AnalysisIndexedGraphRevision.ObjectIds, objects.First, token).Value, token); modified = observed.ModifiedUtc; precision = observed.ModifiedPrecisionTicks; }
+                {
+                    var observed = _graph.ReadObject(_graph.ReadIndex(AnalysisIndexedGraphRevision.ObjectIds, objects.First, token).Value, token); modified = observed.ModifiedUtc; precision = observed.ModifiedPrecisionTicks;
+                    bytes += 512L + observed.Id.Length * 2L + (observed.VerifiedIdentity?.Length ?? 0) * 2L + (observed.VersionEvidence?.Length ?? 0) * 2L;
+                }
             }
             return new(AnalysisPathMetadata.From(path), value.Amount.Export(), value.Incomplete, value.Elsewhere, value.Match, value.Visible, value.Truth)
                 { Logical = value.Logical.ExportLogical(), ModifiedUtc = modified, ModifiedPrecisionTicks = precision,

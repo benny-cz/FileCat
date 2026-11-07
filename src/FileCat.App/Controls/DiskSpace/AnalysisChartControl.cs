@@ -183,6 +183,7 @@ public abstract class AnalysisChartControl : Control
         UInt128 denominator = Tree?.ScopeValue(Scope) ?? 0;
         string percent = item.IsNonFileLeaf || !item.IncludedByPolicy ? "Not included in file measures" : denominator == 0 ? "Unknown percentage" : ((double)item.Value / (double)denominator).ToString("P1", CultureInfo.CurrentCulture) + " of current scope's known measure";
         var tip = new RichTip(AnalysisNames.Display(string.Join(" / ", names), 240), detail: $"{metric}: {FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, Tree?.Metric ?? AnalysisMetric.OnDisk, true)}. {percent}. File size: {FileCat.App.ViewModels.DiskSpaceViewModel.LogicalText(item, true)}." +
+            (item.NameEvidence is { } evidence ? "\n" + evidence : "") +
             (item.IdentityUnverified > 0 ? Tree?.Metric == AnalysisMetric.UniqueFileSize
                 ? $" {item.IdentityUnverified} identity-unverified path bytes are excluded from unique chart area."
                 : $" Includes {item.IdentityUnverified} identity-unverified path bytes; aliases may repeat." : "") +
