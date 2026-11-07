@@ -25,8 +25,10 @@ internal class DeltaFilter : Filter
 
         for (var i = offset; i < end; i++)
         {
-            buffer[i] += _history[(_distance + _position--) & DISTANCE_MASK];
-            _history[_position & DISTANCE_MASK] = buffer[i];
+            byte original = buffer[i];
+            byte previous = _history[(_distance + _position--) & DISTANCE_MASK];
+            buffer[i] = unchecked((byte)(_isEncoder ? original - previous : original + previous));
+            _history[_position & DISTANCE_MASK] = _isEncoder ? original : buffer[i];
         }
 
         return count;

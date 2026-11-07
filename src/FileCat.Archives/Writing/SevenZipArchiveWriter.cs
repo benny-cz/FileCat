@@ -14,7 +14,7 @@ internal sealed record SevenZipWriteManifest(IReadOnlyList<SevenZipWrittenMember
 /// <summary>
 /// Bounded stream-only non-solid 7z creation foundation. Headers are streamed in fixed buffers, then the fixed-size
 /// signature is backpatched through the owned seekable stage. No whole archive/header buffer, pathname or publication
-/// authority. Raw headers/single-coder folders are an implementation step, not the complete required 7z profile.
+/// authority. Raw headers and the current coder graphs are an implementation step in the required 7z profile.
 /// </summary>
 internal static class SevenZipArchiveWriter
 {
@@ -121,21 +121,32 @@ internal static class SevenZipArchiveWriter
     private static void WriteStreams(HeaderWriter h, List<SevenZipWrittenMember> members, int count)
     {
         h.Byte(4); // MainStreamsInfo
-        h.Byte(6); h.Number(0); h.Number((ulong)count); h.Byte(9); // PackInfo, PackPos, count, Size
-        foreach (var member in members) if (member.Content is { } c) h.Number((ulong)c.PackedLength);
+        int packedCount = members.Sum(member => member.Content?.PackedStreams.Count ?? 0);
+        h.Byte(6); h.Number(0); h.Number((ulong)packedCount); h.Byte(9); // PackInfo, PackPos, count, Size
+        foreach (var member in members) if (member.Content is { } c) foreach (var stream in c.PackedStreams) h.Number((ulong)stream.Length);
         h.Byte(10); h.Byte(1);
-        foreach (var member in members) if (member.Content is { } c) h.UInt32(c.PackedCrc32);
+        foreach (var member in members) if (member.Content is { } c) foreach (var stream in c.PackedStreams) h.UInt32(stream.Crc32);
         h.Byte(0);
         h.Byte(7); h.Byte(11); h.Number((ulong)count); h.Byte(0); // UnpackInfo, Folder, count, external=false
         foreach (var member in members)
         {
             if (member.Content is not { } c) continue;
-            h.Number(1); // one single-input/single-output coder, zero bindings, implicit packed stream
-            h.Byte((byte)(c.MethodId.Length | (c.Properties.Length == 0 ? 0 : 0x20))); h.Write(c.MethodId);
-            if (c.Properties.Length != 0) { h.Number((ulong)c.Properties.Length); h.Write(c.Properties); }
+            h.Number((ulong)c.Coders.Count);
+            foreach (var coder in c.Coders)
+            {
+                bool complex = coder.Inputs != 1 || coder.Outputs != 1;
+                h.Byte((byte)(coder.MethodId.Length | (coder.Properties.Length == 0 ? 0 : 0x20) | (complex ? 0x10 : 0)));
+                h.Write(coder.MethodId);
+                if (complex) { h.Number((ulong)coder.Inputs); h.Number((ulong)coder.Outputs); }
+                if (coder.Properties.Length != 0) { h.Number((ulong)coder.Properties.Length); h.Write(coder.Properties); }
+            }
+            foreach (var binding in c.Bindings) { h.Number((ulong)binding.Input); h.Number((ulong)binding.Output); }
+            if (c.PackedStreams.Count > 1)
+                for (int input = 0; input < c.Coders.Sum(coder => coder.Inputs); input++)
+                    if (!c.Bindings.Any(binding => binding.Input == input)) h.Number((ulong)input);
         }
         h.Byte(12);
-        foreach (var member in members) if (member.Content is { } c) h.Number((ulong)c.Length);
+        foreach (var member in members) if (member.Content is { } c) foreach (long length in c.UnpackedSizes) h.Number((ulong)length);
         h.Byte(10); h.Byte(1);
         foreach (var member in members) if (member.Content is { } c) h.UInt32(c.Crc32);
         h.Byte(0); h.Byte(8); h.Byte(0); h.Byte(0); // Unpack end, default single substream folders, streams end

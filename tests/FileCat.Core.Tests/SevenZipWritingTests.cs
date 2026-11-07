@@ -20,6 +20,7 @@ public sealed class SevenZipWritingTests
     [InlineData(3)]
     [InlineData(4)]
     [InlineData(5)]
+    [InlineData(6)]
     public void Codecs_create_independent_folders_exact_content_names_empty_members_and_times(int codecId)
     {
         var codec = (SevenZipCodec)codecId;
@@ -116,12 +117,44 @@ public sealed class SevenZipWritingTests
         Assert.Equal(0, stage.Length);
     }
 
-    [Fact]
-    public void Missing_ppmd_is_a_visible_implementation_gap_before_io()
+    [Theory]
+    [InlineData(1, 8388608)]
+    [InlineData(65, 8388608)]
+    [InlineData(6, 2047)]
+    [InlineData(6, 33554433)]
+    [InlineData(6, 0)]
+    [InlineData(0, 8388608)]
+    public void Invalid_or_incomplete_ppmd_model_options_refuse_before_io(int order, int memory)
     {
         using var source = new ForbiddenRead(); using var stage = new MemoryStream();
-        Assert.Equal(ArchiveWriteReason.UnsupportedFeature, Assert.Throws<ArchiveWriteException>(() => SevenZipCodecEncoder.Encode(source, 10, stage, new(SevenZipCodec.Ppmd7), Ct)).Reason);
+        Assert.Equal(ArchiveWriteReason.InvalidRequest, Assert.Throws<ArchiveWriteException>(() => SevenZipCodecEncoder.Encode(source, 10, stage,
+            new(SevenZipCodec.Ppmd7, ModelOrder: order, ModelMemoryBytes: memory), Ct)).Reason);
         Assert.Equal(0, stage.Length);
+    }
+
+    [Fact]
+    public void Canonically_equivalent_raw_names_remain_distinct_in_the_codec_primitive()
+    {
+        // Production namespace admission still has to resolve native aliases before enabling a profile. The codec
+        // itself must never normalize names or merge distinct physical records during preservation/verification.
+        var entries = new SevenZipWriteEntry[]
+        {
+            new("é.bin", ArchiveMemberType.File, Modified, 0x1a4, 0),
+            new("e\u0301.bin", ArchiveMemberType.File, new(0, 999999900), 0x180, 1),
+        };
+        byte[][] bytes = [[1], [2]];
+        var inputs = bytes.Select((data, id) => new SevenZipInputDescriptor(id, data.Length, Digest(data))).ToDictionary(x => x.Id);
+        using var stage = new MemoryStream();
+        SevenZipArchiveWriter.Create(stage, entries, inputs, id => new MemoryStream(bytes[id], false), new(SevenZipCodec.Copy), Ct);
+        using var dir = new TempDir(); string path = Path.Combine(dir.Path, "names.7z"); File.WriteAllBytes(path, stage.ToArray());
+        using var reader = SharpArchiveReader.Open(path); var actual = reader.List(message => Assert.Fail(message), Ct).ToArray();
+        Assert.Equal(entries.Select(x => x.Name), actual.Select(x => x.Path));
+        foreach (var member in actual)
+        {
+            using var content = reader.Open(member.Index, Ct); Assert.Equal(bytes[member.Index], Read(content));
+        }
+
+        static byte[] Read(Stream source) { using var result = new MemoryStream(); source.CopyTo(result); return result.ToArray(); }
     }
 
     [Theory]

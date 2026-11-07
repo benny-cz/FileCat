@@ -34,6 +34,10 @@ internal static partial class DecoderRegistry
                 return inStreams.Single();
             case K_DELTA:
                 return new DeltaFilter(false, inStreams.Single(), info.NotNull());
+            case K_SWAP2:
+            case K_SWAP4:
+                if (info != null) throw new NotSupportedException();
+                return new SwapFilter(false, inStreams.Single(), id._id == K_SWAP2 ? 2 : 4);
             case K_LZMA:
             case K_LZMA2:
                 return await LzmaStream

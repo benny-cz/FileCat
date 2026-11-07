@@ -4,17 +4,29 @@ using System.Security.Cryptography;
 using FileCat.Core.Archives;
 using SharpCompress.Compressors.BZip2;
 using SharpCompress.Compressors.LZMA;
+using SharpCompress.Compressors.PPMd;
+using SharpCompress.Compressors.Filters;
+using System.Buffers.Binary;
 
 namespace FileCat.Archives.Writing;
 
 internal enum SevenZipCodec { Copy, Lzma, Lzma2, Bzip2, Deflate, Zstandard, Ppmd7 }
-internal sealed record SevenZipCodecOptions(SevenZipCodec Codec, int Level = 0, int DictionaryBytes = 8 << 20);
-internal sealed record SevenZipEncodedContent(SevenZipCodec Codec, byte[] MethodId, byte[] Properties,
-    long Length, long PackedLength, uint Crc32, uint PackedCrc32, string Sha256);
+internal enum SevenZipFilter { None, Delta, X86, Arm, ArmThumb, Arm64, Ppc, Ia64, Sparc, RiscV, Swap2, Swap4, Bcj2 }
+internal sealed record SevenZipCodecOptions(SevenZipCodec Codec, int Level = 0, int DictionaryBytes = 8 << 20,
+    int ModelOrder = 0, int ModelMemoryBytes = 0, SevenZipFilter Filter = SevenZipFilter.None, int DeltaDistance = 1);
+internal sealed record SevenZipCoder(byte[] MethodId, byte[] Properties, int Inputs = 1, int Outputs = 1);
+internal sealed record SevenZipBinding(int Input, int Output);
+internal sealed record SevenZipPackedStream(long Length, uint Crc32);
+internal sealed record SevenZipEncodedContent(SevenZipCodec Codec, IReadOnlyList<SevenZipCoder> Coders,
+    IReadOnlyList<SevenZipBinding> Bindings, IReadOnlyList<long> UnpackedSizes, IReadOnlyList<SevenZipPackedStream> PackedStreams,
+    long Length, uint Crc32, string Sha256)
+{
+    internal long PackedLength => PackedStreams.Sum(stream => stream.Length);
+}
 
 /// <summary>
 /// Stream-only codec adapter for the 7z container foundation. Reuses the existing permitted codecs, with validated
-/// parameters and actual preset mappings. No paths, publication, secrets or registration. PPMd/filter/encryption
+/// parameters and actual preset mappings. No paths, publication, secrets or registration. BCJ2/encryption
 /// coverage remains explicit work; an enum member is not encoder support or profile qualification.
 /// </summary>
 internal static class SevenZipCodecEncoder
@@ -57,8 +69,23 @@ internal static class SevenZipCodecEncoder
             case SevenZipCodec.Zstandard:
                 // This is FileCat's already decoded 7z extension method, not an LZMA stream with another label.
                 methodId = [4, 0xf7, 0x11, 1]; encoded = new StrictZstdWriteStream(measured, options.Level, ct); break;
+            case SevenZipCodec.Ppmd7:
+            {
+                var (order, memory) = PpmdSettings(options);
+                properties = new byte[5]; properties[0] = (byte)order;
+                BinaryPrimitives.WriteUInt32LittleEndian(properties.AsSpan(1), (uint)memory);
+                methodId = [3, 4, 1]; encoded = new Ppmd7zEncoderStream(measured, order, memory, ct); break;
+            }
             default:
-                throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "The required PPMd7 encoder is not implemented yet.");
+                throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This 7z codec is not implemented.");
+        }
+        FilterInputSink? filtered = null;
+        SevenZipCoder? filter = null;
+        if (options.Filter != SevenZipFilter.None)
+        {
+            filtered = new(encoded, length, ct);
+            try { (encoded, filter) = MakeFilter(filtered, options); }
+            catch { filtered.Dispose(); throw; }
         }
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var crc = new ArchiveCrc32();
@@ -89,23 +116,83 @@ internal static class SevenZipCodecEncoder
         }
         measured.Finish();
         ct.ThrowIfCancellationRequested();
-        return new(options.Codec, methodId, properties, length, measured.Bytes, crc.Value, measured.Crc32,
+        if (filtered is not null && filtered.Bytes != length)
+            throw new ArchiveWriteException(ArchiveWriteReason.VerificationFailed, "The 7z filter changed its declared byte extent.");
+        var codec = new SevenZipCoder(methodId, properties);
+        // Both orders are valid 7z graphs, but libarchive expects the compression coder before its filter.
+        // Filter input 1 consumes compression output 0; the only packed input is compression input 0.
+        return new(options.Codec, filter is null ? [codec] : [codec, filter], filter is null ? [] : [new(1, 0)],
+            filter is null ? [length] : [length, length], [new(measured.Bytes, measured.Crc32)], length, crc.Value,
             Convert.ToHexString(hash.GetHashAndReset()));
     }
 
     internal static void Validate(SevenZipCodecOptions options)
     {
-        if (options is null || !Enum.IsDefined(options.Codec) || options.Level is < 0 or > 3 ||
+        if (options is null || !Enum.IsDefined(options.Codec) || !Enum.IsDefined(options.Filter) || options.Level is < 0 or > 3 ||
             options.Codec == SevenZipCodec.Copy && options.Level != 0 ||
             options.DictionaryBytes < 1 << 20 || options.DictionaryBytes > 16 << 20 ||
             !BitOperations.IsPow2((uint)options.DictionaryBytes) ||
-            options.Codec is not (SevenZipCodec.Lzma or SevenZipCodec.Lzma2) && options.DictionaryBytes != 8 << 20)
+            options.Codec is not (SevenZipCodec.Lzma or SevenZipCodec.Lzma2) && options.DictionaryBytes != 8 << 20 ||
+            options.Codec != SevenZipCodec.Ppmd7 && (options.ModelOrder != 0 || options.ModelMemoryBytes != 0) ||
+            options.DeltaDistance is < 1 or > 256 || options.Filter != SevenZipFilter.Delta && options.DeltaDistance != 1)
             throw Invalid("These 7z codec parameters are unsupported or ineffective.");
+        if (options.Filter == SevenZipFilter.Bcj2)
+            throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This 7z filter still needs its audited encoding/graph implementation.");
         if (options.Codec == SevenZipCodec.Ppmd7)
-            throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "PPMd7 needs its separately reviewed encoder/model properties and qualification.");
+        {
+            var (order, memory) = PpmdSettings(options);
+            if (order is < 2 or > 64 || memory < 1 << 11 || memory > 32 << 20 ||
+                (options.ModelOrder == 0) != (options.ModelMemoryBytes == 0))
+                throw Invalid("These PPMd7 model parameters are invalid or exceed the bounded encoder profile.");
+        }
+    }
+
+    private static (int Order, int Memory) PpmdSettings(SevenZipCodecOptions options)
+    {
+        if (options.ModelOrder != 0 || options.ModelMemoryBytes != 0) return (options.ModelOrder, options.ModelMemoryBytes);
+        return options.Level switch { 1 => (4, 4 << 20), 3 => (8, 16 << 20), _ => (6, 8 << 20) };
     }
 
     private static int FastBytes(int effort) => effort switch { 1 => 16, 2 => 32, _ => 64 };
+
+    private static (Stream Encoder, SevenZipCoder Coder) MakeFilter(Stream output, SevenZipCodecOptions options) => options.Filter switch
+    {
+        SevenZipFilter.Delta => (new DeltaFilter(true, output, [(byte)(options.DeltaDistance - 1)]), new([3], [(byte)(options.DeltaDistance - 1)])),
+        SevenZipFilter.X86 => (new BCJFilter(true, output), new([3, 3, 1, 3], [])),
+        SevenZipFilter.Arm => (new BCJFilterARM(true, output), new([3, 3, 5, 1], [])),
+        SevenZipFilter.ArmThumb => (new BCJFilterARMT(true, output), new([3, 3, 7, 1], [])),
+        SevenZipFilter.Arm64 => (new BCJFilterARM64(true, output), new([10], [])),
+        SevenZipFilter.Ppc => (new BCJFilterPPC(true, output), new([3, 3, 2, 5], [])),
+        SevenZipFilter.Ia64 => (new BCJFilterIA64(true, output), new([3, 3, 4, 1], [])),
+        SevenZipFilter.Sparc => (new BCJFilterSPARC(true, output), new([3, 3, 8, 5], [])),
+        SevenZipFilter.RiscV => (new BCJFilterRISCV(true, output), new([11], [])),
+        SevenZipFilter.Swap2 => (new SwapFilter(true, output, 2), new([2, 3, 2], [])),
+        SevenZipFilter.Swap4 => (new SwapFilter(true, output, 4), new([2, 3, 4], [])),
+        _ => throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "The selected 7z filter is not implemented."),
+    };
+
+    private sealed class FilterInputSink(Stream codec, long expectedLength, CancellationToken ct) : Stream
+    {
+        internal long Bytes { get; private set; }
+        public override bool CanRead => false;
+        public override bool CanSeek => false;
+        public override bool CanWrite => true;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => Bytes; set => throw new NotSupportedException(); }
+        public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (buffer.Length > expectedLength - Bytes)
+                throw new ArchiveWriteException(ArchiveWriteReason.VerificationFailed, "The 7z filter exceeded its byte extent.");
+            codec.Write(buffer); Bytes += buffer.Length;
+        }
+        protected override void Dispose(bool disposing) { if (disposing) codec.Dispose(); base.Dispose(disposing); }
+        public override void Flush() => codec.Flush();
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+    }
 
     private sealed class PackedSink(Stream output, CancellationToken ct) : Stream
     {

@@ -19,10 +19,12 @@ def run(root,library):
  'archive_version_string':([],ctypes.c_char_p),'archive_version_details':([],ctypes.c_char_p)}
  for name,(args,result) in signatures.items():getattr(lib,name).argtypes=args;getattr(lib,name).restype=result
  verified=[];buffer=ctypes.create_string_buffer(65536);archives={};raw_records={}
- for codec in range(6):
-  folder=root/('codec-'+str(codec));index=folder/'members.json';path=folder/'members.7z'
+ folders=[root/('codec-'+str(i)) for i in range(7)]+sorted(p for p in root.glob('filter-*') if not p.name.startswith(('filter-Swap','filter-RiscV')))
+ assert len(folders)==18
+ for folder in folders:
+  codec=folder.name;index=folder/'members.json';path=folder/'members.7z'
   if not index.is_file() or index.stat().st_size>65536 or path.stat().st_size>16<<20:raise ValueError('Fixture scope exceeded')
-  rows=json.loads(index.read_text());assert len(rows)==7
+  rows=json.loads(index.read_text());assert 1<=len(rows)<=7
   raw=observe(path);assert raw['names']==[row['name'] for row in rows];raw_records[str(codec)]=raw
   archives[str(codec)]=hashlib.sha256(path.read_bytes()).hexdigest()
   archive=lib.archive_read_new();assert archive

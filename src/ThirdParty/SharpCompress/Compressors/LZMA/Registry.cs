@@ -30,6 +30,8 @@ internal static partial class DecoderRegistry
     private const uint K_DEFLATE = 0x040108;
     private const uint K_B_ZIP2 = 0x040202;
     private const uint K_ZSTD = 0x4F71101;
+    private const uint K_SWAP2 = 0x020302;
+    private const uint K_SWAP4 = 0x020304;
 
     internal static Stream CreateDecoderStream(
         CMethodId id,
@@ -49,6 +51,10 @@ internal static partial class DecoderRegistry
                 return inStreams.Single();
             case K_DELTA:
                 return new DeltaFilter(false, inStreams.Single(), info.NotNull());
+            case K_SWAP2:
+            case K_SWAP4:
+                if (info != null) throw new NotSupportedException();
+                return new SwapFilter(false, inStreams.Single(), id._id == K_SWAP2 ? 2 : 4);
             case K_LZMA:
             case K_LZMA2:
                 return LzmaStream.Create(info.NotNull(), inStreams.Single(), -1, limit);

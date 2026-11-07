@@ -11,6 +11,14 @@ FileCat's changes, all for release issue I14: only code under OSI-approved licen
 derived from UnRAR. FileCat uses this library for 7z archives and bzip2, xz and zstd streams only, so
 everything else is left out.
 
+- Archive-writing PPMd/filter follow-up, 7 November 2026: adds bounded symbol-selection hooks to FileCat's
+  existing BSD-2-Clause `PpmdModelH` and a managed PPMd7/7z encoding range sink. No excluded UnRAR model is
+  restored. Range grammar and ARM64/RISC-V replacement scalar ports use the individually public-domain
+  SDK C files pinned in `eng/validation/archive-writing/sevenzip-feasibility/ppmd-filter-sources.json`.
+  Adds original Swap2/Swap4 and their reader registrations. Delta now encodes by subtraction and decodes
+  by addition; the encoding filter wrapper preserves incomplete instructions across writes, avoids mutating
+  caller buffers, and emits the incomplete EOF tail once. BCJ2 encoding remains unimplemented.
+
 - Dedicated archive-worker build, 6 November 2026: `FileCat.SharpCompress.csproj` grants internal access to the
   writing-only `FileCat.Archives.Writing` assembly and adds the Linux musl ARM64 restore target. Existing encoder
   sources, package versions and component licences are unchanged. The separate worker excludes the reader-only

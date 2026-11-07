@@ -1,0 +1,44 @@
+{
+  "purpose": "private independent Windows PPMd oracle only; not a FileCat runtime or redistributed artifact",
+  "version": "3.8.11",
+  "source_archive_sha256": "a3dc0872b1b39da34dc18ef1b944f0f11ffd37425d70ae04be679279f1cf43d2",
+  "dll_bytes": 1495711,
+  "dll_sha256": "9e561c2ec6e9f3239bb32284208cd97fb3a83e3eb8c8c797bb7bbc52361bf404",
+  "host_dll_execution": false,
+  "imports": [
+    "bcrypt.dll",
+    "KERNEL32.dll",
+    "msvcrt.dll"
+  ],
+  "optional_codecs_disabled": [
+    "zlib",
+    "bzip2",
+    "lzma",
+    "zstd",
+    "lz4",
+    "lzo",
+    "openssl",
+    "mbedtls",
+    "nettle",
+    "iconv"
+  ],
+  "test_executables_disabled": true,
+  "toolchain_sha256": {
+    "C:/TDM-GCC-64/bin/gcc.exe": "f6e504756aed2e7cc339bb0333d161b08965607b51081dec625b5c32d949d7ac",
+    "C:/TDM-GCC-64/bin/mingw32-make.exe": "eaf66442d30d608e2c65366381e37fbf23fcb539a786fed798d66d95699248fb",
+    "C:/Program Files/CMake/bin/cmake.exe": "d4469b36a6633056417cd4adb8a8e002f1bde46fcb5f258caf3fe4b0d82b13e9"
+  },
+  "frozen_configuration_and_exact_source": "Windows v3 evidence/current-native: complete source archive, COPYING, CMakeCache, config.h, compile/link flags, compiler version, build logs and DLL imports",
+  "reader_reference_sources": [
+    {
+      "url": "https://raw.githubusercontent.com/libarchive/libarchive/v3.8.9/libarchive/archive_read_support_format_7zip.c",
+      "bytes": 118842,
+      "sha256": "140450e4ca50e1db98cea1ed1f8cfa57f013f31a74ad9e29c96467eb42eb1d39"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/libarchive/libarchive/v3.8.11/libarchive/archive_read_support_format_7zip.c",
+      "bytes": 131114,
+      "sha256": "3456c0e2d79c3a7fb2b611ca28617b11a146e4ae57d40523f6767fc52412c2e3"
+    }
+  ]
+}

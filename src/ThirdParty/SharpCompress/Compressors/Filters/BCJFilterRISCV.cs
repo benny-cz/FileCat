@@ -1,214 +1,99 @@
+// FileCat replacement scalar port of LZMA SDK 26.05 C/Bra.c, RISCV encode/decode, Igor Pavlov, Public domain.
+// Exact source pin: b88c6bc09339de32f7d18bbab900686b244f42ba. Bounded managed loads and two-byte scanning
+// replace pointer/CPU fast paths; Filter preserves the incomplete trailing instruction across writes and at EOF.
 using System;
 using System.Buffers.Binary;
 using System.IO;
 
 namespace SharpCompress.Compressors.Filters;
 
-internal class BCJFilterRISCV : Filter
+internal sealed class BCJFilterRISCV(bool isEncoder, Stream stream) : Filter(isEncoder, stream, 8)
 {
-    private int _pos;
-
-    public BCJFilterRISCV(bool isEncoder, Stream baseStream)
-        : base(isEncoder, baseStream, 8) => _pos = 0;
-
-    private int Decode(byte[] buffer, int offset, int count)
-    {
-        if (count < 8)
-        {
-            return 0;
-        }
-
-        var end = offset + count - 8;
-        int i;
-        for (i = offset; i <= end; i += 2)
-        {
-            uint inst = buffer[i];
-            if (inst == 0xEF)
-            {
-                uint b1 = buffer[i + 1];
-                if ((b1 & 0x0D) != 0)
-                {
-                    continue;
-                }
-
-                uint b2 = buffer[i + 2];
-                uint b3 = buffer[i + 3];
-                uint pc = (uint)(_pos + i);
-
-                uint addr = ((b1 & 0xF0) << 13) | (b2 << 9) | (b3 << 1);
-
-                addr -= pc;
-
-                buffer[i + 1] = (byte)((b1 & 0x0F) | ((addr >> 8) & 0xF0));
-
-                buffer[i + 2] = (byte)(
-                    ((addr >> 16) & 0x0F) | ((addr >> 7) & 0x10) | ((addr << 4) & 0xE0)
-                );
-
-                buffer[i + 3] = (byte)(((addr >> 4) & 0x7F) | ((addr >> 13) & 0x80));
-
-                i += 4 - 2;
-            }
-            else if ((inst & 0x7F) == 0x17)
-            {
-                uint inst2 = 0;
-                inst |= (uint)buffer[i + 1] << 8;
-                inst |= (uint)buffer[i + 2] << 16;
-                inst |= (uint)buffer[i + 3] << 24;
-
-                if ((inst & 0xE80) != 0)
-                {
-                    inst2 = BinaryPrimitives.ReadUInt32LittleEndian(
-                        new ReadOnlySpan<byte>(buffer, i + 4, 4)
-                    );
-                    if (((((inst) << 8) ^ (inst2)) & 0xF8003) != 3)
-                    {
-                        i += 6 - 2;
-                        continue;
-                    }
-                    uint addr = inst & 0xFFFFF000;
-                    addr += inst2 >> 20;
-
-                    inst = 0x17 | (2 << 7) | (inst2 << 12);
-                    inst2 = addr;
-                }
-                else
-                {
-                    uint inst2_rs1 = inst >> 27;
-                    if ((uint)(((inst) - 0x3117) << 18) >= ((inst2_rs1) & 0x1D))
-                    {
-                        i += 4 - 2;
-                        continue;
-                    }
-
-                    uint addr = BinaryPrimitives.ReadUInt32BigEndian(
-                        new ReadOnlySpan<byte>(buffer, i + 4, 4)
-                    );
-
-                    addr -= (uint)(_pos + i);
-
-                    inst2 = (inst >> 12) | (addr << 20);
-
-                    inst = 0x17 | (inst2_rs1 << 7) | ((addr + 0x800) & 0xFFFFF000);
-                }
-                BinaryPrimitives.WriteUInt32LittleEndian(new Span<byte>(buffer, i, 4), inst);
-                BinaryPrimitives.WriteUInt32LittleEndian(new Span<byte>(buffer, i + 4, 4), inst2);
-
-                i += 8 - 2;
-            }
-        }
-        i -= offset;
-        _pos += i;
-        return i;
-    }
-
-    private int Encode(byte[] buffer, int offset, int count)
-    {
-        if (count < 8)
-        {
-            return 0;
-        }
-
-        var end = offset + count - 8;
-        int i;
-        for (i = offset; i <= end; i += 2)
-        {
-            uint inst = buffer[i];
-            if (inst == 0xEF)
-            {
-                uint b1 = buffer[i + 1];
-                if ((b1 & 0x0D) != 0)
-                {
-                    continue;
-                }
-
-                uint b2 = buffer[i + 2];
-                uint b3 = buffer[i + 3];
-                uint pc = (uint)(_pos + i);
-
-                uint addr =
-                    ((b1 & 0xF0) << 8)
-                    | ((b2 & 0x0F) << 16)
-                    | ((b2 & 0x10) << 7)
-                    | ((b2 & 0xE0) >> 4)
-                    | ((b3 & 0x7F) << 4)
-                    | ((b3 & 0x80) << 13);
-
-                addr += pc;
-
-                buffer[i + 1] = (byte)((b1 & 0x0F) | ((addr >> 13) & 0xF0));
-
-                buffer[i + 2] = (byte)(addr >> 9);
-
-                buffer[i + 3] = (byte)(addr >> 1);
-
-                i += 4 - 2;
-            }
-            else if ((inst & 0x7F) == 0x17)
-            {
-                inst |= (uint)buffer[i + 1] << 8;
-                inst |= (uint)buffer[i + 2] << 16;
-                inst |= (uint)buffer[i + 3] << 24;
-
-                if ((inst & 0xE80) != 0)
-                {
-                    uint inst2 = BinaryPrimitives.ReadUInt32LittleEndian(
-                        new ReadOnlySpan<byte>(buffer, i + 4, 4)
-                    );
-                    if (((((inst) << 8) ^ (inst2)) & 0xF8003) != 3)
-                    {
-                        i += 6 - 2;
-                        continue;
-                    }
-                    uint addr = inst & 0xFFFFF000;
-                    addr += (inst2 >> 20) - ((inst2 >> 19) & 0x1000);
-
-                    addr += (uint)(_pos + i);
-                    inst = 0x17 | (2 << 7) | (inst2 << 12);
-
-                    BinaryPrimitives.WriteUInt32LittleEndian(new Span<byte>(buffer, i, 4), inst);
-                    BinaryPrimitives.WriteUInt32BigEndian(new Span<byte>(buffer, i + 4, 4), addr);
-                }
-                else
-                {
-                    uint fake_rs1 = inst >> 27;
-                    if ((uint)(((inst) - 0x3117) << 18) >= ((fake_rs1) & 0x1D))
-                    {
-                        i += 4 - 2;
-                        continue;
-                    }
-
-                    uint fake_addr = BinaryPrimitives.ReadUInt32LittleEndian(
-                        new ReadOnlySpan<byte>(buffer, i + 4, 4)
-                    );
-
-                    uint fake_inst2 = (inst >> 12) | (fake_addr << 20);
-
-                    inst = 0x17 | (fake_rs1 << 7) | (fake_addr & 0xFFFFF000);
-
-                    BinaryPrimitives.WriteUInt32LittleEndian(new Span<byte>(buffer, i, 4), inst);
-                    BinaryPrimitives.WriteUInt32LittleEndian(
-                        new Span<byte>(buffer, i + 4, 4),
-                        fake_inst2
-                    );
-                }
-                i += 8 - 2;
-            }
-        }
-        i -= offset;
-        _pos += i;
-        return i;
-    }
+    private uint _position;
 
     protected override int Transform(byte[] buffer, int offset, int count)
     {
-        if (_isEncoder)
+        int aligned = count & ~1;
+        if (aligned <= 6) return 0;
+        int at = 0, limit = aligned - 6;
+        unchecked
         {
-            return Encode(buffer, offset, count);
+            while (at < limit)
+            {
+                Span<byte> instruction = buffer.AsSpan(offset + at, 8);
+                uint scan = (BinaryPrimitives.ReadUInt16LittleEndian(instruction) ^ 0x10u) + 1;
+                if ((scan & 0x77) != 0) { at += 2; continue; }
+                uint value = BinaryPrimitives.ReadUInt32LittleEndian(instruction), pc = _position + (uint)at;
+                if ((scan & 8) == 0)
+                {
+                    if (_isEncoder)
+                    {
+                        if (((scan - 0x100) & 0xd80) != 0) { at += 2; continue; }
+                        uint address = ((value & (1u << 31)) >> 11) | ((value & (0x3ffu << 21)) >> 20) |
+                            ((value & (1u << 20)) >> 9) | (value & (0xffu << 12));
+                        address += pc;
+                        instruction[1] = (byte)(((address >> 13) & 0xf0) | ((value >> 8) & 15));
+                        instruction[2] = (byte)(address >> 9); instruction[3] = (byte)(address >> 1);
+                    }
+                    else
+                    {
+                        scan -= 0x81;
+                        if ((scan & 0xd80) != 0) { at += 2; continue; }
+                        uint original = (scan + 0x70) & 0xfff;
+                        uint address = ((uint)instruction[3] << 1) | ((uint)instruction[2] << 9) | ((scan & 0xf000) << 5);
+                        address -= pc;
+                        value = original | ((address << 11) & (1u << 31)) | ((address << 20) & (0x3ffu << 21)) |
+                            ((address << 9) & (1u << 20)) | (address & (0xffu << 12));
+                        BinaryPrimitives.WriteUInt32LittleEndian(instruction, value);
+                    }
+                    at += 4; continue;
+                }
+                if (_isEncoder)
+                {
+                    uint next = BinaryPrimitives.ReadUInt32LittleEndian(instruction[4..]);
+                    if ((scan & 0xe80) != 0)
+                    {
+                        if (!Pair(scan, next)) { at += 6; continue; }
+                        BinaryPrimitives.WriteUInt32LittleEndian(instruction, (next << 12) | 0x117);
+                        uint address = (value & 0xfffff000) + (uint)((int)next >> 20) + pc;
+                        BinaryPrimitives.WriteUInt32BigEndian(instruction[4..], address);
+                    }
+                    else
+                    {
+                        uint register = value >> 27;
+                        if (!Special(scan, register)) { at += 4; continue; }
+                        uint first = (register << 7) + 0x17 + (next & 0xfffff000);
+                        uint second = (value >> 12) | (next << 20);
+                        BinaryPrimitives.WriteUInt32LittleEndian(instruction, first);
+                        BinaryPrimitives.WriteUInt32LittleEndian(instruction[4..], second);
+                    }
+                }
+                else if ((scan & 0xe80) == 0)
+                {
+                    uint register = value >> 27;
+                    if (!Special(scan, register)) { at += 4; continue; }
+                    uint address = BinaryPrimitives.ReadUInt32BigEndian(instruction[4..]) - pc;
+                    uint second = (value >> 12) | (address << 20);
+                    uint first = (register << 7) + 0x17 + ((address + 0x800) & 0xfffff000);
+                    BinaryPrimitives.WriteUInt32LittleEndian(instruction, first);
+                    BinaryPrimitives.WriteUInt32LittleEndian(instruction[4..], second);
+                }
+                else
+                {
+                    uint next = BinaryPrimitives.ReadUInt32LittleEndian(instruction[4..]);
+                    if (!Pair(scan, next)) { at += 6; continue; }
+                    uint second = (value & 0xfffff000) | (next >> 20);
+                    uint first = (next << 12) | 0x117;
+                    BinaryPrimitives.WriteUInt32LittleEndian(instruction, first);
+                    BinaryPrimitives.WriteUInt32LittleEndian(instruction[4..], second);
+                }
+                at += 8;
+            }
+            _position += (uint)at;
         }
-        else
-        {
-            return Decode(buffer, offset, count);
-        }
+        return at;
     }
+
+    private static bool Pair(uint first, uint second) => unchecked((((second - 3) ^ (first << 8)) & 0xf8003) == 0);
+    private static bool Special(uint instruction, uint register) => unchecked(((instruction - 0x3108) << 18) < (register & 0x1d));
 }

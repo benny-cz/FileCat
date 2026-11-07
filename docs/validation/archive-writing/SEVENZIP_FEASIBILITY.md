@@ -157,3 +157,8 @@ needed method merely because the pinned writer lacks it, or call the overall fea
 The subsequent [C# codec/container/KDF checkpoint](SEVENZIP_CSHARP_CODECS_AND_KDF.md) implements and independently
 checks six existing-codec paths on the three platforms. This earlier analysis remains the needed-coverage inventory;
 PPMd/filter/header/password/workflow gaps must not disappear behind that narrower tested foundation.
+
+The [subsequent PPMd/filter checkpoint](SEVENZIP_PPMD_AND_FILTERS.md) adds bounded managed PPMd7, streamed
+branch/delta/swap encoders and reader support, with SDK/official/libarchive evidence on all three platforms.
+It records an actual coder-order fix, the official reader's Zstandard-extension limit and the Windows system
+reader's PPMd failure. BCJ2/header/password/shared integration and the broader qualification matrix remain open.

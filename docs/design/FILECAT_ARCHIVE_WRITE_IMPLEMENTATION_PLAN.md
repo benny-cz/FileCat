@@ -226,6 +226,8 @@ packet numbers do not impose a different order. This is an implementation priori
    with genuine presets, exact framing/CRC/times, negative cases and per-method inventory. Then implement the needed
    7z container/codecs/filters from §8.4, reusing permitted encoders and adding missing reviewed paths. Keep engines
    unregistered while incomplete. Separate reviewable commits inside this chunk are appropriate; no VM session per file.
+   Implement cipher/header integration and password-aware decoding here before freezing catalogs/protocol versions;
+   the secret-grant lifetime and password UI remain required shared integration/workflow work in steps 2–3.
 2. **Strict analysis and shared integration:** complete raw feature catalogs, preservation manifests, bounded source
    and verification routes, worker protocol/profile versions and common transaction integration for both formats.
    Resolve remaining capture/snapshot/global-memory ownership and known exclusion-name detail before exposing them.
@@ -627,6 +629,10 @@ Library EOF is not necessarily physical EOF or a complete wrapper: explicitly di
 
 ### 8.4 7z profile
 
+The [PPMd/filter checkpoint](../validation/archive-writing/SEVENZIP_PPMD_AND_FILTERS.md) now records seven codecs,
+fourteen filter configurations and exact three-platform independent readback. BCJ2, compressed headers,
+password archive integration and the remaining production gates are still open; no new profile is registered.
+
 Initial 7z output is non-solid with optional password/data/header encryption required by §4.3.1. LZMA2 is the default, not the full needed encoder set. Required
 feasible coverage is Copy, LZMA, LZMA2, PPMd7 with the 7z range coder, BZip2, raw Deflate and the Zstandard method
 already read by FileCat. Qualify each independently. Needed transforms are x86 BCJ, ARM/ARMT/ARM64, PPC, IA64,
@@ -634,6 +640,11 @@ SPARC, RISC-V, Delta 1–256, four-stream BCJ2 and Swap2/Swap4; graphs must have
 reader/manifest support. Add real encoding where absent (including PPMd, delta direction, BCJ2 and swaps), not a
 method relabel. Deflate64 and arbitrary plugin methods remain documented unimplemented gaps, not demonstrated
 impossibilities. The [coverage decision](../validation/archive-writing/SEVENZIP_FEASIBILITY.md) controls that inventory.
+
+The existing Zstandard 7z method is an extension: official 7-Zip 26.05 does not register `04F71101`, although it
+reads standalone Zstandard. Preserve this concrete interoperability limit in the coverage inventory and the codec
+choice's compatibility explanation; do not claim universal 7-Zip compatibility or count its rejection as a passed
+oracle check. Qualify extension payloads with an actually supporting independent reader as well as FileCat.
 
 Use a parent-owned seekable stage proxy, not a full in-memory archive. Raw and compressed headers, exact bounded
 dictionary/model/filter properties and real codec presets are versioned profile fields. Do not wire UI levels to
