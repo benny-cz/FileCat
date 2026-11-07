@@ -161,6 +161,7 @@ internal static class StrictSevenZipFraming
         }
         finally { CryptographicOperations.ZeroMemory(buffer); }
     }
+    internal static string WholeHash(Stream input, long length, CancellationToken ct) => Scan(input, length, [], ct);
     private static void ReadExactly(Stream input, Span<byte> buffer, CancellationToken ct)
     {
         while (!buffer.IsEmpty)

@@ -14,6 +14,7 @@ internal partial class CBZip2InputStream
 {
     public async ValueTask<int> ReadByteAsync(CancellationToken cancellationToken)
     {
+        ObjectDisposedException.ThrowIf(isDisposed, this);
         if (streamEnd)
         {
             return -1;
@@ -965,12 +966,14 @@ internal partial class CBZip2InputStream
         cbZip2InputStream.ll8 = null;
         cbZip2InputStream.tt = null;
         cbZip2InputStream.BsSetStream(zStream);
-        if (!await cbZip2InputStream.InitializeAsync(true, cancellationToken).ConfigureAwait(false))
+        try
         {
-            throw new InvalidFormatException("Not a valid BZip2 stream");
+            if (!await cbZip2InputStream.InitializeAsync(true, cancellationToken).ConfigureAwait(false))
+                throw new InvalidFormatException("Not a valid BZip2 stream");
+            await cbZip2InputStream.InitBlockAsync(cancellationToken).ConfigureAwait(false);
+            await cbZip2InputStream.SetupBlockAsync(cancellationToken).ConfigureAwait(false);
+            return cbZip2InputStream;
         }
-        await cbZip2InputStream.InitBlockAsync(cancellationToken).ConfigureAwait(false);
-        await cbZip2InputStream.SetupBlockAsync(cancellationToken).ConfigureAwait(false);
-        return cbZip2InputStream;
+        catch { cbZip2InputStream.Dispose(); throw; }
     }
 }

@@ -219,24 +219,30 @@ internal partial class CBZip2InputStream : Stream
         cbZip2InputStream.ll8 = null;
         cbZip2InputStream.tt = null;
         cbZip2InputStream.BsSetStream(zStream);
-        if (!cbZip2InputStream.Initialize(true))
+        try
         {
-            throw new InvalidFormatException("Not a valid BZip2 stream");
+            if (!cbZip2InputStream.Initialize(true)) throw new InvalidFormatException("Not a valid BZip2 stream");
+            cbZip2InputStream.InitBlock(); cbZip2InputStream.SetupBlock(); return cbZip2InputStream;
         }
-        cbZip2InputStream.InitBlock();
-        cbZip2InputStream.SetupBlock();
-        return cbZip2InputStream;
+        catch { cbZip2InputStream.Dispose(); throw; }
     }
 
     protected override void Dispose(bool disposing)
     {
-        if (isDisposed || leaveOpen)
+        if (isDisposed)
         {
             return;
         }
         isDisposed = true;
-        base.Dispose(disposing);
-        bsStream?.Dispose();
+        try { if (disposing && !leaveOpen) bsStream?.Dispose(); }
+        finally
+        {
+            if (ll8 is not null) Array.Clear(ll8); if (tt is not null) Array.Clear(tt);
+            Array.Clear(inUse); Array.Clear(seqToUnseq); Array.Clear(unseqToSeq); Array.Clear(selector); Array.Clear(selectorMtf);
+            Array.Clear(unzftab); Array.Clear(minLens);
+            foreach (var row in limit) Array.Clear(row); foreach (var row in basev) Array.Clear(row); foreach (var row in perm) Array.Clear(row);
+            ll8 = null; tt = null; base.Dispose(disposing);
+        }
     }
 
     internal static int[][] InitIntArray(int n1, int n2)
@@ -261,6 +267,7 @@ internal partial class CBZip2InputStream : Stream
 
     public override int ReadByte()
     {
+        ObjectDisposedException.ThrowIf(isDisposed, this);
         if (streamEnd)
         {
             return -1;
@@ -1276,7 +1283,7 @@ internal partial class CBZip2InputStream : Stream
 
     public override void WriteByte(byte value) { }
 
-    public override bool CanRead => true;
+    public override bool CanRead => !isDisposed;
 
     public override bool CanSeek => false;
 

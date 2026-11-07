@@ -4,11 +4,19 @@ This is an **incomplete implementation**, not format or release qualification. T
 [the archive writing plan](../../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md). No new writer is enabled in the
 application. An explicit new-profile job refuses instead of entering the legacy ZIP executor.
 
-**Next coherent implementation chunk:** complete the strict 7z member graph/catalog, then connect its complete
-preservation/worker/native adapter. The [RAR native checkpoint](RAR5_NATIVE_PIPELINE.md) is recorded below; continue
+**Next coherent implementation chunk:** connect the completed strict 7z member catalog to its exact public metadata,
+preservation planner/assembler and shared worker/native adapter. The [7z logical checkpoint](SEVENZIP_LOGICAL_CATALOG.md)
+passes 3,310 cases per platform (316 new), with independent coverage of all 273 codec/filter/password archives.
+The [RAR native checkpoint](RAR5_NATIVE_PIPELINE.md) is recorded below; continue
 remaining Unix transactions/confinement and shared UI/password/edit/F6 integration without repeating its passed
 component suites unless affected. Use the [validation batching workflow](../../../eng/validation/archive-writing/README.md#efficient-validation-batches).
 All production resource/crash/fuzz/RID/package gates and the final independent review remain required.
+
+The 7z catalog now requires complete graph/codec endings, packed and plaintext checksums/SHA, exact sizes and a final
+whole-source revision. A failed empty Deflate BCJ2 branch is fixed, with all password modes covered. Aligned nonzero
+ARM64/RISC-V offsets and decoder cleanup are included. The graph's conservative memory reservation is separate from
+the persistent metadata limit and does not qualify the native process envelope. See the checkpoint for official
+7-Zip's Zstandard gap, the independent fallback coverage, frozen compiler inputs and retained failed phases.
 
 Current user-requested order (7 November): the recursive-selection checkpoint is recorded in `685fe564`;
 [independent compressed RAR5 feasibility](RAR5_FEASIBILITY.md), committed in `4672ac14`, supports technical go.

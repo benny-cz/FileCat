@@ -291,7 +291,8 @@ internal static class SevenZipStrictMetadata
             0 or 0x040202 or 0x040108 or 0x0303011b or 0x020302 or 0x020304 => properties == 0,
             0x030101 or 0x030401 or 0x04f71101 => properties == 5,
             0x21 or 3 => properties == 1,
-            0x03030103 or 0x03030205 or 0x03030401 or 0x03030501 or 0x03030701 or 0x03030805 or 10 or 11 => properties is 0 or 4,
+            0x03030103 or 0x03030205 or 0x03030401 or 0x03030501 or 0x03030701 or 0x03030805 => properties == 0,
+            10 or 11 => properties is 0 or 4,
             0x06f10701 => properties is >= 1 and <= 34,
             _ => false,
         };

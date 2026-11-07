@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Security.Cryptography;
 
 namespace SharpCompress.Compressors.Filters;
 
@@ -42,8 +43,13 @@ internal abstract partial class Filter : Stream
         }
         finally
         {
-            if (disposing) _baseStream.Dispose();
-            base.Dispose(disposing);
+            try { if (disposing) _baseStream.Dispose(); }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(_tail); CryptographicOperations.ZeroMemory(_window);
+                if (_encodeBuffer is not null) CryptographicOperations.ZeroMemory(_encodeBuffer);
+                base.Dispose(disposing);
+            }
         }
     }
 

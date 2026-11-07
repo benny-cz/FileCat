@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Security.Cryptography;
 using FileCat.Core.Archives;
 using SharpCompress.Common;
 using SharpCompress.Compressors.ZStandard;
@@ -66,14 +67,21 @@ internal sealed class StrictZstdReadStream : Stream
     private bool failed, disposed, ended;
     internal ZstdFrameHeader Header { get; }
     internal StrictZstdReadStream(Stream source, CancellationToken ct)
+        : this(source, ReviewedLength(source), ct) { }
+    private static long ReviewedLength(Stream source)
+    { if (!source.CanSeek || source.Position != 0) throw ZstdFrameHeader.Invalid(); return source.Length; }
+    internal StrictZstdReadStream(Stream source, long physicalLength, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        if (!source.CanRead || !source.CanSeek || source.Position != 0 || source.Length is < 9 or > ArchiveWritePolicy.MaxPhysicalBytes) throw ZstdFrameHeader.Invalid();
-        this.ct = ct; physicalLength = source.Length; buffered = new(source, physicalLength, ct); Header = ZstdFrameHeader.Read(buffered, ct);
-        framed = new(buffered, physicalLength, Header, ct);
-        decoder = new(framed, ArchiveIoAuthority.MaximumReadBytes, checkEndOfStream: true, leaveOpen: true);
-        try { decoder.SetParameter(ZSTD_dParameter.ZSTD_d_windowLogMax, 26); }
-        catch { decoder.Dispose(); throw; }
+        if (!source.CanRead || physicalLength is < 9 or > ArchiveWritePolicy.MaxPhysicalBytes) throw ZstdFrameHeader.Invalid();
+        this.ct = ct; this.physicalLength = physicalLength; buffered = new(source, physicalLength, ct);
+        try
+        {
+            Header = ZstdFrameHeader.Read(buffered, ct); framed = new(buffered, physicalLength, Header, ct);
+            decoder = new(framed, ArchiveIoAuthority.MaximumReadBytes, checkEndOfStream: true, leaveOpen: true);
+            decoder.SetParameter(ZSTD_dParameter.ZSTD_d_windowLogMax, 26);
+        }
+        catch { try { decoder?.Dispose(); } finally { framed?.Dispose(); buffered.Dispose(); } throw; }
     }
     public override int Read(byte[] b, int o, int c) => Read(b.AsSpan(o, c));
     public override int Read(Span<byte> buffer)
@@ -118,7 +126,7 @@ internal sealed class StrictZstdReadStream : Stream
             }
             int n = Math.Min(b.Length, available); bytes.AsSpan(offset, n).CopyTo(b); offset += n; available -= n; return n;
         }
-        protected override void Dispose(bool disposing) { disposed = true; base.Dispose(disposing); }
+        protected override void Dispose(bool disposing) { disposed = true; if (disposing) CryptographicOperations.ZeroMemory(bytes); base.Dispose(disposing); }
         public override bool CanRead => !disposed; public override bool CanSeek => false; public override bool CanWrite => false;
         public override long Length => throw new NotSupportedException(); public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
         public override void Flush() => throw new NotSupportedException(); public override long Seek(long o, SeekOrigin s) => throw new NotSupportedException();
@@ -134,6 +142,7 @@ internal sealed class StrictZstdReadStream : Stream
         private int offset, available;
         private long consumed, remaining;
         private bool last, footer, failed;
+        protected override void Dispose(bool disposing) { if (disposing) CryptographicOperations.ZeroMemory(pending); base.Dispose(disposing); }
         internal bool Complete { get; private set; }
         internal FramedInput(Stream source, long length, ZstdFrameHeader header, CancellationToken ct)
         {
@@ -185,7 +194,7 @@ internal sealed class StrictZstdReadStream : Stream
         public override void Flush() => throw new NotSupportedException(); public override long Seek(long o, SeekOrigin s) => throw new NotSupportedException();
         public override void SetLength(long n) => throw new NotSupportedException(); public override void Write(byte[] b, int o, int c) => throw new NotSupportedException();
     }
-    protected override void Dispose(bool disposing) { if (disposing && !disposed) { disposed = true; try { decoder.Dispose(); } finally { buffered.Dispose(); } } base.Dispose(disposing); }
+    protected override void Dispose(bool disposing) { if (disposing && !disposed) { disposed = true; try { decoder.Dispose(); } finally { framed.Dispose(); buffered.Dispose(); } } base.Dispose(disposing); }
     public override bool CanRead => !disposed && !failed; public override bool CanSeek => false; public override bool CanWrite => false;
     public override long Length => throw new NotSupportedException(); public override long Position { get => produced; set => throw new NotSupportedException(); }
     public override void Flush() => throw new NotSupportedException(); public override long Seek(long o, SeekOrigin s) => throw new NotSupportedException();

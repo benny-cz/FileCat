@@ -75,9 +75,9 @@ internal static partial class DecoderRegistry
             case K_SPARC:
                 return new BCJFilterSPARC(false, inStreams.Single());
             case K_ARM64:
-                return new BCJFilterARM64(false, inStreams.Single());
+                return new BCJFilterARM64(false, inStreams.Single(), BranchFilterProperties.InitialPosition(info, 3));
             case K_RISCV:
-                return new BCJFilterRISCV(false, inStreams.Single());
+                return new BCJFilterRISCV(false, inStreams.Single(), BranchFilterProperties.InitialPosition(info, 1));
             case K_B_ZIP2:
                 return BZip2Stream.Create(inStreams.Single(), CompressionMode.Decompress, true);
             case K_PPMD:

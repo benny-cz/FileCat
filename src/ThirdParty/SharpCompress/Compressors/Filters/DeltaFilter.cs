@@ -14,10 +14,14 @@ internal class DeltaFilter : Filter
     public DeltaFilter(bool isEncoder, Stream baseStream, byte[] info)
         : base(isEncoder, baseStream, 1)
     {
+        if (info is null || info.Length != 1) throw new System.ArgumentException("Delta requires one property byte.", nameof(info));
         _distance = info[0];
         _history = new byte[DISTANCE_MAX];
         _position = 0;
     }
+
+    protected override void Dispose(bool disposing)
+    { try { base.Dispose(disposing); } finally { if (_history is not null) System.Array.Clear(_history); } }
 
     protected override int Transform(byte[] buffer, int offset, int count)
     {

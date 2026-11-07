@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using FileCat.Core.Archives;
 using SharpCompress.Common;
 using SharpCompress.Compressors.BZip2;
@@ -16,16 +17,24 @@ internal sealed class StrictBzip2ReadStream : Stream
     private bool ended, failed, disposed;
     internal byte BlockSize { get; }
     internal StrictBzip2ReadStream(Stream source, CancellationToken ct)
+        : this(source, ReviewedLength(source), ct) { }
+    private static long ReviewedLength(Stream source)
+    { if (!source.CanSeek || source.Position != 0) throw Invalid(); return source.Length; }
+    internal StrictBzip2ReadStream(Stream source, long physicalLength, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        if (!source.CanRead || !source.CanSeek || source.Position != 0 || source.Length is < 14 or > ArchiveWritePolicy.MaxPhysicalBytes)
+        if (!source.CanRead || physicalLength is < 14 or > ArchiveWritePolicy.MaxPhysicalBytes)
             throw Invalid();
-        this.source = source; this.ct = ct; physicalLength = source.Length; encoded = new(source, physicalLength, ct);
-        var header = encoded.Header;
-        if (!header[..3].SequenceEqual("BZh"u8) || header[3] is < (byte)'1' or > (byte)'9') throw Invalid();
-        BlockSize = (byte)(header[3] - '0'); // Validate before the codec allocates its block-dependent arrays.
-        try { decoder = CBZip2InputStream.Create(encoded, decompressConcatenated: false, leaveOpen: true, tolerateTruncatedStream: false); }
-        catch (SharpCompressException ex) { throw Invalid(ex); }
+        this.source = source; this.ct = ct; this.physicalLength = physicalLength; encoded = new(source, physicalLength, ct);
+        try
+        {
+            var header = encoded.Header;
+            if (!header[..3].SequenceEqual("BZh"u8) || header[3] is < (byte)'1' or > (byte)'9') throw Invalid();
+            BlockSize = (byte)(header[3] - '0'); // Validate before the codec allocates its block-dependent arrays.
+            decoder = CBZip2InputStream.Create(encoded, decompressConcatenated: false, leaveOpen: true, tolerateTruncatedStream: false);
+        }
+        catch (SharpCompressException ex) { encoded.Dispose(); throw Invalid(ex); }
+        catch { encoded.Dispose(); throw; }
     }
     public override int Read(byte[] b, int o, int c) => Read(b.AsSpan(o, c));
     public override int Read(Span<byte> buffer)
@@ -55,6 +64,7 @@ internal sealed class StrictBzip2ReadStream : Stream
         private readonly byte[] bytes = new byte[64 * 1024];
         private int start, end;
         private long fetched;
+        protected override void Dispose(bool disposing) { if (disposing) CryptographicOperations.ZeroMemory(bytes); base.Dispose(disposing); }
         internal long Consumed { get; private set; }
         internal ReadOnlySpan<byte> Header
         {
@@ -85,7 +95,7 @@ internal sealed class StrictBzip2ReadStream : Stream
         public override void SetLength(long n) => throw new NotSupportedException();
         public override void Write(byte[] b, int o, int c) => throw new NotSupportedException();
     }
-    protected override void Dispose(bool disposing) { if (disposing && !disposed) { disposed = true; decoder.Dispose(); } base.Dispose(disposing); }
+    protected override void Dispose(bool disposing) { if (disposing && !disposed) { disposed = true; try { decoder.Dispose(); } finally { encoded.Dispose(); } } base.Dispose(disposing); }
     public override bool CanRead => !disposed && !failed; public override bool CanSeek => false; public override bool CanWrite => false;
     public override long Length => throw new NotSupportedException(); public override long Position { get => produced; set => throw new NotSupportedException(); }
     public override void Flush() => throw new NotSupportedException();

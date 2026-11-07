@@ -7,9 +7,9 @@ using System.IO;
 
 namespace SharpCompress.Compressors.Filters;
 
-internal sealed class BCJFilterRISCV(bool isEncoder, Stream stream) : Filter(isEncoder, stream, 8)
+internal sealed class BCJFilterRISCV(bool isEncoder, Stream stream, uint initialPosition = 0) : Filter(isEncoder, stream, 8)
 {
-    private uint _position;
+    private uint _position = initialPosition;
 
     protected override int Transform(byte[] buffer, int offset, int count)
     {

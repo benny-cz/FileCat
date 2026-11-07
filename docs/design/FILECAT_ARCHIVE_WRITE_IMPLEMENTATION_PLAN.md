@@ -74,21 +74,23 @@ costs/directories, job-owned passwords, native new-file publication on all three
 protocol-2 update/restoration. Remaining RAR work includes Unix native update/confinement, complete production
 resource/package qualification and shared application workflows/UI; no new write profile is enabled.
 
-Complete the 7z member graph/catalog and shared adapter next, alongside remaining Unix native transactions and
-shared UI/edit/F6 integration. Follow the validation batching guidance in
+The [complete strict 7z member catalog](../validation/archive-writing/SEVENZIP_LOGICAL_CATALOG.md) now passes its
+3,310-case platform matrices and independent codec/filter/password checks. Connect exact public metadata,
+preservation planning/assembly and the shared worker/native adapter next, alongside remaining Unix native
+transactions and shared UI/edit/F6 integration. Follow the validation batching guidance in
 [the qualification harness](../../eng/validation/archive-writing/README.md#efficient-validation-batches): short native
 preflight, coherent changes, incremental builds and evidence-linked affected-case reruns. Every full
 resource/crash/fuzz/RID/package/release gate remains required.
 
 [Complete encoded-header verification](../validation/archive-writing/SEVENZIP_HEADER_VERIFICATION.md) now connects
-the strict LZMA/LZMA2 and exact Copy/AES layers to the 7z framing pass. Complete member graph/catalog verification
-and the shared parent/worker/native adapters remain the next integration work.
+the strict LZMA/LZMA2 and exact Copy/AES layers to the 7z framing pass. The subsequent logical catalog connects the
+strict payload nodes; exact preservation and the shared parent/worker/native adapters remain integration work.
 
 [Strict PPMd7 and BCJ2 node verification](../validation/archive-writing/SEVENZIP_RANGE_VERIFICATION.md) now covers
 known-size range completion, consumed input and all four BCJ2 branches, with SDK differential evidence.
 [Raw-Deflate verification](../validation/archive-writing/SEVENZIP_DEFLATE_VERIFICATION.md) now adds exact block
-completion, sizes, consumed input and history checks, with native zlib comparisons. Integrate the complete 7z member
-graphs/catalog and continue the shared RAR/7z adapters; the RAR adapter need not wait for the remaining 7z graph work.
+completion, sizes, consumed input and history checks, with native zlib comparisons. The complete member graph now
+uses those nodes, with an additional fix for empty Deflate BCJ2 branches. Continue the shared RAR/7z adapters.
 
 ### 1.3 Scope boundaries
 

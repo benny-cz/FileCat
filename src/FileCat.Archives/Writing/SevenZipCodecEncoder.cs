@@ -130,8 +130,8 @@ internal static class SevenZipCodecEncoder
                 encoded = new CBZip2OutputStream(codecOutput, effort switch { 1 => 1, 2 => 5, _ => 9 }, leaveOpen: true); break;
             case SevenZipCodec.Deflate:
                 methodId = [4, 1, 8];
-                encoded = new DeflateStream(codecOutput, effort switch
-                { 1 => CompressionLevel.Fastest, 2 => CompressionLevel.Optimal, _ => CompressionLevel.SmallestSize }, leaveOpen: true); break;
+                encoded = new CompleteDeflateWriteStream(codecOutput, effort switch
+                { 1 => CompressionLevel.Fastest, 2 => CompressionLevel.Optimal, _ => CompressionLevel.SmallestSize }, ct); break;
             case SevenZipCodec.Zstandard:
                 // This is FileCat's already decoded 7z extension method, not an LZMA stream with another label.
                 // Standard extension metadata: producer version 1.5, actual level, two reserved zero bytes.

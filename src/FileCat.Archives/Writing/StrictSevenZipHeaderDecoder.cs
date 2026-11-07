@@ -9,6 +9,9 @@ internal sealed class StrictSevenZipHeaderDecoder : Stream
     private readonly List<Stream> layers = [];
     private readonly Stream last;
     private bool disposed;
+    internal static Stream Copy(Stream input, long length, CancellationToken ct) => new ExactCopy(input, length, ct);
+    internal static Stream Aes(Stream input, long packedLength, long length, ReadOnlySpan<byte> properties,
+        SevenZipReadPasswordSession? password, CancellationToken ct) => new ExactAes(input, packedLength, length, properties, password, ct);
     internal StrictSevenZipHeaderDecoder(Stream packed, long packedLength, SevenZipRawFolder folder,
         SevenZipReadPasswordSession? password, ArchiveWriteBudget budget, CancellationToken ct)
     {
