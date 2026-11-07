@@ -194,7 +194,7 @@ internal static class SevenZipCodecEncoder
         public override void SetLength(long value) => throw new NotSupportedException();
     }
 
-    private sealed class PackedSink(Stream output, CancellationToken ct) : Stream
+    internal sealed class PackedSink(Stream output, CancellationToken ct) : Stream
     {
         private ArchiveCrc32 _crc;
         private readonly byte[] _pending = new byte[ArchiveIoAuthority.MaximumReadBytes];

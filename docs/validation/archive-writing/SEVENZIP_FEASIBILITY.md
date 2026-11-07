@@ -162,3 +162,7 @@ The [subsequent PPMd/filter checkpoint](SEVENZIP_PPMD_AND_FILTERS.md) adds bound
 branch/delta/swap encoders and reader support, with SDK/official/libarchive evidence on all three platforms.
 It records an actual coder-order fix, the official reader's Zstandard-extension limit and the Windows system
 reader's PPMd failure. BCJ2/header/password/shared integration and the broader qualification matrix remain open.
+
+The [streamed-header checkpoint](SEVENZIP_STREAMED_HEADERS.md) subsequently qualifies the bounded raw/LZMA2
+header creation slice on all three platforms. The original 21 fixture archives are unchanged. Password/BCJ2/shared
+integration, full source catalogs and the remaining production gates are still unfinished.

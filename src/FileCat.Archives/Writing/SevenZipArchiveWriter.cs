@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
 using FileCat.Core.Archives;
+using SharpCompress.Compressors.LZMA;
 
 namespace FileCat.Archives.Writing;
 
@@ -9,12 +10,14 @@ internal sealed record SevenZipInputDescriptor(int Id, long Length, string Sha25
 internal sealed record SevenZipWriteEntry(string Name, ArchiveMemberType Type, ArchiveTimestamp Modified, int Mode,
     int? InputId = null, ArchiveTimestamp? Created = null, ArchiveTimestamp? Accessed = null);
 internal sealed record SevenZipWrittenMember(SevenZipWriteEntry Entry, SevenZipEncodedContent? Content);
-internal sealed record SevenZipWriteManifest(IReadOnlyList<SevenZipWrittenMember> Members, long PhysicalBytes);
+internal enum SevenZipHeaderMode { Raw, Lzma2 }
+internal sealed record SevenZipWriteManifest(IReadOnlyList<SevenZipWrittenMember> Members, long PhysicalBytes,
+    SevenZipHeaderMode HeaderMode = SevenZipHeaderMode.Raw);
 
 /// <summary>
 /// Bounded stream-only non-solid 7z creation foundation. Headers are streamed in fixed buffers, then the fixed-size
 /// signature is backpatched through the owned seekable stage. No whole archive/header buffer, pathname or publication
-/// authority. Raw headers and the current coder graphs are an implementation step in the required 7z profile.
+/// authority. Raw/LZMA2 headers and the current coder graphs are implementation steps in the required 7z profile.
 /// </summary>
 internal static class SevenZipArchiveWriter
 {
@@ -23,10 +26,10 @@ internal static class SevenZipArchiveWriter
 
     internal static SevenZipWriteManifest Create(Stream stage, IReadOnlyList<SevenZipWriteEntry> entries,
         IReadOnlyDictionary<int, SevenZipInputDescriptor> inputs, Func<int, Stream> openInput,
-        SevenZipCodecOptions options, CancellationToken ct)
+        SevenZipCodecOptions options, CancellationToken ct, SevenZipHeaderMode headerMode = SevenZipHeaderMode.Raw)
     {
         SevenZipCodecEncoder.Validate(options);
-        if (!stage.CanWrite || !stage.CanSeek || stage.Position != 0 || stage.Length != 0 ||
+        if (!Enum.IsDefined(headerMode) || !stage.CanWrite || !stage.CanSeek || stage.Position != 0 || stage.Length != 0 ||
             entries.Count > ArchiveWritePolicy.MaxMembers || inputs.Count > ArchiveWritePolicy.MaxMembers)
             throw Invalid("The 7z creation request or stage is invalid.");
         ct.ThrowIfCancellationRequested();
@@ -100,37 +103,68 @@ internal static class SevenZipArchiveWriter
             }
             manifest.Add(new(entry, content));
         }
-        long headerStart = sink.Bytes;
-        var header = new HeaderWriter(sink, ct);
-        header.Byte(1); // Header
-        int streams = manifest.Count(member => member.Content is not null);
-        if (streams > 0) WriteStreams(header, manifest, streams);
-        WriteFiles(header, manifest);
-        header.Byte(0); header.Finish();
+        var header = WriteHeader(sink, manifest, headerMode, ct);
         long physical = sink.Bytes;
         ((ReadOnlySpan<byte>)[0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c]).CopyTo(signature); signature[6] = 0; signature[7] = 4;
-        BinaryPrimitives.WriteUInt64LittleEndian(signature[12..], checked((ulong)(headerStart - 32)));
+        BinaryPrimitives.WriteUInt64LittleEndian(signature[12..], checked((ulong)(header.Start - 32)));
         BinaryPrimitives.WriteUInt64LittleEndian(signature[20..], checked((ulong)header.Bytes));
         BinaryPrimitives.WriteUInt32LittleEndian(signature[28..], header.Crc32);
         BinaryPrimitives.WriteUInt32LittleEndian(signature[8..], ArchiveCrc32.Compute(signature[12..]));
         ct.ThrowIfCancellationRequested(); stage.Position = 0; stage.Write(signature); stage.Position = physical;
         if (stage.Length != physical) throw Invalid("The 7z stage extent changed during finalization.");
-        return new(manifest.AsReadOnly(), physical);
+        return new(manifest.AsReadOnly(), physical, headerMode);
     }
 
-    private static void WriteStreams(HeaderWriter h, List<SevenZipWrittenMember> members, int count)
+    private static (long Start, long Bytes, uint Crc32) WriteHeader(StageSink sink, List<SevenZipWrittenMember> members,
+        SevenZipHeaderMode mode, CancellationToken ct)
     {
-        h.Byte(4); // MainStreamsInfo
-        int packedCount = members.Sum(member => member.Content?.PackedStreams.Count ?? 0);
-        h.Byte(6); h.Number(0); h.Number((ulong)packedCount); h.Byte(9); // PackInfo, PackPos, count, Size
-        foreach (var member in members) if (member.Content is { } c) foreach (var stream in c.PackedStreams) h.Number((ulong)stream.Length);
-        h.Byte(10); h.Byte(1);
-        foreach (var member in members) if (member.Content is { } c) foreach (var stream in c.PackedStreams) h.UInt32(stream.Crc32);
-        h.Byte(0);
-        h.Byte(7); h.Byte(11); h.Number((ulong)count); h.Byte(0); // UnpackInfo, Folder, count, external=false
-        foreach (var member in members)
+        var streams = members.Where(member => member.Content is not null).Select(member => member.Content!).ToArray();
+        long packedStart = sink.Bytes;
+        if (mode == SevenZipHeaderMode.Raw)
         {
-            if (member.Content is not { } c) continue;
+            using var raw = new HeaderWriter(sink, ct); WriteRaw(raw);
+            return (packedStart, raw.Bytes, raw.Crc32);
+        }
+        // Push the frozen header directly through a bounded encoder. No full plaintext/header array or scratch path.
+        var packed = new SevenZipCodecEncoder.PackedSink(sink, ct);
+        byte[] properties; long rawBytes; uint rawCrc; string rawSha;
+        using (var encoder = new Lzma2EncoderStream(packed, 1 << 20, 32))
+        using (var raw = new HeaderWriter(encoder, ct))
+        {
+            properties = (byte[])encoder.Properties.Clone(); WriteRaw(raw);
+            rawBytes = raw.Bytes; rawCrc = raw.Crc32; rawSha = raw.FinishDigest();
+        }
+        packed.Finish();
+        if (rawBytes > 64L << 20 && rawBytes / Math.Max(1, packed.Bytes) > 1000)
+            throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The compressed 7z header exceeds the reader's expansion policy.");
+        var content = new SevenZipEncodedContent(SevenZipCodec.Lzma2, [new([0x21], properties)], [], [rawBytes],
+            [new(packed.Bytes, packed.Crc32)], rawBytes, rawCrc, rawSha);
+        long start = sink.Bytes;
+        using var outer = new HeaderWriter(sink, ct);
+        outer.Byte(0x17); // EncodedHeader, followed directly by StreamsInfo (no MainStreamsInfo tag).
+        WriteStreams(outer, [content], checked((ulong)(packedStart - 32)));
+        outer.Finish();
+        return (start, outer.Bytes, outer.Crc32);
+
+        void WriteRaw(HeaderWriter h)
+        {
+            h.Byte(1);
+            if (streams.Length > 0) { h.Byte(4); WriteStreams(h, streams, 0); }
+            WriteFiles(h, members); h.Byte(0); h.Finish();
+        }
+    }
+
+    private static void WriteStreams(HeaderWriter h, IReadOnlyList<SevenZipEncodedContent> contents, ulong packedPosition)
+    {
+        int packedCount = contents.Sum(content => content.PackedStreams.Count);
+        h.Byte(6); h.Number(packedPosition); h.Number((ulong)packedCount); h.Byte(9); // PackInfo, PackPos, count, Size
+        foreach (var c in contents) foreach (var stream in c.PackedStreams) h.Number((ulong)stream.Length);
+        h.Byte(10); h.Byte(1);
+        foreach (var c in contents) foreach (var stream in c.PackedStreams) h.UInt32(stream.Crc32);
+        h.Byte(0);
+        h.Byte(7); h.Byte(11); h.Number((ulong)contents.Count); h.Byte(0); // UnpackInfo, Folder, count, external=false
+        foreach (var c in contents)
+        {
             h.Number((ulong)c.Coders.Count);
             foreach (var coder in c.Coders)
             {
@@ -146,9 +180,9 @@ internal static class SevenZipArchiveWriter
                     if (!c.Bindings.Any(binding => binding.Input == input)) h.Number((ulong)input);
         }
         h.Byte(12);
-        foreach (var member in members) if (member.Content is { } c) foreach (long length in c.UnpackedSizes) h.Number((ulong)length);
+        foreach (var c in contents) foreach (long length in c.UnpackedSizes) h.Number((ulong)length);
         h.Byte(10); h.Byte(1);
-        foreach (var member in members) if (member.Content is { } c) h.UInt32(c.Crc32);
+        foreach (var c in contents) h.UInt32(c.Crc32);
         h.Byte(0); h.Byte(8); h.Byte(0); h.Byte(0); // Unpack end, default single substream folders, streams end
     }
 
@@ -199,11 +233,12 @@ internal static class SevenZipArchiveWriter
         return checked((ulong)((time.Seconds - FileTimeEpochSeconds) * TimeSpan.TicksPerSecond + time.Nanoseconds / 100));
     }
 
-    private sealed class HeaderWriter(Stream output, CancellationToken ct)
+    private sealed class HeaderWriter(Stream output, CancellationToken ct) : IDisposable
     {
         private readonly byte[] _pending = new byte[ArchiveIoAuthority.MaximumReadBytes];
         private int _count;
         private ArchiveCrc32 _crc;
+        private readonly IncrementalHash _hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         internal long Bytes { get; private set; }
         internal uint Crc32 => _crc.Value;
         internal void Write(ReadOnlySpan<byte> bytes)
@@ -211,7 +246,7 @@ internal static class SevenZipArchiveWriter
             ct.ThrowIfCancellationRequested();
             if (bytes.Length > ArchiveWritePolicy.MaxMetadataBytes - Bytes)
                 throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The 7z header exceeded its metadata budget.");
-            _crc.Append(bytes); Bytes += bytes.Length;
+            _crc.Append(bytes); _hash.AppendData(bytes); Bytes += bytes.Length;
             while (!bytes.IsEmpty)
             {
                 int count = Math.Min(_pending.Length - _count, bytes.Length);
@@ -245,6 +280,8 @@ internal static class SevenZipArchiveWriter
             if (mask != 128) Byte(value);
         }
         internal void Finish() { ct.ThrowIfCancellationRequested(); if (_count > 0) { output.Write(_pending.AsSpan(0, _count)); _count = 0; } }
+        internal string FinishDigest() => Convert.ToHexString(_hash.GetHashAndReset());
+        public void Dispose() { _hash.Dispose(); CryptographicOperations.ZeroMemory(_pending); }
     }
 
     private sealed class StageSink(Stream output, CancellationToken ct) : Stream

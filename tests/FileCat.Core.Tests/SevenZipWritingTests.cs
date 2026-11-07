@@ -14,14 +14,21 @@ public sealed class SevenZipWritingTests
     private static readonly ArchiveTimestamp Modified = new(1700000000, 123456700);
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
-    [InlineData(3)]
-    [InlineData(4)]
-    [InlineData(5)]
-    [InlineData(6)]
-    public void Codecs_create_independent_folders_exact_content_names_empty_members_and_times(int codecId)
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    [InlineData(2, false)]
+    [InlineData(3, false)]
+    [InlineData(4, false)]
+    [InlineData(5, false)]
+    [InlineData(6, false)]
+    [InlineData(0, true)]
+    [InlineData(1, true)]
+    [InlineData(2, true)]
+    [InlineData(3, true)]
+    [InlineData(4, true)]
+    [InlineData(5, true)]
+    [InlineData(6, true)]
+    public void Codecs_create_independent_folders_exact_content_names_empty_members_and_times(int codecId, bool compressedHeader)
     {
         var codec = (SevenZipCodec)codecId;
         byte[] noise = new byte[(2 << 20) + 1]; new Random(42829299).NextBytes(noise);
@@ -46,10 +53,12 @@ public sealed class SevenZipWritingTests
         {
             opens++;
             return new ShortSource(bytes[id], () => disposes++);
-        }, new(codec, DictionaryBytes: codec is SevenZipCodec.Lzma or SevenZipCodec.Lzma2 ? 1 << 20 : 8 << 20), Ct);
+        }, new(codec, DictionaryBytes: codec is SevenZipCodec.Lzma or SevenZipCodec.Lzma2 ? 1 << 20 : 8 << 20), Ct,
+            compressedHeader ? SevenZipHeaderMode.Lzma2 : SevenZipHeaderMode.Raw);
         Assert.Equal(bytes.Length, opens); Assert.Equal(opens, disposes);
         Assert.Equal(stage.Length, stage.Position); Assert.Equal(stage.Length, result.PhysicalBytes);
         Assert.Equal(entries, result.Members.Select(member => member.Entry));
+        Assert.Equal(compressedHeader ? SevenZipHeaderMode.Lzma2 : SevenZipHeaderMode.Raw, result.HeaderMode);
         byte[] archive = stage.ToArray(); Assert.Equal(new byte[] { 0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c }, archive[..6]);
         long offset = BinaryPrimitives.ReadInt64LittleEndian(archive.AsSpan(12)), headerBytes = BinaryPrimitives.ReadInt64LittleEndian(archive.AsSpan(20));
         Assert.Equal(archive.Length, 32 + offset + headerBytes);
@@ -75,7 +84,7 @@ public sealed class SevenZipWritingTests
         string? root = Environment.GetEnvironmentVariable("FILECAT_SEVENZIP_CODEC_EXPORT_ROOT");
         if (root is not null)
         {
-            Assert.True(Path.IsPathFullyQualified(root)); string folder = Path.Combine(root, "codec-" + codecId); Directory.CreateDirectory(folder);
+            Assert.True(Path.IsPathFullyQualified(root)); string folder = Path.Combine(root, (compressedHeader ? "compressed-codec-" : "codec-") + codecId); Directory.CreateDirectory(folder);
             using (var output = new FileStream(Path.Combine(folder, "members.7z"), FileMode.CreateNew)) stage.WriteTo(output);
             var rows = entries.Select(entry => new
             {

@@ -630,8 +630,10 @@ Library EOF is not necessarily physical EOF or a complete wrapper: explicitly di
 ### 8.4 7z profile
 
 The [PPMd/filter checkpoint](../validation/archive-writing/SEVENZIP_PPMD_AND_FILTERS.md) now records seven codecs,
-fourteen filter configurations and exact three-platform independent readback. BCJ2, compressed headers,
-password archive integration and the remaining production gates are still open; no new profile is registered.
+fourteen filter configurations and exact three-platform independent readback. The
+[streamed-header checkpoint](../validation/archive-writing/SEVENZIP_STREAMED_HEADERS.md) adds raw/LZMA2 headers,
+including large metadata and empty archives. BCJ2, password archive integration and the remaining production gates
+are still open; no new profile is registered.
 
 Initial 7z output is non-solid with optional password/data/header encryption required by §4.3.1. LZMA2 is the default, not the full needed encoder set. Required
 feasible coverage is Copy, LZMA, LZMA2, PPMd7 with the 7z range coder, BZip2, raw Deflate and the Zstandard method
