@@ -13,6 +13,7 @@ public abstract class AnalysisPrivateDirectory : IDisposable
     internal virtual AnalysisPrivateScratchFile CreateScratch() => throw new NotSupportedException("Private analysis scratch is unavailable.");
     internal abstract AnalysisPrivateFile OpenRead(string name);
     internal virtual AnalysisPrivateFile OpenMaintenance(string name) => throw new NotSupportedException("Guarded private-store maintenance is unavailable.");
+    internal virtual AnalysisPrivateFile OpenReplacementFile(string name) => throw new NotSupportedException("Atomic private inventory replacement is unavailable.");
     internal virtual string[] Entries(CancellationToken cancellation) => throw new NotSupportedException("Private catalog enumeration is unavailable.");
     public abstract void Dispose();
 }
@@ -25,6 +26,7 @@ internal abstract class AnalysisPrivateFile : IDisposable
     internal virtual bool RemovalRequested => false;
     internal virtual void MoveOwnedNew(string name) => throw new NotSupportedException("Guarded private metadata movement is unavailable.");
     internal virtual void RemoveOwned() => throw new NotSupportedException("Guarded private file removal is unavailable.");
+    internal virtual void ReplaceOwned(AnalysisPrivateFile destination) => throw new NotSupportedException("Atomic private inventory replacement is unavailable.");
     public abstract Stream Stream { get; }
     public abstract void Verify();
     public abstract void Flush();

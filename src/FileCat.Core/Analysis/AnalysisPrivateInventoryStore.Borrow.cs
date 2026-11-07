@@ -50,6 +50,7 @@ public sealed partial class AnalysisPrivateInventoryStore
         internal override AnalysisPrivateScratchFile CreateScratch() { Verify(); return source.CreateScratch(); }
         internal override AnalysisPrivateFile OpenRead(string name) { Verify(); return source.OpenRead(name); }
         internal override AnalysisPrivateFile OpenMaintenance(string name) { Verify(); return source.OpenMaintenance(name); }
+        internal override AnalysisPrivateFile OpenReplacementFile(string name) { Verify(); return source.OpenReplacementFile(name); }
         internal override string[] Entries(CancellationToken cancellation) { Verify(); return source.Entries(cancellation); }
         public override bool MatchesRoot(IAnalysisBackend root) { Verify(); return source.MatchesRoot(root); }
         public override void Dispose() => _closed = true;

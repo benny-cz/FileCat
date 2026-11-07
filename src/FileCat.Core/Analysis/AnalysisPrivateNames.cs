@@ -1,7 +1,7 @@
 namespace FileCat.Core.Analysis;
 
 /// <summary>Closed managed-store namespace. These data names never select a source or grant action authority.</summary>
-internal static class AnalysisPrivateNames
+internal static partial class AnalysisPrivateNames
 {
     internal const int MetadataBytes = 8 * 1024 * 1024, DirectoryEntries = 20_036, DirectoryNameBytes = 8 * 1024 * 1024;
     internal const string Catalog = "catalog.json", PrivateState = "private-state.json";
@@ -27,23 +27,25 @@ internal static class AnalysisPrivateNames
         name.Length == 78 && name.StartsWith("catalog-", StringComparison.Ordinal) && name[40] == '-' && name.EndsWith(".json", StringComparison.Ordinal) &&
         Guid.TryParseExact(name.AsSpan(8, 32), "N", out var catalog) && catalog != Guid.Empty &&
         Guid.TryParseExact(name.AsSpan(41, 32), "N", out var inventory) && inventory != Guid.Empty && name == CatalogEntry(catalog, inventory);
-    internal static bool NeedsReadLease(string name) => !IsMetadata(name) || IsCatalogEntry(name) || IsPendingDeletion(name);
+    internal static bool NeedsReadLease(string name) => !IsMetadata(name) || IsCatalogEntry(name) || IsPendingDeletion(name) || IsPendingReplacement(name);
     internal static void Maintenance(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
-        if (IsCatalogEntry(name) || IsPendingDeletion(name)) return;
+        if (IsCatalogEntry(name) || IsPendingDeletion(name) || IsPendingReplacement(name) || IsReplacementPayload(name)) return;
         if (name.EndsWith(".fcdsc", StringComparison.Ordinal)) AnalysisPrivateInventoryStore.ValidateComparisonName(name);
         else AnalysisPrivateInventoryStore.ValidateName(name);
     }
     internal static void MaintenanceMove(string source, string destination)
     {
         ArgumentNullException.ThrowIfNull(source); ArgumentNullException.ThrowIfNull(destination);
+        if (TryPendingReplacement(destination, out var replacementCatalog, out var previous, out _, out _) && source == CatalogEntry(replacementCatalog, previous) ||
+            TryPendingReplacement(source, out replacementCatalog, out previous, out _, out _) && destination == CatalogEntry(replacementCatalog, previous)) return;
         if (TryPendingDeletion(destination, out var catalog, out var inventory, out _) && source == CatalogEntry(catalog, inventory) ||
             TryPendingDeletion(source, out catalog, out inventory, out _) && destination == CatalogEntry(catalog, inventory)) return;
         throw new ArgumentException("Only one generated catalog entry can move to or from its pending-deletion name.");
     }
     internal static bool IsMetadata(string name) => name is Catalog or PrivateState or CatalogWriteLock || IsCapacityToken(name) ||
-        IsCatalogEntry(name) || IsPendingDeletion(name);
+        IsCatalogEntry(name) || IsPendingDeletion(name) || IsPendingReplacement(name);
     internal static void Metadata(string name)
     {
         if (name is null || !IsMetadata(name)) throw new ArgumentException("A reserved generated analysis metadata name is required.", nameof(name));
@@ -51,6 +53,7 @@ internal static class AnalysisPrivateNames
     internal static void Entry(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
+        if (IsReplacementPayload(name)) return;
         if (!IsMetadata(name))
         {
             if (name.EndsWith(".fcdsc", StringComparison.Ordinal)) AnalysisPrivateInventoryStore.ValidateComparisonName(name);

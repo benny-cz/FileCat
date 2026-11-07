@@ -1,0 +1,7 @@
+{
+  "observedUtc": "2026-11-07T22:56:13.215714+00:00",
+  "exitCode": 0,
+  "filecatOrDotnet": [
+    " 534771  534611 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet build /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --disable-build-servers -p:NuGetAudit=false -m:1 -v minimal"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "observedUtc": "2026-11-07T23:08:11.973503+00:00",
+  "exitCode": 0,
+  "filecatOrDotnet": [
+    " 537314  536455 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet test /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --no-build --disable-build-servers -p:NuGetAudit=false -m:1 --filter FullyQualifiedName~FileCat.Core.Tests --logger trx;LogFileName=archive-native-jobs-core.trx --results-directory /home/benny/FileCatValidation/archive-writing-42829297/archive-native-jobs-v3/results",
+    " 537330  537314 dotnet exec /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/vstest.console.dll --framework:.NETCoreApp,Version=v10.0 --testCaseFilter:FullyQualifiedName~FileCat.Core.Tests --logger:trx;LogFileName=archive-native-jobs-core.trx --resultsDirectory:/home/benny/FileCatValidation/archive-writing-42829297/archive-native-jobs-v3/results /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll --logger:Console;Verbosity=minimal --artifactsProcessingMode-collect --testSessionCorrelationId:537314_ba44b02c-a236-42ca-855d-44c4c8a46d38",
+    " 537343  537330 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet exec --runtimeconfig /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.runtimeconfig.json --depsfile /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.deps.json /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/testhost.dll --port 42301 --endpoint 127.0.0.1:042301 --role client --parentprocessid 537330 --telemetryoptedin false",
+    " 537395  537343 /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests @@ /tmp/tmp0Ek7eK.tmp"
+  ]
+}

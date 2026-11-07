@@ -5,8 +5,13 @@ namespace FileCat.Core.Analysis;
 public sealed unsafe partial class UnixAnalysisPrivateDirectory
 {
     internal override AnalysisPrivateFile OpenMaintenance(string name)
+        => OpenMaintenanceCore(name, replacement: false);
+    internal override AnalysisPrivateFile OpenReplacementFile(string name)
+        => OpenMaintenanceCore(name, replacement: true);
+    private AnalysisPrivateFile OpenMaintenanceCore(string name, bool replacement)
     {
-        AnalysisPrivateNames.Maintenance(name); Verify();
+        if (replacement) AnalysisPrivateNames.ReplacementData(name); else AnalysisPrivateNames.Maintenance(name);
+        Verify();
         var owned = OpenOwned(Root, name, FileFlags, 0);
         try
         {
@@ -18,7 +23,7 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory
                 if (Marshal.GetLastPInvokeError() != 4) break;
             }
             if (!locked) throw new IOException("The saved analysis is in use or exclusive maintenance locking is unavailable. Try again when its readers finish.");
-            return new MaintenanceFile(this, owned, name);
+            return new MaintenanceFile(this, owned, name, replacement);
         }
         catch { owned.Dispose(); throw; }
     }
@@ -33,9 +38,10 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory
         private readonly OwnedHandle _owned;
         private readonly FileStream _stream;
         private string _name;
+        private readonly bool _replacement;
         private bool _removed, _disposed;
-        internal MaintenanceFile(UnixAnalysisPrivateDirectory directory, OwnedHandle owned, string name)
-        { _directory = directory; _owned = owned; _name = name; _stream = owned.Handle.OpenStream(FileAccess.Read); }
+        internal MaintenanceFile(UnixAnalysisPrivateDirectory directory, OwnedHandle owned, string name, bool replacement)
+        { _directory = directory; _owned = owned; _name = name; _replacement = replacement; _stream = owned.Handle.OpenStream(FileAccess.Read); }
         public override Stream Stream => _stream;
         internal override string Identity { get { Verify(); return FileIdentity(_owned.Handle); } }
         internal override string MaintenanceName => _name;
@@ -58,6 +64,17 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory
             if (_directory._mac && Fcntl(_owned.Handle, 51) != 0) throw Error("Private maintenance durability could not be confirmed.");
         }
         public override void PublishNew(string name) => throw new NotSupportedException();
+        internal override void ReplaceOwned(AnalysisPrivateFile destination)
+        {
+            if (!_replacement || destination is not MaintenanceFile target || !target._replacement || !ReferenceEquals(_directory, target._directory))
+                throw new ArgumentException("Both replacement leases must belong to this exact private directory capability.");
+            AnalysisPrivateNames.ReplacementTarget(_name, target._name); VerifyName(); target.VerifyName();
+            string name = target._name;
+            if (RenameReplacementAt(_directory.Root, _name, _directory.Root, name) != 0) throw Error("Atomic private inventory replacement failed.");
+            _name = name; target._removed = true;
+            try { VerifyName(); target.Verify(); Flush(); }
+            catch (Exception error) { throw new AnalysisPublicationUncertainException(name, error); }
+        }
         internal override void MoveOwnedNew(string name)
         {
             AnalysisPrivateNames.MaintenanceMove(_name, name); VerifyName();
@@ -88,4 +105,6 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory
     private static partial int RenameMaintenanceLinux(SafeHandle sourceDirectory, string source, SafeHandle destinationDirectory, string destination, uint flags);
     [LibraryImport("libc", EntryPoint = "renameatx_np", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int RenameMaintenanceMac(SafeHandle sourceDirectory, string source, SafeHandle destinationDirectory, string destination, uint flags);
+    [LibraryImport("libc", EntryPoint = "renameat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial int RenameReplacementAt(SafeHandle sourceDirectory, string source, SafeHandle destinationDirectory, string destination);
 }
