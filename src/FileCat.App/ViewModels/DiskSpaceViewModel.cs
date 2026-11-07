@@ -55,7 +55,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     public AnalysisPhase Phase { get; private set; } = AnalysisPhase.Ready;
     public ulong SourceCloseFailures { get; private set; }
     public bool Running => Phase is AnalysisPhase.Scanning or AnalysisPhase.Pausing or AnalysisPhase.Paused or AnalysisPhase.Refreshing;
-    public bool HasTemporaryWork => !_disposed && (Comparison is not null || IsPreparing || Running || HasDeferredSelection || _prepared.Count > 0 || Selection.Marks.Count > 0 || Selection.Basket.Count > 0 ||
+    public bool HasTemporaryWork => !_disposed && (Comparison is not null && ComparisonHasTemporaryWork || IsPreparing || Running || HasDeferredSelection || _prepared.Count > 0 || Selection.Marks.Count > 0 || Selection.Basket.Count > 0 ||
         !DisplayedRevisionSaved && (_session is not null || _observation is { Origin: AnalysisOrigin.LiveSession, Persistence: AnalysisPersistence.Temporary }));
     public event Action? Changed;
     public DiskSpaceViewModel(AppServices services) : this(services, Prepare) { }
@@ -153,7 +153,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
             if (_disposed || token.IsCancellationRequested || Sort != sort || SortDescending != descending || Grouping != grouping) { nextLease?.Dispose(); nextOrder?.Dispose(); return; }
             FilterError = null;
             var view = new AnalysisSavedView(metric, Chart, query, root, built.Value.Scope, sensitive, showUnknown, sort, descending)
-                { Grouping = grouping, ColorDimension = ColorDimension };
+            { Grouping = grouping, ColorDimension = ColorDimension };
             if (_interaction > 0)
             {
                 _pending?.Lease?.Dispose(); _pending?.Order.Dispose(); _pending = new(built.Value.Tree, built.Value.Order, nextLease, scope, sort, descending,
@@ -342,8 +342,13 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         get
         {
             if (Tree is not { } tree) return "No measurements yet";
-            string label = tree.Projection.Metric switch { AnalysisMetric.FileSize => "File size", AnalysisMetric.UniqueFileSize => "Verified unique file size",
-                AnalysisMetric.OnDisk => "On disk — reported", _ => "Files" };
+            string label = tree.Projection.Metric switch
+            {
+                AnalysisMetric.FileSize => "File size",
+                AnalysisMetric.UniqueFileSize => "Verified unique file size",
+                AnalysisMetric.OnDisk => "On disk — reported",
+                _ => "Files"
+            };
             if (tree.Projection.Metric == AnalysisMetric.OnDisk && !tree.Projection.Totals.CompatibleBasis)
                 return label + ": allocation bases differ; no combined total.";
             string scope = Selection.Scope; UInt128 value = tree.ScopeValue(scope); var item = tree.Items.GetValueOrDefault(scope);
@@ -374,6 +379,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _session?.Stop(); _lease?.Dispose(); _pending?.Lease?.Dispose();
         _inventory?.Dispose();
         _capturedOwner?.Dispose(); _capturedOwner = null;
+        _comparisonReady = false; _restoredComparisonQuery?.Dispose(); _restoredComparisonQuery = null;
         Comparison?.Dispose(); Comparison = null; _comparisonPrevious?.Dispose(); _comparisonPrevious = null; _comparisonCurrent?.Dispose(); _comparisonCurrent = null;
         _rowOrderCancel?.Cancel(); _orderedRows?.Dispose(); _pending?.Order.Dispose();
         _rangeBaseline = _rangePublishedMarks = null; _rangeOrderOwner = null; _tableAnchor = null;

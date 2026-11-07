@@ -25,9 +25,10 @@ public sealed class AnalysisFilter
     { _evaluate = evaluate; Needs = needs; NamespaceOnly = namespaceOnly; }
     public AnalysisTruth Evaluate(AnalysisFilterItem item) => _evaluate(item);
     public static AnalysisFilter Parse(string text, TimeZoneInfo zone, bool caseSensitive = false, bool comparison = false,
-        IReadOnlyList<RootBinding>? roots = null, AnalysisRootScopeIndex? rootScopes = null, bool allowDateOnly = true)
+        IReadOnlyList<RootBinding>? roots = null, AnalysisRootScopeIndex? rootScopes = null, bool allowDateOnly = true,
+        IReadOnlyDictionary<string, string>? rootDisplayIds = null)
     {
-        var parser = new Parser(text, zone, caseSensitive, comparison, roots, rootScopes, allowDateOnly); var expression = parser.Parse();
+        var parser = new Parser(text, zone, caseSensitive, comparison, roots, rootScopes, allowDateOnly, rootDisplayIds); var expression = parser.Parse();
         return new(expression, parser.Needs, parser.NamespaceOnly);
     }
 
@@ -42,8 +43,15 @@ public sealed class AnalysisFilter
         string number = text[..split], suffix = text[split..].ToUpperInvariant();
         ulong multiplier = suffix switch
         {
-            "" or "B" => 1, "KB" => 1000, "MB" => 1_000_000, "GB" => 1_000_000_000, "TB" => 1_000_000_000_000,
-            "KIB" => 1024, "MIB" => 1_048_576, "GIB" => 1_073_741_824, "TIB" => 1_099_511_627_776,
+            "" or "B" => 1,
+            "KB" => 1000,
+            "MB" => 1_000_000,
+            "GB" => 1_000_000_000,
+            "TB" => 1_000_000_000_000,
+            "KIB" => 1024,
+            "MIB" => 1_048_576,
+            "GIB" => 1_073_741_824,
+            "TIB" => 1_099_511_627_776,
             _ => throw new FormatException("Unknown byte suffix.")
         };
         var parts = number.Split('.');
@@ -69,16 +77,27 @@ public sealed class AnalysisFilter
         private readonly bool _comparison;
         private readonly IReadOnlyList<RootBinding>? _roots;
         private readonly AnalysisRootScopeIndex? _rootScopes;
+        private readonly ImmutableDictionary<string, string>? _rootDisplayIds;
         private readonly bool _allowDateOnly;
         private int _at, _terms;
         internal AnalysisFilterNeeds Needs;
         internal bool NamespaceOnly = true;
         private sealed record Token(string Value, bool Quoted = false);
-        public Parser(string text, TimeZoneInfo zone, bool sensitive, bool comparison, IReadOnlyList<RootBinding>? roots, AnalysisRootScopeIndex? rootScopes, bool allowDateOnly)
+        public Parser(string text, TimeZoneInfo zone, bool sensitive, bool comparison, IReadOnlyList<RootBinding>? roots, AnalysisRootScopeIndex? rootScopes, bool allowDateOnly,
+            IReadOnlyDictionary<string, string>? rootDisplayIds)
         {
             if (Encoding.UTF8.GetByteCount(text) > AnalysisLimits.QueryBytes) throw new FormatException("Filter exceeds 8 KiB.");
             _zone = zone; _case = sensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase; _comparison = comparison; _roots = roots;
             _rootScopes = rootScopes;
+            if (rootDisplayIds is not null)
+            {
+                if (roots is null || roots.Count > AnalysisLimits.Roots || rootDisplayIds.Count != roots.Count ||
+                    roots.Any(root => !rootDisplayIds.TryGetValue(root.Id, out string? id) || string.IsNullOrEmpty(id) ||
+                        Encoding.UTF8.GetByteCount(id) > 256 || !AnalysisPrivateInventoryStore.WellFormedText(id)) ||
+                    rootDisplayIds.Values.Distinct(StringComparer.Ordinal).Count() != rootDisplayIds.Count)
+                    throw new FormatException("Invalid captured root identifiers.");
+                _rootDisplayIds = rootDisplayIds.ToImmutableDictionary(StringComparer.Ordinal);
+            }
             _allowDateOnly = allowDateOnly;
             for (int i = 0; i < text.Length;)
             {
@@ -248,12 +267,13 @@ public sealed class AnalysisFilter
                     var state = i.ActiveState ?? i.Object?.LogicalLength.State ?? MeasurementState.Unsupported;
                     return Truth(value switch
                     {
-                    "stale" => i.Stale, "unreadable" => i.Unreadable,
-                    "known" => state == MeasurementState.Known,
-                    "unknown" => state is MeasurementState.Unsupported or MeasurementState.Changed,
-                    "pending" => state == MeasurementState.Pending,
-                    "failed" => state == MeasurementState.Failed,
-                    _ => state == MeasurementState.Excluded
+                        "stale" => i.Stale,
+                        "unreadable" => i.Unreadable,
+                        "known" => state == MeasurementState.Known,
+                        "unknown" => state is MeasurementState.Unsupported or MeasurementState.Changed,
+                        "pending" => state == MeasurementState.Pending,
+                        "failed" => state == MeasurementState.Failed,
+                        _ => state == MeasurementState.Excluded
                     });
                 };
             }
@@ -262,7 +282,7 @@ public sealed class AnalysisFilter
             if (field == "ext") value = value.StartsWith('.') ? value[1..] : value;
             if (field == "root" && _roots is not null)
             {
-                var matches = _roots.Where(r => r.Id.Equals(value, StringComparison.Ordinal) || r.Label.Equals(value, _case)).DistinctBy(r => r.Id).Take(2).ToArray();
+                var matches = _roots.Where(r => (_rootDisplayIds?.GetValueOrDefault(r.Id) ?? r.Id).Equals(value, StringComparison.Ordinal) || r.Label.Equals(value, _case)).DistinctBy(r => r.Id).Take(2).ToArray();
                 if (matches.Length != 1) throw new FormatException("Choose an unambiguous root ID or label.");
                 value = matches[0].Id;
                 var binding = matches[0]; string rootId = value;
@@ -279,8 +299,11 @@ public sealed class AnalysisFilter
                     (field is "name" or "ext" or "type") && !AnalysisRawNames.HasLosslessText(i.Node)) return AnalysisTruth.Unknown;
                 string candidate = field switch
                 {
-                    "name" => i.Node.Name, "path" => i.RelativePath, "root" => i.Node.RootId,
-                    "ext" => AnalysisNames.Extension(i.Node.Name), _ => AnalysisClassification.Family(i.Node.Name)
+                    "name" => i.Node.Name,
+                    "path" => i.RelativePath,
+                    "root" => i.Node.RootId,
+                    "ext" => AnalysisNames.Extension(i.Node.Name),
+                    _ => AnalysisClassification.Family(i.Node.Name)
                 };
                 if (field == "type" && !AnalysisClassification.Families.Contains(value, StringComparer.OrdinalIgnoreCase)) candidate = AnalysisNames.Extension(i.Node.Name);
                 return Truth(op == ":" && field is not ("type" or "root") ? candidate.Contains(value, _case) : op == "!=" ? !candidate.Equals(value, _case) : candidate.Equals(value, _case));
@@ -310,7 +333,12 @@ public sealed class AnalysisFilter
         private static void EnumOperator(string op) { if (op is not (":" or "=")) throw new FormatException("Enum fields use colon or equals."); }
         private static bool Compare(int order, string op) => op switch
         {
-            "=" => order == 0, "!=" => order != 0, "<" => order < 0, "<=" => order <= 0, ">" => order > 0, ">=" => order >= 0,
+            "=" => order == 0,
+            "!=" => order != 0,
+            "<" => order < 0,
+            "<=" => order <= 0,
+            ">" => order > 0,
+            ">=" => order >= 0,
             _ => throw new FormatException("Unsupported comparison operator.")
         };
     }

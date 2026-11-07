@@ -1,0 +1,70 @@
+[
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Comparison.cs",
+    "sha256": "f863dcfb7f3cd781b31b62942176925eed70f288e279831c5c94728ec7fb290e"
+  },
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.ComparisonPersistence.cs",
+    "sha256": "2488b71d4e25a67539742d1152ecca27ade016abe5bb2d07358275f71230702b"
+  },
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+    "sha256": "405920b43188b1c005c648bc4d7701e6e1c1f4d057d0a4db8372885b1dd3557b"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Comparison.cs",
+    "sha256": "d3c6c18c43f44c37dfc1acbd420b2b87493110c28c9673fa6ef29684f912c254"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.ComparisonChart.cs",
+    "sha256": "cda846b8926bc886ca9874eb6d462e1208eefb6f49d30e3f6e484307eb37cc86"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.ComparisonPersistence.cs",
+    "sha256": "d554bad1029a482f9318eac8bbe3af3fd543ff4cd0a98d9db5479f19377cb65f"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+    "sha256": "302ad604a9a539972739667148212762c37033e3fe1e9b9307589c216f72ca11"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisComparisonFormat.cs",
+    "sha256": "c564dc2df9090d022c24693b198fd5c99dad3b63ebf4313fc4d3add0808e20e7"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisComparisonFormat.Metadata.cs",
+    "sha256": "bd5c20a5a8c11f8494186aa71906b530c3d86c265b81d5b544eb624bd7a34ba6"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisComparisonFormat.Streams.cs",
+    "sha256": "07f45074ffd2ed6e9cf01a1af67e449a89a417280bf9487ce7e8bdbfd432c0ef"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisComparisonQuery.cs",
+    "sha256": "1615bc37d5ce26358b64acc25b33f574f1a10373f8da3c2375e31e56f3f59216"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisFilter.cs",
+    "sha256": "3892fdcf8beb511bdf32561eeca08ee390d2d643b744bb24957213a6ebcb9da0"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.Comparison.cs",
+    "sha256": "d5927beb552cfc0e13da34f3b45967cbd0e62211fd3e93bb645e10261e946d5e"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateNames.cs",
+    "sha256": "bac8b607a8de889d6b6b488b030c46f53f68ea5c80250d8ec751d2b3701010e1"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisSavedComparison.cs",
+    "sha256": "666fbbe99960878058c7e725d7b687baeef41aa6a1dfca415123399787da2695"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisComparisonTests.Persistence.cs",
+    "sha256": "bb197dde7a53a446e39f96e88914e832d3b5b146579c22f38b8300be359ffbd7"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ComparisonPersistence.cs",
+    "sha256": "0846e5a2004e5131a1273ab3e028d17e3e655471c26caf8ed1ed9f2f2ebcf169"
+  }
+]

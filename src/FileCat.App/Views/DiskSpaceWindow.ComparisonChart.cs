@@ -20,11 +20,17 @@ public sealed partial class DiskSpaceWindow
         private Task _comparisonChartWork = Task.CompletedTask;
         private int _comparisonChartGeneration;
         private int _comparisonMetricGeneration;
+        private bool _comparisonChartBusy;
+        private bool _comparisonChartUnapplied;
 
         private void AddComparisonMetric(StackPanel heading, AnalysisMetric selected)
         {
-            var metric = new ComboBox { ItemsSource = new[] { "File size", "Unique file size", "On disk — reported", "Files" },
-                SelectedIndex = (int)selected, MinWidth = 190 };
+            var metric = new ComboBox
+            {
+                ItemsSource = new[] { "File size", "Unique file size", "On disk — reported", "Files" },
+                SelectedIndex = (int)selected,
+                MinWidth = 190
+            };
             AutomationProperties.SetName(metric, "Comparison metric");
             ToolTip.SetTip(metric, new Controls.RichTip("Comparison metric", detail: "Recompute both captured inventories without opening source files. Changing metric clears the table query, ranking, focus and chart. Old readers finish before a new result is admitted."));
             heading.Children.Add(metric);
@@ -65,8 +71,9 @@ public sealed partial class DiskSpaceWindow
 
         private void AddComparisonCharts(StackPanel heading, ListBox rows, Grid panel)
         {
-            var mode = new ComboBox { ItemsSource = new[] { "Table", "Treemap + table", "Sunburst + table" }, SelectedIndex = 0, MinWidth = 160 };
-            var side = new ComboBox { ItemsSource = new[] { "Current observed amounts", "Previous observed amounts (includes removed)" }, SelectedIndex = 0, MinWidth = 190 };
+            var saved = Model.ComparisonView;
+            var mode = new ComboBox { ItemsSource = new[] { "Table", "Treemap + table", "Sunburst + table" }, SelectedIndex = (int)saved.Chart, MinWidth = 160 };
+            var side = new ComboBox { ItemsSource = new[] { "Current observed amounts", "Previous observed amounts (includes removed)" }, SelectedIndex = saved.PreviousChart ? 1 : 0, MinWidth = 190 };
             AutomationProperties.SetName(mode, "Comparison chart"); AutomationProperties.SetName(side, "Comparison chart side");
             var options = new WrapPanel { ItemSpacing = 8, LineSpacing = 6, Children = { mode, side } }; heading.Children.Add(options);
             var host = _comparisonChartHost = new StackPanel { Spacing = 6, Margin = new Thickness(10, 4), IsVisible = false };
@@ -79,10 +86,12 @@ public sealed partial class DiskSpaceWindow
             reveal.IsVisible = false; options.Children.Add(reveal);
             var legend = new AnalysisColorLegend();
             host.Children.Add(caption); host.Children.Add(navigation); host.Children.Add(treemap); host.Children.Add(sunburst); host.Children.Add(legend);
-            string scope = AnalysisTree.RootKey; string? focus = null;
+            string scope = saved.ChartScope; string? focus = null; bool initial = true;
             void Draw()
             {
-                if (_comparisonChartData is not { } data) return;
+                if (_disposed || !Model.ComparisonReady || !ReferenceEquals(_comparisonChartHost, host) || _comparisonChartData is not { } data) return;
+                Model.SetComparisonView(Model.ComparisonView with { Chart = (AnalysisComparisonChartMode)mode.SelectedIndex, PreviousChart = data.Previous, ChartScope = scope });
+                _comparisonChartUnapplied = false;
                 treemap.IsVisible = mode.SelectedIndex == 1; sunburst.IsVisible = mode.SelectedIndex == 2;
                 foreach (var chart in new AnalysisChartControl[] { treemap, sunburst })
                     chart.SetView(data, scope, focus, ImmutableHashSet<ulong>.Empty, AnalysisColorDimension.Growth);
@@ -91,7 +100,8 @@ public sealed partial class DiskSpaceWindow
                     ". Full captured hierarchy; table filters apply to the table. Removed area is shown on Previous only.";
                 navigation.Children.Clear();
                 navigation.Children.Add(ActionButton("All comparison locations", () => { scope = AnalysisTree.RootKey; focus = null; Draw(); }, "Show all locations on this recorded side."));
-                navigation.Children.Add(ActionButton("Up comparison chart", () => { scope = data.ParentOf(scope); focus = null; Draw(); }, "Show the captured parent without opening a source."));
+                var up = ActionButton("Up comparison chart", () => { scope = data.ParentOf(scope); focus = null; Draw(); }, "Show the captured parent without opening a source.");
+                up.IsEnabled = scope != AnalysisTree.RootKey; navigation.Children.Add(up);
                 navigation.Children.Add(ActionButton("Show comparison table", () => rows.BringIntoView(), "Scroll to the complete accounting table, including zero and unavailable amounts."));
             }
             void Activate(string key, bool toggle, bool drill)
@@ -121,13 +131,16 @@ public sealed partial class DiskSpaceWindow
             void Changed()
             {
                 bool previous = side.SelectedIndex == 1; int selectedMode = mode.SelectedIndex;
+                string requestedScope = initial ? saved.ChartScope : AnalysisTree.RootKey; initial = false;
+                if (selectedMode == 0) Model.SetComparisonView(Model.ComparisonView with { Chart = AnalysisComparisonChartMode.Table, PreviousChart = previous });
                 host.IsVisible = selectedMode > 0;
                 reveal.IsVisible = selectedMode > 0;
                 if (selectedMode > 0 && _comparisonChartData is { } existing && existing.Previous == previous) { Draw(); RevealChart(); return; }
                 _comparisonChartCancel?.Cancel(); int generation = ++_comparisonChartGeneration;
                 treemap.Clear(); sunburst.Clear(); _comparisonChartData?.Dispose(); _comparisonChartData = null;
-                if (selectedMode == 0) return;
-                caption.Text = "Preparing recorded comparison hierarchy…"; scope = AnalysisTree.RootKey; focus = null;
+                if (selectedMode == 0) { _comparisonChartBusy = _comparisonChartUnapplied = false; RefreshComparisonPersistence(); return; }
+                _comparisonChartBusy = _comparisonChartUnapplied = true; RefreshComparisonPersistence();
+                caption.Text = "Preparing recorded comparison hierarchy…"; scope = requestedScope; focus = null;
                 Task preceding = _comparisonChartWork;
                 _comparisonChartWork = Build();
                 async Task Build()
@@ -141,11 +154,17 @@ public sealed partial class DiskSpaceWindow
                         if (_disposed || cancel.IsCancellationRequested || generation != _comparisonChartGeneration) return;
                         data = await Model.BuildComparisonChartAsync(previous, cancel.Token);
                         if (_disposed || cancel.IsCancellationRequested || generation != _comparisonChartGeneration) return;
+                        if (!data.CanExplore(scope)) throw new InvalidDataException("Saved comparison chart scope is unavailable.");
+                        focus = rows.SelectedItem is AnalysisComparisonRow row ? data.FocusKey(row) : null;
                         _comparisonChartData = data; data = null; Draw(); RevealChart();
                     }
                     catch (Exception error) when (error is OperationCanceledException or InvalidOperationException or InvalidDataException or OverflowException)
                     { if (!_disposed && generation == _comparisonChartGeneration) caption.Text = "Chart unavailable. " + AnalysisNames.Display(error.Message, 400) + " The comparison table remains available."; }
-                    finally { data?.Dispose(); if (ReferenceEquals(_comparisonChartCancel, cancel)) _comparisonChartCancel = null; }
+                    finally
+                    {
+                        data?.Dispose(); if (ReferenceEquals(_comparisonChartCancel, cancel)) _comparisonChartCancel = null;
+                        if (generation == _comparisonChartGeneration) { _comparisonChartBusy = false; if (!_disposed) RefreshComparisonPersistence(); }
+                    }
                 }
             }
             void RevealChart()
@@ -158,11 +177,13 @@ public sealed partial class DiskSpaceWindow
                 }, DispatcherPriority.Background);
             }
             mode.SelectionChanged += (_, _) => Changed(); side.SelectionChanged += (_, _) => Changed();
+            if (saved.Chart != AnalysisComparisonChartMode.Table) Changed();
         }
 
         private void RetireComparisonChart()
         {
             _comparisonChartCancel?.Cancel(); ++_comparisonChartGeneration;
+            _comparisonChartBusy = _comparisonChartUnapplied = false;
             _comparisonTreemap?.Clear(); _comparisonSunburst?.Clear(); _comparisonChartData?.Dispose(); _comparisonChartData = null;
             _comparisonTreemap = null; _comparisonSunburst = null; _comparisonChartHost = null;
             if (_disposed) _comparisonMetricCancel?.Cancel();

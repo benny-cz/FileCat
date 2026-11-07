@@ -10,7 +10,8 @@ public sealed class AnalysisComparisonQueryResult : IDisposable
     private AnalysisComparisonResult.ReadLease? _lease;
     private ImmutableArray<AnalysisComparisonRow> _matches, _unknown;
     internal AnalysisComparisonQueryResult(AnalysisComparisonResult.ReadLease lease, ImmutableArray<AnalysisComparisonRow> matches,
-        ImmutableArray<AnalysisComparisonRow> unknown) { _lease = lease; _matches = matches; _unknown = unknown; }
+        ImmutableArray<AnalysisComparisonRow> unknown)
+    { _lease = lease; _matches = matches; _unknown = unknown; }
     public ImmutableArray<AnalysisComparisonRow> Matches => _lease is not null ? _matches : throw new ObjectDisposedException(nameof(AnalysisComparisonQueryResult));
     public ImmutableArray<AnalysisComparisonRow> Unknown => _lease is not null ? _unknown : throw new ObjectDisposedException(nameof(AnalysisComparisonQueryResult));
     public AnalysisTaint Taint => (_lease ?? throw new ObjectDisposedException(nameof(AnalysisComparisonQueryResult))).Taint;
@@ -24,16 +25,18 @@ public static class AnalysisComparisonQuery
     private static int s_query;
     public static AnalysisComparisonQueryResult Apply(AnalysisSnapshot previous, AnalysisSnapshot current, AnalysisMetric metric,
         AnalysisComparisonResult.ReadLease rows, string query, bool sensitive = false,
-        AnalysisComparisonSide side = AnalysisComparisonSide.CurrentOrPrevious, CancellationToken cancellation = default)
+        AnalysisComparisonSide side = AnalysisComparisonSide.CurrentOrPrevious, CancellationToken cancellation = default,
+        IReadOnlyDictionary<string, string>? previousRootDisplayIds = null, IReadOnlyDictionary<string, string>? currentRootDisplayIds = null)
     {
         ArgumentNullException.ThrowIfNull(rows);
         // Ownership transfers only on success. The caller retains and releases its lease on failure.
         if (Interlocked.CompareExchange(ref s_query, 1, 0) != 0) throw new InvalidOperationException("The comparison query work budget is in use. Wait for the other query to finish.");
-        try { return ApplyCore(previous, current, metric, rows, query, sensitive, side, cancellation); }
+        try { return ApplyCore(previous, current, metric, rows, query, sensitive, side, cancellation, previousRootDisplayIds, currentRootDisplayIds); }
         finally { Volatile.Write(ref s_query, 0); }
     }
     private static AnalysisComparisonQueryResult ApplyCore(AnalysisSnapshot previous, AnalysisSnapshot current, AnalysisMetric metric,
-        AnalysisComparisonResult.ReadLease rows, string query, bool sensitive, AnalysisComparisonSide side, CancellationToken cancellation)
+        AnalysisComparisonResult.ReadLease rows, string query, bool sensitive, AnalysisComparisonSide side, CancellationToken cancellation,
+        IReadOnlyDictionary<string, string>? previousRootDisplayIds, IReadOnlyDictionary<string, string>? currentRootDisplayIds)
     {
         if (!Enum.IsDefined(side) || !Enum.IsDefined(metric)) throw new ArgumentOutOfRangeException(nameof(side));
         cancellation.ThrowIfCancellationRequested();
@@ -44,8 +47,8 @@ public static class AnalysisComparisonQuery
         bool needsCurrent = side is AnalysisComparisonSide.Current or AnalysisComparisonSide.Either || side == AnalysisComparisonSide.CurrentOrPrevious && observedRows.Any(r => r.Current is not null);
         // An empty comparison still parses the query rather than accepting invalid expressions silently.
         if (!needsPrevious && !needsCurrent) needsCurrent = true;
-        var before = !needsPrevious ? null : new Context(previous, query, sensitive, cancellation);
-        var now = !needsCurrent ? null : new Context(current, query, sensitive, cancellation);
+        var before = !needsPrevious ? null : new Context(previous, query, sensitive, cancellation, previousRootDisplayIds);
+        var now = !needsCurrent ? null : new Context(current, query, sensitive, cancellation, currentRootDisplayIds);
         var matches = ImmutableArray.CreateBuilder<AnalysisComparisonRow>(); var unknown = ImmutableArray.CreateBuilder<AnalysisComparisonRow>();
         foreach (var row in observedRows)
         {
@@ -54,7 +57,8 @@ public static class AnalysisComparisonQuery
             AnalysisTruth New() => row.Current is null ? AnalysisTruth.Unknown : now!.Evaluate(row, row.Current, metric, cancellation);
             var truth = side switch
             {
-                AnalysisComparisonSide.Current => New(), AnalysisComparisonSide.Previous => Old(),
+                AnalysisComparisonSide.Current => New(),
+                AnalysisComparisonSide.Previous => Old(),
                 AnalysisComparisonSide.Either => AnalysisFilter.Or(row.Previous is null ? AnalysisTruth.False : Old(), row.Current is null ? AnalysisTruth.False : New()),
                 _ => row.Current is null ? Old() : New()
             };
@@ -72,13 +76,13 @@ public static class AnalysisComparisonQuery
         private readonly ILookup<ulong, StorageFact> _directoryFacts;
         private readonly AnalysisFilter _filter;
         private readonly Dictionary<ulong, bool> _text = [];
-        public Context(AnalysisSnapshot snapshot, string query, bool sensitive, CancellationToken cancellation)
+        public Context(AnalysisSnapshot snapshot, string query, bool sensitive, CancellationToken cancellation, IReadOnlyDictionary<string, string>? rootDisplayIds)
         {
             TimeZoneInfo? zone;
             try { zone = TimeZoneInfo.FindSystemTimeZoneById(snapshot.Identity.TimeZoneId); }
             catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException) { zone = null; }
             _filter = AnalysisFilter.Parse(query, zone ?? TimeZoneInfo.Utc, sensitive, comparison: true,
-                roots: snapshot.Roots, rootScopes: new AnalysisRootScopeIndex(snapshot, cancellation), allowDateOnly: zone is not null);
+                roots: snapshot.Roots, rootScopes: new AnalysisRootScopeIndex(snapshot, cancellation), allowDateOnly: zone is not null, rootDisplayIds: rootDisplayIds);
             _nodes = snapshot.Nodes.ToDictionary(n => n.Id); _objects = snapshot.Objects.ToDictionary(o => o.Id, StringComparer.Ordinal);
             _facts = snapshot.Facts.Where(f => f.ObjectId is not null).ToLookup(f => f.ObjectId!, StringComparer.Ordinal);
             _directoryFacts = snapshot.Facts.Where(f => f.DirectoryId is not null).ToLookup(f => f.DirectoryId!.Value);
@@ -119,8 +123,10 @@ public static class AnalysisComparisonQuery
         }
         private static string Change(AnalysisChange change) => change switch
         {
-            AnalysisChange.MetadataChanged => "metadata-changed", AnalysisChange.NoObservedMetadataChange => "unchanged",
-            AnalysisChange.PreviouslyUnknown => "previously-unknown", _ => change.ToString().ToLowerInvariant()
+            AnalysisChange.MetadataChanged => "metadata-changed",
+            AnalysisChange.NoObservedMetadataChange => "unchanged",
+            AnalysisChange.PreviouslyUnknown => "previously-unknown",
+            _ => change.ToString().ToLowerInvariant()
         };
     }
 }

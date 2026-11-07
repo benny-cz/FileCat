@@ -25,6 +25,10 @@ internal static class AnalysisPrivateNames
     internal static void Entry(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
-        if (!IsMetadata(name)) AnalysisPrivateInventoryStore.ValidateName(name);
+        if (!IsMetadata(name))
+        {
+            if (name.EndsWith(".fcdsc", StringComparison.Ordinal)) AnalysisPrivateInventoryStore.ValidateComparisonName(name);
+            else AnalysisPrivateInventoryStore.ValidateName(name);
+        }
     }
 }

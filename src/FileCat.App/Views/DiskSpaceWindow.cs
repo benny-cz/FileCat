@@ -133,8 +133,14 @@ public sealed partial class DiskSpaceWindow : Window
     {
         RefreshIndexedCloseNotice();
         string label = (view.IsComparison ? "Comparison " : "Analysis ") + checked(++_nextTabNumber);
-        var item = new AnalysisTabItem { Header = label, Content = view.CreateViewport(), Padding = new Thickness(12, 6),
-            Margin = new Thickness(0, 0, 4, 0), MinHeight = 32 };
+        var item = new AnalysisTabItem
+        {
+            Header = label,
+            Content = view.CreateViewport(),
+            Padding = new Thickness(12, 6),
+            Margin = new Thickness(0, 0, 4, 0),
+            MinHeight = 32
+        };
         item.Bind(FontSizeProperty, this.GetObservable(FontSizeProperty));
         AutomationProperties.SetName(item, label);
         _sessions.Add(view); _items.Add(item); _tabs.ItemsSource = _items.ToArray(); _tabs.SelectedItem = item;
@@ -311,6 +317,8 @@ public sealed partial class DiskSpaceWindow : Window
             _save = ActionButton("Save…", () => _ = SaveAsync(), "Save the displayed analysis, including all captured paths and metadata. The current display filter does not reduce the saved inventory.");
             _openSaved = ActionButton("Open saved…", () => _ = OpenSavedAsync(), "Open a named inventory from this private profile as inert observations. No source is reconnected or scanned.");
             nav.Children.Add(_save); nav.Children.Add(_openSaved);
+            _openComparison = ActionButton("Open comparison…", () => _ = OpenComparisonSavedAsync(), "Open both captured inventories and saved comparison settings from this private profile. Sources remain disconnected.");
+            nav.Children.Add(_openComparison);
             _compare = ActionButton("Compare…", () => _ = CompareAsync(), "Compare the entire captured revision with a saved inventory. Opening and comparison remain offline.");
             nav.Children.Add(_compare);
             var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { _query, _case } };
@@ -387,8 +395,12 @@ public sealed partial class DiskSpaceWindow : Window
             Grid.SetRow(_explorer, 2); Children.Add(_explorer);
             _basketHost.Children.Add(_basket);
             AddMemorySelectionControls();
-            var basketViewport = new ScrollViewer { Content = _basketHost, MaxHeight = 180,
-                HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+            var basketViewport = new ScrollViewer
+            {
+                Content = _basketHost,
+                MaxHeight = 180,
+                HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
+            };
             AutomationProperties.SetName(basketViewport, "Selection and review controls");
             _basketFooter.Children.Add(basketViewport);
             var cleanupReview = ActionButton("Review cleanup", () => _ = ReviewAsync(), "Review the captured references and their supported actions. Expected free-space gain is unknown.");
@@ -583,6 +595,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _save.IsEnabled = Model.CanSave && !_persistenceBusy;
                 _openSaved.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
                 _compare.IsEnabled = Model.CanCompare && !_persistenceBusy;
+                RefreshComparisonPersistence();
                 _stop.Content = Model.IsPreparing ? "Stop binding" : "Stop";
                 _pause.Content = Model.Phase is AnalysisPhase.Paused or AnalysisPhase.Pausing ? "Resume" : "Pause";
                 var tree = Model.Tree;

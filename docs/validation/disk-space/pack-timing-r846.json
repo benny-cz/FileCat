@@ -1,0 +1,29 @@
+{
+  "revision": "r846",
+  "renderRevision": "r847",
+  "buildLog": ".tmp/build-r845.txt",
+  "sourceManifest": ".tmp/source-candidate-r846.json",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 23.5804801,
+  "archives": [
+    {
+      "platform": "mac",
+      "bytes": 42147228,
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r846.tgz",
+      "sha256": "4739d41f4d9924210672ed960ebc85e3141d4992798f23af88ac0ce6ed98824f"
+    },
+    {
+      "platform": "linux",
+      "bytes": 39485535,
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r846.tgz",
+      "sha256": "e58d8b1290dc64cbf4520242128c334c619f7aac34e7898d6848bce75b792ea9"
+    },
+    {
+      "platform": "windows",
+      "bytes": 78536146,
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r846.tgz",
+      "sha256": "e9e610fa6248147b6d64ea98f79affbba4adb9495657d0a1df15b71a4254745f"
+    }
+  ]
+}

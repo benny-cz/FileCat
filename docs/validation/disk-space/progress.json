@@ -170,7 +170,8 @@
     "Folder shared buckets retain matching logical/file reference statistics separately from additive totals; memory/indexed geometry, table order/labels, tooltips, scope headers and inspectors agree. One bounded payload per shared cohort avoids repeated component statistics or a new retained index. 47 new Core and eight native scan/headless window controls, plus eight strengthened saved-window controls, pass all three platforms; full Other/product/resource qualification remains open.",
     "Captured-name memory ordering and bounded raw-name evidence now agree with indexed folder/group views, with keyboard chart tips, bounded scalar-aware ordinal keys and decoded-record geometry work accounting. 80 Core and 12 native-private saved Other window controls pass all three platforms; full native name traversal, Other/product/resource qualification remain open.",
     "Twelve actual native-source filename/capture/saved-Other controls pass all three platforms with hardlink, case, raw-byte/unpaired and preserving payload evidence. APFS invalid-byte creation refusals are recorded. A broad Ubuntu old saved-view timeout is retained with a focused unchanged-build passing check; no broad qualification is claimed.",
-    "Offline comparison metric switching and positive-area Current/Previous growth charts retain actual readers, shared charges, unknown/attribution distinctions and explicit structural mappings. Compact disclosures, persistent chart side/metric captions and reveal navigation pass eight new rendering controls all three guest runtimes; full W0-W8 and physical desktop qualification remain open."
+    "Offline comparison metric switching and positive-area Current/Previous growth charts retain actual readers, shared charges, unknown/attribution distinctions and explicit structural mappings. Compact disclosures, persistent chart side/metric captions and reveal navigation pass eight new rendering controls all three guest runtimes; full W0-W8 and physical desktop qualification remain open.",
+    "Atomic private .fcdsc comparisons restore both inert captured inputs and applied metric/query/chart/focus state, preserve root-ID query meaning and privileged taint, refuse existing names and retain unapplied-draft close protection.20 new Core and7 rendering/native-store cases plus a strengthened UI journey pass all three guest runtimes; full W0-W8 qualification remains open."
   ],
   "validation": {
     "windowsCore": {
@@ -2119,7 +2120,7 @@
     },
     "testingWorkflow": {
       "default": "Build and package the largest coherent implementation candidate, then transfer one immutable bundle per free platform and execute all applicable Core/native/rendering phases sequentially before collecting evidence. Preserve other testers and gate every phase.",
-      "batchEvidence": "source-manifest-r842.json",
+      "batchEvidence": "source-manifest-r853.json",
       "oneCandidateArchivePerPlatform": true,
       "postExecutionProcessExitRequired": true,
       "continueIndependentPhasesAfterAssertionFailure": true,
@@ -2130,7 +2131,8 @@
         "batching": "Larger related implementation chunks; one transfer and one collection per completed batch",
         "packing": "Direct three deployable archives; no unused standalone archives",
         "unchangedCacheProof": "r823 verified104files;2tests passed15.383s;6990-byte driver;single result archive"
-      }
+      },
+      "testDeltaPolicy": "Copy only declared SHA-verified cached inputs to a fresh payload; overlay only test DLL/PDB; reject production changes; one archive/result collection; affected method selectors."
     },
     "quarantinedScratchCapacity": {
       "scope": "Scratch/directory/profile retention with injected native close result; not full native-handle/global-resource qualification",
@@ -7772,13 +7774,127 @@
       "fullResourceGateQualified": false,
       "publicFeatureRegistered": false,
       "finalIndependentReviewPerformed": false
+    },
+    "savedComparison": {
+      "manifest": "source-manifest-r853.json",
+      "matrix": {
+        "windows/r849/smoke": {
+          "total": "20",
+          "passed": "20",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "0.558"
+        },
+        "windows/r849/preview": {
+          "total": "7",
+          "passed": "7",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "3.612"
+        },
+        "windows/r849/core": {
+          "total": "1400",
+          "passed": "1352",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0",
+          "time": "55.409"
+        },
+        "windows/r849/native": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "37.513"
+        },
+        "windows/r849/render": {
+          "total": "281",
+          "passed": "280",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "179.731"
+        },
+        "mac/r849/core": {
+          "total": "1382",
+          "passed": "1378",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "32.294"
+        },
+        "mac/r849/render": {
+          "total": "281",
+          "passed": "281",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "98.182"
+        },
+        "ubuntu/r849/core": {
+          "total": "1382",
+          "passed": "1378",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "123.667"
+        },
+        "ubuntu/r849/render": {
+          "total": "281",
+          "passed": "281",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "143.196"
+        },
+        "windows/r852/render": {
+          "total": "1",
+          "passed": "1",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "2.637"
+        },
+        "mac/r852/render": {
+          "total": "1",
+          "passed": "1",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "2.132"
+        },
+        "ubuntu/r852/render": {
+          "total": "1",
+          "passed": "1",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "2.476"
+        }
+      },
+      "newCoreControls": 20,
+      "newRenderingCases": 7,
+      "savedComparisonMemoryAndNativePrivateSubsetPassedAllThree": true,
+      "appliedViewAndDraftCloseControlPassedAllThree": true,
+      "allApplicableBroadSuitesPassed": true,
+      "testOnlyFocusedDeltasPreservedProductionHashes": true,
+      "fullNativeDesktopQualified": false,
+      "indexedSavedComparisonQualified": false,
+      "managedReplacementDeletionHistoryQualified": false,
+      "generalExportImportQualified": false,
+      "fullResourceGateQualified": false,
+      "publicFeatureRegistered": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
     "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, remaining dataset/CPU queues and full private-memory qualification (producer payload now shares a partitioned8 MiB envelope and explorer creation/page/inspection/chart work shares eight places, with actual-lifetime controls all3), actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: complete full native pointer/key qualification (runtime deferred materialization/review, memory scoped/hidden-mark review and matching-file capture now pass all3) (indexed captured-folder/scoped marks/cross-page range controls now pass all3), folder and grouped exact Other explorer/chart/history/selection/SaveOpen controls pass all3; complete the remaining geometry, raw-name, interaction and resource parity matrix; qualify full indexed Other-subset persistence parity, full native indexed Save/Open qualification and remaining dimensions (memory grouping/captured selection and schema4 saved grouping restoration now pass all3) (indexed selector/chart/table/navigation/inspection now pass all3) (memory and indexed type/extension/captured-age/location stores, bounded pages and native capture controls now pass all3), owner/comparison/qualified-volume grouping and comparison-growth coloring (basic type/depth/captured-age colors, themed legends and strict saved-view restore now pass all3), scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
-    "W3: complete saved comparisons, indexed-scale comparison and full native desktop qualification. Metric switching and positive-area Current/Previous growth charts now pass eight new rendering controls on Windows/Mac/Ubuntu, with actual reader release, shared charges and compact themed layouts; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and offline comparison are connected; no persistence gate is qualified.",
+    "W3: complete managed catalog maintenance/replacement/deletion, optional capped history, general import/export and indexed-scale comparison/persistence, plus full native desktop qualification. Named private comparisons now capture both inputs and applied view with strict root-ID query context and preserving draft closure, tested across all3 guest runtimes. The persistence gate remains unqualified; ordinary saved root-ID query context and all remaining plan requirements need audit.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
     "W1: epoch refresh, native unresponsive-device and shared-memory/indexed private-store budget qualification remain. Shared eight-request actual-I/O ownership and worker cleanup now have regressions; this is not full resource qualification.",

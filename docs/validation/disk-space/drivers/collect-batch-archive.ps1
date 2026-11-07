@@ -14,7 +14,7 @@ if($Platform-eq'windows'){
 $ErrorActionPreference='Stop'
 $base='@BASE@'
 Set-Location -LiteralPath $base
-$names=@(Get-ChildItem -LiteralPath $base -File|Where-Object{$_.Name -match '^(state[.]txt|failure[.]txt|(smoke|core|native|render)-@REV@[.](xml|log))$'}|ForEach-Object{$_.Name})
+$names=@(Get-ChildItem -LiteralPath $base -File|Where-Object{$_.Name -match '^(state[.]txt|failure[.]txt|cache-proof[.]txt|(smoke|preview|core|native|render)-@REV@[.](xml|log))$'}|ForEach-Object{$_.Name})
 if(Test-Path -LiteralPath 'payload/render/comparison-growth-renders'){$names+='payload/render/comparison-growth-renders'}
 if(!$names.Contains('state.txt')){throw 'Runner state is missing'}
 & tar.exe -czf (Join-Path $base 'results.tgz') @names
@@ -26,7 +26,7 @@ if($LASTEXITCODE){throw 'Result archive failed'}
  & $vmrun -T ws -vp a -gu filecatdsa_r2 -gp a copyFileFromGuestToHost $vm ($guest+'\results.tgz') $archive;Check 'Windows result collection failed'
 }else{
  $guest=if($Platform-eq'mac'){'/Users/benny/FileCatValidation/dsa-batch-20261107-'+$Revision}else{'/home/benny/FileCatValidation/dsa-batch-20261107-'+$Revision}
- $command='cd '+$guest+'; set -eu; set -- state.txt; for name in failure.txt smoke-'+$Revision+'.xml smoke-'+$Revision+'.log core-'+$Revision+'.xml core-'+$Revision+'.log native-'+$Revision+'.xml native-'+$Revision+'.log render-'+$Revision+'.xml render-'+$Revision+'.log; do if [ -f "$name" ]; then set -- "$@" "$name"; fi; done; if [ -d payload/render/comparison-growth-renders ]; then set -- "$@" payload/render/comparison-growth-renders; fi; tar -czf results.tgz "$@"'
+ $command='cd '+$guest+'; set -eu; set -- state.txt; for name in failure.txt cache-proof.txt smoke-'+$Revision+'.xml smoke-'+$Revision+'.log preview-'+$Revision+'.xml preview-'+$Revision+'.log core-'+$Revision+'.xml core-'+$Revision+'.log native-'+$Revision+'.xml native-'+$Revision+'.log render-'+$Revision+'.xml render-'+$Revision+'.log; do if [ -f "$name" ]; then set -- "$@" "$name"; fi; done; if [ -d payload/render/comparison-growth-renders ]; then set -- "$@" payload/render/comparison-growth-renders; fi; tar -czf results.tgz "$@"'
  if($Platform-eq'mac'){
   & ssh.exe -i 'C:\Users\marek\.ssh\windows_claude_ed25519' -o BatchMode=yes benny@192.168.0.199 $command;Check 'Mac result archive failed'
   & scp.exe -O -i 'C:\Users\marek\.ssh\windows_claude_ed25519' -o BatchMode=yes ('benny@192.168.0.199:'+$guest+'/results.tgz') $archive;Check 'Mac result collection failed'

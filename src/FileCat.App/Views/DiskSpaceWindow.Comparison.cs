@@ -30,10 +30,17 @@ public sealed partial class DiskSpaceWindow
         { AnalysisMetric.FileSize => "File size", AnalysisMetric.UniqueFileSize => "Unique file size", AnalysisMetric.OnDisk => "On disk — reported", _ => "Files" };
         private static string ChangeLabel(AnalysisChange change) => change switch
         {
-            AnalysisChange.Added => "+ Added", AnalysisChange.Removed => "− Removed", AnalysisChange.Growing => "↑ Growing", AnalysisChange.Shrinking => "↓ Shrinking",
-            AnalysisChange.Moved => "Moved / renamed", AnalysisChange.Attribution => "Attribution movement", AnalysisChange.Replaced => "Different observed object",
-            AnalysisChange.MetadataChanged => "Metadata changed", AnalysisChange.NoObservedMetadataChange => "No observed metadata change",
-            AnalysisChange.PreviouslyUnknown => "Previously unknown", _ => "Unknown"
+            AnalysisChange.Added => "+ Added",
+            AnalysisChange.Removed => "− Removed",
+            AnalysisChange.Growing => "↑ Growing",
+            AnalysisChange.Shrinking => "↓ Shrinking",
+            AnalysisChange.Moved => "Moved / renamed",
+            AnalysisChange.Attribution => "Attribution movement",
+            AnalysisChange.Replaced => "Different observed object",
+            AnalysisChange.MetadataChanged => "Metadata changed",
+            AnalysisChange.NoObservedMetadataChange => "No observed metadata change",
+            AnalysisChange.PreviouslyUnknown => "Previously unknown",
+            _ => "Unknown"
         };
         private static string ComparisonValue(AnalysisMeasurement measurement, AnalysisMetric metric) => measurement.IsKnown
             ? measurement.Value!.Value.ToString("N0") + (metric == AnalysisMetric.Files ? measurement.Value.Value == 1 ? " path" : " paths" : " B")
@@ -49,8 +56,11 @@ public sealed partial class DiskSpaceWindow
             var label = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap };
             if (size.HasValue)
             {
-                label.Bind(TextBlock.FontSizeProperty, new Binding(nameof(FontSize)) { Source = _window,
-                    Converter = new FuncValueConverter<double, double>(value => Math.Max(value, size.Value)) });
+                label.Bind(TextBlock.FontSizeProperty, new Binding(nameof(FontSize))
+                {
+                    Source = _window,
+                    Converter = new FuncValueConverter<double, double>(value => Math.Max(value, size.Value))
+                });
                 if (size.Value >= 18) label.FontWeight = FontWeight.SemiBold;
             }
             return label;
@@ -58,6 +68,8 @@ public sealed partial class DiskSpaceWindow
 
         private void ShowComparison(AnalysisComparisonResult comparison)
         {
+            var savedView = Model.ComparisonView;
+            _comparisonQueryResult = Model.TakeRestoredComparisonQuery();
             foreach (var child in Children) child.IsVisible = false;
             var heading = _comparisonHeading = new StackPanel { Spacing = 7, Margin = new Thickness(10, 5) };
             heading.Children.Add(SessionText("Compare observations · " + ComparisonMetric(comparison.Metric), 20));
@@ -80,19 +92,24 @@ public sealed partial class DiskSpaceWindow
             if (comparison.Taint.HasFlag(AnalysisTaint.PrivilegedDerived)) heading.Children.Add(SessionText("Contains privileged-derived observations. Private handling remains required."));
             var list = _comparisonRows = new ListBox { MinHeight = 180, Focusable = true, SelectionMode = SelectionMode.Single };
             var count = SessionText(""); AutomationProperties.SetLiveSetting(count, AutomationLiveSetting.Polite);
-            var status = _comparisonStatus = new ComboBox { MinWidth = 180, ItemsSource = new[]
-                { "All observations", "Growing", "Shrinking", "Added", "Removed", "Moved", "Attribution", "Replaced", "Metadata changed", "No observed metadata change", "Unknown / previously unknown" }, SelectedIndex = 0 };
-            var sort = new ComboBox { MinWidth = 180, ItemsSource = new[] { "Absolute difference", "Relative change", "Current amount", "Path" }, SelectedIndex = 0 };
+            var status = _comparisonStatus = new ComboBox
+            {
+                MinWidth = 180,
+                ItemsSource = new[]
+                { "All observations", "Growing", "Shrinking", "Added", "Removed", "Moved", "Attribution", "Replaced", "Metadata changed", "No observed metadata change", "Unknown / previously unknown" },
+                SelectedIndex = (int)savedView.Cohort
+            };
+            var sort = new ComboBox { MinWidth = 180, ItemsSource = new[] { "Absolute difference", "Relative change", "Current amount", "Path" }, SelectedIndex = (int)savedView.Order };
             AutomationProperties.SetName(status, "Comparison status"); AutomationProperties.SetName(sort, "Comparison sort");
             ToolTip.SetTip(status, new RichTip("Comparison status", detail: "Show added, removed, grown, shrunk, moved, attribution or unknown observations. Unknown coverage is never a zero baseline."));
             ToolTip.SetTip(sort, new RichTip("Comparison ranking", detail: "Absolute difference is the default. Relative ranking is explicit; a zero or unknown previous value has no percentage."));
             var filterBody = new StackPanel { Spacing = 7 };
             var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 6, Children = { status, sort } }; filterBody.Children.Add(filters);
-            var query = _comparisonQuery = new TextBox { PlaceholderText = "e.g. delta>1MiB OR change:removed", MaxLength = AnalysisLimits.QueryBytes, MinWidth = 180, Width = 310 };
-            var querySide = new ComboBox { ItemsSource = new[] { "Current; Previous for removed rows", "Current observations", "Previous observations", "Either recorded side" }, SelectedIndex = 0, MinWidth = 180 };
-            var sensitive = new CheckBox { Content = "Case sensitive" };
-            var queryError = SessionText(""); AutomationProperties.SetLiveSetting(queryError, AutomationLiveSetting.Assertive);
-            var unknown = new CheckBox { Content = "Inspect uncertain query matches", IsVisible = false };
+            var query = _comparisonQuery = new TextBox { Text = savedView.Query, PlaceholderText = "e.g. delta>1MiB OR change:removed", MaxLength = AnalysisLimits.QueryBytes, MinWidth = 180, Width = 310 };
+            var querySide = new ComboBox { ItemsSource = new[] { "Current; Previous for removed rows", "Current observations", "Previous observations", "Either recorded side" }, SelectedIndex = (int)savedView.QuerySide, MinWidth = 180 };
+            var sensitive = new CheckBox { Content = "Case sensitive", IsChecked = savedView.CaseSensitive };
+            var queryError = SessionText(string.IsNullOrWhiteSpace(savedView.Query) ? "" : "Restored applied query: " + AnalysisNames.Display(savedView.Query, 8192)); AutomationProperties.SetLiveSetting(queryError, AutomationLiveSetting.Assertive);
+            var unknown = new CheckBox { Content = "Inspect uncertain query matches", IsVisible = _comparisonQueryResult is { Unknown.IsEmpty: false }, IsChecked = savedView.ShowUnknown };
             AutomationProperties.SetName(query, "Comparison query"); AutomationProperties.SetName(querySide, "Comparison query side");
             AutomationProperties.SetName(unknown, "Inspect uncertain comparison matches");
             const string queryHelp = "Use name/path/ext/type, size/allocated/delta, modified, root, state or change with AND/OR/NOT. Paths are root-relative; dates use the selected side's recorded timezone. A shared row matches when any recorded alias satisfies the complete expression; its full amount and aliases remain together. Unknown predicates appear in the uncertain cohort. Select one side when root IDs or labels differ.";
@@ -111,6 +128,7 @@ public sealed partial class DiskSpaceWindow
                     var result = await Model.QueryComparisonAsync(expression, caseSensitive, side, cancel.Token);
                     if (_disposed || cancel.IsCancellationRequested || generation != _comparisonQueryGeneration) { result.Dispose(); return; }
                     var previous = _comparisonQueryResult; _comparisonQueryResult = result;
+                    Model.SetComparisonView(Model.ComparisonView with { Query = expression, CaseSensitive = caseSensitive, QuerySide = side, ShowUnknown = false });
                     unknown.IsChecked = false; unknown.IsVisible = !result.Unknown.IsEmpty;
                     queryError.Text = query.Text == expression && (sensitive.IsChecked == true) == caseSensitive && querySide.SelectedIndex == (int)side
                         ? "Applied query: " + (string.IsNullOrWhiteSpace(expression) ? "All observations" : AnalysisNames.Display(expression, 8192))
@@ -120,17 +138,22 @@ public sealed partial class DiskSpaceWindow
                 catch (OperationCanceledException) { if (!_disposed && generation == _comparisonQueryGeneration) queryError.Text = "Query canceled. The last applied rows remain visible."; }
                 catch (Exception ex) when (ex is FormatException or OverflowException or InvalidOperationException or InvalidDataException)
                 { if (!_disposed && generation == _comparisonQueryGeneration) queryError.Text = "Filter not applied. " + AnalysisNames.Display(ex.Message, 400); }
-                finally { if (ReferenceEquals(_comparisonQueryCancel, cancel)) _comparisonQueryCancel = null; if (!_disposed) apply.IsEnabled = true; }
+                finally { if (ReferenceEquals(_comparisonQueryCancel, cancel)) _comparisonQueryCancel = null; if (!_disposed) { apply.IsEnabled = true; Draft(); } }
             }
             apply.Click += (_, _) => _ = ApplyQuery();
             query.KeyDown += (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; _ = ApplyQuery(); } };
-            void Edited() { if (!_disposed && apply.IsEnabled) queryError.Text = "Query changed. Choose Apply comparison query; the last applied rows remain visible."; }
+            void Draft()
+            {
+                if (!_disposed) Model.SetComparisonDraftChanged(query.Text != Model.ComparisonView.Query || (sensitive.IsChecked == true) != Model.ComparisonView.CaseSensitive || querySide.SelectedIndex != (int)Model.ComparisonView.QuerySide);
+            }
+            void Edited() { Draft(); if (!_disposed && apply.IsEnabled) queryError.Text = "Query changed. Choose Apply comparison query; the last applied rows remain visible."; }
             query.TextChanged += (_, _) => Edited(); querySide.SelectionChanged += (_, _) => Edited(); sensitive.IsCheckedChanged += (_, _) => Edited();
             var queryControls = new WrapPanel { ItemSpacing = 8, LineSpacing = 6, Children = { query, querySide, sensitive, apply } };
             queryControls.Children.Add(ActionButton("Clear comparison query", () =>
             {
                 _comparisonQueryCancel?.Cancel(); ++_comparisonQueryGeneration; query.Text = ""; unknown.IsChecked = false; unknown.IsVisible = false;
-                list.ItemsSource = null; _comparisonQueryResult?.Dispose(); _comparisonQueryResult = null; queryError.Text = "All observations · no query applied."; Filter();
+                list.ItemsSource = null; _comparisonQueryResult?.Dispose(); _comparisonQueryResult = null;
+                Model.SetComparisonView(Model.ComparisonView with { Query = "", ShowUnknown = false }); Draft(); queryError.Text = "All observations · no query applied."; Filter();
             }, "Remove the comparison query and uncertain cohort. The full-inventory totals and original accounting rows remain unchanged."));
             filterBody.Children.Add(queryControls); filterBody.Children.Add(unknown); filterBody.Children.Add(queryError);
             var filterDisclosure = new Expander { Header = SessionText("Filter and rank comparison rows"), Content = filterBody, IsExpanded = false };
@@ -149,18 +172,26 @@ public sealed partial class DiskSpaceWindow
                 ToolTip.SetTip(body, new RichTip("Observed difference", detail: row.Explanation + " " + row.Evidence + ". Inspect the entry for both path sets and measurement bases."));
                 return body;
             });
+            bool updatingRows = false;
             void Filter()
             {
-                if (_disposed) return;
+                if (_disposed || !Model.ComparisonReady || !ReferenceEquals(_comparisonRows, list)) return;
+                Model.SetComparisonView(Model.ComparisonView with { Cohort = (AnalysisComparisonCohort)Math.Max(0, status.SelectedIndex), Order = (AnalysisComparisonOrder)Math.Max(0, sort.SelectedIndex), ShowUnknown = unknown.IsChecked == true });
                 IEnumerable<AnalysisComparisonRow> rows = _comparisonQueryResult is { } applied
                     ? unknown.IsChecked == true ? applied.Unknown : applied.Matches : comparison.Rows;
                 rows = status.SelectedIndex switch
                 {
-                    1 => rows.Where(r => r.Change == AnalysisChange.Growing), 2 => rows.Where(r => r.Change == AnalysisChange.Shrinking),
-                    3 => rows.Where(r => r.Change == AnalysisChange.Added), 4 => rows.Where(r => r.Change == AnalysisChange.Removed),
-                    5 => rows.Where(r => r.Change == AnalysisChange.Moved), 6 => rows.Where(r => r.Change == AnalysisChange.Attribution),
-                    7 => rows.Where(r => r.Change == AnalysisChange.Replaced), 8 => rows.Where(r => r.Change == AnalysisChange.MetadataChanged),
-                    9 => rows.Where(r => r.Change == AnalysisChange.NoObservedMetadataChange), 10 => rows.Where(r => r.Change is AnalysisChange.Unknown or AnalysisChange.PreviouslyUnknown), _ => rows
+                    1 => rows.Where(r => r.Change == AnalysisChange.Growing),
+                    2 => rows.Where(r => r.Change == AnalysisChange.Shrinking),
+                    3 => rows.Where(r => r.Change == AnalysisChange.Added),
+                    4 => rows.Where(r => r.Change == AnalysisChange.Removed),
+                    5 => rows.Where(r => r.Change == AnalysisChange.Moved),
+                    6 => rows.Where(r => r.Change == AnalysisChange.Attribution),
+                    7 => rows.Where(r => r.Change == AnalysisChange.Replaced),
+                    8 => rows.Where(r => r.Change == AnalysisChange.MetadataChanged),
+                    9 => rows.Where(r => r.Change == AnalysisChange.NoObservedMetadataChange),
+                    10 => rows.Where(r => r.Change is AnalysisChange.Unknown or AnalysisChange.PreviouslyUnknown),
+                    _ => rows
                 };
                 rows = sort.SelectedIndex switch
                 {
@@ -170,16 +201,30 @@ public sealed partial class DiskSpaceWindow
                     _ => rows.OrderByDescending(r => r.Delta?.Magnitude ?? 0)
                 };
                 var selected = list.SelectedItem as AnalysisComparisonRow;
-                var shown = rows.ToArray(); list.ItemsSource = shown; if (selected is not null && shown.Contains(selected)) list.SelectedItem = selected;
+                var anchor = Model.ComparisonView; var shown = rows.ToArray();
+                selected ??= shown.SingleOrDefault(row => anchor.FocusNode != 0 && (anchor.PreviousFocus ? row.Previous : row.Current)?.NodeIds.Contains(anchor.FocusNode) == true);
+                updatingRows = true;
+                try { list.ItemsSource = shown; if (selected is not null && shown.Contains(selected)) list.SelectedItem = selected; }
+                finally { updatingRows = false; }
                 count.Text = shown.Length.ToString("N0") + " of " + comparison.Rows.Length.ToString("N0") + " accounting rows" +
+                    " · " + status.SelectedItem + " · " + sort.SelectedItem + (_comparisonQueryResult is not null ? " · applied query" : "") +
                     (_comparisonQueryResult is { } filtered ? " · " + filtered.Unknown.Length.ToString("N0") + " uncertain query matches" : "") +
                     ". Shared aliases remain together. Totals above describe the full inventories.";
             }
             status.SelectionChanged += (_, _) => Filter(); sort.SelectionChanged += (_, _) => Filter(); unknown.IsCheckedChanged += (_, _) => Filter();
+            list.SelectionChanged += (_, _) =>
+            {
+                if (_disposed || updatingRows || !Model.ComparisonReady || !ReferenceEquals(_comparisonRows, list)) return;
+                var row = list.SelectedItem as AnalysisComparisonRow;
+                bool previous = row?.Current is null && row?.Previous is not null;
+                ulong node = (previous ? row?.Previous : row?.Current)?.NodeIds.FirstOrDefault() ?? 0;
+                Model.SetComparisonView(Model.ComparisonView with { FocusNode = node, PreviousFocus = previous });
+            };
             list.DoubleTapped += (_, _) => _ = InspectComparisonAsync();
             list.AddHandler(KeyDownEvent, (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; _ = InspectComparisonAsync(); } }, RoutingStrategies.Tunnel);
             var footer = _comparisonFooter = new StackPanel { Spacing = 6, Margin = new Thickness(10, 6) };
             footer.Children.Add(ActionButton("Inspect comparison entry", () => _ = InspectComparisonAsync(), "Read both path sets, measured values and compatibility evidence. Historical rows supply no current file target."));
+            AddComparisonPersistence(footer);
             footer.Children.Add(SessionText("Offline metadata comparison. Reported allocation is not consumed or reclaimable physical space. No file contents were compared. Chart area shows the chosen side's amount; growth color describes comparison status."));
             var panel = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto") };
             var table = new Grid { RowDefinitions = new RowDefinitions("Auto,*"), Margin = new Thickness(10, 4) };
@@ -187,6 +232,9 @@ public sealed partial class DiskSpaceWindow
             panel.Children.Add(heading); Grid.SetRow(table, 2); panel.Children.Add(table); Grid.SetRow(footer, 3); panel.Children.Add(footer);
             AddComparisonCharts(heading, list, panel);
             Grid.SetRowSpan(panel, 5); Children.Add(panel); Filter();
+            if (savedView.FocusNode != 0)
+                list.SelectedItem = list.Items.Cast<AnalysisComparisonRow>().SingleOrDefault(row =>
+                    (savedView.PreviousFocus ? row.Previous : row.Current)?.NodeIds.Contains(savedView.FocusNode) == true);
         }
 
         private async Task InspectComparisonAsync(AnalysisComparisonRow? selected = null)
@@ -205,8 +253,13 @@ public sealed partial class DiskSpaceWindow
                 body.Children.Add(SessionText(title + ": " + (entity is null ? "No comparable observed entry" : ComparisonValue(entity.Value, comparison.Metric)), 16));
                 if (entity is null) return;
                 body.Children.Add(SessionText("Observed modified time: " + (entity.ModifiedUtc?.ToString("u") ?? "Unknown") + " · " + entity.Paths.Length.ToString("N0") + (entity.Paths.Length == 1 ? " path" : " paths")));
-                var paths = new ListBox { ItemsSource = entity.Paths, MaxHeight = 180, MinHeight = 60,
-                    ItemTemplate = new FuncDataTemplate<string>((path, _) => SessionText(path ?? "")) };
+                var paths = new ListBox
+                {
+                    ItemsSource = entity.Paths,
+                    MaxHeight = 180,
+                    MinHeight = 60,
+                    ItemTemplate = new FuncDataTemplate<string>((path, _) => SessionText(path ?? ""))
+                };
                 AutomationProperties.SetName(paths, title + " observed paths"); body.Children.Add(paths);
             }
             Side("Previous", row.Previous); Side("Current", row.Current);
@@ -218,8 +271,13 @@ public sealed partial class DiskSpaceWindow
                     body.Children.Add(SessionText(title, 16));
                     var descriptions = Model.ComparisonBases(previous, previous ? row.Previous : row.Current);
                     if (descriptions.IsEmpty) body.Children.Add(SessionText("No measurement bases recorded for this entry; component coverage is unknown."));
-                    var bases = new ListBox { ItemsSource = descriptions, MaxHeight = 140, MinHeight = 40,
-                        ItemTemplate = new FuncDataTemplate<string>((basis, _) => SessionText(basis ?? "")) };
+                    var bases = new ListBox
+                    {
+                        ItemsSource = descriptions,
+                        MaxHeight = 140,
+                        MinHeight = 40,
+                        ItemTemplate = new FuncDataTemplate<string>((basis, _) => SessionText(basis ?? ""))
+                    };
                     AutomationProperties.SetName(bases, title); body.Children.Add(bases);
                 }
             }

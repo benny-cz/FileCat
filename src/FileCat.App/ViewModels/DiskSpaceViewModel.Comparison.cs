@@ -31,12 +31,16 @@ public sealed partial class DiskSpaceViewModel
         AnalysisComparisonResult? result = null; _changingComparisonMetric = true;
         try
         {
+            _comparisonReady = false;
+            _restoredComparisonQuery?.Dispose(); _restoredComparisonQuery = null;
             previousResult.Dispose();
             await previousResult.CloseCompletion.WaitAsync(cancellation);
             var oldSnapshot = before.Snapshot; var currentSnapshot = current.Snapshot;
             result = await Task.Run(() => AnalysisComparison.Build(oldSnapshot, currentSnapshot, metric, _comparisonRootMapping, cancellation), CancellationToken.None);
             cancellation.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_disposed, this);
-            Comparison = result; result = null; Metric = metric;
+            Comparison = result; result = null; Metric = metric; _comparisonReady = true;
+            ComparisonView = new() { Metric = metric };
+            _comparisonDraftChanged = false;
         }
         finally { result?.Dispose(); _changingComparisonMetric = false; }
     }
@@ -62,6 +66,7 @@ public sealed partial class DiskSpaceViewModel
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         using var actualWork = _actualWork.Enter();
+        if (!_comparisonReady) throw new InvalidOperationException("Wait for an available comparison before applying a query.");
         var comparison = Comparison ?? throw new InvalidOperationException("Choose a comparison before applying a comparison query.");
         using var before = _comparisonPrevious!.Retain(); using var current = _comparisonCurrent!.Retain();
         AnalysisComparisonResult.ReadLease? rows = comparison.Retain(); AnalysisComparisonQueryResult? result = null;
@@ -69,7 +74,7 @@ public sealed partial class DiskSpaceViewModel
         {
             var previousSnapshot = before.Snapshot; var currentSnapshot = current.Snapshot; var retained = rows;
             result = await Task.Run(() => AnalysisComparisonQuery.Apply(previousSnapshot, currentSnapshot, comparison.Metric, retained,
-                query, sensitive, side, cancellation), CancellationToken.None);
+                query, sensitive, side, cancellation, _comparisonPreviousRootIds, _comparisonCurrentRootIds), CancellationToken.None);
             rows = null; cancellation.ThrowIfCancellationRequested();
             var success = result; result = null; return success;
         }
@@ -163,8 +168,16 @@ public sealed partial class DiskSpaceViewModel
                 cancellation.ThrowIfCancellationRequested();
                 var model = new DiskSpaceViewModel(services)
                 {
-                    _comparisonCurrent = now, _comparisonPrevious = before, _comparisonRootMapping = mapping, Comparison = result, ComparisonPreviousName = name,
-                    Metric = metric, Chart = "Table", Phase = AnalysisPhase.Stopped,
+                    _comparisonCurrent = now,
+                    _comparisonPrevious = before,
+                    _comparisonRootMapping = mapping,
+                    Comparison = result,
+                    ComparisonPreviousName = name,
+                    Metric = metric,
+                    Chart = "Table",
+                    Phase = AnalysisPhase.Stopped,
+                    _comparisonReady = true,
+                    ComparisonView = new() { Metric = metric },
                     Status = "Offline comparison. Source files are not connected; differences are metadata observations."
                 };
                 now = null; before = null; result = null; return model;
