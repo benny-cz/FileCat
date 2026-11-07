@@ -1,0 +1,80 @@
+{
+  "commit": "b88c6bc09339de32f7d18bbab900686b244f42ba",
+  "test_and_reference_only": true,
+  "production_dependency": false,
+  "unrar_source_imported": false,
+  "files": [
+    {
+      "path": "C/7zTypes.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/7zTypes.h",
+      "bytes": 15876,
+      "sha256": "a5d03b8cb65cd3a2a56bde46dd68fb356d2ebacd9d70283e7d4d20b4e0a64713"
+    },
+    {
+      "path": "C/7zWindows.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/7zWindows.h",
+      "bytes": 2537,
+      "sha256": "996e5dc62a022e05c95142c53729abfdc308b8b006dddbdf78793ff4fb2b8dc6"
+    },
+    {
+      "path": "C/Compiler.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Compiler.h",
+      "bytes": 10762,
+      "sha256": "d5e42be77d26beaa8c81d3e62ef99fc5685736cfc079779fdb9154d05fa8bc4a"
+    },
+    {
+      "path": "C/CpuArch.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/CpuArch.h",
+      "bytes": 20014,
+      "sha256": "259145c6f4b085f44284014574f39f3f562fc78466746bfb388efe06b4dd59b4"
+    },
+    {
+      "path": "C/CpuArch.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/CpuArch.c",
+      "bytes": 25363,
+      "sha256": "1e0f166e34946fc7da05647a85d8edeb64038282915e73eef676cd067d6a7527"
+    },
+    {
+      "path": "C/Precomp.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Precomp.h",
+      "bytes": 3266,
+      "sha256": "c8903f2e36a771a272d8981e1e9ffed5ba16ca3d2f3dca6d1414d2340a6829d0"
+    },
+    {
+      "path": "C/Ppmd.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Ppmd.h",
+      "bytes": 5444,
+      "sha256": "c67e58afd6cd0b0d598ae92338bc32fc96d951d65d041c086627f46287896e00"
+    },
+    {
+      "path": "C/Ppmd7.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Ppmd7.h",
+      "bytes": 4433,
+      "sha256": "d228a585bc801743f08686c5073431b41b258b23bb2840f3318c68f720ab319d"
+    },
+    {
+      "path": "C/Ppmd7.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Ppmd7.c",
+      "bytes": 28909,
+      "sha256": "861cfd68c536ccc2040e1e68c4aeefe6c20982aa4d497a9a18516c35d5a62f3b"
+    },
+    {
+      "path": "C/Ppmd7Dec.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Ppmd7Dec.c",
+      "bytes": 7206,
+      "sha256": "d6459b7ac7f5287cf7f2c2cb7978ca36840af8f243fda542219566e271018fb7"
+    },
+    {
+      "path": "C/Bcj2.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Bcj2.h",
+      "bytes": 12053,
+      "sha256": "e45c841e5d805deeb2ae3f212c8860ce312252efdc55f713f52f837cf8c4452f"
+    },
+    {
+      "path": "C/Bcj2.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Bcj2.c",
+      "bytes": 8074,
+      "sha256": "52f5c6bbaf512f867fe46a378d79888825a5b4e31abbd4c94f007058a890174e"
+    }
+  ]
+}

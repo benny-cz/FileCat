@@ -75,6 +75,10 @@ the immediate implementation dependencies for the shared create/update/edit/F6/p
 the strict LZMA/LZMA2 and exact Copy/AES layers to the 7z framing pass. Complete member graph/catalog verification
 and the shared parent/worker/native adapters remain the next integration work.
 
+[Strict PPMd7 and BCJ2 node verification](../validation/archive-writing/SEVENZIP_RANGE_VERIFICATION.md) now covers
+known-size range completion, consumed input and all four BCJ2 branches, with SDK differential evidence. Finish raw
+deflate verification and integrate the complete member graphs/catalog, then continue the shared RAR/7z adapters.
+
 ### 1.3 Scope boundaries
 
 - Keep the existing ZIP implementation and tests as a behavioral baseline. Refactor only the shared safety boundary that new formats require.

@@ -20,18 +20,23 @@ follow-up; component evidence does not enable either format in the application.
 
 The subsequent [strict 7z framing/metadata checkpoint](SEVENZIP_PHYSICAL_FRAMING.md) observes exact raw metadata,
 coder graphs and physical ownership, including bounded compressed/encrypted headers. It also closes partially
-constructed decoder graphs on failure. Complete logical member/header codec-ending checks and preservation
-admission remain open; an encoded-header catalog explicitly reports its ending verification as pending.
+constructed decoder graphs on failure. That checkpoint left logical member/header codec-ending checks and
+preservation admission open, with encoded-header ending verification explicitly pending.
 
 The next [LZMA/LZMA2 verification component](SEVENZIP_LZMA_VERIFICATION.md) adds exact marked/markerless finish,
 compressed-byte consumption, chunk/history/property checks and owned-buffer cleanup. Its independent official-SDK
-comparison covers 224 accept/refuse vectors. It is a prerequisite for the complete 7z catalog; encoded-header and
-member graph integration still remain open, and the component does not enable a production writer.
+comparison covers 224 accept/refuse vectors. It supplies a prerequisite for the complete 7z catalog; subsequent
+graph integration is recorded below, and the component does not enable a production writer.
 
 The [complete 7z header verifier](SEVENZIP_HEADER_VERIFICATION.md) now connects that strict LZMA/LZMA2 component to
 the encoded-header graph, with exact Copy and AES consumption, bounded padding and aggregate decoder reservations.
 Successful framing observations require complete header endings. Logical member graphs and the complete strict
 catalog still remain open; no production profile is enabled.
+
+The [PPMd7/BCJ2 strict verification components](SEVENZIP_RANGE_VERIFICATION.md) add exact known-size range endings,
+all four BCJ2 branches, shared consumed-byte accounting and owned PPMd model cleanup. The final 102 new cases and native
+SDK comparisons cover positive and malformed streams on all three platforms, with LZMA regression repeated after
+the shared input change. Raw-deflate verification and complete member graph/catalog integration remain open.
 
 The [RAR5 preservation assembly component](RAR5_PRESERVATION.md) now represents exact optional semantic metadata
 and archive/header features, adds per-member packed SHA-256 witnesses to the complete logical catalog, and assembles

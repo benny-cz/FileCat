@@ -140,6 +140,14 @@ internal sealed class PpmdModelH<TDecoder>
     /// <summary>How often the model was started afresh: once at its first symbol, then each time its memory filled up.</summary>
     internal int Starts { get; private set; }
 
+    /// <summary>Release owned mutable model state, including buffered plaintext/state symbols.</summary>
+    internal void Clear()
+    {
+        Array.Clear(_states); _states = []; Array.Clear(_freeList); Array.Clear(_charMask); Array.Clear(_binSumm);
+        Array.Clear(_see2); Array.Clear(_unmasked); Array.Clear(_chain);
+        _stateCount = _context = _prevSym = 0; Coder = default; EncodingHints = null;
+    }
+
 
     /// <summary>
     /// Sets up a new model of order <paramref name="maxOrder"/> (2–64) in <paramref name="memoryBytes"/> bytes of model
@@ -167,6 +175,7 @@ internal sealed class PpmdModelH<TDecoder>
         int count = (1 + heap1Units + heap2Units) * 2;
         if (_states.Length < count)
         {
+            Array.Clear(_states);
             _states = [];
             _states = new State[count];
         }

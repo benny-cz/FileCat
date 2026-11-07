@@ -46,7 +46,8 @@ internal sealed class Ppmd7zEncoderStream : Stream
         if (disposing && !_disposed)
         {
             _disposed = true;
-            if (!_failed) _range.Finish(); // known unpacked size: normal five-byte range finalization, no end mark
+            try { if (!_failed) _range.Finish(); } // known size: normal range finalization, no end mark
+            finally { _model.Clear(); }
         }
         base.Dispose(disposing);
     }

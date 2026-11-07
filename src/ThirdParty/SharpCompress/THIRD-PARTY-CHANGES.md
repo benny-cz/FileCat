@@ -11,6 +11,13 @@ FileCat's changes, all for release issue I14: only code under OSI-approved licen
 derived from UnRAR. FileCat uses this library for 7z archives and bzip2, xz and zstd streams only, so
 everything else is left out.
 
+- Strict PPMd/BCJ2 verification follow-up, 7 November 2026: opt-in known-size PPMd7 and BCJ2 readers validate
+  real range input, prefixes, terminal range state, exact output and borrowed-stream ownership. PPMd's known-size
+  path does not decode a speculative end symbol. Existing tolerant browsing defaults remain. The BSD shared PPMd
+  model clears owned state on growth/disposal; PPMd encoder/reader ownership and failed initialization use that
+  cleanup. The strict stream wrappers additionally verify exact physical input consumption. These are original
+  FileCat changes checked against the pinned public-domain SDK; no UnRAR source or new runtime dependency.
+
 - Password-development follow-up, 7 November 2026: original internal `SevenZipAesDecryptorFactory`/reader-option
   plumbing lets a FileCat read job own its bounded KDF/cache and mutable password bytes. The existing AES reader
   validates property/padding/length bounds before crypto setup, accepts the legacy direct-key mode with a zero IV

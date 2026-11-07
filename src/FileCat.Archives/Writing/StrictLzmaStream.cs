@@ -13,7 +13,7 @@ namespace FileCat.Archives.Writing;
 internal sealed class StrictLzmaReadStream : Stream
 {
     internal const int MaximumDictionaryBytes = 64 << 20;
-    private readonly BufferedInput _input;
+    private readonly StrictCoderInput _input;
     private readonly LzmaStream _decoder;
     private readonly CancellationToken _ct;
     private readonly long _length;
@@ -78,41 +78,6 @@ internal sealed class StrictLzmaReadStream : Stream
     {
         int n = Read(_readBuffer, 0, Math.Min(buffer.Length, _readBuffer.Length));
         _readBuffer.AsSpan(0, n).CopyTo(buffer); return n;
-    }
-
-    private sealed class BufferedInput(Stream source, long length, CancellationToken ct) : Stream
-    {
-        private readonly byte[] _buffer = new byte[ArchiveIoAuthority.MaximumReadBytes];
-        private long _fetched; private int _offset, _count; private bool _disposed;
-        internal long Consumed { get; private set; }
-        private void Fill()
-        {
-            ObjectDisposedException.ThrowIf(_disposed, this); ct.ThrowIfCancellationRequested();
-            if (_offset != _count || _fetched == length) return;
-            _offset = 0; _count = source.Read(_buffer.AsSpan(0, (int)Math.Min(_buffer.Length, length - _fetched)));
-            if (_count == 0) throw Invalid(); _fetched += _count;
-        }
-        public override int ReadByte()
-        {
-            Fill(); if (_offset == _count) return -1; Consumed++; return _buffer[_offset++];
-        }
-        public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
-        public override int Read(Span<byte> buffer)
-        {
-            if (buffer.IsEmpty) return 0; Fill(); int n = Math.Min(buffer.Length, _count - _offset);
-            _buffer.AsSpan(_offset, n).CopyTo(buffer); _offset += n; Consumed += n; return n;
-        }
-        internal void VerifyEnd()
-        {
-            ct.ThrowIfCancellationRequested();
-            if (Consumed != length || _fetched != length || _offset != _count || source.ReadByte() != -1) throw Invalid();
-        }
-        protected override void Dispose(bool disposing)
-        { if (disposing && !_disposed) { _disposed = true; CryptographicOperations.ZeroMemory(_buffer); } base.Dispose(disposing); }
-        public override bool CanRead => !_disposed; public override bool CanSeek => false; public override bool CanWrite => false;
-        public override long Length => length; public override long Position { get => Consumed; set => throw new NotSupportedException(); }
-        public override void Flush() { } public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-        public override void SetLength(long value) => throw new NotSupportedException(); public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     protected override void Dispose(bool disposing)
