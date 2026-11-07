@@ -66,6 +66,11 @@ can drive its preservation/transaction adapter without waiting for every 7z code
 only when its complete verification and preservation contracts are met; qualify its workflows and platform gates
 before enabling it. This makes RAR/7z integration early work and keeps optional formats and final UI polish later.
 
+The RAR path now includes [exact semantic metadata and retained-payload assembly](../validation/archive-writing/RAR5_PRESERVATION.md),
+including encrypted payload copies and newly encoded inputs. Connect that component to parent preservation planning,
+role-bound worker requests and native transactions while completing the remaining strict 7z graph checks. These are
+the immediate implementation dependencies for the shared create/update/edit/F6/password workflows.
+
 ### 1.3 Scope boundaries
 
 - Keep the existing ZIP implementation and tests as a behavioral baseline. Refactor only the shared safety boundary that new formats require.

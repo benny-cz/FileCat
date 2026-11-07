@@ -13,6 +13,7 @@ internal sealed record Rar5PhysicalMember(string Name, ArchiveMemberType Type, i
     ArchiveTimestamp? BasicModified, uint? Crc32, Rar5RawTimes? Times, byte[]? Blake2sp,
     Rar5RawOwner? Owner, Rar5CryptoParameters? Encryption)
 {
+    internal ulong HeaderFlags { get; init; }
     internal int Method => (int)((Compression >> 7) & 7);
     internal int AlgorithmVersion => (int)(Compression & 63);
     internal long DictionaryBytes
@@ -36,6 +37,10 @@ internal sealed record Rar5PhysicalCatalog(IReadOnlyList<Rar5PhysicalMember> Mem
     bool HiddenNames, int? HeaderKdfPower)
 {
     internal long RetainedHeapBytes { get; init; }
+    internal ulong MainHeaderFlags { get; init; }
+    internal ulong EndHeaderFlags { get; init; }
+    internal ulong EncryptionHeaderFlags { get; init; }
+    internal bool? HeaderPasswordCheckPresent { get; init; }
 }
 
 /// <summary>
@@ -62,7 +67,7 @@ internal static class StrictRar5Framing
         var members = new List<Rar5PhysicalMember>();
         var occurrences = new Dictionary<(string, ArchiveMemberType), int>();
         Rar5CryptoParameters? headers = null;
-        bool main = false; int records = 0;
+        bool main = false; int records = 0; ulong mainFlags = 0, encryptionFlags = 0;
         try
         {
             Span<byte> signature = stackalloc byte[8]; source.ReadExactly(signature);
@@ -97,6 +102,7 @@ internal static class StrictRar5Framing
                         if (main || headers is not null || records != 1 || packed != 0 || extraLength != 0 || (flags & 3) != 0)
                             throw Invalid("The RAR encryption header is misplaced or has unsupported extents.");
                         headers = Rar5CryptoParameters.Parse(body.Rest(), header: true);
+                        encryptionFlags = flags;
                         if (password is null) throw Unsupported("A password is required to assess encrypted RAR headers.");
                         password.Keys(headers);
                     }
@@ -105,13 +111,13 @@ internal static class StrictRar5Framing
                         if (main || members.Count != 0 || packed != 0 || extraLength != 0 || (flags & 3) != 0)
                             throw Unsupported("Repeated RAR main headers or archive metadata cannot be preserved by this profile.");
                         if (body.VarInt() != 0) throw Unsupported("RAR volume, solid, recovery or locked archive features cannot be preserved.");
-                        End(body); main = true;
+                        End(body); main = true; mainFlags = flags;
                     }
                     else if (kind == 2)
                     {
                         if (!main) throw Invalid("A RAR member precedes the main header.");
                         budget.AddMember();
-                        var member = Member(ref body, extras, position, source.Position, packed, budget, occurrences);
+                        var member = Member(ref body, extras, position, source.Position, packed, budget, occurrences) with { HeaderFlags = flags };
                         members.Add(member); source.Drain(packed);
                     }
                     else if (kind == 5)
@@ -121,7 +127,8 @@ internal static class StrictRar5Framing
                         if (body.VarInt() != 0) throw Unsupported("A continuing RAR volume cannot be rewritten by this profile.");
                         End(body); source.End();
                         return new(members.AsReadOnly(), source.Digest(), source.Length, headers is not null, headers?.CountPower)
-                            { RetainedHeapBytes = budget.RetainedHeapBytes };
+                            { RetainedHeapBytes = budget.RetainedHeapBytes, MainHeaderFlags = mainFlags, EndHeaderFlags = flags,
+                                EncryptionHeaderFlags = encryptionFlags, HeaderPasswordCheckPresent = headers is null ? null : headers.Check.Length != 0 };
                     }
                     else throw Unsupported("RAR service, recovery or unknown records require a preservation implementation.");
                 }

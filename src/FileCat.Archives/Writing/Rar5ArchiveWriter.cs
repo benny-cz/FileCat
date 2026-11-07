@@ -177,45 +177,13 @@ internal static class Rar5ArchiveWriter
     }
 
     private static void WriteRecord(StageSink sink, byte[] body, int kind, int bodyLength, long? packedLength, int extraLength,
-        Rar5EncryptionSession? encryption, CancellationToken ct)
-    {
-        if (encryption?.HideNames != true) { WriteHeader(sink, body, kind, bodyLength, packedLength, extraLength); return; }
-        var target = encryption.CreateCipher(sink, header: true, body.Length + 40L, ct);
-        using (target.Cipher)
-        {
-            sink.Write(target.Iv); WriteHeader(target.Cipher, body, kind, bodyLength, packedLength, extraLength);
-            target.Cipher.Finish();
-        }
-    }
+        Rar5EncryptionSession? encryption, CancellationToken ct) =>
+        Rar5WireHeaderWriter.Record(sink, body.AsSpan(0, bodyLength), kind, packedLength, extraLength, encryption, ct);
 
-    private static void WriteHeader(Stream sink, byte[] body, int kind, int bodyLength, long? packedLength, int extraLength)
-    {
-        Span<byte> prefix = stackalloc byte[40];
-        int count = 7;
-        count += VarInt(prefix[count..], (ulong)kind);
-        count += VarInt(prefix[count..], (ulong)((packedLength is null ? 0 : 2) | (extraLength == 0 ? 0 : 1)));
-        if (extraLength != 0) count += VarInt(prefix[count..], (ulong)extraLength);
-        if (packedLength is { } packed) count += VarInt(prefix[count..], (ulong)packed);
-        int payloadPrefix = count - 7, headerLength = checked(payloadPrefix + bodyLength);
-        Span<byte> size = stackalloc byte[3]; int sizeCount = VarInt(size, (ulong)headerLength);
-        var crc = new ArchiveCrc32(); crc.Append(size[..sizeCount]); crc.Append(prefix.Slice(7, payloadPrefix)); crc.Append(body.AsSpan(0, bodyLength));
-        BinaryPrimitives.WriteUInt32LittleEndian(prefix, crc.Value);
-        size[..sizeCount].CopyTo(prefix[4..]);
-        sink.Write(prefix[..(4 + sizeCount)]); sink.Write(prefix.Slice(7, payloadPrefix)); sink.Write(body.AsSpan(0, bodyLength));
+    private static void WriteHeader(Stream sink, byte[] body, int kind, int bodyLength, long? packedLength, int extraLength) =>
+        Rar5WireHeaderWriter.Header(sink, body.AsSpan(0, bodyLength), kind, packedLength, extraLength);
 
-    }
-
-    private static int VarInt(Span<byte> target, ulong value)
-    {
-        int count = 0;
-        do
-        {
-            if (count >= target.Length) throw Invalid("The RAR header integer exceeded its bound.");
-            byte item = (byte)(value & 127); value >>= 7;
-            target[count++] = (byte)(item | (value == 0 ? 0 : 128));
-        } while (value != 0);
-        return count;
-    }
+    private static int VarInt(Span<byte> target, ulong value) => Rar5WireHeaderWriter.VarInt(target, value);
 
     private ref struct RecordBuilder(byte[] buffer)
     {

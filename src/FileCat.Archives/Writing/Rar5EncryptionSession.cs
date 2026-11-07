@@ -54,6 +54,7 @@ internal sealed class Rar5EncryptionSession : IDisposable
     }
 
     internal uint ProtectCrc32(uint crc) { Live(); return _dataKeys.ProtectCrc32(crc); }
+    internal byte[] ProtectHash(ReadOnlySpan<byte> hash) { Live(); return HMACSHA256.HashData(_dataKeys.ChecksumKey, hash); }
     public void Dispose()
     {
         if (_disposed) return;

@@ -28,6 +28,13 @@ compressed-byte consumption, chunk/history/property checks and owned-buffer clea
 comparison covers 224 accept/refuse vectors. It is a prerequisite for the complete 7z catalog; encoded-header and
 member graph integration still remain open, and the component does not enable a production writer.
 
+The [RAR5 preservation assembly component](RAR5_PRESERVATION.md) now represents exact optional semantic metadata
+and archive/header features, adds per-member packed SHA-256 witnesses to the complete logical catalog, and assembles
+retained compressed/encrypted content together with newly encoded inputs. The 115-case component matrix and
+independent metadata/native-reader checks exercise creation, rename/reassembly and mixed records. Parent preservation
+planning, worker/runtime secret consumers, native publication and application workflows remain open; this component
+does not register a new format.
+
 The [RAR/7z public-options checkpoint](RAR_7Z_PUBLIC_OPTIONS.md) advances shared integration: explicit version-2
 codec/filter/header/method and password modes now participate in every canonical request, digest, sidecar, creation
 witness and journal binding, with version-1 bytes preserved. Public options map to existing stream encoders and

@@ -4,7 +4,10 @@ using FileCat.Core.Archives;
 
 namespace FileCat.Archives.Writing;
 
-internal sealed record Rar5LogicalMember(Rar5PhysicalMember Physical, string Sha256, Rar5FilterFeatures Filters);
+internal sealed record Rar5LogicalMember(Rar5PhysicalMember Physical, string Sha256, Rar5FilterFeatures Filters)
+{
+    internal string PackedSha256 { get; init; } = string.Empty;
+}
 
 /// <summary>Complete observed content, not a writable-profile assessment or publication authority.</summary>
 internal sealed record Rar5LogicalCatalog(Rar5PhysicalCatalog Physical, IReadOnlyList<Rar5LogicalMember> Members);
@@ -24,7 +27,7 @@ internal static class StrictRar5Catalog
         var physical = StrictRar5Framing.Read(input, ct, password);
         var budget = new ArchiveWriteBudget();
         // The framing objects remain alive alongside this list, its digest strings and bounded read buffers.
-        budget.AddMetadata(0, checked(physical.RetainedHeapBytes + physical.Members.Count * 384L + (128 << 10)));
+        budget.AddMetadata(0, checked(physical.RetainedHeapBytes + physical.Members.Count * 576L + (128 << 10)));
         foreach (var member in physical.Members)
         {
             ct.ThrowIfCancellationRequested();
@@ -105,7 +108,7 @@ internal static class StrictRar5Catalog
                     }
                     finally { CryptographicOperations.ZeroMemory(hash); if (final is not null) CryptographicOperations.ZeroMemory(final); }
                 }
-                members.Add(new(member, Convert.ToHexString(sha.GetHashAndReset()), filters));
+                members.Add(new(member, Convert.ToHexString(sha.GetHashAndReset()), filters) { PackedSha256 = packed.Digest() });
 
                 void Append(ReadOnlySpan<byte> bytes)
                 {
@@ -129,14 +132,20 @@ internal static class StrictRar5Catalog
     private sealed class Region(Stream source, long length, CancellationToken ct) : Stream
     {
         private readonly long _length = length;
+        private readonly IncrementalHash _hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         internal long Remaining { get; private set; } = length;
         public override int Read(Span<byte> buffer)
         {
             ct.ThrowIfCancellationRequested();
-            int n = source.Read(buffer[..(int)Math.Min(Math.Min(buffer.Length, ArchiveIoAuthority.MaximumReadBytes), Remaining)]);
+            int wanted = (int)Math.Min(Math.Min(buffer.Length, ArchiveIoAuthority.MaximumReadBytes), Remaining);
+            int n = source.Read(buffer[..wanted]);
+            if (n < 0 || n > wanted) throw Invalid("The packed RAR source violated its read grant.");
             if (n == 0 && Remaining > 0 && !buffer.IsEmpty) throw Invalid("The packed RAR member ends early.");
-            Remaining -= n; return n;
+            _hash.AppendData(buffer[..n]); Remaining -= n; return n;
         }
+        internal string Digest()
+        { if (Remaining != 0) throw Invalid("The packed RAR member has not been verified completely."); return Convert.ToHexString(_hash.GetCurrentHash()); }
+        protected override void Dispose(bool disposing) { if (disposing) _hash.Dispose(); base.Dispose(disposing); }
         public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
         public override bool CanRead => true; public override bool CanSeek => false; public override bool CanWrite => false;
         public override long Length => _length;
