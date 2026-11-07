@@ -32,7 +32,8 @@ internal static class AnalysisPrivateNames
     {
         ArgumentNullException.ThrowIfNull(name);
         if (IsCatalogEntry(name) || IsPendingDeletion(name)) return;
-        AnalysisPrivateInventoryStore.ValidateName(name);
+        if (name.EndsWith(".fcdsc", StringComparison.Ordinal)) AnalysisPrivateInventoryStore.ValidateComparisonName(name);
+        else AnalysisPrivateInventoryStore.ValidateName(name);
     }
     internal static void MaintenanceMove(string source, string destination)
     {

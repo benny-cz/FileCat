@@ -1,0 +1,28 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+    FileCat.Rendering.Tests.AnalysisRenderingTests.ComparisonRemovalInvalidatesMatchingSavedCopiesWithoutErasingInputsOrStrandingObservers [FAIL]
+      System.InvalidOperationException : The bounded comparison memory budget is in use. Close the other comparison first.
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisComparison.cs(142,0): at FileCat.Core.Analysis.AnalysisComparison.Build(AnalysisSnapshot previous, AnalysisSnapshot current, AnalysisMetric metric, IReadOnlyDictionary`2 structuralRoots, CancellationToken cancellation)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\ViewModels\DiskSpaceViewModel.ComparisonPersistence.cs(109,0): at FileCat.App.ViewModels.DiskSpaceViewModel.<>c__DisplayClass72_1.<OpenSavedComparisonAsync>b__1()
+           at System.Threading.Tasks.Task`1.InnerInvoke()
+           at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+        --- End of stack trace from previous location ---
+           at System.Threading.ExecutionContext.RunFromThreadPoolDispatchLoop(Thread threadPoolThread, ExecutionContext executionContext, ContextCallback callback, Object state)
+           at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+        --- End of stack trace from previous location ---
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\ViewModels\DiskSpaceViewModel.ComparisonPersistence.cs(109,0): at FileCat.App.ViewModels.DiskSpaceViewModel.OpenSavedComparisonAsync(String name, CancellationToken cancellation)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.ComparisonMaintenance.cs(58,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.ComparisonRemovalInvalidatesMatchingSavedCopiesWithoutErasingInputsOrStrandingObservers()
+        --- End of stack trace from previous location ---
+  Finished:    FileCat.Rendering.Tests (ID = '7c2299fe57cf854e5a1d6e5fd18eb17e304bcb770c50628df1caf986a0e87e08')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 14, Errors: 0, Failed: 1, Skipped: 0, Not Run: 0, Time: 8.950s

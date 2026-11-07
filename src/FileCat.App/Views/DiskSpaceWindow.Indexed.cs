@@ -668,6 +668,7 @@ public sealed partial class DiskSpaceWindow
         public void Dispose()
         {
             if (_disposed) return; _disposed = true; ++_navigation; ++_inspection; _buildCancel?.Cancel(); _navigationCancel?.Cancel();
+            _services?.AnalysisSavedReferences.Untrack(this);
             _memberCaptureCancel?.Cancel(); _selectionLifetime.Cancel(); _selection.ClearMarks(); _selection.ClearBasket();
             _markVisibilityCancel?.Cancel(); _visibilityMarks = null; _markVisibility = null; _visibilityOwner = null;
             CancelTableRange();

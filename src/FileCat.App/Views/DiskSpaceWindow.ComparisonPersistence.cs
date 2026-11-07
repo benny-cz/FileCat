@@ -77,8 +77,7 @@ public sealed partial class DiskSpaceWindow
         {
             if (_disposed || _persistenceBusy || !Model.HasPrivateStorage) return;
             using var actualWork = _actualWork.Enter();
-            if (!_window.CanAddSession) { _window.ExplainSessionLimit(); return; }
-            AnalysisSessionAdmission.Slot? destination = _window._admissionPool.Acquire();
+            AnalysisSessionAdmission.Slot? destination = null;
             var opening = new AnalysisViewWork(); using var cancel = new CancellationTokenSource(); bool closed = false, browsing = false;
             _persistenceBusy = true; RefreshComparisonPersistence();
             try
@@ -90,6 +89,7 @@ public sealed partial class DiskSpaceWindow
                 var choices = new ComboBox { IsVisible = false, HorizontalAlignment = HorizontalAlignment.Stretch, MaxWidth = 600 };
                 AutomationProperties.SetName(choices, "Saved comparisons");
                 choices.SelectionChanged += (_, _) => { if (choices.SelectedItem is ComparisonChoice choice) name.Text = choice.Name; };
+                ComparisonChoice? SelectedChoice() => choices.SelectedItem is ComparisonChoice choice && choice.Name == name.Text ? choice : null;
                 var browse = new Button { Content = "Browse saved comparisons" };
                 browse.Click += async (_, _) =>
                 {
@@ -119,8 +119,16 @@ public sealed partial class DiskSpaceWindow
                 }
                 };
                 var result = await _window._dialogs.ShowCustomAsync("Open saved comparison", body,
-                    [new DialogButton("Cancel", false, IsCancel: true), new DialogButton("Open comparison observations", true, IsDefault: true) { IsAvailable = () => ComparisonNameError(name.Text) is null }], name);
-                closed = true; if (result is not true || _disposed) return;
+                    [new DialogButton("Cancel", false, IsCancel: true), new DialogButton("Open comparison observations", true, IsDefault: true) { IsAvailable = () => ComparisonNameError(name.Text) is null && _window.CanAddSession },
+                    new DialogButton("Delete selected comparison…", SavedAnalysisMaintenanceAction.Delete) { IsAvailable = () => !browsing && SelectedChoice() is not null }], name);
+                closed = true; if (_disposed) return;
+                if (result is SavedAnalysisMaintenanceAction.Delete && SelectedChoice() is { } selected)
+                {
+                    cancel.Cancel(); await opening.CloseAsync(); await DeleteSavedComparisonAsync(selected.Name); return;
+                }
+                if (result is not true) return;
+                if (!_window.CanAddSession) { _window.ExplainSessionLimit(); return; }
+                destination = _window._admissionPool.Acquire();
                 var loaded = await WithInventoryProgress("Opening comparison", token => Model.OpenSavedComparisonAsync(name.Text!, token));
                 if (_disposed || !_window.IsVisible) { loaded.Dispose(); return; }
                 var admission = destination!; destination = null;
@@ -134,6 +142,22 @@ public sealed partial class DiskSpaceWindow
                 closed = true; cancel.Cancel(); _persistenceBusy = false; if (!_disposed) RefreshComparisonPersistence();
                 var actualOpening = opening.CloseAsync(); if (destination is not null) await destination.CloseAfterAsync(actualOpening); else await actualOpening;
             }
+        }
+        private async Task DeleteSavedComparisonAsync(string name)
+        {
+            try
+            {
+                await using var captured = await WithInventoryProgress("Checking saved comparison", token => Model.PrepareSavedComparisonMaintenanceAsync(name, token));
+                if (_disposed || !await SavedComparisonMaintenanceDialog.ConfirmAsync(_window._dialogs, captured.Review, Model.SavedDirectory ?? ""))
+                { Model.SetStatus("The saved comparison was kept."); return; }
+                if (_disposed || !_window.IsVisible) return;
+                var outcome = await WithInventoryProgress("Deleting saved comparison", token => captured.DeleteAsync(token));
+                Model.SetStatus(outcome.Detail);
+            }
+            catch (OwnedAnalysisComparisonDeletionException error) { _actualWork.RecordUnconfirmedClose(error); Model.SetStatus(error.Outcome.Detail); }
+            catch (OperationCanceledException) { Model.SetStatus("Saved-comparison maintenance canceled. No successful removal is claimed."); }
+            catch (Exception error) when (InventoryError(error) || error is FormatException or OverflowException)
+            { _actualWork.RecordUnconfirmedClose(error); Model.SetStatus("Saved comparison was not changed: " + AnalysisNames.Display(error.Message, 400)); }
         }
         private static string? ComparisonNameError(string? value)
         {

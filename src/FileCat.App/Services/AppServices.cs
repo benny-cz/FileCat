@@ -32,6 +32,7 @@ public sealed class AppServices : IDisposable
         Io = new DeviceIoScheduler();
         Io.HealthChanged += (device, health) => FileCatEventSource.Log.DeviceHealth(device, health.ToString());
         Ui = AvaloniaUiDispatcher.Instance;
+        AnalysisSavedReferences = new(Ui);
         Commands = CommandRegistry.CreateDefault(CommandTranslations.Load(Path.Combine(AppContext.BaseDirectory, "lang"), System.Globalization.CultureInfo.CurrentUICulture));
         Keymap = new Keymap(Commands, Settings.KeyBindings);
         foreach (var c in Keymap.Conflicts) AppLog.Warn("Key binding: " + c);
@@ -213,6 +214,7 @@ public sealed class AppServices : IDisposable
     public IndexMemoryBudget ListingIndexes { get; } = new();
     public DeviceIoScheduler Io { get; }
     public IUiDispatcher Ui { get; }
+    internal AnalysisSavedReferences AnalysisSavedReferences { get; }
     public CommandRegistry Commands { get; }
     public Keymap Keymap { get; private set; }
     public IconProvider Icons { get; }

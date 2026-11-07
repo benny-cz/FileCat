@@ -16,6 +16,8 @@ public sealed partial class AnalysisMaintenanceTests
         internal readonly Dictionary<string, Node> Files = new(StringComparer.Ordinal);
         internal Action<string, string>? BeforeMove, AfterMove;
         internal Action<string>? BeforeRemove, AfterRemove;
+        internal Action<string>? BeforeRead;
+        internal int LargestRead;
         internal bool LowSpace;
         internal int Publications, Leases;
         internal override void Verify() { }
@@ -29,6 +31,7 @@ public sealed partial class AnalysisMaintenanceTests
         {
             private readonly Directory _owner;
             private readonly MemoryStream _stream;
+            private readonly Stream? _readerStream;
             private readonly Node? _node;
             private readonly bool _exclusive, _reader;
             private string? _name;
@@ -43,8 +46,9 @@ public sealed partial class AnalysisMaintenanceTests
                 if (exclusive) _node.Exclusive = true;
                 if (_reader) _node.Readers++;
                 _stream = new(_node.Bytes, writable: false); owner.Leases++;
+                _readerStream = new ReadStream(_stream, count => { owner.LargestRead = Math.Max(owner.LargestRead, count); owner.BeforeRead?.Invoke(_name!); });
             }
-            public override Stream Stream => _stream;
+            public override Stream Stream => _readerStream ?? _stream;
             internal override string Identity { get { Verify(); return _node!.Id; } }
             internal override string? MaintenanceName => _exclusive ? _name : null;
             internal override bool RemovalRequested => _removed;
@@ -81,6 +85,20 @@ public sealed partial class AnalysisMaintenanceTests
                 if (_exclusive || _capacity) _node!.Exclusive = false;
                 _owner.Leases--; _stream.Dispose();
             }
+        }
+        private sealed class ReadStream(Stream inner, Action<int> before) : Stream
+        {
+            public override bool CanRead => true;
+            public override bool CanWrite => false;
+            public override bool CanSeek => false;
+            public override long Length => inner.Length;
+            public override long Position { get => inner.Position; set => throw new NotSupportedException(); }
+            public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+            public override int Read(Span<byte> buffer) { before(buffer.Length); return inner.Read(buffer); }
+            public override void Flush() => throw new NotSupportedException();
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+            public override void SetLength(long length) => throw new NotSupportedException();
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         }
     }
 }

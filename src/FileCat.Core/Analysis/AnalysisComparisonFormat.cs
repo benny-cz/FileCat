@@ -56,21 +56,7 @@ public static partial class AnalysisComparisonFormat
         using var buffered = new BufferedStream(new NonClosing(source), 64 * 1024);
         using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         byte[] header = Line(buffered, HeaderBytes, cancellation); digest.AppendData(header);
-        using var document = Document(header); var root = document.RootElement;
-        Fields(root, "kind", "schema", "comparison", "previous", "current", "previousBytes", "currentBytes", "savedUtc", "previousLabel", "taint", "roots", "view", "previousRootIds", "currentRootIds");
-        if (Text(root, "kind") != "comparison-manifest" || Text(root, "schema") != "1") throw Invalid("Unsupported saved comparison schema.");
-        Guid id = Id(root, "comparison"), beforeId = Id(root, "previous"), nowId = Id(root, "current");
-        if (beforeId == nowId || beforeId == id || nowId == id) throw Invalid("Conflicting saved comparison identities.");
-        long beforeBytes = Count(root, "previousBytes"), nowBytes = Count(root, "currentBytes");
-        if (beforeBytes > AnalysisLimits.InventoryBytes - header.Length - nowBytes - 256) throw Invalid("Saved comparison size limit reached.");
-        string label = Text(root, "previousLabel"); Label(label);
-        var saved = DateTimeOffset.TryParseExact(Text(root, "savedUtc"), "O", CultureInfo.InvariantCulture, DateTimeStyles.None, out var stamp)
-            ? stamp : throw Invalid("Invalid comparison save time.");
-        var taint = (AnalysisTaint)Integer(root, "taint");
-        if (taint == 0 || (taint & ~(AnalysisTaint.OrdinarySensitive | AnalysisTaint.PrivilegedDerived | AnalysisTaint.ImportedUnverified)) != 0)
-            throw Invalid("Invalid saved comparison privacy flags.");
-        var view = ReadView(root.GetProperty("view")); var roots = ReadRoots(root.GetProperty("roots"));
-        var beforeRoots = ReadRootIds(root.GetProperty("previousRootIds")); var nowRoots = ReadRootIds(root.GetProperty("currentRootIds"));
+        var (id, beforeId, nowId, beforeBytes, nowBytes, label, saved, taint, view, roots, beforeRoots, nowRoots) = ParseHeader(header);
         AnalysisInventory? previous = null, current = null;
         try
         {

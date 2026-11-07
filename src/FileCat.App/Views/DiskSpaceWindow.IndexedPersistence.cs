@@ -12,17 +12,19 @@ namespace FileCat.App.Views;
 
 public sealed partial class DiskSpaceWindow
 {
-    private sealed partial class IndexedSessionView
+    private sealed partial class IndexedSessionView : IAnalysisSavedReferenceTarget
     {
         private readonly AppServices? _services;
         private readonly Button _saveInventory = new() { Content = "Save named analysis" }, _openInventory = new() { Content = "Open saved analysis" };
         private bool _persistenceBusy, _revisionSaved;
         private string? _savedInventoryName;
+        private Guid? _savedInventoryId;
         private CancellationTokenSource? _inventoryCancel;
         private DialogCloser? _inventoryCloser;
         private bool HasInventoryStore => _services is not null && !_services.Io.IsStopped && !_actualWork.HasUnconfirmedClose;
         private void AddIndexedPersistenceControls(WrapPanel bar)
         {
+            _services?.AnalysisSavedReferences.Track(this);
             bar.Children.Add(_saveInventory); bar.Children.Add(_openInventory);
             _saveInventory.Click += async (_, _) => await SaveInventoryAsync(); _openInventory.Click += async (_, _) => await OpenInventoryAsync();
             ToolTip.SetTip(_saveInventory, new RichTip("Save the whole captured inventory", detail: "Save all recorded paths and metadata without file contents. The display filter does not limit the inventory. Current display settings are retained; marks and the basket are not saved."));
@@ -36,6 +38,13 @@ public sealed partial class DiskSpaceWindow
             _openInventory.IsEnabled = HasInventoryStore && !_persistenceBusy;
             string reason = HasInventoryStore ? "" : "This view has no available private inventory store. Open it from a FileCat profile to save named analyses.";
             AutomationProperties.SetHelpText(_saveInventory, reason); AutomationProperties.SetHelpText(_openInventory, reason);
+        }
+        void IAnalysisSavedReferenceTarget.ForgetSavedReference(Guid id, string name, bool comparison)
+        {
+            if (_disposed || comparison || _savedInventoryId != id || !string.Equals(_savedInventoryName, name, StringComparison.OrdinalIgnoreCase)) return;
+            _savedInventoryId = null; _savedInventoryName = null; _revisionSaved = false;
+            _status.Text = "These observations no longer have a confirmed saved copy. Save a new copy to keep them.";
+            RefreshIndexedPersistence();
         }
         private AnalysisSavedView CapturePublishedView()
         {
@@ -92,12 +101,12 @@ public sealed partial class DiskSpaceWindow
                     catch (Exception error) when (saved is not null)
                     { throw new AnalysisPublicationUncertainException(saved.Name, error); }
                 }, cancel);
-                _revisionSaved = true; _savedInventoryName = receipt.Name;
+                _revisionSaved = true; _savedInventoryName = receipt.Name; _savedInventoryId = receipt.InventoryId;
                 if (!_disposed) _status.Text = "Saved " + AnalysisNames.Display(receipt.Name, 240) + ". The whole captured inventory and its displayed settings were saved.";
             }
             catch (AnalysisCatalogUpdateException error)
             {
-                RememberViewCloseFailure(error); _revisionSaved = true; _savedInventoryName = error.Receipt.Name;
+                RememberViewCloseFailure(error); _revisionSaved = true; _savedInventoryName = error.Receipt.Name; _savedInventoryId = error.Receipt.InventoryId;
                 if (!_disposed) _status.Text = "Saved " + AnalysisNames.Display(error.Receipt.Name, 240) + ", but its catalog entry is incomplete. Keep the file and open it by filename.";
             }
             catch (AnalysisPublicationUncertainException error)

@@ -60,7 +60,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     public event Action? Changed;
     public DiskSpaceViewModel(AppServices services) : this(services, Prepare) { }
     internal DiskSpaceViewModel(AppServices services, Func<string, IAnalysisBackend> prepare)
-    { _services = services; _zone = TimeZoneInfo.Local; _prepareSource = prepare; }
+    { _services = services; services.AnalysisSavedReferences.Track(this); _zone = TimeZoneInfo.Local; _prepareSource = prepare; }
     public DiskSpaceViewModel(AnalysisSnapshot observations)
     {
         _observation = observations;
@@ -77,6 +77,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     internal DiskSpaceViewModel(AnalysisSnapshotLease observations, AppServices? services, bool memoryFallback) : this(observations.Snapshot)
     {
         _capturedOwner = observations; _services = services;
+        services?.AnalysisSavedReferences.Track(this);
         _privateStorageUnavailable = observations.Snapshot.Identity.HostProfileIdentity is null;
         if (memoryFallback)
         {
@@ -372,6 +373,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     public void Dispose()
     {
         if (_disposed) return; _disposed = true; ++_generation;
+        _services?.AnalysisSavedReferences.Untrack(this);
         var actualWork = _actualWork.CloseAsync();
         _preparationCancel?.Cancel();
         _selectionLifetime.Cancel(); _markCountCancel?.Cancel();

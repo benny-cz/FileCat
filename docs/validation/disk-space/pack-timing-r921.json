@@ -1,0 +1,29 @@
+{
+  "revision": "r921",
+  "renderRevision": "r921",
+  "buildLog": ".tmp/build-r920.txt",
+  "sourceManifest": ".tmp/source-candidate-r921.json",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 21.4785528,
+  "archives": [
+    {
+      "sha256": "c646180b88e4f1a7032c033e40191a12fb971d6af9f5825a9e51511bd7cd588b",
+      "bytes": 42328652,
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r921.tgz",
+      "platform": "mac"
+    },
+    {
+      "sha256": "a77e8b662fb8833f851482c2e59100ad28182388652a9028a1263c5f350e735b",
+      "bytes": 39660127,
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r921.tgz",
+      "platform": "linux"
+    },
+    {
+      "sha256": "00d7d0b627ec8ce52a324720666f712869d57cb130ce3a8983a84963bb4d9177",
+      "bytes": 78759549,
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r921.tgz",
+      "platform": "windows"
+    }
+  ]
+}

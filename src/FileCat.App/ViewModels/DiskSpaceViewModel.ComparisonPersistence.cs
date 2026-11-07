@@ -5,6 +5,12 @@ namespace FileCat.App.ViewModels;
 
 public sealed partial class DiskSpaceViewModel
 {
+    internal Task<Services.AnalysisOwnedComparisonMaintenanceCapture> PrepareSavedComparisonMaintenanceAsync(string name, CancellationToken cancellation)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!HasPrivateStorage) throw new InvalidOperationException("Private comparison storage is unavailable.");
+        return Services.AnalysisOwnedStoreAccess.PrepareComparisonAsync(_services!, name, _actualWork, cancellation);
+    }
     private bool _comparisonReady;
     private AnalysisComparisonView? _savedComparisonView;
     private AnalysisComparisonQueryResult? _restoredComparisonQuery;
@@ -12,6 +18,7 @@ public sealed partial class DiskSpaceViewModel
     private ImmutableDictionary<string, string>? _comparisonPreviousRootIds, _comparisonCurrentRootIds;
     public AnalysisComparisonView ComparisonView { get; private set; } = new();
     public string? SavedComparisonName { get; private set; }
+    private Guid? _savedComparisonId;
     public bool CanSaveComparison => !_disposed && _comparisonReady && Comparison is not null && HasPrivateStorage && !IsSaving;
     internal bool ComparisonReady => !_disposed && _comparisonReady && Comparison is not null;
     internal bool ComparisonHasTemporaryWork => !_comparisonReady || _comparisonDraftChanged || SavedComparisonName is null || ComparisonView != _savedComparisonView;
@@ -73,7 +80,7 @@ public sealed partial class DiskSpaceViewModel
                 using var store = OpenPrivateStore(path);
                 return store.SaveComparisonNew(name, Guid.NewGuid(), copy.Previous.Snapshot, copy.Current.Snapshot, copy.View, copy.Roots, copy.PreviousLabel, token, copy.PreviousRootIds, copy.CurrentRootIds);
             }, cancellation);
-            SavedComparisonName = receipt.Name; _savedComparisonView = copy.View;
+            SavedComparisonName = receipt.Name; _savedComparisonView = copy.View; _savedComparisonId = receipt.ComparisonId;
             SetStatus("Saved " + AnalysisNames.Display(receipt.Name, 240) + ". Both captured inventories and the applied view are private; no source is connected.");
             return receipt;
         }
@@ -114,6 +121,7 @@ public sealed partial class DiskSpaceViewModel
                 ComparisonView = saved.View,
                 _savedComparisonView = saved.View,
                 SavedComparisonName = name,
+                _savedComparisonId = saved.ComparisonId,
                 Metric = saved.View.Metric,
                 Chart = "Table",
                 Phase = AnalysisPhase.Stopped,

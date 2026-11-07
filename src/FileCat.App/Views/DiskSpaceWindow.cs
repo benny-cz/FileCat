@@ -162,7 +162,7 @@ public sealed partial class DiskSpaceWindow : Window
         var view = _sessions[at];
         if (view.HasTemporaryWork &&
             !await _dialogs.ConfirmAsync(!view.IsComparison ? "Close analysis?" : "Close comparison?",
-                !view.IsComparison ? "Stop this metadata scan and discard its temporary results and unsaved review references?" : "Discard this temporary comparison and its display settings? The saved inventories remain available.",
+                !view.IsComparison ? "Stop this metadata scan and discard its temporary results and unsaved review references?" : "Discard these temporary comparison observations and display settings? Any independently saved files are unchanged.",
                 !view.IsComparison ? "Stop and close" : "Discard comparison", true, "Keep open")) return;
         if (_forceClose || (at = _sessions.IndexOf(view)) < 0) return;
         view.Dispose(); _sessions.RemoveAt(at); _items.RemoveAt(at); _tabs.ItemsSource = _items.ToArray();
