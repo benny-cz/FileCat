@@ -100,6 +100,7 @@ public sealed partial class DiskSpaceWindow
         private void SelectEntry()
         {
             if (_publishing || _disposed) return;
+            _chartFocusKey = null;
             _basketInspection = null;
             if (!_rangeSelectionChanging && _list.SelectedItem is { } selected) { CancelTableRange(); SetRangeAnchor(selected); }
             switch (_list.SelectedItem)
@@ -121,7 +122,8 @@ public sealed partial class DiskSpaceWindow
         }
         private void ExploreGroup()
         { if (_list.SelectedItem is AnalysisDatasetGroup group) _ = NavigateGroupAsync(group.Definition.Key); }
-        private Task<bool> ParentAsync() => _grouping is not null ? NavigateGroupAsync(null) : NavigateAsync(_shownPage?.Scope?.Path.ParentId ?? 0);
+        private Task<bool> ParentAsync() => _grouping is not null ? NavigateGroupAsync(null) :
+            NavigateAsync(_explorer.GeometrySkipped != 0 ? _scope : _shownPage?.Scope?.Path.ParentId ?? 0, geometrySkipped: 0);
 
         private async Task<bool> NavigateGroupAsync(string? key, ulong offset = 0, bool record = true, AnalysisTableSort? sort = null, bool? descending = null, CancellationToken cancellation = default)
         {
@@ -138,7 +140,7 @@ public sealed partial class DiskSpaceWindow
                 if (_disposed || cancel.IsCancellationRequested || version != _navigation || !ReferenceEquals(groups, _grouping)) return false;
                 if (record && old != (key, offset)) { PushGroup(_groupPast, old); _groupFuture.Clear(); }
                 ++_inspection; // A late response from the old displayed page cannot replace the new inspector.
-                if (key != _groupKey) { _pageOffsets.Clear(); _focus = 0; _groupFocus = null; _selectedGroupedItem = null; }
+                if (key != _groupKey) { _pageOffsets.Clear(); _focus = 0; _chartFocusKey = null; _groupFocus = null; _selectedGroupedItem = null; }
                 _groupKey = key; _offset = offset; _groupPage = page; Publish(_explorer); return true;
             }
             catch (OperationCanceledException) when (cancel.IsCancellationRequested) { return false; }
@@ -208,6 +210,7 @@ public sealed partial class DiskSpaceWindow
             if (_disposed || _groupPage is not { } page) return;
             if (key == page.Chart.RemainderKey)
             {
+                if (!enter) { FocusOtherChartItem(); return; }
                 _publishing = true;
                 try { _sort.SelectedIndex = 0; _descending.IsChecked = true; } finally { _publishing = false; }
                 _pageOffsets.Clear(); _ = NavigateGroupAsync(_groupKey, page.Chart.RemainderOffset, false); return;

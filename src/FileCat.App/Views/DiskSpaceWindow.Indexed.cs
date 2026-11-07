@@ -37,7 +37,7 @@ public sealed partial class DiskSpaceWindow
         try
         {
             retained = await prepareSource(linked.Token);
-            string? restoreNotice = null; ulong scope = 0, offset = 0;
+            string? restoreNotice = null; ulong scope = 0, offset = 0; int skipped = 0;
             if (saved is not null)
             {
                 AnalysisSavedCatalog.ValidateView(saved); metric = saved.Metric;
@@ -48,30 +48,32 @@ public sealed partial class DiskSpaceWindow
                 if (saved.Grouping == AnalysisGroupingDimension.FolderHierarchy)
                 {
                     var restored = await RestoreIndexedScopeAsync(retained, saved.Scope, linked.Token);
-                    scope = restored.Scope; offset = restored.Offset; string? scopeNotice = restored.Notice;
+                    scope = restored.Scope; skipped = restored.Skipped; string? scopeNotice = restored.Notice;
                     if (scopeNotice is not null) restoreNotice = restoreNotice is null ? scopeNotice : restoreNotice + " " + scopeNotice;
                 }
             }
             explorer = await AnalysisDatasetExplorer.CreateAsync(retained, metric, filter, linked.Token);
-            var initialExplorer = explorer;
             if (saved is not null && scope != 0)
             {
                 await explorer.InspectAsync(scope, maximum: 1, cancellation: linked.Token);
                 if (explorer.Inspection?.Row.IsVisible != true)
-                { scope = offset = 0; restoreNotice = (restoreNotice is null ? "" : restoreNotice + " ") + "The saved folder is absent from the matching observations. Showing the captured top level."; }
+                { scope = offset = 0; skipped = 0; restoreNotice = (restoreNotice is null ? "" : restoreNotice + " ") + "The saved folder is absent from the matching observations. Showing the captured top level."; }
             }
-            try { await LoadInitialAsync(); }
-            catch (ArgumentOutOfRangeException) when (saved is not null && offset != 0)
-            { offset = 0; restoreNotice = (restoreNotice is null ? "" : restoreNotice + " ") + "The saved table page is absent. Showing the first page."; await LoadInitialAsync(); }
-            if (saved is not null && offset != 0 && explorer.Page?.Children.Rows.IsEmpty == true)
-            { offset = 0; restoreNotice = (restoreNotice is null ? "" : restoreNotice + " ") + "The saved table page is absent. Showing the first page."; await LoadInitialAsync(); }
+            if (skipped != 0)
+            {
+                AnalysisDatasetExplorer? other = null;
+                try { other = await explorer.CreateScopeAsync(scope, skipped, linked.Token); }
+                catch (ArgumentOutOfRangeException)
+                { restoreNotice = (restoreNotice is null ? "" : restoreNotice + " ") + "The saved Other subset is absent. Showing its captured parent; no selection was restored."; }
+                if (other is not null) { var previous = explorer; explorer = other; await previous.DisposeAsync(); }
+            }
+            await Task.WhenAll(explorer.LoadPageAsync(scope, saved is null ? AnalysisHierarchySort.Metric : SavedIndexedSort(saved.Sort), offset,
+                cancellation: linked.Token, descending: saved?.SortDescending ?? true), explorer.LoadChartAsync(scope, linked.Token));
             linked.Token.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
             var view = await IndexedSessionView.CreateAsync(this, retained, explorer, filter ?? new(""), admission, saved, restoreNotice, linked.Token, services);
             try { AddView(view); }
             catch { retained = null; explorer = null; admission = null; view.Dispose(); throw; }
             retained = null; admission = null; var result = explorer; explorer = null; return result;
-            Task LoadInitialAsync() => Task.WhenAll(initialExplorer.LoadPageAsync(scope, saved is null ? AnalysisHierarchySort.Metric : SavedIndexedSort(saved.Sort), offset,
-                cancellation: linked.Token, descending: saved?.SortDescending ?? true), initialExplorer.LoadChartAsync(scope, linked.Token));
         }
         catch (Exception error) when (AnalysisCloseUnconfirmedException.IsPresent(error)) { unconfirmed = error; throw; }
         finally
@@ -133,7 +135,7 @@ public sealed partial class DiskSpaceWindow
         private readonly SunburstControl _sunburst = new() { Height = 300, IsVisible = false };
         private readonly Button _previous, _next, _parent, _back, _forward;
         private readonly Button[] _evidence = new Button[6];
-        private readonly List<(ulong Parent, ulong Offset)> _past = [], _future = [];
+        private readonly List<(ulong Parent, ulong Offset, int Skipped)> _past = [], _future = [];
         private readonly List<ulong> _pageOffsets = [];
         private CancellationTokenSource? _buildCancel, _navigationCancel;
         private Task _buildTask = Task.CompletedTask;
@@ -141,6 +143,7 @@ public sealed partial class DiskSpaceWindow
         private bool _interacting;
         private int _interactionDepth;
         private ulong _scope, _offset, _focus;
+        private string? _chartFocusKey;
         private int _navigation, _inspection;
         private bool _disposed, _building, _again, _publishing;
         private string? _rootId;
@@ -305,14 +308,41 @@ public sealed partial class DiskSpaceWindow
         public ScrollViewer CreateViewport() => new() { Content = this, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
         private void ActivateChart(string key, bool mark, bool enter)
         {
+            if (_disposed || _window._dialogs.IsOpen) return;
+            _chartFocusKey = key;
             _basketInspection = null;
             if (_grouping is not null) { ActivateGroupChart(key, enter, mark); return; }
             if (_shownChart is not { } chart) return;
-            if (chart.Remainders.TryGetValue(key, out var remainder)) { _ = NavigateAsync(remainder.Parent, remainder.Offset); return; }
+            if (chart.Remainders.TryGetValue(key, out var remainder))
+            {
+                if (enter) _ = remainder.GeometryScope ? NavigateAsync(remainder.Parent, geometrySkipped: checked((int)remainder.Offset)) : NavigateAsync(remainder.Parent, remainder.Offset);
+                else FocusOtherChartItem(); return;
+            }
+            var aggregate = AnalysisSavedCatalog.SplitAggregationScope(key);
+            if (aggregate.Skipped != 0 && (aggregate.Scope == AnalysisTree.RootKey ||
+                chart.Items.TryGetValue(aggregate.Scope, out var capturedParent) && capturedParent is { Kind: AnalysisKind.Directory, NodeId: not null }))
+            {
+                ulong parent = aggregate.Scope == AnalysisTree.RootKey ? 0 : chart.Items[aggregate.Scope].NodeId!.Value;
+                if (enter) _ = NavigateAsync(parent, geometrySkipped: aggregate.Skipped); else FocusOtherChartItem(); return;
+            }
             if (!chart.Items.TryGetValue(key, out var item) || item.NodeId is not { } id)
-            { _details.Text = "This accounting group is not a filesystem entry. Explore its parent in the table to inspect the captured file paths."; return; }
+            {
+                ++_inspection; _focus = 0; _shownInspection = null;
+                foreach (var button in _evidence) button.IsEnabled = false;
+                _inspectorStatus.Text = "Captured accounting bucket.";
+                _details.Text = "This accounting group is not a filesystem entry. Explore its parent in the table to inspect the captured file paths.";
+                RefreshSelection(); UpdateCharts(); return;
+            }
             if (mark) ToggleMark(id);
-            if (enter && item.Kind == AnalysisKind.Directory) _ = NavigateAsync(id); else _ = InspectAsync(id);
+            if (enter && item.Kind == AnalysisKind.Directory) _ = NavigateAsync(id, geometrySkipped: 0); else _ = InspectAsync(id);
+        }
+        private void FocusOtherChartItem()
+        {
+            ++_inspection; _focus = 0; _shownInspection = null; _groupFocus = null;
+            foreach (var button in _evidence) button.IsEnabled = false;
+            _inspectorStatus.Text = "Other small items — captured accounting subset.";
+            _details.Text = "This bucket summarizes captured items and is not a file path. Press Enter or double-click to explore its exact subset. Marks and the review basket remain separate.";
+            RefreshSelection(); UpdateCharts();
         }
         private Task RebuildAsync(CapturedFolderRequest? capturedFolder = null)
         {
@@ -383,7 +413,7 @@ public sealed partial class DiskSpaceWindow
                         if (_interacting) _status.Text = "Query ready. Finish the current interaction to display it.";
                         await WaitForInteractionAsync(cancel.Token);
                         cancel.Token.ThrowIfCancellationRequested(); if (_disposed) return;
-                        ++_navigation; ++_inspection; _navigationCancel?.Cancel(); _focus = initialFocus; _scope = initialScope; _offset = initialOffset;
+                        ++_navigation; ++_inspection; _navigationCancel?.Cancel(); _focus = initialFocus; _chartFocusKey = null; _scope = initialScope; _offset = initialOffset;
                         _past.Clear(); _future.Clear(); _groupPast.Clear(); _groupFuture.Clear(); _pageOffsets.Clear();
                         _groupKey = _groupFocus = null; _selectedGroupedItem = null;
                         var old = next is null ? null : _explorer; var oldGroups = _grouping;
@@ -415,34 +445,63 @@ public sealed partial class DiskSpaceWindow
             }
             finally { _building = false; }
         }
-        private async Task<bool> NavigateAsync(ulong parent, ulong offset = 0, bool record = true, AnalysisHierarchySort? sort = null, bool? descending = null, CancellationToken cancellation = default)
+        private async Task<bool> NavigateAsync(ulong parent, ulong offset = 0, bool record = true, AnalysisHierarchySort? sort = null,
+            bool? descending = null, CancellationToken cancellation = default, int? geometrySkipped = null, Action? onPublished = null)
         {
             if (_grouping is not null) return await NavigateGroupAsync(_groupKey, offset, record);
             if (_disposed || _actualWork.HasUnconfirmedClose) return false;
             CancelRequestedFolder();
             using var actualWork = _actualWork.Enter();
             int version = ++_navigation; ++_inspection; _navigationCancel?.Cancel();
-            using var cancel = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _selectionLifetime.Token); _navigationCancel = cancel; var explorer = _explorer;
-            var old = (_scope, _offset); _status.Text = "Loading captured entries…";
+            using var cancel = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _selectionLifetime.Token); _navigationCancel = cancel;
+            var original = _explorer; int skipped = geometrySkipped ?? (parent == _scope ? original.GeometrySkipped : 0);
+            var old = (_scope, _offset, original.GeometrySkipped); AnalysisDatasetExplorer? candidate = null; bool published = false;
+            _status.Text = "Loading captured entries…";
             try
             {
-                bool[] loaded = await Task.WhenAll(explorer.LoadPageAsync(parent, sort ?? (AnalysisHierarchySort)_sort.SelectedIndex, offset, cancellation: cancel.Token, descending: descending ?? _descending.IsChecked == true), explorer.LoadChartAsync(parent, cancel.Token));
+                if (skipped != original.GeometrySkipped || original.GeometrySkipped != 0 && parent != original.GeometryParent)
+                    candidate = await original.CreateScopeAsync(parent, skipped, cancel.Token);
+                var explorer = candidate ?? original;
+                bool[] loaded = await Task.WhenAll(explorer.LoadPageAsync(parent, sort ?? (AnalysisHierarchySort)_sort.SelectedIndex, offset,
+                    cancellation: cancel.Token, descending: descending ?? _descending.IsChecked == true), explorer.LoadChartAsync(parent, cancel.Token));
                 await WaitForInteractionAsync(cancel.Token);
-                if (_disposed || version != _navigation || !ReferenceEquals(explorer, _explorer) || loaded.Any(done => !done)) return false;
-                if (record && old != (parent, offset)) { Push(_past, old); _future.Clear(); }
-                ++_inspection; // Invalidate inspections started on the previous page while navigation was loading.
-                if (parent != _scope) { _pageOffsets.Clear(); _focus = 0; } _scope = parent; _offset = offset; Publish(explorer); return true;
+                if (_disposed || cancel.IsCancellationRequested || version != _navigation || !ReferenceEquals(original, _explorer) || loaded.Any(done => !done)) return false;
+                if (record && old != (parent, offset, skipped)) { Push(_past, old); _future.Clear(); }
+                ++_inspection;
+                if (parent != _scope || skipped != original.GeometrySkipped) { _pageOffsets.Clear(); _focus = 0; _chartFocusKey = null; }
+                _scope = parent; _offset = offset; bool replaced = candidate is not null;
+                if (replaced) { _explorer = explorer; candidate = null; }
+                published = true;
+                try { onPublished?.Invoke(); Publish(explorer); }
+                finally { if (replaced) await original.DisposeAsync(); }
+                return !_disposed && version == _navigation && ReferenceEquals(explorer, _explorer);
             }
             catch (OperationCanceledException) when (cancel.IsCancellationRequested) { return false; }
-            catch (Exception error) when (Expected(error)) { RememberViewCloseFailure(error); if (!_disposed && version == _navigation) _status.Text = "The previous view remains displayed. " + AnalysisNames.Display(error.Message, 500); return false; }
-            finally { if (ReferenceEquals(_navigationCancel, cancel)) _navigationCancel = null; }
+            catch (Exception error) when (Expected(error))
+            {
+                RememberViewCloseFailure(error);
+                if (!_disposed && version == _navigation) _status.Text = (published ? "The scope is displayed, but the previous captured view did not close successfully. " : "The previous view remains displayed. ") + AnalysisNames.Display(error.Message, 500);
+                return false;
+            }
+            finally
+            {
+                try { if (candidate is not null) await candidate.DisposeAsync(); }
+                catch (Exception error) { RememberViewCloseFailure(error); throw; }
+                finally { if (ReferenceEquals(_navigationCancel, cancel)) _navigationCancel = null; }
+            }
         }
         private async Task HistoryAsync(bool forward)
         {
             if (_grouping is not null) { await GroupHistoryAsync(forward); return; }
             var source = forward ? _future : _past; if (source.Count == 0) return;
-            var target = source[^1]; var previous = (_scope, _offset);
-            if (await NavigateAsync(target.Parent, target.Offset, record: false)) { source.RemoveAt(source.Count - 1); Push(forward ? _past : _future, previous); Buttons(); }
+            var target = source[^1]; int count = source.Count; var previous = (_scope, _offset, _explorer.GeometrySkipped);
+            await NavigateAsync(target.Parent, target.Offset, record: false, geometrySkipped: target.Skipped, onPublished: () =>
+            {
+                // History belongs to the displayed scope. Publish it before waiting for the
+                // previous owner's actual close, so a fresh Back/Forward sees the new stacks.
+                if (source.Count == count && source[^1] == target)
+                { source.RemoveAt(source.Count - 1); Push(forward ? _past : _future, previous); }
+            });
         }
         private async Task NextPageAsync()
         {
@@ -478,10 +537,16 @@ public sealed partial class DiskSpaceWindow
             _range.Text = page.Children.Total == 0 ? "No entries" : $"Entries {page.Children.Offset + 1:N0}–{page.Children.NextOffset:N0} of {page.Children.Total:N0}";
             _range.Text += " · " + (page.Sort switch { AnalysisHierarchySort.FileSize => "File size", AnalysisHierarchySort.Files => "File paths", AnalysisHierarchySort.Name => "Name", AnalysisHierarchySort.MetadataState => "Metadata state", _ => "Active metric" }) +
                 (page.Descending ? " · Descending" : " · Ascending");
-            _breadcrumbs.Children.Clear(); _breadcrumbs.Children.Add(ActionButton("All locations", () => _ = NavigateAsync(0), "Explore captured locations."));
+            _breadcrumbs.Children.Clear(); _breadcrumbs.Children.Add(ActionButton("All locations", () => _ = NavigateAsync(0, geometrySkipped: 0), "Explore captured locations."));
             if (!page.AncestorsComplete) _breadcrumbs.Children.Add(new TextBlock { Text = "…" });
             foreach (var path in page.Ancestors.AddRange(page.Scope is null ? [] : new[] { page.Scope.Path }))
-            { ulong id = path.Id; _breadcrumbs.Children.Add(ActionButton(AnalysisNames.DisplayName(path, 80), () => _ = NavigateAsync(id), "Explore this captured directory.")); }
+            { ulong id = path.Id; _breadcrumbs.Children.Add(ActionButton(AnalysisNames.DisplayName(path, 80), () => _ = NavigateAsync(id, geometrySkipped: 0), "Explore this captured directory.")); }
+            if (page.GeometrySkipped != 0)
+            {
+                _breadcrumbs.Children.Add(new TextBlock { Text = "Other small items", TextWrapping = TextWrapping.Wrap });
+                _status.Text = "Exact Other subset. " + _status.Text;
+                _range.Text += " · exact geometry subset";
+            }
             _details.Text = "Choose a table entry or chart item to inspect its captured metadata. Related evidence is paged.";
             _inspectorStatus.Text = "No entry selected.";
             _buckets.Children.Clear();
@@ -492,7 +557,7 @@ public sealed partial class DiskSpaceWindow
                     DiskSpaceViewModel.Bytes(explorer.Metric == AnalysisMetric.OnDisk ? checked(bucket.Totals.Known + bucket.Totals.IdentityUnverified) : bucket.Totals.Known);
                 var button = ActionButton(title + " · " + amount, () =>
                 {
-                    ++_inspection; _focus = 0; foreach (var control in _evidence) control.IsEnabled = false;
+                    ++_inspection; _focus = 0; _chartFocusKey = null; foreach (var control in _evidence) control.IsEnabled = false;
                     _details.Text = title + $": {bucket.Totals.Known} known bytes; {bucket.Totals.IdentityUnverified} identity-unverified path bytes; {bucket.Objects:N0} observed objects; {bucket.ObservedAliases:N0} observed aliases; {bucket.Charges:N0} charges. This accounting bucket is not a file path. " +
                         (bucket.Kind == AnalysisHierarchyBucketKind.SharedFiles ? "Shared charges remain at their original common ancestor. The matching paths remain available in the table." : "Directory metadata allocation is separate from file contents and file-path counts.") +
                         (bucket.Totals.Missing.Count == 0 ? "" : " Missing: " + string.Join(", ", bucket.Totals.Missing.Select(pair => pair.Key + " " + pair.Value)));
@@ -509,7 +574,7 @@ public sealed partial class DiskSpaceWindow
             RefreshIndexedPersistence();
             RefreshSelection();
             if (_grouping is not null) { GroupButtons(); return; }
-            _previous.IsEnabled = _offset > 0; _next.IsEnabled = _shownPage?.Children.HasMore == true; _parent.IsEnabled = _parent.IsVisible = _scope != 0;
+            _previous.IsEnabled = _offset > 0; _next.IsEnabled = _shownPage?.Children.HasMore == true; _parent.IsEnabled = _parent.IsVisible = _scope != 0 || _explorer.GeometrySkipped != 0;
             _back.IsEnabled = _past.Count > 0; _forward.IsEnabled = _future.Count > 0; _back.IsVisible = _forward.IsVisible = _past.Count != 0 || _future.Count != 0; }
         private void UpdateCharts()
         {
@@ -518,7 +583,7 @@ public sealed partial class DiskSpaceWindow
             IAnalysisChartData? chart = _grouping is not null ? _groupPage?.Chart : _shownChart;
             if (chart is null) return;
             string scope = _grouping is not null ? _groupPage!.Chart.Scope : _shownChart!.Scope;
-            string? focus = _focus == 0 ? _groupFocus : AnalysisTree.Key(_focus);
+            string? focus = _chartFocusKey ?? (_focus == 0 ? _groupFocus : AnalysisTree.Key(_focus));
             var color = (AnalysisColorDimension)Math.Clamp(_color.SelectedIndex, 0, 2);
             _legend.SetView(color, chart.ObservedUtc);
             _treemap.SetView(chart, scope, focus, _selection.Marks, color); _sunburst.SetView(chart, scope, focus, _selection.Marks, color);
@@ -589,7 +654,7 @@ public sealed partial class DiskSpaceWindow
             else if (args.Key == Key.Back && (_list.IsKeyboardFocusWithin || _treemap.IsKeyboardFocusWithin || _sunburst.IsKeyboardFocusWithin))
             { _ = ParentAsync(); args.Handled = true; }
         }
-        private static void Push(List<(ulong Parent, ulong Offset)> history, (ulong Parent, ulong Offset) value)
+        private static void Push(List<(ulong Parent, ulong Offset, int Skipped)> history, (ulong Parent, ulong Offset, int Skipped) value)
         { if (history.Count == AnalysisLimits.NavigationHistory) history.RemoveAt(0); history.Add(value); }
         private static bool Expected(Exception error) => error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or FormatException or OverflowException or OperationCanceledException or KeyNotFoundException;
         private void RememberViewCloseFailure(Exception error)

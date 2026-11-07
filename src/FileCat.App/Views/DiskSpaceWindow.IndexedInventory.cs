@@ -37,17 +37,17 @@ public sealed partial class DiskSpaceWindow
         _ => throw new InvalidDataException("The saved table order is unsupported.")
     };
 
-    private static async Task<(ulong Scope, ulong Offset, string? Notice)> RestoreIndexedScopeAsync(AnalysisDatasetLease source, string key, CancellationToken cancellation)
+    private static async Task<(ulong Scope, int Skipped, string? Notice)> RestoreIndexedScopeAsync(AnalysisDatasetLease source, string key, CancellationToken cancellation)
     {
         int offset;
         try { var aggregate = AnalysisSavedCatalog.SplitAggregationScope(key); key = aggregate.Scope; offset = aggregate.Skipped; }
         catch (Exception error) when (error is InvalidDataException or OverflowException)
         { return (0, 0, "The saved display scope is unavailable. Showing the captured top level."); }
-        if (key == AnalysisTree.RootKey) return (0, (ulong)offset, offset == 0 ? null : "The saved small-item scope is shown as a table page within its captured folder.");
+        if (key == AnalysisTree.RootKey) return (0, offset, null);
         if (key.StartsWith("n:", StringComparison.Ordinal) && ulong.TryParse(key.AsSpan(2), NumberStyles.None, CultureInfo.InvariantCulture, out ulong id) &&
             id != 0 && key.AsSpan(2).SequenceEqual(id.ToString(CultureInfo.InvariantCulture)))
         {
-            try { if ((await source.ReadPathAsync(id, cancellation)).Kind == AnalysisKind.Directory) return (id, (ulong)offset, offset == 0 ? null : "The saved small-item scope is shown as a table page within its captured folder."); }
+            try { if ((await source.ReadPathAsync(id, cancellation)).Kind == AnalysisKind.Directory) return (id, offset, null); }
             catch (ArgumentOutOfRangeException) { }
         }
         return (0, 0, "The saved folder is absent or unavailable. Showing the top level.");

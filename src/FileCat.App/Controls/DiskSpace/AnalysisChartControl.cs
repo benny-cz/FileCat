@@ -48,7 +48,7 @@ public abstract class AnalysisChartControl : Control
         _ = AnalysisChartColors.Title(color);
         var next = new View(tree, scope, focus, marks, color);
         if (_pressed) { _pending = next; return; }
-        if (_view?.Tree != tree || _view.Scope != scope) _layoutSize = default;
+        if (_view?.Tree != tree || _view.Scope != scope) { _layoutSize = default; _parts = []; _displayItems.Clear(); }
         _view = next;
         AutomationProperties.SetName(this, $"{ViewName}: {AnalysisNames.Display(tree.NameOf(scope))}, {tree.ScopeValue(scope)} reported units. Colors: {AnalysisChartColors.Title(color)}. Use the table for every entry and its measurement and identity states.");
         if (IsFocused) ShowTip(focus); else if (_hover is not null) ShowTip(_hover);
@@ -196,10 +196,16 @@ public abstract class AnalysisChartControl : Control
         if (e.Key == Key.Escape && ToolTip.GetIsOpen(this)) { ToolTip.SetIsOpen(this, false); e.Handled = true; return; }
         if (_view is null || e.Handled) return;
         var rows = _view.Tree.ChildrenOf(Scope);
-        if (rows.Length == 0) return;
-        int at = Math.Max(0, Array.FindIndex(rows.ToArray(), r => r.Key == _view.Focus));
-        int next = e.Key switch { Key.Left or Key.Up => Math.Max(0, at - 1), Key.Right or Key.Down => Math.Min(rows.Length - 1, at + 1), Key.Home => 0, Key.End => rows.Length - 1, _ => -1 };
-        if (next >= 0) { Activated?.Invoke(rows[next].Key, false, false); e.Handled = true; }
+        var keys = _view.Tree is AnalysisIndexedChart ? _parts.Where(part => part.Depth == 0).Select(part => part.Key).Distinct().ToArray() : rows.Select(row => row.Key).ToArray();
+        if (e.Key == Key.Enter)
+        {
+            string? key = _view.Focus ?? keys.FirstOrDefault();
+            if (key is not null) Activated?.Invoke(key, false, true); e.Handled = true; return;
+        }
+        if (keys.Length == 0) return;
+        int at = Math.Max(0, Array.IndexOf(keys, _view.Focus));
+        int next = e.Key switch { Key.Left or Key.Up => Math.Max(0, at - 1), Key.Right or Key.Down => Math.Min(keys.Length - 1, at + 1), Key.Home => 0, Key.End => keys.Length - 1, _ => -1 };
+        if (next >= 0) { Activated?.Invoke(keys[next], false, false); e.Handled = true; }
     }
 }
 

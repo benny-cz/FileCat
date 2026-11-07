@@ -14,42 +14,50 @@ public sealed partial class AnalysisDatasetHierarchy
     {
         internal static async Task<Subset> CreateAsync(AnalysisDatasetHierarchy owner, ulong parent, int skipped, CancellationToken cancellation)
         {
-            DeviceIoScheduler _io = owner._io; AnalysisIoDevices _device = owner._device;
             if (skipped < 1) throw new ArgumentOutOfRangeException(nameof(skipped));
             using var admission = AnalysisExplorerAdmission.Acquire();
-            return await owner._owned.UseAsync(async source =>
+            return await owner._owned.UseAsync(source => BuildAsync(source, owner.Descriptor, owner.Metric, owner.Filter,
+                owner._io, owner._device, parent, skipped, cancellation)).ConfigureAwait(false);
+        }
+        internal async Task<Subset> CreateSiblingAsync(ulong parent, int skipped, CancellationToken cancellation)
+        {
+            if (skipped < 1) throw new ArgumentOutOfRangeException(nameof(skipped));
+            using var admission = AnalysisExplorerAdmission.Acquire();
+            return await _owned.UseAsync(state => BuildAsync(state.Snapshot, Descriptor, Metric, Filter, _io, _device, parent, skipped, cancellation)).ConfigureAwait(false);
+        }
+        private static async Task<Subset> BuildAsync(State source, AnalysisDatasetDescriptor descriptor, AnalysisMetric metric, AnalysisFilterSummary? filter,
+            DeviceIoScheduler io, AnalysisIoDevices device, ulong parent, int skipped, CancellationToken cancellation)
+        {
+            SubsetState? state = await AnalysisIo.Run(io, device, token => SubsetState.Create(source, parent, skipped, token), cancellation).ConfigureAwait(false);
+            try
             {
-                SubsetState? state = await AnalysisIo.Run(_io, _device, token => SubsetState.Create(source, parent, skipped, token), cancellation).ConfigureAwait(false);
-                try
-                {
-                    await Build(state, state.SelectedEntries(cancellation), index => state.Selected = index, AnalysisLimits.GroupRows);
-                    await Build(state, state.TableEntries(cancellation), index => state.Order = index, AnalysisLimits.GroupOrderRows);
-                    if (state.Shared)
-                        await Build(state, state.SharedEntries(cancellation), index => state.SharedObjects = index, AnalysisLimits.Observations);
-                    await AnalysisIo.Run(_io, _device, _ => { state.BeginMatches(); return true; }, cancellation).ConfigureAwait(false);
-                    while (!state.MatchesFinished)
-                        await AnalysisIo.Run(_io, _device, token =>
-                        {
-                            int records = 0; long bytes = 0; var clock = System.Diagnostics.Stopwatch.StartNew();
-                            while (!state.MatchesFinished && records++ < AnalysisLimits.BatchRecords && bytes < AnalysisLimits.BatchBytes)
-                            { token.ThrowIfCancellationRequested(); bytes += state.MatchStep(token); if (clock.ElapsedMilliseconds >= 20) break; }
-                            return true;
-                        }, cancellation).ConfigureAwait(false);
-                    await AnalysisIo.Run(_io, _device, token => { state.SealMatches(token); return true; }, cancellation).ConfigureAwait(false);
-                    await Build(state, state.MatchingEntries(cancellation), index => state.Matches = index, AnalysisLimits.Observations);
-                    await AnalysisIo.Run(_io, _device, _ => { state.Finish(); return true; }, cancellation).ConfigureAwait(false);
-                    var result = new Subset(state, owner.Descriptor, owner.Metric, owner.Filter, _io, _device); state = null; return result;
-                }
-                finally { if (state is not null) await AnalysisIo.ReleaseScratchAsync(_io, _device, state).ConfigureAwait(false); }
+                await Build(state, state.SelectedEntries(cancellation), index => state.Selected = index, AnalysisLimits.GroupRows);
+                await Build(state, state.TableEntries(cancellation), index => state.Order = index, AnalysisLimits.GroupOrderRows);
+                if (state.Shared)
+                    await Build(state, state.SharedEntries(cancellation), index => state.SharedObjects = index, AnalysisLimits.Observations);
+                await AnalysisIo.Run(io, device, _ => { state.BeginMatches(); return true; }, cancellation).ConfigureAwait(false);
+                while (!state.MatchesFinished)
+                    await AnalysisIo.Run(io, device, token =>
+                    {
+                        int records = 0; long bytes = 0; var clock = System.Diagnostics.Stopwatch.StartNew();
+                        while (!state.MatchesFinished && records++ < AnalysisLimits.BatchRecords && bytes < AnalysisLimits.BatchBytes)
+                        { token.ThrowIfCancellationRequested(); bytes += state.MatchStep(token); if (clock.ElapsedMilliseconds >= 20) break; }
+                        return true;
+                    }, cancellation).ConfigureAwait(false);
+                await AnalysisIo.Run(io, device, token => { state.SealMatches(token); return true; }, cancellation).ConfigureAwait(false);
+                await Build(state, state.MatchingEntries(cancellation), index => state.Matches = index, AnalysisLimits.Observations);
+                await AnalysisIo.Run(io, device, _ => { state.Finish(); return true; }, cancellation).ConfigureAwait(false);
+                var result = new Subset(state, descriptor, metric, filter, io, device); state = null; return result;
+            }
+            finally { if (state is not null) await AnalysisIo.ReleaseScratchAsync(io, device, state).ConfigureAwait(false); }
 
-                async Task Build(SubsetState target, IEnumerable<AnalysisSortInput> input, Action<AnalysisSortedIndexReader> attach, int maximum)
-                {
-                    using var entries = input.GetEnumerator();
-                    var index = await AnalysisExternalSort.BuildSparseAsync(target.Workspace!, _io, _device, entries, cancellation, maximumRecords: maximum).ConfigureAwait(false);
-                    try { await AnalysisIo.Run(_io, _device, _ => { attach(index.Acquire()); return true; }, cancellation).ConfigureAwait(false); }
-                    finally { await AnalysisIo.ReleaseScratchAsync(_io, _device, index).ConfigureAwait(false); }
-                }
-            }).ConfigureAwait(false);
+            async Task Build(SubsetState target, IEnumerable<AnalysisSortInput> input, Action<AnalysisSortedIndexReader> attach, int maximum)
+            {
+                using var entries = input.GetEnumerator();
+                var index = await AnalysisExternalSort.BuildSparseAsync(target.Workspace!, io, device, entries, cancellation, maximumRecords: maximum).ConfigureAwait(false);
+                try { await AnalysisIo.Run(io, device, _ => { attach(index.Acquire()); return true; }, cancellation).ConfigureAwait(false); }
+                finally { await AnalysisIo.ReleaseScratchAsync(io, device, index).ConfigureAwait(false); }
+            }
         }
 
         private readonly AnalysisOwnedDatasetIo<SubsetState> _owned;
@@ -86,6 +94,12 @@ public sealed partial class AnalysisDatasetHierarchy
             }, cancellation);
         public Task<ImmutableArray<AnalysisHierarchyBucket>> ReadBucketsAsync(CancellationToken cancellation = default) =>
             _owned.RunAsync((state, token) => state.Buckets.Select(row => state.Snapshot.ReadBucket(row, token)).ToImmutableArray(), cancellation);
+        internal Task<AnalysisHierarchyRow> ReadSnapshotRowAsync(ulong path, CancellationToken cancellation) =>
+            _owned.RunAsync((state, token) => ReadPath(state.Snapshot, path, token), cancellation);
+        internal Task<AnalysisDatasetPage<AnalysisTreeItem>> ReadSnapshotGeometryAsync(ulong parent, int maximum, CancellationToken cancellation) =>
+            _owned.RunAsync((state, token) => GeometryPage(state.Snapshot, parent, 0, maximum, token), cancellation);
+        internal Task<AnalysisDatasetHierarchy> OpenHierarchyAsync(CancellationToken cancellation) =>
+            _owned.RunAsync((state, _) => RetainedHierarchy(state.Snapshot, Descriptor, _io, _device), cancellation);
         public Task<AnalysisTablePosition> LocateChildAsync(ulong path, AnalysisHierarchySort sort = AnalysisHierarchySort.Metric,
             bool descending = true, CancellationToken cancellation = default) => _owned.RunAsync((state, token) =>
             {

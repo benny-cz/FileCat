@@ -1,0 +1,115 @@
+{
+    "observedUtc":  "2026-11-07T12:03:16.6512949Z",
+    "processes":  [
+                      {
+                          "pid":  5472,
+                          "parent":  3440,
+                          "name":  "dotnet.exe",
+                          "commandLine":  "\"C:\\Program Files\\dotnet\\dotnet.exe\" exec C:\\Users\\fcarchive42829297\\FileCatValidation\\Capture-42829297-v7\\tester\\vstest.console.dll C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\range-ending-source-v2\\tests\\FileCat.Core.Tests\\bin\\Release\\net10.0\\FileCat.Core.Tests.dll /TestCaseFilter:FullyQualifiedName~FileCat.Core.Tests.Archive|FullyQualifiedName~FileCat.Core.Tests.Strict|FullyQualifiedName~FileCat.Core.Tests.SevenZip|FullyQualifiedName~FileCat.Core.Tests.Rar|FullyQualifiedName~FileCat.Core.Tests.EmptySevenZip|FullyQualifiedName~FileCat.Core.Tests.UnixArchive|FullyQualifiedName~FileCat.Core.Tests.Zip /Logger:trx;LogFileName=archive-worker-secrets.trx /ResultsDirectory:C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\range-ending-v2\\results",
+                          "executablePath":  "C:\\Program Files\\dotnet\\dotnet.exe",
+                          "owner":  "fcarchive42829297",
+                          "domain":  "DESKTOP-A60F1NE",
+                          "ownerResult":  0,
+                          "creationDate":  "\/Date(1794052859826)\/",
+                          "parents":  [
+                                          {
+                                              "pid":  3440,
+                                              "name":  "powershell.exe",
+                                              "commandLine":  "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\range-ending-v2\\run-standard.ps1 ",
+                                              "creationDate":  "\/Date(1794052859336)\/"
+                                          },
+                                          {
+                                              "pid":  9028,
+                                              "name":  "powershell.exe",
+                                              "commandLine":  "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\run_range_ending_followup_windows.ps1 -PacketSha256 fe5d89eb00b152f5f5fab3c26513076e1ed2a81bdfe5a687b84a0d1d963f33a5 ",
+                                              "creationDate":  "\/Date(1794052778734)\/"
+                                          },
+                                          {
+                                              "pid":  9864,
+                                              "name":  "powershell.exe",
+                                              "commandLine":  "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" \"-NoProfile\" \"-WindowStyle\" \"Hidden\" \"-ExecutionPolicy\" \"Bypass\" \"-File\" \"C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\wait-for-owned-batch-windows.ps1\" \"-Script\" \"run_range_ending_followup_windows.ps1\" \"-SourceName\" \"range-ending-source-v2\" \"-PacketSha256\" \"fe5d89eb00b152f5f5fab3c26513076e1ed2a81bdfe5a687b84a0d1d963f33a5\" ",
+                                              "creationDate":  "\/Date(1794052583199)\/"
+                                          },
+                                          {
+                                              "pid":  3200,
+                                              "name":  "vmtoolsd.exe",
+                                              "commandLine":  "\"C:\\Program Files\\VMware\\VMware Tools\\vmtoolsd.exe\"",
+                                              "creationDate":  "\/Date(1794004555528)\/"
+                                          },
+                                          {
+                                              "pid":  576,
+                                              "name":  "services.exe",
+                                              "commandLine":  null,
+                                              "creationDate":  "\/Date(1794004552472)\/"
+                                          },
+                                          {
+                                              "pid":  920,
+                                              "name":  "wininit.exe",
+                                              "commandLine":  null,
+                                              "creationDate":  "\/Date(1794004552252)\/"
+                                          }
+                                      ]
+                      },
+                      {
+                          "pid":  10184,
+                          "parent":  9720,
+                          "name":  "FileCat.Core.Tests.exe",
+                          "commandLine":  "\"C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\range-ending-source-v2\\tests\\FileCat.Core.Tests\\bin\\Release\\net10.0\\FileCat.Core.Tests.exe\" @@ \"C:\\Users\\fcarchive42829297\\AppData\\Local\\Temp\\tmpvosb1h.tmp\"",
+                          "executablePath":  "C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\range-ending-source-v2\\tests\\FileCat.Core.Tests\\bin\\Release\\net10.0\\FileCat.Core.Tests.exe",
+                          "owner":  "fcarchive42829297",
+                          "domain":  "DESKTOP-A60F1NE",
+                          "ownerResult":  0,
+                          "creationDate":  "\/Date(1794052869817)\/",
+                          "parents":  [
+                                          {
+                                              "pid":  9720,
+                                              "name":  "testhost.exe",
+                                              "commandLine":  "\"C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\range-ending-source-v2\\tests\\FileCat.Core.Tests\\bin\\Release\\net10.0\\testhost.exe\"  --runtimeconfig \"C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\range-ending-source-v2\\tests\\FileCat.Core.Tests\\bin\\Release\\net10.0\\FileCat.Core.Tests.runtimeconfig.json\" --depsfile \"C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\range-ending-source-v2\\tests\\FileCat.Core.Tests\\bin\\Release\\net10.0\\FileCat.Core.Tests.deps.json\" --port 58752 --endpoint 127.0.0.1:058752 --role client --parentprocessid 5472 --telemetryoptedin false",
+                                              "creationDate":  "\/Date(1794052860186)\/"
+                                          },
+                                          {
+                                              "pid":  5472,
+                                              "name":  "dotnet.exe",
+                                              "commandLine":  "\"C:\\Program Files\\dotnet\\dotnet.exe\" exec C:\\Users\\fcarchive42829297\\FileCatValidation\\Capture-42829297-v7\\tester\\vstest.console.dll C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\range-ending-source-v2\\tests\\FileCat.Core.Tests\\bin\\Release\\net10.0\\FileCat.Core.Tests.dll /TestCaseFilter:FullyQualifiedName~FileCat.Core.Tests.Archive|FullyQualifiedName~FileCat.Core.Tests.Strict|FullyQualifiedName~FileCat.Core.Tests.SevenZip|FullyQualifiedName~FileCat.Core.Tests.Rar|FullyQualifiedName~FileCat.Core.Tests.EmptySevenZip|FullyQualifiedName~FileCat.Core.Tests.UnixArchive|FullyQualifiedName~FileCat.Core.Tests.Zip /Logger:trx;LogFileName=archive-worker-secrets.trx /ResultsDirectory:C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\range-ending-v2\\results",
+                                              "creationDate":  "\/Date(1794052859826)\/"
+                                          },
+                                          {
+                                              "pid":  3440,
+                                              "name":  "powershell.exe",
+                                              "commandLine":  "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\range-ending-v2\\run-standard.ps1 ",
+                                              "creationDate":  "\/Date(1794052859336)\/"
+                                          },
+                                          {
+                                              "pid":  9028,
+                                              "name":  "powershell.exe",
+                                              "commandLine":  "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\run_range_ending_followup_windows.ps1 -PacketSha256 fe5d89eb00b152f5f5fab3c26513076e1ed2a81bdfe5a687b84a0d1d963f33a5 ",
+                                              "creationDate":  "\/Date(1794052778734)\/"
+                                          },
+                                          {
+                                              "pid":  9864,
+                                              "name":  "powershell.exe",
+                                              "commandLine":  "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" \"-NoProfile\" \"-WindowStyle\" \"Hidden\" \"-ExecutionPolicy\" \"Bypass\" \"-File\" \"C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\wait-for-owned-batch-windows.ps1\" \"-Script\" \"run_range_ending_followup_windows.ps1\" \"-SourceName\" \"range-ending-source-v2\" \"-PacketSha256\" \"fe5d89eb00b152f5f5fab3c26513076e1ed2a81bdfe5a687b84a0d1d963f33a5\" ",
+                                              "creationDate":  "\/Date(1794052583199)\/"
+                                          },
+                                          {
+                                              "pid":  3200,
+                                              "name":  "vmtoolsd.exe",
+                                              "commandLine":  "\"C:\\Program Files\\VMware\\VMware Tools\\vmtoolsd.exe\"",
+                                              "creationDate":  "\/Date(1794004555528)\/"
+                                          },
+                                          {
+                                              "pid":  576,
+                                              "name":  "services.exe",
+                                              "commandLine":  null,
+                                              "creationDate":  "\/Date(1794004552472)\/"
+                                          },
+                                          {
+                                              "pid":  920,
+                                              "name":  "wininit.exe",
+                                              "commandLine":  null,
+                                              "creationDate":  "\/Date(1794004552252)\/"
+                                          }
+                                      ]
+                      }
+                  ]
+}

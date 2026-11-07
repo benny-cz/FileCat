@@ -7,6 +7,7 @@ public sealed record AnalysisExplorerPage(ulong ParentId, AnalysisHierarchyRow? 
     ImmutableArray<AnalysisPathMetadata> Ancestors, bool AncestorsComplete)
 {
     public bool Descending { get; init; } = true;
+    public int GeometrySkipped { get; init; }
 }
 
 public sealed record AnalysisExplorerInspection(AnalysisHierarchyRow Row, AnalysisObjectMetadata? Object,
@@ -18,10 +19,14 @@ public sealed record AnalysisExplorerInspection(AnalysisHierarchyRow Row, Analys
 /// Bounded, read-only explorer for one captured revision and query. Page and inspector requests have
 /// independent latest-request lanes. No decoded path is rebound to a filesystem capability.
 /// </summary>
-public sealed class AnalysisDatasetExplorer : IAsyncDisposable
+public sealed partial class AnalysisDatasetExplorer : IAsyncDisposable
 {
     private readonly AnalysisDatasetLease _dataset;
-    private readonly AnalysisDatasetHierarchy _hierarchy;
+    private readonly AnalysisDatasetHierarchy? _hierarchy;
+    private readonly AnalysisDatasetHierarchy.Subset? _subset;
+    private readonly CancellationTokenSource _scopeLifetime = new();
+    private readonly object _scopeCancelGate = new();
+    private bool _scopeCancelled;
     private readonly object _gate = new();
     private readonly Lane _pages = new(), _inspections = new(), _charts = new();
     private readonly TaskCompletionSource _closed = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -31,29 +36,36 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
     private int _active;
     private bool _disposed, _closing;
 
-    public AnalysisDatasetDescriptor Descriptor => _hierarchy.Descriptor;
-    public AnalysisMetric Metric => _hierarchy.Metric;
-    public AnalysisFilterSummary? Filter => _hierarchy.Filter;
-    public AnalysisTotals Totals => _hierarchy.Totals;
-    public AnalysisLogicalTotals LogicalTotals => _hierarchy.LogicalTotals;
+    public AnalysisDatasetDescriptor Descriptor => _subset?.Descriptor ?? _hierarchy!.Descriptor;
+    public AnalysisMetric Metric => _subset?.Metric ?? _hierarchy!.Metric;
+    public AnalysisFilterSummary? Filter => _subset is not null ? _subset.Filter : _hierarchy!.Filter;
+    public AnalysisTotals Totals => _subset?.Totals ?? _hierarchy!.Totals;
+    public AnalysisLogicalTotals LogicalTotals => _subset?.LogicalTotals ?? _hierarchy!.LogicalTotals;
+    public int GeometrySkipped => _subset?.Skipped ?? 0;
+    public ulong GeometryParent => _subset?.ParentId ?? 0;
+    public string? OtherScopeKey => _subset?.ScopeKey;
     public AnalysisExplorerPage? Page { get { lock (_gate) return _page; } }
     public AnalysisExplorerInspection? Inspection { get { lock (_gate) return _inspection; } }
     public AnalysisIndexedChart? Chart { get { lock (_gate) return _chart; } }
     public int PendingRequests { get { lock (_gate) return _active; } }
     public Task<AnalysisSelectionVisibility> ClassifyMarksAsync(ImmutableHashSet<ulong> marks, ulong scope = 0, CancellationToken cancellation = default) =>
-        _hierarchy.ClassifyMarksAsync(marks, scope, cancellation);
+        _subset is not null ? CurrentSubset(scope, allowDefault: true).ClassifyMarksAsync(marks, cancellation) : _hierarchy!.ClassifyMarksAsync(marks, scope, cancellation);
     public Task<AnalysisTablePosition> LocateChildAsync(ulong path, AnalysisHierarchySort sort = AnalysisHierarchySort.Metric, bool descending = true, CancellationToken cancellation = default) =>
-        _hierarchy.LocateChildAsync(path, sort, descending, cancellation);
+        _subset is not null ? _subset.LocateChildAsync(path, sort, descending, cancellation) : _hierarchy!.LocateChildAsync(path, sort, descending, cancellation);
     public Task<AnalysisSelection> CaptureMatchingFilesAsync(ulong scope = 0, int maximumPaths = AnalysisLimits.ReviewPaths, CancellationToken cancellation = default) =>
-        _hierarchy.CaptureMatchingFilesAsync(scope, maximumPaths, cancellation);
+        _subset is not null ? CurrentSubset(scope, allowDefault: true).CaptureMatchingFilesAsync(maximumPaths, cancellation) : _hierarchy!.CaptureMatchingFilesAsync(scope, maximumPaths, cancellation);
     public Task<AnalysisCapturedTableRange> CaptureTableRangeAsync(ulong parent, ulong first, ulong last, AnalysisHierarchySort sort = AnalysisHierarchySort.Metric,
-        bool descending = true, CancellationToken cancellation = default) => _hierarchy.CaptureTableRangeAsync(parent, first, last, sort, descending, cancellation);
+        bool descending = true, CancellationToken cancellation = default) => _subset is not null
+            ? CurrentSubset(parent).CaptureTableRangeAsync(first, last, sort, descending, cancellation)
+            : _hierarchy!.CaptureTableRangeAsync(parent, first, last, sort, descending, cancellation);
     public async Task<AnalysisDatasetPage<AnalysisHierarchyRow>> ReadChildRowsAsync(ulong parent, AnalysisHierarchySort sort, ulong offset, int maximum = 128,
         CancellationToken cancellation = default, bool descending = true)
-    { using var admission = AnalysisExplorerAdmission.Acquire(); return await _hierarchy.ReadChildrenAsync(parent, sort, offset, maximum, cancellation, descending).ConfigureAwait(false); }
+    { using var admission = AnalysisExplorerAdmission.Acquire(); return await ReadChildrenAsync(parent, sort, offset, maximum, cancellation, descending).ConfigureAwait(false); }
     public Task<bool> LoadChartAsync(ulong parent = 0, CancellationToken cancellation = default)
     {
-        return RequestAsync(_charts, token => AnalysisIndexedChart.BuildAsync(_hierarchy, parent, token), value => _chart = value, cancellation);
+        return RequestAsync(_charts, token => _subset is not null
+            ? AnalysisIndexedChart.BuildAsync(CurrentSubset(parent), token)
+            : AnalysisIndexedChart.BuildAsync(_hierarchy!, parent, token), value => _chart = value, cancellation);
     }
 
     private AnalysisDatasetExplorer(AnalysisDatasetLease dataset, AnalysisDatasetHierarchy hierarchy)
@@ -91,13 +103,15 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
         if (!Enum.IsDefined(sort)) throw new ArgumentOutOfRangeException(nameof(sort));
         return RequestAsync(_pages, async token =>
         {
-            var scope = parent == 0 ? null : await _hierarchy.ReadAsync(parent, token).ConfigureAwait(false);
+            if (_subset is not null) CurrentSubset(parent);
+            var scope = parent == 0 ? null : await ReadRowAsync(parent, token).ConfigureAwait(false);
             if (scope is not null && (scope.Path.Kind != AnalysisKind.Directory || !scope.IsVisible))
                 throw new InvalidOperationException("Only a visible directory can be an explorer scope.");
-            var children = await _hierarchy.ReadChildrenAsync(parent, sort, offset, maximum, token, descending).ConfigureAwait(false);
-            var buckets = await _hierarchy.ReadBucketsAsync(parent, token).ConfigureAwait(false);
+            var children = await ReadChildrenAsync(parent, sort, offset, maximum, token, descending).ConfigureAwait(false);
+            var buckets = _subset is not null ? await _subset.ReadBucketsAsync(token).ConfigureAwait(false) : await _hierarchy!.ReadBucketsAsync(parent, token).ConfigureAwait(false);
             var ancestors = await ReadAncestorsAsync(scope?.Path, token).ConfigureAwait(false);
-            return new AnalysisExplorerPage(parent, scope, sort, children, buckets, ancestors.Rows, ancestors.Complete) { Descending = descending };
+            if (_subset is not null && scope is not null) scope = scope with { Totals = _subset.Totals, Logical = _subset.LogicalTotals };
+            return new AnalysisExplorerPage(parent, scope, sort, children, buckets, ancestors.Rows, ancestors.Complete) { Descending = descending, GeometrySkipped = GeometrySkipped };
         }, value => _page = value, cancellation);
     }
 
@@ -109,7 +123,7 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
         if (path == 0) throw new ArgumentOutOfRangeException(nameof(path));
         return RequestAsync(_inspections, async token =>
         {
-            var row = await _hierarchy.ReadAsync(path, token).ConfigureAwait(false);
+            var row = await ReadRowAsync(path, token).ConfigureAwait(false);
             var ancestors = await ReadAncestorsAsync(row.Path, token).ConfigureAwait(false);
             AnalysisObjectMetadata? obj = null;
             AnalysisDatasetPage<AnalysisPathMetadata> aliases;
@@ -140,7 +154,7 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
         {
             cancellation.ThrowIfCancellationRequested();
             if (rows.Count == AnalysisLimits.Depth) return (rows.ToImmutable().Reverse().ToImmutableArray(), false);
-            var parent = (await _hierarchy.ReadAsync(next, cancellation).ConfigureAwait(false)).Path;
+            var parent = (await ReadRowAsync(next, cancellation).ConfigureAwait(false)).Path;
             if (parent.RootId != path!.RootId || parent.Kind != AnalysisKind.Directory)
                 throw new InvalidDataException("The captured ancestor chain is inconsistent.");
             long cost = 384L + parent.Name.Length * 2L + parent.RawName.Length + parent.RootId.Length * 2L +
@@ -208,9 +222,11 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
         Request? page, inspection, chart; bool close;
         lock (_gate)
         {
+            if (_disposed) return new(_closed.Task);
             _disposed = true; _page = null; _inspection = null; _chart = null;
             page = _pages.Current; inspection = _inspections.Current; chart = _charts.Current; close = BeginClose();
         }
+        lock (_scopeCancelGate) { if (!_scopeCancelled) { _scopeCancelled = true; _scopeLifetime.Cancel(); } }
         page?.Cancel(); inspection?.Cancel(); chart?.Cancel();
         if (close) _ = CloseAsync();
         return new(_closed.Task);
@@ -221,9 +237,17 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
     {
         try
         {
-            try { await _hierarchy.DisposeAsync().ConfigureAwait(false); }
-            finally { await _dataset.DisposeAsync().ConfigureAwait(false); }
-            _pages.Turn.Dispose(); _inspections.Turn.Dispose(); _charts.Turn.Dispose(); _closed.TrySetResult();
+            try
+            {
+                try { if (_subset is not null) await _subset.DisposeAsync().ConfigureAwait(false); else await _hierarchy!.DisposeAsync().ConfigureAwait(false); }
+                finally { await _dataset.DisposeAsync().ConfigureAwait(false); }
+            }
+            finally
+            {
+                _pages.Turn.Dispose(); _inspections.Turn.Dispose(); _charts.Turn.Dispose();
+                lock (_scopeCancelGate) { if (!_scopeCancelled) { _scopeCancelled = true; _scopeLifetime.Cancel(); } _scopeLifetime.Dispose(); }
+            }
+            _closed.TrySetResult();
         }
         catch (Exception error) { _closed.TrySetException(error); }
     }

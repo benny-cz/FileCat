@@ -4,6 +4,20 @@ namespace FileCat.Core.Analysis;
 
 public sealed partial class AnalysisDatasetHierarchy
 {
+    internal Task<AnalysisDatasetHierarchy> RetainAsync(CancellationToken cancellation) =>
+        _owned.RunAsync((state, _) => RetainedHierarchy(state, Descriptor, _io, _device), cancellation);
+    private static AnalysisDatasetHierarchy RetainedHierarchy(State source, AnalysisDatasetDescriptor descriptor,
+        FileCat.Core.Threading.DeviceIoScheduler io, AnalysisIoDevices device)
+    {
+        var retained = source.Retain();
+        try { return new(retained, descriptor, io, device); }
+        catch { AnalysisIo.CloseOnWorker(retained); throw; }
+    }
+    private static AnalysisHierarchyRow ReadPath(State state, ulong path, CancellationToken token)
+    {
+        _ = state.Graph.PathRow(path, token); var range = state.Indexes[0].FindRange(Key(path), token);
+        if (range.Count != 1) throw Invalid(); return state.Read(state.Indexes[0].Read(range.First, token).Value, token);
+    }
     /// <summary>Geometry-ranked real rows and accounting buckets, independent of table sorting.</summary>
     public Task<AnalysisDatasetPage<AnalysisTreeItem>> ReadGeometryAsync(ulong parent, ulong offset = 0, int maximum = 128, CancellationToken cancellation = default) =>
         _owned.RunAsync((state, token) => GeometryPage(state, parent, offset, maximum, token), cancellation);

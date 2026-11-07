@@ -18,7 +18,7 @@ public sealed partial class DiskSpaceWindow
         private void ScheduleMarkVisibility()
         {
             object owner = _grouping is { } groups ? groups : _explorer;
-            string scope = _grouping is not null ? _groupKey ?? AnalysisTree.RootKey : AnalysisTree.Key(_scope);
+            string scope = _grouping is not null ? _groupKey ?? AnalysisTree.RootKey : _explorer.OtherScopeKey ?? (_scope == 0 ? AnalysisTree.RootKey : AnalysisTree.Key(_scope));
             if (!ReferenceEquals(_visibilityMarks, _selection.Marks) || !ReferenceEquals(_visibilityOwner, owner) || _visibilityScope != scope)
             {
                 _visibilityMarks = _selection.Marks; _visibilityOwner = owner; _visibilityScope = scope;

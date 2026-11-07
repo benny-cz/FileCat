@@ -1,0 +1,34 @@
+  FileCat.Core -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\bin\Debug\net10.0\FileCat.Core.dll
+  FileCat.Recovery -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Recovery\bin\Debug\net10.0\FileCat.Recovery.dll
+  FileCat.Platform.Windows -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Platform.Windows\bin\Debug\net10.0\FileCat.Platform.Windows.dll
+  FileCat.Remote -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Remote\bin\Debug\net10.0\FileCat.Remote.dll
+  FileCat.Archives.Rar15 -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives.Rar15\bin\Debug\net10.0\FileCat.Archives.Rar15.dll
+  FileCat.SharpCompress -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\ThirdParty\SharpCompress\bin\Debug\net10.0\FileCat.SharpCompress.dll
+  FileCat.Archives -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives\bin\Debug\net10.0\FileCat.Archives.dll
+  FileCat.ShellHost -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.ShellHost\bin\Debug\net10.0\FileCat.ShellHost.dll
+  FileCat.App -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\bin\Debug\net10.0\FileCat.dll
+  FileCat.PrivilegedHost -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.PrivilegedHost\bin\Debug\net10.0\FileCat.PrivilegedHost.dll
+  Native tools need a short supported temporary path.
+  At E:\FileCat\.tmp\worktrees\disk-space-analysis\eng\Build-PrivilegedBootstrap.ps1:57 char:73
+  + ...  -gt 180) { throw 'Native tools need a short supported temporary path ...
+  +                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      + CategoryInfo          : OperationStopped: (Native tools ne...temporary path.:String) [], RuntimeException
+      + FullyQualifiedErrorId : Native tools need a short supported temporary path.
+   
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.PrivilegedHost\FileCat.PrivilegedHost.csproj(31,5): error MSB3073: The command "powershell.exe -NoProfile -ExecutionPolicy Bypass -File "E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.PrivilegedHost\..\..\eng\Build-PrivilegedBootstrap.ps1" -ProjectDirectory "E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.PrivilegedHost" -OutputFile "E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.PrivilegedHost\bin\Debug\net10.0\FileCat.PrivilegedHost.exe" -IntermediateDirectory "E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.PrivilegedHost\obj\Debug\net10.0\native-bootstrap" -Runtime "win-x64" -Version "0.1.0-preview" -SourceRevisionId "1a7115d6f455e98434c6a3e2a5e0f391859b1ac2"" exited with code 1.
+  FileCat.App.Tests -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.App.Tests\bin\Debug\net10.0\FileCat.App.Tests.dll
+  FileCat.CoreCrashHarness -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.CoreCrashHarness\bin\Debug\net10.0\FileCat.CoreCrashHarness.dll
+  FileCat.Core.Tests -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\bin\Debug\net10.0\FileCat.Core.Tests.dll
+  FileCat.NativeAcceptance -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.NativeAcceptance\bin\Debug\net10.0\FileCat.NativeAcceptance.dll
+  FileCat.WorkerProbe -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.WorkerProbe\bin\Debug\net10.0\FileCat.WorkerProbe.dll
+  FileCat.RemoteCrashHarness -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.RemoteCrashHarness\bin\Debug\net10.0\FileCat.RemoteCrashHarness.dll
+  FileCat.Remote.Tests -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Remote.Tests\bin\Debug\net10.0\FileCat.Remote.Tests.dll
+  FileCat.Rendering.Tests -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\bin\Debug\net10.0\FileCat.Rendering.Tests.dll
+
+Build FAILED.
+
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.PrivilegedHost\FileCat.PrivilegedHost.csproj(31,5): error MSB3073: The command "powershell.exe -NoProfile -ExecutionPolicy Bypass -File "E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.PrivilegedHost\..\..\eng\Build-PrivilegedBootstrap.ps1" -ProjectDirectory "E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.PrivilegedHost" -OutputFile "E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.PrivilegedHost\bin\Debug\net10.0\FileCat.PrivilegedHost.exe" -IntermediateDirectory "E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.PrivilegedHost\obj\Debug\net10.0\native-bootstrap" -Runtime "win-x64" -Version "0.1.0-preview" -SourceRevisionId "1a7115d6f455e98434c6a3e2a5e0f391859b1ac2"" exited with code 1.
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:44.36

@@ -28,7 +28,7 @@ public sealed partial class AnalysisDatasetSummaryTests
     }
 
     [Fact]
-    public async Task IndexedChartRemainderRepresentsTheExactUnloadedSuffixAndCanPageIt()
+    public async Task IndexedChartRemainderOpensTheCanonicalSuffixRatherThanANumericTableOffset()
     {
         Ordinary(); using var io = new DeviceIoScheduler(); var snapshot = AnalysisAccountingTests.Golden();
         var nodes = ImmutableArray.CreateBuilder<AnalysisNode>(); nodes.Add(snapshot.Nodes[0]);
@@ -41,8 +41,19 @@ public sealed partial class AnalysisDatasetSummaryTests
         var target = Assert.Single(chart.Remainders); Assert.Equal(128UL, target.Value.Offset);
         Assert.Equal((UInt128)473, chart.Items[target.Key].Value); Assert.Equal(473UL, chart.Items[target.Key].Files);
         Assert.Equal((UInt128)601, chart.ChildrenOf("n:1").Aggregate((UInt128)0, (sum, row) => checked(sum + row.Value)));
-        Assert.True(await explorer.LoadPageAsync(target.Value.Parent, offset: target.Value.Offset, maximum: 1, cancellation: Cancellation));
-        Assert.Equal(130UL, Assert.Single(explorer.Page!.Children.Rows).Path.Id);
+        Assert.True(target.Value.GeometryScope);
+        var reference = AnalysisTree.Build(snapshot, AnalysisAggregate.Project(snapshot, AnalysisMetric.Files, cancellation: Cancellation), false, Cancellation);
+        await using var other = await explorer.CreateScopeAsync(target.Value.Parent, checked((int)target.Value.Offset), Cancellation);
+        Assert.True(await other.LoadPageAsync(1, maximum: 1, cancellation: Cancellation));
+        Assert.Equal(473UL, other.Page!.Children.Total); Assert.Equal(0UL, other.Page.Children.Offset);
+        Assert.Equal(reference.CaptureMatchingFiles(target.Key, Cancellation).NodeIds, (await other.CaptureMatchingFilesAsync(cancellation: Cancellation)).NodeIds);
+        Assert.Empty(chart.ChildrenOf(target.Key));
+        Assert.Equal(target.Key, chart.ChildrenOf(chart.Scope)[^1].Key);
+        Assert.True(await other.LoadChartAsync(1, Cancellation));
+        Assert.Equal(target.Key, other.Chart!.Scope);
+        Assert.Equal(256UL, Assert.Single(other.Chart.Remainders).Value.Offset);
+        var nested = AnalysisTree.OtherKey(other.Chart.Scope, 1);
+        Assert.Equal(other.Chart.ChildrenOf(other.Chart.Scope).Skip(1), other.Chart.ChildrenOf(nested));
         var tail = chart.ChildrenOf(AnalysisTree.OtherKey("n:1", 1)); Assert.Equal(chart.ChildrenOf("n:1").Length - 1, tail.Length);
     }
 

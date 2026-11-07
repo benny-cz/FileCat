@@ -163,7 +163,8 @@
     "Memory scoped/filter/elsewhere/missing mark counts, fixed128-row Review marked and matching-file capture across both storage paths pass 71 new Core and 11 headless window controls on all3 in full applicable batches. Namespace-only empty-folder/directory-allocation parity, actual queued cancellation/closure and retained session/epoch identity guard pass; deferred selection, full native/resource and remaining plan work remain required.",
     "Separately named runtime deferred selection captures displayed query/location/group/scope, waits actual native scan completion, retains a bounded final set and requires preserving paged review before marks change. Pause/stop/partial/uncertain cohorts, replacement/cancel/replay, actual close ownership and inert imported phases pass20 new headless controls on all3; mixed-basis context and100001-path atomic refusal pass4 new Core controls. Full native/resource and remaining W0-W8 qualification remain required.",
     "Indexed Save streams the whole retained revision and inert published settings; catalog Browse/Open restores an offline tab without transient marks/basket. Shared native write locking, actual stored-byte budgeting, duplicate/poison refusal, known-publication recovery and actual cancellation ownership pass seven new Core and four native-fixture/headless controls on all three platforms. Exact Other and full native/resource/persistence qualification remain open.",
-    "Retained indexed hierarchy geometry subsets use external canonical geometry, table-order and shared-cohort/matching indexes, independently retain original observations and preserve actual cancellation/close ownership. Ten Core and two actual native-fixture cases pass all3 for metric/sort/range/selection/lifetime parity. UI/explorer/group/SaveOpen adoption and full exact Other qualification remain unfinished."
+    "Retained indexed hierarchy geometry subsets use external canonical geometry, table-order and shared-cohort/matching indexes, independently retain original observations and preserve actual cancellation/close ownership. Ten Core and two actual native-fixture cases pass all3 for metric/sort/range/selection/lifetime parity. UI/explorer/group/SaveOpen adoption and full exact Other qualification remain unfinished.",
+    "Exact indexed folder Other scopes now connect immutable explorer ownership, canonical bounded charts, sorted/paged/range/matching/mark APIs, navigation history and named Save/Browse/Open; empty/accounting-only scopes stay exact and absent scopes are explained. Five Core and five native-fixture/headless cases pass all3. Grouped scopes and full Other/persistence/desktop/resource qualification remain open."
   ],
   "validation": {
     "windowsCore": {
@@ -2112,7 +2113,7 @@
     },
     "testingWorkflow": {
       "default": "Build and package the largest coherent implementation candidate, then transfer one immutable bundle per free platform and execute all applicable Core/native/rendering phases sequentially before collecting evidence. Preserve other testers and gate every phase.",
-      "batchEvidence": "source-manifest-r759.json",
+      "batchEvidence": "source-manifest-r769.json",
       "oneCandidateArchivePerPlatform": true,
       "postExecutionProcessExitRequired": true,
       "continueIndependentPhasesAfterAssertionFailure": true
@@ -5850,12 +5851,142 @@
       "persistenceGateQualified": false,
       "actionsHelperContentEnabled": false,
       "finalIndependentReviewPerformed": false
+    },
+    "folderOtherExplorer": {
+      "newCoreControls": 5,
+      "newRenderingControls": 5,
+      "targetedControls": {
+        "mac": {
+          "core": [
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.OtherExplorerCloseCancelsScopeConstructionAndWaitsForItsActualHeldRead",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.OtherExplorerRetainsExactPagesMatchesMarksAndSiblingScopesAfterAllProducersClose(metric: FileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.OtherExplorerRetainsExactPagesMatchesMarksAndSiblingScopesAfterAllProducersClose(metric: UniqueFileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.OtherExplorerRetainsExactPagesMatchesMarksAndSiblingScopesAfterAllProducersClose(metric: OnDisk)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.OtherExplorerRetainsExactPagesMatchesMarksAndSiblingScopesAfterAllProducersClose(metric: Files)"
+          ],
+          "render": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerSavedAccountingOnlyAndEmptyScopesStayExactWhileAbsentSuffixIsExplained(skipped: 1, area: 32, exact: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerSavedAccountingOnlyAndEmptyScopesStayExactWhileAbsentSuffixIsExplained(skipped: 2, area: 0, exact: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerSavedAccountingOnlyAndEmptyScopesStayExactWhileAbsentSuffixIsExplained(skipped: 3, area: 65568, exact: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerNativeWindowKeepsCanonicalMembershipThroughFocusSortHistoryAndCatalogRestore(mode: \\\"Treemap\\\")",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerNativeWindowKeepsCanonicalMembershipThroughFocusSortHistoryAndCatalogRestore(mode: \\\"Sunburst\\\")"
+          ]
+        },
+        "ubuntu": {
+          "core": [
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.OtherExplorerRetainsExactPagesMatchesMarksAndSiblingScopesAfterAllProducersClose(metric: FileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.OtherExplorerRetainsExactPagesMatchesMarksAndSiblingScopesAfterAllProducersClose(metric: UniqueFileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.OtherExplorerRetainsExactPagesMatchesMarksAndSiblingScopesAfterAllProducersClose(metric: OnDisk)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.OtherExplorerRetainsExactPagesMatchesMarksAndSiblingScopesAfterAllProducersClose(metric: Files)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.OtherExplorerCloseCancelsScopeConstructionAndWaitsForItsActualHeldRead"
+          ],
+          "render": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerSavedAccountingOnlyAndEmptyScopesStayExactWhileAbsentSuffixIsExplained(skipped: 1, area: 32, exact: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerSavedAccountingOnlyAndEmptyScopesStayExactWhileAbsentSuffixIsExplained(skipped: 2, area: 0, exact: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerSavedAccountingOnlyAndEmptyScopesStayExactWhileAbsentSuffixIsExplained(skipped: 3, area: 65568, exact: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerNativeWindowKeepsCanonicalMembershipThroughFocusSortHistoryAndCatalogRestore(mode: \\\"Treemap\\\")",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerNativeWindowKeepsCanonicalMembershipThroughFocusSortHistoryAndCatalogRestore(mode: \\\"Sunburst\\\")"
+          ]
+        },
+        "windows": {
+          "core": [
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.OtherExplorerCloseCancelsScopeConstructionAndWaitsForItsActualHeldRead",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.OtherExplorerRetainsExactPagesMatchesMarksAndSiblingScopesAfterAllProducersClose(metric: FileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.OtherExplorerRetainsExactPagesMatchesMarksAndSiblingScopesAfterAllProducersClose(metric: UniqueFileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.OtherExplorerRetainsExactPagesMatchesMarksAndSiblingScopesAfterAllProducersClose(metric: OnDisk)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.OtherExplorerRetainsExactPagesMatchesMarksAndSiblingScopesAfterAllProducersClose(metric: Files)"
+          ],
+          "render": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerNativeWindowKeepsCanonicalMembershipThroughFocusSortHistoryAndCatalogRestore(mode: \\\"Treemap\\\")",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerNativeWindowKeepsCanonicalMembershipThroughFocusSortHistoryAndCatalogRestore(mode: \\\"Sunburst\\\")",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerSavedAccountingOnlyAndEmptyScopesStayExactWhileAbsentSuffixIsExplained(skipped: 1, area: 32, exact: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerSavedAccountingOnlyAndEmptyScopesStayExactWhileAbsentSuffixIsExplained(skipped: 2, area: 0, exact: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.OtherExplorerSavedAccountingOnlyAndEmptyScopesStayExactWhileAbsentSuffixIsExplained(skipped: 3, area: 65568, exact: False)"
+          ]
+        }
+      },
+      "matrix": {
+        "mac-batch-r767-core-r767.xml": {
+          "total": "1065",
+          "passed": "1061",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "26.097"
+        },
+        "mac-batch-r767-render-r767.xml": {
+          "total": "213",
+          "passed": "213",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "62.898"
+        },
+        "ubuntu-batch-r767-core-r767.xml": {
+          "total": "1065",
+          "passed": "1061",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "81.472"
+        },
+        "ubuntu-batch-r767-render-r767.xml": {
+          "total": "213",
+          "passed": "213",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "104.480"
+        },
+        "windows-batch-r767-core-r767.xml": {
+          "total": "1083",
+          "passed": "1035",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0",
+          "time": "36.885"
+        },
+        "windows-batch-r767-native-r767.xml": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "45.513"
+        },
+        "windows-batch-r767-render-r767.xml": {
+          "total": "213",
+          "passed": "212",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "118.835"
+        }
+      },
+      "manifest": "source-manifest-r769.json",
+      "folderExplorerWindowSubsetIntegrationImplemented": true,
+      "folderGeometryCanonicalChartPrefixImplemented": true,
+      "folderHistorySortAndSavedScopeImplemented": true,
+      "emptyAndAccountingOnlySubsetRestoreImplemented": true,
+      "folderNativeFixtureHeadlessControlsPassedAllThree": true,
+      "actualScopeFactoryCancellationAndOwnerClosurePassedAllThree": true,
+      "groupingSubsetImplementationComplete": false,
+      "indexedOtherExactSubsetPersistenceParityQualified": false,
+      "fullMixedBasisUnknownAndUnverifiedSubsetQualificationComplete": false,
+      "fullNativeDesktopOtherQualified": false,
+      "fullResourceGateQualified": false,
+      "fullMillionTenMillionQualificationComplete": false,
+      "productCommandRegistered": false,
+      "publicIndexedSpillEnabled": false,
+      "persistenceGateQualified": false,
+      "actionsHelperContentEnabled": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
     "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, remaining dataset/CPU queues and full private-memory qualification (producer payload now shares a partitioned8 MiB envelope and explorer creation/page/inspection/chart work shares eight places, with actual-lifetime controls all3), actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
-    "W2: complete full native pointer/key qualification (runtime deferred materialization/review, memory scoped/hidden-mark review and matching-file capture now pass all3) (indexed captured-folder/scoped marks/cross-page range controls now pass all3), connect the retained exact geometry subset engine through charts/explorer/window/history/ranges/marks/SaveOpen and implement equivalent grouped subsets; qualify full indexed Other-subset persistence parity, full native indexed Save/Open qualification and remaining dimensions (memory grouping/captured selection and schema4 saved grouping restoration now pass all3) (indexed selector/chart/table/navigation/inspection now pass all3) (memory and indexed type/extension/captured-age/location stores, bounded pages and native capture controls now pass all3), owner/comparison/qualified-volume grouping and comparison-growth coloring (basic type/depth/captured-age colors, themed legends and strict saved-view restore now pass all3), scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
+    "W2: complete full native pointer/key qualification (runtime deferred materialization/review, memory scoped/hidden-mark review and matching-file capture now pass all3) (indexed captured-folder/scoped marks/cross-page range controls now pass all3), folder exact Other explorer/chart/history/selection/SaveOpen controls pass all3; implement equivalent grouped subsets and complete the remaining geometry parity matrix; qualify full indexed Other-subset persistence parity, full native indexed Save/Open qualification and remaining dimensions (memory grouping/captured selection and schema4 saved grouping restoration now pass all3) (indexed selector/chart/table/navigation/inspection now pass all3) (memory and indexed type/extension/captured-age/location stores, bounded pages and native capture controls now pass all3), owner/comparison/qualified-volume grouping and comparison-growth coloring (basic type/depth/captured-age colors, themed legends and strict saved-view restore now pass all3), scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",

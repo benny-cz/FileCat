@@ -142,11 +142,9 @@ public sealed partial class AnalysisRenderingTests
     }
 
     [AvaloniaTheory]
-    [InlineData(false, 2)]
-    [InlineData(false, 3)]
     [InlineData(true, 2)]
     [InlineData(true, 3)]
-    public async Task SavedGroupingIndexedMissingPageReturnsToFirstPageForFolderAndGroup(bool grouped, int offset)
+    public async Task SavedGroupingIndexedMissingGroupPageReturnsToFirstPage(bool grouped, int offset)
     {
         OrdinaryPreparation(); using var styles = new ProductStyles(); using var fixture = new PreparationFixture();
         var dimension = grouped ? AnalysisGroupingDimension.Extension : AnalysisGroupingDimension.FolderHierarchy;
