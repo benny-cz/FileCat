@@ -3,10 +3,14 @@ using System.Reflection.Metadata;
 using System.Security.Cryptography;
 using System.Text.Json;
 
-if (args.Length != 3) return 64;
+if (args.Length is not (3 or 4)) return 64;
 string repository = Path.TrimEndingDirectorySeparator(Path.GetFullPath(args[0]));
 string publish = Path.GetFullPath(args[1]), output = Path.GetFullPath(args[2]);
+// Test assemblies can compile pinned NuGet content sources (e.g. xUnit's generated runner). This explicit extra
+// root is opt-in; default production audits still require every nonembedded document inside the private checkout.
+string? extraSourceRoot = args.Length == 4 ? Path.TrimEndingDirectorySeparator(Path.GetFullPath(args[3])) : null;
 if (!Directory.Exists(repository) || !Directory.Exists(publish) || Directory.Exists(output)) return 65;
+if (extraSourceRoot != null && (!Directory.Exists(extraSourceRoot) || Path.GetPathRoot(extraSourceRoot) == extraSourceRoot)) return 65;
 Directory.CreateDirectory(output);
 Guid sha256 = new("8829d00f-11b8-4213-878b-770e8597ac16"), sha1 = new("ff1816ec-aa5e-4d10-87f7-6f4963833460");
 Guid embeddedKind = new("0e8a571b-6926-466e-b4ad-8ab04611f5fe");
@@ -47,7 +51,9 @@ foreach (string pdb in Directory.EnumerateFiles(publish, "FileCat.*.pdb").Order(
         if (content == null)
         {
             string full = Path.GetFullPath(path);
-            if (!full.StartsWith(repository + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+            bool permitted = full.StartsWith(repository + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+                extraSourceRoot != null && full.StartsWith(extraSourceRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+            if (!permitted ||
                 !File.Exists(full) || new FileInfo(full).Length > 8 << 20)
                 throw new InvalidDataException("Compiler source cannot be verified inside the private checkout: " + path);
             content = File.ReadAllBytes(full);
@@ -64,7 +70,7 @@ foreach (string pdb in Directory.EnumerateFiles(publish, "FileCat.*.pdb").Order(
     }
 }
 if (binaries.Count < 4 || count == 0) throw new InvalidDataException("Dedicated worker symbols are incomplete.");
-var result = new { compilerSourceChecksumsMatched = true, productionBackendQualified = false, documents = count, bytes,
+var result = new { compilerSourceChecksumsMatched = true, productionBackendQualified = false, documents = count, bytes, extraSourceRoot,
     binaries, sources = documents };
 File.WriteAllText(Path.Combine(output, "facts.json"), JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }) + "\n");
 Console.WriteLine(JsonSerializer.Serialize(new { compilerSourceChecksumsMatched = true, productionBackendQualified = false, documents = count, bytes }));

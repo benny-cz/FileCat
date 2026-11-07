@@ -31,6 +31,13 @@ and fresh verification, bounded KDF/cipher handling, session-only secret grants 
 Current reader refusal text and missing RAR decryption/7z encoder paths remain implementation gaps. Passwords/keys
 must not enter persistent settings, journals/logs/evidence or process arguments.
 
+The [bounded C# RAR5 codec/creation checkpoint](RAR5_CSHARP_ENCODER.md) now implements store and genuinely distinct
+bounded search presets for methods 1–5. All 23 new cases pass on Windows/Mac/Ubuntu within 444-case regression
+batches, and independent native APIs verify all 84 generated records per platform. The six archive hashes match
+across all three systems. It remains stream-only and unregistered: required password/data/header encryption,
+strict update/source/verification catalogs, worker/secret grants, preservation, workflows and full gates remain open.
+See that record for exact evidence and corrected harness failures; this is not complete RAR feature support.
+
 ## Source and workspace
 
 - Baseline: `4282929753f062f5bb2cc130e8316b133e5c8e03`.

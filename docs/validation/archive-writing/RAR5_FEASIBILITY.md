@@ -96,6 +96,11 @@ must refuse publication. Later optimizations require their own interoperability 
 path or source-deletion authority crosses to the codec. Native publication, origin, recovery and move-after-commit
 checks remain shared.
 
+The subsequent [C# codec/creation checkpoint](RAR5_CSHARP_ENCODER.md) implements and independently tests ordinary
+stored members/directories and real bounded search presets for methods 1–5 on all three platforms. The table below
+describes this earlier Python experiment; it is not the current implementation status. Password support is required
+by the later scope amendment and remains work, alongside strict catalogs/worker/workflow and broader coverage gates.
+
 ## Compression coverage: explicit gaps, not impossible-by-assertion
 
 The user's coverage instruction requires a full RAR/7z capability inventory. This candidate proves a viable primary

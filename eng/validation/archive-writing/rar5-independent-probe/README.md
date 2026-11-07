@@ -30,3 +30,18 @@ remain private research evidence, not new runtime dependencies.
 
 See [the feasibility decision](../../../../docs/validation/archive-writing/RAR5_FEASIBILITY.md) for results, the
 compression-method coverage gaps, bounds, remaining legal/source obligations and the production implementation gates.
+
+The later [C# checkpoint](../../../../docs/validation/archive-writing/RAR5_CSHARP_ENCODER.md) tests the stream-only
+implementation in `src/FileCat.Archives/Writing`. `Rar5WritingTests` exports six 14-member archives when given a fresh,
+absolute `FILECAT_RAR5_CODEC_EXPORT_ROOT`. `verify_csharp_native.py` reads those outputs through the exact private
+Mac/Linux libarchive; `WindowsNativeRarOracle.cs` plus `verify_csharp_windows.ps1` use the Windows guest's system
+UTF-8 C API, avoiding the stock CLI's filename-locale limitation. Neither reader extracts untrusted archive paths.
+PowerShell witness/inventory JSON must be written explicitly as UTF-8.
+
+`run_csharp_unix.py TASK PACKET_SHA BATCH [--continue-after-tests]` guards idle machines, uses complete fresh source
+roots and batches builds, broad regressions, native verification, source snapshots, evidence and cleanup. Continuation
+requires the already passing TRX and retains earlier failures. The Windows script records the v2 packet hash and
+task/account paths; it also needs the native helper/script and explicitly reviewed audit-tool source supplied beside
+that packet. Update all pins/paths together for a new batch. Do not overwrite prior batch roots/evidence. The committed
+runners incorporate harness corrections; the frozen evidence retains the actual executed versions and failed attempts.
+No runner or completed codec test registers a production writer or proves password support.

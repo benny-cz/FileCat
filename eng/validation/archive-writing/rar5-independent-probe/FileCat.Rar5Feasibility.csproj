@@ -6,6 +6,8 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Compiled by PowerShell only inside the Windows validation guest, not by this portable readback probe. -->
+    <Compile Remove="WindowsNativeRarOracle.cs" />
     <ProjectReference Include="../../../../src/FileCat.Archives/FileCat.Archives.csproj" />
   </ItemGroup>
 </Project>

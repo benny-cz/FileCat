@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "source_base_commit": "82071483",
+  "source_packet": {
+    "files": 3970,
+    "bytes": 30328014,
+    "sha256": "4AF5E376ACA382AE67A8B69824882C16DF86638DD2BF4E88DF462015BCB8EA76"
+  },
+  "all_final_bundles_manifest_verified": true,
+  "all_six_archives_identical_across_platforms": true,
+  "production_profile_registered": false,
+  "password_support_implemented": false,
+  "platforms": [
+    {
+      "platform": "mac",
+      "archive": "mac-rar5-csharp-evidence-v2.tar.gz",
+      "bytes": 45138919,
+      "sha256": "A4FC71B2122D986C24AC749BA70B198467876448F5B7B0B730F3E11BEF8E9B42",
+      "verified_payload_rows": 1774,
+      "tests_total": 444,
+      "passed": 442,
+      "skipped": 2,
+      "new_rar_cases_passed": 23,
+      "native_reader": "libarchive 3.8.11",
+      "native_exact_readbacks": 84,
+      "compiler_document_instances": 1280,
+      "compiler_bytes": 12215882,
+      "archive_hashes": {
+        "method-0": "68B627579434072F2717097934F151529C738D3C18E47B5880F9E92740B50ED9",
+        "method-1": "DF63ED69622B1EE9D211E2101D881399F7C4F7D655411E013AA3F85E7739AED7",
+        "method-2": "D4113F9E82711E30987E110B7D5A94E6653AE7AFF50EEE41FD1FA9C0163DC73C",
+        "method-3": "A2642AE00EF6415D03DB97EFD19575CBD6DBF5816E9B6E2E05F1C3B59B627625",
+        "method-4": "9D72C63AFD7AC00710D71D93C9C8B3260817A5FB2073ADDCCD823593B5157CBC",
+        "method-5": "E31876D40C8BEEB9FDFCF22C88DD7FB8E1A6588CE26DA9E8FBBB8987CB01C4A5"
+      }
+    },
+    {
+      "platform": "ubuntu",
+      "archive": "ubuntu-rar5-csharp-evidence-v2.tar.gz",
+      "bytes": 55154793,
+      "sha256": "4664A8E5A0D8D36751453D3D3D2CB6C8950B4E08C270F33CEEB7DCBC5F4BE073",
+      "verified_payload_rows": 4319,
+      "tests_total": 444,
+      "passed": 441,
+      "skipped": 3,
+      "new_rar_cases_passed": 23,
+      "native_reader": "libarchive 3.8.11",
+      "native_exact_readbacks": 84,
+      "compiler_document_instances": 1280,
+      "compiler_bytes": 12215882,
+      "archive_hashes": {
+        "method-0": "68B627579434072F2717097934F151529C738D3C18E47B5880F9E92740B50ED9",
+        "method-1": "DF63ED69622B1EE9D211E2101D881399F7C4F7D655411E013AA3F85E7739AED7",
+        "method-2": "D4113F9E82711E30987E110B7D5A94E6653AE7AFF50EEE41FD1FA9C0163DC73C",
+        "method-3": "A2642AE00EF6415D03DB97EFD19575CBD6DBF5816E9B6E2E05F1C3B59B627625",
+        "method-4": "9D72C63AFD7AC00710D71D93C9C8B3260817A5FB2073ADDCCD823593B5157CBC",
+        "method-5": "E31876D40C8BEEB9FDFCF22C88DD7FB8E1A6588CE26DA9E8FBBB8987CB01C4A5"
+      }
+    },
+    {
+      "platform": "windows",
+      "archive": "windows-rar5-csharp-evidence-v3.tar.gz",
+      "bytes": 45229591,
+      "sha256": "F3E557727BF22B3D19E9B76594A45765CC081172CDA1C10F5232261763E181F1",
+      "verified_payload_rows": 1808,
+      "tests_total": 444,
+      "passed": 323,
+      "skipped": 121,
+      "new_rar_cases_passed": 23,
+      "native_reader": "libarchive 3.8.9",
+      "native_exact_readbacks": 84,
+      "compiler_document_instances": 1280,
+      "compiler_bytes": 12230546,
+      "archive_hashes": {
+        "method-5": "E31876D40C8BEEB9FDFCF22C88DD7FB8E1A6588CE26DA9E8FBBB8987CB01C4A5",
+        "method-4": "9D72C63AFD7AC00710D71D93C9C8B3260817A5FB2073ADDCCD823593B5157CBC",
+        "method-3": "A2642AE00EF6415D03DB97EFD19575CBD6DBF5816E9B6E2E05F1C3B59B627625",
+        "method-2": "D4113F9E82711E30987E110B7D5A94E6653AE7AFF50EEE41FD1FA9C0163DC73C",
+        "method-1": "DF63ED69622B1EE9D211E2101D881399F7C4F7D655411E013AA3F85E7739AED7",
+        "method-0": "68B627579434072F2717097934F151529C738D3C18E47B5880F9E92740B50ED9"
+      }
+    }
+  ]
+}
