@@ -16,6 +16,15 @@ public sealed partial class AnalysisDatasetGrouping
             if (source.Graph.Header.Identity != descriptor.Identity) throw Invalid();
             descriptor = descriptor with { Taint = AnalysisPrivacy.Join(descriptor.Taint, source.Graph.Header.Taint) };
             state = await AnalysisIo.Run(io, device, _ => State.Create(source.Graph, metric, totals, dimension), cancellation).ConfigureAwait(false);
+            while (!state.VisibilityFinished)
+                await AnalysisIo.Run(io, device, token => Batch(() => state.VisibilityStep(source.Query, token), () => state.VisibilityFinished, token), cancellation).ConfigureAwait(false);
+            await AnalysisIo.Run(io, device, token => { state.SealVisibility(token); return true; }, cancellation).ConfigureAwait(false);
+            using (var entries = state.VisibilityEntries(cancellation).GetEnumerator())
+            {
+                var index = await AnalysisExternalSort.BuildSparseAsync(state.Workspace!, io, device, entries, cancellation).ConfigureAwait(false);
+                try { await AnalysisIo.Run(io, device, _ => { state.VisibilityIndex = index.Acquire(); return true; }, cancellation).ConfigureAwait(false); }
+                finally { await AnalysisIo.ReleaseScratchAsync(io, device, index).ConfigureAwait(false); }
+            }
             while (!state.Emitted)
                 await AnalysisIo.Run(io, device, token => Batch(() => state.EmitStep(source, token), () => state.Emitted, token), cancellation).ConfigureAwait(false);
             await AnalysisIo.Run(io, device, token => { state.SealEvents(token); return true; }, cancellation).ConfigureAwait(false);
@@ -89,7 +98,8 @@ public sealed partial class AnalysisDatasetGrouping
                 graph = source.Retain(); workspace = graph.BorrowWorkspace(); state = new(graph, workspace, metric, totals, dimension); graph = null; workspace = null;
                 state._memberWriter = CreateVector(state.Workspace!); state._chargeWriter = CreateVector(state.Workspace!);
                 state._referenceWriter = CreateVector(state.Workspace!); state._summaryWriter = CreateVector(state.Workspace!, AnalysisLimits.GroupRows);
-                state._memberPlacementWriter = CreateVector(state.Workspace!); state._referencePlacementWriter = CreateVector(state.Workspace!); return state;
+                state._memberPlacementWriter = CreateVector(state.Workspace!); state._referencePlacementWriter = CreateVector(state.Workspace!);
+                state._visibilityWriter = CreateVector(state.Workspace!); return state;
             }
             catch
             {
@@ -223,7 +233,7 @@ public sealed partial class AnalysisDatasetGrouping
         public void Dispose()
         {
             Exception? error = null;
-            foreach (var item in new IDisposable?[] { ReferenceOrder, MemberOrder, Order, Lookup, ReferenceIndex, ChargeIndex, MemberIndex,
+            foreach (var item in new IDisposable?[] { VisibilityIndex, Visibility, _visibilityWriter, ReferenceOrder, MemberOrder, Order, Lookup, ReferenceIndex, ChargeIndex, MemberIndex,
                 ReferencePlacements, MemberPlacements, Summaries, References, Charges, Members,
                 _referencePlacementWriter, _memberPlacementWriter, _summaryWriter, _referenceWriter, _chargeWriter, _memberWriter, Workspace, Graph }) Close(item, ref error);
             if (error is not null) ExceptionDispatchInfo.Capture(error).Throw();

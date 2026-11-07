@@ -25,7 +25,7 @@ public sealed partial class AnalysisRenderingTests
         window.Close(); Dispatcher.UIThread.RunJobs(); Assert.False(window.IsVisible); Assert.False(WindowFit.Fit(window));
     }
 
-    private static async Task<AnalysisSavedEntry> SaveIndexedInventoryFixture(PreparationFixture fixture, AnalysisSavedView view, bool privileged = false)
+    private static async Task<AnalysisSavedEntry> SaveIndexedInventoryFixture(PreparationFixture fixture, AnalysisSavedView view, bool privileged = false, bool directoryAllocation = false)
     {
         var token = TestContext.Current.CancellationToken;
         await using (var prepared = await AnalysisIndexedAcquisition.PrepareAsync(fixture.Services, token)) { }
@@ -39,6 +39,7 @@ public sealed partial class AnalysisRenderingTests
                 Roots = [snapshot.Roots[0] with { CanonicalLocator = Path.Combine(fixture.Root, "source-must-not-be-created"), DisplayLocator = "Offline source" }],
                 Nodes = snapshot.Nodes.Select(n => n with { Id = ids[n.Id], ParentId = ids[n.ParentId], Name = n.Id == 4 ? "alpha.bin" : n.Id == 6 ? "beta.bin" : n.Name }).ToImmutableArray()
             };
+            if (directoryAllocation) snapshot = snapshot with { Facts = snapshot.Facts.Add(new("directory", null, 400, "directory-self", "fixture", AnalysisMeasurement.Known(32), "fixture", DateTimeOffset.UnixEpoch, [])) };
             using AnalysisPrivateDirectory directory = OperatingSystem.IsWindows()
                 ? new WindowsAnalysisPrivateDirectory(Path.GetDirectoryName(path)!, Path.GetFileName(path))
                 : new UnixAnalysisPrivateDirectory(Path.GetDirectoryName(path)!, Path.GetFileName(path));

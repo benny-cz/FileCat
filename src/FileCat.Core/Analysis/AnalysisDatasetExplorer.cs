@@ -40,6 +40,15 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
     public AnalysisExplorerInspection? Inspection { get { lock (_gate) return _inspection; } }
     public AnalysisIndexedChart? Chart { get { lock (_gate) return _chart; } }
     public int PendingRequests { get { lock (_gate) return _active; } }
+    public Task<AnalysisSelectionVisibility> ClassifyMarksAsync(ImmutableHashSet<ulong> marks, ulong scope = 0, CancellationToken cancellation = default) =>
+        _hierarchy.ClassifyMarksAsync(marks, scope, cancellation);
+    public Task<AnalysisTablePosition> LocateChildAsync(ulong path, AnalysisHierarchySort sort = AnalysisHierarchySort.Metric, bool descending = true, CancellationToken cancellation = default) =>
+        _hierarchy.LocateChildAsync(path, sort, descending, cancellation);
+    public Task<AnalysisCapturedTableRange> CaptureTableRangeAsync(ulong parent, ulong first, ulong last, AnalysisHierarchySort sort = AnalysisHierarchySort.Metric,
+        bool descending = true, CancellationToken cancellation = default) => _hierarchy.CaptureTableRangeAsync(parent, first, last, sort, descending, cancellation);
+    public async Task<AnalysisDatasetPage<AnalysisHierarchyRow>> ReadChildRowsAsync(ulong parent, AnalysisHierarchySort sort, ulong offset, int maximum = 128,
+        CancellationToken cancellation = default, bool descending = true)
+    { using var admission = AnalysisExplorerAdmission.Acquire(); return await _hierarchy.ReadChildrenAsync(parent, sort, offset, maximum, cancellation, descending).ConfigureAwait(false); }
     public Task<bool> LoadChartAsync(ulong parent = 0, CancellationToken cancellation = default)
     {
         return RequestAsync(_charts, token => AnalysisIndexedChart.BuildAsync(_hierarchy, parent, token), value => _chart = value, cancellation);

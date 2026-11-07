@@ -247,6 +247,8 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         { try { Selection.ToggleMark(id); } catch (InvalidOperationException ex) { SetStatus(ex.Message); } }
         if (open && Tree is { } tree && tree.CanExplore(key))
         { NavigateRows(key, () => Selection.Navigate(key)); }
+        else if (open && Tree is { GroupingDimension: not AnalysisGroupingDimension.FolderHierarchy } grouped && grouped.Items.GetValueOrDefault(key) is { NodeId: not null, Kind: AnalysisKind.Directory })
+        { _ = ShowFocusedInHierarchyAsync(); }
         Changed?.Invoke();
     }
     public void Parent() { if (Tree is { } tree) { string parent = tree.ParentOf(Selection.Scope); NavigateRows(parent, () => Selection.Navigate(parent)); } }

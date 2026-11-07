@@ -24,6 +24,7 @@ public sealed partial class DiskSpaceViewModel
             var node = tree.Snapshot.Nodes.First(node => node.Id == target.Path);
             return node.Kind == AnalysisKind.Directory ? AnalysisTree.Key(node.Id) : node.ParentId == 0 ? AnalysisTree.RootKey : AnalysisTree.Key(node.ParentId);
         }
+        if (tree.GroupingDimension == AnalysisGroupingDimension.FolderHierarchy && target is not null) return AnalysisTree.RootKey;
         if (previous is not null && previous != tree.GroupingDimension || tree.GroupingDimension != AnalysisGroupingDimension.FolderHierarchy && !tree.CanExplore(requested))
             return AnalysisTree.RootKey;
         return requested;

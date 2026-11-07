@@ -101,6 +101,7 @@ public sealed partial class DiskSpaceWindow
         {
             if (_publishing || _disposed) return;
             _basketInspection = null;
+            if (!_rangeSelectionChanging && _list.SelectedItem is { } selected) { CancelTableRange(); SetRangeAnchor(selected); }
             switch (_list.SelectedItem)
             {
                 case AnalysisDatasetGroup group: InspectGroup(group); break;
@@ -114,6 +115,7 @@ public sealed partial class DiskSpaceWindow
         private void OpenEntry()
         {
             if (_list.SelectedItem is AnalysisDatasetGroup group) _ = NavigateGroupAsync(group.Definition.Key);
+            else if (_list.SelectedItem is AnalysisDatasetGroupRow { Member.Path.Kind: AnalysisKind.Directory } member) _ = ShowCapturedFolderAsync(member.Member.Path.Id);
             else if (_list.SelectedItem is AnalysisHierarchyRow { Path.Kind: AnalysisKind.Directory } row) _ = NavigateAsync(row.Path.Id);
             else SelectEntry();
         }
@@ -121,16 +123,17 @@ public sealed partial class DiskSpaceWindow
         { if (_list.SelectedItem is AnalysisDatasetGroup group) _ = NavigateGroupAsync(group.Definition.Key); }
         private Task<bool> ParentAsync() => _grouping is not null ? NavigateGroupAsync(null) : NavigateAsync(_shownPage?.Scope?.Path.ParentId ?? 0);
 
-        private async Task<bool> NavigateGroupAsync(string? key, ulong offset = 0, bool record = true)
+        private async Task<bool> NavigateGroupAsync(string? key, ulong offset = 0, bool record = true, AnalysisTableSort? sort = null, bool? descending = null, CancellationToken cancellation = default)
         {
             if (_disposed || _actualWork.HasUnconfirmedClose || _grouping is not { } groups) return false;
+            CancelRequestedFolder();
             using var actualWork = _actualWork.Enter();
             int version = ++_navigation; ++_inspection; _navigationCancel?.Cancel();
-            using var cancel = new CancellationTokenSource(); _navigationCancel = cancel;
+            using var cancel = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _selectionLifetime.Token); _navigationCancel = cancel;
             var old = (_groupKey, _offset); _status.Text = "Loading captured groups and members…";
             try
             {
-                var page = await LoadGroupedPageAsync(groups, key, offset, GroupSort(), _descending.IsChecked == true, cancel.Token);
+                var page = await LoadGroupedPageAsync(groups, key, offset, sort ?? GroupSort(), descending ?? _descending.IsChecked == true, cancel.Token);
                 await WaitForInteractionAsync(cancel.Token);
                 if (_disposed || cancel.IsCancellationRequested || version != _navigation || !ReferenceEquals(groups, _grouping)) return false;
                 if (record && old != (key, offset)) { PushGroup(_groupPast, old); _groupFuture.Clear(); }

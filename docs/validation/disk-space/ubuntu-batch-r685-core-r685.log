@@ -1,0 +1,17 @@
+  Discovering: FileCat.Core.Tests
+  Discovered:  FileCat.Core.Tests
+  Starting:    FileCat.Core.Tests
+    FileCat.Core.Tests.AnalysisProfileQuotaTests.WindowsForeignObjectTypeIsPreservedAndItsPrivateNameDoesNotEscapeTheFailure [SKIP]
+      Windows named-kernel-object negative control.
+    FileCat.Core.Tests.AnalysisPrivateStorageTests.MacNativeExtendedAclGrantIsRefusedBeforePayloadCreation [SKIP]
+      Darwin ACL fixture.
+Owned scratch child exited; initial entries=1, final entries=1, cleanup observation=0.157ms.
+Stopped fallback fixture: source closed=True, directory closed=False, retained dataset=True.
+    FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: "kernel-release") [SKIP]
+      Platform-specific kernel control.
+    FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: "kernel-close") [SKIP]
+      Platform-specific kernel control.
+Alternating 6,000 captured rows: native ReadAt calls=47
+  Finished:    FileCat.Core.Tests (ID = '97ef97d9df79e0dceeb3f2169b81ff0a586edfe97319bcff9fed4145a151ef73')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Core.Tests  Total: 968, Errors: 0, Failed: 0, Skipped: 4, Not Run: 0, Time: 62.170s

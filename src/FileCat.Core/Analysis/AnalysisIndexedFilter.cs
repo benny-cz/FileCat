@@ -29,6 +29,7 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
     internal bool NeedsObject => (Filter.Needs & (AnalysisFilterNeeds.Object | AnalysisFilterNeeds.State)) != 0;
     internal bool NeedsRootWalk => _scopes.Values.Any(s => s.Known && s.Ancestor.HasValue);
     internal bool NamespaceOnly => Filter.NamespaceOnly && !Request.UnknownOnly;
+    internal bool IsUnfiltered => string.IsNullOrWhiteSpace(Request.Text) && Request.RootId is null;
     private sealed record Scope(string? Root, ulong? Ancestor, bool Known);
     private AnalysisIndexedFilter(AnalysisFilter filter, AnalysisFilterRequest request, AnalysisIndexedGraphReader source)
     {

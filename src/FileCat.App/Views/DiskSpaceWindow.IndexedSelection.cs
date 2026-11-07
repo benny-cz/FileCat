@@ -24,10 +24,12 @@ public sealed partial class DiskSpaceWindow
         private CancellationTokenSource? _memberCaptureCancel;
         private bool _capturingMembers, _updatingMarks, _reviewingBasket;
         private ulong? _basketInspection;
+        private string _referenceInspectionLabel = "basket";
         private readonly TextBlock _selectionSummary = new() { TextWrapping = TextWrapping.Wrap };
         private readonly Button _markFocused = new() { Content = "Toggle focused mark" }, _markMembers = new() { Content = "Mark current members" },
             _clearMarks = new() { Content = "Clear marks" }, _stageBasket = new() { Content = "Add to review basket" },
-            _reviewBasket = new() { Content = "Review captured basket" }, _clearBasket = new() { Content = "Clear review basket" };
+            _reviewBasket = new() { Content = "Review captured basket" }, _clearBasket = new() { Content = "Clear review basket" },
+            _reviewMarked = new() { Content = "Review marked entries" }, _recountMarks = new() { Content = "Update mark counts", IsVisible = false };
 
         private Control MarkedRow(AnalysisTreeItem item, Control row)
         {
@@ -47,19 +49,23 @@ public sealed partial class DiskSpaceWindow
             AutomationProperties.SetName(_selectionSummary, "Indexed captured selection");
             AutomationProperties.SetLiveSetting(_selectionSummary, AutomationLiveSetting.Polite);
             var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
-            foreach (var button in new[] { _markFocused, _markMembers, _clearMarks, _stageBasket, _reviewBasket, _clearBasket }) bar.Children.Add(button);
+            foreach (var button in new[] { _markFocused, _markMembers, _clearMarks, _reviewMarked, _stageBasket, _reviewBasket, _clearBasket, _recountMarks }) bar.Children.Add(button);
             _main.Children.Add(_selectionSummary); _main.Children.Add(bar);
+            _showCapturedFolder.Click += (_, _) => _ = ShowCapturedFolderAsync();
+            ToolTip.SetTip(_showCapturedFolder, new RichTip("Show the captured folder", detail: "Find the selected entry in this inventory's recorded folder structure. No live location is opened. Display filters are cleared with an explanation if they hide the entry."));
             ToolTip.SetTip(_markMembers, new RichTip("Capture current group members", detail: "Marks the captured real entries of the focused group or current group scope. Hidden aliases are excluded. Marks do not include entries observed later. At most 100,000 distinct paths can be marked."));
             ToolTip.SetTip(_stageBasket, new RichTip("Add captured entries", detail: "Add the current marks, or the focused real entry when no paths are marked, to the review basket. Later filtering and navigation do not change this membership."));
             _markFocused.Click += (_, _) => { if (_focus != 0) ToggleMark(_focus); };
             _markMembers.Click += (_, _) => _ = MarkMembersAsync();
-            _clearMarks.Click += (_, _) => { _memberCaptureCancel?.Cancel(); _selection.ClearMarks(); RefreshSelection(); };
+            _clearMarks.Click += (_, _) => { CancelTableRange(); _memberCaptureCancel?.Cancel(); _selection.ClearMarks(); RefreshSelection(); };
             _stageBasket.Click += (_, _) =>
             {
                 try { _selection.StageCaptured(_selection.Marks.Count != 0 ? _selection.Marks : _focus == 0 ? [] : [_focus]); RefreshSelection(); }
                 catch (InvalidOperationException error) { _status.Text = error.Message; }
             };
-            _reviewBasket.Click += (_, _) => _ = ReviewBasketAsync();
+            _reviewBasket.Click += (_, _) => _ = ReviewCapturedAsync(basket: true);
+            _reviewMarked.Click += (_, _) => _ = ReviewCapturedAsync(basket: false);
+            _recountMarks.Click += (_, _) => { _visibilityOwner = null; RefreshSelection(); };
             _clearBasket.Click += (_, _) => { _selection.ClearBasket(); RefreshSelection(); };
             _list.AddHandler(KeyDownEvent, (_, args) =>
             {
@@ -86,10 +92,12 @@ public sealed partial class DiskSpaceWindow
                 if (wired) { wired = false; _window.RemoveHandler(PointerReleasedEvent, Release); _window.Deactivated -= Deactivate; }
                 EndPress();
             };
+            ConfigureIndexedRanges();
         }
         private void ToggleMark(ulong path)
         {
             if (_disposed) return;
+            CancelTableRange();
             try { _selection.ToggleMark(path); }
             catch (InvalidOperationException error) { _status.Text = error.Message; }
             RefreshSelection();
@@ -97,12 +105,14 @@ public sealed partial class DiskSpaceWindow
         private void RefreshSelection()
         {
             if (_disposed) return;
-            _selectionSummary.Text = $"{_selection.Marks.Count:N0} marked · {_selection.Basket.Count:N0} in review basket. Marks may be outside this page or filter.";
+            ScheduleMarkVisibility();
             _markFocused.IsEnabled = _focus != 0;
+            _showCapturedFolder.IsEnabled = _focus != 0;
             _markMembers.IsEnabled = _grouping is not null && !_capturingMembers;
             _clearMarks.IsEnabled = _selection.Marks.Count != 0 || _capturingMembers;
             _stageBasket.IsEnabled = _selection.Marks.Count != 0 || _focus != 0;
             _reviewBasket.IsEnabled = _selection.Basket.Count != 0 && !_reviewingBasket;
+            _reviewMarked.IsEnabled = _selection.Marks.Count != 0 && !_reviewingBasket;
             _clearBasket.IsEnabled = _selection.Basket.Count != 0;
             _updatingMarks = true;
             try { foreach (var check in _list.GetVisualDescendants().OfType<CheckBox>()) if (check.Tag is ulong path) check.IsChecked = _selection.Marks.Contains(path); }
@@ -112,6 +122,7 @@ public sealed partial class DiskSpaceWindow
         private async Task MarkMembersAsync()
         {
             if (_disposed || _capturingMembers || _actualWork.HasUnconfirmedClose || _grouping is not { } groups) return;
+            CancelTableRange();
             if (_focus != 0) { try { _selection.MarkCaptured([_focus]); } catch (InvalidOperationException error) { _status.Text = error.Message; } RefreshSelection(); return; }
             using var actualWork = _actualWork.Enter(); using var cancel = CancellationTokenSource.CreateLinkedTokenSource(_selectionLifetime.Token);
             _memberCaptureCancel = cancel; _capturingMembers = true;
@@ -131,21 +142,22 @@ public sealed partial class DiskSpaceWindow
         }
 
         private sealed record BasketEntry(ulong Id, string Label) { public override string ToString() => Label; }
-        private async Task ReviewBasketAsync()
+        private async Task ReviewCapturedAsync(bool basket)
         {
-            if (_disposed || _reviewingBasket || _selection.Basket.Count == 0 || _actualWork.HasUnconfirmedClose) return;
+            if (_disposed || _reviewingBasket || Current().Count == 0 || _actualWork.HasUnconfirmedClose) return;
             using var actualWork = _actualWork.Enter();
             _reviewingBasket = true; RefreshSelection();
             using var reviewCancel = CancellationTokenSource.CreateLinkedTokenSource(_selectionLifetime.Token); var reviewToken = reviewCancel.Token;
-            ulong[] captured = _selection.Basket.Order().ToArray(); int offset = 0; bool closed = false, loading = false;
+            ulong[] captured = Current().Order().ToArray(); int offset = 0; bool closed = false, loading = false;
             var closer = new DialogCloser(); var list = new ListBox { MinHeight = 120, MaxHeight = 320 };
-            AutomationProperties.SetName(list, "Captured basket entries");
+            AutomationProperties.SetName(list, basket ? "Captured basket entries" : "Captured marked entries");
             var label = new TextBlock { TextWrapping = TextWrapping.Wrap };
             var previous = new Button { Content = "Previous basket entries" }; var next = new Button { Content = "Next basket entries" };
-            var remove = new Button { Content = "Remove selected from basket" }; var inspect = new Button { Content = "Inspect captured basket entry" };
+            var remove = new Button { Content = basket ? "Remove selected from basket" : "Unmark selected entry" }; var inspect = new Button { Content = basket ? "Inspect captured basket entry" : "Inspect captured marked entry" };
             list.SelectionChanged += (_, _) => ReviewButtons();
             var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8, Children = { previous, next, remove, inspect } };
-            var body = new StackPanel { Spacing = 8, Children = { new TextBlock { Text = "Captured entries for review. No files are changed here. Removing an entry changes only this basket.", TextWrapping = TextWrapping.Wrap }, label, list, bar } };
+            var body = new StackPanel { Spacing = 8, Children = { new TextBlock { Text = "Captured entries for review, including entries hidden by the current scope or filters. No files are changed here. " +
+                (basket ? "Removing an entry changes only this basket." : "Unmarking an entry does not change the review basket."), TextWrapping = TextWrapping.Wrap }, label, list, bar } };
             using var registration = _selectionLifetime.Token.Register(() => Dispatcher.UIThread.Post(() => closer.Close(null)));
             try
             {
@@ -154,17 +166,17 @@ public sealed partial class DiskSpaceWindow
                 next.Click += async (_, _) => { if (!loading && offset + 128 < captured.Length) await LoadAsync(offset + 128); };
                 remove.Click += (_, _) =>
                 {
-                    if (list.SelectedItem is not BasketEntry entry || !_selection.Basket.Contains(entry.Id)) return;
-                    _selection.RemoveFromBasket(entry.Id);
-                    var replacement = entry with { Label = entry.Label + " · removed from basket" };
+                    if (list.SelectedItem is not BasketEntry entry || !Current().Contains(entry.Id)) return;
+                    if (basket) _selection.RemoveFromBasket(entry.Id); else { CancelTableRange(); _selection.ToggleMark(entry.Id); }
+                    var replacement = entry with { Label = entry.Label + RemovedLabel() };
                     list.ItemsSource = list.Items.OfType<BasketEntry>().Select(row => row.Id == entry.Id ? replacement : row).ToArray(); list.SelectedItem = replacement;
                     RefreshSelection(); ReviewLabel(); ReviewButtons();
                 };
-                inspect.Click += (_, _) => { if (list.SelectedItem is BasketEntry entry) { closer.Close(null); _basketInspection = entry.Id; _selectedGroupedItem = null; _groupFocus = null; _ = InspectAsync(entry.Id); } };
-                await _window._dialogs.ShowCustomAsync("Review captured basket", body, [new DialogButton("Keep files / Close review", false, IsDefault: true, IsCancel: true)], closer: closer);
+                inspect.Click += (_, _) => { if (list.SelectedItem is BasketEntry entry) { closer.Close(null); _basketInspection = entry.Id; _referenceInspectionLabel = basket ? "basket" : "marked"; _selectedGroupedItem = null; _groupFocus = null; _ = InspectAsync(entry.Id); } };
+                await _window._dialogs.ShowCustomAsync(basket ? "Review captured basket" : "Review marked entries", body, [new DialogButton("Keep files / Close review", false, IsDefault: true, IsCancel: true)], closer: closer);
             }
             catch (OperationCanceledException) when (reviewToken.IsCancellationRequested) { }
-            catch (Exception error) when (Expected(error)) { RememberViewCloseFailure(error); if (!_disposed) _status.Text = "Basket review is unavailable. " + AnalysisNames.Display(error.Message, 500); }
+            catch (Exception error) when (Expected(error)) { RememberViewCloseFailure(error); if (!_disposed) _status.Text = "Captured selection review is unavailable. " + AnalysisNames.Display(error.Message, 500); }
             finally { closed = true; reviewCancel.Cancel(); closer.Close(null); _reviewingBasket = false; RefreshSelection(); }
             async Task LoadAsync(int requestedOffset)
             {
@@ -179,7 +191,7 @@ public sealed partial class DiskSpaceWindow
                         if (closed || _disposed) return;
                         var path = await _source.ReadPathAsync(captured[at], reviewToken);
                         rows.Add(new(path.Id, AnalysisNames.DisplayName(path, 256) + " · captured location " + AnalysisNames.Display(path.RootId, 64) + " · entry " + path.Id +
-                            (_selection.Basket.Contains(path.Id) ? "" : " · removed from basket")));
+                            (Current().Contains(path.Id) ? "" : RemovedLabel())));
                     }
                     if (closed || _disposed) return;
                     offset = requestedOffset; list.ItemsSource = rows; ReviewLabel();
@@ -187,12 +199,14 @@ public sealed partial class DiskSpaceWindow
                 catch (Exception error) when (Expected(error)) { RememberViewCloseFailure(error); if (!closed && !_disposed) label.Text = "This page is unavailable. " + AnalysisNames.Display(error.Message, 500); }
                 finally { loading = false; if (!closed && !_disposed) ReviewButtons(); }
             }
-            void ReviewLabel() => label.Text = $"Captured entries {offset + 1:N0}–{offset + list.ItemCount:N0} of {captured.Length:N0}. Current basket: {_selection.Basket.Count:N0}.";
+            ImmutableHashSet<ulong> Current() => basket ? _selection.Basket : _selection.Marks;
+            string RemovedLabel() => basket ? " · removed from basket" : " · no longer marked";
+            void ReviewLabel() => label.Text = $"Captured entries {offset + 1:N0}–{offset + list.ItemCount:N0} of {captured.Length:N0}. " + (basket ? $"Current basket: {Current().Count:N0}." : $"Currently marked: {Current().Count:N0}.");
             void ReviewButtons()
             {
                 previous.IsEnabled = !loading && offset != 0; next.IsEnabled = !loading && offset + list.ItemCount < captured.Length;
                 inspect.IsEnabled = !loading && list.SelectedItem is BasketEntry;
-                remove.IsEnabled = !loading && list.SelectedItem is BasketEntry entry && _selection.Basket.Contains(entry.Id);
+                remove.IsEnabled = !loading && list.SelectedItem is BasketEntry entry && Current().Contains(entry.Id);
             }
         }
     }

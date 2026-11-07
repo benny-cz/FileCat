@@ -43,10 +43,12 @@ public sealed partial class AnalysisDatasetLease
 }
 
 /// <summary>One immutable captured revision. Real rows and synthetic accounting buckets never grant source authority.</summary>
-public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
+public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
 {
     private static readonly SemaphoreSlim Builds = new(AnalysisLimits.ActiveScans, AnalysisLimits.ActiveScans);
     private readonly AnalysisOwnedDatasetIo<State> _owned;
+    private readonly DeviceIoScheduler _io;
+    private readonly AnalysisIoDevices _device;
     public AnalysisDatasetDescriptor Descriptor { get; }
     public AnalysisMetric Metric { get; }
     public AnalysisFilterSummary? Filter { get; }
@@ -55,7 +57,7 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
     // File-size columns use the SAME selected paths as the active metric, never a re-evaluated predicate.
     public AnalysisLogicalTotals LogicalTotals { get; }
     private AnalysisDatasetHierarchy(State state, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, AnalysisIoDevices device)
-    { Descriptor = descriptor; Metric = state.Metric; Filter = state.FilterSummary; Totals = state.Total.Export(state.Compatible); LogicalTotals = state.TotalLogical.ExportLogical(); _owned = new(state, io, device); }
+    { Descriptor = descriptor; Metric = state.Metric; Filter = state.FilterSummary; Totals = state.Total.Export(state.Compatible); LogicalTotals = state.TotalLogical.ExportLogical(); _owned = new(state, io, device); _io = io; _device = device; }
 
     internal static async Task<AnalysisDatasetHierarchy> BuildAsync(AnalysisIndexedGraphReader source, AnalysisDatasetDescriptor descriptor,
         AnalysisMetric metric, IEnumerable<AnalysisSortInput>? charges, bool compatible, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation, AnalysisIndexedFilter? query = null)
@@ -208,7 +210,7 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
         internal AnalysisTruth Truth;
         internal Bucket? Shared, Directory;
     }
-    private sealed class State : IAnalysisScratchOwned
+    private sealed partial class State : IAnalysisScratchOwned
     {
         private readonly AnalysisIndexedGraphReader _graph;
         internal AnalysisIndexedGraphReader Graph => _graph;
@@ -288,7 +290,7 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
                 node.Kind == AnalysisKind.Directory && node.IncludedByPolicy && _graph.Header.Coverage != NamespaceCoverage.CompleteUnderPolicy, match || context)
             {
                 Match = match, Truth = includedFile ? _query?.Truth(id, token) ?? AnalysisTruth.True : AnalysisTruth.False,
-                Visible = _query is null || match || context || node.Kind == AnalysisKind.Directory && node.IncludedByPolicy && _query.NamespaceMatches(node, _pending.Select(f => f.Id), _graph.Header.Freshness)
+                Visible = _query is null || _query.IsUnfiltered || match || context || node.Kind == AnalysisKind.Directory && node.IncludedByPolicy && _query.NamespaceMatches(node, _pending.Select(f => f.Id), _graph.Header.Freshness)
             };
             long cost = 1024L + node.Name.Length * 2L + node.RawName.Length;
             if (match)
