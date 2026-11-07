@@ -63,6 +63,15 @@ grants, view/edit lifetime, raw catalogs, shared transactions, complete UI, BCJ2
 resource/security/crash/fuzz/six-RID/package gates remain required. No new profile is registered. The next shared
 integration chunk includes password-aware catalog/verification contracts rather than freezing interfaces around TAR.
 
+The [worker secret-grant foundation](WORKER_SECRET_GRANTS.md) adds explicit protocol 2, one-use role/request-bound
+password frames, owned-buffer clearing and explicit JSON nonserialization. The full affected matrix passes 770 cases
+with platform skips and zero failures on each machine. Nine real child delivery/refusal/cancellation journeys pass
+for all three roles. A focused replay qualifies a create-only recorder fix after Windows PID reuse overwrote one
+exit record; all nine separate records now survive per machine. Both source/evidence sets and all current C# inputs
+are verified. This is shared transport/API work: actual password-aware request consumers, native secret-role admission,
+parent job/view/edit lifetime and complete UI remain open. BCJ2 is the next codec chunk before strict catalog/interface
+finalization, followed by the remaining shared integration and full plan gates.
+
 ## Source and workspace
 
 - Baseline: `4282929753f062f5bb2cc130e8316b133e5c8e03`.

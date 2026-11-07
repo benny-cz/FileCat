@@ -220,6 +220,11 @@ profile; new 7z output targets its standard AES-256 coder/header mode. Compressi
   required codecs, cancellation/crash/retry/source changes on all three platforms. Existing AES APIs and this scope
   amendment alone do not qualify a password profile.
 
+The [7 November worker-secret checkpoint](../validation/archive-writing/WORKER_SECRET_GRANTS.md) implements the
+protocol-2 grant/transport foundation and verifies its actual pipe lifecycle on all three platforms. Complete
+canonical-request consumers, native admission, parent job/view/edit secret ownership and public UI remain required;
+this component checkpoint does not complete password workflow or confinement qualification.
+
 ### 4.3.2 Implementation priority after both analyses
 
 **Decision, 7 November 2026:** both feasibility analyses are recorded. Execute in the following dependency order;

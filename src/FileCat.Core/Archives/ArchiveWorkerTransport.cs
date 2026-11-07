@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
+using System.Security.Cryptography;
 
 namespace FileCat.Core.Archives;
 
@@ -11,12 +12,14 @@ namespace FileCat.Core.Archives;
 internal sealed class ArchiveWorkerTransport : IDisposable
 {
     internal const int MaximumChunkBytes = 65_524;
-    private readonly BlockingCollection<byte[]> incoming = new(2);
+    private sealed record InputChunk(byte[] Bytes, int Count);
+    private readonly BlockingCollection<InputChunk> incoming = new(2);
     private readonly BlockingCollection<OutputRequest> outgoing = new(1);
     private readonly CancellationTokenSource stop;
     private readonly CancellationToken token;
     private ExceptionDispatchInfo? inputFailure, outputFailure;
     private readonly Stream rawInput, rawOutput;
+    private int disposed;
     internal Stream Input { get; }
     internal Stream Output { get; }
     private sealed record OutputRequest(byte[] Bytes, bool Flush, TaskCompletionSource Done);
@@ -37,16 +40,22 @@ internal sealed class ArchiveWorkerTransport : IDisposable
             while (true)
             {
                 token.ThrowIfCancellationRequested();
-                var bytes = new byte[MaximumChunkBytes]; int count = rawInput.Read(bytes);
-                if (count == 0) return;
-                if (count != bytes.Length) Array.Resize(ref bytes, count);
-                incoming.Add(bytes, token);
+                var bytes = new byte[MaximumChunkBytes]; bool queued = false;
+                try
+                {
+                    int count = rawInput.Read(bytes, 0, bytes.Length);
+                    if ((uint)count > bytes.Length) throw new IOException("Archive input returned an invalid byte count.");
+                    if (count == 0) return;
+                    // Never resize a short read: that would abandon an uncleared plaintext copy.
+                    incoming.Add(new(bytes, count), token); queued = true;
+                }
+                finally { if (!queued) CryptographicOperations.ZeroMemory(bytes); }
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         catch (Exception ex) when (ex is IOException or ObjectDisposedException)
         { Volatile.Write(ref inputFailure, ExceptionDispatchInfo.Capture(ex)); }
-        finally { incoming.CompleteAdding(); }
+        finally { incoming.CompleteAdding(); if (token.IsCancellationRequested) ClearInputQueue(); }
     }
 
     private void Write()
@@ -55,36 +64,68 @@ internal sealed class ArchiveWorkerTransport : IDisposable
         {
             foreach (var request in outgoing.GetConsumingEnumerable(token))
             {
+                Exception? failure = null; bool cancelled = false;
                 try
                 {
-                    if (request.Flush) rawOutput.Flush(); else rawOutput.Write(request.Bytes);
-                    request.Done.TrySetResult();
+                    token.ThrowIfCancellationRequested();
+                    if (request.Flush) rawOutput.Flush(); else rawOutput.Write(request.Bytes, 0, request.Bytes.Length);
                 }
                 catch (Exception ex) when (ex is IOException or ObjectDisposedException)
                 {
                     Volatile.Write(ref outputFailure, ExceptionDispatchInfo.Capture(ex));
-                    request.Done.TrySetException(ex); return;
+                    failure = ex;
                 }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                { cancelled = true; }
+                finally { CryptographicOperations.ZeroMemory(request.Bytes); }
+                // Completion means the OS operation returned and our transport-owned copy was cleared.
+                if (failure is not null) { request.Done.TrySetException(failure); return; }
+                if (cancelled) { request.Done.TrySetCanceled(token); return; }
+                request.Done.TrySetResult();
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-        finally { outgoing.CompleteAdding(); }
+        finally { outgoing.CompleteAdding(); ClearOutputQueue(); }
     }
 
     private void Send(byte[] bytes, bool flush)
     {
-        token.ThrowIfCancellationRequested(); Volatile.Read(ref outputFailure)?.Throw();
         var request = new OutputRequest(bytes, flush, new(TaskCreationOptions.RunContinuationsAsynchronously));
-        try { outgoing.Add(request, token); }
-        catch (InvalidOperationException) { Volatile.Read(ref outputFailure)?.Throw(); throw new IOException("Archive output stopped."); }
-        request.Done.Task.WaitAsync(token).GetAwaiter().GetResult();
+        bool queued = false;
+        try
+        {
+            token.ThrowIfCancellationRequested(); Volatile.Read(ref outputFailure)?.Throw();
+            try { outgoing.Add(request, token); queued = true; }
+            catch (InvalidOperationException) { Volatile.Read(ref outputFailure)?.Throw(); throw new IOException("Archive output stopped."); }
+            request.Done.Task.WaitAsync(token).GetAwaiter().GetResult();
+        }
+        finally
+        {
+            // Once queued, only the writer/queue owner clears it. The OS may still be using an in-flight buffer
+            // after the parser's cancellation wait returns; wiping it concurrently would corrupt pending output.
+            if (!queued) CryptographicOperations.ZeroMemory(bytes);
+        }
     }
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref disposed, 1) != 0) return;
         stop.Cancel();
+        ((Reader)Input).Clear(); ClearInputQueue(); ClearOutputQueue();
         // The entry point owns the raw streams. Do not wait for blocked OS IO or dispose collections/sources
         // still used by their background threads; worker exit releases them after the parser returns.
+    }
+
+    private void ClearInputQueue()
+    { while (incoming.TryTake(out var chunk)) CryptographicOperations.ZeroMemory(chunk.Bytes); }
+    private void ClearOutputQueue()
+    {
+        while (outgoing.TryTake(out var request))
+        {
+            CryptographicOperations.ZeroMemory(request.Bytes);
+            if (token.IsCancellationRequested) request.Done.TrySetCanceled(token);
+            else request.Done.TrySetException(new IOException("Archive output stopped."));
+        }
     }
 
     private abstract class PipeStream : Stream
@@ -97,21 +138,30 @@ internal sealed class ArchiveWorkerTransport : IDisposable
     }
     private sealed class Reader(ArchiveWorkerTransport owner) : PipeStream
     {
-        private byte[]? current; private int offset;
+        private InputChunk? current; private int offset;
+        private readonly object gate = new();
         public override bool CanRead => true; public override bool CanWrite => false;
         public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
         public override int Read(Span<byte> buffer)
         {
-            owner.token.ThrowIfCancellationRequested(); if (buffer.IsEmpty) return 0;
-            if (current is null || offset == current.Length)
+            lock (gate)
             {
-                if (!owner.incoming.TryTake(out current, Timeout.Infinite, owner.token))
-                { Volatile.Read(ref owner.inputFailure)?.Throw(); return 0; }
-                offset = 0;
+                owner.token.ThrowIfCancellationRequested(); if (buffer.IsEmpty) return 0;
+                if (current is null)
+                {
+                    if (!owner.incoming.TryTake(out current, Timeout.Infinite, owner.token))
+                    { Volatile.Read(ref owner.inputFailure)?.Throw(); return 0; }
+                    offset = 0;
+                }
+                int count = Math.Min(buffer.Length, current.Count - offset);
+                var consumed = current.Bytes.AsSpan(offset, count); consumed.CopyTo(buffer);
+                CryptographicOperations.ZeroMemory(consumed); offset += count;
+                if (offset == current.Count) { CryptographicOperations.ZeroMemory(current.Bytes); current = null; offset = 0; }
+                return count;
             }
-            int count = Math.Min(buffer.Length, current.Length - offset);
-            current.AsSpan(offset, count).CopyTo(buffer); offset += count; return count;
         }
+        internal void Clear()
+        { lock (gate) { if (current is { } chunk) CryptographicOperations.ZeroMemory(chunk.Bytes); current = null; offset = 0; } }
         public override void Flush() { }
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }

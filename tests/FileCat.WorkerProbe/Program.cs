@@ -8,7 +8,9 @@ if (args.Length > 0 && args[0] == FileCat.Core.Archives.Linux.LinuxArchiveIsolat
         return FileCat.Core.Archives.Linux.LinuxArchiveIsolation.RunWorker(args, startup =>
         {
             string[] requests = args[4..^2];
-            if (requests.Length == 0 || requests[0] is "archive-assess" or "archive-verify" or "archive-transform" && (requests.Length != 2 || requests[1] != startup.Nonce.ToString("D"))) return 64;
+            if (requests.Length == 0 || requests[0] is "archive-assess" or "archive-verify" or "archive-transform" or
+                "archive-secret-assess" or "archive-secret-transform" or "archive-secret-verify" &&
+                (requests.Length != 2 || requests[1] != startup.Nonce.ToString("D"))) return 64;
             return RunProbe(requests, startup.CancellationDescriptor);
         });
     }
@@ -33,6 +35,10 @@ static int RunProbe(string[] requests, long? cancellationHandle = null)
 
     switch (requests[0])
     {
+        case "archive-secret-assess":
+        case "archive-secret-transform":
+        case "archive-secret-verify":
+            return ArchiveSecretProbe.Run(requests, cancellationHandle);
         case "archive-linux-authority":
             return LinuxArchiveProbe.Authority(requests);
         case "archive-linux-memory":

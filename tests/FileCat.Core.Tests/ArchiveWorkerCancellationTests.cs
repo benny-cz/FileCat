@@ -117,6 +117,7 @@ public sealed class ArchiveWorkerCancellationTests
     private sealed class ObservedOutput : MemoryStream
     {
         internal int MaximumWrite, Flushes;
+        public override void Write(byte[] buffer, int offset, int count) { MaximumWrite = Math.Max(MaximumWrite, count); base.Write(buffer, offset, count); }
         public override void Write(ReadOnlySpan<byte> buffer) { MaximumWrite = Math.Max(MaximumWrite, buffer.Length); base.Write(buffer); }
         public override void Flush() { Flushes++; base.Flush(); }
     }

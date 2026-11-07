@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Security.Cryptography;
 
 namespace FileCat.Core.Archives;
 
@@ -6,33 +7,39 @@ public enum ArchiveWorkerMessage : byte
 {
     Hello = 1, Control = 2, Read = 3, Data = 4, Seek = 5, Write = 6, SetLength = 7,
     Progress = 8, Completed = 9, Refused = 10, Cancel = 11,
+    Secret = 12,
 }
 
 /// <summary>
 /// Versioned stream-only framing. Validate the fixed header, nonce, sequence and size before allocating a payload.
 /// Each direction owns a separate instance; a failed instance is permanently poisoned.
 /// </summary>
-public sealed class ArchiveWorkerProtocol(Guid nonce, long maximumPayloadBytes)
+public sealed class ArchiveWorkerProtocol(Guid nonce, long maximumPayloadBytes, ushort protocolVersion = ArchiveWorkerProtocol.Version)
 {
     public const ushort Version = 1;
+    public const ushort SecretVersion = 2;
     public const int HeaderBytes = 36;
     public const uint MaximumFrames = 8_000_000;
     private readonly Guid _nonce = nonce != Guid.Empty ? nonce : throw new ArgumentException("A task nonce is required.", nameof(nonce));
     private readonly long _maximumPayloadBytes = maximumPayloadBytes is >= 0 and <= ArchiveWritePolicy.MaxWorkerWireBytes
         ? maximumPayloadBytes : throw new ArgumentOutOfRangeException(nameof(maximumPayloadBytes));
+    public ushort ProtocolVersion { get; } = protocolVersion is Version or SecretVersion
+        ? protocolVersion : throw new ArgumentOutOfRangeException(nameof(protocolVersion));
     private uint _next;
     private long _payloadBytes;
     private long _controlBytes;
     private bool _poisoned;
+    private bool _secretSeen;
 
     public ArchiveWorkerFrame Read(Stream input)
     {
         EnsureHealthy();
+        byte[]? payload = null;
         try
         {
             Span<byte> header = stackalloc byte[HeaderBytes];
             input.ReadExactly(header);
-            if (!header[..4].SequenceEqual("FCAW"u8) || BinaryPrimitives.ReadUInt16LittleEndian(header[4..]) != Version ||
+            if (!header[..4].SequenceEqual("FCAW"u8) || BinaryPrimitives.ReadUInt16LittleEndian(header[4..]) != ProtocolVersion ||
                 header[7] != 0 || new Guid(header.Slice(8, 16)) != _nonce ||
                 BinaryPrimitives.ReadUInt32LittleEndian(header[24..]) != _next ||
                 BinaryPrimitives.ReadUInt32LittleEndian(header[32..]) != 0)
@@ -40,12 +47,12 @@ public sealed class ArchiveWorkerProtocol(Guid nonce, long maximumPayloadBytes)
             var kind = (ArchiveWorkerMessage)header[6];
             uint length = BinaryPrimitives.ReadUInt32LittleEndian(header[28..]);
             Validate(kind, length);
-            byte[] payload = new byte[(int)length];
+            payload = new byte[(int)length];
             input.ReadExactly(payload);
             Commit(kind, length);
             return new ArchiveWorkerFrame(kind, payload);
         }
-        catch { _poisoned = true; throw; }
+        catch { if (payload is not null) CryptographicOperations.ZeroMemory(payload); _poisoned = true; throw; }
     }
 
     public void Write(Stream output, ArchiveWorkerMessage kind, ReadOnlySpan<byte> payload)
@@ -57,7 +64,7 @@ public sealed class ArchiveWorkerProtocol(Guid nonce, long maximumPayloadBytes)
             Span<byte> header = stackalloc byte[HeaderBytes];
             header.Clear();
             "FCAW"u8.CopyTo(header);
-            BinaryPrimitives.WriteUInt16LittleEndian(header[4..], Version);
+            BinaryPrimitives.WriteUInt16LittleEndian(header[4..], ProtocolVersion);
             header[6] = (byte)kind;
             _nonce.TryWriteBytes(header.Slice(8, 16));
             BinaryPrimitives.WriteUInt32LittleEndian(header[24..], _next);
@@ -73,6 +80,8 @@ public sealed class ArchiveWorkerProtocol(Guid nonce, long maximumPayloadBytes)
     private void Validate(ArchiveWorkerMessage kind, uint length)
     {
         if (!Enum.IsDefined(kind) || _next == uint.MaxValue) throw Fault();
+        if (kind == ArchiveWorkerMessage.Secret && (ProtocolVersion != SecretVersion || _secretSeen ||
+            length < ArchiveWorkerSecretWire.PrefixBytes || length > ArchiveWorkerSecretWire.MaximumPayloadBytes)) throw Fault();
         int limit = kind is ArchiveWorkerMessage.Control or ArchiveWorkerMessage.Hello
             ? ArchiveWritePolicy.MaxControlFrameBytes : ArchiveWritePolicy.MaxDataFrameBytes;
         if (length > limit || length > _maximumPayloadBytes - _payloadBytes) throw Fault();
@@ -86,8 +95,10 @@ public sealed class ArchiveWorkerProtocol(Guid nonce, long maximumPayloadBytes)
     {
         _payloadBytes += length;
         if (IsMetadata(kind)) _controlBytes += length;
+        if (kind == ArchiveWorkerMessage.Secret) _secretSeen = true;
         _next++;
     }
+    internal void Poison() => _poisoned = true;
     private void EnsureHealthy() { if (_poisoned) throw Fault(); }
     // IO command shapes/offsets are checked by the phase authority, with independent payload/frame/IO ceilings.
     // Their fixed framing must not spend the complete semantic metadata allowance of a large valid catalog.
