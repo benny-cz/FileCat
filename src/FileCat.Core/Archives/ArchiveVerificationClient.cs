@@ -21,11 +21,14 @@ public sealed class ArchiveVerificationResult
 public sealed class ArchiveVerificationClient
 {
     private readonly ArchiveAssessmentClient worker;
+    private readonly ushort protocolVersion;
+    internal bool UsesSecretProtocol => protocolVersion == ArchiveWorkerProtocol.SecretVersion;
     public ArchiveVerificationClient(Func<Guid, TimeSpan, IArchiveWorkerProcess> launchFreshVerifier, ArchiveWorkerQueue? queue = null,
         ushort protocolVersion = ArchiveWorkerProtocol.Version)
     {
         ArgumentNullException.ThrowIfNull(launchFreshVerifier);
         worker = new(launchFreshVerifier, queue ?? ArchiveWorkerQueue.Shared, TimeSpan.FromSeconds(30), TimeSpan.FromHours(12), verification: true, protocolVersion: protocolVersion);
+        this.protocolVersion = protocolVersion;
     }
 
     public async Task<ArchiveVerificationResult> VerifyAsync(ArchiveObjectVersion sealedStage, ArchiveWriteManifest expected,

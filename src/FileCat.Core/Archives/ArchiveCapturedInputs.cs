@@ -152,9 +152,17 @@ internal sealed class ArchiveCapturedInputs : IDisposable
         }
     }
 
-    internal ArchiveTarTransformPlan CreatePlan(ArchiveWriteProfile profile, ArchiveAssessment? source,
+    internal ArchiveContainerTransformPlan CreatePlan(ArchiveWriteProfile profile, ArchiveAssessment? source,
         IReadOnlyList<ArchiveTransformEdit> edits, IReadOnlyList<ArchiveTransformAddition> additions, CancellationToken ct)
-    { lock (gate) { Live(sealedRequired: true); return ArchiveTarTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this); } }
+    {
+        lock (gate)
+        {
+            Live(sealedRequired: true);
+            return profile.Format == ArchiveWriteFormat.Rar5
+                ? ArchiveRar5TransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this)
+                : ArchiveTarTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this);
+        }
+    }
 
     internal ArchiveTransformAddition DirectoryAddition(string name, int id)
     {
@@ -166,7 +174,7 @@ internal sealed class ArchiveCapturedInputs : IDisposable
         }
     }
 
-    internal static void RequirePlanCost(ArchiveTarTransformPlan plan, IReadOnlyDictionary<int, ArchiveRetainedBinding> captured)
+    internal static void RequirePlanCost(ArchiveContainerTransformPlan plan, IReadOnlyDictionary<int, ArchiveRetainedBinding> captured)
     {
         if (plan.CaptureOwner is { } owner)
         {

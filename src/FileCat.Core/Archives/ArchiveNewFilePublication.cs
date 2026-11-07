@@ -10,11 +10,11 @@ internal sealed record ArchiveNewFilePublicationResult(ArchiveFileObservation Pu
 /// </summary>
 internal static class ArchiveNewFilePublication
 {
-    internal static Task<ArchiveNewFilePublicationResult> PublishAsync<T>(JobJournal journal, ArchivePreparedTar<T> prepared,
+    internal static Task<ArchiveNewFilePublicationResult> PublishAsync<T>(JobJournal journal, ArchivePreparedContainer<T> prepared,
         IReadOnlyDictionary<int, ArchiveRetainedBinding> captured, Func<ArchiveArtifactReservation, T> create, CancellationToken ct)
         where T : class, IArchiveRetainedStage => Task.Run(() => Publish(journal, prepared, captured, create, ct), ct);
 
-    private static ArchiveNewFilePublicationResult Publish<T>(JobJournal journal, ArchivePreparedTar<T> prepared,
+    private static ArchiveNewFilePublicationResult Publish<T>(JobJournal journal, ArchivePreparedContainer<T> prepared,
         IReadOnlyDictionary<int, ArchiveRetainedBinding> captured, Func<ArchiveArtifactReservation, T> create, CancellationToken ct)
         where T : class, IArchiveRetainedStage
     {

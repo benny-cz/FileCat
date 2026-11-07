@@ -3,7 +3,7 @@ using FileCat.Core.Jobs;
 namespace FileCat.Core.Archives;
 
 /// <summary>Unpublished native preparation. The caller continues to own every source lease.</summary>
-internal sealed class ArchivePreparedTar<T>(T stage, ArchiveVerifiedNativeStage verified, ArchiveTransactionFacts facts,
+internal sealed class ArchivePreparedContainer<T>(T stage, ArchiveVerifiedNativeStage verified, ArchiveTransactionFacts facts,
     IReadOnlyList<ArchiveSealedSidecar<T>> sidecars, ArchiveSpaceReview space, ArchiveArtifactReservation? creationMetadata) : IDisposable where T : class, IArchiveRetainedStage
 {
     internal T Stage { get; } = stage;
@@ -16,19 +16,21 @@ internal sealed class ArchivePreparedTar<T>(T stage, ArchiveVerifiedNativeStage 
 }
 
 /// <summary>
-/// Unregistered TAR preparation with private native sidecars and journal phase ordering. No publication, cleanup,
+/// Unregistered container preparation with private native sidecars and journal phase ordering. No publication, cleanup,
 /// replacement or ReadyToPublish claim. Creation origin is applied before verification; capture/global budgets and final platform qualification remain gates.
 /// </summary>
-internal static class ArchiveJournaledTarPreparation
+internal static class ArchiveJournaledContainerPreparation
 {
-    internal static async Task<ArchivePreparedTar<T>> PrepareAsync<T>(JobJournal journal, string archivePath,
-        ArchiveTarTransformPlan plan, ArchiveRetainedBinding? original, IReadOnlyDictionary<int, ArchiveRetainedBinding> captured,
+    internal static async Task<ArchivePreparedContainer<T>> PrepareAsync<T>(JobJournal journal, string archivePath,
+        ArchiveContainerTransformPlan plan, ArchiveRetainedBinding? original, IReadOnlyDictionary<int, ArchiveRetainedBinding> captured,
         Func<Guid, ArchiveArtifactKind, long, ArchiveArtifactReservation> reserve, Func<ArchiveArtifactReservation, T> create,
-        ArchiveTransformClient transform, ArchiveVerificationClient verifier, CancellationToken ct, long knownSnapshotBytes = 0) where T : class, IArchiveRetainedStage
+        ArchiveTransformClient transform, ArchiveVerificationClient verifier, CancellationToken ct, long knownSnapshotBytes = 0,
+        ArchiveJobPassword? password = null) where T : class, IArchiveRetainedStage
     {
         ArgumentNullException.ThrowIfNull(journal); ArgumentNullException.ThrowIfNull(plan); ArgumentNullException.ThrowIfNull(captured);
         ArgumentNullException.ThrowIfNull(reserve); ArgumentNullException.ThrowIfNull(create); ArgumentNullException.ThrowIfNull(transform); ArgumentNullException.ThrowIfNull(verifier);
         ct.ThrowIfCancellationRequested(); ArchiveTransactionFacts.ValidatePath(archivePath);
+        ArchiveRetainedContainerPipeline.RequirePassword(plan, transform, verifier, password);
         string targetLeaf = Path.GetFileName(archivePath);
         var pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         if (string.IsNullOrEmpty(targetLeaf) || original is not null && !string.Equals(original.Reviewed.LeafName, targetLeaf, pathComparison)) throw Invalid();
@@ -52,7 +54,7 @@ internal static class ArchiveJournaledTarPreparation
                 long originLength = ArchiveOriginEvidenceWriter.EncodedLength(originScope, records, ct);
                 long evidenceLength = checked(2 * expectedLength + assessedLength + originLength + (original is null ? ArchiveCreationMetadata.MaximumBytes : 0));
                 if (evidenceLength > ArchiveWritePolicy.MaxMetadataBytes) throw ArchiveWriteBudget.Limit();
-                long stageBound = ArchiveTransformWire.OutputBound(plan.Expected, ct);
+                long stageBound = ArchiveTransformWire.OutputBound(plan, ct);
                 var stageName = reserve(nonce, ArchiveArtifactKind.Stage, stageBound);
                 var expectedName = reserve(nonce, ArchiveArtifactKind.Manifest, expectedLength);
                 var originName = reserve(nonce, ArchiveArtifactKind.Provenance, originLength);
@@ -94,7 +96,7 @@ internal static class ArchiveJournaledTarPreparation
                     if (name.Nonce != nonce || name.Kind != kind || name.MaximumLength != bound || name.ParentIdentity != stageName.ParentIdentity) throw Invalid();
                 }
             }, ct).ConfigureAwait(false);
-            var verified = await ArchiveRetainedTarPipeline.RebuildAndVerifyAsync(plan, original, inputs, stage!, transform, verifier, ct,
+            var verified = await ArchiveRetainedContainerPipeline.RebuildAndVerifyAsync(plan, original, inputs, stage!, transform, verifier, ct,
                 beforeRebuild: () => { ReviewSidecars(); Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Rebuilding)); },
                 beforeVerification: sealedStage => { ReviewSidecars(); Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Verifying, finalizedStage: sealedStage.Version)); },
                 beforeFinalizing: () => Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Finalizing)),
@@ -109,7 +111,7 @@ internal static class ArchiveJournaledTarPreparation
                         inputs.OrderBy(p => p.Key).Select(p => p.Value.Reviewed), sealedStage.Origin.Format, ct,
                         plan.Directories.OrderBy(p => p.Key).Select(p => p.Value.Reviewed));
                     return publication.ApplyCreationOrigin(sealedStage, origin, ct);
-                } : null).ConfigureAwait(false);
+                } : null, password: password).ConfigureAwait(false);
             await Task.Run(() =>
             {
                 Keep(ArchiveJournaledSidecar.WriteVerifiedManifest(journal, facts!, setup.Verified, create, verified.Verification, ct));

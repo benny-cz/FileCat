@@ -22,5 +22,7 @@ public sealed class ArchiveWorkerEntryTests
         Assert.Equal(code, FileCat.App.Program.Main(verifier));
         string[] transform = (string[])args.Clone(); transform[0] = ArchiveWorker.TransformArgument;
         Assert.Equal(code, FileCat.App.Program.Main(transform));
+        foreach (string role in new[] { ArchiveWorker.SecretArgument, ArchiveWorker.SecretVerificationArgument, ArchiveWorker.SecretTransformArgument })
+        { string[] secret = (string[])args.Clone(); secret[0] = role; Assert.Equal(code, FileCat.App.Program.Main(secret)); }
     }
 }

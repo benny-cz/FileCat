@@ -18,7 +18,7 @@ internal interface IArchiveContentRestorationLease : IDisposable
     void ReviewSnapshot(CancellationToken ct);
 }
 
-internal sealed class ArchiveContentRestorationResult(ArchivePreparedTar<IArchiveContentUpdateStage> prepared,
+internal sealed class ArchiveContentRestorationResult(ArchivePreparedContainer<IArchiveContentUpdateStage> prepared,
     ArchiveContentUpdateResult<IArchiveContentUpdateStage> update, ArchiveContentRestorationFacts facts) : IDisposable
 {
     internal ArchiveContentRestorationFacts Facts { get; } = facts;
@@ -30,16 +30,17 @@ internal sealed class ArchiveContentRestorationResult(ArchivePreparedTar<IArchiv
 internal static class ArchiveContentRestoration
 {
     internal static async Task<ArchiveContentRestorationResult> RestoreAsync(IArchiveContentRestorationLease lease, JobJournal freshJournal,
-        ArchiveAssessmentClient assessor, ArchiveVerificationClient verifier, TimeSpan nativeTimeout, CancellationToken ct)
+        ArchiveAssessmentClient assessor, ArchiveVerificationClient verifier, TimeSpan nativeTimeout, CancellationToken ct, ArchiveJobPassword? password = null)
     {
         ArgumentNullException.ThrowIfNull(lease); ArgumentNullException.ThrowIfNull(freshJournal);
+        ArchiveJobPassword.Require(lease.Preparation.Profile, password);
         lease.Claim(ct);
-        ArchivePreparedTar<IArchiveContentUpdateStage>? prepared = null; ArchiveContentUpdateResult<IArchiveContentUpdateStage>? result = null;
+        ArchivePreparedContainer<IArchiveContentUpdateStage>? prepared = null; ArchiveContentUpdateResult<IArchiveContentUpdateStage>? result = null;
         ArchiveContentRestorationFacts? facts = null; bool transferred = false;
         try
         {
             prepared = await ArchiveJournaledSnapshotPreparation.PrepareAsync(freshJournal, lease.Preparation.ArchivePath, lease.Preparation.Profile,
-                lease.Target, lease.Snapshot, lease.Reserve, lease.Create, assessor, verifier, ct).ConfigureAwait(false);
+                lease.Target, lease.Snapshot, lease.Reserve, lease.Create, assessor, verifier, ct, password).ConfigureAwait(false);
             result = await Task.Run(() => ArchiveContentUpdate.Publish(freshJournal, prepared,
                 new RecordingSource(lease.TargetSource, BeforeCommit), new Dictionary<int, ArchiveRetainedBinding> { [0] = lease.Snapshot },
                 lease.Create, nativeTimeout, ct), ct).ConfigureAwait(false);

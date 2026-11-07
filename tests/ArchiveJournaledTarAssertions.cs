@@ -7,7 +7,7 @@ namespace FileCat.Tests;
 
 internal static class ArchiveJournaledTarAssertions
 {
-    internal static async Task PublishNew<T>(ArchivePreparedTar<T> prepared, JobJournal journal,
+    internal static async Task PublishNew<T>(ArchivePreparedContainer<T> prepared, JobJournal journal,
         IReadOnlyDictionary<int, ArchiveRetainedBinding> captured, Func<ArchiveArtifactReservation, T> create, CancellationToken ct)
         where T : class, IArchiveRetainedStage
     {
@@ -49,7 +49,7 @@ internal static class ArchiveJournaledTarAssertions
         Assert.Null(facts.VerifiedStage); Assert.Null(facts.Sidecars.Single(s => s.Role == ArchiveSidecarRole.VerifiedOutput).Version);
     }
 
-    internal static void Complete<T>(ArchivePreparedTar<T> prepared, JobJournal journal, ArchiveTarTransformPlan plan, CancellationToken ct)
+    internal static void Complete<T>(ArchivePreparedContainer<T> prepared, JobJournal journal, ArchiveContainerTransformPlan plan, CancellationToken ct)
         where T : class, IArchiveRetainedStage
     {
         TestContext.Current.TestOutputHelper?.WriteLine(JsonSerializer.Serialize(new
@@ -91,6 +91,11 @@ internal static class ArchiveJournaledTarAssertions
                     new(facts.Nonce, facts.Profile, plan.Source is null ? ArchiveOriginOperation.Create : ArchiveOriginOperation.Update, facts.OriginEvidenceSources!.Value), ct);
                 if (prepared.Verified.Original is { } original) Match(reader.ReadNext(), original, ArchiveOriginSourceKind.OriginalArchive);
                 foreach (var input in prepared.Verified.Inputs.OrderBy(p => p.Key)) Match(reader.ReadNext(), input.Value, ArchiveOriginSourceKind.File);
+                foreach (var directory in prepared.Verified.Directories.OrderBy(p => p.Key))
+                {
+                    var actual = reader.ReadNext(); var expected = directory.Value.Reviewed; Assert.NotNull(actual);
+                    Assert.Equal(ArchiveOriginSourceKind.Directory, actual.Kind); Assert.Equal(expected.Version, actual.Source); Assert.Equal(expected.Origin.Digest, actual.Origin.Digest);
+                }
                 Assert.Null(reader.ReadNext()); Assert.True(reader.IsComplete);
             }
             else

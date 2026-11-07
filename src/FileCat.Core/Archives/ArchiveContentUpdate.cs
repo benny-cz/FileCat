@@ -66,7 +66,7 @@ internal sealed class ArchiveContentUpdateResult<T>(IArchiveContentTransaction t
 /// </summary>
 internal static class ArchiveContentUpdate
 {
-    internal static ArchiveContentUpdateResult<T> Publish<T>(JobJournal journal, ArchivePreparedTar<T> prepared,
+    internal static ArchiveContentUpdateResult<T> Publish<T>(JobJournal journal, ArchivePreparedContainer<T> prepared,
         IArchiveContentUpdateSource original, IReadOnlyDictionary<int, ArchiveRetainedBinding> captured, Func<ArchiveArtifactReservation, T> create, TimeSpan nativeTimeout, CancellationToken ct) where T : class, IArchiveContentUpdateStage
     {
         ArgumentNullException.ThrowIfNull(journal); ArgumentNullException.ThrowIfNull(prepared); ArgumentNullException.ThrowIfNull(original);

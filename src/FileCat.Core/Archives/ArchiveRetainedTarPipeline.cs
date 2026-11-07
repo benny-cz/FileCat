@@ -21,19 +21,20 @@ internal sealed class ArchiveVerifiedNativeStage
 /// Unregistered preparation bridge. The caller owns native leases, artifact reservations and recovery records.
 /// This runs no codec in the parent, publishes nothing and never deletes evidence on success or failure.
 /// </summary>
-internal static class ArchiveRetainedTarPipeline
+internal static class ArchiveRetainedContainerPipeline
 {
-    internal static async Task<ArchiveVerifiedNativeStage> RebuildAndVerifyAsync(ArchiveTarTransformPlan plan,
+    internal static async Task<ArchiveVerifiedNativeStage> RebuildAndVerifyAsync(ArchiveContainerTransformPlan plan,
         ArchiveRetainedBinding? original, IReadOnlyDictionary<int, ArchiveRetainedBinding> captured,
         IArchiveRetainedStage stage, ArchiveTransformClient transform, ArchiveVerificationClient verifier, CancellationToken ct,
         Action? beforeRebuild = null, Action<ArchiveFileObservation>? beforeVerification = null, Action? beforeFinalizing = null,
-        Func<ArchiveFileObservation, ArchiveFileObservation>? finalizeMetadata = null)
+        Func<ArchiveFileObservation, ArchiveFileObservation>? finalizeMetadata = null, ArchiveJobPassword? password = null)
     {
         ArgumentNullException.ThrowIfNull(plan); ArgumentNullException.ThrowIfNull(captured); ArgumentNullException.ThrowIfNull(stage);
         ArgumentNullException.ThrowIfNull(transform); ArgumentNullException.ThrowIfNull(verifier);
         try
         {
             ct.ThrowIfCancellationRequested();
+            RequirePassword(plan, transform, verifier, password);
             if (captured.Count != plan.Inputs.Count || captured.Count > ArchiveWritePolicy.MaxMembers || (original is null) != (plan.Source is null)) throw Invalid();
             ArchiveCapturedInputs.RequirePlanCost(plan, captured);
             var inputs = captured.ToDictionary();
@@ -62,7 +63,7 @@ internal static class ArchiveRetainedTarPipeline
             }, ct).ConfigureAwait(false);
             Stream output = await Task.Run(() => { beforeRebuild?.Invoke(); return stage.BeginRebuild(invocation.Request.OutputLengthBound, ct); }, ct).ConfigureAwait(false);
             await transform.RebuildAsync(invocation, output,
-                () => original!.File.OpenReadView(original.Reviewed, ct), id => inputs[id].File.OpenReadView(inputs[id].Reviewed, ct), ct).ConfigureAwait(false);
+                () => original!.File.OpenReadView(original.Reviewed, ct), id => inputs[id].File.OpenReadView(inputs[id].Reviewed, ct), ct, password?.CreateGrant()).ConfigureAwait(false);
             if (beforeFinalizing is not null) await Task.Run(beforeFinalizing, ct).ConfigureAwait(false);
             // The worker has exited/reaped before the native write capability is irreversibly closed and flushed.
             var sealedState = await Task.Run(() => stage.SealForVerification(ct), ct).ConfigureAwait(false);
@@ -74,7 +75,7 @@ internal static class ArchiveRetainedTarPipeline
                 sealedState = finalized;
             }
             if (beforeVerification is not null) await Task.Run(() => beforeVerification(sealedState), ct).ConfigureAwait(false);
-            var verified = await verifier.VerifyAsync(sealedState.Version, invocation.Expected, () => stage.OpenReadView(sealedState, ct), ct).ConfigureAwait(false);
+            var verified = await verifier.VerifyAsync(sealedState.Version, invocation.Expected, () => stage.OpenReadView(sealedState, ct), ct, password?.CreateGrant()).ConfigureAwait(false);
             await Task.Run(() =>
             {
                 stage.Review(sealedState, ct);
@@ -87,6 +88,13 @@ internal static class ArchiveRetainedTarPipeline
         }
         finally { stage.StopWrites(); }
     }
-    private static ArchiveWriteException Invalid() => new(ArchiveWriteReason.InvalidRequest, "The retained TAR bindings do not match the frozen plan.");
+    internal static void RequirePassword(ArchiveContainerTransformPlan plan, ArchiveTransformClient transform,
+        ArchiveVerificationClient verifier, ArchiveJobPassword? password)
+    {
+        ArchiveJobPassword.Require(plan.Expected.Profile, password);
+        if (password is not null && (!transform.UsesSecretProtocol || !verifier.UsesSecretProtocol))
+            throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "Password-bearing archive preparation requires fixed protocol-2 worker factories.");
+    }
+    private static ArchiveWriteException Invalid() => new(ArchiveWriteReason.InvalidRequest, "The retained container bindings do not match the frozen plan.");
     private static ArchiveWriteException Changed() => new(ArchiveWriteReason.SourceChanged, "A retained archive input is stale, aliased or differs from its reviewed plan.");
 }

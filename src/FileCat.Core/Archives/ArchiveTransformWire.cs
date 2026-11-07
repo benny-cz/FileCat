@@ -41,11 +41,18 @@ public static class ArchiveTransformWire
     public static ReadOnlySpan<byte> HelloFor(ushort protocolVersion) => protocolVersion switch
     { ArchiveWorkerProtocol.Version => Hello, ArchiveWorkerProtocol.SecretVersion => [2, 0, 4, 0, 2, 0, 0, 0], _ => throw Fault() };
 
-    public static ArchiveTransformInvocation Prepare(ArchiveTarTransformPlan plan, CancellationToken ct = default)
-    { ArgumentNullException.ThrowIfNull(plan); return Prepare(plan.Source, plan.Inputs, plan.Edits, plan.Additions, plan.Expected, OutputBound(plan.Expected, ct), ct); }
+    public static ArchiveTransformInvocation Prepare(ArchiveContainerTransformPlan plan, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        return Prepare(plan.Source, plan.Inputs, plan.Edits, plan.Additions, plan.Expected, OutputBound(plan, ct), ct);
+    }
 
-    public static ArchiveTransformInvocation Prepare(ArchiveRar5TransformPlan plan, CancellationToken ct = default)
-    { ArgumentNullException.ThrowIfNull(plan); return Prepare(plan.Source, plan.Inputs, plan.Edits, plan.Additions, plan.Expected, Rar5OutputBound(plan, ct), ct); }
+    internal static long OutputBound(ArchiveContainerTransformPlan plan, CancellationToken ct) => plan switch
+    {
+        ArchiveTarTransformPlan => OutputBound(plan.Expected, ct),
+        ArchiveRar5TransformPlan rar => Rar5OutputBound(rar, ct),
+        _ => throw Fault(),
+    };
 
     private static ArchiveTransformInvocation Prepare(ArchiveAssessment? original, IReadOnlyDictionary<int, ArchiveTransformInput> captures,
         IReadOnlyList<ArchiveTransformEdit> sourceEdits, IReadOnlyList<ArchiveTransformAddition> sourceAdditions,

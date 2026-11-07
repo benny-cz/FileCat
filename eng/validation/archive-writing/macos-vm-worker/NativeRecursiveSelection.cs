@@ -29,7 +29,7 @@ internal static class NativeRecursiveSelection
                     Archive = new(target, null, [], Profile: profile) }, "owned VM recursive selection", "owned", [], []));
                 VmProcess Launch(byte role, Guid nonce)
                 { var worker = new VmProcess(native, kernel, initrd, nonce, role, Path.Combine(output, format + "-" + role + ".log")); workers.Add(worker); return worker; }
-                using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, target, plan, null, selection.Inputs.Bindings,
+                using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, target, plan, null, selection.Inputs.Bindings,
                     (nonce, kind, maximum) => destination.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum), destination.CreateArtifact,
                     new((nonce, _) => Launch(2, nonce)), new((nonce, _) => Launch(3, nonce)), ct);
                 if (prepared.Verified.Verification.ManifestDigest != plan.Expected.Digest || prepared.Verified.Directories.Count != 3) throw new InvalidDataException("Recursive verification differs.");

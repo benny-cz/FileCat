@@ -62,14 +62,17 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
     /// check independently verifies it again. The child uses this immutable startup fact to repeat the check without
     /// an LSA lookup denied inside LPAC. No value from archive input or a worker receipt supplies this authority.
     /// </summary>
-    public static ArchiveAppContainer StartAssessment(string executable, Guid nonce, TimeSpan cpuLimit)
-        => StartContract(executable, nonce, cpuLimit, "--archive-worker");
+    public static ArchiveAppContainer StartAssessment(string executable, Guid nonce, TimeSpan cpuLimit, ushort protocolVersion = ArchiveWorkerProtocol.Version)
+        => StartContract(executable, nonce, cpuLimit, RoleArgument("--archive-worker", protocolVersion));
 
-    public static ArchiveAppContainer StartVerification(string executable, Guid nonce, TimeSpan cpuLimit)
-        => StartContract(executable, nonce, cpuLimit, "--archive-verify-worker");
+    public static ArchiveAppContainer StartVerification(string executable, Guid nonce, TimeSpan cpuLimit, ushort protocolVersion = ArchiveWorkerProtocol.Version)
+        => StartContract(executable, nonce, cpuLimit, RoleArgument("--archive-verify-worker", protocolVersion));
 
-    public static ArchiveAppContainer StartTransform(string executable, Guid nonce, TimeSpan cpuLimit)
-        => StartContract(executable, nonce, cpuLimit, "--archive-transform-worker");
+    public static ArchiveAppContainer StartTransform(string executable, Guid nonce, TimeSpan cpuLimit, ushort protocolVersion = ArchiveWorkerProtocol.Version)
+        => StartContract(executable, nonce, cpuLimit, RoleArgument("--archive-transform-worker", protocolVersion));
+
+    private static string RoleArgument(string role, ushort version) => version switch
+    { ArchiveWorkerProtocol.Version => role, ArchiveWorkerProtocol.SecretVersion => role + "-v2", _ => throw new ArgumentOutOfRangeException(nameof(version)) };
 
     private static ArchiveAppContainer StartContract(string executable, Guid nonce, TimeSpan cpuLimit, string roleArgument)
     {

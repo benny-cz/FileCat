@@ -46,7 +46,7 @@ public sealed partial class ArchiveAppContainerTests
                 var plan = captured.CreatePlan(profile, assessment, [], [captured.DirectoryAddition("tree/", 1), new("tree/file.bin", ArchiveMemberType.File, 2)], ct);
                 using var journal = JobJournal.Create(Path.Combine(root, "journals"), new Job(new JobRequest { Kind = JobKind.ArchiveUpdate,
                     Archive = new(path, null, [], Profile: profile) }, "owned directory content update", "owned", [], []));
-                using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, path, plan, new(original, baseline), captured.Bindings,
+                using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, path, plan, new(original, baseline), captured.Bindings,
                     (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (WindowsArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
                     new((nonce, cpu) => Launch(nonce, cpu, "archive-transform")), new((nonce, cpu) => Launch(nonce, cpu, "archive-verify")), ct);
                 Assert.Single(prepared.Verified.Directories); Assert.Equal(3, prepared.Facts.Sidecars.Single(s => s.Role == ArchiveSidecarRole.OriginEvidence).OriginSources);
@@ -103,7 +103,7 @@ public sealed partial class ArchiveAppContainerTests
             var workers = new List<ArchiveAppContainer>();
             try
             {
-                using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null, captured.Bindings,
+                using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null, captured.Bindings,
                     (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (WindowsArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
                     new((nonce, cpu) => { var worker = ArchiveAppContainer.Start(executable, "archive-transform " + nonce, cpu); workers.Add(worker); return worker; }),
                     new((nonce, cpu) => { var worker = ArchiveAppContainer.Start(executable, "archive-verify " + nonce, cpu); workers.Add(worker); return worker; }), ct);

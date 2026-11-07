@@ -4,6 +4,12 @@ This is an **incomplete implementation**, not format or release qualification. T
 [the archive writing plan](../../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md). No new writer is enabled in the
 application. An explicit new-profile job refuses instead of entering the legacy ZIP executor.
 
+**Next coherent implementation chunk:** complete the strict 7z member graph/catalog, then connect its complete
+preservation/worker/native adapter. The [RAR native checkpoint](RAR5_NATIVE_PIPELINE.md) is recorded below; continue
+remaining Unix transactions/confinement and shared UI/password/edit/F6 integration without repeating its passed
+component suites unless affected. Use the [validation batching workflow](../../../eng/validation/archive-writing/README.md#efficient-validation-batches).
+All production resource/crash/fuzz/RID/package gates and the final independent review remain required.
+
 Current user-requested order (7 November): the recursive-selection checkpoint is recorded in `685fe564`;
 [independent compressed RAR5 feasibility](RAR5_FEASIBILITY.md), committed in `4672ac14`, supports technical go.
 The equivalent [7z source/coverage analysis](SEVENZIP_FEASIBILITY.md) now selects bounded FileCat container code,
@@ -67,6 +73,15 @@ Parent name admission matches the existing 64 KiB UTF-8 RAR policy, and IO allow
 The corrected 60-case component passes within the 2,958-case platform matrices, with independent metadata/native
 reader checks. Initial test/admission failures are preserved separately. Native protocol-2 bootstrap/resource/package,
 captured-owner/publication and application/UI qualification remain open; no new format is registered.
+
+The [RAR captured/native pipeline](RAR5_NATIVE_PIPELINE.md) now retains capture-owner costs and directory evidence,
+borrows job-owned passwords for fresh role-bound grants, and performs actual native capture/sealing/new-file
+publication on Mac/Ubuntu/Windows. Windows application protocol-2 workers also perform identity-preserving NTFS
+updates and fresh retained-snapshot restoration in all password modes. The 2,994-case broad platform matrices pass;
+affected-case follow-ups pass 18 native RAR cases on each Unix system and 24 on Windows, plus ten application-entry
+cases. Test-budget/read-sharing corrections and a static compiler-audit coverage correction are documented and frozen
+separately. Unix production confinement/update, full UI/password/edit/F6 workflows, all release qualification gates
+and complete 7z member graph/catalog/shared integration remain open. No new profile is enabled.
 
 The [RAR/7z public-options checkpoint](RAR_7Z_PUBLIC_OPTIONS.md) advances shared integration: explicit version-2
 codec/filter/header/method and password modes now participate in every canonical request, digest, sidecar, creation

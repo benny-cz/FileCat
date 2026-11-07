@@ -13,7 +13,7 @@ public sealed partial class WindowsArchiveStorageTests
         using var directory = WindowsArchiveDirectory.Open(f.Root); using var input = directory.OpenSource("result.tar"); var ct = TestContext.Current.CancellationToken;
         var state = ((IArchiveRetainedFile)input).Observe(ct); using var journal = ReservationJournal(f.Root);
         var plan = ArchiveTarTransformPlan.Create(null, [state.Input(1)], [], [new("payload", ArchiveMemberType.File, 1)], ct); int creates = 0;
-        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledTarPreparation.PrepareAsync(journal, f.PathOf("result.tar"), plan, null,
+        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledContainerPreparation.PrepareAsync(journal, f.PathOf("result.tar"), plan, null,
             new Dictionary<int, ArchiveRetainedBinding> { [1] = new(input, state) }, (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (WindowsArchiveArtifactKind)kind, maximum),
             r => { creates++; return directory.CreateArtifact(r); }, new((_, _) => throw new InvalidOperationException()), new((_, _) => throw new InvalidOperationException()), ct));
         Assert.Equal(ArchiveWriteReason.InvalidRequest, failure.Reason); Assert.Equal(0, creates); Assert.Empty(JournalRecovery.ReadArchiveTransactions(journal.Path).Transactions);
@@ -52,7 +52,7 @@ public sealed partial class WindowsArchiveStorageTests
         RequireWindows(); using var f = new Fixture(); using var directory = WindowsArchiveDirectory.Open(f.Root);
         using var journal = ReservationJournal(f.Root); var ct = TestContext.Current.CancellationToken; var plan = ArchiveTarTransformPlan.Create(null, [], [], [], ct);
         var created = new List<WindowsArchiveFile>(); int launches = 0;
-        await Assert.ThrowsAsync<IOException>(() => ArchiveJournaledTarPreparation.PrepareAsync(journal, f.PathOf("result.tar"), plan, null,
+        await Assert.ThrowsAsync<IOException>(() => ArchiveJournaledContainerPreparation.PrepareAsync(journal, f.PathOf("result.tar"), plan, null,
             new Dictionary<int, ArchiveRetainedBinding>(), (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (WindowsArchiveArtifactKind)kind, maximum),
             r => { var file = directory.CreateArtifact(r); created.Add(file); return file; },
             new((_, _) => { launches++; throw new IOException("owned launch failure"); }), new((_, _) => throw new InvalidOperationException()), ct));

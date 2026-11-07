@@ -5,21 +5,24 @@ namespace FileCat.Core.Archives;
 /// <summary>Fresh restoration preparation: separately bind the destination baseline and the retained byte source.</summary>
 internal static class ArchiveJournaledSnapshotPreparation
 {
-    internal static async Task<ArchivePreparedTar<T>> PrepareAsync<T>(JobJournal journal, string archivePath, ArchiveWriteProfile profile,
+    internal static async Task<ArchivePreparedContainer<T>> PrepareAsync<T>(JobJournal journal, string archivePath, ArchiveWriteProfile profile,
         ArchiveRetainedBinding target, ArchiveRetainedBinding snapshot,
         Func<Guid, ArchiveArtifactKind, long, ArchiveArtifactReservation> reserve, Func<ArchiveArtifactReservation, T> create,
-        ArchiveAssessmentClient assessor, ArchiveVerificationClient verifier, CancellationToken ct) where T : class, IArchiveRetainedStage
+        ArchiveAssessmentClient assessor, ArchiveVerificationClient verifier, CancellationToken ct, ArchiveJobPassword? password = null) where T : class, IArchiveRetainedStage
     {
         ArgumentNullException.ThrowIfNull(journal); ArgumentNullException.ThrowIfNull(target); ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(reserve); ArgumentNullException.ThrowIfNull(create);
         ArgumentNullException.ThrowIfNull(assessor); ArgumentNullException.ThrowIfNull(verifier);
         ArchiveTransactionFacts.ValidatePath(archivePath);
-        if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd) ||
+        ArchiveJobPassword.Require(profile, password);
+        if (password is not null && (!assessor.UsesSecretProtocol || !verifier.UsesSecretProtocol))
+            throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "Password-bearing restoration requires fixed protocol-2 worker factories.");
+        if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5) ||
             target.Reviewed.Version.Identity == snapshot.Reviewed.Version.Identity ||
             !string.Equals(Path.GetFileName(archivePath), target.Reviewed.LeafName, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)) throw Invalid();
         ReviewInputs();
         var assessed = await assessor.AssessAsync(new(profile, snapshot.Reviewed.Version.Length, snapshot.Reviewed.Version.Sha256),
-            () => snapshot.File.OpenReadView(snapshot.Reviewed, ct), ct).ConfigureAwait(false);
+            () => snapshot.File.OpenReadView(snapshot.Reviewed, ct), ct, password?.CreateGrant()).ConfigureAwait(false);
         if (assessed.SourceLength != snapshot.Reviewed.Version.Length || assessed.SourceSha256 != snapshot.Reviewed.Version.Sha256) throw Invalid();
         T? stage = null; ArchiveTransactionFacts? facts = null; ArchiveSpaceReview? space = null;
         var sidecars = new List<ArchiveSealedSidecar<T>>();
@@ -93,7 +96,7 @@ internal static class ArchiveJournaledSnapshotPreparation
                 ReviewInputs(); ReviewSidecars(); Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Verifying, finalizedStage: state.Version));
                 return state;
             }, ct).ConfigureAwait(false);
-            var verification = await verifier.VerifyAsync(sealedStage.Version, assessed.Manifest, () => stage!.OpenReadView(sealedStage, ct), ct).ConfigureAwait(false);
+            var verification = await verifier.VerifyAsync(sealedStage.Version, assessed.Manifest, () => stage!.OpenReadView(sealedStage, ct), ct, password?.CreateGrant()).ConfigureAwait(false);
             await Task.Run(() =>
             {
                 Keep(ArchiveJournaledSidecar.WriteVerifiedManifest(journal, facts!, setup.Verified, create, verification, ct));

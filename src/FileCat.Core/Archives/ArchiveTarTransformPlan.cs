@@ -9,18 +9,16 @@ namespace FileCat.Core.Archives;
 /// assessment; new input hashes/metadata come from retained native leases or snapshots. Construction does not acquire
 /// those leases, grant IO, launch a worker or authorize publication. Numeric source ID zero is reserved for the archive.
 /// </summary>
-public sealed class ArchiveTarTransformPlan
+public sealed class ArchiveTarTransformPlan : ArchiveContainerTransformPlan
 {
-    public ArchiveAssessment? Source { get; }
-    public IReadOnlyDictionary<int, ArchiveTransformInput> Inputs { get; }
-    public IReadOnlyList<ArchiveTransformEdit> Edits { get; }
-    public IReadOnlyList<ArchiveTransformAddition> Additions { get; }
-    public ArchiveWriteManifest Expected { get; }
-    internal ArchiveCapturedInputCost CaptureCost { get; }
-    internal ArchiveCapturedInputs? CaptureOwner { get; }
-    internal IReadOnlyDictionary<int, ArchiveCapturedDirectory> Directories { get; }
-    internal static readonly IReadOnlyDictionary<int, ArchiveCapturedDirectory> NoDirectories =
-        new ReadOnlyDictionary<int, ArchiveCapturedDirectory>(new Dictionary<int, ArchiveCapturedDirectory>());
+    public override ArchiveAssessment? Source { get; }
+    public override IReadOnlyDictionary<int, ArchiveTransformInput> Inputs { get; }
+    public override IReadOnlyList<ArchiveTransformEdit> Edits { get; }
+    public override IReadOnlyList<ArchiveTransformAddition> Additions { get; }
+    public override ArchiveWriteManifest Expected { get; }
+    internal override ArchiveCapturedInputCost CaptureCost { get; }
+    internal override ArchiveCapturedInputs? CaptureOwner { get; }
+    internal override IReadOnlyDictionary<int, ArchiveCapturedDirectory> Directories { get; }
 
     private ArchiveTarTransformPlan(ArchiveAssessment? source, Dictionary<int, ArchiveTransformInput> inputs,
         ArchiveTransformEdit[] edits, ArchiveTransformAddition[] additions, ArchiveWriteManifest expected, ArchiveCapturedInputCost captureCost, ArchiveCapturedInputs? captureOwner)

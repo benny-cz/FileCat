@@ -7,7 +7,7 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        if (args.Length > 0 && args[0] is Services.ArchiveWorker.Argument or Services.ArchiveWorker.VerificationArgument or Services.ArchiveWorker.TransformArgument) return Services.ArchiveWorker.Run(args);
+        if (args.Length > 0 && Services.ArchiveWorker.IsArgument(args[0])) return Services.ArchiveWorker.Run(args);
         // Linux enters a filesystem/network domain here, then replaces this trusted launcher with the worker below.
         if (args.Length > 0 && args[0] == Services.LinuxPictureSandbox.Argument)
             return Services.LinuxPictureSandbox.Run(args);

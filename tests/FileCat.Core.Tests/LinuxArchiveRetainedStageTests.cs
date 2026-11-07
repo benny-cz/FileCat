@@ -75,7 +75,7 @@ public sealed partial class LinuxArchiveProcessTests
                 [new(ArchiveChangeKind.Replace, new(assessment!.CatalogRevision, "old", ArchiveMemberType.File, 0), inputId: 5)], [new("added", ArchiveMemberType.File, 5)], ct);
             using var journal = JobJournal.Create(Path.Combine(root, "journals"), new Job(new JobRequest { Kind = JobKind.ArchiveUpdate,
                 Archive = new(Path.Combine(root, "result.tar"), null, [], Profile: profile) }, "owned journaled TAR preparation", "owned", [], []));
-            using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, update ? "original.tar" : "result.tar"), plan, source,
+            using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, update ? "original.tar" : "result.tar"), plan, source,
                 new Dictionary<int, ArchiveRetainedBinding> { [5] = new(input, state) },
                 (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum),
                 r => { ArchiveJournaledTarAssertions.BeforeCreate(journal, r); return directory.CreateArtifact(r); },

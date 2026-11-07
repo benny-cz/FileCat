@@ -127,7 +127,7 @@ internal sealed class ArchiveCapturedSelection : IDisposable
         if (samples.Count == MaximumExclusionSamples) return;
         Inputs.RetainSelection(name.Length, checked(128L + 2L * name.Length)); samples.Add(new(name, reason));
     }
-    internal ArchiveTarTransformPlan CreatePlan(ArchiveWriteProfile profile, ArchiveAssessment? original,
+    internal ArchiveContainerTransformPlan CreatePlan(ArchiveWriteProfile profile, ArchiveAssessment? original,
         IReadOnlyList<ArchiveTransformEdit> edits, bool acceptExclusions, CancellationToken ct)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this); ct.ThrowIfCancellationRequested();

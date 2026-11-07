@@ -98,7 +98,7 @@ public sealed partial class WindowsArchiveStorageTests
         RequireWindows(); var ct = TestContext.Current.CancellationToken; using var fixture = new Fixture(); using var directory = WindowsArchiveDirectory.Open(fixture.Root);
         var plan = ArchiveTarTransformPlan.Create(null, [], [], [], ct); long bound = ArchiveTransformWire.OutputBound(plan.Expected, ct);
         using var stage = directory.CreateArtifact(Guid.NewGuid(), wrongKind ? WindowsArchiveArtifactKind.Manifest : WindowsArchiveArtifactKind.Stage, wrongKind ? bound : bound + 1); int launches = 0;
-        var error = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveRetainedTarPipeline.RebuildAndVerifyAsync(plan, null, new Dictionary<int, ArchiveRetainedBinding>(), stage,
+        var error = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveRetainedContainerPipeline.RebuildAndVerifyAsync(plan, null, new Dictionary<int, ArchiveRetainedBinding>(), stage,
             new((_, _) => { launches++; throw new InvalidOperationException(); }), new((_, _) => throw new InvalidOperationException()), ct));
         Assert.Equal(ArchiveWriteReason.InvalidRequest, error.Reason); Assert.Equal(0, launches); Assert.Equal(0, stage.Length); Assert.False(stage.CanWrite); Assert.True(File.Exists(stage.DisplayPath));
     }

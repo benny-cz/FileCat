@@ -6,10 +6,15 @@ internal static class ArchiveWorker
     public const string Argument = "--archive-worker";
     public const string VerificationArgument = "--archive-verify-worker";
     public const string TransformArgument = "--archive-transform-worker";
+    public const string SecretArgument = "--archive-worker-v2";
+    public const string SecretVerificationArgument = "--archive-verify-worker-v2";
+    public const string SecretTransformArgument = "--archive-transform-worker-v2";
+    public static bool IsArgument(string argument) => argument is Argument or VerificationArgument or TransformArgument or
+        SecretArgument or SecretVerificationArgument or SecretTransformArgument;
 
     public static int Run(string[] args)
     {
-        if (args.Length != 5 || args[0] is not (Argument or VerificationArgument or TransformArgument) || !Guid.TryParseExact(args[1], "D", out Guid nonce) || nonce == Guid.Empty || args[2].Length != 16 ||
+        if (args.Length != 5 || !IsArgument(args[0]) || !Guid.TryParseExact(args[1], "D", out Guid nonce) || nonce == Guid.Empty || args[2].Length != 16 ||
             !ulong.TryParse(args[2], System.Globalization.NumberStyles.AllowHexSpecifier, System.Globalization.CultureInfo.InvariantCulture, out ulong notify) ||
             args[2] != notify.ToString("X16", System.Globalization.CultureInfo.InvariantCulture)) return 64;
         long cancellation;
@@ -23,7 +28,10 @@ internal static class ArchiveWorker
         try { return FileCat.Core.Archives.ArchiveWorkerCancellation.Run(cancellation, (input, output, ct) => args[0] switch
         {
             TransformArgument => FileCat.Archives.Writing.ArchiveTransformWorker.RunAfterIsolation(input, output, nonce, ct),
+            SecretTransformArgument => FileCat.Archives.Writing.ArchiveTransformWorker.RunAfterIsolation(input, output, nonce, ct, 2),
             VerificationArgument => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, nonce, ct),
+            SecretVerificationArgument => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, nonce, ct, 2),
+            SecretArgument => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunAfterIsolation(input, output, nonce, ct, 2),
             _ => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunAfterIsolation(input, output, nonce, ct)
         }); }
         catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException)

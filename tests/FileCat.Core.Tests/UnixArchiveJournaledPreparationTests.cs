@@ -15,7 +15,7 @@ public sealed partial class UnixArchiveStorageTests
         using var directory = UnixArchiveDirectory.Open(root); using var input = directory.OpenSource("result.tar"); var state = Observe(input);
         using var journal = ReservationJournal(root); var ct = TestContext.Current.CancellationToken;
         var plan = ArchiveTarTransformPlan.Create(null, [state.Input(1)], [], [new("payload", ArchiveMemberType.File, 1)], ct); int creates = 0;
-        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null,
+        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null,
             new Dictionary<int, ArchiveRetainedBinding> { [1] = new(input, state) }, (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum),
             r => { creates++; return directory.CreateArtifact(r); }, new((_, _) => throw new InvalidOperationException()), new((_, _) => throw new InvalidOperationException()), ct));
         Assert.Equal(ArchiveWriteReason.InvalidRequest, failure.Reason); Assert.Equal(0, creates);
@@ -36,7 +36,7 @@ public sealed partial class UnixArchiveStorageTests
         var assessment = await new ArchiveAssessmentClient((nonce, _) => Child.Start(nonce)).AssessAsync(new(new(ArchiveWriteFormat.Tar), state.Version.Length, state.Version.Sha256),
             () => ((IArchiveRetainedFile)original).OpenReadView(state, ct), ct);
         var plan = ArchiveTarTransformPlan.Create(assessment, [], [], [], ct); using var directory = UnixArchiveDirectory.Open(root); using var journal = ReservationJournal(root); int creates = 0;
-        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, wrongParent ? "original.tar" : "other.tar"),
+        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, wrongParent ? "original.tar" : "other.tar"),
             plan, new(original, state), new Dictionary<int, ArchiveRetainedBinding>(), (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum),
             r => { creates++; return directory.CreateArtifact(r); }, new((_, _) => throw new InvalidOperationException()), new((_, _) => throw new InvalidOperationException()), ct));
         Assert.Equal(ArchiveWriteReason.InvalidRequest, failure.Reason); Assert.Equal(0, creates); Assert.Empty(JournalRecovery.ReadArchiveTransactions(journal.Path).Transactions);
@@ -74,7 +74,7 @@ public sealed partial class UnixArchiveStorageTests
     {
         Native(); using var temp = new TempDir(); string root = Canonical(temp.Path); using var directory = UnixArchiveDirectory.Open(root);
         using var journal = ReservationJournal(root); var ct = TestContext.Current.CancellationToken; var plan = ArchiveTarTransformPlan.Create(null, [], [], [], ct);
-        using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null,
+        using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null,
             new Dictionary<int, ArchiveRetainedBinding>(), (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum),
             r => { ArchiveJournaledTarAssertions.BeforeCreate(journal, r); return directory.CreateArtifact(r); },
             new((nonce, _) => Child.Start(nonce, "archive-transform")), new((nonce, _) => Child.Start(nonce, "archive-verify")), ct);
@@ -88,7 +88,7 @@ public sealed partial class UnixArchiveStorageTests
         Native(); using var temp = new TempDir(); string root = Canonical(temp.Path); using var directory = UnixArchiveDirectory.Open(root);
         using var journal = ReservationJournal(root); var ct = TestContext.Current.CancellationToken; var plan = ArchiveTarTransformPlan.Create(null, [], [], [], ct);
         var created = new List<UnixArchiveFile>(); int launches = 0;
-        await Assert.ThrowsAsync<IOException>(() => ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null,
+        await Assert.ThrowsAsync<IOException>(() => ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null,
             new Dictionary<int, ArchiveRetainedBinding>(), (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum),
             r => { var file = directory.CreateArtifact(r); created.Add(file); return file; },
             new((_, _) => { launches++; throw new IOException("owned launch failure"); }), new((_, _) => throw new InvalidOperationException()), ct));
@@ -104,7 +104,7 @@ public sealed partial class UnixArchiveStorageTests
         Native(); using var temp = new TempDir(); string root = Canonical(temp.Path); using var directory = UnixArchiveDirectory.Open(root);
         using var journal = ReservationJournal(root); using var cancel = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         var plan = ArchiveTarTransformPlan.Create(null, [], [], [], cancel.Token); Child? transform = null;
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null,
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null,
             new Dictionary<int, ArchiveRetainedBinding>(), (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
             new((nonce, _) => transform = Child.Start(nonce, "archive-transform")),
             new((_, _) => { cancel.Cancel(); throw new OperationCanceledException(cancel.Token); }), cancel.Token));
@@ -120,7 +120,7 @@ public sealed partial class UnixArchiveStorageTests
     {
         Native(); using var temp = new TempDir(); string root = Canonical(temp.Path); using var directory = UnixArchiveDirectory.Open(root);
         using var journal = ReservationJournal(root); var ct = TestContext.Current.CancellationToken; var plan = ArchiveTarTransformPlan.Create(null, [], [], [], ct); int launches = 0;
-        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null,
+        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null,
             new Dictionary<int, ArchiveRetainedBinding>(), (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum), r =>
             {
                 if (r.Kind == ArchiveArtifactKind.Provenance)

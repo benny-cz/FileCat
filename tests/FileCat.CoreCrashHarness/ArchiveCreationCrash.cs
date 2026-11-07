@@ -18,7 +18,7 @@ internal static class ArchiveCreationCrash
             Archive = new(target, null, [], Profile: new(ArchiveWriteFormat.Tar)) }, "owned creation crash", "owned", [], []));
         var plan = ArchiveTarTransformPlan.Create(null, [], [], [], CancellationToken.None);
         var children = new List<Worker>();
-        using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, target, plan, null,
+        using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, target, plan, null,
             new Dictionary<int, ArchiveRetainedBinding>(), store.Reserve, Create,
             new((nonce, _) => Start(nonce, "archive-transform")), new((nonce, _) => Start(nonce, "archive-verify")), CancellationToken.None);
         if (children.Count != 2 || children.Any(c => !c.Reaped || c.ExitCode != 0) || children[0].Id == children[1].Id)

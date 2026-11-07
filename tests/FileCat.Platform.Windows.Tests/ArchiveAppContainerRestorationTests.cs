@@ -61,7 +61,7 @@ public sealed partial class ArchiveAppContainerTests
                 var plan = ArchiveTarTransformPlan.Create(profile, assessed, [captured.Input(3)],
                     [new(ArchiveChangeKind.Replace, new(assessed.CatalogRevision, "old", ArchiveMemberType.File, 0), inputId: 3)], [], ct);
                 using var journal = NewJournal("initial qualified update"); journalPath = journal.Path;
-                using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, path, plan, new(target, before),
+                using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, path, plan, new(target, before),
                     new Dictionary<int, ArchiveRetainedBinding> { [3] = new(input, captured) },
                     (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (WindowsArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
                     new((nonce, cpu) => Start("archive-transform", nonce, cpu)), new((nonce, cpu) => Start("archive-verify", nonce, cpu)), ct);

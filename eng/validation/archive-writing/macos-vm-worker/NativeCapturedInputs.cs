@@ -37,7 +37,7 @@ internal static class NativeCapturedInputs
                     var worker = new VmProcess(native, kernel, initrd, nonce, role, Path.Combine(output, format + "-" + role + ".log"));
                     workers.Add(worker); return worker;
                 }
-                using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, target, plan, null, captured.Bindings,
+                using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, target, plan, null, captured.Bindings,
                     (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
                     new((nonce, cpu) => Launch(2, nonce, cpu)), new((nonce, cpu) => Launch(3, nonce, cpu)), ct);
                 if (prepared.Verified.Verification.ManifestDigest != plan.Expected.Digest || prepared.Stage.CanWrite || File.Exists(target) ||

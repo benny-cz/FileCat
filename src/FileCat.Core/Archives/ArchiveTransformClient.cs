@@ -12,6 +12,7 @@ public sealed class ArchiveTransformClient
     private readonly Func<Guid, TimeSpan, IArchiveWorkerProcess> launch;
     private readonly ArchiveWorkerQueue queue;
     private readonly ushort protocolVersion;
+    internal bool UsesSecretProtocol => protocolVersion == ArchiveWorkerProtocol.SecretVersion;
     public ArchiveTransformClient(Func<Guid, TimeSpan, IArchiveWorkerProcess> launchTransform, ArchiveWorkerQueue? queue = null,
         ushort protocolVersion = ArchiveWorkerProtocol.Version)
     {

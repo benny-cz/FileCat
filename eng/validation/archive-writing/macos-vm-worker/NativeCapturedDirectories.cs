@@ -36,7 +36,7 @@ internal static class NativeCapturedDirectories
                     Archive = new(target, null, [], Profile: profile) }, "owned VM directory workflow", "owned", [], []));
                 VmProcess Launch(byte role, Guid nonce)
                 { var worker = new VmProcess(native, kernel, initrd, nonce, role, Path.Combine(output, format + "-" + role + ".log")); workers.Add(worker); return worker; }
-                using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, target, plan, null, captured.Bindings,
+                using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, target, plan, null, captured.Bindings,
                     (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
                     new((nonce, _) => Launch(2, nonce)), new((nonce, _) => Launch(3, nonce)), ct);
                 if (prepared.Verified.Verification.ManifestDigest != plan.Expected.Digest || prepared.Verified.Directories.Count != 2) throw new InvalidDataException("Directory verification differs.");

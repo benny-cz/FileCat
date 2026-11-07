@@ -22,7 +22,7 @@ public sealed partial class UnixArchiveStorageTests
         var profile = new ArchiveWriteProfile(ArchiveWriteFormat.Tar); var plan = captured.CreatePlan(profile, null, [], [addition], ct);
         var invocation = ArchiveTransformWire.Prepare(plan, ct); Assert.Empty(invocation.Request.Inputs); Assert.Empty(invocation.CapturedInputIds);
         using var journal = ReservationJournal(root, profile);
-        using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null, captured.Bindings,
+        using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null, captured.Bindings,
             (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
             new((nonce, _) => Child.Start(nonce, "archive-transform")), new((nonce, _) => Child.Start(nonce, "archive-verify")), ct);
         Assert.Equal(capturedFolder ? 1 : 0, prepared.Facts.Sidecars.Single(s => s.Role == ArchiveSidecarRole.OriginEvidence).OriginSources);
@@ -51,7 +51,7 @@ public sealed partial class UnixArchiveStorageTests
             [captured.DirectoryAddition("tree/", 1), captured.DirectoryAddition("empty/", 2), new("tree/file.bin", ArchiveMemberType.File, 3)], ct);
         using var journal = ReservationJournal(root, profile); var workers = new List<Child>();
         Child Launch(Guid nonce, string role) { var worker = Child.Start(nonce, role); workers.Add(worker); return worker; }
-        using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null, captured.Bindings,
+        using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null, captured.Bindings,
             (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
             new((nonce, _) => Launch(nonce, "archive-transform")), new((nonce, _) => Launch(nonce, "archive-verify")), ct);
         Assert.Equal(2, prepared.Verified.Directories.Count); Assert.Equal(3, prepared.Facts.Sidecars.Single(s => s.Role == ArchiveSidecarRole.OriginEvidence).OriginSources);
@@ -84,7 +84,7 @@ public sealed partial class UnixArchiveStorageTests
         parent.CaptureSourceDirectory(captured, 1, "tree", ct); captured.Seal(ct);
         var profile = new ArchiveWriteProfile(ArchiveWriteFormat.Tar); var plan = captured.CreatePlan(profile, null, [], [captured.DirectoryAddition("tree/", 1)], ct);
         using var journal = ReservationJournal(root, profile); int effects = 0;
-        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledTarPreparation.PrepareAsync<UnixArchiveFile>(journal,
+        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledContainerPreparation.PrepareAsync<UnixArchiveFile>(journal,
             Path.Combine(tree, "result.tar"), plan, null, captured.Bindings,
             (nonce, kind, maximum) => destination.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum),
             _ => { effects++; throw new InvalidOperationException(); }, new((_, _) => { effects++; throw new InvalidOperationException(); }), new((_, _) => throw new InvalidOperationException()), ct));

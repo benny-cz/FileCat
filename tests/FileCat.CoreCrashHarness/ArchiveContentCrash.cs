@@ -38,7 +38,7 @@ internal static class ArchiveContentCrash
                 () => source.OpenReadView(baseline, CancellationToken.None), CancellationToken.None);
         var plan = ArchiveTarTransformPlan.Create(new(ArchiveWriteFormat.Tar), assessment, [inputState.Input(3)],
             [new(ArchiveChangeKind.Replace, new(assessment.CatalogRevision, "old", ArchiveMemberType.File, 0), inputId: 3)], [], CancellationToken.None);
-        using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, path, plan, new(source, baseline),
+        using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, path, plan, new(source, baseline),
             new Dictionary<int, ArchiveRetainedBinding> { [3] = new(input, inputState) }, store.Reserve, Create,
             new((nonce, _) => Start(nonce, "archive-transform")), new((nonce, _) => Start(nonce, "archive-verify")), CancellationToken.None);
         if (children.Count != 3 || children.Any(child => !child.Reaped || child.ExitCode != 0) || children.Select(child => child.Id).Distinct().Count() != 3)

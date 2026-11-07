@@ -61,7 +61,7 @@ public sealed class ArchivePreparationSpaceTests
         var directory = new CapacityDirectory((parent, estimate) => new(parent, estimate,
             new("actual-volume", estimate.AdditionalBytes - (snapshots ? 10 : 1))));
         var plan = ArchiveTarTransformPlan.Create(null, [], [], [], TestContext.Current.CancellationToken);
-        var error = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledTarPreparation.PrepareAsync<UnixArchiveFile>(journal,
+        var error = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledContainerPreparation.PrepareAsync<UnixArchiveFile>(journal,
             Path.Combine(root.Path, "output.tar"), plan, null, new Dictionary<int, ArchiveRetainedBinding>(),
             (nonce, kind, maximum) => new(directory, nonce, kind, root.Path, "parent", maximum),
             _ => { creates++; throw new InvalidOperationException(); }, new((_, _) => { launches++; throw new InvalidOperationException(); }),
@@ -78,7 +78,7 @@ public sealed class ArchivePreparationSpaceTests
         ArchiveSpaceEstimate? observed = null;
         var directory = new CapacityDirectory((parent, estimate) => { observed = estimate; return new(parent, estimate, null); });
         var plan = ArchiveTarTransformPlan.Create(null, [], [], [], TestContext.Current.CancellationToken);
-        await Assert.ThrowsAsync<CreationReached>(() => ArchiveJournaledTarPreparation.PrepareAsync<UnixArchiveFile>(journal,
+        await Assert.ThrowsAsync<CreationReached>(() => ArchiveJournaledContainerPreparation.PrepareAsync<UnixArchiveFile>(journal,
             Path.Combine(root.Path, "output.tar"), plan, null, new Dictionary<int, ArchiveRetainedBinding>(),
             (nonce, kind, maximum) => new(directory, nonce, kind, root.Path, "parent", maximum),
             _ => { creates++; throw new CreationReached(); }, new((_, _) => throw new InvalidOperationException()), new((_, _) => throw new InvalidOperationException()), TestContext.Current.CancellationToken));

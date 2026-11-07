@@ -106,7 +106,7 @@ public sealed partial class UnixArchiveStorageTests
                 [new("added", ArchiveMemberType.File, 7)], ct);
             using var journal = ReservationJournal(root, profile);
             Child? transform = null, verifier = null;
-            using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, update ? "original.tar" : "result.tar"), plan, source,
+            using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, update ? "original.tar" : "result.tar"), plan, source,
                 new Dictionary<int, ArchiveRetainedBinding> { [7] = new(captured, inputState) },
                 (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum),
                 r => { ArchiveJournaledTarAssertions.BeforeCreate(journal, r); return directory.CreateArtifact(r); },
@@ -142,7 +142,7 @@ public sealed partial class UnixArchiveStorageTests
         Payload(inputPath, empty ? [] : "before"u8.ToArray()); using var directory = UnixArchiveDirectory.Open(root); using var input = directory.OpenSource("input"); var state = Observe(input);
         var plan = ArchiveTarTransformPlan.Create(null, [state.Input(1)], [], [new("file", ArchiveMemberType.File, 1)], ct);
         using var stage = Stage(directory, ArchiveTransformWire.OutputBound(plan.Expected, ct)); Child? verifier = null;
-        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveRetainedTarPipeline.RebuildAndVerifyAsync(plan, null,
+        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveRetainedContainerPipeline.RebuildAndVerifyAsync(plan, null,
             new Dictionary<int, ArchiveRetainedBinding> { [1] = new(input, state) }, stage, new((nonce, _) => Child.Start(nonce, "archive-transform")),
             new((nonce, _) => { File.WriteAllBytes(inputPath, empty ? [1] : "after!"u8.ToArray()); return verifier = Child.Start(nonce, "archive-verify"); }), ct));
         Assert.Equal(ArchiveWriteReason.SourceChanged, failure.Reason); Assert.True(verifier!.Reaped); Assert.False(stage.CanWrite); Assert.True(File.Exists(stage.DisplayPath));
@@ -156,7 +156,7 @@ public sealed partial class UnixArchiveStorageTests
         Native(); var ct = TestContext.Current.CancellationToken; using var temp = new TempDir(); using var directory = UnixArchiveDirectory.Open(Canonical(temp.Path));
         var plan = ArchiveTarTransformPlan.Create(null, [], [], [], ct); long bound = ArchiveTransformWire.OutputBound(plan.Expected, ct);
         using var stage = directory.CreateArtifact(Guid.NewGuid(), wrongKind ? UnixArchiveArtifactKind.Manifest : UnixArchiveArtifactKind.Stage, wrongKind ? bound : bound + 1); int launches = 0;
-        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveRetainedTarPipeline.RebuildAndVerifyAsync(plan, null, new Dictionary<int, ArchiveRetainedBinding>(), stage,
+        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveRetainedContainerPipeline.RebuildAndVerifyAsync(plan, null, new Dictionary<int, ArchiveRetainedBinding>(), stage,
             new((_, _) => { launches++; throw new InvalidOperationException(); }), new((_, _) => throw new InvalidOperationException()), ct));
         Assert.Equal(ArchiveWriteReason.InvalidRequest, failure.Reason); Assert.Equal(0, launches); Assert.Equal(0, stage.Length); Assert.False(stage.CanWrite); Assert.True(File.Exists(stage.DisplayPath));
     }
@@ -166,7 +166,7 @@ public sealed partial class UnixArchiveStorageTests
     {
         Native(); var ct = TestContext.Current.CancellationToken; using var temp = new TempDir(); using var directory = UnixArchiveDirectory.Open(Canonical(temp.Path));
         var plan = ArchiveTarTransformPlan.Create(null, [], [], [], ct); using var stage = Stage(directory, ArchiveTransformWire.OutputBound(plan.Expected, ct));
-        await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveRetainedTarPipeline.RebuildAndVerifyAsync(plan, null, new Dictionary<int, ArchiveRetainedBinding>(), stage,
+        await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveRetainedContainerPipeline.RebuildAndVerifyAsync(plan, null, new Dictionary<int, ArchiveRetainedBinding>(), stage,
             new((_, _) => throw new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, "Owned setup refusal.")), new((_, _) => throw new InvalidOperationException()), ct));
         Assert.False(stage.CanWrite); Assert.True(File.Exists(stage.DisplayPath)); Assert.Equal(0, stage.Length);
     }
@@ -177,7 +177,7 @@ public sealed partial class UnixArchiveStorageTests
         Native(); var ct = TestContext.Current.CancellationToken; using var temp = new TempDir(); using var directory = UnixArchiveDirectory.Open(Canonical(temp.Path));
         var plan = ArchiveTarTransformPlan.Create(null, [], [], [], ct); using var stage = Stage(directory, ArchiveTransformWire.OutputBound(plan.Expected, ct));
         using var cancelled = new CancellationTokenSource(); cancelled.Cancel(); int launches = 0;
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => ArchiveRetainedTarPipeline.RebuildAndVerifyAsync(plan, null, new Dictionary<int, ArchiveRetainedBinding>(), stage,
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => ArchiveRetainedContainerPipeline.RebuildAndVerifyAsync(plan, null, new Dictionary<int, ArchiveRetainedBinding>(), stage,
             new((_, _) => { launches++; throw new InvalidOperationException(); }), new((_, _) => throw new InvalidOperationException()), cancelled.Token));
         Assert.Equal(0, launches); Assert.False(stage.CanWrite); Assert.Equal(0, stage.Length); Assert.True(File.Exists(stage.DisplayPath));
     }
@@ -189,7 +189,7 @@ public sealed partial class UnixArchiveStorageTests
         Payload(Path.Combine(root, "input"), [1]); using var directory = UnixArchiveDirectory.Open(root); using var file = directory.OpenSource("input"); var state = Observe(file);
         var plan = ArchiveTarTransformPlan.Create(null, [state.Input(1), state.Input(2)], [], [new("one", ArchiveMemberType.File, 1), new("two", ArchiveMemberType.File, 2)], ct);
         using var stage = Stage(directory, ArchiveTransformWire.OutputBound(plan.Expected, ct)); int launches = 0;
-        var error = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveRetainedTarPipeline.RebuildAndVerifyAsync(plan, null,
+        var error = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveRetainedContainerPipeline.RebuildAndVerifyAsync(plan, null,
             new Dictionary<int, ArchiveRetainedBinding> { [1] = new(file, state), [2] = new(file, state) }, stage,
             new((_, _) => { launches++; throw new InvalidOperationException(); }), new((_, _) => throw new InvalidOperationException()), ct));
         Assert.Equal(ArchiveWriteReason.SourceChanged, error.Reason); Assert.Equal(0, launches); Assert.False(stage.CanWrite); Assert.Equal(0, stage.Length);
@@ -201,7 +201,7 @@ public sealed partial class UnixArchiveStorageTests
         Native(); var ct = TestContext.Current.CancellationToken; using var temp = new TempDir(); using var directory = UnixArchiveDirectory.Open(Canonical(temp.Path));
         var plan = ArchiveTarTransformPlan.Create(null, [], [], [], ct); using var stage = Stage(directory, ArchiveTransformWire.OutputBound(plan.Expected, ct));
         Child? child = null;
-        var error = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveRetainedTarPipeline.RebuildAndVerifyAsync(plan, null, new Dictionary<int, ArchiveRetainedBinding>(), stage,
+        var error = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveRetainedContainerPipeline.RebuildAndVerifyAsync(plan, null, new Dictionary<int, ArchiveRetainedBinding>(), stage,
             new((nonce, _) => Child.Start(nonce, "archive-transform")), new((nonce, _) => new AfterReaping(child = Child.Start(nonce, "archive-verify"), () =>
             { using var mutation = new FileStream(stage.DisplayPath, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete); mutation.WriteByte(0xff); })), ct));
         Assert.Equal(ArchiveWriteReason.SourceChanged, error.Reason); Assert.True(child!.Reaped); Assert.False(stage.CanWrite); Assert.True(File.Exists(stage.DisplayPath));

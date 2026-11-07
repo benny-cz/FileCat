@@ -66,20 +66,19 @@ can drive its preservation/transaction adapter without waiting for every 7z code
 only when its complete verification and preservation contracts are met; qualify its workflows and platform gates
 before enabling it. This makes RAR/7z integration early work and keeps optional formats and final UI polish later.
 
-The RAR path now includes [exact semantic metadata and retained-payload assembly](../validation/archive-writing/RAR5_PRESERVATION.md),
-including encrypted payload copies and newly encoded inputs. Connect that component to parent preservation planning,
-role-bound worker requests and native transactions while completing the remaining strict 7z graph checks. These are
-the immediate implementation dependencies for the shared create/update/edit/F6/password workflows.
+The RAR path now connects [exact metadata/payload preservation](../validation/archive-writing/RAR5_PRESERVATION.md),
+[parent planning and complete stream rewriting](../validation/archive-writing/RAR5_TRANSFORM_PLANNING.md), and
+[shared role-bound worker/password requests](../validation/archive-writing/RAR5_WORKER_PIPELINE.md). The latest
+[captured/native transaction checkpoint](../validation/archive-writing/RAR5_NATIVE_PIPELINE.md) adds capture-owner
+costs/directories, job-owned passwords, native new-file publication on all three systems and Windows application
+protocol-2 update/restoration. Remaining RAR work includes Unix native update/confinement, complete production
+resource/package qualification and shared application workflows/UI; no new write profile is enabled.
 
-The [RAR5 parent planning and complete stream rewrite](../validation/archive-writing/RAR5_TRANSFORM_PLANNING.md)
-now connects exact occurrence changes to full source verification and retained/new assembly. Connect these
-contracts to shared worker requests, role-bound password consumers and native capture/publication next; the RAR
-adapter continues independently of the remaining 7z member graph/catalog.
-
-The [RAR shared worker/password pipeline](../validation/archive-writing/RAR5_WORKER_PIPELINE.md) now executes those
-roles through shared parent clients and fixed protocol-2 secret consumers, with three-platform subprocess evidence.
-Continue native protocol-2 launch/resource/package and captured-owner/publication integration, then application
-workflows/UI. These native gates remain open; the component does not enable a new write profile.
+Complete the 7z member graph/catalog and shared adapter next, alongside remaining Unix native transactions and
+shared UI/edit/F6 integration. Follow the validation batching guidance in
+[the qualification harness](../../eng/validation/archive-writing/README.md#efficient-validation-batches): short native
+preflight, coherent changes, incremental builds and evidence-linked affected-case reruns. Every full
+resource/crash/fuzz/RID/package/release gate remains required.
 
 [Complete encoded-header verification](../validation/archive-writing/SEVENZIP_HEADER_VERIFICATION.md) now connects
 the strict LZMA/LZMA2 and exact Copy/AES layers to the 7z framing pass. Complete member graph/catalog verification

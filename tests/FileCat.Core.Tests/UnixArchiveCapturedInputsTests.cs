@@ -30,7 +30,7 @@ public sealed partial class UnixArchiveStorageTests
         var additions = Enumerable.Range(1, count).Reverse().Select(id => new ArchiveTransformAddition("界-" + id + ".bin", ArchiveMemberType.File, id)).ToArray();
         var plan = captured.CreatePlan(profile, null, [], additions, ct);
         using var journal = ReservationJournal(root, profile); Child? transform = null, verifier = null;
-        using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null, captured.Bindings,
+        using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null, captured.Bindings,
             (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
             new((nonce, _) => transform = Child.Start(nonce, "archive-transform")),
             new((nonce, _) => verifier = Child.Start(nonce, "archive-verify")), ct);
@@ -84,7 +84,7 @@ public sealed partial class UnixArchiveStorageTests
         directory.CaptureSource(captured, 1, "input", ct); captured.Seal(ct); var profile = new ArchiveWriteProfile(ArchiveWriteFormat.Tar);
         var plan = ArchiveTarTransformPlan.Create(profile, null, captured.Inputs, [], [new("input", ArchiveMemberType.File, 1)], ct);
         using var journal = ReservationJournal(root, profile); int effects = 0;
-        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledTarPreparation.PrepareAsync<UnixArchiveFile>(journal,
+        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledContainerPreparation.PrepareAsync<UnixArchiveFile>(journal,
             Path.Combine(root, "result.tar"), plan, null, captured.Bindings,
             (_, _, _) => { effects++; throw new InvalidOperationException(); }, _ => { effects++; throw new InvalidOperationException(); },
             new((_, _) => { effects++; throw new InvalidOperationException(); }), new((_, _) => { effects++; throw new InvalidOperationException(); }), ct));

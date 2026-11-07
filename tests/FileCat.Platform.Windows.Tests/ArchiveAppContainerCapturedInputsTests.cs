@@ -33,7 +33,7 @@ public sealed partial class ArchiveAppContainerTests
             var workers = new List<ArchiveAppContainer>();
             try
             {
-                using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null, captured.Bindings,
+                using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null, captured.Bindings,
                     (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (WindowsArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
                     new((nonce, cpu) => { var worker = ArchiveAppContainer.Start(executable, "archive-transform " + nonce, cpu); workers.Add(worker); return worker; }),
                     new((nonce, cpu) => { var worker = ArchiveAppContainer.Start(executable, "archive-verify " + nonce, cpu); workers.Add(worker); return worker; }), ct);

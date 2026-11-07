@@ -18,7 +18,7 @@ public sealed partial class UnixArchiveStorageTests
         Assert.Equal(1, selection.Excluded(ArchiveSelectionExclusionReason.UnrepresentableName)); Assert.Single(selection.Inputs.Directories);
         var profile = new ArchiveWriteProfile(ArchiveWriteFormat.Tar); var plan = selection.CreatePlan(profile, null, [], true, ct);
         using var destination = UnixArchiveDirectory.Open(excluded); using var journal = ReservationJournal(root, profile); int effects = 0;
-        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledTarPreparation.PrepareAsync<UnixArchiveFile>(journal,
+        var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveJournaledContainerPreparation.PrepareAsync<UnixArchiveFile>(journal,
             Path.Combine(excluded, "result.tar"), plan, null, selection.Inputs.Bindings,
             (nonce, kind, maximum) => destination.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum),
             _ => { effects++; throw new InvalidOperationException(); }, new((_, _) => throw new InvalidOperationException()), new((_, _) => throw new InvalidOperationException()), ct));
@@ -44,7 +44,7 @@ public sealed partial class UnixArchiveStorageTests
         var plan = selection.CreatePlan(profile, null, [], true, ct);
         Assert.Equal(new[] { "loose", "tree", "tree/nested", "tree/nested/empty", "tree/nested/界.bin" }, plan.Additions.Select(a => a.Name));
         using var destination = UnixArchiveDirectory.Open(root); using var journal = ReservationJournal(root, profile);
-        using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null, selection.Inputs.Bindings,
+        using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null, selection.Inputs.Bindings,
             (nonce, kind, maximum) => destination.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum), destination.CreateArtifact,
             new((nonce, _) => Child.Start(nonce, "archive-transform")), new((nonce, _) => Child.Start(nonce, "archive-verify")), ct);
         Assert.Equal(5, prepared.Facts.Sidecars.Single(s => s.Role == ArchiveSidecarRole.OriginEvidence).OriginSources);

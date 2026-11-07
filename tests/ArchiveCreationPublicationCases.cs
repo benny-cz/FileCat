@@ -13,7 +13,7 @@ internal static class ArchiveCreationPublicationCases
         var plan = ArchiveTarTransformPlan.Create(null, [state.Input(1)], [], [new("file", ArchiveMemberType.File, 1)], ct);
         string target = Path.Combine(root, "result.tar"); using var journal = JobJournal.Create(Path.Combine(root, "journals"),
             new Job(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = new(target, null, [], Profile: new(ArchiveWriteFormat.Tar)) }, "owned publication refusal", "owned", [], []));
-        using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, target, plan, null, captured, reserve, create, transform, verifier, ct);
+        using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, target, plan, null, captured, reserve, create, transform, verifier, ct);
         if (failure == "existing-target") File.WriteAllBytes(target, "existing occupant"u8.ToArray());
         if (failure == "changed-input") File.SetLastWriteTimeUtc(Path.Combine(root, "input"), DateTime.UnixEpoch.AddSeconds(1));
         if (failure == "unsafe-directory") File.SetUnixFileMode(root, (UnixFileMode)0x1ff);
@@ -26,7 +26,7 @@ internal static class ArchiveCreationPublicationCases
             Assert.All(current.Sidecars, s => Assert.NotNull(s.Version));
             if (failure == "cancelled") stop.Cancel();
         }, afterClaim: () => { if (failure == "after-claim") throw new IOException("Injected after native namespace claim."); });
-        var mirrored = new ArchivePreparedTar<Wrapped>(wrapped, prepared.Verified, prepared.Facts,
+        var mirrored = new ArchivePreparedContainer<Wrapped>(wrapped, prepared.Verified, prepared.Facts,
             prepared.Sidecars.Select(s => new ArchiveSealedSidecar<Wrapped>(new(s.File, false), s.Facts, s.Observation)).ToArray(), prepared.Space, prepared.CreationMetadata);
         Exception error = await Assert.ThrowsAnyAsync<Exception>(() => ArchiveNewFilePublication.PublishAsync(journal, mirrored, captured,
             reservation => new Wrapped(create(reservation), true, afterSeal: () =>

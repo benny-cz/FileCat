@@ -9,21 +9,26 @@ public sealed record ArchiveRar5PlannedMember(ArchiveManifestMember Expected, in
 /// Parent expectation for a non-solid RAR5 rewrite, derived without a codec or secret. Complete source assessment,
 /// numeric capture facts and exact occurrence edits are required. This object grants no IO or publication authority.
 /// </summary>
-public sealed class ArchiveRar5TransformPlan
+public sealed class ArchiveRar5TransformPlan : ArchiveContainerTransformPlan
 {
-    public ArchiveAssessment? Source { get; }
-    public IReadOnlyDictionary<int, ArchiveTransformInput> Inputs { get; }
-    public IReadOnlyList<ArchiveTransformEdit> Edits { get; }
-    public IReadOnlyList<ArchiveTransformAddition> Additions { get; }
+    public override ArchiveAssessment? Source { get; }
+    public override IReadOnlyDictionary<int, ArchiveTransformInput> Inputs { get; }
+    public override IReadOnlyList<ArchiveTransformEdit> Edits { get; }
+    public override IReadOnlyList<ArchiveTransformAddition> Additions { get; }
     public IReadOnlyList<ArchiveRar5PlannedMember> Members { get; }
-    public ArchiveWriteManifest Expected { get; }
+    public override ArchiveWriteManifest Expected { get; }
+    internal override ArchiveCapturedInputCost CaptureCost { get; }
+    internal override ArchiveCapturedInputs? CaptureOwner { get; }
+    internal override IReadOnlyDictionary<int, ArchiveCapturedDirectory> Directories { get; }
     private const string EmptySha256 = "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855";
 
     private ArchiveRar5TransformPlan(ArchiveAssessment? source, Dictionary<int, ArchiveTransformInput> inputs,
-        ArchiveTransformEdit[] edits, ArchiveTransformAddition[] additions, List<ArchiveRar5PlannedMember> members, ArchiveWriteManifest expected)
+        ArchiveTransformEdit[] edits, ArchiveTransformAddition[] additions, List<ArchiveRar5PlannedMember> members, ArchiveWriteManifest expected,
+        ArchiveCapturedInputCost captureCost, ArchiveCapturedInputs? captureOwner)
     {
         Source = source; Inputs = new ReadOnlyDictionary<int, ArchiveTransformInput>(inputs);
         Edits = Array.AsReadOnly(edits); Additions = Array.AsReadOnly(additions); Members = members.AsReadOnly(); Expected = expected;
+        CaptureCost = captureCost; CaptureOwner = captureOwner; Directories = captureOwner?.Directories ?? NoDirectories;
     }
 
     public static ArchiveRar5TransformPlan Create(ArchiveWriteProfile profile, ArchiveAssessment? source,
@@ -34,6 +39,17 @@ public sealed class ArchiveRar5TransformPlan
     internal static ArchiveRar5TransformPlan CreateObserved(ArchiveWriteProfile profile, ArchiveAssessment? source,
         IReadOnlyList<ArchiveTransformInput> inputs, IReadOnlyList<ArchiveTransformEdit> edits,
         IReadOnlyList<ArchiveTransformAddition> additions, long retainedHeapBytes, CancellationToken ct)
+        => CreateCore(profile, source, inputs, edits, additions, retainedHeapBytes, default, null, ct);
+
+    internal static ArchiveRar5TransformPlan CreateCaptured(ArchiveWriteProfile profile, ArchiveAssessment? source,
+        IReadOnlyList<ArchiveTransformInput> inputs, IReadOnlyList<ArchiveTransformEdit> edits,
+        IReadOnlyList<ArchiveTransformAddition> additions, ArchiveCapturedInputCost captureCost, CancellationToken ct, ArchiveCapturedInputs? owner = null)
+        => CreateCore(profile, source, inputs, edits, additions, 0, captureCost, owner, ct);
+
+    private static ArchiveRar5TransformPlan CreateCore(ArchiveWriteProfile profile, ArchiveAssessment? source,
+        IReadOnlyList<ArchiveTransformInput> inputs, IReadOnlyList<ArchiveTransformEdit> edits,
+        IReadOnlyList<ArchiveTransformAddition> additions, long retainedHeapBytes, ArchiveCapturedInputCost captureCost,
+        ArchiveCapturedInputs? captureOwner, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(profile); ArgumentNullException.ThrowIfNull(inputs);
         ArgumentNullException.ThrowIfNull(edits); ArgumentNullException.ThrowIfNull(additions); ct.ThrowIfCancellationRequested();
@@ -55,7 +71,7 @@ public sealed class ArchiveRar5TransformPlan
         if (features.HiddenNames != (profile.Encryption.Mode == ArchiveEncryptionMode.DataAndNames) ||
             features.HiddenNames && features.HeaderCountPower != profile.Encryption.CountPower) throw Unsupported();
 
-        var budget = new ArchiveWriteBudget(); budget.AddMetadata(0, retainedHeapBytes);
+        var budget = new ArchiveWriteBudget(); budget.AddMetadata(0, retainedHeapBytes); budget.RetainCapturedInputs(captureCost);
         budget.AddMetadata(0, checked(256L * inputs.Count + 128L * edits.Count + 96L * additions.Count));
         var captured = new Dictionary<int, ArchiveTransformInput>(inputs.Count); long capturedBytes = source?.Manifest.LogicalBytes ?? 0;
         foreach (var input in inputs)
@@ -81,7 +97,7 @@ public sealed class ArchiveRar5TransformPlan
             catch (ArchiveWriteException ex) when (ex.Reason == ArchiveWriteReason.InvalidRequest) { throw Unsupported(); }
         }
         var changes = new Dictionary<ArchiveMemberKey, ArchiveTransformEdit>(); var frozenEdits = new ArchiveTransformEdit[edits.Count];
-        var used = new HashSet<int>(); long requested = source?.Manifest.LogicalBytes ?? 0;
+        var used = new HashSet<int>(); var usedDirectories = new HashSet<int>(); long requested = source?.Manifest.LogicalBytes ?? 0;
         for (int index = 0; index < edits.Count; index++)
         {
             ct.ThrowIfCancellationRequested(); var edit = edits[index] ?? throw ArchiveManifestMember.Invalid();
@@ -105,8 +121,13 @@ public sealed class ArchiveRar5TransformPlan
         for (int index = 0; index < additions.Count; index++)
         {
             ct.ThrowIfCancellationRequested(); var addition = additions[index] ?? throw ArchiveManifestMember.Invalid(); RequestName(addition.Name);
-            // Captured native directories must enter through a future capture-owner adapter; never discard their binding.
-            if (addition.CapturedDirectory is not null) throw ArchiveManifestMember.Invalid();
+            if (addition.CapturedDirectory is { } directory)
+            {
+                if (captureOwner is null || !ReferenceEquals(directory.Owner, captureOwner) ||
+                    !captureOwner.Directories.TryGetValue(directory.Id, out var expectedDirectory) || !ReferenceEquals(directory, expectedDirectory) ||
+                    addition.DirectoryMetadata != new ArchiveTransformDirectoryMetadata(directory.Reviewed.Modified, directory.Reviewed.Mode)) throw Changed();
+                usedDirectories.Add(directory.Id);
+            }
             var input = addition.InputId is { } id ? Use(id) : null;
             Add(addition.Name, addition.Type, input?.Length ?? 0, input?.Sha256 ?? EmptySha256,
                 NewMetadata(addition.Type, input?.Length ?? 0, input?.Mode ?? addition.DirectoryMetadata!.Mode,
@@ -114,11 +135,12 @@ public sealed class ArchiveRar5TransformPlan
             frozenAdditions[index] = addition;
         }
         if (used.Count != captured.Count) throw ArchiveManifestMember.Invalid();
+        if (usedDirectories.Count != (captureOwner?.Directories.Count ?? 0)) throw ArchiveManifestMember.Invalid();
         Namespace(namespaceRows, ct);
         if (profile.Encryption.Mode == ArchiveEncryptionMode.Data && !members.Any(member => ArchiveRar5Metadata.Decode(member.Expected.Metadata).EncryptionFlags is not null))
             throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "Payload password protection requires at least one encrypted file. Use hidden names for an archive containing only folders.");
         var expected = new ArchiveWriteManifest(profile, members.Select(member => member.Expected).ToArray(), features.Encode());
-        return new(source, captured, frozenEdits, frozenAdditions, members, expected);
+        return new(source, captured, frozenEdits, frozenAdditions, members, expected, captureCost, captureOwner);
 
         ArchiveTransformInput Use(int id)
         {

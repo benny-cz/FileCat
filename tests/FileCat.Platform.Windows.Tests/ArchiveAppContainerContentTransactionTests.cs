@@ -77,7 +77,7 @@ public sealed partial class ArchiveAppContainerTests
                 [new("added", ArchiveMemberType.File, 3)], ct);
             using var journal = JobJournal.Create(Path.Combine(root, "journals"), new Job(new JobRequest { Kind = JobKind.ArchiveUpdate,
                 Archive = new(path, null, [], Profile: profile) }, "native content transaction qualification", "owned", [], []));
-            using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, path, plan, new(original, baseline),
+            using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, path, plan, new(original, baseline),
                 new Dictionary<int, ArchiveRetainedBinding> { [3] = new(input, inputState) },
                 (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (WindowsArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
                 new((nonce, cpu) => ArchiveAppContainer.Start(executable, "archive-transform " + nonce, cpu)),

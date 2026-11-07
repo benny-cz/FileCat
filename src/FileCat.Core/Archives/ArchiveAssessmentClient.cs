@@ -33,6 +33,7 @@ public sealed class ArchiveAssessmentClient
     private readonly TimeSpan _wall;
     private readonly bool _verification;
     private readonly ushort _protocolVersion;
+    internal bool UsesSecretProtocol => _protocolVersion == ArchiveWorkerProtocol.SecretVersion;
 
     public ArchiveAssessmentClient(Func<Guid, TimeSpan, IArchiveWorkerProcess> launch, ArchiveWorkerQueue? queue = null,
         ushort protocolVersion = ArchiveWorkerProtocol.Version)

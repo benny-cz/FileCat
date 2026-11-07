@@ -42,7 +42,7 @@ public sealed partial class ArchiveAppContainerTests
             string target = Path.Combine(root, "result.tar");
             using var journal = JobJournal.Create(Path.Combine(root, "journals"), new Job(new JobRequest { Kind = JobKind.ArchiveUpdate,
                 Archive = new(target, null, [], Profile: profile) }, "marked creation", "owned", [], []));
-            using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, target, plan, null, captured,
+            using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, target, plan, null, captured,
                 (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (WindowsArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
                 new((nonce, cpu) => application ? ArchiveAppContainer.StartTransform(executable, nonce, cpu) : ArchiveAppContainer.Start(executable, "archive-transform " + nonce, cpu)),
                 new((nonce, cpu) =>
@@ -161,7 +161,7 @@ public sealed partial class ArchiveAppContainerTests
                 using var journal = JobJournal.Create(Path.Combine(root, "journals"), new Job(new JobRequest { Kind = JobKind.ArchiveUpdate,
                     Archive = new(Path.Combine(root, "result.tar"), null, [], Profile: profile) }, "owned journaled TAR preparation", "owned", [], []));
                 ArchiveAppContainer? transform = null, verifier = null;
-                using var prepared = await ArchiveJournaledTarPreparation.PrepareAsync(journal, Path.Combine(root, update ? "original.tar" : "result.tar"), plan, source,
+                using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, update ? "original.tar" : "result.tar"), plan, source,
                     new Dictionary<int, ArchiveRetainedBinding> { [3] = new(input, state) },
                     (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (WindowsArchiveArtifactKind)kind, maximum),
                     r => { ArchiveJournaledTarAssertions.BeforeCreate(journal, r); return directory.CreateArtifact(r); },
