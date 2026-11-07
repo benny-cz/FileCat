@@ -14,6 +14,8 @@ public sealed record AnalysisHierarchyRow(AnalysisPathMetadata Path, AnalysisTot
     public DateTimeOffset? ModifiedUtc { get; init; } = Path.Times?.ModifiedUtc;
     public ulong ModifiedPrecisionTicks { get; init; } = Path.Times?.ModifiedPrecisionTicks ?? 0;
     public bool IsFilterContext { get; init; }
+    public bool HasUnmeasuredEvidence { get; init; }
+    public bool HasUnmeasuredLogicalEvidence { get; init; }
 }
 public sealed record AnalysisHierarchyBucket(ulong ParentId, AnalysisHierarchyBucketKind Kind, AnalysisTotals Totals, ulong Objects, ulong ObservedAliases, ulong Charges);
 
@@ -57,16 +59,31 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
     public AnalysisTotals Totals { get; }
     // File-size columns use the SAME selected paths as the active metric, never a re-evaluated predicate.
     public AnalysisLogicalTotals LogicalTotals { get; }
+    public bool HasUnmeasuredEvidence { get; }
+    public bool HasUnmeasuredLogicalEvidence { get; }
     private AnalysisDatasetHierarchy(State state, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, AnalysisIoDevices device)
-    { Descriptor = descriptor; Metric = state.Metric; Filter = state.FilterSummary; Totals = state.Total.Export(state.Compatible); LogicalTotals = state.TotalLogical.ExportLogical(); _owned = new(state, io, device); _io = io; _device = device; }
+    {
+        Descriptor = descriptor; Metric = state.Metric; Filter = state.FilterSummary; Totals = state.Total.Export(state.Compatible); LogicalTotals = state.TotalLogical.ExportLogical();
+        HasUnmeasuredEvidence = state.TotalUnknown; HasUnmeasuredLogicalEvidence = state.TotalLogicalUnknown;
+        _owned = new(state, io, device); _io = io; _device = device;
+    }
 
     internal static async Task<AnalysisDatasetHierarchy> BuildAsync(AnalysisIndexedGraphReader source, AnalysisDatasetDescriptor descriptor,
-        AnalysisMetric metric, IEnumerable<AnalysisSortInput>? charges, bool compatible, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation, AnalysisIndexedFilter? query = null)
+        AnalysisMetric metric, IEnumerable<AnalysisSortInput>? charges, bool compatible, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation,
+        AnalysisIndexedFilter? query = null, IEnumerable<AnalysisSortInput>? unmeasuredCohorts = null)
     {
         await Builds.WaitAsync(cancellation).ConfigureAwait(false); State? state = null;
         try
         {
             state = await AnalysisIo.Run(io, device, _ => State.Create(source, metric, compatible, query), cancellation).ConfigureAwait(false);
+            if (unmeasuredCohorts is not null)
+            {
+                using var entries = unmeasuredCohorts.GetEnumerator();
+                var evidence = await AnalysisExternalSort.BuildSparseAsync(state.Workspace!, io, device, entries, cancellation,
+                    maximumRecords: AnalysisLimits.Observations * 2).ConfigureAwait(false);
+                try { await AnalysisIo.Run(io, device, _ => { state.UnmeasuredCohorts = evidence.Acquire(); return true; }, cancellation).ConfigureAwait(false); }
+                finally { await AnalysisIo.ReleaseScratchAsync(io, device, evidence).ConfigureAwait(false); }
+            }
             if (charges is not null)
             {
                 using var entries = charges.GetEnumerator();
@@ -203,7 +220,11 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
     {
         internal readonly ulong Id = id, Parent = parent;
         internal readonly AnalysisIndexRange Children = children, Charges = charges;
-        internal readonly bool Incomplete = incomplete, File = file;
+        internal bool Incomplete = incomplete;
+        internal readonly bool File = file;
+        internal bool Unknown, LogicalUnknown, DirectoryNamespace;
+        internal AnalysisIndexRange Issues;
+        internal ulong NextIssue;
         internal readonly Amount Amount = new();
         internal readonly Amount Logical = new();
         internal ulong NextChild, NextCharge;
@@ -218,6 +239,7 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
         internal AnalysisIndexedGraphReader Graph => _graph;
         internal AnalysisScratchWorkspace? Workspace;
         internal AnalysisSortedIndexReader? Placements;
+        internal AnalysisSortedIndexReader? UnmeasuredCohorts;
         internal readonly List<AnalysisSortedIndexReader> Indexes = [];
         internal readonly AnalysisMetric Metric;
         internal readonly bool Compatible;
@@ -232,6 +254,7 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
         internal bool Finished;
         internal Amount Total = new();
         internal Amount TotalLogical = new();
+        internal bool TotalUnknown, TotalLogicalUnknown;
         private State(AnalysisIndexedGraphReader graph, AnalysisScratchWorkspace workspace, AnalysisScratchVector writer, AnalysisScratchVector buckets, AnalysisMetric metric, bool compatible)
         { _graph = graph; Workspace = workspace; _writer = writer; _bucketWriter = buckets; Metric = metric; Compatible = compatible; }
         internal static State Create(AnalysisIndexedGraphReader source, AnalysisMetric metric, bool compatible, AnalysisIndexedFilter? query)
@@ -250,6 +273,13 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
         {
             if (!_started) { _started = true; _pending.Push(new(0, 0, default, Charges(0, token), false, false)); return 1; }
             var frame = _pending.Peek();
+            if (frame.NextIssue < frame.Issues.Count)
+            {
+                var issue = _graph.ReadIssue(_graph.ReadIndex(AnalysisIndexedGraphRevision.IssueOwners, frame.Issues.First + frame.NextIssue++, token).Value, token);
+                if (issue.State != MeasurementState.Excluded)
+                { frame.Unknown = true; if (frame.DirectoryNamespace) frame.Incomplete = frame.LogicalUnknown = true; }
+                return 1024L + issue.Code.Length * 2L;
+            }
             if (frame.NextCharge < frame.Charges.Count)
             {
                 var entry = Placements!.Read(frame.Charges.First + frame.NextCharge++, token); var key = entry.Key;
@@ -258,7 +288,8 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
                 UInt128 value = Read128(key.AsSpan(32)); var status = (MeasurementState)key[48];
                 if (path == 0 || aliases > AnalysisLimits.Observations || status != MeasurementState.Known && value != 0) throw Invalid();
                 var measurement = status == MeasurementState.Known ? AnalysisMeasurement.Known(value) : AnalysisMeasurement.Missing(status); bool unverified = (key[49] & 2) != 0;
-                frame.Amount.Measure(measurement, unverified); frame.OwnCharge = true; frame.Visible = true; _placed++;
+                frame.Amount.Measure(measurement, unverified); frame.Unknown |= !measurement.IsKnown;
+                frame.OwnCharge = true; frame.Visible = true; _placed++;
                 if ((key[49] & 1) != 0) (frame.Shared ??= new(AnalysisHierarchyBucketKind.SharedFiles)).Add(path, aliases, measurement, unverified);
                 if ((key[49] & 4) != 0) (frame.Directory ??= new(AnalysisHierarchyBucketKind.DirectoryAllocation)).Add(path, 0, measurement, unverified);
                 return 128;
@@ -274,11 +305,13 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
             if (frame.File && Metric is (AnalysisMetric.UniqueFileSize or AnalysisMetric.OnDisk) && !frame.OwnCharge) frame.Elsewhere = true;
             if (frame.Shared is { } shared) _bucketWriter!.Append(EncodeBucket(frame.Id, shared), token);
             if (frame.Directory is { } directory) _bucketWriter!.Append(EncodeBucket(frame.Id, directory), token);
-            if (frame.Id == 0) { Total = frame.Amount; TotalLogical = frame.Logical; Finished = true; }
+            if (frame.Id == 0)
+            { Total = frame.Amount; TotalLogical = frame.Logical; TotalUnknown = frame.Unknown; TotalLogicalUnknown = frame.LogicalUnknown; Finished = true; }
             else
             {
                 _writer!.Append(Encode(frame), token); _visited++;
                 var parent = _pending.Peek(); parent.Amount.Add(frame.Amount); parent.Logical.Add(frame.Logical); parent.Elsewhere |= frame.Elsewhere; parent.Visible |= frame.Visible;
+                parent.Unknown |= frame.Unknown; parent.LogicalUnknown |= frame.LogicalUnknown;
             }
             return 512;
         }
@@ -288,24 +321,42 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
             if (_pending.Count > AnalysisLimits.Depth + 1) throw Invalid();
             bool includedFile = node.Kind == AnalysisKind.File && node.IncludedByPolicy;
             bool match = includedFile && (_query?.Matches(id, token) ?? true), context = includedFile && (_query?.IsContext(id, token) ?? false);
+            bool namespaceUnknown = node.IncludedByPolicy && node.MetadataState != MeasurementState.Known;
             var frame = new Frame(id, node.ParentId, node.Kind == AnalysisKind.Directory ? _graph.Children(path.RootIndex, id, token) : default, Charges(id, token),
-                node.Kind == AnalysisKind.Directory && node.IncludedByPolicy && _graph.Header.Coverage != NamespaceCoverage.CompleteUnderPolicy, match || context)
+                node.Kind == AnalysisKind.Directory && namespaceUnknown, match || context)
             {
+                Unknown = namespaceUnknown, DirectoryNamespace = node.Kind == AnalysisKind.Directory && node.IncludedByPolicy,
+                LogicalUnknown = node.IncludedByPolicy && (node.Kind == AnalysisKind.Unknown || node.Kind == AnalysisKind.Directory && namespaceUnknown),
+                Issues = _graph.Find(AnalysisIndexedGraphRevision.IssueOwners, AnalysisGraphKeys.IssueOwner(id, null, _graph.Header.Roots), cancellation: token),
                 Match = match, Truth = includedFile ? _query?.Truth(id, token) ?? AnalysisTruth.True : AnalysisTruth.False,
                 Visible = _query is null || _query.IsUnfiltered || match || context || node.Kind == AnalysisKind.Directory && node.IncludedByPolicy && _query.NamespaceMatches(node, _pending.Select(f => f.Id), _graph.Header.Freshness)
             };
             long cost = 1024L + node.Name.Length * 2L + node.RawName.Length;
-            if (match)
+            if (match || includedFile && UnmeasuredCohorts is not null)
             {
-                frame.Amount.Files = 1; frame.Logical.Files = 1;
                 var range = _graph.Find(AnalysisIndexedGraphRevision.ObjectIds, AnalysisGraphKeys.Text(node.ObjectId!), cancellation: token);
                 if (range.Count != 1) throw Invalid();
                 var obj = _graph.ReadObject(_graph.ReadIndex(AnalysisIndexedGraphRevision.ObjectIds, range.First, token).Value, token);
-                frame.Logical.Measure(obj.LogicalLength, false);
                 cost += 1024L + obj.Id.Length * 2L + (obj.VerifiedIdentity?.Length ?? 0) * 2L + (obj.VersionEvidence?.Length ?? 0) * 2L;
-                if (_query is null && Metric == AnalysisMetric.Files) frame.Amount.Known = 1;
-                else if (_query is null && Metric == AnalysisMetric.FileSize)
-                    frame.Amount.Measure(obj.LogicalLength, false);
+                frame.Unknown |= UnmeasuredCohorts?.FindRange(obj.VerifiedIdentity is null ? AnalysisObjectChargeIndex.UnmeasuredPathKey(id) : AnalysisGraphKeys.ObjectIdentity(obj), token).Count > 0;
+                if (match)
+                {
+                    frame.Amount.Files = 1; frame.Logical.Files = 1; frame.Logical.Measure(obj.LogicalLength, false);
+                    frame.LogicalUnknown |= !obj.LogicalLength.IsKnown;
+                    frame.Unknown |= Metric switch
+                    {
+                        AnalysisMetric.UniqueFileSize => obj.VerifiedIdentity is null || !obj.LogicalLength.IsKnown,
+                        AnalysisMetric.FileSize => !obj.LogicalLength.IsKnown,
+                        _ => false
+                    };
+                    if (Metric == AnalysisMetric.OnDisk)
+                    {
+                        frame.Unknown |= _graph.Find(AnalysisIndexedGraphRevision.FactOwners, AnalysisGraphKeys.FactOwner(obj.Id, null), cancellation: token).Count == 0 ||
+                            UnmeasuredCohorts?.FindRange(AnalysisObjectChargeIndex.MissingObjectFactsKey(obj.Id), token).Count > 0;
+                    }
+                    if (_query is null && Metric == AnalysisMetric.Files) frame.Amount.Known = 1;
+                    else if (_query is null && Metric == AnalysisMetric.FileSize) frame.Amount.Measure(obj.LogicalLength, false);
+                }
             }
             _pending.Push(frame); return cost;
         }
@@ -315,6 +366,7 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
             _writer!.Flush(token); _rows = _writer.CaptureCommitted(); _writer.Dispose(); _writer = null;
             _bucketWriter!.Flush(token); _buckets = _bucketWriter.CaptureCommitted(); _bucketWriter.Dispose(); _bucketWriter = null;
             FilterSummary = _query?.Summary; _query = null;
+            UnmeasuredCohorts?.Dispose(); UnmeasuredCohorts = null;
         }
         internal IEnumerable<AnalysisSortInput> Entries(int kind, CancellationToken token)
         {
@@ -389,6 +441,7 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
             }
             return new(AnalysisPathMetadata.From(path), value.Amount.Export(), value.Incomplete, value.Elsewhere, value.Match, value.Visible, value.Truth)
                 { Logical = value.Logical.ExportLogical(), ModifiedUtc = modified, ModifiedPrecisionTicks = precision,
+                    HasUnmeasuredEvidence = value.Unknown, HasUnmeasuredLogicalEvidence = value.LogicalUnknown,
                     IsFilterContext = path.Kind == AnalysisKind.File && path.IncludedByPolicy && value.Visible && !value.Match && value.Elsewhere };
         }
         internal AnalysisHierarchyBucket ReadBucket(ulong row, CancellationToken token) => DecodeBucket(_buckets!.Read(row, token));
@@ -396,7 +449,7 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
         {
             Exception? error = null;
             foreach (var index in Indexes) Close(index, ref error);
-            Close(Placements, ref error); Close(_writer, ref error); Close(_bucketWriter, ref error); Close(_rows, ref error); Close(_buckets, ref error); Close(Workspace, ref error); Close(_graph, ref error);
+            Close(UnmeasuredCohorts, ref error); Close(Placements, ref error); Close(_writer, ref error); Close(_bucketWriter, ref error); Close(_rows, ref error); Close(_buckets, ref error); Close(Workspace, ref error); Close(_graph, ref error);
             if (error is not null) ExceptionDispatchInfo.Capture(error).Throw();
         }
         private static void Close(IDisposable? resource, ref Exception? error)
@@ -404,22 +457,24 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
     }
     private static byte[] Encode(Frame frame)
     {
-        var bytes = new byte[168]; BinaryPrimitives.WriteUInt32LittleEndian(bytes, 0x32484441); BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(4), frame.Id);
+        var bytes = new byte[168]; BinaryPrimitives.WriteUInt32LittleEndian(bytes, 0x33484441); BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(4), frame.Id);
         BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(12), frame.Parent); Write128(bytes.AsSpan(20), frame.Amount.Known); Write128(bytes.AsSpan(36), frame.Amount.Unverified);
         BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(52), frame.Amount.Files);
         for (int n = 0; n < 6; n++) BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(60 + n * 8), frame.Amount.Missing[n]);
         bytes[108] = (byte)((frame.Incomplete ? 1 : 0) | (frame.Elsewhere ? 2 : 0) | (frame.Match ? 4 : 0) | (frame.Visible ? 8 : 0) | ((int)frame.Truth << 4));
+        bytes[109] = (byte)((frame.Unknown ? 1 : 0) | (frame.LogicalUnknown ? 2 : 0));
         Write128(bytes.AsSpan(112), frame.Logical.Known);
         for (int n = 1; n < 6; n++) BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(128 + (n - 1) * 8), frame.Logical.Missing[n]);
         return bytes;
     }
     private static Frame Decode(byte[] bytes)
     {
-        if (bytes.Length != 168 || BinaryPrimitives.ReadUInt32LittleEndian(bytes) != 0x32484441 || bytes[108] > 47 || bytes[109] != 0 || bytes[110] != 0 || bytes[111] != 0) throw Invalid();
+        if (bytes.Length != 168 || BinaryPrimitives.ReadUInt32LittleEndian(bytes) != 0x33484441 || bytes[108] > 47 || bytes[109] > 3 || bytes[110] != 0 || bytes[111] != 0) throw Invalid();
         ulong id = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(4)), parent = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(12));
         if (id == 0 || parent == id) throw Invalid();
         var frame = new Frame(id, parent, default, default, (bytes[108] & 1) != 0, false)
-        { Elsewhere = (bytes[108] & 2) != 0, Match = (bytes[108] & 4) != 0, Visible = (bytes[108] & 8) != 0, Truth = (AnalysisTruth)(bytes[108] >> 4) };
+        { Elsewhere = (bytes[108] & 2) != 0, Match = (bytes[108] & 4) != 0, Visible = (bytes[108] & 8) != 0, Truth = (AnalysisTruth)(bytes[108] >> 4),
+            Unknown = (bytes[109] & 1) != 0, LogicalUnknown = (bytes[109] & 2) != 0 };
         frame.Amount.Known = Read128(bytes.AsSpan(20)); frame.Amount.Unverified = Read128(bytes.AsSpan(36)); _ = checked(frame.Amount.Known + frame.Amount.Unverified);
         frame.Amount.Files = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(52)); if (frame.Amount.Files > AnalysisLimits.Observations) throw Invalid();
         ReadMissing(bytes.AsSpan(60), frame.Amount);

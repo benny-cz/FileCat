@@ -42,7 +42,8 @@ public sealed class AnalysisIndexedChart : IAnalysisChartData
         if (root is not null && (root.Path.Kind != AnalysisKind.Directory || !root.IsVisible)) throw new InvalidOperationException("Choose a visible directory for the chart.");
         string key = scope == 0 ? AnalysisTree.RootKey : AnalysisTree.Key(scope);
         var totals = root?.Totals ?? hierarchy.Totals; var logical = root?.Logical ?? hierarchy.LogicalTotals;
-        var item = root is not null ? Row(root, hierarchy.Metric) : ScopeItem(key, "", "All locations", totals, logical, hierarchy.Metric);
+        var item = root is not null ? Row(root, hierarchy.Metric) : ScopeItem(key, "", "All locations", totals, logical, hierarchy.Metric,
+            hierarchy.HasUnmeasuredEvidence, hierarchy.HasUnmeasuredLogicalEvidence);
         return await BuildGeometryAsync(hierarchy.Metric, hierarchy.Descriptor.Identity.ObservedUtc, scope, 0, item, root?.Path.ParentId ?? 0,
             (id, token) => hierarchy.ReadAsync(id, token),
             (id, first, token) => hierarchy.ReadGeometryAsync(id, maximum: 128, cancellation: token), cancellation).ConfigureAwait(false);
@@ -50,15 +51,17 @@ public sealed class AnalysisIndexedChart : IAnalysisChartData
     internal static Task<AnalysisIndexedChart> BuildAsync(AnalysisDatasetHierarchy.Subset subset, CancellationToken cancellation)
     {
         string parent = subset.ParentId == 0 ? AnalysisTree.RootKey : AnalysisTree.Key(subset.ParentId);
-        var item = ScopeItem(subset.ScopeKey, parent, "Other small items", subset.Totals, subset.LogicalTotals, subset.Metric);
+        var item = ScopeItem(subset.ScopeKey, parent, "Other small items", subset.Totals, subset.LogicalTotals, subset.Metric,
+            subset.HasUnmeasuredEvidence, subset.HasUnmeasuredLogicalEvidence);
         return BuildGeometryAsync(subset.Metric, subset.Descriptor.Identity.ObservedUtc, subset.ParentId, subset.Skipped, item, subset.ParentId,
             (id, token) => subset.ReadSnapshotRowAsync(id, token),
             (id, first, token) => first ? subset.ReadGeometryAsync(cancellation: token) : subset.ReadSnapshotGeometryAsync(id, 128, token), cancellation);
     }
-    private static AnalysisTreeItem ScopeItem(string key, string parent, string name, AnalysisTotals totals, AnalysisLogicalTotals logical, AnalysisMetric metric) =>
+    private static AnalysisTreeItem ScopeItem(string key, string parent, string name, AnalysisTotals totals, AnalysisLogicalTotals logical, AnalysisMetric metric,
+        bool unknown = false, bool logicalUnknown = false) =>
         new(key, parent, name, null, AnalysisKind.Directory, true, true, AnalysisGroupedChart.Area(totals, metric), logical.KnownBytes,
-            logical.Files, totals.Missing.Count != 0 || !totals.CompatibleBasis, false, "folder", [], [])
-            { LogicalUnknown = logical.UnknownFiles != 0, IdentityUnverified = totals.IdentityUnverified };
+            logical.Files, unknown || totals.Missing.Count != 0 || !totals.CompatibleBasis, false, "folder", [], [])
+            { LogicalUnknown = logicalUnknown || logical.UnknownFiles != 0, IdentityUnverified = totals.IdentityUnverified };
 
     private static async Task<AnalysisIndexedChart> BuildGeometryAsync(AnalysisMetric metric, DateTimeOffset observed, ulong scope, int skipped,
         AnalysisTreeItem root, ulong ancestor, Func<ulong, CancellationToken, Task<AnalysisHierarchyRow>> readRow,
@@ -125,9 +128,9 @@ public sealed class AnalysisIndexedChart : IAnalysisChartData
         var path = row.Path;
         UInt128 value = !row.Totals.CompatibleBasis ? 0 : metric == AnalysisMetric.OnDisk ? checked(row.Totals.Known + row.Totals.IdentityUnverified) : row.Totals.Known;
         return new(AnalysisTree.Key(path.Id), path.ParentId == 0 ? AnalysisTree.RootKey : AnalysisTree.Key(path.ParentId), AnalysisNames.DisplayName(path, 256), path.Id,
-            path.Kind, false, row.IsVisible, value, row.Logical.KnownBytes, row.Logical.Files, row.NamespaceIncomplete || row.Totals.Missing.Count != 0 ||
+            path.Kind, false, row.IsVisible, value, row.Logical.KnownBytes, row.Logical.Files, row.HasUnmeasuredEvidence || row.NamespaceIncomplete || row.Totals.Missing.Count != 0 ||
             metric == AnalysisMetric.UniqueFileSize && row.Totals.IdentityUnverified != 0, row.HasChargesElsewhere, path.Kind == AnalysisKind.Directory ? "folder" : AnalysisClassification.Family(path.Name), [], [])
-        { IdentityUnverified = row.Totals.IdentityUnverified, LogicalUnknown = row.Logical.UnknownFiles != 0, MetadataState = path.MetadataState, IncludedByPolicy = path.IncludedByPolicy,
+        { IdentityUnverified = row.Totals.IdentityUnverified, LogicalUnknown = row.HasUnmeasuredLogicalEvidence || row.Logical.UnknownFiles != 0, MetadataState = path.MetadataState, IncludedByPolicy = path.IncludedByPolicy,
             ModifiedUtc = row.ModifiedUtc, ModifiedPrecisionTicks = row.ModifiedPrecisionTicks,
             IsFilterContext = row.IsFilterContext };
     }

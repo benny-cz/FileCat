@@ -28,6 +28,8 @@ public sealed partial class AnalysisDatasetHierarchy
         private static async Task<Subset> BuildAsync(State source, AnalysisDatasetDescriptor descriptor, AnalysisMetric metric, AnalysisFilterSummary? filter,
             DeviceIoScheduler io, AnalysisIoDevices device, ulong parent, int skipped, CancellationToken cancellation)
         {
+            if (parent == 0 && !source.Compatible)
+                throw new InvalidOperationException("These locations report different allocation components. Choose one location to explore On disk.");
             SubsetState? state = await AnalysisIo.Run(io, device, token => SubsetState.Create(source, parent, skipped, token), cancellation).ConfigureAwait(false);
             try
             {
@@ -72,6 +74,8 @@ public sealed partial class AnalysisDatasetHierarchy
         public AnalysisHierarchyRow? Parent { get; }
         public AnalysisTotals Totals { get; }
         public AnalysisLogicalTotals LogicalTotals { get; }
+        public bool HasUnmeasuredEvidence { get; }
+        public bool HasUnmeasuredLogicalEvidence { get; }
         public ulong GeometryCount { get; }
         public ulong Rows { get; }
         private Subset(SubsetState state, AnalysisDatasetDescriptor descriptor, AnalysisMetric metric, AnalysisFilterSummary? filter,
@@ -80,6 +84,7 @@ public sealed partial class AnalysisDatasetHierarchy
             Descriptor = descriptor; Metric = metric; Filter = filter; ParentId = state.Parent; Skipped = state.Skipped; Parent = state.ParentRow;
             GeometryCount = state.Geometry.Count - (ulong)Skipped; Rows = state.ChildCount;
             LogicalTotals = state.Logical.ExportLogical(); Totals = state.Amount.Export(state.ParentRow?.Totals.CompatibleBasis ?? state.Snapshot.Compatible) with { MatchingPaths = LogicalTotals.Files };
+            HasUnmeasuredEvidence = state.Unknown; HasUnmeasuredLogicalEvidence = state.LogicalUnknown || LogicalTotals.UnknownFiles != 0;
             _owned = new(state, io, device); _io = io; _device = device;
         }
         public Task<AnalysisDatasetPage<AnalysisHierarchyRow>> ReadChildrenAsync(AnalysisHierarchySort sort = AnalysisHierarchySort.Metric,
@@ -201,7 +206,7 @@ public sealed partial class AnalysisDatasetHierarchy
         internal readonly AnalysisHierarchyRow? ParentRow;
         internal readonly Amount Amount = new(), Logical = new();
         internal readonly List<ulong> Buckets = [];
-        internal bool Shared;
+        internal bool Shared, Unknown, LogicalUnknown;
         internal ulong ChildCount;
         internal AnalysisScratchWorkspace? Workspace;
         internal AnalysisSortedIndexReader? Selected, Order, SharedObjects, Matches;
@@ -235,11 +240,13 @@ public sealed partial class AnalysisDatasetHierarchy
                 if ((source & AnalysisGeometryOrder.BucketToken) != 0)
                 {
                     ulong row = source & ~AnalysisGeometryOrder.BucketToken; var bucket = Snapshot.ReadBucket(row, token); Buckets.Add(row);
+                    Unknown |= AnalysisGeometryOrder.Bucket(bucket, Snapshot.Metric).Unknown;
                     Shared |= bucket.Kind == AnalysisHierarchyBucketKind.SharedFiles; Add(bucket.Totals);
                 }
                 else
                 {
                     var observed = Snapshot.Read(source, token); Add(observed.Totals);
+                    var item = AnalysisIndexedChart.Row(observed, Snapshot.Metric); Unknown |= item.Unknown; LogicalUnknown |= item.LogicalUnknown;
                     yield return new(new(Key(source), source), checked((int)(1536L + observed.Path.Name.Length * 2L + observed.Path.RawName.Length +
                         observed.Path.RootId.Length * 2L + (observed.Path.ObjectId?.Length ?? 0) * 2L + (observed.Path.ObservedIdentity?.Length ?? 0) * 2L))); continue;
                 }

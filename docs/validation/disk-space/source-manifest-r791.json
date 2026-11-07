@@ -1,0 +1,703 @@
+{
+  "purpose": "Bounded folder unmeasured evidence, exact suffix/header retention and prescribed incompatible-root refusal; full W0-W8 remains open",
+  "observedUtc": "2026-11-07T14:16:45.061576+00:00",
+  "gitBase": "a55014e21b5e246c46cd57047c0fc8a314dee1cf",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+      "sha256": "4fb74984083bdf0b48440f40ea854da44f202e690a7d01b14d52b1b3f9f84921"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.Geometry.cs",
+      "sha256": "67c57aacc76abcdcfbf215940732b2c6844bb2601cb8df53f198de964b26d6b7"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.Subset.cs",
+      "sha256": "22da8c56ffe20dd80c07d8c62959d41125c3fc9f9b2d8268a61977918e0a11c4"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedChart.cs",
+      "sha256": "f71393d66d33eaab3a2e8650e0bfb26ccf8ecddc1263510e91279d81c1bc6f04"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObjectCharges.cs",
+      "sha256": "c3c7477517bfa94ffddd86bcdad3de7f5ff696adbe353862b4a76714f054bf8a"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.UnmeasuredGeometry.cs",
+      "sha256": "a33cef59f71361af53b2397dd5b38e73b0fb77602325bd55e78dc1a35772bdef"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.UnmeasuredOther.cs",
+      "sha256": "d92de651905ef889bb765078d1aeccb2fe3b0c9da965991c1c126b76283d8d0e"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r784.txt",
+      "sha256": "4f117e8834c3b2d979fdaf3607cbdaec935d00e4e3e058bbc388fa402c2ff520"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r786.txt",
+      "sha256": "fa3af496e736de19fa7765a676a22b3369443d78dac850295d64b81af46d84b5"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r787.txt",
+      "sha256": "414f8797296a8f9ab188a77f0e1db940c23269076a325ff0372d304058dad402"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r788.txt",
+      "sha256": "b46bf36b8665f1b0a5afb710b0500c6799b02dde20a9929e8dcd8e22ac230aab"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r789-core-r789.xml",
+      "sha256": "c56786662997f0c4a4a54b37454ee3ae55f88d77e65395a7b5cb1e2d9854e6c6"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r789-core-r789.log",
+      "sha256": "13e749ee7e23de2a297f5d077c1dcc35b998c2979468dd9e2cd49529f841ca80"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r789-render-r789.xml",
+      "sha256": "c292df7d5863ec12b86f37838efe1caade687a2132535e85bfa346e955dde8b2"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r789-render-r789.log",
+      "sha256": "40a5d734d1766492bcd7b3413324748c6933d71e552ccc2d93380632922057ec"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r789-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r789-post.json",
+      "sha256": "58ca563bd214ac57091d3eb9ae8b6d7c332d1f108392c297d8077ff1b4b7bd70"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-pre-r789.json",
+      "sha256": "c51a878978271ec6085c3d2ba2a06363628ac514676924b0e8411f3277d4401d"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r789-core-r789.xml",
+      "sha256": "89a09a70001c71db0a37ff19fae62c9ebc42613ddf76b90b9f7ff7a8e514e166"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r789-core-r789.log",
+      "sha256": "24969a57c894c3a203b293f75954988816837e83a5c4533c1fe8a988c65a9908"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r789-render-r789.xml",
+      "sha256": "f413c99de0176ca3cd97fa4659529f91bb10f4ff0f6a1320c2ba14b5fa5ba7db"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r789-render-r789.log",
+      "sha256": "34d1ef03be73d9b463bbfe4eb6414400646b3271b7176530e5b3df9c8d8fec22"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r789-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r789-post.json",
+      "sha256": "b0c1d6f9fa0d2dc37138066739831d00beadca281d9540306095416ad8deeae4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-pre-r789.json",
+      "sha256": "906194f1345d3989af980bd53d8b28ffd5f1a2267fc26fbdc8d1bd517aac80b9"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r789-core-r789.xml",
+      "sha256": "f215f72b67bdda152e598a9314482cf2c4597bf338ca157b8e8987e0809187c2"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r789-core-r789.log",
+      "sha256": "727af26ed241f9861dc81ea2216c96eedb5dd088a34aef32e661c33667461d4c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r789-native-r789.xml",
+      "sha256": "838149b540da80564c9dba395edcd137d61d7435e89fecceb8613f86d625993d"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r789-native-r789.log",
+      "sha256": "41aa851a79142d82293dcfbd51576e818bbe9d7a3f12529c50e2fa5b7adf999e"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r789-render-r789.xml",
+      "sha256": "e3c3c4af186eab06dab84e0a59a91de90a623dc413a405fb16418ee0a89791b4"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r789-render-r789.log",
+      "sha256": "a39476aa67a6c1e0d2fa2618ffdf3478bd371bd3c4cffc71a0bcbd77da0abe92"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r789-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r789-post.json",
+      "sha256": "f24d1abc459efcfc836deea717e3e813f8387d560394c5edce3ebdc7d3ca824e"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-pre-r789.json",
+      "sha256": "777040aff4120e489911e74af22a5f955c8f53d0d28a5e05e63761cccc71e1ed"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/preflight-indexed-r732.ps1",
+      "sha256": "74594887c0fb548b398b8e6f5794ec0f2e757fce942f88cb9e711407646c4aa5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/deploy-batch.ps1",
+      "sha256": "8ce277c94e470b75424b010ee2a0170634028fb488d3c96798fba247c3b686ce"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/collect-batch.ps1",
+      "sha256": "442692a6d4fbbbcbd80f84ca598bfdbe462487f27874dc1547b0f41c8f18f624"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/finalize-unmeasured.py",
+      "sha256": "fb5facc89ca47344190d5c57a2132cf96f955d24178a5f178150e8b3966656c5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r789.sh",
+      "sha256": "086394d75b286679fa71b51ec55fcc6e75b7b03f666dfd1c64f49b786929029f"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r789.sh",
+      "sha256": "bbf7a1a417d69bfa5d6b26d0b324f0a997b73b93e39ad8c207ff3805d3f59b4a"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r789.ps1",
+      "sha256": "a63266c309198479d73703f92820976a16cefa340b2f0958493606aba5ae1e85"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r789.tgz",
+      "sha256": "cfc40ea4d185d9c0b9a676910f8575f4016cd336c60877458619aec45af0e189"
+    },
+    {
+      "name": "dsa-batch-linux-r789.tgz",
+      "sha256": "53113b1afcc64534bbd4b6829466bb264f2dbaf9b21aa0512217ed1e70f99244"
+    },
+    {
+      "name": "dsa-batch-windows-r789.tgz",
+      "sha256": "c0ceef974eddbff53d1bff3ecde3f192f401e275c1ee3d7601354095c3cfd542"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r789": "801de7832bcc465dd4bf8cc7f2230c4eb0c6c770f11d27ca3363ab6a97751135",
+    "native-r789": "801de7832bcc465dd4bf8cc7f2230c4eb0c6c770f11d27ca3363ab6a97751135",
+    "render-r790-mac": "801de7832bcc465dd4bf8cc7f2230c4eb0c6c770f11d27ca3363ab6a97751135",
+    "render-r790-linux": "801de7832bcc465dd4bf8cc7f2230c4eb0c6c770f11d27ca3363ab6a97751135",
+    "render-r790-windows": "801de7832bcc465dd4bf8cc7f2230c4eb0c6c770f11d27ca3363ab6a97751135"
+  },
+  "productionAppHashes": {
+    "render-r790-mac": "abd94aa57401356a1753348ead72e4ddb948ba0ed168e97458575e6646301dd5",
+    "render-r790-linux": "abd94aa57401356a1753348ead72e4ddb948ba0ed168e97458575e6646301dd5",
+    "render-r790-windows": "abd94aa57401356a1753348ead72e4ddb948ba0ed168e97458575e6646301dd5"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r789": "882b75c547c83ba77fa9ee0a5589fe29758b796f831373cbc34e4c4c0c5ebdb1",
+    "render-r790-mac": "882b75c547c83ba77fa9ee0a5589fe29758b796f831373cbc34e4c4c0c5ebdb1",
+    "render-r790-linux": "882b75c547c83ba77fa9ee0a5589fe29758b796f831373cbc34e4c4c0c5ebdb1",
+    "render-r790-windows": "882b75c547c83ba77fa9ee0a5589fe29758b796f831373cbc34e4c4c0c5ebdb1"
+  },
+  "matrix": {
+    "mac-batch-r789-core-r789.xml": {
+      "total": "1233",
+      "passed": "1229",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "28.936"
+    },
+    "mac-batch-r789-render-r789.xml": {
+      "total": "234",
+      "passed": "234",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "86.496"
+    },
+    "ubuntu-batch-r789-core-r789.xml": {
+      "total": "1233",
+      "passed": "1229",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "102.555"
+    },
+    "ubuntu-batch-r789-render-r789.xml": {
+      "total": "234",
+      "passed": "234",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "145.092"
+    },
+    "windows-batch-r789-core-r789.xml": {
+      "total": "1251",
+      "passed": "1203",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "53.626"
+    },
+    "windows-batch-r789-native-r789.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "45.614"
+    },
+    "windows-batch-r789-render-r789.xml": {
+      "total": "234",
+      "passed": "233",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "158.056"
+    }
+  },
+  "targetedControls": {
+    "mac": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IncompatibleCombinedGeometryAndOtherAreExplicitlyUnavailableWhileRootViewsRetainTheirAmounts"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: True)"
+      ]
+    },
+    "ubuntu": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IncompatibleCombinedGeometryAndOtherAreExplicitlyUnavailableWhileRootViewsRetainTheirAmounts"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: True)"
+      ]
+    },
+    "windows": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IncompatibleCombinedGeometryAndOtherAreExplicitlyUnavailableWhileRootViewsRetainTheirAmounts",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: False, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: FileSize, filtered: True, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: False, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: UniqueFileSize, filtered: True, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: False, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: OnDisk, filtered: True, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: False, evidence: \\\"directory-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"unverified-zero\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"unverified-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"unsupported\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"excluded\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"failed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"pending\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"changed\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"conflict\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"no-own-facts\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"covered-missing-fact\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"namespace-issue\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"partial\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"unknown-kind\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.UnmeasuredHierarchyGeometryAndEveryOtherSuffixRetainMemoryEvidence(metric: Files, filtered: True, evidence: \\\"directory-missing\\\")"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: True)"
+      ]
+    }
+  },
+  "postCollectionProcesses": {
+    "mac": [],
+    "ubuntu": [],
+    "windows": []
+  },
+  "newCoreControls": 121,
+  "newRenderingControls": 8,
+  "supersededFailedBatches": [],
+  "finalBuild": "build-r788.txt: full solution zero warnings/errors",
+  "testScope": "Actual ordinary guest runtimes, native private saved stores and headless window controls, managed reference/ownership controls and applicable suites. Full physical desktop, complete accounting/interaction and 1M/10M/resource qualification remain pending.",
+  "batchWorkflow": "One immutable bundle/platform, sequential applicable suites, integrity and per-phase foreign-instance gates, one collection/completed machine.",
+  "ownedProcessExitEvidence": "Every original runner and collector terminal; post inventories contain no owned candidate instances. Identifiable foreign processes were preserved. No host application/input tests.",
+  "qualification": {
+    "folderUnmeasuredEvidenceAndExactSuffixControlsPassedAllThree": true,
+    "boundedCanonicalMissingCohortAndRawFactEvidenceImplemented": true,
+    "rootAndSubsetUnknownHeadersRetained": true,
+    "incompatibleCombinedGeometryAndSiblingScopesExplicitlyUnavailable": true,
+    "nativePrivateSavedWindowControlsPassedAllThree": true,
+    "newControlsPassedAllThree": true,
+    "indexedOtherExactSubsetPersistenceParityQualified": false,
+    "fullMixedBasisUnknownAndUnverifiedSubsetQualificationComplete": false,
+    "fullNativeDesktopOtherQualified": false,
+    "fullResourceGateQualified": false,
+    "fullMillionTenMillionQualificationComplete": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

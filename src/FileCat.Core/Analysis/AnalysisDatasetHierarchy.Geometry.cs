@@ -24,6 +24,7 @@ public sealed partial class AnalysisDatasetHierarchy
 
     private static AnalysisDatasetPage<AnalysisTreeItem> GeometryPage(State state, ulong parent, ulong offset, int maximum, CancellationToken token)
     {
+        if (parent == 0 && !state.Compatible) throw new InvalidOperationException("These locations report different allocation components. Choose one location to explore On disk.");
         state.Graph.RequireParent(parent, token); var index = state.Indexes[8]; var range = index.PrefixRange(Key(parent), token);
         if (offset > range.Count || maximum is < 1 or > AnalysisLimits.BatchRecords) throw new ArgumentOutOfRangeException(nameof(offset));
         var rows = ImmutableArray.CreateBuilder<AnalysisTreeItem>(); long bytes = 0;
@@ -49,7 +50,8 @@ public sealed partial class AnalysisDatasetHierarchy
             try
             {
                 clone = new(graph, null!, null!, null!, Metric, Compatible)
-                    { _rows = _rows!.Retain(), Total = Total, TotalLogical = TotalLogical, FilterSummary = FilterSummary, Finished = true };
+                    { _rows = _rows!.Retain(), Total = Total, TotalLogical = TotalLogical, TotalUnknown = TotalUnknown,
+                        TotalLogicalUnknown = TotalLogicalUnknown, FilterSummary = FilterSummary, Finished = true };
                 clone._buckets = _buckets!.Retain();
                 foreach (var index in Indexes) clone.Indexes.Add(index.Retain());
                 clone.Placements = Placements?.Retain(); return clone;

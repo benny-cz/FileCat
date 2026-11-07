@@ -34,7 +34,8 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
     /// <summary>Folds charges into real directory rows and explicit shared/directory-self buckets.</summary>
     public Task<AnalysisDatasetHierarchy> BuildHierarchyAsync(CancellationToken cancellation = default) =>
         _owned.UseAsync(state => AnalysisDatasetHierarchy.BuildAsync(state.Graph, Descriptor, Metric, state.PlacementEntries(cancellation),
-            Totals.CompatibleBasis, _io, _device, cancellation, state.Query));
+            Totals.CompatibleBasis, _io, _device, cancellation, state.Query,
+            Metric is AnalysisMetric.UniqueFileSize or AnalysisMetric.OnDisk ? state.UnmeasuredCohorts(cancellation) : null));
 
     internal static async Task<AnalysisObjectChargeIndex> BuildAsync(AnalysisIndexedGraphReader source, AnalysisDatasetDescriptor descriptor,
         AnalysisMetric metric, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation, AnalysisIndexedFilter? query = null)
@@ -350,6 +351,26 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
                 yield return new(new(key, value.Id), 128);
             }
         }
+        // A missing shared charge belongs at its captured LCA, but its aliases and their
+        // ancestors still carry unknown evidence. Index the canonical identity rather
+        // than expanding an arbitrarily large alias cohort in one worker turn.
+        internal IEnumerable<AnalysisSortInput> UnmeasuredCohorts(CancellationToken token)
+        {
+            if (Metric is not (AnalysisMetric.UniqueFileSize or AnalysisMetric.OnDisk)) yield break;
+            for (ulong row = 1; row <= _rows!.Count; row++)
+            {
+                token.ThrowIfCancellationRequested(); var charge = Decode(_rows.Read(row, token));
+                if (charge.Object == 0 || charge.Measurement.IsKnown) { yield return new(null, 128); continue; }
+                var obj = _graph.ReadObject(charge.Object, token); byte[] key = obj.VerifiedIdentity is null ? UnmeasuredPathKey(charge.Path) : AnalysisGraphKeys.ObjectIdentity(obj);
+                yield return new(new(key, row), checked(1024 + key.Length + obj.Id.Length * 2 + (obj.VersionEvidence?.Length ?? 0) * 2));
+            }
+            if (Metric != AnalysisMetric.OnDisk) yield break;
+            for (ulong row = 1; row <= _graph.Count(AnalysisIndexedGraph.Facts); row++)
+            {
+                token.ThrowIfCancellationRequested(); var fact = _graph.ReadFact(row, token);
+                yield return new(fact.ObjectId is { } id && !fact.Measurement.IsKnown ? new(MissingObjectFactsKey(id), row) : null, checked((int)FactBytes(fact)));
+            }
+        }
         internal AnalysisObjectCharge Read(ulong row, CancellationToken token, out long cost)
         {
             var value = Decode(_rows!.Read(row, token)); var obj = value.Object == 0 ? null : _graph.ReadObject(value.Object, token);
@@ -365,6 +386,10 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
             finally { try { Workspace?.Dispose(); } finally { _graph.Dispose(); } }
         }
     }
+    // Canonical cohort keys start with 0/1. Prefix 2 keeps raw per-object fact
+    // evidence distinct: another object in the same cohort may have supplied it.
+    internal static byte[] MissingObjectFactsKey(string id) => [2, .. AnalysisGraphKeys.Text(id)];
+    internal static byte[] UnmeasuredPathKey(ulong id) => [3, .. Key(id)];
     private static byte[] Key(ulong value) { var bytes = new byte[8]; BinaryPrimitives.WriteUInt64BigEndian(bytes, value); return bytes; }
     private static byte[] Encode(Row row)
     {
