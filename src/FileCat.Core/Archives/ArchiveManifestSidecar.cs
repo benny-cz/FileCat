@@ -55,11 +55,11 @@ public static class ArchiveManifestSidecar
         Span<byte> flags = stackalloc byte[4];
         BinaryPrimitives.WriteUInt16LittleEndian(flags, 1); flags[2] = (byte)purpose; flags[3] = 0; Put(flags);
         Span<byte> nonceBytes = stackalloc byte[16]; nonce.TryWriteBytes(nonceBytes, bigEndian: true, out _); Put(nonceBytes);
-        Integer((int)manifest.Profile.Format); Integer(manifest.Profile.Version);
-        Integer(manifest.Profile.CompressionLevel); Integer(manifest.Profile.DictionaryBytes);
+        Span<byte> profile = stackalloc byte[ArchiveWriteProfileEncoding.MaximumBytes];
+        int profileLength = ArchiveWriteProfileEncoding.Write(manifest.Profile, profile); Put(profile[..ArchiveWriteProfileEncoding.LegacyBytes]);
         Integer(manifest.Members.Count);
         Span<byte> logical = stackalloc byte[8]; BinaryPrimitives.WriteInt64LittleEndian(logical, manifest.LogicalBytes); Put(logical);
-        Integer(manifest.Features.Length); Put(manifest.Features);
+        Integer(manifest.Features.Length); Put(profile[ArchiveWriteProfileEncoding.LegacyBytes..profileLength]); Put(manifest.Features);
         Put(Convert.FromHexString(manifest.Digest)); Put(Convert.FromHexString(manifest.ContentDigest)); Put(Convert.FromHexString(manifest.MetadataDigest));
         foreach (var member in manifest.Members)
         {
@@ -77,7 +77,7 @@ public static class ArchiveManifestSidecar
     internal static long EncodedLength(ArchiveWriteManifest manifest, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(manifest); ct.ThrowIfCancellationRequested();
-        long length = FixedBytes + manifest.Features.Length;
+        long length = FixedBytes + manifest.Features.Length + ArchiveWriteProfileEncoding.Length(manifest.Profile) - ArchiveWriteProfileEncoding.LegacyBytes;
         foreach (var member in manifest.Members)
         {
             ct.ThrowIfCancellationRequested();
@@ -145,7 +145,13 @@ public sealed class ArchiveManifestSidecarReader : IDisposable
             if (!header[..8].SequenceEqual(ArchiveManifestSidecar.Magic) || BinaryPrimitives.ReadUInt16LittleEndian(header[8..]) != 1 ||
                 header[10] != (byte)purpose || header[11] != 0 || new Guid(header.Slice(12, 16), bigEndian: true) != nonce)
                 throw ArchiveManifestSidecar.Invalid();
-            try { Profile = new((ArchiveWriteFormat)Int(header, 28), Int(header, 32), Int(header, 36), Int(header, 40)); }
+            try
+            {
+                Span<byte> encoded = stackalloc byte[ArchiveWriteProfileEncoding.MaximumBytes];
+                header.Slice(28, ArchiveWriteProfileEncoding.LegacyBytes).CopyTo(encoded);
+                int length = Int(header, 32) switch { 1 => ArchiveWriteProfileEncoding.LegacyBytes, 2 => ArchiveWriteProfileEncoding.MaximumBytes, _ => throw ArchiveManifestSidecar.Invalid() };
+                Take(encoded[ArchiveWriteProfileEncoding.LegacyBytes..length]); Profile = ArchiveWriteProfileEncoding.Decode(encoded[..length]);
+            }
             catch (ArchiveWriteException) { throw ArchiveManifestSidecar.Invalid(); }
             DeclaredMembers = Int(header, 44); DeclaredLogicalBytes = BinaryPrimitives.ReadInt64LittleEndian(header[48..]);
             int featureLength = Int(header, 56);

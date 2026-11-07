@@ -131,7 +131,8 @@ public sealed class ArchiveTransactionFacts
                 originEvidenceSources < (original is null ? 0 : 1) || originEvidenceSources > ArchiveWritePolicy.MaxMembers + (original is null ? 0 : 1))
                 throw new ArgumentException("Origin evidence reservation aliases an archive artifact or exceeds its scope.");
             if (originEvidence is not null && (originEvidence.Identity != originEvidenceIdentity ||
-                                               originEvidence.Length < 52 + ArchiveOriginEvidenceWriter.MinFramedRecordBytes * (long)originEvidenceSources!.Value ||
+                                               originEvidence.Length < 52 + ArchiveWriteProfileEncoding.Length(profile) - ArchiveWriteProfileEncoding.LegacyBytes +
+                                                   ArchiveOriginEvidenceWriter.MinFramedRecordBytes * (long)originEvidenceSources!.Value ||
                                                originEvidence.Length > ArchiveWritePolicy.MaxMetadataBytes))
                 throw new ArgumentException("Finalized origin evidence is a different or unsupported object.");
         }
@@ -308,8 +309,7 @@ public sealed class ArchiveTransactionFacts
         var node = new JsonObject
         {
         ["t"] = "archive-transaction", ["v"] = RecordVersion, ["nonce"] = Nonce.ToString("N"), ["sequence"] = Sequence,
-        ["profile"] = new JsonObject { ["format"] = (int)Profile.Format, ["version"] = Profile.Version,
-            ["level"] = Profile.CompressionLevel, ["dictionary"] = Profile.DictionaryBytes },
+        ["profile"] = ArchiveWriteProfileEncoding.ToJson(Profile),
         ["phase"] = Phase.ToString(), ["archive"] = ArchivePath, ["parent"] = ParentIdentity,
         ["original"] = VersionJson(Original), ["stage"] = StagePath, ["stageIdentity"] = StageIdentity,
         ["verified"] = VersionJson(VerifiedStage), ["retained"] = RetainedPath, ["manifestPath"] = ManifestPath,
@@ -404,9 +404,7 @@ public sealed class ArchiveTransactionFacts
             !Enum.TryParse(Text(node, "phase"), out ArchiveTransactionPhase phase) || phase.ToString() != Text(node, "phase") ||
             node["profile"] is not JsonObject profile || node["unresolved"] is not JsonArray artifacts || artifacts.Count > MaxArtifacts)
             throw new ArgumentException("Unsupported or incomplete archive transaction facts.");
-        ExactKeys(profile, "format", "version", "level", "dictionary");
-        return new(recordVersion, nonce, Int(node, "sequence"), new((ArchiveWriteFormat)Int(profile, "format"), Int(profile, "version"),
-                Int(profile, "level"), Int(profile, "dictionary")), phase, Text(node, "archive"), Text(node, "parent"),
+        return new(recordVersion, nonce, Int(node, "sequence"), ArchiveWriteProfileEncoding.FromJson(profile), phase, Text(node, "archive"), Text(node, "parent"),
             ParseVersion(node["original"]), Text(node, "stage"), recordVersion >= 3 ? OptionalText(node, "stageIdentity") : Text(node, "stageIdentity"), ParseVersion(node["verified"]),
             OptionalText(node, "retained"), OptionalText(node, "manifestPath"), ParseVersion(node["manifest"]), OptionalText(node, "security"),
             ParseVersion(node["published"]), ParseVersion(node["retired"]), artifacts.Select(n =>

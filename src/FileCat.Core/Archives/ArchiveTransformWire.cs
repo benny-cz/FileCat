@@ -100,8 +100,7 @@ public static class ArchiveTransformWire
         if (request.Source is not null && request.Source.Profile != request.Profile) throw Fault();
         records.Write(ArchiveControlRecord.TransformRequest, Encode(w =>
         {
-            w.Write((ushort)3); w.Write((int)request.Profile.Format); w.Write(request.Profile.Version);
-            w.Write(request.Profile.CompressionLevel); w.Write(request.Profile.DictionaryBytes); w.Write(request.Source is not null);
+            w.Write((ushort)3); ArchiveWriteProfileEncoding.Write(w, request.Profile); w.Write(request.Source is not null);
             if (request.Source is { } source) { w.Write(source.SourceLength); Digest(w, source.SourceSha256); }
             w.Write(request.Inputs.Count); w.Write(request.Edits.Count); w.Write(request.Additions.Count); w.Write(request.OutputLengthBound);
         }));
@@ -142,7 +141,7 @@ public static class ArchiveTransformWire
         try
         {
             ct.ThrowIfCancellationRequested(); var reader = new Packet(records.Read(ArchiveControlRecord.TransformRequest)); reader.Schema(3);
-            var profile = new ArchiveWriteProfile((ArchiveWriteFormat)reader.Integer(), reader.Integer(), reader.Integer(), reader.Integer());
+            var profile = reader.Profile();
             if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd)) throw Fault();
             ArchiveAssessmentRequest? source = reader.Flag() ? new(profile, reader.Long(), reader.Digest()) : null;
             if (source is not null) ArchiveAssessmentWire.Validate(source);
@@ -220,6 +219,7 @@ public static class ArchiveTransformWire
         { if (count < 0 || count > _data.Length) throw Fault(); var result = _data[..count]; _data = _data[count..]; return result; }
         public int Integer() => BinaryPrimitives.ReadInt32LittleEndian(Take(4));
         public long Long() => BinaryPrimitives.ReadInt64LittleEndian(Take(8));
+        public ArchiveWriteProfile Profile() => ArchiveWriteProfileEncoding.Read(ref _data);
         public string Digest() => Convert.ToHexString(Take(32));
         public bool Flag() { byte flag = Take(1)[0]; if (flag > 1) throw Fault(); return flag == 1; }
         public void Schema(ushort expected = 1) { if (BinaryPrimitives.ReadUInt16LittleEndian(Take(2)) != expected) throw Fault(); }

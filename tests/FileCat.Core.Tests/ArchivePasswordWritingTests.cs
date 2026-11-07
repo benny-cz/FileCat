@@ -32,19 +32,24 @@ public sealed class ArchivePasswordWritingTests
         using var stage = new MemoryStream();
         if (format == 0)
         {
-            using var secret = new Rar5EncryptionSession(PublicPassword, hide, new(), Ct);
+            var profile = ArchiveWriteProfile.ForRar5((ArchiveRar5Compression)method,
+                new(hide ? ArchiveEncryptionMode.DataAndNames : ArchiveEncryptionMode.Data));
+            using var secret = ArchiveWriterProfileAdapter.Rar5Encryption(profile, new(PublicPassword), new(), Ct);
             var entries = names.Select((name, i) => new Rar5WriteEntry(name, ids[i] is null ? ArchiveMemberType.Directory : ArchiveMemberType.File,
                 Modified, ids[i] is null ? 0x1ed : 0x1a4, ids[i])).ToArray();
             Rar5ArchiveWriter.Create(stage, entries, data.Select((bytes, id) => new Rar5InputDescriptor(id, bytes.Length, Digest(bytes))).ToDictionary(d => d.Id),
-                id => new MemoryStream(data[id], false), (Rar5Compression)method, Ct, secret);
+                id => new MemoryStream(data[id], false), ArchiveWriterProfileAdapter.Rar5(profile), Ct, secret);
         }
         else
         {
-            using var secret = new SevenZipEncryptionSession(PublicPassword, hide, new(), Ct);
+            var profile = ArchiveWriteProfile.ForSevenZip(new((ArchiveSevenZipCodec)method,
+                headerCompression: compressed ? ArchiveSevenZipHeaderCompression.Lzma2 : ArchiveSevenZipHeaderCompression.Raw),
+                encryption: new(hide ? ArchiveEncryptionMode.DataAndNames : ArchiveEncryptionMode.Data));
+            using var secret = ArchiveWriterProfileAdapter.SevenZipEncryption(profile, new(PublicPassword), new(), Ct);
             var entries = names.Select((name, i) => new SevenZipWriteEntry(name, ids[i] is null ? ArchiveMemberType.Directory : ArchiveMemberType.File,
                 Modified, ids[i] is null ? 0x1ed : 0x1a4, ids[i])).ToArray();
             SevenZipArchiveWriter.Create(stage, entries, data.Select((bytes, id) => new SevenZipInputDescriptor(id, bytes.Length, Digest(bytes))).ToDictionary(d => d.Id),
-                id => new MemoryStream(data[id], false), new((SevenZipCodec)method), Ct, compressed ? SevenZipHeaderMode.Lzma2 : SevenZipHeaderMode.Raw, secret);
+                id => new MemoryStream(data[id], false), ArchiveWriterProfileAdapter.SevenZip(profile), Ct, ArchiveWriterProfileAdapter.SevenZipHeader(profile), secret);
         }
         byte[] archive = stage.ToArray(); Assert.Equal(stage.Length, stage.Position);
         if (hide) Assert.Equal(-1, archive.AsSpan().IndexOf(Encoding.UTF8.GetBytes(names[0])));
@@ -81,10 +86,13 @@ public sealed class ArchivePasswordWritingTests
     public void Encrypted_filter_graphs_preserve_exact_content_and_export_public_vectors(int filterId, int distance)
     {
         byte[] bytes = new byte[131089]; new Random(42829305).NextBytes(bytes);
-        using var stage = new MemoryStream(); using var secret = new SevenZipEncryptionSession(PublicPassword, true, new(), Ct);
+        using var stage = new MemoryStream();
+        var profile = ArchiveWriteProfile.ForSevenZip(new(ArchiveSevenZipCodec.Lzma2, (ArchiveSevenZipFilter)filterId, deltaDistance: distance),
+            encryption: new(ArchiveEncryptionMode.DataAndNames));
+        using var secret = ArchiveWriterProfileAdapter.SevenZipEncryption(profile, new(PublicPassword), new(), Ct);
         var entry = new SevenZipWriteEntry("private-filter-界.bin", ArchiveMemberType.File, Modified, 0x1a4, 0);
         SevenZipArchiveWriter.Create(stage, [entry], new Dictionary<int, SevenZipInputDescriptor> { [0] = new(0, bytes.Length, Digest(bytes)) },
-            _ => new MemoryStream(bytes, false), new(SevenZipCodec.Lzma2, Filter: (SevenZipFilter)filterId, DeltaDistance: distance), Ct, SevenZipHeaderMode.Lzma2, secret);
+            _ => new MemoryStream(bytes, false), ArchiveWriterProfileAdapter.SevenZip(profile), Ct, ArchiveWriterProfileAdapter.SevenZipHeader(profile), secret);
         using var dir = new TempDir(); string path = Path.Combine(dir.Path, "filter.7z"); File.WriteAllBytes(path, stage.ToArray());
         using var readSecret = new SevenZipReadPasswordSession(PublicPassword, new(), Ct);
         using var reader = SharpArchiveReader.OpenWithPassword(path, readSecret);
@@ -110,13 +118,15 @@ public sealed class ArchivePasswordWritingTests
         using var stage = new MemoryStream();
         if (format == 0)
         {
-            using var secret = new Rar5EncryptionSession(PublicPassword, true, new(), Ct);
-            Rar5ArchiveWriter.Create(stage, [], new Dictionary<int, Rar5InputDescriptor>(), _ => throw new InvalidOperationException(), Rar5Compression.Store, Ct, secret);
+            var profile = ArchiveWriteProfile.ForRar5(ArchiveRar5Compression.Store, new(ArchiveEncryptionMode.DataAndNames));
+            using var secret = ArchiveWriterProfileAdapter.Rar5Encryption(profile, new(PublicPassword), new(), Ct);
+            Rar5ArchiveWriter.Create(stage, [], new Dictionary<int, Rar5InputDescriptor>(), _ => throw new InvalidOperationException(), ArchiveWriterProfileAdapter.Rar5(profile), Ct, secret);
         }
         else
         {
-            using var secret = new SevenZipEncryptionSession(PublicPassword, true, new(), Ct);
-            SevenZipArchiveWriter.Create(stage, [], new Dictionary<int, SevenZipInputDescriptor>(), _ => throw new InvalidOperationException(), new(SevenZipCodec.Copy), Ct, SevenZipHeaderMode.Lzma2, secret);
+            var profile = ArchiveWriteProfile.ForSevenZip(new(ArchiveSevenZipCodec.Copy), encryption: new(ArchiveEncryptionMode.DataAndNames));
+            using var secret = ArchiveWriterProfileAdapter.SevenZipEncryption(profile, new(PublicPassword), new(), Ct);
+            SevenZipArchiveWriter.Create(stage, [], new Dictionary<int, SevenZipInputDescriptor>(), _ => throw new InvalidOperationException(), ArchiveWriterProfileAdapter.SevenZip(profile), Ct, ArchiveWriterProfileAdapter.SevenZipHeader(profile), secret);
         }
         using var dir = new TempDir(); string path = Path.Combine(dir.Path, format == 0 ? "empty.rar" : "empty.7z"); File.WriteAllBytes(path, stage.ToArray());
         Assert.Throws<InvalidDataException>(() =>

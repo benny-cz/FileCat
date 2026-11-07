@@ -83,9 +83,9 @@ public sealed class ArchiveOriginEvidenceWriter : IDisposable
             Span<byte> header = stackalloc byte[HeaderBytes]; header.Clear(); Magic.CopyTo(header);
             BinaryPrimitives.WriteUInt16LittleEndian(header[8..], 1); header[10] = (byte)scope.Operation;
             scope.Nonce.TryWriteBytes(header.Slice(12, 16), bigEndian: true, out _);
-            Integer(header, 28, (int)scope.Profile.Format); Integer(header, 32, scope.Profile.Version);
-            Integer(header, 36, scope.Profile.CompressionLevel); Integer(header, 40, scope.Profile.DictionaryBytes);
-            Integer(header, 44, scope.Sources); Put(header);
+            Span<byte> profile = stackalloc byte[ArchiveWriteProfileEncoding.MaximumBytes];
+            int length = ArchiveWriteProfileEncoding.Write(scope.Profile, profile); profile[..ArchiveWriteProfileEncoding.LegacyBytes].CopyTo(header[28..]);
+            Integer(header, 44, scope.Sources); Put(header); Put(profile[ArchiveWriteProfileEncoding.LegacyBytes..length]);
         }
         catch { hash.Dispose(); throw; }
     }
@@ -149,7 +149,7 @@ public sealed class ArchiveOriginEvidenceWriter : IDisposable
     {
         ArgumentNullException.ThrowIfNull(scope); ArgumentNullException.ThrowIfNull(records); ct.ThrowIfCancellationRequested();
         if (scope.Sources != records.Count) throw Invalid();
-        long length = HeaderBytes + 4, inputBytes = 0;
+        long length = HeaderBytes + 4 + ArchiveWriteProfileEncoding.Length(scope.Profile) - ArchiveWriteProfileEncoding.LegacyBytes, inputBytes = 0;
         for (int i = 0; i < records.Count; i++)
         {
             ct.ThrowIfCancellationRequested(); var record = records[i] ?? throw Invalid(); CheckOrder(scope, i, record.Kind);
@@ -198,7 +198,14 @@ public sealed class ArchiveOriginEvidenceReader : IDisposable
                 header[10] != (byte)scope.Operation || header[11] != 0 || new Guid(header.Slice(12, 16), bigEndian: true) != scope.Nonce ||
                 Integer(header, 28) != (int)scope.Profile.Format || Integer(header, 32) != scope.Profile.Version ||
                 Integer(header, 36) != scope.Profile.CompressionLevel || Integer(header, 40) != scope.Profile.DictionaryBytes ||
-                Integer(header, 44) != scope.Sources || ArchiveOriginEvidenceWriter.MinFramedRecordBytes * (long)scope.Sources + 4 > expected.Length - read)
+                Integer(header, 44) != scope.Sources)
+                throw ArchiveOriginEvidenceWriter.Invalid();
+            Span<byte> profile = stackalloc byte[ArchiveWriteProfileEncoding.MaximumBytes];
+            int length = ArchiveWriteProfileEncoding.Write(scope.Profile, profile);
+            Span<byte> extension = stackalloc byte[ArchiveWriteProfileEncoding.MaximumBytes - ArchiveWriteProfileEncoding.LegacyBytes];
+            Take(extension[..(length - ArchiveWriteProfileEncoding.LegacyBytes)]);
+            if (!extension[..(length - ArchiveWriteProfileEncoding.LegacyBytes)].SequenceEqual(profile[ArchiveWriteProfileEncoding.LegacyBytes..length]) ||
+                ArchiveOriginEvidenceWriter.MinFramedRecordBytes * (long)scope.Sources + 4 > expected.Length - read)
                 throw ArchiveOriginEvidenceWriter.Invalid();
         }
         catch { hash.Dispose(); throw; }

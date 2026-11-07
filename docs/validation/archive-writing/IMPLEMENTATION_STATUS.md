@@ -28,6 +28,12 @@ compressed-byte consumption, chunk/history/property checks and owned-buffer clea
 comparison covers 224 accept/refuse vectors. It is a prerequisite for the complete 7z catalog; encoded-header and
 member graph integration still remain open, and the component does not enable a production writer.
 
+The [RAR/7z public-options checkpoint](RAR_7Z_PUBLIC_OPTIONS.md) advances shared integration: explicit version-2
+codec/filter/header/method and password modes now participate in every canonical request, digest, sidecar, creation
+witness and journal binding, with version-1 bytes preserved. Public options map to existing stream encoders and
+one-use password sessions, and the encrypted output tests use that adapter. Complete container preservation/
+transaction/worker/UI workflows and runtime role-bound secret consumption still remain open.
+
 The priority decision is in plan §4.3.2: bounded RAR C# implementation first, then needed 7z codecs/filters/container;
 strict catalogs and shared worker/transaction/capture/resource integration; complete workflows/UI; large guarded
 three-platform qualification batches plus actual six-RID/package/fuzz gates; final independent UX/UI/function/security

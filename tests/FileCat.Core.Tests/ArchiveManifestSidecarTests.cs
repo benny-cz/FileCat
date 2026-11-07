@@ -9,7 +9,8 @@ public sealed class ArchiveManifestSidecarTests
 {
     private static readonly Guid Nonce = Guid.Parse("45129e41-729b-4b45-bf39-aeb7365a218e");
     private static string Empty => Convert.ToHexString(SHA256.HashData([]));
-    private static ArchiveWriteManifest Fixture(ArchiveWriteFormat format = ArchiveWriteFormat.Tar) => new(new(format),
+    private static ArchiveWriteManifest Fixture(ArchiveWriteFormat format = ArchiveWriteFormat.Tar) => new(
+        format == ArchiveWriteFormat.Rar5 ? ArchiveWriteProfile.ForRar5() : new(format),
         [new("é/name", ArchiveMemberType.File, 0, 3, Convert.ToHexString(SHA256.HashData([1, 2, 3])), [1, 0, 7]),
             new("dir/", ArchiveMemberType.Directory, 0, 0, Empty, [1, 2]),
             new("é/name", ArchiveMemberType.File, 1, 0, Empty, [])], [1, 2, 3]);

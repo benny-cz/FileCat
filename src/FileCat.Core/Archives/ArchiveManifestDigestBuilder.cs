@@ -15,13 +15,14 @@ internal sealed class ArchiveManifestDigestBuilder : IDisposable
     public ArchiveManifestDigestBuilder(ArchiveWriteProfile profile, int memberCount, ReadOnlySpan<byte> features)
     {
         expectedMembers = memberCount;
+        Span<byte> encoded = stackalloc byte[ArchiveWriteProfileEncoding.MaximumBytes];
+        int length = ArchiveWriteProfileEncoding.Write(profile, encoded);
         for (int domain = 0; domain < hashes.Length; domain++)
         {
             var hash = hashes[domain];
             hash.AppendData("FCAM"u8);
             Integer(hash, ArchiveWriteManifest.Schema); Integer(hash, domain);
-            Integer(hash, (int)profile.Format); Integer(hash, profile.Version);
-            Integer(hash, profile.CompressionLevel); Integer(hash, profile.DictionaryBytes);
+            hash.AppendData(encoded[..length]);
             Integer(hash, memberCount);
             if (domain != 1) Bytes(hash, features);
         }

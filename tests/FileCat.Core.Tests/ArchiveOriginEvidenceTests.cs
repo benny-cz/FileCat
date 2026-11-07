@@ -10,7 +10,8 @@ public sealed class ArchiveOriginEvidenceTests
     private static readonly Guid Nonce = Guid.Parse("00112233-4455-6677-8899-aabbccddeeff");
     private static string Hash(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes));
     private static ArchiveOriginEvidenceScope Scope(ArchiveOriginOperation operation = ArchiveOriginOperation.Create, int count = 2,
-        ArchiveWriteFormat format = ArchiveWriteFormat.Tar) => new(Nonce, new(format), operation, count);
+        ArchiveWriteFormat format = ArchiveWriteFormat.Tar) => new(Nonce,
+            format == ArchiveWriteFormat.Rar5 ? ArchiveWriteProfile.ForRar5() : new(format), operation, count);
     private static ArchiveOriginSnapshot Absent => ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier);
     private static ArchiveOriginEvidenceRecord FileRecord(string identity = "file-é", ArchiveOriginSnapshot? mark = null) =>
         new(ArchiveOriginSourceKind.File, new(identity, 3, Hash([1, 2, 3])), mark ?? Absent);

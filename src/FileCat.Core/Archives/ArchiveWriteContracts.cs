@@ -3,7 +3,7 @@ using System.Text;
 namespace FileCat.Core.Archives;
 
 // Wire values are explicit: journals and edit sessions must not depend on enum declaration order.
-public enum ArchiveWriteFormat { Zip = 0, Tar = 1, TarGzip = 2, TarBzip2 = 3, TarZstd = 4, SevenZip = 5, Gzip = 6, Bzip2 = 7, Zstd = 8 }
+public enum ArchiveWriteFormat { Zip = 0, Tar = 1, TarGzip = 2, TarBzip2 = 3, TarZstd = 4, SevenZip = 5, Gzip = 6, Bzip2 = 7, Zstd = 8, Rar5 = 9 }
 public enum ArchiveAdmissionState { Unknown, Assessing, Writable, ReadOnly, Unavailable }
 public enum ArchiveMemberType { File = 0, Directory = 1 }
 public enum ArchiveWriteReason
@@ -27,13 +27,35 @@ public sealed record ArchiveWriteProfile
     public int Version { get; }
     public int CompressionLevel { get; }
     public int DictionaryBytes { get; }
+    public ArchiveSevenZipOptions? SevenZip { get; }
+    public ArchiveRar5Options? Rar5 { get; }
+    public ArchiveEncryptionOptions Encryption { get; }
 
     public ArchiveWriteProfile(ArchiveWriteFormat format, int version = 1, int compressionLevel = 0,
-        int dictionaryBytes = 8 * 1024 * 1024)
+        int dictionaryBytes = 8 * 1024 * 1024, ArchiveSevenZipOptions? sevenZip = null,
+        ArchiveRar5Options? rar5 = null, ArchiveEncryptionOptions? encryption = null)
     {
-        if (!Enum.IsDefined(format) || version != 1)
+        encryption ??= ArchiveEncryptionOptions.None;
+        if (!Enum.IsDefined(format) || version is not (1 or 2))
             throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "This archive writing profile is not supported.");
-        // Zero means the profile's default, not a generic slider passed to an unrelated encoder.
+        if (version == 2)
+        {
+            bool valid = format switch
+            {
+                ArchiveWriteFormat.SevenZip => sevenZip is not null && rar5 is null && compressionLevel is >= 0 and <= 3 &&
+                    (sevenZip.Codec != ArchiveSevenZipCodec.Copy || compressionLevel == 0) &&
+                    dictionaryBytes >= 1 << 20 && dictionaryBytes <= 16 << 20 && System.Numerics.BitOperations.IsPow2((uint)dictionaryBytes) &&
+                    (sevenZip.Codec is ArchiveSevenZipCodec.Lzma or ArchiveSevenZipCodec.Lzma2 || dictionaryBytes == 8 << 20),
+                ArchiveWriteFormat.Rar5 => rar5 is not null && sevenZip is null && compressionLevel is >= 0 and <= 5 && dictionaryBytes == 128 << 10,
+                _ => false,
+            };
+            if (!valid) throw ArchiveEncryptionOptions.Invalid();
+            Format = format; Version = version; CompressionLevel = compressionLevel; DictionaryBytes = dictionaryBytes;
+            SevenZip = sevenZip; Rar5 = rar5; Encryption = encryption; return;
+        }
+        if (format == ArchiveWriteFormat.Rar5 || sevenZip is not null || rar5 is not null || encryption != ArchiveEncryptionOptions.None)
+            throw ArchiveEncryptionOptions.Invalid();
+        // Version 1 stays byte-for-byte compatible. Zero is its format-specific default, not a generic slider.
         bool levelValid = format switch
         {
             ArchiveWriteFormat.Zip or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.Gzip => compressionLevel is >= 0 and <= 3,
@@ -48,7 +70,16 @@ public sealed record ArchiveWriteProfile
         Version = version;
         CompressionLevel = compressionLevel;
         DictionaryBytes = dictionaryBytes;
+        Encryption = ArchiveEncryptionOptions.None;
     }
+
+    public static ArchiveWriteProfile ForSevenZip(ArchiveSevenZipOptions? options = null, int compressionLevel = 0,
+        int dictionaryBytes = 8 << 20, ArchiveEncryptionOptions? encryption = null) =>
+        new(ArchiveWriteFormat.SevenZip, 2, compressionLevel, dictionaryBytes, options ?? new(), encryption: encryption);
+
+    public static ArchiveWriteProfile ForRar5(ArchiveRar5Compression compression = ArchiveRar5Compression.Normal,
+        ArchiveEncryptionOptions? encryption = null) => new(ArchiveWriteFormat.Rar5, 2, (int)compression, 128 << 10,
+            rar5: new(), encryption: encryption);
 }
 
 /// <summary>One physical occurrence in one complete catalog. No case folding or path normalization is permitted.</summary>

@@ -128,7 +128,7 @@ public static class ArchiveAssessmentWire
         return stream.ToArray();
     }
     private static void Profile(BinaryWriter writer, ArchiveWriteProfile profile)
-    { writer.Write((int)profile.Format); writer.Write(profile.Version); writer.Write(profile.CompressionLevel); writer.Write(profile.DictionaryBytes); }
+        => ArchiveWriteProfileEncoding.Write(writer, profile);
     private static void Digest(BinaryWriter writer, string digest)
     { ArchiveWritePolicy.ValidateDigest(digest); writer.Write(Convert.FromHexString(digest)); }
     internal static ArchiveWriteException Fault() => new(ArchiveWriteReason.ProtocolViolation, "The archive worker's assessment contract is invalid.");
@@ -145,7 +145,7 @@ public static class ArchiveAssessmentWire
         public long Long() => BinaryPrimitives.ReadInt64LittleEndian(Take(8));
         public void Schema() { if (BinaryPrimitives.ReadUInt16LittleEndian(Take(2)) != ArchiveWriteManifest.Schema) throw Fault(); }
         public string Digest() => Convert.ToHexString(Take(32));
-        public ArchiveWriteProfile Profile() => new((ArchiveWriteFormat)Integer(), Integer(), Integer(), Integer());
+        public ArchiveWriteProfile Profile() => ArchiveWriteProfileEncoding.Read(ref _data);
         public ReadOnlySpan<byte> Blob(int maximum)
         { int length = Integer(); if (length < 0 || length > maximum) throw Fault(); return Take(length); }
         public void End() { if (_data.Length != 0) throw Fault(); }

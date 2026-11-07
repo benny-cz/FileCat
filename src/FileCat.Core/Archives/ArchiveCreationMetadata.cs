@@ -56,8 +56,7 @@ internal sealed class ArchiveCreationMetadata
         using var output = new BoundedBuffer(MaximumBytes); using var writer = new BinaryWriter(output, ArchiveWritePolicy.Utf8, leaveOpen: true);
         bool marked = review.Stage.Origin.State == ArchiveOriginState.Present;
         writer.Write("FCCMETA1"u8); writer.Write((ushort)(marked ? 2 : 1)); writer.Write((ushort)0);
-        writer.Write(facts.Nonce.ToByteArray(bigEndian: true)); writer.Write((int)facts.Profile.Format); writer.Write(facts.Profile.Version);
-        writer.Write(facts.Profile.CompressionLevel); writer.Write(facts.Profile.DictionaryBytes);
+        writer.Write(facts.Nonce.ToByteArray(bigEndian: true)); ArchiveWriteProfileEncoding.Write(writer, facts.Profile);
         writer.Write(marked ? 2 : 1); // 1: private unmarked; 2: private Windows zone-only. Never an update/backup policy.
         writer.Write((int)review.Backend); Text(review.Stage.ParentIdentity); Text(review.Stage.LeafName); Text(review.TargetLeaf); Text(review.Stage.Version.Identity);
         writer.Write(review.Stage.Version.Length); writer.Write(Convert.FromHexString(review.Stage.Version.Sha256));
