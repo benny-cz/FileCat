@@ -191,6 +191,8 @@ public sealed partial class AnalysisRenderingTests
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             var rows = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Comparison rows");
             Assert.Equal(3, rows.ItemCount); Assert.True(double.IsFinite(rows.Bounds.Height)); Assert.InRange(rows.Bounds.Height, 100, 1600);
+            window.GetVisualDescendants().OfType<Expander>().Single(e => AutomationProperties.GetName(e) == "Comparison query and ranking controls").IsExpanded = true;
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             var status = window.GetVisualDescendants().OfType<ComboBox>().Single(c => AutomationProperties.GetName(c) == "Comparison status");
             status.SelectedIndex = 1; Dispatcher.UIThread.RunJobs(); Assert.Equal(1, rows.ItemCount); rows.SelectedIndex = 0;
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Inspect comparison entry" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

@@ -20,7 +20,9 @@ internal static class AnalysisChartPalette
             "archive" => "#A17A16", "executable" => "#788330", "document" => "#626F9B",
             "depth-0" => "#8A8F98", "depth-1" => "#708EA4", "depth-3" => "#4B86AF", "depth-6" => "#277BB8", "depth-11" => "#006EC2",
             "age-7" => "#249A99", "age-30" => "#3F8BA8", "age-180" => "#637DB6", "age-365" => "#826FA5", "age-old" => "#91818F",
-            "age-future" => "#8A8564", "shared" => "#477F85", "directory-allocation" => "#8C8272", _ => "#888B90"
+            "age-future" => "#8A8564", "shared" => "#477F85", "directory-allocation" => "#8C8272",
+            "growth-up" => "#377DC4", "growth-down" => "#BD7B24", "growth-added" => "#318A79", "growth-removed" => "#9167A5",
+            "growth-attribution" => "#7F879B", "growth-moved" => "#658A99", "growth-stable" => "#7F8981", _ => "#888B90"
         };
         Color accent = Color.Parse(hue);
         Color fill = Color.FromRgb(Blend(panel.R, accent.R), Blend(panel.G, accent.G), Blend(panel.B, accent.B));

@@ -21,6 +21,8 @@ public abstract class AnalysisChartControl : Control
     private Size _layoutSize;
     private string? _layoutFontFamily;
     private double _layoutFontSize, _labelLineHeight;
+    private double _centerLineHeight;
+    protected double SunburstHoleRatio { get; private set; } = .27;
     private bool _pressed;
     private string? _downKey, _hover;
     private int _clicks;
@@ -32,7 +34,10 @@ public abstract class AnalysisChartControl : Control
     protected abstract ImmutableArray<Part> Layout(ImmutableArray<AnalysisTreeItem> rows, Rect bounds, UInt128 total);
     protected abstract bool Contains(Part part, Point point);
     protected abstract void DrawPart(DrawingContext context, Part part, IBrush fill, IPen border);
-    protected virtual Rect PlotBounds => new(8, 8, Math.Max(0, Bounds.Width - 16), Math.Max(0, Bounds.Height - 16));
+    private double ComparisonHeaderHeight => Tree is AnalysisComparisonChart ? _labelLineHeight + 6 : 0;
+    protected virtual Rect PlotBounds => new(8, 8 + ComparisonHeaderHeight, Math.Max(0, Bounds.Width - 16), Math.Max(0, Bounds.Height - 16 - ComparisonHeaderHeight));
+    private static string ComparisonHeading(AnalysisComparisonChart chart) => (chart.Previous ? "Previous" : "Current") + " · " + (chart.Metric switch
+    { AnalysisMetric.FileSize => "File size", AnalysisMetric.UniqueFileSize => "Unique file size", AnalysisMetric.OnDisk => "On disk — reported", _ => "Files" });
     protected double TileLabelHeight => 2 * _labelLineHeight + 12;
     static AnalysisChartControl() => AffectsRender<AnalysisChartControl>(Avalonia.Controls.Documents.TextElement.FontSizeProperty);
     public AnalysisChartControl()
@@ -50,7 +55,7 @@ public abstract class AnalysisChartControl : Control
         if (_pressed) { _pending = next; return; }
         if (_view?.Tree != tree || _view.Scope != scope) { _layoutSize = default; _parts = []; _displayItems.Clear(); }
         _view = next;
-        AutomationProperties.SetName(this, $"{ViewName}: {AnalysisNames.Display(tree.NameOf(scope))}, {tree.ScopeValue(scope)} reported units. Colors: {AnalysisChartColors.Title(color)}. Use the table for every entry and its measurement and identity states.");
+        AutomationProperties.SetName(this, $"{ViewName}: {(tree is AnalysisComparisonChart comparison ? ComparisonHeading(comparison) + ". " : "")}{AnalysisNames.Display(tree.NameOf(scope))}, {tree.ScopeValue(scope)} reported units. Colors: {AnalysisChartColors.Title(color)}. Use the table for every entry and its measurement and identity states.");
         if (IsFocused) ShowTip(focus); else if (_hover is not null) ShowTip(_hover);
         InvalidateVisual();
     }
@@ -85,6 +90,17 @@ public abstract class AnalysisChartControl : Control
         {
             _layoutFontFamily = family; _layoutFontSize = fontSize;
             _labelLineHeight = Format("Ag", p.Text).Height;
+            if (this is SunburstControl)
+            {
+                var title = Format(AnalysisNames.Display(tree.NameOf(Scope), 24), p.Text);
+                var amount = Format(CenterAmount(tree), p.TextMuted);
+                _centerLineHeight = Math.Max(title.Height, amount.Height);
+                double radius = Math.Min(PlotBounds.Width, PlotBounds.Height) / 2;
+                double halfWidth = Math.Max(title.Width, amount.Width) / 2 + 6;
+                double halfHeight = _centerLineHeight + 2;
+                double needed = Math.Sqrt(halfWidth * halfWidth + halfHeight * halfHeight) + 6;
+                SunburstHoleRatio = radius <= 0 ? .65 : Math.Clamp(needed / radius, .27, .65);
+            }
             _displayItems.Clear();
             UInt128 total = tree.ScopeValue(Scope);
             double pixels = this is SunburstControl ? Math.PI * Math.Min(PlotBounds.Width, PlotBounds.Height) : PlotBounds.Width * PlotBounds.Height;
@@ -92,6 +108,8 @@ public abstract class AnalysisChartControl : Control
             _parts = Layout(rows.Where(r => r.Value > 0).ToImmutableArray(), PlotBounds, total);
             _layoutSize = Bounds.Size;
         }
+        if (tree is AnalysisComparisonChart comparisonChart)
+            Text(context, ComparisonHeading(comparisonChart), new(8, 6), p.Text, Bounds.Width - 16);
         foreach (var part in _parts)
         {
             var item = Item(part.Key);
@@ -114,14 +132,28 @@ public abstract class AnalysisChartControl : Control
                 }
             }
         }
-        if (_parts.Length == 0) Text(context, "Zero, unknown and shared entries remain available in the table.", new(16, 22), p.TextMuted);
+        if (_parts.Length == 0) Text(context, "Zero, unknown and shared entries remain available in the table.", new(16, PlotBounds.Top + 14), p.TextMuted);
         if (this is SunburstControl)
         {
             string title = AnalysisNames.Display(tree.NameOf(Scope), 24);
-            Text(context, title, new(Math.Max(12, Bounds.Width / 2 - 70), Bounds.Height / 2 - 18), p.Text);
-            Text(context, tree.ScopeValue(Scope).ToString(CultureInfo.InvariantCulture), new(Math.Max(12, Bounds.Width / 2 - 70), Bounds.Height / 2 + 1), p.TextMuted);
+            var center = PlotBounds.Center;
+            double radius = Math.Min(PlotBounds.Width, PlotBounds.Height) / 2 * SunburstHoleRatio;
+            double halfHeight = _centerLineHeight + 2;
+            double width = 2 * Math.Sqrt(Math.Max(0, radius * radius - halfHeight * halfHeight)) - 12;
+            if (width >= 20)
+            {
+                var label = new Rect(center.X - width / 2, center.Y - halfHeight, width, 2 * halfHeight);
+                using (context.PushClip(label))
+                {
+                    Text(context, title, label.TopLeft, p.Text, width);
+                    Text(context, CenterAmount(tree), new(label.X, center.Y + 2), p.TextMuted, width);
+                }
+            }
         }
     }
+    private string CenterAmount(IAnalysisChartData tree) => tree is AnalysisComparisonChart ? tree.Metric == AnalysisMetric.Files
+        ? tree.ScopeValue(Scope).ToString("N0", CultureInfo.CurrentCulture) + " paths" : FileCat.App.ViewModels.DiskSpaceViewModel.Bytes(tree.ScopeValue(Scope))
+        : tree.ScopeValue(Scope).ToString(CultureInfo.InvariantCulture);
     private AnalysisTreeItem? Item(string key)
     {
         if (_view is null) return null;
@@ -137,8 +169,8 @@ public abstract class AnalysisChartControl : Control
     }
     private FormattedText Format(string text, string color)
     {
-        var family = new FontFamily(ThemeManager.Current.FontFamily ?? FontFamily.Default.Name);
-        double size = GetValue(Avalonia.Controls.Documents.TextElement.FontSizeProperty);
+        var family = new FontFamily(_pressed && _layoutFontFamily is not null ? _layoutFontFamily : ThemeManager.Current.FontFamily ?? FontFamily.Default.Name);
+        double size = _pressed && _layoutFontFamily is not null ? _layoutFontSize : GetValue(Avalonia.Controls.Documents.TextElement.FontSizeProperty);
         return new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface(family), size, new SolidColorBrush(Color.Parse(color)));
     }
     protected void Text(DrawingContext context, string text, Point point, string color, double? width = null)
@@ -291,14 +323,16 @@ public sealed class SunburstControl : AnalysisChartControl
     {
         var d = point - part.Bounds.Center; double r = Math.Min(part.Bounds.Width, part.Bounds.Height) / 2;
         double distance = Math.Sqrt(d.X * d.X + d.Y * d.Y);
-        if (distance < r * (.27 + part.Depth * .1825) || distance > r * (.27 + (part.Depth + 1) * .1825)) return false;
+        double ring = (1 - SunburstHoleRatio) / 4;
+        if (distance < r * (SunburstHoleRatio + part.Depth * ring) || distance > r * (SunburstHoleRatio + (part.Depth + 1) * ring)) return false;
         double angle = Math.Atan2(d.Y, d.X); while (angle < part.Start) angle += 2 * Math.PI;
         return angle <= part.Start + part.Sweep;
     }
     protected override void DrawPart(DrawingContext context, Part part, IBrush fill, IPen border)
     {
         double radius = Math.Min(part.Bounds.Width, part.Bounds.Height) / 2;
-        double r = radius * (.27 + (part.Depth + 1) * .1825), inner = radius * (.27 + part.Depth * .1825);
+        double ring = (1 - SunburstHoleRatio) / 4;
+        double r = radius * (SunburstHoleRatio + (part.Depth + 1) * ring), inner = radius * (SunburstHoleRatio + part.Depth * ring);
         var center = part.Bounds.Center; var geometry = new StreamGeometry();
         Point At(double a, double radius) => center + new Vector(Math.Cos(a) * radius, Math.Sin(a) * radius);
         double sweep = Math.Min(part.Sweep, 2 * Math.PI - .000001), end = part.Start + sweep;

@@ -13,6 +13,7 @@ public sealed record AnalysisTreeItem(string Key, string ParentKey, string Name,
     public bool IncludedByPolicy { get; init; } = true;
     public bool LogicalUnknown { get; init; }
     public string? NameEvidence { get; init; }
+    public AnalysisChange? ComparisonChange { get; init; }
     public DateTimeOffset? ModifiedUtc { get; init; }
     public ulong ModifiedPrecisionTicks { get; init; }
     public int? CapturedDepth { get; init; }

@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 
 namespace FileCat.Core.Analysis;
 
-public enum AnalysisColorDimension { FileType, HierarchyDepth, ModifiedAge }
+public enum AnalysisColorDimension { FileType, HierarchyDepth, ModifiedAge, Growth }
 public sealed record AnalysisColorCategory(string Key, string Label);
 
 /// <summary>Recorded-data color meanings only; no filesystem access, cleanup advice or accounting changes.</summary>
@@ -14,6 +14,7 @@ public static class AnalysisChartColors
         AnalysisColorDimension.FileType => "File-type family",
         AnalysisColorDimension.HierarchyDepth => "Depth from all locations",
         AnalysisColorDimension.ModifiedAge => "Modification age at capture",
+        AnalysisColorDimension.Growth => "Observed growth / shrinkage",
         _ => throw new ArgumentOutOfRangeException(nameof(dimension))
     };
     private static readonly ImmutableArray<AnalysisColorCategory> Special = [new("shared", "Shared files"),
@@ -27,15 +28,27 @@ public static class AnalysisChartColors
     private static readonly ImmutableArray<AnalysisColorCategory> Ages = [new("age-7", "Up to 7 days"), new("age-30", "Over 7–30 days"), new("age-180", "Over 30–180 days"),
             new("age-365", "Over 180–365 days"), new("age-old", "Over 365 days"), new("age-future", "Future timestamp"),
             new("unknown", "Unknown / uncertain modification age"), .. Special];
+    private static readonly ImmutableArray<AnalysisColorCategory> Growth = [new("growth-up", "↑ Growing"), new("growth-down", "↓ Shrinking"),
+        new("growth-added", "+ Added"), new("growth-removed", "− Removed (Previous view)"), new("growth-attribution", "↔ Attribution movement"),
+        new("growth-moved", "↔ Moved / renamed"), new("growth-stable", "= No observed amount change"),
+        new("growth-unknown", "? Unknown / mixed comparison"), new("unknown", "? No comparison evidence"), .. Special];
     public static ImmutableArray<AnalysisColorCategory> Legend(AnalysisColorDimension dimension) => dimension switch
     {
         AnalysisColorDimension.FileType => Types,
         AnalysisColorDimension.HierarchyDepth => Depths,
         AnalysisColorDimension.ModifiedAge => Ages,
+        AnalysisColorDimension.Growth => Growth,
         _ => throw new ArgumentOutOfRangeException(nameof(dimension))
     };
     public static AnalysisColorCategory Category(IAnalysisChartData tree, AnalysisTreeItem item, AnalysisColorDimension dimension)
     {
+        if (dimension == AnalysisColorDimension.Growth && item.ComparisonChange is { } change)
+            return Find(change switch
+            {
+                AnalysisChange.Growing => "growth-up", AnalysisChange.Shrinking => "growth-down", AnalysisChange.Added => "growth-added",
+                AnalysisChange.Removed => "growth-removed", AnalysisChange.Attribution => "growth-attribution", AnalysisChange.Moved => "growth-moved",
+                AnalysisChange.NoObservedMetadataChange or AnalysisChange.MetadataChanged => "growth-stable", _ => "growth-unknown"
+            });
         if (item.Family is "shared" or "directory-allocation")
             return Find(item.Family);
         if (item.GroupDefinition is { } group)
@@ -56,6 +69,7 @@ public static class AnalysisChartColors
                 AnalysisClassification.Families.Contains(item.Family) ? item.Family == "other" ? "other-type" : item.Family : "unknown",
             AnalysisColorDimension.HierarchyDepth => Depth(tree, item),
             AnalysisColorDimension.ModifiedAge => item.MetadataState != MeasurementState.Known || !item.IncludedByPolicy ? "unknown" : Age(item.ModifiedUtc, item.ModifiedPrecisionTicks, tree.ObservedUtc),
+            AnalysisColorDimension.Growth => "unknown",
             _ => throw new ArgumentOutOfRangeException(nameof(dimension))
         };
         return Find(key);

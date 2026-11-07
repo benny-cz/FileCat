@@ -48,6 +48,8 @@ public sealed partial class AnalysisRenderingTests
         try
         {
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
+            window.GetVisualDescendants().OfType<Expander>().Single(e => AutomationProperties.GetName(e) == "Comparison query and ranking controls").IsExpanded = true;
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout();
             var query = window.GetVisualDescendants().OfType<TextBox>().Single(t => AutomationProperties.GetName(t) == "Comparison query");
             var rows = window.GetVisualDescendants().OfType<ListBox>().Single(l => AutomationProperties.GetName(l) == "Comparison rows");
             var apply = window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Apply comparison query");

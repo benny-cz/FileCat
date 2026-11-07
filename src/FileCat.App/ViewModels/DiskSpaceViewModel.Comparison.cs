@@ -7,11 +7,56 @@ public sealed partial class DiskSpaceViewModel
 {
     private AnalysisSnapshotLease? _comparisonCurrent;
     private AnalysisSnapshotLease? _comparisonPrevious;
+    private ImmutableDictionary<string, string>? _comparisonRootMapping;
+    private bool _changingComparisonMetric;
     public AnalysisComparisonResult? Comparison { get; private set; }
     public bool CanCompare => !_disposed && Comparison is null && HasPrivateStorage && Tree is not null && _lease is not null;
     public SessionIdentity? ComparisonPreviousIdentity => _comparisonPrevious?.Snapshot.Identity;
     public SessionIdentity? ComparisonCurrentIdentity => _comparisonCurrent?.Snapshot.Identity;
     public string? ComparisonPreviousName { get; private set; }
+    internal bool ComparisonIsStructural => _comparisonRootMapping is not null;
+
+    // The caller retires its displayed rows/query/chart readers before this operation.
+    // Rebuilding cannot overlap two result budgets; retained readers remain charged
+    // until they actually finish, including canceled query workers.
+    internal async Task ChangeComparisonMetricAsync(AnalysisMetric metric, CancellationToken cancellation = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!Enum.IsDefined(metric)) throw new ArgumentOutOfRangeException(nameof(metric));
+        cancellation.ThrowIfCancellationRequested();
+        using var actualWork = _actualWork.Enter();
+        var previousResult = Comparison ?? throw new InvalidOperationException("Choose a comparison first.");
+        if (_changingComparisonMetric) throw new InvalidOperationException("A comparison metric change is already running.");
+        using var before = _comparisonPrevious!.Retain(); using var current = _comparisonCurrent!.Retain();
+        AnalysisComparisonResult? result = null; _changingComparisonMetric = true;
+        try
+        {
+            previousResult.Dispose();
+            await previousResult.CloseCompletion.WaitAsync(cancellation);
+            var oldSnapshot = before.Snapshot; var currentSnapshot = current.Snapshot;
+            result = await Task.Run(() => AnalysisComparison.Build(oldSnapshot, currentSnapshot, metric, _comparisonRootMapping, cancellation), CancellationToken.None);
+            cancellation.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_disposed, this);
+            Comparison = result; result = null; Metric = metric;
+        }
+        finally { result?.Dispose(); _changingComparisonMetric = false; }
+    }
+
+    internal async Task<AnalysisComparisonChart> BuildComparisonChartAsync(bool previous, CancellationToken cancellation = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        using var actualWork = _actualWork.Enter();
+        using var snapshot = (previous ? _comparisonPrevious : _comparisonCurrent)!.Retain();
+        using var rows = (Comparison ?? throw new InvalidOperationException("Choose a comparison first.")).Retain();
+        var metric = Comparison.Metric;
+        AnalysisComparisonChart? chart = null;
+        try
+        {
+            chart = await Task.Run(() => AnalysisComparisonChart.Build(snapshot, rows, metric, previous, cancellation), CancellationToken.None);
+            cancellation.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_disposed, this);
+            var success = chart; chart = null; return success;
+        }
+        finally { chart?.Dispose(); }
+    }
     internal async Task<AnalysisComparisonQueryResult> QueryComparisonAsync(string query, bool sensitive,
         AnalysisComparisonSide side, CancellationToken cancellation)
     {
@@ -118,7 +163,7 @@ public sealed partial class DiskSpaceViewModel
                 cancellation.ThrowIfCancellationRequested();
                 var model = new DiskSpaceViewModel(services)
                 {
-                    _comparisonCurrent = now, _comparisonPrevious = before, Comparison = result, ComparisonPreviousName = name,
+                    _comparisonCurrent = now, _comparisonPrevious = before, _comparisonRootMapping = mapping, Comparison = result, ComparisonPreviousName = name,
                     Metric = metric, Chart = "Table", Phase = AnalysisPhase.Stopped,
                     Status = "Offline comparison. Source files are not connected; differences are metadata observations."
                 };

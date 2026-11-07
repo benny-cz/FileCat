@@ -153,7 +153,7 @@ public sealed partial class AnalysisSavedCatalog
     public static void ValidateView(AnalysisSavedView view)
     {
         ArgumentNullException.ThrowIfNull(view);
-        if (!Enum.IsDefined(view.Grouping) || view.GroupRuleVersion != AnalysisGroupingRules.RuleVersion || !Enum.IsDefined(view.ColorDimension) || view.ColorRuleVersion != AnalysisChartColors.RuleVersion || !Enum.IsDefined(view.Metric) || !Enum.IsDefined(view.Sort) || view.Chart is not ("Treemap" or "Sunburst" or "Table") || view.Query is null || view.Scope is null ||
+        if (!Enum.IsDefined(view.Grouping) || view.GroupRuleVersion != AnalysisGroupingRules.RuleVersion || !Enum.IsDefined(view.ColorDimension) || view.ColorDimension == AnalysisColorDimension.Growth || view.ColorRuleVersion != AnalysisChartColors.RuleVersion || !Enum.IsDefined(view.Metric) || !Enum.IsDefined(view.Sort) || view.Chart is not ("Treemap" or "Sunburst" or "Table") || view.Query is null || view.Scope is null ||
             Encoding.UTF8.GetByteCount(view.Query) > AnalysisLimits.QueryBytes || Encoding.UTF8.GetByteCount(view.Scope) > 256 || view.Root is { } text && Encoding.UTF8.GetByteCount(text) > 256 ||
             !AnalysisPrivateInventoryStore.WellFormedText(view.Query) || !AnalysisPrivateInventoryStore.WellFormedText(view.Scope) ||
             view.Root is { } root && !AnalysisPrivateInventoryStore.WellFormedText(root)) throw Invalid("Unsupported saved analysis view state.");

@@ -1,0 +1,12 @@
+[
+  {
+    "baseline": ".tmp/core-r828/FileCat.Core.dll",
+    "current": "tests/FileCat.Core.Tests/bin/Debug/net10.0/FileCat.Core.dll",
+    "sha256": "fbe432126a60cf650a1477dfdb3abf1fc50fdf20fabbdffff37cca17eb93d2c1"
+  },
+  {
+    "baseline": ".tmp/native-r828/FileCat.Platform.Windows.dll",
+    "current": "tests/FileCat.Platform.Windows.Tests/bin/Debug/net10.0/FileCat.Platform.Windows.dll",
+    "sha256": "372460f277f2c2c63ee2b35800432acc6511eabff658194d63d709cd0fb8cf48"
+  }
+]

@@ -1,0 +1,7 @@
+{
+  "observedUtc": "2026-11-07T16:58:08.619422+00:00",
+  "exitCode": 0,
+  "filecatOrDotnet": [
+    " 372437  372327 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet build /home/benny/FileCatValidation/archive-writing-42829297/sevenzip-graph-source-v3/tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --disable-build-servers -p:NuGetAudit=false -m:1 -v minimal"
+  ]
+}

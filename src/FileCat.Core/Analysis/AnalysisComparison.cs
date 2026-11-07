@@ -47,17 +47,23 @@ public sealed class AnalysisComparisonResult : IDisposable
 {
     private readonly object _gate = new();
     private Payload? _payload;
-    internal sealed class Payload(ImmutableArray<AnalysisComparisonRow> rows, IDisposable memory, AnalysisTaint taint)
+    internal sealed class Payload(ImmutableArray<AnalysisComparisonRow> rows, IDisposable memory, AnalysisTaint taint,
+        AnalysisMetric metric, SessionIdentity previousIdentity, SessionIdentity currentIdentity)
     {
         private readonly object _gate = new();
+        internal TaskCompletionSource Closed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int _references = 1;
         internal ImmutableArray<AnalysisComparisonRow> Rows { get; private set; } = rows;
         internal AnalysisTaint Taint { get; } = taint;
+        internal AnalysisMetric Metric { get; } = metric;
+        internal SessionIdentity PreviousIdentity { get; } = previousIdentity;
+        internal SessionIdentity CurrentIdentity { get; } = currentIdentity;
         internal void AddReference() { lock (_gate) { ObjectDisposedException.ThrowIf(_references == 0, this); checked { _references++; } } }
         internal void Release()
         {
             lock (_gate) { if (--_references != 0) return; Rows = []; }
-            memory.Dispose();
+            try { memory.Dispose(); Closed.TrySetResult(); }
+            catch (Exception error) { Closed.TrySetException(error); throw; }
         }
     }
     /// <summary>Retains actual comparison payload/admission through queued or running data-only work.</summary>
@@ -68,12 +74,20 @@ public sealed class AnalysisComparisonResult : IDisposable
         internal ReadLease(Payload payload) => _payload = payload;
         public ImmutableArray<AnalysisComparisonRow> Rows { get { lock (_gate) return (_payload ?? throw new ObjectDisposedException(nameof(ReadLease))).Rows; } }
         public AnalysisTaint Taint { get { lock (_gate) return (_payload ?? throw new ObjectDisposedException(nameof(ReadLease))).Taint; } }
+        public AnalysisMetric Metric { get { lock (_gate) return (_payload ?? throw new ObjectDisposedException(nameof(ReadLease))).Metric; } }
+        public SessionIdentity Identity(bool previous) { lock (_gate) { var payload = _payload ?? throw new ObjectDisposedException(nameof(ReadLease)); return previous ? payload.PreviousIdentity : payload.CurrentIdentity; } }
+        public ReadLease Retain()
+        {
+            lock (_gate) { var payload = _payload ?? throw new ObjectDisposedException(nameof(ReadLease)); payload.AddReference(); return new(payload); }
+        }
         public void Dispose() { Payload? payload; lock (_gate) { payload = _payload; _payload = null; } payload?.Release(); }
     }
     internal AnalysisComparisonResult(AnalysisMetric metric, AnalysisComparisonCompatibility compatibility, AnalysisTotals previous,
-        AnalysisTotals current, ImmutableArray<AnalysisComparisonRow> rows, AnalysisTaint taint, IDisposable memory)
+        AnalysisTotals current, ImmutableArray<AnalysisComparisonRow> rows, AnalysisTaint taint, IDisposable memory,
+        SessionIdentity previousIdentity, SessionIdentity currentIdentity)
     {
-        Metric = metric; Compatibility = compatibility; PreviousTotals = previous; CurrentTotals = current; _payload = new(rows, memory, taint); Taint = taint;
+        Metric = metric; Compatibility = compatibility; PreviousTotals = previous; CurrentTotals = current; _payload = new(rows, memory, taint, metric, previousIdentity, currentIdentity); Taint = taint;
+        CloseCompletion = _payload.Closed.Task;
         NetChange = compatibility.ComparableTotals && previous.CompatibleBasis && current.CompatibleBasis && previous.Missing.Count == 0 && current.Missing.Count == 0 &&
             previous.IdentityUnverified == 0 && current.IdentityUnverified == 0 ? AnalysisDelta.Between(previous.Known, current.Known) : null;
     }
@@ -88,6 +102,8 @@ public sealed class AnalysisComparisonResult : IDisposable
     }
     public AnalysisTaint Taint { get; }
     public AnalysisDelta? NetChange { get; }
+    /// <summary>Completes when the last actual reader releases the comparison's memory admission.</summary>
+    public Task CloseCompletion { get; }
     public void Dispose()
     {
         Payload? payload; lock (_gate) { payload = _payload; _payload = null; } payload?.Release();
@@ -138,7 +154,7 @@ public static class AnalysisComparison
             var newEntities = Entities(current, metric, newProjection, mapping, old: false, ref pathBytes, cancellation);
             var rows = Match(oldEntities, newEntities, compatibility, metric, structuralRoots is not null, cancellation);
             var result = new AnalysisComparisonResult(metric, compatibility, oldProjection.Totals, newProjection.Totals, rows,
-                AnalysisPrivacy.Join(previous.Taint, current.Taint), memory); memory = null; return result;
+                AnalysisPrivacy.Join(previous.Taint, current.Taint), memory, previous.Identity, current.Identity); memory = null; return result;
         }
         finally { memory?.Dispose(); }
     }

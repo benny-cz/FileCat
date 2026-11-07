@@ -46,11 +46,11 @@ public sealed partial class AnalysisRenderingTests
         var window = new DiskSpaceWindow(); window.AddSession(model); window.Show(); Frame(window);
         try
         {
-            var tree = model.Tree!; var color = ColorSelector(window);
+            var tree = model.Tree!; var color = ColorSelector(window); Assert.Equal(3, color.ItemCount);
             var mode = window.GetVisualDescendants().OfType<ComboBox>().Single(combo => AutomationProperties.GetName(combo) == "Chart view");
             string output = Path.Combine(AppContext.BaseDirectory, "analysis-renders"); Directory.CreateDirectory(output);
             foreach (var theme in ThemePalette.All)
-            foreach (var dimension in Enum.GetValues<AnalysisColorDimension>())
+            foreach (var dimension in new[] { AnalysisColorDimension.FileType, AnalysisColorDimension.HierarchyDepth, AnalysisColorDimension.ModifiedAge })
             {
                 ThemeManager.Apply(theme.Name); color.SelectedIndex = (int)dimension;
                 foreach (int chartMode in new[] { 0, 1 })
@@ -107,8 +107,8 @@ public sealed partial class AnalysisRenderingTests
         window.Show(); Frame(window);
         try
         {
-            var selector = ColorSelector(window); Assert.Equal(2, selector.SelectedIndex); var chart = explorer.Chart!;
-            foreach (var dimension in Enum.GetValues<AnalysisColorDimension>())
+            var selector = ColorSelector(window); Assert.Equal(3, selector.ItemCount); Assert.Equal(2, selector.SelectedIndex); var chart = explorer.Chart!;
+            foreach (var dimension in new[] { AnalysisColorDimension.FileType, AnalysisColorDimension.HierarchyDepth, AnalysisColorDimension.ModifiedAge })
             {
                 selector.SelectedIndex = (int)dimension; Frame(window); Assert.Same(chart, explorer.Chart);
                 Assert.Contains(AnalysisChartColors.Title(dimension), AutomationProperties.GetName(window.GetVisualDescendants().OfType<AnalysisColorLegend>().Single()));

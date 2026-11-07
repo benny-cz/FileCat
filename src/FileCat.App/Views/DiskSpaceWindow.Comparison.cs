@@ -25,7 +25,7 @@ public sealed partial class DiskSpaceWindow
         private CancellationTokenSource? _comparisonQueryCancel;
         private int _comparisonQueryGeneration;
         private ListBox? _comparisonRows;
-        private double ComparisonMinimumHeight => (_comparisonHeading?.DesiredSize.Height ?? 0) + (_comparisonFooter?.DesiredSize.Height ?? 0) + 220;
+        private double ComparisonMinimumHeight => (_comparisonHeading?.DesiredSize.Height ?? 0) + (_comparisonFooter?.DesiredSize.Height ?? 0) + (_comparisonChartHost?.IsVisible == true ? _comparisonChartHost.DesiredSize.Height : 0) + 220;
         private static string ComparisonMetric(AnalysisMetric metric) => metric switch
         { AnalysisMetric.FileSize => "File size", AnalysisMetric.UniqueFileSize => "Unique file size", AnalysisMetric.OnDisk => "On disk — reported", _ => "Files" };
         private static string ChangeLabel(AnalysisChange change) => change switch
@@ -61,7 +61,10 @@ public sealed partial class DiskSpaceWindow
             foreach (var child in Children) child.IsVisible = false;
             var heading = _comparisonHeading = new StackPanel { Spacing = 7, Margin = new Thickness(10, 5) };
             heading.Children.Add(SessionText("Compare observations · " + ComparisonMetric(comparison.Metric), 20));
-            heading.Children.Add(SessionText("Previous: " + AnalysisNames.Display(Model.ComparisonPreviousName ?? "", 240) + " · " + Interval(Model.ComparisonPreviousIdentity) +
+            heading.Children.Add(SessionText("Saved previous: " + AnalysisNames.Display(Model.ComparisonPreviousName ?? "", 240)));
+            AddComparisonMetric(heading, comparison.Metric);
+            var details = new StackPanel { Spacing = 7 };
+            details.Children.Add(SessionText("Previous interval: " + Interval(Model.ComparisonPreviousIdentity) +
                 "\nCurrent captured revision: " + Interval(Model.ComparisonCurrentIdentity)));
             string Total(AnalysisTotals total) => !total.CompatibleBasis ? "No combined total · incompatible bases" :
                 ComparisonValue(AnalysisMeasurement.Known(total.Known), comparison.Metric) + " known" +
@@ -69,7 +72,11 @@ public sealed partial class DiskSpaceWindow
                 (total.Missing.Count > 0 ? " · " + total.Missing.Values.Aggregate(0ul, (a, b) => checked(a + b)).ToString("N0") + " unavailable measurements" : "");
             heading.Children.Add(SessionText("Previous: " + Total(comparison.PreviousTotals) + "\nCurrent: " + Total(comparison.CurrentTotals) +
                 "\nObserved net change: " + ComparisonDelta(comparison.NetChange, comparison.Metric), 16));
-            heading.Children.Add(SessionText(string.Join("\n", comparison.Compatibility.Explanations)));
+            details.Children.Add(SessionText(string.Join("\n", comparison.Compatibility.Explanations)));
+            string comparisonKind = Model.ComparisonIsStructural ? "Explicit structural comparison" : comparison.Compatibility.VerifiedIdentityContext ? "Recorded comparison" : "Path-based comparison";
+            if (!comparison.Compatibility.ComparableTotals) comparisonKind += " · limited";
+            var evidence = new Expander { Header = SessionText(comparisonKind + " · details and compatibility"), Content = details, IsExpanded = false };
+            AutomationProperties.SetName(evidence, "Comparison observation details and compatibility"); heading.Children.Add(evidence);
             if (comparison.Taint.HasFlag(AnalysisTaint.PrivilegedDerived)) heading.Children.Add(SessionText("Contains privileged-derived observations. Private handling remains required."));
             var list = _comparisonRows = new ListBox { MinHeight = 180, Focusable = true, SelectionMode = SelectionMode.Single };
             var count = SessionText(""); AutomationProperties.SetLiveSetting(count, AutomationLiveSetting.Polite);
@@ -79,7 +86,8 @@ public sealed partial class DiskSpaceWindow
             AutomationProperties.SetName(status, "Comparison status"); AutomationProperties.SetName(sort, "Comparison sort");
             ToolTip.SetTip(status, new RichTip("Comparison status", detail: "Show added, removed, grown, shrunk, moved, attribution or unknown observations. Unknown coverage is never a zero baseline."));
             ToolTip.SetTip(sort, new RichTip("Comparison ranking", detail: "Absolute difference is the default. Relative ranking is explicit; a zero or unknown previous value has no percentage."));
-            var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 6, Children = { status, sort } }; heading.Children.Add(filters);
+            var filterBody = new StackPanel { Spacing = 7 };
+            var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 6, Children = { status, sort } }; filterBody.Children.Add(filters);
             var query = _comparisonQuery = new TextBox { PlaceholderText = "e.g. delta>1MiB OR change:removed", MaxLength = AnalysisLimits.QueryBytes, MinWidth = 180, Width = 310 };
             var querySide = new ComboBox { ItemsSource = new[] { "Current; Previous for removed rows", "Current observations", "Previous observations", "Either recorded side" }, SelectedIndex = 0, MinWidth = 180 };
             var sensitive = new CheckBox { Content = "Case sensitive" };
@@ -124,8 +132,9 @@ public sealed partial class DiskSpaceWindow
                 _comparisonQueryCancel?.Cancel(); ++_comparisonQueryGeneration; query.Text = ""; unknown.IsChecked = false; unknown.IsVisible = false;
                 list.ItemsSource = null; _comparisonQueryResult?.Dispose(); _comparisonQueryResult = null; queryError.Text = "All observations · no query applied."; Filter();
             }, "Remove the comparison query and uncertain cohort. The full-inventory totals and original accounting rows remain unchanged."));
-            heading.Children.Add(queryControls); heading.Children.Add(unknown); heading.Children.Add(queryError);
-            heading.Children.Add(count);
+            filterBody.Children.Add(queryControls); filterBody.Children.Add(unknown); filterBody.Children.Add(queryError);
+            var filterDisclosure = new Expander { Header = SessionText("Filter and rank comparison rows"), Content = filterBody, IsExpanded = false };
+            AutomationProperties.SetName(filterDisclosure, "Comparison query and ranking controls"); heading.Children.Add(filterDisclosure);
             AutomationProperties.SetName(list, "Comparison rows");
             list.ItemTemplate = new FuncDataTemplate<AnalysisComparisonRow>((row, _) =>
             {
@@ -160,7 +169,9 @@ public sealed partial class DiskSpaceWindow
                     3 => rows.OrderBy(r => r.Current?.Paths[0] ?? r.Previous!.Paths[0], StringComparer.Ordinal),
                     _ => rows.OrderByDescending(r => r.Delta?.Magnitude ?? 0)
                 };
-                var shown = rows.ToArray(); list.ItemsSource = shown; count.Text = shown.Length.ToString("N0") + " of " + comparison.Rows.Length.ToString("N0") + " accounting rows" +
+                var selected = list.SelectedItem as AnalysisComparisonRow;
+                var shown = rows.ToArray(); list.ItemsSource = shown; if (selected is not null && shown.Contains(selected)) list.SelectedItem = selected;
+                count.Text = shown.Length.ToString("N0") + " of " + comparison.Rows.Length.ToString("N0") + " accounting rows" +
                     (_comparisonQueryResult is { } filtered ? " · " + filtered.Unknown.Length.ToString("N0") + " uncertain query matches" : "") +
                     ". Shared aliases remain together. Totals above describe the full inventories.";
             }
@@ -169,18 +180,22 @@ public sealed partial class DiskSpaceWindow
             list.AddHandler(KeyDownEvent, (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; _ = InspectComparisonAsync(); } }, RoutingStrategies.Tunnel);
             var footer = _comparisonFooter = new StackPanel { Spacing = 6, Margin = new Thickness(10, 6) };
             footer.Children.Add(ActionButton("Inspect comparison entry", () => _ = InspectComparisonAsync(), "Read both path sets, measured values and compatibility evidence. Historical rows supply no current file target."));
-            footer.Children.Add(SessionText("Offline metadata comparison. Reported allocation is not consumed or reclaimable physical space. No file contents were compared. This view uses the captured metric; choose another metric before starting a new comparison."));
-            var panel = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto") };
-            panel.Children.Add(heading); Grid.SetRow(list, 1); panel.Children.Add(list); Grid.SetRow(footer, 2); panel.Children.Add(footer);
+            footer.Children.Add(SessionText("Offline metadata comparison. Reported allocation is not consumed or reclaimable physical space. No file contents were compared. Chart area shows the chosen side's amount; growth color describes comparison status."));
+            var panel = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto") };
+            var table = new Grid { RowDefinitions = new RowDefinitions("Auto,*"), Margin = new Thickness(10, 4) };
+            table.Children.Add(count); Grid.SetRow(list, 1); table.Children.Add(list);
+            panel.Children.Add(heading); Grid.SetRow(table, 2); panel.Children.Add(table); Grid.SetRow(footer, 3); panel.Children.Add(footer);
+            AddComparisonCharts(heading, list, panel);
             Grid.SetRowSpan(panel, 5); Children.Add(panel); Filter();
         }
 
-        private async Task InspectComparisonAsync()
+        private async Task InspectComparisonAsync(AnalysisComparisonRow? selected = null)
         {
             if (_disposed) return;
             using var actualWork = _actualWork.Enter();
             if (_disposed || _window._dialogs.IsOpen || Model.Comparison is not { } comparison) return;
-            if (_comparisonRows?.SelectedItem is not AnalysisComparisonRow row) { _comparisonRows?.Focus(); return; }
+            var row = selected ?? _comparisonRows?.SelectedItem as AnalysisComparisonRow;
+            if (row is null) { _comparisonRows?.Focus(); return; }
             var body = new StackPanel { Spacing = 8 };
             body.Children.Add(SessionText(ChangeLabel(row.Change) + " · " + ComparisonDelta(row.Delta, comparison.Metric) + " · " + RelativeChange(row), 17));
             body.Children.Add(SessionText(row.Explanation));
@@ -216,6 +231,7 @@ public sealed partial class DiskSpaceWindow
         private void ReleaseComparisonView()
         {
             _comparisonQueryCancel?.Cancel(); ++_comparisonQueryGeneration;
+            RetireComparisonChart();
             if (_comparisonRows is null) return;
             _comparisonRows.ItemsSource = null; _comparisonRows.ItemTemplate = null; Children.Clear();
             _comparisonQueryResult?.Dispose(); _comparisonQueryResult = null;
