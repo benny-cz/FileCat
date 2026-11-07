@@ -1,0 +1,406 @@
+{
+  "purpose": "Grouped assigned display rows, bounded sorted pages and shared chart accounting input",
+  "observedUtc": "2026-11-07T04:02:41.742422+00:00",
+  "gitBase": "feb6a0994504da59fc5e08f2e301aa5595f2745c",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/Controls/DiskSpace/AnalysisChartControl.cs",
+      "sha256": "d5c0ed004e5b2009b5dde881da5c708bdaf923ca0ebf120e7ab5036ab10419da"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "5078ea9ea65bf5215c76fd6b2ded4696f55fcff8cd4af2531ab16dbf3259395c"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisChartColors.cs",
+      "sha256": "a7f85b30c52b38945d9213e9b74a4ada7c2d0f7f1771f93be4d2f9bbb450d10b"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Build.cs",
+      "sha256": "5335b91c9fd357467f0672089a77b470bab0e6ad89e4d2c31b6f2a757177a9bb"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Codec.cs",
+      "sha256": "2f76d9529f1d30e481711493a0c27009f81b0f2420f1eb3069781bcb01d5ccbe"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Fold.cs",
+      "sha256": "e5c043cbdad49b0820687048c224ed58a28230accc1c30b16e207f97bd9dcf11"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Order.cs",
+      "sha256": "ef3426a97267faba3f6bc1f27f306cc5e01bd951e4e47b8f410ea01c3d8b5419"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.cs",
+      "sha256": "ca33f7be3f7e9b38e16d0ebc0f5f6ae5ddd1b04b2db91aeba87049b73fc9b2b6"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisExternalSort.cs",
+      "sha256": "1436620ff304058f32a6c2af79d728847dda49f5cd9e1511164cf174c35bcda5"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisGroupedChart.cs",
+      "sha256": "7481b2398c33fe84aa207d2ba6379014ab21223f06f1cc5a91da8ebf1a7f76b3"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisLimits.cs",
+      "sha256": "2b22754953a7e49c44093596e0308a0e8ee25b21c2248d21aac180b9d9b03984"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchVector.cs",
+      "sha256": "2c295b9fb5d0f91020cc1888b21fcb49baf24d9851c3013e7047d5b1af4f844d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+      "sha256": "46960915b1c9441b68eb1d57e0ffcfa1552317341942a062e55d98d1dae0e302"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.GroupRows.cs",
+      "sha256": "d9382ad623162fee9243e0de98ba1e87f71bd14296f495ab7467b10a7203567a"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.GroupedCharts.cs",
+      "sha256": "4c17adfb7fca0c7f78851e008aab3e9f243130e62ffe6d4b72d190450bfd5134"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r625.txt",
+      "sha256": "2185b89a096ba280351ee4fcc32f45da8708b262e51a4cafd5cf55f102c45781"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r626-core-r626.xml",
+      "sha256": "6e30a16453ff76102c546b3440cb827f159d48a8070c22cdf76bb67b8ee3e5ab"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r626-core-r626.log",
+      "sha256": "e9a1ebd13afdff64081b5ac6312535ed8209bb5404dc66cf1c2240d874f3ef07"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r626-render-r626.xml",
+      "sha256": "5c38caef978009a9c43b2a851eadf2e59ef3040c0931288ea7137fea4d3c98b8"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r626-render-r626.log",
+      "sha256": "500af826c1a24f4dfd8e88126a7c06528e9f0da3b05d936f6ed47149ebc8a864"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r626-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r626-post.json",
+      "sha256": "0243dcb18510d981397044212222b1100e7eed88491ca90d80ec01c73554a157"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r626-core-r626.xml",
+      "sha256": "b28382a3301c6d6708035d83475d41088a467541b1b05d63bea8a2fcba259a08"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r626-core-r626.log",
+      "sha256": "5039e22b585d0f46a43180457118e04283ae142a9f4ec124dab218ab23532bd6"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r626-render-r626.xml",
+      "sha256": "93cbda4e28ead83129a18e08b8e41479a354a65b60426be2a89ccc66df11c271"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r626-render-r626.log",
+      "sha256": "d85e3bc39519d6ddc9ffae930fb1b35ab1fe0a635fd057699949e6258cbf4b91"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r626-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r626-post.json",
+      "sha256": "4f961eaf2fdb9738b4a2c4394aaf89ae88f63db024f5a9299b9386221f129da1"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r626-core-r626.xml",
+      "sha256": "2f62c363d5661a3638d26983cce7d751892a599d2a0137c97d0f44a76f5d413d"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r626-core-r626.log",
+      "sha256": "52a2d686b46f87caac14ca0dec4943d02d1fbd30ccd1081d081814926576af6f"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r626-native-r626.xml",
+      "sha256": "6abbaa6dfa2a8d31249f29f0eb4ca215ea1d199e36e7155abce2a456eb3bb348"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r626-native-r626.log",
+      "sha256": "ade46b353c2695becd4a817664748284765983275352b269555c68ae7f8f8b04"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r626-render-r626.xml",
+      "sha256": "ac41a66ade9fd3dfd58741e48d2d127f08bc5243c10f99ea0510802973ff85e4"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r626-render-r626.log",
+      "sha256": "83b401157f631dc7c5a5fd0c78e07e2b26080a04dce1670f6b9b9423f5781d5f"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r626-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r626-post.json",
+      "sha256": "692e08abe363d3de166427ed849da0cb03c1d504a5674e2cfc0288c6ce4f5e0c"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r626.sh",
+      "sha256": "0f239be1a21a1b9301d927ad65828837d04e5062ef032847f178d1034fb3dff0"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r626.sh",
+      "sha256": "86efa828661e26dfd2876078210028d298cbb1c04b6e30817d0036b722d82620"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r626.ps1",
+      "sha256": "c8fe98cef55aeea239e9d5c98555b88b404b243f72abb4d3d203e6a7a045592d"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r626.tgz",
+      "sha256": "2a88e6c30b2323c57e14109b3f5eb073479f4ab7efdba7861472eaf1b98ddf16"
+    },
+    {
+      "name": "dsa-batch-linux-r626.tgz",
+      "sha256": "d949238c88454d069371dee4fbbcc46d3788044e9ca70aa9be1295302deb6fd8"
+    },
+    {
+      "name": "dsa-batch-windows-r626.tgz",
+      "sha256": "d089003c7cff058ad217e56565a42baee23bb3e954c0da4ec90b28e8dd9fb6db"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r626": "71c7c5c72311097309f2374a1c2bc3092ee07eb3e93b854147dde49feac20254",
+    "native-r626": "71c7c5c72311097309f2374a1c2bc3092ee07eb3e93b854147dde49feac20254",
+    "render-r627-mac": "71c7c5c72311097309f2374a1c2bc3092ee07eb3e93b854147dde49feac20254",
+    "render-r627-linux": "71c7c5c72311097309f2374a1c2bc3092ee07eb3e93b854147dde49feac20254",
+    "render-r627-windows": "71c7c5c72311097309f2374a1c2bc3092ee07eb3e93b854147dde49feac20254"
+  },
+  "productionAppHashes": {
+    "render-r627-mac": "72e24889b52a12e3c9cd4de5b629c59c653394644847fb36aca307b04e38a6c5",
+    "render-r627-linux": "72e24889b52a12e3c9cd4de5b629c59c653394644847fb36aca307b04e38a6c5",
+    "render-r627-windows": "72e24889b52a12e3c9cd4de5b629c59c653394644847fb36aca307b04e38a6c5"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r626": "4d7ffa00f39d462591efe2e9775c0532e530343777b2ba460dfc4e0a511af054",
+    "render-r627-mac": "4d7ffa00f39d462591efe2e9775c0532e530343777b2ba460dfc4e0a511af054",
+    "render-r627-linux": "4d7ffa00f39d462591efe2e9775c0532e530343777b2ba460dfc4e0a511af054",
+    "render-r627-windows": "4d7ffa00f39d462591efe2e9775c0532e530343777b2ba460dfc4e0a511af054"
+  },
+  "matrix": {
+    "mac-batch-r626-core-r626.xml": {
+      "total": "818",
+      "passed": "814",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "23.674"
+    },
+    "mac-batch-r626-render-r626.xml": {
+      "total": "115",
+      "passed": "115",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "38.656"
+    },
+    "ubuntu-batch-r626-core-r626.xml": {
+      "total": "818",
+      "passed": "814",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "61.072"
+    },
+    "ubuntu-batch-r626-render-r626.xml": {
+      "total": "115",
+      "passed": "115",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "49.475"
+    },
+    "windows-batch-r626-core-r626.xml": {
+      "total": "836",
+      "passed": "788",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "21.530"
+    },
+    "windows-batch-r626-native-r626.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "39.117"
+    },
+    "windows-batch-r626-render-r626.xml": {
+      "total": "115",
+      "passed": "114",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "59.932"
+    }
+  },
+  "targetedControls": {
+    "mac": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: ActiveMetric, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: ActiveMetric, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: Name, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: Name, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FileSize, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FileSize, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FilePaths, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FilePaths, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: MeasurementState, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: MeasurementState, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartColorMeaningUsesItsGroupingAndCapturedSourceDepth",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: ActiveMetric, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: ActiveMetric, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: Name, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: Name, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FileSize, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FileSize, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FilePaths, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FilePaths, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: MeasurementState, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: MeasurementState, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: Files)"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.GroupedTreemapAndSunburstUseTheSameBoundedNativeMemberAmountsAcrossThemesAndColorModes"
+      ]
+    },
+    "ubuntu": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: ActiveMetric, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: ActiveMetric, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: Name, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: Name, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FileSize, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FileSize, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FilePaths, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FilePaths, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: MeasurementState, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: MeasurementState, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: ActiveMetric, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: ActiveMetric, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: Name, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: Name, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FileSize, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FileSize, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FilePaths, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FilePaths, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: MeasurementState, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: MeasurementState, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartColorMeaningUsesItsGroupingAndCapturedSourceDepth"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.GroupedTreemapAndSunburstUseTheSameBoundedNativeMemberAmountsAcrossThemesAndColorModes"
+      ]
+    },
+    "windows": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartColorMeaningUsesItsGroupingAndCapturedSourceDepth",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: ActiveMetric, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: ActiveMetric, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: Name, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: Name, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FileSize, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FileSize, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FilePaths, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FilePaths, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: MeasurementState, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: MeasurementState, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: Files)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: ActiveMetric, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: ActiveMetric, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: Name, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: Name, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FileSize, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FileSize, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FilePaths, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FilePaths, descending: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: MeasurementState, descending: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: MeasurementState, descending: True)"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.GroupedTreemapAndSunburstUseTheSameBoundedNativeMemberAmountsAcrossThemesAndColorModes"
+      ]
+    }
+  },
+  "newCoreControls": 29,
+  "newRenderingControls": 1,
+  "finalBuild": "build-r625.txt: full solution zero warnings/errors",
+  "excludedAttempts": [
+    "r617: C#14 field-keyword conflict in new theory-data provider",
+    "r621: superseded before packaging by grouped renderer/input controls and shared-location text"
+  ],
+  "testScope": "Generated accounting/sort cases, captured-native member data, headless chart geometry/input/themes and full existing regression suites on actual guest runtimes. Grouped explorer controls are not integrated; physical desktop UX/a11y/DPI and full1M/10M/private-memory/resource qualification remain pending.",
+  "batchWorkflow": "One immutable bundle per platform; sequential applicable suites with integrity/per-phase occupancy gates and one evidence collection.",
+  "processExitEvidence": "All original runners terminal, guest states FINISHED exit=0 and authoritative inventories show none of our instances. Windows/Ubuntu were empty; Mac contains only the other archive-testing suite, left untouched. No host app/input tests or other tester termination.",
+  "qualification": {
+    "indexedGroupedAssignedRowsImplemented": true,
+    "allGroupedTableSortsAndDirectionsImplemented": true,
+    "groupedChartAccountingAdapterImplemented": true,
+    "capturedGroupAndMemberColorSemanticsImplemented": true,
+    "newControlsPassedAllThree": true,
+    "groupedExplorerControlsIntegrated": false,
+    "memoryGroupedUiAdapterImplemented": false,
+    "groupedViewPersistenceImplemented": false,
+    "nativeDesktopGroupingQualified": false,
+    "fullResourceGateQualified": false,
+    "fullMillionTenMillionGroupingQualificationComplete": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  },
+  "foreignProcessesObserved": {
+    "mac": [
+      "25998 25997 /Users/benny/.dotnet/dotnet test tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --disable-build-servers -p:NuGetAudit=false -m:1 --filter FullyQualifiedName~ArchiveWorkerSecretTests|FullyQualifiedName~ArchiveWorkerTransportSecretTests|FullyQualifiedName~ArchiveWorkerCancellationTests|FullyQualifiedName~ArchiveAssessmentClientTests|FullyQualifiedName~ArchiveVerificationClientTests|FullyQualifiedName~ArchiveManifestWireTests|FullyQualifiedName~ArchiveProxyTests|FullyQualifiedName~ArchiveWorkerTrafficPolicyTests|FullyQualifiedName~ArchivePasswordPolicyTests|FullyQualifiedName~ArchivePasswordWritingTests|FullyQualifiedName~ArchiveAesCbcWritingTests|FullyQualifiedName~SevenZipCompressedHeaderWritingTests|FullyQualifiedName~SevenZipFilterEncodingTests|FullyQualifiedName~SevenZipWritingTests|FullyQualifiedName~ArchivePasswordPrimitiveTests|FullyQualifiedName~Rar5WritingTests|FullyQualifiedName~RarReaderTests|FullyQualifiedName~SevenZipCrcTests|FullyQualifiedName~SevenZipPpmdTests|FullyQualifiedName~SevenZipHeaderBudgetTests|FullyQualifiedName~SevenZipEncodedHeaderTests|FullyQualifiedName~EmptySevenZipTests|FullyQualifiedName~ArchiveWriteBoundaryTests|FullyQualifiedName~ArchiveCapturedInputsTests|FullyQualifiedName~ArchiveDirectoryWireTests|FullyQualifiedName~ArchiveTransform|FullyQualifiedName~ArchiveCreationOriginTests|FullyQualifiedName~UnixArchiveStorageTests --logger trx;LogFileName=archive-worker-secrets.trx --results-directory /Users/benny/FileCatValidation/archive-writing-42829297/archive-worker-secrets-v1/results",
+      "26018 25998 dotnet exec /Users/benny/.dotnet/sdk/10.0.101/vstest.console.dll --framework:.NETCoreApp,Version=v10.0 --testCaseFilter:FullyQualifiedName~ArchiveWorkerSecretTests|FullyQualifiedName~ArchiveWorkerTransportSecretTests|FullyQualifiedName~ArchiveWorkerCancellationTests|FullyQualifiedName~ArchiveAssessmentClientTests|FullyQualifiedName~ArchiveVerificationClientTests|FullyQualifiedName~ArchiveManifestWireTests|FullyQualifiedName~ArchiveProxyTests|FullyQualifiedName~ArchiveWorkerTrafficPolicyTests|FullyQualifiedName~ArchivePasswordPolicyTests|FullyQualifiedName~ArchivePasswordWritingTests|FullyQualifiedName~ArchiveAesCbcWritingTests|FullyQualifiedName~SevenZipCompressedHeaderWritingTests|FullyQualifiedName~SevenZipFilterEncodingTests|FullyQualifiedName~SevenZipWritingTests|FullyQualifiedName~ArchivePasswordPrimitiveTests|FullyQualifiedName~Rar5WritingTests|FullyQualifiedName~RarReaderTests|FullyQualifiedName~SevenZipCrcTests|FullyQualifiedName~SevenZipPpmdTests|FullyQualifiedName~SevenZipHeaderBudgetTests|FullyQualifiedName~SevenZipEncodedHeaderTests|FullyQualifiedName~EmptySevenZipTests|FullyQualifiedName~ArchiveWriteBoundaryTests|FullyQualifiedName~ArchiveCapturedInputsTests|FullyQualifiedName~ArchiveDirectoryWireTests|FullyQualifiedName~ArchiveTransform|FullyQualifiedName~ArchiveCreationOriginTests|FullyQualifiedName~UnixArchiveStorageTests --logger:trx;LogFileName=archive-worker-secrets.trx --resultsDirectory:/Users/benny/FileCatValidation/archive-writing-42829297/archive-worker-secrets-v1/results /Users/benny/FileCatValidation/archive-writing-42829297/archive-worker-secrets-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll --logger:Console;Verbosity=minimal --artifactsProcessingMode-collect --testSessionCorrelationId:25998_a80ac136-3f1d-471f-901a-d82753e8ccc3",
+      "26019 26018 /Users/benny/.dotnet/dotnet exec --runtimeconfig /Users/benny/FileCatValidation/archive-writing-42829297/archive-worker-secrets-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.runtimeconfig.json --depsfile /Users/benny/FileCatValidation/archive-writing-42829297/archive-worker-secrets-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.deps.json /Users/benny/FileCatValidation/archive-writing-42829297/archive-worker-secrets-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/testhost.dll --port 50179 --endpoint 127.0.0.1:050179 --role client --parentprocessid 26018 --telemetryoptedin false",
+      "26032 26019 /Users/benny/FileCatValidation/archive-writing-42829297/archive-worker-secrets-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests @@ /var/folders/zy/bsrr65210bj1s85fr6g0l0dr0000gn/T/tmpTfrg37.tmp"
+    ],
+    "ubuntu": [],
+    "windows": []
+  }
+}

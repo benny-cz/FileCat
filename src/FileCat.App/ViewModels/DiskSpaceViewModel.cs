@@ -328,7 +328,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         : (exact ? item.LogicalSize.ToString(CultureInfo.InvariantCulture) + " bytes" : Bytes(item.LogicalSize)) + (item.LogicalUnknown ? " known" : "");
     public static string ValueText(AnalysisTreeItem item, AnalysisMetric metric, bool exact = false) => !item.IncludedByPolicy ? "Excluded"
         : item.IsNonFileLeaf ? metric == AnalysisMetric.Files ? "Not counted" : "Not measured"
-        : item.SharedElsewhere && item.Value == 0 ? "Shared at ancestor"
+        : item.SharedElsewhere && item.Value == 0 ? item.ChargeLocation ?? "Shared at ancestor"
         : item.Unknown && item.Value == 0 ? "Unknown" : metric == AnalysisMetric.Files ? item.Value.ToString(exact ? "0" : "N0", exact ? CultureInfo.InvariantCulture : CultureInfo.CurrentCulture)
         : (exact ? item.Value.ToString(CultureInfo.InvariantCulture) + " bytes" : Bytes(item.Value)) +
         (item.IdentityUnverified > 0 ? " · unverified" : item.Unknown ? " known" : "");

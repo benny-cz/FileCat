@@ -185,7 +185,7 @@ public abstract class AnalysisChartControl : Control
         var tip = new RichTip(AnalysisNames.Display(string.Join(" / ", names), 240), detail: $"{metric}: {FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, Tree?.Metric ?? AnalysisMetric.OnDisk, true)}. {percent}. File size: {FileCat.App.ViewModels.DiskSpaceViewModel.LogicalText(item, true)}." +
             (item.IdentityUnverified > 0 ? $" Includes {item.IdentityUnverified} identity-unverified path bytes; aliases may repeat." : "") +
             (Tree is { } colorTree && _view is { } view ? $" Color — {AnalysisChartColors.Title(view.Color)}: {AnalysisChartColors.Category(colorTree, item, view.Color).Label}." : ""),
-            hints: [FileCat.App.ViewModels.DiskSpaceViewModel.EntryExplanation(item) ?? (item.SharedElsewhere ? "Shared allocation is attributed at the common parent." : item.Unknown ? "Measurement or namespace coverage is incomplete." : "Observed metadata; allocation can share physical blocks."), "More in inspector."]) { MaxWidth = 420 };
+            hints: [FileCat.App.ViewModels.DiskSpaceViewModel.EntryExplanation(item) ?? item.ChargeLocation ?? (item.SharedElsewhere ? "Shared allocation is attributed at the common parent." : item.Unknown ? "Measurement or namespace coverage is incomplete." : "Observed metadata; allocation can share physical blocks."), "More in inspector."]) { MaxWidth = 420 };
         ToolTip.SetTip(this, tip); ToolTip.SetShowDelay(this, 450);
     }
     protected override void OnKeyDown(KeyEventArgs e)

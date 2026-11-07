@@ -40,7 +40,7 @@ internal static class AnalysisExternalSort
     {
         ArgumentNullException.ThrowIfNull(workspace); ArgumentNullException.ThrowIfNull(io); ArgumentNullException.ThrowIfNull(source);
         if (runMemoryBytes is < 1024 or > RunMemoryBytes) throw new ArgumentOutOfRangeException(nameof(runMemoryBytes));
-        if (maximumRecords is < 1 or > AnalysisLimits.GroupRows) throw new ArgumentOutOfRangeException(nameof(maximumRecords));
+        if (maximumRecords is < 1 or > AnalysisLimits.GroupOrderRows) throw new ArgumentOutOfRangeException(nameof(maximumRecords));
         await Sorts.WaitAsync(cancellation).ConfigureAwait(false);
         var cleanup = new Cleanup(); var runs = cleanup.Runs; var entries = new List<AnalysisSortEntry>();
         AnalysisSortEntry? carry = null; long bytes = 0, total = 0, inputs = 0; bool finished = false;

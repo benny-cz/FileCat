@@ -5,9 +5,16 @@ using FileCat.Core.Threading;
 namespace FileCat.Core.Analysis;
 
 public sealed record AnalysisDatasetGroup(AnalysisGroupDefinition Definition, AnalysisGroupKind Kind, AnalysisTotals Totals,
-    AnalysisLogicalTotals Logical, ulong Members, ulong Charges);
+    AnalysisLogicalTotals Logical, ulong Members, ulong Charges)
+{
+    public AnalysisTotals Shared { get; init; } = new(0, 0, 0, ImmutableDictionary<MeasurementState, ulong>.Empty, true);
+}
 public sealed record AnalysisDatasetGroupMember(AnalysisPathMetadata Path, AnalysisMeasurement LogicalLength,
-    bool AccountingReference, DateTimeOffset? ModifiedUtc, ulong ModifiedPrecisionTicks);
+    bool AccountingReference, DateTimeOffset? ModifiedUtc, ulong ModifiedPrecisionTicks)
+{
+    public int? CapturedDepth { get; init; }
+}
+public sealed record AnalysisDatasetGroupRow(AnalysisDatasetGroupMember Member, AnalysisTotals Assigned, bool SharedElsewhere);
 
 public sealed partial class AnalysisDatasetLease
 {
@@ -56,17 +63,43 @@ public sealed partial class AnalysisDatasetGrouping : IAsyncDisposable
     }
     private async Task<T> ReadAsync<T>(Func<State, CancellationToken, T> read, CancellationToken cancellation)
     { using var admission = AnalysisExplorerAdmission.Acquire(); return await _owned.RunAsync(read, cancellation).ConfigureAwait(false); }
-    public Task<AnalysisDatasetPage<AnalysisDatasetGroup>> ReadGroupsAsync(ulong offset = 0, int maximum = 128, CancellationToken cancellation = default) =>
+    public Task<AnalysisDatasetPage<AnalysisDatasetGroup>> ReadGroupsAsync(ulong offset = 0, int maximum = 128, CancellationToken cancellation = default,
+        AnalysisTableSort sort = AnalysisTableSort.ActiveMetric, bool descending = true) =>
         ReadAsync((state, token) =>
         {
+            if (!Enum.IsDefined(sort)) throw new ArgumentOutOfRangeException(nameof(sort));
             ValidatePage(offset, maximum, Count); var rows = ImmutableArray.CreateBuilder<AnalysisDatasetGroup>(); long bytes = 0;
+            byte[] prefix = [(byte)sort]; var range = state.Order!.PrefixRange(prefix, token); if (range.Count != Count) throw Invalid();
             while (offset + (ulong)rows.Count < Count && rows.Count < maximum)
             {
-                token.ThrowIfCancellationRequested(); var record = state.Order!.Read(offset + (ulong)rows.Count + 1, token);
+                token.ThrowIfCancellationRequested(); var record = state.Order.Read(OrderedPosition(state.Order, prefix, range, offset + (ulong)rows.Count, sort, descending, token), token);
                 var data = state.Summaries!.Read(record.Value, token); if (!Fits(data.Length * 3L + 1024, ref bytes)) break;
                 rows.Add(DecodeSummary(data));
             }
             return new AnalysisDatasetPage<AnalysisDatasetGroup>(offset, Count, rows.ToImmutable());
+        }, cancellation);
+    public Task<AnalysisDatasetPage<AnalysisDatasetGroupRow>> ReadMemberRowsAsync(string groupKey, ulong offset = 0, int maximum = 128,
+        AnalysisTableSort sort = AnalysisTableSort.ActiveMetric, bool descending = true, CancellationToken cancellation = default) => ReadAsync((state, token) =>
+        {
+            if (!Enum.IsDefined(sort)) throw new ArgumentOutOfRangeException(nameof(sort));
+            var group = state.Group(groupKey, token); bool reference = group.Kind != AnalysisGroupKind.Entries;
+            var order = reference ? state.ReferenceOrder! : state.MemberOrder!; var placements = reference ? state.ReferencePlacements! : state.MemberPlacements!;
+            var events = reference ? state.References! : state.Members!; byte[] prefix = Join(Hash(groupKey), [(byte)sort]);
+            var range = order.PrefixRange(prefix, token); ValidatePage(offset, maximum, range.Count); if (range.Count != group.Members) throw Invalid();
+            var rows = ImmutableArray.CreateBuilder<AnalysisDatasetGroupRow>(); long bytes = 0;
+            while (offset + (ulong)rows.Count < range.Count && rows.Count < maximum)
+            {
+                token.ThrowIfCancellationRequested(); var at = OrderedPosition(order, prefix, range, offset + (ulong)rows.Count, sort, descending, token);
+                var placement = DecodePlacement(placements.Read(order.Read(at, token).Value, token)); var item = DecodeEvent(events.Read(placement.Event, token));
+                if (!placement.GroupHash.AsSpan().SequenceEqual(Hash(groupKey)) || placement.Reference != reference || placement.Path != item.Path) throw Invalid();
+                var captured = state.Graph.ReadPathRecord(placement.Path, token); var path = captured.Node; var obj = state.Object(path.ObjectId, token);
+                if (!Fits(2048L + AnalysisIndexedFilter.Cost(path) + (obj?.Id.Length ?? 0) * 2L, ref bytes)) break;
+                var member = new AnalysisDatasetGroupMember(AnalysisPathMetadata.From(path), obj?.LogicalLength ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported), reference,
+                    path.Times is null ? obj?.ModifiedUtc : path.Times.ModifiedUtc, path.Times is null ? obj?.ModifiedPrecisionTicks ?? 0 : path.Times.ModifiedPrecisionTicks)
+                    { CapturedDepth = captured.Depth + 1 };
+                rows.Add(new(member, new(placement.Known, placement.Unverified, path.Kind == AnalysisKind.File ? 1UL : 0UL, placement.Missing, group.Totals.CompatibleBasis), placement.SharedElsewhere));
+            }
+            return new AnalysisDatasetPage<AnalysisDatasetGroupRow>(offset, range.Count, rows.ToImmutable());
         }, cancellation);
     public Task<AnalysisDatasetPage<AnalysisDatasetGroupMember>> ReadMembersAsync(string groupKey, ulong offset = 0, int maximum = 128,
         CancellationToken cancellation = default) => ReadAsync((state, token) =>
@@ -79,12 +112,12 @@ public sealed partial class AnalysisDatasetGrouping : IAsyncDisposable
             {
                 token.ThrowIfCancellationRequested(); var entry = index.Read(range.First + offset + (ulong)rows.Count, token);
                 var record = group.Kind == AnalysisGroupKind.Entries ? state.Members!.Read(entry.Value, token) : state.References!.Read(entry.Value, token);
-                var item = DecodeEvent(record); var path = state.Graph.ReadPath(item.Path, token); var obj = state.Object(path.ObjectId, token);
+                var item = DecodeEvent(record); var captured = state.Graph.ReadPathRecord(item.Path, token); var path = captured.Node; var obj = state.Object(path.ObjectId, token);
                 long cost = 1024L + path.Name.Length * 2L + path.RawName.Length + (obj?.Id.Length ?? 0) * 2L;
                 if (!Fits(cost, ref bytes)) break;
                 rows.Add(new(AnalysisPathMetadata.From(path), obj?.LogicalLength ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported),
                     group.Kind != AnalysisGroupKind.Entries, path.Times is null ? obj?.ModifiedUtc : path.Times.ModifiedUtc,
-                    path.Times is null ? obj?.ModifiedPrecisionTicks ?? 0 : path.Times.ModifiedPrecisionTicks));
+                    path.Times is null ? obj?.ModifiedPrecisionTicks ?? 0 : path.Times.ModifiedPrecisionTicks) { CapturedDepth = captured.Depth + 1 });
             }
             return new AnalysisDatasetPage<AnalysisDatasetGroupMember>(offset, range.Count, rows.ToImmutable());
         }, cancellation);

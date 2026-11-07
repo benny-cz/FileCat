@@ -22,6 +22,7 @@ public static class AnalysisLimits
     public const int Observations = 10_000_000, Depth = 256, RawNameBytes = 64 * 1024, LocatorBytes = 256 * 1024;
     // A derived grouping can add shared-across-groups and directory-allocation rows.
     public const int GroupRows = Observations + 2;
+    public const int GroupOrderRows = GroupRows * 5;
     public const int BatchRecords = 512, BatchBytes = 256 * 1024, PendingBytes = 8 * 1024 * 1024;
     public const long MemoryBytes = 256L * 1024 * 1024, ScratchBytes = 4L * 1024 * 1024 * 1024;
     public const long ProfileScratchBytes = 8L * 1024 * 1024 * 1024, InventoryBytes = 8L * 1024 * 1024 * 1024;

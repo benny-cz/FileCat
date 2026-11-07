@@ -7,12 +7,14 @@ public sealed partial class AnalysisDatasetGrouping
 {
     private enum EventKind : byte { Member, Charge, Reference }
     private sealed record Event(AnalysisGroupDefinition Definition, AnalysisGroupKind Kind, EventKind EventKind, ulong Path,
-        AnalysisMeasurement Logical, AnalysisObjectCharge? Charge = null);
+        AnalysisMeasurement Logical, AnalysisObjectCharge? Charge = null, bool SharedElsewhere = false);
+    private sealed record Placement(byte[] GroupHash, ulong Path, ulong Event, UInt128 Known, UInt128 Unverified,
+        ImmutableDictionary<MeasurementState, ulong> Missing, bool SharedElsewhere, bool Reference);
     private static readonly UTF8Encoding Utf8 = new(false, true);
     private static byte[] EncodeEvent(Event item) => Encode(writer =>
     {
-        writer.Write(0x31454741U); WriteDefinition(writer, item.Definition); writer.Write((byte)item.Kind); writer.Write((byte)item.EventKind);
-        writer.Write(item.Path); WriteMeasurement(writer, item.Logical);
+        writer.Write(0x32454741U); WriteDefinition(writer, item.Definition); writer.Write((byte)item.Kind); writer.Write((byte)item.EventKind);
+        writer.Write(item.Path); WriteMeasurement(writer, item.Logical); writer.Write(item.SharedElsewhere);
         if (item.EventKind == EventKind.Charge)
         {
             var c = item.Charge ?? throw Invalid(); writer.Write(c.Id); writer.Write(c.ParentId); writer.Write(c.RepresentativePathId);
@@ -23,9 +25,9 @@ public sealed partial class AnalysisDatasetGrouping
     });
     private static Event DecodeEvent(byte[] bytes) => Decode(bytes, reader =>
     {
-        if (reader.ReadUInt32() != 0x31454741U) throw Invalid(); var definition = ReadDefinition(reader);
+        if (reader.ReadUInt32() != 0x32454741U) throw Invalid(); var definition = ReadDefinition(reader);
         var kind = ReadEnum<AnalysisGroupKind>(reader); var eventKind = ReadEnum<EventKind>(reader); ulong path = reader.ReadUInt64();
-        var logical = ReadMeasurement(reader); AnalysisObjectCharge? charge = null;
+        var logical = ReadMeasurement(reader); bool sharedElsewhere = ReadBoolean(reader); AnalysisObjectCharge? charge = null;
         if (eventKind == EventKind.Charge)
         {
             ulong id = reader.ReadUInt64(), parent = reader.ReadUInt64(), representative = reader.ReadUInt64();
@@ -35,22 +37,39 @@ public sealed partial class AnalysisDatasetGrouping
             charge = new(id, parent, representative, obj, component, basis, amount, aliases, (flags & 1) != 0, (flags & 2) != 0, (flags & 4) != 0);
         }
         else if (path == 0 || eventKind == EventKind.Member && kind != AnalysisGroupKind.Entries || eventKind == EventKind.Reference && kind == AnalysisGroupKind.Entries) throw Invalid();
-        return new Event(definition, kind, eventKind, path, logical, charge);
+        return new Event(definition, kind, eventKind, path, logical, charge, sharedElsewhere);
+    });
+    private static byte[] EncodePlacement(Placement placement) => Encode(writer =>
+    {
+        writer.Write(0x31504741U); writer.Write(placement.GroupHash); writer.Write(placement.Path); writer.Write(placement.Event);
+        Write128(writer, placement.Known); Write128(writer, placement.Unverified); WriteMissing(writer, placement.Missing);
+        writer.Write(placement.SharedElsewhere); writer.Write(placement.Reference);
+    });
+    private static Placement DecodePlacement(byte[] bytes) => Decode(bytes, reader =>
+    {
+        if (reader.ReadUInt32() != 0x31504741U) throw Invalid(); var hash = reader.ReadBytes(32);
+        ulong path = reader.ReadUInt64(), item = reader.ReadUInt64(); UInt128 known = Read128(reader), unverified = Read128(reader); var missing = ReadMissing(reader);
+        if (hash.Length != 32 || path == 0 || item == 0) throw Invalid();
+        return new Placement(hash, path, item, known, unverified, missing, ReadBoolean(reader), ReadBoolean(reader));
     });
     private static byte[] EncodeSummary(AnalysisDatasetGroup item) => Encode(writer =>
     {
-        writer.Write(0x31534741U); WriteDefinition(writer, item.Definition); writer.Write((byte)item.Kind);
+        writer.Write(0x32534741U); WriteDefinition(writer, item.Definition); writer.Write((byte)item.Kind);
         Write128(writer, item.Totals.Known); Write128(writer, item.Totals.IdentityUnverified); writer.Write(item.Totals.MatchingPaths);
         writer.Write(item.Totals.CompatibleBasis); WriteMissing(writer, item.Totals.Missing);
         Write128(writer, item.Logical.KnownBytes); writer.Write(item.Logical.Files); WriteMissing(writer, item.Logical.Missing);
         writer.Write(item.Members); writer.Write(item.Charges);
+        Write128(writer, item.Shared.Known); Write128(writer, item.Shared.IdentityUnverified); WriteMissing(writer, item.Shared.Missing);
     });
     private static AnalysisDatasetGroup DecodeSummary(byte[] bytes) => Decode(bytes, reader =>
     {
-        if (reader.ReadUInt32() != 0x31534741U) throw Invalid(); var definition = ReadDefinition(reader); var kind = ReadEnum<AnalysisGroupKind>(reader);
-        UInt128 known = Read128(reader), unverified = Read128(reader); ulong files = reader.ReadUInt64(); bool compatible = reader.ReadBoolean(); var missing = ReadMissing(reader);
+        if (reader.ReadUInt32() != 0x32534741U) throw Invalid(); var definition = ReadDefinition(reader); var kind = ReadEnum<AnalysisGroupKind>(reader);
+        UInt128 known = Read128(reader), unverified = Read128(reader); ulong files = reader.ReadUInt64(); bool compatible = ReadBoolean(reader); var missing = ReadMissing(reader);
         UInt128 logical = Read128(reader); ulong logicalFiles = reader.ReadUInt64(); var logicalMissing = ReadMissing(reader);
-        return new AnalysisDatasetGroup(definition, kind, new(known, unverified, files, missing, compatible), new(logical, logicalFiles, logicalMissing), reader.ReadUInt64(), reader.ReadUInt64());
+        ulong members = reader.ReadUInt64(), charges = reader.ReadUInt64(); UInt128 shared = Read128(reader), sharedUnverified = Read128(reader); var sharedMissing = ReadMissing(reader);
+        if (shared > known || sharedUnverified > unverified || sharedMissing.Any(p => missing.GetValueOrDefault(p.Key) < p.Value)) throw Invalid();
+        return new AnalysisDatasetGroup(definition, kind, new(known, unverified, files, missing, compatible), new(logical, logicalFiles, logicalMissing), members, charges)
+            { Shared = new(shared, sharedUnverified, 0, sharedMissing, compatible) };
     });
     private static void WriteDefinition(BinaryWriter writer, AnalysisGroupDefinition definition)
     { WriteText(writer, definition.Value); WriteText(writer, definition.Label); WriteText(writer, definition.Family); }
@@ -81,7 +100,8 @@ public sealed partial class AnalysisDatasetGrouping
     private static void Write128(BinaryWriter writer, UInt128 value) { writer.Write((ulong)value); writer.Write((ulong)(value >> 64)); }
     private static UInt128 Read128(BinaryReader reader) => reader.ReadUInt64() | (UInt128)reader.ReadUInt64() << 64;
     private static void WriteNullable(BinaryWriter writer, string? value) { writer.Write(value is not null); if (value is not null) WriteText(writer, value); }
-    private static string? ReadNullable(BinaryReader reader) => reader.ReadBoolean() ? ReadText(reader, 4096) : null;
+    private static bool ReadBoolean(BinaryReader reader) => reader.ReadByte() switch { 0 => false, 1 => true, _ => throw Invalid() };
+    private static string? ReadNullable(BinaryReader reader) => ReadBoolean(reader) ? ReadText(reader, 4096) : null;
     private static void WriteText(BinaryWriter writer, string value)
     {
         byte[] bytes = Utf8.GetBytes(value); if (bytes.Length > AnalysisLimits.RawNameBytes + 1024 || value.Contains('\0')) throw Invalid();

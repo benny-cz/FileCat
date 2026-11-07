@@ -28,7 +28,7 @@ internal sealed class AnalysisScratchVector : IDisposable
     internal AnalysisScratchVector(AnalysisScratchArena arena, int recordLimit = AnalysisLimits.Observations, int blockLimit = MaximumBlocks, bool ownsArena = true)
     {
         ArgumentNullException.ThrowIfNull(arena);
-        if (recordLimit is < 1 or > AnalysisLimits.GroupRows) throw new ArgumentOutOfRangeException(nameof(recordLimit));
+        if (recordLimit is < 1 or > AnalysisLimits.GroupOrderRows) throw new ArgumentOutOfRangeException(nameof(recordLimit));
         if (blockLimit is < 1 or > MaximumBlocks) throw new ArgumentOutOfRangeException(nameof(blockLimit));
         _arena = arena; _recordLimit = recordLimit; _blockLimit = blockLimit; _ownsArena = ownsArena; ResetBuffer();
     }

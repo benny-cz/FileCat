@@ -32,8 +32,15 @@ public sealed partial class AnalysisDatasetGrouping
             for (int kind = 0; kind < 2; kind++)
             {
                 using var entries = state.SummaryEntries(kind, cancellation).GetEnumerator();
-                var index = await AnalysisExternalSort.BuildSparseAsync(state.Workspace!, io, device, entries, cancellation, maximumRecords: AnalysisLimits.GroupRows).ConfigureAwait(false);
+                var index = await AnalysisExternalSort.BuildSparseAsync(state.Workspace!, io, device, entries, cancellation, maximumRecords: kind == 0 ? AnalysisLimits.GroupRows : AnalysisLimits.GroupOrderRows).ConfigureAwait(false);
                 try { await AnalysisIo.Run(io, device, _ => { if (kind == 0) state.Lookup = index.Acquire(); else state.Order = index.Acquire(); return true; }, cancellation).ConfigureAwait(false); }
+                finally { await AnalysisIo.ReleaseScratchAsync(io, device, index).ConfigureAwait(false); }
+            }
+            for (int kind = 0; kind < 2; kind++)
+            {
+                using var entries = state.PlacementEntries(kind != 0, cancellation).GetEnumerator();
+                var index = await AnalysisExternalSort.BuildSparseAsync(state.Workspace!, io, device, entries, cancellation, maximumRecords: AnalysisLimits.GroupOrderRows).ConfigureAwait(false);
+                try { await AnalysisIo.Run(io, device, _ => { if (kind == 0) state.MemberOrder = index.Acquire(); else state.ReferenceOrder = index.Acquire(); return true; }, cancellation).ConfigureAwait(false); }
                 finally { await AnalysisIo.ReleaseScratchAsync(io, device, index).ConfigureAwait(false); }
             }
             await AnalysisIo.Run(io, device, _ => { state.Workspace!.Dispose(); state.Workspace = null; return true; }, cancellation).ConfigureAwait(false);
@@ -57,9 +64,9 @@ public sealed partial class AnalysisDatasetGrouping
         internal readonly AnalysisMetric Metric;
         internal readonly AnalysisGroupingDimension Dimension;
         internal readonly AnalysisTotals Totals;
-        internal AnalysisScratchVectorCheckpoint? Members, Charges, References, Summaries;
-        internal AnalysisSortedIndexReader? MemberIndex, ChargeIndex, ReferenceIndex, Lookup, Order;
-        private AnalysisScratchVector? _memberWriter, _chargeWriter, _referenceWriter, _summaryWriter;
+        internal AnalysisScratchVectorCheckpoint? Members, Charges, References, Summaries, MemberPlacements, ReferencePlacements;
+        internal AnalysisSortedIndexReader? MemberIndex, ChargeIndex, ReferenceIndex, Lookup, Order, MemberOrder, ReferenceOrder;
+        private AnalysisScratchVector? _memberWriter, _chargeWriter, _referenceWriter, _summaryWriter, _memberPlacementWriter, _referencePlacementWriter;
         private BuildStage _stage;
         private ulong _path = 1, _charge = 1, _objectAt, _aliasAt, _seenAliases;
         private AnalysisIndexRange _objects, _aliases;
@@ -81,7 +88,8 @@ public sealed partial class AnalysisDatasetGrouping
             {
                 graph = source.Retain(); workspace = graph.BorrowWorkspace(); state = new(graph, workspace, metric, totals, dimension); graph = null; workspace = null;
                 state._memberWriter = CreateVector(state.Workspace!); state._chargeWriter = CreateVector(state.Workspace!);
-                state._referenceWriter = CreateVector(state.Workspace!); state._summaryWriter = CreateVector(state.Workspace!, AnalysisLimits.GroupRows); return state;
+                state._referenceWriter = CreateVector(state.Workspace!); state._summaryWriter = CreateVector(state.Workspace!, AnalysisLimits.GroupRows);
+                state._memberPlacementWriter = CreateVector(state.Workspace!); state._referencePlacementWriter = CreateVector(state.Workspace!); return state;
             }
             catch
             {
@@ -116,7 +124,8 @@ public sealed partial class AnalysisDatasetGrouping
                 case BuildStage.Member:
                     var memberObject = Object(_pendingPath!.ObjectId, token); var memberDefinition = Classify(_pendingPath, memberObject);
                     var member = new Event(memberDefinition, AnalysisGroupKind.Entries, EventKind.Member, _pendingPath.Id,
-                        memberObject?.LogicalLength ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported));
+                        memberObject?.LogicalLength ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported),
+                        SharedElsewhere: source.Query?.IsContext(_pendingPath.Id, token) == true);
                     var memberBytes = EncodeEvent(member); _memberWriter!.Append(memberBytes, token); _pendingPath = null; _stage = BuildStage.Paths;
                     return 1024L + memberBytes.Length * 3L;
                 case BuildStage.Charges:
@@ -164,7 +173,8 @@ public sealed partial class AnalysisDatasetGrouping
                     if (_referencesPass)
                     {
                         if (source.Query is null || source.Query.Matches(_pendingPath.Id, token))
-                            _referenceWriter!.Append(EncodeEvent(new(_definition!, _kind, EventKind.Reference, _pendingPath.Id, AnalysisMeasurement.Known(0))), token);
+                            _referenceWriter!.Append(EncodeEvent(new(_definition!, _kind, EventKind.Reference, _pendingPath.Id,
+                                _aliasObject?.LogicalLength ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported))), token);
                         _pendingPath = null;
                     }
                     else _stage = BuildStage.ClassifyAlias;
@@ -175,7 +185,7 @@ public sealed partial class AnalysisDatasetGrouping
                     _pendingPath = null; _stage = BuildStage.AliasPaths; return 1024L + classified.Value.Length * 2L;
                 case BuildStage.DirectoryReference:
                     Graph.RequireParent(_current!.ParentId, token);
-                    _referenceWriter!.Append(EncodeEvent(new(_definition!, _kind, EventKind.Reference, _current.ParentId, AnalysisMeasurement.Known(0))), token);
+                    _referenceWriter!.Append(EncodeEvent(new(_definition!, _kind, EventKind.Reference, _current.ParentId, AnalysisMeasurement.Missing(MeasurementState.Unsupported))), token);
                     _stage = BuildStage.EmitCharge; return 1024;
                 case BuildStage.EmitCharge:
                     ulong owner = _current!.DirectorySelf ? _current.ParentId : _current.Shared ? 0 : _current.RepresentativePathId;
@@ -213,8 +223,9 @@ public sealed partial class AnalysisDatasetGrouping
         public void Dispose()
         {
             Exception? error = null;
-            foreach (var item in new IDisposable?[] { Order, Lookup, ReferenceIndex, ChargeIndex, MemberIndex, Summaries, References, Charges, Members,
-                _summaryWriter, _referenceWriter, _chargeWriter, _memberWriter, Workspace, Graph }) Close(item, ref error);
+            foreach (var item in new IDisposable?[] { ReferenceOrder, MemberOrder, Order, Lookup, ReferenceIndex, ChargeIndex, MemberIndex,
+                ReferencePlacements, MemberPlacements, Summaries, References, Charges, Members,
+                _referencePlacementWriter, _memberPlacementWriter, _summaryWriter, _referenceWriter, _chargeWriter, _memberWriter, Workspace, Graph }) Close(item, ref error);
             if (error is not null) ExceptionDispatchInfo.Capture(error).Throw();
         }
         private static void Close(IDisposable? item, ref Exception? error)

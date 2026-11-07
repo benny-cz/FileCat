@@ -36,8 +36,20 @@ public static class AnalysisChartColors
     };
     public static AnalysisColorCategory Category(IAnalysisChartData tree, AnalysisTreeItem item, AnalysisColorDimension dimension)
     {
-        if (item.Family is "shared" or "directory-allocation" || item.Family == "other" && item.Synthetic)
+        if (item.Family is "shared" or "directory-allocation")
             return Find(item.Family);
+        if (item.GroupDefinition is { } group)
+        {
+            string groupColor = dimension switch
+            {
+                AnalysisColorDimension.FileType => item.GroupingDimension is AnalysisGroupingDimension.FileType or AnalysisGroupingDimension.Extension ?
+                    group.Family == "other" ? "other-type" : group.Family : "folder",
+                AnalysisColorDimension.ModifiedAge => item.GroupingDimension == AnalysisGroupingDimension.ModifiedAge && group.Value.StartsWith("age:", StringComparison.Ordinal) ? group.Value[4..] : "unknown",
+                _ => "unknown"
+            };
+            return Find(groupColor);
+        }
+        if (item.Family == "other" && item.Synthetic) return Find("other");
         string key = dimension switch
         {
             AnalysisColorDimension.FileType => item.Kind == AnalysisKind.Directory ? "folder" : item.Kind != AnalysisKind.File ? "unknown" :
@@ -52,14 +64,16 @@ public static class AnalysisChartColors
     private static string Depth(IAnalysisChartData tree, AnalysisTreeItem item)
     {
         if (item.Key == AnalysisTree.RootKey) return "depth-0";
+        if (item.CapturedDepth is { } captured) return captured < 0 || captured > AnalysisLimits.Depth + 1 ? "unknown" : DepthBand(captured);
         string parent = item.ParentKey; int depth = 1;
         while (parent != AnalysisTree.RootKey)
         {
             if (++depth > AnalysisLimits.Depth + 1 || !tree.Items.ContainsKey(parent)) return "unknown";
             parent = tree.ParentOf(parent);
         }
-        return depth <= 2 ? "depth-1" : depth <= 5 ? "depth-3" : depth <= 10 ? "depth-6" : "depth-11";
+        return DepthBand(depth);
     }
+    private static string DepthBand(int depth) => depth == 0 ? "depth-0" : depth <= 2 ? "depth-1" : depth <= 5 ? "depth-3" : depth <= 10 ? "depth-6" : "depth-11";
     internal static string Age(DateTimeOffset? modified, ulong precision, DateTimeOffset observed)
     {
         if (modified is null || precision == 0) return "unknown";

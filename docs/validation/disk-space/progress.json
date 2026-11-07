@@ -153,7 +153,8 @@
     "Producer work, legacy traversal queues and observation writes share a partitioned8 MiB envelope with reserved working headroom. Charges follow actual stop/cancel/drain; rejected directories remain failed coverage. Decoded strings/ancestry are bounded, queued async inputs drop live witnesses, and effective partitions are captured in policy. Twelve actual-scheduler saturation/lifetime/coverage controls pass all3.",
     "Both memory and indexed charts share selectable file-type, absolute-depth and captured precision-aware modification-age colors, explicit bounded themed legends, contrast-checked text/boundaries and separate focus/mark cues. Strict schema3 view state records dimension/rules v1 and reads schema1/2 defaults without rewrite. Nineteen focused Core and seven rendering/persistence controls, full suites and galleries pass all3; native physical qualification, grouping and comparison-growth colors remain open.",
     "Memory-backed grouping accounting for type/extension/captured modification-age/location preserves every metric, known/unverified/missing/path totals, exact filtered members and pre-filter cross-group hard-link attribution. Directory allocation is separate; rules v1, safe bounded keys/labels and privacy joins are explicit. Twenty-nine controls and full regressions pass all3. Grouped explorer, indexed group store, saved grouping, owner/comparison/volume and native/resource qualification remain unfinished.",
-    "Disk-backed captured type/extension/age/location groups now provide bounded member/charge/summary pages, full-alias pre-filter attribution, component-reference deduplication, exact totals and retained graph leases. Shared explorer admission follows actual queued read/cancel/close completion. Twenty-five new controls, actual closed-source native hard-link captures and full regressions pass all3. Grouped UI/sorting/inspection/persistence and complete scale/resource qualification remain unfinished."
+    "Disk-backed captured type/extension/age/location groups now provide bounded member/charge/summary pages, full-alias pre-filter attribution, component-reference deduplication, exact totals and retained graph leases. Shared explorer admission follows actual queued read/cancel/close completion. Twenty-five new controls, actual closed-source native hard-link captures and full regressions pass all3. Grouped UI/sorting/inspection/persistence and complete scale/resource qualification remain unfinished.",
+    "Indexed grouped member placement ledgers now expose assigned totals/shared references, all five table sort fields/directions and separate shared subtotals. A bounded common grouped chart adapter conserves scope area and captured color/depth meanings. Twenty-nine Core and one both-chart/theme/input rendering controls plus full regressions pass all3. Grouped explorer controls, memory UI adapter, saved state and complete native/resource qualification remain unconnected."
   ],
   "validation": {
     "windowsCore": {
@@ -2102,7 +2103,7 @@
     },
     "testingWorkflow": {
       "default": "Build and package the largest coherent implementation candidate, then transfer one immutable bundle per free platform and execute all applicable Core/native/rendering phases sequentially before collecting evidence. Preserve other testers and gate every phase.",
-      "batchEvidence": "source-manifest-r616.json",
+      "batchEvidence": "source-manifest-r628.json",
       "oneCandidateArchivePerPlatform": true,
       "postExecutionProcessExitRequired": true,
       "continueIndependentPhasesAfterAssertionFailure": true
@@ -3690,12 +3691,201 @@
       "persistenceGateQualified": false,
       "actionsHelperContentEnabled": false,
       "finalIndependentReviewPerformed": false
+    },
+    "groupedDisplayRows": {
+      "newCoreControls": 29,
+      "newRenderingControls": 1,
+      "targetedControls": {
+        "mac": {
+          "core": [
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: FileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: UniqueFileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: OnDisk)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: Files)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: ActiveMetric, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: ActiveMetric, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: Name, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: Name, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FileSize, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FileSize, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FilePaths, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FilePaths, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: MeasurementState, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: MeasurementState, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartColorMeaningUsesItsGroupingAndCapturedSourceDepth",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: ActiveMetric, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: ActiveMetric, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: Name, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: Name, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FileSize, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FileSize, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FilePaths, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FilePaths, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: MeasurementState, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: MeasurementState, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: FileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: UniqueFileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: OnDisk)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: Files)"
+          ],
+          "render": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.GroupedTreemapAndSunburstUseTheSameBoundedNativeMemberAmountsAcrossThemesAndColorModes"
+          ]
+        },
+        "ubuntu": {
+          "core": [
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: ActiveMetric, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: ActiveMetric, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: Name, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: Name, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FileSize, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FileSize, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FilePaths, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FilePaths, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: MeasurementState, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: MeasurementState, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: FileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: UniqueFileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: OnDisk)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: Files)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: FileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: UniqueFileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: OnDisk)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: Files)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: ActiveMetric, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: ActiveMetric, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: Name, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: Name, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FileSize, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FileSize, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FilePaths, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FilePaths, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: MeasurementState, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: MeasurementState, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartColorMeaningUsesItsGroupingAndCapturedSourceDepth"
+          ],
+          "render": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.GroupedTreemapAndSunburstUseTheSameBoundedNativeMemberAmountsAcrossThemesAndColorModes"
+          ]
+        },
+        "windows": {
+          "core": [
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartColorMeaningUsesItsGroupingAndCapturedSourceDepth",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: FileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: UniqueFileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: OnDisk)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupDisplayRowsKeepAssignedAmountsSharedReferencesAndLogicalLengthsDistinct(metric: Files)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: ActiveMetric, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: ActiveMetric, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: Name, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: Name, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FileSize, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FileSize, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FilePaths, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: FilePaths, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: MeasurementState, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupMemberOrdersUseTheirOwnMetricAndLogicalAmountsThroughBoundedPages(field: MeasurementState, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: FileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: UniqueFileSize)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: OnDisk)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupedChartsPreserveScopeAreaAndSeparateSharedChargesFromPagedMemberReferences(metric: Files)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: ActiveMetric, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: ActiveMetric, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: Name, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: Name, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FileSize, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FileSize, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FilePaths, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: FilePaths, descending: True)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: MeasurementState, descending: False)",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupSummaryOrdersPageExactFieldsAndKeepUnknownNumericValuesLast(field: MeasurementState, descending: True)"
+          ],
+          "render": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.GroupedTreemapAndSunburstUseTheSameBoundedNativeMemberAmountsAcrossThemesAndColorModes"
+          ]
+        }
+      },
+      "matrix": {
+        "mac-batch-r626-core-r626.xml": {
+          "total": "818",
+          "passed": "814",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "23.674"
+        },
+        "mac-batch-r626-render-r626.xml": {
+          "total": "115",
+          "passed": "115",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "38.656"
+        },
+        "ubuntu-batch-r626-core-r626.xml": {
+          "total": "818",
+          "passed": "814",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "61.072"
+        },
+        "ubuntu-batch-r626-render-r626.xml": {
+          "total": "115",
+          "passed": "115",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "49.475"
+        },
+        "windows-batch-r626-core-r626.xml": {
+          "total": "836",
+          "passed": "788",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0",
+          "time": "21.530"
+        },
+        "windows-batch-r626-native-r626.xml": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "39.117"
+        },
+        "windows-batch-r626-render-r626.xml": {
+          "total": "115",
+          "passed": "114",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "59.932"
+        }
+      },
+      "manifest": "source-manifest-r628.json",
+      "indexedGroupedAssignedRowsImplemented": true,
+      "allGroupedTableSortsAndDirectionsImplemented": true,
+      "groupedChartAccountingAdapterImplemented": true,
+      "capturedGroupAndMemberColorSemanticsImplemented": true,
+      "newControlsPassedAllThree": true,
+      "groupedExplorerControlsIntegrated": false,
+      "memoryGroupedUiAdapterImplemented": false,
+      "groupedViewPersistenceImplemented": false,
+      "nativeDesktopGroupingQualified": false,
+      "fullResourceGateQualified": false,
+      "fullMillionTenMillionGroupingQualificationComplete": false,
+      "productCommandRegistered": false,
+      "publicIndexedSpillEnabled": false,
+      "persistenceGateQualified": false,
+      "actionsHelperContentEnabled": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
     "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, remaining dataset/CPU queues and full private-memory qualification (producer payload now shares a partitioned8 MiB envelope and explorer creation/page/inspection/chart work shares eight places, with actual-lifetime controls all3), actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
-    "W2: finish grouped chart/table/navigation, sorting/inspection and saved grouping state (memory and indexed type/extension/captured-age/location stores, bounded pages and native capture controls now pass all3), owner/comparison/qualified-volume grouping and comparison-growth coloring (basic type/depth/captured-age colors, themed legends and strict saved-view restore now pass all3), scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
+    "W2: connect grouped selector/chart/table/navigation/inspection and saved grouping state (assigned rows, all sorting fields/directions and the bounded grouped chart adapter now pass all3) (memory and indexed type/extension/captured-age/location stores, bounded pages and native capture controls now pass all3), owner/comparison/qualified-volume grouping and comparison-growth coloring (basic type/depth/captured-age colors, themed legends and strict saved-view restore now pass all3), scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
