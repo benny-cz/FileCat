@@ -92,3 +92,13 @@ everything else is left out.
 FileCat reads RAR archives with its own reader (`src/FileCat.Archives/Rar`), ZIP with its own reader, gzip
 with .NET's `System.IO.Compression`, and TAR with its own reader; it checks each 7z member's CRC-32 as it
 reads the member (`SevenZipMemberStream` in `src/FileCat.Archives/ArchiveFormats.cs`).
+
+- `Compressors/LZMA/Bcj2DecoderStream.cs`: dispose the iterator and all four packed input streams, including the
+  range stream. Nested cleanup also closes the remaining inputs when an earlier disposal throws; encrypted range
+  streams must release their decryptor/buffer ownership with the folder.
+  Construction failure also disposes all four accepted inputs, preserving the original short-range error
+  if an input disposal fails.
+
+- `Compressors/Deflate/ZlibBaseStream.cs`: retain the inflate status separately from the returned byte count in
+  synchronous/asynchronous reads. A one-byte read previously treated its byte count as `Z_STREAM_END` and discarded
+  compressed input still needed for BCJ2 branches (and other callers that read one byte at a time).

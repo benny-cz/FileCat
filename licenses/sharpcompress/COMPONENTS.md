@@ -12,6 +12,7 @@ and bounded branch/delta/swap transforms. This inventory does not enable or qual
 The password-aware development reader uses an original FileCat transform-broker delegate to obtain bounded
 job-local AES decryptors without putting immutable password strings in reader options. No third-party crypto
 implementation was imported for this broker.
+The BCJ2 decoder closes all four packed streams, including an encrypted range stream, on folder disposal.
 
 SharpCompress is MIT-licensed (`LICENSE.txt`, its exact upstream bytes). Many of its parts come from other
 projects and keep their own licenses. This inventory was made by reading the leading comment of every file,
@@ -170,3 +171,6 @@ FileCat reads ZIP with its own reader, gzip with .NET's `System.IO.Compression`,
 
 `SHA256SUMS` pins every other file in this folder; the packaging scripts check the folder against it before
 they copy it into a package.
+
+FileCat corrects synchronous/asynchronous Deflate small-read end-state handling in `ZlibBaseStream.cs`;
+returned byte counts cannot be interpreted as codec status codes. See the fork change inventory.

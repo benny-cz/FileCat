@@ -8,6 +8,7 @@
 #include "Delta.h"
 #include "SwapBytes.h"
 #include "Ppmd7.h"
+#include "Bcj2.h"
 
 static int number(const char *text, unsigned long *out) {
   char *end; unsigned long value = strtoul(text, &end, 10);
@@ -48,6 +49,28 @@ int main(int argc, char **argv) {
         Ppmd7z_Init_RangeEnc(&model); Ppmd7z_EncodeSymbols(&model, bytes, bytes + size); Ppmd7z_Flush_RangeEnc(&model);
         Ppmd7_Free(&model, &allocator); if (out.failed) result = 69;
       }
+    }
+  } else if (!strcmp(argv[1], "bcj2")) {
+    CBcj2Enc encoder; Byte *parts[4] = { NULL, NULL, NULL, NULL }; unsigned i;
+    if (first > 3 || second != 0) result = 75;
+    else {
+      Bcj2Enc_Init(&encoder); Bcj2Enc_SET_FileSize(&encoder, size);
+      encoder.src = bytes; encoder.srcLim = bytes + size;
+      encoder.finishMode = BCJ2_ENC_FINISH_MODE_END_STREAM;
+      for (i = 0; i < 4; i++) {
+        parts[i] = (Byte *)calloc(8 << 20, 1);
+        if (!parts[i]) { result = 76; break; }
+        encoder.bufs[i] = parts[i]; encoder.lims[i] = parts[i] + (8 << 20);
+      }
+      if (!result) {
+        Bcj2Enc_Encode(&encoder);
+        if (encoder.state != BCJ2_ENC_STATE_FINISHED || encoder.src != bytes + size) result = 77;
+        else {
+          size_t packed = (size_t)(encoder.bufs[first] - parts[first]);
+          if (packed > (8 << 20) || fwrite(parts[first], 1, packed, output) != packed) result = 78;
+        }
+      }
+      for (i = 0; i < 4; i++) free(parts[i]);
     }
   } else if (!strcmp(argv[1], "filter")) {
     Byte *end = bytes; UInt32 state = Z7_BRANCH_CONV_ST_X86_STATE_INIT_VAL;

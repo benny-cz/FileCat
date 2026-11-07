@@ -26,8 +26,8 @@ internal sealed record SevenZipEncodedContent(SevenZipCodec Codec, IReadOnlyList
 
 /// <summary>
 /// Stream-only codec adapter for the 7z container foundation. Reuses the existing permitted codecs, with validated
-/// parameters and actual preset mappings. No paths, publication, secrets or registration. BCJ2/encryption
-/// coverage remains explicit work; an enum member is not encoder support or profile qualification.
+/// parameters and actual preset mappings. No paths, publication or registration. BCJ2 uses its separate fresh-view
+/// four-pass packing path; codec/graph implementation alone does not establish production profile qualification.
 /// </summary>
 internal static class SevenZipCodecEncoder
 {
@@ -42,49 +42,7 @@ internal static class SevenZipCodecEncoder
         var cipherTarget = encryption?.CreateCipher(measured, header: false, ArchiveWritePolicy.MaxPhysicalBytes, ct);
         using ArchiveAesCbcWriteStream? cipher = cipherTarget?.Cipher;
         var codecOutput = cipher is null ? measured : new PackedSink(cipher, ct);
-        byte[] properties = [];
-        byte[] methodId;
-        Stream encoded;
-        int effort = options.Level == 0 ? 2 : options.Level;
-        switch (options.Codec)
-        {
-            case SevenZipCodec.Copy:
-                methodId = [0]; encoded = codecOutput; break;
-            case SevenZipCodec.Lzma:
-            {
-                var encoder = LzmaStream.Create(new LzmaEncoderProperties(eos: true, options.DictionaryBytes, FastBytes(effort)), false, codecOutput);
-                properties = (byte[])encoder.Properties.Clone();
-                methodId = [3, 1, 1]; encoded = encoder; break;
-            }
-            case SevenZipCodec.Lzma2:
-            {
-                var encoder = new Lzma2EncoderStream(codecOutput, options.DictionaryBytes, FastBytes(effort));
-                properties = (byte[])encoder.Properties.Clone();
-                methodId = [0x21]; encoded = encoder; break;
-            }
-            case SevenZipCodec.Bzip2:
-                methodId = [4, 2, 2];
-                encoded = new CBZip2OutputStream(codecOutput, effort switch { 1 => 1, 2 => 5, _ => 9 }, leaveOpen: true); break;
-            case SevenZipCodec.Deflate:
-                methodId = [4, 1, 8];
-                encoded = new DeflateStream(codecOutput, effort switch
-                { 1 => CompressionLevel.Fastest, 2 => CompressionLevel.Optimal, _ => CompressionLevel.SmallestSize }, leaveOpen: true); break;
-            case SevenZipCodec.Zstandard:
-                // This is FileCat's already decoded 7z extension method, not an LZMA stream with another label.
-                // Standard extension metadata: producer version 1.5, actual level, two reserved zero bytes.
-                // Some independent readers require these properties even though libarchive ignores them.
-                properties = [1, 5, (byte)(effort switch { 1 => 1, 2 => 3, _ => 9 }), 0, 0];
-                methodId = [4, 0xf7, 0x11, 1]; encoded = new StrictZstdWriteStream(codecOutput, options.Level, ct); break;
-            case SevenZipCodec.Ppmd7:
-            {
-                var (order, memory) = PpmdSettings(options);
-                properties = new byte[5]; properties[0] = (byte)order;
-                BinaryPrimitives.WriteUInt32LittleEndian(properties.AsSpan(1), (uint)memory);
-                methodId = [3, 4, 1]; encoded = new Ppmd7zEncoderStream(codecOutput, order, memory, ct); break;
-            }
-            default:
-                throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This 7z codec is not implemented.");
-        }
+        var (encoded, codec) = CreateCodec(codecOutput, options, ct);
         FilterInputSink? filtered = null;
         SevenZipCoder? filter = null;
         if (options.Filter != SevenZipFilter.None)
@@ -130,7 +88,6 @@ internal static class SevenZipCodecEncoder
         ct.ThrowIfCancellationRequested();
         if (filtered is not null && filtered.Bytes != length)
             throw new ArchiveWriteException(ArchiveWriteReason.VerificationFailed, "The 7z filter changed its declared byte extent.");
-        var codec = new SevenZipCoder(methodId, properties);
         // Use decoding order for interoperability: AES, compression, optional filter. Without AES this preserves
         // the codec-first ordering required by the secondary libarchive reader; py7zr also consumes list order.
         var coders = new List<SevenZipCoder>(); var bindings = new List<SevenZipBinding>(); var sizes = new List<long>();
@@ -145,7 +102,56 @@ internal static class SevenZipCodecEncoder
             Convert.ToHexString(hash.GetHashAndReset()));
     }
 
-    internal static void Validate(SevenZipCodecOptions options)
+    // Caller validates options once before opening grants or touching a stage. No filter is applied here.
+    internal static (Stream Stream, SevenZipCoder Coder) CreateCodec(Stream codecOutput, SevenZipCodecOptions options, CancellationToken ct)
+    {
+        byte[] properties = [];
+        byte[] methodId;
+        Stream encoded;
+        int effort = options.Level == 0 ? 2 : options.Level;
+        switch (options.Codec)
+        {
+            case SevenZipCodec.Copy:
+                methodId = [0]; encoded = codecOutput; break;
+            case SevenZipCodec.Lzma:
+            {
+                var encoder = LzmaStream.Create(new LzmaEncoderProperties(eos: true, options.DictionaryBytes, FastBytes(effort)), false, codecOutput);
+                properties = (byte[])encoder.Properties.Clone();
+                methodId = [3, 1, 1]; encoded = encoder; break;
+            }
+            case SevenZipCodec.Lzma2:
+            {
+                var encoder = new Lzma2EncoderStream(codecOutput, options.DictionaryBytes, FastBytes(effort));
+                properties = (byte[])encoder.Properties.Clone();
+                methodId = [0x21]; encoded = encoder; break;
+            }
+            case SevenZipCodec.Bzip2:
+                methodId = [4, 2, 2];
+                encoded = new CBZip2OutputStream(codecOutput, effort switch { 1 => 1, 2 => 5, _ => 9 }, leaveOpen: true); break;
+            case SevenZipCodec.Deflate:
+                methodId = [4, 1, 8];
+                encoded = new DeflateStream(codecOutput, effort switch
+                { 1 => CompressionLevel.Fastest, 2 => CompressionLevel.Optimal, _ => CompressionLevel.SmallestSize }, leaveOpen: true); break;
+            case SevenZipCodec.Zstandard:
+                // This is FileCat's already decoded 7z extension method, not an LZMA stream with another label.
+                // Standard extension metadata: producer version 1.5, actual level, two reserved zero bytes.
+                // Some independent readers require these properties even though libarchive ignores them.
+                properties = [1, 5, (byte)(effort switch { 1 => 1, 2 => 3, _ => 9 }), 0, 0];
+                methodId = [4, 0xf7, 0x11, 1]; encoded = new StrictZstdWriteStream(codecOutput, options.Level, ct); break;
+            case SevenZipCodec.Ppmd7:
+            {
+                var (order, memory) = PpmdSettings(options);
+                properties = new byte[5]; properties[0] = (byte)order;
+                BinaryPrimitives.WriteUInt32LittleEndian(properties.AsSpan(1), (uint)memory);
+                methodId = [3, 4, 1]; encoded = new Ppmd7zEncoderStream(codecOutput, order, memory, ct); break;
+            }
+            default:
+                throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This 7z codec is not implemented.");
+        }
+        return (encoded, new(methodId, properties));
+    }
+
+    internal static void Validate(SevenZipCodecOptions options, bool allowBcj2 = false)
     {
         if (options is null || !Enum.IsDefined(options.Codec) || !Enum.IsDefined(options.Filter) || options.Level is < 0 or > 3 ||
             options.Codec == SevenZipCodec.Copy && options.Level != 0 ||
@@ -155,8 +161,8 @@ internal static class SevenZipCodecEncoder
             options.Codec != SevenZipCodec.Ppmd7 && (options.ModelOrder != 0 || options.ModelMemoryBytes != 0) ||
             options.DeltaDistance is < 1 or > 256 || options.Filter != SevenZipFilter.Delta && options.DeltaDistance != 1)
             throw Invalid("These 7z codec parameters are unsupported or ineffective.");
-        if (options.Filter == SevenZipFilter.Bcj2)
-            throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This 7z filter still needs its audited encoding/graph implementation.");
+        if (options.Filter == SevenZipFilter.Bcj2 && !allowBcj2)
+            throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "BCJ2 needs the bounded four-pass packing route and fresh source grants.");
         if (options.Codec == SevenZipCodec.Ppmd7)
         {
             var (order, memory) = PpmdSettings(options);

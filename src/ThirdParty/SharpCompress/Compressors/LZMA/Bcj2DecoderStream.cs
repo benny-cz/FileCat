@@ -99,15 +99,27 @@ internal class Bcj2DecoderStream : DecoderStream2
         _mMainStream = streams[0];
         _mCallStream = streams[1];
         _mJumpStream = streams[2];
-        _mRangeDecoder = new RangeDecoder(streams[3]);
-
-        _mStatusDecoder = new StatusDecoder[256 + 2];
-        for (var i = 0; i < _mStatusDecoder.Length; i++)
+        try
         {
-            _mStatusDecoder[i] = new StatusDecoder();
-        }
+            _mRangeDecoder = new RangeDecoder(streams[3]);
+            _mStatusDecoder = new StatusDecoder[256 + 2];
+            for (var i = 0; i < _mStatusDecoder.Length; i++)
+            {
+                _mStatusDecoder[i] = new StatusDecoder();
+            }
 
-        _mIter = Run().GetEnumerator();
+            _mIter = Run().GetEnumerator();
+        }
+        catch
+        {
+            // Construction has accepted ownership. A short/failing range stream must also release every
+            // branch/decryptor already created, retaining the original construction error if cleanup fails.
+            foreach (Stream stream in streams)
+            {
+                try { stream.Dispose(); } catch { }
+            }
+            throw;
+        }
     }
 
     protected override void Dispose(bool disposing)
@@ -117,10 +129,23 @@ internal class Bcj2DecoderStream : DecoderStream2
             return;
         }
         _isDisposed = true;
-        base.Dispose(disposing);
-        _mMainStream.Dispose();
-        _mCallStream.Dispose();
-        _mJumpStream.Dispose();
+        try
+        {
+            if (disposing)
+            {
+                try { _mIter.Dispose(); }
+                finally
+                {
+                    try { _mMainStream.Dispose(); }
+                    finally
+                    {
+                        try { _mCallStream.Dispose(); }
+                        finally { try { _mJumpStream.Dispose(); } finally { _mRangeDecoder.Dispose(); } }
+                    }
+                }
+            }
+        }
+        finally { base.Dispose(disposing); }
     }
 
     private static bool IsJcc(byte b0, byte b1) => b0 == 0x0F && (b1 & 0xF0) == 0x80;

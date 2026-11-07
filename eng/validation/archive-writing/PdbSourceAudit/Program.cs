@@ -3,12 +3,14 @@ using System.Reflection.Metadata;
 using System.Security.Cryptography;
 using System.Text.Json;
 
-if (args.Length is not (3 or 4)) return 64;
+if (args.Length is not (3 or 4 or 5)) return 64;
+bool artifactSbom = args.Length == 5 && args[4] == "--artifact-sbom";
+if (args.Length == 5 && !artifactSbom) return 64;
 string repository = Path.TrimEndingDirectorySeparator(Path.GetFullPath(args[0]));
 string publish = Path.GetFullPath(args[1]), output = Path.GetFullPath(args[2]);
 // Test assemblies can compile pinned NuGet content sources (e.g. xUnit's generated runner). This explicit extra
 // root is opt-in; default production audits still require every nonembedded document inside the private checkout.
-string? extraSourceRoot = args.Length == 4 ? Path.TrimEndingDirectorySeparator(Path.GetFullPath(args[3])) : null;
+string? extraSourceRoot = args.Length >= 4 ? Path.TrimEndingDirectorySeparator(Path.GetFullPath(args[3])) : null;
 if (!Directory.Exists(repository) || !Directory.Exists(publish) || Directory.Exists(output)) return 65;
 if (extraSourceRoot != null && (!Directory.Exists(extraSourceRoot) || Path.GetPathRoot(extraSourceRoot) == extraSourceRoot)) return 65;
 Directory.CreateDirectory(output);
@@ -16,7 +18,7 @@ Guid sha256 = new("8829d00f-11b8-4213-878b-770e8597ac16"), sha1 = new("ff1816ec-
 Guid embeddedKind = new("0e8a571b-6926-466e-b4ad-8ab04611f5fe");
 var documents = new List<object>(); var binaries = new List<object>();
 long bytes = 0; int count = 0;
-foreach (string pdb in Directory.EnumerateFiles(publish, "FileCat.*.pdb").Order(StringComparer.Ordinal))
+foreach (string pdb in Directory.EnumerateFiles(publish, artifactSbom ? "ArtifactSbom.pdb" : "FileCat.*.pdb").Order(StringComparer.Ordinal))
 {
     string name = Path.GetFileNameWithoutExtension(pdb), dll = Path.ChangeExtension(pdb, ".dll");
     binaries.Add(new { assembly = name, pdbSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(pdb))),
@@ -69,9 +71,9 @@ foreach (string pdb in Directory.EnumerateFiles(publish, "FileCat.*.pdb").Order(
             bytes = content.Length, sha256 = Convert.ToHexString(SHA256.HashData(content)) });
     }
 }
-if (binaries.Count < 4 || count == 0) throw new InvalidDataException("Dedicated worker symbols are incomplete.");
+if (binaries.Count < (artifactSbom ? 1 : 4) || count == 0) throw new InvalidDataException("Requested compiler symbols are incomplete.");
 var result = new { compilerSourceChecksumsMatched = true, productionBackendQualified = false, documents = count, bytes, extraSourceRoot,
-    binaries, sources = documents };
+    scope = artifactSbom ? "ArtifactSbom" : "FileCat", binaries, sources = documents };
 File.WriteAllText(Path.Combine(output, "facts.json"), JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }) + "\n");
 Console.WriteLine(JsonSerializer.Serialize(new { compilerSourceChecksumsMatched = true, productionBackendQualified = false, documents = count, bytes }));
 return 0;

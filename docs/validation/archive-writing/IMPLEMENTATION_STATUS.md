@@ -19,7 +19,7 @@ Do not create one machine session per small edit or omit needed coverage because
 
 Both encoders require explicit method/version/filter/mode inventories and all needed feasible encoding paths. Gaps
 must distinguish missing work, profile policy and demonstrated blockers. RAR methods 0–5 and 7z's seven current
-codecs, one-stream filters/swaps and compressed headers now have implementation checkpoints. BCJ2, remaining
+codecs, one-stream filters/swaps, compressed headers and four-stream BCJ2 now have implementation checkpoints. Remaining
 version/filter/metadata inventories and broader qualification remain work, not impossible features. 7z FILETIME's 100 ns limit
 and over-budget dictionaries/models need explicit policies. Neither analysis enables a production profile.
 
@@ -69,8 +69,21 @@ with platform skips and zero failures on each machine. Nine real child delivery/
 for all three roles. A focused replay qualifies a create-only recorder fix after Windows PID reuse overwrote one
 exit record; all nine separate records now survive per machine. Both source/evidence sets and all current C# inputs
 are verified. This is shared transport/API work: actual password-aware request consumers, native secret-role admission,
-parent job/view/edit lifetime and complete UI remain open. BCJ2 is the next codec chunk before strict catalog/interface
-finalization, followed by the remaining shared integration and full plan gates.
+parent job/view/edit lifetime and complete UI remain open.
+
+The [BCJ2 checkpoint](SEVENZIP_BCJ2.md) adds fixed-buffer raw encoding and four sequential packing passes with one
+active compressor, frozen-source checks and four distinct encryption IVs. The full matrix passes 846 cases with
+platform skips; the follow-up 81-case suite covers constructor/disposal failures as well as all codec/header/password
+combinations. SDK checks match 72 streams; official 7-Zip verifies 36 archives/72 payloads, and composed independent
+py7zr/AES/codec plus SDK BCJ2 checks verify all 42 graph payloads including Zstandard. Libarchive qualifies zero of
+these graphs; its failures are retained. Direct tests fix Deflate small-read data loss and encrypted BCJ2 stream
+cleanup. All 30 earlier unencrypted archives remain unchanged; SBOM controls and actual compiler-source audits pass.
+Source/evidence identities and the exact standard-user setup corrections are recorded in that checkpoint.
+
+The next chunk is strict password-aware RAR/7z source/update/verification catalogs and typed shared worker/profile
+integration, including four-pass BCJ2 traffic/CPU/decode accounting and aggregate memory ownership. Continue through
+shared transactions, complete UI/workflows, native/resource/crash/fuzz/six-RID/package gates and final independent
+review. No new profile is registered or complete; the explicit goal remains active.
 
 ## Source and workspace
 

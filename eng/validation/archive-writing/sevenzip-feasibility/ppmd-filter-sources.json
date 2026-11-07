@@ -186,7 +186,8 @@
     "PPMd": "C/Ppmd7Enc.c range grammar; existing rardecode BSD model remains the model",
     "ARM64_RISCV": "fresh bounded scalar encode/decode ports of C/Bra.c",
     "SDK_C_files": "compile private test oracle only; never included in production dependency closure",
-    "cpp_wrappers": "metadata/default inspection only; not selected for code reuse"
+    "cpp_wrappers": "metadata/default inspection only; not selected for code reuse",
+    "BCJ2": "Bounded C# adaptation of C/Bcj2Enc.c and C/Bcj2.h; caller-owned four-stream output, explicit file-size bounds and fixed buffers. The C files compile only into private differential oracles."
   },
   "metadata_inspection": {
     "commit": "b88c6bc09339de32f7d18bbab900686b244f42ba",

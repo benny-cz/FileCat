@@ -29,7 +29,7 @@ internal static class SevenZipArchiveWriter
         SevenZipCodecOptions options, CancellationToken ct, SevenZipHeaderMode headerMode = SevenZipHeaderMode.Raw,
         SevenZipEncryptionSession? encryption = null)
     {
-        SevenZipCodecEncoder.Validate(options);
+        SevenZipCodecEncoder.Validate(options, allowBcj2: true);
         if (!Enum.IsDefined(headerMode) || !stage.CanWrite || !stage.CanSeek || stage.Position != 0 || stage.Length != 0 ||
             entries.Count > ArchiveWritePolicy.MaxMembers || inputs.Count > ArchiveWritePolicy.MaxMembers)
             throw Invalid("The 7z creation request or stage is invalid.");
@@ -88,11 +88,15 @@ internal static class SevenZipArchiveWriter
             if (entry.InputId is { } id)
             {
                 var input = descriptors[id];
-                Stream lease = openInput(id) ?? throw Invalid("A captured 7z input grant did not open.");
-                if (ReferenceEquals(lease, stage)) throw Invalid("The 7z stage cannot also be a source grant.");
-                using (lease)
+                if (input.Length != 0 && options.Filter == SevenZipFilter.Bcj2)
                 {
-                    if (!lease.CanRead || !lease.CanSeek || lease.Position != 0 || lease.Length != input.Length) throw Changed();
+                    long start = stage.Position;
+                    content = SevenZipBcj2Packing.Encode(Fresh, input.Length, input.Sha256, sink, options, ct, encryption);
+                    if (stage.Position - start != content.PackedLength) throw Changed();
+                }
+                else
+                {
+                    using var lease = Fresh();
                     if (input.Length == 0)
                     {
                         if (lease.ReadByte() != -1 || input.Sha256 != Convert.ToHexString(SHA256.HashData([]))) throw Changed();
@@ -103,6 +107,19 @@ internal static class SevenZipArchiveWriter
                         content = SevenZipCodecEncoder.Encode(lease, input.Length, sink, options, ct, encryption);
                         if (content.Sha256 != input.Sha256 || stage.Position - start != content.PackedLength) throw Changed();
                     }
+                }
+
+                Stream Fresh()
+                {
+                    ct.ThrowIfCancellationRequested();
+                    Stream lease = openInput(id) ?? throw Invalid("A captured 7z input grant did not open.");
+                    if (ReferenceEquals(lease, stage)) throw Invalid("The 7z stage cannot also be a source grant.");
+                    try
+                    {
+                        if (!lease.CanRead || !lease.CanSeek || lease.Position != 0 || lease.Length != input.Length) throw Changed();
+                        return lease;
+                    }
+                    catch { lease.Dispose(); throw; }
                 }
             }
             manifest.Add(new(entry, content));

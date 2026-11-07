@@ -1015,6 +1015,7 @@ internal class ZlibBaseStream : Stream, IStreamStack
             }
         }
 
+        bool streamEnded = rc == ZlibConstants.Z_STREAM_END;
         rc = (count - _z.AvailableBytesOut);
 
         // calculate CRC after reading
@@ -1023,7 +1024,7 @@ internal class ZlibBaseStream : Stream, IStreamStack
             crc.SlurpBlock(buffer, offset, rc);
         }
 
-        if (rc == ZlibConstants.Z_STREAM_END && z.AvailableBytesIn != 0 && !_wantCompress)
+        if (streamEnded && z.AvailableBytesIn != 0 && !_wantCompress)
         {
             //rewind the buffer
             this.Rewind(z.AvailableBytesIn);
@@ -1209,6 +1210,7 @@ internal class ZlibBaseStream : Stream, IStreamStack
             }
         }
 
+        bool streamEnded = rc == ZlibConstants.Z_STREAM_END;
         rc = (count - _z.AvailableBytesOut);
 
         // calculate CRC after reading
@@ -1217,7 +1219,7 @@ internal class ZlibBaseStream : Stream, IStreamStack
             crc.SlurpBlock(buffer, offset, rc);
         }
 
-        if (rc == ZlibConstants.Z_STREAM_END && z.AvailableBytesIn != 0 && !_wantCompress)
+        if (streamEnded && z.AvailableBytesIn != 0 && !_wantCompress)
         {
             //rewind the buffer
             this.Rewind(z.AvailableBytesIn);

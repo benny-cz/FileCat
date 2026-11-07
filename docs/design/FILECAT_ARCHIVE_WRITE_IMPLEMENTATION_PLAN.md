@@ -9,6 +9,7 @@
 > **Deliverable boundary:** This document defines the requirements; a component checkpoint does not establish format or release qualification. Keep the acceptance gates open until the complete implementation and required platform evidence satisfy them.
 > **6 November component checkpoint:** The [dedicated VM archive worker](../validation/archive-writing/DEDICATED_VM_ARCHIVE_WORKER.md) executes actual write roles with a writing-only dependency closure and strict guest syscall policy. Live ARM64/musl defects are fixed; production resource/package/admission gates and the overall plan stay open.
 > **7 November component checkpoint:** [RAR5/7z password creation and job-local reading](../validation/archive-writing/ARCHIVE_PASSWORD_FOUNDATION.md) pass the same 653-case matrix and independent encrypted-output checks on Windows/Mac/Ubuntu. Secret grants, strict catalogs, shared workflows/UI and full qualification remain open; no new profile is enabled.
+> **7 November BCJ2 checkpoint:** [Four-stream BCJ2 creation](../validation/archive-writing/SEVENZIP_BCJ2.md) adds bounded sequential packing, all seven codecs/password modes and independent SDK/graph checks. It also fixes Deflate small-read and BCJ2 cleanup defects. Strict catalogs, shared workflows and full qualification remain open; no new profile is enabled.
 
 ## Contents
 
@@ -240,6 +241,8 @@ packet numbers do not impose a different order. This is an implementation priori
    and verification routes, worker protocol/profile versions and common transaction integration for both formats.
    Resolve remaining capture/snapshot/global-memory ownership and known exclusion-name detail before exposing them.
    Codec code receives numeric stream grants, never pathname/publication/deletion authority.
+   BCJ2 packing uses four sequential fresh-source passes; charge all four source/decode/CPU/wire passes and aggregate
+   memory before admitting its worker request. The codec checkpoint alone does not qualify those parent budgets.
 3. **Complete shared workflows/UI:** include required password/read/write/header-encryption scope from §4.3.1 and enable only fully qualified profiles; cover create, add, replace, rename, delete,
    edit commit, collision/exclusion review and move-into with verified publication before source deletion. Reuse the
    common workflows rather than finalizing interfaces around TAR alone. Keep precise capability/refusal messages.
@@ -640,8 +643,10 @@ Library EOF is not necessarily physical EOF or a complete wrapper: explicitly di
 The [PPMd/filter checkpoint](../validation/archive-writing/SEVENZIP_PPMD_AND_FILTERS.md) now records seven codecs,
 fourteen filter configurations and exact three-platform independent readback. The
 [streamed-header checkpoint](../validation/archive-writing/SEVENZIP_STREAMED_HEADERS.md) adds raw/LZMA2 headers,
-including large metadata and empty archives. BCJ2, password archive integration and the remaining production gates
-are still open; no new profile is registered.
+including large metadata and empty archives. The [BCJ2 checkpoint](../validation/archive-writing/SEVENZIP_BCJ2.md)
+adds bounded four-stream creation and independent payload checks for all seven codecs and password modes.
+Password workflow integration, strict preservation catalogs and the remaining production gates are still open;
+no new profile is registered.
 
 Initial 7z output is non-solid with optional password/data/header encryption required by §4.3.1. LZMA2 is the default, not the full needed encoder set. Required
 feasible coverage is Copy, LZMA, LZMA2, PPMd7 with the 7z range coder, BZip2, raw Deflate and the Zstandard method

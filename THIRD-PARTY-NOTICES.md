@@ -49,6 +49,14 @@ the runtime and relinks the AppImage with a modified libfuse.
 | AppImage type2-runtime (Linux AppImage only) | commit fedfad51; upstream GitHub asset 657374641, kept in `eng/linux/appimage-runtime` and pinned by checksum | MIT root; libfuse LGPL-2.1; other linked components have their own licenses | The official producer log binds Alpine 3.21 digest `ce6475…3507`, libfuse 3.15.0, squashfuse 0.5.2, musl 1.2.5-r11, zstd 1.5.6-r2, zlib 1.3.2-r1 and mimalloc 2.1.7-r0. Original source license texts are retained in `licenses/appimage-runtime`. The runtime's corresponding source, with a rebuild and relink script, is published with every AppImage release as `FileCat-<version>-linux-x64-appimage-runtime-source.tar.gz`. The tarball and Debian package omit this wrapper |
 | Inno Setup installer engine, loader and uninstaller (Windows setup package only) | 6.7.1 | Inno Setup license (modified BSD) | Generated installer bytes; Copyright (C) 1997-2026 Jordan Russell, portions Copyright (C) 2000-2026 Martijn Laan. Full license installed as `licenses/InnoSetup-6.7.1.txt`; compiler inputs pinned in `eng/toolchains/inno-setup.json` |
 
+Selected LZMA SDK BCJ2 encoding source is also used by the development archive-writing engine:
+`src/FileCat.Archives/Writing/SevenZipBcj2Encoder.cs` adapts `Bcj2Enc.c` and `Bcj2.h` from SDK 26.05,
+commit `b88c6bc09339de32f7d18bbab900686b244f42ba`. Each file declares **Igor Pavlov: Public domain**.
+FileCat adds bounded stream-only IO, source hashing, cancellation and ownership controls. The exact individual
+source notices/blob/SHA-256 identities are retained in
+`eng/validation/archive-writing/sevenzip-feasibility/ppmd-filter-sources.json`. This uses those individually
+permitted source files, not the full 7-Zip/UnRAR distribution. Production writer qualification remains open.
+
 Test-only (not shipped): sample archives from SharpCompress's test suite (MIT), listed in
 `tests/FileCat.Core.Tests/TestData/Archives/README.md`; the SharpCompress 0.50.5 package (MIT; its RAR and PPMd
 variant H decoders are ported from UnRAR) as the reference reader FileCat's RAR and 7z PPMd decoding is compared
