@@ -8,14 +8,23 @@ public sealed partial class AnalysisSavedCatalog
     public static AnalysisSavedView ViewForInventory(AnalysisSnapshot snapshot, AnalysisSavedView view)
     {
         ArgumentNullException.ThrowIfNull(snapshot); ArgumentNullException.ThrowIfNull(view);
+        return ViewForInventory(snapshot.Roots, view);
+    }
+    public static AnalysisSavedView ViewForInventory(AnalysisDatasetDescriptor dataset, AnalysisSavedView view)
+    {
+        ArgumentNullException.ThrowIfNull(dataset); ArgumentNullException.ThrowIfNull(view);
+        return ViewForInventory(dataset.Roots, view);
+    }
+    private static AnalysisSavedView ViewForInventory(System.Collections.Immutable.ImmutableArray<RootBinding> roots, AnalysisSavedView view)
+    {
         if (view.Scope is null || view.Scope.Length > 4096) throw Invalid("The runtime aggregation scope is too long.");
         var aggregate = SplitAggregationScope(view.Scope);
         view = view with { Scope = aggregate.Skipped == 0 ? aggregate.Scope : AnalysisTree.OtherKey(aggregate.Scope, aggregate.Skipped) };
         ValidateView(view);
         string? root = view.Root; string scope = aggregate.Scope;
-        for (int index = 0; index < snapshot.Roots.Length; index++)
+        for (int index = 0; index < roots.Length; index++)
         {
-            string original = snapshot.Roots[index].Id, wire = (index + 1).ToString(CultureInfo.InvariantCulture);
+            string original = roots[index].Id, wire = (index + 1).ToString(CultureInfo.InvariantCulture);
             if (view.Root == original) root = wire;
             if (view.Grouping == AnalysisGroupingDimension.CapturedLocation && aggregate.Scope == LocationKey(original)) scope = LocationKey(wire);
         }

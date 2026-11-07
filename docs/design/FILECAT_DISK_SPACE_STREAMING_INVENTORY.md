@@ -154,3 +154,7 @@ The hierarchy matching-file index now supports bounded scope capture through rec
 ## Runtime deferred selection
 
 A separately named live request waits actual session completion, reprojects its captured display semantics and retains a bounded immutable final selection for explicit review. Cancellation, replacement, close and replay refusal retain actual ownership and keep marks/basket/files unchanged until an explicit mark application. Captured indexed inventories cannot supply future runtime intent. Cross-platform controls in [r729](../validation/disk-space/source-manifest-r729.json) qualify these native-fixture/headless paths; complete indexed acquisition, resource/native desktop and persistence/action gates remain open.
+
+## Named streamed inventories
+
+The indexed view now saves its entire retained observation revision and inert published display settings through an application-prepared private profile. One native catalog lock spans bounded preflight, create-new inventory publication and metadata attachment. Catalog Browse/Open restores the selected entry without reconnecting historical locators or retaining runtime marks/basket. Stored metadata bytes and known-publication outcomes are preserved through failures. Cross-platform native-fixture/headless evidence is recorded in [r749](../validation/disk-space/source-manifest-r749.json). Exact Other subsets, full cross-process/resource/native-desktop qualification and the persistence release gate remain open.

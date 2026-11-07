@@ -1,0 +1,22 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+    FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedPersistenceSavesTheWholeNativeRevisionAndRestoresPublishedSettingsWithoutMarks(grouped: False) [FAIL]
+      The requested view state was not published.
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Navigation.cs(141,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.Until(Func`1 predicate, Func`1 diagnostic)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedPersistence.cs(34,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedPersistenceSavesTheWholeNativeRevisionAndRestoresPublishedSettingsWithoutMarks(Boolean grouped)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedPersistence.cs(74,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedPersistenceSavesTheWholeNativeRevisionAndRestoresPublishedSettingsWithoutMarks(Boolean grouped)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedPersistence.cs(75,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedPersistenceSavesTheWholeNativeRevisionAndRestoresPublishedSettingsWithoutMarks(Boolean grouped)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedPersistenceSavesTheWholeNativeRevisionAndRestoresPublishedSettingsWithoutMarks(grouped: True) [FAIL]
+      The requested view state was not published.
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Navigation.cs(141,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.Until(Func`1 predicate, Func`1 diagnostic)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedPersistence.cs(31,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedPersistenceSavesTheWholeNativeRevisionAndRestoresPublishedSettingsWithoutMarks(Boolean grouped)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedPersistence.cs(74,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedPersistenceSavesTheWholeNativeRevisionAndRestoresPublishedSettingsWithoutMarks(Boolean grouped)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedPersistence.cs(75,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedPersistenceSavesTheWholeNativeRevisionAndRestoresPublishedSettingsWithoutMarks(Boolean grouped)
+        --- End of stack trace from previous location ---
+  Finished:    FileCat.Rendering.Tests (ID = '3ce7612ff345de85e8dfd24be56b3de483311eb7a9501927e81f76d473737c05')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 208, Errors: 0, Failed: 2, Skipped: 0, Not Run: 0, Time: 68,101s

@@ -22,11 +22,11 @@ public sealed partial class DiskSpaceWindow
 {
     // Internal until the indexed acquisition/profile-quota and complete product gates are qualified.
     internal Task<AnalysisDatasetExplorer> AddIndexedSessionAsync(AnalysisDatasetLease source, AnalysisMetric metric = AnalysisMetric.OnDisk,
-        AnalysisFilterRequest? filter = null, CancellationToken cancellation = default) =>
-        AddPreparedIndexedSessionAsync(token => source.RetainAsync(token), metric, filter, null, cancellation);
+        AnalysisFilterRequest? filter = null, CancellationToken cancellation = default, AppServices? services = null) =>
+        AddPreparedIndexedSessionAsync(token => source.RetainAsync(token), metric, filter, null, cancellation, services);
 
     internal async Task<AnalysisDatasetExplorer> AddPreparedIndexedSessionAsync(Func<CancellationToken, Task<AnalysisDatasetLease>> prepareSource,
-        AnalysisMetric metric, AnalysisFilterRequest? filter, AnalysisSavedView? saved, CancellationToken cancellation)
+        AnalysisMetric metric, AnalysisFilterRequest? filter, AnalysisSavedView? saved, CancellationToken cancellation, AppServices? services = null)
     {
         Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
         AnalysisSessionAdmission.Slot? admission = _admissionPool.Acquire();
@@ -66,7 +66,7 @@ public sealed partial class DiskSpaceWindow
             if (saved is not null && offset != 0 && explorer.Page?.Children.Rows.IsEmpty == true)
             { offset = 0; restoreNotice = (restoreNotice is null ? "" : restoreNotice + " ") + "The saved table page is absent. Showing the first page."; await LoadInitialAsync(); }
             linked.Token.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
-            var view = await IndexedSessionView.CreateAsync(this, retained, explorer, filter ?? new(""), admission, saved, restoreNotice, linked.Token);
+            var view = await IndexedSessionView.CreateAsync(this, retained, explorer, filter ?? new(""), admission, saved, restoreNotice, linked.Token, services);
             try { AddView(view); }
             catch { retained = null; explorer = null; admission = null; view.Dispose(); throw; }
             retained = null; admission = null; var result = explorer; explorer = null; return result;
@@ -144,14 +144,15 @@ public sealed partial class DiskSpaceWindow
         private int _navigation, _inspection;
         private bool _disposed, _building, _again, _publishing;
         private string? _rootId;
-        public bool HasTemporaryWork => _selection.Marks.Count != 0 || _selection.Basket.Count != 0 ||
-            _source.Descriptor.Origin == AnalysisOrigin.LiveSession && _source.Descriptor.Persistence == AnalysisPersistence.Temporary;
+        public bool HasTemporaryWork => _persistenceBusy || _selection.Marks.Count != 0 || _selection.Basket.Count != 0 ||
+            !_revisionSaved && _source.Descriptor.Origin == AnalysisOrigin.LiveSession && _source.Descriptor.Persistence == AnalysisPersistence.Temporary;
         public bool IsComparison => false;
 
         internal IndexedSessionView(DiskSpaceWindow window, AnalysisDatasetLease source, AnalysisDatasetExplorer explorer, AnalysisFilterRequest filter,
             AnalysisSessionAdmission.Slot admission, AnalysisSavedView? saved = null, string? restoreNotice = null,
-            AnalysisDatasetGrouping? groups = null, GroupPage? groupedPage = null)
+            AnalysisDatasetGrouping? groups = null, GroupPage? groupedPage = null, AppServices? services = null)
         {
+            _services = services;
             _window = window; _source = source; _explorer = explorer; _rootId = filter.RootId; _admission = admission;
             _selection.BindIdentity(source.Descriptor.Identity);
             _grouping = groups; _groupPage = groupedPage; _groupKey = groupedPage?.Scope?.Definition.Key;
@@ -182,6 +183,7 @@ public sealed partial class DiskSpaceWindow
             filters.Children.Add(ActionButton("Apply filter", () => _ = RebuildAsync(), "Apply this query to the captured observations."));
             filters.Children.Add(ActionButton("Clear filter", () => { _query.Text = ""; _unknown.IsChecked = false; _ = RebuildAsync(); }, "Clear the query and uncertain-results cohort."));
             var navigation = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
+            AddIndexedPersistenceControls(navigation);
             _back = ActionButton("Back", () => _ = HistoryAsync(false), "Return to the preceding analysis scope.");
             _forward = ActionButton("Forward", () => _ = HistoryAsync(true), "Return to the next analysis scope.");
             _parent = ActionButton("Parent", () => _ = ParentAsync(), "Explore the preceding group level or captured parent directory.");
@@ -504,6 +506,7 @@ public sealed partial class DiskSpaceWindow
         }
         private void Buttons()
         {
+            RefreshIndexedPersistence();
             RefreshSelection();
             if (_grouping is not null) { GroupButtons(); return; }
             _previous.IsEnabled = _offset > 0; _next.IsEnabled = _shownPage?.Children.HasMore == true; _parent.IsEnabled = _parent.IsVisible = _scope != 0;
@@ -600,6 +603,7 @@ public sealed partial class DiskSpaceWindow
             _memberCaptureCancel?.Cancel(); _selectionLifetime.Cancel(); _selection.ClearMarks(); _selection.ClearBasket();
             _markVisibilityCancel?.Cancel(); _visibilityMarks = null; _markVisibility = null; _visibilityOwner = null;
             CancelTableRange();
+            _inventoryCancel?.Cancel(); _inventoryCloser?.Close(false);
             var actualWork = _actualWork.CloseAsync();
             _treemap.Clear(); _sunburst.Clear(); _list.ItemsSource = null; _details.Text = ""; _breadcrumbs.Children.Clear(); _buckets.Children.Clear();
             _shownPage = null; _shownChart = null; _shownInspection = null;

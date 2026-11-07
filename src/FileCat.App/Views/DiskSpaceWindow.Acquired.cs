@@ -18,7 +18,7 @@ public sealed partial class DiskSpaceWindow
         if (!session.Completion.IsCompletedSuccessfully) throw new InvalidOperationException("Wait for the acquisition to finish before transferring its result.");
         cancellation.ThrowIfCancellationRequested();
         await using var dataset = await session.AcquireDatasetAsync(cancellation);
-        if (dataset is not null) return new(await AddIndexedSessionAsync(dataset, cancellation: cancellation), null);
+        if (dataset is not null) return new(await AddIndexedSessionAsync(dataset, cancellation: cancellation, services: memoryServices), null);
         cancellation.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
         AnalysisSnapshotLease? captured = session.AcquireSnapshot(); DiskSpaceViewModel? model = null;
         try

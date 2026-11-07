@@ -13,7 +13,7 @@ public sealed partial class AnalysisCatalogTests
     {
         Ordinary(); using var directory = new MemoryDirectory { UncertainHeader = true }; using var store = new AnalysisPrivateInventoryStore(directory);
         Assert.Throws<IOException>(() => new AnalysisSavedCatalog(store).SaveNew("not-saved.fcdsa", AnalysisAccountingTests.Golden(), Guid.NewGuid(), AnalysisSavedView.Default, Cancellation));
-        Assert.Equal([AnalysisPrivateNames.Catalog], directory.Files.Keys);
+        Assert.Equal(new[] { AnalysisPrivateNames.CatalogWriteLock, AnalysisPrivateNames.Catalog }, directory.Files.Keys);
     }
 
     [Fact]
@@ -187,18 +187,20 @@ public sealed partial class AnalysisCatalogTests
         finally { Directory.Delete(root, true); }
     }
 
-    private sealed class MemoryDirectory : AnalysisPrivateDirectory
+    internal sealed class MemoryDirectory : AnalysisPrivateDirectory
     {
         public Dictionary<string, byte[]> Files { get; } = new(StringComparer.Ordinal);
         public bool FailEntry, UncertainHeader; public Action? AfterInventory;
+        private bool _writing;
         internal override void Verify() { }
         internal override (UInt128 Capacity, UInt128 Available) Space() => (1UL << 40, 1UL << 40);
         internal override AnalysisPrivateFile CreateStaging() => new MemoryFile(this, new(), true);
-        internal override AnalysisPrivateFile OpenRead(string name) => new MemoryFile(this, new(Files[name]), false);
+        internal override AnalysisPrivateFile OpenRead(string name) => Files.TryGetValue(name, out var data) ? new MemoryFile(this, new(data), false) : throw new FileNotFoundException();
         internal override string[] Entries(CancellationToken cancellation) { cancellation.ThrowIfCancellationRequested(); return Files.Keys.ToArray(); }
         public override void Dispose() { }
         private sealed class MemoryFile(MemoryDirectory directory, MemoryStream stream, bool writable) : AnalysisPrivateFile
         {
+            private bool _locked;
             public override Stream Stream => stream;
             public override void Verify() { }
             public override void Flush() { }
@@ -210,7 +212,9 @@ public sealed partial class AnalysisCatalogTests
                 if (directory.UncertainHeader && name == AnalysisPrivateNames.Catalog) throw new AnalysisPublicationUncertainException(name, new IOException("Injected header durability failure."));
                 if (name.EndsWith(".fcdsa", StringComparison.Ordinal)) directory.AfterInventory?.Invoke();
             }
-            public override void Dispose() => stream.Dispose();
+            internal override bool TryLockCapacity()
+            { lock (directory) { if (directory._writing) return false; directory._writing = _locked = true; return true; } }
+            public override void Dispose() { lock (directory) { if (_locked) { _locked = false; directory._writing = false; } } stream.Dispose(); }
         }
     }
 }

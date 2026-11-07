@@ -11,7 +11,7 @@ public sealed partial class DiskSpaceWindow
     internal Task<AnalysisDatasetExplorer> AddSavedIndexedSessionAsync(AppServices services, string name,
         AnalysisSavedEntry? reviewedEntry = null, CancellationToken cancellation = default)
     {
-        return AddPreparedIndexedSessionAsync(Load, reviewedEntry?.View.Metric ?? AnalysisMetric.OnDisk, null, reviewedEntry?.View, cancellation);
+        return AddPreparedIndexedSessionAsync(Load, reviewedEntry?.View.Metric ?? AnalysisMetric.OnDisk, null, reviewedEntry?.View, cancellation, services);
 
         // Local source ownership is transferred only after preparation/import close succeeds.
         async Task<AnalysisDatasetLease> Load(CancellationToken token)

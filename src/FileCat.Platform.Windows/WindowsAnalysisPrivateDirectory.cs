@@ -120,7 +120,7 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
         AnalysisPrivateNames.Entry(name); Verify();
         OwnedHandle owned;
         try { owned = OpenOwned(Root, name, GenericRead | ReadControl | Synchronize, ShareRead, Open, NonDirectoryFile | OpenReparsePoint); }
-        catch (IOException error) when ((name == AnalysisPrivateNames.PrivateState || AnalysisPrivateNames.IsCapacityToken(name)) && error.InnerException is Win32Exception { NativeErrorCode: 2 })
+        catch (IOException error) when ((name is AnalysisPrivateNames.PrivateState or AnalysisPrivateNames.CatalogWriteLock || AnalysisPrivateNames.IsCapacityToken(name)) && error.InnerException is Win32Exception { NativeErrorCode: 2 })
         { throw new FileNotFoundException("The private analysis entry is missing.", error); }
         try { Private(owned.Handle, directory: false); return new PrivateFile(this, owned, writable: false); }
         catch { owned.Dispose(); throw; }

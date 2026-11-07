@@ -5,6 +5,7 @@ internal static class AnalysisPrivateNames
 {
     internal const int MetadataBytes = 8 * 1024 * 1024, DirectoryEntries = 20_036, DirectoryNameBytes = 8 * 1024 * 1024;
     internal const string Catalog = "catalog.json", PrivateState = "private-state.json";
+    internal const string CatalogWriteLock = "write-lock.state";
     internal static string CapacityToken(int slot) => slot is >= 0 and < 32
         ? "capacity-" + slot.ToString("D2", System.Globalization.CultureInfo.InvariantCulture) + ".state"
         : throw new ArgumentOutOfRangeException(nameof(slot));
@@ -12,7 +13,7 @@ internal static class AnalysisPrivateNames
         name[9] is >= '0' and <= '3' && name[10] is >= '0' and <= '9' && (name[9] - '0') * 10 + name[10] - '0' < 32;
     internal static string CatalogEntry(Guid catalog, Guid inventory) =>
         catalog != Guid.Empty && inventory != Guid.Empty ? $"catalog-{catalog:N}-{inventory:N}.json" : throw new ArgumentException("Generated catalog and inventory IDs are required.");
-    internal static bool IsMetadata(string name) => name is Catalog or PrivateState || IsCapacityToken(name) ||
+    internal static bool IsMetadata(string name) => name is Catalog or PrivateState or CatalogWriteLock || IsCapacityToken(name) ||
         name.Length == 78 && name.StartsWith("catalog-", StringComparison.Ordinal) && name[40] == '-' && name.EndsWith(".json", StringComparison.Ordinal) &&
         Guid.TryParseExact(name.AsSpan(8, 32), "N", out var catalog) && catalog != Guid.Empty &&
         Guid.TryParseExact(name.AsSpan(41, 32), "N", out var inventory) && inventory != Guid.Empty &&

@@ -42,7 +42,7 @@ public sealed partial class DiskSpaceWindow
         }
         internal static async Task<IndexedSessionView> CreateAsync(DiskSpaceWindow window, AnalysisDatasetLease source,
             AnalysisDatasetExplorer explorer, AnalysisFilterRequest filter, AnalysisSessionAdmission.Slot admission,
-            AnalysisSavedView? saved, string? notice, CancellationToken cancellation)
+            AnalysisSavedView? saved, string? notice, CancellationToken cancellation, AppServices? services = null)
         {
             AnalysisDatasetGrouping? groups = null;
             try
@@ -64,7 +64,7 @@ public sealed partial class DiskSpaceWindow
                     if (aggregate.Skipped != 0 && offset != 0) AddNotice("The saved small-item scope is shown as a table page within its captured group.");
                 }
                 cancellation.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(window._closed, window);
-                var result = new IndexedSessionView(window, source, explorer, filter, admission, saved, notice, groups, page); groups = null; return result;
+                var result = new IndexedSessionView(window, source, explorer, filter, admission, saved, notice, groups, page, services); groups = null; return result;
                 void AddNotice(string text) => notice = notice is null ? text : notice + " " + text;
             }
             finally { if (groups is not null) await groups.DisposeAsync(); }

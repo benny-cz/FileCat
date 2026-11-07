@@ -23,11 +23,12 @@ public sealed record AnalysisSavedEntry(Guid InventoryId, string Name, long Byte
 public sealed class AnalysisCatalogSnapshot : IDisposable
 {
     private IDisposable? _memory;
-    internal AnalysisCatalogSnapshot(Guid? id, ImmutableArray<AnalysisSavedEntry> entries, ImmutableArray<string> unindexed, IDisposable memory)
-    { CatalogId = id; Entries = entries; UnindexedNames = unindexed; _memory = memory; }
+    internal AnalysisCatalogSnapshot(Guid? id, ImmutableArray<AnalysisSavedEntry> entries, ImmutableArray<string> unindexed, int metadataBytes, IDisposable memory)
+    { CatalogId = id; Entries = entries; UnindexedNames = unindexed; MetadataBytes = metadataBytes; _memory = memory; }
     public Guid? CatalogId { get; }
     public ImmutableArray<AnalysisSavedEntry> Entries { get; }
     public ImmutableArray<string> UnindexedNames { get; }
+    internal int MetadataBytes { get; }
     public void Dispose() => Interlocked.Exchange(ref _memory, null)?.Dispose();
 }
 
@@ -43,8 +44,10 @@ public sealed class AnalysisCatalogUpdateException(AnalysisInventoryReceipt rece
 /// concurrent writers never replace each other's index. Enumeration and JSON remain bounded. This capability cannot
 /// delete, replace, connect to sources, or turn imported locators into authority.
 /// </summary>
-public sealed partial class AnalysisSavedCatalog(AnalysisPrivateInventoryStore store)
+public sealed partial class AnalysisSavedCatalog
 {
+    private readonly AnalysisPrivateInventoryStore store;
+    public AnalysisSavedCatalog(AnalysisPrivateInventoryStore store) => this.store = store ?? throw new ArgumentNullException(nameof(store));
     public const int EntryLimit = 4096;
     private const int EntryBytes = 32 * 1024, TotalBytes = 2 * 1024 * 1024;
     private const long Reservation = 32L * 1024 * 1024;
@@ -84,7 +87,7 @@ public sealed partial class AnalysisSavedCatalog(AnalysisPrivateInventoryStore s
             foreach (string name in names)
             {
                 cancellation.ThrowIfCancellationRequested();
-                if (!AnalysisPrivateNames.IsMetadata(name) || name is AnalysisPrivateNames.Catalog or AnalysisPrivateNames.PrivateState) continue;
+                if (!AnalysisPrivateNames.IsMetadata(name) || name is AnalysisPrivateNames.Catalog or AnalysisPrivateNames.PrivateState or AnalysisPrivateNames.CatalogWriteLock || AnalysisPrivateNames.IsCapacityToken(name)) continue;
                 if (catalog is null || name.AsSpan(8, 32).ToString() != catalog.Value.ToString("N")) throw Invalid("A catalog entry has no matching supported catalog header.");
                 if (entries.Count >= EntryLimit) throw Invalid("The saved analysis catalog entry limit was reached.");
                 byte[] data = store.ReadMetadata(name, cancellation, EntryBytes); bytes = checked(bytes + data.Length);
@@ -105,7 +108,7 @@ public sealed partial class AnalysisSavedCatalog(AnalysisPrivateInventoryStore s
                 unindexed.Add(name);
             }
             var result = new AnalysisCatalogSnapshot(catalog, entries.OrderByDescending(e => e.SavedUtc).ThenBy(e => e.Name, StringComparer.Ordinal).ToImmutableArray(),
-                unindexed.Order(StringComparer.Ordinal).ToImmutableArray(), memory);
+                unindexed.Order(StringComparer.Ordinal).ToImmutableArray(), bytes, memory);
             memory = null!; return result;
         }
         finally { memory?.Dispose(); }
@@ -114,26 +117,15 @@ public sealed partial class AnalysisSavedCatalog(AnalysisPrivateInventoryStore s
     public AnalysisInventoryReceipt SaveNew(string name, AnalysisSnapshot snapshot, Guid inventoryId, AnalysisSavedView view,
         CancellationToken cancellation = default)
     {
-        AnalysisPrivateInventoryStore.ValidateName(name); ValidateView(view);
-        if (inventoryId == Guid.Empty) throw new ArgumentException("A generated inventory identity is required.", nameof(inventoryId));
-        using var current = Read(cancellation);
-        if (current.Entries.Length >= EntryLimit || current.Entries.Any(e => e.InventoryId == inventoryId || e.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ||
-            current.UnindexedNames.Any(n => n.Equals(name, StringComparison.OrdinalIgnoreCase)))
-            throw new IOException("That inventory name or identity already exists, or the catalog is full. Keep existing files and choose another name.");
-        Guid catalog = current.CatalogId ?? CreateHeader(cancellation);
-        var entry = new AnalysisSavedEntry(inventoryId, name, 1, DateTimeOffset.UtcNow, snapshot.Coverage, snapshot.Taint, view);
-        // Refuse a full index before publishing the inventory. Concurrent writers are bounded again on the next read;
-        // they use unique immutable entries and cannot replace a prior writer's data.
-        byte[] preview = EncodeEntry(catalog, entry with { Bytes = AnalysisLimits.InventoryBytes });
-        if (current.Entries.Sum(e => EncodeEntry(catalog, e).Length) + preview.Length > TotalBytes) throw Invalid("The saved analysis catalog metadata budget is full.");
-        var receipt = store.SaveNew(name, snapshot, inventoryId, cancellation);
+        AnalysisInventoryReceipt? receipt = null;
         try
         {
-            store.WriteMetadataNew(AnalysisPrivateNames.CatalogEntry(catalog, inventoryId), EncodeEntry(catalog, entry with { Bytes = receipt.Bytes }), cancellation);
-            return receipt;
+            using var writing = BeginNamedWrite(name, inventoryId, snapshot.Coverage, snapshot.Taint, view, cancellation);
+            receipt = store.SaveNew(name, snapshot, inventoryId, cancellation);
+            writing.Complete(receipt, cancellation); return receipt;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException or InvalidOperationException)
-        { throw new AnalysisCatalogUpdateException(receipt, ex); }
+        catch (Exception error) when (receipt is not null && error is not AnalysisCatalogUpdateException and not AnalysisPublicationUncertainException)
+        { throw new AnalysisPublicationUncertainException(name, error); }
     }
 
     private Guid CreateHeader(CancellationToken cancellation)
@@ -142,7 +134,7 @@ public sealed partial class AnalysisSavedCatalog(AnalysisPrivateInventoryStore s
         try { store.WriteMetadataNew(AnalysisPrivateNames.Catalog, data, cancellation); return id; }
         catch (AnalysisPublicationUncertainException ex)
         { throw new IOException("Private catalog initialization durability is uncertain. No new inventory was saved; keep the existing catalog header.", ex); }
-        catch (IOException)
+        catch (IOException error) when (!AnalysisCloseUnconfirmedException.IsPresent(error))
         {
             // A concurrent create-new winner is usable only after the complete strict read succeeds.
             using var winner = Read(cancellation);

@@ -42,8 +42,12 @@ public sealed record AnalysisInventoryReceipt(Guid InventoryId, string Name, lon
 /// Synchronous private storage for admitted I/O workers. There is deliberately no replace or ordinary path fallback.
 /// Loading always uses the inert, bounded importer; the receipt and filename grant no live filesystem authority.
 /// </summary>
-public sealed class AnalysisPrivateInventoryStore(AnalysisPrivateDirectory directory, bool leaveOpen = false) : IDisposable
+public sealed partial class AnalysisPrivateInventoryStore : IDisposable
 {
+    private readonly AnalysisPrivateDirectory directory;
+    private readonly bool leaveOpen;
+    public AnalysisPrivateInventoryStore(AnalysisPrivateDirectory directory, bool leaveOpen = false)
+    { this.directory = directory ?? throw new ArgumentNullException(nameof(directory)); this.leaveOpen = leaveOpen; }
     private readonly object _gate = new();
     private bool _disposed;
 
