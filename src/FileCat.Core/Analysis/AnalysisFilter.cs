@@ -20,6 +20,7 @@ public sealed class AnalysisFilter
     private readonly Func<AnalysisFilterItem, AnalysisTruth> _evaluate;
     internal AnalysisFilterNeeds Needs { get; }
     internal bool NamespaceOnly { get; }
+    public bool IsNamespaceOnly => NamespaceOnly;
     private AnalysisFilter(Func<AnalysisFilterItem, AnalysisTruth> evaluate, AnalysisFilterNeeds needs, bool namespaceOnly)
     { _evaluate = evaluate; Needs = needs; NamespaceOnly = namespaceOnly; }
     public AnalysisTruth Evaluate(AnalysisFilterItem item) => _evaluate(item);

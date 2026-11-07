@@ -153,6 +153,7 @@ public sealed partial class DiskSpaceWindow
             AnalysisDatasetGrouping? groups = null, GroupPage? groupedPage = null)
         {
             _window = window; _source = source; _explorer = explorer; _rootId = filter.RootId; _admission = admission;
+            _selection.BindIdentity(source.Descriptor.Identity);
             _grouping = groups; _groupPage = groupedPage; _groupKey = groupedPage?.Scope?.Definition.Key;
             Spacing = 10; Margin = new Thickness(10);
             _metric.SelectedIndex = (int)explorer.Metric; _query.Text = filter.Text; _case.IsChecked = filter.CaseSensitive; _unknown.IsChecked = filter.UnknownOnly;

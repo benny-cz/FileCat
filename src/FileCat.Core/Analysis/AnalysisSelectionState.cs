@@ -6,6 +6,7 @@ namespace FileCat.Core.Analysis;
 public sealed class AnalysisSelectionState
 {
     private ImmutableHashSet<ulong> _marks = [], _basket = [];
+    private (Guid Session, long Epoch)? _domain;
     private readonly LinkedList<string> _back = [], _forward = [];
     public string Scope { get; private set; } = AnalysisTree.RootKey;
     public string? Focus { get; private set; }
@@ -13,6 +14,15 @@ public sealed class AnalysisSelectionState
     public string? ForwardScope => _forward.Last?.Value;
     public ImmutableHashSet<ulong> Marks => _marks;
     public ImmutableHashSet<ulong> Basket => _basket;
+    /// <summary>Revision updates can retain IDs; an epoch/session change cannot silently retag retained references.</summary>
+    public void BindIdentity(SessionIdentity identity)
+    {
+        var domain = (identity.SessionId, identity.Epoch);
+        if (_domain is { } prior && prior != domain && (_marks.Count != 0 || _basket.Count != 0))
+            throw new InvalidOperationException("Retained marks or basket entries belong to another session or epoch. Review and clear them before changing observations.");
+        if (_domain is { } previous && previous != domain) ResetNavigation();
+        _domain = domain;
+    }
     public void SetFocus(string key) => Focus = key;
     public void ResetNavigation(string scope = AnalysisTree.RootKey)
     { ArgumentNullException.ThrowIfNull(scope); Scope = scope; Focus = null; _back.Clear(); _forward.Clear(); }
@@ -60,5 +70,9 @@ public sealed class AnalysisSelectionState
     }
     public void RemoveFromBasket(ulong id) => _basket = _basket.Remove(id);
     public void ClearBasket() => _basket = [];
-    public AnalysisSelection Capture(AnalysisSnapshot snapshot) => new(snapshot.Identity.SessionId, snapshot.Identity.Epoch, snapshot.Identity.Revision, _marks.Order().ToImmutableArray());
+    public AnalysisSelection Capture(AnalysisSnapshot snapshot)
+    {
+        BindIdentity(snapshot.Identity);
+        return new(snapshot.Identity.SessionId, snapshot.Identity.Epoch, snapshot.Identity.Revision, _marks.Order().ToImmutableArray());
+    }
 }

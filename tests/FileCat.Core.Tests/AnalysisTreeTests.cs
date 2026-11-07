@@ -89,11 +89,12 @@ public sealed class AnalysisTreeTests
         Assert.Equal((UInt128)80, tree.ScopeValue(AnalysisTree.RootKey));
         Assert.Equal((UInt128)80, tree.Items["shared:n:1"].Value);
         Assert.Equal((UInt128)0, tree.Items["n:2"].Value);
-        Assert.True(tree.Items["n:4"].Visible); Assert.False(tree.Items["n:5"].Visible);
+        Assert.True(tree.Items["n:4"].Visible); Assert.True(tree.Items["n:5"].Visible); Assert.True(tree.Items["n:5"].IsFilterContext);
         Assert.True(tree.Items["n:4"].SharedElsewhere);
         Assert.Equal(new ulong[] { 4 }, tree.CaptureMembers("shared:n:1"));
         Assert.Equal(new ulong[] { 4, 5 }, tree.CaptureMembers("shared:n:1", false));
-        Assert.Equal("x.bin", Assert.Single(tree.ChildrenOf("shared:n:1")).Name);
+        Assert.Equal(new[] { "x.bin", "y.bin" }, tree.ChildrenOf("shared:n:1").Select(item => item.Name));
+        Assert.Equal((UInt128)0, tree.Items["n:5"].LogicalSize); Assert.Equal(0UL, tree.Items["n:5"].Files);
     }
 
     [Theory]

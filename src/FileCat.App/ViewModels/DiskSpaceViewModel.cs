@@ -165,12 +165,12 @@ public sealed partial class DiskSpaceViewModel : IDisposable
                 bool filtered = !string.IsNullOrWhiteSpace(query) || root is not null;
                 // A location selector is a namespace scope, not a file predicate. Keep that scope's
                 // independent directory allocation; name/type/age predicates do not match non-file facts.
-                Func<AnalysisNode, bool>? directoryFilter = root is not null && string.IsNullOrWhiteSpace(query) && !showUnknown
-                    ? n => rootScopes.IsMember(root, n) == AnalysisTruth.True : null;
+                Func<AnalysisNode, bool>? directoryFilter = filtered && filter.IsNamespaceOnly && !showUnknown
+                    ? n => Matches(n, null) : null;
                 var projection = filtered ? AnalysisAggregate.Project(s, metric, Matches, token, directoryFilter) : all;
                 projection = projection with { UnknownFilterNodes = unknown.ToImmutable(), IncludesUnknownFilterResults = filtered && showUnknown, FilterText = query };
-                var tree = grouping == AnalysisGroupingDimension.FolderHierarchy ? AnalysisTree.Build(s, projection, filtered, token)
-                    : AnalysisTree.BuildGrouped(s, projection, grouping, filtered, token);
+                var tree = grouping == AnalysisGroupingDimension.FolderHierarchy ? AnalysisTree.Build(s, projection, filtered, token, directoryFilter)
+                    : AnalysisTree.BuildGrouped(s, projection, grouping, filtered, token, directoryFilter);
                 string effectiveScope = ProjectionScope(tree, scope, previousGrouping, hierarchyTarget);
                 nextOrder = _orderRows(tree.ChildrenOf(effectiveScope), sort, descending, token);
                 return (Tree: tree, Order: nextOrder, Scope: effectiveScope);
@@ -213,6 +213,8 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     }
     private void Publish(AnalysisTree tree, AnalysisOrderedRows order, AnalysisSnapshotLease? lease, string scope, string? focus, AnalysisSavedView view)
     {
+        try { Selection.BindIdentity(tree.Snapshot.Identity); }
+        catch { lease?.Dispose(); order.Dispose(); throw; }
         if (_session is not null)
             AcquisitionNotice = (_acquisition?.MemoryPreparationNotice ?? "This analysis uses bounded memory. It stops with partial results if the memory limit is reached.") +
                 (PrivateBoundaryNotice(tree.Snapshot) is { } notice ? " " + notice : "");
@@ -344,16 +346,21 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     }
     public static string StatusText(AnalysisTreeItem item) => !item.IncludedByPolicy ? "Excluded by policy"
         : item.MetadataState != MeasurementState.Known ? item.MetadataState + " metadata"
+        : item.IsFilterContext ? "Alias context"
         : item.IsNonFileLeaf ? item.Kind == AnalysisKind.Link ? "Link not followed" : "Special entry not traversed"
         : item.IdentityUnverified > 0 ? "Identity unverified" : item.Unknown ? "Partial" : item.SharedElsewhere ? "Shared links" : item.Synthetic ? "Group" : "Observed";
-    public static string? EntryExplanation(AnalysisTreeItem item) => !item.IsNonFileLeaf ? null : item.Kind == AnalysisKind.Link
+    public static string? EntryExplanation(AnalysisTreeItem item) => item.IsFilterContext
+        ? "Nonmatching hard-link alias context. It explains the shared charge location and contributes no extra matches, logical bytes or files to this filtered view. Mark matching files excludes this context entry."
+        : !item.IsNonFileLeaf ? null : item.Kind == AnalysisKind.Link
         ? "Navigation link. Its target was not followed or measured. It contributes no file size, allocation or regular-file count to this analysis."
         : "Special entry. The scan did not traverse it or open it for content. It contributes no file size, allocation or regular-file count to this analysis.";
     public static string LogicalText(AnalysisTreeItem item, bool exact = false) => !item.IncludedByPolicy ? "Excluded"
+        : item.IsFilterContext ? "Not a match"
         : item.IsNonFileLeaf ? "Not measured"
         : item.LogicalUnknown && item.LogicalSize == 0 ? "Unknown"
         : (exact ? item.LogicalSize.ToString(CultureInfo.InvariantCulture) + " bytes" : Bytes(item.LogicalSize)) + (item.LogicalUnknown ? " known" : "");
     public static string ValueText(AnalysisTreeItem item, AnalysisMetric metric, bool exact = false) => !item.IncludedByPolicy ? "Excluded"
+        : item.IsFilterContext ? "Context — not a match"
         : item.IsNonFileLeaf ? metric == AnalysisMetric.Files ? "Not counted" : "Not measured"
         : item.SharedElsewhere && item.Value == 0 ? item.ChargeLocation ?? "Shared at ancestor"
         : item.Unknown && item.Value == 0 ? "Unknown" : metric == AnalysisMetric.Files ? item.Value.ToString(exact ? "0" : "N0", exact ? CultureInfo.InvariantCulture : CultureInfo.CurrentCulture)
@@ -390,6 +397,8 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         if (_disposed) return; _disposed = true; ++_generation;
         var actualWork = _actualWork.CloseAsync();
         _preparationCancel?.Cancel();
+        _selectionLifetime.Cancel(); _markCountCancel?.Cancel();
+        _countTree = null; _countMarks = null; _countScope = null; _countAgain = false; MarkVisibility = null;
         _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _session?.Stop(); _lease?.Dispose(); _pending?.Lease?.Dispose();
         _inventory?.Dispose();
         _capturedOwner?.Dispose(); _capturedOwner = null;
@@ -397,7 +406,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         _rowOrderCancel?.Cancel(); _orderedRows?.Dispose(); _pending?.Order.Dispose();
         _rangeBaseline = _rangePublishedMarks = null; _rangeOrderOwner = null; _tableAnchor = null;
         Tree = null; Rows = []; _observation = null; _pending = null; _publishedView = null; Changed = null;
-        CloseCompletion = CloseAcquisitionAsync(actualWork);
+        CloseCompletion = CloseAcquisitionAsync(CloseSelectionWorkAsync(actualWork));
     }
     private sealed class LatestProgress(IUiDispatcher ui, Action<AnalysisProgress> consume) : IProgress<AnalysisProgress>
     {

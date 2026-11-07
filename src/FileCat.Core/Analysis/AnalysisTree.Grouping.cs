@@ -6,7 +6,7 @@ public sealed partial class AnalysisTree
 {
     /// <summary>Grouped display parentage never replaces the captured namespace or source IDs.</summary>
     public static AnalysisTree BuildGrouped(AnalysisSnapshot snapshot, AnalysisProjection projection, AnalysisGroupingDimension dimension,
-        bool filterApplied, CancellationToken cancellation = default)
+        bool filterApplied, CancellationToken cancellation = default, Func<AnalysisNode, bool>? namespaceVisible = null)
     {
         var grouped = AnalysisGrouping.Project(snapshot, projection, dimension, cancellation);
         var nodes = snapshot.Nodes.ToDictionary(n => n.Id); var objects = snapshot.Objects.ToDictionary(o => o.Id, StringComparer.Ordinal);
@@ -100,7 +100,8 @@ public sealed partial class AnalysisTree
             !projection.Totals.CompatibleBasis || projection.Totals.Missing.Count != 0 || snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy || projection.Metric == AnalysisMetric.UniqueFileSize && projection.Totals.IdentityUnverified != 0,
             false, "folder", grouped.Groups.Select(g => g.Definition.Key).ToImmutableArray(), rootMembers)
             { IdentityUnverified = projection.Totals.IdentityUnverified, LogicalUnknown = unknown != 0 });
-        return new(snapshot, projection, items.ToImmutableDictionary(StringComparer.Ordinal), filterApplied) { GroupingDimension = dimension, Groups = groups };
+        return new(snapshot, projection, items.ToImmutableDictionary(StringComparer.Ordinal), filterApplied)
+        { GroupingDimension = dimension, Groups = groups, FilterVisible = filterApplied ? CaptureFilterVisibility(snapshot, projection, namespaceVisible, cancellation) : null };
 
         AnalysisObject? Object(AnalysisNode node) => node.ObjectId is { } id ? objects.GetValueOrDefault(id) : null;
         AnalysisDatasetGroupMember Member(AnalysisNode node, bool reference)

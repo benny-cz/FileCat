@@ -44,6 +44,8 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
         _hierarchy.ClassifyMarksAsync(marks, scope, cancellation);
     public Task<AnalysisTablePosition> LocateChildAsync(ulong path, AnalysisHierarchySort sort = AnalysisHierarchySort.Metric, bool descending = true, CancellationToken cancellation = default) =>
         _hierarchy.LocateChildAsync(path, sort, descending, cancellation);
+    public Task<AnalysisSelection> CaptureMatchingFilesAsync(ulong scope = 0, int maximumPaths = AnalysisLimits.ReviewPaths, CancellationToken cancellation = default) =>
+        _hierarchy.CaptureMatchingFilesAsync(scope, maximumPaths, cancellation);
     public Task<AnalysisCapturedTableRange> CaptureTableRangeAsync(ulong parent, ulong first, ulong last, AnalysisHierarchySort sort = AnalysisHierarchySort.Metric,
         bool descending = true, CancellationToken cancellation = default) => _hierarchy.CaptureTableRangeAsync(parent, first, last, sort, descending, cancellation);
     public async Task<AnalysisDatasetPage<AnalysisHierarchyRow>> ReadChildRowsAsync(ulong parent, AnalysisHierarchySort sort, ulong offset, int maximum = 128,

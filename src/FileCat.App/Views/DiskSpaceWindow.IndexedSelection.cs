@@ -29,7 +29,8 @@ public sealed partial class DiskSpaceWindow
         private readonly Button _markFocused = new() { Content = "Toggle focused mark" }, _markMembers = new() { Content = "Mark current members" },
             _clearMarks = new() { Content = "Clear marks" }, _stageBasket = new() { Content = "Add to review basket" },
             _reviewBasket = new() { Content = "Review captured basket" }, _clearBasket = new() { Content = "Clear review basket" },
-            _reviewMarked = new() { Content = "Review marked entries" }, _recountMarks = new() { Content = "Update mark counts", IsVisible = false };
+            _reviewMarked = new() { Content = "Review marked entries" }, _recountMarks = new() { Content = "Update mark counts", IsVisible = false },
+            _markMatches = new() { Content = "Mark matching files in this scope" };
 
         private Control MarkedRow(AnalysisTreeItem item, Control row)
         {
@@ -49,7 +50,7 @@ public sealed partial class DiskSpaceWindow
             AutomationProperties.SetName(_selectionSummary, "Indexed captured selection");
             AutomationProperties.SetLiveSetting(_selectionSummary, AutomationLiveSetting.Polite);
             var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
-            foreach (var button in new[] { _markFocused, _markMembers, _clearMarks, _reviewMarked, _stageBasket, _reviewBasket, _clearBasket, _recountMarks }) bar.Children.Add(button);
+            foreach (var button in new[] { _markFocused, _markMembers, _markMatches, _clearMarks, _reviewMarked, _stageBasket, _reviewBasket, _clearBasket, _recountMarks }) bar.Children.Add(button);
             _main.Children.Add(_selectionSummary); _main.Children.Add(bar);
             _showCapturedFolder.Click += (_, _) => _ = ShowCapturedFolderAsync();
             ToolTip.SetTip(_showCapturedFolder, new RichTip("Show the captured folder", detail: "Find the selected entry in this inventory's recorded folder structure. No live location is opened. Display filters are cleared with an explanation if they hide the entry."));
@@ -57,6 +58,8 @@ public sealed partial class DiskSpaceWindow
             ToolTip.SetTip(_stageBasket, new RichTip("Add captured entries", detail: "Add the current marks, or the focused real entry when no paths are marked, to the review basket. Later filtering and navigation do not change this membership."));
             _markFocused.Click += (_, _) => { if (_focus != 0) ToggleMark(_focus); };
             _markMembers.Click += (_, _) => _ = MarkMembersAsync();
+            ToolTip.SetTip(_markMatches, new RichTip("Capture matching files", detail: "Marks regular-file matches in the current captured scope and query. Focus does not narrow the scope. Context folders, hidden aliases and future observations are excluded. At most 100,000 distinct paths can be marked."));
+            _markMatches.Click += (_, _) => _ = MarkMatchingFilesAsync();
             _clearMarks.Click += (_, _) => { CancelTableRange(); _memberCaptureCancel?.Cancel(); _selection.ClearMarks(); RefreshSelection(); };
             _stageBasket.Click += (_, _) =>
             {
@@ -109,6 +112,7 @@ public sealed partial class DiskSpaceWindow
             _markFocused.IsEnabled = _focus != 0;
             _showCapturedFolder.IsEnabled = _focus != 0;
             _markMembers.IsEnabled = _grouping is not null && !_capturingMembers;
+            _markMatches.IsEnabled = !_capturingMembers && !_actualWork.HasUnconfirmedClose;
             _clearMarks.IsEnabled = _selection.Marks.Count != 0 || _capturingMembers;
             _stageBasket.IsEnabled = _selection.Marks.Count != 0 || _focus != 0;
             _reviewBasket.IsEnabled = _selection.Basket.Count != 0 && !_reviewingBasket;
@@ -138,6 +142,30 @@ public sealed partial class DiskSpaceWindow
             }
             catch (OperationCanceledException) when (cancel.IsCancellationRequested) { if (!_disposed) _status.Text = "Member capture canceled. No captured members were added."; }
             catch (Exception error) when (Expected(error)) { RememberViewCloseFailure(error); if (!_disposed) _status.Text = "Member capture was not applied. " + AnalysisNames.Display(error.Message, 500); }
+            finally { _capturingMembers = false; if (ReferenceEquals(_memberCaptureCancel, cancel)) _memberCaptureCancel = null; RefreshSelection(); }
+        }
+
+        private async Task MarkMatchingFilesAsync()
+        {
+            if (_disposed || _capturingMembers || _actualWork.HasUnconfirmedClose) return;
+            CancelTableRange();
+            using var actual = _actualWork.Enter(); using var cancel = CancellationTokenSource.CreateLinkedTokenSource(_selectionLifetime.Token);
+            _memberCaptureCancel = cancel; _capturingMembers = true;
+            var groups = _grouping; var explorer = _explorer; string? key = _groupKey; ulong folder = _scope;
+            _status.Text = "Capturing matching files in this displayed scope and revision…"; RefreshSelection();
+            try
+            {
+                var captured = groups is not null ? await groups.CaptureMatchingFilesAsync(key, cancellation: cancel.Token) :
+                    await explorer.CaptureMatchingFilesAsync(folder, cancellation: cancel.Token);
+                cancel.Token.ThrowIfCancellationRequested(); if (_disposed) return;
+                var identity = _source.Descriptor.Identity;
+                if (captured.SessionId != identity.SessionId || captured.Epoch != identity.Epoch || captured.Revision != identity.Revision)
+                    throw new InvalidOperationException("These captured matches belong to another observation revision.");
+                _selection.MarkCaptured(captured.NodeIds);
+                _status.Text = $"Marked {captured.NodeIds.Length:N0} matching file paths from this captured scope. Existing marks are retained; future entries are not selected.";
+            }
+            catch (OperationCanceledException) when (cancel.IsCancellationRequested) { if (!_disposed) _status.Text = "Matching-file capture canceled. No captured matches were added."; }
+            catch (Exception error) when (Expected(error)) { RememberViewCloseFailure(error); if (!_disposed) _status.Text = "Matching-file capture was not applied. " + AnalysisNames.Display(error.Message, 500); }
             finally { _capturingMembers = false; if (ReferenceEquals(_memberCaptureCancel, cancel)) _memberCaptureCancel = null; RefreshSelection(); }
         }
 

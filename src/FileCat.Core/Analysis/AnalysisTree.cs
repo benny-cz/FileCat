@@ -19,6 +19,7 @@ public sealed record AnalysisTreeItem(string Key, string ParentKey, string Name,
     public AnalysisGroupDefinition? GroupDefinition { get; init; }
     public AnalysisGroupingDimension GroupingDimension { get; init; }
     public string? ChargeLocation { get; init; }
+    public bool IsFilterContext { get; init; }
     // Known namespace metadata for these entries is not a measured zero for their targets.
     public bool IsNonFileLeaf => !Synthetic && (Kind is AnalysisKind.Link or AnalysisKind.Special);
 }
@@ -37,6 +38,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
     public string ComponentCoverageDescription { get; }
     public ulong BoundaryCount { get; }
     public ImmutableDictionary<string, AnalysisTreeItem> Items { get; }
+    private ImmutableHashSet<ulong>? FilterVisible { get; init; }
     private readonly ConcurrentDictionary<string, ImmutableArray<AnalysisTreeItem>> _children = new(StringComparer.Ordinal);
     private AnalysisTree(AnalysisSnapshot snapshot, AnalysisProjection projection, ImmutableDictionary<string, AnalysisTreeItem> items, bool filterApplied)
     { Snapshot = snapshot; Projection = projection; Items = items; FilterApplied = filterApplied;
@@ -106,7 +108,8 @@ public sealed partial class AnalysisTree : IAnalysisChartData
             result.Add(id);
         }
     }
-    public static AnalysisTree Build(AnalysisSnapshot snapshot, AnalysisProjection projection, bool filterApplied, CancellationToken cancellation = default)
+    public static AnalysisTree Build(AnalysisSnapshot snapshot, AnalysisProjection projection, bool filterApplied, CancellationToken cancellation = default,
+        Func<AnalysisNode, bool>? namespaceVisible = null)
     {
         if (snapshot.Identity.SessionId != projection.SessionId || snapshot.Identity.Epoch != projection.Epoch || snapshot.Identity.Revision != projection.Revision)
             throw new InvalidOperationException("The projection belongs to another observation revision.");
@@ -122,7 +125,8 @@ public sealed partial class AnalysisTree : IAnalysisChartData
             string key = Key(node.Id), parent = node.ParentId == 0 ? RootKey : Key(node.ParentId);
             if (!map.TryGetValue(parent, out var parentItem)) throw new InvalidDataException("Invalid analysis hierarchy.");
             bool matching = projection.MatchingNodes.Contains(node.Id);
-            var item = new Builder(key, parent, AnalysisNames.DisplayName(node), node.Id, node.Kind, false, !filterApplied || matching,
+            var item = new Builder(key, parent, AnalysisNames.DisplayName(node), node.Id, node.Kind, false,
+                !filterApplied || matching || node.Kind == AnalysisKind.Directory && node.IncludedByPolicy && namespaceVisible?.Invoke(node) == true,
                 node.Kind == AnalysisKind.Directory ? "folder" : AnalysisClassification.Family(node.Name));
             item.MetadataState = node.MetadataState; item.IncludedByPolicy = node.IncludedByPolicy;
             item.ModifiedUtc = node.Times?.ModifiedUtc; item.ModifiedPrecisionTicks = node.Times?.ModifiedPrecisionTicks ?? 0;
@@ -171,8 +175,24 @@ public sealed partial class AnalysisTree : IAnalysisChartData
             foreach (ulong alias in charge.Aliases)
             {
                 bucket.Members.Add(alias);
-                if (map.TryGetValue(Key(alias), out var aliasItem)) aliasItem.SharedElsewhere = true;
+                if (map.TryGetValue(Key(alias), out var aliasItem))
+                {
+                    aliasItem.SharedElsewhere = true;
+                    if (!charge.DirectorySelf && !projection.MatchingNodes.Contains(alias))
+                    { aliasItem.Visible = true; aliasItem.FilterContext = true; }
+                }
             }
+        }
+        foreach (var missing in projection.MissingCharges)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (missing.DirectoryId is not null || missing.Aliases.Length < 2) continue;
+            foreach (ulong alias in missing.Aliases)
+                if (map.TryGetValue(Key(alias), out var item))
+                {
+                    item.SharedElsewhere = true;
+                    if (!projection.MatchingNodes.Contains(alias)) { item.Visible = true; item.FilterContext = true; }
+                }
         }
         // Charge buckets were appended after real children. Folding in reverse parent-before-child order preserves additivity.
         foreach (string key in order.AsEnumerable().Reverse())
@@ -202,7 +222,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
         public readonly string Parent = parent;
         public UInt128 Value, Logical, Unverified;
         public ulong Files;
-        public bool Unknown, SharedElsewhere, Visible = visible;
+        public bool Unknown, SharedElsewhere, FilterContext, Visible = visible;
         public MeasurementState MetadataState = MeasurementState.Known;
         public bool IncludedByPolicy = true;
         public bool LogicalUnknown;
@@ -214,7 +234,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
         public HashSet<ulong> Members = [];
         public AnalysisTreeItem Freeze() => new(key, Parent, name, node, kind, synthetic, Visible, Value, Logical, Files, Unknown,
             SharedElsewhere, family, Children.ToImmutableArray(), Members.Order().ToImmutableArray())
-            { IdentityUnverified = Unverified, MetadataState = MetadataState, IncludedByPolicy = IncludedByPolicy,
+            { IdentityUnverified = Unverified, MetadataState = MetadataState, IncludedByPolicy = IncludedByPolicy, IsFilterContext = FilterContext,
                 LogicalUnknown = LogicalUnknown, NameEvidence = NameEvidence, ModifiedUtc = ModifiedUtc, ModifiedPrecisionTicks = ModifiedPrecisionTicks };
     }
 }

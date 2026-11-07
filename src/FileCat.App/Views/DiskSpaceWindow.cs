@@ -385,6 +385,7 @@ public sealed partial class DiskSpaceWindow : Window
             Grid.SetColumn(_inspectorScroll, 1); Grid.SetRowSpan(_inspectorScroll, 3); _explorer.Children.Add(_inspectorScroll);
             Grid.SetRow(_explorer, 2); Children.Add(_explorer);
             _basketHost.Children.Add(_basket);
+            AddMemorySelectionControls();
             _basketHost.Children.Add(ActionButton("Review cleanup", () => _ = ReviewAsync(), "Review the captured references and their supported actions. Expected free-space gain is unknown."));
             Grid.SetRow(_basketHost, 3); Children.Add(_basketHost); Grid.SetRow(_status, 4); _status.Margin = new Thickness(10, 3, 10, 8); Children.Add(_status);
             _start.Click += async (_, _) => await Model.StartAsync(_rootEditors.Select(e => e.Text ?? "").ToArray());
@@ -662,12 +663,7 @@ public sealed partial class DiskSpaceWindow : Window
                         (tree.GroupingDimension != AnalysisGroupingDimension.FolderHierarchy && selected.Synthetic ? $"Current captured members: {selected.Members.Length:N0}. Mark current members captures these paths; future observations are not selected.\n" : "") +
                         (selected.Unknown ? "Some requested measurements or namespace entries are unknown.\n" : "") + "\nObservations do not authorize current filesystem operations.";
                 }
-                _basket.Text = $"Review basket: {Model.Selection.Basket.Count:N0} references · expected free-space gain unknown";
-                if (tree is not null)
-                {
-                    int hidden = Model.Selection.Marks.Count(id => !tree.Items.TryGetValue(AnalysisTree.Key(id), out var marked) || !marked.Visible);
-                    if (hidden > 0) _basket.Text += $" · {hidden:N0} marked items hidden by this view";
-                }
+                RefreshMemorySelection();
                 bool tableOnly = _mode.SelectedIndex == 2 || Bounds.Width < 640;
                 _legend.IsVisible = tree is not null && !tableOnly;
                 _chartHost.IsVisible = !tableOnly; _treemap.IsVisible = _mode.SelectedIndex == 0; _sunburst.IsVisible = _mode.SelectedIndex == 1;
@@ -759,6 +755,7 @@ public sealed partial class DiskSpaceWindow : Window
         public void Dispose()
         {
             if (_disposed) return; _disposed = true; _timer.Stop(); _filterTimer.Stop(); Model.Changed -= Refresh;
+            _markReviewCloser?.Close(null);
             var actualWork = _actualWork.CloseAsync();
             _treemap.Clear(); _sunburst.Clear(); _list.ItemsSource = null; ReleaseComparisonView(); Model.Dispose();
             _window.TrackIndexedClose(Task.WhenAll(Model.CloseCompletion, actualWork), _admission);
