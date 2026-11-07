@@ -119,7 +119,7 @@ public sealed partial class DiskSpaceWindow
                         if (PublishedOrder() == request.Order && (request.Position < PageOffset || request.Position - PageOffset >= (ulong)_list.ItemCount) &&
                             _sort.SelectedIndex == (int)SavedIndexedSort(request.Order.Sort) && _descending.IsChecked == request.Order.Descending)
                         {
-                            bool loaded = request.Order.Owner is AnalysisDatasetGrouping
+                            bool loaded = request.Order.Owner is AnalysisDatasetGroupExplorer
                                 ? await NavigateGroupAsync(request.Order.Group, request.Position, false, request.Order.Sort, request.Order.Descending, cancel.Token)
                                 : await NavigateAsync(request.Order.Folder, request.Position, false, SavedIndexedSort(request.Order.Sort), request.Order.Descending, cancel.Token);
                             if (!loaded) continue;
@@ -136,7 +136,7 @@ public sealed partial class DiskSpaceWindow
         }
         private static async Task<object> ReadRangeRowAsync(IndexedOrder order, ulong position, CancellationToken token)
         {
-            if (order.Owner is AnalysisDatasetGrouping groups)
+            if (order.Owner is AnalysisDatasetGroupExplorer groups)
             {
                 if (order.Group is null) return (await groups.ReadGroupsAsync(position, 1, token, order.Sort, order.Descending)).Rows.Single();
                 return (await groups.ReadMemberRowsAsync(order.Group, position, 1, order.Sort, order.Descending, token)).Rows.Single();
@@ -153,7 +153,7 @@ public sealed partial class DiskSpaceWindow
             if (PublishedOrder() == order && _list.Items.Cast<object>().Any(item => ReferenceEquals(item, row))) SelectRangeRow(row);
             try
             {
-                var captured = order.Owner is AnalysisDatasetGrouping groups
+                var captured = order.Owner is AnalysisDatasetGroupExplorer groups
                     ? await groups.CaptureTableRangeAsync(order.Group, Math.Min(anchor, target), Math.Max(anchor, target), order.Sort, order.Descending, cancel.Token)
                     : await ((AnalysisDatasetExplorer)order.Owner).CaptureTableRangeAsync(order.Folder, Math.Min(anchor, target), Math.Max(anchor, target), SavedIndexedSort(order.Sort), order.Descending, cancel.Token);
                 cancel.Token.ThrowIfCancellationRequested(); if (_disposed || generation != _rangeGeneration) return;

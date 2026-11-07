@@ -20,6 +20,7 @@ public sealed record AnalysisTreeItem(string Key, string ParentKey, string Name,
     public AnalysisGroupingDimension GroupingDimension { get; init; }
     public string? ChargeLocation { get; init; }
     public bool IsFilterContext { get; init; }
+    public AnalysisLogicalTotals? ReferenceLogical { get; init; }
     // Known namespace metadata for these entries is not a measured zero for their targets.
     public bool IsNonFileLeaf => !Synthetic && (Kind is AnalysisKind.Link or AnalysisKind.Special);
 }

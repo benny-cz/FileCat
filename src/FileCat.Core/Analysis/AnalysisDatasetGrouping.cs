@@ -8,6 +8,10 @@ public sealed record AnalysisDatasetGroup(AnalysisGroupDefinition Definition, An
     AnalysisLogicalTotals Logical, ulong Members, ulong Charges)
 {
     public AnalysisTotals Shared { get; init; } = new(0, 0, 0, ImmutableDictionary<MeasurementState, ulong>.Empty, true);
+    public ulong SharedCharges { get; init; }
+    public bool HasSharedAccounting => SharedCharges != 0 || Shared.Known != 0 || Shared.IdentityUnverified != 0 || Shared.Missing.Count != 0;
+    public AnalysisLogicalTotals ReferenceLogical { get; init; } = new(0, 0, ImmutableDictionary<MeasurementState, ulong>.Empty);
+    public AnalysisLogicalTotals MemberLogical => Kind == AnalysisGroupKind.SharedAcrossGroups ? ReferenceLogical : Logical;
 }
 public sealed record AnalysisDatasetGroupMember(AnalysisPathMetadata Path, AnalysisMeasurement LogicalLength,
     bool AccountingReference, DateTimeOffset? ModifiedUtc, ulong ModifiedPrecisionTicks)

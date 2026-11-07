@@ -125,7 +125,7 @@ public sealed partial class AnalysisRenderingTests
     }
 
     [AvaloniaFact]
-    public async Task SavedGroupingIndexedOtherScopeRestoresABoundedTablePageAndQualifiesItsChartScope()
+    public async Task SavedGroupingIndexedOtherRestoresAnExactSuffixAtItsFirstSortedTableRow()
     {
         OrdinaryPreparation(); using var styles = new ProductStyles(); using var fixture = new PreparationFixture();
         var view = new AnalysisSavedView(AnalysisMetric.FileSize, "Table", "name:.bin", "1", AnalysisTree.OtherKey(SavedIndexedGroupScope(AnalysisGroupingDimension.Extension), 1), false, false, AnalysisTableSort.Name, false)
@@ -135,31 +135,29 @@ public sealed partial class AnalysisRenderingTests
         {
             await window.AddSavedIndexedSessionAsync(fixture.Services, entry.Name, entry, TestContext.Current.CancellationToken); window.Show(); Frame(window);
             var row = Assert.Single(IndexedList(window).Items.OfType<AnalysisDatasetGroupRow>()); Assert.Equal("beta.bin", row.Member.Path.Name);
-            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.Contains("table page within its captured group", StringComparison.Ordinal) == true);
-            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.StartsWith("Entries 2", StringComparison.Ordinal) == true);
+            Assert.Contains("Exact Other subset.", CapturedScopeStatus(window));
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.StartsWith("Entries 1", StringComparison.Ordinal) == true);
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }
 
     [AvaloniaTheory]
-    [InlineData(true, 2)]
-    [InlineData(true, 3)]
-    public async Task SavedGroupingIndexedMissingGroupPageReturnsToFirstPage(bool grouped, int offset)
+    [InlineData(2, true)]
+    [InlineData(3, false)]
+    public async Task SavedGroupingIndexedEmptyOtherStaysExactAndMissingOtherExplainsItsParentFallback(int offset, bool exact)
     {
         OrdinaryPreparation(); using var styles = new ProductStyles(); using var fixture = new PreparationFixture();
-        var dimension = grouped ? AnalysisGroupingDimension.Extension : AnalysisGroupingDimension.FolderHierarchy;
-        string scope = grouped ? SavedIndexedGroupScope(dimension) : "n:400";
+        var dimension = AnalysisGroupingDimension.Extension;
+        string scope = SavedIndexedGroupScope(dimension);
         var view = new AnalysisSavedView(AnalysisMetric.FileSize, "Table", "name:.bin", "1", AnalysisTree.OtherKey(scope, offset), false, false, AnalysisTableSort.Name, false)
             { Grouping = dimension };
         var entry = await SaveIndexedInventoryFixture(fixture, view); var window = new DiskSpaceWindow();
         try
         {
-            var explorer = await window.AddSavedIndexedSessionAsync(fixture.Services, entry.Name, entry, TestContext.Current.CancellationToken); window.Show(); Frame(window);
-            string[] names = grouped ? IndexedList(window).Items.OfType<AnalysisDatasetGroupRow>().Select(row => row.Member.Path.Name).ToArray()
-                : explorer.Page!.Children.Rows.Select(row => row.Path.Name).ToArray();
-            Assert.Equal(new[] { "alpha.bin", "beta.bin" }, names);
-            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.Contains("saved table page is absent. Showing the first page", StringComparison.Ordinal) == true);
-            if (!grouped) { Assert.Equal(400UL, explorer.Page!.ParentId); Assert.Equal(0UL, explorer.Page.Children.Offset); }
+            await window.AddSavedIndexedSessionAsync(fixture.Services, entry.Name, entry, TestContext.Current.CancellationToken); window.Show(); Frame(window);
+            string[] names = IndexedList(window).Items.OfType<AnalysisDatasetGroupRow>().Select(row => row.Member.Path.Name).ToArray();
+            Assert.Equal(exact ? Array.Empty<string>() : ["alpha.bin", "beta.bin"], names);
+            Assert.Contains(exact ? "Exact Other subset." : "saved Other subset is absent", CapturedScopeStatus(window));
             Assert.False(Directory.Exists(Path.Combine(fixture.Root, "source-must-not-be-created")));
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }

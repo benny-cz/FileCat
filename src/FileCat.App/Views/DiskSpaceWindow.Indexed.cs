@@ -153,7 +153,7 @@ public sealed partial class DiskSpaceWindow
 
         internal IndexedSessionView(DiskSpaceWindow window, AnalysisDatasetLease source, AnalysisDatasetExplorer explorer, AnalysisFilterRequest filter,
             AnalysisSessionAdmission.Slot admission, AnalysisSavedView? saved = null, string? restoreNotice = null,
-            AnalysisDatasetGrouping? groups = null, GroupPage? groupedPage = null, AppServices? services = null)
+            AnalysisDatasetGroupExplorer? groups = null, GroupPage? groupedPage = null, AppServices? services = null)
         {
             _services = services;
             _window = window; _source = source; _explorer = explorer; _rootId = filter.RootId; _admission = admission;
@@ -215,7 +215,7 @@ public sealed partial class DiskSpaceWindow
                 var item = DisplayItem(row); if (item is null) return new TextBlock();
                 var grid = new Grid { ColumnDefinitions = new("3*,2*,2*,2*,2*"), MinHeight = 32, Margin = new Thickness(6, 3) };
                 string[] cells = [item.Name, DiskSpaceViewModel.ValueText(item, _grouping?.Metric ?? _explorer.Metric), DiskSpaceViewModel.LogicalText(item),
-                    !item.IncludedByPolicy ? "Excluded" : item.IsNonFileLeaf ? "Not counted" : item.Files.ToString("N0"), DiskSpaceViewModel.StatusText(item)];
+                    !item.IncludedByPolicy ? "Excluded" : item.IsNonFileLeaf ? "Not counted" : item.ReferenceLogical is { } references ? references.Files.ToString("N0") + " references" : item.Files.ToString("N0"), DiskSpaceViewModel.StatusText(item)];
                 for (int column = 0; column < cells.Length; column++)
                 {
                     var text = new TextBlock { Text = cells[column], TextWrapping = column == 0 ? TextWrapping.NoWrap : TextWrapping.Wrap,
@@ -367,7 +367,7 @@ public sealed partial class DiskSpaceWindow
                 while (_again && !_disposed)
                 {
                     _again = false; using var cancel = new CancellationTokenSource(); _buildCancel = cancel;
-                    AnalysisDatasetExplorer? next = null; AnalysisDatasetGrouping? nextGroups = null;
+                    AnalysisDatasetExplorer? next = null; AnalysisDatasetGroupExplorer? nextGroups = null;
                     _status.Text = "Applying the query to captured observations…";
                     try
                     {
@@ -407,7 +407,7 @@ public sealed partial class DiskSpaceWindow
                             // Grouping owns its query/accounting. Keep the existing hierarchy only
                             // as an immutable metadata inspector; rebuilding both old/new pairs
                             // would needlessly exceed the graph-consumer budget during replacement.
-                            nextGroups = await _source.BuildGroupingAsync(metric, dimension, request, cancel.Token);
+                            nextGroups = await AnalysisDatasetGroupExplorer.CreateAsync(_source, metric, dimension, request, cancel.Token);
                             nextPage = await LoadGroupedPageAsync(nextGroups, null, 0, GroupSort(), _descending.IsChecked == true, cancel.Token);
                         }
                         if (_interacting) _status.Text = "Query ready. Finish the current interaction to display it.";
@@ -583,7 +583,7 @@ public sealed partial class DiskSpaceWindow
             IAnalysisChartData? chart = _grouping is not null ? _groupPage?.Chart : _shownChart;
             if (chart is null) return;
             string scope = _grouping is not null ? _groupPage!.Chart.Scope : _shownChart!.Scope;
-            string? focus = _chartFocusKey ?? (_focus == 0 ? _groupFocus : AnalysisTree.Key(_focus));
+            string? focus = _chartFocusKey ?? (_focus == 0 ? _groupFocus : _grouping is not null && _selectedGroupedItem?.NodeId == _focus ? _selectedGroupedItem.Key : AnalysisTree.Key(_focus));
             var color = (AnalysisColorDimension)Math.Clamp(_color.SelectedIndex, 0, 2);
             _legend.SetView(color, chart.ObservedUtc);
             _treemap.SetView(chart, scope, focus, _selection.Marks, color); _sunburst.SetView(chart, scope, focus, _selection.Marks, color);

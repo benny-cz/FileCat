@@ -67,12 +67,14 @@ public sealed partial class AnalysisRenderingTests
                 Assert.Contains("known", IndexedDetails(window).Text);
                 window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null); window.KeyRelease(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
                 await Until(() => MemberReady(window)); Frame(window);
-                // Focusing the remainder does not navigate; a separate Enter opens its
-                // accounting page. Exact grouped subset restoration is qualified separately.
-                chart.Focus(); window.KeyPress(Key.Home, RawInputModifiers.None, PhysicalKey.Home, null); window.KeyRelease(Key.Home, RawInputModifiers.None, PhysicalKey.Home, null);
-                Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.StartsWith("Entries 33", StringComparison.Ordinal) == true);
+                // Focus and activation are separate; opening a geometry suffix starts its
+                // own sorted table at offset zero.
+                chart.Focus(); window.KeyPress(Key.End, RawInputModifiers.None, PhysicalKey.End, null); window.KeyRelease(Key.End, RawInputModifiers.None, PhysicalKey.End, null);
+                Assert.DoesNotContain("Exact Other subset.", CapturedScopeStatus(window));
                 window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null); window.KeyRelease(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
-                await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text?.StartsWith("Entries 33", StringComparison.Ordinal) == true));
+                await Until(() => CapturedScopeStatus(window).Contains("Exact Other subset.", StringComparison.Ordinal));
+                Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.StartsWith("Entries 1", StringComparison.Ordinal) == true);
+                Click(window, "Parent"); await Until(() => MemberReady(window) && !CapturedScopeStatus(window).Contains("Exact Other subset.", StringComparison.Ordinal));
                 Click(window, "Parent"); await Until(() => GroupReady(window) && list.Items.OfType<AnalysisDatasetGroup>().Any()); Frame(window);
             }
             GroupingSelector(window).SelectedIndex = 0;

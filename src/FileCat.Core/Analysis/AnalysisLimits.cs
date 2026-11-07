@@ -23,6 +23,8 @@ public static class AnalysisLimits
     // A derived grouping can add shared-across-groups and directory-allocation rows.
     public const int GroupRows = Observations + 2;
     public const int GroupOrderRows = GroupRows * 5;
+    // Member/reference geometry can also include one shared accounting bucket per group.
+    public const int GroupGeometryRows = Observations * 3 + Issues * 2 + 2;
     public const int BatchRecords = 512, BatchBytes = 256 * 1024, PendingBytes = 8 * 1024 * 1024;
     public const long MemoryBytes = 256L * 1024 * 1024, ScratchBytes = 4L * 1024 * 1024 * 1024;
     public const long ProfileScratchBytes = 8L * 1024 * 1024 * 1024, InventoryBytes = 8L * 1024 * 1024 * 1024;

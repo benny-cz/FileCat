@@ -37,6 +37,7 @@ public sealed partial class AnalysisTree
                 cancellation.ThrowIfCancellationRequested(); var charge = placement.Charge;
                 ulong owner = charge.DirectorySelf ? charge.ParentId : charge.Shared || charge.Aliases.Length > 1 ? 0 : charge.Aliases.Single();
                 var amount = Amount(group.Definition.Key, owner);
+                amount.Charges = checked(amount.Charges + 1);
                 if (charge.IdentityUnverified) amount.Unverified = checked(amount.Unverified + charge.Value); else amount.Known = checked(amount.Known + charge.Value);
                 if (owner == 0) SharedReferences(group.Definition.Key, charge.Aliases);
             }
@@ -47,6 +48,7 @@ public sealed partial class AnalysisTree
             string group = charge.DirectoryId is not null ? AnalysisGroupingRules.Directory.Key : ChargeGroup(charge.Aliases);
             ulong owner = charge.DirectoryId ?? (charge.Aliases.Length == 1 ? charge.Aliases[0] : 0);
             var amount = Amount(group, owner); amount.Missing[charge.State] = checked(amount.Missing.GetValueOrDefault(charge.State) + 1);
+            amount.Charges = checked(amount.Charges + 1);
             if (owner == 0) SharedReferences(group, charge.Aliases);
         }
         var items = new Dictionary<string, AnalysisTreeItem>(StringComparer.Ordinal);
@@ -75,7 +77,7 @@ public sealed partial class AnalysisTree
                 items[key] = item; children.Add(key); assigned = checked(assigned + item.Value);
             }
             var bucket = Amount(group.Definition.Key, 0); total.Add(bucket);
-            if (bucket.Known != 0 || bucket.Unverified != 0 || bucket.Missing.Count != 0)
+            if (bucket.Charges != 0)
             {
                 string key = "group-shared:" + group.Definition.Key;
                 var totals = bucket.Export(0, group.Totals.CompatibleBasis); UInt128 value = AnalysisGroupedChart.Area(totals, projection.Metric);
@@ -87,8 +89,19 @@ public sealed partial class AnalysisTree
             if (total.Known != group.Totals.Known || total.Unverified != group.Totals.IdentityUnverified ||
                 total.Missing.Count != group.Totals.Missing.Count || total.Missing.Any(p => group.Totals.Missing.GetValueOrDefault(p.Key) != p.Value) || assigned != group.ChartArea(projection.Metric))
                 throw new InvalidDataException("Grouped member display does not match its accounting scope.");
-            var summary = new AnalysisDatasetGroup(group.Definition, group.Kind, group.Totals, group.Logical, (ulong)group.Members.Length, (ulong)group.Charges.Length)
-                { Shared = bucket.Export(0, group.Totals.CompatibleBasis) };
+            var summary = new AnalysisDatasetGroup(group.Definition, group.Kind, group.Totals, group.Logical, (ulong)group.Members.Length, total.Charges)
+                { Shared = bucket.Export(0, group.Totals.CompatibleBasis), SharedCharges = bucket.Charges };
+            if (group.Kind == AnalysisGroupKind.SharedAcrossGroups)
+            {
+                UInt128 referenceBytes = 0; ulong referenceFiles = 0; var referenceMissing = new Dictionary<MeasurementState, ulong>();
+                foreach (ulong id in group.Members)
+                {
+                    cancellation.ThrowIfCancellationRequested(); var node = nodes[id]; if (node.Kind != AnalysisKind.File || !node.IncludedByPolicy) continue;
+                    var length = Object(node)?.LogicalLength ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported); referenceFiles = checked(referenceFiles + 1);
+                    if (length.IsKnown) referenceBytes = checked(referenceBytes + length.Value!.Value); else referenceMissing[length.State] = checked(referenceMissing.GetValueOrDefault(length.State) + 1);
+                }
+                summary = summary with { ReferenceLogical = new(referenceBytes, referenceFiles, referenceMissing.ToImmutableDictionary()) };
+            }
             items.Add(group.Definition.Key, AnalysisGroupedChart.GroupItem(summary, dimension, projection.Metric, RootKey) with { Children = children.ToImmutable(), Members = group.Members });
         }
         var rootMembers = grouped.Groups.SelectMany(g => g.Members).Distinct().Order().ToImmutableArray();
@@ -132,11 +145,13 @@ public sealed partial class AnalysisTree
     private sealed class GroupAmount
     {
         internal UInt128 Known, Unverified;
+        internal ulong Charges;
         internal readonly Dictionary<MeasurementState, ulong> Missing = [];
         internal AnalysisTotals Export(ulong files, bool compatible) => new(Known, Unverified, files, Missing.ToImmutableDictionary(), compatible);
         internal void Add(GroupAmount other)
         {
             Known = checked(Known + other.Known); Unverified = checked(Unverified + other.Unverified);
+            Charges = checked(Charges + other.Charges);
             foreach (var pair in other.Missing) Missing[pair.Key] = checked(Missing.GetValueOrDefault(pair.Key) + pair.Value);
         }
     }

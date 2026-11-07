@@ -179,13 +179,19 @@ public sealed partial class AnalysisDatasetSummaryTests
     }
 
     private static async Task<AnalysisDataset> Build(AnalysisSnapshot snapshot, DeviceIoScheduler io, MemoryDirectory? directory = null, AnalysisIoDevices? device = null, AnalysisEnumerationProgress? enumeration = null,
-        long sessionLimit = AnalysisLimits.ScratchBytes, Action<AnalysisScratchWorkspace>? afterSeal = null, AnalysisProfileQuota? quota = null)
+        long sessionLimit = AnalysisLimits.ScratchBytes, Action<AnalysisScratchWorkspace>? afterSeal = null, AnalysisProfileQuota? quota = null, bool arbitraryPathIds = false)
     {
         device ??= Device;
         directory ??= new(); using var workspace = new AnalysisScratchWorkspace(directory, sessionLimit, AnalysisScratchBudget.Shared, quota);
         var header = new AnalysisIndexedGraphHeader(snapshot.Identity, snapshot.Roots, snapshot.Policy, snapshot.Phase, snapshot.Coverage, Origin: AnalysisOrigin.ImportedInventory) { Enumeration = enumeration };
         using var graph = new AnalysisIndexedGraph(workspace.CreateArena(), header);
-        foreach (var node in snapshot.Nodes) graph.AppendPath(node, Cancellation);
+        if (arbitraryPathIds)
+        {
+            var rows = new Dictionary<ulong, ulong>();
+            foreach (var node in snapshot.Nodes)
+            { graph.AppendPathWithParentRow(node, node.ParentId == 0 ? 0 : rows[node.ParentId], Cancellation); rows.Add(node.Id, (ulong)rows.Count + 1); }
+        }
+        else foreach (var node in snapshot.Nodes) graph.AppendPath(node, Cancellation);
         foreach (var obj in snapshot.Objects) graph.AppendObject(obj with { ObservedAliases = [] }, Cancellation);
         foreach (var fact in snapshot.Facts) graph.AppendFact(fact, Cancellation);
         foreach (var issue in snapshot.Issues) graph.AppendIssue(issue, Cancellation);

@@ -20,7 +20,11 @@ public sealed partial class AnalysisDatasetGrouping
         private bool _placementShared, _placementReference;
         private readonly Dictionary<MeasurementState, ulong> _placementMissing = [];
         private UInt128 _sharedKnown, _sharedUnverified;
+        private ulong _sharedCharges;
         private readonly Dictionary<MeasurementState, ulong> _sharedMissing = [];
+        private UInt128 _referenceLogical;
+        private ulong _referenceFiles;
+        private readonly Dictionary<MeasurementState, ulong> _referenceMissing = [];
         internal bool Folded { get; private set; }
         internal AnalysisLogicalTotals LogicalTotals => new(_allLogical, _allFiles, _allLogicalMissing.ToImmutableDictionary());
         internal long FoldStep(CancellationToken token)
@@ -61,6 +65,11 @@ public sealed partial class AnalysisDatasetGrouping
                 if (_lastPath[next] == item.Path) throw Invalid(); _lastPath[next] = item.Path;
                 _memberCount = checked(_memberCount + 1);
                 _placementEvent = entry.Value; _placementReference = true; _placementShared = item.Kind == AnalysisGroupKind.SharedAcrossGroups;
+                if (item.Kind == AnalysisGroupKind.SharedAcrossGroups)
+                {
+                    _referenceFiles = checked(_referenceFiles + 1);
+                    if (item.Logical.IsKnown) _referenceLogical = checked(_referenceLogical + item.Logical.Value!.Value); else Add(_referenceMissing, item.Logical.State);
+                }
             }
             else
             {
@@ -78,6 +87,7 @@ public sealed partial class AnalysisDatasetGrouping
                 }
                 else
                 {
+                    _sharedCharges = checked(_sharedCharges + 1);
                     if (!charge.Measurement.IsKnown) Add(_sharedMissing, charge.Measurement.State);
                     else if (charge.IdentityUnverified) _sharedUnverified = checked(_sharedUnverified + charge.Measurement.Value!.Value);
                     else _sharedKnown = checked(_sharedKnown + charge.Measurement.Value!.Value);
@@ -93,13 +103,15 @@ public sealed partial class AnalysisDatasetGrouping
             FinishPlacement(token);
             var group = new AnalysisDatasetGroup(_foldDefinition, _foldKind, new(_known, _unverified, _files, _missing.ToImmutableDictionary(), Totals.CompatibleBasis),
                 new(_logical, _files, _logicalMissing.ToImmutableDictionary()), _memberCount, _chargeCount)
-                { Shared = new(_sharedKnown, _sharedUnverified, 0, _sharedMissing.ToImmutableDictionary(), Totals.CompatibleBasis) };
+                { Shared = new(_sharedKnown, _sharedUnverified, 0, _sharedMissing.ToImmutableDictionary(), Totals.CompatibleBasis), SharedCharges = _sharedCharges,
+                    ReferenceLogical = new(_referenceLogical, _referenceFiles, _referenceMissing.ToImmutableDictionary()) };
             _summaryWriter!.Append(EncodeSummary(group), token);
             _allKnown = checked(_allKnown + _known); _allUnverified = checked(_allUnverified + _unverified); _allFiles = checked(_allFiles + _files); _allLogical = checked(_allLogical + _logical);
             foreach (var pair in _missing) Add(_allMissing, pair.Key, pair.Value);
             foreach (var pair in _logicalMissing) Add(_allLogicalMissing, pair.Key, pair.Value);
             _foldDefinition = null; _known = _unverified = _logical = 0; _files = _memberCount = _chargeCount = 0; _missing.Clear(); _logicalMissing.Clear();
-            _sharedKnown = _sharedUnverified = 0; _sharedMissing.Clear();
+            _sharedKnown = _sharedUnverified = 0; _sharedCharges = 0; _sharedMissing.Clear();
+            _referenceLogical = 0; _referenceFiles = 0; _referenceMissing.Clear();
         }
         private void FinishPlacement(CancellationToken token)
         {

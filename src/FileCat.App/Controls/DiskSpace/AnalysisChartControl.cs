@@ -196,7 +196,7 @@ public abstract class AnalysisChartControl : Control
         if (e.Key == Key.Escape && ToolTip.GetIsOpen(this)) { ToolTip.SetIsOpen(this, false); e.Handled = true; return; }
         if (_view is null || e.Handled) return;
         var rows = _view.Tree.ChildrenOf(Scope);
-        var keys = _view.Tree is AnalysisIndexedChart ? _parts.Where(part => part.Depth == 0).Select(part => part.Key).Distinct().ToArray() : rows.Select(row => row.Key).ToArray();
+        var keys = _view.Tree is AnalysisIndexedChart or AnalysisGroupedChart { GeometryProjection: true } ? _parts.Where(part => part.Depth == 0).Select(part => part.Key).Distinct().ToArray() : rows.Select(row => row.Key).ToArray();
         if (e.Key == Key.Enter)
         {
             string? key = _view.Focus ?? keys.FirstOrDefault();

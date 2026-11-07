@@ -52,6 +52,14 @@ public sealed partial class AnalysisDatasetGrouping
                 try { await AnalysisIo.Run(io, device, _ => { if (kind == 0) state.MemberOrder = index.Acquire(); else state.ReferenceOrder = index.Acquire(); return true; }, cancellation).ConfigureAwait(false); }
                 finally { await AnalysisIo.ReleaseScratchAsync(io, device, index).ConfigureAwait(false); }
             }
+            for (int kind = 0; kind < 2; kind++)
+            {
+                using var entries = state.GeometryEntries(kind != 0, cancellation).GetEnumerator();
+                var index = await AnalysisExternalSort.BuildSparseAsync(state.Workspace!, io, device, entries, cancellation,
+                    maximumRecords: kind == 0 ? AnalysisLimits.GroupRows : AnalysisLimits.GroupGeometryRows).ConfigureAwait(false);
+                try { await AnalysisIo.Run(io, device, _ => { if (kind == 0) state.GroupGeometry = index.Acquire(); else state.MemberGeometry = index.Acquire(); return true; }, cancellation).ConfigureAwait(false); }
+                finally { await AnalysisIo.ReleaseScratchAsync(io, device, index).ConfigureAwait(false); }
+            }
             await AnalysisIo.Run(io, device, _ => { state.Workspace!.Dispose(); state.Workspace = null; return true; }, cancellation).ConfigureAwait(false);
             var result = new AnalysisDatasetGrouping(state, descriptor, io, device, source.Query?.Summary); state = null; return result;
         }
@@ -233,7 +241,7 @@ public sealed partial class AnalysisDatasetGrouping
         public void Dispose()
         {
             Exception? error = null;
-            foreach (var item in new IDisposable?[] { VisibilityIndex, Visibility, _visibilityWriter, ReferenceOrder, MemberOrder, Order, Lookup, ReferenceIndex, ChargeIndex, MemberIndex,
+            foreach (var item in new IDisposable?[] { GroupGeometry, MemberGeometry, VisibilityIndex, Visibility, _visibilityWriter, ReferenceOrder, MemberOrder, Order, Lookup, ReferenceIndex, ChargeIndex, MemberIndex,
                 ReferencePlacements, MemberPlacements, Summaries, References, Charges, Members,
                 _referencePlacementWriter, _memberPlacementWriter, _summaryWriter, _referenceWriter, _chargeWriter, _memberWriter, Workspace, Graph }) Close(item, ref error);
             if (error is not null) ExceptionDispatchInfo.Capture(error).Throw();

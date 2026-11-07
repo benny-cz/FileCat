@@ -54,22 +54,30 @@ public sealed partial class AnalysisDatasetGrouping
     });
     private static byte[] EncodeSummary(AnalysisDatasetGroup item) => Encode(writer =>
     {
-        writer.Write(0x32534741U); WriteDefinition(writer, item.Definition); writer.Write((byte)item.Kind);
+        writer.Write(0x34534741U); WriteDefinition(writer, item.Definition); writer.Write((byte)item.Kind);
         Write128(writer, item.Totals.Known); Write128(writer, item.Totals.IdentityUnverified); writer.Write(item.Totals.MatchingPaths);
         writer.Write(item.Totals.CompatibleBasis); WriteMissing(writer, item.Totals.Missing);
         Write128(writer, item.Logical.KnownBytes); writer.Write(item.Logical.Files); WriteMissing(writer, item.Logical.Missing);
         writer.Write(item.Members); writer.Write(item.Charges);
         Write128(writer, item.Shared.Known); Write128(writer, item.Shared.IdentityUnverified); WriteMissing(writer, item.Shared.Missing);
+        writer.Write(item.SharedCharges);
+        Write128(writer, item.ReferenceLogical.KnownBytes); writer.Write(item.ReferenceLogical.Files); WriteMissing(writer, item.ReferenceLogical.Missing);
     });
     private static AnalysisDatasetGroup DecodeSummary(byte[] bytes) => Decode(bytes, reader =>
     {
-        if (reader.ReadUInt32() != 0x32534741U) throw Invalid(); var definition = ReadDefinition(reader); var kind = ReadEnum<AnalysisGroupKind>(reader);
+        if (reader.ReadUInt32() != 0x34534741U) throw Invalid(); var definition = ReadDefinition(reader); var kind = ReadEnum<AnalysisGroupKind>(reader);
         UInt128 known = Read128(reader), unverified = Read128(reader); ulong files = reader.ReadUInt64(); bool compatible = ReadBoolean(reader); var missing = ReadMissing(reader);
         UInt128 logical = Read128(reader); ulong logicalFiles = reader.ReadUInt64(); var logicalMissing = ReadMissing(reader);
         ulong members = reader.ReadUInt64(), charges = reader.ReadUInt64(); UInt128 shared = Read128(reader), sharedUnverified = Read128(reader); var sharedMissing = ReadMissing(reader);
-        if (shared > known || sharedUnverified > unverified || sharedMissing.Any(p => missing.GetValueOrDefault(p.Key) < p.Value)) throw Invalid();
+        ulong sharedCharges = reader.ReadUInt64();
+        UInt128 referenceLogical = Read128(reader); ulong referenceFiles = reader.ReadUInt64(); var referenceMissing = ReadMissing(reader);
+        if (members > AnalysisLimits.Observations || charges > AnalysisLimits.Observations || files > AnalysisLimits.Observations || logicalFiles > AnalysisLimits.Observations ||
+            referenceFiles > members || referenceMissing.Values.Aggregate(0UL, (sum, value) => checked(sum + value)) > referenceFiles ||
+            kind != AnalysisGroupKind.SharedAcrossGroups && (referenceFiles != 0 || referenceLogical != 0 || referenceMissing.Count != 0) ||
+            sharedCharges > charges || shared > known || sharedUnverified > unverified || sharedMissing.Any(p => missing.GetValueOrDefault(p.Key) < p.Value)) throw Invalid();
         return new AnalysisDatasetGroup(definition, kind, new(known, unverified, files, missing, compatible), new(logical, logicalFiles, logicalMissing), members, charges)
-            { Shared = new(shared, sharedUnverified, 0, sharedMissing, compatible) };
+            { Shared = new(shared, sharedUnverified, 0, sharedMissing, compatible), SharedCharges = sharedCharges,
+                ReferenceLogical = new(referenceLogical, referenceFiles, referenceMissing) };
     });
     private static void WriteDefinition(BinaryWriter writer, AnalysisGroupDefinition definition)
     { WriteText(writer, definition.Value); WriteText(writer, definition.Label); WriteText(writer, definition.Family); }

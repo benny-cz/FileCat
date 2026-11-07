@@ -44,7 +44,7 @@ public sealed partial class DiskSpaceWindow
             var dimension = _grouping?.Dimension ?? AnalysisGroupingDimension.FolderHierarchy;
             var sort = _groupPage?.Sort ?? IndexedSavedSort(_shownPage?.Sort ?? AnalysisHierarchySort.Metric);
             bool descending = _groupPage?.Descending ?? _shownPage?.Descending ?? true;
-            string scope = _grouping is null ? _explorer.OtherScopeKey ?? (_scope == 0 ? AnalysisTree.RootKey : AnalysisTree.Key(_scope)) : _groupKey ?? AnalysisTree.RootKey;
+            string scope = _grouping is null ? _explorer.OtherScopeKey ?? (_scope == 0 ? AnalysisTree.RootKey : AnalysisTree.Key(_scope)) : _grouping.OtherScopeKey ?? _groupKey ?? AnalysisTree.RootKey;
             return new(metric, _chartMode.SelectedIndex == 1 ? "Sunburst" : _chartMode.SelectedIndex == 2 ? "Table" : "Treemap", filter.Text, filter.RootId,
                 scope, filter.CaseSensitive, filter.UnknownOnly, sort, descending)
             { Grouping = dimension, ColorDimension = (AnalysisColorDimension)_color.SelectedIndex };
