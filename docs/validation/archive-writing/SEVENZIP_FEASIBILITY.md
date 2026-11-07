@@ -152,3 +152,8 @@ dependencies and runners once, then use large guarded Windows/Mac/Ubuntu session
 independent method/metadata readback, relevant worker/native/resource cases, immutable evidence and owned-process
 cleanup. Actual failures justify adaptive fixes and retests. Do not enable methods based on this analysis, omit a
 needed method merely because the pinned writer lacks it, or call the overall feature/review complete.
+
+
+The subsequent [C# codec/container/KDF checkpoint](SEVENZIP_CSHARP_CODECS_AND_KDF.md) implements and independently
+checks six existing-codec paths on the three platforms. This earlier analysis remains the needed-coverage inventory;
+PPMd/filter/header/password/workflow gaps must not disappear behind that narrower tested foundation.

@@ -42,7 +42,7 @@ the runtime and relinks the AppImage with a modified libfuse.
 | Microsoft.Extensions.DependencyInjection.Abstractions | 8.0.2 | MIT | Resolved App runtime dependency |
 | FluentFTP | 55.0.0 | MIT | FTP and FTPS (ADR-17 addendum, P8) |
 | SharpCompress (FileCat's build, `FileCat.SharpCompress.dll`) | 0.50.5 (commit e4193af8) | MIT AND Apache-2.0 AND MS-PL AND BSD-2-Clause AND BSD-3-Clause AND Zlib | Read-only 7z, xz, bzip2, and zstd (ADR-07, P8); Copyright (c) Adam Hathcock and SharpCompress contributors. Built from `src/ThirdParty/SharpCompress`, cut down to its 7z, bzip2, xz and zstd readers: none of its RAR support and PPMd variant H, which it ported from UnRAR, and none of its other formats (among them ZIP's Info-ZIP-derived implode and reduce decoders). 7z PPMd decodes through FileCat's PPMd model (rardecode row). SharpCompress itself is MIT; its parts from other projects keep their own licenses, all OSI-approved, listed file by file in `licenses/sharpcompress/COMPONENTS.md`, with `NOTICE` and the full texts, shipped with FileCat |
-| rardecode (ported source in FileCat's RAR reader) | v2.4.5 | BSD-2-Clause | `src/FileCat.Archives/Rar` ports its RAR decoding, and `src/ThirdParty/SharpCompress/Compressors/PPMd/PpmdModelH.cs` its PPMd variant H model, which RAR 3 and 7z PPMd share; Copyright (c) 2015 Nicholas Waples. Full text below and in `licenses/rardecode/LICENSE`; no UnRAR source |
+| rardecode (ported RAR/PPMd and password primitives) | v2.4.5 | BSD-2-Clause | `src/FileCat.Archives/Rar` ports its RAR decoding, `src/FileCat.Archives/Writing/Rar5EncryptionPrimitives.cs` its bounded RAR5 password/checksum derivation, and `src/ThirdParty/SharpCompress/Compressors/PPMd/PpmdModelH.cs` its PPMd variant H model, which RAR 3 and 7z PPMd share; Copyright (c) 2015 Nicholas Waples. Full text below and in `licenses/rardecode/LICENSE`; no UnRAR source |
 | XADMaster (ported source in FileCat's RAR 1.5 decoder) | commit 7cb9ee0a | LGPL-2.1-or-later | `src/FileCat.Archives.Rar15` ports its RAR 1.5 decoding (XADRAR15Handle) into the separate, replaceable `FileCat.Archives.Rar15.dll`; Copyright (c) 2017-present MacPaw Way Ltd., originally by Dag Ågren. Notice below; full text in `licenses/xadmaster/LICENSE`, shipped with FileCat; no UnRAR source |
 | LTRData.DiscUtils (Core, Streams, Iso9660, Udf) | 1.0.89 | MIT | Read-only ISO 9660 and UDF images (ADR-07, P8); DiscUtils by Kenneth Bell and contributors, maintained by LTR Data |
 | LTRData.Extensions | 1.0.23 | MIT | Helpers used by DiscUtils; Copyright (c) 2011 - 2026, Olof Lagerkvist, LTR Data (the signed package's own declaration). Its MIT notice is in full below; the package ships no license file, so the canonical MIT text is retained as well |
@@ -90,7 +90,8 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 ## rardecode (BSD-2-Clause)
 
 FileCat's RAR reader, and the PPMd variant H model in `FileCat.SharpCompress.dll` that RAR 3 and 7z PPMd
-share, contain code ported from rardecode (https://github.com/nwaples/rardecode).
+share, and the RAR5 password/checksum primitives in `FileCat.Archives`/`FileCat.Archives.Writing`, contain code ported
+from rardecode (https://github.com/nwaples/rardecode).
 
 ```
 Copyright (c) 2015, Nicholas Waples

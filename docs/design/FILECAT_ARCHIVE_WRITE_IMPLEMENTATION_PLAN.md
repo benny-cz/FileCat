@@ -206,8 +206,9 @@ profile; new 7z output targets its standard AES-256 coder/header mode. Compressi
   ciphertext, excessive KDF claims and incorrect passwords must refuse predictably. CRC/password checks do not grant
   cryptographic authentication; do not promise tamper resistance the formats lack.
 - Add versioned secret grants to the worker protocol with session/job-local lifetime and zeroing of owned mutable
-  buffers. Passwords/keys must not enter command lines, logs, exceptions, journals, recovery reports, evidence or normal
-  settings. Do not claim complete erasure of immutable strings/framework copies. Lost secrets require a new prompt.
+  buffers. Real session/job passwords and keys must not enter command lines, logs, exceptions, journals, recovery reports, evidence or normal
+  settings. Clearly labelled public synthetic cryptographic vectors are permitted in tests; never use VM login credentials
+  as archive test secrets. Do not claim complete erasure of immutable strings/framework copies. Lost secrets require a new prompt.
 - Add create-password/confirmation and hide-file-names controls, open/wrong-password/cancel/retry flows and preserved
   encryption settings on update. Never silently strip encryption or fall back to plaintext output. Define nested
   archive/edit cache secret lifetime and cleanup behavior. Existing encrypted-reader refusal text must be replaced.

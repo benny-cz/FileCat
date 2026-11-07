@@ -38,6 +38,14 @@ across all three systems. It remains stream-only and unregistered: required pass
 strict update/source/verification catalogs, worker/secret grants, preservation, workflows and full gates remain open.
 See that record for exact evidence and corrected harness failures; this is not complete RAR feature support.
 
+The [7z container/codecs and password-derivation checkpoint](SEVENZIP_CSHARP_CODECS_AND_KDF.md) now writes Copy,
+LZMA/LZMA2/BZip2/Deflate/Zstandard using streamed raw headers and bounded presets. All 21 new 7z and 19 KDF cases
+pass within the 522-case batches on all three platforms; independent APIs verify 42 records per platform and archive
+hashes match. Mac name-presentation normalization is checked against exact raw UTF-16 names. These are not full 7z
+or password features: PPMd/filters/compressed headers, actual cipher/header/read/secret-grant integration and remaining
+workflow/qualification gates stay open. Profiles remain unregistered. The next chunk also tests simultaneous composed/
+decomposed names; all owned test processes are closed and other testers are preserved.
+
 ## Source and workspace
 
 - Baseline: `4282929753f062f5bb2cc130e8316b133e5c8e03`.
