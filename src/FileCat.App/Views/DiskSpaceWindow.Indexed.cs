@@ -36,7 +36,7 @@ public sealed partial class DiskSpaceWindow
         try
         {
             retained = await prepareSource(linked.Token);
-            string? restoreNotice = null; ulong scope = 0;
+            string? restoreNotice = null; ulong scope = 0, offset = 0;
             if (saved is not null)
             {
                 AnalysisSavedCatalog.ValidateView(saved); metric = saved.Metric;
@@ -44,18 +44,33 @@ public sealed partial class DiskSpaceWindow
                 if (root is not null && !retained.Descriptor.Roots.Any(r => r.Id == root))
                 { root = null; restoreNotice = "The saved location is absent. Showing all captured locations."; }
                 filter = new(saved.Query, saved.CaseSensitive, saved.ShowUnknown, root);
-                var restored = await RestoreIndexedScopeAsync(retained, saved.Scope, linked.Token);
-                scope = restored.Scope; string? scopeNotice = restored.Notice;
-                if (scopeNotice is not null) restoreNotice = restoreNotice is null ? scopeNotice : restoreNotice + " " + scopeNotice;
+                if (saved.Grouping == AnalysisGroupingDimension.FolderHierarchy)
+                {
+                    var restored = await RestoreIndexedScopeAsync(retained, saved.Scope, linked.Token);
+                    scope = restored.Scope; offset = restored.Offset; string? scopeNotice = restored.Notice;
+                    if (scopeNotice is not null) restoreNotice = restoreNotice is null ? scopeNotice : restoreNotice + " " + scopeNotice;
+                }
             }
             explorer = await AnalysisDatasetExplorer.CreateAsync(retained, metric, filter, linked.Token);
-            await Task.WhenAll(explorer.LoadPageAsync(scope, saved is null ? AnalysisHierarchySort.Metric : SavedIndexedSort(saved.Sort),
-                cancellation: linked.Token, descending: saved?.SortDescending ?? true), explorer.LoadChartAsync(scope, linked.Token));
+            var initialExplorer = explorer;
+            if (saved is not null && scope != 0)
+            {
+                await explorer.InspectAsync(scope, maximum: 1, cancellation: linked.Token);
+                if (explorer.Inspection?.Row.IsVisible != true)
+                { scope = offset = 0; restoreNotice = (restoreNotice is null ? "" : restoreNotice + " ") + "The saved folder is absent from the matching observations. Showing the captured top level."; }
+            }
+            try { await LoadInitialAsync(); }
+            catch (ArgumentOutOfRangeException) when (saved is not null && offset != 0)
+            { offset = 0; restoreNotice = (restoreNotice is null ? "" : restoreNotice + " ") + "The saved table page is absent. Showing the first page."; await LoadInitialAsync(); }
+            if (saved is not null && offset != 0 && explorer.Page?.Children.Rows.IsEmpty == true)
+            { offset = 0; restoreNotice = (restoreNotice is null ? "" : restoreNotice + " ") + "The saved table page is absent. Showing the first page."; await LoadInitialAsync(); }
             linked.Token.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
-            var view = new IndexedSessionView(this, retained, explorer, filter ?? new(""), admission, saved, restoreNotice);
+            var view = await IndexedSessionView.CreateAsync(this, retained, explorer, filter ?? new(""), admission, saved, restoreNotice, linked.Token);
             try { AddView(view); }
             catch { retained = null; explorer = null; admission = null; view.Dispose(); throw; }
             retained = null; admission = null; var result = explorer; explorer = null; return result;
+            Task LoadInitialAsync() => Task.WhenAll(initialExplorer.LoadPageAsync(scope, saved is null ? AnalysisHierarchySort.Metric : SavedIndexedSort(saved.Sort), offset,
+                cancellation: linked.Token, descending: saved?.SortDescending ?? true), initialExplorer.LoadChartAsync(scope, linked.Token));
         }
         catch (Exception error) when (AnalysisCloseUnconfirmedException.IsPresent(error)) { unconfirmed = error; throw; }
         finally
@@ -131,17 +146,21 @@ public sealed partial class DiskSpaceWindow
         public bool IsComparison => false;
 
         internal IndexedSessionView(DiskSpaceWindow window, AnalysisDatasetLease source, AnalysisDatasetExplorer explorer, AnalysisFilterRequest filter,
-            AnalysisSessionAdmission.Slot admission, AnalysisSavedView? saved = null, string? restoreNotice = null)
+            AnalysisSessionAdmission.Slot admission, AnalysisSavedView? saved = null, string? restoreNotice = null,
+            AnalysisDatasetGrouping? groups = null, GroupPage? groupedPage = null)
         {
             _window = window; _source = source; _explorer = explorer; _rootId = filter.RootId; _admission = admission;
+            _grouping = groups; _groupPage = groupedPage; _groupKey = groupedPage?.Scope?.Definition.Key;
             Spacing = 10; Margin = new Thickness(10);
             _metric.SelectedIndex = (int)explorer.Metric; _query.Text = filter.Text; _case.IsChecked = filter.CaseSensitive; _unknown.IsChecked = filter.UnknownOnly;
             _scope = explorer.Page?.ParentId ?? 0;
+            _offset = groupedPage?.Offset ?? explorer.Page?.Children.Offset ?? 0;
             if (saved is not null)
             {
                 _sort.SelectedIndex = (int)SavedIndexedSort(saved.Sort); _descending.IsChecked = saved.SortDescending;
                 _chartMode.SelectedIndex = saved.Chart == "Sunburst" ? 1 : saved.Chart == "Table" ? 2 : 0;
                 _color.SelectedIndex = (int)saved.ColorDimension;
+                _group.SelectedIndex = (int)saved.Grouping;
             }
             _roots.ItemsSource = new[] { "All captured locations" }.Concat(source.Descriptor.Roots.Select(root => AnalysisNames.Display(root.Label, 120) + " [" + AnalysisNames.Display(root.Id, 64) + "]")).ToArray();
             _roots.SelectedIndex = filter.RootId is null ? 0 : 1 + Array.FindIndex(source.Descriptor.Roots.ToArray(), root => root.Id == filter.RootId);

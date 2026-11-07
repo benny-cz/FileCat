@@ -3,7 +3,7 @@ using FileCat.Core.Analysis;
 
 namespace FileCat.Core.Tests;
 
-public sealed class AnalysisCatalogTests
+public sealed partial class AnalysisCatalogTests
 {
     private static readonly CancellationToken Cancellation = TestContext.Current.CancellationToken;
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary process.");
@@ -70,7 +70,7 @@ public sealed class AnalysisCatalogTests
         string json = Encoding.UTF8.GetString(directory.Files[name]);
         json = fault switch
         {
-            "future" => json.Replace("\"schema\":\"3\"", "\"schema\":\"4\"", StringComparison.Ordinal),
+            "future" => json.Replace("\"schema\":\"4\"", "\"schema\":\"5\"", StringComparison.Ordinal),
             "missing" => json.Replace(",\"sort\":\"ActiveMetric\"", "", StringComparison.Ordinal),
             "unknown" => json.Replace("ActiveMetric", "ArbitraryPath", StringComparison.Ordinal),
             "numeric" => json.Replace("\"sort\":\"ActiveMetric\"", "\"sort\":0", StringComparison.Ordinal),
@@ -84,7 +84,7 @@ public sealed class AnalysisCatalogTests
             "rule-numeric" => json.Replace("\"colorRule\":\"1\"", "\"colorRule\":1", StringComparison.Ordinal),
             "rule-noncanonical" => json.Replace("\"colorRule\":\"1\"", "\"colorRule\":\"01\"", StringComparison.Ordinal),
             "rule-missing" => json.Replace(",\"colorRule\":\"1\"", "", StringComparison.Ordinal),
-            _ => json.Replace("\"schema\":\"3\"", "\"schema\":\"1\"", StringComparison.Ordinal)
+            _ => json.Replace("\"schema\":\"4\"", "\"schema\":\"1\"", StringComparison.Ordinal)
         };
         directory.Files[name] = Encoding.UTF8.GetBytes(json);
         Assert.Throws<InvalidDataException>(() => catalog.Read(Cancellation)); Assert.Equal(json, Encoding.UTF8.GetString(directory.Files[name]));
@@ -94,13 +94,15 @@ public sealed class AnalysisCatalogTests
     [Theory]
     [InlineData("1")]
     [InlineData("2")]
+    [InlineData("3")]
     public void LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(string schema)
     {
         Ordinary(); using var directory = new MemoryDirectory(); using var store = new AnalysisPrivateInventoryStore(directory);
         var catalog = new AnalysisSavedCatalog(store); catalog.SaveNew("old.fcdsa", AnalysisAccountingTests.Golden(), Guid.NewGuid(), AnalysisSavedView.Default, Cancellation);
         string name = directory.Files.Keys.Single(n => n.StartsWith("catalog-", StringComparison.Ordinal));
-        string json = Encoding.UTF8.GetString(directory.Files[name]).Replace("\"schema\":\"3\"", "\"schema\":\"" + schema + "\"", StringComparison.Ordinal)
-            .Replace(",\"color\":\"FileType\",\"colorRule\":\"1\"", "", StringComparison.Ordinal);
+        string json = Encoding.UTF8.GetString(directory.Files[name]).Replace("\"schema\":\"4\"", "\"schema\":\"" + schema + "\"", StringComparison.Ordinal)
+            .Replace(",\"grouping\":\"FolderHierarchy\",\"groupRule\":\"1\"", "", StringComparison.Ordinal);
+        if (schema != "3") json = json.Replace(",\"color\":\"FileType\",\"colorRule\":\"1\"", "", StringComparison.Ordinal);
         if (schema == "1") json = json.Replace(",\"sort\":\"ActiveMetric\",\"sortDescending\":true", "", StringComparison.Ordinal);
         directory.Files[name] = Encoding.UTF8.GetBytes(json);
         using var result = catalog.Read(Cancellation); var entry = Assert.Single(result.Entries);

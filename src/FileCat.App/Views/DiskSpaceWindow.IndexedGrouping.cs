@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using FileCat.App.ViewModels;
+using FileCat.App.Services;
 using FileCat.Core.Analysis;
 
 namespace FileCat.App.Views;
@@ -33,11 +34,40 @@ public sealed partial class DiskSpaceWindow
 
         // Both table and geometry are bounded. The chart always uses the largest first page,
         // independently of table order, with the undisplayed amount represented exactly once.
-        private sealed record GroupPage(AnalysisDatasetGroup? Scope, ulong Offset, ulong Total,
+        internal sealed record GroupPage(AnalysisDatasetGroup? Scope, ulong Offset, ulong Total,
             ImmutableArray<object> Rows, AnalysisGroupedChart Chart, AnalysisTableSort Sort, bool Descending)
         {
             internal ulong NextOffset => checked(Offset + (ulong)Rows.Length);
             internal bool HasMore => NextOffset < Total;
+        }
+        internal static async Task<IndexedSessionView> CreateAsync(DiskSpaceWindow window, AnalysisDatasetLease source,
+            AnalysisDatasetExplorer explorer, AnalysisFilterRequest filter, AnalysisSessionAdmission.Slot admission,
+            AnalysisSavedView? saved, string? notice, CancellationToken cancellation)
+        {
+            AnalysisDatasetGrouping? groups = null;
+            try
+            {
+                GroupPage? page = null;
+                if (saved is not null && saved.Grouping != AnalysisGroupingDimension.FolderHierarchy)
+                {
+                    groups = await source.BuildGroupingAsync(saved.Metric, saved.Grouping, filter, cancellation);
+                    var aggregate = AnalysisSavedCatalog.SplitAggregationScope(saved.Scope);
+                    string? key = aggregate.Scope == AnalysisTree.RootKey ? null : aggregate.Scope; ulong offset = (ulong)aggregate.Skipped;
+                    try { page = await LoadGroupedPageAsync(groups, key, offset, saved.Sort, saved.SortDescending, cancellation); }
+                    catch (KeyNotFoundException)
+                    { key = null; offset = 0; AddNotice("The saved group is absent from these matching observations. Showing all groups."); }
+                    catch (ArgumentOutOfRangeException) when (offset != 0)
+                    { offset = 0; AddNotice("The saved table page is absent. Showing the first page."); }
+                    page ??= await LoadGroupedPageAsync(groups, key, offset, saved.Sort, saved.SortDescending, cancellation);
+                    if (offset != 0 && page.Rows.IsEmpty)
+                    { offset = 0; page = await LoadGroupedPageAsync(groups, key, offset, saved.Sort, saved.SortDescending, cancellation); AddNotice("The saved table page is absent. Showing the first page."); }
+                    if (aggregate.Skipped != 0 && offset != 0) AddNotice("The saved small-item scope is shown as a table page within its captured group.");
+                }
+                cancellation.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(window._closed, window);
+                var result = new IndexedSessionView(window, source, explorer, filter, admission, saved, notice, groups, page); groups = null; return result;
+                void AddNotice(string text) => notice = notice is null ? text : notice + " " + text;
+            }
+            finally { if (groups is not null) await groups.DisposeAsync(); }
         }
         private static async Task<GroupPage> LoadGroupedPageAsync(AnalysisDatasetGrouping groups, string? key, ulong offset,
             AnalysisTableSort sort, bool descending, CancellationToken cancellation)

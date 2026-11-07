@@ -41,12 +41,11 @@ public sealed partial class DiskSpaceViewModel
         if (AnalysisAdmission.Refusal() is { } refusal) throw new InvalidOperationException(refusal);
         AnalysisPrivateInventoryStore.ValidateName(name);
         using var revision = captured.Retain(); var snapshot = revision.Snapshot;
-        // Inventory wire root IDs are positional; node IDs and real node scopes are retained by the codec.
-        string? root = null;
-        for (int i = 0; i < snapshot.Roots.Length; i++) if (snapshot.Roots[i].Id == RootFilter) root = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
-        var view = new AnalysisSavedView(Metric, Chart, Query, root,
-            Selection.Scope == AnalysisTree.RootKey || Selection.Scope.StartsWith("n:", StringComparison.Ordinal) ? Selection.Scope : AnalysisTree.RootKey,
-            CaseSensitive, ShowUnknownFilterResults, Sort, SortDescending) { ColorDimension = ColorDimension };
+        if (Tree?.Snapshot.Identity != snapshot.Identity || _publishedView is not { } shown)
+            throw new InvalidOperationException("The displayed revision has changed. Capture it again before saving its view settings.");
+        // Capture the displayed accounting/filter/grouping, not a newer request still waiting
+        // for publication. Chart/color and navigation already operate on this displayed tree.
+        var view = AnalysisSavedCatalog.ViewForInventory(snapshot, shown with { Chart = Chart, Scope = Selection.Scope, ColorDimension = ColorDimension });
         string path = _services!.Paths.AnalysisSnapshotsDirectory;
         IsSaving = true; SetStatus("Saving the captured inventory revision. The live scan can continue.");
         try
@@ -100,21 +99,47 @@ public sealed partial class DiskSpaceViewModel
             if (entry is not null && entry.Name != name) throw new InvalidDataException("The selected catalog entry does not match the reviewed filename.");
             return entry is null ? store.Load(name, token) : new AnalysisSavedCatalog(store).Load(entry, token);
         }, cancellation);
+        DiskSpaceViewModel? model = null;
         try
         {
-            var model = new DiskSpaceViewModel(_services, inventory);
+            model = new DiskSpaceViewModel(_services, inventory); string? notice = null;
             if (entry is not null)
             {
                 var view = entry.View; AnalysisSavedCatalog.ValidateView(view);
                 model.Metric = view.Metric; model.Chart = view.Chart; model.Query = view.Query; model.ColorDimension = view.ColorDimension;
                 model.CaseSensitive = view.CaseSensitive; model.ShowUnknownFilterResults = view.ShowUnknown;
-                model.Sort = view.Sort; model.SortDescending = view.SortDescending;
+                model.Sort = view.Sort; model.SortDescending = view.SortDescending; model.Grouping = view.Grouping;
                 model.RootFilter = inventory.Snapshot.Roots.Any(r => r.Id == view.Root) ? view.Root : null;
-                if (view.Scope == AnalysisTree.RootKey || inventory.Snapshot.Nodes.Any(n => AnalysisTree.Key(n.Id) == view.Scope)) model.Selection.Navigate(view.Scope);
+                if (view.Root is not null && model.RootFilter is null) notice = "The saved location is absent. Showing all captured locations.";
+                string scope;
+                try
+                {
+                    var aggregate = AnalysisSavedCatalog.SplitAggregationScope(view.Scope); scope = aggregate.Scope;
+                    if (view.Grouping != AnalysisGroupingDimension.FolderHierarchy || scope == AnalysisTree.RootKey ||
+                        inventory.Snapshot.Nodes.Any(n => n.Kind == AnalysisKind.Directory && AnalysisTree.Key(n.Id) == scope)) model.Selection.Navigate(view.Scope);
+                    else AddNotice("The saved folder is absent or unavailable. Showing the captured top level.");
+                }
+                catch (Exception error) when (error is InvalidDataException or OverflowException)
+                { AddNotice("The saved display scope is unavailable. Showing the captured top level."); }
             }
+            await model.RebuildAsync(true, cancellation); cancellation.ThrowIfCancellationRequested();
+            if (model.Tree is null) throw new InvalidDataException("The saved filter cannot be restored. Open the inventory by filename to use default view settings.");
+            if (entry is { } saved)
+            {
+                if (model.Selection.Scope != saved.View.Scope && saved.View.Grouping != AnalysisGroupingDimension.FolderHierarchy)
+                    AddNotice("The saved group is absent from these matching observations. Showing all groups.");
+                var aggregate = AnalysisSavedCatalog.SplitAggregationScope(model.Selection.Scope);
+                if (aggregate.Skipped != 0 && model.Tree.ChildrenOf(model.Selection.Scope).IsEmpty)
+                {
+                    model.Selection.ResetNavigation(aggregate.Scope); await model.RebuildAsync(true, cancellation); cancellation.ThrowIfCancellationRequested();
+                    AddNotice("The saved small-item page is absent. Showing its captured folder or group.");
+                }
+            }
+            if (notice is not null) model.SetStatus(notice);
             return model;
+            void AddNotice(string text) => notice = notice is null ? text : notice + " " + text;
         }
-        catch { inventory.Dispose(); throw; }
+        catch { if (model is null) inventory.Dispose(); else { model.Dispose(); await model.CloseCompletion; } throw; }
     }
 
     internal async Task<T> RunPrivateIoAsync<T>(string path, Func<CancellationToken, T> work, CancellationToken cancellation)

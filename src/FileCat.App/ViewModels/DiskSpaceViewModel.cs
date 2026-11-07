@@ -22,8 +22,9 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     private AnalysisSnapshotLease? _capturedOwner;
     private CancellationTokenSource? _projectionCancel;
     private sealed record PendingProjection(AnalysisTree Tree, AnalysisOrderedRows Order, AnalysisSnapshotLease? Lease, string Scope,
-        AnalysisTableSort Sort, bool Descending, string PublishedScope, string? Focus, int Generation);
+        AnalysisTableSort Sort, bool Descending, string PublishedScope, string? Focus, int Generation, AnalysisSavedView View);
     private PendingProjection? _pending;
+    private AnalysisSavedView? _publishedView;
     private bool _disposed, _building, _rebuildRequested;
     private int _generation, _interaction;
     private readonly List<IAnalysisBackend> _prepared = [];
@@ -111,7 +112,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         _session?.Stop();
     }
     public void SetStatus(string text) { if (_disposed) return; Status = text; Changed?.Invoke(); }
-    public async Task RebuildAsync(bool force = false)
+    public async Task RebuildAsync(bool force = false, CancellationToken cancellation = default)
     {
         if (_disposed || Comparison is not null) return;
         if (_building) { if (force) { _rebuildRequested = true; _projectionCancel?.Cancel(); } return; }
@@ -119,7 +120,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         using var actualWork = _actualWork.Enter();
         _building = true; Dirty = false;
         int generation = ++_generation;
-        _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _projectionCancel = new();
+        _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _projectionCancel = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         var token = _projectionCancel.Token;
         string query = Query, scope = Selection.Scope; var metric = Metric; bool sensitive = CaseSensitive; string? root = RootFilter;
         var sort = Sort; bool descending = SortDescending;
@@ -184,16 +185,18 @@ public sealed partial class DiskSpaceViewModel : IDisposable
             }
             if (_disposed || token.IsCancellationRequested || Sort != sort || SortDescending != descending || Grouping != grouping) { nextLease?.Dispose(); nextOrder?.Dispose(); return; }
             FilterError = null;
+            var view = new AnalysisSavedView(metric, Chart, query, root, built.Value.Scope, sensitive, showUnknown, sort, descending)
+                { Grouping = grouping, ColorDimension = ColorDimension };
             if (_interaction > 0)
             {
                 _pending?.Lease?.Dispose(); _pending?.Order.Dispose(); _pending = new(built.Value.Tree, built.Value.Order, nextLease, scope, sort, descending,
-                    built.Value.Scope, HierarchyFocus(built.Value.Tree, hierarchyTarget), generation); nextLease = null; nextOrder = null;
+                    built.Value.Scope, HierarchyFocus(built.Value.Tree, hierarchyTarget), generation, view); nextLease = null; nextOrder = null;
                 SetStatus("New results available. The current interaction keeps its original targets.");
             }
             else
             {
                 var publishedLease = nextLease; nextLease = null; nextOrder = null;
-                Publish(built.Value.Tree, built.Value.Order, publishedLease, built.Value.Scope, HierarchyFocus(built.Value.Tree, hierarchyTarget));
+                Publish(built.Value.Tree, built.Value.Order, publishedLease, built.Value.Scope, HierarchyFocus(built.Value.Tree, hierarchyTarget), view);
             }
         }
         catch (OperationCanceledException) { nextLease?.Dispose(); nextOrder?.Dispose(); }
@@ -205,10 +208,10 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         finally
         {
             _building = false;
-            if (_rebuildRequested && !_disposed) { _rebuildRequested = false; await RebuildAsync(true); }
+            if (_rebuildRequested && !_disposed) { _rebuildRequested = false; await RebuildAsync(true, cancellation); }
         }
     }
-    private void Publish(AnalysisTree tree, AnalysisOrderedRows order, AnalysisSnapshotLease? lease, string scope, string? focus)
+    private void Publish(AnalysisTree tree, AnalysisOrderedRows order, AnalysisSnapshotLease? lease, string scope, string? focus, AnalysisSavedView view)
     {
         if (_session is not null)
             AcquisitionNotice = (_acquisition?.MemoryPreparationNotice ?? "This analysis uses bounded memory. It stops with partial results if the memory limit is reached.") +
@@ -222,6 +225,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         }
         RebindTableRangeOrder(tree, order);
         var old = _lease; var oldOrder = _orderedRows; _lease = lease; _orderedRows = order; Tree = tree; Rows = order.Rows; _observation = tree.Snapshot;
+        _publishedView = view;
         try { Changed?.Invoke(); } finally { old?.Dispose(); oldOrder?.Dispose(); }
     }
     public void Interaction(bool start)
@@ -231,7 +235,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         {
             _pending = null;
             if (pending.Generation == _generation && pending.Scope == Selection.Scope && pending.Sort == Sort && pending.Descending == SortDescending && pending.Tree.GroupingDimension == Grouping)
-                Publish(pending.Tree, pending.Order, pending.Lease, pending.PublishedScope, pending.Focus);
+                Publish(pending.Tree, pending.Order, pending.Lease, pending.PublishedScope, pending.Focus, pending.View);
             else { pending.Lease?.Dispose(); pending.Order.Dispose(); _ = RebuildAsync(true); }
         }
     }
@@ -276,6 +280,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
             }
             commit();
             var previous = _orderedRows; _orderedRows = order; Rows = order.Rows; order = null;
+            if (_publishedView is { } shown) _publishedView = shown with { Sort = sort, SortDescending = descending };
             try { SetStatus("Viewing captured location: " + AnalysisNames.Display(tree.NameOf(scope), 120) + "."); } finally { previous?.Dispose(); }
         }
         catch (OperationCanceledException) { }
@@ -389,7 +394,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         Comparison?.Dispose(); Comparison = null; _comparisonPrevious?.Dispose(); _comparisonPrevious = null; _comparisonCurrent?.Dispose(); _comparisonCurrent = null;
         _rowOrderCancel?.Cancel(); _orderedRows?.Dispose(); _pending?.Order.Dispose();
         _rangeBaseline = _rangePublishedMarks = null; _rangeOrderOwner = null; _tableAnchor = null;
-        Tree = null; Rows = []; _observation = null; _pending = null; Changed = null;
+        Tree = null; Rows = []; _observation = null; _pending = null; _publishedView = null; Changed = null;
         CloseCompletion = CloseAcquisitionAsync(actualWork);
     }
     private sealed class LatestProgress(IUiDispatcher ui, Action<AnalysisProgress> consume) : IProgress<AnalysisProgress>

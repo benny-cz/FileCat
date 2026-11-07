@@ -1,0 +1,452 @@
+{
+  "purpose": "Saved grouping schema4 and prepared offline memory/indexed restoration",
+  "observedUtc": "2026-11-07T05:59:30.791329+00:00",
+  "gitBase": "038e3de02b2dcc4211b5cc23cba1059dbfcc6f39",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Persistence.cs",
+      "sha256": "cada5e3339bea2a20e2ebc4d356c8876fdb41ba219593aea1500b1ea97435ee8"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "6abe7e63be5a5573280dd29b13b56c5982d6fc3d38cdc5d54f9c8ef336bed738"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+      "sha256": "012e0a61d9c0031b4248830e7ef877da485f77b7fdf8e1abd9ae73095984f44a"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedGrouping.cs",
+      "sha256": "3117afa3e2770df24fe92c120cda89176e1582f612fae7b4e91eec9cdb1a1852"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedInventory.cs",
+      "sha256": "327fe9cca5550af9c8ffa601086e16e97b31efeae6c843bc121ce68c82c6df1c"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.Grouping.cs",
+      "sha256": "e84cc89c3957953ec9e83ce0d00dc411f72ae7d27aea92f9d4ce801516bf02f3"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.cs",
+      "sha256": "b104cef2707421423866e9239cf946edc67ac5f863af5c67d1e1d3c653c88f4d"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisCatalogTests.Grouping.cs",
+      "sha256": "d63128a59abca7148688c6ce96ede9f181930dbf37db7683187ff74e0eadd696"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisCatalogTests.cs",
+      "sha256": "74331c672e732468ccc9d86dc8e958e10896b565de49c3b6c655903637f2eb0e"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.SavedGrouping.cs",
+      "sha256": "2c83be996231111b97c7623e07f007f37f57c7d180c4bae47bf483fccfa5c133"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r665.txt",
+      "sha256": "e41f0ef0c051b8c839dbaca94dc8c81041090b54eb898ebb42b4908b347fd6df"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r666-core-r666.xml",
+      "sha256": "3ceb8093d4aba359e1269f62824683e1c97bbba85db1a2a9393901017ee4f53e"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r666-core-r666.log",
+      "sha256": "e6f79abd90a24ee99a24ee3fb0944bc45d36ad28e155b036e39f2eaf15e7e620"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r666-render-r666.xml",
+      "sha256": "08f8472b5eec37059d540522505baf410c017489fc1b9b25aa053b62d7da9a78"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r666-render-r666.log",
+      "sha256": "db7cfcb614efc2d7e8b9930ba3669f424764b4896c972677652f73ccc0b1ab0a"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r666-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r666-post.json",
+      "sha256": "f3aa3b36c67a26888adb08f1d8f393a4aebb2df5eaa859e3eac94f8439ea4548"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r666-core-r666.xml",
+      "sha256": "458469eb340870cfbddaa5810a14ac6f33ad8f9cfcb7337a4169047970e2dab7"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r666-core-r666.log",
+      "sha256": "02286282406a0646d566e22b50035c16969ff034e984d60f49b01f1dfb68eb88"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r666-render-r666.xml",
+      "sha256": "32e2d469b155addcbef9df67c4411525c3456bda29bd553915228c211360b3e4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r666-render-r666.log",
+      "sha256": "5c109532b7bf095b74f1354cdcce13210858b28ef7b7439176353dacdec455a8"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r666-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r666-post.json",
+      "sha256": "7c748d171a6046b48da3a496884b1b8b34482ebf54e45df7d134048125a0d18b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r666-core-r666.xml",
+      "sha256": "821f9cda3cc9bf675eb493542d06a05d51c4bdb04412024cb4ca575ae2dbaa31"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r666-core-r666.log",
+      "sha256": "e253cba1f285b8b7fe0d9aa6d225dac772399db22765b1d4cfba1db153ce1ef6"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r666-native-r666.xml",
+      "sha256": "568dbe5a12d05b8a9fed479f0fc91e805381b361301deefea807d8c12f33294f"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r666-native-r666.log",
+      "sha256": "2d7d682c9d45827eb352d5c3762ff99ef2369ae3babda6b94286c91e5fa39fc8"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r666-render-r666.xml",
+      "sha256": "b91ba9fb0ea97e8b21a3439965cac55acb331ed217cae293b386e26260f12cc6"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r666-render-r666.log",
+      "sha256": "b02300f29435396738fdfaa97419801f174be215a148947121da35d06b54ff4c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r666-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r666-post.json",
+      "sha256": "4da359ac88d5e4005859905af4be9950062d0b0ac2709eb2cdbde558d26aff2d"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r666.sh",
+      "sha256": "7365a39cf755df3e37a347ac3e690e0bde2138b3b3be737bb4259060e37dd0f0"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r666.sh",
+      "sha256": "9fa0a21d51dc3af66ffd343eccb43d8fd2379837a3332ba77b2dbb0a8e2b8f9b"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r666.ps1",
+      "sha256": "56f36546b3397b132304a5dcc3c02abc06468b07554aeb62076151c071be1e2e"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r666.tgz",
+      "sha256": "dd4bd2d9f408fd5902c36265f04b47d0aa47c9d192de042b254a8ddcb7ae2144"
+    },
+    {
+      "name": "dsa-batch-linux-r666.tgz",
+      "sha256": "351ad7e0c36eda2d3b4448075513c90477a343bd44afd12ce75f91a0022cba6c"
+    },
+    {
+      "name": "dsa-batch-windows-r666.tgz",
+      "sha256": "9c6f387f93eae2196895e34877d19d713c73912e2e00b47f40ca304086629cb6"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r666": "c3eafd7d610c3c488683dd9318eb160c372e2706146428eefcbc8f3e4dd36088",
+    "native-r666": "c3eafd7d610c3c488683dd9318eb160c372e2706146428eefcbc8f3e4dd36088",
+    "render-r667-mac": "c3eafd7d610c3c488683dd9318eb160c372e2706146428eefcbc8f3e4dd36088",
+    "render-r667-linux": "c3eafd7d610c3c488683dd9318eb160c372e2706146428eefcbc8f3e4dd36088",
+    "render-r667-windows": "c3eafd7d610c3c488683dd9318eb160c372e2706146428eefcbc8f3e4dd36088"
+  },
+  "productionAppHashes": {
+    "render-r667-mac": "3b8c95f3b9b1fa54d06935754e01da6d61cb136ee41e779d4a40d94abdbbbca9",
+    "render-r667-linux": "3b8c95f3b9b1fa54d06935754e01da6d61cb136ee41e779d4a40d94abdbbbca9",
+    "render-r667-windows": "3b8c95f3b9b1fa54d06935754e01da6d61cb136ee41e779d4a40d94abdbbbca9"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r666": "527a74f3315bc15380ad6002c93cee63e07b43a64064f2fe833d858ef750d115",
+    "render-r667-mac": "527a74f3315bc15380ad6002c93cee63e07b43a64064f2fe833d858ef750d115",
+    "render-r667-linux": "527a74f3315bc15380ad6002c93cee63e07b43a64064f2fe833d858ef750d115",
+    "render-r667-windows": "527a74f3315bc15380ad6002c93cee63e07b43a64064f2fe833d858ef750d115"
+  },
+  "matrix": {
+    "mac-batch-r666-core-r666.xml": {
+      "total": "907",
+      "passed": "903",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "23.296"
+    },
+    "mac-batch-r666-render-r666.xml": {
+      "total": "150",
+      "passed": "150",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "48.394"
+    },
+    "ubuntu-batch-r666-core-r666.xml": {
+      "total": "907",
+      "passed": "903",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "56.590"
+    },
+    "ubuntu-batch-r666-render-r666.xml": {
+      "total": "150",
+      "passed": "150",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "63.863"
+    },
+    "windows-batch-r666-core-r666.xml": {
+      "total": "925",
+      "passed": "877",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "21.757"
+    },
+    "windows-batch-r666-native-r666.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "38.356"
+    },
+    "windows-batch-r666-render-r666.xml": {
+      "total": "150",
+      "passed": "149",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "66.167"
+    }
+  },
+  "targetedControls": {
+    "mac": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"unknown\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"numeric\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"numeric-string\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"duplicate\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"missing\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"future-rule\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"numeric-rule\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"noncanonical-rule\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"missing-rule\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"node-scope\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"uppercase-scope\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"bad-other\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"overflow-other\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.CapturedLocationScopeAndIndependentRootFilterRemapOnceEvenWhenSourceIdsAreSwapped(aggregate: False)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.CapturedLocationScopeAndIndependentRootFilterRemapOnceEvenWhenSourceIdsAreSwapped(aggregate: True)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.LegacyColorStateRetainsItsColorButDefaultsGroupingWithoutAnyRewrite",
+        "FileCat.Core.Tests.AnalysisCatalogTests.DeepRuntimeAggregationNormalizesBeforeSavedScopeLimitsAndRemapsCapturedLocation",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: FileType, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: FileType, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: FileType, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: FileType, metric: Files)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: Extension, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: Extension, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: Extension, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: Extension, metric: Files)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: ModifiedAge, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: ModifiedAge, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: ModifiedAge, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: ModifiedAge, metric: Files)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: CapturedLocation, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: CapturedLocation, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: CapturedLocation, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: CapturedLocation, metric: Files)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(schema: \\\"3\\\")"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMemoryRestoresScopeAndControlsAtomicallyWithoutMarksOrBasket(dimension: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMemoryRestoresScopeAndControlsAtomicallyWithoutMarksOrBasket(dimension: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMemoryRestoresScopeAndControlsAtomicallyWithoutMarksOrBasket(dimension: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMemoryRestoresScopeAndControlsAtomicallyWithoutMarksOrBasket(dimension: CapturedLocation)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedPreparesItsGroupBeforeTheWindowIsPublished(dimension: FileType, descending: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedPreparesItsGroupBeforeTheWindowIsPublished(dimension: Extension, descending: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedPreparesItsGroupBeforeTheWindowIsPublished(dimension: ModifiedAge, descending: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedPreparesItsGroupBeforeTheWindowIsPublished(dimension: CapturedLocation, descending: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingOtherScopePreservesItsCapturedLocationAndCurrentSubset",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedOtherScopeRestoresABoundedTablePageAndQualifiesItsChartScope",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMissingScopeExplainsItsFallbackForBothStoragePaths(indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMissingScopeExplainsItsFallbackForBothStoragePaths(indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingCapturesThePublishedMetricFilterAndRuleWhileANewerRequestIsPending",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedMissingPageReturnsToFirstPageForFolderAndGroup(grouped: False, offset: 2)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedMissingPageReturnsToFirstPageForFolderAndGroup(grouped: False, offset: 3)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedMissingPageReturnsToFirstPageForFolderAndGroup(grouped: True, offset: 2)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedMissingPageReturnsToFirstPageForFolderAndGroup(grouped: True, offset: 3)"
+      ]
+    },
+    "ubuntu": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisCatalogTests.LegacyColorStateRetainsItsColorButDefaultsGroupingWithoutAnyRewrite",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"unknown\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"numeric\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"numeric-string\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"duplicate\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"missing\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"future-rule\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"numeric-rule\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"noncanonical-rule\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"missing-rule\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"node-scope\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"uppercase-scope\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"bad-other\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"overflow-other\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.CapturedLocationScopeAndIndependentRootFilterRemapOnceEvenWhenSourceIdsAreSwapped(aggregate: False)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.CapturedLocationScopeAndIndependentRootFilterRemapOnceEvenWhenSourceIdsAreSwapped(aggregate: True)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: FileType, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: FileType, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: FileType, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: FileType, metric: Files)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: Extension, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: Extension, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: Extension, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: Extension, metric: Files)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: ModifiedAge, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: ModifiedAge, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: ModifiedAge, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: ModifiedAge, metric: Files)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: CapturedLocation, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: CapturedLocation, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: CapturedLocation, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: CapturedLocation, metric: Files)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(schema: \\\"3\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.DeepRuntimeAggregationNormalizesBeforeSavedScopeLimitsAndRemapsCapturedLocation"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingCapturesThePublishedMetricFilterAndRuleWhileANewerRequestIsPending",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedPreparesItsGroupBeforeTheWindowIsPublished(dimension: FileType, descending: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedPreparesItsGroupBeforeTheWindowIsPublished(dimension: Extension, descending: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedPreparesItsGroupBeforeTheWindowIsPublished(dimension: ModifiedAge, descending: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedPreparesItsGroupBeforeTheWindowIsPublished(dimension: CapturedLocation, descending: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingOtherScopePreservesItsCapturedLocationAndCurrentSubset",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedOtherScopeRestoresABoundedTablePageAndQualifiesItsChartScope",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMissingScopeExplainsItsFallbackForBothStoragePaths(indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMissingScopeExplainsItsFallbackForBothStoragePaths(indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedMissingPageReturnsToFirstPageForFolderAndGroup(grouped: False, offset: 2)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedMissingPageReturnsToFirstPageForFolderAndGroup(grouped: False, offset: 3)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedMissingPageReturnsToFirstPageForFolderAndGroup(grouped: True, offset: 2)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedMissingPageReturnsToFirstPageForFolderAndGroup(grouped: True, offset: 3)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMemoryRestoresScopeAndControlsAtomicallyWithoutMarksOrBasket(dimension: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMemoryRestoresScopeAndControlsAtomicallyWithoutMarksOrBasket(dimension: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMemoryRestoresScopeAndControlsAtomicallyWithoutMarksOrBasket(dimension: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMemoryRestoresScopeAndControlsAtomicallyWithoutMarksOrBasket(dimension: CapturedLocation)"
+      ]
+    },
+    "windows": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"unknown\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"numeric\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"numeric-string\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"duplicate\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"missing\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"future-rule\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"numeric-rule\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"noncanonical-rule\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"missing-rule\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"node-scope\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"uppercase-scope\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"bad-other\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingPoisonIsRejectedWithoutRewritingCatalogOrInventory(fault: \\\"overflow-other\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.LegacyColorStateRetainsItsColorButDefaultsGroupingWithoutAnyRewrite",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: FileType, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: FileType, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: FileType, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: FileType, metric: Files)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: Extension, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: Extension, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: Extension, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: Extension, metric: Files)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: ModifiedAge, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: ModifiedAge, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: ModifiedAge, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: ModifiedAge, metric: Files)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: CapturedLocation, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: CapturedLocation, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: CapturedLocation, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.SavedGroupingRulesAndWireScopesRoundTripForEveryMetricWithoutSourceAuthority(dimension: CapturedLocation, metric: Files)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.CapturedLocationScopeAndIndependentRootFilterRemapOnceEvenWhenSourceIdsAreSwapped(aggregate: False)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.CapturedLocationScopeAndIndependentRootFilterRemapOnceEvenWhenSourceIdsAreSwapped(aggregate: True)",
+        "FileCat.Core.Tests.AnalysisCatalogTests.DeepRuntimeAggregationNormalizesBeforeSavedScopeLimitsAndRemapsCapturedLocation",
+        "FileCat.Core.Tests.AnalysisCatalogTests.LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(schema: \\\"3\\\")"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMissingScopeExplainsItsFallbackForBothStoragePaths(indexed: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMissingScopeExplainsItsFallbackForBothStoragePaths(indexed: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedMissingPageReturnsToFirstPageForFolderAndGroup(grouped: False, offset: 2)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedMissingPageReturnsToFirstPageForFolderAndGroup(grouped: False, offset: 3)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedMissingPageReturnsToFirstPageForFolderAndGroup(grouped: True, offset: 2)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedMissingPageReturnsToFirstPageForFolderAndGroup(grouped: True, offset: 3)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMemoryRestoresScopeAndControlsAtomicallyWithoutMarksOrBasket(dimension: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMemoryRestoresScopeAndControlsAtomicallyWithoutMarksOrBasket(dimension: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMemoryRestoresScopeAndControlsAtomicallyWithoutMarksOrBasket(dimension: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingMemoryRestoresScopeAndControlsAtomicallyWithoutMarksOrBasket(dimension: CapturedLocation)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedPreparesItsGroupBeforeTheWindowIsPublished(dimension: FileType, descending: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedPreparesItsGroupBeforeTheWindowIsPublished(dimension: Extension, descending: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedPreparesItsGroupBeforeTheWindowIsPublished(dimension: ModifiedAge, descending: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedPreparesItsGroupBeforeTheWindowIsPublished(dimension: CapturedLocation, descending: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingCapturesThePublishedMetricFilterAndRuleWhileANewerRequestIsPending",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingIndexedOtherScopeRestoresABoundedTablePageAndQualifiesItsChartScope",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.SavedGroupingOtherScopePreservesItsCapturedLocationAndCurrentSubset"
+      ]
+    }
+  },
+  "newCoreControls": 34,
+  "newRenderingControls": 17,
+  "excludedAttempts": [
+    "r657 missing import and r658 enum fixture typo: host compilation failures only",
+    "r659/r660: never deployed; superseded by runtime aggregation normalization before saved scope validation",
+    "r662/r663: never deployed; superseded by exact-end table offset fallback and four regression cases"
+  ],
+  "finalBuild": "build-r665.txt: full solution zero warnings/errors",
+  "testScope": "Actual guest runtimes, strict data-only catalog controls, native private inventory storage and headless window/control restoration; full existing applicable regression suites. Physical desktop and full resource/1M/10M qualification remain pending.",
+  "batchWorkflow": "One immutable bundle per platform; sequential applicable suites, integrity/per-phase occupancy gates and one final evidence collection per completed machine.",
+  "ownedProcessExitEvidence": "All original runners terminal; FINISHED exit=0 states and authoritative final inventories contain no owned instances. Foreign testers were left untouched. No host app/input tests.",
+  "foreignProcessesObserved": {
+    "mac": [],
+    "ubuntu": [],
+    "windows": []
+  },
+  "qualification": {
+    "namedEntrySchema4GroupingStateImplemented": true,
+    "schemas1Through3DefaultsAndNoRewriteControlsPassedAllThree": true,
+    "capturedLocationWireScopeRemappingPassedAllThree": true,
+    "displayedMetricFilterGroupingCapturedForSave": true,
+    "memorySavedGroupingPreparedBeforePublication": true,
+    "indexedSavedGroupingPreparedBeforePublication": true,
+    "memoryOtherScopeSubsetRestored": true,
+    "indexedOtherScopeUsesExplicitParentChartAndTablePage": true,
+    "indexedOtherExactSubsetParityQualified": false,
+    "missingGroupAndTablePageFallbackControlsPassedAllThree": true,
+    "newControlsPassedAllThree": true,
+    "indexedSaveUiImplemented": false,
+    "indexedGroupedMarksBasketImplemented": false,
+    "fullGroupedHiddenCountQualification": false,
+    "ownerComparisonVolumeGroupingImplemented": false,
+    "nativeDesktopGroupingQualified": false,
+    "fullResourceGateQualified": false,
+    "fullMillionTenMillionGroupingQualificationComplete": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}
