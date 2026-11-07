@@ -11,6 +11,14 @@ FileCat's changes, all for release issue I14: only code under OSI-approved licen
 derived from UnRAR. FileCat uses this library for 7z archives and bzip2, xz and zstd streams only, so
 everything else is left out.
 
+- Deflate verification follow-up, 7 November 2026: both inflater copy paths check actual produced history and
+  explicit preset dictionaries before backward copies. History resets retain the correct cumulative-counter
+  offset, including inflate synchronization. Pooled windows are cleared on acquisition and before release.
+  The new stream-only verifier uses the existing codec's final-block and consumed-input status. Existing
+  sync/async Deflate disposal now always finalizes and releases the codec, while the captive stream's existing
+  leave-open policy controls only that stream's lifetime. Disposing a compressor without writes emits a complete
+  empty stream. DotNetZip/Ms-PL/JCraft notices remain; no new runtime codec source or dependency was imported.
+
 - Strict PPMd/BCJ2 verification follow-up, 7 November 2026: opt-in known-size PPMd7 and BCJ2 readers validate
   real range input, prefixes, terminal range state, exact output and borrowed-stream ownership. PPMd's known-size
   path does not decode a speculative end symbol. Existing tolerant browsing defaults remain. The BSD shared PPMd

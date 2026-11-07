@@ -36,7 +36,14 @@ catalog still remain open; no production profile is enabled.
 The [PPMd7/BCJ2 strict verification components](SEVENZIP_RANGE_VERIFICATION.md) add exact known-size range endings,
 all four BCJ2 branches, shared consumed-byte accounting and owned PPMd model cleanup. The final 102 new cases and native
 SDK comparisons cover positive and malformed streams on all three platforms, with LZMA regression repeated after
-the shared input change. Raw-deflate verification and complete member graph/catalog integration remain open.
+the shared input change. Complete member graph/catalog integration remains open.
+
+The [raw-Deflate verification component](SEVENZIP_DEFLATE_VERIFICATION.md) now checks complete final blocks,
+exact sizes/consumption and real history. It fixes backward copies before produced history, pooled-window cleanup
+and the separate vendored encoder's sync/async leave-open finalization. All 75 new cases pass within the 2,849-case
+platform matrices; independent native zlib agrees on 265 vectors on every platform. Initial fixture/assertion and
+Unix comparison-launch failures are retained separately. Complete graphs/catalog and shared RAR/7z adapters remain
+the immediate integration work; no new profile is enabled.
 
 The [RAR5 preservation assembly component](RAR5_PRESERVATION.md) now represents exact optional semantic metadata
 and archive/header features, adds per-member packed SHA-256 witnesses to the complete logical catalog, and assembles

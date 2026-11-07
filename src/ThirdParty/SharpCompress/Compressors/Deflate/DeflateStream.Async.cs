@@ -16,10 +16,7 @@ public partial class DeflateStream
     {
         if (!_disposed)
         {
-            if (!_leaveOpen)
-            {
-                await _baseStream.DisposeAsync().ConfigureAwait(false);
-            }
+            await _baseStream.DisposeAsync().ConfigureAwait(false);
             _disposed = true;
         }
 #if !LEGACY_DOTNET || NETSTANDARD2_1

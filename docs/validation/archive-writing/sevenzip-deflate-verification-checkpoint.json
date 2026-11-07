@@ -1,0 +1,316 @@
+{
+  "date": "2026-11-07",
+  "source_packet": {
+    "files": 4168,
+    "bytes": 30343699,
+    "sha256": "648d2e89217bb32ed976ad8f298ee3bbb7ccf9f81ceb39e8ea7cbd997445e9e3"
+  },
+  "new_profile_registered": false,
+  "strict_deflate_component_only": true,
+  "production_backend_qualified": false,
+  "complete_logical_catalog_and_publication_qualified": false,
+  "new_cases": 75,
+  "host_scope": "Edits, builds and static frozen-artifact verification only. Application tests and native zlib oracles ran on the authorized Mac/VMs.",
+  "initial_failure_and_correction": "The first 65-case component run found that the legacy fixture encoder skipped finalization with leaveOpen. Forty-eight new cases failed on each platform. Direct-codec assertions also expected a return code where this codec throws ZlibException. The encoder was corrected, assertions fixed, and ten lifetime/empty-finalization cases added. The full corrected suite was repeated.",
+  "platforms": {
+    "mac": {
+      "archive": "mac-deflate-ending-evidence-v2.tar.gz",
+      "bytes": 63300088,
+      "sha256": "be1c27f6cc71260def0e9afff39b6d48fc64136826921728d24d1538e69c33bf",
+      "manifest_rows": 2355,
+      "combined_cases": {
+        "Passed": 2794,
+        "NotExecuted": 55
+      },
+      "new_deflate_cases": {
+        "Passed": 75
+      },
+      "native_zlib": {
+        "python": "3.13.3 (v3.13.3:6280bb54784, Apr  8 2025, 10:47:54) [Clang 15.0.0 (clang-1500.3.9.4)]",
+        "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+        "zlib_compiled_version": "1.2.12",
+        "zlib_runtime_version": "1.2.12",
+        "vectors": 265,
+        "accepted": 55,
+        "refused": 210,
+        "preset_dictionary_verified": true,
+        "preset_sha256": "a52c67324aa5caf312ee7196829bd8762244d6ce21c9e587445e54e36ac0823d"
+      },
+      "all_vector_packets_identical_on_all_three_platforms": true,
+      "pre_fix_control": {
+        "baseline_component_source_commit": "ea911bcf",
+        "baseline_packet_sha256": "6a8adc67f6fa1c56cfa38f70d05255f7e80327e335fa9f8aa779a7a47069e6e3",
+        "replaced_only": [
+          {
+            "path": "binaries/FileCat.SharpCompress.dll",
+            "bytes": 1115648,
+            "sha256": "55ecde4dc933fe11c59c828aabc3ecc64f8fc42786ba88b422f1a8e427504754"
+          },
+          {
+            "path": "binaries/FileCat.SharpCompress.pdb",
+            "bytes": 438416,
+            "sha256": "9ac5d2aad27abe56c7d1c99589bd5988363ab6e55687bad4e121b86e22558bf1"
+          }
+        ],
+        "counts": {
+          "Failed": 4
+        },
+        "all_expected": true,
+        "current_source_passed_separately": true,
+        "command": [
+          "/Users/benny/.dotnet/dotnet",
+          "vstest",
+          "/Users/benny/FileCatValidation/archive-writing-42829297/deflate-ending-v2/baseline-control/bin/FileCat.Core.Tests.dll",
+          "/TestCaseFilter:FullyQualifiedName~StrictDeflateStreamTests.The_legacy_inflater_never_emits_seeded_pool_bytes_for_missing_history|FullyQualifiedName~StrictDeflateStreamTests.Window_storage_is_cleared_before_returning_it_to_its_owner|FullyQualifiedName~StrictDeflateStreamTests.A_history_reset_does_not_treat_a_previous_output_counter_as_new_history",
+          "/Logger:trx;LogFileName=pre-fix.trx",
+          "/ResultsDirectory:/Users/benny/FileCatValidation/archive-writing-42829297/deflate-ending-v2/baseline-control/results"
+        ]
+      },
+      "current_changed_csharp_inputs_matched": [
+        "src/ThirdParty/SharpCompress/Compressors/Deflate/Inflate.cs",
+        "src/ThirdParty/SharpCompress/Compressors/Deflate/DeflateStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/Deflate/DeflateStream.Async.cs",
+        "src/ThirdParty/SharpCompress/Compressors/Deflate/ZlibBaseStream.cs",
+        "src/FileCat.Archives/Writing/StrictDeflateStream.cs",
+        "tests/FileCat.Core.Tests/StrictDeflateStreamTests.cs"
+      ],
+      "compiler_source_documents": 1382,
+      "compiler_source_bytes": 13108039,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.12",
+        "runtime_directory": "/Users/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.12/",
+        "os": "macOS 27.0.1",
+        "architecture": "Arm64"
+      },
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "initial_failed_phase": {
+        "archive": "mac-deflate-initial-evidence-v1.tar.gz",
+        "bytes": 36126250,
+        "sha256": "90630a88c99086d1d1902b8b352eb4a7e802123413892363e9001ba484cf01ad",
+        "manifest_rows": 335,
+        "counts": {
+          "Passed": 2736,
+          "NotExecuted": 55,
+          "Failed": 48
+        },
+        "production_backend_qualified": false,
+        "source_packet_sha256": "8ee58a972bb603f83abf90f44a56c1d3e6b4e913be0d0f74a9700ed7934b02bc",
+        "scope": "Initial failed application run; no independent controls or compiler-source qualification completed."
+      }
+    },
+    "ubuntu": {
+      "archive": "ubuntu-deflate-ending-evidence-v2.tar.gz",
+      "bytes": 63324537,
+      "sha256": "ccbcdf2c91b49a31fb45ead4a200b0daf9935a5b2dcfc1474fc295af1d1f4341",
+      "manifest_rows": 2355,
+      "combined_cases": {
+        "Passed": 2807,
+        "NotExecuted": 42
+      },
+      "new_deflate_cases": {
+        "Passed": 75
+      },
+      "native_zlib": {
+        "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+        "platform": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+        "zlib_compiled_version": "1.3",
+        "zlib_runtime_version": "1.3",
+        "vectors": 265,
+        "accepted": 55,
+        "refused": 210,
+        "preset_dictionary_verified": true,
+        "preset_sha256": "a52c67324aa5caf312ee7196829bd8762244d6ce21c9e587445e54e36ac0823d"
+      },
+      "all_vector_packets_identical_on_all_three_platforms": true,
+      "pre_fix_control": {
+        "baseline_component_source_commit": "ea911bcf",
+        "baseline_packet_sha256": "d0866b8636b6e23fe92e06e9219fdc78b5ec5d8784e06db16c508104dac508e8",
+        "replaced_only": [
+          {
+            "path": "binaries/FileCat.SharpCompress.dll",
+            "bytes": 1115648,
+            "sha256": "c71b40edef94e2349776d54f816dcefa42a5d412a2993386cb7628fc2c97bc83"
+          },
+          {
+            "path": "binaries/FileCat.SharpCompress.pdb",
+            "bytes": 438416,
+            "sha256": "cad422b85eaa5d65792564560a3fee625ecc83187eb94211ba5d1ce7744c4ab7"
+          }
+        ],
+        "counts": {
+          "Failed": 4
+        },
+        "all_expected": true,
+        "current_source_passed_separately": true,
+        "command": [
+          "/home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet",
+          "vstest",
+          "/home/benny/FileCatValidation/archive-writing-42829297/deflate-ending-v2/baseline-control/bin/FileCat.Core.Tests.dll",
+          "/TestCaseFilter:FullyQualifiedName~StrictDeflateStreamTests.The_legacy_inflater_never_emits_seeded_pool_bytes_for_missing_history|FullyQualifiedName~StrictDeflateStreamTests.Window_storage_is_cleared_before_returning_it_to_its_owner|FullyQualifiedName~StrictDeflateStreamTests.A_history_reset_does_not_treat_a_previous_output_counter_as_new_history",
+          "/Logger:trx;LogFileName=pre-fix.trx",
+          "/ResultsDirectory:/home/benny/FileCatValidation/archive-writing-42829297/deflate-ending-v2/baseline-control/results"
+        ]
+      },
+      "current_changed_csharp_inputs_matched": [
+        "src/ThirdParty/SharpCompress/Compressors/Deflate/Inflate.cs",
+        "src/ThirdParty/SharpCompress/Compressors/Deflate/DeflateStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/Deflate/DeflateStream.Async.cs",
+        "src/ThirdParty/SharpCompress/Compressors/Deflate/ZlibBaseStream.cs",
+        "src/FileCat.Archives/Writing/StrictDeflateStream.cs",
+        "tests/FileCat.Core.Tests/StrictDeflateStreamTests.cs"
+      ],
+      "compiler_source_documents": 1382,
+      "compiler_source_bytes": 13108039,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.14",
+        "runtime_directory": "/home/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.14/",
+        "os": "Ubuntu 24.04.5 LTS",
+        "architecture": "X64"
+      },
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "initial_failed_phase": {
+        "archive": "ubuntu-deflate-initial-evidence-v1.tar.gz",
+        "bytes": 36152997,
+        "sha256": "8dfa50dfb6a6faf4738c1d406ac05e3ddfbd16e760adbb883a74c5c71cb6312f",
+        "manifest_rows": 335,
+        "counts": {
+          "Passed": 2749,
+          "Failed": 48,
+          "NotExecuted": 42
+        },
+        "production_backend_qualified": false,
+        "source_packet_sha256": "8ee58a972bb603f83abf90f44a56c1d3e6b4e913be0d0f74a9700ed7934b02bc",
+        "scope": "Initial failed application run; no independent controls or compiler-source qualification completed."
+      }
+    },
+    "windows": {
+      "archive": "windows-deflate-ending-evidence-v2.tar.gz",
+      "bytes": 51658142,
+      "sha256": "d252a0a57db2588c308cee41abd607f55a014eabd87b4c0386e1155c49cdf095",
+      "manifest_rows": 2223,
+      "combined_cases": {
+        "Passed": 2629,
+        "NotExecuted": 220
+      },
+      "new_deflate_cases": {
+        "Passed": 75
+      },
+      "native_zlib": {
+        "python": "3.13.17 (tags/v3.13.17:64e080d, Oct 21 2026, 14:08:53) [MSC v.1944 64 bit (AMD64)]",
+        "platform": "Windows-11-10.0.26340-SP0",
+        "zlib_compiled_version": "1.3.1",
+        "zlib_runtime_version": "1.3.1",
+        "vectors": 265,
+        "accepted": 55,
+        "refused": 210,
+        "preset_dictionary_verified": true,
+        "preset_sha256": "a52c67324aa5caf312ee7196829bd8762244d6ce21c9e587445e54e36ac0823d"
+      },
+      "all_vector_packets_identical_on_all_three_platforms": true,
+      "pre_fix_control": {
+        "baseline_component_source_commit": "ea911bcf",
+        "baseline_packet_sha256": "4098e54f07bfc00cb610fdb7f58a3cc2221ae5cf96cb6353e82346e9c7a68808",
+        "replaced_only": [
+          {
+            "path": "binaries/FileCat.SharpCompress.dll",
+            "sha256": "856D02229AC04195AAB70F6EE15A20CEB7ABB1E2AD075BDDE092B019D53F5BE2",
+            "bytes": 1115648
+          },
+          {
+            "path": "binaries/FileCat.SharpCompress.pdb",
+            "sha256": "172FD01D93E8392E5E31C977C7FBE2D54DFFAB9200921638C38996E3647EA9C7",
+            "bytes": 438396
+          }
+        ],
+        "counts": {
+          "Failed": 4
+        },
+        "all_expected": true,
+        "current_source_passed_separately": true,
+        "command": [
+          "C:\\Program Files\\dotnet\\dotnet.exe",
+          "exec",
+          "C:\\Users\\fcarchive42829297\\FileCatValidation\\Capture-42829297-v7\\tester\\vstest.console.dll",
+          "C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\deflate-ending-v2\\baseline-control\\bin\\FileCat.Core.Tests.dll",
+          "/TestCaseFilter:FullyQualifiedName~StrictDeflateStreamTests.The_legacy_inflater_never_emits_seeded_pool_bytes_for_missing_history|FullyQualifiedName~StrictDeflateStreamTests.Window_storage_is_cleared_before_returning_it_to_its_owner|FullyQualifiedName~StrictDeflateStreamTests.A_history_reset_does_not_treat_a_previous_output_counter_as_new_history",
+          "/Logger:trx;LogFileName=pre-fix.trx",
+          "/ResultsDirectory:C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\deflate-ending-v2\\baseline-control\\results"
+        ]
+      },
+      "current_changed_csharp_inputs_matched": [
+        "src/ThirdParty/SharpCompress/Compressors/Deflate/Inflate.cs",
+        "src/ThirdParty/SharpCompress/Compressors/Deflate/DeflateStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/Deflate/DeflateStream.Async.cs",
+        "src/ThirdParty/SharpCompress/Compressors/Deflate/ZlibBaseStream.cs",
+        "src/FileCat.Archives/Writing/StrictDeflateStream.cs",
+        "tests/FileCat.Core.Tests/StrictDeflateStreamTests.cs"
+      ],
+      "compiler_source_documents": 1382,
+      "compiler_source_bytes": 13122740,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.14",
+        "runtime_directory": "C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\10.0.14\\",
+        "os": "Microsoft Windows 10.0.26340",
+        "architecture": "X64"
+      },
+      "writing_closure": {
+        "Rar15_or_DiscUtils_present": false,
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ]
+      },
+      "final_census": {
+        "Processes": [],
+        "CollectedUtc": "2026-11-07T12:52:15.6564263Z"
+      },
+      "standard_test_account": {
+        "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+        "AdministratorsMember": false,
+        "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+        "HiveLoaded": true
+      },
+      "initial_failed_phase": {
+        "archive": "windows-deflate-initial-evidence-v1.tar.gz",
+        "bytes": 36146808,
+        "sha256": "c83de066d7b206b38563f18170bf68dd41c3a4ad3a4a195e2db93a5d4ee9ae63",
+        "manifest_rows": 265,
+        "counts": {
+          "Passed": 2571,
+          "NotExecuted": 220,
+          "Failed": 48
+        },
+        "production_backend_qualified": false,
+        "source_packet_sha256": "8ee58a972bb603f83abf90f44a56c1d3e6b4e913be0d0f74a9700ed7934b02bc",
+        "scope": "Initial failed application run; no independent controls or compiler-source qualification completed."
+      }
+    }
+  }
+}

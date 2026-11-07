@@ -76,8 +76,10 @@ the strict LZMA/LZMA2 and exact Copy/AES layers to the 7z framing pass. Complete
 and the shared parent/worker/native adapters remain the next integration work.
 
 [Strict PPMd7 and BCJ2 node verification](../validation/archive-writing/SEVENZIP_RANGE_VERIFICATION.md) now covers
-known-size range completion, consumed input and all four BCJ2 branches, with SDK differential evidence. Finish raw
-deflate verification and integrate the complete member graphs/catalog, then continue the shared RAR/7z adapters.
+known-size range completion, consumed input and all four BCJ2 branches, with SDK differential evidence.
+[Raw-Deflate verification](../validation/archive-writing/SEVENZIP_DEFLATE_VERIFICATION.md) now adds exact block
+completion, sizes, consumed input and history checks, with native zlib comparisons. Integrate the complete 7z member
+graphs/catalog and continue the shared RAR/7z adapters; the RAR adapter need not wait for the remaining 7z graph work.
 
 ### 1.3 Scope boundaries
 
