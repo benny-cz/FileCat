@@ -125,6 +125,7 @@ public sealed record AnalysisProjection(Guid SessionId, long Epoch, long Revisio
     public ImmutableDictionary<ulong, MeasurementState> UnmeasuredStates { get; init; } = ImmutableDictionary<ulong, MeasurementState>.Empty;
     public AnalysisTaint Taint { get; init; } = AnalysisTaint.OrdinarySensitive;
     public ImmutableHashSet<ulong> UnknownFilterNodes { get; init; } = ImmutableHashSet<ulong>.Empty;
+    public ImmutableHashSet<ulong> AliasContextNodes { get; init; } = ImmutableHashSet<ulong>.Empty;
     public bool IncludesUnknownFilterResults { get; init; }
     public string FilterText { get; init; } = "";
 }

@@ -55,7 +55,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     public AnalysisPhase Phase { get; private set; } = AnalysisPhase.Ready;
     public ulong SourceCloseFailures { get; private set; }
     public bool Running => Phase is AnalysisPhase.Scanning or AnalysisPhase.Pausing or AnalysisPhase.Paused or AnalysisPhase.Refreshing;
-    public bool HasTemporaryWork => !_disposed && (Comparison is not null || IsPreparing || Running || _prepared.Count > 0 || Selection.Marks.Count > 0 || Selection.Basket.Count > 0 ||
+    public bool HasTemporaryWork => !_disposed && (Comparison is not null || IsPreparing || Running || HasDeferredSelection || _prepared.Count > 0 || Selection.Marks.Count > 0 || Selection.Basket.Count > 0 ||
         !DisplayedRevisionSaved && (_session is not null || _observation is { Origin: AnalysisOrigin.LiveSession, Persistence: AnalysisPersistence.Temporary }));
     public event Action? Changed;
     public DiskSpaceViewModel(AppServices services) : this(services, Prepare) { }
@@ -136,41 +136,8 @@ public sealed partial class DiskSpaceViewModel : IDisposable
                 nextLease = _session?.AcquireSnapshot() ?? _inventory?.Retain() ?? _capturedOwner?.Retain();
                 var s = nextLease?.Snapshot ?? _observation;
                 if (s is null) return null;
-                var rootScopes = new AnalysisRootScopeIndex(s, token);
-                var filter = AnalysisFilter.Parse(query, _zone ?? TimeZoneInfo.Utc, sensitive, roots: s.Roots, rootScopes: rootScopes, allowDateOnly: _zone is not null);
-                var nodes = s.Nodes.ToDictionary(n => n.Id);
-                var pathTextAvailable = new Dictionary<ulong, bool>();
-                foreach (var node in s.Nodes)
-                {
-                    token.ThrowIfCancellationRequested();
-                    pathTextAvailable.Add(node.Id, node.ParentId == 0 || pathTextAvailable[node.ParentId] && AnalysisRawNames.HasLosslessText(node));
-                }
-                var all = AnalysisAggregate.Project(s, metric, cancellation: token);
-                var allocation = s.Facts.Where(f => f.ObjectId is not null).ToLookup(f => f.ObjectId!, StringComparer.Ordinal);
-                var unknown = ImmutableHashSet.CreateBuilder<ulong>();
-                AnalysisMeasurement Allocation(AnalysisObject? obj)
-                {
-                    if (obj is null) return AnalysisMeasurement.Missing(MeasurementState.Unsupported);
-                    return AnalysisAggregate.CompatibleAllocation(allocation[obj.Id]);
-                }
-                bool Matches(AnalysisNode n, AnalysisObject? obj)
-                {
-                    var active = all.UnmeasuredStates.GetValueOrDefault(n.Id, metric == AnalysisMetric.UniqueFileSize && obj?.VerifiedIdentity is null ? MeasurementState.Unsupported : MeasurementState.Known);
-                    var truth = filter.Evaluate(new(n, obj, RelativePath(n, nodes), Allocation(obj), Stale: s.Freshness != AnalysisFreshness.Observed,
-                        ActiveState: active, RelativePathTextAvailable: pathTextAvailable[n.Id]));
-                    if (root is not null) truth = AnalysisFilter.And(rootScopes.IsMember(root, n), truth);
-                    if (truth == AnalysisTruth.Unknown) unknown.Add(n.Id);
-                    return showUnknown ? truth == AnalysisTruth.Unknown : truth == AnalysisTruth.True;
-                }
-                bool filtered = !string.IsNullOrWhiteSpace(query) || root is not null;
-                // A location selector is a namespace scope, not a file predicate. Keep that scope's
-                // independent directory allocation; name/type/age predicates do not match non-file facts.
-                Func<AnalysisNode, bool>? directoryFilter = filtered && filter.IsNamespaceOnly && !showUnknown
-                    ? n => Matches(n, null) : null;
-                var projection = filtered ? AnalysisAggregate.Project(s, metric, Matches, token, directoryFilter) : all;
-                projection = projection with { UnknownFilterNodes = unknown.ToImmutable(), IncludesUnknownFilterResults = filtered && showUnknown, FilterText = query };
-                var tree = grouping == AnalysisGroupingDimension.FolderHierarchy ? AnalysisTree.Build(s, projection, filtered, token, directoryFilter)
-                    : AnalysisTree.BuildGrouped(s, projection, grouping, filtered, token, directoryFilter);
+                var capturedView = new AnalysisSavedView(metric, Chart, query, root, scope, sensitive, showUnknown, sort, descending) { Grouping = grouping };
+                var tree = BuildCapturedTree(s, capturedView, _zone, token);
                 string effectiveScope = ProjectionScope(tree, scope, previousGrouping, hierarchyTarget);
                 nextOrder = _orderRows(tree.ChildrenOf(effectiveScope), sort, descending, token);
                 return (Tree: tree, Order: nextOrder, Scope: effectiveScope);
@@ -398,6 +365,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         var actualWork = _actualWork.CloseAsync();
         _preparationCancel?.Cancel();
         _selectionLifetime.Cancel(); _markCountCancel?.Cancel();
+        RetireDeferredRequest();
         _countTree = null; _countMarks = null; _countScope = null; _countAgain = false; MarkVisibility = null;
         _projectionCancel?.Cancel(); _projectionCancel?.Dispose(); _session?.Stop(); _lease?.Dispose(); _pending?.Lease?.Dispose();
         _inventory?.Dispose();

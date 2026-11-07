@@ -13,6 +13,9 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
     private bool _disposed;
     private Exception? _closeFailure;
     private readonly Func<nint, bool>? _nativeClose;
+    private readonly Action<AnalysisEntry, CancellationToken>? _beforeChildren;
+    private readonly Func<AnalysisEntry, AnalysisEntry>? _observe;
+    internal bool IsDisposed => _disposed;
     private readonly ulong _device, _mount;
     private readonly bool _identitySupported;
     private readonly ulong _modifiedPrecisionTicks = 1;
@@ -26,9 +29,12 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
 
     public UnixAnalysisBackend(string selectedRoot) : this(selectedRoot, null) { }
 
-    internal UnixAnalysisBackend(string selectedRoot, Func<nint, bool>? nativeClose)
+    internal UnixAnalysisBackend(string selectedRoot, Func<nint, bool>? nativeClose) : this(selectedRoot, nativeClose, null, null) { }
+
+    internal UnixAnalysisBackend(string selectedRoot, Func<nint, bool>? nativeClose,
+        Action<AnalysisEntry, CancellationToken>? beforeChildren, Func<AnalysisEntry, AnalysisEntry>? observe)
     {
-        _nativeClose = nativeClose;
+        _nativeClose = nativeClose; _beforeChildren = beforeChildren; _observe = observe;
         if (!OperatingSystem.IsLinux() && !_mac) throw new PlatformNotSupportedException();
         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
         string canonical = UnixFiles.RealPath(selectedRoot) ?? throw new IOException("The selected root could not be resolved.");
@@ -81,6 +87,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
             stream = _handleLeases[fd].TransferToDirectory(nativeStream);
             _handleLeases[fd] = stream;
             fd = -1; // ownership transferred to DIR*
+            _beforeChildren?.Invoke(directory, cancellation);
             while (true)
             {
                 cancellation.ThrowIfCancellationRequested();
@@ -116,7 +123,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
                         DirectoryEntryKind(type), MeasurementState.Failed, "entry-metadata-unavailable");
                 }
                 finally { if (child >= 0) Close(child); }
-                yield return result;
+                yield return _observe?.Invoke(result) ?? result;
             }
         }
         finally

@@ -13,6 +13,9 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
     private bool _disposed;
     private Exception? _closeFailure;
     private readonly Func<nint, bool>? _nativeClose;
+    private readonly Action<AnalysisEntry, CancellationToken>? _beforeChildren;
+    private readonly Func<AnalysisEntry, AnalysisEntry>? _observe;
+    internal bool IsDisposed => _disposed;
     private readonly ulong _volume;
     private readonly string _namespace;
     private readonly Guid _bindingId = Guid.NewGuid();
@@ -21,9 +24,12 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
     public string Basis => "windows-primary-allocation-v1";
     public WindowsAnalysisBackend(string selectedRoot) : this(selectedRoot, null) { }
 
-    internal WindowsAnalysisBackend(string selectedRoot, Func<nint, bool>? nativeClose)
+    internal WindowsAnalysisBackend(string selectedRoot, Func<nint, bool>? nativeClose) : this(selectedRoot, nativeClose, null, null) { }
+
+    internal WindowsAnalysisBackend(string selectedRoot, Func<nint, bool>? nativeClose,
+        Action<AnalysisEntry, CancellationToken>? beforeChildren, Func<AnalysisEntry, AnalysisEntry>? observe)
     {
-        _nativeClose = nativeClose;
+        _nativeClose = nativeClose; _beforeChildren = beforeChildren; _observe = observe;
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
         string full = Path.GetFullPath(selectedRoot);
@@ -79,6 +85,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
         using var lease = OpenDirectory(directory);
         var actual = Observe(lease.Handle, directory.RelativeName, directory.RawName.ToArray(), _namespace);
         if (actual.Identity != directory.Identity || actual.Version != directory.Version) throw new AnalysisSourceChangedException();
+        _beforeChildren?.Invoke(directory, cancellation);
         byte[] buffer = new byte[64 * 1024];
         bool restart = true;
         while (true)
@@ -114,7 +121,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
                         result = AnalysisEntry.Unavailable(relative.ToImmutableArray(), raw.ToImmutableArray(), "utf16le",
                             UnavailableKind(attributes), MeasurementState.Failed, "entry-metadata-unavailable");
                     }
-                    yield return result;
+                    yield return _observe?.Invoke(result) ?? result;
                 }
                 if (next == 0) break;
                 offset = checked(offset + next);

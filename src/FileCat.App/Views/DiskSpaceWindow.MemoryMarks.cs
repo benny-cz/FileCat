@@ -30,10 +30,12 @@ public sealed partial class DiskSpaceWindow
             _clearMemoryMarks.Click += (_, _) => Model.ClearMarks();
             _reviewMarks.Click += async (_, _) => await ReviewMarksAsync();
             _retryMarkCounts.Click += (_, _) => { Model.ScheduleMarkVisibility(retry: true); Refresh(); };
+            AddDeferredSelectionControls();
         }
         private void RefreshMemorySelection()
         {
             Model.ScheduleMarkVisibility();
+            RefreshDeferredSelection();
             _reviewMarks.IsEnabled = Model.Tree is not null && Model.Selection.Marks.Count != 0 && !_reviewingMarks;
             _markMatches.IsEnabled = Model.Tree is not null && !Model.IsCapturingMatches;
             _clearMemoryMarks.IsEnabled = Model.Selection.Marks.Count != 0 || Model.IsCapturingMatches;

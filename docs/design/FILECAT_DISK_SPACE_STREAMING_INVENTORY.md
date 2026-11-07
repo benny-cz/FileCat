@@ -150,3 +150,7 @@ Grouped datasets now build a bounded authenticated visibility sidecar/index from
 ## Matching files in captured scope
 
 The hierarchy matching-file index now supports bounded scope capture through recorded ancestry in admitted I/O batches. Group capture can restrict to regular-file matches while excluding directory/context references and deduplicating aliases. No live metadata or future source membership is consulted. Both capture paths retain actual ownership through cancellation/disposal and refuse oversized sets without partial marks. Selection parity and exact owner/cancellation controls pass the three-platform batches in [r716](../validation/disk-space/source-manifest-r716.json). Full resource/native desktop and deferred-selection qualification remain open.
+
+## Runtime deferred selection
+
+A separately named live request waits actual session completion, reprojects its captured display semantics and retains a bounded immutable final selection for explicit review. Cancellation, replacement, close and replay refusal retain actual ownership and keep marks/basket/files unchanged until an explicit mark application. Captured indexed inventories cannot supply future runtime intent. Cross-platform controls in [r729](../validation/disk-space/source-manifest-r729.json) qualify these native-fixture/headless paths; complete indexed acquisition, resource/native desktop and persistence/action gates remain open.

@@ -113,6 +113,6 @@ public sealed class AnalysisIndexedChart : IAnalysisChartData
             metric == AnalysisMetric.UniqueFileSize && row.Totals.IdentityUnverified != 0, row.HasChargesElsewhere, path.Kind == AnalysisKind.Directory ? "folder" : AnalysisClassification.Family(path.Name), [], [])
         { IdentityUnverified = row.Totals.IdentityUnverified, LogicalUnknown = row.Logical.UnknownFiles != 0, MetadataState = path.MetadataState, IncludedByPolicy = path.IncludedByPolicy,
             ModifiedUtc = row.ModifiedUtc, ModifiedPrecisionTicks = row.ModifiedPrecisionTicks,
-            IsFilterContext = path.Kind == AnalysisKind.File && path.IncludedByPolicy && row.IsVisible && !row.IsMatch };
+            IsFilterContext = row.IsFilterContext };
     }
 }

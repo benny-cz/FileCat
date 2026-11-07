@@ -227,6 +227,7 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly List<TextBox> _rootEditors = [];
         private readonly List<Control> _dataControls = [];
         private readonly WrapPanel _basketHost = new() { ItemSpacing = 10, Margin = new Thickness(10, 5) };
+        private readonly StackPanel _basketFooter = new() { Spacing = 4 };
         private readonly TextBlock _resolved = new() { TextWrapping = TextWrapping.Wrap };
         private readonly Button _start = new() { Content = "Start analysis", Classes = { "primary" } };
         private readonly ComboBox _components = new() { ItemsSource = new[] { "Standard allocation", "Detailed allocation (partial component support)" }, MinWidth = 250 };
@@ -386,8 +387,13 @@ public sealed partial class DiskSpaceWindow : Window
             Grid.SetRow(_explorer, 2); Children.Add(_explorer);
             _basketHost.Children.Add(_basket);
             AddMemorySelectionControls();
-            _basketHost.Children.Add(ActionButton("Review cleanup", () => _ = ReviewAsync(), "Review the captured references and their supported actions. Expected free-space gain is unknown."));
-            Grid.SetRow(_basketHost, 3); Children.Add(_basketHost); Grid.SetRow(_status, 4); _status.Margin = new Thickness(10, 3, 10, 8); Children.Add(_status);
+            var basketViewport = new ScrollViewer { Content = _basketHost, MaxHeight = 180,
+                HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+            AutomationProperties.SetName(basketViewport, "Selection and review controls");
+            _basketFooter.Children.Add(basketViewport);
+            var cleanupReview = ActionButton("Review cleanup", () => _ = ReviewAsync(), "Review the captured references and their supported actions. Expected free-space gain is unknown.");
+            cleanupReview.HorizontalAlignment = HorizontalAlignment.Left; cleanupReview.Margin = new Thickness(10, 0, 10, 4); _basketFooter.Children.Add(cleanupReview);
+            Grid.SetRow(_basketFooter, 3); Children.Add(_basketFooter); Grid.SetRow(_status, 4); _status.Margin = new Thickness(10, 3, 10, 8); Children.Add(_status);
             _start.Click += async (_, _) => await Model.StartAsync(_rootEditors.Select(e => e.Text ?? "").ToArray());
             _pause.Click += (_, _) => Model.PauseOrResume(); _stop.Click += (_, _) => Model.Stop();
             _mode.SelectionChanged += (_, _) => { Model.Chart = _mode.SelectedIndex switch { 1 => "Sunburst", 2 => "Table", _ => "Treemap" }; Refresh(); };
@@ -568,7 +574,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _roots.IsEnabled = !Model.IsPreparing; _start.IsEnabled = !Model.IsPreparing; _start.IsVisible = configuring;
                 RowDefinitions[0].Height = setupOnly ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
                 RowDefinitions[2].Height = setupOnly ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
-                _explorer.IsVisible = _basketHost.IsVisible = !setupOnly;
+                _explorer.IsVisible = _basketFooter.IsVisible = _basketHost.IsVisible = !setupOnly;
                 foreach (var control in _dataControls) control.IsVisible = !setupOnly;
                 _stop.IsVisible = !setupOnly || Model.IsPreparing;
                 _components.IsEnabled = !Model.IsPreparing && Model.Phase == AnalysisPhase.Ready;
@@ -756,6 +762,7 @@ public sealed partial class DiskSpaceWindow : Window
         {
             if (_disposed) return; _disposed = true; _timer.Stop(); _filterTimer.Stop(); Model.Changed -= Refresh;
             _markReviewCloser?.Close(null);
+            _deferredReviewCloser?.Close(null);
             var actualWork = _actualWork.CloseAsync();
             _treemap.Clear(); _sunburst.Clear(); _list.ItemsSource = null; ReleaseComparisonView(); Model.Dispose();
             _window.TrackIndexedClose(Task.WhenAll(Model.CloseCompletion, actualWork), _admission);

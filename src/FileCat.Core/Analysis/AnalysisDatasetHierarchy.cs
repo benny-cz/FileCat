@@ -13,6 +13,7 @@ public sealed record AnalysisHierarchyRow(AnalysisPathMetadata Path, AnalysisTot
     public AnalysisLogicalTotals Logical { get; init; } = new(0, 0, ImmutableDictionary<MeasurementState, ulong>.Empty);
     public DateTimeOffset? ModifiedUtc { get; init; } = Path.Times?.ModifiedUtc;
     public ulong ModifiedPrecisionTicks { get; init; } = Path.Times?.ModifiedPrecisionTicks ?? 0;
+    public bool IsFilterContext { get; init; }
 }
 public sealed record AnalysisHierarchyBucket(ulong ParentId, AnalysisHierarchyBucketKind Kind, AnalysisTotals Totals, ulong Objects, ulong ObservedAliases, ulong Charges);
 
@@ -368,7 +369,8 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
                 { var observed = _graph.ReadObject(_graph.ReadIndex(AnalysisIndexedGraphRevision.ObjectIds, objects.First, token).Value, token); modified = observed.ModifiedUtc; precision = observed.ModifiedPrecisionTicks; }
             }
             return new(AnalysisPathMetadata.From(path), value.Amount.Export(), value.Incomplete, value.Elsewhere, value.Match, value.Visible, value.Truth)
-                { Logical = value.Logical.ExportLogical(), ModifiedUtc = modified, ModifiedPrecisionTicks = precision };
+                { Logical = value.Logical.ExportLogical(), ModifiedUtc = modified, ModifiedPrecisionTicks = precision,
+                    IsFilterContext = path.Kind == AnalysisKind.File && path.IncludedByPolicy && value.Visible && !value.Match && value.Elsewhere };
         }
         internal AnalysisHierarchyBucket ReadBucket(ulong row, CancellationToken token) => DecodeBucket(_buckets!.Read(row, token));
         public void Dispose()

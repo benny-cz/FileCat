@@ -25,6 +25,7 @@ public static class AnalysisAggregate
         var objects = snapshot.Objects.ToDictionary(o => o.Id, StringComparer.Ordinal);
         var aliases = new Dictionary<string, List<AnalysisNode>>(StringComparer.Ordinal);
         var matching = ImmutableHashSet.CreateBuilder<ulong>();
+        var context = ImmutableHashSet.CreateBuilder<ulong>();
         var charges = ImmutableArray.CreateBuilder<AnalysisCharge>();
         var missing = new Dictionary<MeasurementState, ulong>();
         var missingCharges = ImmutableArray.CreateBuilder<AnalysisMissingCharge>();
@@ -67,6 +68,7 @@ public static class AnalysisAggregate
             {
                 if ((processed++ & 4095) == 0) cancellation.ThrowIfCancellationRequested();
                 if (!paths.Any(p => matching.Contains(p.Id))) continue;
+                foreach (var path in paths) if (!matching.Contains(path.Id)) context.Add(path.Id);
                 var obj = objects[paths[0].ObjectId!];
                 var members = paths.Select(p => objects[p.ObjectId!]).DistinctBy(o => o.Id).ToArray();
                 if (members.Select(o => o.LogicalLength).Distinct().Skip(1).Any() ||
@@ -120,7 +122,7 @@ public static class AnalysisAggregate
         if (!compatible) { known = 0; unverified = 0; charges.Clear(); }
         return new(snapshot.Identity.SessionId, snapshot.Identity.Epoch, snapshot.Identity.Revision, metric,
             charges.ToImmutable(), new(known, unverified, count, missing.ToImmutableDictionary(), compatible), matching.ToImmutable())
-            { UnmeasuredStates = unmeasured.ToImmutable(), MissingCharges = missingCharges.ToImmutable(), Taint = AnalysisPrivacy.Join(snapshot.Taint) };
+            { UnmeasuredStates = unmeasured.ToImmutable(), MissingCharges = missingCharges.ToImmutable(), AliasContextNodes = context.ToImmutable(), Taint = AnalysisPrivacy.Join(snapshot.Taint) };
 
         void Missing(AnalysisMeasurement measurement, IEnumerable<ulong> ids, ulong? directory = null)
         {

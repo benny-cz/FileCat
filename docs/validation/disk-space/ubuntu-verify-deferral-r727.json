@@ -1,0 +1,8 @@
+{
+  "source": "Read-only Ubuntu probe after the original r727 deploy had terminated at verify; recorded from its tool output",
+  "state": "BUSY phase=verify\n",
+  "payloadExists": false,
+  "processes": [],
+  "resumedAlreadyUploadedRunner": true,
+  "originalDeployTerminal": true
+}

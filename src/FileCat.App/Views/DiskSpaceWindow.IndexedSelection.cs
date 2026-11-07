@@ -52,6 +52,11 @@ public sealed partial class DiskSpaceWindow
             var bar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             foreach (var button in new[] { _markFocused, _markMembers, _markMatches, _clearMarks, _reviewMarked, _stageBasket, _reviewBasket, _clearBasket, _recountMarks }) bar.Children.Add(button);
             _main.Children.Add(_selectionSummary); _main.Children.Add(bar);
+            var deferred = new Button { Content = "Select all after scan completes", IsEnabled = false };
+            const string deferredReason = "This is a captured inventory. Use Mark matching files in this scope, or start a new live analysis to request selection after its scan.";
+            ToolTip.SetTip(deferred, new RichTip("Captured inventory", detail: deferredReason));
+            AutomationProperties.SetHelpText(deferred, deferredReason);
+            _main.Children.Add(deferred);
             _showCapturedFolder.Click += (_, _) => _ = ShowCapturedFolderAsync();
             ToolTip.SetTip(_showCapturedFolder, new RichTip("Show the captured folder", detail: "Find the selected entry in this inventory's recorded folder structure. No live location is opened. Display filters are cleared with an explanation if they hide the entry."));
             ToolTip.SetTip(_markMembers, new RichTip("Capture current group members", detail: "Marks the captured real entries of the focused group or current group scope. Hidden aliases are excluded. Marks do not include entries observed later. At most 100,000 distinct paths can be marked."));

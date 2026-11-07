@@ -126,9 +126,11 @@ public sealed partial class AnalysisTree : IAnalysisChartData
             if (!map.TryGetValue(parent, out var parentItem)) throw new InvalidDataException("Invalid analysis hierarchy.");
             bool matching = projection.MatchingNodes.Contains(node.Id);
             var item = new Builder(key, parent, AnalysisNames.DisplayName(node), node.Id, node.Kind, false,
-                !filterApplied || matching || node.Kind == AnalysisKind.Directory && node.IncludedByPolicy && namespaceVisible?.Invoke(node) == true,
+                !filterApplied || matching || projection.AliasContextNodes.Contains(node.Id) || node.Kind == AnalysisKind.Directory && node.IncludedByPolicy && namespaceVisible?.Invoke(node) == true,
                 node.Kind == AnalysisKind.Directory ? "folder" : AnalysisClassification.Family(node.Name));
             item.MetadataState = node.MetadataState; item.IncludedByPolicy = node.IncludedByPolicy;
+            item.FilterContext = projection.AliasContextNodes.Contains(node.Id) && !matching;
+            item.SharedElsewhere = item.FilterContext;
             item.ModifiedUtc = node.Times?.ModifiedUtc; item.ModifiedPrecisionTicks = node.Times?.ModifiedPrecisionTicks ?? 0;
             if (node.Times is null && node.ObjectId is { } objectKey && objects.TryGetValue(objectKey, out var observedObject))
             { item.ModifiedUtc = observedObject.ModifiedUtc; item.ModifiedPrecisionTicks = observedObject.ModifiedPrecisionTicks; }

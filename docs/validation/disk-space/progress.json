@@ -160,7 +160,8 @@
     "Strict named-entry schema4 saves the displayed grouping/rule and restores prepared memory/indexed groups, root mappings and explicit missing-scope/page fallbacks. Old schemas retain defaults without rewriting. Thirty-four Core and seventeen window controls pass all3 with complete applicable batches. Indexed Other exact-subset parity, indexed Save UI, selection and full persistence/native/resource qualification remain pending.",
     "Indexed immutable groups now capture bounded deduplicated real members with actual I/O/admission ownership. Basic indexed marks, complete-group capture and an inert paged review basket retain IDs across filters/navigation; table presses freeze their mark target and close waits basket-page work. Twenty-six Core and ten window controls pass all3 with complete applicable batches. Range/hidden-count/captured-folder/native/resource and remaining release qualification remain open.",
     "Indexed captured-folder navigation, scoped/hidden mark counts, Review marked and captured cross-page ranges are connected. Native moved-source navigation, directory metadata Enter, exact sorted locations/ranges, independent basket, coalesced latest counts and actual cancellation/closure pass35 Core and13 window controls on all3 with full applicable batches. Memory selection parity, full pointer/native/resource and remaining plan qualification remain required.",
-    "Memory scoped/filter/elsewhere/missing mark counts, fixed128-row Review marked and matching-file capture across both storage paths pass 71 new Core and 11 headless window controls on all3 in full applicable batches. Namespace-only empty-folder/directory-allocation parity, actual queued cancellation/closure and retained session/epoch identity guard pass; deferred selection, full native/resource and remaining plan work remain required."
+    "Memory scoped/filter/elsewhere/missing mark counts, fixed128-row Review marked and matching-file capture across both storage paths pass 71 new Core and 11 headless window controls on all3 in full applicable batches. Namespace-only empty-folder/directory-allocation parity, actual queued cancellation/closure and retained session/epoch identity guard pass; deferred selection, full native/resource and remaining plan work remain required.",
+    "Separately named runtime deferred selection captures displayed query/location/group/scope, waits actual native scan completion, retains a bounded final set and requires preserving paged review before marks change. Pause/stop/partial/uncertain cohorts, replacement/cancel/replay, actual close ownership and inert imported phases pass20 new headless controls on all3; mixed-basis context and100001-path atomic refusal pass4 new Core controls. Full native/resource and remaining W0-W8 qualification remain required."
   ],
   "validation": {
     "windowsCore": {
@@ -2109,7 +2110,7 @@
     },
     "testingWorkflow": {
       "default": "Build and package the largest coherent implementation candidate, then transfer one immutable bundle per free platform and execute all applicable Core/native/rendering phases sequentially before collecting evidence. Preserve other testers and gate every phase.",
-      "batchEvidence": "source-manifest-r716.json",
+      "batchEvidence": "source-manifest-r729.json",
       "oneCandidateArchivePerPlatform": true,
       "postExecutionProcessExitRequired": true,
       "continueIndependentPhasesAfterAssertionFailure": true
@@ -5394,12 +5395,192 @@
       "persistenceGateQualified": false,
       "actionsHelperContentEnabled": false,
       "finalIndependentReviewPerformed": false
+    },
+    "deferredSelection": {
+      "newCoreControls": 4,
+      "newRenderingControls": 20,
+      "targetedControls": {
+        "mac": {
+          "core": [
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeMatchingFileLimitRefusesBeforeAnyMarksCanBeAdded",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeDefaultHierarchyRowsDoNotImplyAnAliasContextWithoutCapturedEvidence",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeIncompatibleBasesCannotEraseNonmatchingAliasContext(query: \\\"name:x.cs OR name:z\\\")",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeIncompatibleBasesCannotEraseNonmatchingAliasContext(query: \\\"root:r\\\")"
+          ],
+          "render": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionOtherScopeExplicitlyUsesTheFinalObservedRanking",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanBeRequestedWhilePausedAndWaitsForActualCompletion",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFinalPartialResultRemainsExplicitAndRequiresReview",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionReviewPagesItsExactSetAndKeepsTheDefaultPreserving",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCapturesTheExplicitUncertainCohortRatherThanLaterEditorState",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionRapidReplacementAndCancellationNeverAddsMarks",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanceledReviewCannotReplayAndRetainsOnlyCapturedDataAfterClose",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFolderScopeDoesNotBroadenWhenNavigationChanges",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FolderHierarchy)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FileType)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: Extension)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: ModifiedAge)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: CapturedLocation)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Scanning)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Paused)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Finished)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Stopped)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Failed)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionStoppedScanDoesNotPretendToHaveCompleted",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCloseCancelsTheIntentButKeepsActualNativeWorkOwned"
+          ]
+        },
+        "ubuntu": {
+          "core": [
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeDefaultHierarchyRowsDoNotImplyAnAliasContextWithoutCapturedEvidence",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeMatchingFileLimitRefusesBeforeAnyMarksCanBeAdded",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeIncompatibleBasesCannotEraseNonmatchingAliasContext(query: \\\"name:x.cs OR name:z\\\")",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeIncompatibleBasesCannotEraseNonmatchingAliasContext(query: \\\"root:r\\\")"
+          ],
+          "render": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanBeRequestedWhilePausedAndWaitsForActualCompletion",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanceledReviewCannotReplayAndRetainsOnlyCapturedDataAfterClose",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCloseCancelsTheIntentButKeepsActualNativeWorkOwned",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionStoppedScanDoesNotPretendToHaveCompleted",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionReviewPagesItsExactSetAndKeepsTheDefaultPreserving",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCapturesTheExplicitUncertainCohortRatherThanLaterEditorState",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFolderScopeDoesNotBroadenWhenNavigationChanges",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FolderHierarchy)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FileType)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: Extension)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: ModifiedAge)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: CapturedLocation)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Scanning)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Paused)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Finished)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Stopped)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Failed)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFinalPartialResultRemainsExplicitAndRequiresReview",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionOtherScopeExplicitlyUsesTheFinalObservedRanking",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionRapidReplacementAndCancellationNeverAddsMarks"
+          ]
+        },
+        "windows": {
+          "core": [
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeIncompatibleBasesCannotEraseNonmatchingAliasContext(query: \\\"name:x.cs OR name:z\\\")",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeIncompatibleBasesCannotEraseNonmatchingAliasContext(query: \\\"root:r\\\")",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeMatchingFileLimitRefusesBeforeAnyMarksCanBeAdded",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.DeferredScopeDefaultHierarchyRowsDoNotImplyAnAliasContextWithoutCapturedEvidence"
+          ],
+          "render": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FolderHierarchy)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: FileType)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: Extension)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: ModifiedAge)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionKeepsItsDisplayedQueryAndGroupThenRequiresExplicitReview(grouping: CapturedLocation)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Scanning)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Paused)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Finished)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Stopped)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionHistoricalPhasesCannotCreateRuntimeIntent(phase: Failed)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionReviewPagesItsExactSetAndKeepsTheDefaultPreserving",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFinalPartialResultRemainsExplicitAndRequiresReview",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCloseCancelsTheIntentButKeepsActualNativeWorkOwned",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionStoppedScanDoesNotPretendToHaveCompleted",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionFolderScopeDoesNotBroadenWhenNavigationChanges",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionOtherScopeExplicitlyUsesTheFinalObservedRanking",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCapturesTheExplicitUncertainCohortRatherThanLaterEditorState",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanBeRequestedWhilePausedAndWaitsForActualCompletion",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionRapidReplacementAndCancellationNeverAddsMarks",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.DeferredSelectionCanceledReviewCannotReplayAndRetainsOnlyCapturedDataAfterClose"
+          ]
+        }
+      },
+      "matrix": {
+        "mac-batch-r727-core-r727.xml": {
+          "total": "1043",
+          "passed": "1039",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "25.878"
+        },
+        "mac-batch-r727-render-r727.xml": {
+          "total": "204",
+          "passed": "204",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "55.913"
+        },
+        "ubuntu-batch-r727-core-r727.xml": {
+          "total": "1043",
+          "passed": "1039",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "74.661"
+        },
+        "ubuntu-batch-r727-render-r727.xml": {
+          "total": "204",
+          "passed": "204",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "83.944"
+        },
+        "windows-batch-r727-core-r727.xml": {
+          "total": "1061",
+          "passed": "1013",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0",
+          "time": "31.550"
+        },
+        "windows-batch-r727-native-r727.xml": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "43.294"
+        },
+        "windows-batch-r727-render-r727.xml": {
+          "total": "204",
+          "passed": "203",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "96.679"
+        }
+      },
+      "manifest": "source-manifest-r729.json",
+      "runtimeDeferredRequestImplemented": true,
+      "displayedQueryAndScopeRetained": true,
+      "actualScanCompletionBeforeMaterialization": true,
+      "finalOtherRankingExplicit": true,
+      "explicitReviewBeforeMarks": true,
+      "basketAndFilesystemUnchangedByDeferredRequest": true,
+      "requestCancellationReplacementAndActualCloseControlsPassedAllThree": true,
+      "partialStoppedPausedAndUncertainCohortControlsPassedAllThree": true,
+      "historicalPhasesCannotCreateRuntimeIntent": true,
+      "matchingFileRefusalAt100001ManagedPathsPassedAllThree": true,
+      "mixedBasisAliasContextIndependentOfAmounts": true,
+      "explicitIndexedAliasContextData": true,
+      "newControlsPassedAllThree": true,
+      "fullNativeDesktopDeferredSelectionQualified": false,
+      "fullIndexedPointerAndKeyboardRangeQualification": false,
+      "indexedOtherExactSubsetParityQualified": false,
+      "indexedSaveUiImplemented": false,
+      "ownerComparisonVolumeGroupingImplemented": false,
+      "fullResourceGateQualified": false,
+      "fullMillionTenMillionQualificationComplete": false,
+      "productCommandRegistered": false,
+      "publicIndexedSpillEnabled": false,
+      "persistenceGateQualified": false,
+      "actionsHelperContentEnabled": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
     "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, remaining dataset/CPU queues and full private-memory qualification (producer payload now shares a partitioned8 MiB envelope and explorer creation/page/inspection/chart work shares eight places, with actual-lifetime controls all3), actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
-    "W2: complete separately named deferred select-all-after-scan materialization/review (memory scoped/hidden-mark review and matching-file capture now pass all3) and full indexed pointer/key qualification (indexed captured-folder/scoped marks/cross-page range controls now pass all3), exact indexed Other-subset persistence parity, indexed Save UI and remaining dimensions (memory grouping/captured selection and schema4 saved grouping restoration now pass all3) (indexed selector/chart/table/navigation/inspection now pass all3) (memory and indexed type/extension/captured-age/location stores, bounded pages and native capture controls now pass all3), owner/comparison/qualified-volume grouping and comparison-growth coloring (basic type/depth/captured-age colors, themed legends and strict saved-view restore now pass all3), scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
+    "W2: complete full native pointer/key qualification (runtime deferred materialization/review, memory scoped/hidden-mark review and matching-file capture now pass all3) (indexed captured-folder/scoped marks/cross-page range controls now pass all3), exact indexed Other-subset persistence parity, indexed Save UI and remaining dimensions (memory grouping/captured selection and schema4 saved grouping restoration now pass all3) (indexed selector/chart/table/navigation/inspection now pass all3) (memory and indexed type/extension/captured-age/location stores, bounded pages and native capture controls now pass all3), owner/comparison/qualified-volume grouping and comparison-growth coloring (basic type/depth/captured-age colors, themed legends and strict saved-view restore now pass all3), scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
