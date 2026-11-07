@@ -1,0 +1,29 @@
+{
+  "revision": "r865",
+  "renderRevision": "r866",
+  "buildLog": ".tmp/build-r864.txt",
+  "sourceManifest": ".tmp/source-candidate-r865.json",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 20.2280046,
+  "archives": [
+    {
+      "sha256": "736fedffd790b9de8591020b62848a1883e01a26a2fcfbb01ab8f4dbd2e7579d",
+      "bytes": 42177926,
+      "platform": "mac",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r865.tgz"
+    },
+    {
+      "sha256": "c44a25b47bd51c526cb98df0bfc1d46b9161586b4599baf9b04628f2e54f21b3",
+      "bytes": 39506016,
+      "platform": "linux",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r865.tgz"
+    },
+    {
+      "sha256": "cb38b2176081c9a6440b1b182a8d515077f4958fabff2e6e11837ef71aa91d1e",
+      "bytes": 78568792,
+      "platform": "windows",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r865.tgz"
+    }
+  ]
+}

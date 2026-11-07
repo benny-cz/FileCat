@@ -44,7 +44,7 @@ public sealed partial class DiskSpaceWindow
                 string? root = saved.Root;
                 if (root is not null && !retained.Descriptor.Roots.Any(r => r.Id == root))
                 { root = null; restoreNotice = "The saved location is absent. Showing all captured locations."; }
-                filter = new(saved.Query, saved.CaseSensitive, saved.ShowUnknown, root);
+                filter = new(saved.Query, saved.CaseSensitive, saved.ShowUnknown, root) { RootDisplayIds = saved.RootDisplayIds };
                 if (saved.Grouping == AnalysisGroupingDimension.FolderHierarchy)
                 {
                     var restored = await RestoreIndexedScopeAsync(retained, saved.Scope, linked.Token);
@@ -170,7 +170,7 @@ public sealed partial class DiskSpaceWindow
                 _color.SelectedIndex = (int)saved.ColorDimension;
                 _group.SelectedIndex = (int)saved.Grouping;
             }
-            _roots.ItemsSource = new[] { "All captured locations" }.Concat(source.Descriptor.Roots.Select(root => AnalysisNames.Display(root.Label, 120) + " [" + AnalysisNames.Display(root.Id, 64) + "]")).ToArray();
+            _roots.ItemsSource = new[] { "All captured locations" }.Concat(source.Descriptor.Roots.Select(root => AnalysisNames.Display(root.Label, 120) + " [" + AnalysisNames.Display(filter.RootDisplayIds?.GetValueOrDefault(root.Id) ?? root.Id, 64) + "]")).ToArray();
             _roots.SelectedIndex = filter.RootId is null ? 0 : 1 + Array.FindIndex(source.Descriptor.Roots.ToArray(), root => root.Id == filter.RootId);
             AutomationProperties.SetName(_query, "Filter indexed observations"); AutomationProperties.SetName(_metric, "Indexed metric");
             AutomationProperties.SetName(_roots, "Indexed captured location"); AutomationProperties.SetName(_sort, "Indexed table order");
@@ -659,7 +659,7 @@ public sealed partial class DiskSpaceWindow
         }
         private static void Push(List<(ulong Parent, ulong Offset, int Skipped)> history, (ulong Parent, ulong Offset, int Skipped) value)
         { if (history.Count == AnalysisLimits.NavigationHistory) history.RemoveAt(0); history.Add(value); }
-        private static bool Expected(Exception error) => error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or FormatException or OverflowException or OperationCanceledException or KeyNotFoundException;
+        private static bool Expected(Exception error) => error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException or FormatException or OverflowException or OperationCanceledException or KeyNotFoundException;
         private void RememberViewCloseFailure(Exception error)
         {
             _actualWork.RecordUnconfirmedClose(error);

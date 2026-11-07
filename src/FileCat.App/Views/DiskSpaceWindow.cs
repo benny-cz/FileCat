@@ -605,7 +605,7 @@ public sealed partial class DiskSpaceWindow : Window
                 if (tree is not null && !_shownRoots.Equals(tree.Snapshot.Roots))
                 {
                     _shownRoots = tree.Snapshot.Roots;
-                    var choices = new[] { new RootChoice(null, "All locations") }.Concat(_shownRoots.Select(r => new RootChoice(r.Id, AnalysisNames.Display(r.Label, 80, true) + " [" + r.Id + "]"))).ToArray();
+                    var choices = new[] { new RootChoice(null, "All locations") }.Concat(_shownRoots.Select(r => new RootChoice(r.Id, AnalysisNames.Display(r.Label, 80, true) + " [" + AnalysisNames.Display(Model.RootDisplayId(r.Id), 256) + "]"))).ToArray();
                     _rootFilter.ItemsSource = choices; _rootFilter.SelectedItem = choices.FirstOrDefault(c => c.Id == Model.RootFilter);
                 }
                 _rootFilter.IsVisible = tree is not null && tree.Snapshot.Roots.Length > 1;

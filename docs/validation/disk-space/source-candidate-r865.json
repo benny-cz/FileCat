@@ -1,0 +1,126 @@
+[
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Comparison.cs",
+    "sha256": "f863dcfb7f3cd781b31b62942176925eed70f288e279831c5c94728ec7fb290e"
+  },
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.ComparisonPersistence.cs",
+    "sha256": "2488b71d4e25a67539742d1152ecca27ade016abe5bb2d07358275f71230702b"
+  },
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Persistence.cs",
+    "sha256": "13c92a6c53736be9e2a3fa431becf45b96eb1f902bd09c003b2dd38fe014d9e0"
+  },
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Projection.cs",
+    "sha256": "25a5273527afbe0b8753745bd8e635e298b6954e0b4c5db8c9eddbdc3431b47b"
+  },
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+    "sha256": "968c12fe3c3333c54c165cd67590651aab470317ae6e3e01c2889b13a4fe0303"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Comparison.cs",
+    "sha256": "d3c6c18c43f44c37dfc1acbd420b2b87493110c28c9673fa6ef29684f912c254"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.ComparisonChart.cs",
+    "sha256": "cda846b8926bc886ca9874eb6d462e1208eefb6f49d30e3f6e484307eb37cc86"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.ComparisonPersistence.cs",
+    "sha256": "d554bad1029a482f9318eac8bbe3af3fd543ff4cd0a98d9db5479f19377cb65f"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+    "sha256": "89a1795b604551998de0392035a766ccdf5cce13640948f6e811e33fbfdf5b27"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedCapturedFolder.cs",
+    "sha256": "0164b72478df01f27fa3e3adb7db1ca2052643586fe28e6c35881787e2a01821"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedPersistence.cs",
+    "sha256": "3a156e4070df37056f9c0fa4e9624fce02c06b7839d243f676c94e07ac41fce0"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+    "sha256": "c19caa322d4c885753ae3a9b94961ab836b157edd0dc1b9fc9894209e7ed18bc"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisComparisonFormat.Metadata.cs",
+    "sha256": "bd5c20a5a8c11f8494186aa71906b530c3d86c265b81d5b544eb624bd7a34ba6"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisComparisonFormat.Streams.cs",
+    "sha256": "07f45074ffd2ed6e9cf01a1af67e449a89a417280bf9487ce7e8bdbfd432c0ef"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisComparisonFormat.cs",
+    "sha256": "c564dc2df9090d022c24693b198fd5c99dad3b63ebf4313fc4d3add0808e20e7"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisComparisonQuery.cs",
+    "sha256": "1615bc37d5ce26358b64acc25b33f574f1a10373f8da3c2375e31e56f3f59216"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisFilter.cs",
+    "sha256": "3892fdcf8beb511bdf32561eeca08ee390d2d643b744bb24957213a6ebcb9da0"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisIndexedFilter.cs",
+    "sha256": "6907cec0d07ffbf8735f85cb70158bf5782f33fb3ab47714955344d80ac9ad41"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.Comparison.cs",
+    "sha256": "d5927beb552cfc0e13da34f3b45967cbd0e62211fd3e93bb645e10261e946d5e"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateNames.cs",
+    "sha256": "bac8b607a8de889d6b6b488b030c46f53f68ea5c80250d8ec751d2b3701010e1"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisRootDisplayIds.cs",
+    "sha256": "886db12aec1434da8f396fd0908dfa964f05e8fddb79ebc540924622eb5e5a1d"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.Grouping.cs",
+    "sha256": "046312c746cedf7e242daed24c8867c9cc7dc7219d0fbb248898fc397da74e5c"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.RootIds.cs",
+    "sha256": "3cc2ddaa474bdf52b4c0d41086f97ca873438404f9503b39ca053f889c0ad231"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.cs",
+    "sha256": "d43c01700c98cfa7b91b475b2f3014022d0715f860e35957c36e92c7dbf1e153"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisSavedComparison.cs",
+    "sha256": "666fbbe99960878058c7e725d7b687baeef41aa6a1dfca415123399787da2695"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisCatalogTests.Grouping.cs",
+    "sha256": "d29ed536a25c8a1c994c75c7cda0df1a8b30c734ec0885ed83a71c32d954f10c"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisCatalogTests.RootIds.cs",
+    "sha256": "b9041d656560590f67835f95742c2421958afaa2053111ef90015efca31a408e"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisComparisonTests.Persistence.cs",
+    "sha256": "9b936cffaa37c14fd294c0551ea15ff6353ab53eb39f5ffd887f47398875e4ad"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisDatasetTests.NamedInventory.cs",
+    "sha256": "169c85ac6c438a31b80097e2df0df00d4dfacca383c081df829a797a4a5a8eff"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ComparisonPersistence.cs",
+    "sha256": "ec577f1676c037fbde39e6db5056de1f7c4254f9107af7dca064afca17b25474"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.RootQueryPersistence.cs",
+    "sha256": "d6108c1251b2f7cc81c77d12d8943e50b38b40cfc29b6df2b269e974e3a950c2"
+  }
+]

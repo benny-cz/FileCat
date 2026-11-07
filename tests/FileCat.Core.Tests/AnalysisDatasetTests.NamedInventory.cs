@@ -20,7 +20,7 @@ public sealed partial class AnalysisDatasetTests
         var receipt = await lease.SaveNamedAsync("all.fcdsa", id, view, "output", () => output, Cancellation);
         using var store = new AnalysisPrivateInventoryStore(output); var catalog = new AnalysisSavedCatalog(store);
         using var index = catalog.Read(Cancellation); var entry = Assert.Single(index.Entries);
-        Assert.Equal(id, entry.InventoryId); Assert.Equal(receipt.Bytes, entry.Bytes); Assert.Equal(view with { Root = "1" }, entry.View);
+        Assert.Equal(id, entry.InventoryId); Assert.Equal(receipt.Bytes, entry.Bytes); Assert.Equal(AnalysisSavedCatalog.ViewForInventory(lease.Descriptor, view), entry.View);
         Assert.Equal(lease.Descriptor.Coverage, entry.Coverage); Assert.Equal(lease.Descriptor.Taint, entry.Taint);
         using var loaded = catalog.Load(entry, Cancellation);
         Assert.Equal(272, loaded.Snapshot.Nodes.Length); Assert.Equal(new ulong[] { 1, 2, 272 }, loaded.Snapshot.Nodes.Where(n => n.Id is 1 or 2 or 272).Select(n => n.Id));

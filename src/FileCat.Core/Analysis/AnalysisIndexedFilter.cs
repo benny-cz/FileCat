@@ -3,7 +3,10 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Analysis;
 
-public sealed record AnalysisFilterRequest(string Text, bool CaseSensitive = false, bool UnknownOnly = false, string? RootId = null);
+public sealed record AnalysisFilterRequest(string Text, bool CaseSensitive = false, bool UnknownOnly = false, string? RootId = null)
+{
+    public AnalysisRootDisplayIds? RootDisplayIds { get; init; }
+}
 public sealed record AnalysisFilterSummary(AnalysisFilterRequest Request, ulong DefinitePaths, ulong UnknownPaths);
 
 /// <summary>Construction-only membership, bounded globally to eight MiB. No source or operation capability.</summary>
@@ -53,7 +56,8 @@ internal sealed class AnalysisIndexedFilter : IDisposable, IAnalysisRootMembersh
             TimeZoneInfo? zone;
             try { zone = TimeZoneInfo.FindSystemTimeZoneById(source.Header.Identity.TimeZoneId); }
             catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException) { zone = null; }
-            return AnalysisFilter.Parse(request.Text, zone ?? TimeZoneInfo.Utc, request.CaseSensitive, roots: source.Header.Roots, allowDateOnly: zone is not null);
+            return AnalysisFilter.Parse(request.Text, zone ?? TimeZoneInfo.Utc, request.CaseSensitive, roots: source.Header.Roots, allowDateOnly: zone is not null,
+                rootDisplayIds: request.RootDisplayIds);
         }, cancellation).ConfigureAwait(false);
         var result = new AnalysisIndexedFilter(filter, request, source);
         try

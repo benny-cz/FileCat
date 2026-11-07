@@ -21,14 +21,18 @@ public sealed partial class AnalysisSavedCatalog
         var aggregate = SplitAggregationScope(view.Scope);
         view = view with { Scope = aggregate.Skipped == 0 ? aggregate.Scope : AnalysisTree.OtherKey(aggregate.Scope, aggregate.Skipped) };
         ValidateView(view);
+        if (view.RootDisplayIds is { } existing && (existing.Count != roots.Length || roots.Any(r => !existing.ContainsKey(r.Id))))
+            throw Invalid("The saved root identifiers do not match the captured locations.");
+        var ids = System.Collections.Immutable.ImmutableDictionary.CreateBuilder<string, string>(StringComparer.Ordinal);
         string? root = view.Root; string scope = aggregate.Scope;
         for (int index = 0; index < roots.Length; index++)
         {
             string original = roots[index].Id, wire = (index + 1).ToString(CultureInfo.InvariantCulture);
+            ids.Add(wire, view.RootDisplayIds?.GetValueOrDefault(original) ?? original);
             if (view.Root == original) root = wire;
             if (view.Grouping == AnalysisGroupingDimension.CapturedLocation && aggregate.Scope == LocationKey(original)) scope = LocationKey(wire);
         }
-        var result = view with { Root = root, Scope = aggregate.Skipped == 0 ? scope : AnalysisTree.OtherKey(scope, aggregate.Skipped) };
+        var result = view with { Root = root, Scope = aggregate.Skipped == 0 ? scope : AnalysisTree.OtherKey(scope, aggregate.Skipped), RootDisplayIds = new(ids) };
         ValidateView(result); return result;
     }
     private static string LocationKey(string root) => AnalysisGroupingRules.Create("location:" + root, "", "folder").Key;

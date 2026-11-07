@@ -1,0 +1,21 @@
+  FileCat.Core -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\bin\Debug\net10.0\FileCat.Core.dll
+  FileCat.Recovery -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Recovery\bin\Debug\net10.0\FileCat.Recovery.dll
+  FileCat.Platform.Windows -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Platform.Windows\bin\Debug\net10.0\FileCat.Platform.Windows.dll
+  FileCat.Remote -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Remote\bin\Debug\net10.0\FileCat.Remote.dll
+  FileCat.Archives.Rar15 -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives.Rar15\bin\Debug\net10.0\FileCat.Archives.Rar15.dll
+  FileCat.SharpCompress -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\ThirdParty\SharpCompress\bin\Debug\net10.0\FileCat.SharpCompress.dll
+  FileCat.Archives -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives\bin\Debug\net10.0\FileCat.Archives.dll
+  FileCat.ShellHost -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.ShellHost\bin\Debug\net10.0\FileCat.ShellHost.dll
+  FileCat.App -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\bin\Debug\net10.0\FileCat.dll
+E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.RootQueryPersistence.cs(30,9): warning xUnit2000: The literal or constant value root should be passed as the 'expected' argument in the call to 'Assert.NotEqual(expected, actual)' in method 'NativeMemoryRootQuerySurvivesPrivateSaveReopenAndSecondSave' on type 'AnalysisRenderingTests'. Swap the parameter values. (https://xunit.net/xunit.analyzers/rules/xUnit2000) [E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\FileCat.Rendering.Tests.csproj]
+E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.RootQueryPersistence.cs(54,9): warning xUnit2000: The literal or constant value root should be passed as the 'expected' argument in the call to 'Assert.NotEqual(expected, actual)' in method 'NativeIndexedRootQuerySurvivesReapplyGroupingAndSecondSave' on type 'AnalysisRenderingTests'. Swap the parameter values. (https://xunit.net/xunit.analyzers/rules/xUnit2000) [E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\FileCat.Rendering.Tests.csproj]
+  FileCat.Rendering.Tests -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\bin\Debug\net10.0\FileCat.Rendering.Tests.dll
+
+Build succeeded.
+
+E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.RootQueryPersistence.cs(30,9): warning xUnit2000: The literal or constant value root should be passed as the 'expected' argument in the call to 'Assert.NotEqual(expected, actual)' in method 'NativeMemoryRootQuerySurvivesPrivateSaveReopenAndSecondSave' on type 'AnalysisRenderingTests'. Swap the parameter values. (https://xunit.net/xunit.analyzers/rules/xUnit2000) [E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\FileCat.Rendering.Tests.csproj]
+E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.RootQueryPersistence.cs(54,9): warning xUnit2000: The literal or constant value root should be passed as the 'expected' argument in the call to 'Assert.NotEqual(expected, actual)' in method 'NativeIndexedRootQuerySurvivesReapplyGroupingAndSecondSave' on type 'AnalysisRenderingTests'. Swap the parameter values. (https://xunit.net/xunit.analyzers/rules/xUnit2000) [E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\FileCat.Rendering.Tests.csproj]
+    2 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:12.32

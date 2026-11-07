@@ -25,7 +25,7 @@ public sealed partial class AnalysisCatalogTests
         var restored = AnalysisGrouping.Project(inventory.Snapshot, AnalysisAggregate.Project(inventory.Snapshot, metric, cancellation: Cancellation), dimension, Cancellation);
         Assert.Contains(restored.Groups, group => group.Definition.Key == wire.Scope);
         Assert.Equal(dimension == AnalysisGroupingDimension.CapturedLocation, scope != wire.Scope);
-        Assert.Contains("\"schema\":\"4\"", Encoding.UTF8.GetString(directory.Files.Values.Single(bytes => Encoding.UTF8.GetString(bytes).Contains("\"kind\":\"named\"", StringComparison.Ordinal))));
+        Assert.Contains("\"schema\":\"5\"", Encoding.UTF8.GetString(directory.Files.Values.Single(bytes => Encoding.UTF8.GetString(bytes).Contains("\"kind\":\"named\"", StringComparison.Ordinal))));
     }
 
     [Theory]

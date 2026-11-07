@@ -8,11 +8,13 @@ public sealed partial class DiskSpaceViewModel
 {
     private AnalysisInventory? _inventory;
     private SessionIdentity? _savedRevision;
+    private AnalysisRootDisplayIds? _rootDisplayIds;
     public bool IsSaving { get; private set; }
     public bool HasPrivateStorage => _services is not null && !_services.Io.IsStopped && !_privateStorageUnavailable && !_actualWork.HasUnconfirmedClose;
     public bool CanSave => !_disposed && HasPrivateStorage && Tree is not null && _lease is not null && !IsSaving;
     public string? SavedInventoryName { get; private set; }
     public string? SavedDirectory => _services?.Paths.AnalysisSnapshotsDirectory;
+    public string RootDisplayId(string rootId) => _rootDisplayIds?.GetValueOrDefault(rootId) ?? rootId;
     private bool DisplayedRevisionSaved => Tree is { } tree && _savedRevision is { } saved &&
         tree.Snapshot.Identity.SessionId == saved.SessionId && tree.Snapshot.Identity.Epoch == saved.Epoch && tree.Snapshot.Identity.Revision == saved.Revision;
 
@@ -106,6 +108,7 @@ public sealed partial class DiskSpaceViewModel
             if (entry is not null)
             {
                 var view = entry.View; AnalysisSavedCatalog.ValidateView(view);
+                model._rootDisplayIds = view.RootDisplayIds;
                 model.Metric = view.Metric; model.Chart = view.Chart; model.Query = view.Query; model.ColorDimension = view.ColorDimension;
                 model.CaseSensitive = view.CaseSensitive; model.ShowUnknownFilterResults = view.ShowUnknown;
                 model.Sort = view.Sort; model.SortDescending = view.SortDescending; model.Grouping = view.Grouping;

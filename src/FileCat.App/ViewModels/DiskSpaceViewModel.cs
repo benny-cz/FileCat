@@ -136,7 +136,8 @@ public sealed partial class DiskSpaceViewModel : IDisposable
                 nextLease = _session?.AcquireSnapshot() ?? _inventory?.Retain() ?? _capturedOwner?.Retain();
                 var s = nextLease?.Snapshot ?? _observation;
                 if (s is null) return null;
-                var capturedView = new AnalysisSavedView(metric, Chart, query, root, scope, sensitive, showUnknown, sort, descending) { Grouping = grouping };
+                var capturedView = new AnalysisSavedView(metric, Chart, query, root, scope, sensitive, showUnknown, sort, descending)
+                { Grouping = grouping, RootDisplayIds = _rootDisplayIds };
                 var tree = BuildCapturedTree(s, capturedView, _zone, token);
                 string effectiveScope = ProjectionScope(tree, scope, previousGrouping, hierarchyTarget);
                 nextOrder = _orderRows(tree.ChildrenOf(effectiveScope), sort, descending, token);
@@ -153,7 +154,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
             if (_disposed || token.IsCancellationRequested || Sort != sort || SortDescending != descending || Grouping != grouping) { nextLease?.Dispose(); nextOrder?.Dispose(); return; }
             FilterError = null;
             var view = new AnalysisSavedView(metric, Chart, query, root, built.Value.Scope, sensitive, showUnknown, sort, descending)
-            { Grouping = grouping, ColorDimension = ColorDimension };
+            { Grouping = grouping, ColorDimension = ColorDimension, RootDisplayIds = _rootDisplayIds };
             if (_interaction > 0)
             {
                 _pending?.Lease?.Dispose(); _pending?.Order.Dispose(); _pending = new(built.Value.Tree, built.Value.Order, nextLease, scope, sort, descending,

@@ -10,7 +10,8 @@ public sealed partial class DiskSpaceViewModel
         string query = view.Query; string? root = view.Root; var metric = view.Metric; var grouping = view.Grouping;
         bool sensitive = view.CaseSensitive, showUnknown = view.ShowUnknown;
         var rootScopes = new AnalysisRootScopeIndex(s, token);
-        var filter = AnalysisFilter.Parse(query, zone ?? TimeZoneInfo.Utc, sensitive, roots: s.Roots, rootScopes: rootScopes, allowDateOnly: zone is not null);
+        var filter = AnalysisFilter.Parse(query, zone ?? TimeZoneInfo.Utc, sensitive, roots: s.Roots, rootScopes: rootScopes, allowDateOnly: zone is not null,
+            rootDisplayIds: view.RootDisplayIds);
         var nodes = s.Nodes.ToDictionary(n => n.Id);
         var pathTextAvailable = new Dictionary<ulong, bool>();
         foreach (var node in s.Nodes)
