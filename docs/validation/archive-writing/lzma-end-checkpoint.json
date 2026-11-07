@@ -1,0 +1,256 @@
+{
+  "date": "2026-11-07",
+  "source_packets": {
+    "1": {
+      "files": 4111,
+      "bytes": 30273508,
+      "sha256": "9944e6a0f3b1dccca6a70691fcf68be3813b74e9539fe81dc758c5229d7f2da9"
+    },
+    "2": {
+      "files": 4111,
+      "bytes": 30273986,
+      "sha256": "dce810910489624d191be93d7d81482c9ba8b6424e2e6c40c102999d5d134c9b"
+    },
+    "3": {
+      "files": 4112,
+      "bytes": 30276485,
+      "sha256": "6d6becf38cc131af566e8f12bf5f591cff93e5f388ecdba36a26e1661c337304"
+    }
+  },
+  "new_profile_registered": false,
+  "strict_codec_component_only": true,
+  "complete_sevenzip_catalog_and_header_graph_verification": false,
+  "production_backend_qualified": false,
+  "strict_lzma_cases": 88,
+  "dictionary_policy_bytes": 67108864,
+  "header_dictionary_policy_bytes": 16777216,
+  "sdk_commit": "b88c6bc09339de32f7d18bbab900686b244f42ba",
+  "sdk_tools_packet": {
+    "bytes": 164363,
+    "sha256": "aa7ee1ff6f335e52a8bcee38d04e645112957b83298ca5994e03a1654f76e2ee"
+  },
+  "host_scope": "Source edits, compilation, primary-source reading and static artifact verification only. No application, test or oracle execution.",
+  "windows_sdk_helper_resume": "Passing application results retained. Explicit import from the pinned packet fixes embedded Python isolation; the helper-only count assertion is corrected from 90 to 88. Only SDK/source/capture steps resume, with all errors and executed helper versions retained.",
+  "failed_helper_runs": "Mac v1 and Windows v1 aborted in a recursive test Source MemoryStream override; v2 replaces it with an independent bounded Stream. Mac/Ubuntu v2 broad runs each have two malformed positive raw-chunk fixtures; v3 fixes only their high size bytes. Those two cases are rerun alone on Mac/Ubuntu, with all previous results retained. Windows executes the corrected full v3 matrix. No production source differs between v2 and v3.",
+  "platforms": {
+    "mac": {
+      "archive": "mac-lzma-end-evidence-v3.tar.gz",
+      "bytes": 108518456,
+      "sha256": "c8892540deb32aebc705777afa015660029f8655f4d8008c2c15f984708ba7a1",
+      "manifest_rows": 4051,
+      "broad_matrix": {
+        "Passed": 1134,
+        "Failed": 2,
+        "NotExecuted": 2
+      },
+      "new_strict_lzma_cases": {
+        "Passed": 86,
+        "Failed": 2
+      },
+      "fixture_only_followup": {
+        "Passed": 2
+      },
+      "sdk_vectors": 224,
+      "sdk_accepted": 63,
+      "sdk_refused": 161,
+      "sdk_oracle_sha256": "a501e107a7ef411570be5adce0b7a421853c54b68f94046261269f99689150f4",
+      "source_audits": [
+        {
+          "path": "v2-binaries-compiler-sources/facts.json",
+          "documents": 1355,
+          "bytes": 12890585
+        },
+        {
+          "path": "v3-binaries-compiler-sources/facts.json",
+          "documents": 1355,
+          "bytes": 12890629
+        }
+      ],
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Writing/StrictLzmaStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LZ/LzOutWindow.Async.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LZ/LzOutWindow.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaDecoder.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaStream.Async.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaStream.Strict.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/RangeCoder/RangeCoder.cs",
+        "tests/FileCat.Core.Tests/StrictLzmaStreamTests.cs"
+      ],
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.12",
+        "runtime_directory": "/Users/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.12/",
+        "os": "macOS 27.0.1",
+        "architecture": "Arm64"
+      },
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "resolved_unique_cases": {
+        "Passed": 1136,
+        "NotExecuted": 2
+      },
+      "resolved_strict_lzma_cases": {
+        "Passed": 88
+      }
+    },
+    "ubuntu": {
+      "archive": "ubuntu-lzma-end-evidence-v3.tar.gz",
+      "bytes": 78192719,
+      "sha256": "1ef837672487347d03b8112d079c9742849b64a03ccc77f001979ebb1812f963",
+      "manifest_rows": 4045,
+      "broad_matrix": {
+        "Passed": 1133,
+        "NotExecuted": 3,
+        "Failed": 2
+      },
+      "new_strict_lzma_cases": {
+        "Passed": 86,
+        "Failed": 2
+      },
+      "fixture_only_followup": {
+        "Passed": 2
+      },
+      "sdk_vectors": 224,
+      "sdk_accepted": 63,
+      "sdk_refused": 161,
+      "sdk_oracle_sha256": "63af6a1ebcb1dae58646d33aceb97fc760136771fc989b9cf53131758fae5935",
+      "source_audits": [
+        {
+          "path": "v2-binaries-compiler-sources/facts.json",
+          "documents": 1355,
+          "bytes": 12890585
+        },
+        {
+          "path": "v3-binaries-compiler-sources/facts.json",
+          "documents": 1355,
+          "bytes": 12890629
+        }
+      ],
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Writing/StrictLzmaStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LZ/LzOutWindow.Async.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LZ/LzOutWindow.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaDecoder.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaStream.Async.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaStream.Strict.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/RangeCoder/RangeCoder.cs",
+        "tests/FileCat.Core.Tests/StrictLzmaStreamTests.cs"
+      ],
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.14",
+        "runtime_directory": "/home/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.14/",
+        "os": "Ubuntu 24.04.5 LTS",
+        "architecture": "X64"
+      },
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "resolved_unique_cases": {
+        "Passed": 1135,
+        "NotExecuted": 3
+      },
+      "resolved_strict_lzma_cases": {
+        "Passed": 88
+      }
+    },
+    "windows": {
+      "archive": "windows-lzma-end-evidence-v3.tar.gz",
+      "bytes": 70352453,
+      "sha256": "47e8366a2500a046b4f866ae954661f2fe60415c28ce03ec19bf6c2108b73b88",
+      "manifest_rows": 2163,
+      "broad_matrix": {
+        "Passed": 1017,
+        "NotExecuted": 121
+      },
+      "new_strict_lzma_cases": {
+        "Passed": 88
+      },
+      "fixture_only_followup": null,
+      "sdk_vectors": 224,
+      "sdk_accepted": 63,
+      "sdk_refused": 161,
+      "sdk_oracle_sha256": "1cbf6c9cbaf11402e4ea096faee9dd94730d8f8ed0a902b27191e4b07efb22c2",
+      "source_audits": [
+        {
+          "path": "compiler-sources/facts.json",
+          "documents": 1355,
+          "bytes": 12905330
+        }
+      ],
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Writing/StrictLzmaStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LZ/LzOutWindow.Async.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LZ/LzOutWindow.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaDecoder.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaStream.Async.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaStream.Strict.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/LzmaStream.cs",
+        "src/ThirdParty/SharpCompress/Compressors/LZMA/RangeCoder/RangeCoder.cs",
+        "tests/FileCat.Core.Tests/StrictLzmaStreamTests.cs"
+      ],
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.14",
+        "runtime_directory": "C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\10.0.14\\",
+        "os": "Microsoft Windows 10.0.26340",
+        "architecture": "X64"
+      },
+      "writing_closure": {
+        "Rar15_or_DiscUtils_present": false,
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ]
+      },
+      "final_census": {
+        "Processes": [],
+        "CollectedUtc": "2026-11-07T09:23:20.1534234Z"
+      },
+      "standard_test_account": {
+        "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+        "AdministratorsMember": false,
+        "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+        "HiveLoaded": true
+      },
+      "resolved_unique_cases": {
+        "Passed": 1017,
+        "NotExecuted": 121
+      },
+      "resolved_strict_lzma_cases": {
+        "Passed": 88
+      }
+    }
+  },
+  "windows_initial_helper_failure": {
+    "snapshot": "win-lzma-end-inspect-v1.json",
+    "bytes": 5320,
+    "sha256": "cb1df6f6cec800dae7f41902a6ce508360be1e29e7e11d85303f437e4fd59b8c",
+    "owned_processes_remaining": 0,
+    "abort_exit_code": -1073741571,
+    "qualified_as_pass": false
+  }
+}

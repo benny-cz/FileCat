@@ -23,6 +23,11 @@ coder graphs and physical ownership, including bounded compressed/encrypted head
 constructed decoder graphs on failure. Complete logical member/header codec-ending checks and preservation
 admission remain open; an encoded-header catalog explicitly reports its ending verification as pending.
 
+The next [LZMA/LZMA2 verification component](SEVENZIP_LZMA_VERIFICATION.md) adds exact marked/markerless finish,
+compressed-byte consumption, chunk/history/property checks and owned-buffer cleanup. Its independent official-SDK
+comparison covers 224 accept/refuse vectors. It is a prerequisite for the complete 7z catalog; encoded-header and
+member graph integration still remain open, and the component does not enable a production writer.
+
 The priority decision is in plan §4.3.2: bounded RAR C# implementation first, then needed 7z codecs/filters/container;
 strict catalogs and shared worker/transaction/capture/resource integration; complete workflows/UI; large guarded
 three-platform qualification batches plus actual six-RID/package/fuzz gates; final independent UX/UI/function/security

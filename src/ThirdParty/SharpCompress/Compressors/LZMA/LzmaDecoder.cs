@@ -331,7 +331,7 @@ public partial class Decoder : ICoder, ISetDecoderProperties, IDisposable
         _outWindow = null;
     }
 
-    internal bool Code(int dictionarySize, OutWindow outWindow, RangeCoder.Decoder rangeDecoder)
+    internal bool Code(int dictionarySize, OutWindow outWindow, RangeCoder.Decoder rangeDecoder, bool strict = false)
     {
         var dictionarySizeCheck = Math.Max(dictionarySize, 1);
 
@@ -377,6 +377,7 @@ public partial class Decoder : ICoder, ISetDecoderProperties, IDisposable
                                 .Decode(rangeDecoder) == 0
                         )
                         {
+                            if (strict && (_rep0 >= outWindow.Total || _rep0 >= dictionarySizeCheck)) throw new DataErrorException();
                             _state.UpdateShortRep();
                             outWindow.PutByte(outWindow.GetByte((int)_rep0));
                             continue;

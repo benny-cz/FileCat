@@ -214,6 +214,7 @@ public partial class LzmaStream : Stream, IStreamStack, IAsyncDisposable
                 _inputStream?.Dispose();
             }
             _outWindow.Dispose();
+            if (_strictByte is not null) { System.Security.Cryptography.CryptographicOperations.ZeroMemory(_strictByte); _strictByte = null; }
             ReturnAsyncHeaderBuffer();
         }
         base.Dispose(disposing);
@@ -242,6 +243,7 @@ public partial class LzmaStream : Stream, IStreamStack, IAsyncDisposable
 
     public override int Read(byte[] buffer, int offset, int count)
     {
+        if (_strict) return ReadStrict(buffer, offset, count);
         if (_endReached)
         {
             return 0;
@@ -337,6 +339,7 @@ public partial class LzmaStream : Stream, IStreamStack, IAsyncDisposable
 
     public override int ReadByte()
     {
+        if (_strict) return ReadStrictByte();
         if (_endReached)
         {
             return -1;

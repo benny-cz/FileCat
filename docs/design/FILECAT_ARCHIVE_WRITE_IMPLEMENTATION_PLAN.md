@@ -60,6 +60,12 @@ Production availability is per format, profile, runtime identifier, and destinat
 
 **Current implementation priority (7 November):** the independent RAR5 and 7z encoders, including password foundations, have passed their recorded codec checkpoints. Complete strict source/output catalogs next, then integrate RAR5 and 7z into the shared transaction, password, creation/update/edit and F6 workflows as the next major milestone. Do this before optional XZ/ISO work and before the final independent review. The release rows above describe independently qualified availability, not a requirement to defer RAR/7z integration until every earlier release has shipped. Source preservation, complete compressed-stream verification and bounded worker execution remain prerequisites for replacing an archive; the final native/UI/resource/fuzz/package gates still apply.
 
+**Integration sequencing:** shared versioned format/options, public-request binding and password-role plumbing can
+advance while the remaining 7z graph-ending checks are completed. The completed RAR5 logical-catalog component
+can drive its preservation/transaction adapter without waiting for every 7z codec graph. Connect each backend
+only when its complete verification and preservation contracts are met; qualify its workflows and platform gates
+before enabling it. This makes RAR/7z integration early work and keeps optional formats and final UI polish later.
+
 ### 1.3 Scope boundaries
 
 - Keep the existing ZIP implementation and tests as a behavioral baseline. Refactor only the shared safety boundary that new formats require.

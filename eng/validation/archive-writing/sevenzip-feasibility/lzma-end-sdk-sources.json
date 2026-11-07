@@ -1,0 +1,70 @@
+{
+  "commit": "b88c6bc09339de32f7d18bbab900686b244f42ba",
+  "test_and_reference_only": true,
+  "files": [
+    {
+      "path": "C/LzmaDec.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/LzmaDec.c",
+      "bytes": 38207,
+      "sha256": "4e6ec665a6df01f1722e2b2fc36dc5e3aa7c3890e0f8cb11c6a07c9a01f3309b",
+      "git_blob": "5bc5094cd57dd0c087f31bf4bfdb24562120dcfc",
+      "notice": ": Igor Pavlov : Public domain */"
+    },
+    {
+      "path": "C/LzmaDec.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/LzmaDec.h",
+      "bytes": 7166,
+      "sha256": "3aaf07b4ae4173a2d103179455dc7089b5ddbc7fc3db3c0e40964a7499c69266",
+      "git_blob": "b0ce28fa02a1adc422b7269c4e6d2c2d26fc60b9",
+      "notice": "2023-04-02 : Igor Pavlov : Public domain */"
+    },
+    {
+      "path": "C/Lzma2Dec.c",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Lzma2Dec.c",
+      "bytes": 12879,
+      "sha256": "3d691d30e4a1f4b661d56fc483db702167ff6a91781d143a017c793c1860476f",
+      "git_blob": "8bf54e499edf73a88df3a89ac04377201e5127f3",
+      "notice": "2024-03-01 : Igor Pavlov : Public domain */"
+    },
+    {
+      "path": "C/Lzma2Dec.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Lzma2Dec.h",
+      "bytes": 3781,
+      "sha256": "a4b97083c3817d3e1e3049f8b1abc0b4ca3e91192606497c02bb5351b57422c7",
+      "git_blob": "1f5233a728a96d323cb527e09be2548285e09a43",
+      "notice": "2023-03-03 : Igor Pavlov : Public domain */"
+    },
+    {
+      "path": "C/7zTypes.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/7zTypes.h",
+      "git_blob": "af47668055f4aa318d94005a33d199198b7ab775",
+      "sha256": "a5d03b8cb65cd3a2a56bde46dd68fb356d2ebacd9d70283e7d4d20b4e0a64713",
+      "bytes": 15876,
+      "notice_prefix": "/* 7zTypes.h -- Basic types\n: Igor Pavlov : Public domain */\n\n#ifndef ZIP7_7Z_TYPES_H\n#define ZIP7_7Z_TYPES_H\n\n#ifdef _WIN32\n/* #include <windows.h> */\n#else\n#include <errno.h>\n#endif\n\n#include <stddef.h>\n\n#ifndef EXTERN_C_BEGIN\n#ifdef __cplusplus\n#define EXTERN_C_BEGIN extern \"C\" {\n#define EXTERN_C_END }\n#else\n#define EXTERN_C_BEGIN\n#define EXTERN_C_END\n#endif\n#endif\n\nEXTERN_C_BEGIN\n\n#define SZ_OK 0\n\n#define SZ_ERROR_DATA 1\n#define SZ_ERROR_MEM 2\n#define SZ_ERROR_CRC 3\n#define SZ_ERROR_UNSUPPORTED 4\n#define SZ_ERROR_PARAM 5\n#define SZ_ERROR_INPUT_EOF 6\n#define SZ_ERROR_OUTPUT_EOF 7\n#define SZ"
+    },
+    {
+      "path": "C/Precomp.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Precomp.h",
+      "git_blob": "83b720e1150b6c2a93c79719feee2da86325c317",
+      "sha256": "c8903f2e36a771a272d8981e1e9ffed5ba16ca3d2f3dca6d1414d2340a6829d0",
+      "bytes": 3266,
+      "notice_prefix": "/* Precomp.h -- precompilation file\n: Igor Pavlov : Public domain */\n\n#ifndef ZIP7_INC_PRECOMP_H\n#define ZIP7_INC_PRECOMP_H\n\n/*\n  this file must be included before another *.h files and before <windows.h>.\n  this file is included from the following files:\n    C\\*.c\n    C\\Util\\*\\Precomp.h   <-  C\\Util\\*\\*.c\n    CPP\\Common\\Common.h  <-  *\\StdAfx.h    <-  *\\*.cpp\n\n  this file can set the following macros:\n    Z7_LARGE_PAGES 1\n    Z7_LONG_PATH 1\n    Z7_WIN32_WINNT_MIN  0x0500 (or higher) : we require at least win2000+ for 7-Zip\n    _WIN32_WINNT        0x0500 (or higher)\n    WINVER  _WIN32_WINNT\n  "
+    },
+    {
+      "path": "C/Compiler.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/Compiler.h",
+      "git_blob": "707e46de05c175e6a2ed10c5a1689f975564be15",
+      "sha256": "d5e42be77d26beaa8c81d3e62ef99fc5685736cfc079779fdb9154d05fa8bc4a",
+      "bytes": 10762,
+      "notice_prefix": "/* Compiler.h : Compiler specific defines and pragmas\n: Igor Pavlov : Public domain */\n\n#ifndef ZIP7_INC_COMPILER_H\n#define ZIP7_INC_COMPILER_H\n\n#if defined(__clang__)\n# define Z7_CLANG_VERSION  (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)\n#endif\n#if defined(__clang__) && defined(__apple_build_version__)\n# define Z7_APPLE_CLANG_VERSION   Z7_CLANG_VERSION\n#elif defined(__clang__)\n# define Z7_LLVM_CLANG_VERSION    Z7_CLANG_VERSION\n#elif defined(__GNUC__)\n# define Z7_GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)\n#endif\n\n#ifdef _MSC_VER\n#if"
+    },
+    {
+      "path": "C/7zWindows.h",
+      "url": "https://raw.githubusercontent.com/ip7z/7zip/b88c6bc09339de32f7d18bbab900686b244f42ba/C/7zWindows.h",
+      "git_blob": "381159edf5e63a1779199c992457894fa1e1cf0b",
+      "sha256": "996e5dc62a022e05c95142c53729abfdc308b8b006dddbdf78793ff4fb2b8dc6",
+      "bytes": 2537,
+      "notice_prefix": "/* 7zWindows.h -- Windows.h and related code\nIgor Pavlov : Public domain */\n\n#ifndef ZIP7_INC_7Z_WINDOWS_H\n#define ZIP7_INC_7Z_WINDOWS_H\n\n#ifdef _WIN32\n\n#if defined(_MSC_VER) && _MSC_VER >= 1950 && !defined(__clang__) // VS2026\n// <Windows.h> and some another windows files need that option\n// VS2026: wtypesbase.h: warning C4865: 'tagCLSCTX': the underlying type will change from 'int' to 'unsigned int' when '/Zc:enumTypes' is specified on the command line\n#pragma warning(disable : 4865)\n#endif\n\n#if defined(__clang__)\n# pragma clang diagnostic push\n#endif\n\n#if defined(_MSC_VER)\n\n#pragma warning("
+    }
+  ]
+}

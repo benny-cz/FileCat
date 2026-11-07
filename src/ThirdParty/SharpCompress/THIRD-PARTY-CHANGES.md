@@ -23,7 +23,7 @@ everything else is left out.
   SDK C files pinned in `eng/validation/archive-writing/sevenzip-feasibility/ppmd-filter-sources.json`.
   Adds original Swap2/Swap4 and their reader registrations. Delta now encodes by subtraction and decodes
   by addition; the encoding filter wrapper preserves incomplete instructions across writes, avoids mutating
-  caller buffers, and emits the incomplete EOF tail once. BCJ2 encoding remains unimplemented.
+  caller buffers, and emits the incomplete EOF tail once. BCJ2 encoding was added in the later BCJ2 checkpoint.
 
 - Dedicated archive-worker build, 6 November 2026: `FileCat.SharpCompress.csproj` grants internal access to the
   writing-only `FileCat.Archives.Writing` assembly and adds the Linux musl ARM64 restore target. Existing encoder
@@ -106,3 +106,12 @@ reads the member (`SevenZipMemberStream` in `src/FileCat.Archives/ArchiveFormats
 - `Compressors/LZMA/DecoderStream.cs`: synchronous and asynchronous graph construction dispose already-created
   decoder/packed streams if a later coder or graph construction step throws. This closes earlier AES transforms
   even when the caller never receives a root decoder to own; cleanup preserves the original exception.
+
+- `Compressors/LZMA/LzmaStream.Strict.cs` and selected LZMA/range/window hooks: an internal, opt-in exact-extent
+  verifier checks real required input, the initial range byte, terminal range state, complete compressed-byte
+  consumption, legal marked/markerless LZMA finish and every LZMA2 chunk/reset/property/end rule. Short repeats
+  cannot read missing dictionary history. Strict dictionary storage is cleared before pool return. Existing
+  browsing entrypoints keep their default behavior. The new adapter and verification control flow are FileCat
+  code; contracts and the separate native test oracle use individually pinned public-domain SDK sources listed
+  in `eng/validation/archive-writing/sevenzip-feasibility/lzma-end-sdk-sources.json`. No SDK decoder source is
+  imported into the production assembly, and no package or codec licence is changed.
