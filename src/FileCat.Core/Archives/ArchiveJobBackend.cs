@@ -66,6 +66,7 @@ internal sealed class ArchiveJobBackends
                 return;
             }
             var profile = operation.Plan.Profile!;
+            job.Checkpoint();
             ArchiveJobPassword.Require(profile, operation.Password);
             owner.backends[profile.Format].Execute(new(job, operation.Plan, operation.Password, fs, journal));
         }

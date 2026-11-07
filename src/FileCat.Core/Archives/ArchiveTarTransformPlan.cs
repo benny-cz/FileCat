@@ -102,7 +102,7 @@ public sealed class ArchiveTarTransformPlan : ArchiveContainerTransformPlan
             frozenEdits[i] = edit;
         }
         usedDirectories.UnionWith(ArchiveCapturedDirectoryMerge.Review(directoryMerges, captureOwner, source, keys, changes, budget, ct));
-        var planned = new List<(ArchiveManifestMember Member, bool Changed)>();
+        var planned = new List<(ArchiveManifestMember Member, string? OriginalName)>();
         var occurrences = new Dictionary<(string, ArchiveMemberType), int>();
         foreach (var old in source?.Manifest.Members ?? [])
         {
@@ -111,7 +111,7 @@ public sealed class ArchiveTarTransformPlan : ArchiveContainerTransformPlan
             if (edit?.Kind == ArchiveChangeKind.Delete) continue;
             string name = edit?.NewName ?? old.Name;
             var input = edit?.InputId is { } id ? captured[id] : null;
-            Add(name, old.Type, input?.Length ?? old.Length, input?.Sha256 ?? old.Sha256, old.Metadata, name != old.Name);
+            Add(name, old.Type, input?.Length ?? old.Length, input?.Sha256 ?? old.Sha256, old.Metadata, old.Name);
         }
         var frozenAdditions = new ArchiveTransformAddition[additions.Count];
         for (int i = 0; i < additions.Count; i++)
@@ -130,12 +130,12 @@ public sealed class ArchiveTarTransformPlan : ArchiveContainerTransformPlan
             if (ustar) modified = ArchiveTimestamp.FromUnixSeconds(decimal.Truncate(modified.UnixSeconds));
             Add(addition.Name, addition.Type, input?.Length ?? 0,
                 input?.Sha256 ?? "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
-                AddedMetadata(input?.Mode ?? addition.DirectoryMetadata?.Mode ?? 0x1ed, modified), changed: true);
+                AddedMetadata(input?.Mode ?? addition.DirectoryMetadata?.Mode ?? 0x1ed, modified), originalName: null);
             frozenAdditions[i] = addition;
         }
         if (usedInputs.Count != captured.Count) throw ArchiveManifestMember.Invalid(); // no unrelated read grants
         if (usedDirectories.Count != (captureOwner?.Directories.Count ?? 0)) throw ArchiveManifestMember.Invalid();
-        ValidateNamespace(planned, ct);
+        ArchiveNamespaceReview.Validate(source?.Manifest.Members ?? [], planned, budget, ct);
         // A headerless empty TAR has no PAX extension and is observed as USTAR, including a PAX remove-all update.
         // Zstandard output always includes a content checksum, including updates of valid unchecked input frames.
         var expected = new ArchiveWriteManifest(profile, planned.Select(p => p.Member).ToArray(),
@@ -160,7 +160,7 @@ public sealed class ArchiveTarTransformPlan : ArchiveContainerTransformPlan
             budget.AddMetadata(ArchiveWritePolicy.Utf8.GetByteCount(member.Name) + member.Metadata.Length + 64L,
                 2L * member.Name.Length + member.Metadata.Length + 640L);
         }
-        void Add(string name, ArchiveMemberType type, long length, string digest, ReadOnlySpan<byte> metadata, bool changed)
+        void Add(string name, ArchiveMemberType type, long length, string digest, ReadOnlySpan<byte> metadata, string? originalName)
         {
             // Reserve before copying a complete member representation. Metadata is already bounded by the source
             // manifest; newly synthesized metadata has a fixed 32/36-byte representation.
@@ -169,7 +169,7 @@ public sealed class ArchiveTarTransformPlan : ArchiveContainerTransformPlan
             var key = (name, type); int occurrence = occurrences.GetValueOrDefault(key); occurrences[key] = occurrence + 1;
             var member = new ArchiveManifestMember(name, type, occurrence, length, digest, metadata);
             ValidateMetadata(member, ustar);
-            planned.Add((member, changed));
+            planned.Add((member, originalName));
         }
     }
 

@@ -11,6 +11,7 @@ internal sealed class WindowsArchiveSelectionTree : IArchiveSelectionTree
 {
     private readonly WindowsArchiveDirectory root;
     private WindowsArchiveSelectionTree(string path) => root = WindowsArchiveDirectory.Open(path);
+    internal static IArchiveSelectionTree Open(string path) => new WindowsArchiveSelectionTree(path);
     internal static ArchiveCapturedSelection Capture(string path, IReadOnlyList<string> roots, CancellationToken ct)
         => ArchiveCapturedSelection.Capture(new WindowsArchiveSelectionTree(path), roots, ct);
     public ArchiveSelectionEntry InspectRoot(string leaf, CancellationToken ct)
@@ -82,7 +83,7 @@ internal sealed class WindowsArchiveSelectionTree : IArchiveSelectionTree
     {
         if (node.Parent is null) { ct.ThrowIfCancellationRequested(); root.RequireSelectionRoot(); return new(root, false); }
         // Pin the parent path against rename/delete, then check each selected ancestor before granting reads.
-        string path = Path.Combine(root.DisplayPath, node.Parent.MemberName.Replace('/', Path.DirectorySeparatorChar));
+        string path = Path.Combine(root.DisplayPath, node.Parent.NativeRelativePath.Replace('/', Path.DirectorySeparatorChar));
         var parent = WindowsArchiveDirectory.Open(path);
         try
         {

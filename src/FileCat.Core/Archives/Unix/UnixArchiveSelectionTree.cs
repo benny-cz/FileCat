@@ -8,6 +8,7 @@ internal sealed class UnixArchiveSelectionTree : IArchiveSelectionTree
 {
     private readonly UnixArchiveDirectory root;
     private UnixArchiveSelectionTree(string path) => root = UnixArchiveDirectory.Open(path);
+    internal static IArchiveSelectionTree Open(string path) => new UnixArchiveSelectionTree(path);
     internal static ArchiveCapturedSelection Capture(string path, IReadOnlyList<string> roots, CancellationToken ct)
         => ArchiveCapturedSelection.Capture(new UnixArchiveSelectionTree(path), roots, ct);
     public ArchiveSelectionEntry InspectRoot(string leaf, CancellationToken ct)
@@ -71,7 +72,7 @@ internal sealed class UnixArchiveSelectionTree : IArchiveSelectionTree
     {
         if (node.Parent is null) { ct.ThrowIfCancellationRequested(); root.RequireSelectionRoot(); return new(root, false); }
         using var verified = OpenDirectory(node.Parent, ct);
-        string path = Path.Combine(root.DisplayPath, node.Parent.MemberName);
+        string path = Path.Combine(root.DisplayPath, node.Parent.NativeRelativePath);
         var parent = UnixArchiveDirectory.Open(path);
         try
         {

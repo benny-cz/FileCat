@@ -107,7 +107,7 @@ public sealed class ArchiveRar5TransformPlan : ArchiveContainerTransformPlan
             if (edit.InputId is { } id) Use(id); frozenEdits[index] = edit;
         }
         usedDirectories.UnionWith(ArchiveCapturedDirectoryMerge.Review(directoryMerges, captureOwner, source, keys, changes, budget, ct));
-        var members = new List<ArchiveRar5PlannedMember>(); var namespaceRows = new List<(ArchiveManifestMember, bool)>();
+        var members = new List<ArchiveRar5PlannedMember>(); var namespaceRows = new List<(ArchiveManifestMember, string?)>();
         var occurrences = new Dictionary<(string, ArchiveMemberType), int>();
         for (int index = 0; index < oldMembers.Count; index++)
         {
@@ -117,7 +117,7 @@ public sealed class ArchiveRar5TransformPlan : ArchiveContainerTransformPlan
             string name = edit?.NewName ?? old.Name; var input = edit?.InputId is { } id ? captured[id] : null;
             byte[] metadata = input is null ? old.Metadata.ToArray() : Replacement(ArchiveRar5Metadata.Decode(old.Metadata), input.Length, profile).Encode();
             Add(name, old.Type, input?.Length ?? old.Length, input?.Sha256 ?? old.Sha256, metadata, input is null ? index : null,
-                input?.Id, name != old.Name);
+                input?.Id, old.Name);
         }
         var frozenAdditions = new ArchiveTransformAddition[additions.Count];
         for (int index = 0; index < additions.Count; index++)
@@ -133,12 +133,12 @@ public sealed class ArchiveRar5TransformPlan : ArchiveContainerTransformPlan
             var input = addition.InputId is { } id ? Use(id) : null;
             Add(addition.Name, addition.Type, input?.Length ?? 0, input?.Sha256 ?? EmptySha256,
                 NewMetadata(addition.Type, input?.Length ?? 0, input?.Mode ?? addition.DirectoryMetadata!.Mode,
-                    input?.ModifiedTimestamp ?? addition.DirectoryMetadata!.Modified, profile).Encode(), null, input?.Id, true);
+                    input?.ModifiedTimestamp ?? addition.DirectoryMetadata!.Modified, profile).Encode(), null, input?.Id, null);
             frozenAdditions[index] = addition;
         }
         if (used.Count != captured.Count) throw ArchiveManifestMember.Invalid();
         if (usedDirectories.Count != (captureOwner?.Directories.Count ?? 0)) throw ArchiveManifestMember.Invalid();
-        Namespace(namespaceRows, ct);
+        ArchiveNamespaceReview.Validate(oldMembers, namespaceRows, budget, ct);
         if (profile.Encryption.Mode == ArchiveEncryptionMode.Data && !members.Any(member => ArchiveRar5Metadata.Decode(member.Expected.Metadata).EncryptionFlags is not null))
             throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "Payload password protection requires at least one encrypted file. Use hidden names for an archive containing only folders.");
         var expected = new ArchiveWriteManifest(profile, members.Select(member => member.Expected).ToArray(), features.Encode());
@@ -155,13 +155,13 @@ public sealed class ArchiveRar5TransformPlan : ArchiveContainerTransformPlan
             int bytes = ArchiveWritePolicy.Utf8.GetByteCount(name); if (bytes > ArchiveWritePolicy.MaxRar5NameBytes) throw ArchiveWriteBudget.Limit();
             budget.AddNameChars(name.Length); budget.AddMetadata(bytes, 2L * name.Length + 128);
         }
-        void Add(string name, ArchiveMemberType type, long length, string digest, ReadOnlySpan<byte> metadata, int? sourceIndex, int? inputId, bool changed)
+        void Add(string name, ArchiveMemberType type, long length, string digest, ReadOnlySpan<byte> metadata, int? sourceIndex, int? inputId, string? originalName)
         {
             budget.AddMember(); budget.AddNameChars(name.Length); budget.AddLogicalBytes(length);
             budget.AddMetadata(ArchiveWritePolicy.Utf8.GetByteCount(name) + metadata.Length + 64L, checked(4L * name.Length + 4L * metadata.Length + 1024));
             var key = (name, type); int occurrence = occurrences.GetValueOrDefault(key); occurrences[key] = occurrence + 1;
             var member = new ArchiveManifestMember(name, type, occurrence, length, digest, metadata); ValidateMetadata(member);
-            members.Add(new(member, sourceIndex, inputId)); namespaceRows.Add((member, changed));
+            members.Add(new(member, sourceIndex, inputId)); namespaceRows.Add((member, originalName));
         }
     }
 

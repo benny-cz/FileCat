@@ -59,7 +59,8 @@ public sealed class ArchiveJobBackendTests
         public ArchiveWriteFormat Format => format;
         internal ArchiveJobAvailability Status = ArchiveJobAvailability.Ready;
         internal int Calls;
-        public ArchiveJobAvailability Availability(ArchivePlan plan) => Status;
+        internal Action<ArchivePlan>? Check;
+        public ArchiveJobAvailability Availability(ArchivePlan plan) { Check?.Invoke(plan); return Status; }
         public void Execute(ArchiveJobExecution execution)
         {
             Interlocked.Increment(ref Calls);
@@ -142,7 +143,7 @@ public sealed class ArchiveJobBackendTests
         void Fail(Job job)
         {
             seen = job; if (route == "added-cancel") job.Cancel();
-            manager.Schedule(); Assert.Equal(0, backend.Calls); Live(password);
+            manager.Schedule(); Assert.Equal(0, backend.Calls); Assert.Null(job.StartedUtc); Assert.Equal(JobState.Queued, job.State); Live(password);
             throw new InvalidOperationException("Synthetic admission failure.");
         }
         if (route != "registration") manager.JobAdded += Fail;
@@ -236,5 +237,15 @@ public sealed class ArchiveJobBackendTests
         }));
         Assert.NotNull(sibling); await Finished(sibling); Assert.Equal(JobState.Completed, sibling.State); Assert.Equal(1, backend.Calls);
         Assert.Same(sibling, Assert.Single(manager.Jobs));
+    }
+
+    [Fact]
+    public async Task Cancellation_during_availability_does_not_enter_the_backend()
+    {
+        using var temp = new TempDir(); using var password = new ArchiveJobPassword(PublicPassword); var buffer = Buffer(password);
+        var backend = new Backend(ArchiveWriteFormat.Rar5); var manager = Manager(temp, backend); manager.MaxConcurrent = 0;
+        var job = manager.SubmitArchive(Plan(temp, Profile(9, 1)), password); backend.Check = _ => job.Cancel();
+        manager.MaxConcurrent = 1; manager.Schedule(); await Finished(job);
+        Assert.Equal(JobState.Canceled, job.State); Assert.Equal(0, backend.Calls); Erased(password, buffer);
     }
 }

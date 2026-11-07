@@ -87,9 +87,21 @@ The [typed job/password ownership component](../validation/archive-writing/ARCHI
 per-manager dispatch, immutable queued intent and operation-owned password cleanup. Its 45 focused cases pass
 on Windows/Mac/Ubuntu; the [checkpoint](../validation/archive-writing/archive-job-backend-checkpoint.json) binds
 the complete core/native/independent-reader/source matrix and retains Ubuntu's environment repair. Default
-composition remains empty. The next production chunk must connect actual native execution and review decisions,
-then creation/member/edit/F6/password UI. The legacy-shaped queued plan is not native publication authority;
-complete catalog keys, captured-source exclusions and native leases must still bind the executing operation.
+composition remains empty. The [native job component](../validation/archive-writing/NATIVE_ARCHIVE_JOBS.md) now
+connects actual manager execution, exact catalog scopes, multiple native source parents, bounded review decisions,
+role-bound workers and publication. The next chunk must complete safe cleanup and native F6 source removal, then
+creation/member/edit/password UI and Unix update/confinement. The legacy-shaped queued plan is not native
+publication authority; complete catalog keys, captured-source exclusions and native leases bind the executing operation.
+
+**Approved validation acceleration (8 November):** coalesce focused/native checks, inherited regressions,
+independent readers, source/assembly evidence and final instance cleanup into one large batch per available
+machine. Run independent idle machines concurrently and prepare independent implementation/review work while
+those batches run. Apply checked source deltas; reuse compiler/runtime artifacts only when their source and
+binary hashes prove them unchanged. A validation-helper correction can resume the failed reader/evidence phase
+against unchanged archive bytes and binaries. Preserve the initial refusal, executed helper versions, actual
+compiler inputs and pass/skip counts. Production changes still require affected validation and all inherited
+release gates; neither a larger batch nor artifact reuse changes the required platform, UX, security or final
+independent-review coverage. Keep live tests on the guests/Mac, defer other testers, and close owned instances.
 
 [Complete encoded-header verification](../validation/archive-writing/SEVENZIP_HEADER_VERIFICATION.md) now connects
 the strict LZMA/LZMA2 and exact Copy/AES layers to the 7z framing pass. The subsequent logical catalog connects the

@@ -86,7 +86,7 @@ public sealed class ArchiveSevenZipTransformPlan : ArchiveContainerTransformPlan
             if (edit.InputId is { } id) Use(id); frozenEdits[i] = edit;
         }
         usedDirectories.UnionWith(ArchiveCapturedDirectoryMerge.Review(directoryMerges, captureOwner, source, keys, changes, budget, ct));
-        var members = new List<ArchiveSevenZipPlannedMember>(); var namespaceRows = new List<(ArchiveManifestMember, bool)>();
+        var members = new List<ArchiveSevenZipPlannedMember>(); var namespaceRows = new List<(ArchiveManifestMember, string?)>();
         var occurrences = new Dictionary<(string, ArchiveMemberType), int>();
         for (int i = 0; i < oldMembers.Count; i++)
         {
@@ -96,7 +96,7 @@ public sealed class ArchiveSevenZipTransformPlan : ArchiveContainerTransformPlan
             var metadata = Metadata(old);
             if (input is not null) metadata = new(metadata.Type, metadata.Attributes, metadata.CreatedFileTime, metadata.AccessedFileTime,
                 metadata.ModifiedFileTime, ArchiveSevenZipEncoding.Payload(profile, input.Length));
-            Add(name, old.Type, input?.Length ?? old.Length, input?.Sha256 ?? old.Sha256, metadata.Encode(), input is null ? i : null, input?.Id, name != old.Name);
+            Add(name, old.Type, input?.Length ?? old.Length, input?.Sha256 ?? old.Sha256, metadata.Encode(), input is null ? i : null, input?.Id, old.Name);
         }
         var frozenAdditions = new ArchiveTransformAddition[additions.Count];
         for (int i = 0; i < additions.Count; i++)
@@ -111,10 +111,10 @@ public sealed class ArchiveSevenZipTransformPlan : ArchiveContainerTransformPlan
             var input = addition.InputId is { } id ? Use(id) : null;
             var metadata = ArchiveSevenZipEncoding.Captured(addition.Type, input?.Length ?? 0, input?.Mode ?? addition.DirectoryMetadata!.Mode,
                 input?.ModifiedTimestamp ?? addition.DirectoryMetadata!.Modified, profile);
-            Add(addition.Name, addition.Type, input?.Length ?? 0, input?.Sha256 ?? EmptySha256, metadata.Encode(), null, input?.Id, true); frozenAdditions[i] = addition;
+            Add(addition.Name, addition.Type, input?.Length ?? 0, input?.Sha256 ?? EmptySha256, metadata.Encode(), null, input?.Id, null); frozenAdditions[i] = addition;
         }
         if (used.Count != captured.Count || usedDirectories.Count != (captureOwner?.Directories.Count ?? 0)) throw ArchiveManifestMember.Invalid();
-        Namespace(namespaceRows, ct);
+        ArchiveNamespaceReview.Validate(oldMembers, namespaceRows, budget, ct);
         var features = ArchiveSevenZipEncoding.Features(profile, members.Select(m => m.Expected).ToArray(), originalFeatures);
         ArchiveSevenZipEncoding.ValidateFeatures(members.Select(m => m.Expected).ToArray(), features);
         if (profile.Encryption.Mode == ArchiveEncryptionMode.Data && !members.Any(m => Metadata(m.Expected).Graph?.Encrypted == true))
@@ -127,13 +127,13 @@ public sealed class ArchiveSevenZipTransformPlan : ArchiveContainerTransformPlan
             if (!captured.TryGetValue(id, out var input)) throw ArchiveManifestMember.Invalid();
             ArchiveWriteBudget.Reserve(requested, input.Length, ArchiveWritePolicy.MaxLogicalBytes); requested += input.Length; used.Add(id); return input;
         }
-        void Add(string name, ArchiveMemberType type, long length, string digest, byte[] metadata, int? sourceIndex, int? inputId, bool changed)
+        void Add(string name, ArchiveMemberType type, long length, string digest, byte[] metadata, int? sourceIndex, int? inputId, string? originalName)
         {
             budget.AddMember(); budget.AddLogicalBytes(length); budget.AddNameChars(name.Length);
             budget.AddMetadata(ArchiveWritePolicy.Utf8.GetByteCount(name) + metadata.Length + 64L, checked(name.Length * 4L + metadata.Length * 8L + 1024));
             var key = (name, type); int occurrence = occurrences.GetValueOrDefault(key); occurrences[key] = occurrence + 1;
             var member = new ArchiveManifestMember(name, type, occurrence, length, digest, metadata); Metadata(member);
-            members.Add(new(member, sourceIndex, inputId)); namespaceRows.Add((member, changed));
+            members.Add(new(member, sourceIndex, inputId)); namespaceRows.Add((member, originalName));
         }
     }
     private static ArchiveSevenZipMetadata Metadata(ArchiveManifestMember member)

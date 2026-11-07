@@ -1,5 +1,17 @@
 # Archive writing implementation status
 
+**8 November: native manager execution and review decisions implemented, unregistered.**
+[Native jobs](NATIVE_ARCHIVE_JOBS.md) connect exact catalog/member/folder scopes, multi-parent source capture,
+bounded safe previews, replacement/exclusion/7z precision decisions, role-bound workers and native publication.
+Existing native targets are rechecked before parsing. A complete duplicate group can relocate together;
+partial/new collisions still refuse. The [checkpoint](native-archive-job-checkpoint.json) records 114 focused
+cases on each platform, 12 Unix/14 Windows native job preflights, complete 8,320-case Unix/8,325-case Windows core
+suites, 177 Windows native cases, ten application-entry cases, independent readers and source/DLL/PDB binding.
+Original failures and validation-helper repairs are retained. Checked deltas, verified binary reuse and reader-only
+continuations speed the batches while preserving coverage. Default application composition remains empty.
+Safe creation cleanup, native F6, recovery UI coverage, creation/member/edit/password UI, Unix update/confinement
+and the remaining qualification/final-review gates are open.
+
 **7 November: typed production job dispatch and password ownership implemented, unregistered.**
 [Job component](ARCHIVE_JOB_BACKENDS.md) adds per-manager backend composition, frozen queued changes and secret
 cleanup on cancellation, admission/handoff/journal failure and completion. All 45 new cases pass on all three
@@ -27,8 +39,8 @@ This is an **incomplete implementation**, not format or release qualification. T
 [the archive writing plan](../../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md). No new writer is enabled in the
 application. An explicit new-profile job refuses instead of entering the legacy ZIP executor.
 
-**Next coherent implementation chunk:** integrate the completed RAR5/7z planners and shared password/native
-adapters and common review into production creation/update/edit/F6 workflows, and qualify Unix confinement/update.
+**Next coherent implementation chunk:** finish safe native job cleanup and explicit F6 source removal, then
+connect creation/member/edit/password and recovery UI to the shared native jobs and qualify Unix confinement/update.
 Present the declared 7z precision policy and resolve remaining header compatibility gaps before enabling a profile. Reuse
 passed codec/native evidence when its compiler inputs are unchanged; batch the shared UI and native acceptance
 work, then complete resource/crash/fuzz/RID/package gates and the final independent review.

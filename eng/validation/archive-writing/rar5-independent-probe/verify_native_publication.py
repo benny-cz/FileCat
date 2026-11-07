@@ -5,7 +5,7 @@ import hashlib,json,struct,subprocess,sys,zlib
 def verify(root,tool,modules,creations,updates,workflow=None):
  root,tool,modules=map(Path,(root,tool,modules));creations,updates=int(creations),int(updates);sys.path.insert(0,str(modules))
  from Cryptodome.Cipher import AES
- assert workflow in (None,'--workflow')
+ assert workflow in (None,'--workflow','--jobs')
  password='Public-RAR-Transform-暗号-42829316' if workflow is None else 'Public-7z-worker-暗号-42829324'
  def vint(data,pos):
   value=0
@@ -96,7 +96,12 @@ def verify(root,tool,modules,creations,updates,workflow=None):
  if workflow is None:
   assert len(documents)==creations+updates*3 and sum(p.stem=='created' for p in documents)==creations
   assert {p.stem for p in documents}<={'created','source','updated','restored'}
- else:assert len(documents)==6 and {p.stem for p in documents}=={'source','rebuilt'}
+ elif workflow=='--workflow':assert len(documents)==6 and {p.stem for p in documents}=={'source','rebuilt'}
+ else:
+  assert (creations,updates) in ((4,0),(3,3))
+  expected={(mode,'created') for mode in range(3)}
+  expected|={(mode,'updated') for mode in range(3)} if updates else {(2,'cancelled-after-commit')}
+  assert {(int(p.parent.name.rsplit('-',1)[1]),p.stem) for p in documents}==expected and len(documents)==len(expected)
  rows=[];payloads=0;metadata=0
  for document in documents:
   expected=json.loads(document.read_text());assert expected['synthetic_public_vector'] and expected['password']==password
@@ -116,7 +121,8 @@ def verify(root,tool,modules,creations,updates,workflow=None):
  for document in root.glob('*/restored.json'):
   assert document.with_suffix('.rar').read_bytes()==(document.parent/'source.rar').read_bytes()
  if workflow is None:assert metadata==creations*2+updates*5 and payloads==creations+updates*4
- else:assert metadata==45 and payloads==39
+ elif workflow=='--workflow':assert metadata==45 and payloads==39
+ else:assert metadata==creations*8+updates*11 and payloads==creations*5+updates*6
  facts={'creations':creations,'updates_and_restorations':updates,'official_archives':len(documents),'exact_payloads':payloads,
   'independent_metadata_records':metadata,'tool_sha256':hashlib.sha256(tool.read_bytes()).hexdigest(),'rows':rows}
  (root/('independent-native.json' if workflow is None else 'independent-workflow-rar.json')).write_text(json.dumps(facts,indent=2));print(json.dumps({key:value for key,value in facts.items() if key!='rows'}),flush=True)

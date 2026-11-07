@@ -61,12 +61,14 @@ public sealed record ArchiveBaseline(long Length, long LastWriteUtcTicks, string
 }
 
 /// <summary>
-/// A create (no <see cref="Baseline"/>) or update of one ZIP (plan §15): the archive is rebuilt beside itself and
+/// A create (no <see cref="Baseline"/>) or update of one archive (plan §15): the archive is rebuilt beside itself and
 /// replaces the original only when complete, verified, and the original is still the version the plan saw.
 /// </summary>
 public sealed record ArchivePlan(string ArchivePath, ArchiveBaseline? Baseline, IReadOnlyList<ArchiveChange> Changes,
     CompressionLevel Level = CompressionLevel.Optimal, bool ReplaceExisting = false, ArchiveWriteProfile? Profile = null)
 {
+    /// <summary>Typed native jobs require the complete command-time observation; serialized paths confer no authority.</summary>
+    internal ArchiveFileObservation? NativeBaseline { get; init; }
     /// <summary>An explicit local move: remove only successfully archived, unchanged sources after verified publication.</summary>
     public bool MoveSources { get; init; }
 }

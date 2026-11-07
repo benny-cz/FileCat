@@ -51,17 +51,18 @@ internal sealed class ArchiveWorkflowReview
 
     internal static ArchiveWorkflowReview Prepare(ArchiveWriteProfile profile, ArchiveAssessment? source, ArchiveCapturedInputs captured,
         IReadOnlyList<ArchiveTransformEdit> memberEdits, IReadOnlyList<ArchiveFolderChange> folderEdits,
-        IReadOnlyList<ArchiveTransformAddition> incoming, int excludedCount, CancellationToken ct)
+        IReadOnlyList<ArchiveTransformAddition> incoming, int excludedCount, CancellationToken ct, long operationHeapBytes = 0)
     {
         ArgumentNullException.ThrowIfNull(profile); ArgumentNullException.ThrowIfNull(captured);
         ArgumentNullException.ThrowIfNull(memberEdits); ArgumentNullException.ThrowIfNull(folderEdits); ArgumentNullException.ThrowIfNull(incoming);
         ct.ThrowIfCancellationRequested();
-        if (excludedCount < 0 || excludedCount > ArchiveWritePolicy.MaxMembers || memberEdits.Count > ArchiveWritePolicy.MaxMembers ||
+        if (operationHeapBytes < 0 || excludedCount < 0 || excludedCount > ArchiveWritePolicy.MaxMembers || memberEdits.Count > ArchiveWritePolicy.MaxMembers ||
             folderEdits.Count > ArchiveWritePolicy.MaxMembers || incoming.Count > ArchiveWritePolicy.MaxMembers) throw ArchiveWriteBudget.Limit();
         if (source is not null && (source.Manifest.Profile != profile || source.CatalogRevision != source.SourceSha256)) throw Changed();
         if (source is null && (memberEdits.Count != 0 || folderEdits.Count != 0)) throw Changed();
         var members = source?.Manifest.Members ?? []; var cost = captured.Cost;
         var budget = new ArchiveWriteBudget(); budget.RetainCapturedInputs(cost);
+        budget.AddMetadata(0, operationHeapBytes);
         budget.AddMetadata(0, checked(4096L + 512L * members.Count + 256L * memberEdits.Count + 256L * folderEdits.Count + 768L * incoming.Count));
         // The source manifest stays live while this review holds its maps and captured inputs. Charge that
         // retained source before allocating the maps; the later format planner separately accounts for it again.
