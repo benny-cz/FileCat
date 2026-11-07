@@ -222,12 +222,13 @@ public sealed partial class AnalysisRenderingTests
         internal byte[] Payload { get; } = [1, 2, 3];
         internal AnalysisDatasetLease? Lease;
         private IndexedFixture() { Root = Path.Combine(_parent, "indexed-window-" + Guid.NewGuid().ToString("N")); }
-        internal static async Task<IndexedFixture> CreateAsync(bool unverified = false, bool namespaceEntry = false)
+        internal static async Task<IndexedFixture> CreateAsync(bool unverified = false, bool namespaceEntry = false, bool sharedAlias = false)
         {
             var fixture = new IndexedFixture(); Directory.CreateDirectory(Path.Combine(fixture.Root, "source", "folder"));
             File.WriteAllBytes(fixture.PayloadPath, fixture.Payload); File.WriteAllBytes(Path.Combine(fixture.Root, "source", "folder", "second.bin"), [9]);
             for (int index = 0; index < 300; index++) File.WriteAllBytes(Path.Combine(fixture.Root, "source", $"file-{index:D4}.bin"), [7]);
             File.WriteAllBytes(Path.Combine(fixture.Root, "source", "bidi\u202E.bin"), [8]);
+            if (sharedAlias) CreateGroupedNativeAlias(fixture.PayloadPath, Path.Combine(fixture.Root, "source", "alias.jpg"));
             string device = PathUtil.GetDeviceKey(fixture.Root); AnalysisPrivateDirectory? storage = null; IAnalysisBackend? source = null; AnalysisSession? session = null;
             bool completed = false;
             try
@@ -238,7 +239,7 @@ public sealed partial class AnalysisRenderingTests
                     () => Interlocked.Exchange(ref storage, null) ?? throw new InvalidOperationException("Private owner transferred."), [new(device, () => unverified || namespaceEntry ? new UnverifiedFiles(Prepare(fixture.PrivatePath), unverified) : Prepare(fixture.PrivatePath))], PreviewPaths: 2)); source = null;
                 await session.Completion.WaitAsync(TimeSpan.FromSeconds(45), TestContext.Current.CancellationToken);
                 Assert.Equal(AnalysisPhase.Finished, session.Snapshot().Phase); Assert.Equal(0UL, session.SourceCloseFailures);
-                fixture.Lease = await session.AcquireDatasetAsync(TestContext.Current.CancellationToken); Assert.NotNull(fixture.Lease); Assert.Equal(namespaceEntry ? 306UL : 305UL, fixture.Lease.Descriptor.Paths); completed = true; return fixture;
+                fixture.Lease = await session.AcquireDatasetAsync(TestContext.Current.CancellationToken); Assert.NotNull(fixture.Lease); Assert.Equal(305UL + (namespaceEntry ? 1UL : 0UL) + (sharedAlias ? 1UL : 0UL), fixture.Lease.Descriptor.Paths); completed = true; return fixture;
             }
             finally
             {

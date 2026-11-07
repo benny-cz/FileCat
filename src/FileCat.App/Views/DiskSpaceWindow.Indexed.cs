@@ -86,7 +86,7 @@ public sealed partial class DiskSpaceWindow
         }
     }
 
-    private sealed class IndexedSessionView : StackPanel, IAnalysisSessionView
+    private sealed partial class IndexedSessionView : StackPanel, IAnalysisSessionView
     {
         private readonly DiskSpaceWindow _window;
         private readonly AnalysisSessionAdmission.Slot _admission;
@@ -152,7 +152,8 @@ public sealed partial class DiskSpaceWindow
             AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
             AutomationProperties.SetName(_details, "Captured metadata inspector"); AutomationProperties.SetLiveSetting(_inspectorStatus, AutomationLiveSetting.Polite);
             var toolbar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
-            toolbar.Children.Add(_metric); toolbar.Children.Add(_chartMode); toolbar.Children.Add(_color); toolbar.Children.Add(_sort); toolbar.Children.Add(_descending); toolbar.Children.Add(_roots);
+            toolbar.Children.Add(_metric); toolbar.Children.Add(_group); toolbar.Children.Add(_chartMode); toolbar.Children.Add(_color); toolbar.Children.Add(_sort); toolbar.Children.Add(_descending); toolbar.Children.Add(_roots);
+            AutomationProperties.SetName(_group, "Indexed grouping");
             var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             filters.Children.Add(_query); filters.Children.Add(_case); filters.Children.Add(_unknown);
             filters.Children.Add(ActionButton("Apply filter", () => _ = RebuildAsync(), "Apply this query to the captured observations."));
@@ -160,7 +161,7 @@ public sealed partial class DiskSpaceWindow
             var navigation = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             _back = ActionButton("Back", () => _ = HistoryAsync(false), "Return to the preceding analysis scope.");
             _forward = ActionButton("Forward", () => _ = HistoryAsync(true), "Return to the next analysis scope.");
-            _parent = ActionButton("Parent", () => _ = NavigateAsync(_shownPage?.Scope?.Path.ParentId ?? 0), "Explore the captured parent directory.");
+            _parent = ActionButton("Parent", () => _ = ParentAsync(), "Explore the preceding group level or captured parent directory.");
             navigation.Children.Add(_back); navigation.Children.Add(_forward); navigation.Children.Add(_parent);
             string provenance = source.Descriptor.Origin == AnalysisOrigin.ImportedInventory
                 ? "Offline imported observations · unverified. Recorded locations are not connected."
@@ -181,11 +182,11 @@ public sealed partial class DiskSpaceWindow
             Avalonia.Controls.ScrollViewer.SetHorizontalScrollBarVisibility(_list, Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled);
             _list.Styles.Add(new Style(selector => selector.OfType<ListBoxItem>())
                 { Setters = { new Setter(ContentControl.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch) } });
-            _list.ItemTemplate = new FuncDataTemplate<AnalysisHierarchyRow>((row, _) =>
+            _list.ItemTemplate = new FuncDataTemplate<object>((row, _) =>
             {
-                if (row is null) return new TextBlock(); var item = AnalysisIndexedChart.Row(row, _explorer.Metric);
+                var item = DisplayItem(row); if (item is null) return new TextBlock();
                 var grid = new Grid { ColumnDefinitions = new("3*,2*,2*,2*,2*"), MinHeight = 32, Margin = new Thickness(6, 3) };
-                string[] cells = [item.Name, DiskSpaceViewModel.ValueText(item, _explorer.Metric), DiskSpaceViewModel.LogicalText(item),
+                string[] cells = [item.Name, DiskSpaceViewModel.ValueText(item, _grouping?.Metric ?? _explorer.Metric), DiskSpaceViewModel.LogicalText(item),
                     !item.IncludedByPolicy ? "Excluded" : item.IsNonFileLeaf ? "Not counted" : item.Files.ToString("N0"), DiskSpaceViewModel.StatusText(item)];
                 for (int column = 0; column < cells.Length; column++)
                 {
@@ -225,7 +226,10 @@ public sealed partial class DiskSpaceWindow
                 AutomationProperties.SetName(grid, string.Join("; ", cells)); ToolTip.SetTip(grid, new RichTip(item.Name, detail: string.Join(" · ", cells.Skip(1)) + (explanation is null ? "" : "\n" + explanation))); return grid;
             });
             _main.Children.Add(new TextBlock { Text = "Name · Active metric · File size · File paths · State", TextWrapping = TextWrapping.Wrap }); _main.Children.Add(_list);
-            _main.Children.Add(ActionButton("Explore selected folder", () => { if (_list.SelectedItem is AnalysisHierarchyRow { Path.Kind: AnalysisKind.Directory } row) _ = NavigateAsync(row.Path.Id); }, "Open the selected folder within this analysis."));
+            _exploreFolder = ActionButton("Explore selected folder", () => { if (_list.SelectedItem is AnalysisHierarchyRow { Path.Kind: AnalysisKind.Directory } row) _ = NavigateAsync(row.Path.Id); }, "Open the selected folder within this analysis.");
+            _main.Children.Add(_exploreFolder);
+            _exploreGroup = ActionButton("Explore selected group", ExploreGroup, "Open the captured members of the selected accounting group.");
+            _main.Children.Add(_exploreGroup);
             _main.Children.Add(ActionButton("Focus inspector", () => { _details.BringIntoView(); _details.Focus(); }, "Read and copy captured metadata with the keyboard."));
             _inspector.Children.Add(new TextBlock { Text = "Inspector", FontWeight = FontWeight.Bold }); _inspector.Children.Add(_inspectorStatus); _inspector.Children.Add(_details);
             var evidence = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
@@ -234,10 +238,12 @@ public sealed partial class DiskSpaceWindow
             {
                 int action = index; _evidence[index] = ActionButton(captions[index], () => _ = EvidenceAsync(action), "Page captured inspector evidence; totals may exceed the displayed page."); evidence.Children.Add(_evidence[index]);
             }
-            _inspector.Children.Add(evidence); _inspector.Children.Add(new TextBlock { Text = "These observations do not authorize filesystem changes.", TextWrapping = TextWrapping.Wrap });
-            _list.SelectionChanged += (_, _) => { if (!_publishing && _list.SelectedItem is AnalysisHierarchyRow row) _ = InspectAsync(row.Path.Id); };
-            _list.DoubleTapped += (_, _) => { if (_list.SelectedItem is AnalysisHierarchyRow { Path.Kind: AnalysisKind.Directory } row) _ = NavigateAsync(row.Path.Id); };
+            _inspector.Children.Add(evidence); AddGroupEvidence();
+            _inspector.Children.Add(new TextBlock { Text = "These observations do not authorize filesystem changes.", TextWrapping = TextWrapping.Wrap });
+            _list.SelectionChanged += (_, _) => SelectEntry();
+            _list.DoubleTapped += (_, _) => OpenEntry();
             _metric.SelectionChanged += (_, _) => _ = RebuildAsync();
+            _group.SelectionChanged += (_, _) => _ = RebuildAsync();
             _roots.SelectionChanged += (_, _) => { _rootId = _roots.SelectedIndex > 0 ? _source.Descriptor.Roots[_roots.SelectedIndex - 1].Id : null; _ = RebuildAsync(); };
             _sort.SelectionChanged += (_, _) => OrderChanged();
             _descending.IsCheckedChanged += (_, _) => OrderChanged();
@@ -266,6 +272,7 @@ public sealed partial class DiskSpaceWindow
         public ScrollViewer CreateViewport() => new() { Content = this, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
         private void ActivateChart(string key, bool mark, bool enter)
         {
+            if (_grouping is not null) { ActivateGroupChart(key, enter); return; }
             if (_shownChart is not { } chart) return;
             if (chart.Remainders.TryGetValue(key, out var remainder)) { _ = NavigateAsync(remainder.Parent, remainder.Offset); return; }
             if (!chart.Items.TryGetValue(key, out var item) || item.NodeId is not { } id)
@@ -279,6 +286,7 @@ public sealed partial class DiskSpaceWindow
         }
         private void OrderChanged()
         {
+            if (_publishing) return;
             _pageOffsets.Clear();
             // A pending query may already own a complete page waiting for a captured gesture.
             // Rebuild that pending request too; an order change must not publish its older page.
@@ -293,24 +301,44 @@ public sealed partial class DiskSpaceWindow
                 while (_again && !_disposed)
                 {
                     _again = false; using var cancel = new CancellationTokenSource(); _buildCancel = cancel;
-                    AnalysisDatasetExplorer? next = null; _status.Text = "Applying the query to captured observations…";
+                    AnalysisDatasetExplorer? next = null; AnalysisDatasetGrouping? nextGroups = null;
+                    _status.Text = "Applying the query to captured observations…";
                     try
                     {
                         var metric = (AnalysisMetric)Math.Max(0, _metric.SelectedIndex);
-                        next = await AnalysisDatasetExplorer.CreateAsync(_source, metric, new(_query.Text ?? "", _case.IsChecked == true, _unknown.IsChecked == true, _rootId), cancel.Token);
-                        await Task.WhenAll(next.LoadPageAsync(sort: (AnalysisHierarchySort)_sort.SelectedIndex, cancellation: cancel.Token, descending: _descending.IsChecked == true), next.LoadChartAsync(cancellation: cancel.Token));
+                        var request = new AnalysisFilterRequest(_query.Text ?? "", _case.IsChecked == true, _unknown.IsChecked == true, _rootId);
+                        var dimension = (AnalysisGroupingDimension)Math.Max(0, _group.SelectedIndex);
+                        GroupPage? nextPage = null;
+                        if (dimension == AnalysisGroupingDimension.FolderHierarchy)
+                        {
+                            next = await AnalysisDatasetExplorer.CreateAsync(_source, metric, request, cancel.Token);
+                            await Task.WhenAll(next.LoadPageAsync(sort: (AnalysisHierarchySort)_sort.SelectedIndex, cancellation: cancel.Token, descending: _descending.IsChecked == true), next.LoadChartAsync(cancellation: cancel.Token));
+                        }
+                        else
+                        {
+                            // Grouping owns its query/accounting. Keep the existing hierarchy only
+                            // as an immutable metadata inspector; rebuilding both old/new pairs
+                            // would needlessly exceed the graph-consumer budget during replacement.
+                            nextGroups = await _source.BuildGroupingAsync(metric, dimension, request, cancel.Token);
+                            nextPage = await LoadGroupedPageAsync(nextGroups, null, 0, GroupSort(), _descending.IsChecked == true, cancel.Token);
+                        }
                         if (_interacting) _status.Text = "Query ready. Finish the current chart gesture to display it.";
                         await WaitForInteractionAsync(cancel.Token);
                         cancel.Token.ThrowIfCancellationRequested(); if (_disposed) return;
                         ++_navigation; ++_inspection; _navigationCancel?.Cancel(); _focus = 0; _scope = _offset = 0;
-                        _past.Clear(); _future.Clear(); _pageOffsets.Clear();
-                        var old = _explorer; _explorer = next; next = null; Publish(_explorer); await old.DisposeAsync();
+                        _past.Clear(); _future.Clear(); _groupPast.Clear(); _groupFuture.Clear(); _pageOffsets.Clear();
+                        _groupKey = _groupFocus = null; _selectedGroupedItem = null;
+                        var old = next is null ? null : _explorer; var oldGroups = _grouping;
+                        if (next is not null) { _explorer = next; next = null; }
+                        _grouping = nextGroups; nextGroups = null; _groupPage = nextPage;
+                        try { Publish(_explorer); }
+                        finally { try { if (oldGroups is not null) await oldGroups.DisposeAsync(); } finally { if (old is not null) await old.DisposeAsync(); } }
                     }
                     catch (OperationCanceledException) when (cancel.IsCancellationRequested) { }
                     catch (Exception error) when (Expected(error)) { RememberViewCloseFailure(error); if (!_disposed && !cancel.IsCancellationRequested) _status.Text = "The previous view remains displayed. " + AnalysisNames.Display(error.Message, 500); }
                     finally
                     {
-                        try { if (next is not null) await next.DisposeAsync(); }
+                        try { try { if (nextGroups is not null) await nextGroups.DisposeAsync(); } finally { if (next is not null) await next.DisposeAsync(); } }
                         catch (Exception error) { RememberViewCloseFailure(error); throw; }
                         finally { if (ReferenceEquals(_buildCancel, cancel)) _buildCancel = null; }
                     }
@@ -320,6 +348,7 @@ public sealed partial class DiskSpaceWindow
         }
         private async Task<bool> NavigateAsync(ulong parent, ulong offset = 0, bool record = true)
         {
+            if (_grouping is not null) return await NavigateGroupAsync(_groupKey, offset, record);
             if (_disposed || _actualWork.HasUnconfirmedClose) return false;
             using var actualWork = _actualWork.Enter();
             int version = ++_navigation; ++_inspection; _navigationCancel?.Cancel();
@@ -331,6 +360,7 @@ public sealed partial class DiskSpaceWindow
                 await WaitForInteractionAsync(cancel.Token);
                 if (_disposed || version != _navigation || !ReferenceEquals(explorer, _explorer) || loaded.Any(done => !done)) return false;
                 if (record && old != (parent, offset)) { Push(_past, old); _future.Clear(); }
+                ++_inspection; // Invalidate inspections started on the previous page while navigation was loading.
                 if (parent != _scope) { _pageOffsets.Clear(); _focus = 0; } _scope = parent; _offset = offset; Publish(explorer); return true;
             }
             catch (OperationCanceledException) when (cancel.IsCancellationRequested) { return false; }
@@ -339,16 +369,25 @@ public sealed partial class DiskSpaceWindow
         }
         private async Task HistoryAsync(bool forward)
         {
+            if (_grouping is not null) { await GroupHistoryAsync(forward); return; }
             var source = forward ? _future : _past; if (source.Count == 0) return;
             var target = source[^1]; var previous = (_scope, _offset);
             if (await NavigateAsync(target.Parent, target.Offset, record: false)) { source.RemoveAt(source.Count - 1); Push(forward ? _past : _future, previous); Buttons(); }
         }
         private async Task NextPageAsync()
-        { if (_shownPage is { Children.HasMore: true } page) { ulong previous = _offset; if (await NavigateAsync(_scope, page.Children.NextOffset, false)) { if (_pageOffsets.Count == AnalysisLimits.NavigationHistory) _pageOffsets.RemoveAt(0); _pageOffsets.Add(previous); Buttons(); } } }
+        {
+            ulong? next = _grouping is not null ? _groupPage is { HasMore: true } grouped ? grouped.NextOffset : null : _shownPage is { Children.HasMore: true } page ? page.Children.NextOffset : null;
+            if (next is { } offset) { ulong previous = _offset; if (await NavigateAsync(_scope, offset, false)) { if (_pageOffsets.Count == AnalysisLimits.NavigationHistory) _pageOffsets.RemoveAt(0); _pageOffsets.Add(previous); Buttons(); } }
+        }
         private async Task PreviousPageAsync()
         { if (_offset != 0) { ulong previous = _pageOffsets.Count > 0 ? _pageOffsets[^1] : 0; if (await NavigateAsync(_scope, previous, false)) { if (_pageOffsets.Count > 0) _pageOffsets.RemoveAt(_pageOffsets.Count - 1); Buttons(); } } }
         private void Publish(AnalysisDatasetExplorer explorer)
         {
+            _exploreGroup.IsVisible = _grouping is not null;
+            _exploreFolder.IsVisible = _grouping is null;
+            _groupEvidence.IsVisible = _grouping is not null;
+            if (_grouping is not null && _groupPage is { } grouped) { PublishGroup(_grouping, grouped); return; }
+            _groupCharges.IsEnabled = _firstCharges.IsEnabled = _moreCharges.IsEnabled = false;
             if (explorer.Page is not { } page) return;
             _shownPage = page; _shownChart = explorer.Chart; _shownInspection = null;
             bool focusTable = _list.IsKeyboardFocusWithin; _publishing = true;
@@ -396,17 +435,21 @@ public sealed partial class DiskSpaceWindow
             if (_focus != 0) _ = InspectAsync(_focus);
         }
         private void Buttons()
-        { _previous.IsEnabled = _offset > 0; _next.IsEnabled = _shownPage?.Children.HasMore == true; _parent.IsEnabled = _parent.IsVisible = _scope != 0;
+        {
+            if (_grouping is not null) { GroupButtons(); return; }
+            _previous.IsEnabled = _offset > 0; _next.IsEnabled = _shownPage?.Children.HasMore == true; _parent.IsEnabled = _parent.IsVisible = _scope != 0;
             _back.IsEnabled = _past.Count > 0; _forward.IsEnabled = _future.Count > 0; _back.IsVisible = _forward.IsVisible = _past.Count != 0 || _future.Count != 0; }
         private void UpdateCharts()
         {
             _treemap.IsVisible = _chartMode.SelectedIndex == 0; _sunburst.IsVisible = _chartMode.SelectedIndex == 1;
             _legend.IsVisible = _chartMode.SelectedIndex != 2;
-            if (_shownChart is not { } chart) return;
-            string? focus = _focus == 0 ? null : AnalysisTree.Key(_focus);
+            IAnalysisChartData? chart = _grouping is not null ? _groupPage?.Chart : _shownChart;
+            if (chart is null) return;
+            string scope = _grouping is not null ? _groupPage!.Chart.Scope : _shownChart!.Scope;
+            string? focus = _focus == 0 ? _groupFocus : AnalysisTree.Key(_focus);
             var color = (AnalysisColorDimension)Math.Clamp(_color.SelectedIndex, 0, 2);
             _legend.SetView(color, chart.ObservedUtc);
-            _treemap.SetView(chart, chart.Scope, focus, ImmutableHashSet<ulong>.Empty, color); _sunburst.SetView(chart, chart.Scope, focus, ImmutableHashSet<ulong>.Empty, color);
+            _treemap.SetView(chart, scope, focus, ImmutableHashSet<ulong>.Empty, color); _sunburst.SetView(chart, scope, focus, ImmutableHashSet<ulong>.Empty, color);
         }
         private async Task InspectAsync(ulong path, ulong alias = 0, ulong fact = 0, ulong issue = 0)
         {
@@ -418,10 +461,13 @@ public sealed partial class DiskSpaceWindow
             try
             {
                 if (!await explorer.InspectAsync(path, alias, fact, issue, maximum: 32) || _disposed || version != _inspection || !ReferenceEquals(explorer, _explorer)) return;
-                var detail = explorer.Inspection!; _shownInspection = detail; var item = AnalysisIndexedChart.Row(detail.Row, explorer.Metric);
+                var detail = explorer.Inspection!; _shownInspection = detail;
+                var item = _selectedGroupedItem?.NodeId == path ? _selectedGroupedItem : AnalysisIndexedChart.Row(detail.Row, explorer.Metric);
+                var metric = _grouping?.Metric ?? explorer.Metric;
                 var text = new System.Text.StringBuilder();
                 text.AppendLine((detail.AncestorsComplete ? "" : "… / ") + string.Join(" / ", detail.Ancestors.Select(p => AnalysisNames.DisplayName(p, 128)).Append(AnalysisNames.DisplayName(detail.Row.Path, 256))));
-                text.AppendLine("Active metric: " + DiskSpaceViewModel.ValueText(item, explorer.Metric, true) + " · File size: " + DiskSpaceViewModel.LogicalText(item, true));
+                text.AppendLine("Active metric: " + DiskSpaceViewModel.ValueText(item, metric, true) + " · File size: " + DiskSpaceViewModel.LogicalText(item, true));
+                if (_grouping is not null) text.AppendLine("Active metric is the amount assigned to this entry in the displayed accounting group. File size describes the captured path; shared charges are shown once in their accounting group.");
                 text.AppendLine($"Metadata: {item.MetadataState}; origin: {explorer.Descriptor.Origin}; coverage: {explorer.Descriptor.Coverage}; observed revision: {explorer.Descriptor.Identity.Revision}.");
                 text.AppendLine("Name encoding: " + detail.Row.Path.NameEncoding + "; captured path ID: " + path);
                 if (DiskSpaceViewModel.EntryExplanation(item) is { } explanation) text.AppendLine(explanation);
@@ -448,14 +494,20 @@ public sealed partial class DiskSpaceWindow
         public void HandleKeys(KeyEventArgs args)
         {
             if (_disposed || args.Handled || _query.IsKeyboardFocusWithin) return;
-            if (args.Key == Key.Enter && _list.IsKeyboardFocusWithin && _list.SelectedItem is AnalysisHierarchyRow row)
-            { if (row.Path.Kind == AnalysisKind.Directory) _ = NavigateAsync(row.Path.Id); else _ = InspectAsync(row.Path.Id); args.Handled = true; }
+            if (args.Key == Key.Enter && _list.IsKeyboardFocusWithin)
+            { OpenEntry(); args.Handled = true; }
+            else if (args.Key == Key.Enter && _grouping is not null && (_treemap.IsKeyboardFocusWithin || _sunburst.IsKeyboardFocusWithin) && _groupPage is { } grouped)
+            {
+                string? key = _focus == 0 ? _groupFocus : AnalysisTree.Key(_focus);
+                key ??= grouped.Chart.ChildrenOf(grouped.Chart.Scope).FirstOrDefault()?.Key;
+                if (key is not null) ActivateGroupChart(key, true); args.Handled = true;
+            }
             else if (args.Key == Key.Back && (_list.IsKeyboardFocusWithin || _treemap.IsKeyboardFocusWithin || _sunburst.IsKeyboardFocusWithin))
-            { _ = NavigateAsync(_shownPage?.Scope?.Path.ParentId ?? 0); args.Handled = true; }
+            { _ = ParentAsync(); args.Handled = true; }
         }
         private static void Push(List<(ulong Parent, ulong Offset)> history, (ulong Parent, ulong Offset) value)
         { if (history.Count == AnalysisLimits.NavigationHistory) history.RemoveAt(0); history.Add(value); }
-        private static bool Expected(Exception error) => error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or FormatException or OverflowException or OperationCanceledException;
+        private static bool Expected(Exception error) => error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or FormatException or OverflowException or OperationCanceledException or KeyNotFoundException;
         private void RememberViewCloseFailure(Exception error)
         {
             _actualWork.RecordUnconfirmedClose(error);
@@ -467,6 +519,7 @@ public sealed partial class DiskSpaceWindow
             var actualWork = _actualWork.CloseAsync();
             _treemap.Clear(); _sunburst.Clear(); _list.ItemsSource = null; _details.Text = ""; _breadcrumbs.Children.Clear(); _buckets.Children.Clear();
             _shownPage = null; _shownChart = null; _shownInspection = null;
+            _groupPage = null; _selectedGroupedItem = null; _chargePage = null;
             _window.TrackIndexedClose(CloseAsync(actualWork), _admission);
         }
         private async Task CloseAsync(Task actualWork)
@@ -474,7 +527,7 @@ public sealed partial class DiskSpaceWindow
             // Explorer disposal cancels its inspection/page/chart lanes. View continuations
             // must also unwind before their admission can be reused in another window.
             try { await _buildTask; }
-            finally { try { await _explorer.DisposeAsync(); } finally { try { await actualWork; } finally { await _source.DisposeAsync(); } } }
+            finally { try { await _explorer.DisposeAsync(); } finally { try { await actualWork; } finally { try { if (_grouping is not null) await _grouping.DisposeAsync(); } finally { await _source.DisposeAsync(); } } } }
         }
     }
 }

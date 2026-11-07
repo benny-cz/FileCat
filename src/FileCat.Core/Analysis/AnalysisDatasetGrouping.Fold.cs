@@ -130,7 +130,9 @@ public sealed partial class AnalysisDatasetGrouping
                     {
                         UInt128 area = !item.Totals.CompatibleBasis ? 0 : Metric == AnalysisMetric.OnDisk ? checked(item.Totals.Known + item.Totals.IdentityUnverified) : item.Totals.Known;
                         UInt128 value = field == AnalysisTableSort.FileSize ? item.Logical.KnownBytes : field == AnalysisTableSort.FilePaths ? item.Totals.MatchingPaths : area;
-                        bool missing = field == AnalysisTableSort.FileSize ? item.Logical.UnknownFiles != 0 && value == 0 : field == AnalysisTableSort.ActiveMetric ? (!item.Totals.CompatibleBasis || item.Totals.Missing.Count != 0 && value == 0) : field == AnalysisTableSort.MeasurementState && item.Totals.Missing.Count != 0;
+                        bool missing = field == AnalysisTableSort.FileSize ? item.Logical.UnknownFiles != 0 && value == 0 : field == AnalysisTableSort.ActiveMetric ?
+                            (!item.Totals.CompatibleBasis || value == 0 && (item.Totals.Missing.Count != 0 || Metric == AnalysisMetric.UniqueFileSize && item.Totals.IdentityUnverified != 0)) :
+                            field == AnalysisTableSort.MeasurementState && item.Totals.Missing.Count != 0;
                         yield return new(new(OrderKey([(byte)field], hash, item.Definition.Label, id, field, value, missing, item.Totals.Missing.Count == 0 ? MeasurementState.Known : item.Totals.Missing.Keys.Max()), id), checked(bytes.Length * 3 + 1024));
                     }
                     continue;

@@ -51,18 +51,21 @@ public sealed partial class AnalysisDatasetGrouping : IAsyncDisposable
     private readonly AnalysisOwnedDatasetIo<State> _owned;
     public AnalysisDatasetDescriptor Descriptor { get; }
     public AnalysisMetric Metric { get; }
+    public AnalysisFilterSummary? Filter { get; }
     public AnalysisGroupingDimension Dimension { get; }
     public AnalysisTotals Totals { get; }
     public AnalysisLogicalTotals LogicalTotals { get; }
     public ulong Count { get; }
     public int RuleVersion => AnalysisGroupingRules.RuleVersion;
-    private AnalysisDatasetGrouping(State state, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, AnalysisIoDevices device)
+    private AnalysisDatasetGrouping(State state, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, AnalysisIoDevices device, AnalysisFilterSummary? filter)
     {
-        Descriptor = descriptor; Metric = state.Metric; Dimension = state.Dimension; Totals = state.Totals;
+        Descriptor = descriptor; Metric = state.Metric; Filter = filter; Dimension = state.Dimension; Totals = state.Totals;
         LogicalTotals = state.LogicalTotals; Count = state.Summaries!.Count; _owned = new(state, io, device);
     }
     private async Task<T> ReadAsync<T>(Func<State, CancellationToken, T> read, CancellationToken cancellation)
     { using var admission = AnalysisExplorerAdmission.Acquire(); return await _owned.RunAsync(read, cancellation).ConfigureAwait(false); }
+    public Task<AnalysisDatasetGroup> ReadGroupAsync(string groupKey, CancellationToken cancellation = default) =>
+        ReadAsync((state, token) => state.Group(groupKey, token), cancellation);
     public Task<AnalysisDatasetPage<AnalysisDatasetGroup>> ReadGroupsAsync(ulong offset = 0, int maximum = 128, CancellationToken cancellation = default,
         AnalysisTableSort sort = AnalysisTableSort.ActiveMetric, bool descending = true) =>
         ReadAsync((state, token) =>

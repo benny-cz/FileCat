@@ -38,7 +38,8 @@ public sealed partial class AnalysisDatasetGrouping
                     UInt128 value = field == AnalysisTableSort.FileSize ? item.Logical.Value ?? 0 : field == AnalysisTableSort.FilePaths ? path.Kind == AnalysisKind.File ? 1U : 0U : area;
                     bool missing = field switch
                     {
-                        AnalysisTableSort.ActiveMetric => !Totals.CompatibleBasis || placement.SharedElsewhere || placement.Missing.Count != 0 && area == 0,
+                        AnalysisTableSort.ActiveMetric => !Totals.CompatibleBasis || placement.SharedElsewhere ||
+                            area == 0 && (placement.Missing.Count != 0 || Metric == AnalysisMetric.UniqueFileSize && placement.Unverified != 0),
                         AnalysisTableSort.FileSize => path.Kind != AnalysisKind.File || !item.Logical.IsKnown,
                         AnalysisTableSort.FilePaths => path.Kind != AnalysisKind.File,
                         AnalysisTableSort.MeasurementState => path.MetadataState != MeasurementState.Known || placement.Missing.Count != 0 || placement.SharedElsewhere,

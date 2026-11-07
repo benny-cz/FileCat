@@ -44,7 +44,7 @@ public sealed partial class AnalysisDatasetGrouping
                 finally { await AnalysisIo.ReleaseScratchAsync(io, device, index).ConfigureAwait(false); }
             }
             await AnalysisIo.Run(io, device, _ => { state.Workspace!.Dispose(); state.Workspace = null; return true; }, cancellation).ConfigureAwait(false);
-            var result = new AnalysisDatasetGrouping(state, descriptor, io, device); state = null; return result;
+            var result = new AnalysisDatasetGrouping(state, descriptor, io, device, source.Query?.Summary); state = null; return result;
         }
         finally
         { try { if (state is not null) await AnalysisIo.ReleaseScratchAsync(io, device, state).ConfigureAwait(false); } finally { Builds.Release(); } }

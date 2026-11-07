@@ -1,0 +1,59 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+    FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedTableAppliesEverySortAndDirectionWhilePreservingCapturedMemberFocus [FAIL]
+      Assert.Equal() Failure: Values differ
+      Expected: 128
+      Actual:   83
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(104,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedTableAppliesEverySortAndDirectionWhilePreservingCapturedMemberFocus()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(122,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedTableAppliesEverySortAndDirectionWhilePreservingCapturedMemberFocus()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(122,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupedTableAppliesEverySortAndDirectionWhilePreservingCapturedMemberFocus()
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: FileType) [FAIL]
+      Assert.Equal() Failure: Values differ
+      Expected: 128
+      Actual:   83
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(45,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(AnalysisGroupingDimension dimension)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(80,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(AnalysisGroupingDimension dimension)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(81,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(AnalysisGroupingDimension dimension)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: Extension) [FAIL]
+      Assert.Equal() Failure: Values differ
+      Expected: 128
+      Actual:   83
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(45,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(AnalysisGroupingDimension dimension)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(80,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(AnalysisGroupingDimension dimension)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(81,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(AnalysisGroupingDimension dimension)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: ModifiedAge) [FAIL]
+      Assert.Equal() Failure: Values differ
+      Expected: 128
+      Actual:   83
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(45,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(AnalysisGroupingDimension dimension)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(80,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(AnalysisGroupingDimension dimension)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(81,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(AnalysisGroupingDimension dimension)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(dimension: CapturedLocation) [FAIL]
+      Assert.Equal() Failure: Values differ
+      Expected: 128
+      Actual:   83
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(45,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(AnalysisGroupingDimension dimension)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(80,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(AnalysisGroupingDimension dimension)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(81,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingBrowsesCapturedRowsHistoryChartsAndPagedChargesAfterSourceClosure(AnalysisGroupingDimension dimension)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement [FAIL]
+      The requested view state was not published.
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Navigation.cs(141,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.Until(Func`1 predicate, Func`1 diagnostic)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(203,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(208,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.IndexedGrouping.cs(208,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedGroupingWaitsForChartGestureKeepsInvalidRequestsAndClosesPendingReplacement()
+        --- End of stack trace from previous location ---
+  Finished:    FileCat.Rendering.Tests (ID = 'ae0023ea6d75ba3e4757598219cdd74aef19e9baceb838d75325d842956478e2')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 123, Errors: 0, Failed: 6, Skipped: 0, Not Run: 0, Time: 45,249s
