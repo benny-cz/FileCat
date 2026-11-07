@@ -185,9 +185,30 @@ public sealed partial class AnalysisTree : IAnalysisChartData
                 }
             }
         }
+        Dictionary<ulong, AnalysisNode>? capturedNodes = null;
         foreach (var missing in projection.MissingCharges)
         {
             cancellation.ThrowIfCancellationRequested();
+            if (missing.DirectoryId is not null || missing.Aliases.Length >= 2)
+            {
+                ulong owner;
+                if (missing.DirectoryId is { } directory) owner = directory;
+                else
+                {
+                    capturedNodes ??= snapshot.Nodes.ToDictionary(node => node.Id);
+                    owner = AnalysisAggregate.CommonParent(missing.Aliases.Select(id => capturedNodes[id]).ToList(), capturedNodes);
+                }
+                string parent = owner == 0 ? RootKey : Key(owner);
+                string key = (missing.DirectoryId is not null ? "directory:" : "shared:") + parent;
+                if (!map.TryGetValue(key, out var bucket))
+                {
+                    bucket = new(key, parent, missing.DirectoryId is not null ? "Directory allocation" : "Shared hard-linked files", null,
+                        AnalysisKind.Special, true, true, missing.DirectoryId is not null ? "directory-allocation" : "shared")
+                        { PathMemberStatistics = missing.DirectoryId is null };
+                    map.Add(key, bucket); map[parent].Children.Add(key); order.Add(key);
+                }
+                bucket.Unknown = true; foreach (ulong alias in missing.Aliases) bucket.Members.Add(alias);
+            }
             if (missing.DirectoryId is not null || missing.Aliases.Length < 2) continue;
             foreach (ulong alias in missing.Aliases)
                 if (map.TryGetValue(Key(alias), out var item))

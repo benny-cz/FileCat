@@ -142,7 +142,7 @@ public static class AnalysisAggregate
         }
     }
 
-    private static ulong CommonParent(List<AnalysisNode> paths, Dictionary<ulong, AnalysisNode> nodes)
+    internal static ulong CommonParent(List<AnalysisNode> paths, Dictionary<ulong, AnalysisNode> nodes)
     {
         ulong parent = paths[0].ParentId;
         foreach (var path in paths.Skip(1))

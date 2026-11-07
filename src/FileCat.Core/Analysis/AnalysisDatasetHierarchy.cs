@@ -83,10 +83,11 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
                     return true;
                 }, cancellation).ConfigureAwait(false);
             await AnalysisIo.Run(io, device, token => { state.Seal(token); return true; }, cancellation).ConfigureAwait(false);
-            for (int kind = 0; kind < 8; kind++)
+            for (int kind = 0; kind < 9; kind++)
             {
                 using var entries = state.Entries(kind, cancellation).GetEnumerator();
-                var index = await AnalysisExternalSort.BuildSparseAsync(state.Workspace!, io, device, entries, cancellation).ConfigureAwait(false);
+                var index = await AnalysisExternalSort.BuildSparseAsync(state.Workspace!, io, device, entries, cancellation,
+                    maximumRecords: kind == 8 ? AnalysisLimits.GroupOrderRows : AnalysisLimits.Observations).ConfigureAwait(false);
                 try { await AnalysisIo.Run(io, device, _ => { state.Indexes.Add(index.Acquire()); return true; }, cancellation).ConfigureAwait(false); }
                 finally { await AnalysisIo.ReleaseScratchAsync(io, device, index).ConfigureAwait(false); }
             }
@@ -313,11 +314,29 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
             if (!Finished || _visited != _graph.Count(AnalysisIndexedGraph.Paths) || _placed != (Placements?.Count ?? 0)) throw Invalid();
             _writer!.Flush(token); _rows = _writer.CaptureCommitted(); _writer.Dispose(); _writer = null;
             _bucketWriter!.Flush(token); _buckets = _bucketWriter.CaptureCommitted(); _bucketWriter.Dispose(); _bucketWriter = null;
-            Placements?.Dispose(); Placements = null;
             FilterSummary = _query?.Summary; _query = null;
         }
         internal IEnumerable<AnalysisSortInput> Entries(int kind, CancellationToken token)
         {
+            if (kind == 8)
+            {
+                for (ulong row = 1; row <= _rows!.Count; row++)
+                {
+                    token.ThrowIfCancellationRequested(); var value = Decode(_rows.Read(row, token));
+                    if (!value.Visible) { yield return new(null, 256); continue; }
+                    var observed = Read(row, token); var item = AnalysisIndexedChart.Row(observed, Metric);
+                    yield return new(new(AnalysisGeometryOrder.Key(value.Parent, item), row),
+                        checked((int)(1536L + observed.Path.Name.Length * 2L + observed.Path.RawName.Length + observed.Path.RootId.Length * 2L +
+                            (observed.Path.ObjectId?.Length ?? 0) * 2L + (observed.Path.ObservedIdentity?.Length ?? 0) * 2L)));
+                }
+                for (ulong row = 1; row <= _buckets!.Count; row++)
+                {
+                    token.ThrowIfCancellationRequested(); var bucket = ReadBucket(row, token);
+                    if (bucket.ParentId == 0 && !Compatible) { yield return new(null, 256); continue; }
+                    yield return new(new(AnalysisGeometryOrder.Key(bucket.ParentId, AnalysisGeometryOrder.Bucket(bucket, Metric)), row | AnalysisGeometryOrder.BucketToken), 512);
+                }
+                yield break;
+            }
             ulong count = kind == 3 ? _buckets!.Count : _rows!.Count;
             for (ulong row = 1; row <= count; row++)
             {

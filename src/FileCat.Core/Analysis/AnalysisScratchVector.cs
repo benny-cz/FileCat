@@ -162,6 +162,17 @@ internal sealed class AnalysisScratchVectorCheckpoint : IDisposable
     internal AnalysisScratchVectorCheckpoint(AnalysisScratchCheckpoint lease, AnalysisScratchBlock[][] directory, int blocks, ulong count)
     { _lease = lease; _directory = directory; _blocks = blocks; Count = count; }
 
+    internal AnalysisScratchVectorCheckpoint Retain()
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            var lease = _lease.RetainReader();
+            try { return new(lease, _directory, _blocks, Count); }
+            catch { lease.Dispose(); throw; }
+        }
+    }
+
     internal byte[] Read(ulong id, CancellationToken cancellation = default)
     {
         lock (_gate)
