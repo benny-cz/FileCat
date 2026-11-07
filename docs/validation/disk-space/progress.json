@@ -172,7 +172,8 @@
     "Twelve actual native-source filename/capture/saved-Other controls pass all three platforms with hardlink, case, raw-byte/unpaired and preserving payload evidence. APFS invalid-byte creation refusals are recorded. A broad Ubuntu old saved-view timeout is retained with a focused unchanged-build passing check; no broad qualification is claimed.",
     "Offline comparison metric switching and positive-area Current/Previous growth charts retain actual readers, shared charges, unknown/attribution distinctions and explicit structural mappings. Compact disclosures, persistent chart side/metric captions and reveal navigation pass eight new rendering controls all three guest runtimes; full W0-W8 and physical desktop qualification remain open.",
     "Atomic private .fcdsc comparisons restore both inert captured inputs and applied metric/query/chart/focus state, preserve root-ID query meaning and privileged taint, refuse existing names and retain unapplied-draft close protection.20 new Core and7 rendering/native-store cases plus a strengthened UI journey pass all three guest runtimes; full W0-W8 qualification remains open.",
-    "Private ordinary root-ID queries and visible identifiers survive memory/indexed restore, reapply/grouping and second saves; unsupported indexed private storage produces a handled preserving failure.18 new Core and7 native-backed UI cases plus applicable broad suites pass all three guest runtimes; whole-plan qualification remains open."
+    "Private ordinary root-ID queries and visible identifiers survive memory/indexed restore, reapply/grouping and second saves; unsupported indexed private storage produces a handled preserving failure.18 new Core and7 native-backed UI cases plus applicable broad suites pass all three guest runtimes; whole-plan qualification remains open.",
+    "Generated-ID owned-store inspection verifies bounded saved containers and displays private size/location/dates; native readers retain shared leases through actual close. Malformed inspection/open and missing-winner creation failures are handled without modifying saved data. 14 Core and 4 native/UI cases plus applicable broad suites pass all three guest runtimes; complete managed maintenance and whole-plan qualification remain open."
   ],
   "validation": {
     "windowsCore": {
@@ -2121,7 +2122,7 @@
     },
     "testingWorkflow": {
       "default": "Build and package the largest coherent implementation candidate, then transfer one immutable bundle per free platform and execute all applicable Core/native/rendering phases sequentially before collecting evidence. Preserve other testers and gate every phase.",
-      "batchEvidence": "source-manifest-r869.json",
+      "batchEvidence": "source-manifest-r895.json",
       "oneCandidateArchivePerPlatform": true,
       "postExecutionProcessExitRequired": true,
       "continueIndependentPhasesAfterAssertionFailure": true,
@@ -8002,6 +8003,127 @@
       "newRenderingCases": 7,
       "rootQueryPrivateMemoryAndIndexedSubsetPassedAllThree": true,
       "unavailableStorageHandledWithoutAsyncUiEscapeAllThree": true,
+      "allApplicableBroadSuitesPassed": true,
+      "fullNativeDesktopQualified": false,
+      "fullResourceGateQualified": false,
+      "managedReplacementDeletionHistoryQualified": false,
+      "generalExportImportQualified": false,
+      "publicFeatureRegistered": false,
+      "finalIndependentReviewPerformed": false
+    },
+    "ownedStoreInspection": {
+      "manifest": "source-manifest-r895.json",
+      "matrix": {
+        "windows/smoke": {
+          "total": "14",
+          "passed": "14",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "0.749"
+        },
+        "windows/preview": {
+          "total": "4",
+          "passed": "4",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "5.266"
+        },
+        "windows/core": {
+          "total": "1432",
+          "passed": "1384",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0",
+          "time": "52.039"
+        },
+        "windows/native": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "35.587"
+        },
+        "windows/render": {
+          "total": "292",
+          "passed": "291",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "160.509"
+        },
+        "mac/smoke": {
+          "total": "14",
+          "passed": "14",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "0.256"
+        },
+        "mac/preview": {
+          "total": "4",
+          "passed": "4",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "2.713"
+        },
+        "mac/core": {
+          "total": "1414",
+          "passed": "1410",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "31.717"
+        },
+        "mac/render": {
+          "total": "292",
+          "passed": "292",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "101.348"
+        },
+        "ubuntu/smoke": {
+          "total": "14",
+          "passed": "14",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "0.583"
+        },
+        "ubuntu/preview": {
+          "total": "4",
+          "passed": "4",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "3.035"
+        },
+        "ubuntu/core": {
+          "total": "1414",
+          "passed": "1410",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "111.680"
+        },
+        "ubuntu/render": {
+          "total": "292",
+          "passed": "292",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "158.385"
+        }
+      },
+      "newCoreControls": 14,
+      "newRenderingCases": 4,
+      "ownedInspectionMemoryAndIndexedSubsetPassedAllThree": true,
+      "corruptInspectionAndOpenHandledAllThree": true,
+      "nativeReaderLeaseSubsetPassedAllThree": true,
       "allApplicableBroadSuitesPassed": true,
       "fullNativeDesktopQualified": false,
       "fullResourceGateQualified": false,

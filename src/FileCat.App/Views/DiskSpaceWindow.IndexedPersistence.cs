@@ -128,6 +128,7 @@ public sealed partial class DiskSpaceWindow
             using var actual = _actualWork.Enter(); using var cancel = CancellationTokenSource.CreateLinkedTokenSource(_selectionLifetime.Token);
             _persistenceBusy = true; _inventoryCancel = cancel; RefreshIndexedPersistence();
             AnalysisCatalogSnapshot? catalog = null; bool closed = false, loading = false;
+            SavedAnalysisInspectionPanel? inspection = null;
             try
             {
                 var name = new TextBox { Text = _savedInventoryName ?? "", MaxLength = 120, PlaceholderText = "Saved analysis.fcdsa" };
@@ -135,7 +136,9 @@ public sealed partial class DiskSpaceWindow
                 var choices = new ComboBox { IsVisible = false, HorizontalAlignment = HorizontalAlignment.Stretch, MaxWidth = 600 };
                 AutomationProperties.SetName(choices, "Saved analyses"); var message = new TextBlock { TextWrapping = TextWrapping.Wrap };
                 var browse = new Button { Content = "Browse saved analyses" }; var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
-                choices.SelectionChanged += (_, _) => { if (choices.SelectedItem is InventoryChoice choice) name.Text = choice.Name; };
+                inspection = new(_services!.Paths.AnalysisSnapshotsDirectory, () => choices.SelectedItem is InventoryChoice selected && selected.Name == name.Text ? selected.Entry : null,
+                    (id, token) => AnalysisOwnedStoreAccess.InspectAsync(_services!, id, token), cancel.Token, RememberViewCloseFailure);
+                choices.SelectionChanged += (_, _) => { if (choices.SelectedItem is InventoryChoice choice) name.Text = choice.Name; inspection.SelectionChanged(); };
                 browse.Click += async (_, _) =>
                 {
                     if (loading || closed || _disposed) return; using var page = _actualWork.Enter(); loading = true; browse.IsEnabled = false;
@@ -151,11 +154,11 @@ public sealed partial class DiskSpaceWindow
                     catch (Exception exception) when (Expected(exception)) { RememberViewCloseFailure(exception); if (!closed && !_disposed) message.Text = "Catalog unavailable: " + AnalysisNames.Display(exception.Message, 400); }
                     finally { loading = false; if (!closed && !_disposed) browse.IsEnabled = true; }
                 };
-                name.TextChanged += (_, _) => error.Text = string.IsNullOrEmpty(name.Text) ? "" : InventoryFilenameError(name.Text);
+                name.TextChanged += (_, _) => { error.Text = string.IsNullOrEmpty(name.Text) ? "" : InventoryFilenameError(name.Text); inspection.SelectionChanged(); };
                 var body = new StackPanel { Spacing = 8, Children =
                 {
                     new TextBlock { Text = "Select an analysis from the private catalog to restore its display settings. Entering a filename alone uses the default view. Recorded locations are not reconnected and no file actions are granted.", TextWrapping = TextWrapping.Wrap },
-                    browse, message, choices, name, error
+                    browse, message, choices, name, inspection, error
                 } };
                 var closer = new DialogCloser(); _inventoryCloser = closer;
                 var result = await _window._dialogs.ShowCustomAsync("Open saved analysis", body,
@@ -169,6 +172,7 @@ public sealed partial class DiskSpaceWindow
             finally
             {
                 closed = true; cancel.Cancel(); catalog?.Dispose(); _persistenceBusy = false; _inventoryCloser = null;
+                if (inspection is not null) await inspection.CloseAsync();
                 if (ReferenceEquals(_inventoryCancel, cancel)) _inventoryCancel = null; RefreshIndexedPersistence();
             }
         }

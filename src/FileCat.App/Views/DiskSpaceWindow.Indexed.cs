@@ -659,7 +659,7 @@ public sealed partial class DiskSpaceWindow
         }
         private static void Push(List<(ulong Parent, ulong Offset, int Skipped)> history, (ulong Parent, ulong Offset, int Skipped) value)
         { if (history.Count == AnalysisLimits.NavigationHistory) history.RemoveAt(0); history.Add(value); }
-        private static bool Expected(Exception error) => error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException or FormatException or OverflowException or OperationCanceledException or KeyNotFoundException;
+        private static bool Expected(Exception error) => error is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException or FormatException or OverflowException or OperationCanceledException or KeyNotFoundException;
         private void RememberViewCloseFailure(Exception error)
         {
             _actualWork.RecordUnconfirmedClose(error);

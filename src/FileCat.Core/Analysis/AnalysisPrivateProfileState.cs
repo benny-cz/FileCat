@@ -22,7 +22,8 @@ public sealed class AnalysisPrivateProfileState(AnalysisPrivateInventoryStore st
         {
             // A concurrent create-new winner is accepted only after the complete guarded strict read.
             // No replacement, repair or write retry follows any error.
-            return Read(cancellation);
+            try { return Read(cancellation); }
+            catch (FileNotFoundException) { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw(); throw; }
         }
     }
     private Guid Read(CancellationToken cancellation)

@@ -122,8 +122,22 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
         try { owned = OpenOwned(Root, name, GenericRead | ReadControl | Synchronize, ShareRead, Open, NonDirectoryFile | OpenReparsePoint); }
         catch (IOException error) when ((name is AnalysisPrivateNames.PrivateState or AnalysisPrivateNames.CatalogWriteLock || AnalysisPrivateNames.IsCapacityToken(name)) && error.InnerException is Win32Exception { NativeErrorCode: 2 })
         { throw new FileNotFoundException("The private analysis entry is missing.", error); }
-        try { Private(owned.Handle, directory: false); return new PrivateFile(this, owned, writable: false); }
+        try
+        {
+            Private(owned.Handle, directory: false);
+            if (!AnalysisPrivateNames.IsMetadata(name)) LockInventoryRead(owned.Handle);
+            return new PrivateFile(this, owned, writable: false);
+        }
         catch { owned.Dispose(); throw; }
+    }
+
+    private static void LockInventoryRead(SafeHandle handle)
+    {
+        byte* overlapped = stackalloc byte[32]; new Span<byte>(overlapped, 32).Clear();
+        *(uint*)(overlapped + 2 * IntPtr.Size) = 64 * 1024 * 1024;
+        if (LockFileEx(handle, 1, 0, 1, 0, overlapped)) return; // Shared | FAIL_IMMEDIATELY.
+        if (Marshal.GetLastPInvokeError() == 33) throw new IOException("The saved inventory is in use by a private-store operation. Try again when it finishes.");
+        throw new IOException("Private inventory reader locking is unavailable.");
     }
 
     internal override AnalysisPrivateScratchFile CreateScratch()

@@ -1,0 +1,8 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+  Finished:    FileCat.Rendering.Tests (ID = 'b27bf85e037b0f228e072827001bc479c61faf9b05e64bb5881a0721e3464525')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 4, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 2,713s

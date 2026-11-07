@@ -154,8 +154,25 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
         try { owned = OpenOwned(Root, name, FileFlags, 0); }
         catch (IOException error) when ((name is AnalysisPrivateNames.PrivateState or AnalysisPrivateNames.CatalogWriteLock || AnalysisPrivateNames.IsCapacityToken(name)) && error.InnerException is Win32Exception { NativeErrorCode: 2 })
         { throw new FileNotFoundException("The private analysis entry is missing.", error); }
-        try { Private(owned.Handle, directory: false, links: 1); return new PrivateFile(this, owned, writable: false); }
+        try
+        {
+            Private(owned.Handle, directory: false, links: 1);
+            if (!AnalysisPrivateNames.IsMetadata(name)) LockInventoryRead(owned.Handle);
+            return new PrivateFile(this, owned, writable: false);
+        }
         catch { owned.Dispose(); throw; }
+    }
+
+    private void LockInventoryRead(SafeHandle handle)
+    {
+        for (int attempt = 0; attempt < 8; attempt++)
+        {
+            if (Flock(handle, 1 | 4) == 0) return; // LOCK_SH | LOCK_NB, retained until actual descriptor close.
+            int error = Marshal.GetLastPInvokeError();
+            if (error == (_mac ? 35 : 11)) throw new IOException("The saved inventory is in use by a private-store operation. Try again when it finishes.");
+            if (error != 4) throw Error("Private inventory reader locking is unavailable.");
+        }
+        throw new IOException("Private inventory reader locking was repeatedly interrupted.");
     }
 
     internal override string[] Entries(CancellationToken cancellation)

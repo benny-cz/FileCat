@@ -65,6 +65,7 @@ public sealed partial class DiskSpaceWindow
             AnalysisCatalogSnapshot? catalogLease = null; bool closed = false;
             AnalysisSnapshotLease? captured = null; bool interaction = false; var metric = Model.Metric;
             using var browseCancel = new CancellationTokenSource();
+            SavedAnalysisInspectionPanel? inspection = null;
             try
             {
                 if (comparing) { Model.Interaction(true); interaction = true; captured = Model.CaptureDisplayedRevision(); }
@@ -77,8 +78,10 @@ public sealed partial class DiskSpaceWindow
                 var choices = new ComboBox { IsVisible = false, HorizontalAlignment = HorizontalAlignment.Stretch, MaxWidth = 600 };
                 AutomationProperties.SetName(choices, "Saved analyses"); AutomationProperties.SetLiveSetting(catalogStatus, AutomationLiveSetting.Polite);
                 var browse = new Button { Content = "Browse saved analyses" };
+                inspection = new(Model.SavedDirectory ?? "", () => choices.SelectedItem is SavedChoice selected && selected.Name == name.Text ? selected.Entry : null,
+                    (id, token) => Model.InspectSavedAsync(id, token), browseCancel.Token, _actualWork.RecordUnconfirmedClose);
                 bool browsing = false;
-                choices.SelectionChanged += (_, _) => { if (choices.SelectedItem is SavedChoice choice) name.Text = choice.Name; };
+                choices.SelectionChanged += (_, _) => { if (choices.SelectedItem is SavedChoice choice) name.Text = choice.Name; inspection.SelectionChanged(); };
                 browse.Click += async (_, _) =>
                 {
                     if (_disposed || browsing || closed) return;
@@ -100,12 +103,12 @@ public sealed partial class DiskSpaceWindow
                     finally { browsing = false; if (!closed && !_disposed) browse.IsEnabled = true; }
                 };
                 AutomationProperties.SetLiveSetting(error, Avalonia.Automation.AutomationLiveSetting.Assertive);
-                name.TextChanged += (_, _) => error.Text = string.IsNullOrEmpty(name.Text) ? "" : InventoryNameError(name.Text);
+                name.TextChanged += (_, _) => { error.Text = string.IsNullOrEmpty(name.Text) ? "" : InventoryNameError(name.Text); inspection.SelectionChanged(); };
                 var body = new StackPanel { Spacing = 8, Children =
                 {
                     new TextBlock { Text = comparing ? "Compare the entire captured revision with a saved inventory as Previous. The display filter and folder scope do not limit this comparison. Compatibility and missing coverage qualify every difference." : "Browse saved analyses to restore saved display settings, including table order. Entering a .fcdsa filename alone uses the default view. Opening shows offline observations without reconnecting sources or granting file actions.", TextWrapping = TextWrapping.Wrap },
                     new TextBlock { Text = "Saved analyses folder: " + AnalysisNames.Display(Model.SavedDirectory ?? ""), TextWrapping = TextWrapping.Wrap },
-                    browse, catalogStatus, choices, name, error
+                    browse, catalogStatus, choices, name, inspection, error
                 } };
                 if (captured is not null)
                 {
@@ -140,6 +143,7 @@ public sealed partial class DiskSpaceWindow
             finally
             {
                 closed = true; browseCancel.Cancel(); catalogLease?.Dispose(); captured?.Dispose();
+                if (inspection is not null) await inspection.CloseAsync();
                 if (interaction) Model.Interaction(false); _persistenceBusy = false; Refresh();
                 var actualOpening = openingWork.CloseAsync();
                 if (destination is not null) await destination.CloseAfterAsync(actualOpening); else await actualOpening;
@@ -163,7 +167,7 @@ public sealed partial class DiskSpaceWindow
             finally { closer.Close(null); }
         }
 
-        private static bool InventoryError(Exception ex) => ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException;
+        private static bool InventoryError(Exception ex) => ex is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException;
         private static string? InventoryNameError(string? text)
         {
             try { AnalysisPrivateInventoryStore.ValidateName(text ?? ""); return null; }

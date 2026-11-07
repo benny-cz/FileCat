@@ -141,7 +141,9 @@ public sealed partial class AnalysisSavedCatalog
         {
             // A concurrent create-new winner is usable only after the complete strict read succeeds.
             using var winner = Read(cancellation);
-            return winner.CatalogId ?? throw Invalid("The private catalog header could not be published.");
+            if (winner.CatalogId is { } existing) return existing;
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw();
+            throw Invalid("The private catalog header could not be published.");
         }
     }
 

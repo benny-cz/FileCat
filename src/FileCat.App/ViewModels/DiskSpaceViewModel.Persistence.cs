@@ -87,6 +87,15 @@ public sealed partial class DiskSpaceViewModel
         return await RunPrivateIoAsync(path, token => { using var store = OpenPrivateStore(path); return new AnalysisSavedCatalog(store).Read(token); }, cancellation);
     }
 
+    public async Task<OwnedAnalysisInventoryDetails> InspectSavedAsync(Guid inventoryId, CancellationToken cancellation = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        using var actualWork = _actualWork.Enter();
+        if (!HasPrivateStorage) throw new InvalidOperationException("Private inventory storage is unavailable.");
+        try { return await Services.AnalysisOwnedStoreAccess.InspectAsync(_services!, inventoryId, cancellation); }
+        catch (Exception error) { _actualWork.RecordUnconfirmedClose(error); throw; }
+    }
+
     public async Task<DiskSpaceViewModel> OpenSavedAsync(string name, AnalysisSavedEntry? entry, CancellationToken cancellation = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

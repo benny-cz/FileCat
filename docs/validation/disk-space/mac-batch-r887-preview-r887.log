@@ -1,0 +1,25 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+    FileCat.Rendering.Tests.AnalysisRenderingTests.SavedBrowserInspectsActualPrivateBytesByGeneratedIdentityAndHandlesCorruption(indexed: False) [FAIL]
+      Assert.False() Failure
+      Expected: False
+      Actual:   True
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.OwnedStore.cs(57,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.SavedBrowserInspectsActualPrivateBytesByGeneratedIdentityAndHandlesCorruption(Boolean indexed)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.OwnedStore.cs(66,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.SavedBrowserInspectsActualPrivateBytesByGeneratedIdentityAndHandlesCorruption(Boolean indexed)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.OwnedStore.cs(66,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.SavedBrowserInspectsActualPrivateBytesByGeneratedIdentityAndHandlesCorruption(Boolean indexed)
+        --- End of stack trace from previous location ---
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+    FileCat.Rendering.Tests.AnalysisRenderingTests.SavedBrowserInspectsActualPrivateBytesByGeneratedIdentityAndHandlesCorruption(indexed: True) [FAIL]
+      The requested view state was not published.
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Navigation.cs(141,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.Until(Func`1 predicate, Func`1 diagnostic)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.OwnedStore.cs(47,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.SavedBrowserInspectsActualPrivateBytesByGeneratedIdentityAndHandlesCorruption(Boolean indexed)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.OwnedStore.cs(66,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.SavedBrowserInspectsActualPrivateBytesByGeneratedIdentityAndHandlesCorruption(Boolean indexed)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.OwnedStore.cs(66,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.SavedBrowserInspectsActualPrivateBytesByGeneratedIdentityAndHandlesCorruption(Boolean indexed)
+        --- End of stack trace from previous location ---
+  Finished:    FileCat.Rendering.Tests (ID = '65be572aa99cda7b149c80eba823315f5dba8411e5ec2af8ab3469bac3833feb')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 4, Errors: 0, Failed: 2, Skipped: 0, Not Run: 0, Time: 8,305s

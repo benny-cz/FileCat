@@ -16,9 +16,21 @@ public sealed partial class AnalysisPrivateInventoryStore
             {
                 try { WriteMetadataNew(AnalysisPrivateNames.CatalogWriteLock, expected, cancellation); }
                 catch (AnalysisPublicationUncertainException error) { throw new IOException("The private catalog lock durability is uncertain. No inventory was saved.", error); }
-                catch (IOException error) when (!AnalysisCloseUnconfirmedException.IsPresent(error)) { }
+                catch (IOException error) when (!AnalysisCloseUnconfirmedException.IsPresent(error))
+                {
+                    // Accept an actual concurrent create-new winner. A failed create without
+                    // a winner must retain its useful cause (for example the space reserve).
+                    try { file = directory.OpenRead(AnalysisPrivateNames.CatalogWriteLock); }
+                    catch (FileNotFoundException) { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw(); throw; }
+                    return ValidateCatalogLock(file, expected);
+                }
                 file = directory.OpenRead(AnalysisPrivateNames.CatalogWriteLock);
             }
+            return ValidateCatalogLock(file, expected);
+        }
+    }
+    private static AnalysisPrivateFile ValidateCatalogLock(AnalysisPrivateFile file, byte[] expected)
+    {
             try
             {
                 file.Verify(); if (file.Stream.Length != expected.Length) throw new InvalidDataException("Unsupported private catalog lock. Existing bytes were preserved.");
@@ -28,7 +40,6 @@ public sealed partial class AnalysisPrivateInventoryStore
                 return file;
             }
             catch { AnalysisIo.CloseOnWorker(file); throw; }
-        }
     }
     private sealed class BorrowedDirectory(AnalysisPrivateInventoryStore owner, AnalysisPrivateDirectory source) : AnalysisPrivateDirectory
     {

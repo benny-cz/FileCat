@@ -1,0 +1,29 @@
+{
+  "revision": "r887",
+  "renderRevision": "r888",
+  "buildLog": ".tmp/build-r886.txt",
+  "sourceManifest": ".tmp/source-candidate-r887.json",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 38.7350119,
+  "archives": [
+    {
+      "platform": "mac",
+      "sha256": "dc5f3683a02eb11921264a58b9e037011f9cceed46d6d5d7531b4286976eafe6",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r887.tgz",
+      "bytes": 42212577
+    },
+    {
+      "platform": "linux",
+      "sha256": "e2486fba3d74218d8641733f9209fc90bafe438594ffc54afe9b6d15d20734ce",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r887.tgz",
+      "bytes": 39537887
+    },
+    {
+      "platform": "windows",
+      "sha256": "ff6b66f605e383c826f2c44dae7280b0cd27b6c7c27a781ea846e766237f7176",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r887.tgz",
+      "bytes": 78613306
+    }
+  ]
+}
