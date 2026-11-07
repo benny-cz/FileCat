@@ -115,7 +115,7 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
     private enum Stage { Objects, Aliases, AliasAncestors, CommonAncestor, Facts, Emit, UnknownAliases, Directories, DirectoryOwner, MatchObjects, MatchFacts, MatchAliases, MatchAncestors, MatchEvaluate, Done }
     private sealed record Component(StorageFact Fact, ulong Row);
     private sealed record Row(ulong Id, ulong Parent, ulong Path, ulong Object, ulong Fact, ulong Aliases, AnalysisMeasurement Measurement, byte Flags);
-    private sealed partial class State : IAnalysisScratchOwned
+    internal sealed partial class State : IAnalysisScratchOwned
     {
         private readonly AnalysisIndexedGraphReader _graph;
         internal AnalysisScratchWorkspace? Workspace;

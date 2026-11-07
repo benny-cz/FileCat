@@ -36,10 +36,11 @@ internal static class AnalysisExternalSort
     // A null entry is one consumed input row with no indexed value. Its captured byte cost still
     // counts toward the worker/observation bound; sparse input cannot hide an unbounded MoveNext loop.
     internal static async Task<AnalysisSortedIndex> BuildSparseAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io, AnalysisIoDevices device,
-        IEnumerator<AnalysisSortInput> source, CancellationToken cancellation = default, int runMemoryBytes = RunMemoryBytes)
+        IEnumerator<AnalysisSortInput> source, CancellationToken cancellation = default, int runMemoryBytes = RunMemoryBytes, int maximumRecords = AnalysisLimits.Observations)
     {
         ArgumentNullException.ThrowIfNull(workspace); ArgumentNullException.ThrowIfNull(io); ArgumentNullException.ThrowIfNull(source);
         if (runMemoryBytes is < 1024 or > RunMemoryBytes) throw new ArgumentOutOfRangeException(nameof(runMemoryBytes));
+        if (maximumRecords is < 1 or > AnalysisLimits.GroupRows) throw new ArgumentOutOfRangeException(nameof(maximumRecords));
         await Sorts.WaitAsync(cancellation).ConfigureAwait(false);
         var cleanup = new Cleanup(); var runs = cleanup.Runs; var entries = new List<AnalysisSortEntry>();
         AnalysisSortEntry? carry = null; long bytes = 0, total = 0, inputs = 0; bool finished = false;
@@ -59,13 +60,13 @@ internal static class AnalysisExternalSort
                         else
                         {
                             if (!source.MoveNext()) { finished = true; return false; }
-                            if (++inputs > AnalysisLimits.Observations) throw new IOException("The analysis index input-row limit was reached.");
+                            if (++inputs > maximumRecords) throw new IOException("The analysis index input-row limit was reached.");
                             var input = source.Current;
                             if (input.Bytes is < 1 or > AnalysisScratchVector.MaximumRecordBytes) throw Invalid();
                             batchBytes += input.Bytes;
                             if (input.Entry is not { } item) { batch++; continue; }
                             if (item.Key is null || item.Key.Length is < 1 or > MaximumKeyBytes || item.Value == 0) throw Invalid();
-                            if (++total > AnalysisLimits.Observations) throw new IOException("The analysis index record limit was reached.");
+                            if (++total > maximumRecords) throw new IOException("The analysis index record limit was reached.");
                             entry = new(item.Key.ToArray(), item.Value);
                         }
                         long cost = 128L + entry.Key.Length;
@@ -117,7 +118,7 @@ internal static class AnalysisExternalSort
             // The immutable run views retain directory pages, not the writers' 256-KiB buffers.
             runs.Clear();
             cleanup.Output = await AnalysisIo.Run(io, device, _ => workspace.CreateArena(), cancellation).ConfigureAwait(false);
-            cleanup.OutputRows = new(cleanup.Output!, ownsArena: false);
+            cleanup.OutputRows = new(cleanup.Output!, recordLimit: maximumRecords, ownsArena: false);
             while (queue.Count != 0)
             {
                 await AnalysisIo.Run(io, device, token =>

@@ -1,0 +1,367 @@
+{
+  "purpose": "Indexed captured grouping, bounded evidence pages, full-alias attribution and actual-lifetime admission",
+  "observedUtc": "2026-11-07T03:32:04.532215+00:00",
+  "gitBase": "ce8495a7a819f04a1beec2723263d7ae22649252",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Build.cs",
+      "sha256": "d7d973dd8e00c89e1c94787769f4deb5d55bf093601a96e5c9f480d4d31608d3"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Codec.cs",
+      "sha256": "521177318c9864d65160a859a2677e7570add2c0c7f095af3e3d4ea4d5485f47"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.Fold.cs",
+      "sha256": "0eedc87e1918fb308514d752ad1830a6966f483ccab53645b6ce6047ffc76e26"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetGrouping.cs",
+      "sha256": "3b6fdb318304d80ca32df771499589634aafe6f4bb04a62981eeb7beb8fa91c9"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisExternalSort.cs",
+      "sha256": "45e1aa2ebb36eb2ad8a5f6b0ecc75babc5e7e48dcc62ee632cedad52b6a6bd5f"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisLimits.cs",
+      "sha256": "cc501a01b5777bf4eb7e63062ceb2db9cb4a9e213a3ec43b87e7df7be8be19a8"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObjectCharges.Filter.cs",
+      "sha256": "7625b666373426e1c867c863aff55eadbf6250aec842f980584862f75a926f04"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObjectCharges.cs",
+      "sha256": "afc2c6832bc8e585515cb1597b6fdf83b5cc166508a5a74aba6aa5b0dc9e54f1"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisScratchVector.cs",
+      "sha256": "396369aeeea36866cb08718bc638202b45eab34253a6364577bda06a107e5a5a"
+    },
+    {
+      "path": "tests/AnalysisObservationCaptureFixture.cs",
+      "sha256": "017ff74ce4bfa3f0bb8e7991fe55def93feed9f93bd30a2b211c124d5039cc0d"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.Grouping.cs",
+      "sha256": "4dec8a6d29cfd1c579b518478b2693ebe4af06a5ccc7eccc64de38de8e8fe426"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r613.txt",
+      "sha256": "6ba78bd5f890fd91aaeef6fe96f18243c9ef7e3045aa30d0274883ae17d62213"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r614-core-r614.xml",
+      "sha256": "bd8f9fc08eb09bc105b33aa0ca8e5c7da18e79b774b3ff16106bddc7c22cb917"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r614-core-r614.log",
+      "sha256": "ca8264cd62e26e9aeed51fa847bc4c15cbcfc0301d371318ec7683b3fba01bef"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r614-render-r614.xml",
+      "sha256": "eae58a089be2463a797788acd85aeb43926f14fb3f5b283d73e1efc28fd5d0fb"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r614-render-r614.log",
+      "sha256": "80b1db8d89bf95d75ca55736a894a9707054a692c2f8c92ff631dc1f987ba08c"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r614-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r614-post.json",
+      "sha256": "ed924631594926e607e020dd143c0f1110aad328c5a91391c4ca2af41787a057"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r614-core-r614.xml",
+      "sha256": "9c2690732ee5869faa5758fd9595b2219e300f99d8223ee8f3f4c29df249feb7"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r614-core-r614.log",
+      "sha256": "7a2a7724b72de7407fe1e916dba9d87f224c465f76f36654856bbcb3b66de985"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r614-render-r614.xml",
+      "sha256": "db7373fd2424f4c9bf09519044306639dab5ccf1b180753372b8d987d3e3c874"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r614-render-r614.log",
+      "sha256": "f92eee7f5ff183351d245a097be2582af62a5353ca73ce4a6cd8c6d52f37a6d9"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r614-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r614-post.json",
+      "sha256": "3ff7f7dae34f6ecf11146d90c8252239ac0b2ec4cd09936f60ace8a90ed72426"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r614-core-r614.xml",
+      "sha256": "9836a2a2435ff95cd67de513ec2c3c55291907fb3b741f3febc509f32185e177"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r614-core-r614.log",
+      "sha256": "1f149a5d38e66c0f3c6cb19dff58d01e51b9a2493bba7ed31aa782eebe81b4d1"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r614-native-r614.xml",
+      "sha256": "002505c4855769b0598ef92f4b9c473ba32acda7d5c95f8e018cac2cfe5a11cc"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r614-native-r614.log",
+      "sha256": "742393e12cd5a5dbff45280c6429c0262fba8487d8257de312951831547a53f4"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r614-render-r614.xml",
+      "sha256": "8b1306a64186a436abe67f10748999e2f118c7c8c03c17272728e683853367fb"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r614-render-r614.log",
+      "sha256": "f7d68dbf71329e9a6ba7986b300a0961f370e6b56ecb804b01b529aa27171167"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r614-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r614-post.json",
+      "sha256": "200831a69dc48313bfcc3a79a3b09ce56848dfc59269048712f6ebbe6c4a3432"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r614.sh",
+      "sha256": "57b1a8f75c4dbb40dcfaeb0bb431baeb4dd3d19940b36910986a309bdf93ad36"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r614.sh",
+      "sha256": "6daf18ef4811743529e4fc5ed049ce22b99ebd9c8268b6e368415d5cb5417bd4"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r614.ps1",
+      "sha256": "4d16f301db60db98068708a8bcfb1d7030bafac7c539472cd7418354eedda7a0"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r614.tgz",
+      "sha256": "1aa93be9908355733328786d3b8ca571622f92bc5725f018cbd2dbc5d570bb46"
+    },
+    {
+      "name": "dsa-batch-linux-r614.tgz",
+      "sha256": "ee18ab4de15e6bb9df143dac6afec90fffead96de9b05654eb98329c4a3043a7"
+    },
+    {
+      "name": "dsa-batch-windows-r614.tgz",
+      "sha256": "9956f38032e99863fa2ffceaf307bc925e6d7213af51b260e1c60f115bc5785e"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r614": "6ca89ca7654a06124ca69df40d7af4868749c7583f565ccec52d27fe60e2d9d6",
+    "native-r614": "6ca89ca7654a06124ca69df40d7af4868749c7583f565ccec52d27fe60e2d9d6",
+    "render-r615-mac": "6ca89ca7654a06124ca69df40d7af4868749c7583f565ccec52d27fe60e2d9d6",
+    "render-r615-linux": "6ca89ca7654a06124ca69df40d7af4868749c7583f565ccec52d27fe60e2d9d6",
+    "render-r615-windows": "6ca89ca7654a06124ca69df40d7af4868749c7583f565ccec52d27fe60e2d9d6"
+  },
+  "productionAppHashes": {
+    "render-r615-mac": "0329a688eed8c6b5c438e74feead0dc94a1a867b463026eaa0dcf809d2546200",
+    "render-r615-linux": "0329a688eed8c6b5c438e74feead0dc94a1a867b463026eaa0dcf809d2546200",
+    "render-r615-windows": "0329a688eed8c6b5c438e74feead0dc94a1a867b463026eaa0dcf809d2546200"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r614": "7248fe95ccf8eb620e4de528bb8052fb901150fa6f0f7817b11eb86347d1c5ed",
+    "render-r615-mac": "7248fe95ccf8eb620e4de528bb8052fb901150fa6f0f7817b11eb86347d1c5ed",
+    "render-r615-linux": "7248fe95ccf8eb620e4de528bb8052fb901150fa6f0f7817b11eb86347d1c5ed",
+    "render-r615-windows": "7248fe95ccf8eb620e4de528bb8052fb901150fa6f0f7817b11eb86347d1c5ed"
+  },
+  "matrix": {
+    "mac-batch-r614-core-r614.xml": {
+      "total": "789",
+      "passed": "785",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "23.476"
+    },
+    "mac-batch-r614-render-r614.xml": {
+      "total": "114",
+      "passed": "114",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "37.229"
+    },
+    "ubuntu-batch-r614-core-r614.xml": {
+      "total": "789",
+      "passed": "785",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "51.271"
+    },
+    "ubuntu-batch-r614-render-r614.xml": {
+      "total": "114",
+      "passed": "114",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "53.973"
+    },
+    "windows-batch-r614-core-r614.xml": {
+      "total": "807",
+      "passed": "759",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "21.843"
+    },
+    "windows-batch-r614-native-r614.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "38.220"
+    },
+    "windows-batch-r614-render-r614.xml": {
+      "total": "114",
+      "passed": "113",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "49.138"
+    }
+  },
+  "targetedControls": {
+    "mac": [
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingPreservesWideAmountsAndMissingLogicalStatesWithoutDuplicatingComponentReferences",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupPagesShareExplorerAdmissionAndKeepItUntilCanceledQueuedReadsAndCloseActuallyFinish",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: Files)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: Files)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: Files)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: Files)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.LongExtensionGroupsUseByteBoundedPagesAndRejectUnknownKeysWithoutRebinding",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupsHaveBoundedPagesAcrossMoreThanOneChartAndBatchOfDistinctExtensions",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingRetainsNativeScratchAndMetadataAfterTheOriginalOwnersClose",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: FileType)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: Extension)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: ModifiedAge)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: CapturedLocation)"
+    ],
+    "ubuntu": [
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingRetainsNativeScratchAndMetadataAfterTheOriginalOwnersClose",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: Files)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: Files)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: Files)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: Files)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingPreservesWideAmountsAndMissingLogicalStatesWithoutDuplicatingComponentReferences",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: FileType)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: Extension)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: ModifiedAge)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: CapturedLocation)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupPagesShareExplorerAdmissionAndKeepItUntilCanceledQueuedReadsAndCloseActuallyFinish",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupsHaveBoundedPagesAcrossMoreThanOneChartAndBatchOfDistinctExtensions",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.LongExtensionGroupsUseByteBoundedPagesAndRejectUnknownKeysWithoutRebinding"
+    ],
+    "windows": [
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingPreservesWideAmountsAndMissingLogicalStatesWithoutDuplicatingComponentReferences",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupPagesShareExplorerAdmissionAndKeepItUntilCanceledQueuedReadsAndCloseActuallyFinish",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.LongExtensionGroupsUseByteBoundedPagesAndRejectUnknownKeysWithoutRebinding",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupsHaveBoundedPagesAcrossMoreThanOneChartAndBatchOfDistinctExtensions",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: Files)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: Files)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: Files)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: FileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: UniqueFileSize)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: OnDisk)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: Files)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingRetainsNativeScratchAndMetadataAfterTheOriginalOwnersClose",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: FileType)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: Extension)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: ModifiedAge)",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: CapturedLocation)"
+    ]
+  },
+  "nativeCaptureControls": {
+    "mac": {
+      "test": "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeMetadataCaptureCoalescesActualHardLinksWithoutReadingFileContent",
+      "scope": "Actual native metadata capture, source positively closed, different-extension hard links; filtered type grouping across all four metrics in native private scratch, original bytes preserved and scratch cleanup checked."
+    },
+    "ubuntu": {
+      "test": "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeMetadataCaptureCoalescesActualHardLinksWithoutReadingFileContent",
+      "scope": "Actual native metadata capture, source positively closed, different-extension hard links; filtered type grouping across all four metrics in native private scratch, original bytes preserved and scratch cleanup checked."
+    },
+    "windows": {
+      "test": "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeMetadataCaptureCoalescesActualHardLinksWithoutReadingFileContent",
+      "scope": "Actual native metadata capture, source positively closed, different-extension hard links; filtered type grouping across all four metrics in native private scratch, original bytes preserved and scratch cleanup checked."
+    }
+  },
+  "newCoreControls": 25,
+  "finalBuild": "build-r613.txt: full solution zero warnings/errors",
+  "excludedAttempts": [
+    "r601/r605: superseded before packaging by native capture and queued-admission controls",
+    "r609/r610: first candidate exposed zero-based positions passed to the one-based private sorted-index reader; fixed merge and root page reads; not qualification evidence"
+  ],
+  "testScope": "Memory-oracle parity, native private scratch over real native metadata captures after source closure, generated large-group/long-name/wide-integer fixtures and blocked actual queues. Existing UI checks are headless; no grouped explorer exists yet. Complete native UX/DPI/a11y and1M/10M/full private-memory resource qualification remain pending.",
+  "batchWorkflow": "One immutable bundle per platform; sequential applicable suites with integrity/per-phase occupancy gates and one evidence collection. Independent phases continue after assertions; occupation postpones the run.",
+  "processExitEvidence": "All original runners terminal, guest states FINISHED exit=0 and authoritative final inventories empty all3. No host app/input tests or other tester termination.",
+  "qualification": {
+    "indexedGroupingStoreImplemented": true,
+    "boundedGroupMemberChargePagesImplemented": true,
+    "allFourMetricGroupingParityPassedAllThree": true,
+    "nativeCapturedGroupingControlsPassedAllThree": true,
+    "groupingAdmissionActualLifetimeControlsPassedAllThree": true,
+    "groupedExplorerImplemented": false,
+    "groupedViewPersistenceImplemented": false,
+    "allGroupedSortAndInspectorProjectionsImplemented": false,
+    "ownerComparisonVolumeGroupingComplete": false,
+    "nativeDesktopGroupingQualified": false,
+    "fullResourceGateQualified": false,
+    "fullMillionTenMillionGroupingQualificationComplete": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

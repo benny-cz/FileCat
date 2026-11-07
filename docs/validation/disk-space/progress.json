@@ -152,7 +152,8 @@
     "Explorer creation/page/inspection/chart work shares eight accepted operations process-wide, with admission retained through actual I/O, cancellation, rollback and final cleanup. Separate views and pending creation cannot bypass the same pool. Three cross-view/lifetime/failure controls pass all3; complete immutable candidate regressions pass and no test processes remain.",
     "Producer work, legacy traversal queues and observation writes share a partitioned8 MiB envelope with reserved working headroom. Charges follow actual stop/cancel/drain; rejected directories remain failed coverage. Decoded strings/ancestry are bounded, queued async inputs drop live witnesses, and effective partitions are captured in policy. Twelve actual-scheduler saturation/lifetime/coverage controls pass all3.",
     "Both memory and indexed charts share selectable file-type, absolute-depth and captured precision-aware modification-age colors, explicit bounded themed legends, contrast-checked text/boundaries and separate focus/mark cues. Strict schema3 view state records dimension/rules v1 and reads schema1/2 defaults without rewrite. Nineteen focused Core and seven rendering/persistence controls, full suites and galleries pass all3; native physical qualification, grouping and comparison-growth colors remain open.",
-    "Memory-backed grouping accounting for type/extension/captured modification-age/location preserves every metric, known/unverified/missing/path totals, exact filtered members and pre-filter cross-group hard-link attribution. Directory allocation is separate; rules v1, safe bounded keys/labels and privacy joins are explicit. Twenty-nine controls and full regressions pass all3. Grouped explorer, indexed group store, saved grouping, owner/comparison/volume and native/resource qualification remain unfinished."
+    "Memory-backed grouping accounting for type/extension/captured modification-age/location preserves every metric, known/unverified/missing/path totals, exact filtered members and pre-filter cross-group hard-link attribution. Directory allocation is separate; rules v1, safe bounded keys/labels and privacy joins are explicit. Twenty-nine controls and full regressions pass all3. Grouped explorer, indexed group store, saved grouping, owner/comparison/volume and native/resource qualification remain unfinished.",
+    "Disk-backed captured type/extension/age/location groups now provide bounded member/charge/summary pages, full-alias pre-filter attribution, component-reference deduplication, exact totals and retained graph leases. Shared explorer admission follows actual queued read/cancel/close completion. Twenty-five new controls, actual closed-source native hard-link captures and full regressions pass all3. Grouped UI/sorting/inspection/persistence and complete scale/resource qualification remain unfinished."
   ],
   "validation": {
     "windowsCore": {
@@ -2101,7 +2102,7 @@
     },
     "testingWorkflow": {
       "default": "Build and package the largest coherent implementation candidate, then transfer one immutable bundle per free platform and execute all applicable Core/native/rendering phases sequentially before collecting evidence. Preserve other testers and gate every phase.",
-      "batchEvidence": "source-manifest-r600.json",
+      "batchEvidence": "source-manifest-r616.json",
       "oneCandidateArchivePerPlatform": true,
       "postExecutionProcessExitRequired": true,
       "continueIndependentPhasesAfterAssertionFailure": true
@@ -3513,12 +3514,188 @@
       "persistenceGateQualified": false,
       "actionsHelperContentEnabled": false,
       "finalIndependentReviewPerformed": false
+    },
+    "indexedGroupingStore": {
+      "newCoreControls": 25,
+      "targetedControls": {
+        "mac": [
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingPreservesWideAmountsAndMissingLogicalStatesWithoutDuplicatingComponentReferences",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupPagesShareExplorerAdmissionAndKeepItUntilCanceledQueuedReadsAndCloseActuallyFinish",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: FileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: UniqueFileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: OnDisk)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: Files)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: FileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: UniqueFileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: OnDisk)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: Files)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: FileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: UniqueFileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: OnDisk)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: Files)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: FileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: UniqueFileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: OnDisk)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: Files)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.LongExtensionGroupsUseByteBoundedPagesAndRejectUnknownKeysWithoutRebinding",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupsHaveBoundedPagesAcrossMoreThanOneChartAndBatchOfDistinctExtensions",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingRetainsNativeScratchAndMetadataAfterTheOriginalOwnersClose",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: FileType)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: Extension)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: ModifiedAge)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: CapturedLocation)"
+        ],
+        "ubuntu": [
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingRetainsNativeScratchAndMetadataAfterTheOriginalOwnersClose",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: FileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: UniqueFileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: OnDisk)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: Files)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: FileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: UniqueFileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: OnDisk)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: Files)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: FileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: UniqueFileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: OnDisk)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: Files)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: FileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: UniqueFileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: OnDisk)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: Files)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingPreservesWideAmountsAndMissingLogicalStatesWithoutDuplicatingComponentReferences",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: FileType)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: Extension)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: ModifiedAge)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: CapturedLocation)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupPagesShareExplorerAdmissionAndKeepItUntilCanceledQueuedReadsAndCloseActuallyFinish",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupsHaveBoundedPagesAcrossMoreThanOneChartAndBatchOfDistinctExtensions",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.LongExtensionGroupsUseByteBoundedPagesAndRejectUnknownKeysWithoutRebinding"
+        ],
+        "windows": [
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingPreservesWideAmountsAndMissingLogicalStatesWithoutDuplicatingComponentReferences",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.GroupPagesShareExplorerAdmissionAndKeepItUntilCanceledQueuedReadsAndCloseActuallyFinish",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.LongExtensionGroupsUseByteBoundedPagesAndRejectUnknownKeysWithoutRebinding",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupsHaveBoundedPagesAcrossMoreThanOneChartAndBatchOfDistinctExtensions",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: FileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: UniqueFileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: OnDisk)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: FileType, metric: Files)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: FileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: UniqueFileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: OnDisk)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: Extension, metric: Files)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: FileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: UniqueFileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: OnDisk)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: ModifiedAge, metric: Files)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: FileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: UniqueFileSize)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: OnDisk)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingMatchesMemoryAccountingAndPagesExactMembersAndCharges(dimension: CapturedLocation, metric: Files)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedGroupingRetainsNativeScratchAndMetadataAfterTheOriginalOwnersClose",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: FileType)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: Extension)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: ModifiedAge)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedFilterCannotPullASharedChargeIntoTheRemainingAliasCategory(dimension: CapturedLocation)"
+        ]
+      },
+      "nativeCaptureControls": {
+        "mac": {
+          "test": "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeMetadataCaptureCoalescesActualHardLinksWithoutReadingFileContent",
+          "scope": "Actual native metadata capture, source positively closed, different-extension hard links; filtered type grouping across all four metrics in native private scratch, original bytes preserved and scratch cleanup checked."
+        },
+        "ubuntu": {
+          "test": "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeMetadataCaptureCoalescesActualHardLinksWithoutReadingFileContent",
+          "scope": "Actual native metadata capture, source positively closed, different-extension hard links; filtered type grouping across all four metrics in native private scratch, original bytes preserved and scratch cleanup checked."
+        },
+        "windows": {
+          "test": "FileCat.Platform.Windows.Tests.AnalysisWindowsTests.NativeMetadataCaptureCoalescesActualHardLinksWithoutReadingFileContent",
+          "scope": "Actual native metadata capture, source positively closed, different-extension hard links; filtered type grouping across all four metrics in native private scratch, original bytes preserved and scratch cleanup checked."
+        }
+      },
+      "matrix": {
+        "mac-batch-r614-core-r614.xml": {
+          "total": "789",
+          "passed": "785",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "23.476"
+        },
+        "mac-batch-r614-render-r614.xml": {
+          "total": "114",
+          "passed": "114",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "37.229"
+        },
+        "ubuntu-batch-r614-core-r614.xml": {
+          "total": "789",
+          "passed": "785",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "51.271"
+        },
+        "ubuntu-batch-r614-render-r614.xml": {
+          "total": "114",
+          "passed": "114",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "53.973"
+        },
+        "windows-batch-r614-core-r614.xml": {
+          "total": "807",
+          "passed": "759",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0",
+          "time": "21.843"
+        },
+        "windows-batch-r614-native-r614.xml": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "38.220"
+        },
+        "windows-batch-r614-render-r614.xml": {
+          "total": "114",
+          "passed": "113",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "49.138"
+        }
+      },
+      "manifest": "source-manifest-r616.json",
+      "indexedGroupingStoreImplemented": true,
+      "boundedGroupMemberChargePagesImplemented": true,
+      "allFourMetricGroupingParityPassedAllThree": true,
+      "nativeCapturedGroupingControlsPassedAllThree": true,
+      "groupingAdmissionActualLifetimeControlsPassedAllThree": true,
+      "groupedExplorerImplemented": false,
+      "groupedViewPersistenceImplemented": false,
+      "allGroupedSortAndInspectorProjectionsImplemented": false,
+      "ownerComparisonVolumeGroupingComplete": false,
+      "nativeDesktopGroupingQualified": false,
+      "fullResourceGateQualified": false,
+      "fullMillionTenMillionGroupingQualificationComplete": false,
+      "productCommandRegistered": false,
+      "publicIndexedSpillEnabled": false,
+      "persistenceGateQualified": false,
+      "actionsHelperContentEnabled": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
     "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, remaining dataset/CPU queues and full private-memory qualification (producer payload now shares a partitioned8 MiB envelope and explorer creation/page/inspection/chart work shares eight places, with actual-lifetime controls all3), actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
-    "W2: finish the grouped explorer, indexed group/member/charge store and saved grouping state (memory-backed type/extension/captured-age/location accounting now passes all3), owner/comparison/qualified-volume grouping and comparison-growth coloring (basic type/depth/captured-age colors, themed legends and strict saved-view restore now pass all3), scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
+    "W2: finish grouped chart/table/navigation, sorting/inspection and saved grouping state (memory and indexed type/extension/captured-age/location stores, bounded pages and native capture controls now pass all3), owner/comparison/qualified-volume grouping and comparison-growth coloring (basic type/depth/captured-age colors, themed legends and strict saved-view restore now pass all3), scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",

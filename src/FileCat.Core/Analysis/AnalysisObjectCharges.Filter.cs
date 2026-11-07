@@ -2,7 +2,7 @@ namespace FileCat.Core.Analysis;
 
 public sealed partial class AnalysisObjectChargeIndex
 {
-    private sealed partial class State
+    internal sealed partial class State
     {
         internal AnalysisIndexedFilter? Query;
         private ulong _groupFirst, _matchObject, _matchObjRow, _matchAlias, _matchFact;

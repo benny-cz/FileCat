@@ -48,7 +48,7 @@ internal static partial class AnalysisObservationCaptureFixture
     internal static async Task VerifyNative(string parent, Func<string, IAnalysisBackend> prepare, Func<AnalysisPrivateDirectory> create, CancellationToken cancellation)
     {
         string sourcePath = Path.Combine(parent, "source"); Directory.CreateDirectory(sourcePath); Directory.CreateDirectory(Path.Combine(sourcePath, "folder"));
-        string original = Path.Combine(sourcePath, "original.bin"), alias = Path.Combine(sourcePath, "alias.bin");
+        string original = Path.Combine(sourcePath, "original.bin"), alias = Path.Combine(sourcePath, "alias.jpg");
         byte[] payload = Enumerable.Range(0, 1031).Select(n => (byte)(n % 251)).ToArray(); File.WriteAllBytes(original, payload);
         Assert.True(OperatingSystem.IsWindows() ? WindowsLink(alias, original, IntPtr.Zero) : UnixLink(original, alias) == 0);
         File.WriteAllBytes(Path.Combine(sourcePath, "folder", "empty.txt"), []);
@@ -104,7 +104,7 @@ internal static partial class AnalysisObservationCaptureFixture
             await dataset.DisposeAsync();
             Assert.Equal(6UL, reader.Descriptor.Paths); Assert.Equal(3UL, reader.Descriptor.Objects); Assert.Equal(3UL, reader.Descriptor.Facts);
             var paths = await reader.ReadPathsAsync(0, cancellation: cancellation); Assert.False(paths.HasMore);
-            var first = paths.Rows.Single(n => n.Id == capturedNames["original.bin"]); var second = paths.Rows.Single(n => n.Id == capturedNames["alias.bin"]);
+            var first = paths.Rows.Single(n => n.Id == capturedNames["original.bin"]); var second = paths.Rows.Single(n => n.Id == capturedNames["alias.jpg"]);
             Assert.Equal(first.ObjectId, second.ObjectId); Assert.Equal(2UL, (await reader.ReadAliasesAsync(first.ObjectId!, 0, cancellation: cancellation)).Total);
             var objects = await reader.ReadObjectsAsync(0, cancellation: cancellation); var obj = objects.Rows.Single(o => o.Id == first.ObjectId);
             Assert.Equal((UInt128)payload.Length, obj.LogicalLength.Value); Assert.Equal((UInt128)2, obj.LinkCount.Value); Assert.NotNull(obj.VerifiedIdentity);
@@ -133,6 +133,17 @@ internal static partial class AnalysisObservationCaptureFixture
                     var bucket = Assert.Single(await filtered.ReadBucketsAsync(first.ParentId, cancellation)); Assert.Equal(expected, bucket.Totals.Known); Assert.Equal(2UL, bucket.ObservedAliases);
                 }
                 else Assert.False(context.IsVisible);
+                // The held source is already closed. Group the actual native capture in private
+                // scratch and preserve the cross-type alias charge despite its display filter.
+                await using var grouping = await reader.BuildGroupingAsync(metric, AnalysisGroupingDimension.FileType, new("name:original.bin"), cancellation);
+                Assert.Equal(expected, grouping.Totals.Known); Assert.Equal(1UL, grouping.Totals.MatchingPaths);
+                var grouped = await grouping.ReadGroupsAsync(cancellation: cancellation); Assert.False(grouped.HasMore);
+                var chargeGroup = Assert.Single(grouped.Rows, g => metric is AnalysisMetric.UniqueFileSize or AnalysisMetric.OnDisk
+                    ? g.Kind == AnalysisGroupKind.SharedAcrossGroups : g.Kind == AnalysisGroupKind.Entries);
+                Assert.Equal(expected, chargeGroup.Totals.Known); Assert.Equal(1UL, chargeGroup.Members);
+                Assert.Equal(first.Id, Assert.Single((await grouping.ReadMembersAsync(chargeGroup.Definition.Key, cancellation: cancellation)).Rows).Path.Id);
+                var charge = Assert.Single((await grouping.ReadChargesAsync(chargeGroup.Definition.Key, cancellation: cancellation)).Rows);
+                Assert.Equal(metric is AnalysisMetric.UniqueFileSize or AnalysisMetric.OnDisk ? 2UL : 1UL, charge.ObservedAliases);
             }
             await using (var explorer = await AnalysisDatasetExplorer.CreateAsync(reader, AnalysisMetric.OnDisk, new("name:original.bin"), cancellation))
             {
