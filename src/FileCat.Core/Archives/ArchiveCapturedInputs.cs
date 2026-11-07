@@ -158,9 +158,12 @@ internal sealed class ArchiveCapturedInputs : IDisposable
         lock (gate)
         {
             Live(sealedRequired: true);
-            return profile.Format == ArchiveWriteFormat.Rar5
-                ? ArchiveRar5TransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this)
-                : ArchiveTarTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this);
+            return profile.Format switch
+            {
+                ArchiveWriteFormat.Rar5 => ArchiveRar5TransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this),
+                ArchiveWriteFormat.SevenZip => ArchiveSevenZipTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this),
+                _ => ArchiveTarTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this),
+            };
         }
     }
 

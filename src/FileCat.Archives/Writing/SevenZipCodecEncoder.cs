@@ -17,7 +17,7 @@ internal sealed record SevenZipCodecOptions(SevenZipCodec Codec, int Level = 0, 
 internal sealed record SevenZipCoder(byte[] MethodId, byte[] Properties, int Inputs = 1, int Outputs = 1);
 internal sealed record SevenZipBinding(int Input, int Output);
 internal sealed record SevenZipPackedStream(long Length, uint Crc32);
-internal sealed record SevenZipEncodedContent(SevenZipCodec Codec, IReadOnlyList<SevenZipCoder> Coders,
+internal sealed record SevenZipEncodedContent(SevenZipCodec? Codec, IReadOnlyList<SevenZipCoder> Coders,
     IReadOnlyList<SevenZipBinding> Bindings, IReadOnlyList<long> UnpackedSizes, IReadOnlyList<SevenZipPackedStream> PackedStreams,
     long Length, uint Crc32, string Sha256)
 {

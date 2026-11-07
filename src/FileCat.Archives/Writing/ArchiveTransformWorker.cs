@@ -20,6 +20,9 @@ public static class ArchiveTransformWorker
             using var passwords = request.Profile.Format == ArchiveWriteFormat.Rar5
                 ? Rar5WorkerPasswords.Receive(receive, input, request.Profile, ArchiveWorkerRole.Transform,
                     ArchiveTransformWire.RequestDigest(request, ct), read: request.Source is not null, write: true, ct) : null;
+            using var sevenPassword = request.Profile.Format == ArchiveWriteFormat.SevenZip
+                ? SevenZipWorkerPassword.Receive(receive, input, request.Profile, ArchiveWorkerRole.Transform,
+                    ArchiveTransformWire.RequestDigest(request, ct), ct) : null;
             var connection = new ArchiveProxyConnection(frame =>
             { ct.ThrowIfCancellationRequested(); send.Write(output, frame.Kind, frame.Payload); return receive.Read(input); });
             using var source = request.Source is { } original ? new ArchiveProxyStream(connection, 0, original.SourceLength, original.SourceLength) : null;
@@ -31,6 +34,10 @@ public static class ArchiveTransformWorker
                 var rebuilt = Rar5RewriteEngine.Rebuild(source, request.Source?.SourceSha256, request.Profile, stage,
                     request.Edits, request.Additions, request.Inputs.Values.ToArray(), Open, ct, passwords!.Read, passwords.Write);
                 manifest = rebuilt.Manifest;
+            }
+            else if (request.Profile.Format == ArchiveWriteFormat.SevenZip)
+            {
+                manifest = sevenPassword is null ? RebuildSevenZip(default) : sevenPassword.UseOnce(RebuildSevenZip);
             }
             else
             {
@@ -58,6 +65,9 @@ public static class ArchiveTransformWorker
             outgoing.Write(ArchiveControlRecord.Receipt, ArchiveTransformWire.Receipt(new(stage.Length, manifest.Digest, manifest.ContentDigest, manifest.MetadataDigest)));
             send.Write(output, ArchiveWorkerMessage.Completed, Convert.FromHexString(manifest.Digest));
             return 0;
+
+            ArchiveWriteManifest RebuildSevenZip(ReadOnlySpan<char> password) => SevenZipRewriteEngine.Rebuild(source,
+                request.Source?.SourceSha256, request.Profile, stage, request.Edits, request.Additions, request.Inputs.Values.ToArray(), Open, ct, password).Manifest;
         }
         catch (ArchiveWriteException ex)
         {

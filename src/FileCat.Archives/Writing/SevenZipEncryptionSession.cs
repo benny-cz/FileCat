@@ -17,11 +17,14 @@ internal sealed class SevenZipEncryptionSession : IDisposable
     private bool _claimed, _disposed;
     internal bool HideNames { get; }
     internal int CountPower { get; }
+    internal int HeaderCountPower { get; }
+    internal int HeaderSaltLength => _headerSalt.Length;
 
     internal SevenZipEncryptionSession(ReadOnlySpan<char> password, bool hideNames, ArchiveCryptoWorkBudget budget,
-        CancellationToken ct, int countPower = DefaultCountPower)
+        CancellationToken ct, int countPower = DefaultCountPower, int? headerCountPower = null, int headerSaltLength = 16)
     {
-        if (password.IsEmpty || countPower is < DefaultCountPower or > 24)
+        if (password.IsEmpty || countPower is < DefaultCountPower or > 24 || headerCountPower is < DefaultCountPower or > 24 ||
+            headerSaltLength is < 0 or > 16 || !hideNames && (headerCountPower is not null || headerSaltLength != 16))
             throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "New 7z encryption needs a nonempty password and a supported work factor.");
         ct.ThrowIfCancellationRequested();
         byte[] encoded = ArchivePasswordEncoding.Encode(password, sevenZip: true);
@@ -29,10 +32,10 @@ internal sealed class SevenZipEncryptionSession : IDisposable
         try
         {
             _dataSalt = RandomNumberGenerator.GetBytes(16);
-            _headerSalt = hideNames ? RandomNumberGenerator.GetBytes(16) : [];
+            _headerSalt = hideNames ? RandomNumberGenerator.GetBytes(headerSaltLength) : [];
             data = SevenZipEncryptionPrimitives.Derive(encoded, _dataSalt, countPower, budget, ct);
-            if (hideNames) header = SevenZipEncryptionPrimitives.Derive(encoded, _headerSalt, countPower, budget, ct);
-            _dataKey = data; _headerKey = header; HideNames = hideNames; CountPower = countPower;
+            if (hideNames) header = SevenZipEncryptionPrimitives.Derive(encoded, _headerSalt, headerCountPower ?? countPower, budget, ct);
+            _dataKey = data; _headerKey = header; HideNames = hideNames; CountPower = countPower; HeaderCountPower = headerCountPower ?? countPower;
         }
         catch { data?.Dispose(); header?.Dispose(); throw; }
         finally { CryptographicOperations.ZeroMemory(encoded); }
@@ -52,10 +55,12 @@ internal sealed class SevenZipEncryptionSession : IDisposable
         if (!_claimed || header && !HideNames)
             throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "The 7z cipher does not belong to this output/header mode.");
         ct.ThrowIfCancellationRequested();
-        byte[] properties = new byte[34]; properties[0] = (byte)(0xc0 | CountPower); properties[1] = 0xff;
-        (header ? _headerSalt : _dataSalt).CopyTo(properties, 2);
-        RandomNumberGenerator.Fill(properties.AsSpan(18, 16));
-        return (new(output, (header ? _headerKey! : _dataKey).Key, properties.AsSpan(18), maximumPlaintext, ct), properties);
+        var salt = header ? _headerSalt : _dataSalt;
+        byte[] properties = new byte[2 + salt.Length + 16];
+        properties[0] = (byte)(0x40 | (salt.Length == 0 ? 0 : 0x80) | (header ? HeaderCountPower : CountPower));
+        properties[1] = (byte)((salt.Length == 0 ? 0 : (salt.Length - 1) << 4) | 15);
+        salt.CopyTo(properties, 2); RandomNumberGenerator.Fill(properties.AsSpan(2 + salt.Length, 16));
+        return (new(output, (header ? _headerKey! : _dataKey).Key, properties.AsSpan(2 + salt.Length), maximumPlaintext, ct), properties);
     }
 
     public void Dispose()

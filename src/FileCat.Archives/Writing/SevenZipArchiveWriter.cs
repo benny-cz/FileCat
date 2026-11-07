@@ -19,7 +19,7 @@ internal sealed record SevenZipWriteManifest(IReadOnlyList<SevenZipWrittenMember
 /// signature is backpatched through the owned seekable stage. No whole archive/header buffer, pathname or publication
 /// authority. Raw/LZMA2 headers and the current coder graphs are implementation steps in the required 7z profile.
 /// </summary>
-internal static class SevenZipArchiveWriter
+internal static partial class SevenZipArchiveWriter
 {
     private const long FileTimeEpochSeconds = -11644473600;
     private static readonly UnicodeEncoding Utf16 = new(false, false, true);

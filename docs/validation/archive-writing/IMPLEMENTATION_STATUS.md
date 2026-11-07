@@ -1,16 +1,21 @@
 # Archive writing implementation status
 
+**7 November: 7z shared pipeline implemented, unregistered.**
+[Semantic preservation and worker/native checkpoint](SEVENZIP_WORKER_PIPELINE.md) connects parent planning,
+packed reuse, exact optional metadata, role-bound passwords and captured/native creation. Windows application
+updates and snapshot restoration now pass all password modes. The common 3,666-case platform matrix and the
+163-case Windows native selection pass. Shared production workflows/UI, Unix confinement/update and complete
+resource/crash/fuzz/package qualification remain open; no RAR/7z profile is enabled.
+
 This is an **incomplete implementation**, not format or release qualification. The controlling requirements remain
 [the archive writing plan](../../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md). No new writer is enabled in the
 application. An explicit new-profile job refuses instead of entering the legacy ZIP executor.
 
-**Next coherent implementation chunk:** connect the completed strict 7z member catalog to its exact public metadata,
-preservation planner/assembler and shared worker/native adapter. The [7z logical checkpoint](SEVENZIP_LOGICAL_CATALOG.md)
-passes 3,310 cases per platform (316 new), with independent coverage of all 273 codec/filter/password archives.
-The [RAR native checkpoint](RAR5_NATIVE_PIPELINE.md) is recorded below; continue
-remaining Unix transactions/confinement and shared UI/password/edit/F6 integration without repeating its passed
-component suites unless affected. Use the [validation batching workflow](../../../eng/validation/archive-writing/README.md#efficient-validation-batches).
-All production resource/crash/fuzz/RID/package gates and the final independent review remain required.
+**Next coherent implementation chunk:** integrate the completed RAR5/7z planners and shared password/native
+adapters into production creation/update/edit/F6 workflows, and qualify Unix confinement/update. Resolve the
+reviewed new-input 7z precision policy and remaining header compatibility gaps before enabling a profile. Reuse
+passed codec/native evidence when its compiler inputs are unchanged; batch the shared UI and native acceptance
+work, then complete resource/crash/fuzz/RID/package gates and the final independent review.
 
 The 7z catalog now requires complete graph/codec endings, packed and plaintext checksums/SHA, exact sizes and a final
 whole-source revision. A failed empty Deflate BCJ2 branch is fixed, with all password modes covered. Aligned nonzero

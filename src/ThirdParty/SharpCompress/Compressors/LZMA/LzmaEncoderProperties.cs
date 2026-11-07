@@ -32,12 +32,12 @@ public class LzmaEncoderProperties
         : this(eos, dictionary, 32) { }
 
     public LzmaEncoderProperties(bool eos, int dictionary, int numFastBytes)
+        : this(eos, dictionary, numFastBytes, 2, 3, 0) { }
+
+    internal LzmaEncoderProperties(bool eos, int dictionary, int numFastBytes, int posStateBits, int litContextBits, int litPosBits)
     {
         DictionarySize = dictionary;
         NumFastBytes = numFastBytes;
-        var posStateBits = 2;
-        var litContextBits = 3;
-        var litPosBits = 0;
         var algorithm = 2;
         var mf = "bt4";
 

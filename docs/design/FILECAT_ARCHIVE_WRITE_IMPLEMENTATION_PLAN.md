@@ -74,13 +74,14 @@ costs/directories, job-owned passwords, native new-file publication on all three
 protocol-2 update/restoration. Remaining RAR work includes Unix native update/confinement, complete production
 resource/package qualification and shared application workflows/UI; no new write profile is enabled.
 
-The [complete strict 7z member catalog](../validation/archive-writing/SEVENZIP_LOGICAL_CATALOG.md) now passes its
-3,310-case platform matrices and independent codec/filter/password checks. Connect exact public metadata,
-preservation planning/assembly and the shared worker/native adapter next, alongside remaining Unix native
-transactions and shared UI/edit/F6 integration. Follow the validation batching guidance in
-[the qualification harness](../../eng/validation/archive-writing/README.md#efficient-validation-batches): short native
-preflight, coherent changes, incremental builds and evidence-linked affected-case reruns. Every full
-resource/crash/fuzz/RID/package/release gate remains required.
+The [complete strict 7z member catalog](../validation/archive-writing/SEVENZIP_LOGICAL_CATALOG.md) and
+[semantic/shared worker/native pipeline](../validation/archive-writing/SEVENZIP_WORKER_PIPELINE.md) now connect
+parent expectations, exact retained-pack/metadata preservation, role-bound passwords, captured creation and
+Windows native application update/restoration. The 3,666-case combined matrix passes on all three platforms;
+Windows also passes 163 selected native cases and ten application-entry cases. No new profile is enabled.
+Continue with the shared RAR/7z production workflows/password UI and Unix native update/confinement, while
+closing precision/header/resource/crash/fuzz/RID/package qualification gaps. Keep optional formats later and
+perform the final independent review after that integration and qualification.
 
 [Complete encoded-header verification](../validation/archive-writing/SEVENZIP_HEADER_VERIFICATION.md) now connects
 the strict LZMA/LZMA2 and exact Copy/AES layers to the 7z framing pass. The subsequent logical catalog connects the

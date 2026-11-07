@@ -44,6 +44,10 @@ internal static class StrictSevenZipFraming
         if (size > (ulong)ArchiveWritePolicy.MaxMetadataBytes) throw Limit();
         long headerOffset = 32 + (long)relative;
         string revision = Scan(input, length, [], ct);
+        // Bind the already parsed fixed header to the first whole-source revision as well as the final scan.
+        // A one-time signature change before that first scan must not leave cached version/extents from old bytes.
+        input.Position = 0; Span<byte> currentSignature = stackalloc byte[32]; ReadExactly(input, currentSignature, ct);
+        if (!currentSignature.SequenceEqual(signature)) throw Changed();
         input.Position = headerOffset;
         using var raw = HeaderBuffer.Read(input, (long)size, budget, ct);
         if (ArchiveCrc32.Compute(raw.Bytes) != BinaryPrimitives.ReadUInt32LittleEndian(signature.AsSpan(28)))
@@ -60,13 +64,15 @@ internal static class StrictSevenZipFraming
                 CheckPackedExtents(encoded.Packed, headerOffset);
                 var folder = encoded.Folders[0];
                 if (folder.Encrypted && password is null) throw Unsupported("A password is required to assess encrypted 7z headers.");
-                foreach (var pack in encoded.Packed) CheckPacked(input, pack, ct);
+                if (encoded.Packed.Count != 1) throw Unsupported("Multiple encoded-header packed inputs need a separately qualified decoder.");
                 long packedLength = encoded.Packed.Sum(pack => pack.Length);
                 if (folder.Length > 64L << 20 && folder.Length / Math.Max(1, packedLength) > 1000) throw Limit();
                 using var range = new HeaderRange(input, encoded.Packed[0].Offset, packedLength, ct);
                 using var decoder = new StrictSevenZipHeaderDecoder(range, packedLength, folder, password, budget, ct);
                 decoded = HeaderBuffer.Read(decoder, folder.Length, budget, ct);
                 if (decoder.ReadByte() != -1) throw Invalid("The decoded 7z header exceeds its declared size.");
+                if (!range.Complete || encoded.Packed[0].Crc32 is { } packedCrc && range.Crc32 != packedCrc)
+                    throw Invalid("The packed 7z header checksum or extent does not match.");
                 if (encoded.MemberCrc32[0] is { } expected && ArchiveCrc32.Compute(decoded.Bytes) != expected)
                     throw Invalid("The decoded 7z header checksum or password does not match.");
                 header = decoded.Bytes;
@@ -116,23 +122,6 @@ internal static class StrictSevenZipFraming
                 throw Invalid("The encoded 7z header packed extents are invalid.");
             next += pack.Length;
         }
-    }
-    private static void CheckPacked(Stream input, SevenZipRawPack pack, CancellationToken ct)
-    {
-        if (pack.Crc32 is not { } expected) return;
-        input.Position = pack.Offset; var crc = new ArchiveCrc32(); byte[] buffer = new byte[ArchiveIoAuthority.MaximumReadBytes];
-        try
-        {
-            long left = pack.Length;
-            while (left > 0)
-            {
-                ct.ThrowIfCancellationRequested(); int n = input.Read(buffer.AsSpan(0, (int)Math.Min(buffer.Length, left)));
-                if (n <= 0) throw Invalid("The packed 7z header ends early.");
-                crc.Append(buffer.AsSpan(0, n)); left -= n;
-            }
-            if (crc.Value != expected) throw Invalid("The packed 7z header checksum does not match.");
-        }
-        finally { CryptographicOperations.ZeroMemory(buffer); }
     }
     private static string Scan(Stream input, long length, IReadOnlyList<SevenZipRawPack> packs, CancellationToken ct)
     {
@@ -203,17 +192,21 @@ internal static class StrictSevenZipFraming
     private sealed class HeaderRange(Stream source, long offset, long length, CancellationToken ct) : Stream
     {
         private long _position;
+        private ArchiveCrc32 _crc;
+        internal bool Complete => _position == length;
+        internal uint Crc32 => _crc.Value;
         public override int Read(Span<byte> buffer)
         {
-            ct.ThrowIfCancellationRequested(); source.Position = offset + _position;
-            int n = source.Read(buffer[..(int)Math.Min(Math.Min(buffer.Length, ArchiveIoAuthority.MaximumReadBytes), length - _position)]);
-            _position += n; return n;
+            ct.ThrowIfCancellationRequested(); int wanted = (int)Math.Min(Math.Min(buffer.Length, ArchiveIoAuthority.MaximumReadBytes), length - _position);
+            if (wanted == 0) return 0; source.Position = offset + _position;
+            int n = source.Read(buffer[..wanted]); if (n <= 0 || n > wanted) throw Invalid("The packed 7z header ends early.");
+            _crc.Append(buffer[..n]); _position += n; return n;
         }
         public override int Read(byte[] buffer, int start, int count) => Read(buffer.AsSpan(start, count));
         public override long Length => length;
-        public override long Position { get => _position; set { ct.ThrowIfCancellationRequested(); if (value < 0 || value > length) throw Invalid("The 7z decoder exceeded its header grant."); _position = value; } }
-        public override long Seek(long value, SeekOrigin origin) { Position = checked(origin switch { SeekOrigin.Begin => value, SeekOrigin.Current => _position + value, SeekOrigin.End => length + value, _ => throw new ArgumentOutOfRangeException(nameof(origin)) }); return Position; }
-        public override bool CanRead => true; public override bool CanSeek => true; public override bool CanWrite => false;
+        public override long Position { get => _position; set => throw new NotSupportedException(); }
+        public override long Seek(long value, SeekOrigin origin) => throw new NotSupportedException();
+        public override bool CanRead => true; public override bool CanSeek => false; public override bool CanWrite => false;
         public override void Flush() { } public override void SetLength(long value) => throw new NotSupportedException();
         public override void Write(byte[] buffer, int start, int count) => throw new NotSupportedException();
     }

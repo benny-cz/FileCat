@@ -21,6 +21,10 @@ status and a final process census. Check that compiler evidence covers every cha
 itself and the exact DLL/PDB pairing, before scheduling long suites. Batch related transfers and collect one final
 bundle; do not repeat passing runtime tests to repair an evidence collector.
 
+Derive delta baselines from the actual frozen guest files or compiler-source snapshots. Git blobs can have LF while
+the Windows checkout/guest bytes have CRLF. Check every previous hash before applying any delta, and report the
+specific mismatching path; never weaken the guard to work around a line-ending mismatch.
+
 ## Windows x64
 
 Build `tests/FileCat.Platform.Windows.Tests` and `tests/FileCat.CoreCrashHarness` with the pinned SDK. Publish a dedicated

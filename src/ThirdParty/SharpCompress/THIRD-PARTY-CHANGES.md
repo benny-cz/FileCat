@@ -11,6 +11,11 @@ FileCat's changes, all for release issue I14: only code under OSI-approved licen
 derived from UnRAR. FileCat uses this library for 7z archives and bzip2, xz and zstd streams only, so
 everything else is left out.
 
+- 7z preservation follow-up, 7 November 2026: the existing LZMA encoder properties gain an internal constructor
+  for explicit position/literal context bits. Existing public constructors retain their previous 2/3/0 defaults.
+  This lets the stream-only assembler reproduce admitted source-header properties rather than relabel a default
+  encoding. No new third-party source, encoder family, dependency or notice was introduced.
+
 - Deflate verification follow-up, 7 November 2026: both inflater copy paths check actual produced history and
   explicit preset dictionaries before backward copies. History resets retain the correct cumulative-counter
   offset, including inflate synchronization. Pooled windows are cleared on acquisition and before release.

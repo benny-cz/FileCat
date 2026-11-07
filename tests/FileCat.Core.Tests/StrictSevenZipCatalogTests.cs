@@ -57,11 +57,27 @@ public sealed class StrictSevenZipCatalogTests
         Assert.True(catalog.Physical.EncodedHeaderEndVerified); Assert.True(source.CanRead); Assert.False(source.Disposed);
         Assert.Equal(archive.Length, source.Position); Assert.InRange(source.MaximumRead, 1, ArchiveIoAuthority.MaximumReadBytes);
         Assert.InRange(catalog.PeakDecoderHeapBytes, 1, ArchiveWritePolicy.MaxWorkerMemoryBytes);
+        var options = Options(codec, filter);
+        var profile = ArchiveWriteProfile.ForSevenZip(new((ArchiveSevenZipCodec)codec, (ArchiveSevenZipFilter)filter,
+            options.ModelOrder, options.ModelMemoryBytes, options.DeltaDistance), options.Level, options.DictionaryBytes,
+            protection == 0 ? null : new(protection == 2 ? ArchiveEncryptionMode.DataAndNames : ArchiveEncryptionMode.Data));
+        var assessment = SevenZipSemanticCatalog.Assessment(catalog, profile, Ct);
+        Assert.Equal(catalog.Physical.Revision, assessment.CatalogRevision);
+        var observed = ArchiveSevenZipMetadata.Decode(assessment.Manifest.Members[0].Metadata);
+        Assert.Equal(new ArchiveSevenZipMetadata(ArchiveMemberType.File, graph: ArchiveSevenZipEncoding.Payload(profile, data.Length)).Encode(),
+            new ArchiveSevenZipMetadata(ArchiveMemberType.File, graph: observed.Graph).Encode());
+        foreach (var member in assessment.Manifest.Members) Assert.Equal(member.Metadata.ToArray(), ArchiveSevenZipMetadata.Decode(member.Metadata).Encode());
+        var features = ArchiveSevenZipFeatures.Decode(assessment.Manifest.Features); Assert.Equal(assessment.Manifest.Features.ToArray(), features.Encode());
+        if (features.HeaderGraph is { } header)
+            Assert.Equal(new ArchiveSevenZipMetadata(ArchiveMemberType.File, graph: ArchiveSevenZipEncoding.Header(profile)).Encode(),
+                new ArchiveSevenZipMetadata(ArchiveMemberType.File, graph: header).Encode());
         if (Environment.GetEnvironmentVariable("FILECAT_7Z_CATALOG_EXPORT_ROOT") is { } root)
         {
             string dir = Path.Combine(root, $"codec-{codec}-filter-{filter}-protection-{protection}"); Directory.CreateDirectory(dir);
             File.WriteAllBytes(Path.Combine(dir, "members.7z"), archive);
             File.WriteAllText(Path.Combine(dir, "members.json"), JsonSerializer.Serialize(new { synthetic_public_vector = true,
+                runtime = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
+                architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
                 password = Password, encrypted = protection != 0, revision = catalog.Physical.Revision,
                 members = catalog.Members.Select(member => new { name = member.Physical.Name, type = (int)member.Physical.Type,
                     length = member.Physical.Length, sha256 = member.Sha256, attributes = member.Physical.Attributes,
@@ -151,6 +167,14 @@ public sealed class StrictSevenZipCatalogTests
         Assert.Equal(ArchiveWriteReason.SourceChanged, Assert.Throws<ArchiveWriteException>(() => StrictSevenZipCatalog.Read(source, Ct)).Reason);
     }
 
+    [Fact]
+    public void A_signature_change_before_the_first_whole_hash_cannot_leave_stale_public_header_facts()
+    {
+        byte[] archive = Create(Payload(), Options(0, 0), 0);
+        using var source = new Observed(archive, 4096, mutateSignatureBeforeBaseline: true);
+        Assert.Equal(ArchiveWriteReason.SourceChanged, Assert.Throws<ArchiveWriteException>(() => StrictSevenZipCatalog.Read(source, Ct)).Reason);
+    }
+
     [Theory] [InlineData(10, 4u)] [InlineData(10, 65536u)] [InlineData(10, 0xfffffffcu)]
     [InlineData(11, 4u)] [InlineData(11, 65536u)] [InlineData(11, 0xfffffffcu)]
     public void Aligned_branch_offsets_survive_fragmentation_and_export_independent_SDK_vectors(int method, uint offset)
@@ -215,7 +239,7 @@ public sealed class StrictSevenZipCatalogTests
         protected override void Dispose(bool disposing) { if (disposed) return; disposed = true; base.Dispose(disposing); throw new IOException("Synthetic disposal failure"); }
     }
 
-    private sealed class Observed(byte[] bytes, int chunk, bool mutate = false) : Stream
+    private sealed class Observed(byte[] bytes, int chunk, bool mutate = false, bool mutateSignatureBeforeBaseline = false) : Stream
     {
         private readonly MemoryStream inner = new(bytes, writable: false); private int wholeScans;
         internal long BytesRead; internal int MaximumRead; internal bool Disposed;
@@ -224,7 +248,7 @@ public sealed class StrictSevenZipCatalogTests
         protected override void Dispose(bool disposing) { Disposed = true; if (disposing) inner.Dispose(); base.Dispose(disposing); }
         public override bool CanRead => !Disposed; public override bool CanSeek => !Disposed; public override bool CanWrite => false;
         public override long Length => inner.Length;
-        public override long Position { get => inner.Position; set { if (value == 0) wholeScans++; if (mutate && wholeScans == 2 && value == 32) bytes[7] ^= 1; inner.Position = value; } }
+        public override long Position { get => inner.Position; set { if (value == 0) wholeScans++; if (mutate && wholeScans == 3 && value == 32 || mutateSignatureBeforeBaseline && wholeScans == 1 && value == 0) bytes[7] ^= 1; inner.Position = value; } }
         public override long Seek(long o, SeekOrigin s) => Position = s switch { SeekOrigin.Begin => o, SeekOrigin.Current => Position + o, _ => Length + o };
         public override void Flush() { } public override void SetLength(long n) => throw new NotSupportedException(); public override void Write(byte[] b, int o, int c) => throw new NotSupportedException();
     }

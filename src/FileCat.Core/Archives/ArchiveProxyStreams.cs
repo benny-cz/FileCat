@@ -26,9 +26,9 @@ public sealed class ArchiveIoAuthority : IDisposable
     public ArchiveIoAuthority(IReadOnlyList<ArchiveInputGrant> grants, Func<int, Stream> openSource,
         ArchiveStageProxy stage, long maximumSourceIo)
     {
-        // RAR's counted/final encoding passes consume each captured payload twice. The separate derivation check
-        // below still limits every request to its actual fixed grants; this is the absolute stream-work ceiling.
-        if (grants.Count > ArchiveWritePolicy.MaxMembers + 1 || maximumSourceIo < 0 || maximumSourceIo > 4 * ArchiveWritePolicy.MaxPhysicalBytes + 2 * ArchiveWritePolicy.MaxLogicalBytes + (16 << 20))
+        // Complete 7z observation/reuse/final revision checks need six source passes; BCJ2 needs four capture passes.
+        // The caller still fixes the actual role/profile allowance, and the derivation below binds it to real grants.
+        if (grants.Count > ArchiveWritePolicy.MaxMembers + 1 || maximumSourceIo < 0 || maximumSourceIo > 6 * ArchiveWritePolicy.MaxPhysicalBytes + 4 * ArchiveWritePolicy.MaxLogicalBytes + (16 << 20))
             throw new ArgumentOutOfRangeException(nameof(grants));
         var frozen = new Dictionary<int, ArchiveInputGrant>(grants.Count);
         long inputBytes = 0;
@@ -39,7 +39,7 @@ public sealed class ArchiveIoAuthority : IDisposable
             ArchiveWriteBudget.Reserve(inputBytes, grant.Length, ArchiveWritePolicy.MaxPhysicalBytes + ArchiveWritePolicy.MaxLogicalBytes);
             inputBytes += grant.Length;
         }
-        if (maximumSourceIo > 4 * inputBytes + (16 << 20))
+        if (maximumSourceIo > 6 * inputBytes + (16 << 20))
             throw new ArgumentOutOfRangeException(nameof(maximumSourceIo), "The IO allowance must derive from the actual granted input lengths.");
         _grants = frozen;
         _openSource = openSource;

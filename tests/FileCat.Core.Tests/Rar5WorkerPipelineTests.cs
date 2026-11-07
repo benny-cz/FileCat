@@ -230,13 +230,15 @@ public sealed class Rar5WorkerPipelineTests
     }
 
     [Fact]
-    public void The_global_IO_ceiling_allows_two_captured_passes_but_still_requires_actual_grant_lengths()
+    public void The_global_IO_ceiling_allows_RAR_and_7z_passes_but_still_requires_actual_grant_lengths()
     {
         var grants = new List<ArchiveInputGrant> { new(0, ArchiveWritePolicy.MaxPhysicalBytes) };
         for (int id = 1; id <= 8; id++) grants.Add(new(id, ArchiveWritePolicy.MaxPayloadBytes));
-        long maximum = 4 * ArchiveWritePolicy.MaxPhysicalBytes + 2 * ArchiveWritePolicy.MaxLogicalBytes + (16 << 20);
+        long rarMaximum = 4 * ArchiveWritePolicy.MaxPhysicalBytes + 2 * ArchiveWritePolicy.MaxLogicalBytes + (16 << 20);
+        long maximum = 6 * ArchiveWritePolicy.MaxPhysicalBytes + 4 * ArchiveWritePolicy.MaxLogicalBytes + (16 << 20);
         using var stage = new MemoryStream(); var proxy = new ArchiveStageProxy(stage, 0, 0); int opens = 0;
         using var authority = new ArchiveIoAuthority(grants, _ => { opens++; throw new InvalidOperationException(); }, proxy, maximum);
+        using var rarAuthority = new ArchiveIoAuthority(grants, _ => throw new InvalidOperationException(), proxy, rarMaximum);
         Assert.Equal(0, opens);
         Assert.Throws<ArgumentOutOfRangeException>(() => new ArchiveIoAuthority(grants, _ => throw new InvalidOperationException(), proxy, maximum + 1));
         Assert.Throws<ArgumentOutOfRangeException>(() => new ArchiveIoAuthority([new(1, 1)], _ => throw new InvalidOperationException(), proxy, maximum));

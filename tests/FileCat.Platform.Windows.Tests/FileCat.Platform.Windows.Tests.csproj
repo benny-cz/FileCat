@@ -28,6 +28,7 @@
     <Compile Include="..\ArchiveStageCrashAssertions.cs" Link="ArchiveStageCrashAssertions.cs" />
     <Compile Include="..\ArchiveJournaledTarAssertions.cs" Link="ArchiveJournaledTarAssertions.cs" />
     <Compile Include="..\ArchiveRar5NativeCases.cs" Link="ArchiveRar5NativeCases.cs" />
+    <Compile Include="..\ArchiveSevenZipNativeCases.cs" Link="ArchiveSevenZipNativeCases.cs" />
     <Compile Include="..\ArchiveCreationPublicationCases.cs" Link="ArchiveCreationPublicationCases.cs" />
     <Compile Include="..\ArchiveSidecarCrashAssertions.cs" Link="ArchiveSidecarCrashAssertions.cs" />
     <Compile Include="..\ArchiveCreationCrashAssertions.cs" Link="ArchiveCreationCrashAssertions.cs" />

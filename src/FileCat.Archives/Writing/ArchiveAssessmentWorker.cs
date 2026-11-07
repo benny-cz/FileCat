@@ -30,11 +30,14 @@ public static class ArchiveAssessmentWorker
         {
             send.Write(output, ArchiveWorkerMessage.Hello, ArchiveAssessmentWire.HelloFor(verification, protocolVersion));
             var request = ArchiveAssessmentWire.ReadRequest(incoming.Read(ArchiveControlRecord.AssessmentRequest));
-            if (request.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5))
+            if (request.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip))
                 throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This worker profile has not been implemented.");
             using var passwords = request.Profile.Format == ArchiveWriteFormat.Rar5
                 ? Rar5WorkerPasswords.Receive(receive, input, request.Profile, verification ? ArchiveWorkerRole.Verify : ArchiveWorkerRole.Assess,
                     ArchiveAssessmentWire.RequestDigest(request), read: true, write: false, ct) : null;
+            using var sevenPassword = request.Profile.Format == ArchiveWriteFormat.SevenZip
+                ? SevenZipWorkerPassword.Receive(receive, input, request.Profile, verification ? ArchiveWorkerRole.Verify : ArchiveWorkerRole.Assess,
+                    ArchiveAssessmentWire.RequestDigest(request), ct) : null;
             var connection = new ArchiveProxyConnection(frame =>
             {
                 ct.ThrowIfCancellationRequested();
@@ -54,6 +57,10 @@ public static class ArchiveAssessmentWorker
                     throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The complete RAR source changed during assessment.");
                 manifest = Rar5SemanticCatalog.Assessment(rar, request.Profile, ct).Manifest;
                 // Assessment remains observation. Validate all preservation/password facts again in parent planning.
+            }
+            else if (request.Profile.Format == ArchiveWriteFormat.SevenZip)
+            {
+                manifest = sevenPassword is null ? ObserveSevenZip(default) : sevenPassword.UseOnce(ObserveSevenZip);
             }
             else
             {
@@ -98,6 +105,15 @@ public static class ArchiveAssessmentWorker
             }
             send.Write(output, ArchiveWorkerMessage.Completed, Convert.FromHexString(manifest.Digest));
             return 0;
+
+            ArchiveWriteManifest ObserveSevenZip(ReadOnlySpan<char> password)
+            {
+                using var session = password.IsEmpty ? null : new SevenZipReadPasswordSession(password, new(), ct);
+                var seven = StrictSevenZipCatalog.Read(source, ct, session);
+                if (seven.Physical.Revision != physicalDigest || seven.Physical.Length != request.SourceLength)
+                    throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The complete 7z source changed during assessment.");
+                return SevenZipSemanticCatalog.Assessment(seven, request.Profile, ct).Manifest;
+            }
         }
         catch (ArchiveWriteException ex)
         {

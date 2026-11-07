@@ -30,6 +30,12 @@ public sealed class ArchiveTransformClient
             var request = invocation.Request; ArchiveWorkerSecretWire.RequireProfileGrant(request.Profile, password, protocolVersion);
             string binding = ArchiveTransformWire.RequestDigest(request, ct); long originalLength = request.Source?.SourceLength ?? 0;
             long inputLength = request.Inputs.Values.Sum(i => i.Length);
+            long sourcePasses = request.Profile.Format switch { ArchiveWriteFormat.Tar => 3, ArchiveWriteFormat.SevenZip => 6, _ => 4 };
+            long inputPasses = request.Profile.Format == ArchiveWriteFormat.Rar5 ? 2 : request.Profile.SevenZip?.Filter == ArchiveSevenZipFilter.Bcj2 ? 4 : 1;
+            long sourceIo = checked(sourcePasses * originalLength + inputPasses * inputLength + (request.Profile.Format == ArchiveWriteFormat.SevenZip ? 32 : 0));
+            long wireBytes = checked(sourceIo + 4 * request.OutputLengthBound + ArchiveWritePolicy.MaxMetadataBytes);
+            if (wireBytes > ArchiveWritePolicy.MaxWorkerWireBytes) throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded,
+                "The complete transform exceeds its aggregate worker IO budget.");
             TimeSpan cpu = ArchiveAssessmentClient.CpuAllowance(Math.Min(ArchiveWritePolicy.MaxPhysicalBytes, originalLength + inputLength));
             var result = await ArchiveWorkerSession.RunAsync(launch, queue, cpu, TimeSpan.FromSeconds(30), TimeSpan.FromHours(12), Conversation, ct).ConfigureAwait(false);
             if (result.Refusal is { } reason) throw new ArchiveWriteException(reason, "The archive worker refused this transformation. The archive remains unchanged.");
@@ -40,9 +46,6 @@ public sealed class ArchiveTransformClient
 
             (ArchiveTransformReceipt? Receipt, ArchiveWriteReason? Refusal) Conversation(Guid nonce, IArchiveWorkerProcess process, Action progress)
             {
-                long sourceIo = checked((request.Profile.Format == ArchiveWriteFormat.Tar ? 3 : 4) * originalLength +
-                    (request.Profile.Format == ArchiveWriteFormat.Rar5 ? 2 : 1) * inputLength);
-                long wireBytes = Math.Min(ArchiveWritePolicy.MaxWorkerWireBytes, checked(sourceIo + 4 * request.OutputLengthBound + ArchiveWritePolicy.MaxMetadataBytes));
                 var receive = new ArchiveWorkerProtocol(nonce, wireBytes, protocolVersion); var send = new ArchiveWorkerProtocol(nonce, wireBytes, protocolVersion);
                 var incoming = new ArchiveWorkerRecords(receive, process.Output, writing: false); var outgoing = new ArchiveWorkerRecords(send, process.Input, writing: true);
                 var hello = receive.Read(process.Output);

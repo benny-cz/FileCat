@@ -63,7 +63,9 @@ public sealed class ArchiveAssessmentClient
 
             (ArchiveAssessment? Assessment, ArchiveWriteReason? Refusal) Conversation(Guid nonce, IArchiveWorkerProcess process, Action reportProgress)
             {
-                long wireBytes = 4 * request.SourceLength + ArchiveWritePolicy.MaxMetadataBytes;
+                long sourceIo = checked((request.Profile.Format == ArchiveWriteFormat.SevenZip ? 5 : 4) * request.SourceLength +
+                    (request.Profile.Format == ArchiveWriteFormat.SevenZip ? 32 : 0));
+                long wireBytes = sourceIo + ArchiveWritePolicy.MaxMetadataBytes;
                 var receive = new ArchiveWorkerProtocol(nonce, wireBytes, _protocolVersion);
                 var send = new ArchiveWorkerProtocol(nonce, wireBytes, _protocolVersion);
                 var records = new ArchiveWorkerRecords(receive, process.Output, writing: false);
@@ -76,7 +78,7 @@ public sealed class ArchiveAssessmentClient
                 reportProgress();
                 using var absentStage = new MemoryStream();
                 using var authority = new ArchiveIoAuthority([new(0, request.SourceLength)], _ => { ct.ThrowIfCancellationRequested(); return openPinnedSource(); },
-                    new ArchiveStageProxy(absentStage, 0, 0), 4 * request.SourceLength);
+                    new ArchiveStageProxy(absentStage, 0, 0), sourceIo);
                 long verifiedPrefix = 0;
                 ArchiveWorkerFrame frame;
                 while (true)

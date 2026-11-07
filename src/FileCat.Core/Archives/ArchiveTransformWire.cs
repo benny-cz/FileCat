@@ -51,6 +51,7 @@ public static class ArchiveTransformWire
     {
         ArchiveTarTransformPlan => OutputBound(plan.Expected, ct),
         ArchiveRar5TransformPlan rar => Rar5OutputBound(rar, ct),
+        ArchiveSevenZipTransformPlan seven => SevenZipOutputBound(seven, ct),
         _ => throw Fault(),
     };
 
@@ -105,6 +106,45 @@ public static class ArchiveTransformWire
             if (length > ArchiveWritePolicy.MaxPhysicalBytes) throw ArchiveWriteBudget.Limit();
         }
         if (length > ArchiveWritePolicy.MaxPhysicalBytes) throw ArchiveWriteBudget.Limit(); return length;
+    }
+
+    private static long SevenZipOutputBound(ArchiveSevenZipTransformPlan plan, CancellationToken ct)
+    {
+        var profile = plan.Expected.Profile; var options = profile.SevenZip!;
+        var features = ArchiveSevenZipFeatures.Decode(plan.Expected.Features); long payload = 0, header = checked(4096 + features.DummyBytes);
+        if (plan.Members.Any(m => m.SourceIndex is not null && ArchiveSevenZipMetadata.Decode(m.Expected.Metadata).Graph is not null)) payload = plan.Source!.SourceLength;
+        foreach (var member in plan.Members)
+        {
+            ct.ThrowIfCancellationRequested(); var expected = member.Expected;
+            header = checked(header + expected.Name.Length * 2L + expected.Metadata.Length * 4L + 128);
+            if (member.InputId is not { } id || plan.Inputs[id].Length == 0) continue;
+            long length = plan.Inputs[id].Length;
+            payload = checked(payload + CodecBound(length, (int)options.Codec));
+            if (options.Filter == ArchiveSevenZipFilter.Bcj2) payload = checked(payload + length + (128 << 10));
+            if (profile.Encryption.Mode != ArchiveEncryptionMode.None) payload = checked(payload + 64);
+        }
+        if (features.HeaderGraph is { } graph)
+        {
+            int[] order = ArchiveSevenZipEncoding.ValidateHeader(graph); ulong method = graph.Coders[order[^1]].Method;
+            header = method == 0x030101 ? CodecBound(header, (int)ArchiveSevenZipCodec.Lzma) :
+                method == 0x21 ? CodecBound(header, (int)ArchiveSevenZipCodec.Lzma2) : header;
+            header = checked(header + 4096 + 16);
+        }
+        // This is a preflight space/IO ceiling. The parent still enforces the absolute stage limit before writes.
+        return Math.Min(ArchiveWritePolicy.MaxPhysicalBytes, checked(32 + payload + header));
+
+        long CodecBound(long length, int codec) => (ArchiveSevenZipCodec)codec switch
+        {
+            ArchiveSevenZipCodec.Copy => length,
+            ArchiveSevenZipCodec.Lzma => checked(9 * length + (64 << 10)),
+            ArchiveSevenZipCodec.Lzma2 => checked(length + 6 * ((length + 65535) / 65536) + (64 << 10)),
+            ArchiveSevenZipCodec.Deflate => checked(2 * length + (64 << 10)),
+            ArchiveSevenZipCodec.Zstandard => checked(length + (length + 7) / 8 + (64 << 10)),
+            ArchiveSevenZipCodec.Bzip2 => checked(4 * length + ((5 * length / 4 + 99979) / 99980 + 1) * (64 << 10) + 32),
+            // A symbol can escape at most the configured context depth; each 32-bit range normalization is finite.
+            ArchiveSevenZipCodec.Ppmd7 => checked(4L * ((options.ModelOrder != 0 ? options.ModelOrder : profile.CompressionLevel switch { 1 => 4, 3 => 8, _ => 6 }) + 2) * length + (64 << 10)),
+            _ => throw Fault(),
+        };
     }
 
     /// <summary>Canonical public request binding, independent of the task nonce and without retaining a whole packet.</summary>
@@ -208,7 +248,7 @@ public static class ArchiveTransformWire
         {
             ct.ThrowIfCancellationRequested(); var reader = new Packet(records.Read(ArchiveControlRecord.TransformRequest)); reader.Schema(3);
             var profile = reader.Profile();
-            if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5)) throw Fault();
+            if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip)) throw Fault();
             ArchiveAssessmentRequest? source = reader.Flag() ? new(profile, reader.Long(), reader.Digest()) : null;
             if (source is not null) ArchiveAssessmentWire.Validate(source);
             int inputCount = reader.Count(), editCount = reader.Count(), additionCount = reader.Count(); long bound = reader.Long(); reader.End();
@@ -276,7 +316,7 @@ public static class ArchiveTransformWire
     private static void Digest(BinaryWriter writer, string digest) => writer.Write(Convert.FromHexString(digest));
     private static ArchiveWriteException Fault() => new(ArchiveWriteReason.ProtocolViolation, "The archive worker's transform contract is invalid.");
     internal static int MinimumOutputLength(ArchiveWriteFormat format) => format switch
-    { ArchiveWriteFormat.Tar => 1024, ArchiveWriteFormat.TarGzip => 20, ArchiveWriteFormat.TarBzip2 => 14, ArchiveWriteFormat.TarZstd => 9, ArchiveWriteFormat.Rar5 => 24, _ => throw Fault() };
+    { ArchiveWriteFormat.Tar => 1024, ArchiveWriteFormat.TarGzip => 20, ArchiveWriteFormat.TarBzip2 => 14, ArchiveWriteFormat.TarZstd => 9, ArchiveWriteFormat.Rar5 => 24, ArchiveWriteFormat.SevenZip => 32, _ => throw Fault() };
 
     private ref struct Packet(ReadOnlySpan<byte> data)
     {
