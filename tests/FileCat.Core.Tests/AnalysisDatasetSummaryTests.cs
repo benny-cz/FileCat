@@ -4,6 +4,7 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Tests;
 
+[Collection("Analysis bounded work capacity")]
 public sealed partial class AnalysisDatasetSummaryTests
 {
     private const string Device = "summary-fixture";

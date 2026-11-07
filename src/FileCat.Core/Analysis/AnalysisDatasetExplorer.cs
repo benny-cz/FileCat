@@ -52,6 +52,8 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
         AnalysisFilterRequest? filter = null, CancellationToken cancellation = default)
     {
         ArgumentNullException.ThrowIfNull(dataset);
+        cancellation.ThrowIfCancellationRequested();
+        using var admission = AnalysisExplorerAdmission.Acquire();
         var retained = await dataset.RetainAsync(cancellation).ConfigureAwait(false);
         AnalysisDatasetHierarchy? hierarchy = null;
         try
@@ -148,9 +150,11 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
             cancellation.ThrowIfCancellationRequested();
             if (_active >= AnalysisLimits.IoRequests)
                 throw new InvalidOperationException("Eight explorer requests are still completing. Wait before requesting another page or inspection.");
-            request = new(cancellation); previous = lane.Current; lane.Current = request; _active++;
+            var admission = AnalysisExplorerAdmission.Acquire();
+            try { request = new(cancellation, admission); }
+            catch { admission.Dispose(); throw; }
+            previous = lane.Current; lane.Current = request; _active++;
         }
-        previous?.Cancel();
         return ExecuteAsync();
 
         async Task<bool> ExecuteAsync()
@@ -158,6 +162,7 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
             bool entered = false;
             try
             {
+                previous?.Cancel();
                 await lane.Turn.WaitAsync(request.Token).ConfigureAwait(false); entered = true;
                 var value = await read(request.Token).ConfigureAwait(false);
                 lock (_gate)
@@ -171,14 +176,18 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
             { return false; }
             finally
             {
-                if (entered) lane.Turn.Release();
-                request.Dispose(); bool close;
-                lock (_gate)
+                try
                 {
-                    if (ReferenceEquals(lane.Current, request)) lane.Current = null;
-                    _active--; close = BeginClose();
+                    if (entered) lane.Turn.Release();
+                    request.Dispose(); bool close;
+                    lock (_gate)
+                    {
+                        if (ReferenceEquals(lane.Current, request)) lane.Current = null;
+                        _active--; close = BeginClose();
+                    }
+                    if (close) await CloseAsync().ConfigureAwait(false);
                 }
-                if (close) await CloseAsync().ConfigureAwait(false);
+                finally { request.ReleaseAdmission(); }
             }
         }
     }
@@ -215,11 +224,13 @@ public sealed class AnalysisDatasetExplorer : IAsyncDisposable
     {
         private readonly object _gate = new();
         private readonly CancellationTokenSource _cancel;
+        private readonly IDisposable _admission;
         private bool _disposed;
         internal CancellationToken Token { get; }
-        internal Request(CancellationToken cancellation)
-        { _cancel = CancellationTokenSource.CreateLinkedTokenSource(cancellation); Token = _cancel.Token; }
+        internal Request(CancellationToken cancellation, IDisposable admission)
+        { _admission = admission; _cancel = CancellationTokenSource.CreateLinkedTokenSource(cancellation); Token = _cancel.Token; }
         internal void Cancel() { lock (_gate) { if (!_disposed) _cancel.Cancel(); } }
         public void Dispose() { lock (_gate) { if (_disposed) return; _disposed = true; _cancel.Dispose(); } }
+        internal void ReleaseAdmission() => _admission.Dispose();
     }
 }

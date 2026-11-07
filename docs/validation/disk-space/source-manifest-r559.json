@@ -1,0 +1,251 @@
+{
+  "purpose": "Shared explorer creation/request admission and actual queued-work lifetime across views",
+  "observedUtc": "2026-11-07T01:19:50.867322+00:00",
+  "gitBase": "59abeb770a7f85838619085a259f08464cd8fff7",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetExplorer.cs",
+      "sha256": "ecc3b160e5af6ebe982eb43f7616eaf2c5d8f9b8e09521ec2de853eebc57fae1"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisExplorerAdmission.cs",
+      "sha256": "74ad61d3238a16501957f2ffd2baf5a2a7f5c7f4ccbee4bdcb150fa8aa712089"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.Admission.cs",
+      "sha256": "d88797f90db91cf0670bcbf7b6ed88b98ea6a75a4570832238a91776f5abfbbf"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.cs",
+      "sha256": "4c2d273d91b8d14513b4327e8ba36ba9bb0633f00570ddbd63f41ed279a58844"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r556.txt",
+      "sha256": "84532eb8fb7d68ce94364385c27701f37f7ab5e6f8c22014fdb22c2de49f2341"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r557-core-r557.xml",
+      "sha256": "eaa13654448784dd6e3e8cae5bef7aac454f6456a205011bcc60a5677525112a"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r557-core-r557.log",
+      "sha256": "f02f3f568b37f93c9d44e896658a9782b9d8075827ab33b43adf4464d696bd6e"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r557-render-r557.xml",
+      "sha256": "2c163f4d3b08a7fef98ff2c3bc09cd7e03061df23b239cb0c799de5cd2d29ecb"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r557-render-r557.log",
+      "sha256": "917e9f143fba70e3d0c0f6bf1caec4d886ba9bb4f13cf0c5b9f9d6f0d31f2450"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r557-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r557-post.json",
+      "sha256": "742b64c407a64f08cd9c415a29ff923d6ba35fe7fedaa3c8aef407d5a5c8d320"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r557-core-r557.xml",
+      "sha256": "d20d0819084cfa24069170d51867b3eff6f5ef37ae76cac66b33b1e1a4b7f24c"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r557-core-r557.log",
+      "sha256": "0587ea76776a68dbdedd9234b762e19c99bfcd7beecf2c1f9988cfdf668e71dc"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r557-render-r557.xml",
+      "sha256": "a2b82dc0011a7db6a1982999619ecbb0e24d01aef010b522cd14173ca7f4a769"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r557-render-r557.log",
+      "sha256": "ae09bf87086998b04ff90e873cfb5da2cb6017abf4e1f98da41f36a47cad9021"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r557-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r557-post.json",
+      "sha256": "257abb93b07676b3fd3f0d0063b02b4a5fda681c3dd7d58034952b5055cc2c91"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r557-core-r557.xml",
+      "sha256": "6b5f2e9d2383c7acfda37399b1c209f1cb498ab3732b34756bd1bae8ad33acee"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r557-core-r557.log",
+      "sha256": "0117d2a3fb88651a1a39b6c0db9825eeabef065c9151cf73f8373977d3439c61"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r557-native-r557.xml",
+      "sha256": "7573c0ef73b72d78b5ba3e6fb98ba031f2f87f653c9c5ff4de3320567a6eefb7"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r557-native-r557.log",
+      "sha256": "61c90534ce5b281b0a1161a7ee62a5ce6aaa2ee7e67385326498b010343b4cf7"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r557-render-r557.xml",
+      "sha256": "804438c3678ac0fd51d0eb4137fc9cca41f8057982a9253a55cbb250dc4aa1e8"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r557-render-r557.log",
+      "sha256": "dc147522ce9b93ec547f64007696041f0586f4516c3cde167c534403e2181e8b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r557-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r557-post.json",
+      "sha256": "8f03bf9f6d408bb77447d1591835f4b20e02e43320e5e4020708f2dd475ec6bc"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r557.sh",
+      "sha256": "8e9d24095c393db1550028ff5049819e565a1189bcea0b725ca15140700c3b66"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r557.sh",
+      "sha256": "74f20d0db8c6df48dc989569d6a7ba17631ed5cb8c8aed8d66db51c639bd6f46"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r557.ps1",
+      "sha256": "2171d33e9498c21f452ccf5fb12a16603884510ad66b7af2f334ace4a2dd3038"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r557.tgz",
+      "sha256": "7ea2da4c9b9135694733ee32d2a155520b406a9ebd4d9e263b0e72ab6706f3ab"
+    },
+    {
+      "name": "dsa-batch-linux-r557.tgz",
+      "sha256": "4da5128f3db870d2934039b28feed031de9826bd88afe124e97305de7212cb05"
+    },
+    {
+      "name": "dsa-batch-windows-r557.tgz",
+      "sha256": "774eb2e562e137a0771a675a464794b8f06ede9941cd3384f7ccade4d08a6bc1"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r557": "6935335b646457b99db98ed1deeb7b0837c301056f805d77fb94797bfa6c60c3",
+    "native-r557": "6935335b646457b99db98ed1deeb7b0837c301056f805d77fb94797bfa6c60c3",
+    "render-r558-mac": "6935335b646457b99db98ed1deeb7b0837c301056f805d77fb94797bfa6c60c3",
+    "render-r558-linux": "6935335b646457b99db98ed1deeb7b0837c301056f805d77fb94797bfa6c60c3",
+    "render-r558-windows": "6935335b646457b99db98ed1deeb7b0837c301056f805d77fb94797bfa6c60c3"
+  },
+  "productionAppHashes": {
+    "render-r558-mac": "baa736d668ec63233a99cd44a9e7741fb4b035d5040c75c11b0d8d230201ae87",
+    "render-r558-linux": "baa736d668ec63233a99cd44a9e7741fb4b035d5040c75c11b0d8d230201ae87",
+    "render-r558-windows": "baa736d668ec63233a99cd44a9e7741fb4b035d5040c75c11b0d8d230201ae87"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r557": "8b951baf2e500b35cc4dad171eccdbd997efb25a131dd1d59517e85c40d4203f",
+    "render-r558-mac": "8b951baf2e500b35cc4dad171eccdbd997efb25a131dd1d59517e85c40d4203f",
+    "render-r558-linux": "8b951baf2e500b35cc4dad171eccdbd997efb25a131dd1d59517e85c40d4203f",
+    "render-r558-windows": "8b951baf2e500b35cc4dad171eccdbd997efb25a131dd1d59517e85c40d4203f"
+  },
+  "matrix": {
+    "mac-batch-r557-core-r557.xml": {
+      "total": "706",
+      "passed": "702",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "23.217"
+    },
+    "mac-batch-r557-render-r557.xml": {
+      "total": "109",
+      "passed": "109",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "34.019"
+    },
+    "ubuntu-batch-r557-core-r557.xml": {
+      "total": "706",
+      "passed": "702",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "67.159"
+    },
+    "ubuntu-batch-r557-render-r557.xml": {
+      "total": "109",
+      "passed": "109",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "45.053"
+    },
+    "windows-batch-r557-core-r557.xml": {
+      "total": "724",
+      "passed": "676",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "18.783"
+    },
+    "windows-batch-r557-native-r557.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "36.226"
+    },
+    "windows-batch-r557-render-r557.xml": {
+      "total": "109",
+      "passed": "108",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "50.813"
+    }
+  },
+  "targetedControls": {
+    "mac": [
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.ExplorerCreationUsesTheSameAdmissionAsExistingPageRequestsUntilRetainReturns",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.EightSeparateExplorersShareAdmissionAndCancellationKeepsItThroughActualQueuedWork",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FailedAndPreCanceledExplorerWorkReturnsAdmissionWithoutChangingPublishedResults"
+    ],
+    "ubuntu": [
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.ExplorerCreationUsesTheSameAdmissionAsExistingPageRequestsUntilRetainReturns",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FailedAndPreCanceledExplorerWorkReturnsAdmissionWithoutChangingPublishedResults",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.EightSeparateExplorersShareAdmissionAndCancellationKeepsItThroughActualQueuedWork"
+    ],
+    "windows": [
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FailedAndPreCanceledExplorerWorkReturnsAdmissionWithoutChangingPublishedResults",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.EightSeparateExplorersShareAdmissionAndCancellationKeepsItThroughActualQueuedWork",
+      "FileCat.Core.Tests.AnalysisDatasetSummaryTests.ExplorerCreationUsesTheSameAdmissionAsExistingPageRequestsUntilRetainReturns"
+    ]
+  },
+  "newCoreControls": 3,
+  "finalBuild": "build-r556.txt: full solution zero warnings/errors",
+  "excludedAttempt": "r552: incorrect Task-returning assertion overloads; corrected before final build/packaging",
+  "testScope": "Actual Background scheduler/queued work over generated in-memory scratch; eight separate explorers and eight pending creations share a single pool, with cancellation/close/failure admission retained through actual completion. This is not physical desktop or full global resource qualification.",
+  "batchWorkflow": "One immutable bundle per platform; sequential applicable suites, integrity/occupancy gates, authoritative final inventories.",
+  "processExitEvidence": "All original batch handles terminal, guest states FINISHED exit=0 and final inventories empty all3. No host app/input test or other tester termination.",
+  "qualification": {
+    "sharedExplorerCreationAndRequestAdmissionImplemented": true,
+    "crossExplorerActualLifetimeControlsPassedAllThree": true,
+    "globalDatasetAndProducerQueueQualificationComplete": false,
+    "fullNativeConstructorRollbackFaultMatrixQualified": false,
+    "fullResourceGateQualified": false,
+    "globalPendingCpuDeviceAliasGateQualified": false,
+    "nativeDesktopInputQualified": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

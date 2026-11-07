@@ -148,7 +148,8 @@
     "Unconfirmed close outcomes are now distinct across admitted releases, private file scopes, rollback and publication wrappers. Pending indexed imports retain failed-close admission across window replacement; caught view/persistence failures stay latched through actual drain and stop new view work. All7 new Core/4 rendering controls and the extended native private-file refusal probe pass all3, in one complete candidate batch per machine.",
     "Unconfirmed scratch closes retain exact byte charges and directory/profile capacity until process exit, reject new workspace admission, and preserve constructor rollback ownership. Four direct controls plus a real native cross-process capacity/actual-exit probe pass all3 in complete immutable candidate batches.",
     "Checked native file/directory SafeHandle owners retain failed-close slots without retry, pin stream/offset I/O through actual completion and transfer fdopendir admission to closedir. Native128-handle, faulted-backend and129-cursor controls pass all3; profile/concurrent-create handling preserves close signals. Complete immutable candidate suites and relevant shared Windows helper regressions pass.",
-    "File/profile token retirement preserves uncertain owners/units, rolls back independent tokens once and retains rejected probes. Checked Windows mutex and Unix protocol retirement preserve native charges. Failed final quota closure retains components, directory, bytes and its live worker/admission until process exit. Native cross-process locked-token, kernel failure and eight-worker/ninth-refusal controls pass all3 in complete candidate batches."
+    "File/profile token retirement preserves uncertain owners/units, rolls back independent tokens once and retains rejected probes. Checked Windows mutex and Unix protocol retirement preserve native charges. Failed final quota closure retains components, directory, bytes and its live worker/admission until process exit. Native cross-process locked-token, kernel failure and eight-worker/ninth-refusal controls pass all3 in complete candidate batches.",
+    "Explorer creation/page/inspection/chart work shares eight accepted operations process-wide, with admission retained through actual I/O, cancellation, rollback and final cleanup. Separate views and pending creation cannot bypass the same pool. Three cross-view/lifetime/failure controls pass all3; complete immutable candidate regressions pass and no test processes remain."
   ],
   "validation": {
     "windowsCore": {
@@ -2097,7 +2098,7 @@
     },
     "testingWorkflow": {
       "default": "Build and package the largest coherent implementation candidate, then transfer one immutable bundle per free platform and execute all applicable Core/native/rendering phases sequentially before collecting evidence. Preserve other testers and gate every phase.",
-      "batchEvidence": "source-manifest-r551.json",
+      "batchEvidence": "source-manifest-r559.json",
       "oneCandidateArchivePerPlatform": true,
       "postExecutionProcessExitRequired": true
     },
@@ -2658,10 +2659,108 @@
       "persistenceGateQualified": false,
       "actionsHelperContentEnabled": false,
       "finalIndependentReviewPerformed": false
+    },
+    "sharedExplorerWorkAdmission": {
+      "scope": "Shared explorer operation family, not full producer/dataset byte or CPU/memory qualification",
+      "newCoreControls": 3,
+      "targetedControls": {
+        "mac": [
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.ExplorerCreationUsesTheSameAdmissionAsExistingPageRequestsUntilRetainReturns",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.EightSeparateExplorersShareAdmissionAndCancellationKeepsItThroughActualQueuedWork",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FailedAndPreCanceledExplorerWorkReturnsAdmissionWithoutChangingPublishedResults"
+        ],
+        "ubuntu": [
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.ExplorerCreationUsesTheSameAdmissionAsExistingPageRequestsUntilRetainReturns",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FailedAndPreCanceledExplorerWorkReturnsAdmissionWithoutChangingPublishedResults",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.EightSeparateExplorersShareAdmissionAndCancellationKeepsItThroughActualQueuedWork"
+        ],
+        "windows": [
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FailedAndPreCanceledExplorerWorkReturnsAdmissionWithoutChangingPublishedResults",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.EightSeparateExplorersShareAdmissionAndCancellationKeepsItThroughActualQueuedWork",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.ExplorerCreationUsesTheSameAdmissionAsExistingPageRequestsUntilRetainReturns"
+        ]
+      },
+      "matrix": {
+        "mac-batch-r557-core-r557.xml": {
+          "total": "706",
+          "passed": "702",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "23.217"
+        },
+        "mac-batch-r557-render-r557.xml": {
+          "total": "109",
+          "passed": "109",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "34.019"
+        },
+        "ubuntu-batch-r557-core-r557.xml": {
+          "total": "706",
+          "passed": "702",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "67.159"
+        },
+        "ubuntu-batch-r557-render-r557.xml": {
+          "total": "109",
+          "passed": "109",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "45.053"
+        },
+        "windows-batch-r557-core-r557.xml": {
+          "total": "724",
+          "passed": "676",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0",
+          "time": "18.783"
+        },
+        "windows-batch-r557-native-r557.xml": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "36.226"
+        },
+        "windows-batch-r557-render-r557.xml": {
+          "total": "109",
+          "passed": "108",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "50.813"
+        }
+      },
+      "singleImmutableBundlePerPlatform": true,
+      "postChecks": [
+        "mac-batch-r557-post.json",
+        "ubuntu-batch-r557-post.json",
+        "windows-batch-r557-post.json"
+      ],
+      "manifest": "source-manifest-r559.json",
+      "sharedExplorerCreationAndRequestAdmissionImplemented": true,
+      "crossExplorerActualLifetimeControlsPassedAllThree": true,
+      "globalDatasetAndProducerQueueQualificationComplete": false,
+      "fullNativeConstructorRollbackFaultMatrixQualified": false,
+      "fullResourceGateQualified": false,
+      "globalPendingCpuDeviceAliasGateQualified": false,
+      "nativeDesktopInputQualified": false,
+      "productCommandRegistered": false,
+      "publicIndexedSpillEnabled": false,
+      "persistenceGateQualified": false,
+      "actionsHelperContentEnabled": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
-    "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, bounded queue/CPU admission, actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
+    "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, remaining shared producer/dataset byte queues and CPU admission (explorer creation/page/inspection/chart admission now shares eight process-wide places with actual-lifetime controls all3), actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: grouping/color dimensions, scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
