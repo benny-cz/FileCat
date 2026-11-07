@@ -31,7 +31,7 @@ public sealed partial class AnalysisRenderingTests
     }
 
     [AvaloniaFact]
-    public async Task OpenSavedReviewReservesItsDestinationBeforeReadingAndReleasesItOnCancel()
+    public async Task SavedBrowserDefersDestinationAdmissionAndDisablesOpeningWhenAnotherWindowFillsTheLastSlot()
     {
         OrdinaryPreparation(); using var fixture = new PreparationFixture(); using var styles = new ProductStyles();
         using var model = new DiskSpaceViewModel(fixture.Services, ImportedFixture()); await model.RebuildAsync(true);
@@ -43,10 +43,12 @@ public sealed partial class AnalysisRenderingTests
             var tabs = window.GetVisualDescendants().OfType<TabControl>().Single(); tabs.SelectedIndex = 0;
             Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Assert.True(other.CanAddSession);
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open saved…" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Assert.False(other.CanAddSession);
+            Dispatcher.UIThread.RunJobs(); window.UpdateLayout(); Assert.True(other.CanAddSession);
+            other.AddSession(new DiskSpaceViewModel(Fixture()));
+            await Until(() => !window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Open observations" && b.IsEffectivelyVisible).IsEnabled);
             Assert.False(Directory.Exists(fixture.Services.Paths.AnalysisSnapshotsDirectory));
             window.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == "Cancel" && b.IsEffectivelyVisible).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await Until(() => other.CanAddSession); Assert.Equal(7, window.SessionCount);
+            Assert.False(other.CanAddSession); Assert.Equal(7, window.SessionCount); Assert.Equal(1, other.SessionCount);
         }
         finally { window.ForceClose(); other.ForceClose(); await Task.WhenAll(window.WaitForIndexedCloseAsync(), other.WaitForIndexedCloseAsync()); }
     }

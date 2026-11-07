@@ -96,6 +96,13 @@ public sealed partial class DiskSpaceViewModel
         catch (Exception error) { _actualWork.RecordUnconfirmedClose(error); throw; }
     }
 
+    internal Task<Services.AnalysisOwnedMaintenanceCapture> PrepareSavedMaintenanceAsync(Guid inventoryId, CancellationToken cancellation)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!HasPrivateStorage) throw new InvalidOperationException("Private inventory storage is unavailable.");
+        return Services.AnalysisOwnedStoreAccess.PrepareAsync(_services!, inventoryId, _actualWork, cancellation);
+    }
+
     public async Task<DiskSpaceViewModel> OpenSavedAsync(string name, AnalysisSavedEntry? entry, CancellationToken cancellation = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

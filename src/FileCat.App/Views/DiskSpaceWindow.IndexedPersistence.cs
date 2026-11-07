@@ -33,7 +33,7 @@ public sealed partial class DiskSpaceWindow
         {
             if (_disposed) return;
             _saveInventory.IsEnabled = HasInventoryStore && !_persistenceBusy;
-            _openInventory.IsEnabled = HasInventoryStore && !_persistenceBusy && _window.CanAddSession;
+            _openInventory.IsEnabled = HasInventoryStore && !_persistenceBusy;
             string reason = HasInventoryStore ? "" : "This view has no available private inventory store. Open it from a FileCat profile to save named analyses.";
             AutomationProperties.SetHelpText(_saveInventory, reason); AutomationProperties.SetHelpText(_openInventory, reason);
         }
@@ -110,8 +110,8 @@ public sealed partial class DiskSpaceWindow
                 _inventoryCloser = null; _persistenceBusy = false; Interaction(false); RefreshIndexedPersistence();
             }
         }
-        private sealed record InventoryChoice(string Name, AnalysisSavedEntry? Entry)
-        { public override string ToString() => AnalysisNames.Display(Name, 200) + (Entry is null ? " · unindexed" : " · " + Entry.SavedUtc.ToLocalTime().ToString("g")); }
+        private sealed record InventoryChoice(string Name, AnalysisSavedEntry? Entry, AnalysisPendingDeletion? Pending = null)
+        { public override string ToString() => AnalysisNames.Display(Name, 200) + (Pending is not null ? " · pending removal · " + (Pending.PayloadPresent ? "saved file present" : "saved file absent") : Entry is null ? " · unindexed" : " · " + Entry.SavedUtc.ToLocalTime().ToString("g")); }
         private async Task<AnalysisCatalogSnapshot> ReadInventoryCatalogAsync(CancellationToken cancellation)
         {
             AnalysisCatalogSnapshot? result = null;
@@ -124,7 +124,7 @@ public sealed partial class DiskSpaceWindow
         }
         private async Task OpenInventoryAsync()
         {
-            if (_disposed || _persistenceBusy || !HasInventoryStore || !_window.CanAddSession) return;
+            if (_disposed || _persistenceBusy || !HasInventoryStore) return;
             using var actual = _actualWork.Enter(); using var cancel = CancellationTokenSource.CreateLinkedTokenSource(_selectionLifetime.Token);
             _persistenceBusy = true; _inventoryCancel = cancel; RefreshIndexedPersistence();
             AnalysisCatalogSnapshot? catalog = null; bool closed = false, loading = false;
@@ -147,8 +147,10 @@ public sealed partial class DiskSpaceWindow
                         var data = await ReadInventoryCatalogAsync(cancel.Token);
                         if (closed || _disposed) { data.Dispose(); return; }
                         catalog?.Dispose(); catalog = data;
-                        choices.ItemsSource = data.Entries.Select(entry => new InventoryChoice(entry.Name, entry)).Concat(data.UnindexedNames.Select(text => new InventoryChoice(text, null))).ToArray();
-                        choices.IsVisible = true; message.Text = $"{data.Entries.Length:N0} named analyses · {data.UnindexedNames.Length:N0} unindexed files.";
+                        choices.ItemsSource = data.Entries.Select(entry => new InventoryChoice(entry.Name, entry))
+                            .Concat(data.PendingDeletions.Select(p => new InventoryChoice(p.Entry.Name, p.Entry, p)))
+                            .Concat(data.UnindexedNames.Select(text => new InventoryChoice(text, null))).ToArray();
+                        choices.IsVisible = true; message.Text = $"{data.Entries.Length:N0} named analyses · {data.PendingDeletions.Length:N0} pending removals · {data.UnindexedNames.Length:N0} unindexed files.";
                     }
                     catch (OperationCanceledException) { }
                     catch (Exception exception) when (Expected(exception)) { RememberViewCloseFailure(exception); if (!closed && !_disposed) message.Text = "Catalog unavailable: " + AnalysisNames.Display(exception.Message, 400); }
@@ -161,9 +163,19 @@ public sealed partial class DiskSpaceWindow
                     browse, message, choices, name, inspection, error
                 } };
                 var closer = new DialogCloser(); _inventoryCloser = closer;
+                InventoryChoice? SelectedChoice() => choices.SelectedItem is InventoryChoice selected && selected.Name == name.Text ? selected : null;
                 var result = await _window._dialogs.ShowCustomAsync("Open saved analysis", body,
-                    [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Open inventory", true) { IsAvailable = () => InventoryFilenameError(name.Text) is null && !loading }], name, closer: closer);
-                closed = true; if (result is not true || _disposed) return;
+                    [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Open inventory", true) { IsAvailable = () => InventoryFilenameError(name.Text) is null && !loading && _window.CanAddSession },
+                    new DialogButton("Delete selected analysis…", SavedAnalysisMaintenanceAction.Delete) { IsAvailable = () => !loading && SelectedChoice()?.Entry is not null },
+                    new DialogButton("Restore pending analysis…", SavedAnalysisMaintenanceAction.Restore) { IsAvailable = () => !loading && SelectedChoice()?.Pending?.PayloadPresent == true }], name, closer: closer);
+                closed = true; if (_disposed) return;
+                if (result is SavedAnalysisMaintenanceAction maintenance && SelectedChoice()?.Entry is { } maintained)
+                {
+                    catalog?.Dispose(); catalog = null;
+                    if (inspection is not null) { await inspection.CloseAsync(); inspection = null; }
+                    await MaintainSavedAsync(maintained.InventoryId, maintenance == SavedAnalysisMaintenanceAction.Restore, cancel); return;
+                }
+                if (result is not true) return;
                 string filename = name.Text!; var entry = choices.SelectedItem is InventoryChoice selected && selected.Name == filename ? selected.Entry : null;
                 await InventoryProgressAsync("Opening inventory", token => _window.AddSavedIndexedSessionAsync(_services!, filename, entry, token), cancel);
             }

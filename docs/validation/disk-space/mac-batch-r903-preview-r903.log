@@ -1,0 +1,37 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+    FileCat.Rendering.Tests.AnalysisRenderingTests.NamedAnalysisDeletionRequiresASeparateDefaultKeepReviewAndPreservesSourcesAndTabs(indexed: False, delete: False) [FAIL]
+      Assert.Contains() Failure: Sub-string not found
+      String:    "New analysis\nClose analysis\nContinue in FileCat\nAn"···
+      Not found: "Source files are unchanged."
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Maintenance.cs(121,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NamedAnalysisDeletionRequiresASeparateDefaultKeepReviewAndPreservesSourcesAndTabs(Boolean indexed, Boolean delete)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Maintenance.cs(128,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NamedAnalysisDeletionRequiresASeparateDefaultKeepReviewAndPreservesSourcesAndTabs(Boolean indexed, Boolean delete)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Maintenance.cs(128,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NamedAnalysisDeletionRequiresASeparateDefaultKeepReviewAndPreservesSourcesAndTabs(Boolean indexed, Boolean delete)
+        --- End of stack trace from previous location ---
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+    FileCat.Rendering.Tests.AnalysisRenderingTests.NamedAnalysisDeletionRequiresASeparateDefaultKeepReviewAndPreservesSourcesAndTabs(indexed: True, delete: False) [FAIL]
+      Assert.Contains() Failure: Sub-string not found
+      String:    "New analysis\nClose analysis\nContinue in FileCat\nAn"···
+      Not found: "review-delete.fcdsa"
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Maintenance.cs(121,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NamedAnalysisDeletionRequiresASeparateDefaultKeepReviewAndPreservesSourcesAndTabs(Boolean indexed, Boolean delete)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Maintenance.cs(128,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NamedAnalysisDeletionRequiresASeparateDefaultKeepReviewAndPreservesSourcesAndTabs(Boolean indexed, Boolean delete)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Maintenance.cs(128,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NamedAnalysisDeletionRequiresASeparateDefaultKeepReviewAndPreservesSourcesAndTabs(Boolean indexed, Boolean delete)
+        --- End of stack trace from previous location ---
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+    FileCat.Rendering.Tests.AnalysisRenderingTests.NamedAnalysisDeletionRequiresASeparateDefaultKeepReviewAndPreservesSourcesAndTabs(indexed: True, delete: True) [FAIL]
+      Assert.Contains() Failure: Sub-string not found
+      String:    "New analysis\nClose analysis\nContinue in FileCat\nAn"···
+      Not found: "review-delete.fcdsa"
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Maintenance.cs(121,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NamedAnalysisDeletionRequiresASeparateDefaultKeepReviewAndPreservesSourcesAndTabs(Boolean indexed, Boolean delete)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Maintenance.cs(128,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NamedAnalysisDeletionRequiresASeparateDefaultKeepReviewAndPreservesSourcesAndTabs(Boolean indexed, Boolean delete)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.Maintenance.cs(128,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NamedAnalysisDeletionRequiresASeparateDefaultKeepReviewAndPreservesSourcesAndTabs(Boolean indexed, Boolean delete)
+        --- End of stack trace from previous location ---
+  Finished:    FileCat.Rendering.Tests (ID = '6777f21183c9da475f12783ac30fbd783e21d2673a29d624da96e4248a98dcd1')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 11, Errors: 0, Failed: 3, Skipped: 0, Not Run: 0, Time: 5,213s

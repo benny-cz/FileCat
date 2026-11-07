@@ -12,6 +12,7 @@ public abstract class AnalysisPrivateDirectory : IDisposable
     // Temporary files have no publication operation and disappear when their last native handle closes.
     internal virtual AnalysisPrivateScratchFile CreateScratch() => throw new NotSupportedException("Private analysis scratch is unavailable.");
     internal abstract AnalysisPrivateFile OpenRead(string name);
+    internal virtual AnalysisPrivateFile OpenMaintenance(string name) => throw new NotSupportedException("Guarded private-store maintenance is unavailable.");
     internal virtual string[] Entries(CancellationToken cancellation) => throw new NotSupportedException("Private catalog enumeration is unavailable.");
     public abstract void Dispose();
 }
@@ -19,6 +20,11 @@ public abstract class AnalysisPrivateDirectory : IDisposable
 /// <summary>Native file ownership stays with this lease, including interrupted publication.</summary>
 internal abstract class AnalysisPrivateFile : IDisposable
 {
+    internal virtual string Identity => throw new NotSupportedException("Private file identity is unavailable.");
+    internal virtual string? MaintenanceName => null;
+    internal virtual bool RemovalRequested => false;
+    internal virtual void MoveOwnedNew(string name) => throw new NotSupportedException("Guarded private metadata movement is unavailable.");
+    internal virtual void RemoveOwned() => throw new NotSupportedException("Guarded private file removal is unavailable.");
     public abstract Stream Stream { get; }
     public abstract void Verify();
     public abstract void Flush();
@@ -216,6 +222,7 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
         internal DatasetRead(AnalysisPrivateInventoryStore store, AnalysisPrivateFile file, CancellationToken cancellation)
         { _store = store; _file = file; Stream = new GuardedReadStream(file.Stream, () => { store.Guard(); file.Verify(); }, cancellation); }
         internal void Verify() { _store.Guard(); (_file ?? throw new ObjectDisposedException(nameof(DatasetRead))).Verify(); }
+        internal string Identity => (_file ?? throw new ObjectDisposedException(nameof(DatasetRead))).Identity;
         public void Dispose()
         { try { Interlocked.Exchange(ref _file, null)?.Dispose(); } finally { _store.Dispose(); } }
     }

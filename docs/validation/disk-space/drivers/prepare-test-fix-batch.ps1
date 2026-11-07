@@ -3,7 +3,8 @@ param(
  [Parameter(Mandatory=$true)][ValidatePattern('^r[0-9]+[a-z]?$')][string]$BaselineRevision,
  [Parameter(Mandatory=$true)][ValidateSet('core','render')][string]$Phase,
  [Parameter(Mandatory=$true)][string]$BuildLog,
- [Parameter(Mandatory=$true)][string]$SourceManifest
+ [Parameter(Mandatory=$true)][string]$SourceManifest,
+ [ValidateSet('windows','mac','linux')][string[]]$ReusePlatforms=@('windows')
 )
 $ErrorActionPreference='Stop';$watch=[Diagnostics.Stopwatch]::StartNew()
 $build=[IO.File]::ReadAllText((Join-Path $PWD $BuildLog))
@@ -39,7 +40,7 @@ foreach($platform in 'windows','mac','linux'){
  $extension=if($platform-eq'windows'){'ps1'}else{'sh'}
  $template=if($platform-eq'windows'){'batch-windows-grouping-template.ps1'}else{'batch-unix-grouping-template.sh'}
  $runner=[IO.File]::ReadAllText((Join-Path $PWD ('.tmp/'+$template)))
- if($platform-eq'windows'){
+ if($platform-eq'windows'-and$platform-in$ReusePlatforms){
   $delta=Join-Path $PWD ('.tmp/test-fix-delta-'+$Revision);New-Item -ItemType Directory -Path $delta|Out-Null
   foreach($relative in $changed){$target=Join-Path $delta ('patch/'+$relative);New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($target)) -Force|Out-Null;Copy-Item -LiteralPath (Join-Path $stage $relative) -Destination $target}
   $baseline='C:\FileCatDsa20261104R2\batch-'+$BaselineRevision+'\payload'
@@ -71,12 +72,24 @@ foreach($platform in 'windows','mac','linux'){
 '@
   $reuse=$reuse.Replace('@BASELINE@',$baseline).Replace('@DLL@',$allowed[0]).Replace('@PDB@',$allowed[1])
   $runner=$runner.Substring(0,$start)+$reuse+"`n"+$runner.Substring($finish)
+ }elseif($platform-in$ReusePlatforms){
+  $delta=Join-Path $PWD ('.tmp/test-fix-delta-'+$platform+'-'+$Revision);New-Item -ItemType Directory -Path $delta|Out-Null
+  foreach($relative in $changed){$target=Join-Path $delta ('patch/'+$relative);New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($target)) -Force|Out-Null;Copy-Item -LiteralPath (Join-Path $stage $relative) -Destination $target}
+  $guestRoot=if($platform-eq'mac'){'/Users/benny/FileCatValidation/'}else{'/home/benny/FileCatValidation/'}
+  $baseline=$guestRoot+'dsa-batch-20261107-'+$BaselineRevision+'/payload'
+  [ordered]@{baseline=$baseline;files=$files;allowed=$allowed}|ConvertTo-Json -Depth 5|Set-Content (Join-Path $delta 'plan.json')
+  Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'run-batch-cache.py') -Destination (Join-Path $delta 'reuse.py')
+  & tar.exe -czf $archive -C $delta .
+  $extract="mkdir payload`ntar -xzf bundle.tgz -C payload"
+  if(!$runner.Contains($extract)){throw 'Unix runner extraction boundary changed'}
+  $reuse="mkdir patch-input`ntar -xzf bundle.tgz -C patch-input`npython3 patch-input/reuse.py '"+$baseline+"'"
+  $runner=$runner.Replace($extract,$reuse)
  }else{& tar.exe -czf $archive -C $stage .}
  if($LASTEXITCODE){throw 'Test-fix archive failed'}
  $hash=(Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
  [IO.File]::WriteAllText((Join-Path $PWD ('.tmp/batch-'+$platform+'-'+$Revision+'.'+$extension)),$runner.Replace('@HASH@',$hash).Replace('@REV@',$Revision).Replace("`r`n","`n"),[Text.UTF8Encoding]::new($false))
- $proof+=@{platform=$platform;verifiedInputs=$files.Count;changed=$changed;guestReuse=$platform-eq'windows';archiveBytes=(Get-Item -LiteralPath $archive).Length;sha256=$hash}
+ $proof+=@{platform=$platform;verifiedInputs=$files.Count;changed=$changed;guestReuse=$platform-in$ReusePlatforms;archiveBytes=(Get-Item -LiteralPath $archive).Length;sha256=$hash}
 }
 $watch.Stop()
 [ordered]@{revision=$Revision;baseline=$BaselineRevision;elapsedSeconds=$watch.Elapsed.TotalSeconds;platforms=$proof}|ConvertTo-Json -Depth 5|Set-Content ('.tmp/test-fix-proof-'+$Revision+'.json')
-Write-Output ('Prepared one immutable batch per platform; Windows reuses verified product inputs. Seconds: '+[math]::Round($watch.Elapsed.TotalSeconds,2))
+Write-Output ('Prepared one immutable batch per platform; verified guest reuse: '+($ReusePlatforms-join', ')+'. Seconds: '+[math]::Round($watch.Elapsed.TotalSeconds,2))

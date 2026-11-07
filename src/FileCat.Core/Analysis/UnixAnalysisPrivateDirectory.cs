@@ -157,7 +157,7 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
         try
         {
             Private(owned.Handle, directory: false, links: 1);
-            if (!AnalysisPrivateNames.IsMetadata(name)) LockInventoryRead(owned.Handle);
+            if (AnalysisPrivateNames.NeedsReadLease(name)) LockInventoryRead(owned.Handle);
             return new PrivateFile(this, owned, writable: false);
         }
         catch { owned.Dispose(); throw; }
@@ -259,6 +259,7 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
             _stream = owned.Handle.OpenStream(writable ? FileAccess.ReadWrite : FileAccess.Read);
         }
         public override Stream Stream => _stream;
+        internal override string Identity { get { Verify(); return FileIdentity(_owned.Handle); } }
         internal override bool TryLockCapacity()
         {
             if (_writable) throw new InvalidOperationException("Capacity requires an immutable published file.");

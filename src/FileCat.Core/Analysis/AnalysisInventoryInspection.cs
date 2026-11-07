@@ -11,7 +11,11 @@ public static partial class AnalysisInventoryFormat
 
     // Container inspection validates schema/framing/checksum, not cross-record graph semantics.
     // No decoded path is retained or reconstructed as filesystem authority.
-    internal static async Task<ContainerInspection> InspectContainerAsync(AnalysisPrivateInventoryStore.DatasetRead input,
+    internal static Task<ContainerInspection> InspectContainerAsync(AnalysisPrivateInventoryStore.DatasetRead input,
+        DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation) =>
+        InspectContainerAsync(input.Stream, input.Verify, io, device, cancellation);
+
+    internal static async Task<ContainerInspection> InspectContainerAsync(Stream source, Action verify,
         DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
     {
         await Imports.WaitAsync(cancellation).ConfigureAwait(false);
@@ -20,14 +24,14 @@ public static partial class AnalysisInventoryFormat
         {
             // Same bounded construction reservation as streaming import, without its scratch graph.
             Reserve(StageMemory, ref reservation);
-            var frame = new RecordFramer(input.Stream); using var decoder = new RecordDecoder();
+            var frame = new RecordFramer(source); using var decoder = new RecordDecoder();
             using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             Manifest? manifest = null; ulong records = 0; bool ended = false;
             while (!ended)
             {
                 var batch = await AnalysisIo.Run(io, device, token =>
                 {
-                    input.Verify(); int read = 0, steps = 0, bytes = 0; bool eof = false;
+                    verify(); int read = 0, steps = 0, bytes = 0; bool eof = false;
                     var lines = new List<byte[]>(); var clock = Stopwatch.StartNew();
                     while (steps++ < AnalysisLimits.BatchRecords && read < AnalysisLimits.BatchBytes && bytes < AnalysisLimits.BatchBytes)
                     {
@@ -36,7 +40,7 @@ public static partial class AnalysisInventoryFormat
                         if (step.Status == FrameStatus.Record) { lines.Add(frame.Line.ToArray()); bytes += frame.Line.Length + 1; }
                         if (clock.ElapsedMilliseconds >= 20) break;
                     }
-                    input.Verify(); return (Lines: lines, Ended: eof);
+                    verify(); return (Lines: lines, Ended: eof);
                 }, cancellation).ConfigureAwait(false);
                 await Task.Run(() =>
                 {

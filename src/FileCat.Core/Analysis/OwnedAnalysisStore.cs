@@ -10,7 +10,7 @@ public sealed record OwnedAnalysisInventoryDetails(Guid ProfileId, Guid CatalogI
 /// An application-prepared private-store capability. Selection uses generated catalog identity,
 /// never an imported path. Native ownership spans every queued read and its actual close.
 /// </summary>
-public sealed class OwnedAnalysisStore : IAsyncDisposable
+public sealed partial class OwnedAnalysisStore : IAsyncDisposable
 {
     private readonly DeviceIoScheduler _io;
     private readonly AnalysisIoDevices _device;
@@ -54,7 +54,7 @@ public sealed class OwnedAnalysisStore : IAsyncDisposable
                 {
                     RequireProfile(data, token);
                     using var catalog = new AnalysisSavedCatalog(data.Store!).Read(token);
-                    var entry = catalog.Entries.SingleOrDefault(e => e.InventoryId == inventoryId)
+                    var entry = catalog.Entries.Concat(catalog.PendingDeletions.Select(p => p.Entry)).SingleOrDefault(e => e.InventoryId == inventoryId)
                         ?? throw new FileNotFoundException("That saved inventory is absent from the current private catalog.");
                     input = AnalysisPrivateInventoryStore.BeginDatasetRead(data.Store!.BorrowDirectory(), entry.Name, token);
                     if (input.Stream.Length != entry.Bytes) throw new InvalidDataException("The saved inventory size no longer matches its catalog entry.");
@@ -67,7 +67,7 @@ public sealed class OwnedAnalysisStore : IAsyncDisposable
                 {
                     input!.Verify(); RequireProfile(data, token);
                     using var current = new AnalysisSavedCatalog(data.Store!).Read(token);
-                    if (current.CatalogId != selected.Catalog || !current.Entries.Contains(selected.Entry))
+                    if (current.CatalogId != selected.Catalog || !current.Entries.Concat(current.PendingDeletions.Select(p => p.Entry)).Contains(selected.Entry))
                         throw new InvalidDataException("The saved inventory catalog changed during inspection. Inspect it again.");
                     return true;
                 }, cancellation).ConfigureAwait(false);

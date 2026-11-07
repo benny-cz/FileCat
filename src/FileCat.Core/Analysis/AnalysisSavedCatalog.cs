@@ -19,16 +19,19 @@ public sealed record AnalysisSavedView(AnalysisMetric Metric, string Chart, stri
 
 public sealed record AnalysisSavedEntry(Guid InventoryId, string Name, long Bytes, DateTimeOffset SavedUtc,
     NamespaceCoverage Coverage, AnalysisTaint Taint, AnalysisSavedView View);
+public sealed record AnalysisPendingDeletion(Guid OperationId, AnalysisSavedEntry Entry, bool PayloadPresent);
 
 /// <summary>An inert bounded catalog result. Dispose after copying the selected entry; no native handles are retained.</summary>
 public sealed class AnalysisCatalogSnapshot : IDisposable
 {
     private IDisposable? _memory;
-    internal AnalysisCatalogSnapshot(Guid? id, ImmutableArray<AnalysisSavedEntry> entries, ImmutableArray<string> unindexed, int metadataBytes, IDisposable memory)
-    { CatalogId = id; Entries = entries; UnindexedNames = unindexed; MetadataBytes = metadataBytes; _memory = memory; }
+    internal AnalysisCatalogSnapshot(Guid? id, ImmutableArray<AnalysisSavedEntry> entries, ImmutableArray<string> unindexed, int metadataBytes, IDisposable memory,
+        ImmutableArray<AnalysisPendingDeletion> pending = default)
+    { CatalogId = id; Entries = entries; UnindexedNames = unindexed; MetadataBytes = metadataBytes; _memory = memory; PendingDeletions = pending.IsDefault ? [] : pending; }
     public Guid? CatalogId { get; }
     public ImmutableArray<AnalysisSavedEntry> Entries { get; }
     public ImmutableArray<string> UnindexedNames { get; }
+    public ImmutableArray<AnalysisPendingDeletion> PendingDeletions { get; }
     internal int MetadataBytes { get; }
     public void Dispose() => Interlocked.Exchange(ref _memory, null)?.Dispose();
 }
@@ -52,7 +55,8 @@ public sealed partial class AnalysisSavedCatalog
     public const int EntryLimit = 4096;
     // Worst-case JSON escaping of an 8KiB query plus 32 256-byte root IDs fits
     // within 128KiB. The total catalog and its shared reservation stay bounded.
-    private const int EntryBytes = 128 * 1024, TotalBytes = 2 * 1024 * 1024;
+    internal const int EntryBytes = 128 * 1024;
+    private const int TotalBytes = 2 * 1024 * 1024;
     private const long Reservation = 32L * 1024 * 1024;
     private static long s_reserved;
 
@@ -79,6 +83,7 @@ public sealed partial class AnalysisSavedCatalog
             string[] names = store.Entries(cancellation); var set = names.ToHashSet(StringComparer.Ordinal);
             if (set.Count != names.Length) throw Invalid("The private catalog changed during enumeration. Try again.");
             Guid? catalog = null; var entries = ImmutableArray.CreateBuilder<AnalysisSavedEntry>();
+            var pending = ImmutableArray.CreateBuilder<AnalysisPendingDeletion>();
             int bytes = 0;
             if (set.Contains(AnalysisPrivateNames.Catalog))
             {
@@ -91,13 +96,15 @@ public sealed partial class AnalysisSavedCatalog
             {
                 cancellation.ThrowIfCancellationRequested();
                 if (!AnalysisPrivateNames.IsMetadata(name) || name is AnalysisPrivateNames.Catalog or AnalysisPrivateNames.PrivateState or AnalysisPrivateNames.CatalogWriteLock || AnalysisPrivateNames.IsCapacityToken(name)) continue;
-                if (catalog is null || name.AsSpan(8, 32).ToString() != catalog.Value.ToString("N")) throw Invalid("A catalog entry has no matching supported catalog header.");
-                if (entries.Count >= EntryLimit) throw Invalid("The saved analysis catalog entry limit was reached.");
+                bool deleting = AnalysisPrivateNames.TryPendingDeletion(name, out var deletingCatalog, out var deletingInventory, out var operation);
+                if (catalog is null || (deleting ? deletingCatalog != catalog.Value : name.AsSpan(8, 32).ToString() != catalog.Value.ToString("N"))) throw Invalid("A catalog entry has no matching supported catalog header.");
+                if (entries.Count + pending.Count >= EntryLimit) throw Invalid("The saved analysis catalog entry limit was reached.");
                 byte[] data = store.ReadMetadata(name, cancellation, EntryBytes); bytes = checked(bytes + data.Length);
                 if (bytes > TotalBytes) throw Invalid("The saved analysis catalog exceeds its metadata budget.");
                 var entry = DecodeEntry(data, catalog.Value);
-                if (name != AnalysisPrivateNames.CatalogEntry(catalog.Value, entry.InventoryId) || !ids.Add(entry.InventoryId) || !indexed.Add(entry.Name))
+                if ((deleting ? deletingInventory != entry.InventoryId : name != AnalysisPrivateNames.CatalogEntry(catalog.Value, entry.InventoryId)) || !ids.Add(entry.InventoryId) || !indexed.Add(entry.Name))
                     throw Invalid("The saved analysis catalog has conflicting generated identities or names.");
+                if (deleting) { pending.Add(new(operation, entry, set.Contains(entry.Name))); continue; }
                 if (!set.Contains(entry.Name)) throw Invalid("A cataloged inventory is missing. Open remaining files by filename; no catalog repair was performed.");
                 entries.Add(entry);
             }
@@ -110,8 +117,9 @@ public sealed partial class AnalysisSavedCatalog
                 catch (ArgumentException) { continue; }
                 unindexed.Add(name);
             }
+            if (pending.Count != 0) _ = new AnalysisPrivateProfileState(store).ReadExisting(cancellation);
             var result = new AnalysisCatalogSnapshot(catalog, entries.OrderByDescending(e => e.SavedUtc).ThenBy(e => e.Name, StringComparer.Ordinal).ToImmutableArray(),
-                unindexed.Order(StringComparer.Ordinal).ToImmutableArray(), bytes, memory);
+                unindexed.Order(StringComparer.Ordinal).ToImmutableArray(), bytes, memory, pending.OrderBy(p => p.Entry.Name, StringComparer.Ordinal).ToImmutableArray());
             memory = null!; return result;
         }
         finally { memory?.Dispose(); }
@@ -145,6 +153,13 @@ public sealed partial class AnalysisSavedCatalog
             System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw();
             throw Invalid("The private catalog header could not be published.");
         }
+    }
+
+    internal Guid ReadIdentity(CancellationToken cancellation)
+    {
+        byte[] bytes = store.ReadMetadata(AnalysisPrivateNames.Catalog, cancellation, 512);
+        using var document = Document(bytes, 512); var root = document.RootElement;
+        Fields(root, "schema", "kind", "catalog"); Schema(root, "catalog"); return Id(root.GetProperty("catalog"));
     }
 
     public AnalysisInventory Load(AnalysisSavedEntry entry, CancellationToken cancellation = default)
