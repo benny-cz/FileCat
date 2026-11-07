@@ -3,6 +3,24 @@
 These FileCat-owned probes exercise proposed native boundaries. They do not register an archive writer or qualify a
 shipped package. Check for other testers before running; close and reap only this task's processes afterwards.
 
+## Efficient validation batches
+
+Implement coherent changes across planning, workers, native transactions and their tests, then run a short Windows
+preflight covering complete creation and encrypted update/restoration before the broad matrix. This catches native
+handle-sharing and journal-read mistakes before repeating expensive format/platform suites. When Windows is busy,
+continue independent work and retain the guarded queue; never displace another tester.
+
+Reuse task-owned guest build roots and incremental outputs. Rebuild or republish production assets when their actual
+inputs change. Freeze source/binary hashes and compiler-source evidence for each phase before making further edits.
+For test-helper or evidence-tool corrections, retain the passing production regression and rerun affected paths or
+static audits. Broaden testing when production changes, failures or unresolved concerns require it. Every mandatory
+platform, security, crash, fuzz, interoperability and package gate still needs its own passing evidence.
+
+Use one guest-side driver for build, preflight, suites, independent readers and evidence collection, with consolidated
+status and a final process census. Check that compiler evidence covers every changed component, including `FileCat`
+itself and the exact DLL/PDB pairing, before scheduling long suites. Batch related transfers and collect one final
+bundle; do not repeat passing runtime tests to repair an evidence collector.
+
 ## Windows x64
 
 Build `tests/FileCat.Platform.Windows.Tests` and `tests/FileCat.CoreCrashHarness` with the pinned SDK. Publish a dedicated

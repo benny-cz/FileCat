@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 using System.Text.Json;
 
@@ -18,14 +19,27 @@ Guid sha256 = new("8829d00f-11b8-4213-878b-770e8597ac16"), sha1 = new("ff1816ec-
 Guid embeddedKind = new("0e8a571b-6926-466e-b4ad-8ab04611f5fe");
 var documents = new List<object>(); var binaries = new List<object>();
 long bytes = 0; int count = 0;
-foreach (string pdb in Directory.EnumerateFiles(publish, artifactSbom ? "ArtifactSbom.pdb" : "FileCat.*.pdb").Order(StringComparer.Ordinal))
+var symbols = Directory.EnumerateFiles(publish, "*.pdb").Where(path => artifactSbom
+    ? Path.GetFileName(path) == "ArtifactSbom.pdb"
+    : Path.GetFileName(path) == "FileCat.pdb" || Path.GetFileName(path).StartsWith("FileCat.", StringComparison.Ordinal)).Order(StringComparer.Ordinal).ToArray();
+if (!artifactSbom && File.Exists(Path.Combine(publish, "FileCat.dll")) && !symbols.Any(path => Path.GetFileName(path) == "FileCat.pdb"))
+{ Console.Error.WriteLine("The application binary requires its exact compiler symbols."); return 65; }
+foreach (string pdb in symbols)
 {
     string name = Path.GetFileNameWithoutExtension(pdb), dll = Path.ChangeExtension(pdb, ".dll");
-    binaries.Add(new { assembly = name, pdbSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(pdb))),
-        dllSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(dll))) });
     using var stream = File.OpenRead(pdb);
     using var provider = MetadataReaderProvider.FromPortablePdbStream(stream);
     MetadataReader reader = provider.GetMetadataReader();
+    var id = new BlobContentId((reader.DebugMetadataHeader ?? throw new InvalidDataException("Portable compiler symbols have no identity.")).Id);
+    using var assemblyStream = File.OpenRead(dll);
+    using var assembly = new PEReader(assemblyStream);
+    var codeViews = assembly.ReadDebugDirectory().Where(entry => entry.Type == DebugDirectoryEntryType.CodeView).ToArray();
+    if (codeViews.Length != 1) { Console.Error.WriteLine("The assembly has no unique compiler-symbol identity: " + name); return 65; }
+    var codeView = assembly.ReadCodeViewDebugDirectoryData(codeViews[0]);
+    if (codeView.Guid != id.Guid || codeViews[0].Stamp != id.Stamp || codeView.Age != 1)
+    { Console.Error.WriteLine("Compiler symbols do not belong to the assembly: " + name); return 65; }
+    binaries.Add(new { assembly = name, pdbBoundToAssembly = true, pdbSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(pdb))),
+        dllSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(dll))) });
     foreach (DocumentHandle handle in reader.Documents)
     {
         if (++count > 8192) throw new InvalidDataException("Compiler document count exceeds the audit bound.");
