@@ -38,6 +38,7 @@
     <Compile Include="..\AnalysisSourceFrontierFixture.cs" Link="AnalysisSourceFrontierFixture.cs" />
     <Compile Include="..\AnalysisFileQuotaCases.cs" Link="AnalysisFileQuotaCases.cs" />
     <Compile Include="..\AnalysisNativeHandleCases.cs" Link="AnalysisNativeHandleCases.cs" />
+    <Compile Include="..\AnalysisCapacityRetirementCases.cs" Link="AnalysisCapacityRetirementCases.cs" />
     <Compile Include="..\AnalysisNativeMemoryFallbackCases.cs" Link="AnalysisNativeMemoryFallbackCases.cs" />
     <Compile Include="..\AnalysisInventoryPathMapCases.cs" Link="AnalysisInventoryPathMapCases.cs" />
     <Compile Include="..\AnalysisInventoryStageCases.cs" Link="AnalysisInventoryStageCases.cs" />

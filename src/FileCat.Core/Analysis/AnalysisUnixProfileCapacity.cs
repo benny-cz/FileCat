@@ -19,6 +19,7 @@ internal sealed unsafe partial class AnalysisUnixProfileCapacity : IDisposable
     private readonly IDisposable _native;
     private int _id = -1, _units;
     private bool _registered, _disposed;
+    private Exception? _failure;
     internal int Units => _units;
     internal AnalysisUnixProfileCapacity(string domain)
     {
@@ -26,14 +27,14 @@ internal sealed unsafe partial class AnalysisUnixProfileCapacity : IDisposable
         _owner = GetEuid(); _native = AnalysisNativeHandles.Acquire();
         byte[] digest = SHA256.HashData(Encoding.ASCII.GetBytes(domain + ".uid=" + _owner.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         int key = BinaryPrimitives.ReadInt32LittleEndian(digest) & int.MaxValue; if (key == 0) key = 1;
-        bool locked = false, created = false;
+        bool locked = false, created = false, verified = false;
         try
         {
             _id = SemGet(key, Count, 0x200 | 0x400 | 0x180); // create-exclusive, owner read/write only
             created = _id >= 0;
             if (_id < 0 && Marshal.GetLastPInvokeError() == 17) _id = SemGet(key, Count, 0x180);
             if (_id < 0) throw Error("The private profile capacity set could not be opened.");
-            Verify();
+            Verify(); verified = true;
             // A key collision or an abandoned, unpublished initializer is unavailable, not
             // permission to initialize/delete another program's blank semaphore record.
             var initial = State();
@@ -51,24 +52,27 @@ internal sealed unsafe partial class AnalysisUnixProfileCapacity : IDisposable
             Operate([new(Users, 1, Nowait | Undo)]); _registered = true;
             Unlock(); locked = false;
         }
-        catch
+        catch (Exception operation)
         {
+            if (AnalysisCloseUnconfirmedException.IsPresent(operation) || created && !verified)
+            { RetainFailure(operation); throw AnalysisCloseUnconfirmedException.From(operation); }
             try
             {
-                if (!locked && created)
-                { try { Lock(); locked = true; } catch (IOException) { } }
+                if (!locked && created) { Lock(); locked = true; }
                 if (locked)
                 {
-                    try
-                    {
-                        if (_registered) { Operate([new(Users, -1, Nowait | Undo)]); _registered = false; }
-                        if ((created || Value(Initialized) == Marker) && Value(Users) == 0)
-                        { if (Control(0, 0, 0) < 0) throw Error("Private profile capacity cleanup failed."); locked = false; }
-                    }
-                    finally { if (locked) Unlock(); }
+                    if (_registered) { Operate([new(Users, -1, Nowait | Undo)]); _registered = false; }
+                    if ((created || Value(Initialized) == Marker) && Value(Users) == 0)
+                    { if (Control(0, 0, 0) < 0) throw Error("Private profile capacity cleanup failed."); locked = false; }
+                    if (locked) Unlock();
                 }
             }
-            finally { _native.Dispose(); }
+            catch (Exception cleanup)
+            {
+                RetainFailure(cleanup);
+                throw AnalysisCloseUnconfirmedException.From(new AggregateException(operation, cleanup));
+            }
+            _native.Dispose();
             throw;
         }
     }
@@ -76,13 +80,19 @@ internal sealed unsafe partial class AnalysisUnixProfileCapacity : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (required is < 0 or > Capacity) throw new ArgumentOutOfRangeException(nameof(required));
-        Verify();
-        var state = State();
-        if (state.Marker != Marker || state.Users < 1 || state.Available > Capacity) throw Invalid();
-        short delta = checked((short)(_units - required));
-        if (delta != 0 && !TryOperate([new(Available, delta, Nowait | Undo)])) return false;
-        _units = required; return true;
+        if (_failure is { } prior) throw AnalysisCloseUnconfirmedException.From(prior);
+        try
+        {
+            Verify();
+            var state = State();
+            if (state.Marker != Marker || state.Users < 1 || state.Available > Capacity) throw Invalid();
+            short delta = checked((short)(_units - required));
+            if (delta != 0 && !TryOperate([new(Available, delta, Nowait | Undo)])) return false;
+            _units = required; return true;
+        }
+        catch (Exception error) { RetainFailure(error); throw AnalysisCloseUnconfirmedException.From(error); }
     }
+
     private void Verify()
     {
         Span<byte> metadata = stackalloc byte[512]; metadata.Clear();
@@ -113,7 +123,11 @@ internal sealed unsafe partial class AnalysisUnixProfileCapacity : IDisposable
         }
         throw new IOException("Another process is updating profile capacity. Wait before starting new scratch work.");
     }
-    private void Unlock() => Operate([new(0, -1, Nowait | Undo)]);
+    private void Unlock()
+    {
+        try { Operate([new(0, -1, Nowait | Undo)]); }
+        catch (Exception error) { throw AnalysisCloseUnconfirmedException.From(error); }
+    }
     private void Operate(ReadOnlySpan<Operation> operations)
     { if (!TryOperate(operations)) throw new IOException("The private profile capacity update could not complete immediately."); }
     private bool TryOperate(ReadOnlySpan<Operation> operations)
@@ -128,28 +142,30 @@ internal sealed unsafe partial class AnalysisUnixProfileCapacity : IDisposable
         }
         throw new IOException("Profile capacity updates were repeatedly interrupted.");
     }
+    private void RetainFailure(Exception error) { _failure ??= error; AnalysisResourceQuarantine.Shared.Hold(this); }
     public void Dispose()
     {
-        if (_disposed) return;
-        bool locked = false;
+        if (_disposed) { if (_failure is { } prior) throw AnalysisCloseUnconfirmedException.From(prior); return; }
+        _disposed = true;
+        if (_failure is { } known) throw AnalysisCloseUnconfirmedException.From(known);
         try
         {
-            Verify(); Lock(); locked = true;
+            Verify(); Lock();
             if (_units == 0) Operate([new(Users, -1, Nowait | Undo)]);
             else Operate([new(Available, checked((short)_units), Nowait | Undo), new(Users, -1, Nowait | Undo)]);
-            _units = 0; _registered = false;
             if (Value(Users) == 0)
             {
-                // Registration and removal share the same kernel lock. A pending opener of this
-                // retired ID fails before acquiring capacity; it cannot become a second ceiling.
                 if (Value(Available) != Capacity || Control(0, 0, 0) < 0) throw Error("The idle private profile capacity set could not be retired.");
-                locked = false;
             }
+            else Unlock();
+            // Commit local accounting only after the entire retirement is confirmed.
+            _units = 0; _registered = false; _native.Dispose();
         }
-        finally
+        catch (Exception error)
         {
-            try { if (locked) Unlock(); }
-            finally { _disposed = true; _native.Dispose(); }
+            // SEM_UNDO, including any held protocol lock, belongs to actual process exit.
+            // Never return the native-owner slot or retry an uncertain protocol update.
+            RetainFailure(error); throw AnalysisCloseUnconfirmedException.From(error);
         }
     }
     private int Control(int number, int command, nint argument) => _mac && RuntimeInformation.ProcessArchitecture == Architecture.Arm64

@@ -114,6 +114,17 @@ internal static class AnalysisFileQuotaCases
         }
         finally { if (!child.HasExited) { child.Kill(); await child.WaitForExitAsync(Cancellation); } Assert.True(child.HasExited); }
     }
+    internal static async Task QuarantinedToken(Func<string, string, AnalysisPrivateDirectory> open)
+    {
+        using var fixture = new Fixture(open); using var contender = fixture.Open(); byte[] state = File.ReadAllBytes(fixture.State);
+        await AnalysisCapacityRetirementCases.RunAsync(fixture.Profile, "file", fixture.Parent, () =>
+        {
+            Assert.False(contender.TryReserve(Capacity)); Assert.True(contender.TryReserve(Capacity - Quantum)); Assert.False(contender.TryReserve(1));
+        }, () => AnalysisCapacityRetirementCases.ReuseAsync(contender));
+        contender.Dispose(); Assert.Equal(state, File.ReadAllBytes(fixture.State)); Assert.Equal("untouched neighbor", File.ReadAllText(fixture.Canary));
+        string expected = "FileCat profile capacity v1\n" + fixture.Profile.ToString("N") + "\n00\n";
+        Assert.Equal(expected, File.ReadAllText(Path.Combine(fixture.Directory, AnalysisPrivateNames.CapacityToken(0))));
+    }
     private sealed class Fixture : IDisposable
     {
         private readonly Func<string, string, AnalysisPrivateDirectory> _open;

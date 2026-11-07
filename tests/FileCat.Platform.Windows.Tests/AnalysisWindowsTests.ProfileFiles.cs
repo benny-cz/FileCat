@@ -5,6 +5,12 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed partial class AnalysisWindowsTests
 {
+    [Fact]
+    public async Task NativeFileTokenCloseRefusalKeepsCapacityAfterFinalQuotaCloseUntilActualExit()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows native fixtures.");
+        await AnalysisFileQuotaCases.QuarantinedToken((parent, name) => new WindowsAnalysisPrivateDirectory(parent, name));
+    }
     private static void FileQuotaOrdinary() => Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs an ordinary Windows process.");
     [Fact]
     public void NativePrivateFilesShareCapacityAndRetainItAfterOwnerClose()

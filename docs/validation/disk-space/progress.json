@@ -147,7 +147,8 @@
     "Private catalog-aware indexed loading now validates reviewed identity/actual bytes/coverage/taint, requires destination profile capacity, returns retained inert data and restores saved settings/original-ID scope through an internal app route. Native profile-backed UI controls and factory/metadata negatives pass all3 (11 new Core and10 rendering controls). Normal opener/persistence/comparison parity and full resource qualification remain pending.",
     "Unconfirmed close outcomes are now distinct across admitted releases, private file scopes, rollback and publication wrappers. Pending indexed imports retain failed-close admission across window replacement; caught view/persistence failures stay latched through actual drain and stop new view work. All7 new Core/4 rendering controls and the extended native private-file refusal probe pass all3, in one complete candidate batch per machine.",
     "Unconfirmed scratch closes retain exact byte charges and directory/profile capacity until process exit, reject new workspace admission, and preserve constructor rollback ownership. Four direct controls plus a real native cross-process capacity/actual-exit probe pass all3 in complete immutable candidate batches.",
-    "Checked native file/directory SafeHandle owners retain failed-close slots without retry, pin stream/offset I/O through actual completion and transfer fdopendir admission to closedir. Native128-handle, faulted-backend and129-cursor controls pass all3; profile/concurrent-create handling preserves close signals. Complete immutable candidate suites and relevant shared Windows helper regressions pass."
+    "Checked native file/directory SafeHandle owners retain failed-close slots without retry, pin stream/offset I/O through actual completion and transfer fdopendir admission to closedir. Native128-handle, faulted-backend and129-cursor controls pass all3; profile/concurrent-create handling preserves close signals. Complete immutable candidate suites and relevant shared Windows helper regressions pass.",
+    "File/profile token retirement preserves uncertain owners/units, rolls back independent tokens once and retains rejected probes. Checked Windows mutex and Unix protocol retirement preserve native charges. Failed final quota closure retains components, directory, bytes and its live worker/admission until process exit. Native cross-process locked-token, kernel failure and eight-worker/ninth-refusal controls pass all3 in complete candidate batches."
   ],
   "validation": {
     "windowsCore": {
@@ -2096,7 +2097,7 @@
     },
     "testingWorkflow": {
       "default": "Build and package the largest coherent implementation candidate, then transfer one immutable bundle per free platform and execute all applicable Core/native/rendering phases sequentially before collecting evidence. Preserve other testers and gate every phase.",
-      "batchEvidence": "source-manifest-r547.json",
+      "batchEvidence": "source-manifest-r551.json",
       "oneCandidateArchivePerPlatform": true,
       "postExecutionProcessExitRequired": true
     },
@@ -2406,9 +2407,8 @@
       ],
       "manifest": "source-manifest-r547.json",
       "nextCloseAccountingWork": [
-        "Retain uncertain AnalysisFileProfileCapacity token owners/Units instead of clearing them in Retire finally; prevent retry while closing independent confirmed tokens.",
-        "Complete named-mutex and Unix kernel-capacity close/rollback accounting, including native-handle reservations on uncertain cleanup.",
-        "Retain failed final quota components and dependent directory ownership; finish the full constructor/rollback/close-result matrix."
+        "Complete native acquisition/constructor/rollback and every close-result fault boundary, including actual OS failure modes and normal packaged lifetime qualification.",
+        "Qualify full shared memory/pending/CPU/device-alias admission, every hard limit and end-to-end1M/10M workloads."
       ],
       "nativeFileAndDirectoryCheckedCloseImplemented": true,
       "nativeGlobal128HandleProbePassedAllThree": true,
@@ -2423,11 +2423,245 @@
       "publicIndexedSpillEnabled": false,
       "persistenceGateQualified": false,
       "actionsHelperContentEnabled": false,
+      "finalIndependentReviewPerformed": false,
+      "implementationFollowupManifest": "source-manifest-r551.json"
+    },
+    "capacityRetirementOwnership": {
+      "scope": "File tokens, checked kernel ownership and retained workers; not full native constructor/global resource qualification",
+      "newCoreCases": 11,
+      "newCorePassesPerPlatform": 9,
+      "newCoreExpectedSkipsPerPlatform": 2,
+      "directTokenControls": 6,
+      "targetedControls": {
+        "mac": [
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.EightQuarantinedQuotaWorkersKeepTheGlobalAdmissionUntilProcessExit",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.UnconfirmedRetirementKeepsItsUnitAndAttemptsOtherTokensOnce",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeFileTokenCloseRefusalKeepsCapacityAfterFinalQuotaCloseUntilActualExit",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.DeniedGrowthRollbackRetainsFailedTokenAndClosesEveryOtherAcquisition",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.InvalidUnreturnedTokenKeepsItsOwnerAndPreventsASecondRead",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.ConfirmedShrinkAndFinalRetirementReturnExactlyTheirOwnUnits",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.LockAndCloseFailuresRemainVisibleWhileEarlierAcquisitionsAreClosed",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.UnconfirmedBusyProbeCloseKeepsItsProvisionalChargeAndCannotProbeAnotherSlot",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-release\\\")",
+            "result": "Skip"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-close\\\")",
+            "result": "Skip"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-removed\\\")",
+            "result": "Pass"
+          }
+        ],
+        "ubuntu": [
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.InvalidUnreturnedTokenKeepsItsOwnerAndPreventsASecondRead",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.LockAndCloseFailuresRemainVisibleWhileEarlierAcquisitionsAreClosed",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeFileTokenCloseRefusalKeepsCapacityAfterFinalQuotaCloseUntilActualExit",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.EightQuarantinedQuotaWorkersKeepTheGlobalAdmissionUntilProcessExit",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.ConfirmedShrinkAndFinalRetirementReturnExactlyTheirOwnUnits",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.UnconfirmedBusyProbeCloseKeepsItsProvisionalChargeAndCannotProbeAnotherSlot",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-release\\\")",
+            "result": "Skip"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-close\\\")",
+            "result": "Skip"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-removed\\\")",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.UnconfirmedRetirementKeepsItsUnitAndAttemptsOtherTokensOnce",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.DeniedGrowthRollbackRetainsFailedTokenAndClosesEveryOtherAcquisition",
+            "result": "Pass"
+          }
+        ],
+        "windows": [
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.UnconfirmedBusyProbeCloseKeepsItsProvisionalChargeAndCannotProbeAnotherSlot",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.EightQuarantinedQuotaWorkersKeepTheGlobalAdmissionUntilProcessExit",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.DeniedGrowthRollbackRetainsFailedTokenAndClosesEveryOtherAcquisition",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-release\\\")",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-close\\\")",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-removed\\\")",
+            "result": "Skip"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.ConfirmedShrinkAndFinalRetirementReturnExactlyTheirOwnUnits",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.UnconfirmedRetirementKeepsItsUnitAndAttemptsOtherTokensOnce",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.LockAndCloseFailuresRemainVisibleWhileEarlierAcquisitionsAreClosed",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeFileTokenCloseRefusalKeepsCapacityAfterFinalQuotaCloseUntilActualExit",
+            "result": "Skip"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.InvalidUnreturnedTokenKeepsItsOwnerAndPreventsASecondRead",
+            "result": "Pass"
+          }
+        ]
+      },
+      "matrix": {
+        "mac-batch-r549-core-r549.xml": {
+          "total": "703",
+          "passed": "699",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "21.601"
+        },
+        "mac-batch-r549-render-r549.xml": {
+          "total": "109",
+          "passed": "109",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "35.364"
+        },
+        "ubuntu-batch-r549-core-r549.xml": {
+          "total": "703",
+          "passed": "699",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "57.863"
+        },
+        "ubuntu-batch-r549-render-r549.xml": {
+          "total": "109",
+          "passed": "109",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "47.941"
+        },
+        "windows-batch-r549-core-r549.xml": {
+          "total": "721",
+          "passed": "673",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0",
+          "time": "18.918"
+        },
+        "windows-batch-r549-native-r549.xml": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "43.272"
+        },
+        "windows-batch-r549-render-r549.xml": {
+          "total": "109",
+          "passed": "108",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "64.856"
+        }
+      },
+      "singleImmutableBundlePerPlatform": true,
+      "postChecks": [
+        "mac-batch-r549-post.json",
+        "ubuntu-batch-r549-post.json",
+        "windows-batch-r549-post.json"
+      ],
+      "manifest": "source-manifest-r551.json",
+      "remainingResourceQualification": [
+        "Complete native acquisition/constructor/rollback and every close-result fault boundary, including actual OS failure modes and normal packaged lifetime qualification.",
+        "Qualify full shared memory/pending/CPU/device-alias admission, every hard limit and end-to-end1M/10M workloads."
+      ],
+      "fileTokenRetirementAccountingImplemented": true,
+      "checkedWindowsKernelHandleRetirementImplemented": true,
+      "faultedQuotaWorkerAdmissionImplemented": true,
+      "nativeCrossProcessFileTokenRetentionPassedAllThree": true,
+      "nativeWindowsMutexRetentionControlsPassed": true,
+      "nativeUnixRemovedIpcRetentionControlsPassed": true,
+      "nativeEightWorkerRetentionPassedAllThree": true,
+      "fullNativeConstructorRollbackFaultMatrixQualified": false,
+      "unconfirmedOwnerBudgetAccountingQualified": false,
+      "fullResourceGateQualified": false,
+      "globalPendingCpuDeviceAliasGateQualified": false,
+      "nativeDesktopInputQualified": false,
+      "productCommandRegistered": false,
+      "publicIndexedSpillEnabled": false,
+      "persistenceGateQualified": false,
+      "actionsHelperContentEnabled": false,
       "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
-    "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, bounded queue/CPU admission, actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete kernel IPC/profile-token retirement accounting and the full constructor/rollback fault matrix. Checked native file/directory ownership, the128-handle limit, faulted-backend refusal and129-cursor probes now pass all3, alongside scratch/profile capacity retention; the complete unconfirmed-owner/global resource gate remains unqualified.",
+    "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, bounded queue/CPU admission, actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: grouping/color dimensions, scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",

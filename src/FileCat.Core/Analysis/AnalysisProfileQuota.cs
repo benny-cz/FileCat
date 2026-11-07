@@ -18,8 +18,9 @@ public sealed class AnalysisProfileQuota : IDisposable
     private readonly BlockingCollection<Action> _commands = new(1);
     private readonly Thread _thread;
     private readonly string _name;
-    private readonly Mutex?[] _held = new Mutex?[Slots];
-    private readonly IDisposable?[] _handles = new IDisposable?[Slots];
+    private readonly AnalysisNativeMutex?[] _held = new AnalysisNativeMutex?[Slots];
+    private readonly Exception?[] _retireFailures = new Exception?[Slots];
+    private readonly Func<string, AnalysisNativeMutex> _mutexFactory;
     private AnalysisUnixProfileCapacity? _unix;
     private readonly AnalysisPrivateDirectory? _directory;
     private readonly Guid _profile;
@@ -46,9 +47,15 @@ public sealed class AnalysisProfileQuota : IDisposable
         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
         return new(privateProfileId, directory);
     }
-    private AnalysisProfileQuota(Guid profile, AnalysisPrivateDirectory? directory)
+    internal static AnalysisProfileQuota Open(Guid profile, Func<string, AnalysisNativeMutex> mutexFactory)
     {
-        _profile = profile; _directory = directory;
+        if (profile == Guid.Empty) throw new ArgumentException("A private profile ID is required.", nameof(profile));
+        if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
+        return new(profile, null, mutexFactory);
+    }
+    private AnalysisProfileQuota(Guid profile, AnalysisPrivateDirectory? directory, Func<string, AnalysisNativeMutex>? mutexFactory = null)
+    {
+        _profile = profile; _directory = directory; _mutexFactory = mutexFactory ?? (name => new(name));
         // No paths, host identities, queries or source names enter a public kernel-object name.
         _name = "FileCat.AnalysisQuota.v1." + Convert.ToHexStringLower(SHA256.HashData(Encoding.ASCII.GetBytes(profile.ToString("N"))));
         int workers = Interlocked.Increment(ref s_workers);
@@ -62,6 +69,8 @@ public sealed class AnalysisProfileQuota : IDisposable
         catch { Interlocked.Decrement(ref s_workers); _commands.Dispose(); throw; }
     }
     internal long ReservedBytes { get { lock (_gate) return _bytes; } }
+    internal bool WorkerAlive => _thread.IsAlive;
+    internal static int ActiveWorkers => Volatile.Read(ref s_workers);
     internal long CapacityBytes { get { lock (_gate) return (_files?.Units ?? _unix?.Units ?? _held.Count(item => item is not null)) * QuantumBytes; } }
     internal IDisposable Borrow()
     {
@@ -110,7 +119,9 @@ public sealed class AnalysisProfileQuota : IDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (bytes < 0 || bytes > _bytes) throw new InvalidOperationException("The capacity reservation does not belong to this profile owner.");
             long next = _bytes - bytes;
-            Invoke(() => { Shrink(Units(next)); return true; }); _bytes = next;
+            try { Invoke(() => { Shrink(Units(next)); return true; }); }
+            catch (Exception error) { _failure ??= error; throw; }
+            _bytes = next;
         }
     }
     private static int Units(long bytes) => checked((int)((bytes + QuantumBytes - 1) / QuantumBytes));
@@ -130,27 +141,27 @@ public sealed class AnalysisProfileQuota : IDisposable
             for (int slot = 0; slot < Slots && current + acquired.Count < required; slot++)
             {
                 if (_held[slot] is not null) continue;
-                IDisposable? reservation = AnalysisNativeHandles.Acquire(); Mutex? mutex = null; bool owned = false;
+                AnalysisNativeMutex? mutex = _mutexFactory(_name + "." + slot);
                 try
                 {
-                    // Both choices are explicit: never accept the cross-user Unix namespace or a
-                    // shell/RDP-session-specific ceiling. The runtime verifies existing object ACLs.
-                    mutex = new Mutex(false, _name + "." + slot, new NamedWaitHandleOptions { CurrentUserOnly = true, CurrentSessionOnly = false });
-                    try { owned = mutex.WaitOne(0); }
-                    catch (AbandonedMutexException) { owned = true; } // No protected mutable record to recover.
-                    if (!owned) continue;
-                    _held[slot] = mutex; _handles[slot] = reservation; acquired.Add(slot); mutex = null; reservation = null;
+                    if (!mutex.TryAcquire()) continue;
+                    _held[slot] = mutex; acquired.Add(slot); mutex = null;
                 }
-                finally { mutex?.Dispose(); reservation?.Dispose(); }
+                finally { mutex?.Dispose(); }
             }
             if (current + acquired.Count == required) return true;
         }
-        catch
+        catch (Exception operation)
         {
-            foreach (int slot in acquired) { try { Retire(slot); } catch (Exception error) { _failure ??= error; } }
+            List<Exception>? errors = null;
+            foreach (int slot in acquired)
+                try { Retire(slot); } catch (Exception close) { (errors ??= [operation]).Add(close); }
+            if (errors is not null) throw new AggregateException(errors);
             throw;
         }
-        foreach (int slot in acquired) Retire(slot);
+        Exception? rollback = null;
+        foreach (int slot in acquired) try { Retire(slot); } catch (Exception error) { rollback ??= error; }
+        if (rollback is not null) ExceptionDispatchInfo.Capture(rollback).Throw();
         return false;
     }
     private void Shrink(int required)
@@ -167,14 +178,15 @@ public sealed class AnalysisProfileQuota : IDisposable
         Exception? error = null;
         for (int slot = Slots - 1; slot >= 0 && current > required; slot--)
             if (_held[slot] is not null)
-            { try { Retire(slot); } catch (Exception failure) { _failure ??= failure; error ??= failure; } finally { current--; } }
+            { try { Retire(slot); current--; } catch (Exception failure) { _failure ??= failure; error ??= failure; } }
         if (error is not null) ExceptionDispatchInfo.Capture(error).Throw();
     }
     private void Retire(int slot)
     {
-        var mutex = _held[slot]!;
-        try { mutex.ReleaseMutex(); }
-        finally { try { mutex.Dispose(); } finally { _held[slot] = null; _handles[slot]?.Dispose(); _handles[slot] = null; } }
+        if (_retireFailures[slot] is { } prior) throw AnalysisCloseUnconfirmedException.From(prior);
+        try { _held[slot]!.Dispose(); }
+        catch (Exception error) { _retireFailures[slot] = error; _failure ??= error; throw; }
+        _held[slot] = null;
     }
     private T Invoke<T>(Func<T> work)
     {
@@ -204,17 +216,34 @@ public sealed class AnalysisProfileQuota : IDisposable
             try { Invoke(() =>
             {
                 Exception? failure = null;
-                try { Shrink(0); } catch (Exception ex) { failure = ex; }
-                try { _unix?.Dispose(); } catch (Exception ex) { failure ??= ex; } finally { _unix = null; }
-                try { _files?.Dispose(); } catch (Exception ex) { failure ??= ex; } finally { _files = null; }
-                try { _directory?.Dispose(); } catch (Exception ex) { failure ??= ex; }
+                // Each component owns its final retirement. Do not retry Shrink(0) first,
+                // or erase a component whose native ownership remains unconfirmed.
+                if (_unix is not null)
+                    try { _unix.Dispose(); _unix = null; } catch (Exception ex) { failure ??= ex; }
+                if (_files is not null)
+                    try { _files.Dispose(); _files = null; } catch (Exception ex) { failure ??= ex; }
+                for (int slot = Slots - 1; slot >= 0; slot--)
+                    if (_held[slot] is not null)
+                        try { Retire(slot); } catch (Exception ex) { failure ??= ex; }
+                if (failure is null && _directory is not null)
+                    try { AnalysisIo.CloseOnWorker(_directory); } catch (Exception ex) { failure = ex; }
                 if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
                 return true;
             }); }
             catch (Exception failure) { error = failure; }
-            finally { _disposed = true; if (error is null) _bytes = 0; _commands.CompleteAdding(); }
+            finally
+            {
+                _disposed = true;
+                if (error is null) { _bytes = 0; _commands.CompleteAdding(); }
+                else
+                {
+                    _failure ??= error; AnalysisResourceQuarantine.Shared.Hold(this);
+                    // A live background worker preserves thread-owned mutex capacity. Its
+                    // global worker admission also remains charged until process exit.
+                }
+            }
         }
-        _thread.Join(); _commands.Dispose();
+        if (error is null) { _thread.Join(); _commands.Dispose(); }
         if (error is not null) ExceptionDispatchInfo.Capture(error).Throw();
     }
     private sealed class Retention(AnalysisProfileQuota owner) : IDisposable

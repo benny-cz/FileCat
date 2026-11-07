@@ -15,11 +15,15 @@ internal sealed class AnalysisFileProfileCapacity : IDisposable
     private readonly AnalysisPrivateInventoryStore _store;
     private readonly Guid _profile;
     private readonly AnalysisPrivateFile?[] _held = new AnalysisPrivateFile?[Slots];
+    private readonly Exception?[] _closeFailures = new Exception?[Slots];
+    private readonly AnalysisResourceQuarantine _quarantine;
+    private AnalysisPrivateFile? _rejectedOwner;
+    private Exception? _failure;
     private bool _disposed;
     internal int Units { get; private set; }
-    internal AnalysisFileProfileCapacity(AnalysisPrivateDirectory directory, Guid profile)
+    internal AnalysisFileProfileCapacity(AnalysisPrivateDirectory directory, Guid profile, AnalysisResourceQuarantine? quarantine = null)
     {
-        _directory = directory; _profile = profile; _store = new(directory, leaveOpen: true);
+        _directory = directory; _profile = profile; _store = new(directory, leaveOpen: true); _quarantine = quarantine ?? AnalysisResourceQuarantine.Shared;
         if (new AnalysisPrivateProfileState(_store).ReadExisting() != profile)
             throw new IOException("The retained private profile identity changed before capacity admission.");
     }
@@ -27,6 +31,7 @@ internal sealed class AnalysisFileProfileCapacity : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (required is < 0 or > Slots) throw new ArgumentOutOfRangeException(nameof(required));
+        if (_failure is { } prior) throw AnalysisCloseUnconfirmedException.From(prior);
         if (required <= Units)
         {
             Exception? error = null;
@@ -41,19 +46,29 @@ internal sealed class AnalysisFileProfileCapacity : IDisposable
             for (int slot = 0; slot < Slots && Units < required; slot++)
             {
                 if (_held[slot] is not null) continue;
-                AnalysisPrivateFile? file = OpenToken(slot);
+                var file = OpenToken(slot);
+                _held[slot] = file; Units++; // Own the probe before attempting the native lock.
                 try
                 {
-                    if (!file.TryLockCapacity()) continue;
-                    _held[slot] = file; file = null; Units++; acquired.Add(slot);
+                    if (file.TryLockCapacity()) { acquired.Add(slot); continue; }
                 }
-                finally { file?.Dispose(); }
+                catch (Exception operation)
+                {
+                    try { Retire(slot); }
+                    catch (Exception close) { throw new AggregateException(operation, close); }
+                    throw;
+                }
+                Retire(slot);
             }
             if (Units == required) return true;
         }
-        catch
+        catch (Exception operation)
         {
-            foreach (int slot in acquired) try { Retire(slot); } catch { /* Owner latches the operational failure; attempt every close. */ }
+            if (AnalysisCloseUnconfirmedException.IsPresent(operation)) RetainFailure(operation);
+            List<Exception>? errors = null;
+            foreach (int slot in acquired)
+                try { Retire(slot); } catch (Exception close) { (errors ??= [operation]).Add(close); }
+            if (errors is not null) throw new AggregateException(errors);
             throw;
         }
         Exception? rollback = null;
@@ -83,18 +98,38 @@ internal sealed class AnalysisFileProfileCapacity : IDisposable
             if (!bytes.AsSpan().SequenceEqual(expected)) throw Invalid();
             return file;
         }
-        catch { file.Dispose(); throw; }
+        catch (Exception operation)
+        {
+            try { AnalysisIo.CloseOnWorker(file); }
+            catch (Exception close)
+            {
+                _rejectedOwner = file; RetainFailure(close);
+                throw new AggregateException(operation, close);
+            }
+            throw;
+        }
     }
     private static IOException Invalid() => new("The private profile capacity token is unsupported or invalid. Existing bytes were preserved.");
     private void Retire(int slot)
     {
-        try { _held[slot]!.Dispose(); }
-        finally { _held[slot] = null; Units--; }
+        if (_closeFailures[slot] is { } prior) throw AnalysisCloseUnconfirmedException.From(prior);
+        try { AnalysisIo.CloseOnWorker(_held[slot]!); }
+        catch (Exception error)
+        { _closeFailures[slot] = error; RetainFailure(error); throw; }
+        _held[slot] = null; Units--;
     }
+    private void RetainFailure(Exception error) { _failure ??= error; _quarantine.Hold(this); }
     public void Dispose()
     {
-        if (_disposed) return;
-        try { SetUnits(0); }
-        finally { _disposed = true; _store.Dispose(); }
+        if (_disposed) { if (_failure is { } prior) throw AnalysisCloseUnconfirmedException.From(prior); return; }
+        _disposed = true;
+        List<Exception>? errors = null;
+        for (int slot = Slots - 1; slot >= 0; slot--)
+            if (_held[slot] is not null && _closeFailures[slot] is null)
+                try { Retire(slot); } catch (Exception error) { (errors ??= []).Add(error); }
+        try { _store.Dispose(); } catch (Exception error) { RetainFailure(error); (errors ??= []).Add(error); }
+        GC.KeepAlive(_rejectedOwner);
+        if (_failure is { } failure && (errors is null || !errors.Contains(failure))) (errors ??= []).Add(failure);
+        if (errors is not null) throw AnalysisCloseUnconfirmedException.From(errors.Count == 1 ? errors[0] : new AggregateException(errors));
     }
 }

@@ -31,7 +31,7 @@ internal sealed partial class AnalysisNativeHandle : SafeHandle
     internal static AnalysisNativeHandle UnixFile(int fd, IDisposable reservation, Func<nint, bool>? close = null) => new(fd, Kind.UnixFile, reservation, close: close);
 
     // Transfer is only for a freshly returned native open, before any I/O or publication.
-    internal static AnalysisNativeHandle Adopt(SafeFileHandle original, IDisposable reservation,
+    internal static AnalysisNativeHandle Adopt(SafeHandle original, IDisposable reservation,
         AnalysisResourceQuarantine? quarantine = null, Func<nint, bool>? close = null)
     {
         bool held = false;
