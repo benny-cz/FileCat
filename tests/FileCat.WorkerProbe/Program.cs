@@ -9,7 +9,8 @@ if (args.Length > 0 && args[0] == FileCat.Core.Archives.Linux.LinuxArchiveIsolat
         {
             string[] requests = args[4..^2];
             if (requests.Length == 0 || requests[0] is "archive-assess" or "archive-verify" or "archive-transform" or
-                "archive-secret-assess" or "archive-secret-transform" or "archive-secret-verify" &&
+                "archive-secret-assess" or "archive-secret-transform" or "archive-secret-verify" or
+                "archive-assess-v2" or "archive-transform-v2" or "archive-verify-v2" &&
                 (requests.Length != 2 || requests[1] != startup.Nonce.ToString("D"))) return 64;
             return RunProbe(requests, startup.CancellationDescriptor);
         });
@@ -52,11 +53,17 @@ static int RunProbe(string[] requests, long? cancellationHandle = null)
         case "archive-assess":
         case "archive-verify":
         case "archive-transform":
+        case "archive-assess-v2":
+        case "archive-verify-v2":
+        case "archive-transform-v2":
             if (requests.Length != 2 || !Guid.TryParse(requests[1], out Guid taskNonce) || taskNonce == Guid.Empty || cancellationHandle is null) return 2;
             return FileCat.Core.Archives.ArchiveWorkerCancellation.Run(cancellationHandle.Value, (input, output, ct) => requests[0] switch
                 {
                     "archive-transform" => FileCat.Archives.Writing.ArchiveTransformWorker.RunAfterIsolation(input, output, taskNonce, ct),
+                    "archive-transform-v2" => FileCat.Archives.Writing.ArchiveTransformWorker.RunAfterIsolation(input, output, taskNonce, ct, 2),
                     "archive-verify" => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, taskNonce, ct),
+                    "archive-verify-v2" => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, taskNonce, ct, 2),
+                    "archive-assess-v2" => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunAfterIsolation(input, output, taskNonce, ct, 2),
                     _ => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunAfterIsolation(input, output, taskNonce, ct)
                 });
 

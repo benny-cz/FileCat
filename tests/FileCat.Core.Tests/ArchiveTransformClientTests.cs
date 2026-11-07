@@ -12,7 +12,7 @@ public sealed class ArchiveTransformClientTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private static string Hash(byte[] data) => Convert.ToHexString(SHA256.HashData(data));
     private static ArchiveTransformInput Input(int id, byte[] data) => new(id, data.Length, Hash(data), DateTimeOffset.UnixEpoch.AddTicks(7));
-    private static async Task Verify(ArchiveTarTransformInvocation invocation, byte[] data)
+    private static async Task Verify(ArchiveTransformInvocation invocation, byte[] data)
     {
         var result = await new ArchiveVerificationClient((nonce, _) => Child.Start(nonce, "archive-verify"))
             .VerifyAsync(new("parent-stage", data.Length, Hash(data)), invocation.Expected, () => new MemoryStream(data, writable: false), Ct);

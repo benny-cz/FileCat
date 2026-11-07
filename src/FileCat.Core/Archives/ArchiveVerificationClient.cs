@@ -21,29 +21,34 @@ public sealed class ArchiveVerificationResult
 public sealed class ArchiveVerificationClient
 {
     private readonly ArchiveAssessmentClient worker;
-    public ArchiveVerificationClient(Func<Guid, TimeSpan, IArchiveWorkerProcess> launchFreshVerifier, ArchiveWorkerQueue? queue = null)
+    public ArchiveVerificationClient(Func<Guid, TimeSpan, IArchiveWorkerProcess> launchFreshVerifier, ArchiveWorkerQueue? queue = null,
+        ushort protocolVersion = ArchiveWorkerProtocol.Version)
     {
         ArgumentNullException.ThrowIfNull(launchFreshVerifier);
-        worker = new(launchFreshVerifier, queue ?? ArchiveWorkerQueue.Shared, TimeSpan.FromSeconds(30), TimeSpan.FromHours(12), verification: true);
+        worker = new(launchFreshVerifier, queue ?? ArchiveWorkerQueue.Shared, TimeSpan.FromSeconds(30), TimeSpan.FromHours(12), verification: true, protocolVersion: protocolVersion);
     }
 
     public async Task<ArchiveVerificationResult> VerifyAsync(ArchiveObjectVersion sealedStage, ArchiveWriteManifest expected,
-        Func<Stream> openPinnedStage, CancellationToken ct)
+        Func<Stream> openPinnedStage, CancellationToken ct, ArchiveWorkerSecretGrant? password = null)
     {
-        ArgumentNullException.ThrowIfNull(sealedStage); ArgumentNullException.ThrowIfNull(expected); ArgumentNullException.ThrowIfNull(openPinnedStage);
-        // The decoder endpoint handles TAR and the admitted neutral gzip wrapper. Format expansion needs complete
-        // framing/metadata evidence and cannot silently route through the browsing/tolerant reader.
-        if (expected.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd))
-            throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This archive verification profile has not been implemented.");
-        ArchiveTarFeatures.Validate(expected.Profile, expected.Features);
-        ct.ThrowIfCancellationRequested();
-        var observed = await worker.AssessAsync(new(expected.Profile, sealedStage.Length, sealedStage.Sha256), openPinnedStage, ct).ConfigureAwait(false);
-        ct.ThrowIfCancellationRequested();
-        if (observed.SourceLength != sealedStage.Length || observed.SourceSha256 != sealedStage.Sha256 ||
-            observed.Manifest.Digest != expected.Digest || observed.Manifest.ContentDigest != expected.ContentDigest ||
-            observed.Manifest.MetadataDigest != expected.MetadataDigest)
-            throw new ArchiveWriteException(ArchiveWriteReason.VerificationFailed,
-                "The fresh archive verifier did not match the complete expected member order, content and metadata. The archive remains unpublished.");
-        return new(sealedStage, observed.Manifest);
+        try
+        {
+            ArgumentNullException.ThrowIfNull(sealedStage); ArgumentNullException.ThrowIfNull(expected); ArgumentNullException.ThrowIfNull(openPinnedStage);
+            // Each endpoint uses complete strict framing/content observations; tolerant browsing cannot verify output.
+            if (expected.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5))
+                throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This archive verification profile has not been implemented.");
+            if (expected.Profile.Format == ArchiveWriteFormat.Rar5) _ = ArchiveRar5Features.Decode(expected.Features);
+            else ArchiveTarFeatures.Validate(expected.Profile, expected.Features);
+            ct.ThrowIfCancellationRequested();
+            var observed = await worker.AssessAsync(new(expected.Profile, sealedStage.Length, sealedStage.Sha256), openPinnedStage, ct, password).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            if (observed.SourceLength != sealedStage.Length || observed.SourceSha256 != sealedStage.Sha256 ||
+                observed.Manifest.Digest != expected.Digest || observed.Manifest.ContentDigest != expected.ContentDigest ||
+                observed.Manifest.MetadataDigest != expected.MetadataDigest)
+                throw new ArchiveWriteException(ArchiveWriteReason.VerificationFailed,
+                    "The fresh archive verifier did not match the complete expected member order, content and metadata. The archive remains unpublished.");
+            return new(sealedStage, observed.Manifest);
+        }
+        finally { password?.Dispose(); }
     }
 }

@@ -22,6 +22,10 @@ internal static class Rar5SemanticCatalog
     {
         if (profile.Version != 2 || profile.Format != ArchiveWriteFormat.Rar5)
             throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This RAR catalog needs the explicit RAR5 writing profile.");
+        var mode = catalog.Physical.HiddenNames ? ArchiveEncryptionMode.DataAndNames : catalog.Members.Any(member => member.Physical.Encryption is not null)
+            ? ArchiveEncryptionMode.Data : ArchiveEncryptionMode.None;
+        if (profile.Encryption.Mode != mode)
+            throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "The observed RAR password mode differs from the requested profile.");
         var budget = new ArchiveWriteBudget();
         budget.AddMetadata(0, checked(catalog.Physical.RetainedHeapBytes + catalog.Members.Count * 256L));
         var members = new List<ArchiveManifestMember>(catalog.Members.Count);

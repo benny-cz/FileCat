@@ -12,24 +12,29 @@ namespace FileCat.Archives.Writing;
 /// </summary>
 public static class ArchiveAssessmentWorker
 {
-    public static int RunAfterIsolation(Stream input, Stream output, Guid nonce, CancellationToken ct = default)
-        => Run(input, output, nonce, verification: false, ct);
+    public static int RunAfterIsolation(Stream input, Stream output, Guid nonce, CancellationToken ct = default,
+        ushort protocolVersion = ArchiveWorkerProtocol.Version)
+        => Run(input, output, nonce, verification: false, ct, protocolVersion);
 
-    public static int RunVerificationAfterIsolation(Stream input, Stream output, Guid nonce, CancellationToken ct = default)
-        => Run(input, output, nonce, verification: true, ct);
+    public static int RunVerificationAfterIsolation(Stream input, Stream output, Guid nonce, CancellationToken ct = default,
+        ushort protocolVersion = ArchiveWorkerProtocol.Version)
+        => Run(input, output, nonce, verification: true, ct, protocolVersion);
 
-    private static int Run(Stream input, Stream output, Guid nonce, bool verification, CancellationToken ct)
+    private static int Run(Stream input, Stream output, Guid nonce, bool verification, CancellationToken ct, ushort protocolVersion)
     {
-        var receive = new ArchiveWorkerProtocol(nonce, ArchiveWritePolicy.MaxWorkerWireBytes);
-        var send = new ArchiveWorkerProtocol(nonce, ArchiveWritePolicy.MaxWorkerWireBytes);
+        var receive = new ArchiveWorkerProtocol(nonce, ArchiveWritePolicy.MaxWorkerWireBytes, protocolVersion);
+        var send = new ArchiveWorkerProtocol(nonce, ArchiveWritePolicy.MaxWorkerWireBytes, protocolVersion);
         var incoming = new ArchiveWorkerRecords(receive, input, writing: false);
         var outgoing = new ArchiveWorkerRecords(send, output, writing: true);
         try
         {
-            send.Write(output, ArchiveWorkerMessage.Hello, verification ? ArchiveAssessmentWire.VerificationHello : ArchiveAssessmentWire.Hello);
+            send.Write(output, ArchiveWorkerMessage.Hello, ArchiveAssessmentWire.HelloFor(verification, protocolVersion));
             var request = ArchiveAssessmentWire.ReadRequest(incoming.Read(ArchiveControlRecord.AssessmentRequest));
-            if (request.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd))
+            if (request.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5))
                 throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This worker profile has not been implemented.");
+            using var passwords = request.Profile.Format == ArchiveWriteFormat.Rar5
+                ? Rar5WorkerPasswords.Receive(receive, input, request.Profile, verification ? ArchiveWorkerRole.Verify : ArchiveWorkerRole.Assess,
+                    ArchiveAssessmentWire.RequestDigest(request), read: true, write: false, ct) : null;
             var connection = new ArchiveProxyConnection(frame =>
             {
                 ct.ThrowIfCancellationRequested();
@@ -41,37 +46,49 @@ public static class ArchiveAssessmentWorker
             if (physicalDigest != request.SourceSha256)
                 throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The pinned source differs from its reviewed revision.");
             source.Position = 0;
-            TarWriteCatalog catalog; byte os = 255, block = 9, zstdChecksum = 1; byte? flags = null;
-            if (request.Profile.Format == ArchiveWriteFormat.Tar)
+            ArchiveWriteManifest manifest;
+            if (request.Profile.Format == ArchiveWriteFormat.Rar5)
             {
-                catalog = StrictTarCatalog.Read(source, ct);
-                if (catalog.Revision != request.SourceSha256 || catalog.Length != request.SourceLength)
-                    throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The pinned TAR changed during assessment.");
-                source.Position = 0; StrictTarCatalog.CompareDecoder(source, catalog, ct);
-            }
-            else if (request.Profile.Format == ArchiveWriteFormat.TarGzip)
-            {
-                var compressed = GzipTarRewriteEngine.Read(source, ct); catalog = compressed.Tar; os = compressed.OperatingSystem; flags = compressed.ExtraFlags;
-                source.Position = 0; using var decoded = new StrictGzipReadStream(source, ct);
-                if (decoded.OperatingSystem != os || decoded.ExtraFlags != flags)
-                    throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The gzip wrapper changed between assessment passes.");
-                StrictTarCatalog.CompareDecoder(decoded, catalog, ct); decoded.CopyTo(Stream.Null);
-            }
-            else if (request.Profile.Format == ArchiveWriteFormat.TarBzip2)
-            {
-                var compressed = Bzip2TarRewriteEngine.Read(source, ct); catalog = compressed.Tar; block = compressed.BlockSize;
-                source.Position = 0; using var decoded = new StrictBzip2ReadStream(source, ct);
-                if (decoded.BlockSize != block) throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The BZip2 block size changed between passes.");
-                StrictTarCatalog.CompareDecoder(decoded, catalog, ct); decoded.CopyTo(Stream.Null);
+                var rar = StrictRar5Catalog.Read(source, ct, passwords!.Read);
+                if (rar.Physical.Revision != physicalDigest || rar.Physical.Length != request.SourceLength)
+                    throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The complete RAR source changed during assessment.");
+                manifest = Rar5SemanticCatalog.Assessment(rar, request.Profile, ct).Manifest;
+                // Assessment remains observation. Validate all preservation/password facts again in parent planning.
             }
             else
             {
-                var compressed = ZstdTarRewriteEngine.Read(source, ct); catalog = compressed.Tar; zstdChecksum = compressed.Header.Checksum ? (byte)1 : (byte)0;
-                source.Position = 0; using var decoded = new StrictZstdReadStream(source, ct);
-                if (!decoded.Header.Bytes.SequenceEqual(compressed.Header.Bytes)) throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The Zstandard header changed between passes.");
-                StrictTarCatalog.CompareDecoder(decoded, catalog, ct); decoded.CopyTo(Stream.Null);
+                TarWriteCatalog catalog; byte os = 255, block = 9, zstdChecksum = 1; byte? flags = null;
+                if (request.Profile.Format == ArchiveWriteFormat.Tar)
+                {
+                    catalog = StrictTarCatalog.Read(source, ct);
+                    if (catalog.Revision != request.SourceSha256 || catalog.Length != request.SourceLength)
+                        throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The pinned TAR changed during assessment.");
+                    source.Position = 0; StrictTarCatalog.CompareDecoder(source, catalog, ct);
+                }
+                else if (request.Profile.Format == ArchiveWriteFormat.TarGzip)
+                {
+                    var compressed = GzipTarRewriteEngine.Read(source, ct); catalog = compressed.Tar; os = compressed.OperatingSystem; flags = compressed.ExtraFlags;
+                    source.Position = 0; using var decoded = new StrictGzipReadStream(source, ct);
+                    if (decoded.OperatingSystem != os || decoded.ExtraFlags != flags)
+                        throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The gzip wrapper changed between assessment passes.");
+                    StrictTarCatalog.CompareDecoder(decoded, catalog, ct); decoded.CopyTo(Stream.Null);
+                }
+                else if (request.Profile.Format == ArchiveWriteFormat.TarBzip2)
+                {
+                    var compressed = Bzip2TarRewriteEngine.Read(source, ct); catalog = compressed.Tar; block = compressed.BlockSize;
+                    source.Position = 0; using var decoded = new StrictBzip2ReadStream(source, ct);
+                    if (decoded.BlockSize != block) throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The BZip2 block size changed between passes.");
+                    StrictTarCatalog.CompareDecoder(decoded, catalog, ct); decoded.CopyTo(Stream.Null);
+                }
+                else
+                {
+                    var compressed = ZstdTarRewriteEngine.Read(source, ct); catalog = compressed.Tar; zstdChecksum = compressed.Header.Checksum ? (byte)1 : (byte)0;
+                    source.Position = 0; using var decoded = new StrictZstdReadStream(source, ct);
+                    if (!decoded.Header.Bytes.SequenceEqual(compressed.Header.Bytes)) throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The Zstandard header changed between passes.");
+                    StrictTarCatalog.CompareDecoder(decoded, catalog, ct); decoded.CopyTo(Stream.Null);
+                }
+                manifest = Manifest(request.Profile, catalog.Format, catalog.Members, ct, os, flags, block, zstdChecksum);
             }
-            var manifest = Manifest(request.Profile, catalog.Format, catalog.Members, ct, os, flags, block, zstdChecksum);
             var result = new ArchiveAssessment(manifest, physicalDigest, request.SourceLength, physicalDigest);
             outgoing.Write(ArchiveControlRecord.Catalog, ArchiveAssessmentWire.Catalog(result));
             foreach (var member in manifest.Members)

@@ -7,8 +7,8 @@ namespace FileCat.Core.Tests;
 public sealed class ArchiveTransformLifecycleTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
-    private static ArchiveTarTransformInvocation Empty() => ArchiveTransformWire.Prepare(ArchiveTarTransformPlan.Create(null, [], [], [], Ct), Ct);
-    private static byte[] Completed(Guid nonce, ArchiveTarTransformInvocation invocation, bool wrong = false, bool trailing = false)
+    private static ArchiveTransformInvocation Empty() => ArchiveTransformWire.Prepare(ArchiveTarTransformPlan.Create(null, [], [], [], Ct), Ct);
+    private static byte[] Completed(Guid nonce, ArchiveTransformInvocation invocation, bool wrong = false, bool trailing = false)
     {
         using var bytes = new MemoryStream(); var wire = new ArchiveWorkerProtocol(nonce, ArchiveWritePolicy.MaxWorkerWireBytes);
         wire.Write(bytes, ArchiveWorkerMessage.Hello, ArchiveTransformWire.Hello); wire.Write(bytes, ArchiveWorkerMessage.Write, new byte[1032]);

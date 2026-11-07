@@ -15,6 +15,13 @@ public static class ArchiveAssessmentWire
     // A fresh verifier derives the complete catalog independently. Its role cannot be substituted with an assessor
     // on the same framed channel, even though the read-only request/catalog schema is deliberately shared.
     public static ReadOnlySpan<byte> VerificationHello => [1, 0, 1, 0, 3, 0, 0, 0];
+    public static ReadOnlySpan<byte> HelloFor(bool verification, ushort protocolVersion) => protocolVersion switch
+    {
+        ArchiveWorkerProtocol.Version => verification ? VerificationHello : Hello,
+        ArchiveWorkerProtocol.SecretVersion => verification ? [2, 0, 1, 0, 3, 0, 0, 0] : [2, 0, 1, 0, 1, 0, 0, 0],
+        _ => throw Fault(),
+    };
+    public static string RequestDigest(ArchiveAssessmentRequest request) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Request(request)));
 
     public static void Validate(ArchiveAssessmentRequest request)
     {

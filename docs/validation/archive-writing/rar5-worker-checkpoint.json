@@ -1,0 +1,266 @@
+{
+  "date": "2026-11-07",
+  "source_packets": {
+    "v1": {
+      "files": 4186,
+      "bytes": 30371264,
+      "sha256": "655a2f67b4e3c97d0371f00817f3669666ea29e77e3b5c302f74707553c97a64"
+    },
+    "v2": {
+      "files": 4189,
+      "bytes": 30372542,
+      "sha256": "5dd1140949970fedf9209e15d83028e08c66c9d8f847009d487af4f3979d4ee0"
+    }
+  },
+  "new_profile_registered": false,
+  "shared_worker_component_only": true,
+  "production_backend_qualified": false,
+  "native_protocol_two_bootstrap_compiled_not_live_qualified": true,
+  "new_cases": 60,
+  "scope": "Actual parent clients and distinct subprocess transform/assess/fresh-verify conversations on each authorized platform. The native confinement/bootstrap, captured-owner/publication and application/UI integration remain separate open gates.",
+  "initial_corrections": "Nineteen new cases failed initially: eighteen workflows expected one archive-view open although the authority intentionally reacquires it for the final hash after captured inputs; one Unicode vector exceeded the existing RAR 64 KiB UTF-8 policy. Parent admission now checks that policy; the positive vector is exactly 64 KiB. Source review also extends the absolute IO ceiling to cover the two captured-input passes while retaining derivation from actual grants. Three new boundary cases and the full expanded matrix are repeated.",
+  "host_scope": "Edits, builds and static frozen-artifact verification only; actual tests and native oracles run on the authorized Mac/VMs.",
+  "platforms": {
+    "mac": {
+      "archive": "mac-rar5-worker-evidence-v2.tar.gz",
+      "bytes": 44688433,
+      "sha256": "c98afad50b6712d671103751d35847d10557577e099c187b28b097e6f2accf8d",
+      "manifest_rows": 2039,
+      "combined_cases": {
+        "Passed": 2903,
+        "NotExecuted": 55
+      },
+      "new_worker_cases": {
+        "Passed": 60
+      },
+      "independent": {
+        "cases": 18,
+        "official_archives": 36,
+        "exact_payloads": 108,
+        "independent_metadata_records": 162,
+        "exact_retained_packed_streams": 18,
+        "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb"
+      },
+      "semantic_manifests_and_plain_archives_identical_across_platforms": true,
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.ArchiveWorker/Program.cs",
+        "src/FileCat.Archives/Writing/ArchiveAssessmentWorker.cs",
+        "src/FileCat.Archives/Writing/ArchiveTransformWorker.cs",
+        "src/FileCat.Archives/Writing/Rar5SemanticCatalog.cs",
+        "src/FileCat.Archives/Writing/Rar5WorkerPasswords.cs",
+        "src/FileCat.Core/Archives/ArchiveAssessmentClient.cs",
+        "src/FileCat.Core/Archives/ArchiveAssessmentWire.cs",
+        "src/FileCat.Core/Archives/ArchiveProxyStreams.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformClient.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformWire.cs",
+        "src/FileCat.Core/Archives/ArchiveVerificationClient.cs",
+        "src/FileCat.Core/Archives/ArchiveWorkerSecretWire.cs",
+        "src/FileCat.Core/Archives/ArchiveWriteContracts.cs",
+        "tests/FileCat.Core.Tests/ArchiveTransformClientTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveTransformLifecycleTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveTransformWireTests.cs",
+        "tests/FileCat.Core.Tests/Rar5WorkerPipelineTests.cs",
+        "tests/FileCat.WorkerProbe/Program.cs"
+      ],
+      "compiler_source_documents": 1393,
+      "compiler_source_bytes": 13207840,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.12",
+        "runtime_directory": "/Users/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.12/",
+        "os": "macOS 27.0.1",
+        "architecture": "Arm64"
+      },
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "initial_failed_phase": {
+        "archive": "mac-rar5-worker-initial-evidence-v1.tar.gz",
+        "bytes": 36226448,
+        "sha256": "a1ede3d62369a2ab67c833b477705f2c74fee34c3cb9933aaa11c50891436e1c",
+        "manifest_rows": 395,
+        "counts": {
+          "NotExecuted": 55,
+          "Passed": 2881,
+          "Failed": 19
+        },
+        "production_backend_qualified": false,
+        "source_packet_sha256": "655a2f67b4e3c97d0371f00817f3669666ea29e77e3b5c302f74707553c97a64",
+        "scope": "Initial failed application run; no independent controls or compiler-source qualification completed."
+      }
+    },
+    "ubuntu": {
+      "archive": "ubuntu-rar5-worker-evidence-v2.tar.gz",
+      "bytes": 44702601,
+      "sha256": "9e3d704bfbbb7902dd19818e0e36289165655d70a1527c7038f8b84196f2b49e",
+      "manifest_rows": 2039,
+      "combined_cases": {
+        "Passed": 2916,
+        "NotExecuted": 42
+      },
+      "new_worker_cases": {
+        "Passed": 60
+      },
+      "independent": {
+        "cases": 18,
+        "official_archives": 36,
+        "exact_payloads": 108,
+        "independent_metadata_records": 162,
+        "exact_retained_packed_streams": 18,
+        "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886"
+      },
+      "semantic_manifests_and_plain_archives_identical_across_platforms": true,
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.ArchiveWorker/Program.cs",
+        "src/FileCat.Archives/Writing/ArchiveAssessmentWorker.cs",
+        "src/FileCat.Archives/Writing/ArchiveTransformWorker.cs",
+        "src/FileCat.Archives/Writing/Rar5SemanticCatalog.cs",
+        "src/FileCat.Archives/Writing/Rar5WorkerPasswords.cs",
+        "src/FileCat.Core/Archives/ArchiveAssessmentClient.cs",
+        "src/FileCat.Core/Archives/ArchiveAssessmentWire.cs",
+        "src/FileCat.Core/Archives/ArchiveProxyStreams.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformClient.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformWire.cs",
+        "src/FileCat.Core/Archives/ArchiveVerificationClient.cs",
+        "src/FileCat.Core/Archives/ArchiveWorkerSecretWire.cs",
+        "src/FileCat.Core/Archives/ArchiveWriteContracts.cs",
+        "tests/FileCat.Core.Tests/ArchiveTransformClientTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveTransformLifecycleTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveTransformWireTests.cs",
+        "tests/FileCat.Core.Tests/Rar5WorkerPipelineTests.cs",
+        "tests/FileCat.WorkerProbe/Program.cs"
+      ],
+      "compiler_source_documents": 1393,
+      "compiler_source_bytes": 13207840,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.14",
+        "runtime_directory": "/home/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.14/",
+        "os": "Ubuntu 24.04.5 LTS",
+        "architecture": "X64"
+      },
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "initial_failed_phase": {
+        "archive": "ubuntu-rar5-worker-initial-evidence-v1.tar.gz",
+        "bytes": 36247188,
+        "sha256": "ff9427bf3679e0bc4e43cbbcfad8d30ced8c44a77053cfbf83ca4ba796fd54ae",
+        "manifest_rows": 395,
+        "counts": {
+          "NotExecuted": 42,
+          "Passed": 2894,
+          "Failed": 19
+        },
+        "production_backend_qualified": false,
+        "source_packet_sha256": "655a2f67b4e3c97d0371f00817f3669666ea29e77e3b5c302f74707553c97a64",
+        "scope": "Initial failed application run; no independent controls or compiler-source qualification completed."
+      }
+    },
+    "windows": {
+      "archive": "windows-rar5-worker-evidence-v2.tar.gz",
+      "bytes": 44718115,
+      "sha256": "3c3630cf6608e903d6d0cab8b301d0641cb26b17cdba2ba0c3747a309510fbe0",
+      "manifest_rows": 1966,
+      "combined_cases": {
+        "Passed": 2738,
+        "NotExecuted": 220
+      },
+      "new_worker_cases": {
+        "Passed": 60
+      },
+      "independent": {
+        "cases": 18,
+        "official_archives": 36,
+        "exact_payloads": 108,
+        "independent_metadata_records": 162,
+        "exact_retained_packed_streams": 18,
+        "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e"
+      },
+      "semantic_manifests_and_plain_archives_identical_across_platforms": true,
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.ArchiveWorker/Program.cs",
+        "src/FileCat.Archives/Writing/ArchiveAssessmentWorker.cs",
+        "src/FileCat.Archives/Writing/ArchiveTransformWorker.cs",
+        "src/FileCat.Archives/Writing/Rar5SemanticCatalog.cs",
+        "src/FileCat.Archives/Writing/Rar5WorkerPasswords.cs",
+        "src/FileCat.Core/Archives/ArchiveAssessmentClient.cs",
+        "src/FileCat.Core/Archives/ArchiveAssessmentWire.cs",
+        "src/FileCat.Core/Archives/ArchiveProxyStreams.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformClient.cs",
+        "src/FileCat.Core/Archives/ArchiveTransformWire.cs",
+        "src/FileCat.Core/Archives/ArchiveVerificationClient.cs",
+        "src/FileCat.Core/Archives/ArchiveWorkerSecretWire.cs",
+        "src/FileCat.Core/Archives/ArchiveWriteContracts.cs",
+        "tests/FileCat.Core.Tests/ArchiveTransformClientTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveTransformLifecycleTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveTransformWireTests.cs",
+        "tests/FileCat.Core.Tests/Rar5WorkerPipelineTests.cs",
+        "tests/FileCat.WorkerProbe/Program.cs"
+      ],
+      "compiler_source_documents": 1393,
+      "compiler_source_bytes": 13222580,
+      "actual_test_runtime": {
+        "runtime": ".NET 10.0.14",
+        "runtime_directory": "C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\10.0.14\\",
+        "os": "Microsoft Windows 10.0.26340",
+        "architecture": "X64"
+      },
+      "writing_closure": {
+        "Rar15_or_DiscUtils_present": false,
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ]
+      },
+      "final_census": {
+        "Processes": [],
+        "CollectedUtc": "2026-11-07T14:04:55.4706024Z"
+      },
+      "standard_test_account": {
+        "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+        "AdministratorsMember": false,
+        "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+        "HiveLoaded": true
+      },
+      "initial_failed_phase": {
+        "archive": "windows-rar5-worker-initial-evidence-v1.tar.gz",
+        "bytes": 36259367,
+        "sha256": "88d7ba72ebd39affc9d75723ca1f8ba1316b141356ec1ab6e06c4fe6b743f3e7",
+        "manifest_rows": 324,
+        "counts": {
+          "Passed": 2716,
+          "NotExecuted": 220,
+          "Failed": 19
+        },
+        "production_backend_qualified": false,
+        "source_packet_sha256": "655a2f67b4e3c97d0371f00817f3669666ea29e77e3b5c302f74707553c97a64",
+        "scope": "Initial failed application run; no independent controls or compiler-source qualification completed."
+      }
+    }
+  }
+}

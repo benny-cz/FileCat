@@ -76,6 +76,11 @@ now connects exact occurrence changes to full source verification and retained/n
 contracts to shared worker requests, role-bound password consumers and native capture/publication next; the RAR
 adapter continues independently of the remaining 7z member graph/catalog.
 
+The [RAR shared worker/password pipeline](../validation/archive-writing/RAR5_WORKER_PIPELINE.md) now executes those
+roles through shared parent clients and fixed protocol-2 secret consumers, with three-platform subprocess evidence.
+Continue native protocol-2 launch/resource/package and captured-owner/publication integration, then application
+workflows/UI. These native gates remain open; the component does not enable a new write profile.
+
 [Complete encoded-header verification](../validation/archive-writing/SEVENZIP_HEADER_VERIFICATION.md) now connects
 the strict LZMA/LZMA2 and exact Copy/AES layers to the 7z framing pass. Complete member graph/catalog verification
 and the shared parent/worker/native adapters remain the next integration work.

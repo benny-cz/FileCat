@@ -92,6 +92,14 @@ internal sealed class ArchiveWorkerSecretGrantJsonConverter : JsonConverter<Arch
 /// </summary>
 public static class ArchiveWorkerSecretWire
 {
+    internal static void RequireProfileGrant(ArchiveWriteProfile profile, ArchiveWorkerSecretGrant? grant, ushort protocolVersion)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        if ((profile.Encryption.Mode != ArchiveEncryptionMode.None) != (grant is not null))
+            throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "The password grant does not match the requested archive password mode.");
+        if (grant is not null && protocolVersion != ArchiveWorkerProtocol.SecretVersion)
+            throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This password-bearing job requires the fixed protocol-2 worker endpoint.");
+    }
     internal const int PrefixBytes = 38; // schema u16, role u8, encoding u8, request SHA-256, UTF-16 byte length u16
     internal const int MaximumPayloadBytes = PrefixBytes + ArchiveWorkerSecretGrant.MaximumCharacters * 2;
 

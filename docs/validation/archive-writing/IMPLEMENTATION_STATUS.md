@@ -60,6 +60,14 @@ The final 49 new cases pass in 2,898-case platform matrices with independent met
 worker/secret consumers, captured-owner/native publication and application/UI integration remain open; no new
 profile is registered. This RAR work advances independently of the remaining 7z member graph/catalog.
 
+The [RAR shared worker/password pipeline](RAR5_WORKER_PIPELINE.md) now carries those plans through real parent
+clients and distinct transform/assessment/fresh-verification subprocesses. Fixed protocol-2 endpoints consume
+nonce/role/request-bound one-use grants with job-local crypto budgets; protocol-1 TAR bytes remain unchanged.
+Parent name admission matches the existing 64 KiB UTF-8 RAR policy, and IO allowances cover both encoding passes.
+The corrected 60-case component passes within the 2,958-case platform matrices, with independent metadata/native
+reader checks. Initial test/admission failures are preserved separately. Native protocol-2 bootstrap/resource/package,
+captured-owner/publication and application/UI qualification remain open; no new format is registered.
+
 The [RAR/7z public-options checkpoint](RAR_7Z_PUBLIC_OPTIONS.md) advances shared integration: explicit version-2
 codec/filter/header/method and password modes now participate in every canonical request, digest, sidecar, creation
 witness and journal binding, with version-1 bytes preserved. Public options map to existing stream encoders and

@@ -109,6 +109,7 @@ public static class ArchiveWritePolicy
     public const int MaxMembers = 100_000;
     public const int MaxNameChars = 32_000;
     public const int MaxNameBytes = MaxNameChars * 4;
+    public const int MaxRar5NameBytes = 64 << 10; // Current hardened RAR reader/writer policy, not a format maximum.
     public const long MaxRetainedNameChars = 64L << 20;
     public const int MaxEntryMetadataBytes = 1 << 20;
     public const long MaxMetadataBytes = 128L << 20;

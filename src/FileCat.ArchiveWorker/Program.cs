@@ -16,12 +16,15 @@ try
             physicalKiB = facts.PhysicalKiB, syscallPolicy = 1 }) + "\n")); diagnostics.Flush();
         return LinuxArchiveGuestTransport.Run(diagnostics, (input, output, ct) =>
         {
-            var startup = LinuxArchiveGuestTransport.ReadStartup(input, output);
+            var startup = LinuxArchiveGuestTransport.ReadStartup(input, output, maximumRole: 6);
             return startup.Role switch
             {
                 1 => ArchiveAssessmentWorker.RunAfterIsolation(input, output, startup.Nonce, ct),
                 2 => ArchiveTransformWorker.RunAfterIsolation(input, output, startup.Nonce, ct),
                 3 => ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, startup.Nonce, ct),
+                4 => ArchiveAssessmentWorker.RunAfterIsolation(input, output, startup.Nonce, ct, 2),
+                5 => ArchiveTransformWorker.RunAfterIsolation(input, output, startup.Nonce, ct, 2),
+                6 => ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, startup.Nonce, ct, 2),
                 _ => 64
             };
         });

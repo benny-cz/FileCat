@@ -126,7 +126,11 @@ public sealed class ArchiveRar5TransformPlan
             ArchiveWriteBudget.Reserve(requested, input.Length, ArchiveWritePolicy.MaxLogicalBytes); requested += input.Length;
             used.Add(id); return input;
         }
-        void RequestName(string name) { budget.AddNameChars(name.Length); budget.AddMetadata(ArchiveWritePolicy.Utf8.GetByteCount(name), 2L * name.Length + 128); }
+        void RequestName(string name)
+        {
+            int bytes = ArchiveWritePolicy.Utf8.GetByteCount(name); if (bytes > ArchiveWritePolicy.MaxRar5NameBytes) throw ArchiveWriteBudget.Limit();
+            budget.AddNameChars(name.Length); budget.AddMetadata(bytes, 2L * name.Length + 128);
+        }
         void Add(string name, ArchiveMemberType type, long length, string digest, ReadOnlySpan<byte> metadata, int? sourceIndex, int? inputId, bool changed)
         {
             budget.AddMember(); budget.AddNameChars(name.Length); budget.AddLogicalBytes(length);
@@ -139,6 +143,7 @@ public sealed class ArchiveRar5TransformPlan
 
     private static ArchiveRar5Metadata ValidateMetadata(ArchiveManifestMember member)
     {
+        if (ArchiveWritePolicy.Utf8.GetByteCount(member.Name) > ArchiveWritePolicy.MaxRar5NameBytes) throw ArchiveWriteBudget.Limit();
         var metadata = ArchiveRar5Metadata.Decode(member.Metadata); if (metadata.Type != member.Type) throw Unsupported();
         if (((metadata.Compression >> 7) & 7) != 0)
         {

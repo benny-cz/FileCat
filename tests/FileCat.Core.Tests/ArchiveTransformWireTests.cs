@@ -8,14 +8,14 @@ public sealed class ArchiveTransformWireTests
 {
     private static readonly Guid Nonce = Guid.NewGuid();
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
-    private static ArchiveTarTransformInvocation Creation() => ArchiveTransformWire.Prepare(ArchiveTarTransformPlan.Create(null,
+    private static ArchiveTransformInvocation Creation() => ArchiveTransformWire.Prepare(ArchiveTarTransformPlan.Create(null,
         [new(37, 1, Hash([1]), DateTimeOffset.UnixEpoch)], [], [new("one", ArchiveMemberType.File, 37), new("two", ArchiveMemberType.File, 37)], TestContext.Current.CancellationToken));
-    private static byte[] Write(ArchiveTarTransformRequest request)
+    private static byte[] Write(ArchiveTransformRequest request)
     {
         using var stream = new MemoryStream(); ArchiveTransformWire.WriteRequest(new(new(Nonce, ArchiveWritePolicy.MaxWorkerWireBytes), stream, writing: true), request);
         return stream.ToArray();
     }
-    private static ArchiveTarTransformRequest Read(byte[] data)
+    private static ArchiveTransformRequest Read(byte[] data)
     { using var stream = new MemoryStream(data, writable: false); return ArchiveTransformWire.ReadRequest(new(new(Nonce, ArchiveWritePolicy.MaxWorkerWireBytes), stream, writing: false)); }
 
     [Fact]
@@ -101,7 +101,7 @@ public sealed class ArchiveTransformWireTests
     public void Reused_or_unknown_wire_grants_cannot_change_the_fixed_reference_set(bool unknown)
     {
         var original = Creation().Request;
-        var changed = new ArchiveTarTransformRequest(null, original.Inputs.ToDictionary(), [],
+        var changed = new ArchiveTransformRequest(null, original.Inputs.ToDictionary(), [],
             [original.Additions[0], new("two", ArchiveMemberType.File, unknown ? 3 : 1)], original.OutputLengthBound);
         Assert.Equal(ArchiveWriteReason.ProtocolViolation, Assert.Throws<ArchiveWriteException>(() => Read(Write(changed))).Reason);
     }
@@ -119,7 +119,7 @@ public sealed class ArchiveTransformWireTests
     [Fact]
     public void Contradictory_source_and_output_profiles_cannot_be_serialized_as_one_profile()
     {
-        var request = new ArchiveTarTransformRequest(new(new(ArchiveWriteFormat.Tar), 1024, Hash(new byte[1024])), [], [], [], 2048, new(ArchiveWriteFormat.TarGzip));
+        var request = new ArchiveTransformRequest(new(new(ArchiveWriteFormat.Tar), 1024, Hash(new byte[1024])), [], [], [], 2048, new(ArchiveWriteFormat.TarGzip));
         Assert.Equal(ArchiveWriteReason.ProtocolViolation, Assert.Throws<ArchiveWriteException>(() => Write(request)).Reason);
     }
 }

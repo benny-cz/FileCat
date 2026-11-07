@@ -26,7 +26,9 @@ public sealed class ArchiveIoAuthority : IDisposable
     public ArchiveIoAuthority(IReadOnlyList<ArchiveInputGrant> grants, Func<int, Stream> openSource,
         ArchiveStageProxy stage, long maximumSourceIo)
     {
-        if (grants.Count > ArchiveWritePolicy.MaxMembers + 1 || maximumSourceIo < 0 || maximumSourceIo > 4 * ArchiveWritePolicy.MaxPhysicalBytes + ArchiveWritePolicy.MaxLogicalBytes + (16 << 20))
+        // RAR's counted/final encoding passes consume each captured payload twice. The separate derivation check
+        // below still limits every request to its actual fixed grants; this is the absolute stream-work ceiling.
+        if (grants.Count > ArchiveWritePolicy.MaxMembers + 1 || maximumSourceIo < 0 || maximumSourceIo > 4 * ArchiveWritePolicy.MaxPhysicalBytes + 2 * ArchiveWritePolicy.MaxLogicalBytes + (16 << 20))
             throw new ArgumentOutOfRangeException(nameof(grants));
         var frozen = new Dictionary<int, ArchiveInputGrant>(grants.Count);
         long inputBytes = 0;
