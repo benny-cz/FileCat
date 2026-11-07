@@ -10,6 +10,7 @@
 > **6 November component checkpoint:** The [dedicated VM archive worker](../validation/archive-writing/DEDICATED_VM_ARCHIVE_WORKER.md) executes actual write roles with a writing-only dependency closure and strict guest syscall policy. Live ARM64/musl defects are fixed; production resource/package/admission gates and the overall plan stay open.
 > **7 November component checkpoint:** [RAR5/7z password creation and job-local reading](../validation/archive-writing/ARCHIVE_PASSWORD_FOUNDATION.md) pass the same 653-case matrix and independent encrypted-output checks on Windows/Mac/Ubuntu. Secret grants, strict catalogs, shared workflows/UI and full qualification remain open; no new profile is enabled.
 > **7 November BCJ2 checkpoint:** [Four-stream BCJ2 creation](../validation/archive-writing/SEVENZIP_BCJ2.md) adds bounded sequential packing, all seven codecs/password modes and independent SDK/graph checks. It also fixes Deflate small-read and BCJ2 cleanup defects. Strict catalogs, shared workflows and full qualification remain open; no new profile is enabled.
+> **7 November RAR framing checkpoint:** [Strict RAR5 physical observation](../validation/archive-writing/RAR5_PHYSICAL_FRAMING.md) passes the same 913-case platform matrix and retains exact metadata/encryption/occurrence/extents under cumulative limits. Payload verification and complete strict assessments remain required; no new profile is enabled.
 
 ## Contents
 
@@ -698,8 +699,9 @@ If AW10a records a no-go, AW10b's bundled fallback admits stored-only RAR5 for c
 archives remain read-only on that backend; do not silently decompress/rewrite them as stored archives. The UI
 must say that compression is unavailable. AW10c may offer a distinct optional installed-tool backend for actual
 compression and updates only within its independently qualified profile. Never infer its permission to update an
-archive from the vendor tool accepting it. Solid, encrypted, multipart, RAR4 and unknown-metadata inputs remain
-read-only initially on either route, with the concrete reason and an available alternative.
+archive from the vendor tool accepting it. Solid, multipart, RAR4 and unknown-metadata inputs remain read-only
+initially on either route, with the concrete reason and an available alternative. Encryption requires the password
+profile qualification in §4.3.1 on each route; it must never fall back to plaintext output.
 
 For every enabled route, implement create, F5 add/replace/skip, explicit F6 move-into, delete, rename, empty-folder
 creation and external edit commit through the existing operation/review/session flows. Collision review is recursive;

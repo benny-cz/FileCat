@@ -85,6 +85,18 @@ integration, including four-pass BCJ2 traffic/CPU/decode accounting and aggregat
 shared transactions, complete UI/workflows, native/resource/crash/fuzz/six-RID/package gates and final independent
 review. No new profile is registered or complete; the explicit goal remains active.
 
+The [RAR5 physical framing checkpoint](RAR5_PHYSICAL_FRAMING.md) now observes complete admitted framing with exact
+metadata presence, occurrences, timestamps, raw native owner bytes, encryption descriptors and physical revision
+hashes. All 62 new cases pass within the same 913-case matrix on Windows/Mac/Ubuntu, including truncated prefixes,
+header reservation/size limits, cumulative metadata/member limits and mid-payload cancellation. Current C# inputs,
+all three frozen bundles and the writing-only dependency closure are verified. This physical catalog still needs
+strict decompression/end/filter/checksum/plaintext-SHA verification before it can produce a complete assessment;
+preservation-compatible writing and the remaining shared/native/workflow gates stay open.
+The same record includes a 334-case boundary follow-up: RAR creation now respects the reader's 64 KiB UTF-8 name
+limit before IO and chunks large headers to the proxy ceiling. All six new cases pass on every machine, official
+7-Zip verifies the three accepted boundary archives/payloads, and the pinned old assembly reproduces five expected
+failures. Existing six archive hashes remain unchanged; all six full/follow-up bundles are locally manifest-verified.
+
 ## Source and workspace
 
 - Baseline: `4282929753f062f5bb2cc130e8316b133e5c8e03`.

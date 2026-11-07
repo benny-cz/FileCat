@@ -49,9 +49,13 @@ internal static class Rar5ArchiveWriter
             if (entry is null || !Enum.IsDefined(entry.Type) || (entry.Mode & ~0x1ff) != 0)
                 throw Invalid("A RAR member has an unsupported kind or mode.");
             ArchiveWritePolicy.ValidateName(entry.Name, entry.Type);
+            int nameBytes = Utf8.GetByteCount(entry.Name);
+            if (nameBytes > FileCat.Archives.Rar.RarLimits.MaxNameBytes)
+                throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature,
+                    "The RAR member name exceeds FileCat's 64 KiB UTF-8 read/write profile. Use a shorter name.");
             ValidateTime(entry.Modified);
             budget.AddMember(); budget.AddNameChars(entry.Name.Length);
-            budget.AddMetadata(Utf8.GetByteCount(entry.Name) + (encryption is null ? 128L : 192L), entry.Name.Length * 6L + 128);
+            budget.AddMetadata(nameBytes + (encryption is null ? 128L : 192L), entry.Name.Length * 6L + 128);
             names[index] = entry.Type == ArchiveMemberType.Directory && entry.Name.EndsWith('/') ? entry.Name[..^1] : entry.Name;
             if (entry.Type == ArchiveMemberType.File)
             {
@@ -243,7 +247,12 @@ internal static class Rar5ArchiveWriter
             ct.ThrowIfCancellationRequested();
             if (buffer.Length > ArchiveWritePolicy.MaxPhysicalBytes - Bytes)
                 throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The RAR stage exceeds its physical-byte budget.");
-            output.Write(buffer); Bytes += buffer.Length;
+            while (!buffer.IsEmpty)
+            {
+                ct.ThrowIfCancellationRequested();
+                int count = Math.Min(buffer.Length, ArchiveIoAuthority.MaximumReadBytes);
+                output.Write(buffer[..count]); Bytes += count; buffer = buffer[count..];
+            }
         }
         public override void Flush() => output.Flush();
         public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();

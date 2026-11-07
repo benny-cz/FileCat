@@ -8,6 +8,10 @@
     <!-- One implementation source, compiled into the existing reader package and the dedicated worker package. -->
     <Compile Include="../FileCat.Archives/Writing/*.cs" Link="Writing/%(Filename)%(Extension)" />
     <Compile Include="../FileCat.Archives/TarHeaderGuard.cs" Link="TarHeaderGuard.cs" />
+    <!-- Bounded RAR5 header/crypto primitives only; no RarReader, volume pathname probing or Rar15 closure. -->
+    <Compile Include="../FileCat.Archives/Rar/RarHeaderReader.cs" Link="Rar/RarHeaderReader.cs" />
+    <Compile Include="../FileCat.Archives/Rar/RarData.cs" Link="Rar/RarData.cs" />
+    <Compile Include="../FileCat.Archives/Rar/Rar5ReadPasswordSession.cs" Link="Rar/Rar5ReadPasswordSession.cs" />
     <ProjectReference Include="../FileCat.Core/FileCat.Core.csproj" />
     <ProjectReference Include="../ThirdParty/SharpCompress/FileCat.SharpCompress.csproj" />
     <InternalsVisibleTo Include="FileCat.Core.Tests" />

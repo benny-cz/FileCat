@@ -1,0 +1,415 @@
+{
+  "date": "2026-11-07",
+  "source_packet": {
+    "files": 4071,
+    "bytes": 30201671,
+    "sha256": "5bf8c874773c606912a1604b0613945717c3a44343116017e8238634ff0528fc"
+  },
+  "new_profile_registered": false,
+  "physical_observer_only": true,
+  "payload_verification_implemented": false,
+  "platforms": {
+    "mac": {
+      "archive": "mac-strict-rar5-framing-evidence-v1.tar.gz",
+      "bytes": 37612993,
+      "sha256": "ded537276bfa1c3fff5a27a57042ccd469e95024568eaf4a57032ffda1aefb16",
+      "manifest_rows": 1501,
+      "cases": {
+        "Passed": 911,
+        "NotExecuted": 2
+      },
+      "new_framing_cases": 62,
+      "compiler_source_documents": 1331,
+      "compiler_source_bytes": 12631421,
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Rar/RarHeaders.cs",
+        "src/FileCat.Archives/Rar/RarHeaderReader.cs",
+        "src/FileCat.Archives/Rar/Rar5ReadPasswordSession.cs",
+        "src/FileCat.Archives/Writing/StrictRar5Framing.cs",
+        "tests/FileCat.Core.Tests/StrictRar5FramingTests.cs"
+      ],
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "writer_boundary": {
+        "archive": "mac-rar5-framing-boundary-evidence-v1.tar.gz",
+        "bytes": 56144091,
+        "sha256": "96ac17190b6c26bde047950c3b40da5606d58ba34d57b09291822f21338ecc0a",
+        "manifest_rows": 1448,
+        "cases": {
+          "Passed": 334
+        },
+        "new_boundary_cases": 6,
+        "compiler_source_documents": 1332,
+        "compiler_source_bytes": 12637822,
+        "current_changed_csharp_inputs_matched": [
+          "src/FileCat.Archives/Writing/Rar5ArchiveWriter.cs",
+          "tests/FileCat.Core.Tests/Rar5WritingBoundaryTests.cs"
+        ],
+        "expected_old_assembly_control": {
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Maximum_reader_name_size_roundtrips_and_every_stage_write_fits_the_proxy(protection: 0)": "Failed",
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Maximum_reader_name_size_roundtrips_and_every_stage_write_fits_the_proxy(protection: 2)": "Passed",
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Names_above_the_reader_byte_limit_refuse_before_stage_or_source_io(protection: 0)": "Failed",
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Maximum_reader_name_size_roundtrips_and_every_stage_write_fits_the_proxy(protection: 1)": "Failed",
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Names_above_the_reader_byte_limit_refuse_before_stage_or_source_io(protection: 2)": "Failed",
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Names_above_the_reader_byte_limit_refuse_before_stage_or_source_io(protection: 1)": "Failed"
+        },
+        "old_assembly_origin": {
+          "source_packet_sha256": "5bf8c874773c606912a1604b0613945717c3a44343116017e8238634ff0528fc",
+          "replaced_only": [
+            {
+              "path": "binaries/FileCat.Archives.dll",
+              "bytes": 358400,
+              "sha256": "7b6fa727c597614bcda201d33013f8e3d8ce047fed04a423ea0cb1020dd3bfd5"
+            },
+            {
+              "path": "binaries/FileCat.Archives.pdb",
+              "bytes": 120420,
+              "sha256": "4d88289bdf9accb1eb3b7b63faee52861140d956d5616b53b6c3d54b8d312ada"
+            }
+          ],
+          "expected_failures": 5,
+          "expected_passes": 1
+        },
+        "official_boundary_readbacks": {
+          "verified": [
+            {
+              "protection": 0,
+              "name_utf8_bytes": 65536,
+              "payload_bytes": 1,
+              "payload_sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+              "archive_sha256": "29a8b746564c9fc17c9e6572df2a82db5395bcd704210fbc05264ec6aa8e036f"
+            },
+            {
+              "protection": 1,
+              "name_utf8_bytes": 65536,
+              "payload_bytes": 1,
+              "payload_sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+              "archive_sha256": "38eb168ba4028d1c71e3040cd04ce831baf138b81eaa7a7982fb6e54aa146a10"
+            },
+            {
+              "protection": 2,
+              "name_utf8_bytes": 65536,
+              "payload_bytes": 1,
+              "payload_sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+              "archive_sha256": "9e85a4783cd3330a316a6a615223dfee9ea8e64dded3aedf5041a293359ff008"
+            }
+          ],
+          "tool": "/Users/benny/FileCatValidation/archive-writing-42829297/sevenzip-ppmd-filter-v2/tools/mac/7zz",
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "production_dependency": false,
+          "public_synthetic_passwords_only": true
+        },
+        "previous_rar_archives_unchanged": {
+          "method-1": "DF63ED69622B1EE9D211E2101D881399F7C4F7D655411E013AA3F85E7739AED7",
+          "method-0": "68B627579434072F2717097934F151529C738D3C18E47B5880F9E92740B50ED9",
+          "method-2": "D4113F9E82711E30987E110B7D5A94E6653AE7AFF50EEE41FD1FA9C0163DC73C",
+          "method-5": "E31876D40C8BEEB9FDFCF22C88DD7FB8E1A6588CE26DA9E8FBBB8987CB01C4A5",
+          "method-4": "9D72C63AFD7AC00710D71D93C9C8B3260817A5FB2073ADDCCD823593B5157CBC",
+          "method-3": "A2642AE00EF6415D03DB97EFD19575CBD6DBF5816E9B6E2E05F1C3B59B627625"
+        },
+        "actual_test_runtime": {
+          "framework": ".NET 10.0.12",
+          "runtime": "10.0.12",
+          "runtime_directory": "/Users/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.12/",
+          "process_architecture": "Arm64",
+          "operating_system": "macOS 27.0.1"
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0,
+          "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+        }
+      }
+    },
+    "ubuntu": {
+      "archive": "ubuntu-strict-rar5-framing-evidence-v1.tar.gz",
+      "bytes": 37607484,
+      "sha256": "51fc95db63b88a66f580b7b06ead449c52dc0e120d9608ecd725378e39160ca1",
+      "manifest_rows": 1501,
+      "cases": {
+        "Passed": 910,
+        "NotExecuted": 3
+      },
+      "new_framing_cases": 62,
+      "compiler_source_documents": 1331,
+      "compiler_source_bytes": 12631421,
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Rar/RarHeaders.cs",
+        "src/FileCat.Archives/Rar/RarHeaderReader.cs",
+        "src/FileCat.Archives/Rar/Rar5ReadPasswordSession.cs",
+        "src/FileCat.Archives/Writing/StrictRar5Framing.cs",
+        "tests/FileCat.Core.Tests/StrictRar5FramingTests.cs"
+      ],
+      "writing_closure": {
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ],
+        "Rar15_or_DiscUtils_present": false
+      },
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "writer_boundary": {
+        "archive": "ubuntu-rar5-framing-boundary-evidence-v1.tar.gz",
+        "bytes": 56144745,
+        "sha256": "a977303715e4df0fa8e96718c3cb4e517604ffca167c4c59a973b0746468d519",
+        "manifest_rows": 1448,
+        "cases": {
+          "Passed": 334
+        },
+        "new_boundary_cases": 6,
+        "compiler_source_documents": 1332,
+        "compiler_source_bytes": 12637822,
+        "current_changed_csharp_inputs_matched": [
+          "src/FileCat.Archives/Writing/Rar5ArchiveWriter.cs",
+          "tests/FileCat.Core.Tests/Rar5WritingBoundaryTests.cs"
+        ],
+        "expected_old_assembly_control": {
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Maximum_reader_name_size_roundtrips_and_every_stage_write_fits_the_proxy(protection: 1)": "Failed",
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Maximum_reader_name_size_roundtrips_and_every_stage_write_fits_the_proxy(protection: 0)": "Failed",
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Maximum_reader_name_size_roundtrips_and_every_stage_write_fits_the_proxy(protection: 2)": "Passed",
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Names_above_the_reader_byte_limit_refuse_before_stage_or_source_io(protection: 0)": "Failed",
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Names_above_the_reader_byte_limit_refuse_before_stage_or_source_io(protection: 2)": "Failed",
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Names_above_the_reader_byte_limit_refuse_before_stage_or_source_io(protection: 1)": "Failed"
+        },
+        "old_assembly_origin": {
+          "source_packet_sha256": "5bf8c874773c606912a1604b0613945717c3a44343116017e8238634ff0528fc",
+          "replaced_only": [
+            {
+              "path": "binaries/FileCat.Archives.dll",
+              "bytes": 358400,
+              "sha256": "0e1697a52433bdac0957464c11db730ab0c3c5fbdcbe09c1b7d086d193319d9e"
+            },
+            {
+              "path": "binaries/FileCat.Archives.pdb",
+              "bytes": 120420,
+              "sha256": "2c9519bb0fba9d7bd51fb091481e366a016c16642afaced0b437abb113dea00e"
+            }
+          ],
+          "expected_failures": 5,
+          "expected_passes": 1
+        },
+        "official_boundary_readbacks": {
+          "verified": [
+            {
+              "protection": 0,
+              "name_utf8_bytes": 65536,
+              "payload_bytes": 1,
+              "payload_sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+              "archive_sha256": "29a8b746564c9fc17c9e6572df2a82db5395bcd704210fbc05264ec6aa8e036f"
+            },
+            {
+              "protection": 1,
+              "name_utf8_bytes": 65536,
+              "payload_bytes": 1,
+              "payload_sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+              "archive_sha256": "fa9f4818f3e0aba404617525fab96c9e45b6474eb10e34e6b433d28df1cac72b"
+            },
+            {
+              "protection": 2,
+              "name_utf8_bytes": 65536,
+              "payload_bytes": 1,
+              "payload_sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+              "archive_sha256": "98a81ece9af5ab1bab32eceb32329c810e186af47d7ef029abf4c01f3aa58556"
+            }
+          ],
+          "tool": "/home/benny/FileCatValidation/archive-writing-42829297/sevenzip-ppmd-filter-v2/tools/linux/7zz",
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "production_dependency": false,
+          "public_synthetic_passwords_only": true
+        },
+        "previous_rar_archives_unchanged": {
+          "method-4": "9D72C63AFD7AC00710D71D93C9C8B3260817A5FB2073ADDCCD823593B5157CBC",
+          "method-0": "68B627579434072F2717097934F151529C738D3C18E47B5880F9E92740B50ED9",
+          "method-5": "E31876D40C8BEEB9FDFCF22C88DD7FB8E1A6588CE26DA9E8FBBB8987CB01C4A5",
+          "method-2": "D4113F9E82711E30987E110B7D5A94E6653AE7AFF50EEE41FD1FA9C0163DC73C",
+          "method-3": "A2642AE00EF6415D03DB97EFD19575CBD6DBF5816E9B6E2E05F1C3B59B627625",
+          "method-1": "DF63ED69622B1EE9D211E2101D881399F7C4F7D655411E013AA3F85E7739AED7"
+        },
+        "actual_test_runtime": {
+          "framework": ".NET 10.0.14",
+          "runtime": "10.0.14",
+          "runtime_directory": "/home/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.14/",
+          "process_architecture": "X64",
+          "operating_system": "Ubuntu 24.04.5 LTS"
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0
+        }
+      }
+    },
+    "windows": {
+      "archive": "windows-strict-rar5-framing-evidence-v1.tar.gz",
+      "bytes": 37611640,
+      "sha256": "8636afa1a55a63a850fc7fb945971ebcfd9f4eea9889c37264a085c4d2e09a41",
+      "manifest_rows": 1428,
+      "cases": {
+        "Passed": 792,
+        "NotExecuted": 121
+      },
+      "new_framing_cases": 62,
+      "compiler_source_documents": 1331,
+      "compiler_source_bytes": 12646122,
+      "current_changed_csharp_inputs_matched": [
+        "src/FileCat.Archives/Rar/RarHeaders.cs",
+        "src/FileCat.Archives/Rar/RarHeaderReader.cs",
+        "src/FileCat.Archives/Rar/Rar5ReadPasswordSession.cs",
+        "src/FileCat.Archives/Writing/StrictRar5Framing.cs",
+        "tests/FileCat.Core.Tests/StrictRar5FramingTests.cs"
+      ],
+      "writing_closure": {
+        "Rar15_or_DiscUtils_present": false,
+        "libraries": [
+          "BouncyCastle.Cryptography/2.7.0",
+          "FileCat.Archives.Writing/0.1.0-preview",
+          "FileCat.Core/0.1.0-preview",
+          "FileCat.SharpCompress/0.1.0-preview"
+        ]
+      },
+      "final_census": {
+        "Processes": [],
+        "CollectedUtc": "2026-11-07T06:14:22.3814156Z"
+      },
+      "account": {
+        "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+        "AdministratorsMember": false,
+        "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+        "HiveLoaded": true
+      },
+      "environment_inventory": {
+        "BuildNumber": "26340",
+        "Architecture": "64-bit",
+        "SystemType": "x64-based PC",
+        "FileSystem": "NTFS",
+        "Version": "10.0.26340",
+        "CollectedUtc": "2026-11-07T06:19:29.7143978Z",
+        "PrivateBuildSdkInfo": ".NET SDK:\n Version:           10.0.101\n Commit:            fad253f51b\n Workload version:  10.0.100-manifests.e3b0c442\n MSBuild version:   18.0.6+fad253f51\n\nRuntime Environment:\n OS Name:     Windows\n OS Version:  10.0.26340\n OS Platform: Windows\n RID:         win-x64\n Base Path:   C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\dotnet\\sdk\\10.0.101\\\n\n.NET workloads installed:\nThere are no installed workloads to display.\nConfigured to use workload sets when installing new manifests.\nNo workload sets are installed. Run \"dotnet workload restore\" to install a workload set.\n\nHost:\n  Version:      10.0.1\n  Architecture: x64\n  Commit:       fad253f51b\n\n.NET SDKs installed:\n  10.0.101 [C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\dotnet\\sdk]\n\n.NET runtimes installed:\n  Microsoft.NETCore.App 10.0.1 [C:\\Users\\admin\\FileCatValidation\\ArchiveWriting-42829297\\dotnet\\shared\\Microsoft.NETCore.App]\n\nOther architectures found:\n  x86   [C:\\Program Files (x86)\\dotnet]\n    registered at [HKLM\\SOFTWARE\\dotnet\\Setup\\InstalledVersions\\x86\\InstallLocation]\n\nEnvironment variables:\n  Not set\n\nglobal.json file:\n  Not found\n\nLearn more:\n  https://aka.ms/dotnet/info\n\nDownload .NET:\n  https://aka.ms/dotnet/download",
+        "Observation": "Read-only environment inventory after completed batch; tests invoked the recorded global dotnet exec driver.",
+        "Caption": "Microsoft Windows 11 Pro Insider Preview",
+        "GlobalTestDriverInfo": ".NET SDK:\n Version:           10.0.403\n Commit:            5a2162bea6\n Workload version:  10.0.400-manifests.899c35d8\n MSBuild version:   18.9.15+5a2162bea\n\nRuntime Environment:\n OS Name:     Windows\n OS Version:  10.0.26340\n OS Platform: Windows\n RID:         win-x64\n Base Path:   C:\\Program Files\\dotnet\\sdk\\10.0.403\\\n\n.NET workloads installed:\nThere are no installed workloads to display.\nConfigured to use workload sets when installing new manifests.\nNo workload sets are installed. Run \"dotnet workload restore\" to install a workload set.\n\nHost:\n  Version:      10.0.14\n  Architecture: x64\n  Commit:       0427b9abbe\n\n.NET SDKs installed:\n  9.0.320 [C:\\Program Files\\dotnet\\sdk]\n  10.0.403 [C:\\Program Files\\dotnet\\sdk]\n\n.NET runtimes installed:\n  Microsoft.AspNetCore.App 6.0.36 [C:\\Program Files\\dotnet\\shared\\Microsoft.AspNetCore.App]\n  Microsoft.AspNetCore.App 7.0.20 [C:\\Program Files\\dotnet\\shared\\Microsoft.AspNetCore.App]\n  Microsoft.AspNetCore.App 8.0.33 [C:\\Program Files\\dotnet\\shared\\Microsoft.AspNetCore.App]\n  Microsoft.AspNetCore.App 9.0.22 [C:\\Program Files\\dotnet\\shared\\Microsoft.AspNetCore.App]\n  Microsoft.AspNetCore.App 10.0.14 [C:\\Program Files\\dotnet\\shared\\Microsoft.AspNetCore.App]\n  Microsoft.NETCore.App 6.0.36 [C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App]\n  Microsoft.NETCore.App 7.0.20 [C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App]\n  Microsoft.NETCore.App 8.0.33 [C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App]\n  Microsoft.NETCore.App 9.0.22 [C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App]\n  Microsoft.NETCore.App 10.0.14 [C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App]\n  Microsoft.WindowsDesktop.App 6.0.36 [C:\\Program Files\\dotnet\\shared\\Microsoft.WindowsDesktop.App]\n  Microsoft.WindowsDesktop.App 7.0.20 [C:\\Program Files\\dotnet\\shared\\Microsoft.WindowsDesktop.App]\n  Microsoft.WindowsDesktop.App 8.0.33 [C:\\Program Files\\dotnet\\shared\\Microsoft.WindowsDesktop.App]\n  Microsoft.WindowsDesktop.App 9.0.22 [C:\\Program Files\\dotnet\\shared\\Microsoft.WindowsDesktop.App]\n  Microsoft.WindowsDesktop.App 10.0.14 [C:\\Program Files\\dotnet\\shared\\Microsoft.WindowsDesktop.App]\n\nOther architectures found:\n  x86   [C:\\Program Files (x86)\\dotnet]\n    registered at [HKLM\\SOFTWARE\\dotnet\\Setup\\InstalledVersions\\x86\\InstallLocation]\n\nEnvironment variables:\n  Not set\n\nglobal.json file:\n  Not found\n\nLearn more:\n  https://aka.ms/dotnet/info\n\nDownload .NET:\n  https://aka.ms/dotnet/download"
+      },
+      "writer_boundary": {
+        "archive": "windows-rar5-framing-boundary-evidence-v1.tar.gz",
+        "bytes": 56386618,
+        "sha256": "63e902c31a25865ed4b9027bc4b1f53d15b26aee5a18fcffcf5ff97647e5d1b0",
+        "manifest_rows": 1457,
+        "cases": {
+          "NotExecuted": 2,
+          "Passed": 332
+        },
+        "new_boundary_cases": 6,
+        "compiler_source_documents": 1332,
+        "compiler_source_bytes": 12652523,
+        "current_changed_csharp_inputs_matched": [
+          "src/FileCat.Archives/Writing/Rar5ArchiveWriter.cs",
+          "tests/FileCat.Core.Tests/Rar5WritingBoundaryTests.cs"
+        ],
+        "expected_old_assembly_control": {
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Maximum_reader_name_size_roundtrips_and_every_stage_write_fits_the_proxy(protection: 0)": "Failed",
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Maximum_reader_name_size_roundtrips_and_every_stage_write_fits_the_proxy(protection: 2)": "Passed",
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Maximum_reader_name_size_roundtrips_and_every_stage_write_fits_the_proxy(protection: 1)": "Failed",
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Names_above_the_reader_byte_limit_refuse_before_stage_or_source_io(protection: 0)": "Failed",
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Names_above_the_reader_byte_limit_refuse_before_stage_or_source_io(protection: 1)": "Failed",
+          "FileCat.Core.Tests.Rar5WritingBoundaryTests.Names_above_the_reader_byte_limit_refuse_before_stage_or_source_io(protection: 2)": "Failed"
+        },
+        "old_assembly_origin": {
+          "source_packet_sha256": "5bf8c874773c606912a1604b0613945717c3a44343116017e8238634ff0528fc",
+          "replaced_only": [
+            {
+              "path": "binaries/FileCat.Archives.dll",
+              "sha256": "16915B35684DFD0DDB6B7D13EF81630C753A79978B332452A6C894DD95E6B78C",
+              "bytes": 358400
+            },
+            {
+              "path": "binaries/FileCat.Archives.pdb",
+              "sha256": "B84F99BFB0EBCAB5FDDC94A9FBE22B99CA321291E3D6F97EC8B692F6572B1F04",
+              "bytes": 120400
+            }
+          ],
+          "expected_failures": 5,
+          "expected_passes": 1
+        },
+        "official_boundary_readbacks": {
+          "verified": [
+            {
+              "protection": 0,
+              "name_utf8_bytes": 65536,
+              "payload_bytes": 1,
+              "payload_sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+              "archive_sha256": "29a8b746564c9fc17c9e6572df2a82db5395bcd704210fbc05264ec6aa8e036f"
+            },
+            {
+              "protection": 1,
+              "name_utf8_bytes": 65536,
+              "payload_bytes": 1,
+              "payload_sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+              "archive_sha256": "f44825f36b7a3f628adbc71bf47ad4534914b112cc2ee56ef3c1900844a61e48"
+            },
+            {
+              "protection": 2,
+              "name_utf8_bytes": 65536,
+              "payload_bytes": 1,
+              "payload_sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+              "archive_sha256": "bc56b221ae4eb76b10f05e03515adadf30c43fc96e9434780c4bf3884dcc8272"
+            }
+          ],
+          "tool": "C:\\Users\\Admin\\FileCatValidation\\ArchiveWriting-42829297\\password-oracle-tools-v1\\7zip\\7z.exe",
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "production_dependency": false,
+          "public_synthetic_passwords_only": true
+        },
+        "previous_rar_archives_unchanged": {
+          "method-0": "68B627579434072F2717097934F151529C738D3C18E47B5880F9E92740B50ED9",
+          "method-1": "DF63ED69622B1EE9D211E2101D881399F7C4F7D655411E013AA3F85E7739AED7",
+          "method-2": "D4113F9E82711E30987E110B7D5A94E6653AE7AFF50EEE41FD1FA9C0163DC73C",
+          "method-3": "A2642AE00EF6415D03DB97EFD19575CBD6DBF5816E9B6E2E05F1C3B59B627625",
+          "method-4": "9D72C63AFD7AC00710D71D93C9C8B3260817A5FB2073ADDCCD823593B5157CBC",
+          "method-5": "E31876D40C8BEEB9FDFCF22C88DD7FB8E1A6588CE26DA9E8FBBB8987CB01C4A5"
+        },
+        "actual_test_runtime": {
+          "framework": ".NET 10.0.14",
+          "runtime": "10.0.14",
+          "runtime_directory": "C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\10.0.14\\",
+          "process_architecture": "X64",
+          "operating_system": "Microsoft Windows 10.0.26340"
+        },
+        "final_census": {
+          "Processes": [],
+          "CollectedUtc": "2026-11-07T06:37:20.2635402Z"
+        }
+      }
+    }
+  },
+  "remaining_work": [
+    "strict decompression end/filter/CRC/BLAKE2sp/content-SHA verification and a complete semantic catalog",
+    "versioned RAR/7z profile/request/manifest/origin/sidecar/journal fields and secret consumers",
+    "preservation-compatible updates, transactions, complete password/operation UI and local verified move",
+    "aggregate memory/CPU/traffic, native confinement, crash/fuzz/six-RID/payload/package and final independent review gates"
+  ],
+  "schema": 1,
+  "source_base_commit": "da6813f2",
+  "writer_boundary_source_packet": {
+    "files": 4078,
+    "bytes": 30211200,
+    "sha256": "3b807b2a867c2151ceab676c67603ce4c8ec3fe47364a569e8dc40f58cd99842"
+  },
+  "max_rar_member_name_utf8_bytes": 65536,
+  "stage_write_ceiling": 65524
+}

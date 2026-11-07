@@ -73,9 +73,11 @@ internal sealed class Rar5ReadPasswordSession : IDisposable
     }
 
     internal byte[] ReadHeader(Stream input, long position, Rar5CryptoParameters parameters, out int sizeBytes, out int size,
-        out long dataStart, CancellationToken ct)
+        out long dataStart, CancellationToken ct, int maximumHeaderBytes = RarLimits.MaxHeaderBytes,
+        Action<int>? reserveHeaderBytes = null)
     {
         ct.ThrowIfCancellationRequested();
+        if (maximumHeaderBytes is < 2 or > RarLimits.MaxHeaderBytes) throw new ArgumentOutOfRangeException(nameof(maximumHeaderBytes));
         if (position < 0 || position > input.Length - 32) throw RarData.Corrupt("encrypted header past the end of the volume");
         byte[] iv = new byte[16], first = new byte[16], firstPlain = new byte[16]; byte[]? plain = null;
         input.Position = position; input.ReadExactly(iv); input.ReadExactly(first);
@@ -90,8 +92,11 @@ internal sealed class Rar5ReadPasswordSession : IDisposable
                 if ((b & 128) == 0) break;
             }
             if (sizeBytes == 3 || size < 2 || size > RarLimits.MaxHeaderBytes) throw RarData.Corrupt("encrypted RAR 5 header size");
+            if (size > maximumHeaderBytes) throw new FileCat.Core.Archives.ArchiveWriteException(
+                FileCat.Core.Archives.ArchiveWriteReason.BudgetExceeded, "The encrypted RAR header exceeds this assessment's metadata budget.");
             sizeBytes++;
             int rawLength = checked(4 + sizeBytes + size), padded = (rawLength + 15) & ~15;
+            reserveHeaderBytes?.Invoke(rawLength);
             dataStart = checked(position + 16 + padded);
             if (dataStart > input.Length) throw RarData.Corrupt("encrypted header past the end of the volume");
             plain = new byte[padded]; firstPlain.CopyTo(plain, 0);
