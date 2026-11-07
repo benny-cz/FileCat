@@ -11,14 +11,19 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
 {
     private readonly OwnedHandle _root;
     private bool _disposed;
+    private Exception? _closeFailure;
+    private readonly Func<nint, bool>? _nativeClose;
     private readonly ulong _volume;
     private readonly string _namespace;
     private readonly Guid _bindingId = Guid.NewGuid();
     public RootBinding Root { get; }
     public AnalysisEntry RootEntry { get; }
     public string Basis => "windows-primary-allocation-v1";
-    public WindowsAnalysisBackend(string selectedRoot)
+    public WindowsAnalysisBackend(string selectedRoot) : this(selectedRoot, null) { }
+
+    internal WindowsAnalysisBackend(string selectedRoot, Func<nint, bool>? nativeClose)
     {
+        _nativeClose = nativeClose;
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
         string full = Path.GetFullPath(selectedRoot);
@@ -27,7 +32,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
         if (GetDriveType(Path.GetPathRoot(full)!) == 4) throw new NotSupportedException("Mounted network sources require a separately qualified analysis adapter.");
         var rootLease = AnalysisNativeHandles.Acquire();
         // Bind with metadata rights first. FILE_LIST_DIRECTORY would request FILE_READ_DATA on a file root.
-        try { _root = new(CreateFile("\\\\?\\" + full, 0x100080, 3, 0, 3, 0x02000000 | 0x00200000 | 0x00100000, 0), rootLease); }
+        try { _root = new(CreateFile("\\\\?\\" + full, 0x100080, 3, 0, 3, 0x02000000 | 0x00200000 | 0x00100000, 0), rootLease, RecordCloseFailure, _nativeClose); }
         catch { rootLease.Dispose(); throw; }
         if (_root.Value.IsInvalid) { _root.Dispose(); throw new IOException("The selected directory could not be opened."); }
         try
@@ -59,7 +64,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
                     if (current.Identity != entry.Identity || current.Version != entry.Version) throw new AnalysisSourceChangedException();
                 }
                 catch { directory.Dispose(); throw; }
-                _root.Dispose(); _root = directory;
+                var previous = _root; _root = directory; previous.Dispose();
             }
             _volume = Volume(_root.Value);
             Root = new("1", "file", selectedRoot, canonical, $"{_volume:X}:{entry.Identity}", IdentityAssurance.Verified, entry.Name)
@@ -70,7 +75,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
     }
     public IEnumerable<AnalysisEntry> Children(AnalysisEntry directory, CancellationToken cancellation)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        Guard();
         using var lease = OpenDirectory(directory);
         var actual = Observe(lease.Handle, directory.RelativeName, directory.RawName.ToArray(), _namespace);
         if (actual.Identity != directory.Identity || actual.Version != directory.Version) throw new AnalysisSourceChangedException();
@@ -104,7 +109,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
                         result = AnalysisEntry.Unavailable(relative.ToImmutableArray(), raw.ToImmutableArray(), "utf16le",
                             UnavailableKind(attributes), ex.State, ex.Code);
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    catch (Exception ex) when (!AnalysisCloseUnconfirmedException.IsPresent(ex) && ex is (IOException or UnauthorizedAccessException))
                     {
                         result = AnalysisEntry.Unavailable(relative.ToImmutableArray(), raw.ToImmutableArray(), "utf16le",
                             UnavailableKind(attributes), MeasurementState.Failed, "entry-metadata-unavailable");
@@ -120,7 +125,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
         : entry with { Ancestry = new(_bindingId, entry.RelativeName, entry.Identity, entry.Version, parent) };
     public AnalysisRootContainment ContainsRoot(IAnalysisBackend other)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        Guard();
         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
         if (other is not WindowsAnalysisBackend source) return AnalysisRootContainment.Unavailable;
         if (_namespace != source._namespace || _volume != source._volume) return AnalysisRootContainment.Disjoint;
@@ -142,7 +147,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
         var held = new List<OwnedHandle>();
         try
         {
-            SafeFileHandle parent = _root.Value;
+            SafeHandle parent = _root.Value;
             for (int i = 0; i < parts.Length; i++)
             {
                 var next = OpenChild(parent, parts[i], directory: i < parts.Length - 1); held.Add(next); parent = next.Value;
@@ -158,12 +163,12 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
                 }
             }
         }
-        finally { for (int i = held.Count - 1; i >= 0; i--) held[i].Dispose(); }
+        finally { AnalysisNativeHandle.CloseAll(held.AsEnumerable().Reverse()); }
         return AnalysisRootContainment.Unavailable;
     }
     public void ValidateReadScope(AnalysisEntry directory)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        Guard();
         if (directory.Ancestry is not { } witness || witness.BindingId != _bindingId ||
             !witness.RelativeName.AsSpan().SequenceEqual(directory.RelativeName.AsSpan())) throw new AnalysisSourceChangedException();
         int depth = 0;
@@ -177,15 +182,17 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
                 throw new AnalysisSourceChangedException();
         }
     }
-    private sealed class OwnedHandle(SafeFileHandle handle, IDisposable reservation) : IDisposable
+    private sealed class OwnedHandle(SafeFileHandle handle, IDisposable reservation, Action<Exception> failed, Func<nint, bool>? close) : IDisposable
     {
-        public SafeFileHandle Value => handle;
-        public void Dispose() { handle.Dispose(); reservation.Dispose(); }
+        private readonly AnalysisNativeHandle _owned = AnalysisNativeHandle.Adopt(handle, reservation, close: close);
+        public AnalysisNativeHandle Value => _owned;
+        public void Dispose()
+        { try { _owned.CloseChecked(); } catch (Exception error) { failed(error); throw; } }
     }
-    private sealed class DirectoryLease(List<OwnedHandle> handles, SafeFileHandle root) : IDisposable
+    private sealed class DirectoryLease(List<OwnedHandle> handles, SafeHandle root) : IDisposable
     {
-        public SafeFileHandle Handle => handles.Count == 0 ? root : handles[^1].Value;
-        public void Dispose() { for (int i = handles.Count - 1; i >= 0; i--) handles[i].Dispose(); }
+        public SafeHandle Handle => handles.Count == 0 ? root : handles[^1].Value;
+        public void Dispose() { AnalysisNativeHandle.CloseAll(handles.AsEnumerable().Reverse()); }
     }
     private DirectoryLease OpenDirectory(AnalysisEntry directory)
     {
@@ -196,7 +203,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
             var parts = Utf16(directory.RelativeName.AsSpan()).Split('\\', StringSplitOptions.RemoveEmptyEntries);
             // Retain the chain without delete sharing through enumeration. Reserve headroom for simultaneous scans.
             if (parts.Length > 48) throw new IOException("The native handle budget limits traversal depth here.");
-            SafeFileHandle current = _root.Value;
+            SafeHandle current = _root.Value;
             foreach (string part in parts)
             {
                 var opened = OpenChild(current, part, directory: true); held.Add(opened); current = opened.Value;
@@ -205,9 +212,9 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
             }
             return new(held, _root.Value);
         }
-        catch { foreach (var h in held) h.Dispose(); throw; }
+        catch { AnalysisNativeHandle.CloseAll(held.AsEnumerable().Reverse()); throw; }
     }
-    private static OwnedHandle OpenChild(SafeFileHandle parent, string name, bool directory)
+    private OwnedHandle OpenChild(SafeHandle parent, string name, bool directory)
     {
         var reservation = AnalysisNativeHandles.Acquire();
         try
@@ -225,12 +232,12 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
                 throw new AnalysisEntryUnavailableException(changed ? MeasurementState.Changed : MeasurementState.Failed,
                     changed ? "entry-changed-before-observation" : "entry-metadata-unavailable");
             }
-            return new(handle, reservation);
+            return new(handle, reservation, RecordCloseFailure, _nativeClose);
         }
         }
         catch { reservation.Dispose(); throw; }
     }
-    internal static string? CaptureDirectoryIdentity(SafeFileHandle handle)
+    internal static string? CaptureDirectoryIdentity(SafeHandle handle)
     {
         var buffer = new char[32768]; uint length;
         fixed (char* p = buffer) length = GetFinalPathNameByHandle(handle, p, (uint)buffer.Length, 2);
@@ -241,7 +248,7 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
         var entry = Observe(handle, [], [], parts[1]);
         return entry.Kind == AnalysisKind.Directory ? entry.Identity : null;
     }
-    private static AnalysisEntry Observe(SafeFileHandle h, ImmutableArray<byte> relative, byte[] raw, string sourceNamespace)
+    private static AnalysisEntry Observe(SafeHandle h, ImmutableArray<byte> relative, byte[] raw, string sourceNamespace)
     {
         byte* standard = stackalloc byte[24]; byte* basic = stackalloc byte[40]; byte* id = stackalloc byte[24];
         if (!GetInfo(h, 1, standard, 24) || !GetInfo(h, 0, basic, 40) || !GetInfo(h, 18, id, 24)) throw new IOException("Required file metadata is unavailable.");
@@ -286,13 +293,13 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
     // attribute might be either a navigation link or a regular placeholder, so do not invent a kind.
     private static AnalysisKind UnavailableKind(uint attributes) => (attributes & 0x400) != 0 ? AnalysisKind.Unknown
         : (attributes & 0x10) != 0 ? AnalysisKind.Directory : AnalysisKind.File;
-    private static ulong Volume(SafeFileHandle h)
+    private static ulong Volume(SafeHandle h)
     {
         byte* buffer = stackalloc byte[24];
         if (!GetInfo(h, 18, buffer, 24)) throw new IOException("Source identity is unavailable.");
         return *(ulong*)buffer;
     }
-    private static (int Status, int Count) Query(SafeFileHandle h, byte[] buffer, bool restart)
+    private static (int Status, int Count) Query(SafeHandle h, byte[] buffer, bool restart)
     {
         fixed (byte* b = buffer)
         {
@@ -309,14 +316,24 @@ public sealed unsafe partial class WindowsAnalysisBackend : IAnalysisBackend
     }
     private static string Utf16(ReadOnlySpan<byte> bytes) => new(MemoryMarshal.Cast<byte, char>(bytes));
     private static byte[] Raw(string name) => MemoryMarshal.AsBytes(name.AsSpan()).ToArray();
-    public void Dispose() { if (!_disposed) { _disposed = true; _root.Dispose(); } }
+    private void RecordCloseFailure(Exception error) => _closeFailure ??= error;
+    private void Guard()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_closeFailure is { } error) throw AnalysisCloseUnconfirmedException.From(error);
+    }
+    public void Dispose()
+    {
+        if (_disposed) return; _disposed = true; _root.Dispose();
+        if (_closeFailure is { } error) throw AnalysisCloseUnconfirmedException.From(error);
+    }
     [StructLayout(LayoutKind.Sequential)] private struct UnicodeString { public ushort Length, MaximumLength; public nint Buffer; }
     [StructLayout(LayoutKind.Sequential)] private struct ObjectAttributes { public uint Length; public nint Root, Name; public uint Attributes; public nint Descriptor, Quality; }
     [StructLayout(LayoutKind.Sequential)] private struct IoStatus { public nint Status; public nuint Information; }
     [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)] private static partial SafeFileHandle CreateFile(string path, uint access, uint share, nint security, uint disposition, uint flags, nint template);
-    [LibraryImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetInfo(SafeFileHandle h, int kind, byte* info, uint length);
-    [LibraryImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW", SetLastError = true)] private static partial uint GetFinalPathNameByHandle(SafeFileHandle h, char* path, uint length, uint flags);
+    [LibraryImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetInfo(SafeHandle h, int kind, byte* info, uint length);
+    [LibraryImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW", SetLastError = true)] private static partial uint GetFinalPathNameByHandle(SafeHandle h, char* path, uint length, uint flags);
     [LibraryImport("kernel32.dll", EntryPoint = "GetDriveTypeW", StringMarshalling = StringMarshalling.Utf16)] private static partial uint GetDriveType(string root);
     [LibraryImport("ntdll.dll")] private static partial int NtCreateFile(out SafeFileHandle h, uint access, ObjectAttributes* attributes, out IoStatus io, nint allocation, uint flags, uint share, uint disposition, uint options, nint ea, uint eaLength);
-    [LibraryImport("ntdll.dll")] private static partial int NtQueryDirectoryFile(SafeFileHandle h, nint evt, nint apc, nint ctx, out IoStatus io, byte* buffer, uint length, int kind, [MarshalAs(UnmanagedType.U1)] bool single, nint pattern, [MarshalAs(UnmanagedType.U1)] bool restart);
+    [LibraryImport("ntdll.dll")] private static partial int NtQueryDirectoryFile(SafeHandle h, nint evt, nint apc, nint ctx, out IoStatus io, byte* buffer, uint length, int kind, [MarshalAs(UnmanagedType.U1)] bool single, nint pattern, [MarshalAs(UnmanagedType.U1)] bool restart);
 }

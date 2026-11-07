@@ -9,6 +9,25 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed partial class AnalysisWindowsTests
 {
+    [Fact]
+    public async Task NativeBackendChildCloseFailureStopsNewWorkAndRemainsVisibleAtFinalClosure()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows native fixtures.");
+        await FileCat.Tests.AnalysisNativeHandleCases.BackendCloseFault();
+    }
+    [Fact]
+    public void RepeatedWindowsPrivateCatalogCursorsReturnTheirNativeReservations()
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows() || AnalysisAdmission.Refusal() is not null, "Needs ordinary Windows native fixtures.");
+        using var fixture = new PrivateFixture(); int baseline = AnalysisNativeHandles.Count;
+        using (var directory = new WindowsAnalysisPrivateDirectory(fixture.Path, "saved"))
+        {
+            int held = AnalysisNativeHandles.Count;
+            for (int i = 0; i <= AnalysisLimits.NativeHandles; i++)
+            { Assert.Empty(directory.Entries(TestContext.Current.CancellationToken)); Assert.Equal(held, AnalysisNativeHandles.Count); }
+        }
+        Assert.Equal(baseline, AnalysisNativeHandles.Count);
+    }
     private static AnalysisSnapshot StorageSample() => new(new(Guid.NewGuid(), 1, 1, "fixture", DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch),
         [new("r", "file", "Root", "Root", "device", IdentityAssurance.Verified, "Root")],
         [new(1, "r", 0, "Root", AnalysisKind.Directory)], [], [], [], new(), AnalysisPhase.Finished, NamespaceCoverage.CompleteUnderPolicy);

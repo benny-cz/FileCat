@@ -79,6 +79,18 @@ public sealed class AnalysisProfileTests
     }
 
     [Fact]
+    public void AConcurrentProfileWinnerCannotHideUnconfirmedConstructorRollback()
+    {
+        Ordinary(); using var winnerDirectory = new MemoryDirectory(); using var winnerStore = new AnalysisPrivateInventoryStore(winnerDirectory);
+        new AnalysisPrivateProfileState(winnerStore).LoadOrCreate(Cancellation);
+        using var directory = new MemoryDirectory { FailWriteClose = true, BeforePublish = d => d.Data = winnerDirectory.Data!.ToArray() };
+        using var store = new AnalysisPrivateInventoryStore(directory);
+        var error = Record.Exception(() => new AnalysisPrivateProfileState(store).LoadOrCreate(Cancellation));
+        Assert.True(AnalysisCloseUnconfirmedException.IsPresent(error)); Assert.Equal(1, directory.Reads);
+        Assert.Equal(0, directory.Publications); Assert.Equal(winnerDirectory.Data, directory.Data);
+    }
+
+    [Fact]
     public void NativeHostObservationIsStableAndProfileScopedOnTheQualifiedTestHost()
     {
         Ordinary(); var first = AnalysisNativeHostProfile.Read(Profile); var second = AnalysisNativeHostProfile.Read(Profile);
@@ -110,11 +122,12 @@ public sealed class AnalysisProfileTests
     private static void Ordinary() => Assert.SkipWhen(AnalysisAdmission.Refusal() is not null, "Needs an ordinary process.");
     private sealed class MemoryDirectory : AnalysisPrivateDirectory
     {
-        public byte[]? Data; public int Publications; public bool Uncertain; public Action<MemoryDirectory>? BeforePublish;
+        public byte[]? Data; public int Publications, Reads; public bool Uncertain, FailWriteClose; public Action<MemoryDirectory>? BeforePublish;
         internal override void Verify() { }
         internal override (UInt128 Capacity, UInt128 Available) Space() => (1UL << 40, 1UL << 40);
         internal override AnalysisPrivateFile CreateStaging() => new MemoryFile(this, new(), true);
-        internal override AnalysisPrivateFile OpenRead(string name) => Data is null ? throw new FileNotFoundException() : new MemoryFile(this, new(Data), false);
+        internal override AnalysisPrivateFile OpenRead(string name)
+        { Reads++; return Data is null ? throw new FileNotFoundException() : new MemoryFile(this, new(Data), false); }
         public override void Dispose() { }
         private sealed class MemoryFile(MemoryDirectory directory, MemoryStream stream, bool writable) : AnalysisPrivateFile
         {
@@ -129,7 +142,8 @@ public sealed class AnalysisProfileTests
                 directory.Data = stream.ToArray(); directory.Publications++;
                 if (directory.Uncertain) throw new AnalysisPublicationUncertainException(name, new IOException("Injected durability uncertainty."));
             }
-            public override void Dispose() => stream.Dispose();
+            public override void Dispose()
+            { stream.Dispose(); if (writable && directory.FailWriteClose) throw new IOException("Injected unconfirmed rollback close."); }
         }
     }
 }

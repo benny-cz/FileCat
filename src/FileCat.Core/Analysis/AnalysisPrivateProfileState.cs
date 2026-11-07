@@ -18,7 +18,7 @@ public sealed class AnalysisPrivateProfileState(AnalysisPrivateInventoryStore st
         byte[] data = buffer.ToArray();
         try { store.WriteMetadataNew(AnalysisPrivateNames.PrivateState, data, cancellation); return id; }
         catch (AnalysisPublicationUncertainException) { throw; }
-        catch (IOException)
+        catch (IOException error) when (!AnalysisCloseUnconfirmedException.IsPresent(error))
         {
             // A concurrent create-new winner is accepted only after the complete guarded strict read.
             // No replacement, repair or write retry follows any error.

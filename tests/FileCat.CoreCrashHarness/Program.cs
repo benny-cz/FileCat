@@ -16,6 +16,10 @@ if (args is ["--analysis-file-quota-init", var fileQuotaInitParent])
     return AnalysisQuotaHold.Initialize(fileQuotaInitParent);
 if (args is ["--analysis-scratch-quarantine-hold", var quarantineProfile, var quarantineParent])
     return await AnalysisScratchQuarantineHold.RunAsync(quarantineProfile, quarantineParent);
+if (args is ["--analysis-native-handle-probe", var handleProbeSource])
+    return AnalysisNativeHandleProbe.Run(handleProbeSource);
+if (args is ["--analysis-backend-close-probe", var backendProbeRoot])
+    return await AnalysisBackendCloseProbe.RunAsync(backendProbeRoot);
 
 if (args is ["--analysis-scratch-vector", var recordText, var vectorParent])
     return ScratchScale.Run(int.Parse(recordText, System.Globalization.CultureInfo.InvariantCulture), vectorParent);

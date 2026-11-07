@@ -3,7 +3,6 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using FileCat.Core.FileSystem;
-using Microsoft.Win32.SafeHandles;
 
 namespace FileCat.Core.Analysis;
 
@@ -17,7 +16,7 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
     private readonly uint _owner;
     private readonly List<(string Name, OwnedHandle Handle, UnixStat Identity)> _chain = [];
     private bool _disposed;
-    private SafeFileHandle Root => _chain[^1].Handle.Handle;
+    private SafeHandle Root => _chain[^1].Handle.Handle;
     private int DirectoryFlags => _mac ? 0x100000 | 0x1000000 | 0x100 | 4 : 0x10000 | 0x80000 | 0x20000;
     private int FileFlags => _mac ? 0x1000000 | 0x100 | 4 : 0x80000 | 0x20000 | 0x800;
 
@@ -165,9 +164,9 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
         var names = new List<string>(); var utf8 = new UTF8Encoding(false, true); long bytes = 0;
         using var cursor = OpenOwned(Root, ".", DirectoryFlags, 0);
         if (!Same(Stat(cursor.Handle), Stat(Root))) throw new IOException("The private catalog directory changed.");
-        nint stream = FdOpenDir(Fd(cursor.Handle));
-        if (stream == 0) throw Error("The private catalog could not be enumerated.");
-        cursor.Handle.SetHandleAsInvalid(); // DIR owns the descriptor; cursor retains its budget reservation.
+        nint nativeStream = FdOpenDir(Fd(cursor.Handle));
+        if (nativeStream == 0) throw Error("The private catalog could not be enumerated.");
+        var stream = cursor.Handle.TransferToDirectory(nativeStream);
         try
         {
             while (true)
@@ -190,10 +189,10 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
             }
             Verify(); return names.ToArray();
         }
-        finally { CloseDir(stream); }
+        finally { stream.CloseChecked(); }
     }
 
-    private void Private(SafeFileHandle handle, bool directory, uint? links)
+    private void Private(SafeHandle handle, bool directory, uint? links)
     {
         var stat = Stat(handle);
         if (stat.Owner != _owner) throw new IOException("The analysis storage owner does not match this ordinary user.");
@@ -240,7 +239,7 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
         public PrivateFile(UnixAnalysisPrivateDirectory directory, OwnedHandle owned, bool writable)
         {
             _directory = directory; _owned = owned; _writable = writable;
-            _stream = new(owned.Handle, writable ? FileAccess.ReadWrite : FileAccess.Read, 64 * 1024, isAsync: false);
+            _stream = owned.Handle.OpenStream(writable ? FileAccess.ReadWrite : FileAccess.Read);
         }
         public override Stream Stream => _stream;
         internal override bool TryLockCapacity()
@@ -310,23 +309,22 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
     public override void Dispose()
     {
         if (_disposed) return; _disposed = true;
-        for (int i = _chain.Count - 1; i >= 0; i--) _chain[i].Handle.Dispose();
-        _chain.Clear();
+        try { AnalysisNativeHandle.CloseAll(_chain.AsEnumerable().Reverse().Select(item => item.Handle)); }
+        finally { _chain.Clear(); }
     }
     private static bool Same(UnixStat a, UnixStat b) => a.Device == b.Device && a.Inode == b.Inode;
-    [LibraryImport("libc", EntryPoint = "flock", SetLastError = true)] private static partial int Flock(SafeFileHandle handle, int operation);
-    private static UnixStat Stat(SafeFileHandle handle) => UnixFiles.Stat(handle) ?? throw new IOException("Private analysis storage identity is unavailable.");
-    private static int Fd(SafeFileHandle handle) => checked((int)handle.DangerousGetHandle());
+    [LibraryImport("libc", EntryPoint = "flock", SetLastError = true)] private static partial int Flock(SafeHandle handle, int operation);
+    private static UnixStat Stat(SafeHandle handle) => UnixFiles.StatHandle(handle) ?? throw new IOException("Private analysis storage identity is unavailable.");
+    private static int Fd(SafeHandle handle) => checked((int)handle.DangerousGetHandle());
     private static IOException Error(string message) => new(message, new Win32Exception(Marshal.GetLastPInvokeError()));
 
     private sealed class OwnedHandle : IDisposable
     {
-        public SafeFileHandle Handle { get; }
-        private readonly IDisposable _reservation;
-        public OwnedHandle(int fd, IDisposable reservation) { Handle = new((nint)fd, ownsHandle: true); _reservation = reservation; }
-        public void Dispose() { Handle.Dispose(); _reservation.Dispose(); }
+        public AnalysisNativeHandle Handle { get; }
+        public OwnedHandle(int fd, IDisposable reservation) { Handle = AnalysisNativeHandle.UnixFile(fd, reservation); }
+        public void Dispose() => Handle.CloseChecked();
     }
-    private static OwnedHandle OpenOwned(SafeFileHandle? parent, string name, int flags, uint mode)
+    private static OwnedHandle OpenOwned(SafeHandle? parent, string name, int flags, uint mode)
     {
         var reservation = AnalysisNativeHandles.Acquire();
         bool parentHeld = false;
@@ -353,28 +351,27 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
     [LibraryImport("libc", EntryPoint = "openat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int OpenAtDarwinArm64(int fd, string name, int flags, int unused3, int unused4, int unused5, int unused6, int unused7, ulong mode);
     [LibraryImport("libc", EntryPoint = "mkdirat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
-    private static partial int MkdirAt(SafeFileHandle fd, string name, uint mode);
+    private static partial int MkdirAt(SafeHandle fd, string name, uint mode);
     [LibraryImport("libc", EntryPoint = "fdopendir", SetLastError = true)] private static partial nint FdOpenDir(int fd);
-    [LibraryImport("libc", EntryPoint = "readdir", SetLastError = true)] private static partial nint ReadDir(nint stream);
-    [LibraryImport("libc", EntryPoint = "readdir$INODE64", SetLastError = true)] private static partial nint ReadDirMac(nint stream);
-    [LibraryImport("libc", EntryPoint = "closedir", SetLastError = true)] private static partial int CloseDir(nint stream);
+    [LibraryImport("libc", EntryPoint = "readdir", SetLastError = true)] private static partial nint ReadDir(SafeHandle stream);
+    [LibraryImport("libc", EntryPoint = "readdir$INODE64", SetLastError = true)] private static partial nint ReadDirMac(SafeHandle stream);
     [LibraryImport("libc", EntryPoint = "unlinkat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
-    private static partial int UnlinkAt(SafeFileHandle fd, string name, int flags);
+    private static partial int UnlinkAt(SafeHandle fd, string name, int flags);
     [LibraryImport("libc", EntryPoint = "linkat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
-    private static partial int LinkAt(SafeFileHandle oldFd, string oldName, SafeFileHandle newFd, string newName, int flags);
+    private static partial int LinkAt(SafeHandle oldFd, string oldName, SafeHandle newFd, string newName, int flags);
     [LibraryImport("libc", EntryPoint = "fclonefileat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
-    private static partial int CloneFileAt(SafeFileHandle sourceFd, SafeFileHandle targetFd, string name, int flags);
-    [LibraryImport("libc", EntryPoint = "fstatfs", SetLastError = true)] private static partial int FstatFs(SafeFileHandle fd, byte* buffer);
-    [LibraryImport("libc", EntryPoint = "fstatfs$INODE64", SetLastError = true)] private static partial int FstatFsMac64(SafeFileHandle fd, byte* buffer);
-    [LibraryImport("libc", EntryPoint = "fsync", SetLastError = true)] private static partial int Fsync(SafeFileHandle fd);
-    [LibraryImport("libc", EntryPoint = "fcntl", SetLastError = true)] private static partial int Fcntl(SafeFileHandle fd, int command);
+    private static partial int CloneFileAt(SafeHandle sourceFd, SafeHandle targetFd, string name, int flags);
+    [LibraryImport("libc", EntryPoint = "fstatfs", SetLastError = true)] private static partial int FstatFs(SafeHandle fd, byte* buffer);
+    [LibraryImport("libc", EntryPoint = "fstatfs$INODE64", SetLastError = true)] private static partial int FstatFsMac64(SafeHandle fd, byte* buffer);
+    [LibraryImport("libc", EntryPoint = "fsync", SetLastError = true)] private static partial int Fsync(SafeHandle fd);
+    [LibraryImport("libc", EntryPoint = "fcntl", SetLastError = true)] private static partial int Fcntl(SafeHandle fd, int command);
     [LibraryImport("libc", EntryPoint = "geteuid")] private static partial uint GetEuid();
     [LibraryImport("libc", EntryPoint = "filesec_init", SetLastError = true)] private static partial nint FileSecInit();
     [LibraryImport("libc", EntryPoint = "filesec_free")] private static partial void FileSecFree(nint security);
     [LibraryImport("libc", EntryPoint = "filesec_query_property", SetLastError = true)] private static partial int FileSecQuery(nint security, int property, out int present);
     [LibraryImport("libc", EntryPoint = "filesec_get_property", SetLastError = true)] private static partial int FileSecGetAcl(nint security, int property, out nint acl);
-    [LibraryImport("libc", EntryPoint = "fstatx_np", SetLastError = true)] private static partial int FstatX(SafeFileHandle fd, byte* buffer, nint security);
-    [LibraryImport("libc", EntryPoint = "fstatx_np$INODE64", SetLastError = true)] private static partial int FstatXMac64(SafeFileHandle fd, byte* buffer, nint security);
+    [LibraryImport("libc", EntryPoint = "fstatx_np", SetLastError = true)] private static partial int FstatX(SafeHandle fd, byte* buffer, nint security);
+    [LibraryImport("libc", EntryPoint = "fstatx_np$INODE64", SetLastError = true)] private static partial int FstatXMac64(SafeHandle fd, byte* buffer, nint security);
     [LibraryImport("libc", EntryPoint = "acl_get_entry", SetLastError = true)] private static partial int AclGetEntry(nint acl, int entryId, out nint entry);
     [LibraryImport("libc", EntryPoint = "acl_valid", SetLastError = true)] private static partial int AclValid(nint acl);
     [LibraryImport("libc", EntryPoint = "acl_free")] private static partial int AclFree(nint acl);

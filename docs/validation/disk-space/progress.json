@@ -146,7 +146,8 @@
     "Private staged inventories now become fully graph/coverage/accounting-validated indexed datasets retaining opaque original path IDs throughout queries, filters, charts, explorer data models and complete saves. All19 new adoption controls and native5201-path import/filter/save/reopen/actual-cleanup probes pass all3; general external-file and catalog/UI import adoption remain required.",
     "Private catalog-aware indexed loading now validates reviewed identity/actual bytes/coverage/taint, requires destination profile capacity, returns retained inert data and restores saved settings/original-ID scope through an internal app route. Native profile-backed UI controls and factory/metadata negatives pass all3 (11 new Core and10 rendering controls). Normal opener/persistence/comparison parity and full resource qualification remain pending.",
     "Unconfirmed close outcomes are now distinct across admitted releases, private file scopes, rollback and publication wrappers. Pending indexed imports retain failed-close admission across window replacement; caught view/persistence failures stay latched through actual drain and stop new view work. All7 new Core/4 rendering controls and the extended native private-file refusal probe pass all3, in one complete candidate batch per machine.",
-    "Unconfirmed scratch closes retain exact byte charges and directory/profile capacity until process exit, reject new workspace admission, and preserve constructor rollback ownership. Four direct controls plus a real native cross-process capacity/actual-exit probe pass all3 in complete immutable candidate batches."
+    "Unconfirmed scratch closes retain exact byte charges and directory/profile capacity until process exit, reject new workspace admission, and preserve constructor rollback ownership. Four direct controls plus a real native cross-process capacity/actual-exit probe pass all3 in complete immutable candidate batches.",
+    "Checked native file/directory SafeHandle owners retain failed-close slots without retry, pin stream/offset I/O through actual completion and transfer fdopendir admission to closedir. Native128-handle, faulted-backend and129-cursor controls pass all3; profile/concurrent-create handling preserves close signals. Complete immutable candidate suites and relevant shared Windows helper regressions pass."
   ],
   "validation": {
     "windowsCore": {
@@ -2095,7 +2096,7 @@
     },
     "testingWorkflow": {
       "default": "Build and package the largest coherent implementation candidate, then transfer one immutable bundle per free platform and execute all applicable Core/native/rendering phases sequentially before collecting evidence. Preserve other testers and gate every phase.",
-      "batchEvidence": "source-manifest-r537.json",
+      "batchEvidence": "source-manifest-r547.json",
       "oneCandidateArchivePerPlatform": true,
       "postExecutionProcessExitRequired": true
     },
@@ -2181,10 +2182,252 @@
       "persistenceGateQualified": false,
       "actionsHelperContentEnabled": false,
       "finalIndependentReviewPerformed": false
+    },
+    "checkedNativeHandleClosure": {
+      "scope": "Native file/directory close results and actual lifetime; not full IPC/profile/global-resource qualification",
+      "newCoreControls": 12,
+      "targetedControls": {
+        "mac": [
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ConfirmedCloseReturnsItsSlotExactlyOnce",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ProfileCapacityCannotDowngradeAnUnconfirmedNativeCloseToAnOrdinaryUnavailableError",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.FailedNativeResultNeverReturnsItsSlotOrRetriesTheNativeNumber",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.DisposingAStreamViewDoesNotCloseItsCountedNativeOwner(asyncDispose: False)",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.DisposingAStreamViewDoesNotCloseItsCountedNativeOwner(asyncDispose: True)",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ActiveNativePinKeepsTheHandleAndSlotUntilTheActualCallerReturns",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.NativeBackendChildCloseFailureStopsNewWorkAndRemainsVisibleAtFinalClosure",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.NativeFilesKeepFailedCloseChargedAtTheGlobalLimitInAnOwnedProcess",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.CancellationFromCloseRemainsAnUnconfirmedOwnerWithoutRetry",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.CleanupAttemptsEveryIndependentOwnerAndPreservesCloseFailures",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.RepeatedUnixPrivateCatalogCursorsReturnTheirNativeReservations",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisProfileTests.AConcurrentProfileWinnerCannotHideUnconfirmedConstructorRollback",
+            "result": "Pass"
+          }
+        ],
+        "ubuntu": [
+          {
+            "name": "FileCat.Core.Tests.AnalysisProfileTests.AConcurrentProfileWinnerCannotHideUnconfirmedConstructorRollback",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.DisposingAStreamViewDoesNotCloseItsCountedNativeOwner(asyncDispose: False)",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.DisposingAStreamViewDoesNotCloseItsCountedNativeOwner(asyncDispose: True)",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.CancellationFromCloseRemainsAnUnconfirmedOwnerWithoutRetry",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.CleanupAttemptsEveryIndependentOwnerAndPreservesCloseFailures",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.NativeFilesKeepFailedCloseChargedAtTheGlobalLimitInAnOwnedProcess",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ConfirmedCloseReturnsItsSlotExactlyOnce",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ActiveNativePinKeepsTheHandleAndSlotUntilTheActualCallerReturns",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.NativeBackendChildCloseFailureStopsNewWorkAndRemainsVisibleAtFinalClosure",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.FailedNativeResultNeverReturnsItsSlotOrRetriesTheNativeNumber",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ProfileCapacityCannotDowngradeAnUnconfirmedNativeCloseToAnOrdinaryUnavailableError",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.RepeatedUnixPrivateCatalogCursorsReturnTheirNativeReservations",
+            "result": "Pass"
+          }
+        ],
+        "windows": [
+          {
+            "name": "FileCat.Core.Tests.AnalysisProfileTests.AConcurrentProfileWinnerCannotHideUnconfirmedConstructorRollback",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.CancellationFromCloseRemainsAnUnconfirmedOwnerWithoutRetry",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.NativeFilesKeepFailedCloseChargedAtTheGlobalLimitInAnOwnedProcess",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.NativeBackendChildCloseFailureStopsNewWorkAndRemainsVisibleAtFinalClosure",
+            "result": "Skip"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ConfirmedCloseReturnsItsSlotExactlyOnce",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.RepeatedUnixPrivateCatalogCursorsReturnTheirNativeReservations",
+            "result": "Skip"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.FailedNativeResultNeverReturnsItsSlotOrRetriesTheNativeNumber",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ProfileCapacityCannotDowngradeAnUnconfirmedNativeCloseToAnOrdinaryUnavailableError",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.CleanupAttemptsEveryIndependentOwnerAndPreservesCloseFailures",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ActiveNativePinKeepsTheHandleAndSlotUntilTheActualCallerReturns",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.DisposingAStreamViewDoesNotCloseItsCountedNativeOwner(asyncDispose: False)",
+            "result": "Pass"
+          },
+          {
+            "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.DisposingAStreamViewDoesNotCloseItsCountedNativeOwner(asyncDispose: True)",
+            "result": "Pass"
+          }
+        ]
+      },
+      "catalogCursorIterations": 129,
+      "matrix": {
+        "mac-batch-r545-core-r545.xml": {
+          "total": "692",
+          "passed": "690",
+          "failed": "0",
+          "skipped": "2",
+          "errors": "0",
+          "time": "20.370"
+        },
+        "mac-batch-r545-render-r545.xml": {
+          "total": "109",
+          "passed": "109",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "35.714"
+        },
+        "ubuntu-batch-r545-core-r545.xml": {
+          "total": "692",
+          "passed": "690",
+          "failed": "0",
+          "skipped": "2",
+          "errors": "0",
+          "time": "45.828"
+        },
+        "ubuntu-batch-r545-render-r545.xml": {
+          "total": "109",
+          "passed": "109",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "46.191"
+        },
+        "windows-batch-r545-core-r545.xml": {
+          "total": "710",
+          "passed": "664",
+          "failed": "0",
+          "skipped": "46",
+          "errors": "0",
+          "time": "16.464"
+        },
+        "windows-batch-r545-native-r545.xml": {
+          "total": "74",
+          "passed": "74",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "36.652"
+        },
+        "windows-batch-r545-render-r545.xml": {
+          "total": "109",
+          "passed": "108",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "52.173"
+        }
+      },
+      "windowsSharedHelperRegressionsIncluded": true,
+      "singleImmutableBundlePerPlatform": true,
+      "postChecks": [
+        "mac-batch-r545-post.json",
+        "ubuntu-batch-r545-post.json",
+        "windows-batch-r545-post.json"
+      ],
+      "manifest": "source-manifest-r547.json",
+      "nextCloseAccountingWork": [
+        "Retain uncertain AnalysisFileProfileCapacity token owners/Units instead of clearing them in Retire finally; prevent retry while closing independent confirmed tokens.",
+        "Complete named-mutex and Unix kernel-capacity close/rollback accounting, including native-handle reservations on uncertain cleanup.",
+        "Retain failed final quota components and dependent directory ownership; finish the full constructor/rollback/close-result matrix."
+      ],
+      "nativeFileAndDirectoryCheckedCloseImplemented": true,
+      "nativeGlobal128HandleProbePassedAllThree": true,
+      "nativeBackendChildCloseLatchingPassedAllThree": true,
+      "nativeFullConstructorRollbackFaultMatrixQualified": false,
+      "kernelIpcAndProfileTokenCloseAccountingQualified": false,
+      "unconfirmedOwnerBudgetAccountingQualified": false,
+      "fullResourceGateQualified": false,
+      "globalPendingCpuDeviceAliasGateQualified": false,
+      "nativeDesktopInputQualified": false,
+      "productCommandRegistered": false,
+      "publicIndexedSpillEnabled": false,
+      "persistenceGateQualified": false,
+      "actionsHelperContentEnabled": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
-    "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, bounded queue/CPU admission, actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete native handle close-result accounting and the full constructor/rollback fault matrix. Scratch/directory/profile retention and an actual native cross-process capacity/exit probe now pass all3; the complete unconfirmed-owner/global resource gate remains unqualified.",
+    "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, bounded queue/CPU admission, actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete kernel IPC/profile-token retirement accounting and the full constructor/rollback fault matrix. Checked native file/directory ownership, the128-handle limit, faulted-backend refusal and129-cursor probes now pass all3, alongside scratch/profile capacity retention; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: grouping/color dimensions, scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",

@@ -11,10 +11,12 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
     private readonly int _root;
     private readonly bool _mac = OperatingSystem.IsMacOS();
     private bool _disposed;
+    private Exception? _closeFailure;
+    private readonly Func<nint, bool>? _nativeClose;
     private readonly ulong _device, _mount;
     private readonly bool _identitySupported;
     private readonly ulong _modifiedPrecisionTicks = 1;
-    private readonly Dictionary<int, IDisposable> _handleLeases = [];
+    private readonly Dictionary<int, AnalysisNativeHandle> _handleLeases = [];
     private readonly Guid _bindingId = Guid.NewGuid();
     public RootBinding Root { get; }
     public AnalysisEntry RootEntry { get; }
@@ -22,15 +24,18 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
     private sealed record Facts(ulong Device, ulong Inode, ulong Mount, AnalysisKind Kind, ulong Size, ulong Blocks,
         uint Links, long Modified, uint ModifiedNs, long Changed, uint ChangedNs, bool HasAllocation, uint Flags);
 
-    public UnixAnalysisBackend(string selectedRoot)
+    public UnixAnalysisBackend(string selectedRoot) : this(selectedRoot, null) { }
+
+    internal UnixAnalysisBackend(string selectedRoot, Func<nint, bool>? nativeClose)
     {
+        _nativeClose = nativeClose;
         if (!OperatingSystem.IsLinux() && !_mac) throw new PlatformNotSupportedException();
         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
         string canonical = UnixFiles.RealPath(selectedRoot) ?? throw new IOException("The selected root could not be resolved.");
         // Preparing is explicit and does not enumerate. The setup screen displays this captured target before Start.
         var rootLease = AnalysisNativeHandles.Acquire();
         _root = Open(canonical, _mac ? 0x1000000 | 0x8000 | 0x100 | 0x4 : 0x200000 | 0x80000 | 0x20000);
-        if (_root < 0) rootLease.Dispose(); else _handleLeases.Add(_root, rootLease);
+        if (_root < 0) rootLease.Dispose(); else _handleLeases.Add(_root, AnalysisNativeHandle.UnixFile(_root, rootLease, _nativeClose));
         if (_root < 0) throw new IOException("The selected directory could not be opened without following a link.");
         try
         {
@@ -56,23 +61,25 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
             // Require the kernel's resolution contract before advertising recursive Linux traversal.
             if (!_mac && facts.Kind == AnalysisKind.Directory) { int probe = OpenRelative([] , directory: true); Close(probe); }
         }
-        catch { Close(_root); throw; }
+        catch { Dispose(); throw; }
     }
 
     public IEnumerable<AnalysisEntry> Children(AnalysisEntry directory, CancellationToken cancellation)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        Guard();
         if (!_identitySupported && directory.RelativeName.Length > 0)
             throw new IOException("Recursive identity binding is unavailable on this filesystem. Only shallow observations are supported.");
         int fd = OpenRelative(directory.RelativeName.AsSpan(), directory: true);
         int streamFd = fd;
-        nint stream = 0;
+        AnalysisNativeHandle? stream = null;
         try
         {
             var current = Stat(fd);
             if (!Same(directory, current)) throw new AnalysisSourceChangedException();
-            stream = FdOpenDir(fd);
-            if (stream == 0) throw new IOException("Directory enumeration is unavailable.");
+            nint nativeStream = FdOpenDir(fd);
+            if (nativeStream == 0) throw new IOException("Directory enumeration is unavailable.");
+            stream = _handleLeases[fd].TransferToDirectory(nativeStream);
+            _handleLeases[fd] = stream;
             fd = -1; // ownership transferred to DIR*
             while (true)
             {
@@ -103,7 +110,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
                     result = AnalysisEntry.Unavailable(relative.ToImmutableArray(), raw.ToImmutableArray(), "unix-bytes",
                         DirectoryEntryKind(type), ex.State, ex.Code);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (Exception ex) when (!AnalysisCloseUnconfirmedException.IsPresent(ex) && ex is (IOException or UnauthorizedAccessException))
                 {
                     result = AnalysisEntry.Unavailable(relative.ToImmutableArray(), raw.ToImmutableArray(), "unix-bytes",
                         DirectoryEntryKind(type), MeasurementState.Failed, "entry-metadata-unavailable");
@@ -114,7 +121,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
         }
         finally
         {
-            if (stream != 0) { CloseDir(stream); ReleaseLease(streamFd); }
+            if (stream is not null) Close(streamFd);
             if (fd >= 0) Close(fd);
         }
     }
@@ -122,7 +129,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
         : entry with { Ancestry = new(_bindingId, entry.RelativeName, entry.Identity, entry.Version, parent) };
     public AnalysisRootContainment ContainsRoot(IAnalysisBackend other)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        Guard();
         if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
         if (other is not UnixAnalysisBackend source) return AnalysisRootContainment.Unavailable;
         if (_device != source._device || _mount != source._mount) return AnalysisRootContainment.Disjoint;
@@ -164,7 +171,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
     }
     public void ValidateReadScope(AnalysisEntry directory)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        Guard();
         if (directory.Ancestry is not { } witness || witness.BindingId != _bindingId ||
             !witness.RelativeName.AsSpan().SequenceEqual(directory.RelativeName.AsSpan())) throw new AnalysisSourceChangedException();
         if (_mac && _modifiedPrecisionTicks != 1 && directory.RelativeName.Length > 0)
@@ -211,6 +218,7 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
     }
     private int OpenRelative(ReadOnlySpan<byte> relative, bool directory)
     {
+        Guard();
         byte[] terminated = new byte[relative.Length == 0 ? 2 : relative.Length + 1];
         if (relative.Length == 0) terminated[0] = (byte)'.'; else relative.CopyTo(terminated);
         if (!_mac)
@@ -223,14 +231,14 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
                 var lease = AnalysisNativeHandles.Acquire();
                 long result = OpenAt2(437, _root, p, &how, (nuint)sizeof(OpenHow));
                 if (result < 0) { int error = Marshal.GetLastPInvokeError(); lease.Dispose(); throw OpenError(error); }
-                int fd = checked((int)result); _handleLeases.Add(fd, lease); return fd;
+                int fd = checked((int)result); _handleLeases.Add(fd, AnalysisNativeHandle.UnixFile(fd, lease, _nativeClose)); return fd;
             }
         }
         // macOS has no openat2: rebind each ancestor, never following links, retaining all opened descriptors until
         // the final open. Every component is on the captured device; no pathname recursion is used.
         var duplicateLease = AnalysisNativeHandles.Acquire();
         int current = OpenAt(_root, ".", 0x1000000 | 0x100000 | 0x100); // independent CLOEXEC directory description
-        if (current < 0) duplicateLease.Dispose(); else _handleLeases.Add(current, duplicateLease);
+        if (current < 0) duplicateLease.Dispose(); else _handleLeases.Add(current, AnalysisNativeHandle.UnixFile(current, duplicateLease, _nativeClose));
         if (current < 0) throw new IOException("A directory descriptor could not be duplicated.");
         try
         {
@@ -246,8 +254,8 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
                 var childLease = AnalysisNativeHandles.Acquire();
                 int next = OpenAt(current, pieces[i], flags);
                 if (next < 0) { int error = Marshal.GetLastPInvokeError(); childLease.Dispose(); throw OpenError(error); }
-                _handleLeases.Add(next, childLease);
-                Close(current); current = next;
+                _handleLeases.Add(next, AnalysisNativeHandle.UnixFile(next, childLease, _nativeClose));
+                int previous = current; current = next; Close(previous);
                 var currentFacts = Stat(current);
                 if (currentFacts.Device != _device || currentFacts.Mount != _mount) throw new AnalysisEntryUnavailableException(MeasurementState.Excluded, "source-mount-boundary");
             }
@@ -307,18 +315,33 @@ public sealed unsafe partial class UnixAnalysisBackend : IAnalysisBackend
         if (length < 0 || length >= recordLength - offset || length > AnalysisLimits.RawNameBytes) throw new InvalidDataException("Invalid native directory name.");
         return new ReadOnlySpan<byte>(p + offset, length).ToArray();
     }
-    public void Dispose() { if (!_disposed) { _disposed = true; Close(_root); } }
-    private void Close(int fd) { CloseNative(fd); ReleaseLease(fd); }
-    private void ReleaseLease(int fd) { if (_handleLeases.Remove(fd, out var lease)) lease.Dispose(); }
+    private void Guard()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_closeFailure is { } error) throw AnalysisCloseUnconfirmedException.From(error);
+    }
+    public void Dispose()
+    {
+        if (_disposed) return; _disposed = true;
+        List<Exception>? errors = null;
+        foreach (int fd in _handleLeases.Keys.ToArray())
+            try { Close(fd); } catch (Exception error) { (errors ??= []).Add(error); }
+        if (errors is not null) throw new AggregateException(errors);
+        if (_closeFailure is { } failure) throw AnalysisCloseUnconfirmedException.From(failure);
+    }
+    private void Close(int fd)
+    {
+        if (!_handleLeases.Remove(fd, out var owner)) return; // Never retry a native number.
+        try { owner.CloseChecked(); }
+        catch (Exception error) { _closeFailure ??= error; throw; }
+    }
     [StructLayout(LayoutKind.Sequential)] private struct OpenHow { public ulong Flags, Mode, Resolve; }
     [LibraryImport("libc", EntryPoint = "open", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)] private static partial int Open(string path, int flags);
     [LibraryImport("libc", EntryPoint = "openat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)] private static partial int OpenAt(int fd, string path, int flags);
     [LibraryImport("libc", EntryPoint = "syscall", SetLastError = true)] private static partial long OpenAt2(long number, int fd, byte* path, OpenHow* how, nuint size);
-    [LibraryImport("libc", EntryPoint = "close")] private static partial int CloseNative(int fd);
     [LibraryImport("libc", EntryPoint = "fdopendir", SetLastError = true)] private static partial nint FdOpenDir(int fd);
-    [LibraryImport("libc", EntryPoint = "readdir", SetLastError = true)] private static partial nint ReadDir(nint stream);
-    [LibraryImport("libc", EntryPoint = "readdir$INODE64", SetLastError = true)] private static partial nint ReadDirMac(nint stream);
-    [LibraryImport("libc", EntryPoint = "closedir")] private static partial int CloseDir(nint stream);
+    [LibraryImport("libc", EntryPoint = "readdir", SetLastError = true)] private static partial nint ReadDir(SafeHandle stream);
+    [LibraryImport("libc", EntryPoint = "readdir$INODE64", SetLastError = true)] private static partial nint ReadDirMac(SafeHandle stream);
     [LibraryImport("libc", EntryPoint = "statx", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)] private static partial int Statx(int fd, string path, int flags, uint mask, byte* buffer);
     [LibraryImport("libc", EntryPoint = "fstat")] private static partial int FstatMac(int fd, byte* buffer);
     [LibraryImport("libc", EntryPoint = "fstat$INODE64")] private static partial int FstatMac64(int fd, byte* buffer);

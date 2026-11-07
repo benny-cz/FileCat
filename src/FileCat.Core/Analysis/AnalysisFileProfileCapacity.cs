@@ -71,7 +71,7 @@ internal sealed class AnalysisFileProfileCapacity : IDisposable
         {
             try { _store.WriteMetadataNew(name, expected, CancellationToken.None); }
             catch (AnalysisPublicationUncertainException) { throw; }
-            catch (IOException) { /* A concurrent create-new winner must pass the exact read below. */ }
+            catch (IOException error) when (!AnalysisCloseUnconfirmedException.IsPresent(error)) { /* A concurrent create-new winner must pass the exact read below. */ }
             file = _directory.OpenRead(name);
         }
         try

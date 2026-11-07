@@ -1,0 +1,464 @@
+{
+  "purpose": "Checked native file/directory close, held128-handle admission, backend failure latching and rollback signal propagation",
+  "observedUtc": "2026-11-07T00:28:01.194296+00:00",
+  "gitBase": "c5b2906ec0106365e5b34e152d6b330ee14cdbdf",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisFileProfileCapacity.cs",
+      "sha256": "4a916666601b8a833a1222b3986f975ad0fdc42164dad674b42ab2afd60d491a"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisNativeHandle.cs",
+      "sha256": "2472c922d17d005dd0dd627a5da7fe3183fb88de3d83f632d134e55851216688"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisNativeHandles.cs",
+      "sha256": "172ad5387dd4c39c332384153e3c09f42b46936950d64b49d0b2852b078f7735"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisPrivateProfileState.cs",
+      "sha256": "b3c8c3f5b926e89ec1e4f844d9eeb2344a883fb8e20f747f12586b7ca5017a48"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisPrivateScratchFile.cs",
+      "sha256": "d4debc77ddff1aee88c5697aa927691450a820e98315cca6f47129f404c0ff21"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisProfileQuota.cs",
+      "sha256": "ad6c22e2ec8571111554624cbc1cce9ab9dae93bb7c7cd3bb13625761595e519"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/UnixAnalysisBackend.cs",
+      "sha256": "0e46a1b30935becb0516e7cccea2e06cb99201c332adac631e293247bb28001c"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/UnixAnalysisPrivateDirectory.cs",
+      "sha256": "c5f0be9e200f4f298cac583159c30a4958b003ba1f23a11bf66b6245999942dc"
+    },
+    {
+      "path": "src/FileCat.Core/FileSystem/UnixFiles.cs",
+      "sha256": "b505590845e7da262fc4f94b2c54c9fa336d4d07cfbf88575f404cef602d99d4"
+    },
+    {
+      "path": "src/FileCat.Platform.Windows/Analysis/WindowsAnalysisBackend.cs",
+      "sha256": "3aa3d7b34154e731a207c5c30a435fec64d22a8e52136eb30f6e7e947719f72f"
+    },
+    {
+      "path": "src/FileCat.Platform.Windows/Elevation/NtFile.cs",
+      "sha256": "6c8edfed7dc5bf650620a90a21053df34f3222381318cb4686a314ab0705d9fa"
+    },
+    {
+      "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.cs",
+      "sha256": "1f074ffeff65ca828637da5cf312663bcc78c5e35ddf88d8f982d8d421c4ed37"
+    },
+    {
+      "path": "tests/AnalysisNativeHandleCases.cs",
+      "sha256": "b15a3fa53559a7231ed640904d59d7db538c9ecbf1c8a810a540a16a110b942a"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisNativeHandleTests.cs",
+      "sha256": "b23c98dad33e6ee951d6116a5a21b97e8c6e83791d3ad582785a849a54a51ede"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisProfileTests.cs",
+      "sha256": "0f77bb2933aae0a3780b17080f657ffe084eae6c05fab2a3bed94b053652aa42"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj",
+      "sha256": "28a74c4333bd5e97aa64fc9f8593a062df94345f5cd0ba704bb20270f3817bdf"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/AnalysisBackendCloseProbe.cs",
+      "sha256": "48ed91d2866417dbf7b1ff660acabf2f796a556d459c0e68046f1d8ab9512049"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/AnalysisNativeHandleProbe.cs",
+      "sha256": "870abedc1d780e2165a7412f5fed6f076687df40bafc88bd327eb324dbe13300"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+      "sha256": "2158fcf0fa5496b1a1fc3eda2e93110008298d08cb691008f21a7dfc59fd2f79"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/AnalysisWindowsTests.PrivateStorage.cs",
+      "sha256": "08d8147fcc29f4cd4464fe7f3bbe831886606bfc76c25d3d485c71d416594541"
+    },
+    {
+      "path": "tests/FileCat.Platform.Windows.Tests/FileCat.Platform.Windows.Tests.csproj",
+      "sha256": "6ba3406d1e069ce8d80eeaeb919e7fdc5430ea05bbd192de27c97f36eb66d67d"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r544.txt",
+      "sha256": "1a25e04f3a812a14ce9230a50d125c0e346135786cb3cb83a2b47bce76c87924"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r545-core-r545.xml",
+      "sha256": "53a05c5031cf164b585292e912b107d4b8fa4335b1363849760dcb7150fd643f"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r545-core-r545.log",
+      "sha256": "e7befd1d769faa38c1361ae7257340400aaed54c27889a545b9ba05f9eabb36b"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r545-render-r545.xml",
+      "sha256": "ad2b6224aadaf22b2671a658d15b2f74ea22dbf845304a5f1c2befd553c3c3a0"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r545-render-r545.log",
+      "sha256": "868471c3260441a3ffb708ab4469819c9fc0bd457963e1a5c32dc6df7449b82c"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r545-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r545-post.json",
+      "sha256": "f8b3efa655317a6e1d853ae995508a4f33a5c4976e1812c31f9c2368ce334ab0"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r545-core-r545.xml",
+      "sha256": "0579cc07f37ab2d1699f84b110f5983e3124bc4e1e7db3f36225a5b1c2c7243e"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r545-core-r545.log",
+      "sha256": "a0fbc882f34eb97f6372ab3992166081ccd91468676ecd5f21982c3666e14da2"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r545-render-r545.xml",
+      "sha256": "971017bb6046e4424fe322c143f7e6fd6a3fc0299786daef62b7188ad3e27e7a"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r545-render-r545.log",
+      "sha256": "a91bd89590da75393094353f508f164137d69876139a20092d3231b63f16764f"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r545-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r545-post.json",
+      "sha256": "ff4e8779ad5ccf51b800fa8f6ce77011e4bb8cc7406e66978ded6bfc6dc1fd05"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r545-core-r545.xml",
+      "sha256": "549427736d07cfd074eeaa969e6fa17a3f53c7d3d4e766b1f2427d52236b6256"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r545-core-r545.log",
+      "sha256": "5fe5fb5e151360e3bd8be2915b55a7c8b8b520a4bb4c4baa5087850d22588502"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r545-native-r545.xml",
+      "sha256": "ca4e1e86d043545de307417460d05ccb2785e1ef4c5fda53ac2628a5f683377e"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r545-native-r545.log",
+      "sha256": "36f13bbd3d75a8413304e7e9df71ae8c5fad172a1cad5989fee10a3f9be5de67"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r545-render-r545.xml",
+      "sha256": "570a40d1c69fe6de4863b13d77bc11e224da4a165f23a640f8b7fc6b1df399db"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r545-render-r545.log",
+      "sha256": "281c21c864fc439b8c4b8dca10eac0d6886019d190f6fa71c80a952a531b8380"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r545-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r545-post.json",
+      "sha256": "62f19d383c0354201af5a69193564c59ed39b46c0b57b4b57fffdadacf4a214c"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r545.sh",
+      "sha256": "70f3683227e1fb0e2152de3e57eb3764ec7c4c1860789cf631c0a1a7969cf601"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r545.sh",
+      "sha256": "eebb67dae6fc181c2db90647ea8ecbacae271257a1180ede92b250497a4acfa9"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r545.ps1",
+      "sha256": "431a7faa249ed8f9cce840137b4058221433b331d75bb282ef0755d46fd333fd"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r545.tgz",
+      "sha256": "e50cc2449aa5b711d451c4f8536453329a63c82976cf345991cd4be99dd6029f"
+    },
+    {
+      "name": "dsa-batch-linux-r545.tgz",
+      "sha256": "88cfa6851968785a97d89f73b896d36eaf50d0c9dc80fd04f06873f7786cf4c4"
+    },
+    {
+      "name": "dsa-batch-windows-r545.tgz",
+      "sha256": "ccc753cdcfea41c66d2e85a8087f8d01e0dfd9ba77e03415d639a3fcdd9ed5fc"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r545": "8a01cdccc1ddee6e4e98dc17a1c7c572763f492251bd506624abd8901a65c0d2",
+    "native-r545": "8a01cdccc1ddee6e4e98dc17a1c7c572763f492251bd506624abd8901a65c0d2",
+    "render-r546-mac": "8a01cdccc1ddee6e4e98dc17a1c7c572763f492251bd506624abd8901a65c0d2",
+    "render-r546-linux": "8a01cdccc1ddee6e4e98dc17a1c7c572763f492251bd506624abd8901a65c0d2",
+    "render-r546-windows": "8a01cdccc1ddee6e4e98dc17a1c7c572763f492251bd506624abd8901a65c0d2"
+  },
+  "productionAppHashes": {
+    "render-r546-mac": "9d8396a1eaa80f09943d7c2100dfc48ef8f93742989be3c4e978d9925c198caa",
+    "render-r546-linux": "9d8396a1eaa80f09943d7c2100dfc48ef8f93742989be3c4e978d9925c198caa",
+    "render-r546-windows": "9d8396a1eaa80f09943d7c2100dfc48ef8f93742989be3c4e978d9925c198caa"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r545": "eb07edf5c00d10dfe02d948f0aa882f76c07812f67b66487f2013475f530521d",
+    "render-r546-mac": "eb07edf5c00d10dfe02d948f0aa882f76c07812f67b66487f2013475f530521d",
+    "render-r546-linux": "eb07edf5c00d10dfe02d948f0aa882f76c07812f67b66487f2013475f530521d",
+    "render-r546-windows": "eb07edf5c00d10dfe02d948f0aa882f76c07812f67b66487f2013475f530521d"
+  },
+  "matrix": {
+    "mac-batch-r545-core-r545.xml": {
+      "total": "692",
+      "passed": "690",
+      "failed": "0",
+      "skipped": "2",
+      "errors": "0",
+      "time": "20.370"
+    },
+    "mac-batch-r545-render-r545.xml": {
+      "total": "109",
+      "passed": "109",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "35.714"
+    },
+    "ubuntu-batch-r545-core-r545.xml": {
+      "total": "692",
+      "passed": "690",
+      "failed": "0",
+      "skipped": "2",
+      "errors": "0",
+      "time": "45.828"
+    },
+    "ubuntu-batch-r545-render-r545.xml": {
+      "total": "109",
+      "passed": "109",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "46.191"
+    },
+    "windows-batch-r545-core-r545.xml": {
+      "total": "710",
+      "passed": "664",
+      "failed": "0",
+      "skipped": "46",
+      "errors": "0",
+      "time": "16.464"
+    },
+    "windows-batch-r545-native-r545.xml": {
+      "total": "74",
+      "passed": "74",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "36.652"
+    },
+    "windows-batch-r545-render-r545.xml": {
+      "total": "109",
+      "passed": "108",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "52.173"
+    }
+  },
+  "newCoreControls": 12,
+  "targetedControls": {
+    "mac": [
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ConfirmedCloseReturnsItsSlotExactlyOnce",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ProfileCapacityCannotDowngradeAnUnconfirmedNativeCloseToAnOrdinaryUnavailableError",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.FailedNativeResultNeverReturnsItsSlotOrRetriesTheNativeNumber",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.DisposingAStreamViewDoesNotCloseItsCountedNativeOwner(asyncDispose: False)",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.DisposingAStreamViewDoesNotCloseItsCountedNativeOwner(asyncDispose: True)",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ActiveNativePinKeepsTheHandleAndSlotUntilTheActualCallerReturns",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.NativeBackendChildCloseFailureStopsNewWorkAndRemainsVisibleAtFinalClosure",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.NativeFilesKeepFailedCloseChargedAtTheGlobalLimitInAnOwnedProcess",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.CancellationFromCloseRemainsAnUnconfirmedOwnerWithoutRetry",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.CleanupAttemptsEveryIndependentOwnerAndPreservesCloseFailures",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.RepeatedUnixPrivateCatalogCursorsReturnTheirNativeReservations",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisProfileTests.AConcurrentProfileWinnerCannotHideUnconfirmedConstructorRollback",
+        "result": "Pass"
+      }
+    ],
+    "ubuntu": [
+      {
+        "name": "FileCat.Core.Tests.AnalysisProfileTests.AConcurrentProfileWinnerCannotHideUnconfirmedConstructorRollback",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.DisposingAStreamViewDoesNotCloseItsCountedNativeOwner(asyncDispose: False)",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.DisposingAStreamViewDoesNotCloseItsCountedNativeOwner(asyncDispose: True)",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.CancellationFromCloseRemainsAnUnconfirmedOwnerWithoutRetry",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.CleanupAttemptsEveryIndependentOwnerAndPreservesCloseFailures",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.NativeFilesKeepFailedCloseChargedAtTheGlobalLimitInAnOwnedProcess",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ConfirmedCloseReturnsItsSlotExactlyOnce",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ActiveNativePinKeepsTheHandleAndSlotUntilTheActualCallerReturns",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.NativeBackendChildCloseFailureStopsNewWorkAndRemainsVisibleAtFinalClosure",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.FailedNativeResultNeverReturnsItsSlotOrRetriesTheNativeNumber",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ProfileCapacityCannotDowngradeAnUnconfirmedNativeCloseToAnOrdinaryUnavailableError",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.RepeatedUnixPrivateCatalogCursorsReturnTheirNativeReservations",
+        "result": "Pass"
+      }
+    ],
+    "windows": [
+      {
+        "name": "FileCat.Core.Tests.AnalysisProfileTests.AConcurrentProfileWinnerCannotHideUnconfirmedConstructorRollback",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.CancellationFromCloseRemainsAnUnconfirmedOwnerWithoutRetry",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.NativeFilesKeepFailedCloseChargedAtTheGlobalLimitInAnOwnedProcess",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.NativeBackendChildCloseFailureStopsNewWorkAndRemainsVisibleAtFinalClosure",
+        "result": "Skip"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ConfirmedCloseReturnsItsSlotExactlyOnce",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.RepeatedUnixPrivateCatalogCursorsReturnTheirNativeReservations",
+        "result": "Skip"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.FailedNativeResultNeverReturnsItsSlotOrRetriesTheNativeNumber",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ProfileCapacityCannotDowngradeAnUnconfirmedNativeCloseToAnOrdinaryUnavailableError",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.CleanupAttemptsEveryIndependentOwnerAndPreservesCloseFailures",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.ActiveNativePinKeepsTheHandleAndSlotUntilTheActualCallerReturns",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.DisposingAStreamViewDoesNotCloseItsCountedNativeOwner(asyncDispose: False)",
+        "result": "Pass"
+      },
+      {
+        "name": "FileCat.Core.Tests.AnalysisNativeHandleTests.DisposingAStreamViewDoesNotCloseItsCountedNativeOwner(asyncDispose: True)",
+        "result": "Pass"
+      }
+    ]
+  },
+  "finalBuild": "build-r544.txt: full solution zero warnings/errors",
+  "excludedAttempts": [
+    "r538: analyzer warnings corrected",
+    "r539/r540: superseded before packaging by catalog transfer/backend latch and profile signal changes"
+  ],
+  "nativeProbeLimits": "Close-failure injections forward a successful real close before reporting failure. These prove conservative ownership, no retry and backend admission; not every actual OS failure/constructor/rollback mode.",
+  "batchWorkflow": "One immutable bundle per platform; sequential applicable suites, hash verification, occupancy gates and authoritative final process inventories. Windows native phase additionally covers relevant shared NT-helper file operations.",
+  "processExitEvidence": "All batch runners terminal with FINISHED exit=0 and final inventories empty all3. Owned children actually exited; no host app/input tests or other tester termination.",
+  "nextCloseAccountingWork": [
+    "Retain uncertain AnalysisFileProfileCapacity token owners/Units instead of clearing them in Retire finally; prevent retry while closing independent confirmed tokens.",
+    "Complete named-mutex and Unix kernel-capacity close/rollback accounting, including native-handle reservations on uncertain cleanup.",
+    "Retain failed final quota components and dependent directory ownership; finish the full constructor/rollback/close-result matrix."
+  ],
+  "qualification": {
+    "nativeFileAndDirectoryCheckedCloseImplemented": true,
+    "nativeGlobal128HandleProbePassedAllThree": true,
+    "nativeBackendChildCloseLatchingPassedAllThree": true,
+    "nativeFullConstructorRollbackFaultMatrixQualified": false,
+    "kernelIpcAndProfileTokenCloseAccountingQualified": false,
+    "unconfirmedOwnerBudgetAccountingQualified": false,
+    "fullResourceGateQualified": false,
+    "globalPendingCpuDeviceAliasGateQualified": false,
+    "nativeDesktopInputQualified": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

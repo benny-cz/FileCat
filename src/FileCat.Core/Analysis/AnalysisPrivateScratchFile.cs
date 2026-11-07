@@ -1,5 +1,3 @@
-using Microsoft.Win32.SafeHandles;
-
 namespace FileCat.Core.Analysis;
 
 /// <summary>Offset I/O on an owned temporary file, for admitted workers. Never resolves or publishes a pathname.</summary>
@@ -13,7 +11,7 @@ internal abstract class AnalysisPrivateScratchFile : IDisposable
 }
 
 /// <summary>No FileStream buffering: an unsuccessful append cannot flush again during a later checkpoint read.</summary>
-internal sealed class AnalysisHandleScratchFile(SafeFileHandle handle, Action verify, Action close) : AnalysisPrivateScratchFile
+internal sealed class AnalysisHandleScratchFile(AnalysisNativeHandle handle, Action verify, Action close) : AnalysisPrivateScratchFile
 {
     private int _disposed;
     public override void Verify()
@@ -21,7 +19,7 @@ internal sealed class AnalysisHandleScratchFile(SafeFileHandle handle, Action ve
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         verify();
     }
-    public override long Length { get { Verify(); return RandomAccess.GetLength(handle); } }
+    public override long Length { get { Verify(); using var pin = handle.BorrowFile(); return RandomAccess.GetLength(pin.View); } }
     private void Extent(long offset, int count)
     {
         if (offset < 0 || offset > AnalysisLimits.ScratchBytes || count > AnalysisLimits.ScratchBytes - offset)
@@ -29,8 +27,8 @@ internal sealed class AnalysisHandleScratchFile(SafeFileHandle handle, Action ve
         Verify();
     }
     public override int ReadAt(Span<byte> buffer, long offset)
-    { Extent(offset, buffer.Length); return RandomAccess.Read(handle, buffer, offset); }
+    { Extent(offset, buffer.Length); using var pin = handle.BorrowFile(); return RandomAccess.Read(pin.View, buffer, offset); }
     public override void WriteAt(ReadOnlySpan<byte> buffer, long offset)
-    { Extent(offset, buffer.Length); RandomAccess.Write(handle, buffer, offset); }
+    { Extent(offset, buffer.Length); using var pin = handle.BorrowFile(); RandomAccess.Write(pin.View, buffer, offset); }
     public override void Dispose() { if (Interlocked.Exchange(ref _disposed, 1) == 0) close(); }
 }

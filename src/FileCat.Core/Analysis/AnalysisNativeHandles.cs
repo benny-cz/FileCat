@@ -4,6 +4,7 @@ namespace FileCat.Core.Analysis;
 public static class AnalysisNativeHandles
 {
     private static int s_count;
+    internal static int Count => Volatile.Read(ref s_count);
     public static IDisposable Acquire()
     {
         while (true)

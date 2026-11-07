@@ -56,7 +56,7 @@ internal static unsafe partial class NtFile
     /// Opens <paramref name="name"/> below <paramref name="root"/> (or an absolute NT path when root is null) and returns
     /// the NTSTATUS; <paramref name="handle"/> is invalid unless the status is a success.
     /// </summary>
-    public static int TryOpen(SafeFileHandle? root, string name, uint access, uint share, uint disposition, uint options,
+    public static int TryOpen(SafeHandle? root, string name, uint access, uint share, uint disposition, uint options,
         out SafeFileHandle handle, uint fileAttributes = 0, ReadOnlySpan<byte> securityDescriptor = default)
     {
         if (name.Length == 0 || name.Length > 32766) throw new ArgumentException("Invalid name.", nameof(name));
@@ -109,14 +109,14 @@ internal static unsafe partial class NtFile
         };
     }
 
-    public static BasicInfo GetBasic(SafeFileHandle handle)
+    public static BasicInfo GetBasic(SafeHandle handle)
     {
         BasicInfo info;
         if (!GetFileInformationByHandleEx(handle, 0, &info, (uint)sizeof(BasicInfo))) throw new Win32Exception(Marshal.GetLastPInvokeError());
         return info;
     }
 
-    public static void SetBasic(SafeFileHandle handle, BasicInfo info)
+    public static void SetBasic(SafeHandle handle, BasicInfo info)
     {
         if (!SetFileInformationByHandle(handle, 0, &info, (uint)sizeof(BasicInfo))) throw new Win32Exception(Marshal.GetLastPInvokeError());
     }
@@ -130,7 +130,7 @@ internal static unsafe partial class NtFile
     public static bool IsLinkTag(uint tag) => Core.FileSystem.ReparseLinks.IsLinkTag(tag);
 
     /// <summary>The open item's reparse tag, or 0 when it is no reparse point.</summary>
-    public static uint GetReparseTag(SafeFileHandle handle)
+    public static uint GetReparseTag(SafeHandle handle)
     {
         const int AttributeTagInfo = 9;
         AttributeTag info;
@@ -218,7 +218,7 @@ internal static unsafe partial class NtFile
     /// Deletes the object behind the handle (opened with DELETE): the link itself for a link. POSIX semantics remove the
     /// name at once; volumes without them fall back to classic delete-on-close.
     /// </summary>
-    public static void DeleteOpen(SafeFileHandle handle)
+    public static void DeleteOpen(SafeHandle handle)
     {
         const int DispositionInfoEx = 21, DispositionInfo = 4;
         const uint Delete = 0x1, Posix = 0x2, IgnoreReadOnly = 0x10;
@@ -243,7 +243,7 @@ internal static unsafe partial class NtFile
     /// NtSetInformationFile takes the target folder as a handle (FILE_RENAME_INFORMATION.RootDirectory), so the
     /// destination is the folder already verified, not a path that could be swapped.
     /// </summary>
-    public static void Rename(SafeFileHandle handle, SafeFileHandle directory, string name, bool replace)
+    public static void Rename(SafeHandle handle, SafeHandle directory, string name, bool replace)
     {
         const int RenameInformation = 10, RenameInformationEx = 65;
         const uint ReplaceIfExists = 0x1, Posix = 0x2, IgnoreReadOnly = 0x40;
@@ -287,7 +287,7 @@ internal static unsafe partial class NtFile
     }
 
     [LibraryImport("ntdll.dll")]
-    private static partial int NtSetInformationFile(SafeFileHandle handle, IoStatusBlock* io, void* information, uint length, int informationClass);
+    private static partial int NtSetInformationFile(SafeHandle handle, IoStatusBlock* io, void* information, uint length, int informationClass);
 
     [LibraryImport("ntdll.dll")]
     private static partial int NtCreateFile(out nint handle, uint access, ObjectAttributes* attributes, IoStatusBlock* io,
@@ -298,9 +298,9 @@ internal static unsafe partial class NtFile
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool GetFileInformationByHandleEx(SafeFileHandle handle, int informationClass, void* buffer, uint size);
+    private static partial bool GetFileInformationByHandleEx(SafeHandle handle, int informationClass, void* buffer, uint size);
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool SetFileInformationByHandle(SafeFileHandle handle, int informationClass, void* buffer, uint size);
+    private static partial bool SetFileInformationByHandle(SafeHandle handle, int informationClass, void* buffer, uint size);
 }

@@ -82,6 +82,11 @@ public sealed class AnalysisProfileQuota : IDisposable
             long next = _bytes + bytes;
             bool acquired;
             try { acquired = Invoke(() => Grow(Units(next))); }
+            catch (Exception error) when (AnalysisCloseUnconfirmedException.IsPresent(error))
+            {
+                _failure ??= error;
+                throw AnalysisCloseUnconfirmedException.From(error);
+            }
             catch (Exception error) when (error is WaitHandleCannotBeOpenedException or UnauthorizedAccessException or EntryPointNotFoundException or DllNotFoundException or PlatformNotSupportedException)
             {
                 if (_directory is not null) _failure ??= error;

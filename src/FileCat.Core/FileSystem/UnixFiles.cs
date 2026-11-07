@@ -78,7 +78,9 @@ public static unsafe partial class UnixFiles
     }
 
     /// <summary>The file an open handle refers to, or null when the system cannot say.</summary>
-    public static UnixStat? Stat(SafeFileHandle handle)
+    public static UnixStat? Stat(SafeFileHandle handle) => StatHandle(handle);
+
+    internal static UnixStat? StatHandle(SafeHandle handle)
     {
         if (OperatingSystem.IsWindows()) return null;
         byte* buffer = stackalloc byte[256];

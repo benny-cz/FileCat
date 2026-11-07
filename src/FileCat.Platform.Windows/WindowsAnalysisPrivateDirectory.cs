@@ -16,7 +16,7 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
     private readonly SecurityIdentifier _owner;
     private readonly byte[] _directorySecurity, _fileSecurity;
     private bool _disposed;
-    private SafeFileHandle Root => _chain[^1].Handle;
+    private SafeHandle Root => _chain[^1].Handle;
 
     public WindowsAnalysisPrivateDirectory(string parent, string name)
     {
@@ -181,7 +181,7 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
         Verify(); return names.ToArray();
     }
 
-    private void Private(SafeFileHandle handle, bool directory, bool allowDeletePending = false)
+    private void Private(SafeHandle handle, bool directory, bool allowDeletePending = false)
     {
         RejectReparse(handle);
         byte* standard = stackalloc byte[24];
@@ -215,7 +215,7 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
         finally { LocalFree(raw); }
     }
 
-    private static void RejectReparse(SafeFileHandle handle)
+    private static void RejectReparse(SafeHandle handle)
     {
         if (GetReparseTag(handle) != 0) throw new IOException("An analysis storage ancestor or file is a reparse point.");
     }
@@ -230,7 +230,7 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
         public PrivateFile(WindowsAnalysisPrivateDirectory directory, OwnedHandle owned, bool writable)
         {
             _directory = directory; _owned = owned; _writable = writable;
-            _stream = new(owned.Handle, writable ? FileAccess.ReadWrite : FileAccess.Read, 64 * 1024, isAsync: false);
+            _stream = owned.Handle.OpenStream(writable ? FileAccess.ReadWrite : FileAccess.Read);
         }
         public override Stream Stream => _stream;
         internal override bool TryLockCapacity()
@@ -266,16 +266,16 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
     public override void Dispose()
     {
         if (_disposed) return; _disposed = true;
-        for (int i = _chain.Count - 1; i >= 0; i--) _chain[i].Dispose();
-        _chain.Clear();
+        try { AnalysisNativeHandle.CloseAll(_chain.AsEnumerable().Reverse()); }
+        finally { _chain.Clear(); }
     }
 
     private sealed class OwnedHandle(SafeFileHandle handle, IDisposable reservation) : IDisposable
     {
-        public SafeFileHandle Handle => handle;
-        public void Dispose() { handle.Dispose(); reservation.Dispose(); }
+        public AnalysisNativeHandle Handle { get; } = AnalysisNativeHandle.Adopt(handle, reservation);
+        public void Dispose() => Handle.CloseChecked();
     }
-    private static OwnedHandle OpenOwned(SafeFileHandle? parent, string name, uint access, uint share, uint disposition,
+    private static OwnedHandle OpenOwned(SafeHandle? parent, string name, uint access, uint share, uint disposition,
         uint options, ReadOnlySpan<byte> security = default)
     {
         var reservation = AnalysisNativeHandles.Acquire();
@@ -289,17 +289,17 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
     }
     [StructLayout(LayoutKind.Sequential)] private struct IoStatus { public nint Status, Information; }
     [LibraryImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)] private static partial bool LockFileEx(SafeFileHandle handle, uint flags, uint reserved, uint low, uint high, byte* overlapped);
-    [LibraryImport("ntdll.dll")] private static partial int NtQueryDirectoryFile(SafeFileHandle handle, nint evt, nint apc, nint context,
+    [return: MarshalAs(UnmanagedType.Bool)] private static partial bool LockFileEx(SafeHandle handle, uint flags, uint reserved, uint low, uint high, byte* overlapped);
+    [LibraryImport("ntdll.dll")] private static partial int NtQueryDirectoryFile(SafeHandle handle, nint evt, nint apc, nint context,
         out IoStatus io, byte* buffer, uint length, int kind, [MarshalAs(UnmanagedType.U1)] bool single, nint pattern, [MarshalAs(UnmanagedType.U1)] bool restart);
-    [LibraryImport("ntdll.dll")] private static partial int NtQueryVolumeInformationFile(SafeFileHandle handle, IoStatus* io, byte* buffer, uint length, int informationClass);
+    [LibraryImport("ntdll.dll")] private static partial int NtQueryVolumeInformationFile(SafeHandle handle, IoStatus* io, byte* buffer, uint length, int informationClass);
     [LibraryImport("kernel32.dll", EntryPoint = "GetDriveTypeW", StringMarshalling = StringMarshalling.Utf16)] private static partial uint GetDriveType(string root);
     [LibraryImport("kernel32.dll", EntryPoint = "GetVolumeInformationByHandleW", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetVolumeInformationByHandle(SafeFileHandle handle, char* label, uint labelSize,
+    [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetVolumeInformationByHandle(SafeHandle handle, char* label, uint labelSize,
         out uint serial, out uint maxComponent, out uint flags, char* fileSystem, uint fileSystemSize);
     [LibraryImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetFileInformationByHandleEx(SafeFileHandle handle, int kind, byte* buffer, uint length);
-    [LibraryImport("advapi32.dll")] private static partial int GetSecurityInfo(SafeFileHandle handle, int type, uint information,
+    [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetFileInformationByHandleEx(SafeHandle handle, int kind, byte* buffer, uint length);
+    [LibraryImport("advapi32.dll")] private static partial int GetSecurityInfo(SafeHandle handle, int type, uint information,
         out nint owner, out nint group, out nint dacl, out nint sacl, out nint descriptor);
     [LibraryImport("advapi32.dll")] private static partial uint GetSecurityDescriptorLength(nint descriptor);
     [LibraryImport("kernel32.dll")] private static partial nint LocalFree(nint memory);
