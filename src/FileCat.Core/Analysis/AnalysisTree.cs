@@ -24,7 +24,7 @@ public sealed record AnalysisTreeItem(string Key, string ParentKey, string Name,
 }
 
 /// <summary>One exact hierarchy shared by charts, the ranked table and navigation. Geometry never computes accounting.</summary>
-public sealed class AnalysisTree : IAnalysisChartData
+public sealed partial class AnalysisTree : IAnalysisChartData
 {
     public const string RootKey = "scope";
     public AnalysisSnapshot Snapshot { get; }
@@ -32,6 +32,8 @@ public sealed class AnalysisTree : IAnalysisChartData
     public AnalysisProjection Projection { get; }
     public AnalysisMetric Metric => Projection.Metric;
     public bool FilterApplied { get; }
+    public AnalysisGroupingDimension GroupingDimension { get; private init; }
+    public ImmutableDictionary<string, AnalysisGroupSummary> Groups { get; private init; } = ImmutableDictionary<string, AnalysisGroupSummary>.Empty;
     public string ComponentCoverageDescription { get; }
     public ulong BoundaryCount { get; }
     public ImmutableDictionary<string, AnalysisTreeItem> Items { get; }
@@ -60,7 +62,7 @@ public sealed class AnalysisTree : IAnalysisChartData
         while (Other(key, out int skipped, out string parentKey)) { skip = checked(skip + skipped); key = parentKey; }
         if (skip > 0) return ChildrenOf(key).Skip(skip).ToImmutableArray();
         if (!Items.TryGetValue(key, out var parent)) return [];
-        var result = parent.Members.Length > 0 ? parent.Members.Select(id => Items[Key(id)]).Where(n => n.Visible).ToImmutableArray() : parent.Children.Select(k => Items[k]).Where(n => n.Visible)
+        var result = GroupingDimension == AnalysisGroupingDimension.FolderHierarchy && parent.Members.Length > 0 ? parent.Members.Select(id => Items[Key(id)]).Where(n => n.Visible).ToImmutableArray() : parent.Children.Select(k => Items[k]).Where(n => n.Visible)
             .OrderBy(n => n.Unknown && n.Value == 0).ThenByDescending(n => n.Value).ThenBy(n => n.Key, StringComparer.Ordinal).ToImmutableArray();
         if (_children.Count < 512) _children.TryAdd(originalKey, result);
         return result;
@@ -70,6 +72,15 @@ public sealed class AnalysisTree : IAnalysisChartData
         if (Items.TryGetValue(key, out var item)) return item.Value;
         UInt128 total = 0; foreach (var child in ChildrenOf(key)) total = checked(total + child.Value); return total;
     }
+    public bool CanExplore(string key)
+    {
+        int depth = 0;
+        while (Other(key, out _, out string parent))
+        { if (++depth > AnalysisLimits.Depth + 1) throw new InvalidDataException("Invalid grouped navigation depth."); key = parent; }
+        if (key == RootKey) return true;
+        return Items.TryGetValue(key, out var item) && (GroupingDimension == AnalysisGroupingDimension.FolderHierarchy
+            ? item.Kind == AnalysisKind.Directory || item.Members.Length > 0 : item.GroupDefinition is not null);
+    }
     public ImmutableArray<ulong> CaptureMembers(string key, bool matchingOnly = true)
     {
         var result = ImmutableArray.CreateBuilder<ulong>(); var unique = new HashSet<ulong>(); var pending = new Stack<string>(); pending.Push(key);
@@ -77,15 +88,23 @@ public sealed class AnalysisTree : IAnalysisChartData
         {
             if (current.StartsWith("other:", StringComparison.Ordinal)) { foreach (var child in ChildrenOf(current)) pending.Push(child.Key); continue; }
             if (!Items.TryGetValue(current, out var item)) continue;
+            if (GroupingDimension != AnalysisGroupingDimension.FolderHierarchy && item.Members.Length > AnalysisLimits.ReviewPaths)
+                throw new InvalidOperationException("Refine this selection to at most 100,000 real paths.");
             if (item.NodeId is { } id && (!matchingOnly || item.Visible &&
-                (FilterApplied ? Projection.MatchingNodes.Contains(id) : item.Kind != AnalysisKind.File || Projection.MatchingNodes.Contains(id))))
-            { if (unique.Add(id)) result.Add(id); }
+                (GroupingDimension != AnalysisGroupingDimension.FolderHierarchy || (FilterApplied ? Projection.MatchingNodes.Contains(id) : item.Kind != AnalysisKind.File || Projection.MatchingNodes.Contains(id)))))
+            { Capture(id); }
             foreach (ulong member in item.Members)
-                if ((!matchingOnly || Projection.MatchingNodes.Contains(member)) && unique.Add(member)) result.Add(member);
+                if (!matchingOnly || (GroupingDimension != AnalysisGroupingDimension.FolderHierarchy ? Items.GetValueOrDefault(Key(member))?.Visible == true : Projection.MatchingNodes.Contains(member))) Capture(member);
             foreach (string child in item.Children) if (!matchingOnly || Items[child].Visible) pending.Push(child);
             if (result.Count > AnalysisLimits.ReviewPaths) throw new InvalidOperationException("Refine this selection to at most 100,000 real paths.");
         }
         return result.ToImmutable();
+        void Capture(ulong id)
+        {
+            if (!unique.Add(id)) return;
+            if (result.Count == AnalysisLimits.ReviewPaths) throw new InvalidOperationException("Refine this selection to at most 100,000 real paths.");
+            result.Add(id);
+        }
     }
     public static AnalysisTree Build(AnalysisSnapshot snapshot, AnalysisProjection projection, bool filterApplied, CancellationToken cancellation = default)
     {

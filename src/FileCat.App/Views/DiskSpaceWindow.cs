@@ -235,6 +235,8 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly ComboBox _metric = new() { ItemsSource = new[] { "File size", "Unique file size", "On disk — reported", "Files" }, SelectedIndex = 2, MinWidth = 155 };
         private readonly ComboBox _mode = new() { ItemsSource = new[] { "Treemap", "Sunburst", "Table" }, SelectedIndex = 0, MinWidth = 125 };
         private readonly ComboBox _color = AnalysisColorLegend.CreateSelector();
+        private readonly ComboBox _group = new() { ItemsSource = Enum.GetValues<AnalysisGroupingDimension>().Select(AnalysisGroupingRules.Title).ToArray(), MinWidth = 160 };
+        private readonly Button _showHierarchy;
         private readonly AnalysisColorLegend _legend = new();
         private readonly ComboBox _sort = new() { ItemsSource = new[] { "Active metric", "Name", "File size", "File paths", "Measurement state" }, MinWidth = 160 };
         private readonly ComboBox _sortDirection = new() { ItemsSource = new[] { "Descending", "Ascending" }, MinWidth = 140 };
@@ -270,6 +272,7 @@ public sealed partial class DiskSpaceWindow : Window
             _query.Text = Model.Query; _case.IsChecked = Model.CaseSensitive; _metric.SelectedIndex = (int)Model.Metric;
             _mode.SelectedIndex = Model.Chart switch { "Sunburst" => 1, "Table" => 2, _ => 0 };
             _color.SelectedIndex = (int)Model.ColorDimension;
+            _group.SelectedIndex = (int)Model.Grouping;
             _sort.SelectedIndex = (int)Model.Sort; _sortDirection.SelectedIndex = Model.SortDescending ? 0 : 1;
             RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,Auto");
             _setup.Children.Add(SessionText("Understand this storage. Choose what to measure.", 20));
@@ -298,8 +301,10 @@ public sealed partial class DiskSpaceWindow : Window
             DataNavigation("Back", Model.Back, "Return to the previous analysis scope.");
             DataNavigation("Forward", Model.Forward, "Return to the next analysis scope.");
             DataNavigation("Up", Model.Parent, "Inspect the parent scope without changing the captured sources.");
-            nav.Children.Add(_mode); nav.Children.Add(_metric); nav.Children.Add(_color); nav.Children.Add(_pause); nav.Children.Add(_stop);
+            nav.Children.Add(_mode); nav.Children.Add(_metric); nav.Children.Add(_group); nav.Children.Add(_color); nav.Children.Add(_pause); nav.Children.Add(_stop);
             AutomationProperties.SetName(_mode, "Chart view"); AutomationProperties.SetName(_metric, "Analysis metric");
+            AutomationProperties.SetName(_group, "Analysis grouping");
+            ToolTip.SetTip(_group, new RichTip("Group captured measurements", detail: "Explore by captured folders, file type, extension, modification age or location. Shared charges are counted once. Changing grouping keeps marks and the review basket."));
             _inspect = ActionButton("Inspect selection", () => _ = InspectAsync(), "Open full selection details and actions, including on a narrow screen.");
             nav.Children.Add(_inspect);
             _save = ActionButton("Save…", () => _ = SaveAsync(), "Save the displayed analysis, including all captured paths and metadata. The current display filter does not reduce the saved inventory.");
@@ -309,7 +314,10 @@ public sealed partial class DiskSpaceWindow : Window
             nav.Children.Add(_compare);
             var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { _query, _case } };
             filters.Children.Add(_rootFilter); filters.Children.Add(_unknown);
-            filters.Children.Add(ActionButton("Clear filter", () => { Model.ShowUnknownFilterResults = false; _query.Text = ""; }, "Remove the display query; scan boundaries remain captured."));
+            filters.Children.Add(ActionButton("Clear filter", () =>
+            {
+                Model.ShowUnknownFilterResults = false; _query.Text = ""; _filterTimer.Stop(); Model.Query = ""; _ = Model.RebuildAsync(true);
+            }, "Remove the display query; scan boundaries remain captured."));
             var ordering = new WrapPanel { ItemSpacing = 8, LineSpacing = 5, Children = { new TextBlock { Text = "Sort table", VerticalAlignment = VerticalAlignment.Center }, _sort, _sortDirection } };
             AutomationProperties.SetName(_sort, "Analysis table sort"); AutomationProperties.SetName(_sortDirection, "Analysis table sort direction");
             AutomationProperties.SetName(_breadcrumbs, "Analysis location breadcrumbs");
@@ -369,6 +377,8 @@ public sealed partial class DiskSpaceWindow : Window
             _inspectorPanel.Children.Add(Unavailable("Preview", new AnalysisCapabilities().For(AnalysisVerb.Preview).Reason));
             _inspectorPanel.Children.Add(Unavailable("Reveal in panel", "A historical path is not a current source binding. Explicit live rebinding is required."));
             _inspectorPanel.Children.Add(ActionButton("Copy path", () => _ = CopyPathAsync(), "Copy the selected path as literal text; it is not opened or executed."));
+            _showHierarchy = ActionButton("Show in captured folder", () => _ = Model.ShowFocusedInHierarchyAsync(), "Show this observed entry in the captured folder hierarchy. This does not open or reconnect its current filesystem location.");
+            _inspectorPanel.Children.Add(_showHierarchy);
             _inspectorPanel.Children.Add(ActionButton("Mark current members", Model.MarkCurrentMembers, "Capture this group's current real members. Future observations are not selected."));
             _inspectorPanel.Children.Add(ActionButton("Add to review", Model.StageSelection, "Stage inert observation references. Unsupported actions remain skipped; no files change."));
             _inspectorScroll = new ScrollViewer { Content = _inspectorPanel, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
@@ -381,6 +391,7 @@ public sealed partial class DiskSpaceWindow : Window
             _pause.Click += (_, _) => Model.PauseOrResume(); _stop.Click += (_, _) => Model.Stop();
             _mode.SelectionChanged += (_, _) => { Model.Chart = _mode.SelectedIndex switch { 1 => "Sunburst", 2 => "Table", _ => "Treemap" }; Refresh(); };
             _color.SelectionChanged += (_, _) => { Model.ColorDimension = (AnalysisColorDimension)Math.Clamp(_color.SelectedIndex, 0, 2); Refresh(); };
+            _group.SelectionChanged += (_, _) => { if (_updating || _group.SelectedIndex < 0) return; Model.Grouping = (AnalysisGroupingDimension)_group.SelectedIndex; _ = Model.RebuildAsync(true); };
             _metric.SelectionChanged += (_, _) => { if (_updating) return; Model.Metric = (AnalysisMetric)Math.Max(0, _metric.SelectedIndex); _ = Model.RebuildAsync(true); };
             _sort.SelectionChanged += (_, _) => { if (_updating || _sort.SelectedIndex < 0) return; Model.Sort = (AnalysisTableSort)_sort.SelectedIndex; _ = Model.RebuildAsync(true); };
             _sortDirection.SelectionChanged += (_, _) => { if (_updating || _sortDirection.SelectedIndex < 0) return; Model.SortDescending = _sortDirection.SelectedIndex == 0; _ = Model.RebuildAsync(true); };
@@ -568,6 +579,9 @@ public sealed partial class DiskSpaceWindow : Window
                 _stop.Content = Model.IsPreparing ? "Stop binding" : "Stop";
                 _pause.Content = Model.Phase is AnalysisPhase.Paused or AnalysisPhase.Pausing ? "Resume" : "Pause";
                 var tree = Model.Tree;
+                _group.SelectedIndex = (int)Model.Grouping;
+                _showHierarchy.IsVisible = tree?.GroupingDimension is not null and not AnalysisGroupingDimension.FolderHierarchy;
+                _showHierarchy.IsEnabled = tree?.Items.GetValueOrDefault(Model.Selection.Focus ?? "")?.NodeId is not null;
                 if (tree is not null && !_shownRoots.Equals(tree.Snapshot.Roots))
                 {
                     _shownRoots = tree.Snapshot.Roots;
@@ -644,14 +658,15 @@ public sealed partial class DiskSpaceWindow : Window
                         (DiskSpaceViewModel.EntryExplanation(selected) is { } explanation ? explanation + "\n" : "") +
                         (selected.NameEvidence is { } evidence ? evidence + "\n" : "") +
                         (selected.IdentityUnverified > 0 ? $"Identity-unverified path bytes: {selected.IdentityUnverified}. Aliases may be counted more than once.\n" : "") +
-                        (selected.SharedElsewhere ? "Shared objects are charged once at their common parent. Removing one alias does not promise free space.\n" : "") +
+                        (selected.SharedElsewhere ? (selected.ChargeLocation ?? "Shared objects are charged once at their common parent.") + " Removing one alias does not promise free space.\n" : "") +
+                        (tree.GroupingDimension != AnalysisGroupingDimension.FolderHierarchy && selected.Synthetic ? $"Current captured members: {selected.Members.Length:N0}. Mark current members captures these paths; future observations are not selected.\n" : "") +
                         (selected.Unknown ? "Some requested measurements or namespace entries are unknown.\n" : "") + "\nObservations do not authorize current filesystem operations.";
                 }
                 _basket.Text = $"Review basket: {Model.Selection.Basket.Count:N0} references · expected free-space gain unknown";
                 if (tree is not null)
                 {
                     int hidden = Model.Selection.Marks.Count(id => !tree.Items.TryGetValue(AnalysisTree.Key(id), out var marked) || !marked.Visible);
-                    if (hidden > 0) _basket.Text += $" · {hidden:N0} marked items hidden by filters";
+                    if (hidden > 0) _basket.Text += $" · {hidden:N0} marked items hidden by this view";
                 }
                 bool tableOnly = _mode.SelectedIndex == 2 || Bounds.Width < 640;
                 _legend.IsVisible = tree is not null && !tableOnly;
@@ -674,14 +689,16 @@ public sealed partial class DiskSpaceWindow : Window
         {
             if (_disposed) return;
             using var actualWork = _actualWork.Enter();
-            var body = new StackPanel { Spacing = 8 };
+            var body = new StackPanel { Spacing = 8 }; var closer = new DialogCloser();
             body.Children.Add(new TextBlock { Text = _inspector.Text, TextWrapping = TextWrapping.Wrap });
             body.Children.Add(ActionButton("Copy path", () => _ = CopyPathAsync(), "Copy the literal observation path."));
+            if (Model.Tree?.GroupingDimension != AnalysisGroupingDimension.FolderHierarchy && Model.Tree?.Items.GetValueOrDefault(Model.Selection.Focus ?? "")?.NodeId is not null)
+                body.Children.Add(ActionButton("Show in captured folder", () => { _ = Model.ShowFocusedInHierarchyAsync(); closer.Close(true); }, "Navigate within these captured observations; the live source is not opened."));
             body.Children.Add(ActionButton("Mark current members", Model.MarkCurrentMembers, "Capture current real members; future observations are not selected."));
             body.Children.Add(ActionButton("Add to review", Model.StageSelection, "Stage inert references for explicit review."));
             body.Children.Add(Unavailable("Preview", new AnalysisCapabilities().For(AnalysisVerb.Preview).Reason));
             Model.Interaction(true);
-            try { await _window._dialogs.ShowCustomAsync("Selection inspector", body, [new DialogButton("Close details", true, IsDefault: true, IsCancel: true)]); }
+            try { await _window._dialogs.ShowCustomAsync("Selection inspector", body, [new DialogButton("Close details", true, IsDefault: true, IsCancel: true)], closer: closer); }
             finally { Model.Interaction(false); }
         }
         private async Task ReviewAsync()

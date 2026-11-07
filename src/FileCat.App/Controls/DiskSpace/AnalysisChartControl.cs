@@ -183,7 +183,9 @@ public abstract class AnalysisChartControl : Control
         UInt128 denominator = Tree?.ScopeValue(Scope) ?? 0;
         string percent = item.IsNonFileLeaf || !item.IncludedByPolicy ? "Not included in file measures" : denominator == 0 ? "Unknown percentage" : ((double)item.Value / (double)denominator).ToString("P1", CultureInfo.CurrentCulture) + " of current scope's known measure";
         var tip = new RichTip(AnalysisNames.Display(string.Join(" / ", names), 240), detail: $"{metric}: {FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, Tree?.Metric ?? AnalysisMetric.OnDisk, true)}. {percent}. File size: {FileCat.App.ViewModels.DiskSpaceViewModel.LogicalText(item, true)}." +
-            (item.IdentityUnverified > 0 ? $" Includes {item.IdentityUnverified} identity-unverified path bytes; aliases may repeat." : "") +
+            (item.IdentityUnverified > 0 ? Tree?.Metric == AnalysisMetric.UniqueFileSize
+                ? $" {item.IdentityUnverified} identity-unverified path bytes are excluded from unique chart area."
+                : $" Includes {item.IdentityUnverified} identity-unverified path bytes; aliases may repeat." : "") +
             (Tree is { } colorTree && _view is { } view ? $" Color — {AnalysisChartColors.Title(view.Color)}: {AnalysisChartColors.Category(colorTree, item, view.Color).Label}." : ""),
             hints: [FileCat.App.ViewModels.DiskSpaceViewModel.EntryExplanation(item) ?? item.ChargeLocation ?? (item.SharedElsewhere ? "Shared allocation is attributed at the common parent." : item.Unknown ? "Measurement or namespace coverage is incomplete." : "Observed metadata; allocation can share physical blocks."), "More in inspector."]) { MaxWidth = 420 };
         ToolTip.SetTip(this, tip); ToolTip.SetShowDelay(this, 450);

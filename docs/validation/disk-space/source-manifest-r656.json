@@ -1,0 +1,431 @@
+{
+  "purpose": "Memory-backed grouped explorer with exact accounting, captured membership and source-folder navigation",
+  "observedUtc": "2026-11-07T05:22:33.848712+00:00",
+  "gitBase": "9891357f070959874ea12b6de0cedb786ccf7f8b",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/Controls/DiskSpace/AnalysisChartControl.cs",
+      "sha256": "3bb829b7b2988fa296d6f259682c835c45de1cbae339c619a3338323e55e6d1d"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Navigation.cs",
+      "sha256": "0a50c07fd6ed8eb6aae295db0af0a25462aff601692ad9744778871d0c49ac5d"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "749720763144a7043aedaeb25fb88e63a3cfaba15080b9a82cd46a6e0ab06c5c"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "5673b29ba205a81f85e6d0f54b92da39113cfdec439acbec07ff073c0675506e"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSelectionState.cs",
+      "sha256": "e57265b19913c436a0ce5b23570b7c712c165bfee0b62bc113abbfe1804b237b"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTableOrder.cs",
+      "sha256": "09465bd63fd5bc2b8ef36d1a20ca5a173be92955c3c2b050aa3aaf7f3052b490"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTree.Grouping.cs",
+      "sha256": "675fd7f22efb10886b2a95c5c415b3c39aef1d1bb17b079cb699c4d3a2726d7d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+      "sha256": "29917d4f6afba029161d177717ebfacab833192e7bb60060896c4a069fb3b6a3"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisTreeGroupingTests.cs",
+      "sha256": "b21060705dd0b32f0efe4798bcae45e55c66ec6613a4a268bdf2c71b622aac05"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.MemoryGrouping.cs",
+      "sha256": "d0c7783df833e6fa2c0a561d9bffca224b96faf063c3a74f6ffa48e3987be9db"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r653.txt",
+      "sha256": "56f10634843243b807dad30f5501df9f82f9783b6b2efcd7666f0746b9ddad5d"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r654-core-r654.xml",
+      "sha256": "6b98ca5b48c56751b6369d436eeafeaad9d2d336bf748ec92e75faaf2e24ed95"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r654-core-r654.log",
+      "sha256": "23c5a7de8e29299b2035e3e531bc426ac277b984789a31b3b3a04f1ff75d981e"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r654-render-r654.xml",
+      "sha256": "ac5c2b97d4f5feb5534b0d4707d3af1bad4c11a208b9cfd2658084b2253da9b9"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r654-render-r654.log",
+      "sha256": "a58ceb3a27636d04fc1e8f7a64db1ce1b419498662d816b377d2c26ee32eaecf"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r654-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r654-post.json",
+      "sha256": "106de5d9c190f79f06d9ff18fc7066d9743b5248b9f440b03f2f53ff192d2fad"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r654-core-r654.xml",
+      "sha256": "48c1fa73c07716dadd887cd81a84edf79bc4f9b0bd8ac9aa004163fddc9acd25"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r654-core-r654.log",
+      "sha256": "a04b7abe61fe85a9605a98526023eae6421bcda3823ab8f52509dfa912a9f937"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r654-render-r654.xml",
+      "sha256": "16e465c50cffa1687477f357b917a54cb3739d0a275477dcdb694b60a765ce61"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r654-render-r654.log",
+      "sha256": "7bda2ebcd85d11e267ca8fa87286681c407e7797031d8ee674ac10a5e65ec0b1"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r654-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r654-post.json",
+      "sha256": "dde5c3fd7e080dc54822e03ff47fd3c64430495ca39ffb3efa1def6b5f8c144e"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r654-core-r654.xml",
+      "sha256": "a9349756208a5ab8e6590017ad867ab54cca458f75133f695eff07267061bae5"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r654-core-r654.log",
+      "sha256": "eb02162e29db1605786e613097e34f99b664eb7f374e8cdfb89f473b29afc877"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r654-native-r654.xml",
+      "sha256": "0a170969135f594a5bd24445ca9599160fab4c4648b217acfb520cc134b51656"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r654-native-r654.log",
+      "sha256": "36570b01c0b710fe8c856506ae26be18c0a5e58148eed9482470d0ec9d468e2f"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r654-render-r654.xml",
+      "sha256": "f766984f8c1bfc20091aac6bb7a9b071e32da45d3cc45634a6e11d3d7d229cfe"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r654-render-r654.log",
+      "sha256": "72069ca3235a308c3ce08ebd09043ffed0bcc2f86ade848b0ddba901040833e0"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r654-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r654-post.json",
+      "sha256": "8a46350392110c066c7c9ca277d9c309f76390f9719aeb44166cff9085718b92"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r654.sh",
+      "sha256": "1b537f32b387dd550d9428e0525349fe60d045a36274234a889525f923f95171"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r654.sh",
+      "sha256": "fcaef9320a1ee81636c2d81152e95aa84d185cd10c6fc632c757f6ea02698d21"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r654.ps1",
+      "sha256": "394654693a5f2768fe9f4b0c0db003349b4a08299af110e3ae1caea6fd2db23f"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r654.tgz",
+      "sha256": "9906adaa2228b4612c636e9f58c6be423646207df8a871bda617fb4a73f99b39"
+    },
+    {
+      "name": "dsa-batch-linux-r654.tgz",
+      "sha256": "5daf4073ecfacab06599daef43a3b8f34e44010fdbb7bd82d4e833e1ca605d34"
+    },
+    {
+      "name": "dsa-batch-windows-r654.tgz",
+      "sha256": "f35ad292e9b4346cb52e7242263ebce412521d221da258ed94034e886247ce3f"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r654": "d6118257f397c2a7ba28531ca3499f977a9f4896cd170e729564b476190a7c8f",
+    "native-r654": "d6118257f397c2a7ba28531ca3499f977a9f4896cd170e729564b476190a7c8f",
+    "render-r655-mac": "d6118257f397c2a7ba28531ca3499f977a9f4896cd170e729564b476190a7c8f",
+    "render-r655-linux": "d6118257f397c2a7ba28531ca3499f977a9f4896cd170e729564b476190a7c8f",
+    "render-r655-windows": "d6118257f397c2a7ba28531ca3499f977a9f4896cd170e729564b476190a7c8f"
+  },
+  "productionAppHashes": {
+    "render-r655-mac": "1c49b3ec94ca7c957243796a58dc49baa40cf3c955bf582248a01cf350c3cc47",
+    "render-r655-linux": "1c49b3ec94ca7c957243796a58dc49baa40cf3c955bf582248a01cf350c3cc47",
+    "render-r655-windows": "1c49b3ec94ca7c957243796a58dc49baa40cf3c955bf582248a01cf350c3cc47"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r654": "295d8094c7ad8fadc16596b7cf37304848ab4ee6f56a9f1dccef800de3732042",
+    "render-r655-mac": "295d8094c7ad8fadc16596b7cf37304848ab4ee6f56a9f1dccef800de3732042",
+    "render-r655-linux": "295d8094c7ad8fadc16596b7cf37304848ab4ee6f56a9f1dccef800de3732042",
+    "render-r655-windows": "295d8094c7ad8fadc16596b7cf37304848ab4ee6f56a9f1dccef800de3732042"
+  },
+  "matrix": {
+    "mac-batch-r654-core-r654.xml": {
+      "total": "873",
+      "passed": "869",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "24.214"
+    },
+    "mac-batch-r654-render-r654.xml": {
+      "total": "133",
+      "passed": "133",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "44.020"
+    },
+    "ubuntu-batch-r654-core-r654.xml": {
+      "total": "873",
+      "passed": "869",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "62.914"
+    },
+    "ubuntu-batch-r654-render-r654.xml": {
+      "total": "133",
+      "passed": "133",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "62.200"
+    },
+    "windows-batch-r654-core-r654.xml": {
+      "total": "891",
+      "passed": "843",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "26.911"
+    },
+    "windows-batch-r654-native-r654.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "39.044"
+    },
+    "windows-batch-r654-render-r654.xml": {
+      "total": "133",
+      "passed": "132",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "70.339"
+    }
+  },
+  "targetedControls": {
+    "mac": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: FileType, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: FileType, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: FileType, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: FileType, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: Extension, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: Extension, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: Extension, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: Extension, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: ModifiedAge, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: ModifiedAge, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: ModifiedAge, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: ModifiedAge, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: CapturedLocation, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: CapturedLocation, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: CapturedLocation, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: CapturedLocation, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: FileType, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: FileType, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: FileType, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: FileType, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: Extension, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: Extension, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: Extension, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: Extension, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: ModifiedAge, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: ModifiedAge, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: ModifiedAge, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: ModifiedAge, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: CapturedLocation, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: CapturedLocation, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: CapturedLocation, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: CapturedLocation, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryUnknownUniqueAmountsAndSharedReferencesFollowMeasuredZero(descending: False)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryUnknownUniqueAmountsAndSharedReferencesFollowMeasuredZero(descending: True)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.SharedSubtotalCapturesOnlyItsOwnAliasesAndKeepsMissingEvidenceSeparate(missing: False)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.SharedSubtotalCapturesOnlyItsOwnAliasesAndKeepsMissingEvidenceSeparate(missing: True)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryRefusesOtherRevisionsAndCanceledWorkAndNeverInventsIncompatibleArea"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingLatestPendingChoiceWinsWhenAChartGestureEndsBeforeItsWorker",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingBothChartsTableAndNarrowInspectorPreserveTheSameMemberEvidenceAcrossThemes",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingNativeFallbackCapturesOnlyTheSharedAliasesAndRetainsItsPublishedOwnerAfterClose",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingPreservesMarksBasketFiltersHistoryAndLiteralCapturedFolderNavigation(dimension: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingPreservesMarksBasketFiltersHistoryAndLiteralCapturedFolderNavigation(dimension: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingPreservesMarksBasketFiltersHistoryAndLiteralCapturedFolderNavigation(dimension: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingPreservesMarksBasketFiltersHistoryAndLiteralCapturedFolderNavigation(dimension: CapturedLocation)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingUniqueSummaryAndTooltipExcludeUnverifiedPathEvidenceWithoutUnsignedUnderflow"
+      ]
+    },
+    "ubuntu": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: FileType, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: FileType, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: FileType, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: FileType, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: Extension, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: Extension, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: Extension, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: Extension, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: ModifiedAge, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: ModifiedAge, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: ModifiedAge, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: ModifiedAge, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: CapturedLocation, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: CapturedLocation, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: CapturedLocation, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: CapturedLocation, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryUnknownUniqueAmountsAndSharedReferencesFollowMeasuredZero(descending: False)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryUnknownUniqueAmountsAndSharedReferencesFollowMeasuredZero(descending: True)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: FileType, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: FileType, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: FileType, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: FileType, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: Extension, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: Extension, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: Extension, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: Extension, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: ModifiedAge, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: ModifiedAge, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: ModifiedAge, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: ModifiedAge, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: CapturedLocation, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: CapturedLocation, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: CapturedLocation, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: CapturedLocation, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.SharedSubtotalCapturesOnlyItsOwnAliasesAndKeepsMissingEvidenceSeparate(missing: False)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.SharedSubtotalCapturesOnlyItsOwnAliasesAndKeepsMissingEvidenceSeparate(missing: True)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryRefusesOtherRevisionsAndCanceledWorkAndNeverInventsIncompatibleArea"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingBothChartsTableAndNarrowInspectorPreserveTheSameMemberEvidenceAcrossThemes",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingLatestPendingChoiceWinsWhenAChartGestureEndsBeforeItsWorker",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingNativeFallbackCapturesOnlyTheSharedAliasesAndRetainsItsPublishedOwnerAfterClose",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingUniqueSummaryAndTooltipExcludeUnverifiedPathEvidenceWithoutUnsignedUnderflow",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingPreservesMarksBasketFiltersHistoryAndLiteralCapturedFolderNavigation(dimension: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingPreservesMarksBasketFiltersHistoryAndLiteralCapturedFolderNavigation(dimension: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingPreservesMarksBasketFiltersHistoryAndLiteralCapturedFolderNavigation(dimension: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingPreservesMarksBasketFiltersHistoryAndLiteralCapturedFolderNavigation(dimension: CapturedLocation)"
+      ]
+    },
+    "windows": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: FileType, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: FileType, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: FileType, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: FileType, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: Extension, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: Extension, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: Extension, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: Extension, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: ModifiedAge, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: ModifiedAge, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: ModifiedAge, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: ModifiedAge, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: CapturedLocation, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: CapturedLocation, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: CapturedLocation, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryFilterCannotCaptureANonmatchingAliasOrRedistributeItsSharedCharge(dimension: CapturedLocation, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: FileType, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: FileType, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: FileType, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: FileType, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: Extension, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: Extension, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: Extension, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: Extension, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: ModifiedAge, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: ModifiedAge, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: ModifiedAge, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: ModifiedAge, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: CapturedLocation, metric: FileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: CapturedLocation, metric: UniqueFileSize)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: CapturedLocation, metric: OnDisk)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryTreeKeepsEveryMetricGroupAreaAndCapturedMembershipExact(dimension: CapturedLocation, metric: Files)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.SharedSubtotalCapturesOnlyItsOwnAliasesAndKeepsMissingEvidenceSeparate(missing: False)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.SharedSubtotalCapturesOnlyItsOwnAliasesAndKeepsMissingEvidenceSeparate(missing: True)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryRefusesOtherRevisionsAndCanceledWorkAndNeverInventsIncompatibleArea",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryUnknownUniqueAmountsAndSharedReferencesFollowMeasuredZero(descending: False)",
+        "FileCat.Core.Tests.AnalysisTreeGroupingTests.GroupedMemoryUnknownUniqueAmountsAndSharedReferencesFollowMeasuredZero(descending: True)"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingPreservesMarksBasketFiltersHistoryAndLiteralCapturedFolderNavigation(dimension: FileType)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingPreservesMarksBasketFiltersHistoryAndLiteralCapturedFolderNavigation(dimension: Extension)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingPreservesMarksBasketFiltersHistoryAndLiteralCapturedFolderNavigation(dimension: ModifiedAge)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingPreservesMarksBasketFiltersHistoryAndLiteralCapturedFolderNavigation(dimension: CapturedLocation)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingBothChartsTableAndNarrowInspectorPreserveTheSameMemberEvidenceAcrossThemes",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingUniqueSummaryAndTooltipExcludeUnverifiedPathEvidenceWithoutUnsignedUnderflow",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingNativeFallbackCapturesOnlyTheSharedAliasesAndRetainsItsPublishedOwnerAfterClose",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.MemoryGroupingLatestPendingChoiceWinsWhenAChartGestureEndsBeforeItsWorker"
+      ]
+    }
+  },
+  "newCoreControls": 37,
+  "newRenderingControls": 8,
+  "excludedAttempts": [
+    "r647/r648/r649/r650: superseded before guest testing by complete controls and fixture cleanup",
+    "r651 candidate: packaged but never deployed; superseded by Windows extended-prefix fixture correction and unconditional Clear filter rebuild"
+  ],
+  "finalBuild": "build-r653.txt: full solution zero warnings/errors",
+  "testScope": "Actual guest runtimes, native memory-fallback metadata/hard links and owner lifetime, synthetic accounting/filter/selection cases, headless full-window themes/layout/input/state controls and complete existing regression suites. Full physical desktop and1M/10M/resource qualification remain pending.",
+  "batchWorkflow": "One immutable bundle per platform; sequential applicable suites, integrity/per-phase occupancy gates and one evidence collection per completed machine.",
+  "ownedProcessExitEvidence": "All original runners terminal; guest states FINISHED exit=0 and authoritative inventories contain no owned instances. Foreign testers, if any, were left untouched. No host app/input tests.",
+  "foreignProcessesObserved": {
+    "mac": [],
+    "ubuntu": [],
+    "windows": []
+  },
+  "qualification": {
+    "memoryGroupedUiAdapterImplemented": true,
+    "memoryGroupedAccountingAndFilteredMembershipControlsPassedAllThree": true,
+    "memoryGroupedMarksAndBasketSnapshotsImplemented": true,
+    "sharedSubtotalCapturesOnlyItsOwnAliases": true,
+    "capturedFolderNavigationImplementedInMemoryView": true,
+    "latestPendingGroupingGenerationQualifiedHeadless": true,
+    "nativeMemoryFallbackGroupedWorkflowPassedAllThree": true,
+    "uniqueUnverifiedSummaryTooltipWordingControlsPassedAllThree": true,
+    "newControlsPassedAllThree": true,
+    "groupedViewPersistenceImplemented": false,
+    "indexedGroupedMarksBasketImplemented": false,
+    "fullGroupedHiddenCountQualification": false,
+    "ownerComparisonVolumeGroupingImplemented": false,
+    "nativeDesktopGroupingQualified": false,
+    "fullResourceGateQualified": false,
+    "fullMillionTenMillionGroupingQualificationComplete": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

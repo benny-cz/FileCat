@@ -21,7 +21,9 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     private AnalysisSnapshot? _observation;
     private AnalysisSnapshotLease? _capturedOwner;
     private CancellationTokenSource? _projectionCancel;
-    private (AnalysisTree Tree, AnalysisOrderedRows Order, AnalysisSnapshotLease? Lease, string Scope, AnalysisTableSort Sort, bool Descending)? _pending;
+    private sealed record PendingProjection(AnalysisTree Tree, AnalysisOrderedRows Order, AnalysisSnapshotLease? Lease, string Scope,
+        AnalysisTableSort Sort, bool Descending, string PublishedScope, string? Focus, int Generation);
+    private PendingProjection? _pending;
     private bool _disposed, _building, _rebuildRequested;
     private int _generation, _interaction;
     private readonly List<IAnalysisBackend> _prepared = [];
@@ -32,6 +34,12 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     public AnalysisMetric Metric { get; set; } = AnalysisMetric.OnDisk;
     public string Chart { get; set; } = "Treemap";
     public AnalysisColorDimension ColorDimension { get; set; } = AnalysisColorDimension.FileType;
+    private AnalysisGroupingDimension _grouping;
+    public AnalysisGroupingDimension Grouping
+    {
+        get => _grouping;
+        set { if (!Enum.IsDefined(value)) throw new ArgumentOutOfRangeException(nameof(value)); _grouping = value; _hierarchyTarget = null; }
+    }
     public AnalysisComponentPreset Components { get; set; }
     public string Query { get; set; } = "";
     public string? RootFilter { get; set; }
@@ -115,13 +123,14 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         var token = _projectionCancel.Token;
         string query = Query, scope = Selection.Scope; var metric = Metric; bool sensitive = CaseSensitive; string? root = RootFilter;
         var sort = Sort; bool descending = SortDescending;
+        var grouping = Grouping; var previousGrouping = Tree?.GroupingDimension; var hierarchyTarget = _hierarchyTarget;
         if (string.IsNullOrWhiteSpace(query) && root is null) ShowUnknownFilterResults = false;
         bool showUnknown = ShowUnknownFilterResults;
         AnalysisSnapshotLease? nextLease = null;
         AnalysisOrderedRows? nextOrder = null;
         try
         {
-            var built = await Task.Run<(AnalysisTree Tree, AnalysisOrderedRows Order)?>(() =>
+            var built = await Task.Run<(AnalysisTree Tree, AnalysisOrderedRows Order, string Scope)?>(() =>
             {
                 nextLease = _session?.AcquireSnapshot() ?? _inventory?.Retain() ?? _capturedOwner?.Retain();
                 var s = nextLease?.Snapshot ?? _observation;
@@ -159,29 +168,32 @@ public sealed partial class DiskSpaceViewModel : IDisposable
                     ? n => rootScopes.IsMember(root, n) == AnalysisTruth.True : null;
                 var projection = filtered ? AnalysisAggregate.Project(s, metric, Matches, token, directoryFilter) : all;
                 projection = projection with { UnknownFilterNodes = unknown.ToImmutable(), IncludesUnknownFilterResults = filtered && showUnknown, FilterText = query };
-                var tree = AnalysisTree.Build(s, projection, filtered, token);
-                nextOrder = _orderRows(tree.ChildrenOf(scope), sort, descending, token);
-                return (Tree: tree, Order: nextOrder);
+                var tree = grouping == AnalysisGroupingDimension.FolderHierarchy ? AnalysisTree.Build(s, projection, filtered, token)
+                    : AnalysisTree.BuildGrouped(s, projection, grouping, filtered, token);
+                string effectiveScope = ProjectionScope(tree, scope, previousGrouping, hierarchyTarget);
+                nextOrder = _orderRows(tree.ChildrenOf(effectiveScope), sort, descending, token);
+                return (Tree: tree, Order: nextOrder, Scope: effectiveScope);
             }, token);
             if (_disposed || token.IsCancellationRequested || generation != _generation || built is null) { nextLease?.Dispose(); nextOrder?.Dispose(); return; }
             while (scope != Selection.Scope)
             {
-                scope = Selection.Scope; string requestedScope = scope;
+                scope = Selection.Scope; string requestedScope = ProjectionScope(built.Value.Tree, scope, previousGrouping, hierarchyTarget);
                 nextOrder?.Dispose(); nextOrder = null;
                 nextOrder = await Task.Run(() => _orderRows(built.Value.Tree.ChildrenOf(requestedScope), sort, descending, token), token);
-                built = (built.Value.Tree, nextOrder);
+                built = (built.Value.Tree, nextOrder, requestedScope);
             }
-            if (_disposed || token.IsCancellationRequested || Sort != sort || SortDescending != descending) { nextLease?.Dispose(); nextOrder?.Dispose(); return; }
+            if (_disposed || token.IsCancellationRequested || Sort != sort || SortDescending != descending || Grouping != grouping) { nextLease?.Dispose(); nextOrder?.Dispose(); return; }
             FilterError = null;
             if (_interaction > 0)
             {
-                _pending?.Lease?.Dispose(); _pending?.Order.Dispose(); _pending = (built.Value.Tree, built.Value.Order, nextLease, scope, sort, descending); nextLease = null; nextOrder = null;
+                _pending?.Lease?.Dispose(); _pending?.Order.Dispose(); _pending = new(built.Value.Tree, built.Value.Order, nextLease, scope, sort, descending,
+                    built.Value.Scope, HierarchyFocus(built.Value.Tree, hierarchyTarget), generation); nextLease = null; nextOrder = null;
                 SetStatus("New results available. The current interaction keeps its original targets.");
             }
             else
             {
                 var publishedLease = nextLease; nextLease = null; nextOrder = null;
-                Publish(built.Value.Tree, built.Value.Order, publishedLease);
+                Publish(built.Value.Tree, built.Value.Order, publishedLease, built.Value.Scope, HierarchyFocus(built.Value.Tree, hierarchyTarget));
             }
         }
         catch (OperationCanceledException) { nextLease?.Dispose(); nextOrder?.Dispose(); }
@@ -196,11 +208,18 @@ public sealed partial class DiskSpaceViewModel : IDisposable
             if (_rebuildRequested && !_disposed) { _rebuildRequested = false; await RebuildAsync(true); }
         }
     }
-    private void Publish(AnalysisTree tree, AnalysisOrderedRows order, AnalysisSnapshotLease? lease)
+    private void Publish(AnalysisTree tree, AnalysisOrderedRows order, AnalysisSnapshotLease? lease, string scope, string? focus)
     {
         if (_session is not null)
             AcquisitionNotice = (_acquisition?.MemoryPreparationNotice ?? "This analysis uses bounded memory. It stops with partial results if the memory limit is reached.") +
                 (PrivateBoundaryNotice(tree.Snapshot) is { } notice ? " " + notice : "");
+        if (Tree is not null && Tree.GroupingDimension != tree.GroupingDimension || Selection.Scope != scope) Selection.ResetNavigation(scope);
+        if (focus is not null) Selection.SetFocus(focus);
+        if (tree.GroupingDimension == AnalysisGroupingDimension.FolderHierarchy && _hierarchyTarget is not null)
+        {
+            Status = focus is null ? "The selected entry is absent from this captured revision. Showing the captured top level." : "Showing the entry in its captured folder. The live location was not opened.";
+            _hierarchyTarget = null;
+        }
         RebindTableRangeOrder(tree, order);
         var old = _lease; var oldOrder = _orderedRows; _lease = lease; _orderedRows = order; Tree = tree; Rows = order.Rows; _observation = tree.Snapshot;
         try { Changed?.Invoke(); } finally { old?.Dispose(); oldOrder?.Dispose(); }
@@ -211,7 +230,8 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         if (_interaction == 0 && _pending is { } pending)
         {
             _pending = null;
-            if (pending.Scope == Selection.Scope && pending.Sort == Sort && pending.Descending == SortDescending) Publish(pending.Tree, pending.Order, pending.Lease);
+            if (pending.Generation == _generation && pending.Scope == Selection.Scope && pending.Sort == Sort && pending.Descending == SortDescending && pending.Tree.GroupingDimension == Grouping)
+                Publish(pending.Tree, pending.Order, pending.Lease, pending.PublishedScope, pending.Focus);
             else { pending.Lease?.Dispose(); pending.Order.Dispose(); _ = RebuildAsync(true); }
         }
     }
@@ -221,7 +241,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         Selection.SetFocus(key);
         if (toggleMark && Tree?.Items.GetValueOrDefault(key)?.NodeId is { } id)
         { try { Selection.ToggleMark(id); } catch (InvalidOperationException ex) { SetStatus(ex.Message); } }
-        if (open && Tree is { } tree && (key.StartsWith("other:", StringComparison.Ordinal) || tree.Items.GetValueOrDefault(key) is { } item && (item.Kind == AnalysisKind.Directory || item.Members.Length > 0)))
+        if (open && Tree is { } tree && tree.CanExplore(key))
         { NavigateRows(key, () => Selection.Navigate(key)); }
         Changed?.Invoke();
     }
@@ -331,7 +351,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
         : item.SharedElsewhere && item.Value == 0 ? item.ChargeLocation ?? "Shared at ancestor"
         : item.Unknown && item.Value == 0 ? "Unknown" : metric == AnalysisMetric.Files ? item.Value.ToString(exact ? "0" : "N0", exact ? CultureInfo.InvariantCulture : CultureInfo.CurrentCulture)
         : (exact ? item.Value.ToString(CultureInfo.InvariantCulture) + " bytes" : Bytes(item.Value)) +
-        (item.IdentityUnverified > 0 ? " · unverified" : item.Unknown ? " known" : "");
+        (item.IdentityUnverified > 0 && metric == AnalysisMetric.OnDisk ? " · unverified" : item.Unknown ? " known" : "");
     public string ScopeSummary
     {
         get
@@ -343,9 +363,12 @@ public sealed partial class DiskSpaceViewModel : IDisposable
                 return label + ": allocation bases differ; no combined total.";
             string scope = Selection.Scope; UInt128 value = tree.ScopeValue(scope); var item = tree.Items.GetValueOrDefault(scope);
             string amount = item is not null && item.IdentityUnverified > 0
-                ? $"{Bytes(value - item.IdentityUnverified)} known with verified identities + {Bytes(item.IdentityUnverified)} reported for identity-unverified paths"
+                ? tree.Projection.Metric == AnalysisMetric.UniqueFileSize
+                    ? $"{Bytes(value)} known with verified identities; {Bytes(item.IdentityUnverified)} identity-unverified path bytes excluded from unique chart area"
+                    : $"{Bytes(checked(value - item.IdentityUnverified))} known with verified identities + {Bytes(item.IdentityUnverified)} reported for identity-unverified paths"
                 : (tree.Projection.Metric == AnalysisMetric.Files ? value.ToString("N0", CultureInfo.CurrentCulture) + (value == 1 ? " file" : " files") : Bytes(value)) + " known";
-            return label + ": " + amount + (item is null ? "" : $" · {item.Files:N0} observed file " + (item.Files == 1 ? "path" : "paths")) + (item?.Unknown == true ? " · partial" : "");
+            return label + ": " + amount + (item is null ? "" : $" · {item.Files:N0} observed file " + (item.Files == 1 ? "path" : "paths")) +
+                (tree.GroupingDimension == AnalysisGroupingDimension.FolderHierarchy ? "" : " · " + AnalysisGroupingRules.Title(tree.GroupingDimension)) + (item?.Unknown == true ? " · partial" : "");
         }
     }
     public static string Bytes(UInt128 bytes)

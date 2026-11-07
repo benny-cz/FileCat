@@ -14,6 +14,8 @@ public sealed class AnalysisSelectionState
     public ImmutableHashSet<ulong> Marks => _marks;
     public ImmutableHashSet<ulong> Basket => _basket;
     public void SetFocus(string key) => Focus = key;
+    public void ResetNavigation(string scope = AnalysisTree.RootKey)
+    { ArgumentNullException.ThrowIfNull(scope); Scope = scope; Focus = null; _back.Clear(); _forward.Clear(); }
     private static void Push(LinkedList<string> history, string scope)
     {
         history.AddLast(scope);
