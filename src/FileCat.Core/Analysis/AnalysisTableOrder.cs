@@ -68,7 +68,7 @@ public static class AnalysisTableOrder
         bool Missing(AnalysisTreeItem item) => field switch
         {
             AnalysisTableSort.ActiveMetric => !item.IncludedByPolicy || item.IsNonFileLeaf || (item.Unknown || item.SharedElsewhere) && item.Value == 0,
-            AnalysisTableSort.FileSize => !item.IncludedByPolicy || item.IsNonFileLeaf || item.LogicalUnknown && item.LogicalSize == 0,
+            AnalysisTableSort.FileSize => !item.IncludedByPolicy || item.IsNonFileLeaf || item.LogicalUnknown && (item.ReferenceLogical?.KnownBytes ?? item.LogicalSize) == 0,
             AnalysisTableSort.FilePaths => !item.IncludedByPolicy || item.IsNonFileLeaf,
             AnalysisTableSort.MeasurementState => item.Unknown,
             _ => false
@@ -77,8 +77,8 @@ public static class AnalysisTableOrder
         int result = field switch
         {
             AnalysisTableSort.Name => StringComparer.OrdinalIgnoreCase.Compare(a.Name, b.Name),
-            AnalysisTableSort.FileSize => a.LogicalSize.CompareTo(b.LogicalSize),
-            AnalysisTableSort.FilePaths => a.Files.CompareTo(b.Files),
+            AnalysisTableSort.FileSize => (a.ReferenceLogical?.KnownBytes ?? a.LogicalSize).CompareTo(b.ReferenceLogical?.KnownBytes ?? b.LogicalSize),
+            AnalysisTableSort.FilePaths => (a.ReferenceLogical?.Files ?? a.Files).CompareTo(b.ReferenceLogical?.Files ?? b.Files),
             AnalysisTableSort.MeasurementState => a.MetadataState.CompareTo(b.MetadataState),
             _ => a.Value.CompareTo(b.Value)
         };

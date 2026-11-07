@@ -278,7 +278,7 @@ public sealed partial class AnalysisDatasetHierarchy
             for (ulong at = 0; at < range.Count; at++)
             {
                 token.ThrowIfCancellationRequested(); var entry = Snapshot.Placements!.Read(range.First + at, token);
-                if (entry.Key.Length != 50) throw Invalid();
+                if (entry.Key.Length is not (50 or 114)) throw Invalid();
                 if ((entry.Key[49] & 1) == 0) { yield return new(null, 256); continue; }
                 ulong path = System.Buffers.Binary.BinaryPrimitives.ReadUInt64BigEndian(entry.Key.AsSpan(16)); var node = Snapshot.Graph.ReadPath(path, token);
                 ulong objectRow = ObjectRow(node.ObjectId, token, out long objectCost); if (objectRow == 0) throw Invalid();

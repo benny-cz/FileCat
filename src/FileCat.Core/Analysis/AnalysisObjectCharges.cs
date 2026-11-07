@@ -115,7 +115,8 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
 
     private enum Stage { Objects, Aliases, AliasAncestors, CommonAncestor, Facts, Emit, UnknownAliases, Directories, DirectoryOwner, MatchObjects, MatchFacts, MatchAliases, MatchAncestors, MatchEvaluate, Done }
     private sealed record Component(StorageFact Fact, ulong Row);
-    private sealed record Row(ulong Id, ulong Parent, ulong Path, ulong Object, ulong Fact, ulong Aliases, AnalysisMeasurement Measurement, byte Flags);
+    private sealed record Row(ulong Id, ulong Parent, ulong Path, ulong Object, ulong Fact, ulong Aliases, AnalysisMeasurement Measurement, byte Flags,
+        AnalysisLogicalTotals? ReferenceLogical = null);
     internal sealed partial class State : IAnalysisScratchOwned
     {
         private readonly AnalysisIndexedGraphReader _graph;
@@ -134,6 +135,7 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
         private string? _version;
         private bool _changed, _conflictingComponents, _directoryEmission;
         private uint _roots;
+        private readonly AnalysisPathStatistics _referenceLogical = new();
         private readonly Dictionary<string, Component> _components = new(StringComparer.Ordinal);
         private readonly HashSet<string>[] _bases;
         private long _componentBytes, _basisBytes;
@@ -186,6 +188,7 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
                     _changed |= _first!.LogicalLength != _current!.LogicalLength;
                     if (_current.VersionEvidence is { } version) { if (_version is null) _version = version; else _changed |= _version != version; }
                     if (Query is null) _count = checked(_count + 1);
+                    if (Query is null) _referenceLogical.Add(_current.LogicalLength);
                     _paths = checked(_paths + 1); _currentPaths++; _roots |= 1U << node.RootIndex;
                     if (_paths == 1) _parent = node.Node.ParentId;
                     else if (_parent != 0 && _parent != node.Node.ParentId && _first.VerifiedIdentity is not null)
@@ -306,7 +309,8 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
             byte flags = (byte)((!_emitForPath && !_directoryEmission && !uncertain && _paths > 1 ? 1 : 0) | (uncertain ? 2 : 0) | (_directoryEmission ? 4 : 0));
             _writer!.Append(Encode(new(_writer.AcceptedCount + 1, _emitForPath ? _matchNode!.ParentId : _parent, _emitForPath ? _matchNode!.Id : _representative,
                 _directoryEmission ? 0 : _emitForPath ? _matchObjRow : _representativeObject, fact,
-                _directoryEmission ? 0 : _emitForPath || uncertain ? 1 : _paths, measurement, flags)), token); _emit++;
+                _directoryEmission ? 0 : _emitForPath || uncertain ? 1 : _paths, measurement, flags,
+                (flags & 1) != 0 && _emit == 0 ? _referenceLogical.Export() : null)), token); _emit++;
             if (measurement.IsKnown)
             {
                 if (uncertain) _unverified = checked(_unverified + measurement.Value!.Value); else _known = checked(_known + measurement.Value!.Value);
@@ -318,6 +322,7 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
         {
             _identity = null; _first = _current = null; _version = null; _directory = null; _roots = 0; _paths = _parent = _representative = 0;
             _changed = _conflictingComponents = _directoryEmission = false; _components.Clear(); _componentBytes = 0; _selected = []; _override = null; _ancestors.Clear();
+            _referenceLogical.Clear();
             // A directory fact read ahead remains owned until its separate DirectoryOwner turn.
             if (_pendingDirectory is not null) _stage = Stage.DirectoryOwner;
         }
@@ -336,7 +341,7 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
                 token.ThrowIfCancellationRequested(); var value = Decode(_rows.Read(row, token)); var key = new byte[33]; Key(value.Parent).CopyTo(key, 0);
                 key[8] = value.Measurement.IsKnown ? (byte)0 : (byte)1;
                 Write128(key.AsSpan(9), UInt128.MaxValue - (value.Measurement.Value ?? 0)); Key(value.Id).CopyTo(key, 25);
-                yield return new(new(key, row), 128);
+                yield return new(new(key, row), value.ReferenceLogical is null ? 128 : 1024);
             }
         }
         internal IEnumerable<AnalysisSortInput> PlacementEntries(CancellationToken token)
@@ -345,10 +350,11 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
             {
                 token.ThrowIfCancellationRequested(); var value = Decode(_rows.Read(row, token));
                 ulong placement = (value.Flags & 5) != 0 ? value.Parent : value.Path;
-                var key = new byte[50]; Key(placement).CopyTo(key, 0); Key(value.Id).CopyTo(key, 8);
+                var key = new byte[value.ReferenceLogical is null ? 50 : 50 + AnalysisPathStatistics.EncodedBytes]; Key(placement).CopyTo(key, 0); Key(value.Id).CopyTo(key, 8);
                 Key(value.Path).CopyTo(key, 16); Key(value.Aliases).CopyTo(key, 24); Write128(key.AsSpan(32), value.Measurement.Value ?? 0);
                 key[48] = (byte)value.Measurement.State; key[49] = value.Flags;
-                yield return new(new(key, value.Id), 128);
+                if (value.ReferenceLogical is { } references) AnalysisPathStatistics.Write(key.AsSpan(50), references);
+                yield return new(new(key, value.Id), value.ReferenceLogical is null ? 256 : 1024);
             }
         }
         // A missing shared charge belongs at its captured LCA, but its aliases and their
@@ -360,7 +366,7 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
             for (ulong row = 1; row <= _rows!.Count; row++)
             {
                 token.ThrowIfCancellationRequested(); var charge = Decode(_rows.Read(row, token));
-                if (charge.Object == 0 || charge.Measurement.IsKnown) { yield return new(null, 128); continue; }
+                if (charge.Object == 0 || charge.Measurement.IsKnown) { yield return new(null, charge.ReferenceLogical is null ? 128 : 1024); continue; }
                 var obj = _graph.ReadObject(charge.Object, token); byte[] key = obj.VerifiedIdentity is null ? UnmeasuredPathKey(charge.Path) : AnalysisGraphKeys.ObjectIdentity(obj);
                 yield return new(new(key, row), checked(1024 + key.Length + obj.Id.Length * 2 + (obj.VersionEvidence?.Length ?? 0) * 2));
             }
@@ -375,7 +381,7 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
         {
             var value = Decode(_rows!.Read(row, token)); var obj = value.Object == 0 ? null : _graph.ReadObject(value.Object, token);
             var fact = value.Fact == 0 ? null : _graph.ReadFact(value.Fact, token);
-            cost = 512L + (obj is null ? 0 : 512L + obj.Id.Length * 2L + (obj.VerifiedIdentity?.Length ?? 0) * 2L + (obj.VersionEvidence?.Length ?? 0) * 2L) +
+            cost = 768L + (obj is null ? 0 : 512L + obj.Id.Length * 2L + (obj.VerifiedIdentity?.Length ?? 0) * 2L + (obj.VersionEvidence?.Length ?? 0) * 2L) +
                 (fact is null ? 0 : FactBytes(fact));
             return new(value.Id, value.Parent, value.Path, obj?.Id, fact?.ComponentId, fact?.BasisId, value.Measurement, value.Aliases,
                 (value.Flags & 1) != 0, (value.Flags & 2) != 0, (value.Flags & 4) != 0);
@@ -393,20 +399,23 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
     private static byte[] Key(ulong value) { var bytes = new byte[8]; BinaryPrimitives.WriteUInt64BigEndian(bytes, value); return bytes; }
     private static byte[] Encode(Row row)
     {
-        var bytes = new byte[72]; BinaryPrimitives.WriteUInt32LittleEndian(bytes, 0x31434f41);
+        var bytes = new byte[row.ReferenceLogical is null ? 72 : 72 + AnalysisPathStatistics.EncodedBytes]; BinaryPrimitives.WriteUInt32LittleEndian(bytes, 0x32434f41);
         ulong[] fields = [row.Id, row.Parent, row.Path, row.Object, row.Fact, row.Aliases];
         for (int n = 0; n < fields.Length; n++) BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(4 + n * 8), fields[n]);
-        Write128(bytes.AsSpan(52), row.Measurement.Value ?? 0); bytes[68] = (byte)row.Measurement.State; bytes[69] = row.Flags; return bytes;
+        Write128(bytes.AsSpan(52), row.Measurement.Value ?? 0); bytes[68] = (byte)row.Measurement.State; bytes[69] = row.Flags;
+        if (row.ReferenceLogical is { } references) AnalysisPathStatistics.Write(bytes.AsSpan(72), references); return bytes;
     }
     private static Row Decode(byte[] bytes)
     {
-        if (bytes.Length != 72 || BinaryPrimitives.ReadUInt32LittleEndian(bytes) != 0x31434f41 || bytes[68] > 5 || bytes[69] > 7 || bytes[70] != 0 || bytes[71] != 0) throw Invalid();
+        if (bytes.Length is not (72 or 136) || BinaryPrimitives.ReadUInt32LittleEndian(bytes) != 0x32434f41 || bytes[68] > 5 || bytes[69] > 7 || bytes[70] != 0 || bytes[71] != 0) throw Invalid();
         ulong[] fields = new ulong[6]; for (int n = 0; n < fields.Length; n++) fields[n] = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(4 + n * 8));
         UInt128 value = Read128(bytes.AsSpan(52)); var state = (MeasurementState)bytes[68];
         if (fields[0] == 0 || fields[2] == 0 || fields[3] > AnalysisLimits.Observations || fields[5] > AnalysisLimits.Observations || state != MeasurementState.Known && value != 0) throw Invalid();
         bool directory = (bytes[69] & 4) != 0, shared = (bytes[69] & 1) != 0, uncertain = (bytes[69] & 2) != 0;
         if (directory ? fields[3] != 0 || fields[5] != 0 || shared || fields[1] != fields[2] : fields[3] == 0 || fields[5] == 0 || shared != (fields[5] > 1) || uncertain && fields[5] != 1) throw Invalid();
-        return new(fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], state == MeasurementState.Known ? AnalysisMeasurement.Known(value) : AnalysisMeasurement.Missing(state), bytes[69]);
+        var references = bytes.Length == 72 ? null : AnalysisPathStatistics.Read(bytes.AsSpan(72), fields[5]);
+        if (references is not null && (!shared || references.Files == 0)) throw Invalid();
+        return new(fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], state == MeasurementState.Known ? AnalysisMeasurement.Known(value) : AnalysisMeasurement.Missing(state), bytes[69], references);
     }
     private static long PathBytes(AnalysisNode node) => 1024L + node.Name.Length * 2L + node.RawName.Length;
     private static long FactBytes(StorageFact fact) => 1024L + fact.Id.Length * 2L + (fact.ObjectId?.Length ?? 0) * 2L +

@@ -1,0 +1,835 @@
+{
+  "purpose": "Bounded shared-reference statistics and additive memory/indexed geometry with UI labels; full W0-W8 remains open",
+  "observedUtc": "2026-11-07T14:49:51.938936+00:00",
+  "gitBase": "d84b8ee41a558bbf6f05f926e43e692e514755ac",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "8788ec78de88fa096295ddf2388f5cb6d55b9f65f4011e1f0659f7be07531b93"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "e8384674e3f0567feb3f39817ff5b8551f9a879ec4097e37c5d8050c676f95e1"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+      "sha256": "fbdefef008fe606d4ba35c1e0ca8cfffb637d4fdd76eb1a24f782bbe13db22c5"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+      "sha256": "bd3030f03fb9497cc97a45dcb287d237f467dcfe523408110bccc97c7ce39cad"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.Subset.cs",
+      "sha256": "509d59662f1ae8b86aef24a872475c93c212320b21b4d1d5f216c2ad2618a101"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisGeometryOrder.cs",
+      "sha256": "5f6957dd7a49f6f1b655e49de3ff526e81509b92b21ffe8f3843ea84d8bb29b3"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedChart.cs",
+      "sha256": "4c8639b3d20f86726d9d90181920acd3ec72ed4e91fc0a534fa843b0c1d51955"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObjectCharges.cs",
+      "sha256": "2a377ba25326e10fdc02dd52cd6da64ebea9e553d272b393a8e2b132b2ba810a"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisObjectCharges.Filter.cs",
+      "sha256": "bd9f2a1df48de15c8000de139dc54ffbdd81173b879980e50a747bf12c7c9dc8"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisPathStatistics.cs",
+      "sha256": "5796067518b637bf4472c2419ff5ae7f55d8a3939e3665fdbabac7603527f424"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTableOrder.cs",
+      "sha256": "d31c7b718e5bc07e06aa189bd9d53a502708249c57be772fbc7e3b2be0bb6a07"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+      "sha256": "a4b786dc5ad1a9a7ca9361c4bba66c3b8c0c45c7c59feab9965f55327120b942"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.SharedReference.cs",
+      "sha256": "ec410df3b77ccd95108ca931c780cd64d878e2f656b20fef8977bafeadeea953"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.UnmeasuredGeometry.cs",
+      "sha256": "676e385bd4023b6a92424e608e678695cd87000af99b4fb5076c06a1481a7f79"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisPathStatisticsTests.cs",
+      "sha256": "2bf479df7da0e5dcf959f9d084a8457a5a7a699ae513a060a900db4f4abe3c14"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisTreeTests.cs",
+      "sha256": "d615990e7ce4441294ef6102740d85bb616aece2383693d900a7a22fd3672436"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.SharedReference.cs",
+      "sha256": "56afd4fc4f4631209295a9bb2bf32340a063e3c02ba944bd974f38fd3b2d5803"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.UnmeasuredOther.cs",
+      "sha256": "e62d3e122c67594bd14b9dce886e5454e398b380b93e8e904b43f0c8104aec3b"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r792.txt",
+      "sha256": "17d995dff1b52431383cd6680cab2aaf9ff00f8b9ff9ab4e4cf82444186bd40c"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r793.txt",
+      "sha256": "fca3eb4e117a257bd5a09aa22076be00933de8c5a119cff5f7d5bbaf65d5b289"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r798.txt",
+      "sha256": "3a0d4b36b3fe8e9381cb1e44b4bce5497cb26a392bd6548a32d072c381189d49"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r799-core-r799.xml",
+      "sha256": "0748c8e698c83e4a976f27a1dd74cb112e5ceb37463620ca5c816d8ef2242692"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r799-core-r799.log",
+      "sha256": "2194da7f8ec50b90f501e20a6726bc711436c9ece4692f58cf41ea9a3b822703"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r799-render-r799.xml",
+      "sha256": "f44ad1083f746b21f4f6634e88f568e8950ffecd5d5492f96cceee13b394e686"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r799-render-r799.log",
+      "sha256": "7db8e68292c4b6d281f97c3dffe1f97a90c2f234c21c455cbb5ab32d2660f612"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r799-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r799-post.json",
+      "sha256": "742119aa2ad5341ce779a6e4d6fd17e9a5d5ec775ea5f01e8557d0f65a5130b8"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-pre-r799.json",
+      "sha256": "d50c7ab8a0048bffde5d76969f042d495dc69349a026021ab5c3bfd22c607809"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r799-core-r799.xml",
+      "sha256": "53dc95963de984b7080b7200cbde125afb66b0495c8c6fe07b4853706dab771c"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r799-core-r799.log",
+      "sha256": "6495d4ff669c2923c72dcb002eff7a9666702ab739b0ee1c3d62c9938e7c1e31"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r799-render-r799.xml",
+      "sha256": "4b4814d5794208bfbc6c4e9f30cccdf823ff9dbfb147002e155b169a615c3931"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r799-render-r799.log",
+      "sha256": "dbcfd4ca3072c7fefb4065b6e80580e49629a68c6bac2b01888ab0529de3e9a9"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r799-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r799-post.json",
+      "sha256": "81e54978b1d6cf3e0e267cb21cf000052998b8d0d7485d400ed3b2e0b2677ce1"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-pre-r799.json",
+      "sha256": "2745270056cf53af4d81fc5cd48240f34bc2b1fd4b4803dde08d766d86cfed01"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r799-core-r799.xml",
+      "sha256": "8ae5b04d92f5bff4999a352b97cce4319a638824946f96ffce9c814e79223325"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r799-core-r799.log",
+      "sha256": "9b9a6762f6bf48d2e67368688b4e9075ede1bf6e503e25611736d80cf13446f5"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r799-native-r799.xml",
+      "sha256": "0a660ac291329b0eb9d30d12ea5e6db3b4d4cbc4375d4d1d2d3de2325d33543e"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r799-native-r799.log",
+      "sha256": "04847526208fc397aa5f339f83c3fb8371053cbf5bf6251a0f48b19ae2eac620"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r799-render-r799.xml",
+      "sha256": "4a71daf33458bc6452276f259c9d43e2084f5cc3d7085524fcc4d9ee811e38d6"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r799-render-r799.log",
+      "sha256": "0b74a3201df38f6aff3704178d6703247f2a31590bf805ba1d2288054181840a"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r799-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r799-post.json",
+      "sha256": "c6985ccacb0a0c753670b6fe7166808c64d6dc60ea6cbb6f02f04a25db149933"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-pre-r799.json",
+      "sha256": "35ef3b21d162641dcd4549e9537ff4a68dcdcbd12456f42fbcadf50e3357ab5b"
+    },
+    {
+      "path": "docs/validation/disk-space/build-r794.txt",
+      "sha256": "fa5de8ac8ff777bdc6072eb4c4ed904d50dc53d59333bb183f25e73087b86a74"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r795-core-r795.xml",
+      "sha256": "2a9ddce76e572e510c8c02e11a1a50856dade62847fb154f7d5d8dba1ebfed9c"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r795-core-r795.log",
+      "sha256": "3fd5190ed89ff66025d8d0119966cc2134b14f8bc9694f8659d3c84baf9049ea"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r795-render-r795.xml",
+      "sha256": "5c86b562062d9de3d6ba73a55f7b8b4b0259dc8f62c61958d85c45e30884d633"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r795-render-r795.log",
+      "sha256": "185f11842fa49e96f859c33c5f98b6e1b3a5bba495a8bbc0d45eae221e088931"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r795-state.txt",
+      "sha256": "8c55364535dd24e23b2bc7634300d570199001b59fa364b714efae9f1e48cced"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r795-post.json",
+      "sha256": "35cf3d893a9ecd3b51cbb60e594438a1741b440a40f3380efa9e0a93bb0cae01"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-pre-r795.json",
+      "sha256": "4b86cbdbfd30c390e5074e53c5194cad89b2e9db8d9217ff36767be6b043e734"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r795-core-r795.xml",
+      "sha256": "2a9264da77ed3d2d8a07940da88023745b37c8ae86ef2eaeea3efe1f2073cfc3"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r795-core-r795.log",
+      "sha256": "9f382859ddc5f42ea85983ccb07b5550d6042b277894ffe5d41b78758176de1e"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r795-render-r795.xml",
+      "sha256": "1a1e09c19e084734ef6cc483b0e31406fad9d93d3cff41c994ed609d4d8d84ec"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r795-render-r795.log",
+      "sha256": "5154cb2ba867f282e039c15836bdd2045a79c9a60b065b00da3fd794ed394bb3"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r795-state.txt",
+      "sha256": "8c55364535dd24e23b2bc7634300d570199001b59fa364b714efae9f1e48cced"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r795-post.json",
+      "sha256": "c2dce29911e71463905577b0432a10335dd5ea2d22d7407f7112ee4eba52a7be"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-pre-r795.json",
+      "sha256": "40fa47ffa0810a5c55a812cc7b145fa17c3be3c5faa85656469732ae204aa243"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r795-core-r795.xml",
+      "sha256": "611d925eb5e3b5839303bf7bfbd26e9791bc2127a299f65b3428f66a9bd5419c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r795-core-r795.log",
+      "sha256": "3c70bcc7dcba3156ed24cb8676ac53ef5d3b6dcedda9665aafbd53be8354d976"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r795-native-r795.xml",
+      "sha256": "d2bbe5a47543d4d6a1ea06ccc5e8465ebe63ddfb8625c33c7097d07091ca2ee3"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r795-native-r795.log",
+      "sha256": "2dcf0a32d05efbc31a776d651ff5d28d7150162c042b9b90135ac712326cf0cf"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r795-render-r795.xml",
+      "sha256": "2b452ba7ccfcdf255809a69525c33c9d09da4636a7b5acb8a46beec5aa5d8495"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r795-render-r795.log",
+      "sha256": "f02c2632a444fa060e8f4b4d4a487607d3c244e11be231d577bbf13b542150ea"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r795-state.txt",
+      "sha256": "9f63d15acb403d0c18063a9b6f26d3d2663adf77b10c53f2c36ab81c9afa08dc"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r795-post.json",
+      "sha256": "54b5c56ec690ff9cc87827aa78cdce9e33df7c2511ea96d86b1ccaaafd934f7a"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-pre-r795.json",
+      "sha256": "ca22fbab331c5cf3b7602483fb38986dd37f87ff66c2c9dd18878c3dc3c869ce"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/preflight-indexed-r732.ps1",
+      "sha256": "74594887c0fb548b398b8e6f5794ec0f2e757fce942f88cb9e711407646c4aa5"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/deploy-batch.ps1",
+      "sha256": "8ce277c94e470b75424b010ee2a0170634028fb488d3c96798fba247c3b686ce"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/collect-batch.ps1",
+      "sha256": "442692a6d4fbbbcbd80f84ca598bfdbe462487f27874dc1547b0f41c8f18f624"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/finalize-shared-reference.py",
+      "sha256": "0b13d0219d6ec20dd2acf5b0a67d10115fbb636ecc2bcc9b9dff24bc9aaff931"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r799.sh",
+      "sha256": "7a9e9224cbccac29d941b6b4f0c7ea53f9d5429b6055178356e7a87b651acde7"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r799.sh",
+      "sha256": "2bd919c78914b1ed1d2141592cc55eedb4021ea7257a962d99dcd948b15b0ca2"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r799.ps1",
+      "sha256": "755b8f34a033875d09992c38a71e93d60ff116531e135e9b72d197bd3edef386"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r795.sh",
+      "sha256": "9ba56413fd9b35ce4f74c5bc89836437442b772f1d67a7caa6d7d246dd75daa4"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r795.sh",
+      "sha256": "13a13c23898ba5dcd97210e22b8c99d70d2ea0e58857b717f1270004e0f88438"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r795.ps1",
+      "sha256": "cd2a277017979a260419400ccf921c5786408a7c8bb54f2a530648fa9dd0a0fd"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r799.tgz",
+      "sha256": "2b33e96b1bd86493b2822677e69feb30e445aafc0f0e3b7a91ffd1169eb7d817"
+    },
+    {
+      "name": "dsa-batch-linux-r799.tgz",
+      "sha256": "2f2a4ea8dd121d852f0d8c90afd14260852cf97d96cb4082ca8b4a4e63bff8a8"
+    },
+    {
+      "name": "dsa-batch-windows-r799.tgz",
+      "sha256": "9d904ff04729d5d498419708f23bd03d1523e31a52c6aaf955979b770ef8989d"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r799": "600b5e930427b7a96ba24242251f469cb68943dc6c5e7d922e26c35f753c1d08",
+    "native-r799": "600b5e930427b7a96ba24242251f469cb68943dc6c5e7d922e26c35f753c1d08",
+    "render-r800-mac": "600b5e930427b7a96ba24242251f469cb68943dc6c5e7d922e26c35f753c1d08",
+    "render-r800-linux": "600b5e930427b7a96ba24242251f469cb68943dc6c5e7d922e26c35f753c1d08",
+    "render-r800-windows": "600b5e930427b7a96ba24242251f469cb68943dc6c5e7d922e26c35f753c1d08"
+  },
+  "productionAppHashes": {
+    "render-r800-mac": "04894804471261c2193061687962fd259d9d5576164e82f475d17ad5c2d51ffb",
+    "render-r800-linux": "04894804471261c2193061687962fd259d9d5576164e82f475d17ad5c2d51ffb",
+    "render-r800-windows": "04894804471261c2193061687962fd259d9d5576164e82f475d17ad5c2d51ffb"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r799": "5d745d664a9c495215a7b2898ddc05d7790ffe9d3374791a4d240e65dc918fdd",
+    "render-r800-mac": "5d745d664a9c495215a7b2898ddc05d7790ffe9d3374791a4d240e65dc918fdd",
+    "render-r800-linux": "5d745d664a9c495215a7b2898ddc05d7790ffe9d3374791a4d240e65dc918fdd",
+    "render-r800-windows": "5d745d664a9c495215a7b2898ddc05d7790ffe9d3374791a4d240e65dc918fdd"
+  },
+  "matrix": {
+    "mac-batch-r799-core-r799.xml": {
+      "total": "1280",
+      "passed": "1276",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "29.568"
+    },
+    "mac-batch-r799-render-r799.xml": {
+      "total": "242",
+      "passed": "242",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "85.614"
+    },
+    "ubuntu-batch-r799-core-r799.xml": {
+      "total": "1280",
+      "passed": "1276",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "105.578"
+    },
+    "ubuntu-batch-r799-render-r799.xml": {
+      "total": "242",
+      "passed": "242",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "149.368"
+    },
+    "windows-batch-r799-core-r799.xml": {
+      "total": "1298",
+      "passed": "1250",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "55.609"
+    },
+    "windows-batch-r799-native-r799.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "40.608"
+    },
+    "windows-batch-r799-render-r799.xml": {
+      "total": "242",
+      "passed": "241",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "164.512"
+    }
+  },
+  "targetedControls": {
+    "mac": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisPathStatisticsTests.DerivedReferenceStatisticsRejectImpossibleOrTruncatedCounts(corruption: \\\"too-many-files\\\")",
+        "FileCat.Core.Tests.AnalysisPathStatisticsTests.DerivedReferenceStatisticsRejectImpossibleOrTruncatedCounts(corruption: \\\"too-many-unknown\\\")",
+        "FileCat.Core.Tests.AnalysisPathStatisticsTests.DerivedReferenceStatisticsRejectImpossibleOrTruncatedCounts(corruption: \\\"known-with-no-known-files\\\")",
+        "FileCat.Core.Tests.AnalysisPathStatisticsTests.DerivedReferenceStatisticsRejectImpossibleOrTruncatedCounts(corruption: \\\"short\\\")",
+        "FileCat.Core.Tests.AnalysisPathStatisticsTests.DerivedReferenceStatisticsRejectImpossibleOrTruncatedCounts(corruption: \\\"trailing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: FileSize, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: UniqueFileSize, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: OnDisk, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: Files, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: FileSize, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: UniqueFileSize, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: OnDisk, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: Files, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMultipleCohortsAndComponentsCountEachMatchingPathOnce",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: False, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: False, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: False, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: False, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: True, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: True, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: True, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: True, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: False, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: False, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: False, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: False, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: True, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: True, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: True, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: True, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: False, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: False, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: False, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: False, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: True, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: True, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: True, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: True, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: False, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: False, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: False, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: False, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: True, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: True, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: True, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: True, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceChartRemainderAndEveryChildPreserveAdditiveLogicalStatistics"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: OnDisk, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: OnDisk, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: True)"
+      ]
+    },
+    "ubuntu": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisPathStatisticsTests.DerivedReferenceStatisticsRejectImpossibleOrTruncatedCounts(corruption: \\\"too-many-files\\\")",
+        "FileCat.Core.Tests.AnalysisPathStatisticsTests.DerivedReferenceStatisticsRejectImpossibleOrTruncatedCounts(corruption: \\\"too-many-unknown\\\")",
+        "FileCat.Core.Tests.AnalysisPathStatisticsTests.DerivedReferenceStatisticsRejectImpossibleOrTruncatedCounts(corruption: \\\"known-with-no-known-files\\\")",
+        "FileCat.Core.Tests.AnalysisPathStatisticsTests.DerivedReferenceStatisticsRejectImpossibleOrTruncatedCounts(corruption: \\\"short\\\")",
+        "FileCat.Core.Tests.AnalysisPathStatisticsTests.DerivedReferenceStatisticsRejectImpossibleOrTruncatedCounts(corruption: \\\"trailing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: False, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: False, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: False, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: False, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: True, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: True, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: True, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: True, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: False, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: False, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: False, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: False, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: True, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: True, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: True, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: True, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: False, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: False, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: False, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: False, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: True, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: True, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: True, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: True, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: False, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: False, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: False, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: False, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: True, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: True, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: True, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: True, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: FileSize, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: UniqueFileSize, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: OnDisk, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: Files, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: FileSize, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: UniqueFileSize, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: OnDisk, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: Files, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceChartRemainderAndEveryChildPreserveAdditiveLogicalStatistics",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMultipleCohortsAndComponentsCountEachMatchingPathOnce"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: OnDisk, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: OnDisk, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: True)"
+      ]
+    },
+    "windows": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisPathStatisticsTests.DerivedReferenceStatisticsRejectImpossibleOrTruncatedCounts(corruption: \\\"too-many-files\\\")",
+        "FileCat.Core.Tests.AnalysisPathStatisticsTests.DerivedReferenceStatisticsRejectImpossibleOrTruncatedCounts(corruption: \\\"too-many-unknown\\\")",
+        "FileCat.Core.Tests.AnalysisPathStatisticsTests.DerivedReferenceStatisticsRejectImpossibleOrTruncatedCounts(corruption: \\\"known-with-no-known-files\\\")",
+        "FileCat.Core.Tests.AnalysisPathStatisticsTests.DerivedReferenceStatisticsRejectImpossibleOrTruncatedCounts(corruption: \\\"short\\\")",
+        "FileCat.Core.Tests.AnalysisPathStatisticsTests.DerivedReferenceStatisticsRejectImpossibleOrTruncatedCounts(corruption: \\\"trailing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMultipleCohortsAndComponentsCountEachMatchingPathOnce",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceChartRemainderAndEveryChildPreserveAdditiveLogicalStatistics",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: False, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: False, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: False, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: False, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: True, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: True, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: True, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: False, distinct: True, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: False, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: False, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: False, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: False, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: True, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: True, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: True, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: UniqueFileSize, filtered: True, distinct: True, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: False, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: False, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: False, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: False, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: True, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: True, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: True, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: False, distinct: True, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: False, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: False, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: False, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: False, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: True, missing: False, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: True, missing: False, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: True, missing: True, components: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceStatisticsMatchMemoryWithoutDuplicatingNamespaceTotals(metric: OnDisk, filtered: True, distinct: True, missing: True, components: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: FileSize, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: UniqueFileSize, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: OnDisk, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: Files, filtered: False)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: FileSize, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: UniqueFileSize, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: OnDisk, filtered: True)",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: Files, filtered: True)"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.UnmeasuredOtherNativeSavedWindowKeepsSharedAliasesAndExcludesMeasuredZero(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: OnDisk, mode: \\\"Treemap\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: False)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: UniqueFileSize, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: UniqueFileSize, mode: \\\"Sunburst\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: OnDisk, mode: \\\"Treemap\\\", filtered: True)",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FolderSharedReferenceNativeWindowShowsMatchingAliasesWithoutAddingTheirStatisticsTwice(metric: OnDisk, mode: \\\"Sunburst\\\", filtered: True)"
+      ]
+    }
+  },
+  "postCollectionProcesses": {
+    "mac": [],
+    "ubuntu": [],
+    "windows": []
+  },
+  "newCoreControls": 47,
+  "newRenderingControls": 8,
+  "supersededFailedBatches": [
+    {
+      "candidate": "r795",
+      "sources": [
+        {
+          "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+          "sha256": "8788ec78de88fa096295ddf2388f5cb6d55b9f65f4011e1f0659f7be07531b93"
+        },
+        {
+          "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+          "sha256": "e8384674e3f0567feb3f39817ff5b8551f9a879ec4097e37c5d8050c676f95e1"
+        },
+        {
+          "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+          "sha256": "fbdefef008fe606d4ba35c1e0ca8cfffb637d4fdd76eb1a24f782bbe13db22c5"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+          "sha256": "bd3030f03fb9497cc97a45dcb287d237f467dcfe523408110bccc97c7ce39cad"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.Subset.cs",
+          "sha256": "509d59662f1ae8b86aef24a872475c93c212320b21b4d1d5f216c2ad2618a101"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisGeometryOrder.cs",
+          "sha256": "5f6957dd7a49f6f1b655e49de3ff526e81509b92b21ffe8f3843ea84d8bb29b3"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisIndexedChart.cs",
+          "sha256": "4c8639b3d20f86726d9d90181920acd3ec72ed4e91fc0a534fa843b0c1d51955"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisObjectCharges.cs",
+          "sha256": "2a377ba25326e10fdc02dd52cd6da64ebea9e553d272b393a8e2b132b2ba810a"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisObjectCharges.Filter.cs",
+          "sha256": "bd9f2a1df48de15c8000de139dc54ffbdd81173b879980e50a747bf12c7c9dc8"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisPathStatistics.cs",
+          "sha256": "5796067518b637bf4472c2419ff5ae7f55d8a3939e3665fdbabac7603527f424"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisTableOrder.cs",
+          "sha256": "d31c7b718e5bc07e06aa189bd9d53a502708249c57be772fbc7e3b2be0bb6a07"
+        },
+        {
+          "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+          "sha256": "a4b786dc5ad1a9a7ca9361c4bba66c3b8c0c45c7c59feab9965f55327120b942"
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.SharedReference.cs",
+          "sha256": "ec410df3b77ccd95108ca931c780cd64d878e2f656b20fef8977bafeadeea953"
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.UnmeasuredGeometry.cs",
+          "sha256": "43428a0c353f01de795454843758b767cb1c57010353791cc40791d852f17788"
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/AnalysisPathStatisticsTests.cs",
+          "sha256": "2bf479df7da0e5dcf959f9d084a8457a5a7a699ae513a060a900db4f4abe3c14"
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/AnalysisTreeTests.cs",
+          "sha256": "d615990e7ce4441294ef6102740d85bb616aece2383693d900a7a22fd3672436"
+        },
+        {
+          "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.SharedReference.cs",
+          "sha256": "56afd4fc4f4631209295a9bb2bf32340a063e3c02ba944bd974f38fd3b2d5803"
+        },
+        {
+          "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.UnmeasuredOther.cs",
+          "sha256": "e62d3e122c67594bd14b9dce886e5454e398b380b93e8e904b43f0c8104aec3b"
+        }
+      ],
+      "matrix": {
+        "mac-batch-r795-core-r795.xml": {
+          "total": "1280",
+          "passed": "1268",
+          "failed": "8",
+          "skipped": "4",
+          "errors": "0",
+          "time": "29.307"
+        },
+        "mac-batch-r795-render-r795.xml": {
+          "total": "242",
+          "passed": "242",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "88.721"
+        },
+        "ubuntu-batch-r795-core-r795.xml": {
+          "total": "1280",
+          "passed": "1268",
+          "failed": "8",
+          "skipped": "4",
+          "errors": "0",
+          "time": "96.899"
+        },
+        "ubuntu-batch-r795-render-r795.xml": {
+          "total": "242",
+          "passed": "242",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "138.096"
+        },
+        "windows-batch-r795-core-r795.xml": {
+          "total": "1298",
+          "passed": "1242",
+          "failed": "8",
+          "skipped": "48",
+          "errors": "0",
+          "time": "48.161"
+        },
+        "windows-batch-r795-native-r795.xml": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "36.348"
+        },
+        "windows-batch-r795-render-r795.xml": {
+          "total": "242",
+          "passed": "241",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "156.306"
+        }
+      },
+      "targetedControls": {
+        "mac": {},
+        "ubuntu": {},
+        "windows": {}
+      },
+      "postCollectionProcesses": {
+        "mac": [],
+        "ubuntu": [],
+        "windows": []
+      },
+      "failures": {
+        "mac": [
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: FileSize, filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: UniqueFileSize, filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: OnDisk, filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: Files, filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: FileSize, filtered: True)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: UniqueFileSize, filtered: True)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: OnDisk, filtered: True)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: Files, filtered: True)"
+        ],
+        "ubuntu": [
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: FileSize, filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: UniqueFileSize, filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: OnDisk, filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: Files, filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: FileSize, filtered: True)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: UniqueFileSize, filtered: True)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: OnDisk, filtered: True)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: Files, filtered: True)"
+        ],
+        "windows": [
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: FileSize, filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: UniqueFileSize, filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: OnDisk, filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: Files, filtered: False)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: FileSize, filtered: True)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: UniqueFileSize, filtered: True)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: OnDisk, filtered: True)",
+          "FileCat.Core.Tests.AnalysisDatasetSummaryTests.FolderSharedReferenceMetadataEvidenceRetainsCanonicalScopeFlags(metric: Files, filtered: True)"
+        ]
+      },
+      "qualified": false,
+      "allRunnersAndCollectorsTerminal": true
+    }
+  ],
+  "finalBuild": "build-r798.txt: full solution zero warnings/errors",
+  "testScope": "Actual ordinary guest runtimes, native scanned sources, private saved stores and headless window controls, managed reference/ownership controls and applicable suites. Full physical desktop, complete accounting/interaction and 1M/10M/resource qualification remain pending.",
+  "batchWorkflow": "One immutable bundle/platform, sequential applicable suites, integrity and per-phase foreign-instance gates, one collection/completed machine.",
+  "ownedProcessExitEvidence": "Every original runner and collector terminal; post inventories contain no owned candidate instances. Identifiable foreign processes were preserved. No host application/input tests.",
+  "qualification": {
+    "folderSharedReferenceStatisticsImplemented": true,
+    "matchingReferencesSeparateFromAdditiveNamespaceTotals": true,
+    "oneStatisticsPayloadPerSharedCohortWithoutNewRetainedIndex": true,
+    "multipleComponentsAndMissingLogicalSizesRetained": true,
+    "memoryAndIndexedReferenceLabelsAndInspectorConnected": true,
+    "nativeScanAndPrivateSavedWindowControlsPassedAllThree": true,
+    "newControlsPassedAllThree": true,
+    "strengthenedSavedWindowControls": 8,
+    "indexedOtherExactSubsetPersistenceParityQualified": false,
+    "fullMixedBasisUnknownAndUnverifiedSubsetQualificationComplete": false,
+    "fullNativeDesktopOtherQualified": false,
+    "fullResourceGateQualified": false,
+    "fullMillionTenMillionQualificationComplete": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  }
+}

@@ -215,7 +215,7 @@ public sealed partial class DiskSpaceWindow
                 var item = DisplayItem(row); if (item is null) return new TextBlock();
                 var grid = new Grid { ColumnDefinitions = new("3*,2*,2*,2*,2*"), MinHeight = 32, Margin = new Thickness(6, 3) };
                 string[] cells = [item.Name, DiskSpaceViewModel.ValueText(item, _grouping?.Metric ?? _explorer.Metric), DiskSpaceViewModel.LogicalText(item),
-                    !item.IncludedByPolicy ? "Excluded" : item.IsNonFileLeaf ? "Not counted" : item.ReferenceLogical is { } references ? references.Files.ToString("N0") + " references" : item.Files.ToString("N0"), DiskSpaceViewModel.StatusText(item)];
+                    DiskSpaceViewModel.FilePathsText(item), DiskSpaceViewModel.StatusText(item)];
                 for (int column = 0; column < cells.Length; column++)
                 {
                     var text = new TextBlock { Text = cells[column], TextWrapping = column == 0 ? TextWrapping.NoWrap : TextWrapping.Wrap,
@@ -552,6 +552,7 @@ public sealed partial class DiskSpaceWindow
             _buckets.Children.Clear();
             foreach (var bucket in page.Buckets)
             {
+                var bucketItem = AnalysisIndexedChart.Bucket(bucket, explorer.Metric);
                 string title = bucket.Kind == AnalysisHierarchyBucketKind.SharedFiles ? "Shared hard-linked files" : "Directory allocation";
                 string amount = bucket.Totals.Missing.Count != 0 && bucket.Totals.Known == 0 && bucket.Totals.IdentityUnverified == 0 ? "Unknown" :
                     DiskSpaceViewModel.Bytes(explorer.Metric == AnalysisMetric.OnDisk ? checked(bucket.Totals.Known + bucket.Totals.IdentityUnverified) : bucket.Totals.Known);
@@ -560,6 +561,8 @@ public sealed partial class DiskSpaceWindow
                     ++_inspection; _focus = 0; _chartFocusKey = null; foreach (var control in _evidence) control.IsEnabled = false;
                     _details.Text = title + $": {bucket.Totals.Known} known bytes; {bucket.Totals.IdentityUnverified} identity-unverified path bytes; {bucket.Objects:N0} observed objects; {bucket.ObservedAliases:N0} observed aliases; {bucket.Charges:N0} charges. This accounting bucket is not a file path. " +
                         (bucket.Kind == AnalysisHierarchyBucketKind.SharedFiles ? "Shared charges remain at their original common ancestor. The matching paths remain available in the table." : "Directory metadata allocation is separate from file contents and file-path counts.") +
+                        (bucket.ReferenceLogical is null ? "" : "\nMatching reference paths: " + DiskSpaceViewModel.FilePathsText(bucketItem) +
+                            "\nFile size: " + DiskSpaceViewModel.LogicalText(bucketItem, true)) +
                         (bucket.Totals.Missing.Count == 0 ? "" : " Missing: " + string.Join(", ", bucket.Totals.Missing.Select(pair => pair.Key + " " + pair.Value)));
                     UpdateCharts();
                 }, "Inspect this non-file accounting bucket and its exact measurements.");

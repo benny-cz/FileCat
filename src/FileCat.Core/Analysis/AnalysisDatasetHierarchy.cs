@@ -17,7 +17,10 @@ public sealed record AnalysisHierarchyRow(AnalysisPathMetadata Path, AnalysisTot
     public bool HasUnmeasuredEvidence { get; init; }
     public bool HasUnmeasuredLogicalEvidence { get; init; }
 }
-public sealed record AnalysisHierarchyBucket(ulong ParentId, AnalysisHierarchyBucketKind Kind, AnalysisTotals Totals, ulong Objects, ulong ObservedAliases, ulong Charges);
+public sealed record AnalysisHierarchyBucket(ulong ParentId, AnalysisHierarchyBucketKind Kind, AnalysisTotals Totals, ulong Objects, ulong ObservedAliases, ulong Charges)
+{
+    public AnalysisLogicalTotals? ReferenceLogical { get; init; }
+}
 
 public sealed partial class AnalysisDatasetLease
 {
@@ -209,6 +212,7 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
     {
         internal readonly AnalysisHierarchyBucketKind Kind = kind;
         internal readonly Amount Amount = new();
+        internal readonly AnalysisPathStatistics? ReferenceLogical = kind == AnalysisHierarchyBucketKind.SharedFiles ? new() : null;
         internal ulong Objects, Aliases, Charges, LastPath;
         internal void Add(ulong path, ulong aliases, AnalysisMeasurement measurement, bool unverified)
         {
@@ -283,16 +287,25 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
             if (frame.NextCharge < frame.Charges.Count)
             {
                 var entry = Placements!.Read(frame.Charges.First + frame.NextCharge++, token); var key = entry.Key;
-                if (key.Length != 50 || BinaryPrimitives.ReadUInt64BigEndian(key) != frame.Id || BinaryPrimitives.ReadUInt64BigEndian(key.AsSpan(8)) != entry.Value || key[48] > 5 || key[49] > 7) throw Invalid();
+                if (key.Length is not (50 or 114) || BinaryPrimitives.ReadUInt64BigEndian(key) != frame.Id || BinaryPrimitives.ReadUInt64BigEndian(key.AsSpan(8)) != entry.Value || key[48] > 5 || key[49] > 7) throw Invalid();
                 ulong path = BinaryPrimitives.ReadUInt64BigEndian(key.AsSpan(16)), aliases = BinaryPrimitives.ReadUInt64BigEndian(key.AsSpan(24));
                 UInt128 value = Read128(key.AsSpan(32)); var status = (MeasurementState)key[48];
                 if (path == 0 || aliases > AnalysisLimits.Observations || status != MeasurementState.Known && value != 0) throw Invalid();
                 var measurement = status == MeasurementState.Known ? AnalysisMeasurement.Known(value) : AnalysisMeasurement.Missing(status); bool unverified = (key[49] & 2) != 0;
                 frame.Amount.Measure(measurement, unverified); frame.Unknown |= !measurement.IsKnown;
                 frame.OwnCharge = true; frame.Visible = true; _placed++;
-                if ((key[49] & 1) != 0) (frame.Shared ??= new(AnalysisHierarchyBucketKind.SharedFiles)).Add(path, aliases, measurement, unverified);
+                if ((key[49] & 1) != 0)
+                {
+                    var sharedBucket = frame.Shared ??= new(AnalysisHierarchyBucketKind.SharedFiles); sharedBucket.Add(path, aliases, measurement, unverified);
+                    if (key.Length == 114)
+                    {
+                        var references = AnalysisPathStatistics.Read(key.AsSpan(50), aliases); if (references.Files == 0) throw Invalid();
+                        sharedBucket.ReferenceLogical!.Add(references);
+                    }
+                }
+                else if (key.Length != 50) throw Invalid();
                 if ((key[49] & 4) != 0) (frame.Directory ??= new(AnalysisHierarchyBucketKind.DirectoryAllocation)).Add(path, 0, measurement, unverified);
-                return 128;
+                return key.Length == 114 ? 1024 : 128;
             }
             if (frame.Id == 0 && _root < _graph.Header.Roots.Length)
             {
@@ -385,7 +398,7 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
                 {
                     token.ThrowIfCancellationRequested(); var bucket = ReadBucket(row, token);
                     if (bucket.ParentId == 0 && !Compatible) { yield return new(null, 256); continue; }
-                    yield return new(new(AnalysisGeometryOrder.Key(bucket.ParentId, AnalysisGeometryOrder.Bucket(bucket, Metric)), row | AnalysisGeometryOrder.BucketToken), 512);
+                    yield return new(new(AnalysisGeometryOrder.Key(bucket.ParentId, AnalysisGeometryOrder.Bucket(bucket, Metric)), row | AnalysisGeometryOrder.BucketToken), 1536);
                 }
                 yield break;
             }
@@ -393,7 +406,7 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
             for (ulong row = 1; row <= count; row++)
             {
                 token.ThrowIfCancellationRequested(); byte[] key; int bytes = 256;
-                if (kind == 3) { var bucket = DecodeBucket(_buckets!.Read(row, token)); key = new byte[9]; Key(bucket.ParentId).CopyTo(key, 0); key[8] = (byte)bucket.Kind; }
+                if (kind == 3) { var bucket = DecodeBucket(_buckets!.Read(row, token)); key = new byte[9]; Key(bucket.ParentId).CopyTo(key, 0); key[8] = (byte)bucket.Kind; bytes = 1536; }
                 else
                 {
                     var value = Decode(_rows!.Read(row, token));
@@ -487,21 +500,25 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
     }
     private static byte[] EncodeBucket(ulong parent, Bucket bucket)
     {
-        var bytes = new byte[120]; BinaryPrimitives.WriteUInt32LittleEndian(bytes, 0x31424441); BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(4), parent); bytes[12] = (byte)bucket.Kind;
+        var bytes = new byte[bucket.ReferenceLogical is null ? 120 : 120 + AnalysisPathStatistics.EncodedBytes]; BinaryPrimitives.WriteUInt32LittleEndian(bytes, 0x32424441); BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(4), parent); bytes[12] = (byte)bucket.Kind;
         Write128(bytes.AsSpan(16), bucket.Amount.Known); Write128(bytes.AsSpan(32), bucket.Amount.Unverified);
         for (int n = 0; n < 6; n++) BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(48 + n * 8), bucket.Amount.Missing[n]);
-        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(96), bucket.Objects); BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(104), bucket.Aliases); BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(112), bucket.Charges); return bytes;
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(96), bucket.Objects); BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(104), bucket.Aliases); BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(112), bucket.Charges);
+        if (bucket.ReferenceLogical is { } references) AnalysisPathStatistics.Write(bytes.AsSpan(120), references.Export()); return bytes;
     }
     private static AnalysisHierarchyBucket DecodeBucket(byte[] bytes)
     {
-        if (bytes.Length != 120 || BinaryPrimitives.ReadUInt32LittleEndian(bytes) != 0x31424441 || bytes[12] > 1 || bytes[13] != 0 || bytes[14] != 0 || bytes[15] != 0) throw Invalid();
+        if (bytes.Length is not (120 or 184) || BinaryPrimitives.ReadUInt32LittleEndian(bytes) != 0x32424441 || bytes[12] > 1 || bytes[13] != 0 || bytes[14] != 0 || bytes[15] != 0) throw Invalid();
         ulong parent = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(4)), objects = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(96));
         ulong aliases = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(104)), charges = BinaryPrimitives.ReadUInt64LittleEndian(bytes.AsSpan(112));
         var kind = (AnalysisHierarchyBucketKind)bytes[12];
         if (objects is < 1 or > AnalysisLimits.Observations || aliases > AnalysisLimits.Observations || charges < objects || charges > AnalysisLimits.Observations ||
             (kind == AnalysisHierarchyBucketKind.DirectoryAllocation ? parent == 0 || objects != 1 || aliases != 0 : aliases < objects * 2)) throw Invalid();
         var amount = new Amount { Known = Read128(bytes.AsSpan(16)), Unverified = Read128(bytes.AsSpan(32)) }; _ = checked(amount.Known + amount.Unverified);
-        ReadMissing(bytes.AsSpan(48), amount); return new(parent, kind, amount.Export(), objects, aliases, charges);
+        if ((kind == AnalysisHierarchyBucketKind.SharedFiles) != (bytes.Length == 184)) throw Invalid();
+        var references = bytes.Length == 184 ? AnalysisPathStatistics.Read(bytes.AsSpan(120), aliases) : null;
+        if (references?.Files == 0) throw Invalid();
+        ReadMissing(bytes.AsSpan(48), amount); return new(parent, kind, amount.Export(), objects, aliases, charges) { ReferenceLogical = references };
     }
     private static void ReadMissing(ReadOnlySpan<byte> bytes, Amount amount)
     {

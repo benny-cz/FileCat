@@ -1,0 +1,11 @@
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisDatasetHierarchy.cs(299,25): error CS0136: A local or parameter named 'shared' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\FileCat.Core.csproj]
+  FileCat.Archives.Rar15 -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives.Rar15\bin\Debug\net10.0\FileCat.Archives.Rar15.dll
+  FileCat.SharpCompress -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\ThirdParty\SharpCompress\bin\Debug\net10.0\FileCat.SharpCompress.dll
+
+Build FAILED.
+
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisDatasetHierarchy.cs(299,25): error CS0136: A local or parameter named 'shared' cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\FileCat.Core.csproj]
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:35.67

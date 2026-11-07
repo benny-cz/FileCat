@@ -328,6 +328,8 @@ public sealed partial class DiskSpaceViewModel : IDisposable
             (exact ? references.KnownBytes.ToString(CultureInfo.InvariantCulture) + " bytes" : Bytes(references.KnownBytes)) + (references.UnknownFiles != 0 ? " known" : "")) + " (references)"
         : item.LogicalUnknown && item.LogicalSize == 0 ? "Unknown"
         : (exact ? item.LogicalSize.ToString(CultureInfo.InvariantCulture) + " bytes" : Bytes(item.LogicalSize)) + (item.LogicalUnknown ? " known" : "");
+    public static string FilePathsText(AnalysisTreeItem item) => !item.IncludedByPolicy ? "Excluded" : item.IsNonFileLeaf ? "Not counted"
+        : item.ReferenceLogical is { } references ? references.Files.ToString("N0", CultureInfo.CurrentCulture) + " references" : item.Files.ToString("N0", CultureInfo.CurrentCulture);
     public static string ValueText(AnalysisTreeItem item, AnalysisMetric metric, bool exact = false) => !item.IncludedByPolicy ? "Excluded"
         : item.IsFilterContext ? "Context — not a match"
         : item.IsNonFileLeaf ? metric == AnalysisMetric.Files ? "Not counted" : "Not measured"
@@ -350,7 +352,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
                     ? $"{Bytes(value)} known with verified identities; {Bytes(item.IdentityUnverified)} identity-unverified path bytes excluded from unique chart area"
                     : $"{Bytes(checked(value - item.IdentityUnverified))} known with verified identities + {Bytes(item.IdentityUnverified)} reported for identity-unverified paths"
                 : (tree.Projection.Metric == AnalysisMetric.Files ? value.ToString("N0", CultureInfo.CurrentCulture) + (value == 1 ? " file" : " files") : Bytes(value)) + " known";
-            return label + ": " + amount + (item is null ? "" : $" · {item.Files:N0} observed file " + (item.Files == 1 ? "path" : "paths")) +
+            return label + ": " + amount + (item is null ? "" : item.ReferenceLogical is not null ? " · " + FilePathsText(item) : $" · {item.Files:N0} observed file " + (item.Files == 1 ? "path" : "paths")) +
                 (tree.GroupingDimension == AnalysisGroupingDimension.FolderHierarchy ? "" : " · " + AnalysisGroupingRules.Title(tree.GroupingDimension)) + (item?.Unknown == true ? " · partial" : "");
         }
     }

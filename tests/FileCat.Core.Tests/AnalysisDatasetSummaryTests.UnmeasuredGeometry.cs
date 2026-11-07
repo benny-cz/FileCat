@@ -82,6 +82,10 @@ public sealed partial class AnalysisDatasetSummaryTests
                 .Add(new("covered", "X", null, "detail", "fixture-v1", AnalysisMeasurement.Missing(MeasurementState.Unsupported), "fixture", DateTimeOffset.UnixEpoch, [])) },
             "namespace-issue" => source with { Issues = [new("Unreadable", 3, MeasurementState.Failed), new("Excluded", 2, MeasurementState.Excluded)], Coverage = NamespaceCoverage.Partial },
             "partial" => source with { Coverage = NamespaceCoverage.Partial },
+            "metadata" => source with { Nodes = source.Nodes.SetItem(3, source.Nodes[3] with { MetadataState = MeasurementState.Failed })
+                .Add(new(7, "r", 1, "Pending directory", AnalysisKind.Directory) { MetadataState = MeasurementState.Pending }),
+                Objects = source.Objects.SetItem(0, source.Objects[0] with { VerifiedIdentity = null, LogicalLength = AnalysisMeasurement.Missing(MeasurementState.Failed), LinkCount = AnalysisMeasurement.Missing(MeasurementState.Failed) }),
+                Facts = source.Facts.SetItem(0, source.Facts[0] with { Measurement = AnalysisMeasurement.Missing(MeasurementState.Failed) }), Coverage = NamespaceCoverage.Partial },
             "unknown-kind" => source with { Nodes = source.Nodes.Add(new(7, "r", 3, "unknown", AnalysisKind.Unknown)) },
             "directory-missing" => source with { Facts = source.Facts.Add(new("directory", null, 2, "directory-self", "fixture-v1", AnalysisMeasurement.Missing(MeasurementState.Failed), "fixture", DateTimeOffset.UnixEpoch, [])) },
             _ => throw new ArgumentOutOfRangeException(nameof(evidence))

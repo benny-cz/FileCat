@@ -123,6 +123,7 @@ public sealed class AnalysisIndexedChart : IAnalysisChartData
             if (items.TryAdd(item.Key, item)) bytes += cost; return true;
         }
     }
+    public static AnalysisTreeItem Bucket(AnalysisHierarchyBucket bucket, AnalysisMetric metric) => AnalysisGeometryOrder.Bucket(bucket, metric);
     public static AnalysisTreeItem Row(AnalysisHierarchyRow row, AnalysisMetric metric)
     {
         var path = row.Path;

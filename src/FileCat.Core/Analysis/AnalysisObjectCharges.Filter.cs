@@ -78,6 +78,7 @@ public sealed partial class AnalysisObjectChargeIndex
                     query.Record(_matchNode!.Id, truth, token);
                     if (!query.Matches(_matchNode.Id, token)) { _stage = Stage.MatchAliases; return query.EvaluationBytes; }
                     _count = checked(_count + 1); _eligible = true;
+                    _referenceLogical.Add(_matchObj!.LogicalLength);
                     if (Metric is AnalysisMetric.FileSize or AnalysisMetric.Files || _first!.VerifiedIdentity is null)
                     { _emitForPath = true; BeginEmission(); }
                     else _stage = Stage.MatchAliases;

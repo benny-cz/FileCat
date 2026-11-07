@@ -26,6 +26,7 @@ internal static class AnalysisGeometryOrder
         return new(BucketKey(bucket.ParentId, bucket.Kind), bucket.ParentId == 0 ? AnalysisTree.RootKey : AnalysisTree.Key(bucket.ParentId),
             bucket.Kind == AnalysisHierarchyBucketKind.SharedFiles ? "Shared hard-linked files" : "Directory allocation", null, AnalysisKind.Special, true, true,
             value, 0, 0, bucket.Totals.Missing.Count != 0, false,
-            bucket.Kind == AnalysisHierarchyBucketKind.SharedFiles ? "shared" : "directory-allocation", [], []) { IdentityUnverified = bucket.Totals.IdentityUnverified };
+            bucket.Kind == AnalysisHierarchyBucketKind.SharedFiles ? "shared" : "directory-allocation", [], [])
+            { IdentityUnverified = bucket.Totals.IdentityUnverified, ReferenceLogical = bucket.ReferenceLogical, LogicalUnknown = bucket.ReferenceLogical?.UnknownFiles > 0 };
     }
 }

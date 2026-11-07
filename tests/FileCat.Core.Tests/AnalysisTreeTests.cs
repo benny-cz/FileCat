@@ -105,8 +105,9 @@ public sealed class AnalysisTreeTests
         var s = AnalysisAccountingTests.Golden(); var token = TestContext.Current.CancellationToken;
         var projection = AnalysisAggregate.Project(s, AnalysisMetric.OnDisk, filtered ? (n, _) => n.Name == "x.bin" : null, token);
         var tree = AnalysisTree.Build(s, projection, filtered, token); var bucket = tree.Items["shared:n:1"];
-        Assert.Equal((UInt128)80, bucket.Value); Assert.Equal(filtered ? 1ul : 2ul, bucket.Files);
-        Assert.Equal((UInt128)(filtered ? 100 : 200), bucket.LogicalSize); Assert.False(bucket.LogicalUnknown);
+        Assert.Equal((UInt128)80, bucket.Value); Assert.Equal(0ul, bucket.Files); Assert.Equal((UInt128)0, bucket.LogicalSize);
+        Assert.NotNull(bucket.ReferenceLogical); Assert.Equal(filtered ? 1ul : 2ul, bucket.ReferenceLogical.Files);
+        Assert.Equal((UInt128)(filtered ? 100 : 200), bucket.ReferenceLogical.KnownBytes); Assert.False(bucket.LogicalUnknown);
         Assert.Equal((UInt128)(filtered ? 100 : 220), tree.Items[AnalysisTree.RootKey].LogicalSize);
         Assert.Equal(filtered ? 1ul : 3ul, tree.Items[AnalysisTree.RootKey].Files);
         Assert.Equal((UInt128)80, tree.Items[AnalysisTree.RootKey].Value);
@@ -119,7 +120,8 @@ public sealed class AnalysisTreeTests
         s = s with { Objects = s.Objects.SetItem(0, s.Objects[0] with { LogicalLength = AnalysisMeasurement.Missing(MeasurementState.Failed) }) };
         var tree = AnalysisTree.Build(s, AnalysisAggregate.Project(s, AnalysisMetric.OnDisk, cancellation: token), false, token);
         var bucket = tree.Items["shared:n:1"];
-        Assert.Equal((UInt128)80, bucket.Value); Assert.Equal(2ul, bucket.Files);
+        Assert.Equal((UInt128)80, bucket.Value); Assert.Equal(0ul, bucket.Files); Assert.NotNull(bucket.ReferenceLogical);
+        Assert.Equal(2ul, bucket.ReferenceLogical.Files); Assert.Equal(2ul, bucket.ReferenceLogical.UnknownFiles);
         Assert.True(bucket.LogicalUnknown); Assert.Equal((UInt128)0, bucket.LogicalSize);
         Assert.Equal((UInt128)20, tree.Items[AnalysisTree.RootKey].LogicalSize); Assert.True(tree.Items[AnalysisTree.RootKey].LogicalUnknown);
     }

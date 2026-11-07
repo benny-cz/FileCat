@@ -143,6 +143,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
             {
                 item.Files = 1;
                 var obj = node.ObjectId is { } id ? objects.GetValueOrDefault(id) : null;
+                item.PathLogical = obj?.LogicalLength ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported);
                 if (obj?.LogicalLength.IsKnown == true) item.Logical = obj.LogicalLength.Value!.Value;
                 else item.LogicalUnknown = true;
                 item.Unknown |= !projection.Totals.CompatibleBasis || projection.UnmeasuredStates.ContainsKey(node.Id) || projection.Metric switch
@@ -229,14 +230,15 @@ public sealed partial class AnalysisTree : IAnalysisChartData
             parent.Unknown |= item.Unknown; parent.SharedElsewhere |= item.SharedElsewhere; parent.Visible |= item.Visible;
             parent.LogicalUnknown |= item.LogicalUnknown;
         }
-        // Member statistics describe the matching paths inside a synthetic bucket. Populate them after the
-        // additive fold: their real namespace rows already contributed logical bytes and file counts to ancestors.
+        // These are references to real namespace paths, which already contributed
+        // their logical bytes/counts. Keep descriptive statistics separate so chart
+        // remainders and later folds cannot count the same paths twice.
         foreach (var bucket in map.Values.Where(i => i.PathMemberStatistics && i.Members.Count > 0))
             foreach (ulong member in bucket.Members)
             {
                 cancellation.ThrowIfCancellationRequested();
                 if (!projection.MatchingNodes.Contains(member) || !map.TryGetValue(Key(member), out var item) || item.Files == 0) continue;
-                bucket.Logical = checked(bucket.Logical + item.Logical); bucket.Files = checked(bucket.Files + item.Files);
+                (bucket.ReferenceLogical ??= new()).Add(item.PathLogical ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported));
                 bucket.LogicalUnknown |= item.LogicalUnknown;
             }
         return new(snapshot, projection, map.ToImmutableDictionary(p => p.Key, p => p.Value.Freeze(), StringComparer.Ordinal), filterApplied);
@@ -251,6 +253,8 @@ public sealed partial class AnalysisTree : IAnalysisChartData
         public bool IncludedByPolicy = true;
         public bool LogicalUnknown;
         public bool PathMemberStatistics;
+        public AnalysisMeasurement? PathLogical;
+        public AnalysisPathStatistics? ReferenceLogical;
         public string? NameEvidence;
         public DateTimeOffset? ModifiedUtc;
         public ulong ModifiedPrecisionTicks;
@@ -259,6 +263,6 @@ public sealed partial class AnalysisTree : IAnalysisChartData
         public AnalysisTreeItem Freeze() => new(key, Parent, name, node, kind, synthetic, Visible, Value, Logical, Files, Unknown,
             SharedElsewhere, family, Children.ToImmutableArray(), Members.Order().ToImmutableArray())
             { IdentityUnverified = Unverified, MetadataState = MetadataState, IncludedByPolicy = IncludedByPolicy, IsFilterContext = FilterContext,
-                LogicalUnknown = LogicalUnknown, NameEvidence = NameEvidence, ModifiedUtc = ModifiedUtc, ModifiedPrecisionTicks = ModifiedPrecisionTicks };
+                LogicalUnknown = LogicalUnknown, ReferenceLogical = ReferenceLogical?.Export(), NameEvidence = NameEvidence, ModifiedUtc = ModifiedUtc, ModifiedPrecisionTicks = ModifiedPrecisionTicks };
     }
 }
