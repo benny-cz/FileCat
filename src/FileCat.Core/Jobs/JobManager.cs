@@ -1,4 +1,5 @@
 using FileCat.Core.Diagnostics;
+using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Resources;
 
@@ -8,7 +9,7 @@ namespace FileCat.Core.Jobs;
 /// Owns jobs independently of tabs and panels (plan §6.3). Jobs queue per device; overlapping jobs wait
 /// and say which job they wait for; independent devices run in parallel within a global limit (§9.1).
 /// </summary>
-public sealed class JobManager
+public sealed partial class JobManager
 {
     private const int ExactScopeLimit = 4096;
     private const string GlobalScope = "<all locations>";
@@ -17,6 +18,9 @@ public sealed class JobManager
     private readonly List<SyncGroup> _syncGroups = [];
     private readonly Dictionary<Job, SyncGroup> _syncByJob = [];
     private readonly HashSet<Job> _starting = []; // chosen to start, not yet Running: no other Schedule may choose them
+    private readonly HashSet<Job> _admitting = []; // observers and ownership must settle before scheduling
+    private readonly Dictionary<Job, ArchiveJobOperation> _archiveOperations = [];
+    private readonly ArchiveJobBackends _archiveBackends;
     private readonly IFileSystemOperations _fs;
     private readonly ProviderRegistry _providers;
     private readonly string _journalDirectory;
@@ -24,10 +28,14 @@ public sealed class JobManager
     private int _suppressScheduling;
 
     public JobManager(IFileSystemOperations fs, ProviderRegistry providers, string journalDirectory)
+        : this(fs, providers, journalDirectory, ArchiveJobBackends.Empty) { }
+
+    internal JobManager(IFileSystemOperations fs, ProviderRegistry providers, string journalDirectory, ArchiveJobBackends archiveBackends)
     {
         _fs = fs;
         _providers = providers;
         _journalDirectory = journalDirectory;
+        _archiveBackends = archiveBackends ?? throw new ArgumentNullException(nameof(archiveBackends));
     }
 
     public int MaxConcurrent { get; set; } = 4;
@@ -153,39 +161,64 @@ public sealed class JobManager
         }, reservation);
     }
 
-    private Job Submit(JobRequest request, UndoReservation? reservation, Action<Job>? register = null)
+    private Job Submit(JobRequest request, UndoReservation? reservation, Action<Job>? register = null, ArchiveJobOperation? archiveOperation = null)
     {
-        if (reservation is null && (request.Kind == JobKind.Undo || request.UndoPlan is not null))
-            throw new ArgumentException("An inverse must be admitted through an approved Undo reservation.", nameof(request));
-        var (title, device, reads, writes) = Describe(request);
-        var job = new Job(request, title, device, reads, writes);
-        IReadOnlyList<Job> retired = [];
-        lock (_lock)
+        Job? job = null;
+        try
         {
-            void Admit() { job.QueueOrder = ++_order; _jobs.Add(job); }
-            if (reservation is null) Admit();
-            else if (!reservation.TryAdmit(job, Admit)) throw new InvalidOperationException("This Undo approval no longer owns the original operation.");
-            retired = TrimFinishedLocked();
+            if (reservation is null && (request.Kind == JobKind.Undo || request.UndoPlan is not null))
+                throw new ArgumentException("An inverse must be admitted through an approved Undo reservation.", nameof(request));
+            var (title, device, reads, writes) = Describe(request);
+            job = new Job(request, title, device, reads, writes);
+            IReadOnlyList<Job> retired = [];
+            lock (_lock)
+            {
+                void Admit()
+                {
+                    job.QueueOrder = ++_order;
+                    _jobs.Add(job);
+                    _admitting.Add(job);
+                    if (archiveOperation is not null) _archiveOperations.Add(job, archiveOperation);
+                }
+                if (reservation is null) Admit();
+                else if (!reservation.TryAdmit(job, Admit)) throw new InvalidOperationException("This Undo approval no longer owns the original operation.");
+                retired = TrimFinishedLocked();
+            }
+            reservation?.Original.UndoAdmissionChanged();
+            foreach (var finished in retired) JobRemoved?.Invoke(finished);
+            // A queued state change must not start or finish the job before its owner and JobAdded
+            // subscribers can observe it. SubmitSyncGroup uses this same ordering.
+            job.SetState(JobState.Queued);
+            register?.Invoke(job);
+            job.Changed += OnJobChanged;
+            JobAdded?.Invoke(job);
         }
-        reservation?.Original.UndoAdmissionChanged();
-        foreach (var finished in retired) JobRemoved?.Invoke(finished);
-        // A queued state change must not start or finish the job before its owner and JobAdded
-        // subscribers can observe it. SubmitSyncGroup uses this same ordering.
-        job.SetState(JobState.Queued);
-        if (register is not null)
+        catch
         {
-            try { register(job); }
-            catch
+            if (job is not null)
             {
                 lock (_lock)
                 {
                     _jobs.Remove(job);
+                    _admitting.Remove(job);
+                    _archiveOperations.Remove(job);
+                    job.Changed -= OnJobChanged;
                 }
-                throw;
             }
+            archiveOperation?.Dispose();
+            if (job is not null)
+            {
+                try { job.Cancel(); job.SetState(JobState.Canceled); }
+                catch (Exception ex) { AppLog.Warn("Failed submission observer cleanup failed", ex); }
+                try { JobRemoved?.Invoke(job); }
+                catch (Exception ex) { AppLog.Warn("Failed submission removal observer failed", ex); }
+            }
+            // Reentrant observers may have queued other work behind this admission.
+            try { Schedule(); }
+            catch (Exception ex) { AppLog.Warn("Scheduling after a failed submission failed", ex); }
+            throw;
         }
-        job.Changed += OnJobChanged;
-        JobAdded?.Invoke(job);
+        lock (_lock) _admitting.Remove(job);
         Schedule();
         return job;
     }
@@ -311,10 +344,11 @@ public sealed class JobManager
             if (_suppressScheduling > 0) return;
             // Schedule runs on the submitting thread and on every finishing job's thread; a job is chosen by one of them.
             int running = _jobs.Count(j => j.State.IsActive() || _starting.Contains(j));
-            foreach (var job in _jobs.Where(j => j.State == JobState.Queued && !_starting.Contains(j)).OrderBy(j => j.QueueOrder).ToList())
+            foreach (var job in _jobs.Where(j => j.State == JobState.Queued && !_starting.Contains(j) && !_admitting.Contains(j)).OrderBy(j => j.QueueOrder).ToList())
             {
                 if (job.IsCancellationRequested)
                 {
+                    ReleaseArchiveOperation(job);
                     job.SetState(JobState.Canceled);
                     if (job.Kind == JobKind.Undo && job.Request.UndoPlan is { } plan)
                         job.SetUndoReport(UndoReport.NotStarted(plan, "Canceled before the inverse started; no inverse steps ran."));
@@ -393,20 +427,32 @@ public sealed class JobManager
 
     private void Start(Job job)
     {
-        if (!job.TryStart())
+        try
+        {
+            if (!job.TryStart())
+            {
+                lock (_lock) _starting.Remove(job);
+                ReleaseArchiveOperation(job);
+                if (!job.State.IsFinished())
+                {
+                    job.SetState(JobState.Canceled);
+                    JobFinished?.Invoke(job);
+                }
+                Schedule();
+                return;
+            }
+            lock (_lock) _starting.Remove(job);
+            var thread = new Thread(() => Run(job)) { IsBackground = true, Name = "FileCat job " + job.ShortId };
+            thread.Start();
+        }
+        catch
         {
             lock (_lock) _starting.Remove(job);
-            if (!job.State.IsFinished())
-            {
-                job.SetState(JobState.Canceled);
-                JobFinished?.Invoke(job);
-            }
-            Schedule();
-            return;
+            ReleaseArchiveOperation(job);
+            try { if (!job.State.IsFinished()) job.SetState(JobState.Failed); }
+            catch (Exception ex) { AppLog.Warn("Failed worker handoff observer failed", ex); }
+            throw;
         }
-        lock (_lock) _starting.Remove(job);
-        var thread = new Thread(() => Run(job)) { IsBackground = true, Name = "FileCat job " + job.ShortId };
-        thread.Start();
     }
 
     private void Run(Job job)
@@ -416,7 +462,9 @@ public sealed class JobManager
         try
         {
             journal = JobJournal.Create(_journalDirectory, job);
-            var executor = JobExecutors.Create(job, _fs, _providers, journal);
+            ArchiveJobOperation? archiveOperation;
+            lock (_lock) archiveOperation = _archiveOperations.GetValueOrDefault(job);
+            var executor = JobExecutors.Create(job, _fs, _providers, journal, _archiveBackends, archiveOperation);
             executor.Execute();
             job.TotalsFinal = true;
             final = FinalState(job);
@@ -431,6 +479,7 @@ public sealed class JobManager
             job.AddIssue(new JobIssue(IssueSeverity.Error, string.Empty, ex.Message, StepOutcome.Failed));
             final = JobState.Failed;
         }
+        finally { ReleaseArchiveOperation(job); }
         if (job.IsCancellationRequested && final != JobState.Failed) final = JobState.Canceled;
         if (job.Kind == JobKind.Undo && job.UndoReport is null && job.Request.UndoPlan is { } undoPlan)
             job.SetUndoReport(UndoReport.NotStarted(undoPlan, "The inverse could not start. " + (JobIssue.Summarize(job.Issues) ?? final.Describe()), journal?.Path));

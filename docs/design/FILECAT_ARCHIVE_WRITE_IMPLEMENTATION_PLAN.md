@@ -83,6 +83,14 @@ Continue with the shared RAR/7z production workflows/password UI and Unix native
 closing precision/header/resource/crash/fuzz/RID/package qualification gaps. Keep optional formats later and
 perform the final independent review after that integration and qualification.
 
+The [typed job/password ownership component](../validation/archive-writing/ARCHIVE_JOB_BACKENDS.md) now provides
+per-manager dispatch, immutable queued intent and operation-owned password cleanup. Its 45 focused cases pass
+on Windows/Mac/Ubuntu; the [checkpoint](../validation/archive-writing/archive-job-backend-checkpoint.json) binds
+the complete core/native/independent-reader/source matrix and retains Ubuntu's environment repair. Default
+composition remains empty. The next production chunk must connect actual native execution and review decisions,
+then creation/member/edit/F6/password UI. The legacy-shaped queued plan is not native publication authority;
+complete catalog keys, captured-source exclusions and native leases must still bind the executing operation.
+
 [Complete encoded-header verification](../validation/archive-writing/SEVENZIP_HEADER_VERIFICATION.md) now connects
 the strict LZMA/LZMA2 and exact Copy/AES layers to the 7z framing pass. The subsequent logical catalog connects the
 strict payload nodes; exact preservation and the shared parent/worker/native adapters remain integration work.

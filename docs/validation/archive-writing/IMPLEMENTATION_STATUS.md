@@ -1,12 +1,20 @@
 # Archive writing implementation status
 
+**7 November: typed production job dispatch and password ownership implemented, unregistered.**
+[Job component](ARCHIVE_JOB_BACKENDS.md) adds per-manager backend composition, frozen queued changes and secret
+cleanup on cancellation, admission/handoff/journal failure and completion. All 45 new cases pass on all three
+platforms. The [checkpoint](archive-job-backend-checkpoint.json) binds the complete core suites (8,239 cases on
+Mac/Ubuntu; 8,244 on Windows), independent readers, Windows native/application-entry selections and cleanup.
+Ubuntu's first environment failure and private-keyring rerun are retained. Native backend execution, shared
+decisions and UI/edit/F6 integration remain open. Default production composition is empty.
+
 **7 November: shared parent workflow review implemented, unregistered.**
 [Shared workflow adapter](SHARED_ARCHIVE_WORKFLOW_REVIEW.md) connects exact member/recursive scopes, directory
 merges with provenance, duplicate replacement, exclusion review and declared 7z input precision to all six
 container planners. It adds 62 focused cases; the final 3,738-case core matrix passes on Windows/Mac/Ubuntu.
 The [checkpoint](shared-workflow-review-checkpoint.json) records the passed independent readers, source/DLL/PDB
-bindings, 163 Windows native cases and owned-process cleanup. Production job/executor/availability and
-UI/password/edit/F6 integration remain open.
+bindings, 163 Windows native cases and owned-process cleanup. The subsequent typed job component is recorded
+above; native executor/availability qualification and UI/password/edit/F6 integration remain open.
 
 **7 November: 7z shared pipeline implemented, unregistered.**
 [Semantic preservation and worker/native checkpoint](SEVENZIP_WORKER_PIPELINE.md) connects parent planning,

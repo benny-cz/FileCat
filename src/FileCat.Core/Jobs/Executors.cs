@@ -45,8 +45,12 @@ public static class JobExecutors
 
     /// <summary>Typed dispatch per operation (plan §7.1): no Cartesian product of provider methods.</summary>
     public static IJobExecutor Create(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal)
+        => Create(job, fs, providers, journal, Archives.ArchiveJobBackends.Empty, null);
+
+    internal static IJobExecutor Create(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal,
+        Archives.ArchiveJobBackends archiveBackends, Archives.ArchiveJobOperation? archiveOperation)
     {
-        var executor = CreateFor(job, fs, providers, journal);
+        var executor = CreateFor(job, fs, providers, journal, archiveBackends, archiveOperation);
         bool transfer = job.Request.Kind is JobKind.Copy or JobKind.Move or JobKind.Extract;
         if (transfer && job.Request.Options.Filter is not null && executor is not IHonorsTransferFilter)
             return new RefusedExecutor(job, fs, journal,
@@ -56,7 +60,8 @@ public static class JobExecutors
         return executor;
     }
 
-    private static IJobExecutor CreateFor(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal)
+    private static IJobExecutor CreateFor(Job job, IFileSystemOperations fs, ProviderRegistry providers, JobJournal journal,
+        Archives.ArchiveJobBackends archiveBackends, Archives.ArchiveJobOperation? archiveOperation)
     {
         var r = job.Request;
         bool fsSources = r.Sources.All(s => s.Parent.IsFileSystem);
@@ -74,8 +79,7 @@ public static class JobExecutors
                 return new CreateExecutor(job, fs, journal);
             case JobKind.ArchiveUpdate when r.Archive is not null:
                 if (r.Archive.Profile is not null)
-                    return new RefusedExecutor(job, fs, journal,
-                        "Writing this archive profile is not available until its worker and safe-save support are qualified. The archive was not changed.");
+                    return archiveBackends.Create(job, fs, journal, archiveOperation);
                 return new Archives.ZipUpdateExecutor(job, fs, journal);
             case JobKind.ArchiveTest when fsSources:
                 return new Archives.ZipTestExecutor(job, fs, journal);

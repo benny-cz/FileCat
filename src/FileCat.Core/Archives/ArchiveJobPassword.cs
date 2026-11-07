@@ -14,6 +14,7 @@ public sealed class ArchiveJobPassword : IDisposable
 {
     private readonly object gate = new();
     private char[]? password;
+    private bool jobOwned;
     public ArchiveJobPassword(ReadOnlySpan<char> password)
     {
         using var validated = new ArchiveWorkerSecretGrant(password);
@@ -22,6 +23,16 @@ public sealed class ArchiveJobPassword : IDisposable
     public ArchiveWorkerSecretGrant CreateGrant()
     { lock (gate) { Live(); return new(password); } }
     internal void Live() { lock (gate) ObjectDisposedException.ThrowIf(password is null, this); }
+    internal bool TryClaimForJob()
+    {
+        lock (gate)
+        {
+            Live();
+            if (jobOwned) return false;
+            jobOwned = true;
+            return true;
+        }
+    }
     internal static void Require(ArchiveWriteProfile profile, ArchiveJobPassword? password)
     {
         if ((profile.Encryption.Mode != ArchiveEncryptionMode.None) != (password is not null))
