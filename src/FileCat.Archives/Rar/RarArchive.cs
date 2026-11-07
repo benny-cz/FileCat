@@ -22,7 +22,7 @@ internal sealed partial class RarArchive
     private int _splitVolumeNumber = -1;
     private bool _missingParts;
 
-    public static RarArchive Read(IReadOnlyList<Stream> volumes, CancellationToken ct)
+    public static RarArchive Read(IReadOnlyList<Stream> volumes, CancellationToken ct, Rar5ReadPasswordSession? password = null)
     {
         var archive = new RarArchive();
         Span<byte> signature = stackalloc byte[8];
@@ -45,7 +45,7 @@ internal sealed partial class RarArchive
             else if (rar5 != archive.IsRar5) throw new InvalidDataException("The volumes of this archive mix RAR formats.");
             try
             {
-                if (rar5) archive.ReadRar5Volume(stream, volume, ct);
+                if (rar5) archive.ReadRar5Volume(stream, volume, ct, password);
                 else archive.ReadRar4Volume(stream, volume, ct);
             }
             catch (InvalidDataException ex) when (RarData.IsDamage(ex) && (archive.Members.Count > 0 || volume > 0))
@@ -125,22 +125,35 @@ internal sealed partial class RarArchive
 
     private const int Rar5Main = 1, Rar5File = 2, Rar5Service = 3, Rar5Encryption = 4, Rar5End = 5;
 
-    private void ReadRar5Volume(Stream stream, int volume, CancellationToken ct)
+    private void ReadRar5Volume(Stream stream, int volume, CancellationToken ct, Rar5ReadPasswordSession? password)
     {
         long length = stream.Length;
         long position = 8;
         int volumeNumber = volume == 0 ? 0 : -1;
+        Rar5CryptoParameters? encryptedHeaders = null;
         Span<byte> prefix = stackalloc byte[7];
         while (position < length)
         {
             ct.ThrowIfCancellationRequested();
+            byte[]? decrypted = null;
+            try
+            {
+            ReadOnlySpan<byte> header;
+            int sizeBytes; long size; long dataStart;
+            if (encryptedHeaders is not null)
+            {
+                decrypted = password!.ReadHeader(stream, position, encryptedHeaders, out sizeBytes, out int headerSize, out dataStart, ct);
+                size = headerSize; header = decrypted.AsSpan(4, sizeBytes + headerSize);
+            }
+            else
+            {
             // CRC32, then the header size as a variable-length number of at most three bytes (2 MiB).
             stream.Position = position;
             int got = stream.ReadAtLeast(prefix, prefix.Length, throwOnEndOfStream: false);
             if (got < 6) throw RarData.Corrupt("header past the end of the volume");
             uint crc = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(prefix);
-            long size = 0;
-            int sizeBytes = 0;
+            size = 0;
+            sizeBytes = 0;
             for (; sizeBytes < 3; sizeBytes++)
             {
                 if (4 + sizeBytes >= got) throw RarData.Corrupt("header past the end of the volume");
@@ -153,9 +166,11 @@ internal sealed partial class RarArchive
             if (size < 2 || size > RarLimits.MaxHeaderBytes) throw RarData.Corrupt("RAR 5 header size");
             long headerStart = position + 4 + sizeBytes;
             if (headerStart + size > length) throw RarData.Corrupt("header past the end of the volume");
-            byte[] header = ReadExactly(stream, position + 4, sizeBytes + (int)size);
+            header = ReadExactly(stream, position + 4, sizeBytes + (int)size);
             if (Crc32.HashToUInt32(header) != crc) throw RarData.Corrupt("header checksum");
-            var reader = new RarHeaderReader(header.AsSpan(sizeBytes));
+            dataStart = headerStart + size;
+            }
+            var reader = new RarHeaderReader(header[sizeBytes..]);
             int type = reader.Int(int.MaxValue);
             ulong flags = reader.VarInt();
             long extraSize = (flags & 0x0001) != 0 ? reader.Size() : 0;
@@ -163,7 +178,6 @@ internal sealed partial class RarArchive
             if (extraSize > reader.Remaining) throw RarData.Corrupt("RAR 5 extra area");
             var body = reader.Bytes(reader.Remaining - extraSize);
             var extra = reader.Rest();
-            long dataStart = headerStart + size;
             if (dataSize > length - dataStart) throw RarData.Corrupt("member data past the end of the volume");
             switch (type)
             {
@@ -175,7 +189,11 @@ internal sealed partial class RarArchive
                     break;
                 }
                 case Rar5Encryption:
-                    throw new InvalidDataException(EncryptedListMessage);
+                    if (password is null) throw new InvalidDataException(EncryptedListMessage);
+                    if (encryptedHeaders is not null) throw RarData.Unsupported("nested RAR encryption headers");
+                    encryptedHeaders = Rar5CryptoParameters.Parse(body, header: true);
+                    password.Keys(encryptedHeaders); // check/derive before consuming any ciphertext
+                    break;
                 case Rar5File:
                 {
                     if (Members.Count >= RarLimits.MaxMembers) throw new InvalidDataException("The archive has too many members to list.");
@@ -190,6 +208,8 @@ internal sealed partial class RarArchive
                     break;
             }
             position = dataStart + dataSize;
+            }
+            finally { if (decrypted is not null) System.Security.Cryptography.CryptographicOperations.ZeroMemory(decrypted); }
         }
     }
 
@@ -248,6 +268,8 @@ internal sealed partial class RarArchive
             {
                 case 1: // encryption
                     member.Encrypted = true;
+                    try { member.Encryption = Rar5CryptoParameters.Parse(record.Rest(), header: false); }
+                    catch (InvalidDataException ex) { member.EncryptionError = ex.Message; }
                     break;
                 case 2: // hash
                     if (record.Int(int.MaxValue) == 0) member.Blake2sp = record.Bytes(32).ToArray();

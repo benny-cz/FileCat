@@ -8,7 +8,8 @@ Current user-requested order (7 November): the recursive-selection checkpoint is
 [independent compressed RAR5 feasibility](RAR5_FEASIBILITY.md), committed in `4672ac14`, supports technical go.
 The equivalent [7z source/coverage analysis](SEVENZIP_FEASIBILITY.md) now selects bounded FileCat container code,
 existing permitted encoders and reviewed missing public-domain codec/filter paths. It verifies 29 pinned writer/header
-candidates and 21 SDK candidates; no 7z source was imported and no new 7z runtime qualification is claimed.
+candidates and 21 SDK candidates; the analysis itself imports no code and establishes no runtime qualification.
+Subsequent bounded implementation checkpoints are described below.
 
 The priority decision is in plan §4.3.2: bounded RAR C# implementation first, then needed 7z codecs/filters/container;
 strict catalogs and shared worker/transaction/capture/resource integration; complete workflows/UI; large guarded
@@ -17,8 +18,9 @@ review and fix/retest. Prepare coherent source/dependency/runner packets and col
 Do not create one machine session per small edit or omit needed coverage because upstream lacks an encoder.
 
 Both encoders require explicit method/version/filter/mode inventories and all needed feasible encoding paths. Gaps
-must distinguish missing work, profile policy and demonstrated blockers. RAR methods/presets beyond the prototype
-and 7z PPMd/delta/BCJ2/swaps/metadata/header paths remain work, not impossible features. 7z FILETIME's 100 ns limit
+must distinguish missing work, profile policy and demonstrated blockers. RAR methods 0–5 and 7z's seven current
+codecs, one-stream filters/swaps and compressed headers now have implementation checkpoints. BCJ2, remaining
+version/filter/metadata inventories and broader qualification remain work, not impossible features. 7z FILETIME's 100 ns limit
 and over-budget dictionaries/models need explicit policies. Neither analysis enables a production profile.
 
 The user chose option 3 with fallback to option 1: a documented feasibility no-go authorizes stored RAR5 and optional
@@ -28,7 +30,7 @@ activated. The goal remains active and implementation/release qualification and 
 The subsequent 7 November instruction makes **password support required for both RAR and 7z**, superseding initial
 unencrypted-only policy. Plan §4.3.1 requires payload/header encryption, password-aware read/browse/extract/update/edit
 and fresh verification, bounded KDF/cipher handling, session-only secret grants and complete UI/negative/native tests.
-Current reader refusal text and missing RAR decryption/7z encoder paths remain implementation gaps. Passwords/keys
+Public password flows and reader refusal text remain integration gaps even with the internal cipher foundation below. Passwords/keys
 must not enter persistent settings, journals/logs/evidence or process arguments.
 
 The [bounded C# RAR5 codec/creation checkpoint](RAR5_CSHARP_ENCODER.md) now implements store and genuinely distinct
@@ -43,8 +45,23 @@ LZMA/LZMA2/BZip2/Deflate/Zstandard using streamed raw headers and bounded preset
 pass within the 522-case batches on all three platforms; independent APIs verify 42 records per platform and archive
 hashes match. Mac name-presentation normalization is checked against exact raw UTF-16 names. These are not full 7z
 or password features: PPMd/filters/compressed headers, actual cipher/header/read/secret-grant integration and remaining
-workflow/qualification gates stay open. Profiles remain unregistered. The next chunk also tests simultaneous composed/
-decomposed names; all owned test processes are closed and other testers are preserved.
+workflow/qualification gates stay open. Profiles remain unregistered. The later checkpoints also test simultaneous
+composed/decomposed names; all owned test processes are closed and other testers are preserved.
+
+The [PPMd7/filter checkpoint](SEVENZIP_PPMD_AND_FILTERS.md), committed in `1466b3c7`, implements bounded PPMd7,
+delta, branch and swap encoding with 19 exact SDK comparisons and independent three-platform container checks.
+The [streamed-header checkpoint](SEVENZIP_STREAMED_HEADERS.md), committed in `47a9c86c`, adds raw/compressed headers,
+including a 1,304,142-byte raw header, exact independent metadata readback and 574-case passing platform matrices.
+These are foundations with recorded method/reader gaps, not completed AW6 or public feature availability.
+
+The [password foundation](ARCHIVE_PASSWORD_FOUNDATION.md) now creates and reopens encrypted RAR5 and 7z, including
+optional hidden names, all current codecs and raw/compressed 7z headers. Each platform's 653-case matrix has zero
+failures; independent readers verify 52 encrypted archives/194 payloads through official 7-Zip and 29 encrypted
+7z archives/196 metadata records/140 payloads through py7zr, including Zstandard. Every transferred evidence file
+is manifest-verified. Current internal sessions bound and dispose password/KDF/cipher state; versioned worker secret
+grants, view/edit lifetime, raw catalogs, shared transactions, complete UI, BCJ2, legacy cipher inventory and the full
+resource/security/crash/fuzz/six-RID/package gates remain required. No new profile is registered. The next shared
+integration chunk includes password-aware catalog/verification contracts rather than freezing interfaces around TAR.
 
 ## Source and workspace
 

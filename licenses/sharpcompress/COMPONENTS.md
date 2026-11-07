@@ -1,6 +1,6 @@
 # Components of FileCat.SharpCompress.dll
 
-`FileCat.SharpCompress.dll` is FileCat's build of SharpCompress 0.50.5: the 479 C# files of
+`FileCat.SharpCompress.dll` is FileCat's build of SharpCompress 0.50.5: the 480 C# files of
 `src/ThirdParty/SharpCompress` in FileCat's source repository, from `src/SharpCompress` of
 github.com/adamhathcock/sharpcompress commit `e4193af83b6ec8bdd5fb4f6ebffc2315dd3fc626`. It is cut down to
 what FileCat reads with it: 7z archives (their LZMA, LZMA2, PPMd, BZip2, Deflate, Zstandard, copy, branch,
@@ -9,6 +9,9 @@ ports from UnRAR, are not in it, and neither is anything else listed under "Left
 `THIRD-PARTY-CHANGES.md` beside that source lists every change FileCat made.
 The archive-writing development worker also uses its permitted LZMA/LZMA2, PPMd7, BZip2 and Zstandard encoders
 and bounded branch/delta/swap transforms. This inventory does not enable or qualify a production write profile.
+The password-aware development reader uses an original FileCat transform-broker delegate to obtain bounded
+job-local AES decryptors without putting immutable password strings in reader options. No third-party crypto
+implementation was imported for this broker.
 
 SharpCompress is MIT-licensed (`LICENSE.txt`, its exact upstream bytes). Many of its parts come from other
 projects and keep their own licenses. This inventory was made by reading the leading comment of every file,

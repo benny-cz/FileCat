@@ -11,6 +11,12 @@ FileCat's changes, all for release issue I14: only code under OSI-approved licen
 derived from UnRAR. FileCat uses this library for 7z archives and bzip2, xz and zstd streams only, so
 everything else is left out.
 
+- Password-development follow-up, 7 November 2026: original internal `SevenZipAesDecryptorFactory`/reader-option
+  plumbing lets a FileCat read job own its bounded KDF/cache and mutable password bytes. The existing AES reader
+  validates property/padding/length bounds before crypto setup, accepts the legacy direct-key mode with a zero IV
+  when absent, and clears its private buffer on disposal. Legacy string-provider temporary key/password arrays
+  are cleared; production password/UI/protocol qualification remains unfinished. No new third-party crypto code.
+
 - Archive-writing PPMd/filter follow-up, 7 November 2026: adds bounded symbol-selection hooks to FileCat's
   existing BSD-2-Clause `PpmdModelH` and a managed PPMd7/7z encoding range sink. No excluded UnRAR model is
   restored. Range grammar and ARM64/RISC-V replacement scalar ports use the individually public-domain

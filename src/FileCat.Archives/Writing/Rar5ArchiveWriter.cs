@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Security.Cryptography;
 using FileCat.Core.Archives;
 
 namespace FileCat.Archives.Writing;
@@ -6,7 +7,8 @@ namespace FileCat.Archives.Writing;
 internal sealed record Rar5InputDescriptor(int Id, long Length, string Sha256);
 internal sealed record Rar5WriteEntry(string Name, ArchiveMemberType Type, ArchiveTimestamp Modified, int Mode, int? InputId = null);
 internal sealed record Rar5WrittenMember(Rar5WriteEntry Entry, Rar5EncodedContent Content);
-internal sealed record Rar5WriteManifest(IReadOnlyList<Rar5WrittenMember> Members, long PhysicalBytes);
+internal sealed record Rar5WriteManifest(IReadOnlyList<Rar5WrittenMember> Members, long PhysicalBytes,
+    bool Encrypted = false, bool HiddenNames = false);
 
 /// <summary>
 /// Stream-only RAR5 creation foundation. A counting pass establishes exact packed length/CRC before the file header;
@@ -21,7 +23,7 @@ internal static class Rar5ArchiveWriter
 
     internal static Rar5WriteManifest Create(Stream stage, IReadOnlyList<Rar5WriteEntry> entries,
         IReadOnlyDictionary<int, Rar5InputDescriptor> inputs, Func<int, Stream> openInput,
-        Rar5Compression compression, CancellationToken ct)
+        Rar5Compression compression, CancellationToken ct, Rar5EncryptionSession? encryption = null)
     {
         if (!stage.CanWrite || !stage.CanSeek || stage.Position != 0 || stage.Length != 0 ||
             !Enum.IsDefined(compression) || entries.Count > ArchiveWritePolicy.MaxMembers || inputs.Count > ArchiveWritePolicy.MaxMembers)
@@ -49,7 +51,7 @@ internal static class Rar5ArchiveWriter
             ArchiveWritePolicy.ValidateName(entry.Name, entry.Type);
             ValidateTime(entry.Modified);
             budget.AddMember(); budget.AddNameChars(entry.Name.Length);
-            budget.AddMetadata(Utf8.GetByteCount(entry.Name) + 128L, entry.Name.Length * 6L + 128);
+            budget.AddMetadata(Utf8.GetByteCount(entry.Name) + (encryption is null ? 128L : 192L), entry.Name.Length * 6L + 128);
             names[index] = entry.Type == ArchiveMemberType.Directory && entry.Name.EndsWith('/') ? entry.Name[..^1] : entry.Name;
             if (entry.Type == ArchiveMemberType.File)
             {
@@ -72,11 +74,22 @@ internal static class Rar5ArchiveWriter
                 throw Invalid("A regular RAR file would also be used as a folder.");
         }
 
+        if (encryption is { HideNames: false } && !members.Any(member => member.Type == ArchiveMemberType.File))
+            throw Invalid("Use encrypted file names to password-protect an archive with no regular members.");
+        encryption?.ClaimArchive();
         byte[] header = new byte[ArchiveWritePolicy.MaxNameBytes + 256];
+        try
+        {
         var sink = new StageSink(stage, ct);
         sink.Write("Rar!\x1a\x07\x01\x00"u8);
+        if (encryption?.HideNames == true)
+        {
+            var crypt = new RecordBuilder(header); crypt.VarInt(0); crypt.VarInt(1); crypt.Byte((byte)encryption.CountPower);
+            crypt.Bytes(encryption.HeaderSalt); crypt.Bytes(encryption.HeaderCheck);
+            WriteHeader(sink, header, 4, crypt.Length, null, 0);
+        }
         var main = new RecordBuilder(header); main.VarInt(0);
-        WriteHeader(sink, header, 1, main.Length, null, 0);
+        WriteRecord(sink, header, 1, main.Length, null, 0, encryption, ct);
         var manifest = new List<Rar5WrittenMember>(members.Length);
         foreach (var entry in members)
         {
@@ -90,11 +103,14 @@ internal static class Rar5ArchiveWriter
                 if (counted.Sha256 != input.Sha256) throw Changed();
             }
             else counted = new(0, 0, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData([])), 0, 0, 0, 0);
+            bool encryptedMember = encryption is not null && entry.Type == ArchiveMemberType.File;
+            var cipherTarget = encryptedMember ? encryption!.CreateCipher(sink, header: false, counted.PackedLength, ct) : ((ArchiveAesCbcWriteStream Cipher, byte[] Iv)?)null;
+            using ArchiveAesCbcWriteStream? cipher = cipherTarget?.Cipher;
             var body = new RecordBuilder(header);
             body.VarInt((ulong)(4 | (entry.Type == ArchiveMemberType.Directory ? 1 : 0)));
             body.VarInt((ulong)counted.Length);
             body.VarInt((ulong)(entry.Mode | (entry.Type == ArchiveMemberType.Directory ? 0x4000 : 0x8000)));
-            body.UInt32(counted.Crc32);
+            body.UInt32(encryptedMember ? encryption!.ProtectCrc32(counted.Crc32) : counted.Crc32);
             body.VarInt((ulong)counted.Method << 7); // algorithm version 0, 128 KiB dictionary, non-solid
             body.VarInt(1); // Unix attributes
             int nameBytes = Utf8.GetByteCount(entry.Name);
@@ -108,18 +124,30 @@ internal static class Rar5ArchiveWriter
                 body.UInt32((uint)entry.Modified.Seconds); body.UInt32((uint)entry.Modified.Nanoseconds);
             }
             else body.UInt64(checked((ulong)((entry.Modified.Seconds - FileTimeEpochSeconds) * TimeSpan.TicksPerSecond + entry.Modified.Nanoseconds / 100)));
-            WriteHeader(sink, header, 2, body.Length, counted.PackedLength, body.Length - extraStart);
+            if (cipherTarget is { } encrypted)
+            {
+                body.VarInt(48); body.VarInt(1); body.VarInt(0); body.VarInt(3); // encryption extra, version 0, password check + tweaked CRC
+                body.Byte((byte)encryption!.CountPower); body.Bytes(encryption.DataSalt); body.Bytes(encrypted.Iv); body.Bytes(encryption.DataCheck);
+            }
+            long packedLength = encryptedMember ? checked((counted.PackedLength + 15) & ~15L) : counted.PackedLength;
+            WriteRecord(sink, header, 2, body.Length, packedLength, body.Length - extraStart, encryption, ct);
             if (input is not null)
             {
                 using var source = Open(input);
-                var emitted = Rar5Encoder.Encode(source, input.Length, sink, compression, ct);
+                var emitted = Rar5Encoder.Encode(source, input.Length, cipher is null ? sink : cipher, compression, ct);
                 if (emitted != counted || emitted.Sha256 != input.Sha256) throw Changed();
+            }
+            if (cipher is not null)
+            {
+                cipher.Finish();
+                if (cipher.PlaintextBytes != counted.PackedLength || cipher.CiphertextBytes != packedLength)
+                    throw new ArchiveWriteException(ArchiveWriteReason.VerificationFailed, "The RAR5 cipher changed its declared extent.");
             }
             manifest.Add(new(entry, counted));
         }
         var end = new RecordBuilder(header); end.VarInt(0);
-        WriteHeader(sink, header, 5, end.Length, null, 0);
-        return new(manifest.AsReadOnly(), sink.Bytes);
+        WriteRecord(sink, header, 5, end.Length, null, 0, encryption, ct);
+        return new(manifest.AsReadOnly(), sink.Bytes, encryption is not null, encryption?.HideNames == true);
 
         Stream Open(Rar5InputDescriptor input)
         {
@@ -133,6 +161,8 @@ internal static class Rar5ArchiveWriter
             }
             catch { source.Dispose(); throw; }
         }
+        }
+        finally { CryptographicOperations.ZeroMemory(header); }
     }
 
     private static void ValidateTime(ArchiveTimestamp time)
@@ -142,7 +172,19 @@ internal static class Rar5ArchiveWriter
             throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This RAR5 timestamp is not exactly representable as Unix nanoseconds or FILETIME.");
     }
 
-    private static void WriteHeader(StageSink sink, byte[] body, int kind, int bodyLength, long? packedLength, int extraLength)
+    private static void WriteRecord(StageSink sink, byte[] body, int kind, int bodyLength, long? packedLength, int extraLength,
+        Rar5EncryptionSession? encryption, CancellationToken ct)
+    {
+        if (encryption?.HideNames != true) { WriteHeader(sink, body, kind, bodyLength, packedLength, extraLength); return; }
+        var target = encryption.CreateCipher(sink, header: true, body.Length + 40L, ct);
+        using (target.Cipher)
+        {
+            sink.Write(target.Iv); WriteHeader(target.Cipher, body, kind, bodyLength, packedLength, extraLength);
+            target.Cipher.Finish();
+        }
+    }
+
+    private static void WriteHeader(Stream sink, byte[] body, int kind, int bodyLength, long? packedLength, int extraLength)
     {
         Span<byte> prefix = stackalloc byte[40];
         int count = 7;
@@ -175,6 +217,8 @@ internal static class Rar5ArchiveWriter
     {
         private readonly Span<byte> _buffer = buffer;
         internal int Length { get; private set; }
+        internal void Byte(byte value) => _buffer[Length++] = value;
+        internal void Bytes(ReadOnlySpan<byte> value) { value.CopyTo(_buffer[Length..]); Length += value.Length; }
         internal void VarInt(ulong value) => Length += Rar5ArchiveWriter.VarInt(_buffer[Length..], value);
         internal void UInt32(uint value) { BinaryPrimitives.WriteUInt32LittleEndian(_buffer[Length..], value); Length += 4; }
         internal void UInt64(ulong value) { BinaryPrimitives.WriteUInt64LittleEndian(_buffer[Length..], value); Length += 8; }

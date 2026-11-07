@@ -8,6 +8,7 @@
 > **Security requirement:** Assume no archive content is valid. The complete write pipeline must be fuzzing-safe: bounded rejection or a verified result, without a process crash, uncontrolled allocation, hang, unauthorized filesystem effect, or loss of an existing file.
 > **Deliverable boundary:** This document defines the requirements; a component checkpoint does not establish format or release qualification. Keep the acceptance gates open until the complete implementation and required platform evidence satisfy them.
 > **6 November component checkpoint:** The [dedicated VM archive worker](../validation/archive-writing/DEDICATED_VM_ARCHIVE_WORKER.md) executes actual write roles with a writing-only dependency closure and strict guest syscall policy. Live ARM64/musl defects are fixed; production resource/package/admission gates and the overall plan stay open.
+> **7 November component checkpoint:** [RAR5/7z password creation and job-local reading](../validation/archive-writing/ARCHIVE_PASSWORD_FOUNDATION.md) pass the same 653-case matrix and independent encrypted-output checks on Windows/Mac/Ubuntu. Secret grants, strict catalogs, shared workflows/UI and full qualification remain open; no new profile is enabled.
 
 ## Contents
 
@@ -129,7 +130,7 @@ of a compression preset. Minimal prototype interoperability cannot stand for com
 | RAR5, independent compressed non-solid profile | If AW10a passes | Profile | Profile | Yes after qualification | Profile | New MIT encoder from permitted sources; shared contained stream pipeline; full metadata/profile gate | High research and qualification cost |
 | RAR5, stored non-solid fallback | If AW10a cannot establish feasibility | Stored profile | Stored profile | Yes after qualification | Stored profile | Independent MIT container writer; no compression; no silent conversion of compressed archives | Medium container/fidelity work plus inherited gates |
 | RAR5, optional installed external encoder fallback | Per qualified RID/tool version | Profile | Profile | Profile | Profile | User-selected licensed executable; private snapshots and qualified containment; never original-archive write access | High platform/backend qualification cost |
-| RAR4 / solid, encrypted, multipart or unsupported RAR5 / UDF / unsupported 7z or TAR variants | No new bundled writer | No | No | No | No | Existing read/extract behavior; external execution does not bypass admission | Deferred profiles |
+| RAR4 / solid, multipart or unsupported RAR5 (including unqualified encryption) / UDF / unsupported 7z or TAR variants | No new bundled writer | No | No | No | No | Existing read/extract behavior; external execution does not bypass admission | Deferred profiles |
 
 Recognize existing extension aliases from ArchiveFormats.ByName; show canonical extensions when creating. Test .tgz, .tbz2/.tbz/.tb2, .tzst and the other registered aliases without assuming the suffix proves the content. Do not invent support for aliases not registered or independently tested. Comic-container aliases follow the same detected format/profile, not a separate codec.
 
@@ -187,7 +188,9 @@ physical candidate retrieval: 29 pinned SharpCompress files and 21 public-domain
 and SHA-256 identities. This does not complete origin/reachability, compiled dependency closure or runtime qualification.
 The upstream writer accepts only LZMA/LZMA2, ignores its generic compression level and lacks needed metadata setters;
 its narrow orchestration is not the complete implementation target. Prefer bounded FileCat container/verification code,
-reviewed suitable MIT primitives, existing permitted codecs and missing reviewed SDK ports. No candidate is yet imported.
+reviewed suitable MIT primitives, existing permitted codecs and missing reviewed SDK ports. The later
+[PPMd/filter checkpoint](../validation/archive-writing/SEVENZIP_PPMD_AND_FILTERS.md) imports only its explicitly
+reviewed permitted paths; it does not restore the full upstream writer or complete the compiled/profile audit.
 
 ### 4.3.1 Password support — required scope amendment
 

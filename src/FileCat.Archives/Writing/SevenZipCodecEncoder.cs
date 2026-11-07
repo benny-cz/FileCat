@@ -32,13 +32,16 @@ internal sealed record SevenZipEncodedContent(SevenZipCodec Codec, IReadOnlyList
 internal static class SevenZipCodecEncoder
 {
     internal static SevenZipEncodedContent Encode(Stream source, long length, Stream output,
-        SevenZipCodecOptions options, CancellationToken ct)
+        SevenZipCodecOptions options, CancellationToken ct, SevenZipEncryptionSession? encryption = null)
     {
         Validate(options);
         if (!source.CanRead || !output.CanWrite || ReferenceEquals(source, output) || length < 0 || length > ArchiveWritePolicy.MaxPayloadBytes)
             throw Invalid("The 7z codec streams or input length are invalid.");
         ct.ThrowIfCancellationRequested();
         var measured = new PackedSink(output, ct);
+        var cipherTarget = encryption?.CreateCipher(measured, header: false, ArchiveWritePolicy.MaxPhysicalBytes, ct);
+        using ArchiveAesCbcWriteStream? cipher = cipherTarget?.Cipher;
+        var codecOutput = cipher is null ? measured : new PackedSink(cipher, ct);
         byte[] properties = [];
         byte[] methodId;
         Stream encoded;
@@ -46,35 +49,38 @@ internal static class SevenZipCodecEncoder
         switch (options.Codec)
         {
             case SevenZipCodec.Copy:
-                methodId = [0]; encoded = measured; break;
+                methodId = [0]; encoded = codecOutput; break;
             case SevenZipCodec.Lzma:
             {
-                var encoder = LzmaStream.Create(new LzmaEncoderProperties(eos: true, options.DictionaryBytes, FastBytes(effort)), false, measured);
+                var encoder = LzmaStream.Create(new LzmaEncoderProperties(eos: true, options.DictionaryBytes, FastBytes(effort)), false, codecOutput);
                 properties = (byte[])encoder.Properties.Clone();
                 methodId = [3, 1, 1]; encoded = encoder; break;
             }
             case SevenZipCodec.Lzma2:
             {
-                var encoder = new Lzma2EncoderStream(measured, options.DictionaryBytes, FastBytes(effort));
+                var encoder = new Lzma2EncoderStream(codecOutput, options.DictionaryBytes, FastBytes(effort));
                 properties = (byte[])encoder.Properties.Clone();
                 methodId = [0x21]; encoded = encoder; break;
             }
             case SevenZipCodec.Bzip2:
                 methodId = [4, 2, 2];
-                encoded = new CBZip2OutputStream(measured, effort switch { 1 => 1, 2 => 5, _ => 9 }, leaveOpen: true); break;
+                encoded = new CBZip2OutputStream(codecOutput, effort switch { 1 => 1, 2 => 5, _ => 9 }, leaveOpen: true); break;
             case SevenZipCodec.Deflate:
                 methodId = [4, 1, 8];
-                encoded = new DeflateStream(measured, effort switch
+                encoded = new DeflateStream(codecOutput, effort switch
                 { 1 => CompressionLevel.Fastest, 2 => CompressionLevel.Optimal, _ => CompressionLevel.SmallestSize }, leaveOpen: true); break;
             case SevenZipCodec.Zstandard:
                 // This is FileCat's already decoded 7z extension method, not an LZMA stream with another label.
-                methodId = [4, 0xf7, 0x11, 1]; encoded = new StrictZstdWriteStream(measured, options.Level, ct); break;
+                // Standard extension metadata: producer version 1.5, actual level, two reserved zero bytes.
+                // Some independent readers require these properties even though libarchive ignores them.
+                properties = [1, 5, (byte)(effort switch { 1 => 1, 2 => 3, _ => 9 }), 0, 0];
+                methodId = [4, 0xf7, 0x11, 1]; encoded = new StrictZstdWriteStream(codecOutput, options.Level, ct); break;
             case SevenZipCodec.Ppmd7:
             {
                 var (order, memory) = PpmdSettings(options);
                 properties = new byte[5]; properties[0] = (byte)order;
                 BinaryPrimitives.WriteUInt32LittleEndian(properties.AsSpan(1), (uint)memory);
-                methodId = [3, 4, 1]; encoded = new Ppmd7zEncoderStream(measured, order, memory, ct); break;
+                methodId = [3, 4, 1]; encoded = new Ppmd7zEncoderStream(codecOutput, order, memory, ct); break;
             }
             default:
                 throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This 7z codec is not implemented.");
@@ -114,15 +120,28 @@ internal static class SevenZipCodecEncoder
                 throw;
             }
         }
-        measured.Finish();
+        codecOutput.Finish();
+        if (cipher is not null)
+        {
+            cipher.Finish(); measured.Finish();
+            if (cipher.PlaintextBytes != codecOutput.Bytes || cipher.CiphertextBytes != measured.Bytes)
+                throw new ArchiveWriteException(ArchiveWriteReason.VerificationFailed, "The 7z cipher changed its declared extent.");
+        }
         ct.ThrowIfCancellationRequested();
         if (filtered is not null && filtered.Bytes != length)
             throw new ArchiveWriteException(ArchiveWriteReason.VerificationFailed, "The 7z filter changed its declared byte extent.");
         var codec = new SevenZipCoder(methodId, properties);
-        // Both orders are valid 7z graphs, but libarchive expects the compression coder before its filter.
-        // Filter input 1 consumes compression output 0; the only packed input is compression input 0.
-        return new(options.Codec, filter is null ? [codec] : [codec, filter], filter is null ? [] : [new(1, 0)],
-            filter is null ? [length] : [length, length], [new(measured.Bytes, measured.Crc32)], length, crc.Value,
+        // Use decoding order for interoperability: AES, compression, optional filter. Without AES this preserves
+        // the codec-first ordering required by the secondary libarchive reader; py7zr also consumes list order.
+        var coders = new List<SevenZipCoder>(); var bindings = new List<SevenZipBinding>(); var sizes = new List<long>();
+        if (cipherTarget is { } encrypted)
+        {
+            coders.Add(new([6, 0xf1, 7, 1], encrypted.Properties)); sizes.Add(codecOutput.Bytes);
+        }
+        int codecIndex = coders.Count; coders.Add(codec); sizes.Add(length);
+        if (codecIndex != 0) bindings.Add(new(codecIndex, 0));
+        if (filter is not null) { int filterIndex = coders.Count; coders.Add(filter); bindings.Add(new(filterIndex, codecIndex)); sizes.Add(length); }
+        return new(options.Codec, coders.AsReadOnly(), bindings.AsReadOnly(), sizes.AsReadOnly(), [new(measured.Bytes, measured.Crc32)], length, crc.Value,
             Convert.ToHexString(hash.GetHashAndReset()));
     }
 

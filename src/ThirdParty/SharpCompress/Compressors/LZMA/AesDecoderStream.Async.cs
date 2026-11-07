@@ -16,6 +16,8 @@ internal sealed partial class AesDecoderStream
         CancellationToken cancellationToken = default
     )
     {
+        ObjectDisposedException.ThrowIf(isDisposed, this);
+        cancellationToken.ThrowIfCancellationRequested();
         if (count == 0 || mWritten == mLimit)
         {
             return 0;

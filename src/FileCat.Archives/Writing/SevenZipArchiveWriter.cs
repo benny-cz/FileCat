@@ -12,7 +12,7 @@ internal sealed record SevenZipWriteEntry(string Name, ArchiveMemberType Type, A
 internal sealed record SevenZipWrittenMember(SevenZipWriteEntry Entry, SevenZipEncodedContent? Content);
 internal enum SevenZipHeaderMode { Raw, Lzma2 }
 internal sealed record SevenZipWriteManifest(IReadOnlyList<SevenZipWrittenMember> Members, long PhysicalBytes,
-    SevenZipHeaderMode HeaderMode = SevenZipHeaderMode.Raw);
+    SevenZipHeaderMode HeaderMode = SevenZipHeaderMode.Raw, bool Encrypted = false, bool HiddenNames = false);
 
 /// <summary>
 /// Bounded stream-only non-solid 7z creation foundation. Headers are streamed in fixed buffers, then the fixed-size
@@ -26,7 +26,8 @@ internal static class SevenZipArchiveWriter
 
     internal static SevenZipWriteManifest Create(Stream stage, IReadOnlyList<SevenZipWriteEntry> entries,
         IReadOnlyDictionary<int, SevenZipInputDescriptor> inputs, Func<int, Stream> openInput,
-        SevenZipCodecOptions options, CancellationToken ct, SevenZipHeaderMode headerMode = SevenZipHeaderMode.Raw)
+        SevenZipCodecOptions options, CancellationToken ct, SevenZipHeaderMode headerMode = SevenZipHeaderMode.Raw,
+        SevenZipEncryptionSession? encryption = null)
     {
         SevenZipCodecEncoder.Validate(options);
         if (!Enum.IsDefined(headerMode) || !stage.CanWrite || !stage.CanSeek || stage.Position != 0 || stage.Length != 0 ||
@@ -75,6 +76,9 @@ internal static class SevenZipArchiveWriter
                 throw Invalid("A regular 7z file would also be used as a folder.");
         }
 
+        if (encryption is { HideNames: false } && !members.Any(member => member.InputId is { } id && descriptors[id].Length > 0))
+            throw Invalid("Use encrypted file names to password-protect an archive with no file data.");
+        encryption?.ClaimArchive();
         var sink = new StageSink(stage, ct);
         Span<byte> signature = stackalloc byte[32]; signature.Clear(); sink.Write(signature);
         var manifest = new List<SevenZipWrittenMember>(members.Length);
@@ -96,14 +100,14 @@ internal static class SevenZipArchiveWriter
                     else
                     {
                         long start = stage.Position;
-                        content = SevenZipCodecEncoder.Encode(lease, input.Length, sink, options, ct);
+                        content = SevenZipCodecEncoder.Encode(lease, input.Length, sink, options, ct, encryption);
                         if (content.Sha256 != input.Sha256 || stage.Position - start != content.PackedLength) throw Changed();
                     }
                 }
             }
             manifest.Add(new(entry, content));
         }
-        var header = WriteHeader(sink, manifest, headerMode, ct);
+        var header = WriteHeader(sink, manifest, headerMode, ct, encryption);
         long physical = sink.Bytes;
         ((ReadOnlySpan<byte>)[0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c]).CopyTo(signature); signature[6] = 0; signature[7] = 4;
         BinaryPrimitives.WriteUInt64LittleEndian(signature[12..], checked((ulong)(header.Start - 32)));
@@ -112,32 +116,53 @@ internal static class SevenZipArchiveWriter
         BinaryPrimitives.WriteUInt32LittleEndian(signature[8..], ArchiveCrc32.Compute(signature[12..]));
         ct.ThrowIfCancellationRequested(); stage.Position = 0; stage.Write(signature); stage.Position = physical;
         if (stage.Length != physical) throw Invalid("The 7z stage extent changed during finalization.");
-        return new(manifest.AsReadOnly(), physical, headerMode);
+        return new(manifest.AsReadOnly(), physical, headerMode, encryption is not null, encryption?.HideNames == true);
     }
 
     private static (long Start, long Bytes, uint Crc32) WriteHeader(StageSink sink, List<SevenZipWrittenMember> members,
-        SevenZipHeaderMode mode, CancellationToken ct)
+        SevenZipHeaderMode mode, CancellationToken ct, SevenZipEncryptionSession? encryption)
     {
         var streams = members.Where(member => member.Content is not null).Select(member => member.Content!).ToArray();
         long packedStart = sink.Bytes;
-        if (mode == SevenZipHeaderMode.Raw)
+        bool hideNames = encryption?.HideNames == true;
+        if (mode == SevenZipHeaderMode.Raw && !hideNames)
         {
             using var raw = new HeaderWriter(sink, ct); WriteRaw(raw);
             return (packedStart, raw.Bytes, raw.Crc32);
         }
         // Push the frozen header directly through a bounded encoder. No full plaintext/header array or scratch path.
         var packed = new SevenZipCodecEncoder.PackedSink(sink, ct);
-        byte[] properties; long rawBytes; uint rawCrc; string rawSha;
-        using (var encoder = new Lzma2EncoderStream(packed, 1 << 20, 32))
-        using (var raw = new HeaderWriter(encoder, ct))
+        var cipherTarget = hideNames ? encryption!.CreateCipher(packed, header: true, ArchiveWritePolicy.MaxMetadataBytes, ct) : ((ArchiveAesCbcWriteStream Cipher, byte[] Properties)?)null;
+        using ArchiveAesCbcWriteStream? cipher = cipherTarget?.Cipher;
+        var headerOutput = cipher is null ? packed : new SevenZipCodecEncoder.PackedSink(cipher, ct);
+        byte[] properties = []; long rawBytes; uint rawCrc; string rawSha;
+        if (mode == SevenZipHeaderMode.Lzma2)
         {
+            using var encoder = new Lzma2EncoderStream(headerOutput, 1 << 20, 32);
+            using var raw = new HeaderWriter(encoder, ct);
             properties = (byte[])encoder.Properties.Clone(); WriteRaw(raw);
             rawBytes = raw.Bytes; rawCrc = raw.Crc32; rawSha = raw.FinishDigest();
         }
-        packed.Finish();
+        else
+        {
+            using var raw = new HeaderWriter(headerOutput, ct); WriteRaw(raw);
+            rawBytes = raw.Bytes; rawCrc = raw.Crc32; rawSha = raw.FinishDigest();
+        }
+        headerOutput.Finish();
+        if (cipher is not null) { cipher.Finish(); packed.Finish(); }
         if (rawBytes > 64L << 20 && rawBytes / Math.Max(1, packed.Bytes) > 1000)
             throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The compressed 7z header exceeds the reader's expansion policy.");
-        var content = new SevenZipEncodedContent(SevenZipCodec.Lzma2, [new([0x21], properties)], [], [rawBytes],
+        var coders = new List<SevenZipCoder>(); var sizes = new List<long>(); var bindings = new List<SevenZipBinding>();
+        if (cipherTarget is { } encrypted)
+        {
+            coders.Add(new([6, 0xf1, 7, 1], encrypted.Properties)); sizes.Add(headerOutput.Bytes);
+        }
+        if (mode == SevenZipHeaderMode.Lzma2)
+        {
+            int codec = coders.Count; coders.Add(new([0x21], properties)); sizes.Add(rawBytes);
+            if (codec != 0) bindings.Add(new(codec, 0));
+        }
+        var content = new SevenZipEncodedContent(mode == SevenZipHeaderMode.Lzma2 ? SevenZipCodec.Lzma2 : SevenZipCodec.Copy, coders, bindings, sizes,
             [new(packed.Bytes, packed.Crc32)], rawBytes, rawCrc, rawSha);
         long start = sink.Bytes;
         using var outer = new HeaderWriter(sink, ct);

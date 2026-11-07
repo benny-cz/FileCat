@@ -665,19 +665,27 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
 
     public static SharpArchiveReader Open(string path) => Open(path, null);
 
-    public static SharpArchiveReader Open(string path, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened)
+    public static SharpArchiveReader Open(string path, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened) =>
+        OpenCore(path, verifyOpened, null);
+
+    internal static SharpArchiveReader OpenWithPassword(string path, SevenZipReadPasswordSession password,
+        Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened = null) => OpenCore(path, verifyOpened, password);
+
+    private static SharpArchiveReader OpenCore(string path, Action<string, Microsoft.Win32.SafeHandles.SafeFileHandle>? verifyOpened,
+        SevenZipReadPasswordSession? password)
     {
         var volumes = new List<FileStream> { ArchiveFormats.OpenShared(path, verifyOpened) };
         try
         {
             AdmitSevenZipHeader(volumes[0]);
             var options = new ReaderOptions { LeaveStreamOpen = true, LookForHeader = false };
+            if (password is not null) options.ArchiveDecryptorFactory = password.CreateDecryptor;
             return new SharpArchiveReader(SevenZipArchive.OpenArchive(volumes[0], options), volumes, path);
         }
         catch (Exception ex)
         {
             foreach (var v in volumes) v.Dispose();
-            if (ex is IOException or UnauthorizedAccessException) throw;
+            if (ex is IOException or UnauthorizedAccessException or OperationCanceledException) throw;
             throw new InvalidDataException(Describe(ex), ex);
         }
     }

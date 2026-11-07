@@ -16,6 +16,8 @@ internal sealed class RarMember
     public long PackedSize { get; set; }
     public DateTime? ModifiedUtc { get; set; }
     public bool Encrypted { get; set; }
+    public Rar5CryptoParameters? Encryption { get; set; }
+    public string? EncryptionError { get; set; }
     public int Method { get; set; }              // 0 when stored
     public int Version { get; set; }             // decoder: 15, 20, 26, 29, 36 (RAR 1.5–4.x), 50, 70 (RAR 5/7)
     public long Dictionary { get; set; }
