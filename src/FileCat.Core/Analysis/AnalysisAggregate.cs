@@ -27,6 +27,7 @@ public static class AnalysisAggregate
         var matching = ImmutableHashSet.CreateBuilder<ulong>();
         var charges = ImmutableArray.CreateBuilder<AnalysisCharge>();
         var missing = new Dictionary<MeasurementState, ulong>();
+        var missingCharges = ImmutableArray.CreateBuilder<AnalysisMissingCharge>();
         var unmeasured = ImmutableDictionary.CreateBuilder<ulong, MeasurementState>();
         UInt128 known = 0, unverified = 0;
         ulong count = 0;
@@ -110,7 +111,7 @@ public static class AnalysisAggregate
                     directoryBases.Add(fact.BasisId);
                     if (fact.Measurement.IsKnown) Add(fact.DirectoryId.Value, "Directory allocation", fact.Measurement.Value!.Value,
                         [], false, directory.ObservedIdentity is null, true);
-                    else Missing(fact.Measurement, [fact.DirectoryId.Value]);
+                    else Missing(fact.Measurement, [fact.DirectoryId.Value], fact.DirectoryId.Value);
                 }
                 var sets = basesByRoot.Values.ToArray();
                 compatible = sets.Length < 2 || sets.Skip(1).All(s => s.SetEquals(sets[0]));
@@ -119,13 +120,14 @@ public static class AnalysisAggregate
         if (!compatible) { known = 0; unverified = 0; charges.Clear(); }
         return new(snapshot.Identity.SessionId, snapshot.Identity.Epoch, snapshot.Identity.Revision, metric,
             charges.ToImmutable(), new(known, unverified, count, missing.ToImmutableDictionary(), compatible), matching.ToImmutable())
-            { UnmeasuredStates = unmeasured.ToImmutable(), Taint = AnalysisPrivacy.Join(snapshot.Taint) };
+            { UnmeasuredStates = unmeasured.ToImmutable(), MissingCharges = missingCharges.ToImmutable(), Taint = AnalysisPrivacy.Join(snapshot.Taint) };
 
-        void Missing(AnalysisMeasurement measurement, IEnumerable<ulong> ids)
+        void Missing(AnalysisMeasurement measurement, IEnumerable<ulong> ids, ulong? directory = null)
         {
             var state = measurement.State == MeasurementState.Known ? MeasurementState.Unsupported : measurement.State;
             missing[state] = checked(missing.GetValueOrDefault(state) + 1);
-            foreach (ulong id in ids)
+            var members = ids.ToImmutableArray(); missingCharges.Add(new(state, directory is null ? members : [], directory));
+            foreach (ulong id in members)
                 if (!unmeasured.TryGetValue(id, out var old) || Rank(state) > Rank(old)) unmeasured[id] = state;
         }
         static int Rank(MeasurementState state) => state switch { MeasurementState.Changed => 5, MeasurementState.Failed => 4, MeasurementState.Pending => 3, MeasurementState.Excluded => 2, _ => 1 };

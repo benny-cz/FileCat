@@ -115,11 +115,13 @@ public sealed record AnalysisSelection(Guid SessionId, long Epoch, long Revision
 }
 public sealed record AnalysisCharge(ulong ParentId, string Label, UInt128 Value, ImmutableArray<ulong> Aliases,
     bool Shared, bool IdentityUnverified, bool DirectorySelf = false);
+public sealed record AnalysisMissingCharge(MeasurementState State, ImmutableArray<ulong> Aliases, ulong? DirectoryId = null);
 public sealed record AnalysisTotals(UInt128 Known, UInt128 IdentityUnverified, ulong MatchingPaths,
     ImmutableDictionary<MeasurementState, ulong> Missing, bool CompatibleBasis);
 public sealed record AnalysisProjection(Guid SessionId, long Epoch, long Revision, AnalysisMetric Metric,
     ImmutableArray<AnalysisCharge> Charges, AnalysisTotals Totals, ImmutableHashSet<ulong> MatchingNodes)
 {
+    public ImmutableArray<AnalysisMissingCharge> MissingCharges { get; init; } = [];
     public ImmutableDictionary<ulong, MeasurementState> UnmeasuredStates { get; init; } = ImmutableDictionary<ulong, MeasurementState>.Empty;
     public AnalysisTaint Taint { get; init; } = AnalysisTaint.OrdinarySensitive;
     public ImmutableHashSet<ulong> UnknownFilterNodes { get; init; } = ImmutableHashSet<ulong>.Empty;
