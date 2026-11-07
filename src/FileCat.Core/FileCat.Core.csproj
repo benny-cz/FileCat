@@ -8,6 +8,9 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="FileCat.Core.Tests" />
+    <!-- Share observed-memory accounting with the two builds of the stream-only archive rewrite engine. -->
+    <InternalsVisibleTo Include="FileCat.Archives" />
+    <InternalsVisibleTo Include="FileCat.Archives.Writing" />
     <InternalsVisibleTo Include="FileCat.CoreCrashHarness" />
     <InternalsVisibleTo Include="FileCat.WorkerProbe" />
     <InternalsVisibleTo Include="FileCat.ArchiveWorker" />

@@ -1,0 +1,328 @@
+{
+  "date": "2026-11-07",
+  "source_packets": {
+    "v1": {
+      "files": 4178,
+      "bytes": 30356586,
+      "sha256": "acfe3c774fde0effcf3d54dc85da5f4a38af16a6cfc367d8a6bac386f55645a8"
+    },
+    "v2": {
+      "files": 4180,
+      "bytes": 30358002,
+      "sha256": "ce8ce67bf5fba01f8c92c1d6d8a1711d4cab4db41665915fa836306ece07c0fd"
+    }
+  },
+  "new_profile_registered": false,
+  "parent_and_stream_transform_component_only": true,
+  "production_backend_qualified": false,
+  "worker_native_publication_and_UI_qualified": false,
+  "new_cases": 49,
+  "project_source_sha256": {
+    "src/FileCat.Core/FileCat.Core.csproj": "9d391bcb21196d1c0ed110d4d68299c40adfd2c7f59f6bc7ac6308ea771cc1ed"
+  },
+  "followup": "The initial 43-case component/full regression passed. Source review then bounded the final whole-source hash to its declared extent plus one EOF probe instead of draining arbitrary extra input; six cases add the tail canary, wrong passwords and remove-all password behavior. The corrected expanded matrix and independent readers were repeated.",
+  "remaining_gaps": [
+    "role-bound request/secret consumers",
+    "native transaction and captured-owner integration",
+    "application workflows and UI",
+    "remaining RAR encoder/profile inventory and broader qualification",
+    "7z complete member graph/catalog",
+    "final resource/crash/fuzz/six-RID/package gates and independent final review"
+  ],
+  "host_scope": "Edits, builds and static frozen-artifact verification only. Application tests and independent native readers ran on the authorized Mac/VMs.",
+  "platforms": {
+    "mac": {
+      "initial_passing_phase": {
+        "archive": "mac-rar5-transform-evidence-v1.tar.gz",
+        "bytes": 38997120,
+        "sha256": "e06b7199de7206c6c05f1b7bc1b4a0fa1fc4e864c654722eedd349b7f0a8aedf",
+        "manifest_rows": 1923,
+        "combined_cases": {
+          "Passed": 2837,
+          "NotExecuted": 55
+        },
+        "new_transform_cases": {
+          "Passed": 43
+        },
+        "independent": {
+          "cases": 18,
+          "official_archives": 36,
+          "exact_payloads": 108,
+          "independent_metadata_records": 162,
+          "exact_retained_packed_streams": 18,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb"
+        },
+        "semantic_manifests_and_plain_archives_identical_across_platforms_and_phases": true,
+        "compiler_source_documents": 1386,
+        "compiler_source_bytes": 13151754,
+        "actual_test_runtime": {
+          "runtime": ".NET 10.0.12",
+          "runtime_directory": "/Users/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.12/",
+          "os": "macOS 27.0.1",
+          "architecture": "Arm64"
+        },
+        "writing_closure": {
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ],
+          "Rar15_or_DiscUtils_present": false
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0,
+          "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+        }
+      },
+      "bounded_final_hash_followup": {
+        "archive": "mac-rar5-transform-evidence-v2.tar.gz",
+        "bytes": 39003974,
+        "sha256": "daa4ed30fca13aae1e5636d8f364eed61a29e15547c7035260faf43ce53a1afe",
+        "manifest_rows": 1923,
+        "combined_cases": {
+          "Passed": 2843,
+          "NotExecuted": 55
+        },
+        "new_transform_cases": {
+          "Passed": 49
+        },
+        "independent": {
+          "cases": 18,
+          "official_archives": 36,
+          "exact_payloads": 108,
+          "independent_metadata_records": 162,
+          "exact_retained_packed_streams": 18,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb"
+        },
+        "semantic_manifests_and_plain_archives_identical_across_platforms_and_phases": true,
+        "compiler_source_documents": 1386,
+        "compiler_source_bytes": 13158958,
+        "actual_test_runtime": {
+          "runtime": ".NET 10.0.12",
+          "runtime_directory": "/Users/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.12/",
+          "os": "macOS 27.0.1",
+          "architecture": "Arm64"
+        },
+        "writing_closure": {
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ],
+          "Rar15_or_DiscUtils_present": false
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0,
+          "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+        },
+        "current_changed_csharp_inputs_matched": [
+          "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+          "src/FileCat.Archives/Writing/Rar5RewriteEngine.cs",
+          "tests/FileCat.Core.Tests/Rar5TransformTests.cs"
+        ]
+      }
+    },
+    "ubuntu": {
+      "initial_passing_phase": {
+        "archive": "ubuntu-rar5-transform-evidence-v1.tar.gz",
+        "bytes": 39006244,
+        "sha256": "1dcaa059bb2046f43eb5fd72a168431a5bcb12a314e6b917e7add578a65a851f",
+        "manifest_rows": 1923,
+        "combined_cases": {
+          "Passed": 2850,
+          "NotExecuted": 42
+        },
+        "new_transform_cases": {
+          "Passed": 43
+        },
+        "independent": {
+          "cases": 18,
+          "official_archives": 36,
+          "exact_payloads": 108,
+          "independent_metadata_records": 162,
+          "exact_retained_packed_streams": 18,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886"
+        },
+        "semantic_manifests_and_plain_archives_identical_across_platforms_and_phases": true,
+        "compiler_source_documents": 1386,
+        "compiler_source_bytes": 13151754,
+        "actual_test_runtime": {
+          "runtime": ".NET 10.0.14",
+          "runtime_directory": "/home/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.14/",
+          "os": "Ubuntu 24.04.5 LTS",
+          "architecture": "X64"
+        },
+        "writing_closure": {
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ],
+          "Rar15_or_DiscUtils_present": false
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0
+        }
+      },
+      "bounded_final_hash_followup": {
+        "archive": "ubuntu-rar5-transform-evidence-v2.tar.gz",
+        "bytes": 39012391,
+        "sha256": "c56c67fa96bf77ee3ea260159e9cabb537f029bdac82b3c6665a5d90967f943c",
+        "manifest_rows": 1923,
+        "combined_cases": {
+          "Passed": 2856,
+          "NotExecuted": 42
+        },
+        "new_transform_cases": {
+          "Passed": 49
+        },
+        "independent": {
+          "cases": 18,
+          "official_archives": 36,
+          "exact_payloads": 108,
+          "independent_metadata_records": 162,
+          "exact_retained_packed_streams": 18,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886"
+        },
+        "semantic_manifests_and_plain_archives_identical_across_platforms_and_phases": true,
+        "compiler_source_documents": 1386,
+        "compiler_source_bytes": 13158958,
+        "actual_test_runtime": {
+          "runtime": ".NET 10.0.14",
+          "runtime_directory": "/home/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.14/",
+          "os": "Ubuntu 24.04.5 LTS",
+          "architecture": "X64"
+        },
+        "writing_closure": {
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ],
+          "Rar15_or_DiscUtils_present": false
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0
+        },
+        "current_changed_csharp_inputs_matched": [
+          "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+          "src/FileCat.Archives/Writing/Rar5RewriteEngine.cs",
+          "tests/FileCat.Core.Tests/Rar5TransformTests.cs"
+        ]
+      }
+    },
+    "windows": {
+      "initial_passing_phase": {
+        "archive": "windows-rar5-transform-evidence-v1.tar.gz",
+        "bytes": 39024062,
+        "sha256": "4cb664e81d73c67d1af2b81cdcb907618088ecf798ccf2b43f91892889947539",
+        "manifest_rows": 1850,
+        "combined_cases": {
+          "Passed": 2672,
+          "NotExecuted": 220
+        },
+        "new_transform_cases": {
+          "Passed": 43
+        },
+        "independent": {
+          "cases": 18,
+          "official_archives": 36,
+          "exact_payloads": 108,
+          "independent_metadata_records": 162,
+          "exact_retained_packed_streams": 18,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e"
+        },
+        "semantic_manifests_and_plain_archives_identical_across_platforms_and_phases": true,
+        "compiler_source_documents": 1386,
+        "compiler_source_bytes": 13166457,
+        "actual_test_runtime": {
+          "runtime": ".NET 10.0.14",
+          "runtime_directory": "C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\10.0.14\\",
+          "os": "Microsoft Windows 10.0.26340",
+          "architecture": "X64"
+        },
+        "writing_closure": {
+          "Rar15_or_DiscUtils_present": false,
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ]
+        },
+        "final_census": {
+          "Processes": [],
+          "CollectedUtc": "2026-11-07T13:13:54.5770408Z"
+        },
+        "standard_test_account": {
+          "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+          "AdministratorsMember": false,
+          "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+          "HiveLoaded": true
+        }
+      },
+      "bounded_final_hash_followup": {
+        "archive": "windows-rar5-transform-evidence-v2.tar.gz",
+        "bytes": 39027898,
+        "sha256": "f1e8d85a4d5344dedadf2cfe0c861fe08deb63a846c7a2ab3abf23411dd616d8",
+        "manifest_rows": 1850,
+        "combined_cases": {
+          "Passed": 2678,
+          "NotExecuted": 220
+        },
+        "new_transform_cases": {
+          "Passed": 49
+        },
+        "independent": {
+          "cases": 18,
+          "official_archives": 36,
+          "exact_payloads": 108,
+          "independent_metadata_records": 162,
+          "exact_retained_packed_streams": 18,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e"
+        },
+        "semantic_manifests_and_plain_archives_identical_across_platforms_and_phases": true,
+        "compiler_source_documents": 1386,
+        "compiler_source_bytes": 13173661,
+        "actual_test_runtime": {
+          "runtime": ".NET 10.0.14",
+          "runtime_directory": "C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\10.0.14\\",
+          "os": "Microsoft Windows 10.0.26340",
+          "architecture": "X64"
+        },
+        "writing_closure": {
+          "Rar15_or_DiscUtils_present": false,
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ]
+        },
+        "final_census": {
+          "Processes": [],
+          "CollectedUtc": "2026-11-07T13:19:55.3242305Z"
+        },
+        "current_changed_csharp_inputs_matched": [
+          "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+          "src/FileCat.Archives/Writing/Rar5RewriteEngine.cs",
+          "tests/FileCat.Core.Tests/Rar5TransformTests.cs"
+        ],
+        "standard_test_account": {
+          "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+          "AdministratorsMember": false,
+          "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+          "HiveLoaded": true
+        }
+      }
+    }
+  }
+}

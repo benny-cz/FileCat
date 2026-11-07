@@ -71,6 +71,11 @@ including encrypted payload copies and newly encoded inputs. Connect that compon
 role-bound worker requests and native transactions while completing the remaining strict 7z graph checks. These are
 the immediate implementation dependencies for the shared create/update/edit/F6/password workflows.
 
+The [RAR5 parent planning and complete stream rewrite](../validation/archive-writing/RAR5_TRANSFORM_PLANNING.md)
+now connects exact occurrence changes to full source verification and retained/new assembly. Connect these
+contracts to shared worker requests, role-bound password consumers and native capture/publication next; the RAR
+adapter continues independently of the remaining 7z member graph/catalog.
+
 [Complete encoded-header verification](../validation/archive-writing/SEVENZIP_HEADER_VERIFICATION.md) now connects
 the strict LZMA/LZMA2 and exact Copy/AES layers to the 7z framing pass. Complete member graph/catalog verification
 and the shared parent/worker/native adapters remain the next integration work.

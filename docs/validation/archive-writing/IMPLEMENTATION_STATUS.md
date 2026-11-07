@@ -52,6 +52,14 @@ independent metadata/native-reader checks exercise creation, rename/reassembly a
 planning, worker/runtime secret consumers, native publication and application workflows remain open; this component
 does not register a new format.
 
+The subsequent [RAR5 parent/stream rewrite checkpoint](RAR5_TRANSFORM_PLANNING.md) now derives trusted expected
+manifests from exact occurrence edits and reviewed numeric inputs, verifies the entire source before output,
+assembles retained/new records, and checks the whole source again afterward. It covers rename/replace/delete/add
+together across all methods/password modes, including wrong-password/remove-all and bounded final-EOF behavior.
+The final 49 new cases pass in 2,898-case platform matrices with independent metadata/native-reader checks. Shared
+worker/secret consumers, captured-owner/native publication and application/UI integration remain open; no new
+profile is registered. This RAR work advances independently of the remaining 7z member graph/catalog.
+
 The [RAR/7z public-options checkpoint](RAR_7Z_PUBLIC_OPTIONS.md) advances shared integration: explicit version-2
 codec/filter/header/method and password modes now participate in every canonical request, digest, sidecar, creation
 witness and journal binding, with version-1 bytes preserved. Public options map to existing stream encoders and
