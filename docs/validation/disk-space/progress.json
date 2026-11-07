@@ -168,7 +168,8 @@
     "Exact indexed grouped Other overview/member scopes now connect retained canonical geometry, all sorted/paged/range/mark/capture/charge APIs, immutable window ownership, both charts, atomic history and named saved-view restoration. Known-zero shared buckets and separate reference statistics are retained. Forty-seven Core and thirteen native-fixture/headless cases pass all3; full Other/persistence/native desktop/resource qualification remains open.",
     "Folder hierarchy geometry and synthetic scope headers retain bounded canonical missing-cohort, raw-fact, issue and metadata evidence through every exact Other suffix. Incompatible combined geometry and sibling scopes explicitly require a root-separated view. 121 Core and eight native-private-store/headless saved-window controls pass all three platforms; complete Other/product/resource qualification remains open.",
     "Folder shared buckets retain matching logical/file reference statistics separately from additive totals; memory/indexed geometry, table order/labels, tooltips, scope headers and inspectors agree. One bounded payload per shared cohort avoids repeated component statistics or a new retained index. 47 new Core and eight native scan/headless window controls, plus eight strengthened saved-window controls, pass all three platforms; full Other/product/resource qualification remains open.",
-    "Captured-name memory ordering and bounded raw-name evidence now agree with indexed folder/group views, with keyboard chart tips, bounded scalar-aware ordinal keys and decoded-record geometry work accounting. 80 Core and 12 native-private saved Other window controls pass all three platforms; full native name traversal, Other/product/resource qualification remain open."
+    "Captured-name memory ordering and bounded raw-name evidence now agree with indexed folder/group views, with keyboard chart tips, bounded scalar-aware ordinal keys and decoded-record geometry work accounting. 80 Core and 12 native-private saved Other window controls pass all three platforms; full native name traversal, Other/product/resource qualification remain open.",
+    "Twelve actual native-source filename/capture/saved-Other controls pass all three platforms with hardlink, case, raw-byte/unpaired and preserving payload evidence. APFS invalid-byte creation refusals are recorded. A broad Ubuntu old saved-view timeout is retained with a focused unchanged-build passing check; no broad qualification is claimed."
   ],
   "validation": {
     "windowsCore": {
@@ -2117,10 +2118,18 @@
     },
     "testingWorkflow": {
       "default": "Build and package the largest coherent implementation candidate, then transfer one immutable bundle per free platform and execute all applicable Core/native/rendering phases sequentially before collecting evidence. Preserve other testers and gate every phase.",
-      "batchEvidence": "source-manifest-r811.json",
+      "batchEvidence": "source-manifest-r820.json",
       "oneCandidateArchivePerPlatform": true,
       "postExecutionProcessExitRequired": true,
-      "continueIndependentPhasesAfterAssertionFailure": true
+      "continueIndependentPhasesAfterAssertionFailure": true,
+      "optimizationPolicy": {
+        "fullSuites": "At coherent feature checkpoints and final qualification",
+        "helperOnlyChanges": "Focused affected methods using SHA-verified unchanged guest inputs",
+        "firstPlatform": "Short Windows smoke before broad suites",
+        "batching": "Larger related implementation chunks; one transfer and one collection per completed batch",
+        "packing": "Direct three deployable archives; no unused standalone archives",
+        "unchangedCacheProof": "r823 verified104files;2tests passed15.383s;6990-byte driver;single result archive"
+      }
     },
     "quarantinedScratchCapacity": {
       "scope": "Scratch/directory/profile retention with injected native close result; not full native-handle/global-resource qualification",
@@ -7409,6 +7418,134 @@
       "newControlsPassedAllThree": true,
       "indexedOtherExactSubsetPersistenceParityQualified": false,
       "fullMixedBasisUnknownAndUnverifiedSubsetQualificationComplete": false,
+      "fullNativeDesktopOtherQualified": false,
+      "fullResourceGateQualified": false,
+      "fullMillionTenMillionQualificationComplete": false,
+      "productCommandRegistered": false,
+      "publicIndexedSpillEnabled": false,
+      "persistenceGateQualified": false,
+      "actionsHelperContentEnabled": false,
+      "finalIndependentReviewPerformed": false
+    },
+    "nativeSourceNames": {
+      "newCoreControls": 0,
+      "newRenderingControls": 12,
+      "targetedControls": {
+        "mac": {
+          "render": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: FileSize, indexed: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: UniqueFileSize, indexed: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: OnDisk, indexed: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: Files, indexed: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: FileSize, indexed: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: UniqueFileSize, indexed: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: OnDisk, indexed: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: Files, indexed: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Treemap\\\", grouped: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Sunburst\\\", grouped: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Treemap\\\", grouped: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Sunburst\\\", grouped: True)"
+          ]
+        },
+        "ubuntu": {
+          "render": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: FileSize, indexed: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: UniqueFileSize, indexed: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: OnDisk, indexed: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: Files, indexed: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: FileSize, indexed: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: UniqueFileSize, indexed: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: OnDisk, indexed: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: Files, indexed: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Treemap\\\", grouped: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Sunburst\\\", grouped: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Treemap\\\", grouped: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Sunburst\\\", grouped: True)"
+          ]
+        },
+        "windows": {
+          "render": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: FileSize, indexed: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: UniqueFileSize, indexed: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: OnDisk, indexed: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: Files, indexed: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: FileSize, indexed: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: UniqueFileSize, indexed: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: OnDisk, indexed: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: Files, indexed: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Treemap\\\", grouped: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Sunburst\\\", grouped: False)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Treemap\\\", grouped: True)",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: \\\"Sunburst\\\", grouped: True)"
+          ]
+        }
+      },
+      "matrix": {
+        "mac-batch-r818-core-r818.xml": {
+          "total": "1360",
+          "passed": "1356",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "31.627"
+        },
+        "mac-batch-r818-render-r818.xml": {
+          "total": "266",
+          "passed": "266",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "97.883"
+        },
+        "ubuntu-batch-r818-core-r818.xml": {
+          "total": "1360",
+          "passed": "1356",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "112.290"
+        },
+        "ubuntu-batch-r818-render-r818.xml": {
+          "total": "266",
+          "passed": "265",
+          "failed": "1",
+          "skipped": "0",
+          "errors": "0",
+          "time": "183.742"
+        },
+        "windows-batch-r818-core-r818.xml": {
+          "total": "1378",
+          "passed": "1330",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0",
+          "time": "58.372"
+        },
+        "windows-batch-r818-native-r818.xml": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "52.041"
+        },
+        "windows-batch-r818-render-r818.xml": {
+          "total": "266",
+          "passed": "265",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "188.596"
+        }
+      },
+      "manifest": "source-manifest-r820.json",
+      "nativeSourceNamesMemoryAndIndexedControlsPassedAllThree": true,
+      "nativeSourceNamesSavedOtherControlsPassedAllThree": true,
+      "nativeHardlinkAndCaseCollisionEvidenceCaptured": true,
+      "macInvalidUnixByteCreationRefusalEvidenced": true,
+      "targetedControlsPassedAllThree": true,
+      "allApplicableSuitesPassedInThisBatch": false,
+      "ubuntuSavedViewTimeoutRetainedAndFocusedUnchangedBuildPassed": true,
       "fullNativeDesktopOtherQualified": false,
       "fullResourceGateQualified": false,
       "fullMillionTenMillionQualificationComplete": false,

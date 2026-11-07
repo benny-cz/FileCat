@@ -1,0 +1,32 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+    FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(metric: FileSize, indexed: False) [FAIL]
+      Native fixture read failed: 13
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.NativeNames.Fixture.cs(120,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNamesFixture.AssertPayloads()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.NativeNames.Fixture.cs(57,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNamesFixture.CreateAsync(Boolean indexed)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.NativeNames.Fixture.cs(81,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNamesFixture.CreateAsync(Boolean indexed)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.NativeNames.cs(28,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceCapturesExactEntriesIdentitiesMetricAndGroupedOtherWithoutReplacementBinding(AnalysisMetric metric, Boolean indexed)
+        --- End of stack trace from previous location ---
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+    FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(mode: "Treemap", grouped: False) [FAIL]
+      Native fixture read failed: 13
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.NativeNames.Fixture.cs(120,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNamesFixture.AssertPayloads()
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.NativeNames.Fixture.cs(57,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNamesFixture.CreateAsync(Boolean indexed)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.NativeNames.Fixture.cs(81,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNamesFixture.CreateAsync(Boolean indexed)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.NativeNames.cs(78,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.NativeNameSourceSavedOtherKeepsRealRawEntriesThroughInspectionFocusAndMarking(String mode, Boolean grouped)
+        --- End of stack trace from previous location ---
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+Native name creation: platform=Mac; files=12; caseDistinct=False; invalidUnixCreationErrors=92,92
+  Finished:    FileCat.Rendering.Tests (ID = '2ea3c0399a551232754e6cf5122c12ff402dec396d7537242c265f1012df2608')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 266, Errors: 0, Failed: 2, Skipped: 0, Not Run: 0, Time: 96,960s
