@@ -150,7 +150,8 @@
     "Checked native file/directory SafeHandle owners retain failed-close slots without retry, pin stream/offset I/O through actual completion and transfer fdopendir admission to closedir. Native128-handle, faulted-backend and129-cursor controls pass all3; profile/concurrent-create handling preserves close signals. Complete immutable candidate suites and relevant shared Windows helper regressions pass.",
     "File/profile token retirement preserves uncertain owners/units, rolls back independent tokens once and retains rejected probes. Checked Windows mutex and Unix protocol retirement preserve native charges. Failed final quota closure retains components, directory, bytes and its live worker/admission until process exit. Native cross-process locked-token, kernel failure and eight-worker/ninth-refusal controls pass all3 in complete candidate batches.",
     "Explorer creation/page/inspection/chart work shares eight accepted operations process-wide, with admission retained through actual I/O, cancellation, rollback and final cleanup. Separate views and pending creation cannot bypass the same pool. Three cross-view/lifetime/failure controls pass all3; complete immutable candidate regressions pass and no test processes remain.",
-    "Producer work, legacy traversal queues and observation writes share a partitioned8 MiB envelope with reserved working headroom. Charges follow actual stop/cancel/drain; rejected directories remain failed coverage. Decoded strings/ancestry are bounded, queued async inputs drop live witnesses, and effective partitions are captured in policy. Twelve actual-scheduler saturation/lifetime/coverage controls pass all3."
+    "Producer work, legacy traversal queues and observation writes share a partitioned8 MiB envelope with reserved working headroom. Charges follow actual stop/cancel/drain; rejected directories remain failed coverage. Decoded strings/ancestry are bounded, queued async inputs drop live witnesses, and effective partitions are captured in policy. Twelve actual-scheduler saturation/lifetime/coverage controls pass all3.",
+    "Both memory and indexed charts share selectable file-type, absolute-depth and captured precision-aware modification-age colors, explicit bounded themed legends, contrast-checked text/boundaries and separate focus/mark cues. Strict schema3 view state records dimension/rules v1 and reads schema1/2 defaults without rewrite. Nineteen focused Core and seven rendering/persistence controls, full suites and galleries pass all3; native physical qualification, grouping and comparison-growth colors remain open."
   ],
   "validation": {
     "windowsCore": {
@@ -2099,9 +2100,10 @@
     },
     "testingWorkflow": {
       "default": "Build and package the largest coherent implementation candidate, then transfer one immutable bundle per free platform and execute all applicable Core/native/rendering phases sequentially before collecting evidence. Preserve other testers and gate every phase.",
-      "batchEvidence": "source-manifest-r571.json",
+      "batchEvidence": "source-manifest-r591.json",
       "oneCandidateArchivePerPlatform": true,
-      "postExecutionProcessExitRequired": true
+      "postExecutionProcessExitRequired": true,
+      "continueIndependentPhasesAfterAssertionFailure": true
     },
     "quarantinedScratchCapacity": {
       "scope": "Scratch/directory/profile retention with injected native close result; not full native-handle/global-resource qualification",
@@ -2893,12 +2895,457 @@
       "persistenceGateQualified": false,
       "actionsHelperContentEnabled": false,
       "finalIndependentReviewPerformed": false
+    },
+    "chartColorDimensions": {
+      "newCoreCases": 17,
+      "newRenderingCases": 5,
+      "focusedCoreControls": 19,
+      "focusedRenderingControls": 7,
+      "targetedControls": {
+        "mac": {
+          "core": [
+            "FileCat.Core.Tests.AnalysisChartColorsTests.TypeDepthAgeAndSyntheticCategoriesShareAnExplicitLegendWithoutChangingAccounting",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.MissingOverflowingAndFutureIntervalsAreExplicitAndNeverDependOnTheCurrentClock",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 7, younger: \\\"age-7\\\", older: \\\"age-30\\\")",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 30, younger: \\\"age-30\\\", older: \\\"age-180\\\")",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 180, younger: \\\"age-180\\\", older: \\\"age-365\\\")",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 365, younger: \\\"age-365\\\", older: \\\"age-old\\\")",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.DepthIsAbsoluteAndMalformedCyclesReturnUnknownWithinTheCapturedDepthBound",
+            "FileCat.Core.Tests.AnalysisCatalogTests.LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(schema: \\\"1\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(schema: \\\"2\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-missing\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-unknown\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-numeric\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-duplicate\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-future\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-numeric\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-noncanonical\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-missing\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.CatalogRoundTripRestoresOnlyInertDataAndIdentifiesUnindexedInventories",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedAndMemoryColorsUseTheSameCapturedTimesIncludingLegacyObjectFallbackAndChargeBuckets"
+          ],
+          "render": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.ColorChoiceUpdatesBothChartsAndLegendWithoutChangingScopeMarksOrTheCapturedProjection",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NavigationLinksAndSpecialEntriesDoNotMasqueradeAsMeasuredZeroFiles",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.EveryChartCategoryHasAaTextAndVisibleBoundariesAcrossAllProductThemes",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.ChartColorAndItsAccessibleMeaningFreezeUntilActualPointerRelease",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.CatalogSelectionRestoresPrivateViewWithoutConnectingOrRetainingMarks",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.FocusedChartDetailsTrackTheCurrentColorAndEntryWithoutPointerMotion",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSavedColorRestoresAndSwitchesOfflineWithoutReplacingTheExplorerOrChartData"
+          ]
+        },
+        "ubuntu": {
+          "core": [
+            "FileCat.Core.Tests.AnalysisCatalogTests.CatalogRoundTripRestoresOnlyInertDataAndIdentifiesUnindexedInventories",
+            "FileCat.Core.Tests.AnalysisCatalogTests.LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(schema: \\\"1\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(schema: \\\"2\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-missing\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-unknown\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-numeric\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-duplicate\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-future\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-numeric\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-noncanonical\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-missing\\\")",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.TypeDepthAgeAndSyntheticCategoriesShareAnExplicitLegendWithoutChangingAccounting",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 7, younger: \\\"age-7\\\", older: \\\"age-30\\\")",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 30, younger: \\\"age-30\\\", older: \\\"age-180\\\")",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 180, younger: \\\"age-180\\\", older: \\\"age-365\\\")",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 365, younger: \\\"age-365\\\", older: \\\"age-old\\\")",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.MissingOverflowingAndFutureIntervalsAreExplicitAndNeverDependOnTheCurrentClock",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.DepthIsAbsoluteAndMalformedCyclesReturnUnknownWithinTheCapturedDepthBound",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedAndMemoryColorsUseTheSameCapturedTimesIncludingLegacyObjectFallbackAndChargeBuckets"
+          ],
+          "render": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSavedColorRestoresAndSwitchesOfflineWithoutReplacingTheExplorerOrChartData",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.FocusedChartDetailsTrackTheCurrentColorAndEntryWithoutPointerMotion",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.ChartColorAndItsAccessibleMeaningFreezeUntilActualPointerRelease",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.ColorChoiceUpdatesBothChartsAndLegendWithoutChangingScopeMarksOrTheCapturedProjection",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.CatalogSelectionRestoresPrivateViewWithoutConnectingOrRetainingMarks",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.EveryChartCategoryHasAaTextAndVisibleBoundariesAcrossAllProductThemes",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NavigationLinksAndSpecialEntriesDoNotMasqueradeAsMeasuredZeroFiles"
+          ]
+        },
+        "windows": {
+          "core": [
+            "FileCat.Core.Tests.AnalysisChartColorsTests.MissingOverflowingAndFutureIntervalsAreExplicitAndNeverDependOnTheCurrentClock",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.TypeDepthAgeAndSyntheticCategoriesShareAnExplicitLegendWithoutChangingAccounting",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.DepthIsAbsoluteAndMalformedCyclesReturnUnknownWithinTheCapturedDepthBound",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 7, younger: \\\"age-7\\\", older: \\\"age-30\\\")",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 30, younger: \\\"age-30\\\", older: \\\"age-180\\\")",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 180, younger: \\\"age-180\\\", older: \\\"age-365\\\")",
+            "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 365, younger: \\\"age-365\\\", older: \\\"age-old\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(schema: \\\"1\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(schema: \\\"2\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.CatalogRoundTripRestoresOnlyInertDataAndIdentifiesUnindexedInventories",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-missing\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-unknown\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-numeric\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-duplicate\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-future\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-numeric\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-noncanonical\\\")",
+            "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-missing\\\")",
+            "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedAndMemoryColorsUseTheSameCapturedTimesIncludingLegacyObjectFallbackAndChargeBuckets"
+          ],
+          "render": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.FocusedChartDetailsTrackTheCurrentColorAndEntryWithoutPointerMotion",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NavigationLinksAndSpecialEntriesDoNotMasqueradeAsMeasuredZeroFiles",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.EveryChartCategoryHasAaTextAndVisibleBoundariesAcrossAllProductThemes",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSavedColorRestoresAndSwitchesOfflineWithoutReplacingTheExplorerOrChartData",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.ColorChoiceUpdatesBothChartsAndLegendWithoutChangingScopeMarksOrTheCapturedProjection",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.ChartColorAndItsAccessibleMeaningFreezeUntilActualPointerRelease",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.CatalogSelectionRestoresPrivateViewWithoutConnectingOrRetainingMarks"
+          ]
+        }
+      },
+      "matrix": {
+        "mac-batch-r589-core-r589.xml": {
+          "total": "735",
+          "passed": "731",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "22.376"
+        },
+        "mac-batch-r589-render-r589.xml": {
+          "total": "114",
+          "passed": "114",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "37.685"
+        },
+        "ubuntu-batch-r589-core-r589.xml": {
+          "total": "735",
+          "passed": "731",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "50.735"
+        },
+        "ubuntu-batch-r589-render-r589.xml": {
+          "total": "114",
+          "passed": "114",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "48.685"
+        },
+        "windows-batch-r589-core-r589.xml": {
+          "total": "753",
+          "passed": "705",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0",
+          "time": "18.161"
+        },
+        "windows-batch-r589-native-r589.xml": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "36.497"
+        },
+        "windows-batch-r589-render-r589.xml": {
+          "total": "114",
+          "passed": "113",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "51.746"
+        }
+      },
+      "galleries": {
+        "mac": {
+          "archiveSha256": "fc4d567241c3d27842f47dbd0aaf83598ff9be201933a53e244a1fc4dc110926",
+          "images": [
+            {
+              "name": "colors-Classic-FileType.png",
+              "sha256": "4a9681b75091dbf22e4c186987e4dfb4b31403fdf8b0f0d8da7ad46bf92bef3f"
+            },
+            {
+              "name": "colors-Classic-HierarchyDepth.png",
+              "sha256": "09a21581eacc3c2360a6821087541cc7c89bf1c9254e59f6a02830abd47d30e8"
+            },
+            {
+              "name": "colors-Classic-ModifiedAge.png",
+              "sha256": "705ad2f295c09eb7f8d056b3a012726d9524399252fef8e39c50dd81f3da629b"
+            },
+            {
+              "name": "colors-ClassicDark-FileType.png",
+              "sha256": "e58e7bb0ffe4a088c99b978d1434e4cc7f9883c9ed82c6980e031a464a03b6f4"
+            },
+            {
+              "name": "colors-ClassicDark-HierarchyDepth.png",
+              "sha256": "5b26dd3c5838f9ff8ed606409f571c61a2a35b0e6701a62d00a84f76c8ff840b"
+            },
+            {
+              "name": "colors-ClassicDark-ModifiedAge.png",
+              "sha256": "e0bb913e544faacabdfb0c9dc59a4908234d3e24c4f8e9d8f91a004b8d6b8c75"
+            },
+            {
+              "name": "colors-Cyberpunk-FileType.png",
+              "sha256": "6e1e2efc6931b857732e68ee61f466fb0fdaaab0df75d8ccc154d054b510d326"
+            },
+            {
+              "name": "colors-Cyberpunk-HierarchyDepth.png",
+              "sha256": "0c8ca2530d086653b944b8ed0d6655b64822ce9dd771fb7f9ab7856d95c485e0"
+            },
+            {
+              "name": "colors-Cyberpunk-ModifiedAge.png",
+              "sha256": "b7be0348e79b5655f087a489da8a7ced1f22ab97fef56f69bc2850090894823d"
+            },
+            {
+              "name": "colors-DosCommander-FileType.png",
+              "sha256": "61fc4767a55e1725a219ce5c53b53a27267267419f864b544d12681ab820eb51"
+            },
+            {
+              "name": "colors-DosCommander-HierarchyDepth.png",
+              "sha256": "9c0da51c3a043f48b5f5abd086e7fd378b18c71dc459d08d40bcc3a3b43c44d8"
+            },
+            {
+              "name": "colors-DosCommander-ModifiedAge.png",
+              "sha256": "66dc83400195c77d1992de8dee201e0053bb38dffb3c55f84d773dc924432793"
+            },
+            {
+              "name": "colors-HighContrast-FileType.png",
+              "sha256": "ed24f28df35046b1ae82b1210f294ba92543c6d95fe88eb52e71d86358b29eff"
+            },
+            {
+              "name": "colors-HighContrast-HierarchyDepth.png",
+              "sha256": "a22a0f961124752ccbf39c918fe2e892a81525f119b83be26aff091dc70e0e1e"
+            },
+            {
+              "name": "colors-HighContrast-ModifiedAge.png",
+              "sha256": "2386ac23ad556f2ffbfe5783e0fbb61403cf36d2bcb42cf1be4a1c57bb0060c3"
+            },
+            {
+              "name": "colors-Psychedelic-FileType.png",
+              "sha256": "e11843ac0a6a64a17f01f8b6606d181b763902dda52856fcec5a44c9aab1efba"
+            },
+            {
+              "name": "colors-Psychedelic-HierarchyDepth.png",
+              "sha256": "3113e47ecf6dd0f377d35dfb7012c1ebf0c6d0cf040fee47ff6e3e2ce90b8075"
+            },
+            {
+              "name": "colors-Psychedelic-ModifiedAge.png",
+              "sha256": "1193a009d74924933f11d2523413d064bb1103cb45707c1e95d53217f5320d83"
+            },
+            {
+              "name": "colors-Steampunk-FileType.png",
+              "sha256": "23f97bc09215912559c9fd8112d3806ef988c124f8a8c2960f54034101e2ac19"
+            },
+            {
+              "name": "colors-Steampunk-HierarchyDepth.png",
+              "sha256": "09d5e3bc044abd5bd07dd15111c0017ad4ef943c9043015432d769f61ab4d7bf"
+            },
+            {
+              "name": "colors-Steampunk-ModifiedAge.png",
+              "sha256": "a79e174b140146e97128e7e1c2bda1b93abeef2b7b786a5942b5ffc85d487d5c"
+            }
+          ]
+        },
+        "ubuntu": {
+          "archiveSha256": "28221bfc4acb16157265c091993284aa64818cd621f8cd669d8a9ac864d4d111",
+          "images": [
+            {
+              "name": "colors-Classic-FileType.png",
+              "sha256": "da48912183eefea2aa0fa002c624212250eb40df34784f4e6af6bd953b7aaa8f"
+            },
+            {
+              "name": "colors-Classic-HierarchyDepth.png",
+              "sha256": "776bf406e2368cea8018bbd6c2a0e07225793e810c7e178890d2898e1f5479f2"
+            },
+            {
+              "name": "colors-Classic-ModifiedAge.png",
+              "sha256": "7f0970ba9e9bafc4080e876ab4208202c3050c94ac7794253339bc69fb3427fe"
+            },
+            {
+              "name": "colors-ClassicDark-FileType.png",
+              "sha256": "ff4e1eae9bf407a0b8e11f73cedba2d85ea4c882f5a8cfd0d091bf2829fc3a78"
+            },
+            {
+              "name": "colors-ClassicDark-HierarchyDepth.png",
+              "sha256": "c9a53b6715c4a7fa21ef665bb23aaf3d20435b74ba3ea1ae86c58088dc8f5259"
+            },
+            {
+              "name": "colors-ClassicDark-ModifiedAge.png",
+              "sha256": "571e684361be575353f9128d6e28c74685f5afdcc4ba681167703a046dda3aea"
+            },
+            {
+              "name": "colors-Cyberpunk-FileType.png",
+              "sha256": "257d63de2d1c36fb557e6397d6d0c98da02d7172b485de06fe3f4373b9bb9036"
+            },
+            {
+              "name": "colors-Cyberpunk-HierarchyDepth.png",
+              "sha256": "96b2487670c78f2a5f97c553d7b698260b430d9b790731f94b2ed38fe906c20a"
+            },
+            {
+              "name": "colors-Cyberpunk-ModifiedAge.png",
+              "sha256": "7da48ed8a77d22b1ae7be9f7d3d60087b684c414b6f1865a610cd24cfd44e9f5"
+            },
+            {
+              "name": "colors-DosCommander-FileType.png",
+              "sha256": "e60c98edb09755a14682bfd7e8af59c97438e25740814edd95dc075dcc9713b1"
+            },
+            {
+              "name": "colors-DosCommander-HierarchyDepth.png",
+              "sha256": "67d86aba16f3e0c95bbb3fe4c246f2fdf17de730de6b38702a6d008d30939436"
+            },
+            {
+              "name": "colors-DosCommander-ModifiedAge.png",
+              "sha256": "e7d775120de2a122c93c174c53c6f3650009b8af3e15c41f49fd95ab145af161"
+            },
+            {
+              "name": "colors-HighContrast-FileType.png",
+              "sha256": "fd12e7dfe3956ea14650d29b333a4884194ae584839de559f44c3a2de9bece4f"
+            },
+            {
+              "name": "colors-HighContrast-HierarchyDepth.png",
+              "sha256": "2dcb676fd75ed8ce7fe60b4b4f870a2cf91f0e0397020d1e458754ec7ff65b0c"
+            },
+            {
+              "name": "colors-HighContrast-ModifiedAge.png",
+              "sha256": "272ba01e0991dbce99f5d93ff9cd4f2b52fb31c39996001528ba146602af0007"
+            },
+            {
+              "name": "colors-Psychedelic-FileType.png",
+              "sha256": "9af296b82635436820e18572eab048825b938ba272f02e7315773c60e1cdab53"
+            },
+            {
+              "name": "colors-Psychedelic-HierarchyDepth.png",
+              "sha256": "c209cd0e086e6f6913048055c5ad67fda8b976e3516a919acf51bd34afd924c6"
+            },
+            {
+              "name": "colors-Psychedelic-ModifiedAge.png",
+              "sha256": "f2d03c390bd679ad5538c7f97b81dc825ddb335cb74e5de762023ce48b2b33e3"
+            },
+            {
+              "name": "colors-Steampunk-FileType.png",
+              "sha256": "56d324f01956f8f4f52a54fc62030d568f6bba70b84f8201af8b21ae4ab697cd"
+            },
+            {
+              "name": "colors-Steampunk-HierarchyDepth.png",
+              "sha256": "2be4f7d548501fa78b204586d5fa60059d424f9308c36fa562e79373b2807d72"
+            },
+            {
+              "name": "colors-Steampunk-ModifiedAge.png",
+              "sha256": "8e86ce3785975fd6918fb022fef4e37797588cc845f819c527ab14e4e8d70282"
+            }
+          ]
+        },
+        "windows": {
+          "archiveSha256": "a519e339b935e277900b3443a6dbb339eebcc829234c836e79ed44c2dc722b79",
+          "images": [
+            {
+              "name": "colors-Classic-FileType.png",
+              "sha256": "0b0bd12d658c203f6c09295996996a77d92f9bc66ea124500e19065c1d3ad7d6"
+            },
+            {
+              "name": "colors-Classic-HierarchyDepth.png",
+              "sha256": "0552e83fb8c952afaa47a9e7ff4c9550798427aeeb47cd657a62211ee46a2c50"
+            },
+            {
+              "name": "colors-Classic-ModifiedAge.png",
+              "sha256": "a94ebefcb93bcf0aa4a78fc572428efabd872f69de6980858d399f95b158b8a6"
+            },
+            {
+              "name": "colors-ClassicDark-FileType.png",
+              "sha256": "cf2880961e25b663fba59feb5cb8ca4e1316618e914ab4e8e0c7e352b7e7fe3a"
+            },
+            {
+              "name": "colors-ClassicDark-HierarchyDepth.png",
+              "sha256": "d039a44ef2998a2ee26139944c3ee0c2e23baf25fc5a4d33195c74b64855eada"
+            },
+            {
+              "name": "colors-ClassicDark-ModifiedAge.png",
+              "sha256": "f5e3e8741d33168cf40dbfc53e7042e2b7963db4e6a00d38905cbaf47c1c8642"
+            },
+            {
+              "name": "colors-Cyberpunk-FileType.png",
+              "sha256": "ff67651e9931e49eb3d0a6e1ab72aff52eb198cc93005e231d7571fe819a6473"
+            },
+            {
+              "name": "colors-Cyberpunk-HierarchyDepth.png",
+              "sha256": "817b4d7bd86fdb163209e993f4a12ae1d798c562cffc1883dbade47c391656a6"
+            },
+            {
+              "name": "colors-Cyberpunk-ModifiedAge.png",
+              "sha256": "3b277f6d18bf98feb71e47328b9d32d91b0654ade7497b273aa120bfe577c265"
+            },
+            {
+              "name": "colors-DosCommander-FileType.png",
+              "sha256": "0a430502ecc90e2425948afddef5dd8afa41897587227968f26cc01bb82060d6"
+            },
+            {
+              "name": "colors-DosCommander-HierarchyDepth.png",
+              "sha256": "d8d74beab3ac67d7dd6833dff5c85e32b1373945cf1c386bbdb2d372b347af82"
+            },
+            {
+              "name": "colors-DosCommander-ModifiedAge.png",
+              "sha256": "e45783d5694c121e79418726f6751c436fd4c5053742e77b7417588a98a9438e"
+            },
+            {
+              "name": "colors-HighContrast-FileType.png",
+              "sha256": "b0d25bcde38380a2148b2a1cdc65d0d97bd168843fe5b2443c4ca7438248037e"
+            },
+            {
+              "name": "colors-HighContrast-HierarchyDepth.png",
+              "sha256": "97f0300faf7c6ff4a76c4fbb63940defa46a9213dc5a26692e256f63f2a065bc"
+            },
+            {
+              "name": "colors-HighContrast-ModifiedAge.png",
+              "sha256": "5de5457fabd683ee013706b9fab1577b453739f4e1993ff0202da9e296507ef0"
+            },
+            {
+              "name": "colors-Psychedelic-FileType.png",
+              "sha256": "a3656822f8bb4f9efa93576a1bc8c1409c021a152a462dab89317f11bdf4b755"
+            },
+            {
+              "name": "colors-Psychedelic-HierarchyDepth.png",
+              "sha256": "a5495e65cb967db4247743109bd4c8558091a6f2777a793e70f0b17b5abb2ffa"
+            },
+            {
+              "name": "colors-Psychedelic-ModifiedAge.png",
+              "sha256": "a96221651e05385a42f83e7c089bc037dc2252f599af48abb8f52e9644c8084e"
+            },
+            {
+              "name": "colors-Steampunk-FileType.png",
+              "sha256": "22b2dee014b573ae1325608ef5b1c552f276e8f609c569040105a84c20f037e2"
+            },
+            {
+              "name": "colors-Steampunk-HierarchyDepth.png",
+              "sha256": "637dc28c39263efd35e2a51dba5c04d98ff23a3c3138a06e9db5b41faf8e67f5"
+            },
+            {
+              "name": "colors-Steampunk-ModifiedAge.png",
+              "sha256": "2b2fa566ced6c3dab6c1dd76a4d51bc028b3133367a2d91ec2aeb1388f7e86b4"
+            }
+          ]
+        }
+      },
+      "manifest": "source-manifest-r591.json",
+      "fileTypeDepthCapturedAgeColorsImplemented": true,
+      "memoryIndexedColorParityPassedAllThree": true,
+      "savedViewColorRuleStrictnessPassedAllThree": true,
+      "headlessThemeContrastAndLegendControlsPassedAllThree": true,
+      "comparisonGrowthColorsImplemented": false,
+      "allGroupingDimensionsImplemented": false,
+      "nativeDesktopColorInputQualified": false,
+      "fullResourceGateQualified": false,
+      "productCommandRegistered": false,
+      "publicIndexedSpillEnabled": false,
+      "persistenceGateQualified": false,
+      "actionsHelperContentEnabled": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
     "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, remaining dataset/CPU queues and full private-memory qualification (producer payload now shares a partitioned8 MiB envelope and explorer creation/page/inspection/chart work shares eight places, with actual-lifetime controls all3), actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
-    "W2: grouping/color dimensions, scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
+    "W2: folder/type/age/owner/root/comparison grouping and comparison-growth coloring (basic type/depth/captured-age colors, themed legends and strict saved-view restore now pass all3), scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: complete comparison charts/metric changes, saved comparisons and indexed scale; mutable private state, managed catalog maintenance/replacement/deletion, optional capped history and general import/export remain required. Named catalog/view restore and an initial offline comparison workflow are connected; no persistence gate is qualified.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",

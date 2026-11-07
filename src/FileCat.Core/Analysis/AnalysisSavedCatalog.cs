@@ -9,6 +9,8 @@ namespace FileCat.Core.Analysis;
 public sealed record AnalysisSavedView(AnalysisMetric Metric, string Chart, string Query, string? Root, string Scope,
     bool CaseSensitive, bool ShowUnknown, AnalysisTableSort Sort = AnalysisTableSort.ActiveMetric, bool SortDescending = true)
 {
+    public AnalysisColorDimension ColorDimension { get; init; } = AnalysisColorDimension.FileType;
+    public int ColorRuleVersion { get; init; } = AnalysisChartColors.RuleVersion;
     public static AnalysisSavedView Default { get; } = new(AnalysisMetric.OnDisk, "Treemap", "", null, AnalysisTree.RootKey, false, false);
 }
 
@@ -157,7 +159,7 @@ public sealed class AnalysisSavedCatalog(AnalysisPrivateInventoryStore store)
     public static void ValidateView(AnalysisSavedView view)
     {
         ArgumentNullException.ThrowIfNull(view);
-        if (!Enum.IsDefined(view.Metric) || !Enum.IsDefined(view.Sort) || view.Chart is not ("Treemap" or "Sunburst" or "Table") || view.Query is null || view.Scope is null ||
+        if (!Enum.IsDefined(view.ColorDimension) || view.ColorRuleVersion != AnalysisChartColors.RuleVersion || !Enum.IsDefined(view.Metric) || !Enum.IsDefined(view.Sort) || view.Chart is not ("Treemap" or "Sunburst" or "Table") || view.Query is null || view.Scope is null ||
             Encoding.UTF8.GetByteCount(view.Query) > AnalysisLimits.QueryBytes || Encoding.UTF8.GetByteCount(view.Scope) > 256 || view.Root is { } text && Encoding.UTF8.GetByteCount(text) > 256 ||
             !AnalysisPrivateInventoryStore.WellFormedText(view.Query) || !AnalysisPrivateInventoryStore.WellFormedText(view.Scope) ||
             view.Root is { } root && !AnalysisPrivateInventoryStore.WellFormedText(root)) throw Invalid("Unsupported saved analysis view state.");
@@ -165,13 +167,14 @@ public sealed class AnalysisSavedCatalog(AnalysisPrivateInventoryStore store)
 
     private static byte[] EncodeEntry(Guid catalog, AnalysisSavedEntry e) => Encode(w =>
     {
-        w.WriteString("schema", "2"); w.WriteString("kind", "named"); w.WriteString("catalog", catalog.ToString("D"));
+        w.WriteString("schema", "3"); w.WriteString("kind", "named"); w.WriteString("catalog", catalog.ToString("D"));
         w.WriteString("inventory", e.InventoryId.ToString("D")); w.WriteString("name", e.Name);
         w.WriteString("bytes", e.Bytes.ToString(CultureInfo.InvariantCulture)); w.WriteString("saved", e.SavedUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture));
         w.WriteString("coverage", e.Coverage.ToString()); w.WriteString("taint", ((ulong)e.Taint).ToString(CultureInfo.InvariantCulture));
         w.WriteStartObject("view"); w.WriteString("metric", e.View.Metric.ToString()); w.WriteString("chart", e.View.Chart); w.WriteString("query", e.View.Query);
         w.WriteString("root", e.View.Root); w.WriteString("scope", e.View.Scope); w.WriteBoolean("caseSensitive", e.View.CaseSensitive); w.WriteBoolean("showUnknown", e.View.ShowUnknown);
-        w.WriteString("sort", e.View.Sort.ToString()); w.WriteBoolean("sortDescending", e.View.SortDescending); w.WriteEndObject();
+        w.WriteString("sort", e.View.Sort.ToString()); w.WriteBoolean("sortDescending", e.View.SortDescending);
+        w.WriteString("color", e.View.ColorDimension.ToString()); w.WriteString("colorRule", e.View.ColorRuleVersion.ToString(CultureInfo.InvariantCulture)); w.WriteEndObject();
     });
 
     private static AnalysisSavedEntry DecodeEntry(byte[] data, Guid catalog)
@@ -181,7 +184,7 @@ public sealed class AnalysisSavedCatalog(AnalysisPrivateInventoryStore store)
             using var document = Document(data, EntryBytes); var r = document.RootElement;
             Fields(r, "schema", "kind", "catalog", "inventory", "name", "bytes", "saved", "coverage", "taint", "view");
             string schema = Text(r.GetProperty("schema"), 16);
-            if (schema is not ("1" or "2") || Text(r.GetProperty("kind"), 16) != "named")
+            if (schema is not ("1" or "2" or "3") || Text(r.GetProperty("kind"), 16) != "named")
                 throw Invalid("Unsupported saved analysis catalog entry schema. No overwrite or downgrade was attempted.");
             if (Id(r.GetProperty("catalog")) != catalog) throw Invalid("The catalog identity does not match.");
             string name = Text(r.GetProperty("name"), 240); AnalysisPrivateInventoryStore.ValidateName(name);
@@ -193,10 +196,13 @@ public sealed class AnalysisSavedCatalog(AnalysisPrivateInventoryStore store)
             if ((taint & AnalysisTaint.OrdinarySensitive) == 0) throw Invalid();
             var v = r.GetProperty("view");
             if (schema == "1") Fields(v, "metric", "chart", "query", "root", "scope", "caseSensitive", "showUnknown");
-            else Fields(v, "metric", "chart", "query", "root", "scope", "caseSensitive", "showUnknown", "sort", "sortDescending");
+            else if (schema == "2") Fields(v, "metric", "chart", "query", "root", "scope", "caseSensitive", "showUnknown", "sort", "sortDescending");
+            else Fields(v, "metric", "chart", "query", "root", "scope", "caseSensitive", "showUnknown", "sort", "sortDescending", "color", "colorRule");
             var view = new AnalysisSavedView(Enumeration<AnalysisMetric>(v.GetProperty("metric")), Text(v.GetProperty("chart"), 16), Text(v.GetProperty("query"), AnalysisLimits.QueryBytes),
                 v.GetProperty("root").ValueKind == JsonValueKind.Null ? null : Text(v.GetProperty("root"), 256), Text(v.GetProperty("scope"), 256), v.GetProperty("caseSensitive").GetBoolean(), v.GetProperty("showUnknown").GetBoolean(),
-                schema == "1" ? AnalysisTableSort.ActiveMetric : Enumeration<AnalysisTableSort>(v.GetProperty("sort")), schema == "1" || v.GetProperty("sortDescending").GetBoolean());
+                schema == "1" ? AnalysisTableSort.ActiveMetric : Enumeration<AnalysisTableSort>(v.GetProperty("sort")), schema == "1" || v.GetProperty("sortDescending").GetBoolean())
+            { ColorDimension = schema == "3" ? Enumeration<AnalysisColorDimension>(v.GetProperty("color")) : AnalysisColorDimension.FileType,
+                ColorRuleVersion = schema == "3" ? checked((int)Number(v.GetProperty("colorRule"), int.MaxValue)) : AnalysisChartColors.RuleVersion };
             ValidateView(view); return new(Id(r.GetProperty("inventory")), name, size, saved, coverage, taint, view);
         }
         catch (Exception ex) when (ex is JsonException or FormatException or InvalidOperationException or KeyNotFoundException or ArgumentException or OverflowException)

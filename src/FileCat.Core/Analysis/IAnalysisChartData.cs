@@ -6,6 +6,7 @@ namespace FileCat.Core.Analysis;
 public interface IAnalysisChartData
 {
     AnalysisMetric Metric { get; }
+    DateTimeOffset ObservedUtc { get; }
     ImmutableDictionary<string, AnalysisTreeItem> Items { get; }
     string ParentOf(string key);
     string NameOf(string key);

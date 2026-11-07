@@ -14,7 +14,7 @@ namespace FileCat.App.Controls.DiskSpace;
 public abstract class AnalysisChartControl : Control
 {
     protected sealed record Part(string Key, Rect Bounds, double Start = 0, double Sweep = 0, int Depth = 0, bool Branch = false);
-    private sealed record View(IAnalysisChartData Tree, string Scope, string? Focus, ImmutableHashSet<ulong> Marks);
+    private sealed record View(IAnalysisChartData Tree, string Scope, string? Focus, ImmutableHashSet<ulong> Marks, AnalysisColorDimension Color);
     private View? _view, _pending;
     private ImmutableArray<Part> _parts = [];
     private readonly Dictionary<string, AnalysisTreeItem> _displayItems = new(StringComparer.Ordinal);
@@ -43,13 +43,15 @@ public abstract class AnalysisChartControl : Control
         GotFocus += (_, _) => ShowTip(_view?.Focus);
     }
     private void ThemeChanged() => InvalidateVisual();
-    public void SetView(IAnalysisChartData tree, string scope, string? focus, ImmutableHashSet<ulong> marks)
+    public void SetView(IAnalysisChartData tree, string scope, string? focus, ImmutableHashSet<ulong> marks, AnalysisColorDimension color = AnalysisColorDimension.FileType)
     {
-        var next = new View(tree, scope, focus, marks);
+        _ = AnalysisChartColors.Title(color);
+        var next = new View(tree, scope, focus, marks, color);
         if (_pressed) { _pending = next; return; }
         if (_view?.Tree != tree || _view.Scope != scope) _layoutSize = default;
         _view = next;
-        AutomationProperties.SetName(this, $"{ViewName}: {AnalysisNames.Display(tree.NameOf(scope))}, {tree.ScopeValue(scope)} reported units. Use the table for every entry and its measurement and identity states.");
+        AutomationProperties.SetName(this, $"{ViewName}: {AnalysisNames.Display(tree.NameOf(scope))}, {tree.ScopeValue(scope)} reported units. Colors: {AnalysisChartColors.Title(color)}. Use the table for every entry and its measurement and identity states.");
+        if (IsFocused) ShowTip(focus); else if (_hover is not null) ShowTip(_hover);
         InvalidateVisual();
     }
     public void Clear() { _view = _pending = null; _parts = []; _displayItems.Clear(); _hover = null; ToolTip.SetTip(this, null); InvalidateVisual(); }
@@ -74,7 +76,7 @@ public abstract class AnalysisChartControl : Control
     {
         base.Render(context);
         var p = ThemeManager.Current;
-        context.FillRectangle(new SolidColorBrush(Color.Parse(p.Panel)), new Rect(Bounds.Size));
+        context.FillRectangle(new SolidColorBrush(AnalysisChartPalette.Panel(p)), new Rect(Bounds.Size));
         if (_view is null) { Text(context, "Start an analysis to explore its measured storage.", new(16, 20), p.TextMuted); return; }
         var tree = _view.Tree;
         string family = p.FontFamily ?? FontFamily.Default.Name;
@@ -96,11 +98,9 @@ public abstract class AnalysisChartControl : Control
             if (item is null) continue;
             bool focused = _view.Focus == part.Key, marked = item.NodeId is { } id && _view.Marks.Contains(id);
             bool ancestor = _view.Focus is { } focus && IsAncestor(part.Key, focus);
-            string accent = item.Family switch { "folder" => p.FolderIcon, "image" => p.ImageIcon, "code" => p.CodeIcon,
-                "archive" => p.ArchiveIcon, "executable" => p.ExecIcon, "shared" => p.DriveIcon, _ => p.FileIcon };
-            var color = Blend(Color.Parse(p.Panel), Color.Parse(accent), .16 + part.Depth * .065);
-            IBrush fill = new SolidColorBrush(focused ? Color.Parse(p.FocusBackground) : color);
-            var pen = new Pen(new SolidColorBrush(Color.Parse(focused || ancestor ? p.FocusBorder : marked ? p.TextMarked : p.Border)), focused ? 3 : marked || ancestor ? 2 : 1,
+            var paint = AnalysisChartPalette.For(AnalysisChartColors.Category(tree, item, _view.Color).Key, p);
+            IBrush fill = new SolidColorBrush(paint.Fill);
+            var pen = new Pen(new SolidColorBrush(focused || ancestor ? paint.Focus : marked ? paint.Mark : paint.Border), focused ? 3 : marked || ancestor ? 2 : 1,
                 item.Synthetic || item.IdentityUnverified > 0 ? new DashStyle([3, 2], 0) : null);
             DrawPart(context, part, fill, pen);
             if (this is TreemapControl && part.Bounds.Width > 72 && part.Bounds.Height >= _labelLineHeight + 10)
@@ -108,9 +108,9 @@ public abstract class AnalysisChartControl : Control
                 var label = new Rect(part.Bounds.Position, new Size(part.Bounds.Width, Math.Min(part.Bounds.Height, TileLabelHeight)));
                 using (context.PushClip(label.Deflate(4)))
                 {
-                    Text(context, (marked ? "✓ " : "") + AnalysisNames.Display(item.Name, 90), part.Bounds.TopLeft + new Vector(7, 5), focused ? p.FocusText : p.Text, part.Bounds.Width - 14);
+                    Text(context, (marked ? "✓ " : "") + AnalysisNames.Display(item.Name, 90), part.Bounds.TopLeft + new Vector(7, 5), paint.Text.ToString(), part.Bounds.Width - 14);
                     if (part.Bounds.Height >= TileLabelHeight)
-                        Text(context, FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, tree.Metric), part.Bounds.TopLeft + new Vector(7, 6 + _labelLineHeight), focused ? p.FocusText : p.TextMuted, part.Bounds.Width - 14);
+                        Text(context, FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, tree.Metric), part.Bounds.TopLeft + new Vector(7, 6 + _labelLineHeight), paint.Text.ToString(), part.Bounds.Width - 14);
                 }
             }
         }
@@ -135,7 +135,6 @@ public abstract class AnalysisChartControl : Control
         { item = tree.ParentOf(item); if (item == ancestor) return true; }
         return false;
     }
-    private static Color Blend(Color a, Color b, double t) => Color.FromArgb(255, (byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
     private FormattedText Format(string text, string color)
     {
         var family = new FontFamily(ThemeManager.Current.FontFamily ?? FontFamily.Default.Name);
@@ -168,7 +167,7 @@ public abstract class AnalysisChartControl : Control
     private void EndInteraction()
     {
         if (!_pressed) return; _pressed = false; _downKey = null;
-        if (_pending is { } pending) { _pending = null; SetView(pending.Tree, pending.Scope, pending.Focus, pending.Marks); }
+        if (_pending is { } pending) { _pending = null; SetView(pending.Tree, pending.Scope, pending.Focus, pending.Marks, pending.Color); }
         InvalidateVisual();
         InteractionChanged?.Invoke(false);
     }
@@ -184,7 +183,8 @@ public abstract class AnalysisChartControl : Control
         UInt128 denominator = Tree?.ScopeValue(Scope) ?? 0;
         string percent = item.IsNonFileLeaf || !item.IncludedByPolicy ? "Not included in file measures" : denominator == 0 ? "Unknown percentage" : ((double)item.Value / (double)denominator).ToString("P1", CultureInfo.CurrentCulture) + " of current scope's known measure";
         var tip = new RichTip(AnalysisNames.Display(string.Join(" / ", names), 240), detail: $"{metric}: {FileCat.App.ViewModels.DiskSpaceViewModel.ValueText(item, Tree?.Metric ?? AnalysisMetric.OnDisk, true)}. {percent}. File size: {FileCat.App.ViewModels.DiskSpaceViewModel.LogicalText(item, true)}." +
-            (item.IdentityUnverified > 0 ? $" Includes {item.IdentityUnverified} identity-unverified path bytes; aliases may repeat." : ""),
+            (item.IdentityUnverified > 0 ? $" Includes {item.IdentityUnverified} identity-unverified path bytes; aliases may repeat." : "") +
+            (Tree is { } colorTree && _view is { } view ? $" Color — {AnalysisChartColors.Title(view.Color)}: {AnalysisChartColors.Category(colorTree, item, view.Color).Label}." : ""),
             hints: [FileCat.App.ViewModels.DiskSpaceViewModel.EntryExplanation(item) ?? (item.SharedElsewhere ? "Shared allocation is attributed at the common parent." : item.Unknown ? "Measurement or namespace coverage is incomplete." : "Observed metadata; allocation can share physical blocks."), "More in inspector."]) { MaxWidth = 420 };
         ToolTip.SetTip(this, tip); ToolTip.SetShowDelay(this, 450);
     }

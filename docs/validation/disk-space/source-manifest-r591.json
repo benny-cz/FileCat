@@ -1,0 +1,724 @@
+{
+  "purpose": "Shared bounded chart colors, captured-time/precision semantics, theme contrast, visible legends and strict saved display rules",
+  "observedUtc": "2026-11-07T02:25:09.163324+00:00",
+  "gitBase": "f7bd76e156851ad8261c381d653217a577e933e9",
+  "testedWorkingTreeChanges": true,
+  "sources": [
+    {
+      "path": "src/FileCat.App/Controls/DiskSpace/AnalysisChartControl.cs",
+      "sha256": "f6ef747ccf1fe8a06649c63da5dc1db572f5dd02df24f8e0c8ea7750e973d28b"
+    },
+    {
+      "path": "src/FileCat.App/Controls/DiskSpace/AnalysisChartPalette.cs",
+      "sha256": "81262c0e00bfba8f18bd56901c785f4b6ac667f6ab4b4ebddfaa415863d27864"
+    },
+    {
+      "path": "src/FileCat.App/Controls/DiskSpace/AnalysisColorLegend.cs",
+      "sha256": "fa42a0840006d5b76231ace1feb1e27248d1ba71f375bcca9c0704952aa607bb"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Persistence.cs",
+      "sha256": "8f712bbd916250cc8ac94cf8df2514e377225bf2c94249748779ec1c39c8ec30"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.cs",
+      "sha256": "d4aa185145cb159abb25e8fb3834cae7b687d698113916cf253bd63d10681c40"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.Indexed.cs",
+      "sha256": "59037e35d933f577b6adc6bdfe811dd0e6fecaf8785db7ddd3f5848dd4a27c9f"
+    },
+    {
+      "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+      "sha256": "f9ad0d401a5e2ad0608d72a02f90341a14de7a66840860a66798fad189354456"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisChartColors.cs",
+      "sha256": "a272f2713cb4c5c21700e910d9f9144b14ed5663c8d4e44f4b397788167347f4"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+      "sha256": "3243c1af2e1d32135eaf7c47e3f95ff0eaf93a1cc056513488a6bddadb5594a1"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisIndexedChart.cs",
+      "sha256": "217bdb5c54e162d8f33747eca401b980c1c89c1d603989a0230564e9f47151df"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.cs",
+      "sha256": "2b5f11b418fd4bccd06225db454487f6b34d6a52cf002cfe78c33ddc22f3e7f5"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+      "sha256": "362cf4680d5f6070a41034636685bfa82c0e0ce361f07c5e3509c7c34ce841a6"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/IAnalysisChartData.cs",
+      "sha256": "d9b2a357eb653aaa36a39b3c23be8e01c2734f0cb1bf39ab8f249392f284b44c"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisCatalogTests.cs",
+      "sha256": "578b4cf0cbed95622aed87c25f3dd7aadcac391f70fe4f7d7ede2ae967d0fcf9"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisChartColorsTests.cs",
+      "sha256": "cce8951f26569209b74e65b6b5abd66f0650ee95f9322b35523c210d699c7422"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisDatasetSummaryTests.Colors.cs",
+      "sha256": "590d77fa18f28d0b97fcca422b96341dd80f7ebd40d02f5597568f6549954cd4"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Colors.cs",
+      "sha256": "1518d93bdb5f7ae1ddc1d8d20ddb44d6ee8cf475fb146c8c1d3b81ac8cca9f8a"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.NonFileEntries.cs",
+      "sha256": "d3c529fc26814ffb28a554d86b1250ecdf2e4c61e537ae8ccfb16f02a0593998"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Persistence.cs",
+      "sha256": "ec33f32c24aa1255a4eba683ee80aa51cd7872bac336e0d26efc8d52a147cbc7"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/build-r588.txt",
+      "sha256": "f34dd6d65f5bc571c59660ba4012cf6ea5a98cb7bb56b6913e78fc75977b5185"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r589-core-r589.xml",
+      "sha256": "766952d9af5587ff44699136c93fd6d5d80e3a9946996a3304413f92ca4e6926"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r589-core-r589.log",
+      "sha256": "fe32289716ba91fbee4a85a37b3c4ddcd79def2341828496f2317de23d082dab"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r589-render-r589.xml",
+      "sha256": "c7fa9e62bfc1290be90e5ca5f34b0912e242a553c1897c14835fff53bcce0c8c"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r589-render-r589.log",
+      "sha256": "3dcb200119002396301f4e615318a854eee9a6ed19d6e2c8438ddd60e51bd9c4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r589-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r589-post.json",
+      "sha256": "33352ae901cada6fdc6568ffa18d7e458971a7018c6b8667716679bea8c44d98"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-chart-colors-r591.png",
+      "sha256": "1704c8ba6f89ee1013e20d3249a81feb72f0c7b77591c123de3813de2a68f628"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-colors-Classic-FileType-r591.png",
+      "sha256": "4a9681b75091dbf22e4c186987e4dfb4b31403fdf8b0f0d8da7ad46bf92bef3f"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-colors-ClassicDark-ModifiedAge-r591.png",
+      "sha256": "e0bb913e544faacabdfb0c9dc59a4908234d3e24c4f8e9d8f91a004b8d6b8c75"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-colors-HighContrast-HierarchyDepth-r591.png",
+      "sha256": "a22a0f961124752ccbf39c918fe2e892a81525f119b83be26aff091dc70e0e1e"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r589-core-r589.xml",
+      "sha256": "c39eb08b9cf56e683e13feaf44a976bc6bd3e53a61371a15749c5a6d9420de98"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r589-core-r589.log",
+      "sha256": "fb963c105c43f75c858320e0375aea8d1c47d7d8360d85ddab56a90b21dca668"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r589-render-r589.xml",
+      "sha256": "6206fb908dad6695552074bd0eb13409622c4439c3ff3e0f7f847ff67ce1ead1"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r589-render-r589.log",
+      "sha256": "c37c3461c735171714d7b429039d0b34c8632208a4f2c3b2d2957249226f8f60"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r589-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r589-post.json",
+      "sha256": "28faa702c20fd2d853bfdfdbf023642e045d5212a8adee88d86e696b35b01f14"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-chart-colors-r591.png",
+      "sha256": "a13178fa327c20a03476c7985ee6388375f49f60c631dc67dee05605e2876108"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-colors-Classic-FileType-r591.png",
+      "sha256": "da48912183eefea2aa0fa002c624212250eb40df34784f4e6af6bd953b7aaa8f"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-colors-ClassicDark-ModifiedAge-r591.png",
+      "sha256": "571e684361be575353f9128d6e28c74685f5afdcc4ba681167703a046dda3aea"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-colors-HighContrast-HierarchyDepth-r591.png",
+      "sha256": "2dcb676fd75ed8ce7fe60b4b4f870a2cf91f0e0397020d1e458754ec7ff65b0c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r589-core-r589.xml",
+      "sha256": "928f91ba83e5bc78ea7ff0fc0e87a94e00e5160f5a65a01846b46191067d5e79"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r589-core-r589.log",
+      "sha256": "8f2f6a828ddfd771583a2abcbf42b191b827b38edd31f349ce55cef7de5b47ab"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r589-native-r589.xml",
+      "sha256": "8ad5f6b59e20e1fd7bf1ebec0f2855a08f1da4b74c7553242e3408b342a05dca"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r589-native-r589.log",
+      "sha256": "558036d41ac47c2a8e7feb6ce9f56f22ab66d5e5d085c0dc98c64d8232b36bc1"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r589-render-r589.xml",
+      "sha256": "d6b02121df3caaea488edf70c0716eee1537ea3c49bacd0e0fec730f087d9e19"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r589-render-r589.log",
+      "sha256": "3411f9d5038840eb076c0d629d8ed651c8058719634e654249146e7a8e7e30be"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r589-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r589-post.json",
+      "sha256": "64ae48ed89ed1446e011f02cfcbcfe609f35f9e4a9d8533cfc0b7bb74dfb6957"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-chart-colors-r591.png",
+      "sha256": "0f9cda499e34d4ceb66d4f74e89e4104b7fc6bf35e5b5e23c9e14d9c8e67f81b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-colors-Classic-FileType-r591.png",
+      "sha256": "0b0bd12d658c203f6c09295996996a77d92f9bc66ea124500e19065c1d3ad7d6"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-colors-ClassicDark-ModifiedAge-r591.png",
+      "sha256": "f5e3e8741d33168cf40dbfc53e7042e2b7963db4e6a00d38905cbaf47c1c8642"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-colors-HighContrast-HierarchyDepth-r591.png",
+      "sha256": "97f0300faf7c6ff4a76c4fbb63940defa46a9213dc5a26692e256f63f2a065bc"
+    }
+  ],
+  "drivers": [
+    {
+      "path": "docs/validation/disk-space/drivers/batch-mac-r589.sh",
+      "sha256": "ec2befe4bc38feb567a44d3b3bd41e37bb5e47b0eaf029115355facc69700723"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-linux-r589.sh",
+      "sha256": "b88886ced80caf2a3c7d0a93002bc558e7f014c4e385130e67ce0018a55a61e2"
+    },
+    {
+      "path": "docs/validation/disk-space/drivers/batch-windows-r589.ps1",
+      "sha256": "86a4813997f58334592a7b373f2425711336ffacb62897c1e54b78eb687d9a38"
+    }
+  ],
+  "archives": [
+    {
+      "name": "dsa-batch-mac-r589.tgz",
+      "sha256": "688707089e241233f3c6e039d759b18bd0876e8cc905f3852b0947b8c7ebaf7e"
+    },
+    {
+      "name": "dsa-batch-linux-r589.tgz",
+      "sha256": "d641ce7f12bceca906149ddaf1a15c5903b334dd83047189e477e25cc659e3f1"
+    },
+    {
+      "name": "dsa-batch-windows-r589.tgz",
+      "sha256": "74d0bf7f3f5fde21bd75be00fd142dbaecd50cb59e8ee8d41c93ccca83e1c3e7"
+    }
+  ],
+  "productionCoreHashes": {
+    "core-r589": "47663562f3c516f6c2c8ce3a08efd7e5096c28e6b5a65499a5949dcb5e7fe200",
+    "native-r589": "47663562f3c516f6c2c8ce3a08efd7e5096c28e6b5a65499a5949dcb5e7fe200",
+    "render-r590-mac": "47663562f3c516f6c2c8ce3a08efd7e5096c28e6b5a65499a5949dcb5e7fe200",
+    "render-r590-linux": "47663562f3c516f6c2c8ce3a08efd7e5096c28e6b5a65499a5949dcb5e7fe200",
+    "render-r590-windows": "47663562f3c516f6c2c8ce3a08efd7e5096c28e6b5a65499a5949dcb5e7fe200"
+  },
+  "productionAppHashes": {
+    "render-r590-mac": "6ed4d05e548f00a1d399c255869d05d14ba5175ce0bc1b93a59a542289fea244",
+    "render-r590-linux": "6ed4d05e548f00a1d399c255869d05d14ba5175ce0bc1b93a59a542289fea244",
+    "render-r590-windows": "6ed4d05e548f00a1d399c255869d05d14ba5175ce0bc1b93a59a542289fea244"
+  },
+  "productionWindowsPlatformHashes": {
+    "native-r589": "a8d1a5f55240eec61ee7e48af548515bdc50495a620d48b4e888de9bce9b5739",
+    "render-r590-mac": "a8d1a5f55240eec61ee7e48af548515bdc50495a620d48b4e888de9bce9b5739",
+    "render-r590-linux": "a8d1a5f55240eec61ee7e48af548515bdc50495a620d48b4e888de9bce9b5739",
+    "render-r590-windows": "a8d1a5f55240eec61ee7e48af548515bdc50495a620d48b4e888de9bce9b5739"
+  },
+  "matrix": {
+    "mac-batch-r589-core-r589.xml": {
+      "total": "735",
+      "passed": "731",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "22.376"
+    },
+    "mac-batch-r589-render-r589.xml": {
+      "total": "114",
+      "passed": "114",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "37.685"
+    },
+    "ubuntu-batch-r589-core-r589.xml": {
+      "total": "735",
+      "passed": "731",
+      "failed": "0",
+      "skipped": "4",
+      "errors": "0",
+      "time": "50.735"
+    },
+    "ubuntu-batch-r589-render-r589.xml": {
+      "total": "114",
+      "passed": "114",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "48.685"
+    },
+    "windows-batch-r589-core-r589.xml": {
+      "total": "753",
+      "passed": "705",
+      "failed": "0",
+      "skipped": "48",
+      "errors": "0",
+      "time": "18.161"
+    },
+    "windows-batch-r589-native-r589.xml": {
+      "total": "75",
+      "passed": "75",
+      "failed": "0",
+      "skipped": "0",
+      "errors": "0",
+      "time": "36.497"
+    },
+    "windows-batch-r589-render-r589.xml": {
+      "total": "114",
+      "passed": "113",
+      "failed": "0",
+      "skipped": "1",
+      "errors": "0",
+      "time": "51.746"
+    }
+  },
+  "targetedControls": {
+    "mac": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisChartColorsTests.TypeDepthAgeAndSyntheticCategoriesShareAnExplicitLegendWithoutChangingAccounting",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.MissingOverflowingAndFutureIntervalsAreExplicitAndNeverDependOnTheCurrentClock",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 7, younger: \\\"age-7\\\", older: \\\"age-30\\\")",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 30, younger: \\\"age-30\\\", older: \\\"age-180\\\")",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 180, younger: \\\"age-180\\\", older: \\\"age-365\\\")",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 365, younger: \\\"age-365\\\", older: \\\"age-old\\\")",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.DepthIsAbsoluteAndMalformedCyclesReturnUnknownWithinTheCapturedDepthBound",
+        "FileCat.Core.Tests.AnalysisCatalogTests.LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(schema: \\\"1\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(schema: \\\"2\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-missing\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-unknown\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-numeric\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-duplicate\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-future\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-numeric\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-noncanonical\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-missing\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.CatalogRoundTripRestoresOnlyInertDataAndIdentifiesUnindexedInventories",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedAndMemoryColorsUseTheSameCapturedTimesIncludingLegacyObjectFallbackAndChargeBuckets"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.ColorChoiceUpdatesBothChartsAndLegendWithoutChangingScopeMarksOrTheCapturedProjection",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NavigationLinksAndSpecialEntriesDoNotMasqueradeAsMeasuredZeroFiles",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.EveryChartCategoryHasAaTextAndVisibleBoundariesAcrossAllProductThemes",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.ChartColorAndItsAccessibleMeaningFreezeUntilActualPointerRelease",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CatalogSelectionRestoresPrivateViewWithoutConnectingOrRetainingMarks",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FocusedChartDetailsTrackTheCurrentColorAndEntryWithoutPointerMotion",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSavedColorRestoresAndSwitchesOfflineWithoutReplacingTheExplorerOrChartData"
+      ]
+    },
+    "ubuntu": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisCatalogTests.CatalogRoundTripRestoresOnlyInertDataAndIdentifiesUnindexedInventories",
+        "FileCat.Core.Tests.AnalysisCatalogTests.LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(schema: \\\"1\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(schema: \\\"2\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-missing\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-unknown\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-numeric\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-duplicate\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-future\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-numeric\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-noncanonical\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-missing\\\")",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.TypeDepthAgeAndSyntheticCategoriesShareAnExplicitLegendWithoutChangingAccounting",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 7, younger: \\\"age-7\\\", older: \\\"age-30\\\")",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 30, younger: \\\"age-30\\\", older: \\\"age-180\\\")",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 180, younger: \\\"age-180\\\", older: \\\"age-365\\\")",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 365, younger: \\\"age-365\\\", older: \\\"age-old\\\")",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.MissingOverflowingAndFutureIntervalsAreExplicitAndNeverDependOnTheCurrentClock",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.DepthIsAbsoluteAndMalformedCyclesReturnUnknownWithinTheCapturedDepthBound",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedAndMemoryColorsUseTheSameCapturedTimesIncludingLegacyObjectFallbackAndChargeBuckets"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSavedColorRestoresAndSwitchesOfflineWithoutReplacingTheExplorerOrChartData",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FocusedChartDetailsTrackTheCurrentColorAndEntryWithoutPointerMotion",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.ChartColorAndItsAccessibleMeaningFreezeUntilActualPointerRelease",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.ColorChoiceUpdatesBothChartsAndLegendWithoutChangingScopeMarksOrTheCapturedProjection",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CatalogSelectionRestoresPrivateViewWithoutConnectingOrRetainingMarks",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.EveryChartCategoryHasAaTextAndVisibleBoundariesAcrossAllProductThemes",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NavigationLinksAndSpecialEntriesDoNotMasqueradeAsMeasuredZeroFiles"
+      ]
+    },
+    "windows": {
+      "core": [
+        "FileCat.Core.Tests.AnalysisChartColorsTests.MissingOverflowingAndFutureIntervalsAreExplicitAndNeverDependOnTheCurrentClock",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.TypeDepthAgeAndSyntheticCategoriesShareAnExplicitLegendWithoutChangingAccounting",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.DepthIsAbsoluteAndMalformedCyclesReturnUnknownWithinTheCapturedDepthBound",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 7, younger: \\\"age-7\\\", older: \\\"age-30\\\")",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 30, younger: \\\"age-30\\\", older: \\\"age-180\\\")",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 180, younger: \\\"age-180\\\", older: \\\"age-365\\\")",
+        "FileCat.Core.Tests.AnalysisChartColorsTests.AgeBandsHonorExactCapturedUtcBoundariesAndTimestampUncertainty(days: 365, younger: \\\"age-365\\\", older: \\\"age-old\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(schema: \\\"1\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(schema: \\\"2\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.CatalogRoundTripRestoresOnlyInertDataAndIdentifiesUnindexedInventories",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-missing\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-unknown\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-numeric\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"color-duplicate\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-future\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-numeric\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-noncanonical\\\")",
+        "FileCat.Core.Tests.AnalysisCatalogTests.InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(fault: \\\"rule-missing\\\")",
+        "FileCat.Core.Tests.AnalysisDatasetSummaryTests.IndexedAndMemoryColorsUseTheSameCapturedTimesIncludingLegacyObjectFallbackAndChargeBuckets"
+      ],
+      "render": [
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.FocusedChartDetailsTrackTheCurrentColorAndEntryWithoutPointerMotion",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.NavigationLinksAndSpecialEntriesDoNotMasqueradeAsMeasuredZeroFiles",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.EveryChartCategoryHasAaTextAndVisibleBoundariesAcrossAllProductThemes",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.IndexedSavedColorRestoresAndSwitchesOfflineWithoutReplacingTheExplorerOrChartData",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.ColorChoiceUpdatesBothChartsAndLegendWithoutChangingScopeMarksOrTheCapturedProjection",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.ChartColorAndItsAccessibleMeaningFreezeUntilActualPointerRelease",
+        "FileCat.Rendering.Tests.AnalysisRenderingTests.CatalogSelectionRestoresPrivateViewWithoutConnectingOrRetainingMarks"
+      ]
+    }
+  },
+  "galleries": {
+    "mac": {
+      "archiveSha256": "fc4d567241c3d27842f47dbd0aaf83598ff9be201933a53e244a1fc4dc110926",
+      "images": [
+        {
+          "name": "colors-Classic-FileType.png",
+          "sha256": "4a9681b75091dbf22e4c186987e4dfb4b31403fdf8b0f0d8da7ad46bf92bef3f"
+        },
+        {
+          "name": "colors-Classic-HierarchyDepth.png",
+          "sha256": "09a21581eacc3c2360a6821087541cc7c89bf1c9254e59f6a02830abd47d30e8"
+        },
+        {
+          "name": "colors-Classic-ModifiedAge.png",
+          "sha256": "705ad2f295c09eb7f8d056b3a012726d9524399252fef8e39c50dd81f3da629b"
+        },
+        {
+          "name": "colors-ClassicDark-FileType.png",
+          "sha256": "e58e7bb0ffe4a088c99b978d1434e4cc7f9883c9ed82c6980e031a464a03b6f4"
+        },
+        {
+          "name": "colors-ClassicDark-HierarchyDepth.png",
+          "sha256": "5b26dd3c5838f9ff8ed606409f571c61a2a35b0e6701a62d00a84f76c8ff840b"
+        },
+        {
+          "name": "colors-ClassicDark-ModifiedAge.png",
+          "sha256": "e0bb913e544faacabdfb0c9dc59a4908234d3e24c4f8e9d8f91a004b8d6b8c75"
+        },
+        {
+          "name": "colors-Cyberpunk-FileType.png",
+          "sha256": "6e1e2efc6931b857732e68ee61f466fb0fdaaab0df75d8ccc154d054b510d326"
+        },
+        {
+          "name": "colors-Cyberpunk-HierarchyDepth.png",
+          "sha256": "0c8ca2530d086653b944b8ed0d6655b64822ce9dd771fb7f9ab7856d95c485e0"
+        },
+        {
+          "name": "colors-Cyberpunk-ModifiedAge.png",
+          "sha256": "b7be0348e79b5655f087a489da8a7ced1f22ab97fef56f69bc2850090894823d"
+        },
+        {
+          "name": "colors-DosCommander-FileType.png",
+          "sha256": "61fc4767a55e1725a219ce5c53b53a27267267419f864b544d12681ab820eb51"
+        },
+        {
+          "name": "colors-DosCommander-HierarchyDepth.png",
+          "sha256": "9c0da51c3a043f48b5f5abd086e7fd378b18c71dc459d08d40bcc3a3b43c44d8"
+        },
+        {
+          "name": "colors-DosCommander-ModifiedAge.png",
+          "sha256": "66dc83400195c77d1992de8dee201e0053bb38dffb3c55f84d773dc924432793"
+        },
+        {
+          "name": "colors-HighContrast-FileType.png",
+          "sha256": "ed24f28df35046b1ae82b1210f294ba92543c6d95fe88eb52e71d86358b29eff"
+        },
+        {
+          "name": "colors-HighContrast-HierarchyDepth.png",
+          "sha256": "a22a0f961124752ccbf39c918fe2e892a81525f119b83be26aff091dc70e0e1e"
+        },
+        {
+          "name": "colors-HighContrast-ModifiedAge.png",
+          "sha256": "2386ac23ad556f2ffbfe5783e0fbb61403cf36d2bcb42cf1be4a1c57bb0060c3"
+        },
+        {
+          "name": "colors-Psychedelic-FileType.png",
+          "sha256": "e11843ac0a6a64a17f01f8b6606d181b763902dda52856fcec5a44c9aab1efba"
+        },
+        {
+          "name": "colors-Psychedelic-HierarchyDepth.png",
+          "sha256": "3113e47ecf6dd0f377d35dfb7012c1ebf0c6d0cf040fee47ff6e3e2ce90b8075"
+        },
+        {
+          "name": "colors-Psychedelic-ModifiedAge.png",
+          "sha256": "1193a009d74924933f11d2523413d064bb1103cb45707c1e95d53217f5320d83"
+        },
+        {
+          "name": "colors-Steampunk-FileType.png",
+          "sha256": "23f97bc09215912559c9fd8112d3806ef988c124f8a8c2960f54034101e2ac19"
+        },
+        {
+          "name": "colors-Steampunk-HierarchyDepth.png",
+          "sha256": "09d5e3bc044abd5bd07dd15111c0017ad4ef943c9043015432d769f61ab4d7bf"
+        },
+        {
+          "name": "colors-Steampunk-ModifiedAge.png",
+          "sha256": "a79e174b140146e97128e7e1c2bda1b93abeef2b7b786a5942b5ffc85d487d5c"
+        }
+      ]
+    },
+    "ubuntu": {
+      "archiveSha256": "28221bfc4acb16157265c091993284aa64818cd621f8cd669d8a9ac864d4d111",
+      "images": [
+        {
+          "name": "colors-Classic-FileType.png",
+          "sha256": "da48912183eefea2aa0fa002c624212250eb40df34784f4e6af6bd953b7aaa8f"
+        },
+        {
+          "name": "colors-Classic-HierarchyDepth.png",
+          "sha256": "776bf406e2368cea8018bbd6c2a0e07225793e810c7e178890d2898e1f5479f2"
+        },
+        {
+          "name": "colors-Classic-ModifiedAge.png",
+          "sha256": "7f0970ba9e9bafc4080e876ab4208202c3050c94ac7794253339bc69fb3427fe"
+        },
+        {
+          "name": "colors-ClassicDark-FileType.png",
+          "sha256": "ff4e1eae9bf407a0b8e11f73cedba2d85ea4c882f5a8cfd0d091bf2829fc3a78"
+        },
+        {
+          "name": "colors-ClassicDark-HierarchyDepth.png",
+          "sha256": "c9a53b6715c4a7fa21ef665bb23aaf3d20435b74ba3ea1ae86c58088dc8f5259"
+        },
+        {
+          "name": "colors-ClassicDark-ModifiedAge.png",
+          "sha256": "571e684361be575353f9128d6e28c74685f5afdcc4ba681167703a046dda3aea"
+        },
+        {
+          "name": "colors-Cyberpunk-FileType.png",
+          "sha256": "257d63de2d1c36fb557e6397d6d0c98da02d7172b485de06fe3f4373b9bb9036"
+        },
+        {
+          "name": "colors-Cyberpunk-HierarchyDepth.png",
+          "sha256": "96b2487670c78f2a5f97c553d7b698260b430d9b790731f94b2ed38fe906c20a"
+        },
+        {
+          "name": "colors-Cyberpunk-ModifiedAge.png",
+          "sha256": "7da48ed8a77d22b1ae7be9f7d3d60087b684c414b6f1865a610cd24cfd44e9f5"
+        },
+        {
+          "name": "colors-DosCommander-FileType.png",
+          "sha256": "e60c98edb09755a14682bfd7e8af59c97438e25740814edd95dc075dcc9713b1"
+        },
+        {
+          "name": "colors-DosCommander-HierarchyDepth.png",
+          "sha256": "67d86aba16f3e0c95bbb3fe4c246f2fdf17de730de6b38702a6d008d30939436"
+        },
+        {
+          "name": "colors-DosCommander-ModifiedAge.png",
+          "sha256": "e7d775120de2a122c93c174c53c6f3650009b8af3e15c41f49fd95ab145af161"
+        },
+        {
+          "name": "colors-HighContrast-FileType.png",
+          "sha256": "fd12e7dfe3956ea14650d29b333a4884194ae584839de559f44c3a2de9bece4f"
+        },
+        {
+          "name": "colors-HighContrast-HierarchyDepth.png",
+          "sha256": "2dcb676fd75ed8ce7fe60b4b4f870a2cf91f0e0397020d1e458754ec7ff65b0c"
+        },
+        {
+          "name": "colors-HighContrast-ModifiedAge.png",
+          "sha256": "272ba01e0991dbce99f5d93ff9cd4f2b52fb31c39996001528ba146602af0007"
+        },
+        {
+          "name": "colors-Psychedelic-FileType.png",
+          "sha256": "9af296b82635436820e18572eab048825b938ba272f02e7315773c60e1cdab53"
+        },
+        {
+          "name": "colors-Psychedelic-HierarchyDepth.png",
+          "sha256": "c209cd0e086e6f6913048055c5ad67fda8b976e3516a919acf51bd34afd924c6"
+        },
+        {
+          "name": "colors-Psychedelic-ModifiedAge.png",
+          "sha256": "f2d03c390bd679ad5538c7f97b81dc825ddb335cb74e5de762023ce48b2b33e3"
+        },
+        {
+          "name": "colors-Steampunk-FileType.png",
+          "sha256": "56d324f01956f8f4f52a54fc62030d568f6bba70b84f8201af8b21ae4ab697cd"
+        },
+        {
+          "name": "colors-Steampunk-HierarchyDepth.png",
+          "sha256": "2be4f7d548501fa78b204586d5fa60059d424f9308c36fa562e79373b2807d72"
+        },
+        {
+          "name": "colors-Steampunk-ModifiedAge.png",
+          "sha256": "8e86ce3785975fd6918fb022fef4e37797588cc845f819c527ab14e4e8d70282"
+        }
+      ]
+    },
+    "windows": {
+      "archiveSha256": "a519e339b935e277900b3443a6dbb339eebcc829234c836e79ed44c2dc722b79",
+      "images": [
+        {
+          "name": "colors-Classic-FileType.png",
+          "sha256": "0b0bd12d658c203f6c09295996996a77d92f9bc66ea124500e19065c1d3ad7d6"
+        },
+        {
+          "name": "colors-Classic-HierarchyDepth.png",
+          "sha256": "0552e83fb8c952afaa47a9e7ff4c9550798427aeeb47cd657a62211ee46a2c50"
+        },
+        {
+          "name": "colors-Classic-ModifiedAge.png",
+          "sha256": "a94ebefcb93bcf0aa4a78fc572428efabd872f69de6980858d399f95b158b8a6"
+        },
+        {
+          "name": "colors-ClassicDark-FileType.png",
+          "sha256": "cf2880961e25b663fba59feb5cb8ca4e1316618e914ab4e8e0c7e352b7e7fe3a"
+        },
+        {
+          "name": "colors-ClassicDark-HierarchyDepth.png",
+          "sha256": "d039a44ef2998a2ee26139944c3ee0c2e23baf25fc5a4d33195c74b64855eada"
+        },
+        {
+          "name": "colors-ClassicDark-ModifiedAge.png",
+          "sha256": "f5e3e8741d33168cf40dbfc53e7042e2b7963db4e6a00d38905cbaf47c1c8642"
+        },
+        {
+          "name": "colors-Cyberpunk-FileType.png",
+          "sha256": "ff67651e9931e49eb3d0a6e1ab72aff52eb198cc93005e231d7571fe819a6473"
+        },
+        {
+          "name": "colors-Cyberpunk-HierarchyDepth.png",
+          "sha256": "817b4d7bd86fdb163209e993f4a12ae1d798c562cffc1883dbade47c391656a6"
+        },
+        {
+          "name": "colors-Cyberpunk-ModifiedAge.png",
+          "sha256": "3b277f6d18bf98feb71e47328b9d32d91b0654ade7497b273aa120bfe577c265"
+        },
+        {
+          "name": "colors-DosCommander-FileType.png",
+          "sha256": "0a430502ecc90e2425948afddef5dd8afa41897587227968f26cc01bb82060d6"
+        },
+        {
+          "name": "colors-DosCommander-HierarchyDepth.png",
+          "sha256": "d8d74beab3ac67d7dd6833dff5c85e32b1373945cf1c386bbdb2d372b347af82"
+        },
+        {
+          "name": "colors-DosCommander-ModifiedAge.png",
+          "sha256": "e45783d5694c121e79418726f6751c436fd4c5053742e77b7417588a98a9438e"
+        },
+        {
+          "name": "colors-HighContrast-FileType.png",
+          "sha256": "b0d25bcde38380a2148b2a1cdc65d0d97bd168843fe5b2443c4ca7438248037e"
+        },
+        {
+          "name": "colors-HighContrast-HierarchyDepth.png",
+          "sha256": "97f0300faf7c6ff4a76c4fbb63940defa46a9213dc5a26692e256f63f2a065bc"
+        },
+        {
+          "name": "colors-HighContrast-ModifiedAge.png",
+          "sha256": "5de5457fabd683ee013706b9fab1577b453739f4e1993ff0202da9e296507ef0"
+        },
+        {
+          "name": "colors-Psychedelic-FileType.png",
+          "sha256": "a3656822f8bb4f9efa93576a1bc8c1409c021a152a462dab89317f11bdf4b755"
+        },
+        {
+          "name": "colors-Psychedelic-HierarchyDepth.png",
+          "sha256": "a5495e65cb967db4247743109bd4c8558091a6f2777a793e70f0b17b5abb2ffa"
+        },
+        {
+          "name": "colors-Psychedelic-ModifiedAge.png",
+          "sha256": "a96221651e05385a42f83e7c089bc037dc2252f599af48abb8f52e9644c8084e"
+        },
+        {
+          "name": "colors-Steampunk-FileType.png",
+          "sha256": "22b2dee014b573ae1325608ef5b1c552f276e8f609c569040105a84c20f037e2"
+        },
+        {
+          "name": "colors-Steampunk-HierarchyDepth.png",
+          "sha256": "637dc28c39263efd35e2a51dba5c04d98ff23a3c3138a06e9db5b41faf8e67f5"
+        },
+        {
+          "name": "colors-Steampunk-ModifiedAge.png",
+          "sha256": "2b2fa566ced6c3dab6c1dd76a4d51bc028b3133367a2d91ec2aeb1388f7e86b4"
+        }
+      ]
+    }
+  },
+  "finalBuild": "build-r588.txt: full solution zero warnings/errors",
+  "excludedAttempts": [
+    "r572: test fixture selected the wrong viewmodel constructor",
+    "r576/r580/r584: superseded before the final candidate",
+    "r585: new color controls and Core suites passed all3; old namespace-row test assumed the row was already realized on Windows/Ubuntu before a user scroll; excluded from final passing qualification",
+    "r581: invalid pre-scan fact timestamps in a new fixture; visible legend heading/collapse control missing before the Expander style-key fix; not qualification evidence"
+  ],
+  "testScope": "All tests executed on actual Mac/Ubuntu/Windows runtimes, with native shared-helper regressions on Windows. UI input/rendering in this batch is Avalonia headless; galleries are synthetic observed-data fixtures. Physical desktop/accessibility/DPI and full resource qualification remain pending.",
+  "batchWorkflow": "One immutable bundle per platform with integrity and per-phase occupancy gates, sequential applicable suites, all gallery/results collected together. Independent phases continue after assertions; occupation still postpones the run.",
+  "processExitEvidence": "All original runners terminal, FINISHED exit=0 guest states, empty authoritative final process inventories on all3. No host app/input test or other tester termination.",
+  "qualification": {
+    "fileTypeDepthCapturedAgeColorsImplemented": true,
+    "memoryIndexedColorParityPassedAllThree": true,
+    "savedViewColorRuleStrictnessPassedAllThree": true,
+    "headlessThemeContrastAndLegendControlsPassedAllThree": true,
+    "comparisonGrowthColorsImplemented": false,
+    "allGroupingDimensionsImplemented": false,
+    "nativeDesktopColorInputQualified": false,
+    "fullResourceGateQualified": false,
+    "productCommandRegistered": false,
+    "publicIndexedSpillEnabled": false,
+    "persistenceGateQualified": false,
+    "actionsHelperContentEnabled": false,
+    "finalIndependentReviewPerformed": false
+  },
+  "inLoopVisualReview": {
+    "gallerySheets": [
+      "mac-chart-colors-r591.png",
+      "ubuntu-chart-colors-r591.png",
+      "windows-chart-colors-r591.png"
+    ],
+    "scope": "Inspected the three seven-theme/three-dimension sheets and full-size type/age/depth examples from actual guest runtimes; synthetic headless renders, not physical desktop qualification.",
+    "resolvedFinding": "The category legend now renders its heading, capture reference and collapse control; visible heading/collapse and virtualized namespace-row regressions pass all3.",
+    "finalIndependentReviewPerformed": false
+  }
+}

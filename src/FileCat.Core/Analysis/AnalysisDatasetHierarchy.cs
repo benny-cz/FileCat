@@ -11,6 +11,8 @@ public sealed record AnalysisHierarchyRow(AnalysisPathMetadata Path, AnalysisTot
     bool IsMatch = false, bool IsVisible = true, AnalysisTruth FilterTruth = AnalysisTruth.True)
 {
     public AnalysisLogicalTotals Logical { get; init; } = new(0, 0, ImmutableDictionary<MeasurementState, ulong>.Empty);
+    public DateTimeOffset? ModifiedUtc { get; init; } = Path.Times?.ModifiedUtc;
+    public ulong ModifiedPrecisionTicks { get; init; } = Path.Times?.ModifiedPrecisionTicks ?? 0;
 }
 public sealed record AnalysisHierarchyBucket(ulong ParentId, AnalysisHierarchyBucketKind Kind, AnalysisTotals Totals, ulong Objects, ulong ObservedAliases, ulong Charges);
 
@@ -356,8 +358,15 @@ public sealed class AnalysisDatasetHierarchy : IAsyncDisposable
         internal AnalysisHierarchyRow Read(ulong row, CancellationToken token)
         {
             var value = Decode(_rows!.Read(row, token)); var path = _graph.ReadPath(value.Id, token); if (path.ParentId != value.Parent) throw Invalid();
+            DateTimeOffset? modified = path.Times?.ModifiedUtc; ulong precision = path.Times?.ModifiedPrecisionTicks ?? 0;
+            if (path.Times is null && path.ObjectId is { } objectId)
+            {
+                var objects = _graph.Find(AnalysisIndexedGraphRevision.ObjectIds, AnalysisGraphKeys.Text(objectId), cancellation: token);
+                if (objects.Count == 1)
+                { var observed = _graph.ReadObject(_graph.ReadIndex(AnalysisIndexedGraphRevision.ObjectIds, objects.First, token).Value, token); modified = observed.ModifiedUtc; precision = observed.ModifiedPrecisionTicks; }
+            }
             return new(AnalysisPathMetadata.From(path), value.Amount.Export(), value.Incomplete, value.Elsewhere, value.Match, value.Visible, value.Truth)
-                { Logical = value.Logical.ExportLogical() };
+                { Logical = value.Logical.ExportLogical(), ModifiedUtc = modified, ModifiedPrecisionTicks = precision };
         }
         internal AnalysisHierarchyBucket ReadBucket(ulong row, CancellationToken token) => DecodeBucket(_buckets!.Read(row, token));
         public void Dispose()

@@ -13,6 +13,8 @@ public sealed record AnalysisTreeItem(string Key, string ParentKey, string Name,
     public bool IncludedByPolicy { get; init; } = true;
     public bool LogicalUnknown { get; init; }
     public string? NameEvidence { get; init; }
+    public DateTimeOffset? ModifiedUtc { get; init; }
+    public ulong ModifiedPrecisionTicks { get; init; }
     // Known namespace metadata for these entries is not a measured zero for their targets.
     public bool IsNonFileLeaf => !Synthetic && (Kind is AnalysisKind.Link or AnalysisKind.Special);
 }
@@ -22,6 +24,7 @@ public sealed class AnalysisTree : IAnalysisChartData
 {
     public const string RootKey = "scope";
     public AnalysisSnapshot Snapshot { get; }
+    public DateTimeOffset ObservedUtc => Snapshot.Identity.ObservedUtc;
     public AnalysisProjection Projection { get; }
     public AnalysisMetric Metric => Projection.Metric;
     public bool FilterApplied { get; }
@@ -99,6 +102,9 @@ public sealed class AnalysisTree : IAnalysisChartData
             var item = new Builder(key, parent, AnalysisNames.DisplayName(node), node.Id, node.Kind, false, !filterApplied || matching,
                 node.Kind == AnalysisKind.Directory ? "folder" : AnalysisClassification.Family(node.Name));
             item.MetadataState = node.MetadataState; item.IncludedByPolicy = node.IncludedByPolicy;
+            item.ModifiedUtc = node.Times?.ModifiedUtc; item.ModifiedPrecisionTicks = node.Times?.ModifiedPrecisionTicks ?? 0;
+            if (node.Times is null && node.ObjectId is { } objectKey && objects.TryGetValue(objectKey, out var observedObject))
+            { item.ModifiedUtc = observedObject.ModifiedUtc; item.ModifiedPrecisionTicks = observedObject.ModifiedPrecisionTicks; }
             item.NameEvidence = AnalysisNames.NameEvidence(node);
             bool namespaceUnknown = incomplete.Contains(node.Id) || node.IncludedByPolicy && node.MetadataState != MeasurementState.Known;
             item.Unknown = namespaceUnknown || projection.UnmeasuredStates.ContainsKey(node.Id);
@@ -179,11 +185,13 @@ public sealed class AnalysisTree : IAnalysisChartData
         public bool LogicalUnknown;
         public bool PathMemberStatistics;
         public string? NameEvidence;
+        public DateTimeOffset? ModifiedUtc;
+        public ulong ModifiedPrecisionTicks;
         public List<string> Children = [];
         public HashSet<ulong> Members = [];
         public AnalysisTreeItem Freeze() => new(key, Parent, name, node, kind, synthetic, Visible, Value, Logical, Files, Unknown,
             SharedElsewhere, family, Children.ToImmutableArray(), Members.Order().ToImmutableArray())
             { IdentityUnverified = Unverified, MetadataState = MetadataState, IncludedByPolicy = IncludedByPolicy,
-                LogicalUnknown = LogicalUnknown, NameEvidence = NameEvidence };
+                LogicalUnknown = LogicalUnknown, NameEvidence = NameEvidence, ModifiedUtc = ModifiedUtc, ModifiedPrecisionTicks = ModifiedPrecisionTicks };
     }
 }

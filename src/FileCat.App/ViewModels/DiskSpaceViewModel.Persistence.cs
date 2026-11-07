@@ -46,7 +46,7 @@ public sealed partial class DiskSpaceViewModel
         for (int i = 0; i < snapshot.Roots.Length; i++) if (snapshot.Roots[i].Id == RootFilter) root = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
         var view = new AnalysisSavedView(Metric, Chart, Query, root,
             Selection.Scope == AnalysisTree.RootKey || Selection.Scope.StartsWith("n:", StringComparison.Ordinal) ? Selection.Scope : AnalysisTree.RootKey,
-            CaseSensitive, ShowUnknownFilterResults, Sort, SortDescending);
+            CaseSensitive, ShowUnknownFilterResults, Sort, SortDescending) { ColorDimension = ColorDimension };
         string path = _services!.Paths.AnalysisSnapshotsDirectory;
         IsSaving = true; SetStatus("Saving the captured inventory revision. The live scan can continue.");
         try
@@ -106,7 +106,7 @@ public sealed partial class DiskSpaceViewModel
             if (entry is not null)
             {
                 var view = entry.View; AnalysisSavedCatalog.ValidateView(view);
-                model.Metric = view.Metric; model.Chart = view.Chart; model.Query = view.Query;
+                model.Metric = view.Metric; model.Chart = view.Chart; model.Query = view.Query; model.ColorDimension = view.ColorDimension;
                 model.CaseSensitive = view.CaseSensitive; model.ShowUnknownFilterResults = view.ShowUnknown;
                 model.Sort = view.Sort; model.SortDescending = view.SortDescending;
                 model.RootFilter = inventory.Snapshot.Roots.Any(r => r.Id == view.Root) ? view.Root : null;

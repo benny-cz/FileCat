@@ -30,7 +30,8 @@ public sealed class AnalysisCatalogTests
     {
         Ordinary(); using var directory = new MemoryDirectory(); using var store = new AnalysisPrivateInventoryStore(directory);
         var catalog = new AnalysisSavedCatalog(store); var id = Guid.NewGuid();
-        var view = new AnalysisSavedView(AnalysisMetric.Files, "Sunburst", "name:*.bin", "1", "n:1", true, false, AnalysisTableSort.MeasurementState, false);
+        var view = new AnalysisSavedView(AnalysisMetric.Files, "Sunburst", "name:*.bin", "1", "n:1", true, false, AnalysisTableSort.MeasurementState, false)
+            { ColorDimension = AnalysisColorDimension.ModifiedAge };
         var receipt = catalog.SaveNew("saved 😀.fcdsa", AnalysisAccountingTests.Golden(), id, view, Cancellation);
         store.SaveNew("legacy.fcdsa", AnalysisAccountingTests.Golden(), Guid.NewGuid(), Cancellation);
         using var result = catalog.Read(Cancellation); var entry = Assert.Single(result.Entries);
@@ -53,6 +54,14 @@ public sealed class AnalysisCatalogTests
     [InlineData("direction")]
     [InlineData("duplicate")]
     [InlineData("legacy-extra")]
+    [InlineData("color-missing")]
+    [InlineData("color-unknown")]
+    [InlineData("color-numeric")]
+    [InlineData("color-duplicate")]
+    [InlineData("rule-future")]
+    [InlineData("rule-numeric")]
+    [InlineData("rule-noncanonical")]
+    [InlineData("rule-missing")]
     public void InvalidSavedOrderingIsRefusedWithoutChangingExistingMetadata(string fault)
     {
         Ordinary(); using var directory = new MemoryDirectory(); using var store = new AnalysisPrivateInventoryStore(directory);
@@ -61,27 +70,38 @@ public sealed class AnalysisCatalogTests
         string json = Encoding.UTF8.GetString(directory.Files[name]);
         json = fault switch
         {
-            "future" => json.Replace("\"schema\":\"2\"", "\"schema\":\"3\"", StringComparison.Ordinal),
+            "future" => json.Replace("\"schema\":\"3\"", "\"schema\":\"4\"", StringComparison.Ordinal),
             "missing" => json.Replace(",\"sort\":\"ActiveMetric\"", "", StringComparison.Ordinal),
             "unknown" => json.Replace("ActiveMetric", "ArbitraryPath", StringComparison.Ordinal),
             "numeric" => json.Replace("\"sort\":\"ActiveMetric\"", "\"sort\":0", StringComparison.Ordinal),
             "direction" => json.Replace("\"sortDescending\":true", "\"sortDescending\":\"true\"", StringComparison.Ordinal),
             "duplicate" => json.Replace("\"sortDescending\":true", "\"sortDescending\":true,\"sortDescending\":false", StringComparison.Ordinal),
-            _ => json.Replace("\"schema\":\"2\"", "\"schema\":\"1\"", StringComparison.Ordinal)
+            "color-missing" => json.Replace(",\"color\":\"FileType\"", "", StringComparison.Ordinal),
+            "color-unknown" => json.Replace("\"color\":\"FileType\"", "\"color\":\"Growth\"", StringComparison.Ordinal),
+            "color-numeric" => json.Replace("\"color\":\"FileType\"", "\"color\":0", StringComparison.Ordinal),
+            "color-duplicate" => json.Replace("\"color\":\"FileType\"", "\"color\":\"FileType\",\"color\":\"ModifiedAge\"", StringComparison.Ordinal),
+            "rule-future" => json.Replace("\"colorRule\":\"1\"", "\"colorRule\":\"2\"", StringComparison.Ordinal),
+            "rule-numeric" => json.Replace("\"colorRule\":\"1\"", "\"colorRule\":1", StringComparison.Ordinal),
+            "rule-noncanonical" => json.Replace("\"colorRule\":\"1\"", "\"colorRule\":\"01\"", StringComparison.Ordinal),
+            "rule-missing" => json.Replace(",\"colorRule\":\"1\"", "", StringComparison.Ordinal),
+            _ => json.Replace("\"schema\":\"3\"", "\"schema\":\"1\"", StringComparison.Ordinal)
         };
         directory.Files[name] = Encoding.UTF8.GetBytes(json);
         Assert.Throws<InvalidDataException>(() => catalog.Read(Cancellation)); Assert.Equal(json, Encoding.UTF8.GetString(directory.Files[name]));
         using var data = store.Load("order.fcdsa", Cancellation); Assert.Equal(AnalysisOrigin.ImportedInventory, data.Snapshot.Origin);
     }
 
-    [Fact]
-    public void LegacySavedViewUsesItsOriginalDefaultOrderWithoutRewritingTheEntry()
+    [Theory]
+    [InlineData("1")]
+    [InlineData("2")]
+    public void LegacySavedViewUsesItsOriginalDefaultsWithoutRewritingTheEntry(string schema)
     {
         Ordinary(); using var directory = new MemoryDirectory(); using var store = new AnalysisPrivateInventoryStore(directory);
         var catalog = new AnalysisSavedCatalog(store); catalog.SaveNew("old.fcdsa", AnalysisAccountingTests.Golden(), Guid.NewGuid(), AnalysisSavedView.Default, Cancellation);
         string name = directory.Files.Keys.Single(n => n.StartsWith("catalog-", StringComparison.Ordinal));
-        string json = Encoding.UTF8.GetString(directory.Files[name]).Replace("\"schema\":\"2\"", "\"schema\":\"1\"", StringComparison.Ordinal)
-            .Replace(",\"sort\":\"ActiveMetric\",\"sortDescending\":true", "", StringComparison.Ordinal);
+        string json = Encoding.UTF8.GetString(directory.Files[name]).Replace("\"schema\":\"3\"", "\"schema\":\"" + schema + "\"", StringComparison.Ordinal)
+            .Replace(",\"color\":\"FileType\",\"colorRule\":\"1\"", "", StringComparison.Ordinal);
+        if (schema == "1") json = json.Replace(",\"sort\":\"ActiveMetric\",\"sortDescending\":true", "", StringComparison.Ordinal);
         directory.Files[name] = Encoding.UTF8.GetBytes(json);
         using var result = catalog.Read(Cancellation); var entry = Assert.Single(result.Entries);
         Assert.Equal(AnalysisSavedView.Default, entry.View); Assert.Equal(json, Encoding.UTF8.GetString(directory.Files[name]));

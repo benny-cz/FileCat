@@ -234,6 +234,8 @@ public sealed partial class DiskSpaceWindow : Window
         private readonly CheckBox _case = new() { Content = "Case sensitive" };
         private readonly ComboBox _metric = new() { ItemsSource = new[] { "File size", "Unique file size", "On disk — reported", "Files" }, SelectedIndex = 2, MinWidth = 155 };
         private readonly ComboBox _mode = new() { ItemsSource = new[] { "Treemap", "Sunburst", "Table" }, SelectedIndex = 0, MinWidth = 125 };
+        private readonly ComboBox _color = AnalysisColorLegend.CreateSelector();
+        private readonly AnalysisColorLegend _legend = new();
         private readonly ComboBox _sort = new() { ItemsSource = new[] { "Active metric", "Name", "File size", "File paths", "Measurement state" }, MinWidth = 160 };
         private readonly ComboBox _sortDirection = new() { ItemsSource = new[] { "Descending", "Ascending" }, MinWidth = 140 };
         private readonly WrapPanel _breadcrumbs = new() { ItemSpacing = 5, LineSpacing = 4 };
@@ -267,6 +269,7 @@ public sealed partial class DiskSpaceWindow : Window
             _window = window; Model = model; _admission = admission;
             _query.Text = Model.Query; _case.IsChecked = Model.CaseSensitive; _metric.SelectedIndex = (int)Model.Metric;
             _mode.SelectedIndex = Model.Chart switch { "Sunburst" => 1, "Table" => 2, _ => 0 };
+            _color.SelectedIndex = (int)Model.ColorDimension;
             _sort.SelectedIndex = (int)Model.Sort; _sortDirection.SelectedIndex = Model.SortDescending ? 0 : 1;
             RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,Auto");
             _setup.Children.Add(SessionText("Understand this storage. Choose what to measure.", 20));
@@ -295,7 +298,7 @@ public sealed partial class DiskSpaceWindow : Window
             DataNavigation("Back", Model.Back, "Return to the previous analysis scope.");
             DataNavigation("Forward", Model.Forward, "Return to the next analysis scope.");
             DataNavigation("Up", Model.Parent, "Inspect the parent scope without changing the captured sources.");
-            nav.Children.Add(_mode); nav.Children.Add(_metric); nav.Children.Add(_pause); nav.Children.Add(_stop);
+            nav.Children.Add(_mode); nav.Children.Add(_metric); nav.Children.Add(_color); nav.Children.Add(_pause); nav.Children.Add(_stop);
             AutomationProperties.SetName(_mode, "Chart view"); AutomationProperties.SetName(_metric, "Analysis metric");
             _inspect = ActionButton("Inspect selection", () => _ = InspectAsync(), "Open full selection details and actions, including on a narrow screen.");
             nav.Children.Add(_inspect);
@@ -311,7 +314,7 @@ public sealed partial class DiskSpaceWindow : Window
             AutomationProperties.SetName(_sort, "Analysis table sort"); AutomationProperties.SetName(_sortDirection, "Analysis table sort direction");
             AutomationProperties.SetName(_breadcrumbs, "Analysis location breadcrumbs");
             ToolTip.SetTip(_sort, new RichTip("Sort observed table rows", detail: "Numeric sorting uses exact recorded integers. Missing numeric values follow known amounts in either direction. Partial amounts rank by their known subtotal. Charts keep their accounting order; focus and marks keep their observation identities."));
-            toolbar.Children.Add(nav); toolbar.Children.Add(_breadcrumbs); toolbar.Children.Add(_scope); toolbar.Children.Add(_summary); toolbar.Children.Add(_coverage); toolbar.Children.Add(filters); toolbar.Children.Add(ordering); toolbar.Children.Add(_error);
+            toolbar.Children.Add(nav); toolbar.Children.Add(_breadcrumbs); toolbar.Children.Add(_scope); toolbar.Children.Add(_summary); toolbar.Children.Add(_coverage); toolbar.Children.Add(filters); toolbar.Children.Add(ordering); toolbar.Children.Add(_legend); toolbar.Children.Add(_error);
             _dataControls.AddRange([_pause, _inspect, _save, _compare, _breadcrumbs, _scope, _summary, _coverage, filters, ordering]);
             Grid.SetRow(toolbar, 1); Children.Add(toolbar);
             _chartHost.Children.Add(_treemap); _chartHost.Children.Add(_sunburst); _explorer.Children.Add(_chartHost);
@@ -377,6 +380,7 @@ public sealed partial class DiskSpaceWindow : Window
             _start.Click += async (_, _) => await Model.StartAsync(_rootEditors.Select(e => e.Text ?? "").ToArray());
             _pause.Click += (_, _) => Model.PauseOrResume(); _stop.Click += (_, _) => Model.Stop();
             _mode.SelectionChanged += (_, _) => { Model.Chart = _mode.SelectedIndex switch { 1 => "Sunburst", 2 => "Table", _ => "Treemap" }; Refresh(); };
+            _color.SelectionChanged += (_, _) => { Model.ColorDimension = (AnalysisColorDimension)Math.Clamp(_color.SelectedIndex, 0, 2); Refresh(); };
             _metric.SelectionChanged += (_, _) => { if (_updating) return; Model.Metric = (AnalysisMetric)Math.Max(0, _metric.SelectedIndex); _ = Model.RebuildAsync(true); };
             _sort.SelectionChanged += (_, _) => { if (_updating || _sort.SelectedIndex < 0) return; Model.Sort = (AnalysisTableSort)_sort.SelectedIndex; _ = Model.RebuildAsync(true); };
             _sortDirection.SelectionChanged += (_, _) => { if (_updating || _sortDirection.SelectedIndex < 0) return; Model.SortDescending = _sortDirection.SelectedIndex == 0; _ = Model.RebuildAsync(true); };
@@ -391,7 +395,7 @@ public sealed partial class DiskSpaceWindow : Window
             ToolTip.SetTip(_unknown, new RichTip("Uncertain query results", detail: "Missing metadata may leave a predicate unknown. Inspect that explicit cohort separately from confirmed matches."));
             _filterTimer.Tick += (_, _) => { _filterTimer.Stop(); Model.Query = _query.Text ?? ""; _ = Model.RebuildAsync(true); };
             foreach (var chart in new AnalysisChartControl[] { _treemap, _sunburst })
-            { chart.Activated += ActivateItem; chart.InteractionChanged += Model.Interaction; }
+            { chart.Activated += ActivateItem; chart.InteractionChanged += Model.Interaction; chart.InteractionChanged += active => _color.IsEnabled = !active; }
             _timer.Tick += async (_, _) => { if (IsEffectivelyVisible) await Model.RebuildAsync(); };
             AttachedToVisualTree += (_, _) => { _timer.Start(); _ = Model.RebuildAsync(true); };
             DetachedFromVisualTree += (_, _) => _timer.Stop();
@@ -630,8 +634,9 @@ public sealed partial class DiskSpaceWindow : Window
                 _list.SelectedItem = Model.Rows.FirstOrDefault(r => r.Key == Model.Selection.Focus);
                 if (tree is not null)
                 {
-                    _treemap.SetView(tree, Model.Selection.Scope, Model.Selection.Focus, Model.Selection.Marks);
-                    _sunburst.SetView(tree, Model.Selection.Scope, Model.Selection.Focus, Model.Selection.Marks);
+                    _legend.SetView(Model.ColorDimension, tree.ObservedUtc);
+                    _treemap.SetView(tree, Model.Selection.Scope, Model.Selection.Focus, Model.Selection.Marks, Model.ColorDimension);
+                    _sunburst.SetView(tree, Model.Selection.Scope, Model.Selection.Focus, Model.Selection.Marks, Model.ColorDimension);
                     var selected = tree.Items.GetValueOrDefault(Model.Selection.Focus ?? "");
                     _inspector.Text = selected is null ? "Choose an entry in either chart or the table. Marks and the review basket are separate." :
                         AnalysisNames.Display(selected.Name) + "\n" + Model.FocusedDisplayPath() + "\n" + DiskSpaceViewModel.StatusText(selected) +
@@ -649,6 +654,7 @@ public sealed partial class DiskSpaceWindow : Window
                     if (hidden > 0) _basket.Text += $" · {hidden:N0} marked items hidden by filters";
                 }
                 bool tableOnly = _mode.SelectedIndex == 2 || Bounds.Width < 640;
+                _legend.IsVisible = tree is not null && !tableOnly;
                 _chartHost.IsVisible = !tableOnly; _treemap.IsVisible = _mode.SelectedIndex == 0; _sunburst.IsVisible = _mode.SelectedIndex == 1;
                 _explorer.RowDefinitions[0].Height = tableOnly ? new GridLength(0) : new GridLength(3, GridUnitType.Star);
                 _explorer.RowDefinitions[1].Height = tableOnly ? new GridLength(0) : GridLength.Auto;

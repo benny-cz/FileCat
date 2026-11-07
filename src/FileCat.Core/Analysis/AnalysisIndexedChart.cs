@@ -9,13 +9,14 @@ public sealed class AnalysisIndexedChart : IAnalysisChartData
 {
     private readonly ImmutableDictionary<string, ImmutableArray<AnalysisTreeItem>> _children;
     public AnalysisMetric Metric { get; }
+    public DateTimeOffset ObservedUtc { get; }
     public string Scope { get; }
     public ImmutableDictionary<string, AnalysisTreeItem> Items { get; }
     public ImmutableDictionary<string, AnalysisChartRemainder> Remainders { get; }
     public bool DetailLimited { get; }
-    private AnalysisIndexedChart(AnalysisMetric metric, string scope, Dictionary<string, AnalysisTreeItem> items,
+    private AnalysisIndexedChart(AnalysisMetric metric, DateTimeOffset observedUtc, string scope, Dictionary<string, AnalysisTreeItem> items,
         Dictionary<string, ImmutableArray<AnalysisTreeItem>> children, Dictionary<string, AnalysisChartRemainder> remainders, bool limited)
-    { Metric = metric; Scope = scope; Items = items.ToImmutableDictionary(); _children = children.ToImmutableDictionary(); Remainders = remainders.ToImmutableDictionary(); DetailLimited = limited; }
+    { Metric = metric; ObservedUtc = observedUtc; Scope = scope; Items = items.ToImmutableDictionary(); _children = children.ToImmutableDictionary(); Remainders = remainders.ToImmutableDictionary(); DetailLimited = limited; }
     public string ParentOf(string key) => AnalysisTree.Other(key, out _, out string parent) ? parent : Items.GetValueOrDefault(key)?.ParentKey ?? AnalysisTree.RootKey;
     public string NameOf(string key) => AnalysisTree.Other(key, out _, out _) ? "Other small items" : Items.GetValueOrDefault(key)?.Name ?? "All locations";
     public UInt128 ScopeValue(string key) => Items.GetValueOrDefault(key)?.Value ?? ChildrenOf(key).Aggregate((UInt128)0, (sum, item) => checked(sum + item.Value));
@@ -75,7 +76,8 @@ public sealed class AnalysisIndexedChart : IAnalysisChartData
                 UInt128 value = hierarchy.ChartArea(bucket.Totals); if (value == 0) continue;
                 string bucketKey = "bucket:" + parent.Id + ":" + bucket.Kind;
                 var item = new AnalysisTreeItem(bucketKey, key, bucket.Kind == AnalysisHierarchyBucketKind.SharedFiles ? "Shared hard-linked files" : "Directory allocation",
-                    null, AnalysisKind.Special, true, true, value, 0, 0, bucket.Totals.Missing.Count != 0, false, "shared", [], []) { IdentityUnverified = bucket.Totals.IdentityUnverified };
+                    null, AnalysisKind.Special, true, true, value, 0, 0, bucket.Totals.Missing.Count != 0, false,
+                    bucket.Kind == AnalysisHierarchyBucketKind.SharedFiles ? "shared" : "directory-allocation", [], []) { IdentityUnverified = bucket.Totals.IdentityUnverified };
                 if (!Add(item)) { limited = true; continue; }
                 rows.Add(item); area = checked(area + value); unverified = checked(unverified + item.IdentityUnverified);
             }
@@ -92,7 +94,7 @@ public sealed class AnalysisIndexedChart : IAnalysisChartData
             }
             children.Add(key, rows.OrderByDescending(row => row.Value).ThenBy(row => row.Key, StringComparer.Ordinal).ToImmutableArray());
         }
-        return new(hierarchy.Metric, scopeKey, items, children, remainders, limited);
+        return new(hierarchy.Metric, hierarchy.Descriptor.Identity.ObservedUtc, scopeKey, items, children, remainders, limited);
 
         bool Add(AnalysisTreeItem item)
         {
@@ -109,6 +111,7 @@ public sealed class AnalysisIndexedChart : IAnalysisChartData
         return new(AnalysisTree.Key(path.Id), path.ParentId == 0 ? AnalysisTree.RootKey : AnalysisTree.Key(path.ParentId), AnalysisNames.DisplayName(path, 256), path.Id,
             path.Kind, false, row.IsVisible, value, row.Logical.KnownBytes, row.Logical.Files, row.NamespaceIncomplete || row.Totals.Missing.Count != 0 ||
             metric == AnalysisMetric.UniqueFileSize && row.Totals.IdentityUnverified != 0, row.HasChargesElsewhere, path.Kind == AnalysisKind.Directory ? "folder" : AnalysisClassification.Family(path.Name), [], [])
-        { IdentityUnverified = row.Totals.IdentityUnverified, LogicalUnknown = row.Logical.UnknownFiles != 0, MetadataState = path.MetadataState, IncludedByPolicy = path.IncludedByPolicy };
+        { IdentityUnverified = row.Totals.IdentityUnverified, LogicalUnknown = row.Logical.UnknownFiles != 0, MetadataState = path.MetadataState, IncludedByPolicy = path.IncludedByPolicy,
+            ModifiedUtc = row.ModifiedUtc, ModifiedPrecisionTicks = row.ModifiedPrecisionTicks };
     }
 }

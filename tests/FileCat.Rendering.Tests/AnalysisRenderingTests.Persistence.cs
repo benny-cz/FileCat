@@ -20,6 +20,7 @@ public sealed partial class AnalysisRenderingTests
         using var model = new DiskSpaceViewModel(fixture.Services, ImportedFixture()); await model.RebuildAsync(true);
         model.Metric = AnalysisMetric.Files; model.Chart = "Table"; model.Query = "name:*.bin"; model.CaseSensitive = true;
         model.Sort = AnalysisTableSort.Name; model.SortDescending = false;
+        model.ColorDimension = AnalysisColorDimension.ModifiedAge;
         model.RootFilter = model.Tree!.Snapshot.Roots[0].Id; model.Selection.Navigate("n:1"); model.Selection.ToggleMark(1);
         await model.RebuildAsync(true); var receipt = await model.SaveNewAsync("view-settings.fcdsa");
         using (var catalog = await model.ReadSavedCatalogAsync())
@@ -29,6 +30,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal(model.Metric, offline.Metric); Assert.Equal(model.Chart, offline.Chart); Assert.Equal(model.Query, offline.Query);
             Assert.Equal("1", offline.RootFilter); Assert.Equal("n:1", offline.Selection.Scope); Assert.True(offline.CaseSensitive);
             Assert.Equal(AnalysisTableSort.Name, offline.Sort); Assert.False(offline.SortDescending);
+            Assert.Equal(AnalysisColorDimension.ModifiedAge, offline.ColorDimension);
             Assert.Empty(offline.Selection.Marks); Assert.Empty(offline.Selection.Basket); Assert.False(offline.Running);
         }
         var window = new DiskSpaceWindow(); window.AddSession(model); window.Show();
@@ -55,6 +57,7 @@ public sealed partial class AnalysisRenderingTests
             Assert.Contains(window.GetVisualDescendants().OfType<ComboBox>(), c => c.IsEffectivelyVisible && c.SelectedItem as string == "Table");
             Assert.Contains(window.GetVisualDescendants().OfType<ComboBox>(), c => c.IsEffectivelyVisible && c.SelectedItem as string == "Name");
             Assert.Contains(window.GetVisualDescendants().OfType<ComboBox>(), c => c.IsEffectivelyVisible && c.SelectedItem as string == "Ascending");
+            Assert.Contains(window.GetVisualDescendants().OfType<ComboBox>(), c => c.IsEffectivelyVisible && c.SelectedItem as string == "Color: modification age");
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }

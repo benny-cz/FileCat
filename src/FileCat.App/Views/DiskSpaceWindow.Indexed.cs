@@ -98,6 +98,8 @@ public sealed partial class DiskSpaceWindow
         private AnalysisExplorerInspection? _shownInspection;
         private readonly ComboBox _metric = new() { ItemsSource = new[] { "File size", "Unique file size", "On disk — reported", "Files" }, MinWidth = 180 };
         private readonly ComboBox _chartMode = new() { ItemsSource = new[] { "Treemap", "Sunburst", "Table" }, SelectedIndex = 0 };
+        private readonly ComboBox _color = AnalysisColorLegend.CreateSelector();
+        private readonly AnalysisColorLegend _legend = new();
         private readonly ComboBox _sort = new() { ItemsSource = new[] { "Active metric", "File paths", "File size", "Name", "Metadata state" }, SelectedIndex = 0 };
         private readonly CheckBox _descending = new() { Content = "Descending", IsChecked = true };
         private readonly ComboBox _roots = new() { MinWidth = 160 };
@@ -139,6 +141,7 @@ public sealed partial class DiskSpaceWindow
             {
                 _sort.SelectedIndex = (int)SavedIndexedSort(saved.Sort); _descending.IsChecked = saved.SortDescending;
                 _chartMode.SelectedIndex = saved.Chart == "Sunburst" ? 1 : saved.Chart == "Table" ? 2 : 0;
+                _color.SelectedIndex = (int)saved.ColorDimension;
             }
             _roots.ItemsSource = new[] { "All captured locations" }.Concat(source.Descriptor.Roots.Select(root => AnalysisNames.Display(root.Label, 120) + " [" + AnalysisNames.Display(root.Id, 64) + "]")).ToArray();
             _roots.SelectedIndex = filter.RootId is null ? 0 : 1 + Array.FindIndex(source.Descriptor.Roots.ToArray(), root => root.Id == filter.RootId);
@@ -149,7 +152,7 @@ public sealed partial class DiskSpaceWindow
             AutomationProperties.SetLiveSetting(_status, AutomationLiveSetting.Polite);
             AutomationProperties.SetName(_details, "Captured metadata inspector"); AutomationProperties.SetLiveSetting(_inspectorStatus, AutomationLiveSetting.Polite);
             var toolbar = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
-            toolbar.Children.Add(_metric); toolbar.Children.Add(_chartMode); toolbar.Children.Add(_sort); toolbar.Children.Add(_descending); toolbar.Children.Add(_roots);
+            toolbar.Children.Add(_metric); toolbar.Children.Add(_chartMode); toolbar.Children.Add(_color); toolbar.Children.Add(_sort); toolbar.Children.Add(_descending); toolbar.Children.Add(_roots);
             var filters = new WrapPanel { ItemSpacing = 8, LineSpacing = 8 };
             filters.Children.Add(_query); filters.Children.Add(_case); filters.Children.Add(_unknown);
             filters.Children.Add(ActionButton("Apply filter", () => _ = RebuildAsync(), "Apply this query to the captured observations."));
@@ -166,7 +169,7 @@ public sealed partial class DiskSpaceWindow
             provenance += " File metadata can be sensitive.";
             var provenanceLabel = new TextBlock { Text = provenance, TextWrapping = TextWrapping.Wrap };
             AutomationProperties.SetName(provenanceLabel, "Analysis provenance: " + provenance);
-            Children.Add(provenanceLabel); Children.Add(toolbar); Children.Add(filters); Children.Add(_summary); Children.Add(_status); Children.Add(navigation);
+            Children.Add(provenanceLabel); Children.Add(toolbar); Children.Add(filters); Children.Add(_summary); Children.Add(_status); Children.Add(navigation); Children.Add(_legend);
             Children.Add(new ScrollViewer { Content = _breadcrumbs, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto });
             _body.Children.Add(_main); _body.Children.Add(_inspector); Children.Add(_body);
             _main.Children.Add(_treemap); _main.Children.Add(_sunburst); _main.Children.Add(_buckets);
@@ -239,6 +242,7 @@ public sealed partial class DiskSpaceWindow
             _sort.SelectionChanged += (_, _) => OrderChanged();
             _descending.IsCheckedChanged += (_, _) => OrderChanged();
             _chartMode.SelectionChanged += (_, _) => UpdateCharts();
+            _color.SelectionChanged += (_, _) => UpdateCharts();
             _treemap.Activated += ActivateChart; _sunburst.Activated += ActivateChart;
             _treemap.InteractionChanged += Interaction; _sunburst.InteractionChanged += Interaction;
             PropertyChanged += (_, change) => { if (change.Property == BoundsProperty) LayoutMode(Bounds.Width); };
@@ -254,7 +258,7 @@ public sealed partial class DiskSpaceWindow
         }
         private void Interaction(bool active)
         {
-            if (_disposed) return; _interacting = active;
+            if (_disposed) return; _interacting = active; _color.IsEnabled = !active;
             if (active) _interactionEnd = new(TaskCreationOptions.RunContinuationsAsynchronously);
             else { _interactionEnd?.TrySetResult(); _interactionEnd = null; }
         }
@@ -397,9 +401,12 @@ public sealed partial class DiskSpaceWindow
         private void UpdateCharts()
         {
             _treemap.IsVisible = _chartMode.SelectedIndex == 0; _sunburst.IsVisible = _chartMode.SelectedIndex == 1;
+            _legend.IsVisible = _chartMode.SelectedIndex != 2;
             if (_shownChart is not { } chart) return;
             string? focus = _focus == 0 ? null : AnalysisTree.Key(_focus);
-            _treemap.SetView(chart, chart.Scope, focus, ImmutableHashSet<ulong>.Empty); _sunburst.SetView(chart, chart.Scope, focus, ImmutableHashSet<ulong>.Empty);
+            var color = (AnalysisColorDimension)Math.Clamp(_color.SelectedIndex, 0, 2);
+            _legend.SetView(color, chart.ObservedUtc);
+            _treemap.SetView(chart, chart.Scope, focus, ImmutableHashSet<ulong>.Empty, color); _sunburst.SetView(chart, chart.Scope, focus, ImmutableHashSet<ulong>.Empty, color);
         }
         private async Task InspectAsync(ulong path, ulong alias = 0, ulong fact = 0, ulong issue = 0)
         {
