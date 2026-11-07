@@ -1,0 +1,441 @@
+{
+  "date": "2026-11-07",
+  "source_packets": {
+    "1": {
+      "files": 4082,
+      "bytes": 30220399,
+      "sha256": "a2f69827c020d3ac48f04929f295edecf1b7971eb067463e6b0be3b967d1ae3a"
+    },
+    "2": {
+      "files": 4082,
+      "bytes": 30220883,
+      "sha256": "34883446799a31e3da134a5bd4ceaeab1eeabea1718e0a4930db90fe64cd89e9"
+    },
+    "3": {
+      "files": 4087,
+      "bytes": 30225759,
+      "sha256": "fe735c891e8a84d4513a6f740a11f1c9884fdc46c19a4b1cf2929360a95ec138"
+    }
+  },
+  "new_profile_registered": false,
+  "complete_logical_catalog_implemented": true,
+  "preservation_admission_and_production_qualification": false,
+  "new_catalog_regression_cases": 46,
+  "dictionary_profile_limit_bytes": 67108864,
+  "host_scope": "edits, builds and static evidence verification only",
+  "platforms": {
+    "mac": {
+      "1": {
+        "archive": "mac-strict-rar5-catalog-diagnostic-evidence-v1.tar.gz",
+        "bytes": 37708372,
+        "sha256": "035179c736579ab9eaa8ff2edcb75647c651c5b793322e67b305480e00b3d1ff",
+        "manifest_rows": 1515,
+        "cases": {
+          "Passed": 959,
+          "NotExecuted": 2,
+          "Failed": 3
+        },
+        "catalog_cases": {
+          "Passed": 42,
+          "Failed": 3
+        },
+        "compiler_source_documents": 1343,
+        "compiler_source_bytes": 12739335,
+        "writing_closure": {
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ],
+          "Rar15_or_DiscUtils_present": false
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0,
+          "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+        },
+        "observed_test_runtime": {
+          "runtime": ".NET 10.0.12",
+          "runtime_directory": "/Users/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.12/",
+          "os": "macOS 27.0.1",
+          "architecture": "Arm64",
+          "archive_sha256": "026C8B1E4B1F4D3883F9A6BFD1945C09C607DF565588367C7E496E5F8028AB9D"
+        },
+        "initial_failed_fixture_batch": {
+          "total": 964,
+          "passed": 959,
+          "skipped": 2,
+          "failed": 3,
+          "expected_failed_tests": [
+            "FileCat.Core.Tests.StrictRar5CatalogTests.Existing_independent_RAR5_fixtures_match_the_test_only_reference_reader(fixture: \"Rar5.crc_blake2.rar\")",
+            "FileCat.Core.Tests.StrictRar5CatalogTests.Existing_independent_RAR5_fixtures_match_the_test_only_reference_reader(fixture: \"Rar5.none.rar\")",
+            "FileCat.Core.Tests.StrictRar5CatalogTests.Existing_independent_RAR5_fixtures_match_the_test_only_reference_reader(fixture: \"Rar5.rar\")"
+          ],
+          "status": "INITIAL TEST FAILURE; corrected fixture helper requires a separate passing follow-up",
+          "production_backend_qualified": false
+        }
+      },
+      "2": {
+        "archive": "mac-strict-rar5-catalog-evidence-v2.tar.gz",
+        "bytes": 37447054,
+        "sha256": "6ab3b573e69404b020a41f0b525b432f5dc02c6c4d1b757d5605223c3ca4ea1b",
+        "manifest_rows": 1374,
+        "cases": {
+          "Passed": 3
+        },
+        "catalog_cases": {
+          "Passed": 3
+        },
+        "compiler_source_documents": 1343,
+        "compiler_source_bytes": 12741104,
+        "writing_closure": {
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ],
+          "Rar15_or_DiscUtils_present": false
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0,
+          "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+        }
+      },
+      "3": {
+        "archive": "mac-strict-rar5-catalog-evidence-v3.tar.gz",
+        "bytes": 37547612,
+        "sha256": "cac6955eaf2c1667e25629438dfd841f5ba4ac9c5953df3d440bd766f536d97d",
+        "manifest_rows": 1375,
+        "cases": {
+          "Passed": 380
+        },
+        "catalog_cases": {
+          "Passed": 46
+        },
+        "compiler_source_documents": 1343,
+        "compiler_source_bytes": 12743737,
+        "writing_closure": {
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ],
+          "Rar15_or_DiscUtils_present": false
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0,
+          "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+        },
+        "observed_test_runtime": {
+          "runtime": ".NET 10.0.12",
+          "runtime_directory": "/Users/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.12/",
+          "os": "macOS 27.0.1",
+          "architecture": "Arm64",
+          "archive_sha256": "026C8B1E4B1F4D3883F9A6BFD1945C09C607DF565588367C7E496E5F8028AB9D"
+        },
+        "current_changed_csharp_inputs_matched": [
+          "src/FileCat.Archives/Rar/Blake2sp.cs",
+          "src/FileCat.Archives/Rar/Rar5Decoder.cs",
+          "src/FileCat.Archives/Rar/RarArchive.cs",
+          "src/FileCat.Archives/Rar/RarBitReader.cs",
+          "src/FileCat.Archives/Rar/RarData.cs",
+          "src/FileCat.Archives/Rar/RarFilters.cs",
+          "src/FileCat.Archives/Rar/RarReader.cs",
+          "src/FileCat.Archives/Rar/RarWindow.cs",
+          "src/FileCat.Archives/Writing/StrictRar5Catalog.cs",
+          "src/FileCat.Archives/Writing/StrictRar5Framing.cs",
+          "tests/FileCat.Core.Tests/StrictRar5CatalogTests.cs",
+          "tests/FileCat.Core.Tests/StrictRar5FramingTests.cs"
+        ]
+      }
+    },
+    "ubuntu": {
+      "1": {
+        "archive": "ubuntu-strict-rar5-catalog-diagnostic-evidence-v1.tar.gz",
+        "bytes": 37704992,
+        "sha256": "895cddda153eb48fd7b0d45aacf55c9338180df6b81c71ed84875ecd2e1b78e9",
+        "manifest_rows": 1515,
+        "cases": {
+          "Passed": 958,
+          "Failed": 3,
+          "NotExecuted": 3
+        },
+        "catalog_cases": {
+          "Passed": 42,
+          "Failed": 3
+        },
+        "compiler_source_documents": 1343,
+        "compiler_source_bytes": 12739335,
+        "writing_closure": {
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ],
+          "Rar15_or_DiscUtils_present": false
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0
+        },
+        "observed_test_runtime": {
+          "runtime": ".NET 10.0.14",
+          "runtime_directory": "/home/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.14/",
+          "os": "Ubuntu 24.04.5 LTS",
+          "architecture": "X64",
+          "archive_sha256": "026C8B1E4B1F4D3883F9A6BFD1945C09C607DF565588367C7E496E5F8028AB9D"
+        },
+        "initial_failed_fixture_batch": {
+          "total": 964,
+          "passed": 958,
+          "skipped": 3,
+          "failed": 3,
+          "expected_failed_tests": [
+            "FileCat.Core.Tests.StrictRar5CatalogTests.Existing_independent_RAR5_fixtures_match_the_test_only_reference_reader(fixture: \"Rar5.none.rar\")",
+            "FileCat.Core.Tests.StrictRar5CatalogTests.Existing_independent_RAR5_fixtures_match_the_test_only_reference_reader(fixture: \"Rar5.crc_blake2.rar\")",
+            "FileCat.Core.Tests.StrictRar5CatalogTests.Existing_independent_RAR5_fixtures_match_the_test_only_reference_reader(fixture: \"Rar5.rar\")"
+          ],
+          "status": "INITIAL TEST FAILURE; corrected fixture helper requires a separate passing follow-up",
+          "production_backend_qualified": false
+        }
+      },
+      "2": {
+        "archive": "ubuntu-strict-rar5-catalog-evidence-v2.tar.gz",
+        "bytes": 37439490,
+        "sha256": "94e02cc8e4b44516e6066c947469c0df29d2139d228f505cad3baebc341b6f61",
+        "manifest_rows": 1374,
+        "cases": {
+          "Passed": 3
+        },
+        "catalog_cases": {
+          "Passed": 3
+        },
+        "compiler_source_documents": 1343,
+        "compiler_source_bytes": 12741104,
+        "writing_closure": {
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ],
+          "Rar15_or_DiscUtils_present": false
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0
+        }
+      },
+      "3": {
+        "archive": "ubuntu-strict-rar5-catalog-evidence-v3.tar.gz",
+        "bytes": 37541498,
+        "sha256": "48a99abebe15e88c3b62d83918947bf8859407762133cc759c57d2a478430ed4",
+        "manifest_rows": 1375,
+        "cases": {
+          "Passed": 380
+        },
+        "catalog_cases": {
+          "Passed": 46
+        },
+        "compiler_source_documents": 1343,
+        "compiler_source_bytes": 12743737,
+        "writing_closure": {
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ],
+          "Rar15_or_DiscUtils_present": false
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0
+        },
+        "observed_test_runtime": {
+          "runtime": ".NET 10.0.14",
+          "runtime_directory": "/home/benny/.dotnet/shared/Microsoft.NETCore.App/10.0.14/",
+          "os": "Ubuntu 24.04.5 LTS",
+          "architecture": "X64",
+          "archive_sha256": "026C8B1E4B1F4D3883F9A6BFD1945C09C607DF565588367C7E496E5F8028AB9D"
+        },
+        "current_changed_csharp_inputs_matched": [
+          "src/FileCat.Archives/Rar/Blake2sp.cs",
+          "src/FileCat.Archives/Rar/Rar5Decoder.cs",
+          "src/FileCat.Archives/Rar/RarArchive.cs",
+          "src/FileCat.Archives/Rar/RarBitReader.cs",
+          "src/FileCat.Archives/Rar/RarData.cs",
+          "src/FileCat.Archives/Rar/RarFilters.cs",
+          "src/FileCat.Archives/Rar/RarReader.cs",
+          "src/FileCat.Archives/Rar/RarWindow.cs",
+          "src/FileCat.Archives/Writing/StrictRar5Catalog.cs",
+          "src/FileCat.Archives/Writing/StrictRar5Framing.cs",
+          "tests/FileCat.Core.Tests/StrictRar5CatalogTests.cs",
+          "tests/FileCat.Core.Tests/StrictRar5FramingTests.cs"
+        ]
+      }
+    },
+    "windows": {
+      "1": {
+        "archive": "windows-strict-rar5-catalog-diagnostic-evidence-v1.tar.gz",
+        "bytes": 37711300,
+        "sha256": "5bd36fed02cb51734670824aaa0e29cf7b7e4db0f7b82e732528b412bb86d21b",
+        "manifest_rows": 1445,
+        "cases": {
+          "NotExecuted": 121,
+          "Passed": 840,
+          "Failed": 3
+        },
+        "catalog_cases": {
+          "Passed": 42,
+          "Failed": 3
+        },
+        "compiler_source_documents": 1343,
+        "compiler_source_bytes": 12754036,
+        "writing_closure": {
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ],
+          "Rar15_or_DiscUtils_present": false
+        },
+        "final_census": {
+          "busy": false,
+          "owned_filecat_or_test_processes": 0
+        },
+        "observed_test_runtime": {
+          "runtime": ".NET 10.0.14",
+          "runtime_directory": "C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\10.0.14\\",
+          "os": "Microsoft Windows 10.0.26340",
+          "architecture": "X64",
+          "archive_sha256": "026C8B1E4B1F4D3883F9A6BFD1945C09C607DF565588367C7E496E5F8028AB9D"
+        },
+        "test_account": {
+          "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+          "AdministratorsMember": false,
+          "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+          "HiveLoaded": true
+        },
+        "initial_failed_fixture_batch": {
+          "total": 964,
+          "passed": 840,
+          "skipped": 121,
+          "failed": 3,
+          "expected_failed_tests": [
+            "FileCat.Core.Tests.StrictRar5CatalogTests.Existing_independent_RAR5_fixtures_match_the_test_only_reference_reader(fixture: \"Rar5.crc_blake2.rar\")",
+            "FileCat.Core.Tests.StrictRar5CatalogTests.Existing_independent_RAR5_fixtures_match_the_test_only_reference_reader(fixture: \"Rar5.none.rar\")",
+            "FileCat.Core.Tests.StrictRar5CatalogTests.Existing_independent_RAR5_fixtures_match_the_test_only_reference_reader(fixture: \"Rar5.rar\")"
+          ],
+          "status": "INITIAL TEST FAILURE; corrected fixture helper requires a separate passing follow-up",
+          "production_backend_qualified": false
+        }
+      },
+      "2": {
+        "archive": "windows-strict-rar5-catalog-evidence-v2.tar.gz",
+        "bytes": 37450685,
+        "sha256": "85456d9ae665487a8e21577dd160da5e74c1b0b5fd6d2aa988b11b3d8f8c239a",
+        "manifest_rows": 1382,
+        "cases": {
+          "Passed": 3
+        },
+        "catalog_cases": {
+          "Passed": 3
+        },
+        "compiler_source_documents": 1343,
+        "compiler_source_bytes": 12755805,
+        "writing_closure": {
+          "Rar15_or_DiscUtils_present": false,
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ]
+        },
+        "final_census": {
+          "Processes": [],
+          "CollectedUtc": "2026-11-07T07:29:37.8210100Z"
+        },
+        "test_account": {
+          "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+          "AdministratorsMember": false,
+          "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+          "HiveLoaded": true
+        }
+      },
+      "3": {
+        "archive": "windows-strict-rar5-catalog-evidence-v3.tar.gz",
+        "bytes": 37550268,
+        "sha256": "4e817486e0fa13007eaf510bf16510ed70d732e5036938a58075f702948621f7",
+        "manifest_rows": 1383,
+        "cases": {
+          "Passed": 378,
+          "NotExecuted": 2
+        },
+        "catalog_cases": {
+          "Passed": 46
+        },
+        "compiler_source_documents": 1343,
+        "compiler_source_bytes": 12758438,
+        "writing_closure": {
+          "Rar15_or_DiscUtils_present": false,
+          "libraries": [
+            "BouncyCastle.Cryptography/2.7.0",
+            "FileCat.Archives.Writing/0.1.0-preview",
+            "FileCat.Core/0.1.0-preview",
+            "FileCat.SharpCompress/0.1.0-preview"
+          ]
+        },
+        "final_census": {
+          "Processes": [],
+          "CollectedUtc": "2026-11-07T07:32:58.1823153Z"
+        },
+        "observed_test_runtime": {
+          "runtime": ".NET 10.0.14",
+          "runtime_directory": "C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\10.0.14\\",
+          "os": "Microsoft Windows 10.0.26340",
+          "architecture": "X64",
+          "archive_sha256": "026C8B1E4B1F4D3883F9A6BFD1945C09C607DF565588367C7E496E5F8028AB9D"
+        },
+        "test_account": {
+          "Sid": "S-1-5-21-1278333194-2778939646-3566894036-1003",
+          "AdministratorsMember": false,
+          "Name": "DESKTOP-A60F1NE\\fcarchive42829297",
+          "HiveLoaded": true
+        },
+        "current_changed_csharp_inputs_matched": [
+          "src/FileCat.Archives/Rar/Blake2sp.cs",
+          "src/FileCat.Archives/Rar/Rar5Decoder.cs",
+          "src/FileCat.Archives/Rar/RarArchive.cs",
+          "src/FileCat.Archives/Rar/RarBitReader.cs",
+          "src/FileCat.Archives/Rar/RarData.cs",
+          "src/FileCat.Archives/Rar/RarFilters.cs",
+          "src/FileCat.Archives/Rar/RarReader.cs",
+          "src/FileCat.Archives/Rar/RarWindow.cs",
+          "src/FileCat.Archives/Writing/StrictRar5Catalog.cs",
+          "src/FileCat.Archives/Writing/StrictRar5Framing.cs",
+          "tests/FileCat.Core.Tests/StrictRar5CatalogTests.cs",
+          "tests/FileCat.Core.Tests/StrictRar5FramingTests.cs"
+        ]
+      }
+    }
+  },
+  "source_relationships": {
+    "v1_to_v2": "Only StrictRar5CatalogTests.cs changed: retain original-envelope refusal and isolate unchanged packed fixture members in a minimal test envelope.",
+    "v2_to_v3_production_changes": [
+      "src/FileCat.Archives/Rar/RarReader.cs"
+    ],
+    "v3": "Adds safe independent borrowed-stream ownership and its regression; affected RAR/reader/crypto cases rerun."
+  },
+  "harness_corrections": [
+    "Windows diagnostic capture was resumed without rerunning application tests; use native tasklist census, wait while busy, preserve compiler path case, and retain separate failed audit attempts."
+  ]
+}

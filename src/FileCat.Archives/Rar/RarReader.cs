@@ -23,6 +23,9 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
     private bool _disposed;
     private readonly Rar5ReadPasswordSession? _password;
     private readonly HashSet<Rar5MemberDecryption> _cryptoStreams = [];
+    private readonly HashSet<RarWindow> _windows = [];
+    private readonly HashSet<RarBitReader> _bitReaders = [];
+    private readonly Dictionary<RarWindow, (RarBitReader Bits, RarMemberStream Member)> _runs = [];
 
     private RarReader(List<Stream> volumes, IReadOnlyList<string> volumePaths, RarArchive archive, bool numberedVolumeGap,
         Rar5ReadPasswordSession? password = null)
@@ -32,6 +35,7 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
         _archive = archive;
         _numberedVolumeGap = numberedVolumeGap;
         _password = password;
+        _bitReaders.Add(_bits);
     }
 
     public string Format => _volumes.Count > 1 ? $"RAR ({_volumes.Count} volumes)" : "RAR";
@@ -197,6 +201,15 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
 
     private void NewRun(int version, long dictionary, long expectedBytes)
     {
+        // Independent opens can still be borrowed. Reclaim completed runs, including older borrowed streams
+        // that finished since the previous open; unfinished runs stay usable until reader disposal.
+        foreach (var run in _runs.Where(pair => pair.Value.Member.Finished).ToArray())
+        {
+            run.Key.Dispose(); _windows.Remove(run.Key);
+            run.Value.Bits.Dispose(); _bitReaders.Remove(run.Value.Bits); _runs.Remove(run.Key);
+        }
+        if (_decoder is null) { _bits.Dispose(); _bitReaders.Remove(_bits); } // initial/unused RAR 1.5 bit reader
+        _bits = new RarBitReader();
         if (version == 15)
         {
             // RAR 1.5 keeps its own 64 KiB window; the run's members go through RarMemberStream's external mode.
@@ -206,9 +219,10 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
         }
         else
         {
+            _bitReaders.Add(_bits);
             _decoder = CreateDecoder(version);
             _window = new RarWindow(dictionary, expectedBytes);
-            _bits = new RarBitReader();
+            _windows.Add(_window);
             _rar15 = null;
         }
         _decoded = null;
@@ -233,6 +247,7 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
             _bits.Reset(packed);
             _decoder.StartMember(_bits, solid, member.UnpackedSize);
             _decoded = RarMemberStream.Decoded(member, _decoder, _window!, ct, packed as Rar5MemberDecryption);
+            _runs[_window!] = (_bits, _decoded);
         }
         _decodedIndex = index;
         return _decoded;
@@ -261,6 +276,12 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
         if (_disposed) return;
         _disposed = true;
         _decoder = null;
+        foreach (var bits in _bitReaders) bits.Dispose();
+        _bitReaders.Clear();
+        _bits.Dispose();
+        foreach (var window in _windows) window.Dispose();
+        _windows.Clear();
+        _runs.Clear();
         _window = null;
         _rar15 = null;
         _decoded = null;

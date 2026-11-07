@@ -11,6 +11,13 @@ existing permitted encoders and reviewed missing public-domain codec/filter path
 candidates and 21 SDK candidates; the analysis itself imports no code and establishes no runtime qualification.
 Subsequent bounded implementation checkpoints are described below.
 
+The latest working priority in plan §1.2 places RAR/7z integration next: complete strict catalogs, then connect
+both formats to the shared transaction/password/create/update/edit/F6 workflows before optional XZ/ISO work and
+the final independent review. The [strict RAR5 logical catalog](RAR5_LOGICAL_CATALOG.md) now implements complete
+content/end/filter observations, while preservation admission and the corresponding strict 7z catalog remain open.
+Its validation record distinguishes the initial fixture-helper failures, focused correction and decoder-lifetime
+follow-up; component evidence does not enable either format in the application.
+
 The priority decision is in plan §4.3.2: bounded RAR C# implementation first, then needed 7z codecs/filters/container;
 strict catalogs and shared worker/transaction/capture/resource integration; complete workflows/UI; large guarded
 three-platform qualification batches plus actual six-RID/package/fuzz gates; final independent UX/UI/function/security

@@ -241,9 +241,9 @@ internal sealed partial class RarArchive
         long dictionary = 0;
         if (method != 0 && version != 0)
         {
-            if (dictionaryBits > (version == 50 ? 15 : 19)) throw RarData.Corrupt("dictionary size");
+            if (dictionaryBits > (algorithm == 0 ? 15 : 23)) throw RarData.Corrupt("dictionary size");
             dictionary = 0x20000L << dictionaryBits;
-            if (version == 70) dictionary += dictionary / 32 * fraction;
+            if (algorithm == 1) dictionary += dictionary / 32 * fraction;
         }
         var member = new RarMember
         {

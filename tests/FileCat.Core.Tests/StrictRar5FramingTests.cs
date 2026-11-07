@@ -269,12 +269,12 @@ public sealed class StrictRar5FramingTests
         using var result = new MemoryStream(); do { byte item = (byte)(value & 127); value >>= 7; result.WriteByte((byte)(item | (value == 0 ? 0 : 128))); } while (value != 0);
         return result.ToArray();
     }
-    private static byte[] Var(int value) => Var(checked((ulong)value));
+    internal static byte[] Var(int value) => Var(checked((ulong)value));
     private static byte[] U32(uint value) { byte[] bytes = new byte[4]; BinaryPrimitives.WriteUInt32LittleEndian(bytes, value); return bytes; }
     private static byte[] U64(ulong value) { byte[] bytes = new byte[8]; BinaryPrimitives.WriteUInt64LittleEndian(bytes, value); return bytes; }
-    private static byte[] Extra(int kind, params byte[][] fields)
+    internal static byte[] Extra(int kind, params byte[][] fields)
     { byte[] body = [.. Var(kind), .. fields.SelectMany(x => x)]; return [.. Var(body.Length), .. body]; }
-    private static byte[] FileBody(string name, ulong flags = 0, long length = 0, ulong attributes = 0x81a4,
+    internal static byte[] FileBody(string name, ulong flags = 0, long length = 0, ulong attributes = 0x81a4,
         uint basic = 0, uint crc = 0, ulong compression = 0, int host = 1)
     {
         byte[] text = Encoding.UTF8.GetBytes(name);
@@ -286,9 +286,9 @@ public sealed class StrictRar5FramingTests
     { data ??= []; return Header(2, extra is { Length: > 0 } ? 3UL : 2UL, FileBody(name, flags, data.Length, attributes, basic, crc, compression, host), extra, data); }
     private static byte[] MainHeader(ulong flags = 0) => Header(1, 0, Var(flags));
     private static byte[] End() => Header(5, 0, Var(0));
-    private static byte[] Container(params byte[][] files) => ContainerWith([MainHeader(), .. files, End()]);
+    internal static byte[] Container(params byte[][] files) => ContainerWith([MainHeader(), .. files, End()]);
     private static byte[] ContainerWith(byte[][] records) => [.. Signature, .. records.SelectMany(x => x)];
-    private static byte[] Header(int kind, ulong flags, byte[] body, byte[]? extra = null, byte[]? data = null, long? declaredDataSize = null)
+    internal static byte[] Header(int kind, ulong flags, byte[] body, byte[]? extra = null, byte[]? data = null, long? declaredDataSize = null)
     {
         extra ??= []; data ??= [];
         byte[] header = [.. Var(kind), .. Var(flags), .. ((flags & 1) != 0 ? Var(extra.Length) : []),

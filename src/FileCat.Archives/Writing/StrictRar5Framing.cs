@@ -33,7 +33,10 @@ internal sealed record Rar5PhysicalMember(string Name, ArchiveMemberType Type, i
 /// require a separate strict decoder pass. Salt/IV/check records stay job-local; this object is never a journal DTO.
 /// </summary>
 internal sealed record Rar5PhysicalCatalog(IReadOnlyList<Rar5PhysicalMember> Members, string Revision, long Length,
-    bool HiddenNames, int? HeaderKdfPower);
+    bool HiddenNames, int? HeaderKdfPower)
+{
+    internal long RetainedHeapBytes { get; init; }
+}
 
 /// <summary>
 /// Bounded stream-only observer of RAR5 raw headers, independent from tolerant browsing. Exact optional metadata,
@@ -117,7 +120,8 @@ internal static class StrictRar5Framing
                             throw Invalid("The RAR end header is misplaced or has unexpected data.");
                         if (body.VarInt() != 0) throw Unsupported("A continuing RAR volume cannot be rewritten by this profile.");
                         End(body); source.End();
-                        return new(members.AsReadOnly(), source.Digest(), source.Length, headers is not null, headers?.CountPower);
+                        return new(members.AsReadOnly(), source.Digest(), source.Length, headers is not null, headers?.CountPower)
+                            { RetainedHeapBytes = budget.RetainedHeapBytes };
                     }
                     else throw Unsupported("RAR service, recovery or unknown records require a preservation implementation.");
                 }
@@ -126,6 +130,8 @@ internal static class StrictRar5Framing
             throw Invalid("The RAR container is missing its end header.");
         }
         catch (ArchiveWriteException) { throw; }
+        catch (InvalidDataException ex) when (ex.InnerException is ArchiveWriteException) { throw (ArchiveWriteException)ex.InnerException; }
+        catch (InvalidDataException ex) when (RarData.IsUnsupported(ex)) { throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "The RAR framing uses an unsupported feature.", ex); }
         catch (InvalidDataException ex) { throw new ArchiveWriteException(ArchiveWriteReason.InvalidArchive, "The RAR framing or password check is invalid.", ex); }
         catch (EndOfStreamException ex) { throw new ArchiveWriteException(ArchiveWriteReason.InvalidArchive, "The RAR framing ends unexpectedly.", ex); }
     }
@@ -263,7 +269,7 @@ internal static class StrictRar5Framing
     private static void End(RarHeaderReader reader)
     { if (reader.Remaining != 0) throw Unsupported("The RAR record has trailing fields without a preservation contract."); }
 
-    private sealed class Forward : Stream
+    internal sealed class Forward : Stream
     {
         private readonly Stream input;
         private readonly CancellationToken ct;

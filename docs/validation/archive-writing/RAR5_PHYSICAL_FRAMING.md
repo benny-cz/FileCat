@@ -5,6 +5,9 @@ physical bytes and retains exact optional metadata and member occurrences. It is
 Its result is a physical catalog; decompression, compressed-end/filter checks, CRC/BLAKE2sp and plaintext SHA-256
 verification remain required before a complete assessment. New writers remain unregistered.
 
+The subsequent [strict logical catalog checkpoint](RAR5_LOGICAL_CATALOG.md) implements those payload/end/filter
+observations. It still supplies no writable-profile assessment or publication permission.
+
 `StrictRar5Framing` checks signature, header CRCs, ordering, declared extents, end marker and absence of trailing data.
 It reads payload bytes through a fixed forward stream instead of seeking over them. Every source read fits the
 65,524-byte proxy ceiling. Header bodies are capped at 1 MiB before allocation; cumulative metadata/member/name/
