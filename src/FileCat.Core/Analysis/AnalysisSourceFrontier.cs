@@ -128,7 +128,7 @@ internal sealed class AnalysisSourceFrontier : IAsyncDisposable
                     {
                         token.ThrowIfCancellationRequested(); var row = Read(parent, token); var child = lineage[^1];
                         if (row.Depth != child.Depth - 1 || row.Path >= child.Path || lineage.Count >= AnalysisLimits.Depth) throw Invalid();
-                        bytes = checked(bytes + Cost(row)); if (bytes > AnalysisLimits.PendingBytes / 4) throw new AnalysisFrontierScopeException(leaf.Path);
+                        bytes = checked(bytes + Cost(row)); if (bytes > AnalysisPendingPayload.WitnessBytes) throw new AnalysisFrontierScopeException(leaf.Path);
                         lineage.Add(row); parent = row.Parent; batchBytes += Cost(row);
                         if (clock.ElapsedMilliseconds >= 20) break;
                     }
@@ -140,7 +140,7 @@ internal sealed class AnalysisSourceFrontier : IAsyncDisposable
             {
                 relativeLength = checked(relativeLength + row.Raw.Length + (relativeLength == 0 ? 0 : _windows ? 2 : 1));
                 prefixBytes = checked(prefixBytes + relativeLength);
-                if (_rootBytes + relativeLength > AnalysisLimits.LocatorBytes || bytes + prefixBytes > AnalysisLimits.PendingBytes / 2)
+                if (_rootBytes + relativeLength > AnalysisLimits.LocatorBytes || bytes + prefixBytes > AnalysisPendingPayload.WitnessBytes)
                     throw new AnalysisFrontierScopeException(leaf.Path);
             }
             // Only CPU/owned bytes here. The root witness is the runtime capability; record decoding

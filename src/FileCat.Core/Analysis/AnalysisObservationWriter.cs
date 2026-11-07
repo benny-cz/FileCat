@@ -11,7 +11,6 @@ public sealed record AnalysisObservationItem(AnalysisEntry Entry, ulong Parent, 
 /// </summary>
 public sealed class AnalysisObservationWriter : IAsyncDisposable
 {
-    private static long s_pendingBytes;
     private readonly AnalysisOwnedDatasetIo<Owner> _owned;
     private readonly DeviceIoScheduler _io; private readonly AnalysisIoDevices _device;
     private AnalysisObservationCapture? _stopTarget;
@@ -52,21 +51,14 @@ public sealed class AnalysisObservationWriter : IAsyncDisposable
 
     public async Task<ImmutableArray<ulong>> AppendBatchAsync(ImmutableArray<AnalysisObservationItem> observations, CancellationToken cancellation = default)
     {
-        if (observations.IsDefault || observations.Length is < 1 or > AnalysisLimits.BatchRecords) throw new ArgumentOutOfRangeException(nameof(observations));
-        long bytes = 0;
-        foreach (var item in observations)
+        long bytes = PayloadBytes(observations);
+        cancellation.ThrowIfCancellationRequested();
+        using (AnalysisPendingPayload.Writes.Acquire(bytes))
         {
-            if (item is null || item.Entry is not { } entry || entry.Name is null || item.RootId is null || item.Basis is null) throw new ArgumentException("A captured batch row is incomplete.", nameof(observations));
-            bytes = checked(bytes + 512L + entry.Name.Length * 2L + entry.RawName.Length + (entry.Identity?.Length ?? 0) * 2L + (entry.Version?.Length ?? 0) * 2L + item.RootId.Length * 2L + item.Basis.Length * 2L);
-            if (bytes > AnalysisLimits.BatchBytes) throw new ArgumentException("The captured batch exceeds its byte limit. Submit a smaller batch.", nameof(observations));
-        }
-        Reserve(bytes);
-        try
-        {
-            cancellation.ThrowIfCancellationRequested(); var detached = ImmutableArray.CreateBuilder<AnalysisObservationItem>(observations.Length);
-            // A queued store write must not retain a live backend's ancestry chain/relative locator.
-            foreach (var item in observations) detached.Add(item with { Entry = item.Entry with { RelativeName = [], Ancestry = null } });
-            var batch = detached.ToImmutable();
+            var batch = Detach(observations);
+            // Clear the async method's input field before awaiting. Detaching only the lambda
+            // payload would still leave original read witnesses reachable through that field.
+            observations = default;
             return await _owned.RunAsync((owner, token) =>
             {
                 try
@@ -78,16 +70,25 @@ public sealed class AnalysisObservationWriter : IAsyncDisposable
                 catch { owner.Capture.StopAccepting(); throw; }
             }, cancellation).ConfigureAwait(false);
         }
-        finally { Interlocked.Add(ref s_pendingBytes, -bytes); }
     }
-    private static void Reserve(long bytes)
+    internal static long PayloadBytes(ImmutableArray<AnalysisObservationItem> observations)
     {
-        while (true)
+        if (observations.IsDefault || observations.Length is < 1 or > AnalysisLimits.BatchRecords) throw new ArgumentOutOfRangeException(nameof(observations));
+        long bytes = 0;
+        foreach (var item in observations)
         {
-            long observed = Volatile.Read(ref s_pendingBytes);
-            if (bytes > AnalysisLimits.PendingBytes - observed) throw new IOException("The shared pending observation payload limit was reached.");
-            if (Interlocked.CompareExchange(ref s_pendingBytes, observed + bytes, observed) == observed) return;
+            if (item is null || item.Entry is not { } entry || entry.Name is null || entry.NameEncoding is null || entry.Version is null || item.RootId is null || item.Basis is null) throw new ArgumentException("A captured batch row is incomplete.", nameof(observations));
+            bytes = checked(bytes + 512L + entry.Name.Length * 2L + entry.RawName.Length + (entry.Identity?.Length ?? 0) * 2L + (entry.Version?.Length ?? 0) * 2L +
+                entry.NameEncoding.Length * 2L + (entry.IssueCode?.Length ?? 0) * 2L + item.RootId.Length * 2L + item.Basis.Length * 2L);
+            if (bytes > AnalysisLimits.BatchBytes) throw new ArgumentException("The captured batch exceeds its byte limit. Submit a smaller batch.", nameof(observations));
         }
+        return bytes;
+    }
+    private static ImmutableArray<AnalysisObservationItem> Detach(ImmutableArray<AnalysisObservationItem> observations)
+    {
+        var detached = ImmutableArray.CreateBuilder<AnalysisObservationItem>(observations.Length);
+        foreach (var item in observations) detached.Add(item with { Entry = item.Entry with { RelativeName = [], Ancestry = null } });
+        return detached.ToImmutable();
     }
     public Task RecordIssueAsync(string code, ulong? node = null, MeasurementState state = MeasurementState.Failed, string? root = null, CancellationToken cancellation = default) =>
         _owned.RunAsync((owner, token) => { owner.Capture.Issue(code, node, state, root, token); owner.Capture.Publish(token); return true; }, cancellation);

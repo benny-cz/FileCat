@@ -165,10 +165,11 @@ public sealed partial class AnalysisSession : IDisposable
     }
     private async Task ProduceAsync()
     {
-        bool admitted = false;
+        bool admitted = false; IDisposable? payloadAdmission = null;
         try
         {
             await GlobalScans.WaitAsync(_cancel.Token).ConfigureAwait(false); admitted = true;
+            payloadAdmission = AnalysisPendingPayload.Working.Acquire(AnalysisPendingPayload.WorkingPerScan);
             if (_io.IsStopped) throw new OperationCanceledException("Analysis I/O has stopped.");
             await NormalizeRootsAsync().ConfigureAwait(false);
             await PrepareStorageAsync().ConfigureAwait(false);
@@ -220,18 +221,22 @@ public sealed partial class AnalysisSession : IDisposable
             }
             finally
             {
-                await FinishStorageAsync().ConfigureAwait(false);
-                lock (_sync) _activeDevice = null;
-                _io.HealthChanged -= OnDeviceHealth;
-                if (admitted) GlobalScans.Release();
-                lock (_sync)
+                try { await FinishStorageAsync().ConfigureAwait(false); }
+                finally
                 {
-                    _store.Seal();
-                    if (_phase is not (AnalysisPhase.Stopped or AnalysisPhase.Failed)) _phase = AnalysisPhase.Finished;
-                    _workerFinished = true;
-                    if (!_disposed) _final ??= Capture(); else if (_snapshotLeases == 0) Release();
+                    lock (_sync) _activeDevice = null;
+                    _io.HealthChanged -= OnDeviceHealth;
+                    payloadAdmission?.Dispose();
+                    if (admitted) GlobalScans.Release();
+                    lock (_sync)
+                    {
+                        _store.Seal();
+                        if (_phase is not (AnalysisPhase.Stopped or AnalysisPhase.Failed)) _phase = AnalysisPhase.Finished;
+                        _workerFinished = true;
+                        if (!_disposed) _final ??= Capture(); else if (_snapshotLeases == 0) Release();
+                    }
+                    Report();
                 }
-                Report();
             }
         }
     }
@@ -292,15 +297,14 @@ public sealed partial class AnalysisSession : IDisposable
         if (!source.RootEntry.IncludedByPolicy || source.RootEntry.MetadataState != MeasurementState.Known)
         { Issue(source.RootEntry.IssueCode ?? "root-enumeration-unavailable", rootId, source.RootEntry.MetadataState); return; }
         if (source.RootEntry.Cloud == true) { Issue("cloud-directory-not-enumerated", rootId, MeasurementState.Excluded); return; }
-        var pending = new Stack<(AnalysisEntry Entry, ulong Id, int Depth, long Bytes)>();
+        var pending = new Stack<(AnalysisEntry Entry, ulong Id, int Depth, IDisposable? Payload)>();
         AnalysisSourceFrontier? frontier = null;
-        long pendingBytes = 0;
         var clock = System.Diagnostics.Stopwatch.StartNew();
         try
         {
             if (_writer is not null && source.RootEntry.Ancestry is not null)
                 frontier = await OnStorageDeviceAsync(() => _writer.CreateSourceFrontierAsync(source.RootEntry, root, rootId.Value, _cancel.Token)).ConfigureAwait(false);
-            else pending.Push((source.RootEntry, rootId.Value, 0, 0));
+            else pending.Push((source.RootEntry, rootId.Value, 0, null));
             lock (_sync) _enumerationRequested++;
             await PublishEnumerationAsync().ConfigureAwait(false);
             while (!_store.Limited || _writer is not null)
@@ -317,9 +321,11 @@ public sealed partial class AnalysisSession : IDisposable
                 else
                 {
                     if (!pending.TryPop(out var next)) break;
-                    (entry, id, depth) = (next.Entry, next.Id, next.Depth); pendingBytes -= next.Bytes;
+                    (entry, id, depth) = (next.Entry, next.Id, next.Depth); next.Payload?.Dispose();
                 }
                 if (depth >= AnalysisLimits.Depth) { Issue("depth-limit", id); lock (_sync) _enumerationFailed++; await PublishEnumerationAsync().ConfigureAwait(false); continue; }
+                if (AnalysisPendingPayload.EntryBytes(entry, ancestry: true) > AnalysisPendingPayload.WitnessBytes)
+                { Issue("frontier-read-witness-limit", id); lock (_sync) _enumerationFailed++; await PublishEnumerationAsync().ConfigureAwait(false); continue; }
                 var enumeration = await AnalysisIo.Run(_io, device, _ => source.Children(entry, _cancel.Token).GetEnumerator(), _cancel.Token).ConfigureAwait(false);
                 await using var cursorOwner = AnalysisIo.OwnCursor(_io, device, enumeration);
                 bool finished = false;
@@ -358,10 +364,12 @@ public sealed partial class AnalysisSession : IDisposable
                         if (child.Kind != AnalysisKind.Directory) continue;
                         if (child.Cloud == true) { Issue("cloud-directory-not-enumerated", childId, MeasurementState.Excluded); continue; }
                         if (frontierChildren is not null) { frontierChildren.Add(new(child, childId.Value)); continue; }
-                        long bytes = 2048L + child.RelativeName.Length * 2L + child.RawName.Length * 4L;
-                        if (pendingBytes + bytes > AnalysisLimits.PendingBytes / 2) { Issue("pending-payload-limit", childId); continue; }
-                        pending.Push((child, childId.Value, depth + 1, bytes)); pendingBytes += bytes;
                         lock (_sync) _enumerationRequested++;
+                        long bytes = AnalysisPendingPayload.EntryBytes(child, ancestry: true);
+                        if (!AnalysisPendingPayload.Frontier.TryAcquire(bytes, out var payload))
+                        { Issue("pending-payload-limit", childId); lock (_sync) _enumerationFailed++; continue; }
+                        try { pending.Push((child, childId.Value, depth + 1, payload)); }
+                        catch { payload!.Dispose(); throw; }
                     }
                     if (frontierChildren is { Count: > 0 })
                     {
@@ -382,6 +390,7 @@ public sealed partial class AnalysisSession : IDisposable
         }
         finally
         {
+            while (pending.TryPop(out var queued)) queued.Payload?.Dispose();
             if (frontier is not null)
                 await OnStorageDeviceAsync(async () => { await frontier.DisposeAsync().ConfigureAwait(false); return true; }).ConfigureAwait(false);
         }
@@ -402,7 +411,7 @@ public sealed partial class AnalysisSession : IDisposable
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return Finish(new(entries, true, false, Error: "enumeration-unavailable")); }
             }
             var entry = carry ?? iterator.Current; carry = null;
-            long cost = checked(1024L + entry.RawName.Length * 4L + entry.RelativeName.Length * 2L);
+            long cost = AnalysisPendingPayload.EntryBytes(entry);
             if (cost > AnalysisLimits.BatchBytes) return Finish(new(entries, true, true));
             if (bytes + cost > AnalysisLimits.BatchBytes) return Finish(new(entries, false, false, entry));
             bytes += cost;

@@ -174,7 +174,7 @@ public sealed partial class AnalysisSession
             var batch = ImmutableArray.CreateBuilder<AnalysisObservationItem>(); long bytes = 0;
             while (next < entries.Count && batch.Count < AnalysisLimits.BatchRecords)
             {
-                var e = entries[next]; long cost = 512L + e.Name.Length * 2L + e.RawName.Length + (e.Identity?.Length ?? 0) * 2L + e.Version.Length * 2L + root.Length * 2L + basis.Length * 2L;
+                var e = entries[next]; long cost = 512L + e.Name.Length * 2L + e.RawName.Length + (e.Identity?.Length ?? 0) * 2L + e.Version.Length * 2L + e.NameEncoding.Length * 2L + (e.IssueCode?.Length ?? 0) * 2L + root.Length * 2L + basis.Length * 2L;
                 if (cost > AnalysisLimits.BatchBytes) throw new IOException("One metadata observation exceeds the producer payload bound.");
                 if (batch.Count != 0 && bytes + cost > AnalysisLimits.BatchBytes) break;
                 bytes += cost; batch.Add(new(e, parent, root, basis, _policy.ComponentPreset == "detailed")); next++;

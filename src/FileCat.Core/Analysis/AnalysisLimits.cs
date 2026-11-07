@@ -9,6 +9,9 @@ public static class AnalysisLimits
         {
             ["roots"] = Roots, ["observations"] = Observations, ["depth"] = Depth, ["rawNameBytes"] = RawNameBytes,
             ["locatorBytes"] = LocatorBytes, ["batchRecords"] = BatchRecords, ["batchBytes"] = BatchBytes, ["pendingBytes"] = PendingBytes,
+            ["producerWorkingBytesPerScan"] = AnalysisPendingPayload.WorkingPerScan,
+            ["pendingTraversalBytes"] = PendingBytes / 4, ["pendingCaptureBytes"] = PendingBytes / 4,
+            ["sourceWitnessBytes"] = AnalysisPendingPayload.WitnessBytes,
             ["memoryBytes"] = MemoryBytes, ["scratchBytes"] = ScratchBytes, ["profileScratchBytes"] = ProfileScratchBytes,
             ["nativeHandles"] = NativeHandles, ["ioRequests"] = IoRequests, ["activeScans"] = ActiveScans,
             ["issues"] = Issues, ["components"] = Components

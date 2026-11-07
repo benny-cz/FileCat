@@ -96,3 +96,9 @@ Six direct controls, actual cross-process locked-file and Windows mutex controls
 ## Shared explorer operation admission
 
 All explorer creations, pages, inspections and charts share eight process-wide accepted operations. Admission begins before input retention or lane mutation, and lasts through actual work/rollback/final cleanup. Cancellation of an already accepted queued read cannot reclaim its place early. Rejected work leaves current requests and published state intact. Cross-view, pending-creation, cancellation/close and failure/reuse controls pass on Windows, Mac and Ubuntu in complete immutable candidate batches. Global producer/dataset byte queues, CPU/memory/device aliases and the full resource gate remain unqualified. See [r559 evidence](../validation/disk-space/source-manifest-r559.json).
+
+## Shared producer-payload accounting
+
+The8 MiB global producer envelope is partitioned into4 MiB of reserved actual-producer work,2 MiB of memory traversal tickets and2 MiB of queued capture writes. Working admission lasts through actual native/scheduler completion and finalization; traversal tickets drain on pop/close. Rejected directories remain requested/failed coverage. Full decoded metadata and ancestry participate in estimates; runtime witness reconstruction is bounded at1 MiB and qualified without name truncation. Effective partitions/witness limits are recorded in scan policy.
+
+Capture validation includes encoding/issue strings. Queued writes contain detached observations, with original async input fields cleared before awaiting; forced-GC and actual cancellation/drain controls verify witness release and byte lifetime. Twelve controls pass all3 in complete immutable candidate batches. Complete512 MiB memory/CPU/device and large-workload qualification remains pending. See [r571 evidence](../validation/disk-space/source-manifest-r571.json).
