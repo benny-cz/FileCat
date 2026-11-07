@@ -102,3 +102,7 @@ reads the member (`SevenZipMemberStream` in `src/FileCat.Archives/ArchiveFormats
 - `Compressors/Deflate/ZlibBaseStream.cs`: retain the inflate status separately from the returned byte count in
   synchronous/asynchronous reads. A one-byte read previously treated its byte count as `Z_STREAM_END` and discarded
   compressed input still needed for BCJ2 branches (and other callers that read one byte at a time).
+
+- `Compressors/LZMA/DecoderStream.cs`: synchronous and asynchronous graph construction dispose already-created
+  decoder/packed streams if a later coder or graph construction step throws. This closes earlier AES transforms
+  even when the caller never receives a root decoder to own; cleanup preserves the original exception.

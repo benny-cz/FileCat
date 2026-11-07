@@ -18,6 +18,11 @@ content/end/filter observations, while preservation admission and the correspond
 Its validation record distinguishes the initial fixture-helper failures, focused correction and decoder-lifetime
 follow-up; component evidence does not enable either format in the application.
 
+The subsequent [strict 7z framing/metadata checkpoint](SEVENZIP_PHYSICAL_FRAMING.md) observes exact raw metadata,
+coder graphs and physical ownership, including bounded compressed/encrypted headers. It also closes partially
+constructed decoder graphs on failure. Complete logical member/header codec-ending checks and preservation
+admission remain open; an encoded-header catalog explicitly reports its ending verification as pending.
+
 The priority decision is in plan §4.3.2: bounded RAR C# implementation first, then needed 7z codecs/filters/container;
 strict catalogs and shared worker/transaction/capture/resource integration; complete workflows/UI; large guarded
 three-platform qualification batches plus actual six-RID/package/fuzz gates; final independent UX/UI/function/security
