@@ -43,13 +43,14 @@ public sealed class ArchiveRar5TransformPlan : ArchiveContainerTransformPlan
 
     internal static ArchiveRar5TransformPlan CreateCaptured(ArchiveWriteProfile profile, ArchiveAssessment? source,
         IReadOnlyList<ArchiveTransformInput> inputs, IReadOnlyList<ArchiveTransformEdit> edits,
-        IReadOnlyList<ArchiveTransformAddition> additions, ArchiveCapturedInputCost captureCost, CancellationToken ct, ArchiveCapturedInputs? owner = null)
-        => CreateCore(profile, source, inputs, edits, additions, 0, captureCost, owner, ct);
+        IReadOnlyList<ArchiveTransformAddition> additions, ArchiveCapturedInputCost captureCost, CancellationToken ct, ArchiveCapturedInputs? owner = null,
+        IReadOnlyList<ArchiveCapturedDirectoryMerge>? directoryMerges = null, long retainedHeapBytes = 0)
+        => CreateCore(profile, source, inputs, edits, additions, retainedHeapBytes, captureCost, owner, ct, directoryMerges);
 
     private static ArchiveRar5TransformPlan CreateCore(ArchiveWriteProfile profile, ArchiveAssessment? source,
         IReadOnlyList<ArchiveTransformInput> inputs, IReadOnlyList<ArchiveTransformEdit> edits,
         IReadOnlyList<ArchiveTransformAddition> additions, long retainedHeapBytes, ArchiveCapturedInputCost captureCost,
-        ArchiveCapturedInputs? captureOwner, CancellationToken ct)
+        ArchiveCapturedInputs? captureOwner, CancellationToken ct, IReadOnlyList<ArchiveCapturedDirectoryMerge>? directoryMerges = null)
     {
         ArgumentNullException.ThrowIfNull(profile); ArgumentNullException.ThrowIfNull(inputs);
         ArgumentNullException.ThrowIfNull(edits); ArgumentNullException.ThrowIfNull(additions); ct.ThrowIfCancellationRequested();
@@ -105,6 +106,7 @@ public sealed class ArchiveRar5TransformPlan : ArchiveContainerTransformPlan
             RequestName(edit.Key.RawPath); if (edit.NewName is not null) RequestName(edit.NewName);
             if (edit.InputId is { } id) Use(id); frozenEdits[index] = edit;
         }
+        usedDirectories.UnionWith(ArchiveCapturedDirectoryMerge.Review(directoryMerges, captureOwner, source, keys, changes, budget, ct));
         var members = new List<ArchiveRar5PlannedMember>(); var namespaceRows = new List<(ArchiveManifestMember, bool)>();
         var occurrences = new Dictionary<(string, ArchiveMemberType), int>();
         for (int index = 0; index < oldMembers.Count; index++)

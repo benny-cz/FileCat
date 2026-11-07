@@ -150,7 +150,7 @@ def run(root,tool,modules,bcj2,adapter=None):
     assert result.returncode==0,(archive,result.stderr)
     for member in members:
      if member['type']==1:continue
-     value=subprocess.run([str(tool),'x','-so','-bd','-y','-p'+password,str(archive),'--',member['name']],capture_output=True,timeout=120)
+     value=subprocess.run([str(tool),'x','-so','-bd','-y','-ssc','-p'+password,str(archive),'--',member['name']],capture_output=True,timeout=120)
      assert value.returncode==0 and len(value.stdout)==member['length'] and hashlib.sha256(value.stdout).hexdigest().upper()==member['sha256'],(archive,member['name'])
    for member in members:
     if member['length']==0:assert member['sha256']==hashlib.sha256(b'').hexdigest().upper()

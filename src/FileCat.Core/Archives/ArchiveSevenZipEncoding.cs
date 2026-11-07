@@ -149,7 +149,12 @@ internal static class ArchiveSevenZipEncoding
     }
     internal static ArchiveSevenZipMetadata Captured(ArchiveMemberType type, long length, int mode, ArchiveTimestamp modified, ArchiveWriteProfile profile)
         => new(type, (uint)(mode | (type == ArchiveMemberType.Directory ? 0x4000 : 0x8000)) << 16 | 0x8000u | (type == ArchiveMemberType.Directory ? 0x10u : 0x20u),
-            modifiedFileTime: FileTime(modified), graph: type == ArchiveMemberType.File ? Payload(profile, length) : null);
+            modifiedFileTime: CapturedFileTime(modified), graph: type == ArchiveMemberType.File ? Payload(profile, length) : null);
+    // Version 2 is still unregistered: new inputs use the selected format's 100 ns precision, toward the earlier
+    // instant. The source descriptor/held observation retains every nanosecond for native rereviews. Existing
+    // archive metadata never passes through this conversion; its unsigned FILETIME values remain exact.
+    internal static ulong CapturedFileTime(ArchiveTimestamp time)
+        => FileTime(new(time.Seconds, time.Nanoseconds - time.Nanoseconds % 100));
     internal static ulong FileTime(ArchiveTimestamp time)
     {
         const long epoch = -11644473600;

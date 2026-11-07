@@ -15,6 +15,7 @@ public sealed partial class ArchiveCapturedInputsTests
         internal long? DeclaredLength;
         internal bool ThrowOpen, ThrowViewDispose;
         internal string Identity = "source-" + id;
+        internal ArchiveTimestamp Modified = new(0, 0);
         internal ArchiveOriginSnapshot Origin = ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier);
         internal File Open()
         {
@@ -23,7 +24,7 @@ public sealed partial class ArchiveCapturedInputsTests
         }
         internal string Metadata => Convert.ToHexString(SHA256.HashData(BitConverter.GetBytes(Generation)));
         internal ArchiveFileObservation Observation() => new(new(Identity, DeclaredLength ?? Bytes.Length,
-            Convert.ToHexString(SHA256.HashData(Bytes))), "parent", "input-" + id, Metadata, Origin, DateTimeOffset.UnixEpoch, 0x1a4);
+            Convert.ToHexString(SHA256.HashData(Bytes))), "parent", "input-" + id, Metadata, Origin, Modified, 0x1a4);
     }
     private sealed class File(Source source) : MemoryStream(source.Bytes, writable: false), IArchiveRetainedFile
     {
@@ -36,7 +37,7 @@ public sealed partial class ArchiveCapturedInputsTests
         public Stream OpenReadView(ArchiveFileObservation expected, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            if (expected.Version.Identity != source.Identity || expected.MetadataDigest != source.Metadata) throw new IOException("Changed controlled metadata.");
+            if (!source.Observation().Matches(expected)) throw new IOException("Changed controlled metadata.");
             return new View(source);
         }
         protected override void Dispose(bool disposing)

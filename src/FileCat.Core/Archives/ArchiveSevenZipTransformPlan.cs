@@ -34,12 +34,13 @@ public sealed class ArchiveSevenZipTransformPlan : ArchiveContainerTransformPlan
         => CreateCore(profile, source, inputs, edits, additions, retainedHeapBytes, default, null, ct);
     internal static ArchiveSevenZipTransformPlan CreateCaptured(ArchiveWriteProfile profile, ArchiveAssessment? source,
         IReadOnlyList<ArchiveTransformInput> inputs, IReadOnlyList<ArchiveTransformEdit> edits,
-        IReadOnlyList<ArchiveTransformAddition> additions, ArchiveCapturedInputCost captureCost, CancellationToken ct, ArchiveCapturedInputs? owner = null)
-        => CreateCore(profile, source, inputs, edits, additions, 0, captureCost, owner, ct);
+        IReadOnlyList<ArchiveTransformAddition> additions, ArchiveCapturedInputCost captureCost, CancellationToken ct, ArchiveCapturedInputs? owner = null,
+        IReadOnlyList<ArchiveCapturedDirectoryMerge>? directoryMerges = null, long retainedHeapBytes = 0)
+        => CreateCore(profile, source, inputs, edits, additions, retainedHeapBytes, captureCost, owner, ct, directoryMerges);
     private static ArchiveSevenZipTransformPlan CreateCore(ArchiveWriteProfile profile, ArchiveAssessment? source,
         IReadOnlyList<ArchiveTransformInput> inputs, IReadOnlyList<ArchiveTransformEdit> edits,
         IReadOnlyList<ArchiveTransformAddition> additions, long retainedHeapBytes, ArchiveCapturedInputCost captureCost,
-        ArchiveCapturedInputs? captureOwner, CancellationToken ct)
+        ArchiveCapturedInputs? captureOwner, CancellationToken ct, IReadOnlyList<ArchiveCapturedDirectoryMerge>? directoryMerges = null)
     {
         ArgumentNullException.ThrowIfNull(profile); ArgumentNullException.ThrowIfNull(inputs); ArgumentNullException.ThrowIfNull(edits);
         ArgumentNullException.ThrowIfNull(additions); ct.ThrowIfCancellationRequested();
@@ -84,6 +85,7 @@ public sealed class ArchiveSevenZipTransformPlan : ArchiveContainerTransformPlan
             if (!keys.Contains(edit.Key) || !changes.TryAdd(edit.Key, edit)) throw Changed();
             if (edit.InputId is { } id) Use(id); frozenEdits[i] = edit;
         }
+        usedDirectories.UnionWith(ArchiveCapturedDirectoryMerge.Review(directoryMerges, captureOwner, source, keys, changes, budget, ct));
         var members = new List<ArchiveSevenZipPlannedMember>(); var namespaceRows = new List<(ArchiveManifestMember, bool)>();
         var occurrences = new Dictionary<(string, ArchiveMemberType), int>();
         for (int i = 0; i < oldMembers.Count; i++)

@@ -37,11 +37,13 @@ public sealed class ArchiveTarTransformPlan : ArchiveContainerTransformPlan
         => CreateCore(profile, source, inputs, edits, additions, default, ct, null);
 
     internal static ArchiveTarTransformPlan CreateCaptured(ArchiveWriteProfile profile, ArchiveAssessment? source, IReadOnlyList<ArchiveTransformInput> inputs,
-        IReadOnlyList<ArchiveTransformEdit> edits, IReadOnlyList<ArchiveTransformAddition> additions, ArchiveCapturedInputCost captureCost, CancellationToken ct, ArchiveCapturedInputs? captureOwner = null)
-        => CreateCore(profile, source, inputs, edits, additions, captureCost, ct, captureOwner);
+        IReadOnlyList<ArchiveTransformEdit> edits, IReadOnlyList<ArchiveTransformAddition> additions, ArchiveCapturedInputCost captureCost, CancellationToken ct, ArchiveCapturedInputs? captureOwner = null,
+        IReadOnlyList<ArchiveCapturedDirectoryMerge>? directoryMerges = null, long retainedHeapBytes = 0)
+        => CreateCore(profile, source, inputs, edits, additions, captureCost, ct, captureOwner, directoryMerges, retainedHeapBytes);
 
     private static ArchiveTarTransformPlan CreateCore(ArchiveWriteProfile profile, ArchiveAssessment? source, IReadOnlyList<ArchiveTransformInput> inputs,
-        IReadOnlyList<ArchiveTransformEdit> edits, IReadOnlyList<ArchiveTransformAddition> additions, ArchiveCapturedInputCost captureCost, CancellationToken ct, ArchiveCapturedInputs? captureOwner)
+        IReadOnlyList<ArchiveTransformEdit> edits, IReadOnlyList<ArchiveTransformAddition> additions, ArchiveCapturedInputCost captureCost, CancellationToken ct, ArchiveCapturedInputs? captureOwner,
+        IReadOnlyList<ArchiveCapturedDirectoryMerge>? directoryMerges = null, long retainedHeapBytes = 0)
     {
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(inputs); ArgumentNullException.ThrowIfNull(edits); ArgumentNullException.ThrowIfNull(additions);
@@ -61,7 +63,7 @@ public sealed class ArchiveTarTransformPlan : ArchiveContainerTransformPlan
 
         // Account retained source, request arrays/maps and the derived output together. This is deliberately
         // conservative even when immutable strings/metadata are shared; global operation leases remain a later gate.
-        var budget = new ArchiveWriteBudget();
+        var budget = new ArchiveWriteBudget(); budget.AddMetadata(0, retainedHeapBytes);
         budget.RetainCapturedInputs(captureCost);
         budget.AddMetadata(0, 256L * inputs.Count + 128L * edits.Count + 96L * additions.Count);
         var captured = new Dictionary<int, ArchiveTransformInput>(inputs.Count);
@@ -99,6 +101,7 @@ public sealed class ArchiveTarTransformPlan : ArchiveContainerTransformPlan
             if (edit.InputId is { } id) Use(id);
             frozenEdits[i] = edit;
         }
+        usedDirectories.UnionWith(ArchiveCapturedDirectoryMerge.Review(directoryMerges, captureOwner, source, keys, changes, budget, ct));
         var planned = new List<(ArchiveManifestMember Member, bool Changed)>();
         var occurrences = new Dictionary<(string, ArchiveMemberType), int>();
         foreach (var old in source?.Manifest.Members ?? [])

@@ -700,7 +700,10 @@ oracle check. Qualify extension payloads with an actually supporting independent
 Use a parent-owned seekable stage proxy, not a full in-memory archive. Raw and compressed headers, exact bounded
 dictionary/model/filter properties and real codec presets are versioned profile fields. Do not wire UI levels to
 the pinned writer's unused property. 7z FILETIME has 100 ns precision: preserve existing representable values exactly
-and declare/review new-input precision policy or refuse unrepresentable input; do not promise arbitrary nanoseconds.
+and use the declared version-2 new-input policy: convert added disk timestamps toward the earlier representable
+100 ns instant, report precision conversions in the accepted workflow review, and retain full native input
+nanoseconds for source rereviews. Existing raw archive FILETIMEs are never rounded or projected through `DateTime`.
+The capture timestamp domain/range remains bounded; do not promise arbitrary nanoseconds in the output.
 
 Before updating, validate the signature and start/next-header CRCs, checked next-header offsets/lengths, encoded-header budgets, pack/unpack sizes, stream/coder counts, folder bindings, stream indices, entry-to-stream mapping, CRC presence, metadata presence and empty file/directory distinctions. Do not assume a library list represents all physical streams or properties.
 
@@ -835,6 +838,15 @@ Before ReadyToPublish, cancellation leaves the original unchanged. During public
 ### 11.1 Interaction principles
 
 Use FileCat's existing dialogs, operation center, theme tokens, RichTip, command registry and effective keymap. Preserve Commander source/target semantics and captured selections. No operation may change scope because focus, marks, navigation or the active target panel changes during preparation.
+
+Connect the shared review through one typed job/executor/availability service owned by the application composition.
+An empty or unqualified registration retains the current explicit refusal; a profile field never selects the ZIP
+executor implicitly. Freeze command intent and exact assessed member keys before queueing, then acquire and review
+native target/capture authority during execution so a queued job does not hold a deny-write lease against an earlier
+job. Refuse stale identities/revisions instead of silently widening or rebasing the operation. One operation-owned
+password lifetime covers its queue and worker grants, ends on submit failure or terminal job state, and is excluded
+from ordinary request/session/journal serialization. Present collisions, exclusions and format precision together
+through the job's bounded review path, including the captured selection's actual exclusions.
 
 Keep safety information proportional: one ordinary creation dialog; one combined review for an update/collision set; one progress job. Do not ask once per file merely because the archive is rebuilt. Destructive controls use the existing danger styling, are never the default/initially focused button, and require a deliberate new gesture. Cancel/Keep/Skip is the safe default. Fix the archive-specific Replace-default discrepancy identified in B12 rather than copying it into new formats.
 

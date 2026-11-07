@@ -2,10 +2,11 @@
 from pathlib import Path
 import hashlib,json,struct,subprocess,sys,zlib
 
-def verify(root,tool,modules,creations,updates):
+def verify(root,tool,modules,creations,updates,workflow=None):
  root,tool,modules=map(Path,(root,tool,modules));creations,updates=int(creations),int(updates);sys.path.insert(0,str(modules))
  from Cryptodome.Cipher import AES
- password='Public-RAR-Transform-暗号-42829316'
+ assert workflow in (None,'--workflow')
+ password='Public-RAR-Transform-暗号-42829316' if workflow is None else 'Public-7z-worker-暗号-42829324'
  def vint(data,pos):
   value=0
   for shift in range(0,70,7):
@@ -91,9 +92,11 @@ def verify(root,tool,modules,creations,updates):
   feature=bytes([1,0,main,end,enc_flags,header_info is not None,header_info[0] if header_info else 0,header_info[1] if header_info else 0,0,0])
   return members,feature,header_info
  tool_info=subprocess.run([str(tool),'i'],capture_output=True,timeout=60,check=True);(root/'tool-info.txt').write_bytes(tool_info.stdout+tool_info.stderr)
- documents=sorted(root.glob('*/*.json'));assert len(documents)==creations+updates*3
- assert sum(p.stem=='created' for p in documents)==creations
- assert {p.stem for p in documents}<={'created','source','updated','restored'}
+ documents=sorted(root.glob('format-Rar5-mode-*/*.json' if workflow is not None else '*/*.json'))
+ if workflow is None:
+  assert len(documents)==creations+updates*3 and sum(p.stem=='created' for p in documents)==creations
+  assert {p.stem for p in documents}<={'created','source','updated','restored'}
+ else:assert len(documents)==6 and {p.stem for p in documents}=={'source','rebuilt'}
  rows=[];payloads=0;metadata=0
  for document in documents:
   expected=json.loads(document.read_text());assert expected['synthetic_public_vector'] and expected['password']==password
@@ -105,16 +108,17 @@ def verify(root,tool,modules,creations,updates):
    assert actual['name']==wanted['name'] and actual['length']==wanted['length'] and actual['metadata'].hex().upper()==wanted['metadata'],(str(archive),index)
    metadata+=1
    if wanted['type']==1:assert actual['length']==0;continue
-   extraction=subprocess.run([str(tool),'x','-so','-bd','-y','-p'+password,str(archive),'--',actual['name']],capture_output=True,timeout=120)
+   extraction=subprocess.run([str(tool),'x','-so','-bd','-y','-ssc','-p'+password,str(archive),'--',actual['name']],capture_output=True,timeout=120)
    (archive.parent/(archive.stem+'-extract-'+str(index)+'.log')).write_bytes(extraction.stderr)
    assert extraction.returncode==0 and len(extraction.stdout)==wanted['length'] and hashlib.sha256(extraction.stdout).hexdigest().upper()==wanted['sha256'],(str(archive),index)
    payloads+=1
   rows.append({'archive':archive.relative_to(root).as_posix(),'sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'exact_metadata':True})
  for document in root.glob('*/restored.json'):
   assert document.with_suffix('.rar').read_bytes()==(document.parent/'source.rar').read_bytes()
- assert metadata==creations*2+updates*5 and payloads==creations+updates*4
+ if workflow is None:assert metadata==creations*2+updates*5 and payloads==creations+updates*4
+ else:assert metadata==45 and payloads==39
  facts={'creations':creations,'updates_and_restorations':updates,'official_archives':len(documents),'exact_payloads':payloads,
   'independent_metadata_records':metadata,'tool_sha256':hashlib.sha256(tool.read_bytes()).hexdigest(),'rows':rows}
- (root/'independent-native.json').write_text(json.dumps(facts,indent=2));print(json.dumps({key:value for key,value in facts.items() if key!='rows'}),flush=True)
+ (root/('independent-native.json' if workflow is None else 'independent-workflow-rar.json')).write_text(json.dumps(facts,indent=2));print(json.dumps({key:value for key,value in facts.items() if key!='rows'}),flush=True)
 
 if __name__=='__main__':verify(*sys.argv[1:])

@@ -14,8 +14,8 @@ public sealed partial class UnixArchiveStorageTests
         File.SetUnixFileMode(root, (UnixFileMode)0x1c0); string folder = Directory.CreateDirectory(Path.Combine(root, "folder")).FullName;
         string input = Path.Combine(root, "payload"); byte[] data = new byte[70001]; new Random(42829321).NextBytes(data); File.WriteAllBytes(input, data);
         File.SetUnixFileMode(input, (UnixFileMode)0x180); File.SetUnixFileMode(folder, (UnixFileMode)0x1c0);
-        File.SetLastWriteTimeUtc(input, DateTime.UnixEpoch.AddSeconds(1700000000).AddTicks(1234567));
-        Directory.SetLastWriteTimeUtc(folder, DateTime.UnixEpoch.AddSeconds(1700000001).AddTicks(7654321));
+        ArchiveNativeTimestampFixture.SetModified(input, 1700000000, 123456789);
+        ArchiveNativeTimestampFixture.SetModified(folder, 1700000001, 765432199);
         using var directory = UnixArchiveDirectory.Open(root); using var captured = new ArchiveCapturedInputs();
         directory.CaptureSource(captured, 1, "payload", ct); directory.CaptureSourceDirectory(captured, 2, "folder", ct); captured.Seal(ct);
         var workers = new List<Child>(); Child Launch(Guid nonce, string role) { var child = Child.Start(nonce, role); workers.Add(child); return child; }

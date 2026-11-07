@@ -30,7 +30,10 @@ def oracle(batch, helper_directory=None, helper_pins=None):
  batch.execute('cached-modules',[sys.executable,'-B',str(helper/'verify_oracle_module_reuse.py'),str(task/'password-oracle-tools-v1'),'windows' if windows else 'mac' if sys.platform=='darwin' else 'ubuntu'])
  batch.execute('independent-catalog',[sys.executable,'-B',str(helper/'verify_catalog.py'),str(out/'catalog'),str(tool),str(task/'password-oracle-tools-v1/modules'),str(filters),str(bcj2)])
  for name in ('workers','native-vectors'):
-  batch.execute('independent-'+name,[sys.executable,'-B',str(helper/'verify_pipeline.py'),str(out/name),str(tool),str(task/'password-oracle-tools-v1/modules'),str(bcj2)])
+  args=[sys.executable,'-B',str(helper/'verify_pipeline.py'),str(out/name),str(tool),str(task/'password-oracle-tools-v1/modules'),str(bcj2)]
+  # A full regression batch also exports the explicit CRC/anti/header-order preservation vectors here.
+  if name=='workers':args.append('--partial-folder-crc')
+  batch.execute('independent-'+name,args)
  (out/'test-and-oracle-complete.txt').write_text('PASS\n')
 
 def finish(batch):

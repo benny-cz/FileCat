@@ -153,16 +153,17 @@ internal sealed class ArchiveCapturedInputs : IDisposable
     }
 
     internal ArchiveContainerTransformPlan CreatePlan(ArchiveWriteProfile profile, ArchiveAssessment? source,
-        IReadOnlyList<ArchiveTransformEdit> edits, IReadOnlyList<ArchiveTransformAddition> additions, CancellationToken ct)
+        IReadOnlyList<ArchiveTransformEdit> edits, IReadOnlyList<ArchiveTransformAddition> additions, CancellationToken ct,
+        IReadOnlyList<ArchiveCapturedDirectoryMerge>? directoryMerges = null, long retainedHeapBytes = 0)
     {
         lock (gate)
         {
             Live(sealedRequired: true);
             return profile.Format switch
             {
-                ArchiveWriteFormat.Rar5 => ArchiveRar5TransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this),
-                ArchiveWriteFormat.SevenZip => ArchiveSevenZipTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this),
-                _ => ArchiveTarTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this),
+                ArchiveWriteFormat.Rar5 => ArchiveRar5TransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this, directoryMerges, retainedHeapBytes),
+                ArchiveWriteFormat.SevenZip => ArchiveSevenZipTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this, directoryMerges, retainedHeapBytes),
+                _ => ArchiveTarTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this, directoryMerges, retainedHeapBytes),
             };
         }
     }

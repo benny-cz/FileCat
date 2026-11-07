@@ -66,9 +66,10 @@ Remaining limits are explicit:
   decoded-header chains need another encoder route. Header dictionaries are bounded at 16 MiB; preserved header
   AES currently needs work factor 19–24 and a 16-byte IV, with salt width 0–16. Other readable parameters remain
   unqualified for writing; these are implementation/policy gaps, not format impossibilities.
-- New captured timestamps currently must fit 100 ns FILETIME precision/range. A reviewed format-precision policy
-  must address ordinary finer Unix timestamps before UI enablement. Existing archive times remain exact, including
-  raw values outside the managed `DateTime` range.
+- The subsequent [shared workflow review](SHARED_ARCHIVE_WORKFLOW_REVIEW.md) supplies the new-input precision
+  policy and finer Unix timestamp support. Its current-code checkpoint supersedes this historical checkpoint's
+  100 ns capture refusal. Existing raw archive times remain exact, including values outside `DateTime`.
+  Complete production review presentation and qualification remain required before UI enablement.
 - Solid/multipart/SFX/unknown-method profiles, Deflate64 and arbitrary plugin methods remain documented gaps.
   Zstandard retains its explicit compatibility explanation. Unix native creation here uses ordinary subprocesses;
   it does not qualify the production worker confinement recipe.

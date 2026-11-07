@@ -1,5 +1,13 @@
 # Archive writing implementation status
 
+**7 November: shared parent workflow review implemented, unregistered.**
+[Shared workflow adapter](SHARED_ARCHIVE_WORKFLOW_REVIEW.md) connects exact member/recursive scopes, directory
+merges with provenance, duplicate replacement, exclusion review and declared 7z input precision to all six
+container planners. It adds 62 focused cases; the final 3,738-case core matrix passes on Windows/Mac/Ubuntu.
+The [checkpoint](shared-workflow-review-checkpoint.json) records the passed independent readers, source/DLL/PDB
+bindings, 163 Windows native cases and owned-process cleanup. Production job/executor/availability and
+UI/password/edit/F6 integration remain open.
+
 **7 November: 7z shared pipeline implemented, unregistered.**
 [Semantic preservation and worker/native checkpoint](SEVENZIP_WORKER_PIPELINE.md) connects parent planning,
 packed reuse, exact optional metadata, role-bound passwords and captured/native creation. Windows application
@@ -12,8 +20,8 @@ This is an **incomplete implementation**, not format or release qualification. T
 application. An explicit new-profile job refuses instead of entering the legacy ZIP executor.
 
 **Next coherent implementation chunk:** integrate the completed RAR5/7z planners and shared password/native
-adapters into production creation/update/edit/F6 workflows, and qualify Unix confinement/update. Resolve the
-reviewed new-input 7z precision policy and remaining header compatibility gaps before enabling a profile. Reuse
+adapters and common review into production creation/update/edit/F6 workflows, and qualify Unix confinement/update.
+Present the declared 7z precision policy and resolve remaining header compatibility gaps before enabling a profile. Reuse
 passed codec/native evidence when its compiler inputs are unchanged; batch the shared UI and native acceptance
 work, then complete resource/crash/fuzz/RID/package gates and the final independent review.
 

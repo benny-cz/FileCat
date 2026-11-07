@@ -1,0 +1,510 @@
+{
+  "date": "2026-11-07",
+  "source_checkpoint": "5c5556fd",
+  "production_profile_registered": false,
+  "production_backend_qualified": false,
+  "shared_workflow_review_implemented": true,
+  "production_job_UI_integration_complete": false,
+  "new_cases": 62,
+  "changed_csharp": [
+    "src/FileCat.Core/Archives/ArchiveCapturedDirectoryMerge.cs",
+    "src/FileCat.Core/Archives/ArchiveCapturedInputs.cs",
+    "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+    "src/FileCat.Core/Archives/ArchiveSevenZipEncoding.cs",
+    "src/FileCat.Core/Archives/ArchiveSevenZipTransformPlan.cs",
+    "src/FileCat.Core/Archives/ArchiveTarTransformPlan.cs",
+    "src/FileCat.Core/Archives/ArchiveWorkflowReview.cs",
+    "tests/FileCat.Core.Tests/ArchiveCapturedInputsTests.cs",
+    "tests/FileCat.Core.Tests/ArchiveWorkflowReviewTests.cs",
+    "tests/FileCat.Core.Tests/UnixArchiveSevenZipCreationTests.cs"
+  ],
+  "source_packet": {
+    "files": 4472,
+    "bytes": 66504750,
+    "source_bytes": 102483078,
+    "sha256": "e8021cf6141f747579753a1cd5ea9eae82bc597b7d64fd2f6b0ba63e2aefa552"
+  },
+  "delta_packets": {
+    "2": {
+      "bytes": 11004,
+      "sha256": "aece0922c4935048a456ebb10ee907f96ef99cf86e123ce24ecffef24afa5311",
+      "files": [
+        {
+          "path": "tests/FileCat.Core.Tests/ArchiveCapturedInputsTests.cs",
+          "bytes": 15593,
+          "sha256": "ce6f0cf60dc3b5c5102ea3841a6b76e581a72419d37e1f4a21c104fdd20071c9",
+          "previous_sha256": "f77d39b79953cae353e08d5138e4c19fd0f610c5204f8115e6aa65346c3a4770"
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/ArchiveWorkflowReviewTests.cs",
+          "bytes": 19019,
+          "sha256": "692bc946b6f784787600e673b1e06f96fde9b825eeff91a47441ac45d14f751a",
+          "previous_sha256": "1333122ee7881c308c2feb48607c39daeb92dcb5e42316c6506aa8be935b8a78"
+        },
+        {
+          "path": "eng/validation/archive-writing/run_workflow_batch.py",
+          "bytes": 7309,
+          "sha256": "b36a92fea1d7afe24365469b0d591af0e79091a4d559d77750e3e8a38be4f6b2",
+          "previous_sha256": "402ac475bbf72e94384ea1e9b4970569756d402a440afb6d9a9a9e5d3bedd416"
+        }
+      ]
+    },
+    "3": {
+      "bytes": 13758,
+      "sha256": "c0f154c3bed26ab20fa2e7e72ac6c7230e40ce46e3cca7c3d08408065be9677f",
+      "files": [
+        {
+          "path": "src/FileCat.Core/Archives/ArchiveWorkflowReview.cs",
+          "bytes": 13531,
+          "sha256": "780ba2f81f9338bdddd1582eaec6532e88cb5359fa3e10b32e39c264560c9bcc",
+          "previous_sha256": "1c056a59475597870ed4bcfcd13d46dbce307816dc6bd059ab53691a260e30df"
+        },
+        {
+          "path": "tests/FileCat.Core.Tests/ArchiveWorkflowReviewTests.cs",
+          "bytes": 20570,
+          "sha256": "e74117c2e1168b2ed856db88ebf1c25b3fe4a15d23f4d98965f6a3e60ef0ba37",
+          "previous_sha256": "692bc946b6f784787600e673b1e06f96fde9b825eeff91a47441ac45d14f751a"
+        },
+        {
+          "path": "eng/validation/archive-writing/sevenzip-feasibility/finish_pipeline_batch.py",
+          "bytes": 7281,
+          "sha256": "60025e18d1d42161d7a990dc5cdada92f82d651238a8f406963d5f714bd37be0",
+          "previous_sha256": "da3062e96060f2abda935983768e3e580aad5eef416b90b359686f15ec966734"
+        },
+        {
+          "path": "eng/validation/archive-writing/run_workflow_batch.py",
+          "bytes": 8156,
+          "sha256": "2b054de457137c368967c2cd39a7d42665abf272143755d56cb35d1d910e68f3",
+          "previous_sha256": "b36a92fea1d7afe24365469b0d591af0e79091a4d559d77750e3e8a38be4f6b2"
+        }
+      ]
+    }
+  },
+  "windows_case_sensitive_oracle_supplement": {
+    "bytes": 8204,
+    "sha256": "b5287b8301365288b01aa5a6e9ec3b996a3c377922689eb1e9aebdbe535abcc7",
+    "files": [
+      {
+        "path": "verify_pipeline.py",
+        "source": "eng/validation/archive-writing/sevenzip-feasibility/verify_pipeline.py",
+        "bytes": 12675,
+        "sha256": "99dc2f0d87d971e88b5f301163f888c5e0728ce0f141846674f02663d09a594b"
+      },
+      {
+        "path": "verify_native_publication.py",
+        "source": "eng/validation/archive-writing/rar5-independent-probe/verify_native_publication.py",
+        "bytes": 8460,
+        "sha256": "493bb43c707da38933159a67f190968d6527e5a1424a6d678f4c7842f8be1136"
+      },
+      {
+        "path": "verify-workflow-tar.py",
+        "source": "eng/validation/archive-writing/verify-workflow-tar.py",
+        "bytes": 4191,
+        "sha256": "03b2c63bff8b116eb87a517387c500ce708741b90bb29f1366bc929d873e46cb"
+      }
+    ]
+  },
+  "refused_batch_packet": {
+    "bytes": 13636,
+    "sha256": "1cb16de4c28c348e5105d0abd31d6dd81723b3b7a90220b23b925d282e8c429f",
+    "files": [
+      {
+        "path": "src/FileCat.Core/Archives/ArchiveWorkflowReview.cs",
+        "bytes": 13531,
+        "sha256": "780ba2f81f9338bdddd1582eaec6532e88cb5359fa3e10b32e39c264560c9bcc",
+        "previous_sha256": "1c056a59475597870ed4bcfcd13d46dbce307816dc6bd059ab53691a260e30df"
+      },
+      {
+        "path": "tests/FileCat.Core.Tests/ArchiveWorkflowReviewTests.cs",
+        "bytes": 20570,
+        "sha256": "e74117c2e1168b2ed856db88ebf1c25b3fe4a15d23f4d98965f6a3e60ef0ba37",
+        "previous_sha256": "692bc946b6f784787600e673b1e06f96fde9b825eeff91a47441ac45d14f751a"
+      },
+      {
+        "path": "eng/validation/archive-writing/sevenzip-feasibility/finish_pipeline_batch.py",
+        "bytes": 7281,
+        "sha256": "60025e18d1d42161d7a990dc5cdada92f82d651238a8f406963d5f714bd37be0",
+        "previous_sha256": "da3062e96060f2abda935983768e3e580aad5eef416b90b359686f15ec966734"
+      },
+      {
+        "path": "eng/validation/archive-writing/run_workflow_batch.py",
+        "bytes": 7920,
+        "sha256": "c3987fc4d2a424d10990e1ca900eef94859853a42c1a73acd17b57cf91503ec2",
+        "previous_sha256": "b36a92fea1d7afe24365469b0d591af0e79091a4d559d77750e3e8a38be4f6b2"
+      }
+    ]
+  },
+  "limitations": [
+    "Parent review/planning component only; typed production job/executor/availability registry and UI/password/edit/F6 integration remain.",
+    "Replacement acceptance and exclusion/precision acceptance must be obtained by the production workflow UI before CreatePlan.",
+    "7z added timestamps use the earlier 100 ns instant; native input observations retain every nanosecond, and raw existing archive FILETIMEs stay exact.",
+    "No new production profile is enabled. Unix update/confinement and remaining resource/crash/fuzz/RID/package/final independent review remain."
+  ],
+  "platforms": {
+    "mac": {
+      "bytes": 131257765,
+      "sha256": "f0dc8af94153161797e8ce5fac0093e8a17ac0bacdbd94f5f9dcb2f68a7d0a9d",
+      "rows": 5025,
+      "tests": {
+        "archive-pipeline.trx": {
+          "Passed": 3683,
+          "NotExecuted": 55
+        },
+        "workflow-preflight.trx": {
+          "Passed": 62
+        }
+      },
+      "independent": {
+        "catalog/independent-catalog.json": {
+          "cases": 273,
+          "metadata_records": 819,
+          "payloads": 546,
+          "packed_witnesses": 336,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "py7zr": "1.1.4",
+          "official_archives": 234,
+          "official_payloads": 468,
+          "zstandard_composed_archives": 39,
+          "zstandard_composed_payloads": 78,
+          "branch_offsets": [
+            "Arm64-4",
+            "Arm64-4294967292",
+            "Arm64-65536",
+            "RiscV-4",
+            "RiscV-4294967292",
+            "RiscV-65536"
+          ],
+          "sdk_sha256": "8e76bb2b8673f5e9a9b1a2caab958ef38cece82e54045e29a252732f2260c42f"
+        },
+        "workers/independent-pipeline.json": {
+          "archives": 74,
+          "metadata": 357,
+          "payloads": 256,
+          "official_archives": 62,
+          "composed_zstandard_archives": 12,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "bcj2_sha256": "5656bfae915f4b3216ec15ce2762c8f2eba80c2dceb699aa47257e11c6948af6",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": true,
+          "encoded_header_graphs_observed": true
+        },
+        "native-vectors/independent-pipeline.json": {
+          "archives": 21,
+          "metadata": 42,
+          "payloads": 21,
+          "official_archives": 18,
+          "composed_zstandard_archives": 3,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "bcj2_sha256": "5656bfae915f4b3216ec15ce2762c8f2eba80c2dceb699aa47257e11c6948af6",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-pipeline.json": {
+          "archives": 6,
+          "metadata": 45,
+          "payloads": 39,
+          "official_archives": 6,
+          "composed_zstandard_archives": 0,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "bcj2_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-workflow-rar.json": {
+          "creations": 0,
+          "updates_and_restorations": 0,
+          "official_archives": 6,
+          "exact_payloads": 39,
+          "independent_metadata_records": 45,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb"
+        },
+        "workflows/independent-workflow-tar.json": {
+          "archives": 8,
+          "metadata": 60,
+          "payloads": 52,
+          "tool_sha256": "8e495531e1b2b8cb169ca583493922d4ab386007756418c15b95f07f642c35fb"
+        }
+      },
+      "compiler_source_documents": 1430,
+      "compiler_source_bytes": 13497921,
+      "assembly_pdb_pairs_bound": 10,
+      "changed_csharp_matched": [
+        "src/FileCat.Core/Archives/ArchiveCapturedDirectoryMerge.cs",
+        "src/FileCat.Core/Archives/ArchiveCapturedInputs.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipEncoding.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveTarTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveWorkflowReview.cs",
+        "tests/FileCat.Core.Tests/ArchiveCapturedInputsTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveWorkflowReviewTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveSevenZipCreationTests.cs"
+      ],
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "preserved_initial_preflight": {
+        "Failed": 10,
+        "Passed": 50
+      },
+      "preserved_intermediate_matrix": 3736
+    },
+    "ubuntu": {
+      "bytes": 131276584,
+      "sha256": "aa57c924c52612c6edc7cd222fd3e7c395c3aae9edfa8915d9157570125d9da4",
+      "rows": 5025,
+      "tests": {
+        "archive-pipeline.trx": {
+          "Passed": 3696,
+          "NotExecuted": 42
+        },
+        "workflow-preflight.trx": {
+          "Passed": 62
+        }
+      },
+      "independent": {
+        "catalog/independent-catalog.json": {
+          "cases": 273,
+          "metadata_records": 819,
+          "payloads": 546,
+          "packed_witnesses": 336,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "py7zr": "1.1.4",
+          "official_archives": 234,
+          "official_payloads": 468,
+          "zstandard_composed_archives": 39,
+          "zstandard_composed_payloads": 78,
+          "branch_offsets": [
+            "Arm64-4",
+            "Arm64-4294967292",
+            "Arm64-65536",
+            "RiscV-4",
+            "RiscV-4294967292",
+            "RiscV-65536"
+          ],
+          "sdk_sha256": "4a37237a162168414c8effcf857d2536f263bf0d4a30050dd4a8a617a1086c93"
+        },
+        "workers/independent-pipeline.json": {
+          "archives": 74,
+          "metadata": 357,
+          "payloads": 256,
+          "official_archives": 62,
+          "composed_zstandard_archives": 12,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "bcj2_sha256": "50ba524866c94eedcbe368ae14e8fecefc69d12463f534cb33dbaa83e2ea6493",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": true,
+          "encoded_header_graphs_observed": true
+        },
+        "native-vectors/independent-pipeline.json": {
+          "archives": 21,
+          "metadata": 42,
+          "payloads": 21,
+          "official_archives": 18,
+          "composed_zstandard_archives": 3,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "bcj2_sha256": "50ba524866c94eedcbe368ae14e8fecefc69d12463f534cb33dbaa83e2ea6493",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-pipeline.json": {
+          "archives": 6,
+          "metadata": 45,
+          "payloads": 39,
+          "official_archives": 6,
+          "composed_zstandard_archives": 0,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "bcj2_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-workflow-rar.json": {
+          "creations": 0,
+          "updates_and_restorations": 0,
+          "official_archives": 6,
+          "exact_payloads": 39,
+          "independent_metadata_records": 45,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886"
+        },
+        "workflows/independent-workflow-tar.json": {
+          "archives": 8,
+          "metadata": 60,
+          "payloads": 52,
+          "tool_sha256": "d32657a7a0e4cdc0a8aa57cafe474746944d76e861e753e9c902b9c9356fa886"
+        }
+      },
+      "compiler_source_documents": 1430,
+      "compiler_source_bytes": 13497921,
+      "assembly_pdb_pairs_bound": 10,
+      "changed_csharp_matched": [
+        "src/FileCat.Core/Archives/ArchiveCapturedDirectoryMerge.cs",
+        "src/FileCat.Core/Archives/ArchiveCapturedInputs.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipEncoding.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveTarTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveWorkflowReview.cs",
+        "tests/FileCat.Core.Tests/ArchiveCapturedInputsTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveWorkflowReviewTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveSevenZipCreationTests.cs"
+      ],
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "preserved_initial_preflight": {
+        "Failed": 10,
+        "Passed": 50
+      },
+      "preserved_intermediate_matrix": 3736
+    },
+    "windows": {
+      "bytes": 268899392,
+      "sha256": "ac8a8c744966ac6bbec2d72c62019581b4c8278f71f99200a88cb0d5832c636c",
+      "rows": 6393,
+      "case_sensitive_oracle_supplement": {
+        "files": [
+          {
+            "path": "verify_pipeline.py",
+            "source": "eng/validation/archive-writing/sevenzip-feasibility/verify_pipeline.py",
+            "bytes": 12675,
+            "sha256": "99dc2f0d87d971e88b5f301163f888c5e0728ce0f141846674f02663d09a594b"
+          },
+          {
+            "path": "verify_native_publication.py",
+            "source": "eng/validation/archive-writing/rar5-independent-probe/verify_native_publication.py",
+            "bytes": 8460,
+            "sha256": "493bb43c707da38933159a67f190968d6527e5a1424a6d678f4c7842f8be1136"
+          },
+          {
+            "path": "verify-workflow-tar.py",
+            "source": "eng/validation/archive-writing/verify-workflow-tar.py",
+            "bytes": 4191,
+            "sha256": "03b2c63bff8b116eb87a517387c500ce708741b90bb29f1366bc929d873e46cb"
+          }
+        ]
+      },
+      "tests": {
+        "app-entry.trx": {
+          "Passed": 10
+        },
+        "archive-pipeline.trx": {
+          "Passed": 3479,
+          "NotExecuted": 259
+        },
+        "native-preflight.trx": {
+          "Passed": 6
+        },
+        "native.trx": {
+          "Passed": 163
+        },
+        "workflow-preflight.trx": {
+          "Passed": 62
+        }
+      },
+      "independent": {
+        "catalog/independent-catalog.json": {
+          "cases": 273,
+          "metadata_records": 819,
+          "payloads": 546,
+          "packed_witnesses": 336,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "py7zr": "1.1.4",
+          "official_archives": 234,
+          "official_payloads": 468,
+          "zstandard_composed_archives": 39,
+          "zstandard_composed_payloads": 78,
+          "branch_offsets": [
+            "Arm64-4",
+            "Arm64-4294967292",
+            "Arm64-65536",
+            "RiscV-4",
+            "RiscV-4294967292",
+            "RiscV-65536"
+          ],
+          "sdk_sha256": "3a706c406bdf132b3ed4f6fc3b6dc25a54cb23c421d847b266cee13f26ac6a4e"
+        },
+        "workers/independent-pipeline.json": {
+          "archives": 74,
+          "metadata": 357,
+          "payloads": 256,
+          "official_archives": 62,
+          "composed_zstandard_archives": 12,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "bcj2_sha256": "172c4f63495aaadd4f83b3581b614c2367932130d23e7844dbfc5fdab42e3a93",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": true,
+          "encoded_header_graphs_observed": true
+        },
+        "native-vectors/independent-pipeline.json": {
+          "archives": 33,
+          "metadata": 63,
+          "payloads": 36,
+          "official_archives": 30,
+          "composed_zstandard_archives": 3,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "bcj2_sha256": "172c4f63495aaadd4f83b3581b614c2367932130d23e7844dbfc5fdab42e3a93",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-pipeline.json": {
+          "archives": 6,
+          "metadata": 45,
+          "payloads": 39,
+          "official_archives": 6,
+          "composed_zstandard_archives": 0,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "bcj2_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e",
+          "py7zr": "1.1.4",
+          "explicit_partial_crc_header_order_adapter": false,
+          "encoded_header_graphs_observed": true
+        },
+        "workflows/independent-workflow-rar.json": {
+          "creations": 0,
+          "updates_and_restorations": 0,
+          "official_archives": 6,
+          "exact_payloads": 39,
+          "independent_metadata_records": 45,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e"
+        },
+        "workflows/independent-workflow-tar.json": {
+          "archives": 8,
+          "metadata": 60,
+          "payloads": 52,
+          "tool_sha256": "94205cfc054dd3bbeb978905bc619a65b3f04e9e73bb2717841110b6f46d962e"
+        }
+      },
+      "compiler_source_documents": 2192,
+      "compiler_source_bytes": 23378952,
+      "assembly_pdb_pairs_bound": 17,
+      "changed_csharp_matched": [
+        "src/FileCat.Core/Archives/ArchiveCapturedDirectoryMerge.cs",
+        "src/FileCat.Core/Archives/ArchiveCapturedInputs.cs",
+        "src/FileCat.Core/Archives/ArchiveRar5TransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipEncoding.cs",
+        "src/FileCat.Core/Archives/ArchiveSevenZipTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveTarTransformPlan.cs",
+        "src/FileCat.Core/Archives/ArchiveWorkflowReview.cs",
+        "tests/FileCat.Core.Tests/ArchiveCapturedInputsTests.cs",
+        "tests/FileCat.Core.Tests/ArchiveWorkflowReviewTests.cs",
+        "tests/FileCat.Core.Tests/UnixArchiveSevenZipCreationTests.cs"
+      ],
+      "final_census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "preserved_initial_preflight": {
+        "Failed": 10,
+        "Passed": 50
+      },
+      "preserved_intermediate_matrix": 3736
+    }
+  }
+}
