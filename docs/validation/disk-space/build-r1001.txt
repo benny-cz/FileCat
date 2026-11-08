@@ -1,0 +1,13 @@
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\OwnedAnalysisStore.Deletion.cs(33,43): error CS8602: Dereference of a possibly null reference. [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\FileCat.Core.csproj]
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\OwnedAnalysisStore.History.cs(104,40): error CS0103: The name 'reviews' does not exist in the current context [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\FileCat.Core.csproj]
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\OwnedAnalysisStore.History.cs(123,91): error CS8604: Possible null reference argument for parameter 'receipt' in 'NamedWrite AnalysisSavedCatalog.BeginPublishedWriteUnderLock(AnalysisPrivateFile held, AnalysisInventoryReceipt receipt, NamespaceCoverage coverage, AnalysisTaint taint, AnalysisSavedView view, CancellationToken cancellation)'. [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\FileCat.Core.csproj]
+
+Build FAILED.
+
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\OwnedAnalysisStore.Deletion.cs(33,43): error CS8602: Dereference of a possibly null reference. [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\FileCat.Core.csproj]
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\OwnedAnalysisStore.History.cs(104,40): error CS0103: The name 'reviews' does not exist in the current context [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\FileCat.Core.csproj]
+E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\OwnedAnalysisStore.History.cs(123,91): error CS8604: Possible null reference argument for parameter 'receipt' in 'NamedWrite AnalysisSavedCatalog.BeginPublishedWriteUnderLock(AnalysisPrivateFile held, AnalysisInventoryReceipt receipt, NamespaceCoverage coverage, AnalysisTaint taint, AnalysisSavedView view, CancellationToken cancellation)'. [E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\FileCat.Core.csproj]
+    0 Warning(s)
+    3 Error(s)
+
+Time Elapsed 00:00:06.87

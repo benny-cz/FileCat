@@ -10,6 +10,7 @@
     <InternalsVisibleTo Include="FileCat.Platform.Windows.Tests" />
     <InternalsVisibleTo Include="FileCat.App.Tests" />
     <InternalsVisibleTo Include="FileCat.Rendering.Tests" />
+    <InternalsVisibleTo Include="FileCat" />
     <InternalsVisibleTo Include="FileCat.Platform.Windows" />
     <InternalsVisibleTo Include="FileCat.Remote" />
     <InternalsVisibleTo Include="FileCat.Remote.Tests" />

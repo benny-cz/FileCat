@@ -14,8 +14,18 @@ if($Platform-eq'windows'){
 $ErrorActionPreference='Stop'
 $base='@BASE@'
 Set-Location -LiteralPath $base
-$names=@(Get-ChildItem -LiteralPath $base -File|Where-Object{$_.Name -match '^(state[.]txt|failure[.]txt|cache-proof[.]txt|(smoke|preview|core|native|render)-@REV@[.](xml|log))$'}|ForEach-Object{$_.Name})
+$names=@(Get-ChildItem -LiteralPath $base -File|Where-Object{$_.Name -match '^(state[.]txt|failure[.]txt|cache-proof[.]txt|space-preflight[.]json|(smoke|preview|core|native|render)-@REV@[.](xml|log))$'}|ForEach-Object{$_.Name})
 if(Test-Path -LiteralPath 'payload/render/comparison-growth-renders'){$names+='payload/render/comparison-growth-renders'}
+else{
+ foreach($control in @('cache-input/plan.json','patch-input/plan.json')){
+  if(!(Test-Path -LiteralPath $control)){continue}
+  $cached=(Get-Content -LiteralPath $control -Raw|ConvertFrom-Json).baseline
+  if($cached-cnotmatch'^C:\\FileCatDsa20261104R2\\batch-r[0-9]+[a-z]?\\payload$'){throw 'Unexpected cached render location'}
+  $renders=Join-Path $cached 'render/comparison-growth-renders'
+  if(Test-Path -LiteralPath $renders){$names+=@('-C',$cached,'render/comparison-growth-renders')}
+  break
+ }
+}
 if(!$names.Contains('state.txt')){throw 'Runner state is missing'}
 & tar.exe -czf (Join-Path $base 'results.tgz') @names
 if($LASTEXITCODE){throw 'Result archive failed'}

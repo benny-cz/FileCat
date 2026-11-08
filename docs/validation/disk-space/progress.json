@@ -182,7 +182,8 @@
     "25 actual process-death boundaries and two replacement root-close controls pass Windows/Mac/Ubuntu. Windows staging cleanup is armed atomically at native create; confirmed save receipts survive final close uncertainty. Applicable broad suites pass all three; power-loss, physical desktop and full persistence qualification remain open.",
     "Native Keep/Replace control-event cases pass Windows/Mac/Ubuntu for memory and indexed views, including saved-reference invalidation at eight tabs. Actual480/1100 widths, font20 and Classic/Dark/HighContrast are checked; Mac visuals use its authorized compositor helper because native bitmap overlay capture is inaccurate. Sources remain unchanged and all task apps exit. Full physical input, a11y, display/package and persistence gates remain open.",
     "Finite configurable rolling-history preferences default off (10 analyses/30 days/1 GiB); bounded age/count/byte proposals preserve complete oversized inputs, protected entries and uncertain clocks without granting mutation authority. 25 Core cases and an actual diagnostics-ZIP privacy control pass all three, as do applicable broad suites after catalog tests were isolated correctly. Automatic capture/pruning and reviewed history settings/browsing remain unimplemented.",
-    "History planning uses ordered GUID sets and a copied bounded protection set; a4096-colliding-GUID control passes all three runtimes. Eight preserving retention-review variants pass headless on Windows/Mac/Ubuntu, including default focus, danger semantics, narrow-window footer geometry and escaped bidi path display. Diagnostics still passes. The dialog is not wired to Settings and automatic capture/pruning remains unimplemented."
+    "History planning uses ordered GUID sets and a copied bounded protection set; a4096-colliding-GUID control passes all three runtimes. Eight preserving retention-review variants pass headless on Windows/Mac/Ubuntu, including default focus, danger semantics, narrow-window footer geometry and escaped bidi path display. Diagnostics still passes. The dialog is not wired to Settings and automatic capture/pruning remains unimplemented.",
+    "An internal isolated native history store now saves and verifies complete memory/indexed inventories before guarded pruning; count retention, finite-byte oversize refusal, protected/disabled preservation, named-store isolation and unrelated-file refusal pass actual Windows/Mac/Ubuntu filesystem tests. Shared primitives pass all three broad suites. Runtime completion, Settings, browsing/pinning and full fault/resource qualification remain open."
   ],
   "validation": {
     "windowsCore": {
@@ -8804,13 +8805,134 @@
       "fullPersistenceGateQualified": false,
       "publicFeatureRegistered": false,
       "finalIndependentReviewPerformed": false
+    },
+    "historyNativeStore": {
+      "manifest": "source-manifest-r1010.json",
+      "matrix": {
+        "windows/smoke": {
+          "total": "27",
+          "passed": "27",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "0.362"
+        },
+        "windows/preview": {
+          "total": "14",
+          "passed": "14",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "3.379"
+        },
+        "windows/core": {
+          "total": "1577",
+          "passed": "1529",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0",
+          "time": "54.185"
+        },
+        "windows/native": {
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "36.941"
+        },
+        "windows/render": {
+          "total": "410",
+          "passed": "409",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "210.559"
+        },
+        "mac/smoke": {
+          "total": "27",
+          "passed": "27",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "0.184"
+        },
+        "mac/preview": {
+          "total": "14",
+          "passed": "14",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "3.511"
+        },
+        "mac/core": {
+          "total": "1559",
+          "passed": "1555",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "31.929"
+        },
+        "mac/render": {
+          "total": "410",
+          "passed": "410",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "147.579"
+        },
+        "ubuntu/smoke": {
+          "total": "27",
+          "passed": "27",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "0.316"
+        },
+        "ubuntu/preview": {
+          "total": "14",
+          "passed": "14",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "2.694"
+        },
+        "ubuntu/core": {
+          "total": "1559",
+          "passed": "1555",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "122.022"
+        },
+        "ubuntu/render": {
+          "total": "410",
+          "passed": "410",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "197.900"
+        }
+      },
+      "isolatedNativeStoreImplemented": true,
+      "memoryAndIndexedCaptureCasesPassedAllThree": true,
+      "guardedCountPruningCasesPassedAllThree": true,
+      "oversizeAndProtectionPreserveFilesAllThree": true,
+      "broadSuitesPassedAllThree": true,
+      "historySettingsWired": false,
+      "automaticCompletionHooksWired": false,
+      "historyBrowsingAndPinningImplemented": false,
+      "fullHistoryFaultAndResourceMatrixQualified": false,
+      "fullPersistenceGateQualified": false,
+      "publicFeatureRegistered": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
     "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, remaining dataset/CPU queues and full private-memory qualification (producer payload now shares a partitioned8 MiB envelope and explorer creation/page/inspection/chart work shares eight places, with actual-lifetime controls all3), actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
     "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu normal native resize at480/1100 now passes (r978); maximize/restore and display changes remain unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: complete full native pointer/key qualification (runtime deferred materialization/review, memory scoped/hidden-mark review and matching-file capture now pass all3) (indexed captured-folder/scoped marks/cross-page range controls now pass all3), folder and grouped exact Other explorer/chart/history/selection/SaveOpen controls pass all3; complete the remaining geometry, raw-name, interaction and resource parity matrix; qualify full indexed Other-subset persistence parity, full native indexed Save/Open qualification and remaining dimensions (memory grouping/captured selection and schema4 saved grouping restoration now pass all3) (indexed selector/chart/table/navigation/inspection now pass all3) (memory and indexed type/extension/captured-age/location stores, bounded pages and native capture controls now pass all3), owner/comparison/qualified-volume grouping and comparison-growth coloring (basic type/depth/captured-age colors, themed legends and strict saved-view restore now pass all3), scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
-    "W3: named .fcdsa prepared replacement, themed preserving review, explicit fresh recovery/browser/new-name fallback and saved-reference integration now pass Windows/Mac/Ubuntu r953/r955 native-file/headless checks. Actual process-death/anonymous staging and root-close controls now pass all three (r967). Next qualify power-loss boundaries and physical desktop/theme/DPI/a11y/package controls; complete comparison replacement or prescribed qualified unavailable behavior, optional capped rolling history (finite preferences/data-only planner and diagnostics control pass all three r988; ordered lookup/collision and headless preserving-review component also pass all three r1000; implement native isolated capture/pruning, memory/indexed completion hooks, reviewed settings, deletion/browsing/pinning and full lifecycle), general import/export and multiple-active/indexed-scale comparison/persistence. The complete persistence gate remains unqualified.",
+    "W3: named .fcdsa prepared replacement, themed preserving review, explicit fresh recovery/browser/new-name fallback and saved-reference integration now pass Windows/Mac/Ubuntu r953/r955 native-file/headless checks. Actual process-death/anonymous staging and root-close controls now pass all three (r967). Next qualify power-loss boundaries and physical desktop/theme/DPI/a11y/package controls; complete comparison replacement or prescribed qualified unavailable behavior, optional capped rolling history (finite preferences/data-only planner and diagnostics control pass all three r988; ordered lookup/collision and headless preserving-review component also pass all three r1000; native isolated capture/count-pruning and broad regressions also pass all three r1010; finish the history fault/resource matrix, memory/indexed completion hooks, reviewed settings, deletion/browsing/pinning and full lifecycle), general import/export and multiple-active/indexed-scale comparison/persistence. The complete persistence gate remains unqualified.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",
     "W1: qualify native mount/file-bind boundaries, raw-name/case-sensitive names, sparse/compressed/resident/preallocated/fork/cloud/filesystem cases and race controls.",
     "W1: epoch refresh, native unresponsive-device and shared-memory/indexed private-store budget qualification remain. Shared eight-request actual-I/O ownership and worker cleanup now have regressions; this is not full resource qualification.",

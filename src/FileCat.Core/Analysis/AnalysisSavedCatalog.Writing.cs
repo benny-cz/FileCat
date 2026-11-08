@@ -33,7 +33,18 @@ public sealed partial class AnalysisSavedCatalog
         byte[] preview = EncodeEntry(catalog, entry with { Bytes = AnalysisLimits.InventoryBytes });
         if (current.MetadataBytes > TotalBytes - preview.Length) throw Invalid("The saved analysis catalog metadata budget is full.");
     }
-    internal sealed class NamedWrite(AnalysisSavedCatalog catalog, AnalysisPrivateFile held, Guid identity, AnalysisSavedEntry planned) : IDisposable
+    // Only a process-owned freshly published receipt may reach this entry point. The caller
+    // retains the exact writer lease while pruning and then registering the new complete file.
+    internal NamedWrite BeginPublishedWriteUnderLock(AnalysisPrivateFile held, AnalysisInventoryReceipt receipt,
+        NamespaceCoverage coverage, AnalysisTaint taint, AnalysisSavedView view, CancellationToken cancellation)
+    {
+        ValidateView(view); AnalysisPrivateInventoryStore.ValidateName(receipt.Name); held.Verify();
+        using var current = Read(cancellation); RequireCapacity(current, receipt.InventoryId, receipt.Name, published: true);
+        Guid catalog = current.CatalogId ?? CreateHeader(cancellation);
+        var entry = new AnalysisSavedEntry(receipt.InventoryId, receipt.Name, receipt.Bytes, DateTimeOffset.UtcNow, coverage, taint, view);
+        RequireBytes(current, catalog, entry); return new(this, held, catalog, entry, ownsLock: false);
+    }
+    internal sealed class NamedWrite(AnalysisSavedCatalog catalog, AnalysisPrivateFile held, Guid identity, AnalysisSavedEntry planned, bool ownsLock = true) : IDisposable
     {
         private bool _closed, _completed;
         internal AnalysisPrivateDirectory BorrowDirectory() { Guard(); held.Verify(); return catalog.store.BorrowDirectory(); }
@@ -55,6 +66,6 @@ public sealed partial class AnalysisSavedCatalog
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or OperationCanceledException or InvalidOperationException)
             { throw new AnalysisCatalogUpdateException(receipt, error); }
         }
-        public void Dispose() { if (_closed) return; _closed = true; AnalysisIo.CloseOnWorker(held); }
+        public void Dispose() { if (_closed) return; _closed = true; if (ownsLock) AnalysisIo.CloseOnWorker(held); }
     }
 }

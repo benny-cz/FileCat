@@ -1,0 +1,46 @@
+[
+  {
+    "path": "src/FileCat.App/Services/AnalysisRollingHistoryAccess.cs",
+    "sha256": "6f2001237358ad151ab60b58b818ba01064c3a392e900f6db907784b0fc95663"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisInventoryPreparedWriter.cs",
+    "sha256": "c9494c23d4db640bbccfd53b6f17282db93fcb75c596736dc9e9a553301e1e90"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisInventoryWriteLimitException.cs",
+    "sha256": "10a1c5bebf72043e423dea4393a9d8d04621170ba2783cb727caeb2c5b83e9cf"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.cs",
+    "sha256": "9af9ede5bbf0f24e2c03f52bb93f39e8ba11e22362c8c4aa885fe439a1a676cf"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.Writing.cs",
+    "sha256": "7b2be9fa78563a02172ffb9f0e24d88a186137534c5a4832279ec4074cd68265"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.cs",
+    "sha256": "433a1d06d3fb573d66a542ddb0f05bd738d6c7c1f269a5fe5ee7ae7b0959405d"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.Deletion.cs",
+    "sha256": "a425476033b0e96617a50f6040e91c31db5974a4650f4b8c3a9d9db62dcf8ba2"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.History.cs",
+    "sha256": "69dd758ca35e0428ec0bc45d0f1bbfd9d34c28e8eae7a961d986de9288907dc1"
+  },
+  {
+    "path": "src/FileCat.Core/FileCat.Core.csproj",
+    "sha256": "6647d840d33420fbc40917f75e04414512a639f8e4221d84fd7639aa42476da6"
+  },
+  {
+    "path": "src/FileCat.Core/State/AppPaths.cs",
+    "sha256": "f5627b31605374afc7e867943692e744f54fa17fb4a0a1460b8b03317aa34f74"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.RollingStore.cs",
+    "sha256": "7c9ac6a05b1a87232a82fb787c996048bae82bf014fe5c4cf2d594b54b640cb8"
+  }
+]

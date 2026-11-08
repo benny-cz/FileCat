@@ -98,14 +98,17 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
     // runs on the captured source+destination Background turn; no monitor spans an await.
     internal static DatasetWrite BeginDatasetWrite(AnalysisPrivateDirectory directory, string name, CancellationToken cancellation)
         => BeginWrite(directory, name, replacement: false, cancellation);
+    internal static DatasetWrite BeginBoundedDatasetWrite(AnalysisPrivateDirectory directory, string name, long maximumBytes, CancellationToken cancellation)
+        => BeginWrite(directory, name, replacement: false, cancellation, maximumBytes);
     internal static DatasetWrite BeginReplacementWrite(AnalysisPrivateDirectory directory, string name, CancellationToken cancellation)
         => BeginWrite(directory, name, replacement: true, cancellation);
-    private static DatasetWrite BeginWrite(AnalysisPrivateDirectory directory, string name, bool replacement, CancellationToken cancellation)
+    private static DatasetWrite BeginWrite(AnalysisPrivateDirectory directory, string name, bool replacement, CancellationToken cancellation, long? maximumBytes = null)
     {
         ArgumentNullException.ThrowIfNull(directory);
         var store = new AnalysisPrivateInventoryStore(directory);
         try
         {
+            if (maximumBytes is < 1 or > AnalysisLimits.InventoryBytes) throw new ArgumentOutOfRangeException(nameof(maximumBytes));
             if (replacement)
             {
                 if (!AnalysisPrivateNames.IsReplacementPayload(name)) throw new ArgumentException("A generated private replacement payload name is required.", nameof(name));
@@ -113,7 +116,7 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
             else ValidateName(name);
             store.Guard(); cancellation.ThrowIfCancellationRequested();
             var file = directory.CreateStaging();
-            try { return new(store, file, name, cancellation, directory.Space); }
+            try { return new(store, file, name, cancellation, directory.Space, maximumBytes); }
             catch { AnalysisIo.CloseOnWorker(file); throw; }
         }
         catch { AnalysisIo.CloseOnWorker(store); throw; }
@@ -134,10 +137,10 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
             : throw new InvalidOperationException("The prepared inventory has not been published.");
         internal void Verify() { _store.Guard(); (_file ?? throw new ObjectDisposedException(nameof(DatasetWrite))).Verify(); }
         internal DatasetWrite(AnalysisPrivateInventoryStore store, AnalysisPrivateFile file, string name, CancellationToken cancellation,
-            Func<(UInt128 Capacity, UInt128 Available)> space)
+            Func<(UInt128 Capacity, UInt128 Available)> space, long? maximumBytes = null)
         {
             _store = store; _file = file; _name = name; _cancel = cancellation;
-            _guarded = new(file.Stream, () => { store.Guard(); file.Verify(); }, space, cancellation);
+            _guarded = new(file.Stream, () => { store.Guard(); file.Verify(); }, space, cancellation, maximumBytes);
             _buffer = new(_guarded, 64 * 1024);
         }
         internal void FlushBatch() { _cancel.ThrowIfCancellationRequested(); _buffer!.Flush(); }
@@ -313,7 +316,7 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
     }
 
     private sealed class GuardedWriteStream(Stream inner, Action verify,
-        Func<(UInt128 Capacity, UInt128 Available)> space, CancellationToken cancellation) : GuardedStream(inner, verify, cancellation)
+        Func<(UInt128 Capacity, UInt128 Available)> space, CancellationToken cancellation, long? maximumBytes = null) : GuardedStream(inner, verify, cancellation)
     {
         public long Written { get; private set; }
         public override bool CanRead => false;
@@ -322,7 +325,11 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
         public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
         public override void Write(ReadOnlySpan<byte> buffer)
         {
-            if (buffer.Length > AnalysisLimits.InventoryBytes - Written) throw new IOException("The inventory file limit was reached.");
+            if (buffer.Length > (maximumBytes ?? AnalysisLimits.InventoryBytes) - Written)
+            {
+                if (maximumBytes is { } maximum) throw new AnalysisInventoryWriteLimitException(maximum);
+                throw new IOException("The inventory file limit was reached.");
+            }
             while (!buffer.IsEmpty)
             {
                 Check(); int take = Math.Min(buffer.Length, 64 * 1024);

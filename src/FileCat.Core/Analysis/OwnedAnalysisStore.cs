@@ -22,15 +22,24 @@ public sealed partial class OwnedAnalysisStore : IAsyncDisposable
     /// <summary>The factory must prepare the application's private directory; inventory data cannot supply it.</summary>
     public static async Task<OwnedAnalysisStore> OpenAsync(DeviceIoScheduler io, string device,
         Func<AnalysisPrivateDirectory> prepareDirectory, CancellationToken cancellation = default)
+        => await OpenCoreAsync(io, device, prepareDirectory, rolling: false, cancellation).ConfigureAwait(false);
+
+    internal static Task<OwnedAnalysisStore> OpenRollingAsync(DeviceIoScheduler io, string device,
+        Func<AnalysisPrivateDirectory> prepareDirectory, CancellationToken cancellation = default) =>
+        OpenCoreAsync(io, device, prepareDirectory, rolling: true, cancellation);
+
+    private static async Task<OwnedAnalysisStore> OpenCoreAsync(DeviceIoScheduler io, string device,
+        Func<AnalysisPrivateDirectory> prepareDirectory, bool rolling, CancellationToken cancellation)
     {
         ArgumentNullException.ThrowIfNull(io); ArgumentNullException.ThrowIfNull(prepareDirectory);
-        var devices = new AnalysisIoDevices(device); var data = new Contents();
+        var devices = new AnalysisIoDevices(device); var data = new Contents { Rolling = rolling };
         try
         {
             await AnalysisIo.Run(io, devices, token =>
             {
                 data.Store = new(prepareDirectory());
-                using (new AnalysisSavedCatalog(data.Store).Read(token)) { }
+                using (var catalog = new AnalysisSavedCatalog(data.Store).Read(token))
+                    if (rolling) ValidateRollingShape(data.Store, catalog, allowedIncoming: null, token);
                 data.Profile = new AnalysisPrivateProfileState(data.Store).LoadOrCreate(token);
                 return true;
             }, cancellation).ConfigureAwait(false);
@@ -87,6 +96,7 @@ public sealed partial class OwnedAnalysisStore : IAsyncDisposable
     {
         internal AnalysisPrivateInventoryStore? Store;
         internal Guid Profile;
+        internal bool Rolling;
         public void Dispose() => Interlocked.Exchange(ref Store, null)?.Dispose();
     }
     public ValueTask DisposeAsync() => _owned.DisposeAsync();

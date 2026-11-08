@@ -6,6 +6,17 @@ namespace FileCat.Core.Analysis;
 
 public static partial class AnalysisInventoryFormat
 {
+    internal static Task<AnalysisPrivateInventoryStore.DatasetWrite> PrepareSnapshotNewAsync(AnalysisSnapshot snapshot,
+        DeviceIoScheduler io, AnalysisIoDevices devices, Func<AnalysisPrivateDirectory> createDirectory, string name, Guid id,
+        long maximumBytes, CancellationToken cancellation) =>
+        PrepareReplacementAsync(io, devices, createDirectory, name,
+            (output, token) => WriteSnapshotPipeAsync(snapshot, id, output, io, devices, token), cancellation, maximumBytes);
+
+    internal static Task<AnalysisPrivateInventoryStore.DatasetWrite> PrepareDatasetNewAsync(AnalysisIndexedGraphReader reader,
+        DeviceIoScheduler io, AnalysisIoDevices devices, Func<AnalysisPrivateDirectory> createDirectory, string name, Guid id,
+        long maximumBytes, CancellationToken cancellation) =>
+        PrepareReplacementAsync(io, devices, createDirectory, name,
+            (output, token) => WriteDatasetPreparedAsync(reader, id, output, io, devices, token), cancellation, maximumBytes);
     internal static Task<AnalysisPrivateInventoryStore.DatasetWrite> PrepareSnapshotReplacementAsync(AnalysisSnapshot snapshot,
         DeviceIoScheduler io, AnalysisIoDevices devices, Func<AnalysisPrivateDirectory> createDirectory, string name, Guid id, CancellationToken cancellation) =>
         PrepareReplacementAsync(io, devices, createDirectory, name,
@@ -13,7 +24,11 @@ public static partial class AnalysisInventoryFormat
 
     internal static Task<AnalysisPrivateInventoryStore.DatasetWrite> PrepareDatasetReplacementAsync(AnalysisIndexedGraphReader reader,
         DeviceIoScheduler io, AnalysisIoDevices devices, Func<AnalysisPrivateDirectory> createDirectory, string name, Guid id, CancellationToken cancellation) =>
-        PrepareReplacementAsync(io, devices, createDirectory, name, async (output, token) =>
+        PrepareReplacementAsync(io, devices, createDirectory, name,
+            (output, token) => WriteDatasetPreparedAsync(reader, id, output, io, devices, token), cancellation);
+
+    private static async Task WriteDatasetPreparedAsync(AnalysisIndexedGraphReader reader, Guid id,
+        AnalysisPrivateInventoryStore.DatasetWrite output, DeviceIoScheduler io, AnalysisIoDevices devices, CancellationToken cancellation)
         {
             using var writer = new DatasetWriter(reader, id);
             while (!writer.Done)
@@ -28,12 +43,12 @@ public static partial class AnalysisInventoryFormat
                         if (clock.ElapsedMilliseconds >= 20) break;
                     }
                     output.FlushBatch(); return true;
-                }, token).ConfigureAwait(false);
-        }, cancellation);
+                }, cancellation).ConfigureAwait(false);
+        }
 
     private static async Task<AnalysisPrivateInventoryStore.DatasetWrite> PrepareReplacementAsync(DeviceIoScheduler io,
         AnalysisIoDevices devices, Func<AnalysisPrivateDirectory> createDirectory, string name,
-        Func<AnalysisPrivateInventoryStore.DatasetWrite, CancellationToken, Task> write, CancellationToken cancellation)
+        Func<AnalysisPrivateInventoryStore.DatasetWrite, CancellationToken, Task> write, CancellationToken cancellation, long? maximumBytes = null)
     {
         await DatasetSaves.WaitAsync(cancellation).ConfigureAwait(false);
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
@@ -48,7 +63,12 @@ public static partial class AnalysisInventoryFormat
         try
         {
             output = await AnalysisIo.Run(io, devices, token =>
-            { token.ThrowIfCancellationRequested(); return AnalysisPrivateInventoryStore.BeginReplacementWrite(createDirectory(), name, token); }, stop.Token).ConfigureAwait(false);
+            {
+                token.ThrowIfCancellationRequested();
+                return maximumBytes is { } maximum
+                    ? AnalysisPrivateInventoryStore.BeginBoundedDatasetWrite(createDirectory(), name, maximum, token)
+                    : AnalysisPrivateInventoryStore.BeginReplacementWrite(createDirectory(), name, token);
+            }, stop.Token).ConfigureAwait(false);
             await write(output, stop.Token).ConfigureAwait(false);
             await AnalysisIo.Run(io, devices, token => { token.ThrowIfCancellationRequested(); output.Prepare(); return true; }, stop.Token).ConfigureAwait(false);
             var prepared = output; output = null; return prepared;

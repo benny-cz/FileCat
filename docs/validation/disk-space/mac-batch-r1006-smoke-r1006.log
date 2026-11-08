@@ -1,0 +1,6 @@
+  Discovering: FileCat.Core.Tests
+  Discovered:  FileCat.Core.Tests
+  Starting:    FileCat.Core.Tests
+  Finished:    FileCat.Core.Tests (ID = 'bcf525030271fdf017c24680fc4ddb17850030a22b06c824a54a3f84be8f0699')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Core.Tests  Total: 27, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 0,184s

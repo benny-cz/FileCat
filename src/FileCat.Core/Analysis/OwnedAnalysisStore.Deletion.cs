@@ -6,8 +6,10 @@ public sealed partial class OwnedAnalysisStore
         ChangeNamedAsync(review, restore: false, cancellation);
     public Task<OwnedAnalysisDeletionOutcome> RestoreNamedAsync(OwnedAnalysisDeleteReview review, CancellationToken cancellation = default) =>
         ChangeNamedAsync(review, restore: true, cancellation);
+    private Task<OwnedAnalysisDeletionOutcome> DeleteUnderHistoryLockAsync(OwnedAnalysisDeleteReview review, AnalysisPrivateFile held, CancellationToken cancellation) =>
+        ChangeNamedAsync(review, restore: false, cancellation, held);
 
-    private Task<OwnedAnalysisDeletionOutcome> ChangeNamedAsync(OwnedAnalysisDeleteReview review, bool restore, CancellationToken cancellation)
+    private Task<OwnedAnalysisDeletionOutcome> ChangeNamedAsync(OwnedAnalysisDeleteReview review, bool restore, CancellationToken cancellation, AnalysisPrivateFile? inheritedWriter = null)
     {
         ArgumentNullException.ThrowIfNull(review);
         if (restore && (!review.IsRecovery || !review.PayloadPresent)) throw new InvalidOperationException("Only a pending analysis whose saved file is present can be restored.");
@@ -22,12 +24,13 @@ public sealed partial class OwnedAnalysisStore
             {
                 await AnalysisIo.Run(_io, _device, token =>
                 {
-                    work.Writer = data.Store!.OpenCatalogLock(token);
+                    work.Writer = inheritedWriter ?? data.Store!.OpenCatalogLock(token); work.InheritedWriter = inheritedWriter is not null;
+                    work.Writer.Verify();
                     var selected = Select(data, review.Entry.InventoryId, token);
                     if (selected.Catalog != review.CatalogId || selected.Entry != review.Entry || selected.PayloadPresent != review.PayloadPresent ||
                         (selected.Pending?.OperationId ?? Guid.Empty) != review.ExistingOperation)
                         throw new InvalidDataException("The reviewed saved analysis changed. Obtain a fresh review.");
-                    using var directory = data.Store.BorrowDirectory();
+                    using var directory = data.Store!.BorrowDirectory();
                     work.Metadata = directory.OpenMaintenance(selected.MetadataName);
                     var metadata = MetadataIdentity(work.Metadata);
                     if (metadata.Identity != review.MetadataIdentity || metadata.Sha256 != review.MetadataSha256)
@@ -143,7 +146,7 @@ public sealed partial class OwnedAnalysisStore
     private sealed class DeletionWork : IAnalysisScratchOwned
     {
         internal AnalysisPrivateFile? Writer, Metadata, Payload;
-        internal bool MutationAttempted, NewPending, Restored, DataRemovalAttempted, PayloadAbsent, MetadataAbsent,
+        internal bool InheritedWriter, MutationAttempted, NewPending, Restored, DataRemovalAttempted, PayloadAbsent, MetadataAbsent,
             MetadataRemovalRequested, RollbackUnconfirmed;
         internal void ClosePayload() => Close(ref Payload);
         internal void CloseMetadata() => Close(ref Metadata);
@@ -157,7 +160,7 @@ public sealed partial class OwnedAnalysisStore
             var failures = new List<Exception>();
             try { Close(ref Payload); } catch (Exception error) { failures.Add(error); }
             try { Close(ref Metadata); } catch (Exception error) { failures.Add(error); }
-            try { Close(ref Writer); } catch (Exception error) { failures.Add(error); }
+            try { if (InheritedWriter) Writer = null; else Close(ref Writer); } catch (Exception error) { failures.Add(error); }
             if (failures.Count != 0) throw new AggregateException(failures);
         }
     }

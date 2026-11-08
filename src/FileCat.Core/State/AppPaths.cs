@@ -51,6 +51,8 @@ public sealed class AppPaths
     public string AnalysisScratchDirectory => Path.Combine(ListingScratchDirectory, "analysis");
     /// <summary>Owner-private named inventories, independent of disposable caches.</summary>
     public string AnalysisSnapshotsDirectory => Path.Combine(LocalDirectory, "analysis-snapshots");
+    /// <summary>Isolated owner-private rolling inventories; retention never opens the named-store root.</summary>
+    public string AnalysisHistoryDirectory => Path.Combine(LocalDirectory, "analysis-history");
     /// <summary>Private versioned named/rolling inventory index; never generic application history.</summary>
     public string AnalysisCatalogFile => Path.Combine(AnalysisSnapshotsDirectory, "catalog.json");
     /// <summary>Private roots, queries, recipes and write-locator history; excluded from normal preferences.</summary>
