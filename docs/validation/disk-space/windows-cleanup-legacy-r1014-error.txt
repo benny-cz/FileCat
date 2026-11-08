@@ -1,0 +1,9 @@
+Testing is active; cleanup postponed
+At C:\FileCatDsa20261104R2\cleanup-legacy-r1014.ps1:4 char:80
++ ... ilentlyContinue).Count){throw 'Testing is active; cleanup postponed'}
++                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Testing is active; cleanup postponed:String) [], 
+    RuntimeException
+    + FullyQualifiedErrorId : Testing is active; cleanup postponed
+ 
+

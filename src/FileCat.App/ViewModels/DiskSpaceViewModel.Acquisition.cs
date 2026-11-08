@@ -14,6 +14,8 @@ public sealed partial class DiskSpaceViewModel
     private bool _privateStorageUnavailable;
     private readonly AnalysisViewWork _actualWork = new();
     internal Task CloseCompletion { get; private set; } = Task.CompletedTask;
+    internal Task HistoryObservation { get; private set; } = Task.CompletedTask;
+    public string? HistoryNotice { get; internal set; }
 
     private static string? PrivateBoundaryNotice(AnalysisSnapshot observations)
     {
@@ -94,6 +96,7 @@ public sealed partial class DiskSpaceViewModel
             preparation.Token.ThrowIfCancellationRequested();
             if (_disposed) return;
             _session = _acquisition!.Start(_prepared.ToArray(), new LatestProgress(_services.Ui, UpdateProgress), Components);
+            HistoryObservation = ObserveHistoryAsync(_acquisition);
             _prepared.Clear(); _preparedInput = [];
         }
         catch (OperationCanceledException) when (preparation.IsCancellationRequested)
@@ -118,6 +121,15 @@ public sealed partial class DiskSpaceViewModel
                 IsPreparing = false; binding.TrySetResult(); if (!_disposed) Changed?.Invoke();
             }
         }
+    }
+
+    private async Task ObserveHistoryAsync(AnalysisIndexedAcquisition acquisition)
+    {
+        using var actual = _actualWork.Enter();
+        var outcome = await acquisition.HistoryCompletion;
+        if (_services?.AnalysisHistory.UnconfirmedClose is { } close) _actualWork.RecordUnconfirmedClose(close);
+        if (_disposed) return;
+        HistoryNotice = outcome?.Detail; Changed?.Invoke();
     }
 
     private async Task ReleasePreparedSourceAsync(IAnalysisBackend source)

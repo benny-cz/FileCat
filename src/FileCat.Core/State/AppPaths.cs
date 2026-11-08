@@ -103,6 +103,7 @@ public sealed class AppPaths
         ("the scratch of large listings", ListingScratchDirectory),
         ("private disk-space analysis scratch", AnalysisScratchDirectory),
         ("private saved disk-space analyses and catalog", AnalysisSnapshotsDirectory),
+        ("private rolling disk-space analysis history", AnalysisHistoryDirectory),
         ("originals kept while hex edits are saved", HexRecoveryDirectory),
     ];
 

@@ -26,3 +26,7 @@ eng/linux/appimage-runtime/** -text
 eng/validation/fixtures/dependency-notices/** -text
 # Original generated manifest CRLF is part of the pinned fixture bytes.
 eng/validation/fixtures/dependency-notices/*/FileCat.deps.json -whitespace
+
+# Original VMware/PowerShell diagnostic receipts keep their exact producer bytes.
+docs/validation/disk-space/windows-cleanup-legacy-r1014-error.txt -text -whitespace
+docs/validation/disk-space/windows-cleanup-legacy-r1014-error2.txt -text -whitespace

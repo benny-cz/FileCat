@@ -1,0 +1,10 @@
+Set-Content : There is not enough space on the disk.
+
+At C:\FileCatDsa20261104R2\cleanup-legacy-r1014.ps1:18 char:146
++ ... on -Depth 5|Set-Content -LiteralPath (Join-Path $root ('legacy-archiv ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [Set-Content], IOException
+    + FullyQualifiedErrorId : ProviderContentWriteError,Microsoft.PowerShell.Commands.SetContentC 
+   ommand
+ 
+

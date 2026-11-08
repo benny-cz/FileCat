@@ -1,0 +1,27 @@
+{
+    "root":  "C:\\FileCatDsa20261104R2",
+    "dryRun":  true,
+    "keep":  [
+                 "batch-r1015"
+             ],
+    "removed":  [
+                    {
+                        "bytes":  238735381,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r1006\\payload"
+                    },
+                    {
+                        "bytes":  79256380,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r1006\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  7661,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r1009\\bundle.tgz"
+                    }
+                ],
+    "skipped":  [
+                    "batch-r581",
+                    "batch-r732"
+                ],
+    "capacity":  213660311552,
+    "available":  1390792704
+}

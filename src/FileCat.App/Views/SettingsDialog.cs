@@ -358,6 +358,10 @@ public static class SettingsDialog
         var paths = new SelectableTextBlock { Text = $"Settings: {vm.Services.Paths.SettingsDirectory}\nLocal data: {vm.Services.Paths.LocalDirectory}{(vm.Services.Paths.IsPortable ? "\n(portable mode)" : string.Empty)}", TextWrapping = TextWrapping.Wrap };
         tabs.Items.Add(new TabItem { Header = "Privacy", Content = Form(("", diag), ("", updates), ("", updateNote), ("", shellPictures), ("", shellSlow), ("", shellNote), ("Storage", paths)) });
 
+        var historyEditor = new AnalysisHistorySettingsEditor(vm.Services.AnalysisHistory.Policy, vm.Services.Paths.AnalysisHistoryDirectory);
+        int historyTab = tabs.Items.Count;
+        tabs.Items.Add(new TabItem { Header = "Analysis history", Content = historyEditor.View });
+
         var error = new TextBlock { Classes = { "error" }, TextWrapping = TextWrapping.Wrap, IsVisible = false };
         Avalonia.Automation.AutomationProperties.SetLiveSetting(error, Avalonia.Automation.AutomationLiveSetting.Assertive);
         // Search the actual labels and explanations in every tab, including tabs not yet selected.
@@ -470,7 +474,7 @@ public static class SettingsDialog
         var parsedAssociations = s.Associations;
         var parsedArguments = s.Editor?.Arguments ?? ["{files}"];
         string parsedExecutable = s.Editor?.Executable ?? "";
-        bool Fail(string fieldName, string message, TextBox field, int page)
+        bool Fail(string fieldName, string message, Control field, int page)
         {
             error.Text = fieldName + ": " + message;
             error.IsVisible = true;
@@ -493,6 +497,7 @@ public static class SettingsDialog
             parsedArguments = s.Editor?.Arguments ?? ["{files}"];
             parsedExecutable = s.Editor?.Executable ?? "";
             error.IsVisible = false;
+            if (!historyEditor.TryGet(out _, out var historyError, out var historyField)) return Fail("Analysis history", historyError!, historyField, historyTab);
             foreach (var field in new[] { bindings, editorExe, editorArgs })
                 Avalonia.Automation.AutomationProperties.SetHelpText(field, null);
             parsedBindings = ParseBindings(bindings.Text, vm.Services.Commands, out var bindingError);
@@ -515,6 +520,7 @@ public static class SettingsDialog
         bool reviewingDismissal = false;
         bool HasDraftChanges()
         {
+            if (!historyEditor.TryGet(out var proposedHistory, out _, out _) || proposedHistory != vm.Services.AnalysisHistory.Policy) return true;
             // Compare values that OK would save, not navigation, search, or sample preview fields.
             if ((theme.SelectedIndex >= 0 ? themeNames[theme.SelectedIndex] : "System") != s.Theme ||
                 (animations.IsChecked == true) != s.ThemeAnimations ||
@@ -589,6 +595,18 @@ public static class SettingsDialog
         {
             ThemeManager.Apply(s.Theme);
             return;
+        }
+
+        if (historyEditor.TryGet(out var historyPolicy, out _, out _) && historyPolicy != vm.Services.AnalysisHistory.Policy)
+        {
+            try { await vm.Services.AnalysisHistory.ReviewAndApplyAsync(vm.Dialogs, historyPolicy); }
+            catch (Exception historyError) when (historyError is IOException or InvalidOperationException or ArgumentException)
+            {
+                ThemeManager.Apply(s.Theme);
+                await vm.Dialogs.ShowCustomAsync("History policy was kept", new TextBlock { Text = Core.Analysis.AnalysisNames.Display(historyError.Message, 400), TextWrapping = TextWrapping.Wrap },
+                    [new DialogButton("Close", false, IsDefault: true, IsCancel: true)]);
+                return;
+            }
         }
 
         s.Theme = theme.SelectedIndex >= 0 ? themeNames[theme.SelectedIndex] : "System";

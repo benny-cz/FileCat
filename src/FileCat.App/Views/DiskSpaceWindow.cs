@@ -643,6 +643,7 @@ public sealed partial class DiskSpaceWindow : Window
                     else if (tree.Snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy) _coverage.Text += " Recorded partial results; unread scopes remain unknown.";
                     if (Model.ContinuityNotice is { } continuity) _coverage.Text += " " + continuity;
                     if (Model.AcquisitionNotice is { } acquisition) _coverage.Text += " " + acquisition;
+                    if (Model.HistoryNotice is { } history) _coverage.Text += " " + history;
                     if (tree.Projection.Metric == AnalysisMetric.UniqueFileSize && totals.IdentityUnverified > 0)
                         _coverage.Text += $" {totals.IdentityUnverified} path bytes have unverified identities and are excluded from unique chart area.";
                 }

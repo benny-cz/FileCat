@@ -1,0 +1,9 @@
+{
+  "observedUtc": "2026-11-08T04:33:01.259664+00:00",
+  "exitCode": 0,
+  "filecatOrDotnet": [
+    "95868 95824 /Users/benny/.dotnet/dotnet test /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.App.Tests/FileCat.App.Tests.csproj -c Release --no-build --disable-build-servers -p:NuGetAudit=false -m:1 --filter FullyQualifiedName~ArchiveCreationWorkflowTests&FullyQualifiedName!~Actual_confined_ --logger trx;LogFileName=creation-ui.trx --results-directory /Users/benny/FileCatValidation/archive-writing-42829297/archive-creation-ui-v2/results",
+    "95869 95868 dotnet exec /Users/benny/.dotnet/sdk/10.0.101/vstest.console.dll --framework:.NETCoreApp,Version=v10.0 --testCaseFilter:FullyQualifiedName~ArchiveCreationWorkflowTests&FullyQualifiedName!~Actual_confined_ --logger:trx;LogFileName=creation-ui.trx --resultsDirectory:/Users/benny/FileCatValidation/archive-writing-42829297/archive-creation-ui-v2/results /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.dll --logger:Console;Verbosity=minimal --artifactsProcessingMode-collect --testSessionCorrelationId:95868_b562e7e8-1ec5-4421-97f2-5bc4d252ba36",
+    "95870 95869 /Users/benny/.dotnet/dotnet exec --runtimeconfig /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.runtimeconfig.json --depsfile /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.App.Tests/bin/Release/net10.0/FileCat.App.Tests.deps.json /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.App.Tests/bin/Release/net10.0/testhost.dll --port 51706 --endpoint 127.0.0.1:051706 --role client --parentprocessid 95869 --telemetryoptedin false"
+  ]
+}

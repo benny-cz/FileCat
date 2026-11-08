@@ -1,0 +1,588 @@
+{
+    "dryRun":  false,
+    "root":  "C:\\FileCatDsa20261104R2",
+    "removed":  [
+                    {
+                        "bytes":  11859773,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r106.tgz"
+                    },
+                    {
+                        "bytes":  11872036,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r110.tgz"
+                    },
+                    {
+                        "bytes":  11873466,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r116.tgz"
+                    },
+                    {
+                        "bytes":  11874694,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r120.tgz"
+                    },
+                    {
+                        "bytes":  11884005,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r122.tgz"
+                    },
+                    {
+                        "bytes":  11898696,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r125.tgz"
+                    },
+                    {
+                        "bytes":  11904617,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r131.tgz"
+                    },
+                    {
+                        "bytes":  11916234,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r134.tgz"
+                    },
+                    {
+                        "bytes":  11943604,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r138.tgz"
+                    },
+                    {
+                        "bytes":  11975014,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r147.tgz"
+                    },
+                    {
+                        "bytes":  11985903,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r152.tgz"
+                    },
+                    {
+                        "bytes":  12013706,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r159.tgz"
+                    },
+                    {
+                        "bytes":  12038633,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r165.tgz"
+                    },
+                    {
+                        "bytes":  12039520,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r168.tgz"
+                    },
+                    {
+                        "bytes":  12043236,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r171.tgz"
+                    },
+                    {
+                        "bytes":  12068261,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r177.tgz"
+                    },
+                    {
+                        "bytes":  12069096,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r179.tgz"
+                    },
+                    {
+                        "bytes":  12090210,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r182.tgz"
+                    },
+                    {
+                        "bytes":  12096741,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r184.tgz"
+                    },
+                    {
+                        "bytes":  12097300,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r186.tgz"
+                    },
+                    {
+                        "bytes":  12301551,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r248.tgz"
+                    },
+                    {
+                        "bytes":  12318625,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r271.tgz"
+                    },
+                    {
+                        "bytes":  12320937,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r275.tgz"
+                    },
+                    {
+                        "bytes":  12323359,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r279.tgz"
+                    },
+                    {
+                        "bytes":  12325158,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r283.tgz"
+                    },
+                    {
+                        "bytes":  12339654,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r312.tgz"
+                    },
+                    {
+                        "bytes":  21755261,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r34.tgz"
+                    },
+                    {
+                        "bytes":  12340022,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r368.tgz"
+                    },
+                    {
+                        "bytes":  11827759,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r36c.tgz"
+                    },
+                    {
+                        "bytes":  12348503,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r378.tgz"
+                    },
+                    {
+                        "bytes":  12349007,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r387.tgz"
+                    },
+                    {
+                        "bytes":  12349282,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r393.tgz"
+                    },
+                    {
+                        "bytes":  12358473,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r402.tgz"
+                    },
+                    {
+                        "bytes":  12366933,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r410.tgz"
+                    },
+                    {
+                        "bytes":  12367500,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r415.tgz"
+                    },
+                    {
+                        "bytes":  12374099,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r418.tgz"
+                    },
+                    {
+                        "bytes":  12374748,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r422.tgz"
+                    },
+                    {
+                        "bytes":  12374770,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r444.tgz"
+                    },
+                    {
+                        "bytes":  12374725,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r449.tgz"
+                    },
+                    {
+                        "bytes":  12398556,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r460.tgz"
+                    },
+                    {
+                        "bytes":  12411724,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r468.tgz"
+                    },
+                    {
+                        "bytes":  12414024,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r471.tgz"
+                    },
+                    {
+                        "bytes":  12418637,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r479.tgz"
+                    },
+                    {
+                        "bytes":  12446920,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r485.tgz"
+                    },
+                    {
+                        "bytes":  12447623,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r490.tgz"
+                    },
+                    {
+                        "bytes":  12471038,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r496.tgz"
+                    },
+                    {
+                        "bytes":  12471153,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r500.tgz"
+                    },
+                    {
+                        "bytes":  12471712,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r504.tgz"
+                    },
+                    {
+                        "bytes":  12480117,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r511.tgz"
+                    },
+                    {
+                        "bytes":  11842724,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r67.tgz"
+                    },
+                    {
+                        "bytes":  21772463,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r75.tgz"
+                    },
+                    {
+                        "bytes":  21772890,
+                        "path":  "C:\\FileCatDsa20261104R2\\core-all-r84.tgz"
+                    },
+                    {
+                        "bytes":  10099996,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-all-r34.tgz"
+                    },
+                    {
+                        "bytes":  9884136,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-all-r36.tgz"
+                    },
+                    {
+                        "bytes":  9887188,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-all-r36e.tgz"
+                    },
+                    {
+                        "bytes":  9805511,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r106.tgz"
+                    },
+                    {
+                        "bytes":  9815334,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r110.tgz"
+                    },
+                    {
+                        "bytes":  9815550,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r116.tgz"
+                    },
+                    {
+                        "bytes":  9829076,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r125.tgz"
+                    },
+                    {
+                        "bytes":  9834775,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r131.tgz"
+                    },
+                    {
+                        "bytes":  9859551,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r138.tgz"
+                    },
+                    {
+                        "bytes":  9880406,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r147.tgz"
+                    },
+                    {
+                        "bytes":  9887754,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r152.tgz"
+                    },
+                    {
+                        "bytes":  9909334,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r159.tgz"
+                    },
+                    {
+                        "bytes":  9923672,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r165.tgz"
+                    },
+                    {
+                        "bytes":  9932351,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r171.tgz"
+                    },
+                    {
+                        "bytes":  9945345,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r177.tgz"
+                    },
+                    {
+                        "bytes":  9945497,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r179.tgz"
+                    },
+                    {
+                        "bytes":  9955880,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r182.tgz"
+                    },
+                    {
+                        "bytes":  9955321,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r184.tgz"
+                    },
+                    {
+                        "bytes":  10061084,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r248.tgz"
+                    },
+                    {
+                        "bytes":  10074344,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r283.tgz"
+                    },
+                    {
+                        "bytes":  10075519,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r312.tgz"
+                    },
+                    {
+                        "bytes":  10075923,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r368.tgz"
+                    },
+                    {
+                        "bytes":  10083426,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r378.tgz"
+                    },
+                    {
+                        "bytes":  10083754,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r391.tgz"
+                    },
+                    {
+                        "bytes":  10083746,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r393.tgz"
+                    },
+                    {
+                        "bytes":  10089480,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r402.tgz"
+                    },
+                    {
+                        "bytes":  10097012,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r415.tgz"
+                    },
+                    {
+                        "bytes":  10097280,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r418.tgz"
+                    },
+                    {
+                        "bytes":  10097297,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r422.tgz"
+                    },
+                    {
+                        "bytes":  10097228,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r444.tgz"
+                    },
+                    {
+                        "bytes":  10097380,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r449.tgz"
+                    },
+                    {
+                        "bytes":  10107071,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r460.tgz"
+                    },
+                    {
+                        "bytes":  10118170,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r471.tgz"
+                    },
+                    {
+                        "bytes":  10119407,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r479.tgz"
+                    },
+                    {
+                        "bytes":  10140065,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r490.tgz"
+                    },
+                    {
+                        "bytes":  10146003,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r500.tgz"
+                    },
+                    {
+                        "bytes":  10148651,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r511.tgz"
+                    },
+                    {
+                        "bytes":  10115069,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r73.tgz"
+                    },
+                    {
+                        "bytes":  10115320,
+                        "path":  "C:\\FileCatDsa20261104R2\\native-r81.tgz"
+                    },
+                    {
+                        "bytes":  54453625,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r100.tgz"
+                    },
+                    {
+                        "bytes":  54667160,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r248.tgz"
+                    },
+                    {
+                        "bytes":  54672172,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r251.tgz"
+                    },
+                    {
+                        "bytes":  54681539,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r256.tgz"
+                    },
+                    {
+                        "bytes":  54681554,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r259.tgz"
+                    },
+                    {
+                        "bytes":  54684807,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r264.tgz"
+                    },
+                    {
+                        "bytes":  54708728,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r312.tgz"
+                    },
+                    {
+                        "bytes":  54713508,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r320.tgz"
+                    },
+                    {
+                        "bytes":  54713756,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r330.tgz"
+                    },
+                    {
+                        "bytes":  54712531,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r346.tgz"
+                    },
+                    {
+                        "bytes":  54387033,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r34a.tgz"
+                    },
+                    {
+                        "bytes":  54712855,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r351.tgz"
+                    },
+                    {
+                        "bytes":  54713282,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r359.tgz"
+                    },
+                    {
+                        "bytes":  54712331,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r369.tgz"
+                    },
+                    {
+                        "bytes":  54385121,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r37.tgz"
+                    },
+                    {
+                        "bytes":  54385323,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r38.tgz"
+                    },
+                    {
+                        "bytes":  54716334,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r394.tgz"
+                    },
+                    {
+                        "bytes":  54389949,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r40.tgz"
+                    },
+                    {
+                        "bytes":  54720629,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r403.tgz"
+                    },
+                    {
+                        "bytes":  54390144,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r40b.tgz"
+                    },
+                    {
+                        "bytes":  54726134,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r411.tgz"
+                    },
+                    {
+                        "bytes":  54734911,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r419.tgz"
+                    },
+                    {
+                        "bytes":  54406368,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r42.tgz"
+                    },
+                    {
+                        "bytes":  54734705,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r423.tgz"
+                    },
+                    {
+                        "bytes":  54734968,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r432.tgz"
+                    },
+                    {
+                        "bytes":  54736197,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r438.tgz"
+                    },
+                    {
+                        "bytes":  54406504,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r44.tgz"
+                    },
+                    {
+                        "bytes":  54738303,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r441.tgz"
+                    },
+                    {
+                        "bytes":  54406896,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r45.tgz"
+                    },
+                    {
+                        "bytes":  54759216,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r450.tgz"
+                    },
+                    {
+                        "bytes":  54759013,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r453.tgz"
+                    },
+                    {
+                        "bytes":  54406571,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r46.tgz"
+                    },
+                    {
+                        "bytes":  54773954,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r461.tgz"
+                    },
+                    {
+                        "bytes":  54405233,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r47.tgz"
+                    },
+                    {
+                        "bytes":  54779806,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r472.tgz"
+                    },
+                    {
+                        "bytes":  54405233,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r47k.tgz"
+                    },
+                    {
+                        "bytes":  54404181,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r48.tgz"
+                    },
+                    {
+                        "bytes":  54783968,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r480.tgz"
+                    },
+                    {
+                        "bytes":  54791627,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r491.tgz"
+                    },
+                    {
+                        "bytes":  54805203,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r501.tgz"
+                    },
+                    {
+                        "bytes":  54816301,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r516.tgz"
+                    },
+                    {
+                        "bytes":  54405422,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r53.tgz"
+                    },
+                    {
+                        "bytes":  54407481,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r57.tgz"
+                    },
+                    {
+                        "bytes":  54409050,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r59.tgz"
+                    },
+                    {
+                        "bytes":  54413910,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r61.tgz"
+                    },
+                    {
+                        "bytes":  54431738,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r68.tgz"
+                    },
+                    {
+                        "bytes":  54432198,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r70.tgz"
+                    },
+                    {
+                        "bytes":  54432254,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r72.tgz"
+                    },
+                    {
+                        "bytes":  54431077,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r78.tgz"
+                    },
+                    {
+                        "bytes":  54447368,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r84.tgz"
+                    },
+                    {
+                        "bytes":  54447340,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r86.tgz"
+                    },
+                    {
+                        "bytes":  54448787,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r89.tgz"
+                    },
+                    {
+                        "bytes":  54451190,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r94.tgz"
+                    },
+                    {
+                        "bytes":  54453571,
+                        "path":  "C:\\FileCatDsa20261104R2\\render-r98.tgz"
+                    }
+                ],
+    "available":  4981764096,
+    "capacity":  213660311552
+}

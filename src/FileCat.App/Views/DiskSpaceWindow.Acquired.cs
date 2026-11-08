@@ -17,13 +17,16 @@ public sealed partial class DiskSpaceWindow
         Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
         if (!session.Completion.IsCompletedSuccessfully) throw new InvalidOperationException("Wait for the acquisition to finish before transferring its result.");
         cancellation.ThrowIfCancellationRequested();
+        var history = memoryServices is null ? null : await memoryServices.AnalysisHistory.CaptureCompletedAsync(session);
+        cancellation.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
         await using var dataset = await session.AcquireDatasetAsync(cancellation);
-        if (dataset is not null) return new(await AddIndexedSessionAsync(dataset, cancellation: cancellation, services: memoryServices), null);
+        if (dataset is not null) return new(await AddIndexedSessionAsync(dataset, cancellation: cancellation, services: memoryServices, historyNotice: history?.Detail), null);
         cancellation.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
         AnalysisSnapshotLease? captured = session.AcquireSnapshot(); DiskSpaceViewModel? model = null;
         try
         {
             model = new(captured, memoryServices, session.UsesMemoryFallback); captured = null;
+            model.HistoryNotice = history?.Detail;
             AddSession(model); var published = model; model = null;
             return new(null, published);
         }

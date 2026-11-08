@@ -22,12 +22,12 @@ public sealed partial class DiskSpaceWindow
 {
     // Internal until the indexed acquisition/profile-quota and complete product gates are qualified.
     internal Task<AnalysisDatasetExplorer> AddIndexedSessionAsync(AnalysisDatasetLease source, AnalysisMetric metric = AnalysisMetric.OnDisk,
-        AnalysisFilterRequest? filter = null, CancellationToken cancellation = default, AppServices? services = null) =>
-        AddPreparedIndexedSessionAsync(token => source.RetainAsync(token), metric, filter, null, cancellation, services);
+        AnalysisFilterRequest? filter = null, CancellationToken cancellation = default, AppServices? services = null, string? historyNotice = null) =>
+        AddPreparedIndexedSessionAsync(token => source.RetainAsync(token), metric, filter, null, cancellation, services, historyNotice: historyNotice);
 
     internal async Task<AnalysisDatasetExplorer> AddPreparedIndexedSessionAsync(Func<CancellationToken, Task<AnalysisDatasetLease>> prepareSource,
         AnalysisMetric metric, AnalysisFilterRequest? filter, AnalysisSavedView? saved, CancellationToken cancellation, AppServices? services = null,
-        Func<AnalysisInventoryReceipt?>? openedInventory = null)
+        Func<AnalysisInventoryReceipt?>? openedInventory = null, string? historyNotice = null)
     {
         Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
         AnalysisSessionAdmission.Slot? admission = _admissionPool.Acquire();
@@ -72,6 +72,7 @@ public sealed partial class DiskSpaceWindow
                 cancellation: linked.Token, descending: saved?.SortDescending ?? true), explorer.LoadChartAsync(scope, linked.Token));
             linked.Token.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
             var view = await IndexedSessionView.CreateAsync(this, retained, explorer, filter ?? new(""), admission, saved, restoreNotice, linked.Token, services);
+            view.SetHistoryNotice(historyNotice);
             if (openedInventory?.Invoke() is { } receipt) view.RememberOpenedInventory(receipt);
             try { AddView(view); }
             catch { retained = null; explorer = null; admission = null; view.Dispose(); throw; }
@@ -126,6 +127,8 @@ public sealed partial class DiskSpaceWindow
         private readonly TextBox _query = new() { PlaceholderText = "Search within observations…", MinWidth = 200, MaxLength = AnalysisLimits.QueryBytes };
         private readonly CheckBox _case = new() { Content = "Case sensitive" }, _unknown = new() { Content = "Inspect uncertain query results" };
         private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap }, _summary = new() { TextWrapping = TextWrapping.Wrap }, _range = new(), _inspectorStatus = new() { TextWrapping = TextWrapping.Wrap };
+        private readonly TextBlock _historyNotice = new() { TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        internal void SetHistoryNotice(string? notice) { _historyNotice.Text = notice; _historyNotice.IsVisible = notice is not null; }
         private readonly TextBox _details = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 180, MaxHeight = 420 };
         private readonly Grid _body = new() { ColumnSpacing = 12, RowSpacing = 12 };
         private readonly StackPanel _main = new() { Spacing = 8 }, _inspector = new() { Spacing = 8 };
@@ -201,6 +204,7 @@ public sealed partial class DiskSpaceWindow
             var provenanceLabel = new TextBlock { Text = provenance, TextWrapping = TextWrapping.Wrap };
             AutomationProperties.SetName(provenanceLabel, "Analysis provenance: " + provenance);
             Children.Add(provenanceLabel); Children.Add(toolbar); Children.Add(filters); Children.Add(_summary); Children.Add(_status); Children.Add(navigation); Children.Add(_legend);
+            Children.Add(_historyNotice);
             Children.Add(new ScrollViewer { Content = _breadcrumbs, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto });
             _body.Children.Add(_main); _body.Children.Add(_inspector); Children.Add(_body);
             _main.Children.Add(_treemap); _main.Children.Add(_sunburst); _main.Children.Add(_buckets);
