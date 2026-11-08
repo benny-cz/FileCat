@@ -51,13 +51,14 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
 
     /// <param name="Root">The folder the user chose to add, for a file found in it: no link below it is followed.</param>
     private sealed record Addition(string Member, string? Source, bool FolderEntry, DateTime Modified, FileAttributes Attributes, long Length,
-        string? Root = null, ArchiveMoveSources.Input? Move = null);
+        string? Root = null, ArchiveMoveSources.Input? Move = null,ArchiveRetainedBinding? Retained=null);
 
     public override void Execute()
     {
         var plan = Job.Request.Archive ?? throw new InvalidOperationException("Missing archive plan.");
         if (plan.AddConflictPolicy is not null)
             throw new NotSupportedException("Typed archive conflict review is unavailable for this ZIP backend.");
+        plan.EditInput?.RequireRequest(plan);
         string archive = Path.GetFullPath(plan.ArchivePath);
         string folder = Path.GetDirectoryName(archive) ?? throw new IOException("The archive needs a folder.");
         bool updating = plan.Baseline is not null;
@@ -80,7 +81,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         }
 
         var move = plan.MoveSources ? new ArchiveMoveSources(Job, Fs, Journal, plan, archive) : null;
-        var additions = ExpandAdditions(plan.Changes, move);
+        var additions = ExpandAdditions(plan, move);
         var publication = new LegacyZipPublicationTransaction(Job, Fs, Journal, plan, archive, folder, move);
         string temp = publication.StagePath;
         FileStream? sourceStream = null;
@@ -99,6 +100,13 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                     throw new NotSupportedException($"The archive has encrypted members (for example \"{encrypted.FullName}\"), which FileCat cannot re-create, so it cannot be changed here.");
             }
             var existing = source?.Entries.ToList() ?? [];
+            if(plan.EditInput is not null)
+            {
+                string member=ArchivePaths.Normalize(plan.Changes[0].MemberPath);
+                var matches=existing.Where(entry=>ArchivePaths.Normalize(entry.FullName)==member).Take(2).ToArray();
+                if(matches.Length!=1||matches[0].FullName.EndsWith('/'))
+                    throw new IOException("This ZIP edit no longer identifies one regular member. Save a copy of the edit and review the archive.");
+            }
             var plannedNames = PlanNames(plan, existing, additions, out var replaceWith, out var skipped);
             var replacementAdditions = replaceWith.Values.ToHashSet();
             if (move is not null)
@@ -165,11 +173,13 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 output.Flush(flushToDisk: true);
             }
             Verify(temp, written);
+            ReviewRetainedInputs(additions);
             publication.Prepare();
             source?.Dispose();
             sourceStream?.Dispose();
             source = null;
             sourceStream = null;
+            ReviewRetainedInputs(additions);
             publication.Publish(() =>
             {
                 // All members of the rebuilt archive commit together.
@@ -278,10 +288,10 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
         }
     }
 
-    private List<Addition> ExpandAdditions(IReadOnlyList<ArchiveChange> changes, ArchiveMoveSources? move)
+    private List<Addition> ExpandAdditions(ArchivePlan plan, ArchiveMoveSources? move)
     {
         var result = new List<Addition>();
-        foreach (var change in changes)
+        foreach (var change in plan.Changes)
         {
             string member = ArchivePaths.Normalize(change.MemberPath);
             switch (change.Kind)
@@ -289,6 +299,14 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
                 case ArchiveChangeKind.AddFile:
                 case ArchiveChangeKind.Replace:
                 {
+                    if(plan.EditInput is { } owned)
+                    {
+                        var observed=owned.Observe(Job.Token);
+                        result.Add(new Addition(member,owned.SourcePath,false,
+                            (observed.MemberModified??throw new IOException("The retained edit has no modification time.")).ToDateTimeOffset().LocalDateTime,
+                            FileAttributes.Normal,observed.Version.Length,Retained:new(owned,observed)));
+                        break;
+                    }
                     var info = new FileInfo(change.SourcePath ?? throw new ArgumentException("A source file is required."));
                     PathUtil.RefuseAmbiguousUnixName(info.FullName);
                     if (!info.Exists) throw new FileNotFoundException("The file to add no longer exists.", info.FullName);
@@ -374,7 +392,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
 
     private void WriteFile(ZipArchive target, string name, Addition addition, CompressionLevel level, ZipArchiveEntry? replaced, ArchiveMoveSources? move)
     {
-        using var held = Fs.HoldRegularFile(addition.Source!, addition.Root);
+        using var held = addition.Retained is null?Fs.HoldRegularFile(addition.Source!, addition.Root):null;
         if (addition.Move is not null) move!.RequireCurrent(addition.Move);
         var entry = target.CreateEntry(name, level);
         int attributes = replaced?.ExternalAttributes ?? (int)(addition.Attributes & (FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System | FileAttributes.Archive));
@@ -384,10 +402,11 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             if (input.UnixMode is { } mode) attributes |= unchecked((int)((mode | 0x8000) << 16));
         }
         Stamp(entry, addition.Modified, attributes, replaced?.Comment);
-        using var from = new FileStream(addition.Source!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, BufferSize, FileOptions.SequentialScan);
+        using var from = addition.Retained is { } retained?retained.File.OpenReadView(retained.Reviewed,Job.Token):
+            new FileStream(addition.Source!, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, BufferSize, FileOptions.SequentialScan);
         using var to = entry.Open();
         var buffer = new byte[BufferSize];
-        using var hash = addition.Move is null ? null : IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        using var hash = addition.Move is null&&addition.Retained is null ? null : IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         long length = 0;
         int n;
         while ((n = from.Read(buffer, 0, buffer.Length)) > 0)
@@ -395,6 +414,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             Job.Checkpoint();
             length += n;
             if (addition.Move is not null && length > addition.Move.Info.Size) throw new IOException("The source grew while it was being moved into the archive.");
+            if(addition.Retained is not null&&length>addition.Length)throw new IOException("The retained edit exceeds its reviewed size.");
             hash?.AppendData(buffer, 0, n);
             to.Write(buffer, 0, n);
             Job.AddBytes(n);
@@ -404,7 +424,16 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             if (length != addition.Move.Info.Size) throw new IOException("The source changed length while it was being moved into the archive.");
             move!.Recorded(addition.Move, hash!.GetHashAndReset());
         }
+        if(addition.Retained is { } captured)
+        {
+            if(length!=captured.Reviewed.Version.Length||Convert.ToHexString(hash!.GetHashAndReset())!=captured.Reviewed.Version.Sha256)
+                throw new IOException("The retained edit changed while its ZIP member was written.");
+            captured.File.Review(captured.Reviewed,Job.Token);
+        }
     }
+
+    private void ReviewRetainedInputs(IEnumerable<Addition> additions)
+    {foreach(var addition in additions)if(addition.Retained is { } captured){Job.Checkpoint();captured.File.Review(captured.Reviewed,Job.Token);}}
 
     private static void Stamp(ZipArchiveEntry entry, DateTimeOffset modified, int attributes, string? comment)
     {
@@ -452,7 +481,7 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             if (written[i].From is not { FolderEntry: false } addition) continue;
             Job.Checkpoint();
             uint crc = 0;
-            using var hash = addition.Move is null ? null : IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            using var hash = addition.Move is null&&addition.Retained is null ? null : IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             using var data = entries[i].Open();
             int n;
             while ((n = data.Read(buffer, 0, buffer.Length)) > 0)
@@ -461,6 +490,9 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
             if (addition.Move is not null && (entries[i].Length != addition.Move.Info.Size ||
                 !hash!.GetHashAndReset().AsSpan().SequenceEqual(addition.Move.Hash)))
                 throw new IOException("The archived content differs from the move source; the originals were kept.");
+            if(addition.Retained is { } captured&&(entries[i].Length!=captured.Reviewed.Version.Length||
+                Convert.ToHexString(hash!.GetHashAndReset())!=captured.Reviewed.Version.Sha256))
+                throw new IOException("The rebuilt ZIP member does not match the complete retained edit.");
         }
     }
 }

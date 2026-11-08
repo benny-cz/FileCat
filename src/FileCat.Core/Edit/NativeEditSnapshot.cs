@@ -4,23 +4,36 @@ namespace FileCat.Core.Edit;
 
 /// <summary>Parent-owned immutable bytes. Jobs receive bounded read views over this object, never a path reopen.</summary>
 internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirectoryLease directory,FileStream file,ArchiveFileObservation expected,
-    EditPublishedRecord[] records,string sessionId,string sessionRecord,EditSnapshotAdmission admission):IArchiveOwnedEditInput,IDisposable
+    EditPublishedRecord[] records,EditSessionRecord session,EditSnapshotAdmission admission):IArchiveOwnedEditInput,IDisposable
 {
     private readonly object gate=new();
     private bool disposed;
     internal ArchiveFileObservation Expected { get; }=expected;
     internal string DirectoryPath=>directory.Path;
     public string SourcePath { get; }=Path.Combine(directory.Path,expected.LeafName);
+    public string ObjectIdentity=>Expected.Version.Identity;
+    ArchiveFileObservation IArchiveRetainedFile.Observe(CancellationToken ct)=>Review(ct);
+    void IArchiveRetainedFile.Review(ArchiveFileObservation reviewed,CancellationToken ct)
+    {if(!Expected.Matches(reviewed))throw Changed();Review(ct);}
+    Stream IArchiveRetainedFile.OpenReadView(ArchiveFileObservation reviewed,CancellationToken ct)=>OpenRead(reviewed,ct);
     internal void RequireSession(EditSessionRecord record)
-    {lock(gate){Live();if(record.Id!=sessionId||record.StoredRecordSha256!=sessionRecord)throw Changed();}}
+    {lock(gate){Live();if(record.Id!=session.Id||record.StoredRecordSha256!=session.StoredRecordSha256)throw Changed();}}
     public void RequireRequest(ArchivePlan request)
     {
         lock(gate)
         {
             Live();
-            if(request.Profile is null||request.Baseline is null||request.NativeBaseline is null||request.ReviewedManifestDigest is null||
-                request.MoveSources||request.Changes.Count!=1||request.Changes[0] is not {Kind:ArchiveChangeKind.Replace} change||change.SourcePath!=SourcePath)
+            if(request.Baseline is null||request.MoveSources||request.Changes.Count!=1||
+                request.Changes[0] is not {Kind:ArchiveChangeKind.Replace} change||change.SourcePath!=SourcePath)
                 throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest,"The retained edit snapshot authorizes one exact native member replacement.");
+            if(request.Profile is null)
+            {
+                if(!session.IsLegacyZip||request.ArchivePath!=session.ArchivePath||change.MemberPath!=session.MemberPath||
+                    change.Ordinal is not null||request.NativeBaseline is not null||request.ReviewedManifestDigest is not null||request.AddConflictPolicy is not null)
+                    throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest,"The retained copy belongs to a different ZIP edit.");
+            }
+            else if(request.NativeBaseline is null||request.ReviewedManifestDigest is null)
+                throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest,"The native archive review is missing.");
         }
     }
     public IArchiveSelectionTree OpenTree(string parent,CancellationToken ct)

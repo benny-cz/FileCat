@@ -733,9 +733,10 @@ public sealed partial class EditSessionStore
 
     public ArchivePlan CommitPlan(EditSessionRecord record, EditCommitReview review, EditCommitCopy copy)
     {
-        if(copy.Native is not null)throw new NotSupportedException("Legacy ZIP commit capture needs its retained-input adapter before native edit storage is enabled.");
-        return new(record.ArchivePath,review.Baseline??throw new IOException("The reviewed archive is unavailable."),
-            [new ArchiveChange(ArchiveChangeKind.Replace,record.MemberPath,copy.Path)]);
+        copy.Native?.RequireSession(record);
+        var plan=new ArchivePlan(record.ArchivePath,review.Baseline??throw new IOException("The reviewed archive is unavailable."),
+            [new ArchiveChange(ArchiveChangeKind.Replace,record.MemberPath,copy.Path)]){EditInput=copy.Native};
+        copy.Native?.RequireRequest(plan);return plan;
     }
 
     /// <summary>After a successful commit: the archive's new version and the committed content become the base.</summary>

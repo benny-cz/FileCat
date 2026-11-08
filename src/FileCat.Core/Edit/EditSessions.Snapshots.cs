@@ -35,7 +35,7 @@ public sealed partial class EditSessionStore
             records.Add(CreateRecordBytes(capture,"captured.json",JsonSerializer.SerializeToUtf8Bytes(new{Version=1,Session=record.Id,
                 SessionRecord=record.StoredRecordSha256,Directory=capture.Identity,Files=files.Identity,Leaf=leaf,
                 Identity=observed.Version.Identity,Length=bytes.Length,Sha256=bytes.Sha256,Metadata=observed.MetadataDigest,Origin=origin.Digest},Json),ct));
-            Check();var snapshot=new NativeEditSnapshot(capture,files,output,observed,records.ToArray(),record.Id,record.StoredRecordSha256,admission);
+            Check();var snapshot=new NativeEditSnapshot(capture,files,output,observed,records.ToArray(),record,admission);
             var result=new EditCommitCopy(snapshot,bytes.Crc);admission.Transfer();return result;
         }
         catch
