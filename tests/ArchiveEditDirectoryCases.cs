@@ -58,7 +58,8 @@ internal static class ArchiveEditDirectoryCases
                 Assert.ThrowsAny<IOException>(()=>files.Inspect(stream,ct,-1));
                 Assert.ThrowsAny<IOException>(()=>files.Inspect(stream,ct,EditSessionStore.MaxMemberBytes+1));
                 Assert.Equal(Convert.ToHexString(SHA256.HashData(bytes)),files.ObserveSnapshot(stream,"bounded-record",ct,64).Version.Sha256);
-                Assert.Equal(bytes,File.ReadAllBytes(System.IO.Path.Combine(files.Path,"bounded-record")));
+                byte[] readback=new byte[bytes.Length];stream.Position=0;stream.ReadExactly(readback);
+                Assert.Equal(bytes,readback);Assert.Equal(-1,stream.ReadByte());
             }
             else if(scenario=="bad-leaves")
             {

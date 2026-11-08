@@ -8,6 +8,9 @@ using FileCat.Core.Resources;
 
 namespace FileCat.Tests;
 
+[CollectionDefinition("Native edit snapshot reservations",DisableParallelization=true)]
+public sealed class NativeEditSnapshotReservationCollection { }
+
 internal static class ArchiveEditSnapshotCases
 {
     internal static IEnumerable<object[]> Scenarios()

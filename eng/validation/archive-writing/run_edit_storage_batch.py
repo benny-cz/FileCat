@@ -2,8 +2,8 @@
 from pathlib import Path
 import importlib.util,json,shutil,subprocess,sys,tarfile,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v12'
-PACKET='archive-edit-storage-delta-v12.tar.gz'
+FOLDER='awe-storage-v13'
+PACKET='archive-edit-storage-delta-v13.tar.gz'
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 def sha(path):
     import hashlib
@@ -11,7 +11,7 @@ def sha(path):
 def base(task):
     path=task/'archive-workflow-source-v1/eng/validation/archive-writing/run_job_backend_batch.py'
     spec=importlib.util.spec_from_file_location('edit_storage_base',path);value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value)
-    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v11'
+    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v12'
     return value
 def batch_for(task):return base(task).batch_for(task)
 def prepare(task,expected):
@@ -51,6 +51,8 @@ def tests(task):
     run('edit-core','FileCat.Core.Tests','FullyQualifiedName~EditSession&FullyQualifiedName!~EditSessionRecoveryRecordTests|FullyQualifiedName~ArchivePasswordReadSessionTests')
     run('job-input-regressions','FileCat.Core.Tests','FullyQualifiedName~ArchiveJobBackendTests|FullyQualifiedName~ArchiveCapturedInputsTests')
     run('edit-ui','FileCat.App.Tests','FullyQualifiedName~EditSession|FullyQualifiedName~EditCommit')
+    run('complete-core','FileCat.Core.Tests','FullyQualifiedName~FileCat.Core.Tests')
+    run('complete-app','FileCat.App.Tests','FullyQualifiedName~FileCat.App.Tests')
     batch.idle();(batch.out/'tests-complete.json').write_text(json.dumps(rows,indent=2))
 def seal(task):
     batch=batch_for(task);batch.idle();out=batch.out;binaries=out/'binaries';binaries.mkdir()

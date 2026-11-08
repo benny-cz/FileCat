@@ -1,6 +1,7 @@
 using FileCat.Platform.Windows.Archives;
 using FileCat.Tests;
 namespace FileCat.Platform.Windows.Tests;
+[Collection("Native edit snapshot reservations")]
 public sealed class WindowsEditCaptureRecoveryTests
 {
     public static IEnumerable<object[]> Scenarios()=>ArchiveEditCaptureRecoveryCases.Scenarios();
