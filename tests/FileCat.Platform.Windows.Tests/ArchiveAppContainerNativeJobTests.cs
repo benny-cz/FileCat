@@ -55,7 +55,13 @@ public sealed partial class ArchiveAppContainerTests
             Assert.Equal(originalManifest.Digest, update.ReviewedManifestDigest);
             using var stalePassword = mode == 0 ? null : new ArchiveJobPassword(ArchiveNativeJobCases.Password);
             var stale = manager.SubmitArchive(update with { ReviewedManifestDigest = new string('0', 64) }, stalePassword);
-            await ArchiveNativeJobCases.Finished(stale); Assert.Equal(JobState.Failed, stale.State);
+            using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct))
+            {
+                deadline.CancelAfter(TimeSpan.FromSeconds(120));
+                while (!stale.State.IsFinished()) await Task.Delay(10, deadline.Token);
+            }
+            Assert.Equal(JobState.Failed, stale.State);
+            Assert.DoesNotContain(stale.Issues, issue => issue.Outcome == StepOutcome.Committed);
             string staleJournal = Assert.Single(Directory.GetFiles(journals).Except([firstJournal]));
             Assert.Equal(originalBytes, File.ReadAllBytes(target));
             Assert.Equal(pathsBeforeReview, Directory.GetFiles(root).Order(StringComparer.Ordinal).ToArray());

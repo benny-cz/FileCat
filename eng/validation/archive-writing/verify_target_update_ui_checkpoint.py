@@ -32,6 +32,7 @@ def verify(platform, version='v6', candidate='HEAD'):
     if platform == 'windows':
         for name, count in [('creation-native-ui', 10), ('native', 217), ('creation-cleanup-crashes', 18), ('app-entry', 14)]:
             assert tests[name + '.trx'] == {'Passed': count}
+        if version == 'v7': assert tests['native-review-preflight.trx'] == {'Passed': 10}
         assert not js('account.json')['AdministratorsMember'] and js('account.json')['HiveLoaded']
         assert js('standard-launch.json')['ExitCode'] == 0
     if platform != 'windows':
@@ -79,8 +80,28 @@ def verify(platform, version='v6', candidate='HEAD'):
     assert not census['busy'] and census['owned_filecat_or_test_processes'] == 0
     if platform == 'mac': assert census['preserved_wake_helper'].startswith('36765 ')
     if platform == 'ubuntu': assert js('private-keyring.json')['pid'] == js('private-keyring-stopped.json')['pid']
+    reused = []
+    if platform == 'windows' and version == 'v7':
+        _, prior_index, _ = BASE['transport'](ROOT / '.tmp' / 'windows-target-update-ui-v6-failed-evidence', 'awt-v6')
+        reuse = js('reused-regressions.json'); reused = reuse['lanes']
+        assert reuse['previous'] == 'awt-v6' and reuse['previous_manifest_sha256'] == prior_index['files.json']['sha256']
+        assert len(reused) == 1 and reused[0]['lane'] == 'tests'
+        lane = reused[0]
+        assert lane['executed_in_previous_batch'] and not lane['rerun_in_this_batch']
+        assert lane['sha256'] == index[lane['result']]['sha256'] == prior_index[lane['result']]['sha256']
+        assert lane['log_sha256'] == index['tests.log']['sha256'] == prior_index['tests.log']['sha256']
+        before = js('runtime-before.json'); after = js('unchanged-runtime.json')
+        assert after['byte_identical'] and after['files'] == before
+        for name in js('previous-binary-binding.json')['files']:
+            assert before[name] == prior_index['failed-binaries/' + Path(name).name]['sha256']
+        for binary in audit['binaries']:
+            if binary['assembly'] == 'FileCat.Platform.Windows.Tests': continue
+            for suffix in ('dll', 'pdb'):
+                leaf = binary['assembly'] + '.' + suffix
+                assert index['binaries/' + leaf]['sha256'] == prior_index['failed-binaries/' + leaf]['sha256']
     return dict(platform=platform, candidate_source_commit=candidate, **facts, tests=tests, current_CSharp_sources_bound=len(changed)-len(not_applicable),
         source_audit_not_applicable=not_applicable,
+        evidence_version=version, reused_regressions=reused,
         DLL_PDB_pairs_bound=len(audit['binaries']), census=census, production_backend_qualified=False)
 
 

@@ -6,8 +6,10 @@ release qualification. The controlling requirements are the [implementation plan
 The creation command captures the source selection, source location and target folder before showing a dialog.
 The dialog offers ZIP and explicitly registered formats, with effective compression options, automatic filename
 suffixes, 7z methods/filters/dictionaries/header options, and masked password confirmation for RAR5 and 7z.
-Manual suffix conflicts remain editable. Unreadable, existing non-ZIP and self-containing destinations preserve
-the draft for correction. Existing ZIP destinations retain the established add workflow. Focus after completion
+Manual suffix conflicts remain editable. Unreadable, self-containing and existing non-ZIP destinations without a
+review-capable backend preserve the draft for correction. The [target-review follow-up](ARCHIVE_TARGET_UPDATE_UI.md)
+connects registered review-capable destinations to an existing-archive update. Existing ZIP destinations retain
+the established add workflow. Focus after completion
 belongs to the captured source location and never moves a listing that the user has navigated elsewhere.
 
 Password validation preserves exact Unicode and whitespace. RAR5 uses the shared 1,024-byte UTF-8 bound; 7z uses

@@ -28,11 +28,37 @@ the bounded second assessment. The original failed native run and earlier succes
 separately; their transport and file manifests are verified locally. Ubuntu's first preparation also exposed an
 overlong private keyring socket path; shorter batch names avoid that environment failure.
 
+Complete regression runs then found two older assessment tests expecting the former generic refusal instead of
+the new specific unprotected-mode reason. Both still require refusal and worker reaping. Two error-dialog fixtures
+also observed replacement buttons before their scroll content finished layout. They now wait for the visible
+error, and the creation fixture completes layout before reading text. These cases join the early gate. The original
+failures, the Mac cohort canceled before long regressions, and Ubuntu's isolated fixture continuation are retained.
+
 The corrected validation batch runs focused protocol, ownership, UI and native tests on each platform before a
 shared gate releases the complete regression suites. A failure on one platform stops the other platforms at that
 gate. Builds and completed phases are retained; source changes require a new checked packet. This reduces wasted
 long runs while retaining complete Core, affected application, native, independent-reader and source/binary checks.
 Only VMs and Mac execute application tests and archive readers. The host reads sealed evidence and compiler inputs.
+
+The frozen source candidate is `3fcf51b09e2c3be90a3e9c11de0a2af09960d34f`. The corrected v6 cohort passes 28 Core
+preflight cases, 16 update UI cases, 20 creation UI cases, eight mutation preparation cases and 21 password cases
+on every platform. Windows also passes ten actual confined-worker UI cases, each creating and then updating an
+archive. The portable update cases use synthetic dispatch fixtures and do not claim publication. Unix's ten actual
+native preflight cases cover creation and pinned target review, not native update publication.
+
+All previous Core cases and passes are retained in the complete current inventory:
+
+| Platform | Passed | Skipped | Cases |
+|---|---:|---:|---:|
+| Windows VM | 7,941 | 461 | 8,402 |
+| Mac | 8,190 | 207 | 8,397 |
+| Ubuntu VM | 8,212 | 185 | 8,397 |
+
+The affected application selection passes all 114 cases on Windows and 113 with one platform skip on each Unix
+platform. Source verification checks exact compiler snapshots and DLL/PDB bindings, then compares their normalized
+C# text with the frozen Git commit. Exact compiler bytes retain their own sealed hashes; line ending normalization
+is used only for Git comparison. This lets implementation advance without rebinding old evidence to a moving
+worktree. No complete Core regression lane is reused in the final v6 cohort.
 
 Shared member commands, browsing/edit password sessions, Unix native mutation/confinement, production resource,
 fuzz, RID and package qualification, and the final independent review remain open.
