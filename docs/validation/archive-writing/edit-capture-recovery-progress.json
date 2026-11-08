@@ -2,7 +2,7 @@
   "schema": 1,
   "component": "native edit cleanup, restart review and retained ZIP/SFTP integration: progress checkpoint",
   "current_candidate": "f62d81f91dc5b4616f7b83a06502b0154459f66a",
-  "worktree_candidate": "915a0a5622547759b1b24693206d462ca21d6aca",
+  "worktree_candidate": "524bc8e6a662555775e254058af3a9420e09de30",
   "production_backend_qualified": false,
   "application_composition_uses_native_store": false,
   "history": [
@@ -2933,17 +2933,17 @@
     {
       "platform": "windows",
       "folder": "awe-storage-v27",
-      "state": "v26 complete focused native/record/capture/session/ZIP/SFTP/UI matrix passed, raw evidence verified, zero owned instances; legacy startup/capture Unicode follow-up and expanded matrices queued"
+      "state": "legacy session/capture Unicode follow-up: record-recovery25 and capture31 plus connected focused gates launched"
     },
     {
       "platform": "mac",
       "folder": "awe-storage-v27",
-      "state": "v26 complete focused native/record/capture/session/ZIP/SFTP/UI matrix passed, raw evidence verified, zero owned instances; legacy startup/capture Unicode follow-up and expanded matrices queued"
+      "state": "legacy session/capture Unicode follow-up: record-recovery25/capture31 and connected focused gates running as PID 56264; wake helper36765 retained"
     },
     {
       "platform": "ubuntu",
       "folder": "awe-storage-v27",
-      "state": "v26 complete focused native/record/capture/session/ZIP/SFTP/UI matrix passed, raw evidence verified, zero owned instances; legacy startup/capture Unicode follow-up and expanded matrices queued"
+      "state": "legacy session/capture Unicode follow-up: record-recovery25/capture31 and connected focused gates running as PID 1356343"
     }
   ],
   "fresh_review_authorizes_deletion": false,
