@@ -1,5 +1,13 @@
 # Archive writing implementation status
 
+**9 November: saved-copy publication/encoding gates pass on all three systems; startup-reader follow-up queued.**
+`v26` passes record25 (including 10,000 seeded mutations), native publication25 Windows / 26 Mac/Ubuntu and
+all connected focused gates. Exact source/DLL/PDB evidence is preserved and verified with zero owned instances;
+Mac's wake helper remains. The original 10,193-input probe now returns 100 accepted / 10,093 controlled refusals /
+zero escaping exceptions. Review identified the same delayed Unicode failure in legacy session/capture readers.
+Their correction builds cleanly and `v27` expands session recovery to 25 and native capture recovery to 31 cases.
+Fresh guest qualification and then complete runtime milestone inventories remain required. No store/profile is enabled.
+
 **8 November: malformed receipt UTF-8 refusal corrected; expanded regression candidate queued.**
 The [encoding probe](SAVE_COPY_RECEIPT_ENCODING.md) found `InvalidOperationException` escaping through delayed
 JSON Unicode materialization on malformed receipt bytes. Exact failed probe/source/binary evidence is preserved.

@@ -11,7 +11,9 @@ public sealed class EditSessionRecoveryRecordTests
     [Theory, InlineData("future-profile"), InlineData("invalid-encryption"), InlineData("missing-id"), InlineData("wrong-id"),
         InlineData("array"), InlineData("truncated"), InlineData("deep"), InlineData("oversized"), InlineData("invalid-utf8"),
         InlineData("null-member"), InlineData("null-baseline"), InlineData("null-working"), InlineData("null-remote"),
-        InlineData("outside-working"), InlineData("relative-working"), InlineData("nul-working"), InlineData("traversal-working")]
+        InlineData("outside-working"), InlineData("relative-working"), InlineData("nul-working"), InlineData("traversal-working"),
+        InlineData("invalid-utf8-name"),InlineData("invalid-utf8-id"),InlineData("invalid-utf8-working"),
+        InlineData("unpaired-high-id"),InlineData("unpaired-low-id"),InlineData("unpaired-name")]
     public void Unreadable_or_future_record_shapes_remain_visible_without_mutating_working_files(string shape)
     {
         using var root = new TempDir(); string id=Guid.NewGuid().ToString("N");
@@ -41,6 +43,15 @@ public sealed class EditSessionRecoveryRecordTests
             "array"=>"[]"u8.ToArray(),"truncated"=>"{\"Id\":"u8.ToArray(),"invalid-utf8"=>[0xff,0xfe,0xff],
             _=>Encoding.UTF8.GetBytes(node.ToJsonString()),
         };
+        if(shape=="invalid-utf8-name")bytes[2]=0xff;
+        if(shape is "invalid-utf8-id" or "invalid-utf8-working")
+        {
+            byte[] field=Encoding.UTF8.GetBytes(shape=="invalid-utf8-id"?"\"Id\":":"\"WorkingPath\":");
+            int start=bytes.AsSpan().IndexOf(field)+field.Length;Assert.True(start>=field.Length);Assert.Equal((byte)'"',bytes[start]);bytes[start+1]=0xff;
+        }
+        if(shape is "unpaired-high-id" or "unpaired-low-id")
+            bytes=Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(bytes).Replace("\""+id+"\"",shape=="unpaired-high-id"?"\"\\uD800\"":"\"\\uDC00\"",StringComparison.Ordinal));
+        if(shape=="unpaired-name")bytes=Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(bytes).Replace("\"Id\":","\"\\uD800\":",StringComparison.Ordinal));
         string path=Path.Combine(directory,"session.json");File.WriteAllBytes(path,bytes);
         var store=new EditSessionStore(root.Path,new PortableFileOperations());var loaded=Assert.Single(store.LoadAll());
         Assert.False(loaded.IsSupported);Assert.NotEmpty(loaded.UnsupportedReason!);Assert.Equal(id,loaded.Id);

@@ -2441,6 +2441,324 @@
         "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
       },
       "production_backend_qualified": false
+    },
+    {
+      "platform": "windows",
+      "folder": "awe-storage-v26",
+      "candidate": "915a0a5622547759b1b24693206d462ca21d6aca",
+      "bytes": 18668650,
+      "sha256": "10591200a463bfa34d61f84de082aaa53c30e072878dc294dcfd0431fc947838",
+      "manifest_sha256": "a894bad8e0d00de5d1dcd2702d9203238597a4dc81742d256c12d0b3e200caba",
+      "changed_CSharp_sources_bound": 68,
+      "DLL_PDB_pairs_bound": 17,
+      "uncompiled_platform_sources": [],
+      "tests": {
+        "capture-recovery": {
+          "Passed": 27
+        },
+        "commit-copy": {
+          "Passed": 10
+        },
+        "comparison-retirement": {
+          "Passed": 108
+        },
+        "edit-core": {
+          "Passed": 100,
+          "NotExecuted": 10
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "history-retirement-core": {
+          "Passed": 29
+        },
+        "history-retirement-ui": {
+          "Passed": 18
+        },
+        "job-input-regressions": {
+          "Passed": 269
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-legacy-zip": {
+          "Passed": 18
+        },
+        "native-origin-regressions": {
+          "Passed": 18
+        },
+        "native-sftp": {
+          "Passed": 23
+        },
+        "native-snapshot": {
+          "Passed": 35
+        },
+        "native-storage": {
+          "Passed": 14
+        },
+        "origin-policy": {
+          "Passed": 15
+        },
+        "record-recovery": {
+          "Passed": 19
+        },
+        "save-copy-preparation": {
+          "Passed": 17
+        },
+        "save-copy-publication": {
+          "Passed": 25
+        },
+        "save-copy-record": {
+          "Passed": 25
+        },
+        "verification-ui": {
+          "NotExecuted": 1,
+          "Passed": 12
+        }
+      },
+      "focused_gates_complete": true,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false
+      },
+      "production_backend_qualified": false,
+      "validation_scope": "focused",
+      "full_regressions_not_run": [
+        "complete-app",
+        "complete-core",
+        "complete-remote"
+      ],
+      "excluded_diagnostic_sources": [
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        },
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs",
+          "bytes": 2509,
+          "sha256": "3c6ab0b6702235fbba356c4b785d3b54810f3c7d40d69499daadc871ed065a79",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        }
+      ]
+    },
+    {
+      "platform": "mac",
+      "folder": "awe-storage-v26",
+      "candidate": "915a0a5622547759b1b24693206d462ca21d6aca",
+      "bytes": 17377075,
+      "sha256": "c6c1c54d24cf77e013e4a47faf88f051787d398375f24b207a85c57b06932f20",
+      "manifest_sha256": "5792af5f84248eb354bd8f9ed48589a1f3b958faa1bb00379d8c303c2b7cd06f",
+      "changed_CSharp_sources_bound": 61,
+      "DLL_PDB_pairs_bound": 14,
+      "uncompiled_platform_sources": [
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditCaptureRecoveryTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditDirectoryLeaseTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditLegacyZipTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPreparationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPublicationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSnapshotTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageTests.cs"
+      ],
+      "tests": {
+        "capture-recovery": {
+          "Passed": 27
+        },
+        "commit-copy": {
+          "Passed": 10
+        },
+        "comparison-retirement": {
+          "Passed": 108
+        },
+        "edit-core": {
+          "Passed": 110
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "history-retirement-core": {
+          "Passed": 29
+        },
+        "history-retirement-ui": {
+          "Passed": 18
+        },
+        "job-input-regressions": {
+          "Passed": 269
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-legacy-zip": {
+          "Passed": 18
+        },
+        "native-sftp": {
+          "Passed": 23
+        },
+        "native-snapshot": {
+          "Passed": 34
+        },
+        "native-storage": {
+          "Passed": 19
+        },
+        "origin-policy": {
+          "Passed": 15
+        },
+        "record-recovery": {
+          "Passed": 19
+        },
+        "save-copy-preparation": {
+          "Passed": 17
+        },
+        "save-copy-publication": {
+          "Passed": 26
+        },
+        "save-copy-record": {
+          "Passed": 25
+        },
+        "verification-ui": {
+          "Passed": 12,
+          "NotExecuted": 1
+        }
+      },
+      "focused_gates_complete": true,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "production_backend_qualified": false,
+      "validation_scope": "focused",
+      "full_regressions_not_run": [
+        "complete-app",
+        "complete-core",
+        "complete-remote"
+      ],
+      "excluded_diagnostic_sources": [
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        },
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs",
+          "bytes": 2509,
+          "sha256": "3c6ab0b6702235fbba356c4b785d3b54810f3c7d40d69499daadc871ed065a79",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        }
+      ]
+    },
+    {
+      "platform": "ubuntu",
+      "folder": "awe-storage-v26",
+      "candidate": "915a0a5622547759b1b24693206d462ca21d6aca",
+      "bytes": 17342163,
+      "sha256": "06bbe58b4468736cfe157622d97f975e5ca2479641a62bc417c3164f15d65382",
+      "manifest_sha256": "3d88b8f6d92a582daf84531da037e4e1b0a81e20a347671989022c0a8c155034",
+      "changed_CSharp_sources_bound": 61,
+      "DLL_PDB_pairs_bound": 14,
+      "uncompiled_platform_sources": [
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditCaptureRecoveryTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditDirectoryLeaseTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditLegacyZipTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPreparationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPublicationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSnapshotTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageTests.cs"
+      ],
+      "tests": {
+        "capture-recovery": {
+          "Passed": 27
+        },
+        "commit-copy": {
+          "Passed": 10
+        },
+        "comparison-retirement": {
+          "Passed": 108
+        },
+        "edit-core": {
+          "Passed": 110
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "history-retirement-core": {
+          "Passed": 29
+        },
+        "history-retirement-ui": {
+          "Passed": 18
+        },
+        "job-input-regressions": {
+          "Passed": 269
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-legacy-zip": {
+          "Passed": 18
+        },
+        "native-sftp": {
+          "Passed": 23
+        },
+        "native-snapshot": {
+          "Passed": 34
+        },
+        "native-storage": {
+          "Passed": 19
+        },
+        "origin-policy": {
+          "Passed": 15
+        },
+        "picture-boundary": {
+          "Passed": 12
+        },
+        "record-recovery": {
+          "Passed": 19
+        },
+        "save-copy-preparation": {
+          "Passed": 17
+        },
+        "save-copy-publication": {
+          "Passed": 26
+        },
+        "save-copy-record": {
+          "Passed": 25
+        },
+        "verification-ui": {
+          "Passed": 12,
+          "NotExecuted": 1
+        }
+      },
+      "focused_gates_complete": true,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false
+      },
+      "production_backend_qualified": false,
+      "validation_scope": "focused",
+      "full_regressions_not_run": [
+        "complete-app",
+        "complete-core",
+        "complete-remote"
+      ],
+      "excluded_diagnostic_sources": [
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        },
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs",
+          "bytes": 2509,
+          "sha256": "3c6ab0b6702235fbba356c4b785d3b54810f3c7d40d69499daadc871ed065a79",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        }
+      ]
     }
   ],
   "current": [
@@ -2614,18 +2932,18 @@
   "pending": [
     {
       "platform": "windows",
-      "folder": "awe-storage-v26",
-      "state": "fresh UTF-8 boundary correction and record25/native publication25/connected focused validation running"
+      "folder": "awe-storage-v27",
+      "state": "v26 complete focused native/record/capture/session/ZIP/SFTP/UI matrix passed, raw evidence verified, zero owned instances; legacy startup/capture Unicode follow-up and expanded matrices queued"
     },
     {
       "platform": "mac",
-      "folder": "awe-storage-v26",
-      "state": "v23 complete Core/Remote/App passed, exact evidence preserved/verified; native saved-copy publication26/record25/connected candidate launched under PID 55815; wake helper36765 retained"
+      "folder": "awe-storage-v27",
+      "state": "v26 complete focused native/record/capture/session/ZIP/SFTP/UI matrix passed, raw evidence verified, zero owned instances; legacy startup/capture Unicode follow-up and expanded matrices queued"
     },
     {
       "platform": "ubuntu",
-      "folder": "awe-storage-v26",
-      "state": "v25 complete focused matrix passed and exact evidence preserved; fresh UTF-8 boundary correction/record25/publication26 running under PID 1350648"
+      "folder": "awe-storage-v27",
+      "state": "v26 complete focused native/record/capture/session/ZIP/SFTP/UI matrix passed, raw evidence verified, zero owned instances; legacy startup/capture Unicode follow-up and expanded matrices queued"
     }
   ],
   "fresh_review_authorizes_deletion": false,
@@ -2635,7 +2953,7 @@
     "edit-snapshots-checkpoint.json"
   ],
   "remaining": [
-    "qualify native saved-copy publication/receipts and finish Mac corrected complete inventories",
+    "qualify legacy startup/capture Unicode refusal follow-up, then run complete inventories for the connected runtime milestone",
     "Unix exact-object runtime cleanup",
     "fresh recovery cleanup action and startup UI",
     "native Save copy publication",
@@ -2736,6 +3054,33 @@
           "sha256": "2d4a81ff9f83eff59e9299142e6022f09cd80903340b7b87b3bddb2931755fb2"
         }
       ]
+    },
+    {
+      "candidate": "915a0a5622547759b1b24693206d462ca21d6aca",
+      "platform": "ubuntu",
+      "assembly_sha256": "e153c1b8017f472bdfc632785bae6af230d06c1abb19318884172cc7c3aaba8e",
+      "accepted": 100,
+      "controlled_refusals": 10093,
+      "unexpected_exceptions": 0,
+      "traces": [
+        {
+          "path": ".tmp/edit-copy-record-probe-v1/Program.cs",
+          "bytes": 2432,
+          "sha256": "2b466259ed67a95c2633d6291fcb396e402c4c22d64a2d8899eedb7c5cadb098"
+        },
+        {
+          "path": ".tmp/edit-copy-record-probe-v1/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2"
+        },
+        {
+          "path": ".tmp/edit-copy-record-probe-v1/result-fixed-v26.json",
+          "bytes": 308,
+          "sha256": "22c1a4a6c9dae7bfa1bfe2fba70fff83c4a28455db89bf23b9c3d2bb5b4a9f85"
+        }
+      ],
+      "folder": "awe-storage-v26",
+      "result_file_name": "result-fixed-v26.json"
     }
   ]
 }

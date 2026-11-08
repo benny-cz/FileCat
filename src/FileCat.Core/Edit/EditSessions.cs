@@ -220,6 +220,7 @@ public sealed partial class EditSessionStore
         if (bytes.Length > MaxRecordBytes) return UnsupportedSession(directory, "This edit record exceeds the metadata budget. Its working folder is kept.");
         try
         {
+            _=ArchiveWritePolicy.Utf8.GetCharCount(bytes);
             using var document = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 32 });
             var value = document.RootElement;
             if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty(nameof(EditSessionRecord.Id), out var id) ||
@@ -243,7 +244,8 @@ public sealed partial class EditSessionStore
             catch (Exception error) when (error is JsonException or ArgumentException or NotSupportedException or ArchiveWriteException) { }
             return UnsupportedSession(directory, unsupported, version, working);
         }
-        catch (JsonException) { return UnsupportedSession(directory, "This edit record is malformed or too deeply nested. Its working folder is kept for recovery."); }
+        catch (Exception error) when(error is JsonException or System.Text.DecoderFallbackException or InvalidOperationException)
+        { return UnsupportedSession(directory, "This edit record is malformed or too deeply nested. Its working folder is kept for recovery."); }
     }
 
     public EditSessionRecord? Find(string archivePath, string memberPath) =>

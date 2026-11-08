@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json.Nodes;
 using FileCat.Core.Edit;
 using FileCat.Core.FileSystem;
@@ -13,7 +14,8 @@ internal static class ArchiveEditCaptureRecoveryCases
         foreach(string scenario in new[]{"none","complete","interrupted-empty","interrupted-partial","header-missing","receipt-version",
             "receipt-version-string","receipt-duplicate","receipt-unknown","receipt-malformed","receipt-depth","receipt-large","receipt-length",
             "receipt-length-string","receipt-digest","receipt-session","header-files","header-leaf","extra-child","extra-file","payload-changed",
-            "payload-missing","payload-replaced","stale-record","cancel","capture-budget","unknown-name"})yield return [scenario];
+            "payload-missing","payload-replaced","stale-record","cancel","capture-budget","unknown-name",
+            "header-utf8-name","receipt-utf8-value","header-unpaired-name","receipt-unpaired-value"})yield return [scenario];
     }
     internal static void Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open)
     {
@@ -48,6 +50,17 @@ internal static class ArchiveEditCaptureRecoveryCases
             else if(scenario=="receipt-depth")File.WriteAllText(receipt,"{\"Nested\":[[[[[0]]]]]}");
             else if(scenario=="receipt-large")File.WriteAllText(receipt,new string(' ',16385));
             else if(scenario=="receipt-duplicate")File.WriteAllText(receipt,File.ReadAllText(receipt).Insert(1,"\"Version\":1,"));
+            else if(scenario is "header-utf8-name" or "receipt-utf8-value" or "header-unpaired-name" or "receipt-unpaired-value")
+            {
+                string target=scenario.StartsWith("header-",StringComparison.Ordinal)?header:receipt;byte[] bytes=File.ReadAllBytes(target);
+                if(scenario=="header-utf8-name")
+                {int at=bytes.AsSpan().IndexOf("\"Version\""u8);Assert.True(at>=0);bytes[at+1]=0xff;}
+                else if(scenario=="receipt-utf8-value")
+                {int at=bytes.AsSpan().IndexOf(Encoding.UTF8.GetBytes(record.Id));Assert.True(at>=0);bytes[at]=0xff;}
+                else bytes=Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(bytes).Replace(
+                    scenario=="header-unpaired-name"?"\"Version\"":"\""+record.Id+"\"","\"\\uD800\"",StringComparison.Ordinal));
+                File.WriteAllBytes(target,bytes);
+            }
             else if(scenario.StartsWith("receipt-",StringComparison.Ordinal)||scenario.StartsWith("header-",StringComparison.Ordinal))
             {
                 string target=scenario.StartsWith("header-",StringComparison.Ordinal)?header:receipt;

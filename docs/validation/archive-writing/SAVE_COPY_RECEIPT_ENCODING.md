@@ -20,7 +20,17 @@ without mutation authority. Five additional record cases cover invalid UTF-8 nam
 surrogates, and 10,000 reproducible mutations. Accepted mutations must round-trip as valid records; failures from
 that round trip are not swallowed as successful refusals. The original 20 strict record cases remain unchanged.
 
-The next `v26` candidate requires record25 and publication25 Windows / 26 Mac/Ubuntu, plus the connected focused
-gates. Changed product bytes require fresh validation on all three systems. Existing complete `v23` inventories
+The `v26` candidate passes record25 and publication25 Windows / 26 Mac/Ubuntu, plus every connected focused gate.
+Exact compiler/binary bindings and zero owned instances are verified; the Mac wake helper remains. Repeating the
+unchanged original Ubuntu probe against the corrected binary produces 100 accepted / 10,093 controlled refusals /
+zero escaping exceptions. The checkpoint binds both the failed and corrected raw results to their respective binaries.
+Existing complete `v23` inventories
 now pass on all three platforms and remain bound to `fa3975d5`; they do not qualify this correction or enable
 native store/profile registration. Overwrite, restart discovery/actions, cleanup/crashes and integration remain open.
+
+The 9 November follow-up applies complete UTF-8 review and controlled Unicode handling to legacy session records
+and capture-recovery evidence too. Six added actual startup cases keep malformed IDs/working paths/property names
+visible and refuse save/discard without rewriting any record or working file. Four native restart cases corrupt
+header/receipt names/values and require read-only NeedsReview with unchanged complete fixture contents. Both test
+projects build without warnings/errors. The fresh `v27` record-recovery25/capture-recovery31 gates and subsequent
+complete runtime milestone inventories remain pending.

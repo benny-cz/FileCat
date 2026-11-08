@@ -36,7 +36,7 @@ public sealed partial class EditSessionStore
             if(name.Length!=39||!Guid.TryParseExact(name.AsSpan(7),"N",out _))
             {result.Add(new(path,EditCaptureRecoveryState.NeedsReview,"This captured folder has an unknown name. Its files are kept."));continue;}
             try{result.Add(ReviewCapture(session,name,current,ref remainingBytes,ct));}
-            catch(Exception error)when(error is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
+            catch(Exception error)when(error is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException)
             {result.Add(new(path,EditCaptureRecoveryState.NeedsReview,"This retained copy is in use, changed, or cannot be read completely. Its files are kept."));}
         }
         session.Review(ct);
@@ -95,6 +95,7 @@ public sealed partial class EditSessionStore
 
     private static CaptureFacts ParseCaptureRecord(byte[] bytes,bool complete)
     {
+        _=ArchiveWritePolicy.Utf8.GetCharCount(bytes);
         using var document=JsonDocument.Parse(bytes,new JsonDocumentOptions{MaxDepth=4});var value=document.RootElement;
         string[] expected=complete?["Version","Session","SessionRecord","Directory","Files","Leaf","Identity","Length","Sha256","Metadata","Origin"]:
             ["Version","Session","SessionRecord","Directory","Files","Leaf"];
