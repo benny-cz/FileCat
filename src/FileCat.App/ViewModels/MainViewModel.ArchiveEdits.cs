@@ -16,7 +16,10 @@ public sealed partial class MainViewModel
         public ArchiveTargetReview Target { get; } = target;
         public ArchiveManifestMember Member { get; } = ArchiveEditEvidence.UniqueMember(target, rawPath);
         public IContentSource OpenContent(CancellationToken ct) => owner.Services.Archives.OpenReviewedMember(Target, Member.Name, password, ct);
-        public void ReviewSource(CancellationToken ct) => held.Review(Target.Native, ct);
+        public void ReviewSource(CancellationToken ct)
+        {
+            owner.CheckSessionAction(); held.Review(Target.Native, ct); owner.CheckSessionAction();
+        }
         public string WorkingIdentity(SafeFileHandle handle) => owner.Services.Archives.GetOpenedSourceIdentity(handle) ??
             throw new IOException("The private edit file has no stable native identity.");
         public void PreserveOrigin(FileStream working, CancellationToken ct)

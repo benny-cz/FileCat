@@ -3,8 +3,8 @@ from pathlib import Path
 from collections import Counter
 import importlib.util, json, os, shutil, sys, xml.etree.ElementTree as ET
 
-FOLDER = 'awe-v2'
-PACKET = 'archive-edit-sessions-delta-v2.tar.gz'
+FOLDER = 'awe-v3'
+PACKET = 'archive-edit-sessions-delta-v3.tar.gz'
 PREVIOUS = 'awe-v1'
 NS = {'t': 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 
@@ -85,9 +85,10 @@ def tests(task):
     passed = Counter(row.get('testName') for row in current if row.get('outcome') == 'Passed')
     prior_passed = Counter(row.get('testName') for row in old if row.get('outcome') == 'Passed')
     missing = list((before-names).elements()); lost = list((prior_passed-passed).elements())
+    expected_new = 52 if sys.platform == 'win32' else 4  # Windows v1 stopped at the native fixture; Unix completed its full inventory.
     (batch.out/'full-case-inventory.json').write_text(json.dumps({'previous':len(old), 'current':len(current),
-        'missing_prior_cases':missing, 'lost_prior_passes':lost, 'expected_new_cases':48}, indent=2))
-    assert not missing and not lost and len(current) == len(old)+48
+        'missing_prior_cases':missing, 'lost_prior_passes':lost, 'expected_new_cases':expected_new}, indent=2))
+    assert not missing and not lost and len(current) == len(old)+expected_new
     batch.idle(); (batch.out/'tests-complete.json').write_text(json.dumps(rows, indent=2))
 
 if __name__ == '__main__':

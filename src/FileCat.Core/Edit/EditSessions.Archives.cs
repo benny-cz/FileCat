@@ -78,19 +78,28 @@ public sealed partial class EditSessionStore
         var content = ProgressiveContent.Sequential(actual.OpenContent(ct)) ?? throw new IOException("The published member cannot be read back.");
         ReadOwned(content, () =>
         {
+            CheckComplete(content);
             if (content.Length != copy.Length) throw new IOException("The published member length changed before acknowledgement.");
+            var revision = content.GetRevision();
+            if (revision is { } before && before.Length != copy.Length) throw new IOException("The published member revision has a different length.");
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256); byte[] buffer = new byte[1024 * 1024]; long offset = 0;
             while (true)
             {
-                ct.ThrowIfCancellationRequested(); int want = (int)Math.Min(buffer.Length, copy.Length - offset + 1);
+                ct.ThrowIfCancellationRequested(); CheckComplete(content); int want = (int)Math.Min(buffer.Length, copy.Length - offset + 1);
                 int read = content.Read(offset, buffer.AsSpan(0, want));
+                ct.ThrowIfCancellationRequested(); CheckComplete(content);
                 if (read < 0 || read > want || read > copy.Length - offset) throw new IOException("The published member changed during readback.");
                 if (read == 0) { if (offset != copy.Length) throw new IOException("The published member ended before complete readback."); break; }
                 hash.AppendData(buffer, 0, read); offset += read;
             }
+            if (content.Length != copy.Length || content.GetRevision() != revision)
+                throw new IOException("The published member changed during complete readback.");
+            CheckComplete(content);
             if (Convert.ToHexString(hash.GetHashAndReset()) != copy.Sha256) throw new IOException("The published member readback does not match the commit copy.");
             actual.ReviewSource(ct); return new WorkingCopy(copy.Sha256, copy.Crc32, copy.Length);
         });
+        // Content close can fail or expose a source change too; no durable acknowledgement precedes it.
+        actual.ReviewSource(ct);
         ct.ThrowIfCancellationRequested();
         var updated = NativeRecord(record, actual.Target, member, copy.Sha256) with { LastCommitUtc = DateTime.UtcNow };
         Save(updated); return updated;

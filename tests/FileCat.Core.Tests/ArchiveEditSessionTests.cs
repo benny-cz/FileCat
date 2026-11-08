@@ -81,7 +81,8 @@ public sealed class ArchiveEditSessionTests
     }
 
     [Theory, InlineData("wrong-copy"), InlineData("wrong-readback"), InlineData("changed-source"), InlineData("close-failure"),
-        InlineData("wrong-manifest"), InlineData("wrong-identity"), InlineData("canceled")]
+        InlineData("wrong-manifest"), InlineData("wrong-identity"), InlineData("canceled"), InlineData("partial"), InlineData("caveat"),
+        InlineData("changed-revision"), InlineData("changed-after-close")]
     public void Uncertain_publication_or_readback_keeps_previous_durable_evidence_and_working_bytes(string failure)
     {
         using var f = new Fixture(new(ArchiveWriteFormat.Tar)); var record = f.Store.CreateArchive(f.Source, "notes.txt", Ct);
@@ -89,6 +90,8 @@ public sealed class ArchiveEditSessionTests
         var actual = f.Published(failure == "wrong-copy" ? "different bytes"u8.ToArray() : File.ReadAllBytes(copy.Path));
         if (failure == "wrong-readback") File.WriteAllText(actual.ContentPath, new string('x', (int)copy.Length));
         actual.FailReview = failure == "changed-source"; actual.FailClose = failure == "close-failure";
+        actual.FailPartial = failure == "partial"; actual.FailCaveat = failure == "caveat";
+        actual.FailRevision = failure == "changed-revision"; actual.FailAfterCloseReview = failure == "changed-after-close";
         var receipt = Receipt(actual.Target);
         if (failure == "wrong-manifest") receipt = receipt with { ManifestDigest = new('E', 64) };
         if (failure == "wrong-identity") receipt = receipt with { Native = f.Source.Target.Native };
@@ -149,18 +152,27 @@ public sealed class ArchiveEditSessionTests
         public ArchiveTargetReview Target { get; } = target;
         public ArchiveManifestMember Member => Target.Assessment.Manifest.Members.Single();
         internal string ContentPath => path;
-        internal bool FailReview, FailClose, FailOrigin; internal int Closes, Origins;
+        internal bool FailReview, FailClose, FailOrigin, FailPartial, FailCaveat, FailRevision, FailAfterCloseReview; internal int Closes, Origins;
         public IContentSource OpenContent(CancellationToken ct) => new Content(this,
             new LocalFileSystemProvider().OpenContent(ItemRef.ForFileSystemPath(path, EntryKind.File))!);
-        public void ReviewSource(CancellationToken ct) { ct.ThrowIfCancellationRequested(); if (FailReview) throw new IOException("Public changed source"); }
+        public void ReviewSource(CancellationToken ct)
+        { ct.ThrowIfCancellationRequested(); if (FailReview || FailAfterCloseReview && Closes != 0) throw new IOException("Public changed source"); }
         public string WorkingIdentity(SafeFileHandle handle) => files.GetHandleIdentity(handle)!;
         public void PreserveOrigin(FileStream workingFile, CancellationToken ct)
         { ct.ThrowIfCancellationRequested(); Origins++; if (FailOrigin) throw new IOException("Public origin failure"); }
-        private sealed class Content(Source owner, IContentSource inner) : IContentSource
+        private sealed class Content(Source owner, IContentSource inner) : IContentSource, IPartialContent
         {
+            private bool read; private int revisionReads;
             public string DisplayName => inner.DisplayName; public long Length => inner.Length; public bool CanSeek => inner.CanSeek;
-            public string? LocalPath => inner.LocalPath; public ContentRevision? GetRevision() => inner.GetRevision();
-            public int Read(long offset, Span<byte> buffer) => inner.Read(offset, buffer);
+            public string? LocalPath => inner.LocalPath;
+            public IReadOnlyList<(long Offset, long Length)> MissingRanges => owner.FailPartial && read ? [(0, 1)] : [];
+            public string? Caveat => owner.FailCaveat && read ? "Public incomplete readback caveat" : null;
+            public ContentRevision? GetRevision()
+            {
+                var revision = inner.GetRevision();
+                return owner.FailRevision && ++revisionReads > 1 && revision is { } r ? r with { ModifiedTicks = r.ModifiedTicks + 1 } : revision;
+            }
+            public int Read(long offset, Span<byte> buffer) { int count = inner.Read(offset, buffer); read = true; return count; }
             public void Dispose() { inner.Dispose(); owner.Closes++; if (owner.FailClose) throw new IOException("Public edit close failure"); }
         }
     }
