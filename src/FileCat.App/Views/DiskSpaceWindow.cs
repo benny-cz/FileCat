@@ -320,6 +320,8 @@ public sealed partial class DiskSpaceWindow : Window
             _importExternal.IsVisible = Model.HistoryServices is not null;
             _importExternal.Click += async (_, _) => await ImportExternalAsync(); nav.Children.Add(_importExternal);
             ToolTip.SetTip(_importExternal, new RichTip("Import offline observations", detail: "Choose a local .fcdsa inventory. Validation uses private bounded scratch; imported paths never reconnect sources or authorize file actions."));
+            _exportExternal.IsVisible = Model.HistoryServices is not null; _exportExternal.Click += async (_, _) => await ExportExternalAsync(); nav.Children.Add(_exportExternal);
+            ToolTip.SetTip(_exportExternal, new RichTip("Export entire captured inventory", detail: "Choose a folder and new filename, then review sensitive paths and metadata. Display filters do not limit this inventory; existing files are preserved."));
             var history = ActionButton("History…", () => _ = ShowHistoryAsync(), "Browse, open, pin and review removal of this profile's rolling analysis history.");
             history.IsEnabled = Model.HistoryServices is not null; nav.Children.Add(history);
             _openComparison = ActionButton("Open comparison…", () => _ = OpenComparisonSavedAsync(), "Open both captured inventories and saved comparison settings from this private profile. Sources remain disconnected.");
@@ -600,6 +602,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _save.IsEnabled = Model.CanSave && !_persistenceBusy;
                 _openSaved.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
                 _importExternal.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
+                _exportExternal.IsEnabled = Model.CanSave && !_persistenceBusy;
                 _compare.IsEnabled = Model.CanCompare && !_persistenceBusy;
                 RefreshComparisonPersistence();
                 _stop.Content = Model.IsPreparing ? "Stop binding" : "Stop";

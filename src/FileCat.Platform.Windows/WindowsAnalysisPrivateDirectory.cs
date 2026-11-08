@@ -65,9 +65,11 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
     }
 
     private byte[] Descriptor(bool directory)
+        => DescriptorForOwner(_owner, directory);
+    private static byte[] DescriptorForOwner(SecurityIdentifier owner, bool directory)
     {
         string inherit = directory ? "OICI" : "";
-        var descriptor = new RawSecurityDescriptor($"O:{_owner.Value}D:P(A;{inherit};FA;;;SY)(A;{inherit};FA;;;{_owner.Value})");
+        var descriptor = new RawSecurityDescriptor($"O:{owner.Value}D:P(A;{inherit};FA;;;SY)(A;{inherit};FA;;;{owner.Value})");
         var bytes = new byte[descriptor.BinaryLength]; descriptor.GetBinaryForm(bytes, 0); return bytes;
     }
 
@@ -86,13 +88,15 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
     }
 
     internal override (UInt128 Capacity, UInt128 Available) Space()
+        => ReadSpace(Root);
+    private static (UInt128 Capacity, UInt128 Available) ReadSpace(SafeHandle root)
     {
         char* fs = stackalloc char[64];
-        if (!GetVolumeInformationByHandle(Root, null, 0, out _, out _, out uint flags, fs, 64) ||
+        if (!GetVolumeInformationByHandle(root, null, 0, out _, out _, out uint flags, fs, 64) ||
             new string(fs) != "NTFS" || (flags & 8) == 0) // FILE_PERSISTENT_ACLS
             throw new IOException("Private analysis publication requires a qualified local NTFS volume with persistent ACLs.");
         byte* buffer = stackalloc byte[32]; IoStatus io;
-        int status = NtQueryVolumeInformationFile(Root, &io, buffer, 32, 7); // FileFsFullSizeInformation
+        int status = NtQueryVolumeInformationFile(root, &io, buffer, 32, 7); // FileFsFullSizeInformation
         if (status < 0) throw Error(status, "Query private destination capacity");
         long total = *(long*)buffer, available = *(long*)(buffer + 8);
         ulong unit = checked((ulong)*(uint*)(buffer + 24) * *(uint*)(buffer + 28));
@@ -193,6 +197,8 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
     }
 
     private void Private(SafeHandle handle, bool directory, bool allowDeletePending = false)
+        => PrivateForOwner(handle, _owner, directory, allowDeletePending);
+    private static void PrivateForOwner(SafeHandle handle, SecurityIdentifier owner, bool directory, bool allowDeletePending = false)
     {
         RejectReparse(handle);
         byte* standard = stackalloc byte[24];
@@ -207,7 +213,7 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
             if (length is < 20 or > 65536) throw new IOException("The private analysis security descriptor is invalid.");
             byte[] bytes = new byte[length]; Marshal.Copy(raw, bytes, 0, bytes.Length);
             var descriptor = new RawSecurityDescriptor(bytes, 0);
-            if (!Equals(descriptor.Owner, _owner) || (descriptor.ControlFlags & (ControlFlags.DiscretionaryAclPresent | ControlFlags.DiscretionaryAclProtected)) !=
+            if (!Equals(descriptor.Owner, owner) || (descriptor.ControlFlags & (ControlFlags.DiscretionaryAclPresent | ControlFlags.DiscretionaryAclProtected)) !=
                 (ControlFlags.DiscretionaryAclPresent | ControlFlags.DiscretionaryAclProtected) || descriptor.DiscretionaryAcl is not { Count: 2 } acl)
                 throw new IOException("The private analysis owner or protected ACL does not match this profile.");
             bool user = false, system = false;
@@ -217,7 +223,7 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
                 if (entry is not CommonAce ace || ace.IsCallback || ace.AceQualifier != AceQualifier.AccessAllowed ||
                     ace.AceFlags != expectedFlags || ace.AccessMask != 0x1f01ff)
                     throw new IOException("The private analysis ACL has an unsupported grant.");
-                if (ace.SecurityIdentifier.Equals(_owner) && !user) user = true;
+                if (ace.SecurityIdentifier.Equals(owner) && !user) user = true;
                 else if (ace.SecurityIdentifier.IsWellKnown(WellKnownSidType.LocalSystemSid) && !system) system = true;
                 else throw new IOException("The private analysis ACL grants an unexpected identity.");
             }

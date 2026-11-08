@@ -80,12 +80,16 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
 
     internal override (UInt128 Capacity, UInt128 Available) Space()
     {
+        return ReadSpace(Root, _mac);
+    }
+    private static (UInt128 Capacity, UInt128 Available) ReadSpace(SafeHandle root, bool mac)
+    {
         byte* fs = stackalloc byte[4096]; new Span<byte>(fs, 4096).Clear();
-        int result = _mac && RuntimeInformation.ProcessArchitecture != Architecture.Arm64
-            ? FstatFsMac64(Root, fs) : FstatFs(Root, fs);
+        int result = mac && RuntimeInformation.ProcessArchitecture != Architecture.Arm64
+            ? FstatFsMac64(root, fs) : FstatFs(root, fs);
         if (result != 0) throw Error("Private destination free space could not be verified.");
         ulong blockSize, blocks, available;
-        if (_mac)
+        if (mac)
         {
             var type = new ReadOnlySpan<byte>(fs + 72, 16); int end = type.IndexOf((byte)0);
             if (end <= 0 || Encoding.ASCII.GetString(type[..end]) != "apfs")

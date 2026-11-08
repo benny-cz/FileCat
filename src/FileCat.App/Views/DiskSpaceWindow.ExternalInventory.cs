@@ -44,11 +44,12 @@ public sealed partial class DiskSpaceWindow
         try
         {
             if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
-            var picked = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            var items = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             { Title = "Import inventory", AllowMultiple = false, FileTypeFilter = [new FilePickerFileType("FileCat inventory") { Patterns = ["*.fcdsa"] }] });
+            using var picked = new PickedStorageItems(items);
             cancel.Token.ThrowIfCancellationRequested();
-            if (picked.Count == 0) return;
-            string path = picked[0].TryGetLocalPath() ?? throw new NotSupportedException("Choose an inventory on a directly accessible local drive.");
+            if (items.Count == 0) return;
+            string path = items[0].TryGetLocalPath() ?? throw new NotSupportedException("Choose an inventory on a directly accessible local drive.");
             AnalysisInventoryInput.ValidateChosenPath(path);
             if (!await ConfirmExternalInventoryAsync(_dialogs, path, cancel.Token)) return;
             cancel.Token.ThrowIfCancellationRequested();
@@ -63,10 +64,25 @@ public sealed partial class DiskSpaceWindow
             finally { closer.Close(null); }
         }
         catch (OperationCanceledException) { }
+        catch (AggregateException error)
+        {
+            rememberFailure(new AnalysisCloseUnconfirmedException(error));
+            if (!cancel.IsCancellationRequested) await _dialogs.AlertAsync("Inventory picker cleanup is unconfirmed", "Any imported tab remains open. A selected picker item could not confirm release; close this analysis before further file operations.");
+        }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException or FormatException or OverflowException)
         {
             rememberFailure(error);
             if (!cancel.IsCancellationRequested) await _dialogs.AlertAsync("Inventory was not imported", AnalysisNames.Display(error.Message, 600));
+        }
+    }
+    internal sealed class PickedStorageItems(IReadOnlyList<IDisposable> items) : IDisposable
+    {
+        private bool _disposed;
+        public void Dispose()
+        {
+            if (_disposed) return; _disposed = true; var failures = new List<Exception>();
+            foreach (var item in items) try { item.Dispose(); } catch (Exception error) { failures.Add(error); }
+            if (failures.Count != 0) throw new AggregateException("The inventory picker could not release every selected item.", failures);
         }
     }
     private sealed partial class SessionView

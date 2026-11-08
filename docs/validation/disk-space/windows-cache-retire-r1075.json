@@ -1,0 +1,20 @@
+{
+    "observedUtc":  "2026-11-08T09:19:48.9197549Z",
+    "root":  "C:\\FileCatDsa20261104R2",
+    "beforeBytes":  901267456,
+    "afterBytes":  3041083392,
+    "removed":  [
+                    "C:\\FileCatDsa20261104R2\\batch-r1006",
+                    "C:\\FileCatDsa20261104R2\\batch-r1009",
+                    "C:\\FileCatDsa20261104R2\\batch-r1021",
+                    "C:\\FileCatDsa20261104R2\\batch-r1036",
+                    "C:\\FileCatDsa20261104R2\\batch-r1050",
+                    "C:\\FileCatDsa20261104R2\\batch-r1058",
+                    "C:\\FileCatDsa20261104R2\\batch-r1063",
+                    "C:\\FileCatDsa20261104R2\\batch-r1068"
+                ],
+    "preservedBaselines":  [
+                               "batch-r1071",
+                               "batch-r1072"
+                           ]
+}

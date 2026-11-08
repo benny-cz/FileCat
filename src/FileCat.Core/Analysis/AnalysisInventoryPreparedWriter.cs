@@ -28,7 +28,7 @@ public static partial class AnalysisInventoryFormat
             (output, token) => WriteDatasetPreparedAsync(reader, id, output, io, devices, token), cancellation);
 
     private static async Task WriteDatasetPreparedAsync(AnalysisIndexedGraphReader reader, Guid id,
-        AnalysisPrivateInventoryStore.DatasetWrite output, DeviceIoScheduler io, AnalysisIoDevices devices, CancellationToken cancellation)
+        IAnalysisInventoryWriteSink output, DeviceIoScheduler io, AnalysisIoDevices devices, CancellationToken cancellation)
         {
             using var writer = new DatasetWriter(reader, id);
             while (!writer.Done)
@@ -81,7 +81,7 @@ public static partial class AnalysisInventoryFormat
         }
     }
 
-    private static async Task WriteSnapshotPipeAsync(AnalysisSnapshot snapshot, Guid id, AnalysisPrivateInventoryStore.DatasetWrite output,
+    private static async Task WriteSnapshotPipeAsync(AnalysisSnapshot snapshot, Guid id, IAnalysisInventoryWriteSink output,
         DeviceIoScheduler io, AnalysisIoDevices devices, CancellationToken cancellation)
     {
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellation);

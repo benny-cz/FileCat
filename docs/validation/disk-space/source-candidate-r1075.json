@@ -1,0 +1,58 @@
+[
+  {
+    "path": "src/FileCat.App/Services/AnalysisIndexedAcquisition.Export.cs",
+    "sha256": "070db1dcb410e14d5497c9792cfe16853fb94c6579da3baabfb59709e01c50f8"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+    "sha256": "37a238f5739d596b8e60b74b09a7c5e7184d0e87c3454c9634dbb28c26382269"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.ExternalExport.cs",
+    "sha256": "9ce46a8c66b3851b60524d8282ffdc95bdda488bab83e81b7e2a0b262935b2ed"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.ExternalInventory.cs",
+    "sha256": "9c6d5911c34d9a5562d83209f76e3cfcdc792835a6f84a4a99aee2222d95eb05"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedPersistence.cs",
+    "sha256": "c3129a1296e7180a7b369a2243c8b1ebe39a520daa212a12bb3fa0b40fe43d70"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisExportDestination.cs",
+    "sha256": "6bff87004a8324ff282e429dac74eea7d6eabb02a2d9abfcf9a05a1dada95600"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisExternalExport.cs",
+    "sha256": "3ba819c61efd9dbc507d4b79b0d2549156173d912b7ecc92e4b901d0c11514a2"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisInventoryPreparedWriter.cs",
+    "sha256": "a2d71fd726e50e33787f558917dff94595b09e546db2bdb246541deae1d1a60e"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.cs",
+    "sha256": "f6f80164cfebea45f98846fc511fcb5dc15877d0aff023dde00b6f6e3cec8306"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/UnixAnalysisPrivateDirectory.cs",
+    "sha256": "c2934886fe0a22a828d06a5a3a39df526645835738c976ce0644d590c7431e6a"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/UnixAnalysisPrivateDirectory.Export.cs",
+    "sha256": "600f0b8b41a7adf194fce659bee905b967cdc4f09b8c4e4561eeaa696029e40f"
+  },
+  {
+    "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.cs",
+    "sha256": "3f787ffab3fe1161bde00fd99283a48ca61635f21370366e1523a560abed2e1a"
+  },
+  {
+    "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.Export.cs",
+    "sha256": "b7bdbf8f2c766b5c7fbd03596316fd3ebe9cb06a9a87ed0582538902b022096a"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ExternalExport.cs",
+    "sha256": "ad85b5f2add186df4a7626ea31179b11805a9c6fde1ce9c846afc9d62ac93e68"
+  }
+]

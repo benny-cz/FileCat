@@ -34,6 +34,8 @@ public sealed partial class DiskSpaceWindow
             _importExternal.IsVisible = _services is not null; bar.Children.Add(_importExternal);
             _importExternal.Click += async (_, _) => await ImportExternalAsync();
             ToolTip.SetTip(_importExternal, new RichTip("Import offline observations", detail: "Choose a local .fcdsa file. Imported paths stay offline and cannot grant current-source or file-action authority."));
+            _exportExternal.IsVisible = _services is not null; bar.Children.Add(_exportExternal); _exportExternal.Click += async (_, _) => await ExportExternalAsync();
+            ToolTip.SetTip(_exportExternal, new RichTip("Export entire captured inventory", detail: "Choose a folder and unused filename. The sensitivity review explains that filters and chart scope do not reduce the complete inventory."));
             var history = new Button { Content = "History…", IsEnabled = _services is not null };
             history.Click += async (_, _) => await ShowHistoryAsync(); bar.Children.Add(history);
             _saveInventory.Click += async (_, _) => await SaveInventoryAsync(); _openInventory.Click += async (_, _) => await OpenInventoryAsync();
@@ -47,6 +49,7 @@ public sealed partial class DiskSpaceWindow
             _saveInventory.IsEnabled = HasInventoryStore && !_persistenceBusy;
             _openInventory.IsEnabled = HasInventoryStore && !_persistenceBusy;
             _importExternal.IsEnabled = HasInventoryStore && !_persistenceBusy;
+            _exportExternal.IsEnabled = HasInventoryStore && !_persistenceBusy;
             string reason = HasInventoryStore ? "" : "This view has no available private inventory store. Open it from a FileCat profile to save named analyses.";
             AutomationProperties.SetHelpText(_saveInventory, reason); AutomationProperties.SetHelpText(_openInventory, reason);
         }

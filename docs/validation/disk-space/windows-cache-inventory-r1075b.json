@@ -1,0 +1,611 @@
+{
+    "observedUtc":  "2026-11-08T09:27:43.0731160Z",
+    "availableBytes":  1940615168,
+    "rows":  [
+                 {
+                     "name":  "batch-r1071",
+                     "number":  1071,
+                     "state":  "FINISHED exit=1 phase=preview",
+                     "runnerPresent":  true,
+                     "eligible":  false
+                 },
+                 {
+                     "name":  "batch-r1072",
+                     "number":  1072,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  false
+                 },
+                 {
+                     "name":  "batch-r1075",
+                     "number":  1075,
+                     "state":  "no state",
+                     "runnerPresent":  false,
+                     "eligible":  false
+                 },
+                 {
+                     "name":  "batch-r525",
+                     "number":  525,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r535",
+                     "number":  535,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r545",
+                     "number":  545,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r549",
+                     "number":  549,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r557",
+                     "number":  557,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r569",
+                     "number":  569,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r581",
+                     "number":  581,
+                     "state":  "FINISHED phase=core exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  false
+                 },
+                 {
+                     "name":  "batch-r585",
+                     "number":  585,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r589",
+                     "number":  589,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r598",
+                     "number":  598,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r610",
+                     "number":  610,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r614",
+                     "number":  614,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r626",
+                     "number":  626,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r632",
+                     "number":  632,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r636",
+                     "number":  636,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r640",
+                     "number":  640,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r644",
+                     "number":  644,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r654",
+                     "number":  654,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r666",
+                     "number":  666,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r672",
+                     "number":  672,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r675",
+                     "number":  675,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r680",
+                     "number":  680,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r685",
+                     "number":  685,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r689",
+                     "number":  689,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r706",
+                     "number":  706,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r710",
+                     "number":  710,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r714",
+                     "number":  714,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r723",
+                     "number":  723,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r727",
+                     "number":  727,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r732",
+                     "number":  732,
+                     "state":  "BUSY phase=verify",
+                     "runnerPresent":  true,
+                     "eligible":  false
+                 },
+                 {
+                     "name":  "batch-r739",
+                     "number":  739,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r743",
+                     "number":  743,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r747",
+                     "number":  747,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r753",
+                     "number":  753,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r757",
+                     "number":  757,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r763",
+                     "number":  763,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r767",
+                     "number":  767,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r777",
+                     "number":  777,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r781",
+                     "number":  781,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r789",
+                     "number":  789,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r795",
+                     "number":  795,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r799",
+                     "number":  799,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r809",
+                     "number":  809,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r814",
+                     "number":  814,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r818",
+                     "number":  818,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r828",
+                     "number":  828,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r833",
+                     "number":  833,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r836",
+                     "number":  836,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r840",
+                     "number":  840,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r846",
+                     "number":  846,
+                     "state":  "FINISHED exit=1 phase=smoke",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r849",
+                     "number":  849,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r852",
+                     "number":  852,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r856",
+                     "number":  856,
+                     "state":  "FINISHED exit=1 phase=preview",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r865",
+                     "number":  865,
+                     "state":  "FINISHED exit=1 phase=preview",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r868",
+                     "number":  868,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r873",
+                     "number":  873,
+                     "state":  "FINISHED exit=1 phase=preview",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r893",
+                     "number":  893,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r903",
+                     "number":  903,
+                     "state":  "FINISHED exit=1 phase=preview",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r905",
+                     "number":  905,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r906",
+                     "number":  906,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r910",
+                     "number":  910,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r913",
+                     "number":  913,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r916",
+                     "number":  916,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r921",
+                     "number":  921,
+                     "state":  "FINISHED exit=1 phase=preview",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r923",
+                     "number":  923,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r924",
+                     "number":  924,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r928",
+                     "number":  928,
+                     "state":  "FINISHED exit=1 phase=preview",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r930",
+                     "number":  930,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r931",
+                     "number":  931,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r936",
+                     "number":  936,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r939",
+                     "number":  939,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r941",
+                     "number":  941,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r950",
+                     "number":  950,
+                     "state":  "FINISHED exit=1 phase=smoke",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r951",
+                     "number":  951,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r953",
+                     "number":  953,
+                     "state":  "FINISHED exit=1 phase=preview",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r955",
+                     "number":  955,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r959",
+                     "number":  959,
+                     "state":  "FINISHED exit=1 phase=preview",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r963",
+                     "number":  963,
+                     "state":  "FINISHED exit=1 phase=preview",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r965",
+                     "number":  965,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r982",
+                     "number":  982,
+                     "state":  "FINISHED exit=1",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r986",
+                     "number":  986,
+                     "state":  "FINISHED exit=1 phase=smoke",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r987",
+                     "number":  987,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 },
+                 {
+                     "name":  "batch-r998",
+                     "number":  998,
+                     "state":  "FINISHED exit=0",
+                     "runnerPresent":  true,
+                     "eligible":  true
+                 }
+             ],
+    "filecatOrDotnet":  [
+
+                        ]
+}

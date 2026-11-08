@@ -121,7 +121,7 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
         }
         catch { AnalysisIo.CloseOnWorker(store); throw; }
     }
-    internal sealed class DatasetWrite : IAnalysisScratchOwned
+    internal sealed class DatasetWrite : IAnalysisScratchOwned, IAnalysisInventoryWriteSink
     {
         private readonly AnalysisPrivateInventoryStore _store;
         private AnalysisPrivateFile? _file;
@@ -131,6 +131,8 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
         private BufferedStream? _buffer;
         private bool _prepared, _published;
         internal Stream Stream => !_prepared ? _buffer ?? throw new ObjectDisposedException(nameof(DatasetWrite)) : throw new InvalidOperationException("The prepared inventory is immutable.");
+        Stream IAnalysisInventoryWriteSink.Stream => Stream;
+        void IAnalysisInventoryWriteSink.FlushBatch() => FlushBatch();
         internal Stream PreparedStream => _prepared ? (_file ?? throw new ObjectDisposedException(nameof(DatasetWrite))).Stream : throw new InvalidOperationException("Prepare the inventory before reading it.");
         internal long Bytes => _guarded.Written;
         internal string PublishedIdentity => _published ? (_file ?? throw new ObjectDisposedException(nameof(DatasetWrite))).PublishedIdentity
