@@ -1,5 +1,16 @@
 # Archive writing implementation status
 
+**8 November: Windows capture-tree cleanup and fresh read-only recovery implemented; full regression rerun active.**
+[Capture recovery](ARCHIVE_EDIT_CAPTURE_RECOVERY.md) retains native creation authority through Windows
+payload/record/directory removal, preserves exact opaque origin marks and reports retained copies after restart.
+Candidate `f62d81f9` passes 27 recovery and 35 Windows / 34 Unix snapshot cases plus its connected gates on
+all three platforms. Record-byte hardening and the corrected Windows boundary fixture pass the later
+focused gates. The `08097526` complete Mac/Ubuntu inventories exposed missing fixture setup; `b9929987`
+restores the earlier case-sensitive image/private-keyring environment for the full Core/application retry.
+The progress checkpoint preserves those failures. Unix destructive cleanup, restart actions/UI, durable retained-disk
+admission, Save copy, ZIP/SFTP/discard/adoption/composition and the remaining qualification gates stay open.
+The application still uses the legacy store; no profile or native-store factory is enabled.
+
 **8 November: native snapshot capture and queued retained-input views pass focused platform gates.**
 [Native snapshots](ARCHIVE_EDIT_SNAPSHOTS.md) retain actual file ownership through job reconciliation,
 preserve exact bytes/origin/time, bind one replacement to a session and avoid queued source pathname reopens.

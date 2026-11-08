@@ -4,6 +4,10 @@ This is an in-progress, unregistered component. Application composition still us
 The snapshot work does not qualify complete cleanup, native Save copy, native ZIP/SFTP integration,
 archive publication, or a release profile.
 
+The later [cleanup and recovery follow-up](ARCHIVE_EDIT_CAPTURE_RECOVERY.md) adds Windows live capture-tree
+removal, bounded read-only restart inspection and active-copy reservations. The evidence below remains the
+original capture/view checkpoint; the follow-up records its own exact candidates, failures and limitations.
+
 ## Implementation
 
 `7cf19350` captures a native-store working file through its retained root/session/working-directory
@@ -72,10 +76,10 @@ python -B -X utf8 eng/validation/archive-writing/verify_edit_storage_checkpoint.
 
 ## Remaining gates
 
-Connect fresh, bounded capture-record cleanup, exact metadata-file/directory ownership and newly appearing
-children. Add explicit payload-cleanup filesystem postconditions; current scenarios establish capture,
-refusal/lifetime behavior and retention, not complete cleanup qualification. Resolve the Unix cleanup
-recipe without a conditional-check-then-path-unlink fallback.
+At this frozen checkpoint, fresh capture-record cleanup, exact metadata-file/directory ownership,
+newly appearing children and explicit payload-cleanup filesystem postconditions remained open. See the
+follow-up for subsequent Windows runtime cleanup and fresh read-only recovery inspection. Resolve the
+remaining Unix cleanup recipe without a conditional-check-then-path-unlink fallback.
 
 Implement native Save copy destination publication, retained-input integration for ZIP and remote commits,
 safe discard, legacy record adoption, bounded queued-snapshot resource ownership and application composition.

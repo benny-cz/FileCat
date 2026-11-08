@@ -1039,6 +1039,12 @@ parent-only queued input views and passes its focused three-platform matrix. Com
 directory and Unix payload cleanup, native Save copy publication, ZIP/SFTP integration, discard/adoption,
 queued resource bounds and application composition before enabling this store. The overall gate remains open.
 
+The [cleanup/restart follow-up](../validation/archive-writing/ARCHIVE_EDIT_CAPTURE_RECOVERY.md) adds
+held-handle Windows runtime capture-tree removal, bounded fresh read-only capture inspection and independent
+active-copy count/byte reservations. Fresh receipts never confer deletion authority. Complete Unix runtime
+cleanup, the restart recovery action and startup UI, durable retained-disk admission and the integration
+gates above; focused evidence does not complete §12 or authorize production registration.
+
 ### 12.2 Review and commit states
 
 | Observed state | Allowed behavior |
