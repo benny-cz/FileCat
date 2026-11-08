@@ -1,5 +1,14 @@
 # Archive writing implementation status
 
+**8 November: RAR5/7z password browsing and read ownership implemented, unregistered.**
+[Password browsing](ARCHIVE_PASSWORD_BROWSING.md) connects masked password retry, source-bound readers,
+restored-tab Refresh, nested archive/viewer lifetime and queued extraction after tab closure. All platforms pass
+20 Core and 27 connected UI cases, the affected recovery/application selections and complete Core inventories.
+The [checkpoint](password-browsing-checkpoint.json) binds 21 changed C# inputs and 12 DLL/PDB pairs per platform,
+preserves the Mac fixture and recovery-container failures, and records zero owned instances with the Mac wake
+helper retained. New writer registration remains disabled. Versioned native archive edit sessions are next;
+member UX edges, Unix native mutation/confinement and the remaining release/final-review gates stay open.
+
 **8 November: connected member/F5/F6 component matrix passes, unregistered.**
 [Member commands](ARCHIVE_MEMBER_COMMANDS.md) connect exact occurrences and recursive folders, listing-revision
 checks, password retry, typed destination review and skip-aware F6 source removal. All platforms pass 116
@@ -96,8 +105,9 @@ This is an **incomplete implementation**, not format or release qualification. T
 [the archive writing plan](../../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md). No new writer is enabled in the
 application. An explicit new-profile job refuses instead of entering the legacy ZIP executor.
 
-**Next coherent implementation chunk:** connect member/update/edit/password journeys to strict assessments and
-shared native jobs; qualify Unix confinement/update, moves and cleanup/recovery.
+**Next coherent implementation chunk:** versioned native archive external edit creation, explicit commit/rebase
+and actual published-member acknowledgement, preserving legacy ZIP/remote and unknown-version working copies.
+Then finish member UX edges and qualify Unix confinement/update, moves and cleanup/recovery.
 Present the declared 7z precision policy and resolve remaining header compatibility gaps before enabling a profile. Reuse
 passed codec/native evidence when its compiler inputs are unchanged; batch the shared UI and native acceptance
 work, then complete resource/crash/fuzz/RID/package gates and the final independent review.

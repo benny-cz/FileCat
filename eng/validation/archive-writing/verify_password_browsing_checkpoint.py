@@ -54,6 +54,8 @@ def verify(platform, folder='awp-v3'):
         if key.startswith('results/') and key.endswith('.trx')}
     assert tests['password-read-core.trx'] == {'Passed':20}
     assert tests['password-read-ui.trx'] == {'Passed':27}
+    assert tests['recovery-container-preflight.trx'] == ({'Passed':44,'NotExecuted':8} if platform == 'windows' else {'Passed':52})
+    assert tests['navigation-member-regressions.trx'] == ({'Passed':235,'NotExecuted':2} if platform == 'mac' else {'Passed':236,'NotExecuted':1})
     expected = {'mac':{'Passed':8266,'NotExecuted':207}, 'ubuntu':{'Passed':8288,'NotExecuted':185},
         'windows':{'Passed':8017,'NotExecuted':461}}[platform]
     assert tests['core-regressions.trx'] == expected, tests['core-regressions.trx']

@@ -8,7 +8,8 @@ The implementation connects local F5/F6, exact member deletion and rename, and n
 the six container backends. It preserves captured input/origin/destination/queue intent, reviews a complete
 native catalog before submission and retains preparation ownership through cancellation. Existing RAR5/7z
 passwords are requested in a masked field, retried after refusal and transferred to the job only on submission.
-Encrypted browsing and external edit sessions remain separate unfinished gates.
+The subsequent [password browsing component](ARCHIVE_PASSWORD_BROWSING.md) covers read-session integration;
+external edit sessions remain unfinished.
 
 Writable listings carry a whole-source revision. The command checks it before launching an assessment, so a
 stale duplicate ordinal cannot silently select a different stored member. Directory rows carry the same
@@ -57,7 +58,7 @@ space recovery removed only redundant expanded runtimes after matching every fil
 archives. Original disk refusal and pruning evidence are retained. Unix regressions proceeded after their own
 focused/native gates while Windows recovered space; no acceptance gate was waived.
 
-Further cancellation/focus/member edge coverage, browsing/edit password sessions, Unix native mutation and
+Further cancellation/focus/member edge coverage, external edit sessions, Unix native mutation and
 confinement, production qualification and final independent review remain open.
 
 The implementation checkpoint is `58842b9da99cced8fa8b7faffa2277efff695d0c`; subsequent fixture and full-cohort

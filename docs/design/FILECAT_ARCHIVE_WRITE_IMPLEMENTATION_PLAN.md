@@ -58,7 +58,7 @@ The product promises preservation within a clearly defined archive profile, not 
 
 Production availability is per format, profile, runtime identifier, and destination filesystem capability. A platform that lacks the worker or publication guarantees stays read-only for the affected operation; there is no silent unsafe fallback. Qualify all supported runtime identifiers before describing a format as supported across FileCat's desktop platforms.
 
-**Current implementation priority (7 November):** the independent RAR5 and 7z encoders, including password foundations, have passed their recorded codec checkpoints. Complete strict source/output catalogs next, then integrate RAR5 and 7z into the shared transaction, password, creation/update/edit and F6 workflows as the next major milestone. Do this before optional XZ/ISO work and before the final independent review. The release rows above describe independently qualified availability, not a requirement to defer RAR/7z integration until every earlier release has shipped. Source preservation, complete compressed-stream verification and bounded worker execution remain prerequisites for replacing an archive; the final native/UI/resource/fuzz/package gates still apply.
+**Current implementation priority (8 November):** RAR5/7z encoders, strict catalogs, shared native jobs, Windows native moves/cleanup, creation/update/member UI and password browsing have recorded component checkpoints. Complete versioned external edit creation/commit/rebase and actual published-member acknowledgement next, preserving legacy ZIP/remote and unknown-version working copies. Then finish remaining member UX edges and Unix native mutation/confinement/moves/recovery before production resource/fuzz/RID/package qualification and the final independent review. Keep optional XZ/ISO work later. The release rows above describe independently qualified availability; no new writer is enabled. Source preservation, complete compressed-stream verification and bounded worker execution remain prerequisites for replacing an archive.
 
 **Integration sequencing:** shared versioned format/options, public-request binding and password-role plumbing can
 advance while the remaining 7z graph-ending checks are completed. The completed RAR5 logical-catalog component
@@ -127,8 +127,15 @@ records the frozen source candidate, explicit reuse, original failures and final
 The [member/F5/F6 checkpoint](../validation/archive-writing/ARCHIVE_MEMBER_COMMANDS.md) now supplies exact
 occurrence/folder commands, listing revision checks, password retry and skip-aware local moves. Its focused UI,
 complete Core and Windows native/reader matrix passes on the frozen candidates. Continue with the remaining
-member UX edges, browsing/edit password sessions and Unix native mutation/confinement. No new profile is
+member UX edges, external edit sessions and Unix native mutation/confinement. No new profile is
 registered; remaining production and final-review gates stay open.
+
+The [password browsing checkpoint](../validation/archive-writing/ARCHIVE_PASSWORD_BROWSING.md) now connects
+source-bound RAR5/7z readers, masked retry, restored-tab Refresh, nested archives, viewers and queued extraction
+after tab closure. Its final Windows/Mac/Ubuntu matrices pass 20 focused Core and 27 UI cases, affected
+recovery/application regressions and complete Core inventories with every prior case/pass preserved. Original
+fixture and identity-only-container regressions remain recorded. This covers runtime read sessions; versioned
+native archive edit sessions and the remaining platform/release/final-review gates still require completion.
 
 **Approved validation acceleration (8 November):** coalesce focused/native checks, inherited regressions,
 independent readers, source/assembly evidence and final instance cleanup into one large batch per available

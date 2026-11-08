@@ -2,8 +2,8 @@
 from pathlib import Path
 import hashlib, importlib.util, json, shutil, subprocess, sys, tarfile, xml.etree.ElementTree as ET
 
-FOLDER = 'awp-v2-ui-regression-v1'
-PARENT = 'awp-v2'
+FOLDER = 'awp-v3-ui-regression-v1'
+PARENT = 'awp-v3'
 NS = {'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 
 def sha(path):
