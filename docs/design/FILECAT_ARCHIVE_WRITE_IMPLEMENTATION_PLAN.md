@@ -1057,6 +1057,11 @@ iteration's pool-cleanup fixture failures are preserved; the corrected three-pla
 Core/Remote/App inventories are running. Native Save copy and the remaining ownership/composition/
 qualification work above remain open; neither integration authorizes factory registration.
 
+The [native request-binding follow-up](../validation/archive-writing/NATIVE_EDIT_REQUEST_BINDING.md)
+also restricts retained archive snapshots to their originating archive/member/profile/occurrence,
+while retaining fresh explicitly approved rebases. Its native adapter fixture and redirection cases
+are queued with the next combined three-platform cohort; this does not complete §12.
+
 ### 12.2 Review and commit states
 
 | Observed state | Allowed behavior |

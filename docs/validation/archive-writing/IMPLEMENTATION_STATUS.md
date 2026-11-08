@@ -1,5 +1,15 @@
 # Archive writing implementation status
 
+**8 November: native archive snapshot requests bind the originating target/profile; live gates queued.**
+[Request binding](NATIVE_EDIT_REQUEST_BINDING.md) closes a gap between the generic replacement shape
+and the archive/member/profile actually reviewed for that session. The snapshot fixture now uses native
+archive records and tests redirection, remote-to-archive refusal and explicit rebases. Windows-platform
+and Core builds pass. Candidate `39e0f0c6`, `awe-storage-v21`, will combine this with the checksum test
+expansion after the active full batches finish. Its first snapshot35 Windows / 34 Mac / 34 Ubuntu and
+checksum UI12 gates pass, as does Ubuntu's SFTP23 gate. Complete inventories remain pending. The prior
+Mac/Ubuntu `v18` and Windows `v20` complete Core/Remote/App inventories pass and their exact evidence is
+preserved; all three now run the same frozen `v21` implementation. No factory/profile is enabled.
+
 **8 November: retained SFTP edit uploads implemented; three-platform qualification is running.**
 [Retained SFTP edits](RETAINED_SFTP_EDITS.md) bind a captured edit to its originating server file,
 verify consumed bytes and require complete stage readback before guarded replacement. The first
