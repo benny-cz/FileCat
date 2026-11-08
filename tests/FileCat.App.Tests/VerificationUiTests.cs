@@ -426,8 +426,10 @@ public sealed class VerificationUiTests
         }
     }
 
-    [AvaloniaFact]
-    public async Task Results_show_again_from_the_operations_strip_and_a_name_cannot_turn_their_title_around()
+    [AvaloniaTheory]
+    [InlineData("exe")]
+    [InlineData("data")]
+    public async Task Results_show_again_from_the_operations_strip_and_a_name_cannot_turn_their_title_around(string extension)
     {
         var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
         try
@@ -435,7 +437,8 @@ public sealed class VerificationUiTests
             var ct = TestContext.Current.CancellationToken;
             string folder = Path.Combine(root, "files");
             // A right-to-left override would show "report" + "exe.txt" reversed: "reportexe.txt" for an executable.
-            string spoof = "report" + (char)0x202E + "txt.exe";
+            string spoof = "report" + (char)0x202E + "txt."+extension;
+            string displayed="report\\u202Etxt."+extension;
             File.WriteAllText(Path.Combine(folder, spoof), "payload");
             File.WriteAllText(Path.Combine(folder, spoof + ".sha256"), Convert.ToHexStringLower(SHA256.HashData("payload"u8)) + "\n");
             var tab = vm.ActiveTab!;
@@ -459,7 +462,7 @@ public sealed class VerificationUiTests
             await Until(() => dialogs.IsOpen, "the results open");
             // Every text the results show, the title first: the override is shown as such, never applied.
             var texts = window.FindControl<Panel>("OverlayHost")!.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text ?? "").ToList();
-            Assert.Contains("Verify \"report\\u202Etxt.exe\"", texts);
+            Assert.Contains("Verify \""+displayed+"\"", texts);
             Assert.DoesNotContain(texts, t => t.Contains((char)0x202E));
             // So does the status line, beside the file's result.
             Assert.DoesNotContain((char)0x202E, tab.StatusRight);
@@ -470,12 +473,29 @@ public sealed class VerificationUiTests
             var job = Assert.Single(services.Jobs.Jobs);
             var row = vm.Operations.Jobs.Single(j => j.Job == job);
             await Until(() => row.CanShowResults, "the operations strip offers the results");
+            var verified=Assert.Single(job.VerificationReport!.Files);
+            Assert.Equal(spoof,verified.Name);
+            string expectedDetails;
+            if(OperatingSystem.IsWindows()&&extension=="exe"&&verified.Outcome==VerifiedOutcome.Unreadable)
+            {
+                // Defender may block this deliberately deceptive executable filename even though its bytes are text.
+                // Require the actual native virus-policy refusal, rather than accepting an arbitrary unreadable result.
+                var refusal=Assert.Throws<IOException>(()=>File.ReadAllText(Path.Combine(folder,spoof)));
+                Assert.Equal(unchecked((int)0x800700E1),refusal.HResult);
+                Assert.Empty(verified.Checksums);expectedDetails=displayed+" could not be read";
+            }
+            else
+            {
+                Assert.Equal(VerifiedOutcome.Good,verified.Outcome);
+                Assert.True(Assert.Single(verified.Checksums).Matches);
+                expectedDetails=displayed+" is intact: it matches its checksum";
+            }
             var again = vm.ShowVerificationResultsAsync(job);
             await Until(() => dialogs.IsOpen, "the results open again");
             try
             {
                 await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t =>
-                    t.Text == "report\\u202Etxt.exe is intact: it matches its checksum"), "the reopened results display the selected file");
+                    t.Text == expectedDetails), "the reopened results display the selected file");
             }
             catch
             {
@@ -485,7 +505,8 @@ public sealed class VerificationUiTests
                     f.Name+" | "+f.Outcome+" | "+f.Text+" | "+string.Join(", ",f.Checksums.Select(c=>c.Claim.Expected+"="+c.Actual)))));
                 throw;
             }
-            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "report\\u202Etxt.exe is intact: it matches its checksum");
+            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == expectedDetails);
+            Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBlock>(),t=>(t.Text??"").Contains((char)0x202E));
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             await again;
             Assert.False(dialogs.IsOpen);
