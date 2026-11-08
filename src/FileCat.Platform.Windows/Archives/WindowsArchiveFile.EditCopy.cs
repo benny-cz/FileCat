@@ -35,7 +35,7 @@ internal sealed partial class WindowsArchiveFile:IEditSaveCopyPublicationStage
     {
         lock(parent.Gate)
         {
-            EnsureLive();ct.ThrowIfCancellationRequested();EditDirectoryLease.ValidateLeaf(targetLeaf);
+            EnsureLive();ct.ThrowIfCancellationRequested();EditSaveCopyNames.Validate(targetLeaf);
             if(!artifact||!createdWritable||createdKind!=WindowsArchiveArtifactKind.Stage||!rebuildClaimed||evidenceClaimed||writable||namespaceChanged||
                 !mayRename||saveCopyClaimAttempted||targetLeaf==KnownName)throw SaveCopyChanged();
             parent.VerifyNamespace();parent.CheckPrivate(handle);((IArchiveRetainedFile)this).Review(prepared,ct);

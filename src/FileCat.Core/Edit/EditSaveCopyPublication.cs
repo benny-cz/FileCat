@@ -41,7 +41,7 @@ internal static class EditSaveCopyPublication
         CancellationToken ct,Action? check=null)
     {
         ArgumentNullException.ThrowIfNull(prepared);ArgumentNullException.ThrowIfNull(destination);
-        ArgumentNullException.ThrowIfNull(reserve);ArgumentNullException.ThrowIfNull(create);EditDirectoryLease.ValidateLeaf(targetLeaf);
+        ArgumentNullException.ThrowIfNull(reserve);ArgumentNullException.ThrowIfNull(create);EditSaveCopyNames.Validate(targetLeaf);
         void Check(){ct.ThrowIfCancellationRequested();check?.Invoke();}
         Check();prepared.Review(ct);
         if(prepared.Output.File is not IEditSaveCopyPublicationStage stage)throw new IOException("Native saved-copy publication is unavailable.");

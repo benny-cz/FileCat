@@ -3,7 +3,7 @@
 **8 November: native saved-copy exclusive publication and immutable receipts implemented, guest gates queued.**
 [Saved-copy publication](NATIVE_EDIT_SAVE_COPY_PUBLICATION.md) adds single-owner native name reviews, complete
 receipt readback and confirmed/uncertain outcomes that survive late cancellation or receipt failure. Core and
-Windows-platform builds pass without warnings/errors. The next `v24` frozen candidate runs 23 native publication
+Windows-platform builds pass without warnings/errors. The next `v24` frozen candidate runs 24 native publication
 and 20 strict receipt cases plus connected regressions; its complete inventories are explicitly not run yet under
 the [measured cadence](VALIDATION_CADENCE.md). Replacement, restart discovery/actions, cleanup/crashes and UI/job
 integration remain open; native store/profile registration and the existing guard remain unchanged.

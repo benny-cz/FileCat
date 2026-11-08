@@ -34,7 +34,7 @@ internal sealed partial class UnixArchiveFile:IEditSaveCopyPublicationStage
     {
         lock(parent.Gate)
         {
-            Live();ct.ThrowIfCancellationRequested();EditDirectoryLease.ValidateLeaf(targetLeaf);
+            Live();ct.ThrowIfCancellationRequested();EditSaveCopyNames.Validate(targetLeaf);
             if(!artifact||!createdWritable||createdKind!=UnixArchiveArtifactKind.Stage||!rebuildClaimed||evidenceClaimed||writable||namespaceChanged||
                 saveCopyClaimAttempted||targetLeaf==KnownName)throw SaveCopyChanged();
             parent.VerifyNamespace();parent.CheckCreationNamespace();parent.CheckPrivate(held);

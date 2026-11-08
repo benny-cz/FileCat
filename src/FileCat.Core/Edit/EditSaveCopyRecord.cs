@@ -51,7 +51,7 @@ internal sealed record EditSaveCopyRecord(int Version,Guid Nonce,int Sequence,st
         foreach(string value in new[]{ParentIdentity,SourceIdentity,OutputIdentity})
             if(string.IsNullOrEmpty(value)||value.Length>4096||value.Any(char.IsControl))throw new IOException("Invalid saved-copy identity.");
         if(string.IsNullOrEmpty(StageLeaf)||string.IsNullOrEmpty(TargetLeaf))throw new IOException("Missing saved-copy filename.");
-        EditDirectoryLease.ValidateLeaf(StageLeaf);EditDirectoryLease.ValidateLeaf(TargetLeaf);
+        EditSaveCopyNames.Validate(StageLeaf);EditSaveCopyNames.Validate(TargetLeaf);
         foreach(string value in new[]{Sha256,MetadataDigest,OriginDigest})
         {if(string.IsNullOrEmpty(value))throw new IOException("Missing saved-copy digest.");ArchiveWritePolicy.ValidateDigest(value);}
         if(PublishedMetadataDigest is not null)ArchiveWritePolicy.ValidateDigest(PublishedMetadataDigest);

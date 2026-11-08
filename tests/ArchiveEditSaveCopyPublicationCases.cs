@@ -21,7 +21,7 @@ internal static class ArchiveEditSaveCopyPublicationCases
     internal static IEnumerable<object[]> Scenarios()=>new[]{"regular","empty","large","origin","late-save","name-collision",
         "stage-changed","source-changed","ready-receipt-failure","corrupt-ready-readback","outcome-receipt-failure",
         "cancel-before","cancel-ready","late-cancel","post-rename-failure","target-race","stage-directory-replaced",
-        "repeat-preparation","wrong-receipt-parent","ready-record-substitution","post-publish-replaced","witness-other-stage","witness-stale"}
+        "repeat-preparation","wrong-receipt-parent","ready-record-substitution","post-publish-replaced","witness-other-stage","witness-stale","platform-name"}
         .Select(value=>new object[]{value});
 
     internal static void Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open,IFileSystemOperations files,
@@ -45,7 +45,8 @@ internal static class ArchiveEditSaveCopyPublicationCases
             copy=store.PrepareSaveCopy(record,root,new LocalFileSystemProvider(),()=>ct.ThrowIfCancellationRequested());
             var source=Assert.IsType<NativeEditSnapshot>(copy.Native);var expected=((IArchiveRetainedFile)source).Observe(ct);
             string folder=Directory.CreateDirectory(Path.Combine(root,"destination")).FullName;
-            string target=Path.Combine(folder,"notes.txt");destination=create(folder,bytes.Length);
+            string targetLeaf=scenario=="platform-name"?(OperatingSystem.IsWindows()?new string('\u754c',200)+".txt":"notes: draft?.txt"):"notes.txt";
+            string target=Path.Combine(folder,targetLeaf);destination=create(folder,bytes.Length);
             using var cancel=CancellationTokenSource.CreateLinkedTokenSource(ct);bool blocked=false;
             var output=new StageEffects(destination.Stage,()=>
             {
@@ -98,7 +99,7 @@ internal static class ArchiveEditSaveCopyPublicationCases
                 });
             }
             if(scenario=="cancel-before")cancel.Cancel();
-            var error=Record.Exception(()=>result=EditSaveCopyPublication.Publish(prepared,"notes.txt",destination.Space,Reserve,Create,cancel.Token,Check));
+            var error=Record.Exception(()=>result=EditSaveCopyPublication.Publish(prepared,targetLeaf,destination.Space,Reserve,Create,cancel.Token,Check));
             TestContext.Current.TestOutputHelper?.WriteLine(error?.ToString()??result?.Issue?.ToString()??"Published and durably recorded.");
             bool beforeFailure=scenario is "ready-receipt-failure" or "corrupt-ready-readback" or "wrong-receipt-parent"||
                 !blocked&&(scenario is "source-changed" or "stage-changed" or "stage-directory-replaced" or "ready-record-substitution");

@@ -52,7 +52,7 @@ def verify(platform,folder):
     scope='full'
     if folder=='awe-storage-v24':
         coverage=js('validation-scope.json');scope=coverage['scope']
-        assert scope=='focused' and coverage['expected_new_core_cases']==217 and not coverage['production_backend_qualified']
+        assert scope=='focused' and coverage['expected_new_core_cases']==218 and not coverage['production_backend_qualified']
         assert coverage['full_regressions']=={name:'not-run' for name in ('complete-core','complete-remote','complete-app')}
         assert not any('results/'+name+'.trx' in data for name in coverage['full_regressions'])
     complete='tests-complete.json' in data
@@ -87,7 +87,7 @@ def verify(platform,folder):
                 if folder in ('awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24'):
                     spec=importlib.util.spec_from_file_location('edit_inventory',Path(__file__).with_name('edit_core_inventory.py'))
                     helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
-                    inventory=helper.review(old,current,217 if folder=='awe-storage-v24' else 174 if folder=='awe-storage-v23' else 170 if folder=='awe-storage-v22' else 153);assert js('full-case-inventory.json')==inventory;helper.require_complete(inventory)
+                    inventory=helper.review(old,current,218 if folder=='awe-storage-v24' else 174 if folder=='awe-storage-v23' else 170 if folder=='awe-storage-v22' else 153);assert js('full-case-inventory.json')==inventory;helper.require_complete(inventory)
                     if platform=='ubuntu':
                         gates.add('picture-boundary');assert set(tests['picture-boundary'])=={'Passed'} and tests['picture-boundary']['Passed']>0
                 else:
@@ -107,7 +107,7 @@ def verify(platform,folder):
             gates.add('comparison-retirement');assert tests['comparison-retirement']=={'Passed':108}
         if folder=='awe-storage-v24':
             gates.update(('save-copy-publication','save-copy-record'))
-            assert tests['save-copy-publication']=={'Passed':23} and tests['save-copy-record']=={'Passed':20}
+            assert tests['save-copy-publication']=={'Passed':24} and tests['save-copy-record']=={'Passed':20}
             if platform=='ubuntu':
                 gates.add('picture-boundary');assert set(tests['picture-boundary'])=={'Passed'} and tests['picture-boundary']['Passed']>0
         if cleanup:
