@@ -16,7 +16,7 @@ public sealed partial class EditSessionStore
         var target = source.Target; var member = ArchiveEditEvidence.UniqueMember(target, source.Member.Name);
         if (!ReferenceEquals(member, source.Member)) throw new IOException("The edit member does not belong to its complete archive assessment.");
         source.ReviewSource(ct); string workingIdentity = "";
-        return CreateSession(displayName, working =>
+        return CreateSession(displayName, (working,open) =>
         {
             var content = ProgressiveContent.Sequential(source.OpenContent(ct)) ?? throw new IOException("The archive member cannot be opened for editing.");
             return ReadOwned(content, () =>
@@ -25,8 +25,8 @@ public sealed partial class EditSessionStore
                 {
                     workingIdentity = source.WorkingIdentity(output.SafeFileHandle);
                     if (string.IsNullOrEmpty(workingIdentity)) throw new IOException("The private edit file cannot be identified safely.");
-                    source.PreserveOrigin(output, ct);
-                });
+                    source.PreserveOrigin(output, working,ct);
+                },outputFactory:open);
                 if (copy.Length != member.Length || copy.Sha256 != member.Sha256)
                     throw new IOException("The extracted member does not match its complete assessed bytes; no edit session was created.");
                 source.ReviewSource(ct); return copy;
@@ -102,7 +102,7 @@ public sealed partial class EditSessionStore
         actual.ReviewSource(ct);
         ct.ThrowIfCancellationRequested();
         var updated = NativeRecord(record, actual.Target, member, copy.Sha256) with { LastCommitUtc = DateTime.UtcNow };
-        Save(updated); return updated;
+        return Save(updated);
     }
 
     private static EditSessionRecord NativeRecord(EditSessionRecord record, ArchiveTargetReview target, ArchiveManifestMember member, string sha256) =>

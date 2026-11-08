@@ -75,7 +75,7 @@ internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
         lock(Gate)
         {
             RequireOpen();Leaf(name);ReviewCore(ct);
-            int status=TryOpen(directory,name,GenericRead|GenericWrite|Delete|0x20000|Synchronize,ShareRead|ShareWrite,Create,
+            int status=TryOpen(directory,name,GenericRead|GenericWrite|0x20000|Synchronize,ShareRead|ShareWrite,Create,
                 DirectoryFile|OpenReparsePoint,out var child,(uint)FileAttributes.Directory,security);
             if(status<0){child.Dispose();throw Error(status,"Create private edit directory");}
             var result=new WindowsEditDirectoryLease(System.IO.Path.Combine(Path,name),child,owner,true,parent:this,leaf:name);
@@ -100,6 +100,8 @@ internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
     }
     internal override FileStream CreateFile(string name,CancellationToken ct)=>OpenFileCore(name,null,true,ct);
     internal override FileStream OpenFile(string name,string? expected,CancellationToken ct)=>OpenFileCore(name,expected,false,ct);
+    internal override IReadOnlyList<string> Names(CancellationToken ct)
+    {lock(Gate){RequireOpen();ReviewCore(ct);var names=List(directory);if(names.Count>100000)throw new IOException("The edit namespace exceeds its entry budget.");ReviewCore(ct);return names.Select(entry=>entry.Name).ToArray();}}
     internal override string Identify(SafeFileHandle file)
     {WindowsArchiveNative.Regular(file,FileCat.Core.Edit.EditSessionStore.MaxMemberBytes,true,false);WindowsArchiveNative.RequirePrivateSecurity(file,owner);return ProtectedHexFile.Identity(file).ToString();}
     internal override void PublishNewFile(FileStream file,string source,string target,EditFileVersion expected,CancellationToken ct)

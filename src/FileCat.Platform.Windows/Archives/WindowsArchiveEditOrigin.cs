@@ -9,7 +9,7 @@ namespace FileCat.Platform.Windows.Archives;
 /// <summary>Fixed-stream origin propagation to the still-open, newly created private editor file.</summary>
 internal static class WindowsArchiveEditOrigin
 {
-    internal static void Copy(FileStream working, ArchiveOriginSnapshot origin, CancellationToken ct)
+    internal static void Copy(FileStream working,string workingPath,ArchiveOriginSnapshot origin,CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         if (origin.Format != ArchiveOriginFormat.WindowsZoneIdentifier || origin.State == ArchiveOriginState.Unavailable)
@@ -17,9 +17,9 @@ internal static class WindowsArchiveEditOrigin
         if (origin.State == ArchiveOriginState.Absent) return;
         var handle = working.SafeFileHandle; var identity = ProtectedHexFile.Identity(handle);
         WindowsArchiveNative.Regular(handle, EditSessionStore.MaxMemberBytes, artifact: true, mayRename: false);
-        using var parent = LocalIconFileLease.TryOpenDirectory(Path.GetDirectoryName(working.Name)!, LeaseLinks.Refuse, removable: true)
+        using var parent = LocalIconFileLease.TryOpenDirectory(Path.GetDirectoryName(workingPath)!, LeaseLinks.Refuse, removable: true)
             ?? throw new IOException("The private edit directory cannot be pinned safely.");
-        string leaf = Path.GetFileName(working.Name);
+        string leaf = Path.GetFileName(workingPath);
         using var named = OpenOrThrow(parent.LastHandle, leaf, ReadAttributes | Synchronize, ShareAll, NtFile.Open,
             NonDirectoryFile | OpenReparsePoint, "Check private edit origin owner");
         if (ProtectedHexFile.Identity(named) != identity || IsReparsePoint(GetBasic(named).FileAttributes))

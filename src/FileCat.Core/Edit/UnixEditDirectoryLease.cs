@@ -78,6 +78,16 @@ internal sealed class UnixEditDirectoryLease : EditDirectoryLease
     }
     internal override FileStream CreateFile(string name,CancellationToken ct) => OpenFileCore(name,null,true,ct);
     internal override FileStream OpenFile(string name,string? expected,CancellationToken ct) => OpenFileCore(name,expected,false,ct);
+    internal override IReadOnlyList<string> Names(CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            RequireOpen();ReviewCore(ct);var names=new List<string>();
+            UnixArchiveNative.EnumerateSelection(directory,entry=>
+            {if(names.Count>=100000)throw new IOException("The edit namespace exceeds its entry budget.");names.Add(entry.Leaf);},ct);
+            ReviewCore(ct);return names;
+        }
+    }
     internal override string Identify(SafeFileHandle file)
     {UnixArchiveNative.RequirePrivate(file,user);return UnixFiles.Stat(file)!.Value.Identity.ToString();}
     internal override void PublishNewFile(FileStream file,string source,string target,EditFileVersion expected,CancellationToken ct)

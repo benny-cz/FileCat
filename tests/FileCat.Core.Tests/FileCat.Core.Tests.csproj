@@ -34,6 +34,7 @@
   <ItemGroup>
     <Compile Include="..\TestCleanup.cs" Link="TestCleanup.cs" />
     <Compile Include="..\ArchiveEditDirectoryCases.cs" Link="ArchiveEditDirectoryCases.cs" />
+    <Compile Include="..\ArchiveEditStorageCases.cs" Link="ArchiveEditStorageCases.cs" />
     <Compile Include="..\ArchivePasswordReadFixture.cs" Link="ArchivePasswordReadFixture.cs" />
     <Compile Include="..\ArchiveStageCrashAssertions.cs" Link="ArchiveStageCrashAssertions.cs" />
     <Compile Include="..\ArchiveJournaledTarAssertions.cs" Link="ArchiveJournaledTarAssertions.cs" />

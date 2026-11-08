@@ -35,12 +35,18 @@ public sealed record EditSessionRecord
     public string MemberMetadataSha256 { get; init; } = "";
     public string WorkingIdentity { get; init; } = "";
     public string WorkingDirectoryIdentity { get; init; } = "";
+    public string StorageRootIdentity { get; init; } = "";
+    public string SessionDirectoryIdentity { get; init; } = "";
+    public long StorageRevision { get; init; }
+    public string PreviousRecordSha256 { get; init; } = "";
+    [JsonIgnore] internal string StoredRecordSha256 { get; init; } = "";
     [JsonIgnore] public string? UnsupportedReason { get; init; }
     [JsonIgnore] public bool IsLegacyZip => !IsRemote && (Version == 1 || ArchiveFormat == ArchiveWriteFormat.Zip);
     [JsonIgnore] public bool IsNativeArchive => !IsRemote && !IsLegacyZip;
     [JsonIgnore] public bool IsSupported => UnsupportedReason is null && Version is 1 or CurrentVersion &&
         ArchivePath is not null && MemberPath is not null && WorkingPath is not null && BaseSha256 is not null && Baseline is not null &&
         ProfileId is not null && ServerDisplay is not null && RemotePath is not null &&
+        StorageRootIdentity is not null && SessionDirectoryIdentity is not null && PreviousRecordSha256 is not null && StorageRevision>=0 &&
         Kind is ArchiveKind or RemoteKind && (!IsNativeArchive ||
         ArchiveFormat is ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip &&
         ArchiveProfile is not null && ArchiveProfile.Format == ArchiveFormat && MemberOccurrence == 0 &&
@@ -126,14 +132,19 @@ public sealed class EditCommitCopy : IDisposable
 /// Protected session records and working copies under the user's local data (one folder per session, so the editor sees
 /// the member's own file name). Temporary copies are removed only on Discard; deletion is not secure erasure.
 /// </summary>
-public sealed partial class EditSessionStore(string root, IFileSystemOperations fs)
+public sealed partial class EditSessionStore
 {
+    private readonly IFileSystemOperations fs;
+    private readonly Func<string,bool,CancellationToken,EditDirectoryLease>? nativeOpen;
+    public EditSessionStore(string root,IFileSystemOperations fs):this(root,fs,null) { }
+    internal EditSessionStore(string root,IFileSystemOperations fs,Func<string,bool,CancellationToken,EditDirectoryLease>? nativeOpen)
+    {Root=root;this.fs=fs;this.nativeOpen=nativeOpen;}
     public const long MaxMemberBytes = 1L * 1024 * 1024 * 1024;
     private const string RecordFile = "session.json";
     private const int MaxRecordBytes = 1024 * 1024;
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
 
-    public string Root { get; } = root;
+    public string Root { get; }
 
     public IReadOnlyList<EditSessionRecord> LoadAll()
     {
@@ -155,9 +166,21 @@ public sealed partial class EditSessionStore(string root, IFileSystemOperations 
                 stream.ReadExactly(bytes);
                 sessions.Add(stream.ReadByte() != -1
                     ? UnsupportedSession(dir, "This edit record changed while it was read. Its working folder is kept.")
-                    : ParseRecord(bytes, dir));
+                    : ReadStoredRecord(bytes, dir));
             }
-            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException) { } // An unpublished session may still be being created.
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                // Native creation leaves a private recovery marker before any working bytes are copied.
+                if(nativeOpen is not null)
+                {
+                    try
+                    {
+                        using var nativeRoot=OpenNativeRoot(default,false);using var session=nativeRoot.OpenDirectory(Path.GetFileName(dir),null,default);
+                        sessions.Add(ParseRecord(ReadRecordBytes(session,CreationMarker,default),dir));
+                    }
+                    catch(Exception markerError)when(markerError is IOException or UnauthorizedAccessException){ }
+                }
+            }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             { sessions.Add(UnsupportedSession(dir, "This edit record cannot be read completely. Its working folder is kept.")); }
         }
@@ -229,7 +252,7 @@ public sealed partial class EditSessionStore(string root, IFileSystemOperations 
         ValidateLength(revision.Length);
         if (source.GetRevision() != revision) throw new IOException("The file's revision is unavailable or changed before its edit could be copied.");
         string name = remotePath[(remotePath.LastIndexOf('/') + 1)..];
-        return CreateSession(name, working => WriteWorkingCopy(source, working, ct, revision), (working, copy) =>
+        return CreateSession(name, (working,open) => WriteWorkingCopy(source, working, ct, revision,outputFactory:open), (working, copy) =>
         {
             if (originMark is not null) PreserveOriginMark(working, originMark);
             return new EditSessionRecord
@@ -251,7 +274,7 @@ public sealed partial class EditSessionStore(string root, IFileSystemOperations 
     {
         ContentRevision revision = default;
         string name = remotePath[(remotePath.LastIndexOf('/') + 1)..];
-        return CreateSession(name, working =>
+        return CreateSession(name, (working,open) =>
         {
             var source = provider.OpenContent(item) ?? throw new IOException("This item has no content to edit.");
             return ReadOwned(source, () =>
@@ -259,7 +282,7 @@ public sealed partial class EditSessionStore(string root, IFileSystemOperations 
                 revision = source.GetRevision() ?? throw new IOException("The file's revision is unavailable; copy it with F5 instead.");
                 ValidateLength(revision.Length);
                 if (source.GetRevision() != revision) throw new IOException("The file's revision is unavailable or changed before its edit could be copied.");
-                return WriteWorkingCopy(source, working, ct, revision);
+                return WriteWorkingCopy(source, working, ct, revision,outputFactory:open);
             });
         }, (working, copy) =>
         {
@@ -290,8 +313,7 @@ public sealed partial class EditSessionStore(string root, IFileSystemOperations 
     public EditSessionRecord CommittedRemote(EditSessionRecord record, string committedSha256, ContentRevision revision)
     {
         var updated = record with { RemoteBaseline = revision, BaseSha256 = committedSha256, LastCommitUtc = DateTime.UtcNow };
-        Save(updated);
-        return updated;
+        return Save(updated);
     }
 
     /// <summary>A session folder with the working copy under the edited file's own name (or a safe stand-in).</summary>
@@ -303,10 +325,11 @@ public sealed partial class EditSessionStore(string root, IFileSystemOperations 
             throw new IOException("The download mark could not be kept on the private edit copy.");
     }
 
-    private EditSessionRecord CreateSession(string fileName, Func<string, WorkingCopy> write, Func<string, WorkingCopy, EditSessionRecord> describe, CancellationToken ct)
+    private EditSessionRecord CreateSession(string fileName, Func<string,Func<FileStream>?,WorkingCopy> write, Func<string, WorkingCopy, EditSessionRecord> describe, CancellationToken ct)
     {
         RefuseElevatedSession();
         ct.ThrowIfCancellationRequested();
+        if(nativeOpen is not null)return CreateNativeSession(fileName,write,describe,ct);
         string id = Guid.NewGuid().ToString("N");
         string dir = Path.Combine(Root, id);
         CreatePrivateDirectory(dir);
@@ -318,12 +341,11 @@ public sealed partial class EditSessionStore(string root, IFileSystemOperations 
         try
         {
             Directory.CreateDirectory(files);
-            var copy = write(working);
+            var copy = write(working,null);
             ct.ThrowIfCancellationRequested();
             var record = describe(working, copy) with { Id = id, CreatedUtc = DateTime.UtcNow };
             ct.ThrowIfCancellationRequested();
-            Save(record);
-            return record;
+            return Save(record);
         }
         catch
         {
@@ -353,7 +375,7 @@ public sealed partial class EditSessionStore(string root, IFileSystemOperations 
 
     /// <summary>The caller owns the source. Nothing is published unless exact bytes, EOF and available revisions agree.</summary>
     private static WorkingCopy WriteWorkingCopy(IContentSource source, string working, CancellationToken ct, ContentRevision? expected = null,
-        Action? check = null, Action<FileStream>? finalize = null)
+        Action? check = null, Action<FileStream>? finalize = null,Func<FileStream>? outputFactory=null)
     {
         void Check() { ct.ThrowIfCancellationRequested(); check?.Invoke(); }
         Check();
@@ -364,7 +386,7 @@ public sealed partial class EditSessionStore(string root, IFileSystemOperations 
             throw new IOException("The file changed before its edit could be copied.");
         var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.ReadWrite, Share = FileShare.None };
         if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
-        using var output = new FileStream(working, options);
+        using var output = outputFactory?.Invoke() ?? new FileStream(working, options);
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var buffer = new byte[1024 * 1024];
         uint crc = 0; long offset = 0;
@@ -423,13 +445,13 @@ public sealed partial class EditSessionStore(string root, IFileSystemOperations 
             expectedCrc = found.Crc32; expectedLength = found.Length; ValidateLength(expectedLength);
         }
         if (!baseline.Matches(archive)) throw new IOException("The archive changed while its edit was being prepared.");
-        return CreateSession(member.Name, working =>
+        return CreateSession(member.Name, (working,open) =>
         {
             ct.ThrowIfCancellationRequested();
             var source = Content.ProgressiveContent.Sequential(zip.OpenContent(member)) ?? throw new NotSupportedException("This member is encrypted and cannot be edited here.");
             return ReadOwned(source, () =>
             {
-                var copy = WriteWorkingCopy(source, working, ct);
+                var copy = WriteWorkingCopy(source, working, ct,outputFactory:open);
                 if (copy.Length != expectedLength || copy.Crc != expectedCrc || !baseline.Matches(archive))
                     throw new IOException("The archive member changed or is damaged; no edit session was created.");
                 return copy;
@@ -465,10 +487,11 @@ public sealed partial class EditSessionStore(string root, IFileSystemOperations 
         return copy;
     }
 
-    public void Save(EditSessionRecord record)
+    public EditSessionRecord Save(EditSessionRecord record)
     {
         RefuseElevatedSession();
         if (!record.IsSupported) throw new NotSupportedException("Unsupported edit-session records are kept without rewriting them.");
+        if(nativeOpen is not null&&record.StorageRootIdentity.Length!=0)return SaveNativeRevision(record);
         string dir = SessionDirectory(record);
         string destination = Path.Combine(dir, RecordFile);
         byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(record, Json);
@@ -489,7 +512,7 @@ public sealed partial class EditSessionStore(string root, IFileSystemOperations 
                     stream.Write(bytes);
                 }
                 fs.Move(temp, destination, replaceExisting: true);
-                return;
+                return record;
             }
             catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && attempt < 5)
             {
@@ -503,6 +526,7 @@ public sealed partial class EditSessionStore(string root, IFileSystemOperations 
                 if (created && File.Exists(temp)) File.Delete(temp);
             }
         }
+        throw new IOException("The edit record could not be published.");
     }
 
     public EditState StateOf(EditSessionRecord record) => StateOf(record, new LocalFileSystemProvider());
@@ -721,8 +745,7 @@ public sealed partial class EditSessionStore(string root, IFileSystemOperations 
             MemberLength = member.Length,
             LastCommitUtc = DateTime.UtcNow,
         };
-        Save(updated);
-        return updated;
+        return Save(updated);
     }
 
     public void Discard(EditSessionRecord record)

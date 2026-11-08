@@ -18,6 +18,7 @@ internal abstract class EditDirectoryLease : IDisposable
     internal abstract EditDirectoryLease OpenDirectory(string leaf, string? expectedIdentity, CancellationToken ct);
     internal abstract FileStream CreateFile(string leaf, CancellationToken ct);
     internal abstract FileStream OpenFile(string leaf, string? expectedIdentity, CancellationToken ct);
+    internal abstract IReadOnlyList<string> Names(CancellationToken ct);
     internal abstract string Identify(SafeFileHandle file);
     internal abstract void PublishNewFile(FileStream file,string sourceLeaf,string targetLeaf,EditFileVersion expected,CancellationToken ct);
     protected abstract void ReviewCore(CancellationToken ct);
@@ -44,7 +45,11 @@ internal abstract class EditDirectoryLease : IDisposable
     protected static void Leaf(string value)
     {
         if (SafeNames.Validate(value) is { } problem) throw new ArgumentException(problem, nameof(value));
-        if (ArchiveWritePolicy.Utf8.GetByteCount(value) > 255) throw new ArgumentException("The edit filename is too long.", nameof(value));
+        try
+        {
+            if (ArchiveWritePolicy.Utf8.GetByteCount(value) > 255) throw new ArgumentException("The edit filename is too long.", nameof(value));
+        }
+        catch (System.Text.EncoderFallbackException error) { throw new ArgumentException("The edit filename has invalid Unicode.", nameof(value), error); }
     }
     internal EditFileVersion Inspect(FileStream file,CancellationToken ct)
     {

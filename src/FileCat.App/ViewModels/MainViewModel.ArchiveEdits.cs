@@ -22,9 +22,9 @@ public sealed partial class MainViewModel
         }
         public string WorkingIdentity(SafeFileHandle handle) => owner.Services.Archives.GetOpenedSourceIdentity(handle) ??
             throw new IOException("The private edit file has no stable native identity.");
-        public void PreserveOrigin(FileStream working, CancellationToken ct)
+        public void PreserveOrigin(FileStream working,string workingPath,CancellationToken ct)
         {
-            if (OperatingSystem.IsWindows()) FileCat.Platform.Windows.Archives.WindowsArchiveEditOrigin.Copy(working, Target.Native.Origin, ct);
+            if (OperatingSystem.IsWindows()) FileCat.Platform.Windows.Archives.WindowsArchiveEditOrigin.Copy(working,workingPath,Target.Native.Origin,ct);
             else ArchiveUnixOrigin.CopyToNewWorkingFile(working.SafeFileHandle, Target.Native.Origin, ct);
         }
     }

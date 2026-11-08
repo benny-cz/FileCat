@@ -158,7 +158,7 @@ public sealed class ArchiveEditSessionTests
         public void ReviewSource(CancellationToken ct)
         { ct.ThrowIfCancellationRequested(); if (FailReview || FailAfterCloseReview && Closes != 0) throw new IOException("Public changed source"); }
         public string WorkingIdentity(SafeFileHandle handle) => files.GetHandleIdentity(handle)!;
-        public void PreserveOrigin(FileStream workingFile, CancellationToken ct)
+        public void PreserveOrigin(FileStream workingFile,string workingPath,CancellationToken ct)
         { ct.ThrowIfCancellationRequested(); Origins++; if (FailOrigin) throw new IOException("Public origin failure"); }
         private sealed class Content(Source owner, IContentSource inner) : IContentSource, IPartialContent
         {

@@ -13,7 +13,7 @@ internal interface IArchiveEditSource
     IContentSource OpenContent(CancellationToken ct);
     void ReviewSource(CancellationToken ct);
     string WorkingIdentity(SafeFileHandle handle);
-    void PreserveOrigin(FileStream workingFile, CancellationToken ct);
+    void PreserveOrigin(FileStream workingFile,string workingPath,CancellationToken ct);
 }
 
 internal static class ArchiveEditEvidence
