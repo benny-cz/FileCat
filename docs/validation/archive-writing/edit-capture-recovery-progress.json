@@ -2,7 +2,7 @@
   "schema": 1,
   "component": "native edit cleanup, restart review and retained ZIP/SFTP integration: progress checkpoint",
   "current_candidate": "f62d81f91dc5b4616f7b83a06502b0154459f66a",
-  "worktree_candidate": "b9d0e272fcb807d903b13bec008cc2d952906b81",
+  "worktree_candidate": "915a0a5622547759b1b24693206d462ca21d6aca",
   "production_backend_qualified": false,
   "application_composition_uses_native_store": false,
   "history": [
@@ -2614,18 +2614,18 @@
   "pending": [
     {
       "platform": "windows",
-      "folder": "awe-storage-v25",
-      "state": "preceding cohort finished with zero owned instances; corrected UTF-8 refusal and 25-case record matrix plus native publication queued as v26"
+      "folder": "awe-storage-v26",
+      "state": "fresh UTF-8 boundary correction and record25/native publication25/connected focused validation running"
     },
     {
       "platform": "mac",
-      "folder": "awe-storage-v23",
-      "state": "preceding cohort finished with zero owned instances; corrected UTF-8 refusal and 25-case record matrix plus native publication queued as v26"
+      "folder": "awe-storage-v26",
+      "state": "v23 complete Core/Remote/App passed, exact evidence preserved/verified; native saved-copy publication26/record25/connected candidate launched under PID 55815; wake helper36765 retained"
     },
     {
       "platform": "ubuntu",
-      "folder": "awe-storage-v25",
-      "state": "preceding cohort finished with zero owned instances; corrected UTF-8 refusal and 25-case record matrix plus native publication queued as v26"
+      "folder": "awe-storage-v26",
+      "state": "v25 complete focused matrix passed and exact evidence preserved; fresh UTF-8 boundary correction/record25/publication26 running under PID 1350648"
     }
   ],
   "fresh_review_authorizes_deletion": false,

@@ -12,6 +12,14 @@ def verify(platform,folder):
     js=lambda name:json.loads(data[name].decode('utf-8-sig'))
     candidate=js('delta.json')['candidate_commit']
     subprocess.check_call(['git','cat-file','-e',candidate+'^{commit}'],cwd=ROOT)
+    diagnostic_exclusions=js('delta.json').get('excluded_diagnostic_sources',[])
+    if diagnostic_exclusions:
+        assert {row['path'] for row in diagnostic_exclusions}=={
+            'eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj','eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs'}
+        for row in diagnostic_exclusions:
+            blob=subprocess.check_output(['git','show',candidate+':'+row['path']],cwd=ROOT)
+            assert len(blob)==row['bytes'] and hashlib.sha256(blob).hexdigest()==row['sha256']
+            assert row['reason']=='Standalone read-only diagnostic tool, outside this batch compiled product/test graph.'
     audit=js('compiler-sources/facts.json')
     assert audit['compilerSourceChecksumsMatched'] and all(row['pdbBoundToAssembly'] for row in audit['binaries'])
     for row in audit['binaries']:
@@ -118,7 +126,8 @@ def verify(platform,folder):
     return dict(platform=platform,folder=folder,candidate=candidate,**facts,manifest_sha256=index['files.json']['sha256'],
         changed_CSharp_sources_bound=len(bound),DLL_PDB_pairs_bound=len(audit['binaries']),uncompiled_platform_sources=sorted(excluded),
         tests=tests,focused_gates_complete=complete,final_census=census,production_backend_qualified=False,
-        **(dict(validation_scope=scope,full_regressions_not_run=sorted(coverage['full_regressions'])) if folder in ('awe-storage-v24','awe-storage-v25','awe-storage-v26') else {}))
+        **(dict(validation_scope=scope,full_regressions_not_run=sorted(coverage['full_regressions'])) if folder in ('awe-storage-v24','awe-storage-v25','awe-storage-v26') else {}),
+        **(dict(excluded_diagnostic_sources=diagnostic_exclusions) if diagnostic_exclusions else {}))
 
 def unchanged_product_binaries(platform,previous,current):
     _,old,_=base.transport(ROOT/'.tmp/storage-evidence'/platform/(previous+'-evidence.tar.gz'),previous)
