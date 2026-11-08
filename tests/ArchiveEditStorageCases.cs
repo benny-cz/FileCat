@@ -60,7 +60,7 @@ internal static class ArchiveEditStorageCases
                     catch(Exception error){return(Record:(EditSessionRecord?)null,Error:error);}
                 },ct)).ToArray();
                 Task.WaitAll(attempts,ct);var results=attempts.Select(task=>task.Result).ToArray();
-                var winner=Assert.Single(results.Where(result=>result.Record is not null)).Record!;
+                var winner=Assert.Single(results,result=>result.Record is not null).Record!;
                 Assert.All(results.Where(result=>result.Error is not null),result=>Assert.IsAssignableFrom<IOException>(result.Error));
                 Assert.Equal(winner,Assert.Single(store.LoadAll()));Assert.Equal(original,File.ReadAllBytes(anchor));
                 Assert.Single(Directory.GetFiles(directory,"session-state-*.json"));return;
