@@ -2,7 +2,7 @@
 from pathlib import Path
 import hashlib, json, runpy, shutil, subprocess, sys, tarfile, xml.etree.ElementTree as ET
 
-FOLDER = 'awe-v3-native-v1'
+FOLDER = 'awe-v3-native-v2'
 PARENT = 'awe-v3'
 NS = {'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 def sha(path):
