@@ -28,7 +28,7 @@ def transport(packet, folder):
 
 def cases(content): return ET.fromstring(content).findall('.//t:UnitTestResult', NS)
 
-def verify(platform, folder='awp-v2'):
+def verify(platform, folder='awp-v3'):
     facts, index, data = transport(ROOT/'.tmp/password-evidence'/platform/(folder+'-evidence.tar.gz'), folder)
     js = lambda key: json.loads(data[key].decode('utf-8-sig'))
     candidate = js('delta.json')['candidate_commit']
@@ -74,7 +74,7 @@ def verify(platform, folder='awp-v2'):
         assert js('standard-launch.json')['ExitCode'] == 0
     elif platform == 'mac':
         assert census['preserved_wake_helper'].startswith('36765 ')
-        assert js('case-fixture.json')['source'].endswith('/awp-v2-cases')
+        assert js('case-fixture.json')['source'].endswith('/'+folder+'-cases')
         assert index['case-image-detach.stdout']['bytes'] > 0
     else:
         assert js('private-keyring.json')['pid'] == js('private-keyring-stopped.json')['pid']
@@ -84,5 +84,5 @@ def verify(platform, folder='awp-v2'):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__); parser.add_argument('--platform', choices=('mac','ubuntu','windows'), required=True)
-    parser.add_argument('--folder', default='awp-v2'); args = parser.parse_args()
+    parser.add_argument('--folder', default='awp-v3'); args = parser.parse_args()
     print(json.dumps(verify(args.platform, args.folder), indent=2))

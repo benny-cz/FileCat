@@ -3,8 +3,8 @@ from pathlib import Path
 from collections import Counter
 import hashlib, importlib.util, json, os, plistlib, shutil, subprocess, sys, tarfile, xml.etree.ElementTree as ET
 
-FOLDER = 'awp-v2'
-PACKET = 'archive-password-browsing-delta-v2.tar.gz'
+FOLDER = 'awp-v3'
+PACKET = 'archive-password-browsing-delta-v3.tar.gz'
 NS = {'t': 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 
 def sha(path):
@@ -15,7 +15,7 @@ def base(task):
     spec = importlib.util.spec_from_file_location('password_browsing_base', path)
     module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
     module.BATCH_FOLDER, module.PACKET_NAME = FOLDER, PACKET
-    module.PREVIOUS_FOLDER = 'awp-v1'
+    module.PREVIOUS_FOLDER = 'awp-v1' if sys.platform == 'win32' and not (task/'awp-v2/files.json').is_file() else 'awp-v2'
     return module
 
 def batch_for(task): return base(task).batch_for(task)
@@ -53,10 +53,14 @@ def tests(task):
         rows[name] = counters
         (batch.out/'passed-gates.json').write_text(json.dumps(rows, indent=2))
     run('password-read-core', 'FileCat.Core.Tests', 'FullyQualifiedName~ArchivePasswordReadSessionTests', 20)
+    run('recovery-container-preflight', 'FileCat.Core.Tests', '|'.join('FullyQualifiedName~'+name for name in (
+        'RecoveryDestinationAdmissionTests', 'RecoveryJobTests', 'UnixHeldSourcePathTests', 'BackingSourceTransferTests')))
     run('password-read-ui', 'FileCat.App.Tests', 'FullyQualifiedName~ArchivePasswordBrowsingUiTests|FullyQualifiedName~PreparedNavigationOwnershipTests', 27)
     # Stop at the focused gate on failure, before spending time on the unchanged regression inventory.
     run('navigation-member-regressions', 'FileCat.App.Tests', '|'.join('FullyQualifiedName~'+name for name in (
         'NavigationIntentTests', 'ClipboardIntentTests', 'ArchiveMemberCommandUiTests', 'ArchiveTargetUpdateUiTests', 'ViewerAdmissionTests', 'PictureBrowseContextTests',
+        'ArchiveMoveUiTests', 'MutationPreparationTests', 'DialogFocusOwnershipTests', 'ExitWithWaitingJobTests', 'OperationScopeTests',
+        'SortFocusContinuityTests', 'ArchiveCreationCleanupUiTests', 'ArchiveRetainedCleanupUiTests',
         'ArchiveCreationWorkflowTests&FullyQualifiedName!~Actual_confined_')))
     run('core-regressions', 'FileCat.Core.Tests', 'FullyQualifiedName~FileCat.Core.Tests')
     old = ET.parse(batch.out/'previous-full-core.trx').findall('.//t:UnitTestResult', NS)

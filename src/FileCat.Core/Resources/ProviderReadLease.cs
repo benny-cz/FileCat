@@ -17,7 +17,10 @@ public sealed class ProviderReadLease : IDisposable
                 for (var location = parent; location is { IsFileSystem: false }; location = location.Container)
                 {
                     var key = location.Scheme is Schemes.Archive or Schemes.Zip ? location.WithPath("") : location;
-                    if (retained.Add(key) && providers.For(location).RetainRead(location) is { } lease) leases.Add(lease);
+                    // A backing container can be an identity-only resource (for example a raw device),
+                    // without a navigable provider. Its source provider still owns read admission.
+                    if (retained.Add(key) && providers.TryGet(location.Scheme, out var provider) && provider!.RetainRead(location) is { } lease)
+                        leases.Add(lease);
                 }
             return leases.Count == 0 ? null : new(leases);
         }
