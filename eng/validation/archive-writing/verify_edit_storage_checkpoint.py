@@ -52,9 +52,12 @@ def verify(platform,folder):
     complete='tests-complete.json' in data
     if complete:
         assert tests['record-recovery']=={'Passed':19} and tests['native-directory']=={'Passed':16}
-        expected=(14 if platform=='windows' else 19) if folder=='awe-storage-v5' else (13 if platform=='windows' else 14)
+        expected=(14 if platform=='windows' else 19) if folder in ('awe-storage-v5','awe-storage-v6') else (13 if platform=='windows' else 14)
         assert tests['native-storage']=={'Passed':expected}
-        assert set(tests)=={'record-recovery','native-directory','native-storage','edit-core','edit-ui'}
+        gates={'record-recovery','native-directory','native-storage','edit-core','edit-ui'}
+        if folder=='awe-storage-v6':
+            gates.update(('native-snapshot','commit-copy'));assert tests['native-snapshot']=={'Passed':26} and tests['commit-copy']=={'Passed':10}
+        assert set(tests)==gates
         assert all('Failed' not in counts for counts in tests.values())
         assert tests['edit-core'].get('Passed',0)>90 and tests['edit-ui'].get('Passed',0)>0
     return dict(platform=platform,folder=folder,candidate=candidate,**facts,manifest_sha256=index['files.json']['sha256'],
