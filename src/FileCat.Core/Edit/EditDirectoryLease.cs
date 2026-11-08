@@ -61,11 +61,11 @@ internal abstract class EditDirectoryLease : IDisposable
         catch (System.Text.EncoderFallbackException error) { throw new ArgumentException("The edit filename has invalid Unicode.", nameof(value), error); }
     }
     internal static void ValidateLeaf(string value)=>Leaf(value);
-    internal EditFileVersion Inspect(FileStream file,CancellationToken ct)
+    internal EditFileVersion Inspect(FileStream file,CancellationToken ct,long maximumBytes=EditSessionStore.MaxMemberBytes)
     {
         ct.ThrowIfCancellationRequested();file.Flush();
         string identity=Identify(file.SafeFileHandle);long length=RandomAccess.GetLength(file.SafeFileHandle);
-        if(length<0||length>EditSessionStore.MaxMemberBytes)throw new IOException("The edit artifact exceeds its byte budget.");
+        if(maximumBytes<0||maximumBytes>EditSessionStore.MaxMemberBytes||length<0||length>maximumBytes)throw new IOException("The edit artifact exceeds its byte budget.");
         using var hash=IncrementalHash.CreateHash(HashAlgorithmName.SHA256);byte[] buffer=new byte[1024*1024];long offset=0;
         while(offset<length)
         {
@@ -76,12 +76,12 @@ internal abstract class EditDirectoryLease : IDisposable
         if(RandomAccess.GetLength(file.SafeFileHandle)!=length||Identify(file.SafeFileHandle)!=identity)throw new IOException("The held edit artifact changed during inspection.");
         return new(identity,length,Convert.ToHexString(hash.GetHashAndReset()));
     }
-    internal ArchiveFileObservation ObserveSnapshot(FileStream file,string leaf,CancellationToken ct)
+    internal ArchiveFileObservation ObserveSnapshot(FileStream file,string leaf,CancellationToken ct,long maximumBytes=EditSessionStore.MaxMemberBytes)
     {
         lock(Gate)
         {
             RequireOpen();Leaf(leaf);var before=ReviewWorkingFile(file,leaf,ct);
-            var origin=ReadOrigin(file,leaf,ct);var version=Inspect(file,ct);
+            var origin=ReadOrigin(file,leaf,ct);var version=Inspect(file,ct,maximumBytes);
             var after=ReviewWorkingFile(file,leaf,ct);
             if(before!=after||origin.Digest!=ReadOrigin(file,leaf,ct).Digest||version.Identity!=Identify(file.SafeFileHandle))
                 throw new IOException("The native commit snapshot changed during complete review.");

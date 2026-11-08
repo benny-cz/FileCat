@@ -7,7 +7,7 @@ internal sealed class EditPublishedRecord(EditDirectoryLease directory,FileStrea
 {
     internal string Name=>expected.LeafName;
     internal void Review(CancellationToken ct)
-    {if(!directory.ObserveSnapshot(file,Name,ct).Matches(expected))throw new IOException("The retained capture record changed; its files are kept.");}
+    {if(!directory.ObserveSnapshot(file,Name,ct,expected.Version.Length).Matches(expected))throw new IOException("The retained capture record changed; its files are kept.");}
     internal void Delete(CancellationToken ct)=>directory.DeleteSnapshot(file,Name,expected,ct);
     public void Dispose()=>file.Dispose();
 }

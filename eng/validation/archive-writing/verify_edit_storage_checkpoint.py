@@ -51,15 +51,15 @@ def verify(platform,folder):
     if platform=='windows':assert not js('account.json')['AdministratorsMember'] and js('account.json')['HiveLoaded']
     complete='tests-complete.json' in data
     if complete:
-        cleanup=folder in ('awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11')
-        assert tests['record-recovery']=={'Passed':19} and tests['native-directory']=={'Passed':20 if cleanup else 16}
-        expected=(14 if platform=='windows' else 19) if folder in ('awe-storage-v5','awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11') else (13 if platform=='windows' else 14)
+        cleanup=folder in ('awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12')
+        assert tests['record-recovery']=={'Passed':19} and tests['native-directory']=={'Passed':21 if folder=='awe-storage-v12' else 20 if cleanup else 16}
+        expected=(14 if platform=='windows' else 19) if folder in ('awe-storage-v5','awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12') else (13 if platform=='windows' else 14)
         assert tests['native-storage']=={'Passed':expected}
         gates={'record-recovery','native-directory','native-storage','edit-core','edit-ui'}
-        if folder in ('awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11'):
-            snapshots=35 if folder=='awe-storage-v11' and platform=='windows' else 34 if cleanup else 26
+        if folder in ('awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12'):
+            snapshots=35 if folder in ('awe-storage-v11','awe-storage-v12') and platform=='windows' else 34 if cleanup else 26
             gates.update(('native-snapshot','commit-copy'));assert tests['native-snapshot']=={'Passed':snapshots} and tests['commit-copy']=={'Passed':10}
-        if folder=='awe-storage-v11':
+        if folder in ('awe-storage-v11','awe-storage-v12'):
             gates.add('capture-recovery');assert tests['capture-recovery']=={'Passed':27}
             origins=['origin-policy']+(['native-origin-regressions'] if platform=='windows' else [])
             for name in origins:
@@ -76,11 +76,13 @@ def verify(platform,folder):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--platform',choices=('windows','mac','ubuntu'));parser.add_argument('--folder')
+    parser.add_argument('--checkpoint',type=Path,help='Verify another preserved storage checkpoint with the same evidence schema.')
     args=parser.parse_args()
     if bool(args.platform)!=bool(args.folder):parser.error('Specify both --platform and --folder, or neither to verify the checkpoint.')
+    if args.platform and args.checkpoint:parser.error('Specify either one platform/folder or a checkpoint file.')
     if args.platform:print(json.dumps(verify(args.platform,args.folder),indent=2))
     else:
-        checkpoint=json.loads((ROOT/'docs/validation/archive-writing/edit-storage-checkpoint.json').read_text())
+        checkpoint=json.loads((args.checkpoint or ROOT/'docs/validation/archive-writing/edit-storage-checkpoint.json').read_text())
         assert checkpoint['schema']==1 and not checkpoint['production_backend_qualified'] and not checkpoint['application_composition_uses_native_store']
         rows=checkpoint['history']+checkpoint['current']
         for row in rows:assert verify(row['platform'],row['folder'])==row,(row['platform'],row['folder'])

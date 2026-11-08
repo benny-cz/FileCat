@@ -55,7 +55,7 @@ public sealed partial class EditSessionStore
             stream.Write(bytes);stream.Flush(true);
             var expected=new EditFileVersion(session.Identify(stream.SafeFileHandle),bytes.Length,Digest(bytes));
             session.PublishNewFile(stream,temporary,name,expected,ct);
-            return new(session,stream,session.ObserveSnapshot(stream,name,ct));
+            return new(session,stream,session.ObserveSnapshot(stream,name,ct,MaxRecordBytes));
         }
         catch{stream.Dispose();throw;}
         // Failure retains uncertain artifacts. Neither a GUID pathname nor a prior identity observation authorizes deletion.
@@ -63,8 +63,8 @@ public sealed partial class EditSessionStore
     private static byte[] ReadRecordBytes(EditDirectoryLease session,string name,CancellationToken ct)
     {
         using var stream=session.OpenFile(name,null,ct);
-        if(stream.Length>MaxRecordBytes)throw new IOException("The edit record exceeds its metadata budget.");
-        byte[] bytes=new byte[checked((int)stream.Length)];stream.ReadExactly(bytes);
+        long length=stream.Length;if(length>MaxRecordBytes)throw new IOException("The edit record exceeds its metadata budget.");
+        byte[] bytes=new byte[checked((int)length)];stream.ReadExactly(bytes);
         if(stream.ReadByte()!=-1)throw new IOException("The edit record changed during its bounded read.");
         ct.ThrowIfCancellationRequested();session.Review(ct);return bytes;
     }

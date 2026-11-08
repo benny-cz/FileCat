@@ -134,13 +134,13 @@ public sealed partial class EditSessionStore
             try
             {
                 if(file.Length>MaximumCaptureRecordBytes)throw new IOException("The capture record exceeds its review budget.");
-                expected=directory.ObserveSnapshot(file,name,ct);Bytes=new byte[checked((int)file.Length)];file.ReadExactly(Bytes);
+                expected=directory.ObserveSnapshot(file,name,ct,MaximumCaptureRecordBytes);Bytes=new byte[checked((int)expected.Version.Length)];file.ReadExactly(Bytes);
                 if(file.ReadByte()!=-1)throw new IOException("The capture record grew during review.");Review(ct);
             }
             catch{file.Dispose();throw;}
         }
         internal void Review(CancellationToken ct)
-        {if(!directory.ObserveSnapshot(file,name,ct).Matches(expected))throw new IOException("The capture record changed during review.");}
+        {if(!directory.ObserveSnapshot(file,name,ct,MaximumCaptureRecordBytes).Matches(expected))throw new IOException("The capture record changed during review.");}
         public void Dispose()=>file.Dispose();
     }
 }

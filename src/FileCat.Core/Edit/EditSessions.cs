@@ -166,12 +166,13 @@ public sealed partial class EditSessionStore
             {
                 using var stream = new FileStream(Path.Combine(dir, RecordFile), FileMode.Open, FileAccess.Read,
                     FileShare.ReadWrite | FileShare.Delete);
-                if (stream.Length > MaxRecordBytes)
+                long recordLength=stream.Length;
+                if (recordLength > MaxRecordBytes)
                 {
                     sessions.Add(UnsupportedSession(dir, "This edit record is larger than the supported metadata budget. Its working folder is kept."));
                     continue;
                 }
-                byte[] bytes = new byte[checked((int)stream.Length)];
+                byte[] bytes = new byte[checked((int)recordLength)];
                 stream.ReadExactly(bytes);
                 sessions.Add(stream.ReadByte() != -1
                     ? UnsupportedSession(dir, "This edit record changed while it was read. Its working folder is kept.")

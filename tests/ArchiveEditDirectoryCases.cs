@@ -49,6 +49,17 @@ internal static class ArchiveEditDirectoryCases
                 }
                 else{Assert.ThrowsAny<IOException>(()=>files.RemoveEmpty(ct));Assert.True(Directory.Exists(files.Path));}
             }
+            else if(scenario=="bounded-inspection")
+            {
+                byte[] bytes=Enumerable.Range(0,64).Select(value=>(byte)value).ToArray();
+                using var stream=files.CreateFile("bounded-record",ct);stream.Write(bytes);stream.Flush(true);
+                Assert.ThrowsAny<IOException>(()=>files.Inspect(stream,ct,63));
+                Assert.ThrowsAny<IOException>(()=>files.ObserveSnapshot(stream,"bounded-record",ct,63));
+                Assert.ThrowsAny<IOException>(()=>files.Inspect(stream,ct,-1));
+                Assert.ThrowsAny<IOException>(()=>files.Inspect(stream,ct,EditSessionStore.MaxMemberBytes+1));
+                Assert.Equal(Convert.ToHexString(SHA256.HashData(bytes)),files.ObserveSnapshot(stream,"bounded-record",ct,64).Version.Sha256);
+                Assert.Equal(bytes,File.ReadAllBytes(System.IO.Path.Combine(files.Path,"bounded-record")));
+            }
             else if(scenario=="bad-leaves")
             {
                 foreach(string bad in new[]{"", ".", "..", "../escape", "folder/escape", "folder\\escape", "name:stream", "bad\ud800",new string('x',256)})
