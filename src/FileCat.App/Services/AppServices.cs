@@ -171,6 +171,8 @@ public sealed class AppServices : IDisposable
     // Native authority is retained by the adapter through the complete approval/action lifetime.
     internal Func<string, Guid, CancellationToken, Core.Archives.IArchiveContentCleanupRecoveryLease>? ArchiveCleanupLease { get; set; }
         = OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveCleanupRecovery.OpenCurrentLease : null;
+    internal Func<string, Guid, CancellationToken, Core.Archives.IArchiveCreationCleanupLease>? ArchiveCreationCleanupLease { get; set; }
+        = OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveCreationCleanupRecovery.OpenCurrentLease : null;
 
     /// <summary>SFTP connections (leases, host keys, secrets); the main window supplies the prompts.</summary>
     public Remote.Sftp.SftpConnections Sftp { get; }

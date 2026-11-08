@@ -15,7 +15,7 @@ public abstract class ArchiveMoveAcceptance
     public async Task Case_distinct_sources_are_separately_archived_removed_and_accounted(bool parents, bool differentBytes)
     {
         using var f = new Fixture(NativeFiles());
-        string? template = OperatingSystem.IsWindows() ? Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_CASE_ROOT") : f.Root;
+        string? template = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_CASE_ROOT") ?? (OperatingSystem.IsWindows() ? null : f.Root);
         if (template is null) Assert.Skip("Explicit case-sensitive NTFS source fixture.");
         string source = Path.Combine(template!, Guid.NewGuid().ToString("N")); System.IO.Directory.CreateDirectory(source);
         try

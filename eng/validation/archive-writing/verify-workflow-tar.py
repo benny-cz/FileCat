@@ -3,7 +3,7 @@ from pathlib import Path
 import bz2,decimal,gzip,hashlib,io,json,runpy,struct,subprocess,sys,tarfile
 
 def run(root,tool,modules,packet_helper,scope=None):
- assert scope in (None,'--jobs','--source-case','--moves')
+ assert scope in (None,'--jobs','--source-case','--moves','--cleanup')
  root,tool,modules=map(Path,(root,tool,modules));sys.path.insert(0,str(modules))
  packet=runpy.run_path(packet_helper)['Packet'];rows=[];payloads=0;metadata=0
  for document in sorted(root.glob('format-Tar*-mode-*/*.json')):
@@ -60,10 +60,14 @@ def run(root,tool,modules,packet_helper,scope=None):
   documents=list(root.glob('format-Tar*-mode-*/*.json'));formats={'Tar','TarGzip','TarBzip2','TarZstd'}
   assert {(p.parent.name,p.stem) for p in documents}=={('format-'+format+'-mode-0',name) for format in formats for name in ('source-leaves','source-parents')}
   assert len(rows)==8 and metadata==payloads==16
- else:
+ elif scope=='--moves':
   documents=list(root.glob('format-Tar*-mode-*/*.json'));formats={'Tar','TarGzip','TarBzip2','TarZstd'}
   assert {(p.parent.name,p.stem) for p in documents}=={('format-'+format+'-mode-0',name) for format in formats for name in ('moved-created','moved-updated')}
   assert len(rows)==8 and metadata==44 and payloads==28
+ else:
+  documents=list(root.glob('format-Tar*-mode-*/*.json'));formats={'Tar','TarGzip','TarBzip2','TarZstd'}
+  assert {(p.parent.name,p.stem) for p in documents}=={('format-'+format+'-mode-0',name) for format in formats for name in ('clean-created','clean-updated')}
+  assert len(rows)==8 and metadata==payloads==12
  result={'archives':len(rows),'metadata':metadata,'payloads':payloads,'tool_sha256':hashlib.sha256(tool.read_bytes()).hexdigest(),'rows':rows}
  (root/'independent-workflow-tar.json').write_text(json.dumps(result,indent=2));print(json.dumps({k:v for k,v in result.items() if k!='rows'}),flush=True)
 

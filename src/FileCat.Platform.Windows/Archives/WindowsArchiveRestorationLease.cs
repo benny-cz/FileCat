@@ -94,6 +94,6 @@ internal sealed class WindowsArchiveRestorationLease : IArchiveContentRestoratio
             try { snapshot.Dispose(); target.Dispose(); directory.Dispose(); } finally { journal.Dispose(); }
         }
     }
-    private static FileIdentity Identity(string value) => new(Convert.ToUInt64(value[..16], 16), value[17..]);
+    private static FileIdentity Identity(string value) => WindowsArchiveRecoveryIdentity.Parse(value);
     private static ArchiveWriteException Changed() => new(ArchiveWriteReason.NeedsReview, "The current archive or retained snapshot differs from the reviewed restoration source; keep both versions.");
 }

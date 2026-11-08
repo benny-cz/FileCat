@@ -5,7 +5,7 @@ import hashlib,json,struct,subprocess,sys,zlib
 def verify(root,tool,modules,creations,updates,workflow=None):
  root,tool,modules=map(Path,(root,tool,modules));creations,updates=int(creations),int(updates);sys.path.insert(0,str(modules))
  from Cryptodome.Cipher import AES
- assert workflow in (None,'--workflow','--jobs','--source-case','--moves')
+ assert workflow in (None,'--workflow','--jobs','--source-case','--moves','--cleanup')
  password='Public-RAR-Transform-暗号-42829316' if workflow is None else 'Public-7z-worker-暗号-42829324'
  def vint(data,pos):
   value=0
@@ -106,9 +106,13 @@ def verify(root,tool,modules,creations,updates,workflow=None):
   assert creations==updates==0
   expected={(mode,name) for mode in range(3) for name in ('source-leaves','source-parents')}
   assert {(int(p.parent.name.rsplit('-',1)[1]),p.stem) for p in documents}==expected and len(documents)==6
- else:
+ elif workflow=='--moves':
   assert creations==updates==0
   expected={(mode,name) for mode in range(3) for name in ('moved-created','moved-updated')}
+  assert {(int(p.parent.name.rsplit('-',1)[1]),p.stem) for p in documents}==expected and len(documents)==6
+ else:
+  assert creations==updates==0
+  expected={(mode,name) for mode in range(3) for name in ('clean-created','clean-updated')}
   assert {(int(p.parent.name.rsplit('-',1)[1]),p.stem) for p in documents}==expected and len(documents)==6
  rows=[];payloads=0;metadata=0
  for document in documents:
@@ -132,7 +136,8 @@ def verify(root,tool,modules,creations,updates,workflow=None):
  elif workflow=='--workflow':assert metadata==45 and payloads==39
  elif workflow=='--jobs':assert metadata==creations*8+updates*11 and payloads==creations*5+updates*6
  elif workflow=='--source-case':assert metadata==payloads==12
- else:assert metadata==33 and payloads==21
+ elif workflow=='--moves':assert metadata==33 and payloads==21
+ else:assert metadata==payloads==9
  facts={'creations':creations,'updates_and_restorations':updates,'official_archives':len(documents),'exact_payloads':payloads,
   'independent_metadata_records':metadata,'tool_sha256':hashlib.sha256(tool.read_bytes()).hexdigest(),'rows':rows}
  (root/('independent-native.json' if workflow is None else 'independent-workflow-rar.json')).write_text(json.dumps(facts,indent=2));print(json.dumps({key:value for key,value in facts.items() if key!='rows'}),flush=True)

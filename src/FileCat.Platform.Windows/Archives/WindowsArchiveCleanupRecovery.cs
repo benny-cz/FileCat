@@ -113,7 +113,7 @@ internal sealed class WindowsArchiveCleanupRecovery : IDisposable
                 finally { journalLease.Dispose(); }
             }
         }
-        private static FileIdentity Identity(string value) => new(Convert.ToUInt64(value[..16], 16), value[17..]);
+        private static FileIdentity Identity(string value) => WindowsArchiveRecoveryIdentity.Parse(value);
         private static ArchiveWriteException Changed() => new(ArchiveWriteReason.NeedsReview, "The recovery target, journal or catalog objects changed; retain them for review.");
     }
 }

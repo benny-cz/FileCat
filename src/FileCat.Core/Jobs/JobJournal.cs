@@ -91,6 +91,41 @@ public sealed class JobJournal : IDisposable
         }
     }
 
+    internal void ArchiveCreationCleanup(ArchiveCreationCleanupFacts facts)
+    {
+        ArgumentNullException.ThrowIfNull(facts);
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished || _archiveRecoveryOnly && facts.Sequence == 1)
+                throw new InvalidOperationException("Recovery cannot manufacture a creation cleanup catalog.");
+            _archiveTransactions.ValidateNextCreationCleanup(facts);
+            try { Write(facts.ToJson(), sync: true); } catch { RequireRecovery(); throw; }
+            _archiveTransactions.AcceptCreationCleanup(facts);
+        }
+    }
+    internal void RequireCurrentArchiveCreationCleanup(ArchiveCreationCleanupFacts facts)
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished || _manualRecovery) throw new InvalidOperationException("The creation cleanup journal requires fresh review.");
+            _archiveRecoveryLeaseReview?.Invoke(); _archiveTransactions.RequireCurrentCreationCleanup(facts);
+        }
+    }
+
+    internal ArchiveCreationCleanupFacts CurrentArchiveCreationCleanup(Guid nonce)
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished || _manualRecovery) throw new InvalidOperationException("The creation cleanup journal requires fresh review.");
+            _archiveRecoveryLeaseReview?.Invoke();
+            var facts = _archiveTransactions.Snapshot.CreationCleanups.Single(facts => facts.Nonce == nonce);
+            _archiveTransactions.RequireCurrentCreationCleanup(facts); return facts;
+        }
+    }
+
     internal void ArchiveContentCleanup(ArchiveContentCleanupFacts facts)
     {
         if (_archiveRecoveryOnly) throw new InvalidOperationException("Recovery cannot manufacture live creator cleanup authority.");
@@ -352,7 +387,7 @@ public sealed class JobJournal : IDisposable
 
     private void Write(JsonObject record, bool sync)
     {
-        if (_archiveRecoveryOnly && record["t"]?.GetValue<string>() is not ("archive-content-recovery" or "archive-content-restoration" or "end"))
+        if (_archiveRecoveryOnly && record["t"]?.GetValue<string>() is not ("archive-content-recovery" or "archive-content-restoration" or "archive-creation-cleanup" or "end"))
             throw new InvalidOperationException("This retained recovery writer only appends reconciliation and closure records.");
         var json = record.ToJsonString();
         var bytes = Encoding.UTF8.GetBytes(json);

@@ -1,5 +1,13 @@
 # Archive writing implementation status
 
+**8 November: automatic native cleanup and creation recovery implemented, unregistered.**
+[Automatic cleanup and creation recovery](ARCHIVE_AUTOMATIC_CLEANUP.md) pass the focused platform checks,
+complete Core regressions, Windows native/crash/application matrix and independent readers. The
+[checkpoint](native-cleanup-checkpoint.json) binds current source/PDB inputs and archive bytes and records zero
+remaining owned test instances on all three platforms.
+The Windows candidate cleans creation/update artifacts by default, preserves committed outcomes on cleanup failure,
+and exposes creation/RAR5/7z retained-file review. No new writer is registered and the overall goal remains active.
+
 **8 November: Windows native F6 and shared source accounting implemented, unregistered.**
 [Native moves](NATIVE_ARCHIVE_MOVES.md) add captured-source removal after reviewed publication, directory
 change tracking, exclusions and partial/canceled move accounting. The legacy ZIP case-distinct source accounting

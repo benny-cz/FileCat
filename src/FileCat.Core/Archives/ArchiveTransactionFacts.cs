@@ -379,7 +379,8 @@ public sealed class ArchiveTransactionFacts
              (ArchiveTransactionPhase.ReadyToPublish, ArchiveTransactionPhase.Publishing) or
              (ArchiveTransactionPhase.Publishing, ArchiveTransactionPhase.Reconciling) or
              (ArchiveTransactionPhase.Reconciling, ArchiveTransactionPhase.Cleaning) or
-             (ArchiveTransactionPhase.Cleaning, ArchiveTransactionPhase.CommittedWithRetainedArtifacts)))
+             (ArchiveTransactionPhase.Cleaning, ArchiveTransactionPhase.CommittedWithRetainedArtifacts) or
+             (ArchiveTransactionPhase.Cleaning, ArchiveTransactionPhase.Committed)))
             throw new InvalidOperationException("The transaction is not advancing new-file publication.");
         return new(Nonce, Sequence + 1, Profile, phase, ArchivePath, ParentIdentity, null, StagePath, StageIdentity,
             VerifiedStage, RetainedPath, ManifestPath, Manifest, security ?? SecuritySnapshotSha256, published ?? Published, null,
@@ -458,11 +459,14 @@ public sealed record ArchiveTransactionRecovery(IReadOnlyList<ArchiveTransaction
     public IReadOnlyList<ArchiveContentCleanupFacts> ContentCleanups { get; init; } = [];
     public IReadOnlyList<ArchiveContentRecoveryFacts> ContentRecoveries { get; init; } = [];
     public IReadOnlyList<ArchiveContentRestorationFacts> ContentRestorations { get; init; } = [];
+    public IReadOnlyList<ArchiveCreationCleanupFacts> CreationCleanups { get; init; } = [];
+    public bool IsCreationResolved(Guid nonce) => CreationCleanups.Any(cleanup => cleanup.Nonce == nonce && cleanup.IsResolved);
     public bool IsContentResolved(Guid nonce) => ContentRecoveries.Any(recovery => recovery.Nonce == nonce && recovery.IsResolved) ||
         ContentUpdates.Any(content => content.Nonce == nonce && content.Phase == ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts) &&
         ContentCleanups.Any(cleanup => cleanup.Nonce == nonce && cleanup.IsResolved);
     public bool RequiresReview => HasRecords && (Problem is not null || ContentUpdates.Any(t => !IsContentResolved(t.Nonce)) ||
-        Transactions.Any(t => !t.IsResolved && !IsContentResolved(t.Nonce)));
+        CreationCleanups.Any(cleanup => !cleanup.IsResolved) ||
+        Transactions.Any(t => !t.IsResolved && !IsContentResolved(t.Nonce) && !IsCreationResolved(t.Nonce)));
 }
 
 internal sealed class ArchiveTransactionCollector
@@ -473,6 +477,7 @@ internal sealed class ArchiveTransactionCollector
     private readonly Dictionary<Guid, ArchiveContentCleanupFacts> cleanup = [];
     private readonly Dictionary<Guid, ArchiveContentRecoveryFacts> recovery = [];
     private readonly Dictionary<Guid, ArchiveContentRestorationFacts> restoration = [];
+    private readonly Dictionary<Guid, ArchiveCreationCleanupFacts> creationCleanup = [];
     private bool hasRecords;
     private bool damaged;
     private bool legacy;
@@ -484,12 +489,22 @@ internal sealed class ArchiveTransactionCollector
         problem ?? (legacy ? "This legacy archive journal lacks complete provenance evidence; retain its recorded artifacts for archive-specific review." :
             hasRecords && damaged ? "The archive transaction journal contains damaged or incomplete records." : null))
         { ContentUpdates = Array.AsReadOnly(content.Values.ToArray()), ContentCleanups = Array.AsReadOnly(cleanup.Values.ToArray()),
-            ContentRecoveries = Array.AsReadOnly(recovery.Values.ToArray()), ContentRestorations = Array.AsReadOnly(restoration.Values.ToArray()) };
+            ContentRecoveries = Array.AsReadOnly(recovery.Values.ToArray()), ContentRestorations = Array.AsReadOnly(restoration.Values.ToArray()),
+            CreationCleanups = Array.AsReadOnly(creationCleanup.Values.ToArray()) };
     public void DamagedRecord() => damaged = true;
     public void ValidateNext(ArchiveTransactionFacts facts)
     {
         if (problem is not null || damaged) throw new InvalidOperationException("The archive transaction journal is not writable.");
         if (content.ContainsKey(facts.Nonce)) throw new InvalidOperationException("A content-update recipe has frozen this preparation.");
+        if (creationCleanup.TryGetValue(facts.Nonce, out var cleanup))
+        {
+            if (facts.Phase is not (ArchiveTransactionPhase.Committed or ArchiveTransactionPhase.CommittedWithRetainedArtifacts) ||
+                facts.Phase == ArchiveTransactionPhase.Committed && !cleanup.IsResolved ||
+                facts.Phase == ArchiveTransactionPhase.CommittedWithRetainedArtifacts &&
+                    !facts.UnresolvedArtifacts.SequenceEqual(cleanup.Artifacts.Skip(cleanup.ReviewedCount).Select(artifact => artifact.Path)))
+                throw new InvalidOperationException("Creation cleanup has frozen this publication until all sidecars are reconciled.");
+            cleanup.ValidatePreparation(facts);
+        }
         if (!latest.ContainsKey(facts.Nonce) && latest.Count >= MaxTransactions) throw new ArgumentException("Too many archive transactions.");
         facts.ValidateAfter(latest.GetValueOrDefault(facts.Nonce));
     }
@@ -516,6 +531,18 @@ internal sealed class ArchiveTransactionCollector
     }
     internal void AcceptCleanup(ArchiveContentCleanupFacts facts)
     { ValidateNextCleanup(facts); cleanup[facts.Nonce] = facts; hasRecords = true; }
+    internal void ValidateNextCreationCleanup(ArchiveCreationCleanupFacts facts)
+    {
+        if (problem is not null || damaged || content.ContainsKey(facts.Nonce)) throw new InvalidOperationException("The creation cleanup journal is not writable.");
+        facts.ValidateAfter(Current(facts.Nonce), creationCleanup.GetValueOrDefault(facts.Nonce));
+    }
+    internal void AcceptCreationCleanup(ArchiveCreationCleanupFacts facts)
+    { ValidateNextCreationCleanup(facts); creationCleanup[facts.Nonce] = facts; hasRecords = true; }
+    internal void RequireCurrentCreationCleanup(ArchiveCreationCleanupFacts facts)
+    {
+        if (problem is not null || damaged || !ReferenceEquals(creationCleanup.GetValueOrDefault(facts.Nonce), facts))
+            throw new InvalidOperationException("The supplied creation cleanup facts are not current durable facts.");
+    }
     internal void RequireCurrentCleanup(ArchiveContentCleanupFacts facts)
     {
         if (problem is not null || damaged || !ReferenceEquals(cleanup.GetValueOrDefault(facts.Nonce), facts))
@@ -586,6 +613,11 @@ internal sealed class ArchiveTransactionCollector
         if (ended) damaged = true;
         try
         {
+            if (type == ArchiveCreationCleanupFacts.RecordType)
+            {
+                if (headerVersion != ArchiveTransactionFacts.SchemaVersion) throw new ArgumentException("The creation cleanup header is unsupported.");
+                AcceptCreationCleanup(ArchiveCreationCleanupFacts.Parse(node)); return;
+            }
             if (type == ArchiveContentRestorationFacts.RecordType)
             {
                 if (headerVersion != ArchiveTransactionFacts.SchemaVersion) throw new ArgumentException("The restoration header is unsupported.");

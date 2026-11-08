@@ -99,6 +99,12 @@ cases cover distinct source files/parents across all six container/password prof
 retains the preceding full-suite inventory plus the two new cases. Continue native cleanup/F6 and the shared UI;
 this component does not complete their qualification or enable a profile.
 
+The [automatic cleanup/creation recovery packet](../validation/archive-writing/ARCHIVE_AUTOMATIC_CLEANUP.md)
+adds durable creation-sidecar outcomes, default Windows native cleanup, and creation/RAR5/7z retained-file review.
+Its focused platform checks, complete Core regressions, Windows native/crash/application matrix and independent
+readers pass. Exact Core/worker binary checks permit labeled reuse after isolated fixture corrections. Full
+application workflows, Unix native mutation, production qualification and the final independent review remain open.
+
 The [native F6 packet](../validation/archive-writing/NATIVE_ARCHIVE_MOVES.md) now connects shared source accounting
 and Windows native removal after verified publication. Its checkpoint records twenty actual create/update moves
 across all container/password profiles, native stream/directory guards and independent readers. The legacy

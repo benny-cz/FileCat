@@ -8,12 +8,12 @@ namespace FileCat.Platform.Windows.Archives;
 /// <summary>Unregistered qualification candidate using the actual confined application worker and NTFS recipes.</summary>
 internal static class WindowsArchiveJobBackend
 {
-    internal static IArchiveJobBackend Create(ArchiveWriteFormat format, string executable)
+    internal static IArchiveJobBackend Create(ArchiveWriteFormat format, string executable, bool retainArtifacts = false)
     {
         if (!Path.IsPathFullyQualified(executable)) throw new ArgumentException("An absolute application worker is required.", nameof(executable));
         return new ArchiveNativeJobBackend<WindowsArchiveFile>(format,
             _ => OperatingSystem.IsWindows() ? ArchiveJobAvailability.Ready : ArchiveJobAvailability.Unqualified,
-            (plan, ct) => new Scope(plan, ct),
+            (plan, ct) => new Scope(plan, ct, retainArtifacts),
             new((nonce, cpu) => ArchiveAppContainer.StartAssessment(executable, nonce, cpu, 2), protocolVersion: 2),
             new((nonce, cpu) => ArchiveAppContainer.StartTransform(executable, nonce, cpu, 2), protocolVersion: 2),
             new((nonce, cpu) => ArchiveAppContainer.StartVerification(executable, nonce, cpu, 2), protocolVersion: 2), supportsSourceRemoval: true);
@@ -28,9 +28,11 @@ internal static class WindowsArchiveJobBackend
         private ArchiveFileObservation? publishedObservation;
         private string? publicationPinFailure;
         private bool ownsPublicationTarget;
+        private readonly bool retainArtifacts;
         public ArchiveRetainedBinding? Original { get; }
-        internal Scope(ArchivePlan plan, CancellationToken ct)
+        internal Scope(ArchivePlan plan, CancellationToken ct, bool retainArtifacts)
         {
+            this.retainArtifacts = retainArtifacts;
             ct.ThrowIfCancellationRequested();
             directory = WindowsArchiveDirectory.Open(Path.GetDirectoryName(plan.ArchivePath) ?? throw new ArgumentException("A target directory is required."));
             try
@@ -52,9 +54,9 @@ internal static class WindowsArchiveJobBackend
         {
             if (original is null)
             {
-                var created = ArchiveNewFilePublication.PublishAsync(journal, prepared, inputs, directory.CreateArtifact, ct).GetAwaiter().GetResult();
+                var created = ArchiveNewFilePublication.PublishAsync(journal, prepared, inputs, directory.CreateArtifact, ct, cleanup: !retainArtifacts).GetAwaiter().GetResult();
                 publicationTarget = prepared.Stage; publishedObservation = created.Published;
-                return new(created.Published, created.Facts.UnresolvedArtifacts);
+                return new(created.Published, created.Facts.UnresolvedArtifacts) { CleanupNeedsReview = !created.Cleanup.IsResolved };
             }
             update = WindowsArchiveContentUpdate.Publish(journal, prepared, original, inputs, TimeSpan.FromMinutes(2), ct);
             publishedObservation = update.Published;
@@ -76,6 +78,14 @@ internal static class WindowsArchiveJobBackend
             var file = (IArchiveRetainedFile)publicationTarget;
             if (verifyBytes) file.Review(published.Published, ct);
             else { using var view = file.OpenReadView(published.Published, ct); }
+        }
+        public ArchiveJobPublication CleanupPublication(JobJournal journal, ArchiveJobPublication published, CancellationToken ct)
+        {
+            if (retainArtifacts || update is null || ct.IsCancellationRequested) return published;
+            try { update.Cleanup(journal, ct); }
+            catch (Exception error) when (error is OperationCanceledException or IOException or UnauthorizedAccessException or NotSupportedException or Win32Exception) { }
+            return new(published.Published, Array.AsReadOnly(update.CleanupFacts.Artifacts.Skip(update.CleanupFacts.DeletedCount).Select(artifact => artifact.Path).ToArray()))
+                { CleanupNeedsReview = !update.CleanupFacts.IsResolved };
         }
         public void Dispose()
         {

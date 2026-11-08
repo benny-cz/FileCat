@@ -5,18 +5,30 @@ using FileCat.Core.Jobs;
 
 namespace FileCat.App.Services;
 
+internal interface IArchiveRetainedCleanupReview : IDisposable
+{
+    string ArchivePath { get; }
+    IReadOnlyList<string> FilesToRemove { get; }
+    IReadOnlyList<string> ObservedAbsent { get; }
+    bool RemovesBackup { get; }
+    string TargetDescription { get; }
+    void Execute(CancellationToken ct);
+    void Finish();
+    string Report(string outcome);
+}
+
 /// <summary>Owns one native review through approval and exact cleanup. Displayed paths confer no authority.</summary>
-internal sealed class ArchiveCleanupReview : IDisposable
+internal sealed class ArchiveCleanupReview : IArchiveRetainedCleanupReview
 {
     private readonly IArchiveContentCleanupRecoveryLease lease;
     private readonly ArchiveContentCleanupRecovery recovery;
     private readonly int previouslyReviewed;
     private readonly string[] linkedRestorations;
-    internal string ArchivePath => lease.Catalog.ArchivePath;
-    internal IReadOnlyList<string> FilesToRemove { get; }
-    internal IReadOnlyList<string> ObservedAbsent { get; }
-    internal bool RemovesBackup => FilesToRemove.Contains(lease.Catalog.Artifacts[^1].Path, StringComparer.Ordinal);
-    internal string TargetDescription => lease.Candidate.TargetState switch
+    public string ArchivePath => lease.Catalog.ArchivePath;
+    public IReadOnlyList<string> FilesToRemove { get; }
+    public IReadOnlyList<string> ObservedAbsent { get; }
+    public bool RemovesBackup => FilesToRemove.Contains(lease.Catalog.Artifacts[^1].Path, StringComparer.Ordinal);
+    public string TargetDescription => lease.Candidate.TargetState switch
     {
         ArchiveContentRecoveryTarget.OriginalIntact => "The current archive matches the version from before this operation.",
         ArchiveContentRecoveryTarget.PublishedIntact => "The current archive matches the prepared update.",
@@ -24,16 +36,20 @@ internal sealed class ArchiveCleanupReview : IDisposable
         _ => throw new InvalidOperationException("Unknown archive review state."),
     };
 
-    internal static bool CanOffer(InterruptedJob job)
+    internal static bool CommonScope(InterruptedJob job)
     {
         var facts = job.ArchiveTransactions;
         return job.Kind == nameof(JobKind.ArchiveUpdate) && facts.Problem is null && facts.Transactions.Count == 1 &&
-            facts.ContentUpdates.Count == 1 && facts.ContentCleanups.Count == 1 && job.OpenIntents.Count == 0 &&
+            job.OpenIntents.Count == 0 &&
             job.StagingDirectories.Count == 0 && job.FillDirectories.Count == 0 && !job.FillDirectoriesCut && job.ManifestPath is null &&
-            facts.Transactions[0].Nonce == facts.ContentUpdates[0].Nonce && facts.ContentUpdates[0].Nonce == facts.ContentCleanups[0].Nonce &&
             facts.Transactions[0].RecordVersion == ArchiveTransactionFacts.SchemaVersion &&
-            facts.Transactions[0].Profile.Format is ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd;
+            facts.Transactions[0].Profile.Format is ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or
+                ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip;
     }
+    internal static bool CanOffer(InterruptedJob job) => CommonScope(job) && job.ArchiveTransactions.ContentUpdates.Count == 1 &&
+        job.ArchiveTransactions.ContentCleanups.Count == 1 && job.ArchiveTransactions.CreationCleanups.Count == 0 &&
+        job.ArchiveTransactions.Transactions[0].Nonce == job.ArchiveTransactions.ContentUpdates[0].Nonce &&
+        job.ArchiveTransactions.ContentUpdates[0].Nonce == job.ArchiveTransactions.ContentCleanups[0].Nonce;
 
     internal ArchiveCleanupReview(IArchiveContentCleanupRecoveryLease lease)
     {
@@ -51,8 +67,9 @@ internal sealed class ArchiveCleanupReview : IDisposable
         catch { lease.Dispose(); throw; }
     }
     internal ArchiveContentRecoveryFacts Execute(CancellationToken ct) => recovery.ResumeCleanup(ct);
-    internal void Finish() => recovery.Finish("User approved keeping the freshly reviewed archive and reconciling its exact retained-file catalog.");
-    internal string Report(string outcome)
+    void IArchiveRetainedCleanupReview.Execute(CancellationToken ct) => Execute(ct);
+    public void Finish() => recovery.Finish("User approved keeping the freshly reviewed archive and reconciling its exact retained-file catalog.");
+    public string Report(string outcome)
     {
         var facts = recovery.Facts;
         var text = new StringBuilder("Archive retained-file cleanup review\n\n");

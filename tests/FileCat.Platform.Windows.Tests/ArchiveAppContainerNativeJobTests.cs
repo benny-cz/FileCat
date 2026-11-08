@@ -27,7 +27,7 @@ public sealed partial class ArchiveAppContainerTests
             File.WriteAllText(Path.Combine(root, "a/tree") + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=2\r\n");
             var profile = ArchiveNativeJobCases.Profile(format, mode);
             string target = Path.Combine(root, "typed-output.zip"), journals = Path.Combine(root, "journals");
-            var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), journals, new([WindowsArchiveJobBackend.Create(format, executable)]));
+            var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), journals, new([WindowsArchiveJobBackend.Create(format, executable, retainArtifacts: true)]));
             manager.DecisionRequested += pending => Assert.Fail("Fixture has no conflict or exclusion: " + pending.Request.Message);
             using var password = mode == 0 ? null : new ArchiveJobPassword(ArchiveNativeJobCases.Password);
             var created = manager.SubmitArchive(new(target, null, changes, Profile: profile), password); await ArchiveNativeJobCases.Finished(created);

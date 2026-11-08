@@ -21,6 +21,20 @@ namespace FileCat.App.Tests;
 public sealed class ArchiveRetainedCleanupUiTests
 {
     [AvaloniaTheory]
+    [InlineData(ArchiveWriteFormat.Rar5, false)] [InlineData(ArchiveWriteFormat.Rar5, true)]
+    [InlineData(ArchiveWriteFormat.SevenZip, false)] [InlineData(ArchiveWriteFormat.SevenZip, true)]
+    public async Task RAR_and_7z_retained_updates_offer_the_same_reviewed_cleanup_journey(ArchiveWriteFormat format, bool approve)
+    {
+        using var f = await Fixture.Create(approve ? "approve" : "cancel", format);
+        Assert.True(Assert.Single(f.Vm.Operations.Interrupted).CanCleanup);
+        var operation = f.Vm.CleanupInterruptedAsync(f.Job);
+        await Wait(() => f.Button("Keep archive and clean up") is not null);
+        f.AssertAllPresent(); f.Click(approve ? "Keep archive and clean up" : "Cancel");
+        Assert.Equal(approve, await operation);
+        Assert.All(f.Catalog.Artifacts, artifact => Assert.Equal(!approve, File.Exists(artifact.Path)));
+        Assert.Equal(f.Published.Version.Sha256, Fixture.Hash(f.Archive));
+    }
+    [AvaloniaTheory]
     [InlineData(1280, 800)]
     [InlineData(900, 640)]
     [InlineData(640, 420)]
@@ -156,13 +170,15 @@ public sealed class ArchiveRetainedCleanupUiTests
         public void AssertAllPresent() => Assert.All(Catalog.Artifacts, item => Assert.True(File.Exists(item.Path)));
         public static string Hash(string path) { using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite); return Convert.ToHexString(SHA256.HashData(stream)); }
         public static byte[] Bytes(string path) { using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite); using var copy = new MemoryStream(); stream.CopyTo(copy); return copy.ToArray(); }
-        public static async Task<Fixture> Create(string mode)
+        public static async Task<Fixture> Create(string mode, ArchiveWriteFormat format = ArchiveWriteFormat.Tar)
         {
             var (services, vm, window, root) = AccessibilityTests.OpenMainWindow();
             try
             {
                 if (typeof(MainWindow).GetField("_interruptedStartup", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(window) is Task startup) await startup;
                 var absent = ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier); Guid nonce = Guid.NewGuid();
+                var profile = format switch { ArchiveWriteFormat.Rar5 => ArchiveWriteProfile.ForRar5(),
+                    ArchiveWriteFormat.SevenZip => ArchiveWriteProfile.ForSevenZip(), _ => new ArchiveWriteProfile(format) };
                 string archive = Path.Combine(root, "archive.tar"), stage = Path.Combine(root, ".stage"), snapshot = Path.Combine(root, ".snapshot");
                 File.WriteAllBytes(archive, Enumerable.Repeat((byte)'a', 1024).ToArray()); File.Copy(archive, snapshot);
                 File.WriteAllBytes(stage, Enumerable.Repeat((byte)'b', 2048).ToArray());
@@ -174,12 +190,12 @@ public sealed class ArchiveRetainedCleanupUiTests
                     string path = Path.Combine(root, "." + role); File.WriteAllBytes(path, new byte[512]);
                     return new ArchiveSidecarFacts(role, path, 512, role.ToString(), new(role.ToString(), 512, Hash(path)), role == ArchiveSidecarRole.OriginEvidence ? 1 : null);
                 }).ToArray();
-                ArchiveTransactionFacts Prep(int sequence, ArchiveTransactionPhase phase) => new(nonce, sequence, new(ArchiveWriteFormat.Tar), phase,
+                ArchiveTransactionFacts Prep(int sequence, ArchiveTransactionPhase phase) => new(nonce, sequence, profile, phase,
                     archive, "parent", original.Version, stage, stageVersion.Identity, sequence == 5 ? stageVersion : null,
                     manifestPath: sidecars[0].Path, manifest: sidecars[0].Version, originEvidencePath: sidecars[1].Path, originEvidenceIdentity: sidecars[1].Identity,
                     originEvidenceSources: 1, originEvidence: sidecars[1].Version, stageMaximumLength: 2048, sidecars: sidecars, finalizedStage: sequence >= 4 ? stageVersion : null);
                 using var writer = JobJournal.Create(services.Paths.JournalDirectory, new Job(new JobRequest { Kind = JobKind.ArchiveUpdate,
-                    Archive = new(archive, null, [], Profile: new(ArchiveWriteFormat.Tar)) }, "retained cleanup UI fixture", "owned", [], []));
+                    Archive = new(archive, null, [], Profile: profile) }, "retained cleanup UI fixture", "owned", [], []));
                 foreach (var (sequence, phase) in new[] { (1, ArchiveTransactionPhase.Reserved), (2, ArchiveTransactionPhase.Rebuilding), (3, ArchiveTransactionPhase.Finalizing), (4, ArchiveTransactionPhase.Verifying), (5, ArchiveTransactionPhase.Verifying) }) writer.ArchiveTransaction(Prep(sequence, phase));
                 var preparation = Prep(5, ArchiveTransactionPhase.Verifying);
                 var reservation = new ArchiveArtifactReservation(new object(), nonce, ArchiveArtifactKind.Stage, root, "parent", 1024);

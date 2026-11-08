@@ -29,7 +29,7 @@ public sealed partial class ArchiveAppContainerTests
             foreach (string path in new[] { a, b, Path.Combine(folder, "sub/file") }) File.SetLastWriteTimeUtc(path, DateTime.UnixEpoch.AddSeconds(1700000000).AddTicks(7));
             var profile = ArchiveNativeJobCases.Profile(format, mode); string target = Path.Combine(root, "output.zip"), journals = Path.Combine(root, "journals");
             var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), journals,
-                new([WindowsArchiveJobBackend.Create(format, Path.Combine(assets!, "FileCat.exe"))]));
+                new([WindowsArchiveJobBackend.Create(format, Path.Combine(assets!, "FileCat.exe"), retainArtifacts: true)]));
             manager.DecisionRequested += pending => Assert.Fail(pending.Request.Message);
             using var password = mode == 0 ? null : new ArchiveJobPassword(ArchiveNativeJobCases.Password);
             var job = manager.SubmitArchive(new(target, null,

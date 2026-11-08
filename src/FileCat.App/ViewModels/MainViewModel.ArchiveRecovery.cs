@@ -10,17 +10,21 @@ public sealed partial class MainViewModel
 {
     private async Task<bool> CleanupArchiveRetainedAsync(InterruptedJob job, RecoveryActionScope scope)
     {
-        if (!ArchiveCleanupReview.CanOffer(job) || Services.ArchiveCleanupLease is not { } open)
+        bool creation = ArchiveCreationCleanupReview.CanOffer(job);
+        if (!(creation ? Services.ArchiveCreationCleanupLease is not null : Services.ArchiveCleanupLease is not null && ArchiveCleanupReview.CanOffer(job)))
         { Notify(ArchiveReviewRequired, true); return false; }
-        ArchiveCleanupReview? review = null; bool approved = false, closed = false;
+        IArchiveRetainedCleanupReview? review = null; bool approved = false, closed = false;
         RecoveryReviewRecord? record = null;
         try
         {
             scope.SetPhase(RecoveryActionPhase.Reviewing, "Reviewing the archive and its retained files…");
             // Retain ownership even if cancellation fires during native acquisition and the IO helper's
             // post-call check throws before returning its result to this method.
-            await MutationIoAsync(job.JournalPath, () => review = new ArchiveCleanupReview(open(job.JournalPath,
-                job.ArchiveTransactions.Transactions[0].Nonce, scope.StopSource.Token)), scope.Check);
+            await MutationIoAsync(job.JournalPath, () => review = creation
+                ? new ArchiveCreationCleanupReview(Services.ArchiveCreationCleanupLease!(job.JournalPath,
+                    job.ArchiveTransactions.Transactions[0].Nonce, scope.StopSource.Token), job.ArchiveTransactions.Transactions[0].ArchivePath)
+                : new ArchiveCleanupReview(Services.ArchiveCleanupLease!(job.JournalPath,
+                    job.ArchiveTransactions.Transactions[0].Nonce, scope.StopSource.Token)), scope.Check);
             if (review is null) throw new IOException("The native archive cleanup review did not open.");
             string details = "Keep this archive: " + Formatters.SafeName(review.ArchivePath) + "\n\n" + review.TargetDescription +
                 $"\n\nPermanently remove {Formatters.Plural(review.FilesToRemove.Count, "retained file", "retained files")}:\n" +
@@ -40,7 +44,7 @@ public sealed partial class MainViewModel
             var location = Location.FileSystem(review.ArchivePath);
             // Once native work may have happened, do not turn a late cancellation into an unreported outcome.
             await Services.Io.Run(Services.Providers.For(location).GetDeviceKey(location), IoPriority.Normal,
-                _ => review.Execute(scope.StopSource.Token));
+                _ => { review.Execute(scope.StopSource.Token); return true; });
             record = new(job.JournalPath, job.Title, job.Kind, DateTime.UtcNow, "Archive cleanup completed; closing tracking",
                 review.Report("User-approved exact cleanup completed; tracking closure has not yet been confirmed."), ClosureConfirmed: false);
             await SaveArchiveCleanupReport(record);

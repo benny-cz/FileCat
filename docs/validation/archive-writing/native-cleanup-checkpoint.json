@@ -1,0 +1,229 @@
+{
+  "status": "Automatic Windows cleanup and creation recovery component validated; unregistered; overall goal active",
+  "production_backend_qualified": false,
+  "implementation_base": "f268b89a",
+  "date": "2026-11-08",
+  "limitations": [
+    "Unix exact cleanup/update/removal and confinement are not qualified by the portable UI cases.",
+    "Shared creation/member/edit/password UI, broader interrupted-move/large-manifest recovery, resource/crash/fuzz/RID/package gates and final independent review remain.",
+    "Unix Core evidence combines a clean full v4 run with a labeled v7 fixture follow-up; Core/worker binary dependencies are hash-identical."
+  ],
+  "platforms": {
+    "mac": {
+      "platform": "mac",
+      "bytes": 44006796,
+      "sha256": "99527c07e75cd9e31a1f465678809b2c7f751eadf7dd40be9d2f8581dace8fd3",
+      "rows": 3994,
+      "core": {
+        "Passed": 8151,
+        "NotExecuted": 207
+      },
+      "tests": {
+        "archive-native-cleanup-core.trx": {
+          "Passed": 8151,
+          "NotExecuted": 207
+        },
+        "cleanup-preflight.trx": {
+          "Passed": 26
+        },
+        "cleanup-ui.trx": {
+          "Passed": 27
+        }
+      },
+      "current_CSharp_sources_bound": 23,
+      "DLL_PDB_pairs_bound": 15,
+      "core_reused_with_focused_fixture_followup": true,
+      "census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "production_backend_qualified": false
+    },
+    "ubuntu": {
+      "platform": "ubuntu",
+      "bytes": 44010987,
+      "sha256": "252c5b30678b49d115b08c824eff5d6ae0648cad1f0c853e1982d9eb7498bde4",
+      "rows": 3995,
+      "core": {
+        "Passed": 8173,
+        "NotExecuted": 185
+      },
+      "tests": {
+        "archive-native-cleanup-core.trx": {
+          "Passed": 8173,
+          "NotExecuted": 185
+        },
+        "cleanup-preflight.trx": {
+          "Passed": 26
+        },
+        "cleanup-ui.trx": {
+          "Passed": 27
+        }
+      },
+      "current_CSharp_sources_bound": 23,
+      "DLL_PDB_pairs_bound": 15,
+      "core_reused_with_focused_fixture_followup": true,
+      "census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "production_backend_qualified": false
+    },
+    "windows": {
+      "platform": "windows",
+      "bytes": 170645474,
+      "sha256": "984e619ea103faaecf20498d30535e60668d22a39271c105bd549a2924d809b5",
+      "rows": 4937,
+      "core": {
+        "Passed": 7902,
+        "NotExecuted": 461
+      },
+      "tests": {
+        "app-entry.trx": {
+          "Passed": 14
+        },
+        "archive-native-cleanup-core.trx": {
+          "Passed": 7902,
+          "NotExecuted": 461
+        },
+        "cleanup-identity.trx": {
+          "Passed": 13
+        },
+        "cleanup-native-crashes.trx": {
+          "Passed": 18
+        },
+        "cleanup-native-preflight.trx": {
+          "Passed": 10
+        },
+        "cleanup-preflight.trx": {
+          "Passed": 26
+        },
+        "cleanup-ui.trx": {
+          "Passed": 27
+        },
+        "native.trx": {
+          "Passed": 207
+        }
+      },
+      "current_CSharp_sources_bound": 29,
+      "DLL_PDB_pairs_bound": 17,
+      "core_reused_with_focused_fixture_followup": false,
+      "census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "production_backend_qualified": false
+    }
+  },
+  "native_profiles": 10,
+  "native_create_update_and_retained_create_jobs": 30,
+  "native_recovery_crash_points": 18,
+  "native_identity_parser_cases": 13,
+  "real_native_UI_approval_cancel_cases": 4,
+  "independent_cleaned_archives": 20,
+  "preserved_failed_phases": [
+    {
+      "platform": "mac",
+      "phase": 1,
+      "evidence": "mac-native-cleanup-v1-failed-evidence",
+      "bytes": 14273339,
+      "sha256": "c921d781dd424cd28036ab7a1074827a575c01112493853b81986b6398535946",
+      "rows": 2136,
+      "failed": 25,
+      "source_checksums": true
+    },
+    {
+      "platform": "ubuntu",
+      "phase": 1,
+      "evidence": "ubuntu-native-cleanup-v1-failed-evidence",
+      "bytes": 14264979,
+      "sha256": "bb9c7d1742ce38df8875bfbe240ff3c1c439f059856014ce25d79d4469759ea6",
+      "rows": 2137
+    },
+    {
+      "platform": "windows",
+      "phase": 1,
+      "evidence": "windows-native-cleanup-v1-failed-evidence",
+      "bytes": 140507464,
+      "sha256": "5445bd260cd12aca1373f71482d040b61db285b75b35d50a1eb62df8a2701133",
+      "rows": 2767,
+      "counters": {
+        "total": "25",
+        "executed": "25",
+        "passed": "0",
+        "failed": "25",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      },
+      "source_checksums": true
+    },
+    {
+      "platform": "mac",
+      "phase": 2,
+      "evidence": "mac-native-cleanup-v2-failed-evidence",
+      "bytes": 14158965,
+      "sha256": "544717a862fab80f6c9b0a0fa92464e932c65fb5194226571087e1fa1a7a469c",
+      "rows": 2130,
+      "passed": 18,
+      "failed": 8,
+      "source_checksums": true
+    },
+    {
+      "platform": "ubuntu",
+      "phase": 2,
+      "evidence": "ubuntu-native-cleanup-v2-failed-evidence",
+      "bytes": 14146031,
+      "sha256": "88cc481494b6e72843159c5612cdc171b28b2e23c1e1160d04417c8bb2b6f54e",
+      "rows": 2131,
+      "passed": 18,
+      "failed": 8,
+      "source_checksums": true
+    },
+    {
+      "platform": "mac",
+      "phase": 3,
+      "evidence": "mac-native-cleanup-v3-failed-evidence",
+      "bytes": 14160299,
+      "sha256": "12e19f56a1ff7a417e2f0cba72b404ea654013e566cd5d3a9d36e88ba70b8159",
+      "rows": 2126,
+      "counters": {
+        "total": "27",
+        "executed": "27",
+        "passed": "17",
+        "failed": "10",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      },
+      "source_checksums": true
+    },
+    {
+      "platform": "windows",
+      "phase": 3,
+      "evidence": "windows-native-cleanup-v3-failed-evidence",
+      "bytes": 155759037,
+      "sha256": "bfbc707b486a04c80ae2efc08cc1d856297946ccce8ba689e45c60a06a208237",
+      "rows": 2763
+    }
+  ]
+}

@@ -42,8 +42,9 @@ def finish(batch):
  shutil.copyfile(deps,out/deps.name);(out/'writing-closure.json').write_text(json.dumps({'libraries':sorted(libraries),'Rar15_or_DiscUtils_present':False},indent=2))
  binaries=out/'binaries';binaries.mkdir();rows=[]
  projects=['tests/FileCat.Core.Tests','tests/FileCat.WorkerProbe','src/FileCat.ArchiveWorker','src/FileCat.Archives.Writing']
+ if (out/'cleanup-ui.log').exists():projects+=['tests/FileCat.App.Tests']
  folders=[root/p/'bin/Release/net10.0' for p in projects]
- if sys.platform=='win32':folders += [root/p/'bin/Release/net10.0' for p in ('tests/FileCat.Platform.Windows.Tests','tests/FileCat.App.Tests')]+[out/'app',out/'probe']
+ if sys.platform=='win32':folders += [root/p/'bin/Release/net10.0' for p in ('tests/FileCat.Platform.Windows.Tests','tests/FileCat.App.Tests') if p not in projects]+[out/'app',out/'probe']
  for folder in folders:
   for file in sorted(folder.iterdir()):
    if file.is_file() and (file.name.startswith('FileCat.') or file.name in ('FileCat.dll','FileCat.pdb')) and file.suffix in ('.dll','.pdb'):

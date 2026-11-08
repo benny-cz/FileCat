@@ -2,7 +2,10 @@ using FileCat.Core.Jobs;
 
 namespace FileCat.Core.Archives;
 
-internal sealed record ArchiveJobPublication(ArchiveFileObservation Published, IReadOnlyList<string> RetainedArtifacts);
+internal sealed record ArchiveJobPublication(ArchiveFileObservation Published, IReadOnlyList<string> RetainedArtifacts)
+{
+    internal bool CleanupNeedsReview { get; init; }
+}
 
 /// <summary>Native authority acquired at execution time; implementations never borrow paths from a worker.</summary>
 internal interface IArchiveJobNativeScope<T> : IDisposable where T : class, IArchiveRetainedStage
@@ -17,6 +20,7 @@ internal interface IArchiveJobNativeScope<T> : IDisposable where T : class, IArc
     // the first removal; later checks may use that pin plus complete current namespace/metadata evidence.
     void ReviewPublication(ArchiveJobPublication published, bool verifyBytes, CancellationToken ct)
         => throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, "The native published archive cannot be pinned for source removal.");
+    ArchiveJobPublication CleanupPublication(JobJournal journal, ArchiveJobPublication published, CancellationToken ct) => published;
 }
 
 /// <summary>Shared real job execution. Application registration still requires all platform/profile gates.</summary>
@@ -96,9 +100,13 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         job.SetSummary(action + (review.ExcludedCount == 0 ? "." : $"; {review.ExcludedCount:N0} unsupported source items excluded."));
         if (request.MoveSources)
             ArchiveNativeMoveSources.Remove(job, execution.Journal, request, selection!, (full, token) => native.ReviewPublication(published, full, token));
+        published = native.CleanupPublication(execution.Journal, published, ct);
         if (published.RetainedArtifacts.Count != 0)
             job.AddIssue(new(IssueSeverity.Warning, request.ArchivePath,
                 action + $". {published.RetainedArtifacts.Count:N0} transaction artifacts are retained for recovery and reviewed cleanup.", StepOutcome.Committed));
+        else if (published.CleanupNeedsReview)
+            job.AddIssue(new(IssueSeverity.Warning, request.ArchivePath,
+                action + ". Cleanup outcomes are recorded, but the final archive review is incomplete. Recovery remains open.", StepOutcome.Committed));
         if (ct.IsCancellationRequested)
             job.AddIssue(new(IssueSeverity.Warning, request.ArchivePath, action + " before cancellation was observed.", StepOutcome.Committed));
         job.SetCurrent(null);
