@@ -51,22 +51,35 @@ def verify(platform,folder):
     if platform=='windows':assert not js('account.json')['AdministratorsMember'] and js('account.json')['HiveLoaded']
     complete='tests-complete.json' in data
     if complete:
-        cleanup=folder in ('awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14')
-        assert tests['record-recovery']=={'Passed':19} and tests['native-directory']=={'Passed':21 if folder in ('awe-storage-v12','awe-storage-v13','awe-storage-v14') else 20 if cleanup else 16}
-        expected=(14 if platform=='windows' else 19) if folder in ('awe-storage-v5','awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14') else (13 if platform=='windows' else 14)
+        cleanup=folder in ('awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15')
+        assert tests['record-recovery']=={'Passed':19} and tests['native-directory']=={'Passed':21 if folder in ('awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15') else 20 if cleanup else 16}
+        expected=(14 if platform=='windows' else 19) if folder in ('awe-storage-v5','awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15') else (13 if platform=='windows' else 14)
         assert tests['native-storage']=={'Passed':expected}
         gates={'record-recovery','native-directory','native-storage','edit-core','edit-ui'}
-        if folder in ('awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14'):
-            snapshots=35 if folder in ('awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14') and platform=='windows' else 34 if cleanup else 26
+        if folder in ('awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15'):
+            snapshots=35 if folder in ('awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15') and platform=='windows' else 34 if cleanup else 26
             gates.update(('native-snapshot','commit-copy'));assert tests['native-snapshot']=={'Passed':snapshots} and tests['commit-copy']=={'Passed':10}
-        if folder in ('awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14'):
+        if folder in ('awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15'):
             gates.add('capture-recovery');assert tests['capture-recovery']=={'Passed':27}
             origins=['origin-policy']+(['native-origin-regressions'] if platform=='windows' else [])
             for name in origins:
                 gates.add(name);assert set(tests[name])=={'Passed'} and tests[name]['Passed']>0
-        if folder in ('awe-storage-v13','awe-storage-v14'):
+        if folder in ('awe-storage-v13','awe-storage-v14','awe-storage-v15'):
             gates.update(('complete-core','complete-app'))
             assert tests['complete-core'].get('Passed',0)>8000 and tests['complete-app'].get('Passed',0)>190
+        if folder=='awe-storage-v15':
+            gates.update(('native-legacy-zip','history-retirement-core','history-retirement-ui'))
+            assert tests['native-legacy-zip']=={'Passed':18} and tests['history-retirement-ui']=={'Passed':18}
+            assert set(tests['history-retirement-core'])=={'Passed'} and tests['history-retirement-core']['Passed']>0
+            baseline=js('baseline-core.json')
+            _,prior_index,prior_data=base.transport(ROOT/'.tmp/edit-evidence'/platform/'awe-v3-evidence.tar.gz','awe-v3')
+            assert baseline['folder']=='awe-v3' and baseline['manifest_sha256']==prior_index['files.json']['sha256']
+            assert baseline['trx_sha256']==hashlib.sha256(data['previous-full-core.trx']).hexdigest()==prior_index['results/core-regressions.trx']['sha256']
+            old=base.cases(prior_data['results/core-regressions.trx']);current=base.cases(data['results/complete-core.trx'])
+            names=lambda cases,passed=False:Counter(row.get('testName') for row in cases if not passed or row.get('outcome')=='Passed')
+            missing=sorted((names(old)-names(current)).elements());lost=sorted((names(old,True)-names(current,True)).elements())
+            assert js('full-case-inventory.json')==dict(previous=len(old),current=len(current),missing_prior_cases=missing,lost_prior_passes=lost,expected_new_cases=153)
+            assert not missing and not lost and len(current)==len(old)+153
         if cleanup:
             gates.add('job-input-regressions');assert tests['job-input-regressions'].get('Passed',0)>0
         assert set(tests)==gates

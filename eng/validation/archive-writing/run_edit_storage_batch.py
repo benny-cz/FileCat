@@ -2,8 +2,8 @@
 from pathlib import Path
 import importlib.util,json,shutil,subprocess,sys,tarfile,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v14'
-PACKET='archive-edit-storage-delta-v14.tar.gz'
+FOLDER='awe-storage-v15'
+PACKET='archive-edit-storage-delta-v15.tar.gz'
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 def sha(path):
     import hashlib
@@ -11,7 +11,7 @@ def sha(path):
 def base(task):
     path=task/'archive-workflow-source-v1/eng/validation/archive-writing/run_job_backend_batch.py'
     spec=importlib.util.spec_from_file_location('edit_storage_base',path);value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value)
-    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v13'
+    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v13' if sys.platform=='win32' else 'awe-storage-v14'
     return value
 def batch_for(task):return base(task).batch_for(task)
 def prepare(task,expected):
@@ -43,6 +43,8 @@ def tests(task):
         assert counters['failed']=='0' and int(counters['passed'])>0,counters
         if expected is not None:assert counters['total']==str(expected) and counters['passed']==str(expected),counters
         rows[name]=counters;(batch.out/'passed-gates.json').write_text(json.dumps(rows,indent=2))
+    run('history-retirement-core','FileCat.Core.Tests','FullyQualifiedName~JobRetirementOwnershipTests')
+    run('history-retirement-ui','FileCat.App.Tests','FullyQualifiedName~OperationHistoryRetirementTests',18)
     run('record-recovery','FileCat.Core.Tests','FullyQualifiedName~EditSessionRecoveryRecordTests',19)
     run('native-directory','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
         'FullyQualifiedName~WindowsEditDirectoryLeaseTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditDirectoryLeaseTests',21)
@@ -52,6 +54,8 @@ def tests(task):
         'FullyQualifiedName~WindowsEditSnapshotTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditSnapshotTests',35 if sys.platform=='win32' else 34)
     run('capture-recovery','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
         'FullyQualifiedName~WindowsEditCaptureRecoveryTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditCaptureRecoveryTests',27)
+    run('native-legacy-zip','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
+        'FullyQualifiedName~WindowsEditLegacyZipTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditLegacyZipTests',18)
     run('origin-policy','FileCat.Core.Tests','FullyQualifiedName~ArchiveCreationOriginTests')
     if sys.platform=='win32':
         run('native-origin-regressions','FileCat.Platform.Windows.Tests','FullyQualifiedName~WindowsArchiveOriginTests|FullyQualifiedName~WindowsArchiveOriginEvidenceTests')
@@ -60,8 +64,24 @@ def tests(task):
     run('job-input-regressions','FileCat.Core.Tests','FullyQualifiedName~ArchiveJobBackendTests|FullyQualifiedName~ArchiveCapturedInputsTests')
     run('edit-ui','FileCat.App.Tests','FullyQualifiedName~EditSession|FullyQualifiedName~EditCommit')
     run('complete-core','FileCat.Core.Tests','FullyQualifiedName~FileCat.Core.Tests')
+    review_core_inventory(batch)
     run('complete-app','FileCat.App.Tests','FullyQualifiedName~FileCat.App.Tests')
     batch.idle();(batch.out/'tests-complete.json').write_text(json.dumps(rows,indent=2))
+
+def review_core_inventory(batch):
+    from collections import Counter
+    previous=batch.task/'awe-v3';index=json.loads((previous/'files.json').read_text())['files']
+    path='results/core-regressions.trx';expected=next(row for row in index if row['path']==path)
+    source=previous/path;assert source.stat().st_size==expected['bytes'] and sha(source)==expected['sha256']
+    shutil.copyfile(source,batch.out/'previous-full-core.trx')
+    (batch.out/'baseline-core.json').write_text(json.dumps({'folder':'awe-v3','manifest_sha256':sha(previous/'files.json'),'trx_sha256':sha(source)},indent=2))
+    old=ET.parse(source).findall('.//t:UnitTestResult',NS)
+    current=ET.parse(batch.out/'results/complete-core.trx').findall('.//t:UnitTestResult',NS)
+    names=lambda cases,passed=False:Counter(row.get('testName') for row in cases if not passed or row.get('outcome')=='Passed')
+    missing=sorted((names(old)-names(current)).elements());lost=sorted((names(old,True)-names(current,True)).elements())
+    inventory=dict(previous=len(old),current=len(current),missing_prior_cases=missing,lost_prior_passes=lost,expected_new_cases=153)
+    (batch.out/'full-case-inventory.json').write_text(json.dumps(inventory,indent=2))
+    assert not missing and not lost and len(current)==len(old)+153,inventory
 def seal(task):
     batch=batch_for(task);batch.idle();out=batch.out;binaries=out/'binaries';binaries.mkdir()
     projects=['tests/FileCat.Core.Tests','tests/FileCat.App.Tests']
