@@ -100,6 +100,8 @@ public sealed class AppServices : IDisposable
         Formatters.DateFormat = Settings.DateFormat;
         Jobs = archiveBackends is null ? new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory)
             : new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory, archiveBackends);
+        Archives.MutationAvailability = plan => Jobs.CanReviewArchive(plan) ? Jobs.ArchiveAvailability(plan)
+            : Core.Archives.ArchiveJobAvailability.Unqualified;
         // SFTP (P6): FileCat's own known_hosts beside its state, seeded read-only by OpenSSH's.
         // FTP and FTPS (P8) share the remote stack; FTPS certificates the OS does not accept are pinned only on request.
         Sftp = new Remote.Sftp.SftpConnections(FindRemoteProfile,

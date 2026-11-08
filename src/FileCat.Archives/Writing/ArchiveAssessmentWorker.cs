@@ -118,7 +118,8 @@ public static class ArchiveAssessmentWorker
         catch (ArchiveWriteException ex)
         {
             byte[] reason = new byte[4];
-            BinaryPrimitives.WriteInt32LittleEndian(reason, (int)ex.Reason);
+            BinaryPrimitives.WriteInt32LittleEndian(reason, (int)(!verification && protocolVersion == ArchiveWorkerProtocol.SecretVersion && ex.RequiresPassword
+                ? ArchiveWriteReason.PasswordRequired : ex.Reason));
             try { send.Write(output, ArchiveWorkerMessage.Refused, reason); }
             catch (IOException) { return 1; }
             return 0; // controlled refusal; no raw names, archive bytes or uncontrolled exception text on the wire

@@ -121,6 +121,11 @@ public sealed partial class MainViewModel
             return;
         }
         if (items.Count > MaxArchiveBatch) { Notify($"Add at most {MaxArchiveBatch:N0} items at a time.", true); return; }
+        if (destination.Scheme == Schemes.Archive)
+        {
+            await AddToNativeArchiveAsync(kind, items, destination, options, newName, mode, sourceTab, sourceContext);
+            return;
+        }
         if (!CheckWritable(destination)) return;
         string archive = ArchiveFile(destination);
         var names = items.Select(i => InArchive(destination, newName ?? i.Name)).ToList();
@@ -304,7 +309,7 @@ public sealed partial class MainViewModel
                         if (reviewed.Profile.Encryption.Mode == ArchiveEncryptionMode.None) { existingPassword?.Dispose(); existingPassword = null; }
                         var additions = items.Select(item => new ArchiveChange(item.IsContainer ? ArchiveChangeKind.AddFolder : ArchiveChangeKind.AddFile,
                             item.Name, item.FileSystemPath)).ToArray();
-                        Services.Jobs.SubmitArchive(reviewed.CreatePlan(additions), existingPassword,
+                        Services.Jobs.SubmitArchive(reviewed.CreatePlan(additions) with { AddConflictPolicy = ArchiveAddConflictPolicy.Ask }, existingPassword,
                             description: $"Add {selected.Value.Summary} to “{Path.GetFileName(choice.Path)}”", register: job =>
                             { if (originLocation is not null) _jobOrigins[job] = (origin, originLocation); });
                         existingPassword = null;

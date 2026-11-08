@@ -7,7 +7,7 @@ namespace FileCat.Core.Archives;
 internal static class ArchiveNativeMoveSources
 {
     internal static void Remove(Job job, JobJournal journal, ArchivePlan request, ArchiveCapturedSelection selection,
-        Action<bool, CancellationToken> reviewPublished)
+        Action<bool, CancellationToken> reviewPublished, IReadOnlySet<int>? committedInputs = null)
     {
         if (!request.MoveSources || !selection.CanRemoveSources || selection.SourceSpecification is not { } specification ||
             request.Changes.Count != job.Request.Sources.Count) throw new ArgumentException("A native move requires its frozen source selection.");
@@ -55,6 +55,11 @@ internal static class ArchiveNativeMoveSources
             string parent = Path.GetDirectoryName(specification[node.RootSelector - 1].Path)!;
             string path = Path.Combine(parent, node.NativeRelativePath.Replace('/', Path.DirectorySeparatorChar));
             job.SetCurrent("Removing original: " + path);
+            if (committedInputs is not null && !committedInputs.Contains(member.Id))
+            {
+                BlockParents(node); job.ItemSkipped(); settled++;
+                return;
+            }
             if (blocked.Contains(node) || selection.HasExcludedDescendants(member.Id))
             {
                 BlockParents(node); job.ItemSkipped(); settled++;

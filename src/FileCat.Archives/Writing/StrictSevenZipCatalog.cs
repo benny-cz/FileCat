@@ -32,7 +32,7 @@ internal static class StrictSevenZipCatalog
                 ct.ThrowIfCancellationRequested(); budget.AddMetadata(0, 256);
                 if (member.Folder is not { } index) { members.Add(new(member, EmptySha256, [])); continue; }
                 var folder = physical.Streams.Folders[index];
-                if (folder.Encrypted && password is null) throw Unsupported();
+                if (folder.Encrypted && password is null) throw ArchiveWriteException.PasswordRequired();
                 if (folder.Encrypted && folder.Crc32 is null && member.Crc32 is null) throw Unsupported();
                 budget.AddMetadata(0, checked(folder.PackedInputs.Count * 256L));
                 // Each member releases its decoder graph before the next member. Persistent catalog observations

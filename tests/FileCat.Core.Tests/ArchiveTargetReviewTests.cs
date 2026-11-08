@@ -10,7 +10,45 @@ public sealed class ArchiveTargetReviewTests
     private const string Password = " Public target review é 🔐 ";
     private static readonly string Revision = new('A', 64);
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Theory, InlineData("stale"), InlineData("malformed"), InlineData("lowercase")]
+    public async Task Listing_revision_is_checked_before_any_worker_or_secret_grant(string variant)
+    {
+        using var temp = new TempDir(); var profile = new ArchiveWriteProfile(ArchiveWriteFormat.Tar); int launches = 0, opens = 0;
+        Scripted? child = null; var lease = new Lease("target", () => child is null || child.Disposed);
+        var reviewer = new ArchiveTargetReviewer((_, _) => { opens++; return lease; }, new((nonce, _) =>
+        { launches++; return child = new(Script(nonce, Manifest(profile))); }, protocolVersion: 2));
+        string revision = variant == "stale" ? new('B', 64) : variant == "malformed" ? "bad" : Revision.ToLowerInvariant();
+        string path = System.IO.Path.Combine(temp.Path, "target");
+        if (variant == "lowercase")
+        {
+            var result = await reviewer.ReviewAsync(path, profile, null, Ct, expectedSourceSha256: revision);
+            Assert.Equal(Revision, result.Native.Version.Sha256); Assert.Equal(1, launches); Assert.True(lease.Disposed);
+        }
+        else
+        {
+            var error = await Assert.ThrowsAsync<ArchiveWriteException>(() => reviewer.ReviewAsync(path, profile, null, Ct, expectedSourceSha256: revision));
+            Assert.Equal(variant == "stale" ? ArchiveWriteReason.SourceChanged : ArchiveWriteReason.InvalidRequest, error.Reason);
+            Assert.Equal(0, launches); Assert.Equal(variant == "stale" ? 1 : 0, opens);
+            if (variant == "stale") Assert.True(lease.Disposed);
+        }
+    }
     public static IEnumerable<object[]> Profiles() => ArchiveNativeJobCases.Profiles();
+
+    [Theory, MemberData(nameof(Profiles))]
+    public void Member_review_accepts_explicit_folder_markers_and_validates_the_complete_recursive_plan(ArchiveWriteFormat format, int mode)
+    {
+        using var temp = new TempDir(); var profile = ArchiveNativeJobCases.Profile(format, mode); var original = Manifest(profile);
+        var file = original.Members.Single(member => member.Type == ArchiveMemberType.File);
+        var manifest = new ArchiveWriteManifest(profile, original.Members.Concat(new[] { new ArchiveManifestMember("outside", file.Type, 0, file.Length, file.Sha256, file.Metadata) }).ToArray(), original.Features);
+        var lease = new Lease("target", () => true);
+        var review = new ArchiveTargetReview(System.IO.Path.Combine(temp.Path, "target"), profile, lease.Observe(Ct), new(manifest, Revision, 2048, Revision));
+        var removed = review.ReviewMemberChanges([new(ArchiveChangeKind.Delete, "folder/")], Ct);
+        Assert.Equal("folder/", Assert.Single(removed.Changes).MemberPath);
+        var renamed = review.ReviewMemberChanges([new(ArchiveChangeKind.Rename, "folder/", NewMemberPath: "renamed/")], Ct);
+        Assert.Equal("renamed/", Assert.Single(renamed.Changes).NewMemberPath);
+        Assert.Throws<ArchiveWriteException>(() => review.ReviewMemberChanges([new(ArchiveChangeKind.Rename, "folder/", NewMemberPath: "outside/")], Ct));
+    }
 
     private static ArchiveWriteManifest Manifest(ArchiveWriteProfile profile)
     {

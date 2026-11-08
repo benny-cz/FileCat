@@ -56,6 +56,8 @@ internal sealed class ZipUpdateExecutor(Job job, IFileSystemOperations fs, JobJo
     public override void Execute()
     {
         var plan = Job.Request.Archive ?? throw new InvalidOperationException("Missing archive plan.");
+        if (plan.AddConflictPolicy is not null)
+            throw new NotSupportedException("Typed archive conflict review is unavailable for this ZIP backend.");
         string archive = Path.GetFullPath(plan.ArchivePath);
         string folder = Path.GetDirectoryName(archive) ?? throw new IOException("The archive needs a folder.");
         bool updating = plan.Baseline is not null;

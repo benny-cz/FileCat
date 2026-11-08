@@ -10,7 +10,8 @@ public sealed partial class JobManager
 
     // The caller retains password ownership through review and either disposes it or transfers it to SubmitArchive.
     internal Task<ArchiveTargetReview> ReviewArchiveUpdateAsync(string path, ArchiveWriteProfile profile, ArchiveJobPassword? password,
-        CancellationToken ct, bool preserveEncryption = false) => _archiveBackends.ReviewUpdateAsync(path, profile, password, ct, preserveEncryption);
+        CancellationToken ct, bool preserveEncryption = false, string? expectedSourceSha256 = null) =>
+        _archiveBackends.ReviewUpdateAsync(path, profile, password, ct, preserveEncryption, expectedSourceSha256);
 
     /// <summary>Consumes password ownership, including on refusal. Native leases are acquired at execution time.</summary>
     internal Job SubmitArchive(ArchivePlan plan, ArchiveJobPassword? password = null, QueueMode mode = QueueMode.Start,
@@ -25,7 +26,8 @@ public sealed partial class JobManager
         {
             ArgumentNullException.ThrowIfNull(plan);
             if (plan.Profile is null || !Path.IsPathFullyQualified(plan.ArchivePath) || !Enum.IsDefined(mode) ||
-                plan.Changes is null || plan.Changes.Count > ArchiveWritePolicy.MaxMembers)
+                plan.Changes is null || plan.Changes.Count > ArchiveWritePolicy.MaxMembers ||
+                plan.AddConflictPolicy is { } conflicts && !Enum.IsDefined(conflicts))
                 throw new ArgumentException("An explicit archive profile, absolute target and bounded changes are required.", nameof(plan));
             ArchiveJobPassword.Require(plan.Profile, password);
             if (plan.ReviewedManifestDigest is { } revision) ArchiveWritePolicy.ValidateDigest(revision);

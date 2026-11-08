@@ -34,7 +34,7 @@ internal static class StrictRar5Catalog
             if (member.DictionaryBytes > MaximumDictionaryBytes)
                 throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "This RAR requires a dictionary above the strict write profile's 64 MiB limit.");
             if (member.Encryption is not null && password is null)
-                throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "A password is required to verify the RAR member data.");
+                throw ArchiveWriteException.PasswordRequired();
         }
         if (input.Length != physical.Length) throw Changed();
         input.Position = 0;

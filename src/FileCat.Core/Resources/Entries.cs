@@ -175,6 +175,11 @@ public sealed class ItemRef : IEquatable<ItemRef>
     /// <summary>Distinguishes items that share a name in one container (duplicate archive entries).</summary>
     public int Ordinal { get; init; }
 
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? ArchiveRevision { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? ArchiveMutationProblem { get; init; }
+
     /// <summary>Folder relative to a result set's search root (keep-relative-paths copies). Not identity.</summary>
     public string? RelativeFolder { get; init; }
 
@@ -183,7 +188,12 @@ public sealed class ItemRef : IEquatable<ItemRef>
     /// <summary>Full file-system path when the parent is a file-system location, otherwise null.</summary>
     public string? FileSystemPath => Parent.IsFileSystem ? System.IO.Path.Join(Parent.Path, Name) : null;
 
-    public static ItemRef FromEntry(Location parent, in EntryData e) => new(parent, e.Name, e.Kind, e.Size, e.Modified) { Flags = e.Flags };
+    public static ItemRef FromEntry(Location parent, in EntryData e) => new(parent, e.Name, e.Kind, e.Size, e.Modified)
+    {
+        Flags = e.Flags,
+        ArchiveRevision = (e.Tag as FileCat.Core.Archives.IArchiveMemberRevision)?.ArchiveRevision,
+        ArchiveMutationProblem = (e.Tag as FileCat.Core.Archives.IArchiveMemberRevision)?.ArchiveMutationProblem,
+    };
 
     public static ItemRef ForFileSystemPath(string fullPath, EntryKind kind)
     {

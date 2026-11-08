@@ -56,7 +56,7 @@ internal sealed class StrictSevenZipFolderDecoder : Stream
         if (Enumerable.Range(0, inputs).Any(i => bound[i] < 0 && packed[i] < 0)) throw Invalid();
         byte[] admission = new byte[count]; Visit(folder.FinalOutput);
         if (admission.Any(value => value != 2)) throw Invalid();
-        if (folder.Encrypted && password is null) throw Unsupported();
+        if (folder.Encrypted && password is null) throw ArchiveWriteException.PasswordRequired();
         // Metadata and live decoder state have distinct ceilings. Reserve the complete graph against the worker
         // envelope, leaving headroom for CLR/proxy buffers, before a codec can read or allocate its dictionary.
         budget.AddMetadata(0, checked(count * 256L + folder.PackedInputs.Count * 128L));

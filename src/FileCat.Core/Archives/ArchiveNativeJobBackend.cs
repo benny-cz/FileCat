@@ -83,7 +83,7 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         if (native.Original is { } target && captured.Bindings.Values.Any(input => input.Reviewed.Version.Identity == target.Reviewed.Version.Identity))
             throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "The archive itself cannot be selected as a source.");
         var review = planning.Review(source, selection, captured, ct);
-        bool replace = Confirm(review.ReplacementNames, "Replace archive members?",
+        bool replace = request.AddConflictPolicy is not null ? ReviewAdditionConflicts() : Confirm(review.ReplacementNames, "Replace archive members?",
             $"Replace {review.ReplacedOccurrences:N0} existing entries under {review.ReplacementNames:N0} names?\n" + ArchiveJobReviewText.Samples(review.ReplacementSamples),
             "archive-replace", "Replace reviewed entries");
         bool exclude = Confirm(review.ExcludedCount, "Leave unsupported source items out?",
@@ -93,18 +93,33 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
             $"{review.InputTimePrecisionChanges:N0} added timestamps have finer precision than 7z's 100 ns units. Each is stored at the earlier 100 ns instant. The input files retain their exact timestamps.",
             "archive-7z-precision", "Use 100 ns precision");
         job.Checkpoint();
-        var plan = review.CreatePlan(replace, exclude, ct, precision);
+        using var selected = request.AddConflictPolicy is null ? null : review.CreateSelectedPlan(replace, exclude, ct, precision);
+        var plan = selected?.Plan ?? review.CreatePlan(replace, exclude, ct, precision);
+        var activeInputs = selected?.Inputs ?? captured;
+        int skippedNames = selected?.SkippedNames ?? 0;
+        if (source is not null && selected is { HasChanges: false })
+        {
+            job.AddTotals(checked(skippedNames + review.ExcludedCount), 0);
+            for (int i = 0; i < skippedNames + review.ExcludedCount; i++) job.ItemSkipped();
+            for (int i = 0; i < request.Changes.Count; i++) if (request.MoveSources) job.RootFailed(i);
+            job.SetSummary($"Nothing was added; {skippedNames:N0} incoming entries skipped. The archive and originals were kept.");
+            job.AddIssue(new(IssueSeverity.Warning, request.ArchivePath, job.Summary, StepOutcome.Skipped));
+            job.SetCurrent(null); return;
+        }
         using var prepared = ArchiveJournaledContainerPreparation.PrepareAsync(execution.Journal, request.ArchivePath, plan,
-            native.Original, captured.Bindings, native.Reserve, native.Create, transform, verifier, ct, password: execution.Password).GetAwaiter().GetResult();
+            native.Original, activeInputs.Bindings, native.Reserve, native.Create, transform, verifier, ct, password: execution.Password).GetAwaiter().GetResult();
         job.Checkpoint();
-        var published = native.Publish(execution.Journal, prepared, captured.Bindings, ct);
+        var published = native.Publish(execution.Journal, prepared, activeInputs.Bindings, ct);
         // Publication may have committed immediately before cancellation. Always record the visible result first.
-        job.AddTotals(checked(1L + review.ExcludedCount), 0); job.ItemDone();
+        job.AddTotals(checked(1L + review.ExcludedCount + skippedNames), 0); job.ItemDone();
         for (int i = 0; i < review.ExcludedCount; i++) job.ItemSkipped();
+        for (int i = 0; i < skippedNames; i++) job.ItemSkipped();
         string action = native.Original is null ? "Archive created" : "Archive updated";
-        job.SetSummary(action + (review.ExcludedCount == 0 ? "." : $"; {review.ExcludedCount:N0} unsupported source items excluded."));
+        job.SetSummary(action + (review.ExcludedCount == 0 ? "." : $"; {review.ExcludedCount:N0} unsupported source items excluded.") +
+            (skippedNames == 0 ? "" : $" {skippedNames:N0} incoming entries skipped; existing members kept."));
         if (request.MoveSources)
-            ArchiveNativeMoveSources.Remove(job, execution.Journal, request, selection!, (full, token) => native.ReviewPublication(published, full, token));
+            ArchiveNativeMoveSources.Remove(job, execution.Journal, request, selection!, (full, token) => native.ReviewPublication(published, full, token),
+                selected?.CommittedInputs);
         published = native.CleanupPublication(execution.Journal, published, ct);
         if (published.RetainedArtifacts.Count != 0)
             job.AddIssue(new(IssueSeverity.Warning, request.ArchivePath,
@@ -115,6 +130,25 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         if (ct.IsCancellationRequested)
             job.AddIssue(new(IssueSeverity.Warning, request.ArchivePath, action + " before cancellation was observed.", StepOutcome.Committed));
         job.SetCurrent(null);
+
+        bool ReviewAdditionConflicts()
+        {
+            if (request.AddConflictPolicy == ArchiveAddConflictPolicy.Skip || review.ReplacementNames + review.MandatorySkippedNames == 0) return false;
+            job.Checkpoint();
+            int replaceable = review.ReplacementNames - review.DuplicateReplacementNames;
+            var actions = replaceable == 0 ? new[] { DecisionAction.CancelJob, DecisionAction.Skip }
+                : new[] { DecisionAction.CancelJob, DecisionAction.Skip, DecisionAction.Proceed };
+            var answer = job.Ask(new ConfirmRequest("Names already in the archive",
+                $"{replaceable:N0} incoming names can replace one existing file each. " +
+                $"{review.DuplicateReplacementNames:N0} duplicated names and {review.MandatorySkippedNames:N0} file/folder conflicts will be skipped. " +
+                "Skipped originals stay where they are. Choose Skip to keep all existing members.\n" +
+                ArchiveJobReviewText.Samples(review.ReplacementSamples.Concat(review.MandatorySkipSamples)), request.ArchivePath,
+                "archive-add-conflicts-" + (source?.CatalogRevision ?? job.Id.ToString("N")), actions)
+            { InitialAction = DecisionAction.Skip, ProceedLabel = "Replace reviewed unique names" });
+            if (answer.Action == DecisionAction.Skip) return false;
+            if (answer.Action == DecisionAction.Proceed && replaceable != 0) return true;
+            job.Cancel(); job.Checkpoint(); return false;
+        }
 
         bool Confirm(int count, string title, string message, string kind, string label)
         {

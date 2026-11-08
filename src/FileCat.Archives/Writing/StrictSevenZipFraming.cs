@@ -63,7 +63,7 @@ internal static class StrictSevenZipFraming
                 if (encoded.Folders.Count != 1) throw Unsupported("Multiple encoded 7z header folders need a separately qualified profile.");
                 CheckPackedExtents(encoded.Packed, headerOffset);
                 var folder = encoded.Folders[0];
-                if (folder.Encrypted && password is null) throw Unsupported("A password is required to assess encrypted 7z headers.");
+                if (folder.Encrypted && password is null) throw ArchiveWriteException.PasswordRequired();
                 if (encoded.Packed.Count != 1) throw Unsupported("Multiple encoded-header packed inputs need a separately qualified decoder.");
                 long packedLength = encoded.Packed.Sum(pack => pack.Length);
                 if (folder.Length > 64L << 20 && folder.Length / Math.Max(1, packedLength) > 1000) throw Limit();

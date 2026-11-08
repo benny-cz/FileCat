@@ -51,14 +51,14 @@ internal sealed class ArchiveJobBackends
         backends.TryGetValue(profile.Format, out var backend) && backend.TargetReviewer is not null;
 
     internal Task<ArchiveTargetReview> ReviewUpdateAsync(string path, ArchiveWriteProfile profile, ArchiveJobPassword? password, CancellationToken ct,
-        bool preserveEncryption = false)
+        bool preserveEncryption = false, string? expectedSourceSha256 = null)
     {
         ArgumentNullException.ThrowIfNull(profile);
         var probe = new ArchivePlan(path, null, [], Profile: profile);
         var state = Availability(probe);
         if (!state.Available || !backends.TryGetValue(profile.Format, out var backend) || backend.TargetReviewer is not { } reviewer)
             throw new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, state.Reason ?? ArchiveJobAvailability.Unqualified.Reason!);
-        return reviewer.ReviewAsync(path, profile, password, ct, preserveEncryption);
+        return reviewer.ReviewAsync(path, profile, password, ct, preserveEncryption, expectedSourceSha256);
     }
 
     internal IJobExecutor Create(Job job, IFileSystemOperations fs, JobJournal journal, ArchiveJobOperation? operation)

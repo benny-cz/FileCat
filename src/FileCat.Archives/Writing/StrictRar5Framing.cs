@@ -103,7 +103,7 @@ internal static class StrictRar5Framing
                             throw Invalid("The RAR encryption header is misplaced or has unsupported extents.");
                         headers = Rar5CryptoParameters.Parse(body.Rest(), header: true);
                         encryptionFlags = flags;
-                        if (password is null) throw Unsupported("A password is required to assess encrypted RAR headers.");
+                        if (password is null) throw ArchiveWriteException.PasswordRequired();
                         password.Keys(headers);
                     }
                     else if (kind == 1)

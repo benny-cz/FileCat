@@ -11,14 +11,18 @@ public enum ArchiveWriteReason
     InvalidRequest = 0, InvalidArchive = 1, UnsupportedFeature = 2, BudgetExceeded = 3, SourceChanged = 4,
     VerificationFailed = 5, WorkerUnavailable = 6, ProtocolViolation = 7, PublicationUnavailable = 8, NeedsReview = 9,
     ProtectionModeNone = 10, ProtectionModeData = 11, ProtectionModeDataAndNames = 12,
+    PasswordRequired = 13,
 }
 
 /// <summary>A controlled refusal, distinct from an unexpected decoder or programmer exception.</summary>
 public sealed class ArchiveWriteException : IOException
 {
     public ArchiveWriteReason Reason { get; }
+    internal bool RequiresPassword { get; private init; }
     public ArchiveWriteException(ArchiveWriteReason reason, string message) : base(message) { Reason = reason; }
     public ArchiveWriteException(ArchiveWriteReason reason, string message, Exception innerException) : base(message, innerException) { Reason = reason; }
+    internal static ArchiveWriteException PasswordRequired() => new(ArchiveWriteReason.UnsupportedFeature,
+        "The archive needs its existing password before its complete contents can be checked.") { RequiresPassword = true };
     internal static ArchiveWriteException ProtectionMismatch(ArchiveEncryptionMode mode) => new(mode switch
     {
         ArchiveEncryptionMode.None => ArchiveWriteReason.ProtectionModeNone,

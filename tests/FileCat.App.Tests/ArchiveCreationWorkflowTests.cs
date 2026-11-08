@@ -274,7 +274,8 @@ public sealed class ArchiveCreationWorkflowTests
             Dispatcher.UIThread.RunJobs(); Window.UpdateLayout();
             Assert.IsType<Button>(Button(name)).RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
         }
-        internal TextBox Input(string name) => Window.GetVisualDescendants().OfType<TextBox>().Single(value => AutomationProperties.GetName(value) == name);
+        internal TextBox? FindInput(string name) { Window.UpdateLayout(); return Window.GetVisualDescendants().OfType<TextBox>().SingleOrDefault(value => AutomationProperties.GetName(value) == name); }
+        internal TextBox Input(string name) => FindInput(name) ?? throw new InvalidOperationException("Input is not attached: " + name);
         internal ComboBox Combo(string name) => Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationProperties.GetName(value) == name);
         internal string Text()
         {

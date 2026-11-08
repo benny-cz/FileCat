@@ -218,10 +218,10 @@ public sealed partial class MainViewModel
             if (destLocation is null) { Notify("The destination changed before this transfer was submitted. Review it again.", true); return; }
             // Hidden marks are excluded only when there are some and the user did not include them.
             finalItems = request.IncludeHidden || explicitItems is not null || (sel?.HiddenMarked ?? 0) == 0 ? items : tab.Listing.GetSelection(includeHiddenMarks: false);
-            if (destLocation?.Scheme == Schemes.Zip)
+            if (destLocation?.Scheme is Schemes.Zip or Schemes.Archive)
             {
                 await AddToArchiveTransferAsync(kind, finalItems, destLocation, request.Options, newName,
-                    request.Queue ? QueueMode.Queue : QueueMode.Start, tab);
+                    request.Queue ? QueueMode.Queue : QueueMode.Start, tab, source);
                 return;
             }
             if (kind == JobKind.Move && newName is null && destLocation is { } dl && ItemSources.Parents(finalItems)!.Contains(dl))
@@ -292,12 +292,26 @@ public sealed partial class MainViewModel
             var originalProvider = Services.Providers.For(original);
             if ((originalProvider.GetCapabilities(original) & LocationCapabilities.TransferTarget) == 0)
                 return new(null, null, originalProvider.ExplainUnavailable(original, LocationCapabilities.TransferTarget), string.Empty);
-            return new(original, null, null, "→ " + Services.Providers.Display(original));
+            return new(original, null, null, "→ " + Services.Providers.Display(original) +
+                (original.Scheme == Schemes.Archive ? ". The whole archive will be rebuilt and checked." : ""));
         }
         Location? loc;
         try
         {
-            if (!Services.Providers.TryParse(t, context, out loc) || loc is null)
+            bool parsed;
+            if (unchangedLocation?.Scheme == Schemes.Archive)
+            {
+                // Archive path recognition probes the filesystem. Keep it on the container's device worker.
+                var result = await Services.Io.Run(Services.Archives.GetDeviceKey(unchangedLocation), IoPriority.Interactive, ct =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    bool found = Services.Providers.TryParse(t, context, out var value);
+                    return (Found: found, Value: value);
+                }, cancellationToken);
+                parsed = result.Found; loc = result.Value;
+            }
+            else parsed = Services.Providers.TryParse(t, context, out loc);
+            if (!parsed || loc is null)
                 return new(null, null, "This is not a recognized destination location.", string.Empty);
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
@@ -306,6 +320,8 @@ public sealed partial class MainViewModel
         }
         if (!loc.IsFileSystem)
         {
+            if (loc.Scheme == Schemes.Archive)
+                return ResolveNativeArchiveDestination(loc, items.Count, t.EndsWith('\\') || t.EndsWith('/'));
             var provider = Services.Providers.For(loc);
             if ((provider.GetCapabilities(loc) & LocationCapabilities.TransferTarget) == 0)
                 return new(null, null, provider.ExplainUnavailable(loc, LocationCapabilities.TransferTarget), string.Empty);
@@ -320,6 +336,8 @@ public sealed partial class MainViewModel
         return await Services.Io.Run(PathUtil.GetDeviceKey(path), IoPriority.Interactive, ct =>
         {
             ct.ThrowIfCancellationRequested();
+            if (unchangedLocation?.Scheme == Schemes.Archive && Services.Archives.TryParse(path, null, out var nativeLocation) && nativeLocation is not null)
+                return ResolveNativeArchiveDestination(nativeLocation, items.Count, endsWithSep);
             // The filesystem provider also accepts paths below a ZIP file. Rebind those paths on the device worker
             // before treating a non-existent child as a filesystem folder. The accepted mapping stays in the draft.
             if (unchangedLocation?.Scheme == Schemes.Zip && Services.Zip.TryParse(path, null, out var archiveLocation) && archiveLocation is not null)
@@ -366,6 +384,22 @@ public sealed partial class MainViewModel
         }, cancellationToken);
     }
 
+    // This is a provisional interpretation from the listing cache. Submission resolves it against a fresh strict catalog.
+    private TransferDestinationResolution ResolveNativeArchiveDestination(Location location, int count, bool trailingSeparator)
+    {
+        if ((Services.Archives.GetCapabilities(location) & LocationCapabilities.TransferTarget) == 0)
+            return new(null, null, Services.Archives.ExplainUnavailable(location, LocationCapabilities.TransferTarget), "");
+        if (location.Path.Length > 0 && Core.Archives.ArchivePaths.Problem(location.Path) is { } problem)
+            return new(null, null, problem, "");
+        const string cost = ". The whole archive will be rebuilt and checked.";
+        if (Services.Archives.CachedDirectoryHint(location) == true || trailingSeparator || count != 1)
+            return new(location, null, null, "→ into the archive folder " + Formatters.SafeName(Services.Providers.Display(location)) + cost);
+        var parent = Services.Archives.GetParent(location);
+        if (parent?.Scheme != Schemes.Archive) return new(location, null, null, "→ " + Services.Providers.Display(location) + cost);
+        string name = Services.Archives.GetNameInParent(location)!;
+        return new(parent, name, null, $"→ as “{Formatters.SafeName(name)}” in {Formatters.SafeName(Services.Providers.Display(parent))}" + cost);
+    }
+
     private void Track(Job job, TabViewModel tab)
     {
         if (tab.Location is { } l) _jobOrigins[job] = (tab, l);
@@ -405,6 +439,11 @@ public sealed partial class MainViewModel
     {
         var tab = ActiveTab;
         if (tab?.Location is not { } loc || !tab.Listing.TryGetFocused(out var f) || f.Kind == EntryKind.Parent) return;
+        if (loc.Scheme == Schemes.Archive)
+        {
+            await RenameNativeArchiveMemberAsync(tab, loc);
+            return;
+        }
         if (loc.Scheme == Schemes.Zip)
         {
             await RenameArchiveMemberAsync(tab, loc);
@@ -440,6 +479,11 @@ public sealed partial class MainViewModel
     {
         var tab = contextTab ?? ActiveTab;
         if (tab?.Location?.Scheme == Schemes.Registry) { await CreateRegistryAsync(); return; }
+        if (tab?.Location is { Scheme: Schemes.Archive } nativeArchiveFolder)
+        {
+            await CreateNativeArchiveFolderAsync(tab, nativeArchiveFolder);
+            return;
+        }
         if (tab?.Location is { Scheme: Schemes.Zip } archiveFolder)
         {
             await CreateArchiveFolderAsync(tab, archiveFolder);
@@ -510,6 +554,11 @@ public sealed partial class MainViewModel
             if (loc.Scheme == Schemes.HiddenData)
             {
                 await DeleteHiddenDataAsync(tab, items);
+                return;
+            }
+            if (loc.Scheme == Schemes.Archive)
+            {
+                await DeleteNativeArchiveMembersAsync(loc, items.ToList());
                 return;
             }
             if (loc.Scheme == Schemes.Zip)

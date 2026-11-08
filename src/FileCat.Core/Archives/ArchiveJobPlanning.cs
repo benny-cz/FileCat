@@ -12,7 +12,8 @@ internal sealed class ArchiveJobPlanning
     internal ArchiveJobPlanning(ArchivePlan plan, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(plan);
-        if (plan.Profile is null || plan.Changes.Count > ArchiveWritePolicy.MaxMembers) throw Invalid();
+        if (plan.Profile is null || plan.Changes.Count > ArchiveWritePolicy.MaxMembers ||
+            plan.AddConflictPolicy is { } policy && !Enum.IsDefined(policy)) throw Invalid();
         if (plan.MoveSources && (plan.Changes.Count == 0 || plan.Changes.Any(change => change is null || change.Kind is not (ArchiveChangeKind.AddFile or ArchiveChangeKind.AddFolder)))) throw Invalid();
         this.plan = plan;
         // Windows also supports case-sensitive directories. Only identical path spellings may be
@@ -25,12 +26,13 @@ internal sealed class ArchiveJobPlanning
         foreach (var change in plan.Changes)
         {
             ct.ThrowIfCancellationRequested();
-            if (change is null || !Enum.IsDefined(change.Kind) || change.Ordinal is < 0 or >= ArchiveWritePolicy.MaxMembers ||
+            if (change is null || change.MemberPath is null || !Enum.IsDefined(change.Kind) || change.Ordinal is < 0 or >= ArchiveWritePolicy.MaxMembers ||
                 change.Kind is not (ArchiveChangeKind.Delete or ArchiveChangeKind.Rename or ArchiveChangeKind.Replace) && change.Ordinal is not null ||
                 (change.Kind == ArchiveChangeKind.Rename) != (change.NewMemberPath is not null)) throw Invalid();
-            var type = change.Kind is ArchiveChangeKind.AddFolder or ArchiveChangeKind.CreateFolderEntry ? ArchiveMemberType.Directory : ArchiveMemberType.File;
+            bool explicitFolder = change.Kind is ArchiveChangeKind.Delete or ArchiveChangeKind.Rename && change.Ordinal is null && change.MemberPath.EndsWith('/');
+            var type = change.Kind is ArchiveChangeKind.AddFolder or ArchiveChangeKind.CreateFolderEntry || explicitFolder ? ArchiveMemberType.Directory : ArchiveMemberType.File;
             ArchiveWritePolicy.ValidateName(change.MemberPath, type);
-            if (change.NewMemberPath is not null) ArchiveWritePolicy.ValidateName(change.NewMemberPath);
+            if (change.NewMemberPath is not null) ArchiveWritePolicy.ValidateName(change.NewMemberPath, type);
             long chars = checked((long)change.MemberPath.Length + (change.SourcePath?.Length ?? 0) + (change.NewMemberPath?.Length ?? 0));
             budget.AddNameChars(chars); budget.AddMetadata(0, checked(1024 + 4 * chars));
             bool needsSource = change.Kind is ArchiveChangeKind.AddFile or ArchiveChangeKind.AddFolder or ArchiveChangeKind.Replace;
@@ -169,7 +171,7 @@ internal sealed class ArchiveJobPlanning
             }
         }
         return ArchiveWorkflowReview.Prepare(plan.Profile!, source, captured, edits, folders, incoming,
-            selection?.ExcludedCount ?? 0, ct, operationBytes);
+            selection?.ExcludedCount ?? 0, ct, operationBytes, allowSkippedTypeConflicts: plan.AddConflictPolicy is not null);
 
         bool HasDescendants(string name)
         {

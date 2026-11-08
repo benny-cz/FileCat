@@ -12,7 +12,7 @@ namespace FileCat.App.Tests;
 
 public sealed class ArchiveTargetUpdateUiTests
 {
-    private const string Secret = " Public existing archive é 🔐 ";
+    internal const string Secret = " Public existing archive é 🔐 ";
 
     [AvaloniaTheory]
     [InlineData(ArchiveWriteFormat.Tar, 0, 0)] [InlineData(ArchiveWriteFormat.TarGzip, 0, 0)]
@@ -87,11 +87,11 @@ public sealed class ArchiveTargetUpdateUiTests
     }
 
     // Dispatch/ownership fixture only. The Windows actual-worker lane separately proves archive preservation.
-    private sealed class Backend : IArchiveJobBackend
+    internal sealed class Backend : IArchiveJobBackend
     {
         public ArchiveWriteFormat Format { get; }
         public ArchiveTargetReviewer TargetReviewer { get; }
-        internal ArchivePlan? Plan; internal int ActiveLeases, Assessments; internal bool HoldOpen;
+        internal ArchivePlan? Plan; internal int ActiveLeases, Assessments; internal bool HoldOpen, MemberCatalog;
         internal readonly ManualResetEventSlim OpenEntered = new(), ReleaseOpen = new();
         private readonly int actualMode;
         private readonly CancellationToken token = TestContext.Current.CancellationToken;
@@ -122,7 +122,7 @@ public sealed class ArchiveTargetUpdateUiTests
                 correct |= grant.UseOnce(value => value.SequenceEqual(Secret));
             }
             using var output = new MemoryStream();
-            if (!correct) { byte[] reason = new byte[4]; BinaryPrimitives.WriteInt32LittleEndian(reason, (int)ArchiveWriteReason.InvalidArchive); send.Write(output, ArchiveWorkerMessage.Refused, reason); return output.ToArray(); }
+            if (!correct) { byte[] reason = new byte[4]; BinaryPrimitives.WriteInt32LittleEndian(reason, (int)(request.Profile.Encryption.Mode == ArchiveEncryptionMode.None ? ArchiveWriteReason.PasswordRequired : ArchiveWriteReason.InvalidArchive)); send.Write(output, ArchiveWorkerMessage.Refused, reason); return output.ToArray(); }
             if ((int)request.Profile.Encryption.Mode != actualMode)
             {
                 byte[] reason = new byte[4]; BinaryPrimitives.WriteInt32LittleEndian(reason, (int)ArchiveWriteException.ProtectionMismatch((ArchiveEncryptionMode)actualMode).Reason);
@@ -130,11 +130,15 @@ public sealed class ArchiveTargetUpdateUiTests
             }
             var actual = new ArchiveWriteProfile(request.Profile.Format, request.Profile.Version, request.Profile.CompressionLevel, request.Profile.DictionaryBytes,
                 request.Profile.SevenZip, request.Profile.Rar5, actualMode == 0 ? null : new((ArchiveEncryptionMode)actualMode));
-            ArchiveTransformInput[] inputs = [new(1, 1, new string('B', 64), new ArchiveTimestamp(1700000000, 100))]; ArchiveTransformAddition[] added = [new("kept", ArchiveMemberType.File, 1)];
+            ArchiveTransformInput[] inputs = [new(1, 1, new string('B', 64), new ArchiveTimestamp(1700000000, 100))];
+            ArchiveTransformAddition[] added = MemberCatalog ? [new("folder/", new ArchiveTransformDirectoryMetadata(new(1700000000, 100))),
+                new("folder/old", ArchiveMemberType.File, 1), new("kept", ArchiveMemberType.File, 1), new("same", ArchiveMemberType.File, 1)] : [new("kept", ArchiveMemberType.File, 1)];
             var expected = (Format switch { ArchiveWriteFormat.Rar5 => (ArchiveContainerTransformPlan)ArchiveRar5TransformPlan.Create(actual, null, inputs, [], added, token),
                 ArchiveWriteFormat.SevenZip => ArchiveSevenZipTransformPlan.Create(actual, null, inputs, [], added, token),
                 _ => ArchiveTarTransformPlan.Create(actual, null, inputs, [], added, token) }).Expected;
-            var manifest = new ArchiveWriteManifest(request.Profile, expected.Members, expected.Features);
+            var members = expected.Members.ToList();
+            if (MemberCatalog) { var original = members.Single(member => member.Name == "same"); members.Add(new(original.Name, original.Type, 1, original.Length, original.Sha256, original.Metadata)); }
+            var manifest = new ArchiveWriteManifest(request.Profile, members, expected.Features);
             var outgoing = new ArchiveWorkerRecords(send, output, writing: true);
             outgoing.Write(ArchiveControlRecord.Catalog, ArchiveAssessmentWire.Catalog(new(manifest, request.SourceSha256, request.SourceLength, request.SourceSha256)));
             foreach (var member in manifest.Members) outgoing.Write(ArchiveControlRecord.Member, ArchiveAssessmentWire.Member(member));

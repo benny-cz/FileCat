@@ -34,6 +34,9 @@ internal sealed class ArchiveWorkflowReview
     private readonly long retainedHeapBytes;
     internal int ReplacementNames { get; }
     internal int ReplacedOccurrences { get; }
+    internal int DuplicateReplacementNames { get; }
+    internal int MandatorySkippedNames { get; }
+    internal IReadOnlyList<string> MandatorySkipSamples { get; }
     internal int MergedDirectories => merges.Length;
     internal int ExcludedCount { get; }
     internal int InputTimePrecisionChanges { get; }
@@ -41,17 +44,21 @@ internal sealed class ArchiveWorkflowReview
 
     private ArchiveWorkflowReview(ArchiveCapturedInputs captured, ArchiveWriteProfile profile, ArchiveAssessment? source,
         ArchiveTransformEdit[] edits, ArchiveTransformEdit[] replacements, ArchiveTransformAddition[] additions,
-        ArchiveCapturedDirectoryMerge[] merges, int conflicts, int occurrences, int excluded, int precisionChanges, string[] samples, long retainedHeapBytes)
+        ArchiveCapturedDirectoryMerge[] merges, int conflicts, int occurrences, int excluded, int precisionChanges, string[] samples, long retainedHeapBytes,
+        int duplicateNames = 0, int mandatorySkippedNames = 0, string[]? mandatorySkipSamples = null)
     {
         this.captured = captured; this.profile = profile; this.source = source; this.edits = edits; this.replacements = replacements;
         this.additions = additions; this.merges = merges; ReplacementNames = conflicts; ReplacedOccurrences = occurrences;
         ExcludedCount = excluded; InputTimePrecisionChanges = precisionChanges;
         ReplacementSamples = Array.AsReadOnly(samples); this.retainedHeapBytes = retainedHeapBytes;
+        DuplicateReplacementNames = duplicateNames; MandatorySkippedNames = mandatorySkippedNames;
+        MandatorySkipSamples = Array.AsReadOnly(mandatorySkipSamples ?? []);
     }
 
     internal static ArchiveWorkflowReview Prepare(ArchiveWriteProfile profile, ArchiveAssessment? source, ArchiveCapturedInputs captured,
         IReadOnlyList<ArchiveTransformEdit> memberEdits, IReadOnlyList<ArchiveFolderChange> folderEdits,
-        IReadOnlyList<ArchiveTransformAddition> incoming, int excludedCount, CancellationToken ct, long operationHeapBytes = 0)
+        IReadOnlyList<ArchiveTransformAddition> incoming, int excludedCount, CancellationToken ct, long operationHeapBytes = 0,
+        bool allowSkippedTypeConflicts = false)
     {
         ArgumentNullException.ThrowIfNull(profile); ArgumentNullException.ThrowIfNull(captured);
         ArgumentNullException.ThrowIfNull(memberEdits); ArgumentNullException.ThrowIfNull(folderEdits); ArgumentNullException.ThrowIfNull(incoming);
@@ -123,6 +130,9 @@ internal sealed class ArchiveWorkflowReview
         }
         var additions = new List<ArchiveTransformAddition>(); var replacements = new List<ArchiveTransformEdit>();
         var merges = new List<ArchiveCapturedDirectoryMerge>(); var names = new HashSet<string>(StringComparer.Ordinal); var samples = new List<string>();
+        var mandatorySamples = new List<string>(); int mandatorySkipped = 0, duplicateNames = 0;
+        if (allowSkippedTypeConflicts) budget.AddMetadata(0, checked(active.Count * 16L));
+        string[] activeNames = allowSkippedTypeConflicts ? active.Keys.Order(StringComparer.Ordinal).ToArray() : [];
         int conflicts = 0, replaced = 0;
         foreach (var addition in requestedIncoming)
         {
@@ -134,7 +144,30 @@ internal sealed class ArchiveWorkflowReview
             if (addition.Type == ArchiveMemberType.Directory) budget.AddMetadata(0, addition.Name.Length * 2L);
             string name = addition.Type == ArchiveMemberType.Directory ? addition.Name.TrimEnd('/') : addition.Name;
             if (!names.Add(name)) throw Invalid("Two incoming archive members have the same name.");
-            if (!active.TryGetValue(name, out var existing)) { additions.Add(addition); continue; }
+            bool hasExisting = active.TryGetValue(name, out var existing);
+            if (allowSkippedTypeConflicts)
+            {
+                bool blocked = hasExisting && existing!.Any(key => key.Type != addition.Type);
+                if (!blocked && addition.Type == ArchiveMemberType.File)
+                {
+                    string prefix = name + "/"; budget.AddNameChars(prefix.Length);
+                    int next = Array.BinarySearch(activeNames, prefix, StringComparer.Ordinal); if (next < 0) next = ~next;
+                    blocked = next < activeNames.Length && activeNames[next].StartsWith(prefix, StringComparison.Ordinal);
+                }
+                for (int slash = name.IndexOf('/'); !blocked && slash >= 0; slash = name.IndexOf('/', slash + 1))
+                {
+                    budget.AddNameChars(slash);
+                    blocked = active.TryGetValue(name[..slash], out var parent) && parent.Any(key => key.Type == ArchiveMemberType.File);
+                }
+                if (blocked)
+                {
+                    mandatorySkipped++;
+                    if (mandatorySamples.Count < ArchiveCapturedSelection.MaximumExclusionSamples) mandatorySamples.Add(name);
+                    continue;
+                }
+            }
+            if (!hasExisting) { additions.Add(addition); continue; }
+            if (existing is null) throw Invalid("An existing archive group is missing.");
             if (existing.Any(key => key.Type != addition.Type)) throw Invalid("A file and a folder use the same archive name. Choose a different name.");
             if (existing.Any(changes.ContainsKey)) throw Invalid("A member cannot be edited and replaced or merged in the same reviewed operation.");
             if (addition.Type == ArchiveMemberType.Directory)
@@ -142,7 +175,7 @@ internal sealed class ArchiveWorkflowReview
                 if (addition.CapturedDirectory is { } directory) merges.Add(new(directory.Id, existing[0]));
                 continue; // Keep every existing directory row and its optional metadata verbatim.
             }
-            conflicts++; replaced = checked(replaced + existing.Count);
+            conflicts++; replaced = checked(replaced + existing.Count); if (existing.Count > 1) duplicateNames++;
             if (samples.Count < ArchiveCapturedSelection.MaximumExclusionSamples) samples.Add(name);
             for (int i = 0; i < existing.Count; i++)
                 replacements.Add(i == 0 ? new(ArchiveChangeKind.Replace, existing[i], inputId: addition.InputId) : new(ArchiveChangeKind.Delete, existing[i]));
@@ -151,7 +184,8 @@ internal sealed class ArchiveWorkflowReview
         int precisionChanges = profile.Format == ArchiveWriteFormat.SevenZip ? additions.Count(a =>
             (a.Type == ArchiveMemberType.File ? captured.Bindings[a.InputId!.Value].Reviewed.Input(a.InputId.Value).ModifiedTimestamp : a.DirectoryMetadata!.Modified).Nanoseconds % 100 != 0) : 0;
         return new(captured, profile, source, changes.Values.ToArray(), replacements.ToArray(), additions.ToArray(), merges.ToArray(), conflicts,
-            replaced, excludedCount, precisionChanges, samples.ToArray(), budget.RetainedHeapBytes - cost.HeapBytes - sourceHeapBytes);
+            replaced, excludedCount, precisionChanges, samples.ToArray(), budget.RetainedHeapBytes - cost.HeapBytes - sourceHeapBytes,
+            duplicateNames, mandatorySkipped, mandatorySamples.ToArray());
 
         void AddEdit(ArchiveTransformEdit edit, bool reserved = false)
         {
@@ -170,6 +204,7 @@ internal sealed class ArchiveWorkflowReview
     internal ArchiveContainerTransformPlan CreatePlan(bool replaceExisting, bool acceptExclusions, CancellationToken ct, bool acceptTimestampPrecision = false)
     {
         ct.ThrowIfCancellationRequested();
+        if (MandatorySkippedNames != 0) throw Invalid("Review skipped archive type conflicts before continuing.");
         if (ReplacementNames != 0 && !replaceExisting) throw Invalid("Review and accept the listed archive replacements before continuing.");
         if (ExcludedCount != 0 && !acceptExclusions) throw Invalid("Review and accept excluded source items before continuing.");
         if (InputTimePrecisionChanges != 0 && !acceptTimestampPrecision)
@@ -177,6 +212,44 @@ internal sealed class ArchiveWorkflowReview
         var combined = new ArchiveTransformEdit[edits.Length + replacements.Length]; edits.CopyTo(combined, 0); replacements.CopyTo(combined, edits.Length);
         return captured.CreatePlan(profile, source, combined, additions, ct, merges, retainedHeapBytes);
     }
+
+    /// <summary>Skip policies reduce read grants; they never delete an unarchived captured source.</summary>
+    internal ArchiveWorkflowSelection CreateSelectedPlan(bool replaceUniqueNames, bool acceptExclusions, CancellationToken ct,
+        bool acceptTimestampPrecision = false)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (ExcludedCount != 0 && !acceptExclusions) throw Invalid("Review excluded source items before continuing.");
+        if (InputTimePrecisionChanges != 0 && !acceptTimestampPrecision) throw Invalid("Review 7z timestamp precision before continuing.");
+        var selectedReplacements = replacements.GroupBy(edit => edit.Key.RawPath, StringComparer.Ordinal)
+            .Where(group => replaceUniqueNames && group.Count() == 1).SelectMany(group => group).ToArray();
+        var combined = edits.Concat(selectedReplacements).ToArray();
+        var fileIds = combined.Where(edit => edit.InputId is not null).Select(edit => edit.InputId!.Value)
+            .Concat(additions.Where(addition => addition.InputId is not null).Select(addition => addition.InputId!.Value)).ToHashSet();
+        var directoryIds = additions.Where(addition => addition.CapturedDirectory is not null).Select(addition => addition.CapturedDirectory!.Id)
+            .Concat(merges.Select(merge => merge.CapturedId)).ToHashSet();
+        var view = captured.BorrowSubset(fileIds, directoryIds, ct);
+        try
+        {
+            var rebound = additions.Select(addition => addition.CapturedDirectory is { } directory
+                ? view.DirectoryAddition(addition.Name, directory.Id) : addition).ToArray();
+            var plan = view.CreatePlan(profile, source, combined, rebound, ct, merges, retainedHeapBytes);
+            int skipped = checked(MandatorySkippedNames + (replaceUniqueNames ? DuplicateReplacementNames : ReplacementNames));
+            return new(view, plan, fileIds.Concat(directoryIds).ToHashSet(), skipped,
+                combined.Length != 0 || rebound.Length != 0 || directoryIds.Count != 0);
+        }
+        catch { view.Dispose(); throw; }
+    }
     private static ArchiveWriteException Invalid(string message) => new(ArchiveWriteReason.InvalidRequest, message);
     private static ArchiveWriteException Changed() => new(ArchiveWriteReason.SourceChanged, "An exact member or recursive folder scope no longer belongs to the reviewed archive catalog.");
+}
+
+internal sealed class ArchiveWorkflowSelection(ArchiveCapturedInputs inputs, ArchiveContainerTransformPlan plan,
+    IReadOnlySet<int> committedInputs, int skippedNames, bool hasChanges) : IDisposable
+{
+    internal ArchiveCapturedInputs Inputs { get; } = inputs;
+    internal ArchiveContainerTransformPlan Plan { get; } = plan;
+    internal IReadOnlySet<int> CommittedInputs { get; } = committedInputs;
+    internal int SkippedNames { get; } = skippedNames;
+    internal bool HasChanges { get; } = hasChanges;
+    public void Dispose() => Inputs.Dispose();
 }

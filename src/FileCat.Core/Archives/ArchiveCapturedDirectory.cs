@@ -41,6 +41,8 @@ internal sealed class ArchiveCapturedDirectory(ArchiveCapturedInputs owner, int 
     internal ArchiveCapturedInputs Owner { get; } = owner;
     internal int Id { get; } = id;
     internal ArchiveDirectoryObservation Reviewed { get; } = captured;
+    internal ArchiveCapturedDirectory BorrowFor(ArchiveCapturedInputs target)
+    { target.RequireBorrowedFrom(Owner); return new(target, Id, observe, Reviewed); }
     internal void Review(CancellationToken ct) => Owner.ReviewDirectory(observe, Reviewed, ct);
 }
 

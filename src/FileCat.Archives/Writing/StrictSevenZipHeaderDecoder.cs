@@ -105,7 +105,7 @@ internal sealed class StrictSevenZipHeaderDecoder : Stream
         internal ExactAes(Stream input, long packedLength, long length, ReadOnlySpan<byte> properties,
             SevenZipReadPasswordSession? password, CancellationToken ct) : base(length)
         {
-            if (password is null) throw Unsupported();
+            if (password is null) throw ArchiveWriteException.PasswordRequired();
             if (properties.Length is < 1 or > 34 || packedLength < length || packedLength - length > 15 || (packedLength & 15) != 0) throw Invalid();
             int power = properties[0] & 63, saltLength = properties[0] >> 7, ivLength = (properties[0] >> 6) & 1, prefix = 1;
             if ((properties[0] & 0xc0) != 0)

@@ -3,7 +3,12 @@ using System.Collections.ObjectModel;
 namespace FileCat.Core.Archives;
 
 internal readonly record struct ArchiveCapturedInputCost(long MetadataBytes, long HeapBytes, long NameChars);
-internal interface IArchiveCapturedInputFile { ArchiveCapturedInputs CaptureOwner { get; } }
+internal interface IArchiveCapturedInputFile
+{
+    ArchiveCapturedInputs CaptureOwner { get; }
+    IArchiveRetainedFile BorrowFor(ArchiveCapturedInputs owner) => throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest,
+        "This captured input cannot grant a reviewed subset.");
+}
 
 /// <summary>
 /// Reviewed file inputs with on-demand native leases. Factories must open fixed directory-relative names through
@@ -25,6 +30,8 @@ internal sealed class ArchiveCapturedInputs : IDisposable
     private IReadOnlyList<ArchiveTransformInput>? frozenInputs;
     private int disposed;
     private bool poisoned;
+    private ArchiveCapturedInputs? borrowedFrom;
+    private CancellationTokenRegistration borrowedStop;
     private Action<string, string, CancellationToken>? selectionDestinationReview;
 
     internal ArchiveCapturedInputs() { stopToken = stopped.Token; budget.AddMetadata(0, 2048); }
@@ -62,6 +69,54 @@ internal sealed class ArchiveCapturedInputs : IDisposable
     internal IReadOnlyDictionary<int, ArchiveCapturedDirectory> Directories { get { lock (gate) { Live(sealedRequired: true); return frozenDirectories!; } } }
     internal IReadOnlyList<ArchiveTransformInput> Inputs { get { lock (gate) { Live(sealedRequired: true); return frozenInputs!; } } }
     internal ArchiveCapturedInputCost Cost { get { lock (gate) { Live(sealedRequired: true); return new(budget.MetadataBytes, budget.RetainedHeapBytes, budget.NameChars); } } }
+
+    /// <summary>Grants only inputs actually used after conflict review. The original selection outlives this view.</summary>
+    internal ArchiveCapturedInputs BorrowSubset(IReadOnlySet<int> fileIds, IReadOnlySet<int> directoryIds, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(fileIds); ArgumentNullException.ThrowIfNull(directoryIds);
+        lock (gate)
+        {
+            Live(sealedRequired: true); ct.ThrowIfCancellationRequested();
+            if (borrowedFrom is not null || fileIds.Count > bindings.Count || directoryIds.Count > directories.Count) throw Invalid();
+            var result = new ArchiveCapturedInputs { borrowedFrom = this, selectionDestinationReview = selectionDestinationReview };
+            try
+            {
+                result.budget.RetainCapturedInputs(Cost);
+                result.budget.AddMetadata(0, checked(4096L + 256L * (fileIds.Count + directoryIds.Count)));
+                foreach (int id in fileIds)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (!bindings.TryGetValue(id, out var binding) || binding.File is not IArchiveCapturedInputFile file || !ReferenceEquals(file.CaptureOwner, this)) throw Invalid();
+                    var loan = file.BorrowFor(result);
+                    if (loan is not IArchiveCapturedInputFile owned || !ReferenceEquals(owned.CaptureOwner, result)) throw Invalid();
+                    result.bindings.Add(id, new(loan, binding.Reviewed));
+                }
+                foreach (var input in frozenInputs!) if (fileIds.Contains(input.Id)) result.inputs.Add(input);
+                foreach (int id in directoryIds)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (!directories.TryGetValue(id, out var directory)) throw Invalid();
+                    result.directories.Add(id, directory.BorrowFor(result));
+                }
+                result.Seal(ct);
+                result.borrowedStop = stopToken.Register(static state =>
+                {
+                    try { ((ArchiveCapturedInputs)state!).stopped.Cancel(); }
+                    catch (ObjectDisposedException) { }
+                    catch (AggregateException error) { System.Diagnostics.Debug.WriteLine(error); }
+                }, result);
+                Live(sealedRequired: true); ct.ThrowIfCancellationRequested();
+                return result;
+            }
+            catch { result.Dispose(); throw; }
+        }
+    }
+
+    internal void RequireBorrowedFrom(ArchiveCapturedInputs source)
+    {
+        Live(sealedRequired: false);
+        if (!ReferenceEquals(borrowedFrom, source)) throw Invalid();
+    }
 
     internal void Capture<T>(int id, Func<T> open, CancellationToken ct) where T : Stream, IArchiveRetainedFile
     {
@@ -195,6 +250,7 @@ internal sealed class ArchiveCapturedInputs : IDisposable
     private void Live(bool sealedRequired)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
+        borrowedFrom?.Live(sealedRequired: true);
         if (poisoned) throw Invalid();
         if (sealedRequired && frozenBindings is null) throw new InvalidOperationException("Seal the reviewed inputs before granting reads or constructing a plan.");
     }
@@ -210,6 +266,8 @@ internal sealed class ArchiveCapturedInputs : IDisposable
         where T : Stream, IArchiveRetainedFile
     {
         public ArchiveCapturedInputs CaptureOwner => owner;
+        public IArchiveRetainedFile BorrowFor(ArchiveCapturedInputs target)
+        { target.RequireBorrowedFrom(owner); return new CapturedFile<T>(target, open, captured); }
         public string ObjectIdentity => captured.Version.Identity;
         public ArchiveFileObservation Observe(CancellationToken ct)
         {
@@ -283,6 +341,7 @@ internal sealed class ArchiveCapturedInputs : IDisposable
     public void Dispose()
     {
         if (Interlocked.Exchange(ref disposed, 1) != 0) return;
+        borrowedStop.Unregister();
         try { stopped.Cancel(); } finally { stopped.Dispose(); }
     }
     private static ArchiveWriteException Invalid() => new(ArchiveWriteReason.InvalidRequest, "The reviewed archive input set is invalid or incomplete.");

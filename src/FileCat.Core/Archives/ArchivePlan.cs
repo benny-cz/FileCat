@@ -19,6 +19,8 @@ public enum ArchiveChangeKind
     Replace = 5,
 }
 
+public enum ArchiveAddConflictPolicy { Ask = 0, Skip = 1, Replace = 2 }
+
 /// <summary>One change to an archive. Member paths use '/' and no leading slash; a folder path has no trailing slash.</summary>
 /// <param name="Ordinal">For a delete of a file member whose name is duplicated: which copy (0 = first); null means every copy.</param>
 public sealed record ArchiveChange(ArchiveChangeKind Kind, string MemberPath, string? SourcePath = null, string? NewMemberPath = null, int? Ordinal = null);
@@ -73,4 +75,7 @@ public sealed record ArchivePlan(string ArchivePath, ArchiveBaseline? Baseline, 
     internal string? ReviewedManifestDigest { get; init; }
     /// <summary>An explicit local move: remove only successfully archived, unchanged sources after verified publication.</summary>
     public bool MoveSources { get; init; }
+    /// <summary>Reviewed addition conflicts. Null retains the original explicit all-or-cancel planner contract.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public ArchiveAddConflictPolicy? AddConflictPolicy { get; init; }
 }

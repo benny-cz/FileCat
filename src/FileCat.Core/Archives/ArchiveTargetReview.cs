@@ -39,20 +39,39 @@ internal sealed class ArchiveTargetReview
         _ = new ArchiveJobPlanning(plan, CancellationToken.None); // Validate and bound the frozen public intent before queueing.
         return plan;
     }
+
+    internal ArchivePlan ReviewMemberChanges(IReadOnlyList<ArchiveChange> changes, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var plan = CreatePlan(changes);
+        if (plan.Changes.Any(change => change.Kind is not (ArchiveChangeKind.Delete or ArchiveChangeKind.Rename or ArchiveChangeKind.CreateFolderEntry)))
+            throw new ArgumentException("Member-only review cannot capture local inputs.", nameof(changes));
+        using var empty = new ArchiveCapturedInputs(); empty.Seal(ct);
+        _ = new ArchiveJobPlanning(plan, ct).Review(Assessment, null, empty, ct).CreatePlan(false, false, ct);
+        return plan;
+    }
 }
 
 /// <summary>Complete confined assessment over one pinned native source, followed by a full native recheck.</summary>
 internal sealed class ArchiveTargetReviewer(Func<string, CancellationToken, IArchiveTargetReadLease> open, ArchiveAssessmentClient assessor)
 {
     internal async Task<ArchiveTargetReview> ReviewAsync(string path, ArchiveWriteProfile profile, ArchiveJobPassword? password, CancellationToken ct,
-        bool preserveEncryption = false)
+        bool preserveEncryption = false, string? expectedSourceSha256 = null)
     {
         ArgumentNullException.ThrowIfNull(profile);
         if (!System.IO.Path.IsPathFullyQualified(path)) throw new ArgumentException("An absolute archive target is required.", nameof(path));
         ArchiveJobPassword.Require(profile, password); ct.ThrowIfCancellationRequested();
+        if (expectedSourceSha256 is not null)
+        {
+            if (expectedSourceSha256.Length != 64) ArchiveWritePolicy.ValidateDigest(expectedSourceSha256);
+            expectedSourceSha256 = expectedSourceSha256.ToUpperInvariant();
+            ArchiveWritePolicy.ValidateDigest(expectedSourceSha256);
+        }
         path = System.IO.Path.GetFullPath(path);
         using var lease = open(path, ct);
         var observed = lease.File.Observe(ct);
+        if (expectedSourceSha256 is not null && !string.Equals(observed.Version.Sha256, expectedSourceSha256, StringComparison.OrdinalIgnoreCase))
+            throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The archive changed since these members were listed. Refresh it and select them again.");
         ArchiveAssessment result;
         try
         {

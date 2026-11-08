@@ -26,7 +26,8 @@ public sealed partial class ArchiveCapturedInputsTests
         public void Execute(ArchiveJobExecution execution) => run(execution);
     }
     private static async Task<Job> RunNativeMove(Tree tree, List<string> removed, List<bool> reviews,
-        Action<ArchiveSelectionNode, Job>? deleting = null, Action<Job>? published = null, int changedAtReview = -1)
+        Action<ArchiveSelectionNode, Job>? deleting = null, Action<Job>? published = null, int changedAtReview = -1,
+        IReadOnlySet<string>? committedMembers = null)
     {
         using var temp = new TempDir(); Job? active = null;
         var plan = new ArchivePlan(Path.Combine(temp.Path, "output.tar"), null,
@@ -38,7 +39,8 @@ public sealed partial class ArchiveCapturedInputsTests
         {
             active = execution.Job; active.AddTotals(1, 0); active.ItemDone(); published?.Invoke(active);
             ArchiveNativeMoveSources.Remove(active, execution.Journal, execution.Plan, selection, (full, ct) =>
-            { ct.ThrowIfCancellationRequested(); reviews.Add(full); if (reviews.Count == changedAtReview) throw new IOException("Published archive changed."); });
+            { ct.ThrowIfCancellationRequested(); reviews.Add(full); if (reviews.Count == changedAtReview) throw new IOException("Published archive changed."); },
+                committedMembers is null ? null : selection.Members.Where(member => committedMembers.Contains(member.Name)).Select(member => member.Id).ToHashSet());
         });
         var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), Path.Combine(temp.Path, "journals"), new([backend]));
         var job = manager.SubmitArchive(plan);
@@ -55,6 +57,18 @@ public sealed partial class ArchiveCapturedInputsTests
         Assert.Equal(new[] { "tree/file", "tree" }, removed); Assert.Equal(new[] { true, false, false }, reviews);
         Assert.Equal(JobState.Completed, job.State); Assert.Equal(new[] { 0 }, job.CompletedRootIndices); Assert.Equal(0, job.FailedRootCount);
         Assert.Contains("Archive saved", job.Summary); Assert.Equal(EntryKind.Directory, Assert.Single(job.Request.Sources).Kind);
+    }
+
+    [Theory, InlineData(false), InlineData(true)]
+    public async Task Move_keeps_skipped_children_and_their_parents_even_when_the_directory_merge_was_committed(bool commitGood)
+    {
+        var removed = new List<string>(); var reviews = new List<bool>();
+        var tree = new Tree { Children = (_, visit) => { visit(new("good", ArchiveSelectionKind.File, "good")); visit(new("skipped", ArchiveSelectionKind.File, "skipped")); } };
+        var committed = new HashSet<string> { "tree" }; if (commitGood) committed.Add("tree/good");
+        var job = await RunNativeMove(tree, removed, reviews, committedMembers: committed);
+        Assert.Equal(commitGood ? new[] { "tree/good" } : Array.Empty<string>(), removed);
+        Assert.Equal(JobState.CompletedWithIssues, job.State); Assert.Equal(0, job.CompletedRootCount); Assert.Equal(1, job.FailedRootCount);
+        Assert.Contains("not confirmed removed", job.Summary);
     }
 
     [Fact]

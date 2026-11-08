@@ -1,5 +1,12 @@
 # Archive writing implementation status
 
+**8 November: connected member/F5/F6 component implemented; validation in progress.**
+[Member commands](ARCHIVE_MEMBER_COMMANDS.md) connect exact occurrences and recursive folders, listing-revision
+checks, password retry, typed destination review and skip-aware F6 source removal. All three platforms pass
+114 focused Core and 53 connected UI cases (`awm-v3`, Windows frozen continuation `awm-v3t`). Windows native
+results are pending. Historical failures are preserved. Additional
+tests and the full regression/reader cohort remain required; no new profile is registered or qualified.
+
 **8 November: retained target review and existing-archive Pack updates implemented, unregistered.**
 [Target review](ARCHIVE_TARGET_UPDATE_UI.md) binds queued updates to a complete manifest and native source
 observation, preserves existing RAR5/7z password modes and retains preparation ownership through cancellation.
