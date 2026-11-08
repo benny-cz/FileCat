@@ -140,10 +140,16 @@ internal static unsafe partial class WindowsArchiveNative
 
     internal static void RequireCreationStreams(SafeFileHandle handle, long expectedLength, ArchiveOriginSnapshot origin, bool directory = false)
     {
+        ArchiveCreationOrigin.RequireSupported(origin);
+        RequireSnapshotStreams(handle,expectedLength,origin,directory);
+    }
+
+    internal static void RequireSnapshotStreams(SafeFileHandle handle,long expectedLength,ArchiveOriginSnapshot origin,bool directory=false)
+    {
         // Closed bounded inventory: exactly the unnamed data and, when required, Zone.Identifier. Never allocate
         // from an untrusted native list size or accept a partial/overflow query as proof that other streams are absent.
-        ArchiveCreationOrigin.RequireSupported(origin);
-        if (origin.Format != ArchiveOriginFormat.WindowsZoneIdentifier) throw UnexpectedStreams();
+        // Edit copies retain an exact opaque origin, including its URLs. Creation keeps its separate aggregation policy.
+        if (origin.Format != ArchiveOriginFormat.WindowsZoneIdentifier || origin.State == ArchiveOriginState.Unavailable) throw UnexpectedStreams();
         byte* bytes = stackalloc byte[512]; new Span<byte>(bytes, 512).Clear(); IoStatus io = default;
         int status = NtQueryInformationFile(handle, &io, bytes, 512, 22 /* FileStreamInformation */);
         // Directories need no unnamed $DATA stream. A successful empty inventory proves no named data exists.

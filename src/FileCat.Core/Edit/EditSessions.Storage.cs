@@ -96,10 +96,10 @@ public sealed partial class EditSessionStore
         revision=0;return name.Length==RevisionPrefix.Length+19+5&&name.StartsWith(RevisionPrefix,StringComparison.Ordinal)&&name.EndsWith(".json",StringComparison.Ordinal)&&
             long.TryParse(name.AsSpan(RevisionPrefix.Length,19),NumberStyles.None,CultureInfo.InvariantCulture,out revision)&&revision>0;
     }
-    private static EditSessionRecord ReadNativeLatest(EditSessionRecord anchor,byte[] anchorBytes,EditDirectoryLease root,EditDirectoryLease session)
+    private static EditSessionRecord ReadNativeLatest(EditSessionRecord anchor,byte[] anchorBytes,EditDirectoryLease root,EditDirectoryLease session,CancellationToken ct=default)
     {
         long revision=0;
-        foreach(string name in session.Names(default))
+        foreach(string name in session.Names(ct))
         {
             if(!name.StartsWith(RevisionPrefix,StringComparison.Ordinal))continue;
             if(!TryRevision(name,out long value))return UnsupportedSession(session.Path,"This edit has an unknown state-record name. Its working folder is kept.");
@@ -112,7 +112,7 @@ public sealed partial class EditSessionStore
         var latest=anchor;string previousHash=Digest(anchorBytes);long reviewedBytes=anchorBytes.Length;
         for(long current=1;current<=revision;current++)
         {
-            byte[] bytes=ReadRecordBytes(session,RevisionName(current),default);reviewedBytes+=bytes.Length;
+            ct.ThrowIfCancellationRequested();byte[] bytes=ReadRecordBytes(session,RevisionName(current),ct);reviewedBytes+=bytes.Length;
             if(reviewedBytes>32L*1024*1024)return UnsupportedSession(session.Path,"This edit's revision history exceeds the review budget. Its working folder is kept.");
             latest=ParseRecord(bytes,session.Path);
             if(!latest.IsSupported)return latest;

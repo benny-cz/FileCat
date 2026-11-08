@@ -163,7 +163,7 @@ internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
         lock(Gate)
         {
             if(!ObserveSnapshot(file,name,ct).Matches(expected))throw new IOException("The retained snapshot changed; its files are kept.");
-            WindowsArchiveNative.RequireCreationStreams(file.SafeFileHandle,expected.Version.Length,expected.Origin);
+            WindowsArchiveNative.RequireSnapshotStreams(file.SafeFileHandle,expected.Version.Length,expected.Origin);
             try{WindowsArchiveNative.DeleteExact(file.SafeFileHandle);file.Dispose();}
             catch(System.ComponentModel.Win32Exception error){throw new IOException("The private commit snapshot could not be removed: "+Path,error);}
         }

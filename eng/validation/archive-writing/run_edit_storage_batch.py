@@ -2,8 +2,8 @@
 from pathlib import Path
 import importlib.util,json,shutil,subprocess,sys,tarfile,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v10'
-PACKET='archive-edit-storage-delta-v10.tar.gz'
+FOLDER='awe-storage-v11'
+PACKET='archive-edit-storage-delta-v11.tar.gz'
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 def sha(path):
     import hashlib
@@ -11,7 +11,7 @@ def sha(path):
 def base(task):
     path=task/'archive-workflow-source-v1/eng/validation/archive-writing/run_job_backend_batch.py'
     spec=importlib.util.spec_from_file_location('edit_storage_base',path);value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value)
-    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v9'
+    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v10'
     return value
 def batch_for(task):return base(task).batch_for(task)
 def prepare(task,expected):
@@ -41,7 +41,12 @@ def tests(task):
     run('native-storage','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
         'FullyQualifiedName~WindowsEditStorageTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditStorageTests',14 if sys.platform=='win32' else 19)
     run('native-snapshot','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
-        'FullyQualifiedName~WindowsEditSnapshotTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditSnapshotTests',34)
+        'FullyQualifiedName~WindowsEditSnapshotTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditSnapshotTests',35 if sys.platform=='win32' else 34)
+    run('capture-recovery','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
+        'FullyQualifiedName~WindowsEditCaptureRecoveryTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditCaptureRecoveryTests',27)
+    run('origin-policy','FileCat.Core.Tests','FullyQualifiedName~ArchiveCreationOriginTests')
+    if sys.platform=='win32':
+        run('native-origin-regressions','FileCat.Platform.Windows.Tests','FullyQualifiedName~WindowsArchiveOriginTests|FullyQualifiedName~WindowsArchiveOriginEvidenceTests')
     run('commit-copy','FileCat.Core.Tests','FullyQualifiedName~EditCommitCopyTests',10)
     run('edit-core','FileCat.Core.Tests','FullyQualifiedName~EditSession&FullyQualifiedName!~EditSessionRecoveryRecordTests|FullyQualifiedName~ArchivePasswordReadSessionTests')
     run('job-input-regressions','FileCat.Core.Tests','FullyQualifiedName~ArchiveJobBackendTests|FullyQualifiedName~ArchiveCapturedInputsTests')

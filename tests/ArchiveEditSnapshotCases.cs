@@ -122,7 +122,7 @@ internal static class ArchiveEditSnapshotCases
                     Directory.CreateDirectory(Path.GetDirectoryName(copy.Path)!);File.WriteAllText(copy.Path,"unrelated later occupant");retainCapture=true;
                     copy.Dispose();Assert.Equal("unrelated later occupant",File.ReadAllText(copy.Path));return;
                 }
-                string foreign=scenario=="cleanup-extra-file"?Path.Combine(Path.GetDirectoryName(copy.Path)!,"foreign.txt"):
+                string foreign=scenario=="cleanup-extra-stream"?copy.Path+":FileCat.Unexpected":scenario=="cleanup-extra-file"?Path.Combine(Path.GetDirectoryName(copy.Path)!,"foreign.txt"):
                     scenario=="cleanup-extra-capture-child"?Path.Combine(captureRoot,"foreign.txt"):Path.Combine(captureRoot,"captured.json");
                 void ChangeRecord()
                 {
@@ -137,7 +137,7 @@ internal static class ArchiveEditSnapshotCases
                 if(error is IOException or UnauthorizedAccessException){Assert.True(OperatingSystem.IsWindows(),error.ToString());return;}
                 Assert.Null(error);retainCapture=true;
                 Assert.IsAssignableFrom<IOException>(Record.Exception(copy.Dispose));Assert.True(File.Exists(copy.Path));
-                Assert.True(File.Exists(Path.Combine(captureRoot,"capture.json")));Assert.True(File.Exists(foreign));
+                Assert.True(File.Exists(Path.Combine(captureRoot,"capture.json")));if(scenario!="cleanup-extra-stream")Assert.True(File.Exists(foreign));
                 if(scenario is not "cleanup-record-origin-changed")Assert.Equal("unreviewed child or record",File.ReadAllText(foreign));
                 Assert.Equal(bytes,File.ReadAllBytes(record.WorkingPath));return;
             }

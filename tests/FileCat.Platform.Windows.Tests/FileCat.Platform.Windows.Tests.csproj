@@ -29,6 +29,7 @@
     <Compile Include="..\ArchiveEditDirectoryCases.cs" Link="ArchiveEditDirectoryCases.cs" />
     <Compile Include="..\ArchiveEditStorageCases.cs" Link="ArchiveEditStorageCases.cs" />
     <Compile Include="..\ArchiveEditSnapshotCases.cs" Link="ArchiveEditSnapshotCases.cs" />
+    <Compile Include="..\ArchiveEditCaptureRecoveryCases.cs" Link="ArchiveEditCaptureRecoveryCases.cs" />
     <Compile Include="..\ArchiveStageCrashAssertions.cs" Link="ArchiveStageCrashAssertions.cs" />
     <Compile Include="..\ArchiveJournaledTarAssertions.cs" Link="ArchiveJournaledTarAssertions.cs" />
     <Compile Include="..\ArchiveRar5NativeCases.cs" Link="ArchiveRar5NativeCases.cs" />

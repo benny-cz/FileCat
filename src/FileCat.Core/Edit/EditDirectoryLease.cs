@@ -60,6 +60,7 @@ internal abstract class EditDirectoryLease : IDisposable
         }
         catch (System.Text.EncoderFallbackException error) { throw new ArgumentException("The edit filename has invalid Unicode.", nameof(value), error); }
     }
+    internal static void ValidateLeaf(string value)=>Leaf(value);
     internal EditFileVersion Inspect(FileStream file,CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();file.Flush();
