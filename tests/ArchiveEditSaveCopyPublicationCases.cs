@@ -30,7 +30,7 @@ internal static class ArchiveEditSaveCopyPublicationCases
         var ct=TestContext.Current.CancellationToken;
         string parent=Path.GetFullPath(Environment.GetEnvironmentVariable("FILECAT_EDIT_NATIVE_ROOT")??Path.GetTempPath());
         if(OperatingSystem.IsMacOS()&&parent.StartsWith("/var/",StringComparison.Ordinal))parent="/private"+parent;
-        string root=Directory.CreateDirectory(Path.Combine(parent,"filecat-edit-publish-"+Guid.NewGuid().ToString("N"))).FullName;
+        string root=CreateOwnedDirectory(Path.Combine(parent,"filecat-edit-publish-"+Guid.NewGuid().ToString("N")));
         EditCommitCopy? copy=null;EditCopyPublicationDestination? destination=null,other=null;EditSaveCopyPublicationResult? result=null;
         try
         {
@@ -44,7 +44,7 @@ internal static class ArchiveEditSaveCopyPublicationCases
                 "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.test/notes\r\nQuarantine=0081;6553f100;FileCat;public-test\r\n"));
             copy=store.PrepareSaveCopy(record,root,new LocalFileSystemProvider(),()=>ct.ThrowIfCancellationRequested());
             var source=Assert.IsType<NativeEditSnapshot>(copy.Native);var expected=((IArchiveRetainedFile)source).Observe(ct);
-            string folder=Directory.CreateDirectory(Path.Combine(root,"destination")).FullName;
+            string folder=CreateOwnedDirectory(Path.Combine(root,"destination"));
             string targetLeaf=scenario=="platform-name"?(OperatingSystem.IsWindows()?new string('\u754c',200)+".txt":"notes: draft?.txt"):"notes.txt";
             string target=Path.Combine(folder,targetLeaf);destination=create(folder,bytes.Length);
             using var cancel=CancellationTokenSource.CreateLinkedTokenSource(ct);bool blocked=false;
@@ -58,13 +58,14 @@ internal static class ArchiveEditSaveCopyPublicationCases
                 if(scenario=="post-publish-replaced")Mutate(()=>{File.Move(target,target+".retained");File.WriteAllText(target,"other target owns this name");});
             });
             var prepared=EditSaveCopyPreparation.Prepare(source,output,destination.Reservation,destination.Space,ct);
+            if(scenario=="unqualified-namespace")File.SetUnixFileMode(folder,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute|UnixFileMode.GroupWrite);
             if(scenario=="late-save")File.WriteAllText(record.WorkingPath,"later edit stays local");
             if(scenario=="name-collision")File.WriteAllText(target,"other target owns this name");
             if(scenario=="source-changed")Mutate(()=>File.WriteAllText(copy.Path,"changed captured bytes"));
             if(scenario=="stage-changed")Mutate(()=>File.WriteAllText(destination.Reservation.Path,"changed output bytes"));
             if(scenario=="stage-directory-replaced")Mutate(()=>{Directory.Move(folder,folder+".retained");Directory.CreateDirectory(folder);
                 File.WriteAllBytes(Path.Combine(folder,destination.Reservation.LeafName),bytes);});
-            if(scenario is "wrong-receipt-parent" or "witness-other-stage")other=create(Directory.CreateDirectory(Path.Combine(root,"other")).FullName,bytes.Length);
+            if(scenario is "wrong-receipt-parent" or "witness-other-stage")other=create(CreateOwnedDirectory(Path.Combine(root,"other")),bytes.Length);
             if(scenario=="witness-other-stage")
             {
                 var alternate=EditSaveCopyPreparation.Prepare(source,other!.Stage,other.Reservation,other.Space,ct);
@@ -86,7 +87,7 @@ internal static class ArchiveEditSaveCopyPublicationCases
                 if(scenario=="ready-receipt-failure"&&sequence==1||scenario=="outcome-receipt-failure"&&sequence==2)
                     throw new IOException("Controlled receipt creation failure.");
                 var file=destination.Create(reservation);
-                return sequence==1&&scenario is "corrupt-ready-readback" or "ready-flush-failure"
+                return sequence==1&&(scenario is "corrupt-ready-readback" or "ready-flush-failure")
                     ?new ReceiptEffects(file,scenario=="corrupt-ready-readback",scenario=="ready-flush-failure"):file;
             }
             void Check()
@@ -95,14 +96,14 @@ internal static class ArchiveEditSaveCopyPublicationCases
                 if(scenario=="cancel-ready")cancel.Cancel();
                 if(scenario=="ready-record-substitution")Mutate(()=>
                 {
-                    string path=Directory.EnumerateFiles(folder,"*.manifest").Single();byte[] receipt=File.ReadAllBytes(path);
+                    string path=Directory.EnumerateFiles(folder,"*.manifest").Single();byte[] receipt=ReadShared(path);
                     File.Move(path,path+".retained");File.WriteAllBytes(path,receipt);
                 });
             }
             if(scenario=="cancel-before")cancel.Cancel();
             var error=Record.Exception(()=>result=EditSaveCopyPublication.Publish(prepared,targetLeaf,destination.Space,Reserve,Create,cancel.Token,Check));
             TestContext.Current.TestOutputHelper?.WriteLine(error?.ToString()??result?.Issue?.ToString()??"Published and durably recorded.");
-            bool beforeFailure=scenario is "ready-receipt-failure" or "corrupt-ready-readback" or "ready-flush-failure" or "wrong-receipt-parent"||
+            bool beforeFailure=scenario is "ready-receipt-failure" or "corrupt-ready-readback" or "ready-flush-failure" or "wrong-receipt-parent" or "unqualified-namespace"||
                 !blocked&&(scenario is "source-changed" or "stage-changed" or "stage-directory-replaced" or "ready-record-substitution");
             if(scenario is "cancel-before" or "cancel-ready")
             {Assert.IsAssignableFrom<OperationCanceledException>(error);Assert.Null(result);Assert.False(File.Exists(target));}
@@ -116,7 +117,7 @@ internal static class ArchiveEditSaveCopyPublicationCases
                 {Assert.Null(result.Published);Assert.NotNull(result.Issue);Assert.Equal("other target owns this name",File.ReadAllText(target));}
                 else
                 {
-                    Assert.NotNull(result.Published);Assert.Equal(bytes,File.ReadAllBytes(target));
+                    Assert.NotNull(result.Published);Assert.Equal(bytes,ReadShared(target));
                     Assert.Equal(prepared.Output.Reviewed.Version,result.Published.Version);Assert.Equal(expected.Origin.Digest,result.Published.Origin.Digest);
                     Assert.Equal(expected.MemberModified,result.Published.MemberModified);
                     if(scenario is "post-rename-failure" or "outcome-receipt-failure")Assert.NotNull(result.Issue);else Assert.Null(result.Issue);
@@ -124,7 +125,7 @@ internal static class ArchiveEditSaveCopyPublicationCases
                 Assert.Equal(scenario!="outcome-receipt-failure",result.OutcomeRecorded);
                 Assert.Equal(1,result.Receipts[0].Record.Sequence);Assert.Equal("prepared",result.Receipts[0].Record.Phase);
                 foreach(var receipt in result.Receipts)
-                {receipt.Review(ct);Assert.Equal(receipt.Record,EditSaveCopyRecord.Decode(File.ReadAllBytes(Path.Combine(folder,receipt.Observation.LeafName))));}
+                {receipt.Review(ct);Assert.Equal(receipt.Record,EditSaveCopyRecord.Decode(ReadShared(Path.Combine(folder,receipt.Observation.LeafName))));}
                 if(result.OutcomeRecorded)Assert.Equal(uncertain?"needs-review":"published",result.Receipts[1].Record.Phase);
                 if(scenario=="repeat-preparation")
                 {
@@ -147,6 +148,14 @@ internal static class ArchiveEditSaveCopyPublicationCases
                 !Path.GetFileName(root).StartsWith("filecat-edit-publish-",StringComparison.Ordinal))throw new IOException("Unexpected edit publication fixture root.");
             Directory.Delete(root,true);
         }
+    }
+
+    private static string CreateOwnedDirectory(string path)=>OperatingSystem.IsWindows()?Directory.CreateDirectory(path).FullName:
+        Directory.CreateDirectory(path,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute).FullName;
+    private static byte[] ReadShared(string path)
+    {
+        using var input=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete);
+        using var output=new MemoryStream();input.CopyTo(output);return output.ToArray();
     }
 
     private sealed class StageEffects(IEditSaveCopyPublicationStage stage,Action before,Action after):IEditSaveCopyPublicationStage

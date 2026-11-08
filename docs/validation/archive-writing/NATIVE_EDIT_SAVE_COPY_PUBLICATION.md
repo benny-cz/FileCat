@@ -35,9 +35,14 @@ collisions/late appearance, changed sources/stages/directories, substituted reco
 and after name claim, receipt creation/flush failure/corrupt readback, post-rename errors and live-review replay/redirection.
 User-selected names follow native limits: long multibyte Windows names and ordinary Unix punctuation do not
 inherit the stricter extraction/private-session naming restrictions. Their native publication is included.
-Twenty strict receipt cases run on each platform. Builds and guest results are tracked separately; the next
-`awe-storage-v24` packet explicitly contains focused evidence with complete inventories not run for these changed
-runtime bytes. The preceding `v23` complete qualification remains attached to its own candidate.
+Twenty strict receipt cases run on each platform. The initial `v24` runs preserve 19 Windows / 16 Ubuntu fixture
+failures: ordinary pathname assertion readers used incompatible Windows sharing, and Ubuntu's default umask made
+the test destination group writable. The strict record20 gate passes on both. The fixture correction creates new
+Unix test directories as 0700 and uses explicitly shared read-only assertion readers while native owners remain
+held. One additional Unix case explicitly requires the original group-write refusal. Product code is unchanged.
+The corrected `v25` packet requires publication25 Windows / 26 Unix and record20, plus all connected focused gates.
+Complete inventories are explicitly not run for these changed runtime bytes; the preceding `v23` complete
+qualification remains attached to its own candidate. Mac receives the corrected candidate after its current full run.
 
 Native store registration and the `EditSessionStore.PublishSaveCopy` guard remain unchanged. Existing-target
 replacement, native receipt discovery/linking to session recovery, fresh restart actions, exact cleanup and crash/
