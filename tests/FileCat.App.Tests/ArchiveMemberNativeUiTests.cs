@@ -93,12 +93,15 @@ public sealed class ArchiveMemberNativeUiTests
         async Task Transfer(bool move, bool? replace)
         {
             int priorJobs = f.Services.Jobs.Jobs.Count;
-            f.Vm.Workspace.Activate(source.Panel); source.Navigate(Location.FileSystem(f.Files));
-            await Wait(() => source.Listing.State == ListingState.Complete && source.Listing.FocusName("b.txt"));
+            f.Vm.Workspace.Activate(source.Panel); var sourceLocation = Location.FileSystem(f.Files); source.Navigate(sourceLocation);
+            await Wait(() => source.Location == sourceLocation && !f.Vm.Dialogs.IsOpen && !source.IsLoading &&
+                source.Listing.State == ListingState.Complete && source.Listing.FocusName("b.txt"));
             var command = f.Vm.ExecuteAsync(move ? CommandIds.Move : CommandIds.Copy);
             await Wait(() => f.Button(move ? "Move" : "Copy") is not null);
             f.Input("Destination").Text = path + Path.DirectorySeparatorChar + "copied.txt";
-            await Wait(() => f.Text().Contains("→ as “copied.txt”", StringComparison.Ordinal)); f.Click(move ? "Move" : "Copy");
+            try { await Wait(() => f.Text().Contains("→ as “copied.txt”", StringComparison.Ordinal)); }
+            catch (TimeoutException error) { throw new TimeoutException("Typed archive destination did not settle. " + f.Vm.Notification + " UI: " + f.Text(), error); }
+            f.Click(move ? "Move" : "Copy");
             await Unlock(); await f.Complete(command);
             Assert.True(f.Services.Jobs.Jobs.Count == priorJobs + 1, "Transfer submitted no job. UI: " + f.Text());
             var job = f.Services.Jobs.Jobs.Last();
@@ -126,7 +129,9 @@ public sealed class ArchiveMemberNativeUiTests
         { target.Navigate(archive); await ListingReady(); }
         async Task ListingReady()
         {
-            try { await Wait(() => target.Listing.State is ListingState.Complete or ListingState.Failed); }
+            try { await Wait(() => target.Location == archive && !f.Vm.Dialogs.IsOpen && !target.IsLoading &&
+                target.Banner?.StartsWith("Opening ", StringComparison.Ordinal) != true &&
+                target.Listing.State is ListingState.Complete or ListingState.Failed); }
             catch (TimeoutException error) { throw new TimeoutException("Archive listing stayed " + target.Listing.State + ": " + target.Listing.Error + " " + target.Listing.LoadError + " " + string.Join("; ", target.Listing.Issues), error); }
             Assert.True(target.Listing.State == ListingState.Complete, target.Listing.Error + " " + target.Listing.LoadError + " " + string.Join("; ", target.Listing.Issues));
         }
