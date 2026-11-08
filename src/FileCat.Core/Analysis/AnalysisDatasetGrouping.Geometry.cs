@@ -132,7 +132,7 @@ public sealed partial class AnalysisDatasetGrouping
             try
             {
                 result = new(graph, null!, Metric, Totals, Dimension)
-                    { _stage = BuildStage.Done, Folded = true, VisibilityFinished = true, _allKnown = _allKnown, _allUnverified = _allUnverified, _allLogical = _allLogical, _allFiles = _allFiles };
+                    { _stage = BuildStage.Done, Folded = true, VisibilityFinished = true, _allKnown = _allKnown, _allUnverified = _allUnverified, _allLogical = _allLogical, _allFiles = _allFiles, MeasurementBases = MeasurementBases };
                 foreach (var pair in _allMissing) result._allMissing.Add(pair.Key, pair.Value);
                 foreach (var pair in _allLogicalMissing) result._allLogicalMissing.Add(pair.Key, pair.Value);
                 result.Members = Members!.Retain(); result.Charges = Charges!.Retain(); result.References = References!.Retain(); result.Summaries = Summaries!.Retain();

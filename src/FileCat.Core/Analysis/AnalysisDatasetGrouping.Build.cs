@@ -16,6 +16,7 @@ public sealed partial class AnalysisDatasetGrouping
             if (source.Graph.Header.Identity != descriptor.Identity) throw Invalid();
             descriptor = descriptor with { Taint = AnalysisPrivacy.Join(descriptor.Taint, source.Graph.Header.Taint) };
             state = await AnalysisIo.Run(io, device, _ => State.Create(source.Graph, metric, totals, dimension), cancellation).ConfigureAwait(false);
+            state.MeasurementBases = metric == AnalysisMetric.OnDisk ? source.ReportBases() : null;
             while (!state.VisibilityFinished)
                 await AnalysisIo.Run(io, device, token => Batch(() => state.VisibilityStep(source.Query, token), () => state.VisibilityFinished, token), cancellation).ConfigureAwait(false);
             await AnalysisIo.Run(io, device, token => { state.SealVisibility(token); return true; }, cancellation).ConfigureAwait(false);
@@ -76,6 +77,7 @@ public sealed partial class AnalysisDatasetGrouping
     private enum BuildStage { Paths, Member, Charges, SinglePath, SingleClassify, AliasObjects, AliasPaths, ClassifyAlias, DirectoryReference, EmitCharge, Done }
     private sealed partial class State : IAnalysisScratchOwned
     {
+        internal AnalysisReportBases? MeasurementBases;
         internal readonly AnalysisIndexedGraphReader Graph;
         internal AnalysisScratchWorkspace? Workspace;
         internal readonly AnalysisMetric Metric;

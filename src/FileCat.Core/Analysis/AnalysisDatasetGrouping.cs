@@ -62,11 +62,12 @@ public sealed partial class AnalysisDatasetGrouping : IAsyncDisposable
     public AnalysisTotals Totals { get; }
     public AnalysisLogicalTotals LogicalTotals { get; }
     public ulong Count { get; }
+    internal AnalysisReportBases? MeasurementBases { get; }
     public int RuleVersion => AnalysisGroupingRules.RuleVersion;
     private AnalysisDatasetGrouping(State state, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, AnalysisIoDevices device, AnalysisFilterSummary? filter)
     {
         Descriptor = descriptor; Metric = state.Metric; Filter = filter; Dimension = state.Dimension; Totals = state.Totals;
-        LogicalTotals = state.LogicalTotals; Count = state.Summaries!.Count; _owned = new(state, io, device); _io = io; _device = device;
+        LogicalTotals = state.LogicalTotals; Count = state.Summaries!.Count; MeasurementBases = state.MeasurementBases; _owned = new(state, io, device); _io = io; _device = device;
     }
     private async Task<T> ReadAsync<T>(Func<State, CancellationToken, T> read, CancellationToken cancellation)
     { using var admission = AnalysisExplorerAdmission.Acquire(); return await _owned.RunAsync(read, cancellation).ConfigureAwait(false); }

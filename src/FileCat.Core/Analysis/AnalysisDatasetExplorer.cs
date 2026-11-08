@@ -44,6 +44,13 @@ public sealed partial class AnalysisDatasetExplorer : IAsyncDisposable
     public int GeometrySkipped => _subset?.Skipped ?? 0;
     public ulong GeometryParent => _subset?.ParentId ?? 0;
     public string? OtherScopeKey => _subset?.ScopeKey;
+    internal bool ReportIsSubset => _subset is not null;
+    internal AnalysisReportBases? ReportBases => _subset?.MeasurementBases ?? _hierarchy?.MeasurementBases;
+    internal bool ReportUnknown => _subset?.HasUnmeasuredEvidence ?? _hierarchy!.HasUnmeasuredEvidence;
+    internal bool ReportLogicalUnknown => _subset?.HasUnmeasuredLogicalEvidence ?? _hierarchy!.HasUnmeasuredLogicalEvidence;
+    internal Task<AnalysisHierarchyRow?> ReportParentAsync(ulong parent, CancellationToken cancellation) =>
+        parent == 0 ? Task.FromResult<AnalysisHierarchyRow?>(null) : ReadReportParentAsync(parent, cancellation);
+    private async Task<AnalysisHierarchyRow?> ReadReportParentAsync(ulong parent, CancellationToken cancellation) => await ReadRowAsync(parent, cancellation).ConfigureAwait(false);
     public AnalysisExplorerPage? Page { get { lock (_gate) return _page; } }
     public AnalysisExplorerInspection? Inspection { get { lock (_gate) return _inspection; } }
     public AnalysisIndexedChart? Chart { get { lock (_gate) return _chart; } }

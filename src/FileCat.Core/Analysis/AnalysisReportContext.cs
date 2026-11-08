@@ -3,6 +3,17 @@ using System.Collections.Immutable;
 namespace FileCat.Core.Analysis;
 
 public sealed record AnalysisReportFilterContext(string Query, bool? CaseSensitive, bool UnknownOnly, bool? RootScoped);
+public sealed record AnalysisReportOrder(AnalysisTableSort Sort, bool Descending)
+{
+    internal static AnalysisReportOrder Folder(AnalysisHierarchySort sort, bool descending) => new(sort switch
+    {
+        AnalysisHierarchySort.Metric => AnalysisTableSort.ActiveMetric, AnalysisHierarchySort.Files => AnalysisTableSort.FilePaths,
+        AnalysisHierarchySort.FileSize => AnalysisTableSort.FileSize, AnalysisHierarchySort.Name => AnalysisTableSort.Name,
+        AnalysisHierarchySort.MetadataState => AnalysisTableSort.MeasurementState, _ => throw new ArgumentOutOfRangeException(nameof(sort))
+    }, descending);
+    internal string Describe() => (Sort switch { AnalysisTableSort.ActiveMetric => "Active metric", AnalysisTableSort.Name => "Name", AnalysisTableSort.FileSize => "File size",
+        AnalysisTableSort.FilePaths => "File paths", _ => "Measurement state" }) + (Descending ? ", descending" : ", ascending");
+}
 public sealed record AnalysisReportBases(ImmutableArray<string> Labels, bool DetailLimited)
 {
     internal static AnalysisReportBases Capture(IEnumerable<string> source)

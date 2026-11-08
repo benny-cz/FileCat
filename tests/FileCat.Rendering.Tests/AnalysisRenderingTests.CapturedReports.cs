@@ -139,7 +139,7 @@ public sealed partial class AnalysisRenderingTests
 
     [AvaloniaTheory]
     [InlineData(true, 0)] [InlineData(true, 2)] [InlineData(false, 0)] [InlineData(false, 2)]
-    public async Task CapturedReportReviewDefaultsToRedactionAndNeverSubstitutesGroupScope(bool folderView, int marks)
+    public async Task CapturedReportReviewDefaultsToRedactionAndKeepsUnavailableViewExplicit(bool folderView, int marks)
     {
         using var styles = new ProductStyles(); using var ui = new HistoryDialogFixture(480, 620, 20); var token = TestContext.Current.CancellationToken;
         var pending = DiskSpaceWindow.ReviewReportOptionsAsync(ui.Dialogs, folderView, marks, token);
@@ -152,6 +152,24 @@ public sealed partial class AnalysisRenderingTests
         ui.Click("Choose destination…"); var reviewed = Assert.IsType<DiskSpaceWindow.ReportOptions>(await pending);
         Assert.Equal(AnalysisReportFormat.Csv, reviewed.Format); Assert.Equal(AnalysisReportScope.EntireResult, reviewed.Scope); Assert.True(reviewed.RedactPaths);
         Assert.Contains("every real namespace row", reviewed.Description); Assert.Equal(".csv", reviewed.Extension);
+    }
+
+    [AvaloniaTheory]
+    [InlineData(AnalysisReportViewKind.NamespaceRows)] [InlineData(AnalysisReportViewKind.GroupOverview)] [InlineData(AnalysisReportViewKind.GroupMembers)]
+    [InlineData(AnalysisReportViewKind.SmallItems)] [InlineData(AnalysisReportViewKind.SmallGroups)] [InlineData(AnalysisReportViewKind.SmallGroupMembers)]
+    public async Task SupportedReportViewsReviewCapturesEveryCurrentScopeWithRedactionAndCancelDefault(AnalysisReportViewKind kind)
+    {
+        using var styles = new ProductStyles(); using var ui = new HistoryDialogFixture(480, 620, 20);
+        var pending = DiskSpaceWindow.ReviewReportOptionsAsync(ui.Dialogs, true, 2, TestContext.Current.CancellationToken, kind);
+        await Until(() => ui.Dialogs.IsOpen); Frame(ui.Window); Assert.True(ui.Find("Cancel").IsDefault);
+        var format = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationProperties.GetName(value) == "Report format");
+        var scope = ui.Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationProperties.GetName(value) == "Report scope");
+        Assert.Equal(3, scope.ItemCount); Assert.Equal(0, scope.SelectedIndex); format.SelectedIndex = 2;
+        ui.Click("Choose destination…"); var result = Assert.IsType<DiskSpaceWindow.ReportOptions>(await pending);
+        Assert.Equal(AnalysisReportScope.FilteredView, result.Scope); Assert.Equal(kind, result.ViewKind); Assert.True(result.RedactPaths);
+        Assert.Contains("Table pagination does not limit", result.Description);
+        if (kind is AnalysisReportViewKind.GroupOverview or AnalysisReportViewKind.SmallGroups) Assert.Contains("accounting-group rows", result.Description);
+        if (kind is AnalysisReportViewKind.GroupMembers or AnalysisReportViewKind.SmallGroupMembers) Assert.Contains("group member paths", result.Description);
     }
 
     [AvaloniaTheory]

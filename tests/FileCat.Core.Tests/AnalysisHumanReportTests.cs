@@ -16,9 +16,9 @@ public sealed class AnalysisHumanReportTests
     {
         var fixture = Fixture("name");
         var header = fixture.Header with { FilterContext = new("name:PRIVATEQUERY<script>", true, true, true),
-            MeasurementBases = new(["PRIVATEBASIS<svg/onload=1>"], true), DetailedAllocation = true };
+            MeasurementBases = new(["PRIVATEBASIS<svg/onload=1>"], true), DetailedAllocation = true, FilterTimeZone = "PRIVATEZONE<svg/onload=1>" };
         string text = await Write(header, [fixture.Row], format, redacted);
-        foreach (string marker in new[] { "PRIVATEQUERY", "PRIVATEBASIS" })
+        foreach (string marker in new[] { "PRIVATEQUERY", "PRIVATEBASIS", "PRIVATEZONE" })
             if (redacted) Assert.DoesNotContain(marker, text); else Assert.Contains(marker, text);
         Assert.Contains("case sensitive: yes", text); Assert.Contains("Detailed allocation policy", text); Assert.Contains("Basis label detail is limited", text);
         if (format == AnalysisReportFormat.Html) { Assert.DoesNotContain("<script>", text); Assert.DoesNotContain("<svg/", text); }

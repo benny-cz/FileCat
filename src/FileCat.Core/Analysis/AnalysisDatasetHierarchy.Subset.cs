@@ -78,6 +78,7 @@ public sealed partial class AnalysisDatasetHierarchy
         public bool HasUnmeasuredLogicalEvidence { get; }
         public ulong GeometryCount { get; }
         public ulong Rows { get; }
+        internal AnalysisReportBases? MeasurementBases { get; }
         private Subset(SubsetState state, AnalysisDatasetDescriptor descriptor, AnalysisMetric metric, AnalysisFilterSummary? filter,
             DeviceIoScheduler io, AnalysisIoDevices device)
         {
@@ -85,6 +86,7 @@ public sealed partial class AnalysisDatasetHierarchy
             GeometryCount = state.Geometry.Count - (ulong)Skipped; Rows = state.ChildCount;
             LogicalTotals = state.Logical.ExportLogical(); Totals = state.Amount.Export(state.ParentRow?.Totals.CompatibleBasis ?? state.Snapshot.Compatible) with { MatchingPaths = LogicalTotals.Files };
             HasUnmeasuredEvidence = state.Unknown; HasUnmeasuredLogicalEvidence = state.LogicalUnknown || LogicalTotals.UnknownFiles != 0;
+            MeasurementBases = state.Snapshot.MeasurementBases;
             _owned = new(state, io, device); _io = io; _device = device;
         }
         public Task<AnalysisDatasetPage<AnalysisHierarchyRow>> ReadChildrenAsync(AnalysisHierarchySort sort = AnalysisHierarchySort.Metric,

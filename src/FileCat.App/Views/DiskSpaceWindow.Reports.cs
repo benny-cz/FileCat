@@ -10,35 +10,44 @@ public sealed partial class DiskSpaceWindow
 {
     internal sealed record ReportOptions(AnalysisReportFormat Format, AnalysisReportScope Scope, bool RedactPaths)
     {
+        internal AnalysisReportViewKind ViewKind { get; init; }
         internal string Extension => Format switch { AnalysisReportFormat.Markdown => ".md", AnalysisReportFormat.Html => ".html", _ => ".csv" };
         internal string Description => (Scope switch
         {
-            AnalysisReportScope.FilteredView => "Export the captured filtered folder's immediate real rows in the displayed order. Table pagination does not limit this export.",
+            AnalysisReportScope.FilteredView => ViewKind switch
+            {
+                AnalysisReportViewKind.GroupOverview or AnalysisReportViewKind.SmallGroups => "Export the captured accounting-group rows in the displayed order. Reference path statistics are descriptive and are not additional allocation.",
+                AnalysisReportViewKind.GroupMembers or AnalysisReportViewKind.SmallGroupMembers => "Export the captured group member paths in the displayed order. Shared reference statistics do not add allocation.",
+                AnalysisReportViewKind.SmallItems => "Export the captured Other small-item view. Changing table sort does not change which captured entries are included.",
+                _ => "Export the captured filtered folder's immediate real rows in the displayed order."
+            } + " Table pagination does not limit this export.",
             AnalysisReportScope.SelectedRows => "Export the marked real paths from the captured result. The summary describes the unfiltered source scope; marked rows are not added together.",
             _ => Format == AnalysisReportFormat.Csv ? "Export every real namespace row in the entire unfiltered captured result. Folder rollups overlap and must not be added together."
-                : "Export a summary of the entire unfiltered result and up to 5,000 root-level real rows. This is explicitly limited detail; choose full-result CSV for every row."
+                : "Export a summary of the entire unfiltered result and up to 5,000 largest root-level real rows by the active metric. This is explicitly limited detail; choose full-result CSV for every row."
         }) + (Format != AnalysisReportFormat.Csv && Scope != AnalysisReportScope.EntireResult ? " Human reports include at most 5,000 rows; use CSV for all rows." : "") +
             (RedactPaths ? " Names, displayed locations and source identifiers are omitted throughout the report." : " Sensitive displayed names and locations are included.") +
-            " Synthetic accounting buckets stay in the summary and are excluded from this namespace table. File contents and operation approvals are excluded.";
+            (Scope == AnalysisReportScope.FilteredView && ViewKind is AnalysisReportViewKind.GroupOverview or AnalysisReportViewKind.SmallGroups
+                ? " Accounting groups remain explicitly labelled in this overview." : " Synthetic accounting buckets stay in the summary and are excluded from this namespace table.") + " File contents and operation approvals are excluded.";
     }
 
-    internal static async Task<ReportOptions?> ReviewReportOptionsAsync(ViewModels.IDialogService dialogs, bool folderView, int marked, CancellationToken cancellation)
+    internal static async Task<ReportOptions?> ReviewReportOptionsAsync(ViewModels.IDialogService dialogs, bool folderView, int marked, CancellationToken cancellation, AnalysisReportViewKind viewKind = AnalysisReportViewKind.NamespaceRows)
     {
         var format = new ComboBox { ItemsSource = new[] { "Markdown (.md)", "HTML (.html)", "Spreadsheet-safe CSV (.csv)" }, SelectedIndex = 0 };
         var scopes = new List<(string Label, AnalysisReportScope Scope)>();
-        if (folderView) scopes.Add(("Captured filtered folder", AnalysisReportScope.FilteredView));
+        if (folderView) scopes.Add((viewKind switch { AnalysisReportViewKind.GroupOverview or AnalysisReportViewKind.SmallGroups => "Captured accounting groups",
+            AnalysisReportViewKind.GroupMembers or AnalysisReportViewKind.SmallGroupMembers => "Captured group member paths", AnalysisReportViewKind.SmallItems => "Captured Other small-item view", _ => "Captured filtered folder" }, AnalysisReportScope.FilteredView));
         if (marked != 0) scopes.Add(($"Marked real paths ({marked:N0})", AnalysisReportScope.SelectedRows));
         scopes.Add(("Entire unfiltered result", AnalysisReportScope.EntireResult));
         var scope = new ComboBox { ItemsSource = scopes.Select(value => value.Label).ToArray(), SelectedIndex = 0 };
         var redact = new CheckBox { Content = "Omit names, locations and source identifiers", IsChecked = true };
         var detail = new TextBlock { TextWrapping = TextWrapping.Wrap };
         AutomationProperties.SetName(format, "Report format"); AutomationProperties.SetName(scope, "Report scope");
-        ReportOptions Read() => new((AnalysisReportFormat)format.SelectedIndex, scopes[scope.SelectedIndex].Scope, redact.IsChecked == true);
+        ReportOptions Read() => new((AnalysisReportFormat)format.SelectedIndex, scopes[scope.SelectedIndex].Scope, redact.IsChecked == true) { ViewKind = viewKind };
         void Update() { if (format.SelectedIndex >= 0 && scope.SelectedIndex >= 0) detail.Text = Read().Description; }
         format.SelectionChanged += (_, _) => Update(); scope.SelectionChanged += (_, _) => Update(); redact.IsCheckedChanged += (_, _) => Update(); Update();
         var body = new StackPanel { Spacing = 8, Children = { new TextBlock { Text = "Choose the captured report to share. These choices do not change the analysis or its marks.", TextWrapping = TextWrapping.Wrap },
             format, scope, redact, detail } };
-        if (!folderView) body.Children.Add(new TextBlock { Text = "To export the current filtered folder, first switch to folder hierarchy. Group and small-item scopes are not substituted with another scope.", TextWrapping = TextWrapping.Wrap });
+        if (!folderView) body.Children.Add(new TextBlock { Text = "No current view is available to capture. The other scopes remain explicit choices.", TextWrapping = TextWrapping.Wrap });
         var closer = new ViewModels.DialogCloser();
         using var close = cancellation.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => closer.Close(false)));
         var choice = await dialogs.ShowCustomAsync("Choose report scope", body,
@@ -59,10 +68,17 @@ public sealed partial class DiskSpaceWindow
             {
                 var view = CapturePublishedView(); var marks = _selection.Marks.Order().ToImmutableArray();
                 await using var source = await _source.RetainAsync(cancel.Token);
-                var options = await ReviewReportOptionsAsync(_window._dialogs, _grouping is null && _explorer.OtherScopeKey is null, marks.Length, cancel.Token);
+                var viewKind = _grouping is null ? _explorer.OtherScopeKey is null ? AnalysisReportViewKind.NamespaceRows : AnalysisReportViewKind.SmallItems
+                    : _groupKey is null ? _grouping.OtherScopeKey is null ? AnalysisReportViewKind.GroupOverview : AnalysisReportViewKind.SmallGroups
+                    : _grouping.OtherScopeKey is null ? AnalysisReportViewKind.GroupMembers : AnalysisReportViewKind.SmallGroupMembers;
+                var options = await ReviewReportOptionsAsync(_window._dialogs, true, marks.Length, cancel.Token, viewKind);
                 if (options is null) return; cancel.Token.ThrowIfCancellationRequested();
                 var filter = new AnalysisFilterRequest(view.Query, view.CaseSensitive, view.ShowUnknown, view.Root) { RootDisplayIds = view.RootDisplayIds };
-                var captureTask = source.CaptureReportAsync(view.Metric, options.Format, options.Scope, filter, _scope, marks,
+                Task<AnalysisCapturedReport> captureTask = Capture();
+                async Task<AnalysisCapturedReport> Capture() => options.Scope == AnalysisReportScope.FilteredView
+                    ? _grouping is not null ? await source.CaptureViewReportAsync(_grouping, _groupKey, options.Format, view.Sort, view.SortDescending, cancel.Token)
+                        : await source.CaptureViewReportAsync(_explorer, _scope, options.Format, SavedIndexedSort(view.Sort), view.SortDescending, cancel.Token)
+                    : await source.CaptureReportAsync(view.Metric, options.Format, options.Scope, filter, _scope, marks,
                     _shownPage?.Scope is { } shownFolder ? AnalysisNames.DisplayName(shownFolder.Path) : "All captured locations",
                     SavedIndexedSort(view.Sort), view.SortDescending, cancel.Token);
                 var closer = new ViewModels.DialogCloser();
@@ -100,7 +116,11 @@ public sealed partial class DiskSpaceWindow
             {
                 using var revision = Model.CaptureDisplayedRevision(); var tree = Model.Tree!; var view = Model.PublishedReportView;
                 string folder = Model.Selection.Scope; var marks = Model.Selection.Marks.Order().ToImmutableArray();
-                var options = await ReviewReportOptionsAsync(_window._dialogs, tree.GroupingDimension == AnalysisGroupingDimension.FolderHierarchy && !folder.StartsWith("other:", StringComparison.Ordinal), marks.Length, cancel.Token);
+                var scopeInfo = AnalysisSavedCatalog.SplitAggregationScope(folder);
+                var viewKind = tree.GroupingDimension == AnalysisGroupingDimension.FolderHierarchy ? scopeInfo.Skipped == 0 ? AnalysisReportViewKind.NamespaceRows : AnalysisReportViewKind.SmallItems
+                    : scopeInfo.Scope == AnalysisTree.RootKey ? scopeInfo.Skipped == 0 ? AnalysisReportViewKind.GroupOverview : AnalysisReportViewKind.SmallGroups
+                    : scopeInfo.Skipped == 0 ? AnalysisReportViewKind.GroupMembers : AnalysisReportViewKind.SmallGroupMembers;
+                var options = await ReviewReportOptionsAsync(_window._dialogs, true, marks.Length, cancel.Token, viewKind);
                 if (options is null) return; cancel.Token.ThrowIfCancellationRequested();
                 var captureTask = AnalysisCapturedMemoryReport.CaptureAsync(revision, tree, services.Io, options.Format, options.Scope, folder, marks, view.Sort, view.SortDescending, cancel.Token,
                     context: new(view.Query, view.CaseSensitive, view.ShowUnknown, view.Root));

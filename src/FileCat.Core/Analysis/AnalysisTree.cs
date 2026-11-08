@@ -24,6 +24,8 @@ public sealed record AnalysisTreeItem(string Key, string ParentKey, string Name,
     public AnalysisLogicalTotals? ReferenceLogical { get; init; }
     internal AnalysisTotals? ReportTotals { get; init; }
     internal AnalysisLogicalTotals? ReportLogical { get; init; }
+    internal bool ReportNamespaceIncomplete { get; init; }
+    internal bool ReportAccountingReference { get; init; }
     // Only the bounded-memory tree keeps this reference to its already owned
     // snapshot name. Indexed chart projections never retain full ordering names.
     internal string? CapturedOrderName { get; init; }
@@ -144,6 +146,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
             { item.ModifiedUtc = observedObject.ModifiedUtc; item.ModifiedPrecisionTicks = observedObject.ModifiedPrecisionTicks; }
             item.NameEvidence = AnalysisNames.NameEvidence(node);
             bool namespaceUnknown = incomplete.Contains(node.Id) || node.IncludedByPolicy && node.MetadataState != MeasurementState.Known;
+            item.NamespaceUnknown = namespaceUnknown;
             item.Unknown = namespaceUnknown || projection.UnmeasuredStates.ContainsKey(node.Id);
             item.LogicalUnknown = node.IncludedByPolicy && (node.Kind == AnalysisKind.Unknown || node.Kind == AnalysisKind.Directory && namespaceUnknown);
             if (node.Kind == AnalysisKind.File && matching)
@@ -243,6 +246,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
             parent.Unverified = checked(parent.Unverified + item.Unverified);
             parent.Unknown |= item.Unknown; parent.SharedElsewhere |= item.SharedElsewhere; parent.Visible |= item.Visible;
             parent.LogicalUnknown |= item.LogicalUnknown;
+            parent.NamespaceUnknown |= item.NamespaceUnknown;
             if (retainReportStatistics)
             {
                 if (item.Missing is not null) foreach (var pair in item.Missing) parent.AddMissing(pair.Key, pair.Value);
@@ -267,7 +271,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
         public readonly string Parent = parent;
         public UInt128 Value, Logical, Unverified;
         public ulong Files;
-        public bool Unknown, SharedElsewhere, FilterContext, Visible = visible;
+        public bool Unknown, SharedElsewhere, FilterContext, Visible = visible, NamespaceUnknown;
         public MeasurementState MetadataState = MeasurementState.Known;
         public bool IncludedByPolicy = true;
         public bool LogicalUnknown;
@@ -292,6 +296,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
                 ModifiedUtc = ModifiedUtc, ModifiedPrecisionTicks = ModifiedPrecisionTicks,
                 ReportTotals = report ? new(projection.Metric == AnalysisMetric.UniqueFileSize ? Value : checked(Value - Unverified), Unverified, Files,
                     Missing?.ToImmutableDictionary() ?? ImmutableDictionary<MeasurementState, ulong>.Empty, projection.Totals.CompatibleBasis) : null,
-                ReportLogical = report ? new(Logical, Files, LogicalMissing?.ToImmutableDictionary() ?? ImmutableDictionary<MeasurementState, ulong>.Empty) : null };
+                ReportLogical = report ? new(Logical, Files, LogicalMissing?.ToImmutableDictionary() ?? ImmutableDictionary<MeasurementState, ulong>.Empty) : null,
+                ReportNamespaceIncomplete = NamespaceUnknown };
     }
 }

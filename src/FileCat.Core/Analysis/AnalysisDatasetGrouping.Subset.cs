@@ -29,11 +29,13 @@ public sealed partial class AnalysisDatasetGrouping
         public AnalysisLogicalTotals LogicalTotals { get; }
         public AnalysisDatasetGroup? ScopeGroup { get; }
         public bool Unknown { get; }
+        internal AnalysisReportBases? MeasurementBases { get; }
         private Subset(SubsetState state, AnalysisDatasetDescriptor descriptor, AnalysisFilterSummary? filter, DeviceIoScheduler io, AnalysisIoDevices device)
         {
             Descriptor = descriptor; Metric = state.Snapshot.Metric; Dimension = state.Snapshot.Dimension; Filter = filter; ParentKey = state.ParentKey; Skipped = state.Skipped;
             Rows = state.Rows; GeometryCount = state.Geometry.Count - (ulong)Skipped; MemberPaths = state.MemberCount; ChargeCount = state.ChargeCount;
             Totals = state.Amount.Export(state.Snapshot.Totals.CompatibleBasis, state.Logical.Files); LogicalTotals = state.Logical.ExportLogical(); Unknown = state.Unknown;
+            MeasurementBases = state.Snapshot.MeasurementBases;
             ScopeGroup = state.Parent is null ? null : state.Parent with { Totals = Totals, Logical = LogicalTotals, Members = MemberPaths, Charges = ChargeCount,
                 Shared = state.Shared ? state.Parent.Shared : new(0, 0, 0, ImmutableDictionary<MeasurementState, ulong>.Empty, Totals.CompatibleBasis), SharedCharges = state.Shared ? state.Parent.SharedCharges : 0,
                 ReferenceLogical = state.Parent.Kind == AnalysisGroupKind.SharedAcrossGroups ? LogicalTotals : state.Parent.ReferenceLogical };

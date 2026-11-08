@@ -42,6 +42,7 @@ public sealed class AnalysisCapturedDatasetReport : AnalysisCapturedReport
                 : await retained.BuildHierarchyAsync(metric, cancellation).ConfigureAwait(false);
             if (scope != AnalysisReportScope.FilteredView)
             { folder = 0; scopeLabel = scope == AnalysisReportScope.EntireResult ? "All captured locations" : "All captured locations; selected real paths"; }
+            if (scope == AnalysisReportScope.EntireResult && format != AnalysisReportFormat.Csv) { sort = AnalysisHierarchySort.Metric; descending = true; }
             var parent = folder == 0 ? null : await hierarchy.ReadAsync(folder, cancellation).ConfigureAwait(false);
             if (parent is not null && (parent.Path.Kind != AnalysisKind.Directory || !parent.IsVisible)) throw new InvalidOperationException("Choose a visible captured folder for this report.");
             ulong rows; bool limited = false;
@@ -60,6 +61,8 @@ public sealed class AnalysisCapturedDatasetReport : AnalysisCapturedReport
                     HasUnmeasuredEvidence = parent?.HasUnmeasuredEvidence ?? hierarchy.HasUnmeasuredEvidence,
                     HasUnmeasuredLogicalEvidence = parent?.HasUnmeasuredLogicalEvidence ?? hierarchy.HasUnmeasuredLogicalEvidence,
                     MeasurementBases = hierarchy.MeasurementBases, DetailedAllocation = descriptor.Policy.ComponentPreset == "detailed",
+                    TableOrder = scope == AnalysisReportScope.SelectedRows || scope == AnalysisReportScope.EntireResult && format == AnalysisReportFormat.Csv ? null : AnalysisReportOrder.Folder(sort, descending),
+                    FilterTimeZone = descriptor.Identity.TimeZoneId,
                     FilterContext = scope == AnalysisReportScope.FilteredView && (!string.IsNullOrWhiteSpace(filter.Text) || filter.RootId is not null || filter.UnknownOnly)
                         ? new(filter.Text, filter.CaseSensitive, filter.UnknownOnly, filter.RootId is not null) : null };
             var result = new AnalysisCapturedDatasetReport(retained, hierarchy, io, devices, header, scope, format, folder, selected, sort, descending);

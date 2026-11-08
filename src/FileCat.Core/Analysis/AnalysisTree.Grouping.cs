@@ -6,7 +6,7 @@ public sealed partial class AnalysisTree
 {
     /// <summary>Grouped display parentage never replaces the captured namespace or source IDs.</summary>
     public static AnalysisTree BuildGrouped(AnalysisSnapshot snapshot, AnalysisProjection projection, AnalysisGroupingDimension dimension,
-        bool filterApplied, CancellationToken cancellation = default, Func<AnalysisNode, bool>? namespaceVisible = null)
+        bool filterApplied, CancellationToken cancellation = default, Func<AnalysisNode, bool>? namespaceVisible = null, bool retainReportStatistics = false)
     {
         var grouped = AnalysisGrouping.Project(snapshot, projection, dimension, cancellation);
         var nodes = snapshot.Nodes.ToDictionary(n => n.Id); var objects = snapshot.Objects.ToDictionary(o => o.Id, StringComparer.Ordinal);
@@ -74,7 +74,10 @@ public sealed partial class AnalysisTree
                 bool reference = group.Kind == AnalysisGroupKind.SharedAcrossGroups;
                 string key = reference ? "group-reference:" + group.Definition.Key + ":" + Key(id) : Key(id);
                 item = item with { Key = key, NameEvidence = AnalysisNames.NameEvidence(node), CapturedOrderName = node.Name,
-                    Unknown = item.Unknown || node.MetadataState != MeasurementState.Known || incomplete.Contains(id) };
+                    Unknown = item.Unknown || node.MetadataState != MeasurementState.Known || incomplete.Contains(id),
+                    ReportTotals = retainReportStatistics ? row.Assigned : null, ReportLogical = retainReportStatistics ? AnalysisReportGroupRows.Logical(row.Member) : null,
+                    ReportAccountingReference = group.Kind == AnalysisGroupKind.SharedAcrossGroups,
+                    ReportNamespaceIncomplete = node.MetadataState is not (MeasurementState.Known or MeasurementState.Excluded) || incomplete.Contains(id) };
                 items[key] = item; children.Add(key); assigned = checked(assigned + item.Value);
             }
             var bucket = Amount(group.Definition.Key, 0); total.Add(bucket);
@@ -84,7 +87,8 @@ public sealed partial class AnalysisTree
                 var totals = bucket.Export(0, group.Totals.CompatibleBasis); UInt128 value = AnalysisGroupedChart.Area(totals, projection.Metric);
                 items.Add(key, new(key, group.Definition.Key, "Shared files — charged once", null, AnalysisKind.Special, true, true,
                     value, 0, 0, bucket.Missing.Count != 0 || projection.Metric == AnalysisMetric.UniqueFileSize && bucket.Unverified != 0, false, "shared", [], references[group.Definition.Key].Order().ToImmutableArray())
-                    { IdentityUnverified = bucket.Unverified, LogicalUnknown = true });
+                    { IdentityUnverified = bucket.Unverified, LogicalUnknown = true,
+                        ReportTotals = retainReportStatistics ? totals : null, ReportLogical = retainReportStatistics ? new(0, 0, ImmutableDictionary<MeasurementState, ulong>.Empty) : null });
                 children.Add(key); assigned = checked(assigned + value);
             }
             if (total.Known != group.Totals.Known || total.Unverified != group.Totals.IdentityUnverified ||
@@ -103,7 +107,9 @@ public sealed partial class AnalysisTree
                 }
                 summary = summary with { ReferenceLogical = new(referenceBytes, referenceFiles, referenceMissing.ToImmutableDictionary()) };
             }
-            items.Add(group.Definition.Key, AnalysisGroupedChart.GroupItem(summary, dimension, projection.Metric, RootKey) with { Children = children.ToImmutable(), Members = group.Members });
+            items.Add(group.Definition.Key, AnalysisGroupedChart.GroupItem(summary, dimension, projection.Metric, RootKey) with { Children = children.ToImmutable(), Members = group.Members,
+                ReportTotals = retainReportStatistics ? group.Totals : null, ReportLogical = retainReportStatistics ? group.Logical : null,
+                ReportNamespaceIncomplete = snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy });
         }
         var rootMembers = grouped.Groups.SelectMany(g => g.Members).Distinct().Order().ToImmutableArray();
         UInt128 logical = 0; ulong files = 0, unknown = 0;
@@ -113,7 +119,10 @@ public sealed partial class AnalysisTree
             AnalysisGroupedChart.Area(projection.Totals, projection.Metric), logical, files,
             !projection.Totals.CompatibleBasis || projection.Totals.Missing.Count != 0 || snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy || projection.Metric == AnalysisMetric.UniqueFileSize && projection.Totals.IdentityUnverified != 0,
             false, "folder", grouped.Groups.Select(g => g.Definition.Key).ToImmutableArray(), rootMembers)
-            { IdentityUnverified = projection.Totals.IdentityUnverified, LogicalUnknown = unknown != 0 });
+            { IdentityUnverified = projection.Totals.IdentityUnverified, LogicalUnknown = unknown != 0,
+                ReportTotals = retainReportStatistics ? projection.Totals : null,
+                ReportLogical = retainReportStatistics ? AnalysisReportStatistics.Logical(grouped.Groups.Select(group => group.Logical)) : null,
+                ReportNamespaceIncomplete = snapshot.Coverage != NamespaceCoverage.CompleteUnderPolicy });
         return new(snapshot, projection, items.ToImmutableDictionary(StringComparer.Ordinal), filterApplied)
         { GroupingDimension = dimension, Groups = groups, FilterVisible = filterApplied ? CaptureFilterVisibility(snapshot, projection, namespaceVisible, cancellation) : null };
 

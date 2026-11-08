@@ -23,6 +23,7 @@ public sealed class AnalysisDatasetGroupExplorer : IAsyncDisposable
     public int GeometrySkipped => _subset?.Skipped ?? 0;
     public string? GeometryParent => _subset?.ParentKey;
     public string? OtherScopeKey => _subset?.ScopeKey;
+    internal AnalysisReportBases? ReportBases => _subset?.MeasurementBases ?? _groups?.MeasurementBases;
     public bool Unknown => _subset?.Unknown ?? (Totals.Missing.Count != 0 || !Totals.CompatibleBasis || Metric == AnalysisMetric.UniqueFileSize && Totals.IdentityUnverified != 0);
     public int PendingScopeRequests { get { lock (_gate) return _active; } }
     private static string? Normalize(string? key) => key == AnalysisTree.RootKey ? null : key;
