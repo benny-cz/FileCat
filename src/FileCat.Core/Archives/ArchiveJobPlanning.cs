@@ -13,6 +13,7 @@ internal sealed class ArchiveJobPlanning
     {
         ArgumentNullException.ThrowIfNull(plan);
         if (plan.Profile is null || plan.Changes.Count > ArchiveWritePolicy.MaxMembers) throw Invalid();
+        if (plan.MoveSources && (plan.Changes.Count == 0 || plan.Changes.Any(change => change is null || change.Kind is not (ArchiveChangeKind.AddFile or ArchiveChangeKind.AddFolder)))) throw Invalid();
         this.plan = plan;
         // Windows also supports case-sensitive directories. Only identical path spellings may be
         // coalesced before native capture proves which objects they identify.
@@ -75,7 +76,7 @@ internal sealed class ArchiveJobPlanning
         }
         budget.AddMetadata(0, sourceBytes);
         long operationBytes = checked(4096L + 512L * members.Count + 256L * plan.Changes.Count + directoryIndexNames +
-            256L * (selection?.Members.Count ?? 0));
+            (plan.MoveSources ? 768L : 256L) * (selection?.Members.Count ?? 0));
         budget.AddMetadata(0, operationBytes);
         var names = new Dictionary<string, NameGroup>(StringComparer.Ordinal);
         var occurrences = new Dictionary<(string, ArchiveMemberType), int>();

@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.ComponentModel;
 using FileCat.Core.Archives;
 using FileCat.Platform.Windows.Elevation;
 using FileCat.Platform.Windows.Shell;
@@ -7,11 +8,13 @@ using static FileCat.Platform.Windows.Elevation.NtFile;
 
 namespace FileCat.Platform.Windows.Archives;
 
-internal sealed class WindowsArchiveSelectionTree : IArchiveSelectionTree
+internal sealed class WindowsArchiveSelectionTree : IArchiveSelectionTree, IArchiveSelectionRemoval
 {
     private readonly WindowsArchiveDirectory root;
+    private readonly Dictionary<ArchiveSelectionNode, string?> removalDirectories = [];
     private WindowsArchiveSelectionTree(string path) => root = WindowsArchiveDirectory.Open(path);
     internal static IArchiveSelectionTree Open(string path) => new WindowsArchiveSelectionTree(path);
+    public bool CanRemoveSources => true;
     internal static ArchiveCapturedSelection Capture(string path, IReadOnlyList<string> roots, CancellationToken ct)
         => ArchiveCapturedSelection.Capture(new WindowsArchiveSelectionTree(path), roots, ct);
     public ArchiveSelectionEntry InspectRoot(string leaf, CancellationToken ct)
@@ -51,13 +54,63 @@ internal sealed class WindowsArchiveSelectionTree : IArchiveSelectionTree
     public void CaptureFile(ArchiveCapturedInputs inputs, int id, ArchiveSelectionNode file, CancellationToken ct)
         => inputs.Capture(id, () => OpenFile(file, ct), ct);
     public void CaptureDirectory(ArchiveCapturedInputs inputs, int id, ArchiveSelectionNode directory, CancellationToken ct)
-        => inputs.CaptureDirectory(id, token =>
+    {
+        ArchiveDirectoryObservation? initial = null;
+        inputs.CaptureDirectory(id, token =>
         {
             using var parent = OpenParent(directory, token);
             var observation = parent.Owner.ObserveSelectionDirectory(directory.Entry.Leaf, token);
             if (observation.Version.Identity != directory.Entry.Identity) throw ArchiveCapturedSelection.Changed();
+            initial ??= observation;
             return observation;
         }, ct);
+        inputs.RetainSelection(64, 384); // Dictionary entry and the current digest after our own child deletions.
+        removalDirectories.Add(directory, initial?.RemovalMetadataDigest ?? throw ArchiveCapturedSelection.Changed());
+    }
+    public void RemoveFile(ArchiveSelectionNode node, ArchiveFileObservation expected, CancellationToken ct)
+    {
+        if (node.Entry.Kind != ArchiveSelectionKind.File || node.Entry.Identity != expected.Version.Identity) throw ArchiveCapturedSelection.Changed();
+        using var parent = OpenParent(node, ct);
+        string? stableParent = ReviewRemovalParent(node, ct);
+        using var file = parent.Owner.OpenReviewedTarget(node.Entry.Leaf);
+        file.DeleteCapturedSource(expected, ct);
+        RecordOwnChildRemoval(node, stableParent);
+    }
+    public void RemoveDirectory(ArchiveSelectionNode node, ArchiveDirectoryObservation expected, CancellationToken ct)
+    {
+        if (node.Entry.Kind != ArchiveSelectionKind.Directory || node.Entry.Identity != expected.Version.Identity) throw ArchiveCapturedSelection.Changed();
+        using var parent = OpenParent(node, ct);
+        string? stableParent = ReviewRemovalParent(node, ct);
+        if (!removalDirectories.TryGetValue(node, out string? current) || current is null) throw ArchiveCapturedSelection.Changed();
+        parent.Owner.RemoveCapturedDirectory(node.Entry.Leaf, expected, current, ct);
+        RecordOwnChildRemoval(node, stableParent);
+    }
+    private string? ReviewRemovalParent(ArchiveSelectionNode node, CancellationToken ct)
+    {
+        if (node.Parent is not { } folder) return null;
+        if (!removalDirectories.TryGetValue(folder, out string? current) || current is null) throw ArchiveCapturedSelection.Changed();
+        var observed = RemovalMetadata(folder, ct);
+        if (observed.Digest != current) throw ArchiveCapturedSelection.Changed();
+        return observed.StableDigest;
+    }
+    private (string Digest, string StableDigest) RemovalMetadata(ArchiveSelectionNode folder, CancellationToken ct)
+    {
+        using var parent = OpenParent(folder, ct);
+        return parent.Owner.ObserveRemovalDirectory(folder.Entry.Leaf, folder.Entry.Identity, ct);
+    }
+    private void RecordOwnChildRemoval(ArchiveSelectionNode node, string? stableParent)
+    {
+        if (node.Parent is not { } folder) return;
+        // The deletion already committed. Failure of this bounded follow-up poisons the parent's guard;
+        // it must not turn a removed file into a claimed retained file or permit another deletion attempt.
+        removalDirectories[folder] = null;
+        try
+        {
+            var after = RemovalMetadata(folder, CancellationToken.None);
+            if (after.StableDigest == stableParent) removalDirectories[folder] = after.Digest;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or Win32Exception) { }
+    }
     public void ReviewDestination(string path, string identity, IReadOnlySet<string> selectedDirectories, CancellationToken ct)
     {
         root.RequireSelectionRoot();

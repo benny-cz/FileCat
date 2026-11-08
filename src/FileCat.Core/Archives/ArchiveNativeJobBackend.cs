@@ -13,6 +13,10 @@ internal interface IArchiveJobNativeScope<T> : IDisposable where T : class, IArc
     T Create(ArchiveArtifactReservation reservation);
     ArchiveJobPublication Publish(JobJournal journal, ArchivePreparedContainer<T> prepared,
         IReadOnlyDictionary<int, ArchiveRetainedBinding> inputs, CancellationToken ct);
+    // A moving backend must retain a native publication pin for this entire scope. Verify bytes before
+    // the first removal; later checks may use that pin plus complete current namespace/metadata evidence.
+    void ReviewPublication(ArchiveJobPublication published, bool verifyBytes, CancellationToken ct)
+        => throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, "The native published archive cannot be pinned for source removal.");
 }
 
 /// <summary>Shared real job execution. Application registration still requires all platform/profile gates.</summary>
@@ -24,21 +28,23 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
     private readonly ArchiveAssessmentClient assessor;
     private readonly ArchiveTransformClient transform;
     private readonly ArchiveVerificationClient verifier;
+    private readonly bool supportsSourceRemoval;
 
     internal ArchiveNativeJobBackend(ArchiveWriteFormat format, Func<ArchivePlan, ArchiveJobAvailability> availability,
         Func<ArchivePlan, CancellationToken, IArchiveJobNativeScope<T>> open, ArchiveAssessmentClient assessor,
-        ArchiveTransformClient transform, ArchiveVerificationClient verifier)
+        ArchiveTransformClient transform, ArchiveVerificationClient verifier, bool supportsSourceRemoval = false)
     {
         if (format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or
             ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip)) throw new ArgumentException("A shared container profile is required.");
         Format = format; this.availability = availability ?? throw new ArgumentNullException(nameof(availability));
         this.open = open ?? throw new ArgumentNullException(nameof(open)); this.assessor = assessor ?? throw new ArgumentNullException(nameof(assessor));
         this.transform = transform ?? throw new ArgumentNullException(nameof(transform)); this.verifier = verifier ?? throw new ArgumentNullException(nameof(verifier));
+        this.supportsSourceRemoval = supportsSourceRemoval;
     }
     public ArchiveJobAvailability Availability(ArchivePlan plan)
     {
         if (plan.Profile?.Format != Format) return ArchiveJobAvailability.Unqualified;
-        if (plan.MoveSources) return new(false, "Native source removal after archive publication has not been qualified for this backend.");
+        if (plan.MoveSources && !supportsSourceRemoval) return new(false, "Native source removal after archive publication has not been qualified for this backend.");
         if ((plan.Baseline is null) != (plan.NativeBaseline is null)) return new(false,
             "Review the archive's current native identity and metadata before queuing this update.");
         return availability(plan);
@@ -63,6 +69,10 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         using var empty = selection is null ? new ArchiveCapturedInputs() : null;
         if (empty is not null) { empty.RetainSelection(planning.RetainedNameChars, planning.RetainedHeapBytes); empty.Seal(ct); }
         var captured = selection?.Inputs ?? empty!;
+        if (request.MoveSources && selection?.CanRemoveSources != true)
+            throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, "The selected sources do not support reviewed native removal.");
+        if (native.Original is { } target && captured.Bindings.Values.Any(input => input.Reviewed.Version.Identity == target.Reviewed.Version.Identity))
+            throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "The archive itself cannot be selected as a source.");
         var review = planning.Review(source, selection, captured, ct);
         bool replace = Confirm(review.ReplacementNames, "Replace archive members?",
             $"Replace {review.ReplacedOccurrences:N0} existing entries under {review.ReplacementNames:N0} names?\n" + ArchiveJobReviewText.Samples(review.ReplacementSamples),
@@ -84,6 +94,8 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         for (int i = 0; i < review.ExcludedCount; i++) job.ItemSkipped();
         string action = native.Original is null ? "Archive created" : "Archive updated";
         job.SetSummary(action + (review.ExcludedCount == 0 ? "." : $"; {review.ExcludedCount:N0} unsupported source items excluded."));
+        if (request.MoveSources)
+            ArchiveNativeMoveSources.Remove(job, execution.Journal, request, selection!, (full, token) => native.ReviewPublication(published, full, token));
         if (published.RetainedArtifacts.Count != 0)
             job.AddIssue(new(IssueSeverity.Warning, request.ArchivePath,
                 action + $". {published.RetainedArtifacts.Count:N0} transaction artifacts are retained for recovery and reviewed cleanup.", StepOutcome.Committed));

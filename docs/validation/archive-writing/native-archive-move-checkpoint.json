@@ -1,0 +1,123 @@
+{
+  "status": "Native move component exercised; unregistered; overall implementation and qualification remain open",
+  "production_backend_qualified": false,
+  "implementation_base": "4bd8b8ab",
+  "limitations": [
+    "Unix native source removal/update/confinement is not qualified by these shared engine tests.",
+    "Automatic cleanup/recovery UI, shared creation/member/edit/password UI, resource/crash/fuzz/RID/package gates and final independent review remain.",
+    "Mac results combine the original full run with four corrected APFS-fixture cases; Windows reuses a hash-identical complete Core run."
+  ],
+  "platforms": {
+    "mac": {
+      "platform": "mac",
+      "bytes": 37989511,
+      "sha256": "150f75b6b663907f55ab89a34befdadb81b26cc536773227b0bbdc838ad15bbb",
+      "rows": 3399,
+      "verified_current_CSharp_sources": 11,
+      "bound_DLL_PDB_pairs": 10,
+      "core": {
+        "Passed": 8125,
+        "NotExecuted": 207
+      },
+      "core_evidence": "original full run plus four corrected APFS-fixture cases",
+      "tests": {
+        "case-sensitive-move-fixture.trx": {
+          "Passed": 4
+        },
+        "move-preflight.trx": {
+          "Passed": 6
+        }
+      },
+      "census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      }
+    },
+    "ubuntu": {
+      "platform": "ubuntu",
+      "bytes": 37977857,
+      "sha256": "a23d319144293ceba3af6f839cfdec3a5c8515d29903788f409856d2da33d7ab",
+      "rows": 3368,
+      "verified_current_CSharp_sources": 11,
+      "bound_DLL_PDB_pairs": 10,
+      "core": {
+        "Passed": 8147,
+        "NotExecuted": 185
+      },
+      "core_evidence": "complete Core run",
+      "tests": {
+        "archive-native-moves-core.trx": {
+          "Passed": 8147,
+          "NotExecuted": 185
+        },
+        "move-preflight.trx": {
+          "Passed": 6
+        }
+      },
+      "census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      }
+    },
+    "windows": {
+      "platform": "windows",
+      "bytes": 166660930,
+      "sha256": "235f0ab315a93981cb6a87db4cb53d7d87503d649ffbebbb428d382a167f5c8f",
+      "rows": 4847,
+      "verified_current_CSharp_sources": 18,
+      "bound_DLL_PDB_pairs": 17,
+      "core": {
+        "Passed": 7876,
+        "NotExecuted": 461
+      },
+      "core_evidence": "hash-verified complete Core run retained from v1",
+      "tests": {
+        "app-entry.trx": {
+          "Passed": 10
+        },
+        "archive-native-moves-core.trx": {
+          "Passed": 7876,
+          "NotExecuted": 461
+        },
+        "legacy-moves.trx": {
+          "Passed": 23,
+          "NotExecuted": 1
+        },
+        "move-jobs.trx": {
+          "Passed": 10
+        },
+        "native.trx": {
+          "Passed": 197
+        },
+        "source-removal.trx": {
+          "Passed": 23
+        }
+      },
+      "census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      }
+    }
+  },
+  "preserved_Windows_failures": [
+    {
+      "version": 1,
+      "bytes": 167099748,
+      "sha256": "defb09425321232b22d73de65e3e68c08086a13a565fe5f99d233d925f499272",
+      "rows": 3682
+    },
+    {
+      "version": 2,
+      "bytes": 161328443,
+      "sha256": "3509847eb25383090189b2681afe76065189b7b24902f656870cd3efe718e112",
+      "rows": 3498
+    },
+    {
+      "version": 3,
+      "bytes": 161329602,
+      "sha256": "60ce4e24f308467d59f07564931dc2fc8a17d8937cc2c195f14d906402bc4c19",
+      "rows": 3520
+    }
+  ]
+}

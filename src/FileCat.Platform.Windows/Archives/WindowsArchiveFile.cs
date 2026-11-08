@@ -148,6 +148,22 @@ internal sealed partial class WindowsArchiveFile : Stream, IArchiveCreatePublica
         }
     }
 
+    internal void DeleteCapturedSource(ArchiveFileObservation expected, CancellationToken ct)
+    {
+        lock (parent.Gate)
+        {
+            EnsureLive(); ct.ThrowIfCancellationRequested();
+            if (artifact || createdWritable || writable || !mayRename || namespaceChanged || rebuildClaimed || evidenceClaimed)
+                throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "Source removal requires a newly opened native source deletion lease.");
+            ((IArchiveRetainedFile)this).Review(expected, ct);
+            // An archive stores the primary data and aggregates its origin; other streams must remain at source.
+            WindowsArchiveNative.RequireCreationStreams(handle, expected.Version.Length, expected.Origin);
+            var metadata = CaptureOuterMetadata(ct);
+            if (metadata.Digest != expected.MetadataDigest) throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The source metadata changed after it was archived.");
+            DeleteReviewed(expected.Version, metadata, ct);
+        }
+    }
+
     private void ReviewForMutation(ArchiveObjectVersion expected, WindowsArchiveOuterMetadata expectedMetadata, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(expected); ArgumentNullException.ThrowIfNull(expectedMetadata); EnsureLive();

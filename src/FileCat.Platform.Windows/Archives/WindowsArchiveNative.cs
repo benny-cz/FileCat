@@ -133,7 +133,7 @@ internal static unsafe partial class WindowsArchiveNative
     internal static void RequireOnlyDataStream(SafeFileHandle handle, long expectedLength)
         => RequireCreationStreams(handle, expectedLength, ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier));
 
-    internal static void RequireCreationStreams(SafeFileHandle handle, long expectedLength, ArchiveOriginSnapshot origin)
+    internal static void RequireCreationStreams(SafeFileHandle handle, long expectedLength, ArchiveOriginSnapshot origin, bool directory = false)
     {
         // Closed bounded inventory: exactly the unnamed data and, when required, Zone.Identifier. Never allocate
         // from an untrusted native list size or accept a partial/overflow query as proof that other streams are absent.
@@ -141,6 +141,8 @@ internal static unsafe partial class WindowsArchiveNative
         if (origin.Format != ArchiveOriginFormat.WindowsZoneIdentifier) throw UnexpectedStreams();
         byte* bytes = stackalloc byte[512]; new Span<byte>(bytes, 512).Clear(); IoStatus io = default;
         int status = NtQueryInformationFile(handle, &io, bytes, 512, 22 /* FileStreamInformation */);
+        // Directories need no unnamed $DATA stream. A successful empty inventory proves no named data exists.
+        if (directory && status == 0 && io.Information == 0 && origin.State == ArchiveOriginState.Absent) return;
         if (status != 0 || io.Information is < 24 or > 512) throw UnexpectedStreams();
         int total = checked((int)io.Information), offset = 0, count = 0; bool data = false, zone = false;
         while (true)
@@ -156,7 +158,7 @@ internal static unsafe partial class WindowsArchiveNative
             if ((next & 7) != 0 || next < 24 + length || next > total - offset - 24) throw UnexpectedStreams();
             offset += (int)next;
         }
-        if (!data || zone != (origin.State == ArchiveOriginState.Present)) throw UnexpectedStreams();
+        if (!directory && !data || zone != (origin.State == ArchiveOriginState.Present)) throw UnexpectedStreams();
     }
     private static ArchiveWriteException UnexpectedStreams() => new(ArchiveWriteReason.PublicationUnavailable,
         "The new archive's complete data and required origin stream inventory could not be established.");

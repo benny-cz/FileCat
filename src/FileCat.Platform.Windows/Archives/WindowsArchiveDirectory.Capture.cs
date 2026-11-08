@@ -47,9 +47,67 @@ internal sealed partial class WindowsArchiveDirectory
                 try { modified = new DateTimeOffset(DateTime.FromFileTimeUtc(basic.LastWriteTime), TimeSpan.Zero); }
                 catch (ArgumentOutOfRangeException)
                 { throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "The folder's timestamp is outside the supported archive range."); }
+                string removal = RemovalDigest(metadata, basic.ChangeTime);
                 return new(identity.ToString(), Identity.ToString(), leaf, Convert.ToHexString(hash.GetHashAndReset()), origin,
-                    modified, 0x1ed);
+                    modified, 0x1ed, removal);
             }
+        }
+    }
+
+    // No namespace enumeration: this guard remains linear in the number of moved children.
+    internal (string Digest, string StableDigest) ObserveRemovalDirectory(string leaf, string expectedIdentity, CancellationToken ct)
+    {
+        lock (Gate)
+        {
+            ct.ThrowIfCancellationRequested(); EnsureOpen(); VerifyNamespace(); ValidateLeaf(leaf);
+            using var held = OpenOrThrow(Handle, leaf, ReadAttributes | Synchronize | 0x20000, ShareAll,
+                NtFile.Open, DirectoryFile | OpenReparsePoint, "Review source folder removal metadata");
+            var identity = ProtectedHexFile.Identity(held);
+            if (identity.ToString() != expectedIdentity) throw ChangedDirectory();
+            var before = Observe(); var after = Observe();
+            VerifyNamespace(); RequireDirectoryName(leaf, identity);
+            if (before != after) throw ChangedDirectory();
+            return after;
+
+            (string, string) Observe()
+            {
+                ct.ThrowIfCancellationRequested(); uint links = WindowsArchiveNative.SourceDirectory(held);
+                var basic = GetBasic(held); var security = WindowsArchiveNative.ReadOuterSecurity(held);
+                var origin = ReadDirectoryOrigin(leaf, identity, ct);
+                var metadata = new WindowsArchiveOuterMetadata(identity, basic, links, security, origin);
+                string current = RemovalDigest(metadata, basic.ChangeTime); basic.LastWriteTime = 0;
+                return (current, new WindowsArchiveOuterMetadata(identity, basic, links, security, origin).Digest);
+            }
+        }
+    }
+
+    private static string RemovalDigest(WindowsArchiveOuterMetadata metadata, long changeTime)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        Span<byte> changed = stackalloc byte[8]; BinaryPrimitives.WriteInt64LittleEndian(changed, changeTime);
+        hash.AppendData(Convert.FromHexString(metadata.Digest)); hash.AppendData(changed);
+        return Convert.ToHexString(hash.GetHashAndReset());
+    }
+
+    internal void RemoveCapturedDirectory(string leaf, ArchiveDirectoryObservation expected, string currentRemovalDigest, CancellationToken ct)
+    {
+        lock (Gate)
+        {
+            ct.ThrowIfCancellationRequested(); EnsureOpen(); VerifyNamespace(); ValidateLeaf(leaf);
+            if (expected.ParentIdentity != Identity.ToString() || expected.LeafName != leaf || expected.RemovalMetadataDigest is null) throw ChangedDirectory();
+            using var held = OpenOrThrow(Handle, leaf, ListDirectory | ReadAttributes | Delete | Synchronize | 0x20000,
+                ShareRead, NtFile.Open, DirectoryFile | OpenReparsePoint, "Remove the captured empty source folder");
+            var identity = ProtectedHexFile.Identity(held);
+            if (identity.ToString() != expected.Version.Identity) throw ChangedDirectory();
+            uint links = WindowsArchiveNative.SourceDirectory(held);
+            var basic = GetBasic(held);
+            var origin = ReadDirectoryOrigin(leaf, identity, ct);
+            var metadata = new WindowsArchiveOuterMetadata(identity, basic, links, WindowsArchiveNative.ReadOuterSecurity(held), origin);
+            if (RemovalDigest(metadata, basic.ChangeTime) != currentRemovalDigest || origin.Digest != expected.Origin.Digest) throw ChangedDirectory();
+            WindowsArchiveNative.RequireCreationStreams(held, 0, origin, directory: true);
+            WindowsArchiveNative.SourceDirectoryNamespace(held, ct, (_, _, _) => throw new IOException("The source folder still contains skipped, changed or newly added items."));
+            VerifyNamespace(); RequireDirectoryName(leaf, identity); ct.ThrowIfCancellationRequested();
+            WindowsArchiveNative.DeleteExact(held); // The kernel refuses a nonempty directory; no recursive deletion.
         }
     }
 

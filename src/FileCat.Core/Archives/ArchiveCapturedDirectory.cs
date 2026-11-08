@@ -10,23 +10,28 @@ internal sealed record ArchiveDirectoryObservation
     internal ArchiveOriginSnapshot Origin { get; }
     internal ArchiveTimestamp Modified { get; }
     internal int Mode { get; }
+    // A native adapter may exclude only directory times changed by deleting its captured children.
+    // This extra observation is neither a generic metadata waiver nor deletion authority.
+    internal string? RemovalMetadataDigest { get; }
 
     internal ArchiveDirectoryObservation(string identity, string parentIdentity, string leafName, string metadataDigest,
-        ArchiveOriginSnapshot origin, ArchiveTimestamp modified, int mode)
+        ArchiveOriginSnapshot origin, ArchiveTimestamp modified, int mode, string? removalMetadataDigest = null)
     {
         ArgumentNullException.ThrowIfNull(origin);
         ArchiveTransactionFacts.ValidateText(parentIdentity, 4096); ArchiveTransactionFacts.ValidateText(leafName, 1024);
         ArchiveWritePolicy.ValidateDigest(metadataDigest);
+        if (removalMetadataDigest is not null) ArchiveWritePolicy.ValidateDigest(removalMetadataDigest);
         if (origin.State == ArchiveOriginState.Unavailable || (mode & ~0x1ff) != 0)
             throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "The folder's metadata or origin could not be captured.");
         Version = new(identity, 0, ArchiveOriginEvidenceRecord.EmptySha256);
         ParentIdentity = parentIdentity; LeafName = leafName; MetadataDigest = metadataDigest;
         Origin = origin; Modified = modified; Mode = mode;
+        RemovalMetadataDigest = removalMetadataDigest;
     }
 
     internal bool Matches(ArchiveDirectoryObservation other) => Version == other.Version && ParentIdentity == other.ParentIdentity &&
         LeafName == other.LeafName && MetadataDigest == other.MetadataDigest && Origin.Digest == other.Origin.Digest &&
-        Modified == other.Modified && Mode == other.Mode;
+        Modified == other.Modified && Mode == other.Mode && RemovalMetadataDigest == other.RemovalMetadataDigest;
 }
 
 /// <summary>Reobserves the fixed native parent/leaf; callers cannot substitute a path at review time.</summary>

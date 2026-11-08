@@ -36,6 +36,14 @@ internal interface IArchiveSelectionRetainedCost
     long RetainedHeapBytes { get; }
 }
 
+/// <summary>Optional native deletion authority for the exact captured graph. It never accepts a caller pathname.</summary>
+internal interface IArchiveSelectionRemoval
+{
+    bool CanRemoveSources { get; }
+    void RemoveFile(ArchiveSelectionNode node, ArchiveFileObservation expected, CancellationToken ct);
+    void RemoveDirectory(ArchiveSelectionNode node, ArchiveDirectoryObservation expected, CancellationToken ct);
+}
+
 /// <summary>
 /// A frozen local selection with bounded iterative traversal and explicit exclusions. Native adapters must
 /// enumerate held directories without following links and bind each lazy reopen to the complete captured path.
@@ -46,6 +54,8 @@ internal sealed class ArchiveCapturedSelection : IDisposable
     internal const int MaximumDepth = 256, MaximumExclusionSamples = 128;
     private readonly IArchiveSelectionTree source;
     private readonly List<ArchiveCapturedMember> members = [];
+    private readonly Dictionary<int, ArchiveSelectionNode> nodes = [];
+    private readonly HashSet<ArchiveSelectionNode> excludedAncestors = [];
     private readonly List<ArchiveSelectionExclusion> samples = [];
     private readonly int[] exclusionCounts = new int[3];
     private int disposed;
@@ -55,6 +65,7 @@ internal sealed class ArchiveCapturedSelection : IDisposable
     internal IReadOnlyList<ArchiveSelectionSource>? SourceSpecification => (source as IArchiveSelectionSpecification)?.Sources;
     internal IReadOnlyList<ArchiveSelectionExclusion> ExclusionSamples { get; private set; } = [];
     internal int ExcludedCount => exclusionCounts.Sum();
+    internal bool CanRemoveSources => source is IArchiveSelectionRemoval { CanRemoveSources: true };
     internal int Excluded(ArchiveSelectionExclusionReason reason) => exclusionCounts[(int)reason];
     private ArchiveCapturedSelection(IArchiveSelectionTree source) => this.source = source;
 
@@ -115,6 +126,7 @@ internal sealed class ArchiveCapturedSelection : IDisposable
         while (pending.TryPop(out var node))
         {
             ct.ThrowIfCancellationRequested(); int input = checked(++id);
+            Inputs.RetainSelection(0, 128); nodes.Add(input, node);
             if (node.Entry.Kind == ArchiveSelectionKind.File)
             {
                 source.CaptureFile(Inputs, input, node, ct);
@@ -143,7 +155,7 @@ internal sealed class ArchiveCapturedSelection : IDisposable
             int selector = parent?.RootSelector ?? selectedRoot!.Selector;
             // Invalid byte names are reported without inventing a replacement filename to open later.
             if (entry.Kind == ArchiveSelectionKind.UnrepresentableName)
-            { Exclude(parent?.MemberName ?? selectedRoot!.MemberName, ArchiveSelectionExclusionReason.UnrepresentableName, selector); return; }
+            { Exclude(parent?.MemberName ?? selectedRoot!.MemberName, ArchiveSelectionExclusionReason.UnrepresentableName, selector, parent); return; }
             RequireLeaf(entry.Leaf);
             int length = parent is null ? selectedRoot!.MemberName.Length : checked(parent.MemberName.Length + 1 + entry.Leaf.Length);
             int nativeLength = checked((parent?.NativeRelativePath.Length + 1 ?? 0) + entry.Leaf.Length);
@@ -151,18 +163,39 @@ internal sealed class ArchiveCapturedSelection : IDisposable
             long retainedChars = checked(length + (long)nativeLength + entry.Leaf.Length + entry.Identity.Length);
             Inputs.RetainSelection(retainedChars, checked(768L + 2L * retainedChars));
             string name = parent is null ? selectedRoot!.MemberName : parent.MemberName + "/" + entry.Leaf;
-            if (!Representable(name)) { Exclude(name, ArchiveSelectionExclusionReason.UnrepresentableName, selector); return; }
-            if (entry.Kind == ArchiveSelectionKind.Link) { Exclude(name, ArchiveSelectionExclusionReason.Link, selector); return; }
-            if (entry.Kind == ArchiveSelectionKind.Special) { Exclude(name, ArchiveSelectionExclusionReason.SpecialFile, selector); return; }
+            if (!Representable(name)) { Exclude(name, ArchiveSelectionExclusionReason.UnrepresentableName, selector, parent); return; }
+            if (entry.Kind == ArchiveSelectionKind.Link) { Exclude(name, ArchiveSelectionExclusionReason.Link, selector, parent); return; }
+            if (entry.Kind == ArchiveSelectionKind.Special) { Exclude(name, ArchiveSelectionExclusionReason.SpecialFile, selector, parent); return; }
             if (entry.Kind is not (ArchiveSelectionKind.File or ArchiveSelectionKind.Directory) || string.IsNullOrEmpty(entry.Identity)) throw Invalid();
             if (parent is null && entry.Kind == ArchiveSelectionKind.Directory) selectedDirectories.Add(entry.Identity);
             pending.Push(new(parent, entry, name, selector));
         }
     }
 
-    private void Exclude(string name, ArchiveSelectionExclusionReason reason, int selector)
+    internal ArchiveSelectionNode CapturedNode(int id)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
+        return nodes.TryGetValue(id, out var node) ? node : throw Invalid();
+    }
+    internal bool HasExcludedDescendants(int id) => excludedAncestors.Contains(CapturedNode(id));
+    internal void RemoveCaptured(int id, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested(); var node = CapturedNode(id);
+        if (source is not IArchiveSelectionRemoval { CanRemoveSources: true } removal)
+            throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, "Native removal is unavailable for these captured sources.");
+        if (node.Entry.Kind == ArchiveSelectionKind.File) removal.RemoveFile(node, Inputs.Bindings[id].Reviewed, ct);
+        else if (node.Entry.Kind == ArchiveSelectionKind.Directory) removal.RemoveDirectory(node, Inputs.Directories[id].Reviewed, ct);
+        else throw Invalid();
+    }
+
+    private void Exclude(string name, ArchiveSelectionExclusionReason reason, int selector, ArchiveSelectionNode? parent = null)
     {
         exclusionCounts[(int)reason] = checked(exclusionCounts[(int)reason] + 1);
+        for (var node = parent; node is not null; node = node.Parent)
+        {
+            if (excludedAncestors.Contains(node)) break; // The complete ancestor chain was already retained.
+            Inputs.RetainSelection(0, 64); excludedAncestors.Add(node);
+        }
         if (samples.Count == MaximumExclusionSamples) return;
         Inputs.RetainSelection(name.Length, checked(128L + 2L * name.Length)); samples.Add(new(name, reason, selector));
     }

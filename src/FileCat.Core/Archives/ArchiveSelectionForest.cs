@@ -7,7 +7,7 @@ internal interface IArchiveSelectionSpecification
 }
 
 /// <summary>Parent-owned source roots from several directories; selectors never reach a worker as paths.</summary>
-internal sealed class ArchiveSelectionForest : IArchiveSelectionTree, IArchiveSelectionRetainedCost, IArchiveSelectionSpecification
+internal sealed class ArchiveSelectionForest : IArchiveSelectionTree, IArchiveSelectionRetainedCost, IArchiveSelectionSpecification, IArchiveSelectionRemoval
 {
     internal const int MaximumParents = ArchiveWritePolicy.MaxInputLeases;
     private readonly Dictionary<int, IArchiveSelectionTree> owners = [];
@@ -17,6 +17,7 @@ internal sealed class ArchiveSelectionForest : IArchiveSelectionTree, IArchiveSe
     public long RetainedNameChars { get; private set; }
     public long RetainedHeapBytes { get; private set; }
     public IReadOnlyList<ArchiveSelectionSource> Sources { get; private set; } = [];
+    public bool CanRemoveSources => !disposed && trees.Count != 0 && trees.All(tree => tree is IArchiveSelectionRemoval { CanRemoveSources: true });
 
     internal static ArchiveCapturedSelection Capture(IReadOnlyList<ArchiveSelectionSource> requests,
         Func<string, IArchiveSelectionTree> open, CancellationToken ct, long retainedNameChars = 0, long retainedHeapBytes = 0)
@@ -108,6 +109,10 @@ internal sealed class ArchiveSelectionForest : IArchiveSelectionTree, IArchiveSe
         => Owner(file).CaptureFile(inputs, id, file, ct);
     public void CaptureDirectory(ArchiveCapturedInputs inputs, int id, ArchiveSelectionNode directory, CancellationToken ct)
         => Owner(directory).CaptureDirectory(inputs, id, directory, ct);
+    public void RemoveFile(ArchiveSelectionNode node, ArchiveFileObservation expected, CancellationToken ct)
+        => (Owner(node) as IArchiveSelectionRemoval ?? throw Invalid()).RemoveFile(node, expected, ct);
+    public void RemoveDirectory(ArchiveSelectionNode node, ArchiveDirectoryObservation expected, CancellationToken ct)
+        => (Owner(node) as IArchiveSelectionRemoval ?? throw Invalid()).RemoveDirectory(node, expected, ct);
     public void ReviewDestination(string path, string identity, IReadOnlySet<string> selectedDirectories, CancellationToken ct)
     {
         Live(); foreach (var tree in trees) { ct.ThrowIfCancellationRequested(); tree.ReviewDestination(path, identity, selectedDirectories, ct); }

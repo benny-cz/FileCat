@@ -29,8 +29,8 @@ internal sealed class ArchiveMoveSources
     private readonly string archive;
     private readonly string? archiveIdentity;
     private readonly List<Input> roots = [];
-    private readonly HashSet<string> directoryRoots = new(PathUtil.SafetyComparer);
-    private readonly Dictionary<string, Input> inputs = new(PathUtil.SafetyComparer);
+    private readonly HashSet<string> directoryRoots = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Input> inputs = new(StringComparer.Ordinal);
     private int originBytes, removedFiles, removedDirectories;
 
     internal ArchiveMoveSources(Job job, IFileSystemOperations fs, JobJournal journal, ArchivePlan plan, string archive)
@@ -120,8 +120,8 @@ internal sealed class ArchiveMoveSources
     {
         job.AddTotals(inputs.Count, 0);
         job.RecordUndoRemainder(archive, "Archive moves have no automatic inverse; Undo will not remove archive members or recreate originals.");
-        var children = inputs.Values.Where(i => Path.GetDirectoryName(i.Path) is not null).GroupBy(i => Path.GetDirectoryName(i.Path)!, PathUtil.SafetyComparer)
-            .ToDictionary(g => g.Key, g => g.ToArray(), PathUtil.SafetyComparer);
+        var children = inputs.Values.Where(i => Path.GetDirectoryName(i.Path) is not null).GroupBy(i => Path.GetDirectoryName(i.Path)!, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.ToArray(), StringComparer.Ordinal);
         try
         {
             job.SetSummary("Archive saved; removing originals.");

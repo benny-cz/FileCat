@@ -99,6 +99,13 @@ cases cover distinct source files/parents across all six container/password prof
 retains the preceding full-suite inventory plus the two new cases. Continue native cleanup/F6 and the shared UI;
 this component does not complete their qualification or enable a profile.
 
+The [native F6 packet](../validation/archive-writing/NATIVE_ARCHIVE_MOVES.md) now connects shared source accounting
+and Windows native removal after verified publication. Its checkpoint records twenty actual create/update moves
+across all container/password profiles, native stream/directory guards and independent readers. The legacy
+case-distinct ZIP move fix has actual Windows and Unix acceptance evidence. Unix native moves, safe cleanup and
+recovery, shared UI and remaining platform qualification stay open. Preserve actual failed runs and repaired
+fixtures; combined or reused evidence must be identified explicitly.
+
 **Approved validation acceleration (8 November):** coalesce focused/native checks, inherited regressions,
 independent readers, source/assembly evidence and final instance cleanup into one large batch per available
 machine. Run independent idle machines concurrently and prepare independent implementation/review work while

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using FileCat.Core.Archives;
 using FileCat.Core.Jobs;
 using FileCat.Platform.Windows.Shell;
@@ -15,13 +16,18 @@ internal static class WindowsArchiveJobBackend
             (plan, ct) => new Scope(plan, ct),
             new((nonce, cpu) => ArchiveAppContainer.StartAssessment(executable, nonce, cpu, 2), protocolVersion: 2),
             new((nonce, cpu) => ArchiveAppContainer.StartTransform(executable, nonce, cpu, 2), protocolVersion: 2),
-            new((nonce, cpu) => ArchiveAppContainer.StartVerification(executable, nonce, cpu, 2), protocolVersion: 2));
+            new((nonce, cpu) => ArchiveAppContainer.StartVerification(executable, nonce, cpu, 2), protocolVersion: 2), supportsSourceRemoval: true);
     }
 
     private sealed class Scope : IArchiveJobNativeScope<WindowsArchiveFile>
     {
         private readonly WindowsArchiveDirectory directory;
         private readonly WindowsArchiveFile? original;
+        private ArchiveContentUpdateResult<WindowsArchiveFile>? update;
+        private WindowsArchiveFile? publicationTarget;
+        private ArchiveFileObservation? publishedObservation;
+        private string? publicationPinFailure;
+        private bool ownsPublicationTarget;
         public ArchiveRetainedBinding? Original { get; }
         internal Scope(ArchivePlan plan, CancellationToken ct)
         {
@@ -47,11 +53,39 @@ internal static class WindowsArchiveJobBackend
             if (original is null)
             {
                 var created = ArchiveNewFilePublication.PublishAsync(journal, prepared, inputs, directory.CreateArtifact, ct).GetAwaiter().GetResult();
+                publicationTarget = prepared.Stage; publishedObservation = created.Published;
                 return new(created.Published, created.Facts.UnresolvedArtifacts);
             }
-            using var updated = WindowsArchiveContentUpdate.Publish(journal, prepared, original, inputs, TimeSpan.FromMinutes(2), ct);
-            return new(updated.Published, Array.AsReadOnly(updated.CleanupFacts.Artifacts.Select(artifact => artifact.Path).ToArray()));
+            update = WindowsArchiveContentUpdate.Publish(journal, prepared, original, inputs, TimeSpan.FromMinutes(2), ct);
+            publishedObservation = update.Published;
+            // BeginContentTransaction consumes the original lease. The transaction keeps its committed
+            // deny-write/delete pin; acquire a fresh reader under that pin for the complete move lifetime.
+            try
+            {
+                publicationTarget = directory.OpenSource(update.Published.LeafName);
+                ownsPublicationTarget = true;
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or Win32Exception)
+            { publicationPinFailure = error.Message; } // Publication committed; keep originals if an extra reader is unavailable.
+            return new(update.Published, Array.AsReadOnly(update.CleanupFacts.Artifacts.Select(artifact => artifact.Path).ToArray()));
         }
-        public void Dispose() { try { original?.Dispose(); } finally { directory.Dispose(); } }
+        public void ReviewPublication(ArchiveJobPublication published, bool verifyBytes, CancellationToken ct)
+        {
+            if (publicationTarget is null || !ReferenceEquals(published.Published, publishedObservation))
+                throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "The published archive no longer has its live native move reader. " + publicationPinFailure);
+            var file = (IArchiveRetainedFile)publicationTarget;
+            if (verifyBytes) file.Review(published.Published, ct);
+            else { using var view = file.OpenReadView(published.Published, ct); }
+        }
+        public void Dispose()
+        {
+            try { if (ownsPublicationTarget) publicationTarget?.Dispose(); }
+            finally { DisposeUpdate(); }
+        }
+        private void DisposeUpdate()
+        {
+            try { update?.Dispose(); }
+            finally { try { original?.Dispose(); } finally { directory.Dispose(); } }
+        }
     }
 }

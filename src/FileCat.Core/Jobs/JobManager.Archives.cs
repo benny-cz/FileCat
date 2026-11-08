@@ -1,4 +1,5 @@
 using FileCat.Core.Archives;
+using FileCat.Core.Resources;
 
 namespace FileCat.Core.Jobs;
 
@@ -14,6 +15,7 @@ public sealed partial class JobManager
         if (password is not null && !password.TryClaimForJob())
             throw new InvalidOperationException("This archive password already belongs to a job.");
         ArchiveJobOperation operation;
+        IReadOnlyList<ItemRef> sources = [];
         try
         {
             ArgumentNullException.ThrowIfNull(plan);
@@ -22,6 +24,8 @@ public sealed partial class JobManager
                 throw new ArgumentException("An explicit archive profile, absolute target and bounded changes are required.", nameof(plan));
             ArchiveJobPassword.Require(plan.Profile, password);
             var changes = new ArchiveChange[plan.Changes.Count];
+            ItemRef[]? moveSources = plan.MoveSources ? new ItemRef[changes.Length] : null;
+            if (moveSources is { Length: 0 }) throw new ArgumentException("An archive move requires selected local sources.", nameof(plan));
             long retainedCharacters = 0;
             for (int i = 0; i < changes.Length; i++)
             {
@@ -31,11 +35,19 @@ public sealed partial class JobManager
                 if (retainedCharacters > ArchiveWritePolicy.MaxRetainedNameChars)
                     throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The queued archive changes exceed the retained-name limit.");
                 changes[i] = change;
+                if (moveSources is not null)
+                {
+                    if (change.Kind is not (ArchiveChangeKind.AddFile or ArchiveChangeKind.AddFolder) ||
+                        change.SourcePath is null || !Path.IsPathFullyQualified(change.SourcePath))
+                        throw new ArgumentException("Archive moves require explicit local file/folder additions.", nameof(plan));
+                    moveSources[i] = ItemRef.ForFileSystemPath(Path.GetFullPath(change.SourcePath), change.Kind == ArchiveChangeKind.AddFolder ? EntryKind.Directory : EntryKind.File);
+                }
             }
+            if (moveSources is not null) sources = Array.AsReadOnly(moveSources);
             operation = new(plan with { ArchivePath = Path.GetFullPath(plan.ArchivePath), Changes = Array.AsReadOnly(changes) }, password);
         }
         catch { password?.Dispose(); throw; }
-        return Submit(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = operation.Plan, Mode = mode, Description = description },
+        return Submit(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = operation.Plan, Sources = sources, Mode = mode, Description = description },
             null, register, operation);
     }
 

@@ -1,5 +1,14 @@
 # Archive writing implementation status
 
+**8 November: Windows native F6 and shared source accounting implemented, unregistered.**
+[Native moves](NATIVE_ARCHIVE_MOVES.md) add captured-source removal after reviewed publication, directory
+change tracking, exclusions and partial/canceled move accounting. The legacy ZIP case-distinct source accounting
+fix passes on the actual Windows adapter. The [checkpoint](native-archive-move-checkpoint.json) records the complete
+Core evidence, Mac's four source-preserving APFS fixture repairs, 23 native source guards, twenty actual Windows
+create/update moves, 197 inherited native cases, ten application-entry cases, independent readers, source/PDB
+binding and instance cleanup. Original failures and the publication-reader lifetime fix are retained. Unix native
+moves, cleanup/recovery, shared UI and remaining qualification/final review stay open. No new profile is enabled.
+
 **8 November: case-distinct native source selection fixed.**
 [Source-case follow-up](NATIVE_ARCHIVE_SOURCE_CASE.md) preserves distinct file and parent-directory spellings
 before native capture. The real NTFS reproduction showed two distinct files collapsed into one source by the

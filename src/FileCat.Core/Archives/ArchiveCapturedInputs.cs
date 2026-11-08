@@ -118,7 +118,7 @@ internal sealed class ArchiveCapturedInputs : IDisposable
                 var observed = observe(token) ?? throw Invalid();
                 long names = (long)observed.ParentIdentity.Length + observed.LeafName.Length;
                 long chars = names + observed.Version.Identity.Length + observed.Version.Sha256.Length +
-                    observed.MetadataDigest.Length + observed.Origin.Digest.Length;
+                    observed.MetadataDigest.Length + observed.Origin.Digest.Length + (observed.RemovalMetadataDigest?.Length ?? 0);
                 budget.AddNameChars(names);
                 budget.AddMetadata(ArchiveWritePolicy.Utf8.GetByteCount(observed.ParentIdentity) +
                     ArchiveWritePolicy.Utf8.GetByteCount(observed.LeafName) + observed.Origin.Bytes.Length,

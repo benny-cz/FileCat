@@ -10,6 +10,30 @@ public abstract class ArchiveMoveAcceptance
 {
     protected abstract IFileSystemOperations NativeFiles();
 
+    [Theory]
+    [InlineData(false, false)] [InlineData(false, true)] [InlineData(true, false)] [InlineData(true, true)]
+    public async Task Case_distinct_sources_are_separately_archived_removed_and_accounted(bool parents, bool differentBytes)
+    {
+        using var f = new Fixture(NativeFiles());
+        string? template = OperatingSystem.IsWindows() ? Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_CASE_ROOT") : f.Root;
+        if (template is null) Assert.Skip("Explicit case-sensitive NTFS source fixture.");
+        string source = Path.Combine(template!, Guid.NewGuid().ToString("N")); System.IO.Directory.CreateDirectory(source);
+        try
+        {
+            string first = Path.Combine(source, parents ? "Root/payload" : "Case");
+            string second = Path.Combine(source, parents ? "root/payload" : "case");
+            System.IO.Directory.CreateDirectory(Path.GetDirectoryName(first)!); System.IO.Directory.CreateDirectory(Path.GetDirectoryName(second)!);
+            File.WriteAllText(first, "first"); File.WriteAllText(second, differentBytes ? "second" : "first");
+            Assert.NotEqual(f.Files.GetFileIdentity(first), f.Files.GetFileIdentity(second));
+            var job = await f.Run([new(ArchiveChangeKind.AddFile, "first", first), new(ArchiveChangeKind.AddFile, "second", second)]);
+            Assert.Equal(JobState.Completed, job.State);
+            Assert.False(File.Exists(first)); Assert.False(File.Exists(second));
+            Assert.Equal("first", f.Read("first")); Assert.Equal(differentBytes ? "second" : "first", f.Read("second"));
+            Assert.Equal(new[] { 0, 1 }, job.CompletedRootIndices); Assert.Empty(job.FailedRootIndices);
+        }
+        finally { System.IO.Directory.Delete(source, true); }
+    }
+
     [Fact]
     public async Task Verified_file_and_folder_moves_remove_originals_and_keep_complete_archive_bytes()
     {
