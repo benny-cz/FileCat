@@ -81,7 +81,7 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
     }
     private bool IsReadable(){lock(gate)return !disposed;}
     private void Live(){if(disposed)throw Changed();}
-    private static ArchiveWriteException Changed()=>new(ArchiveWriteReason.SourceChanged,"The retained edit snapshot is no longer the reviewed source; the archive must stay unchanged.");
+    private static ArchiveWriteException Changed()=>new(ArchiveWriteReason.SourceChanged,"The retained edit snapshot is no longer the reviewed source.");
     public void Dispose()
     {
         lock(gate)
