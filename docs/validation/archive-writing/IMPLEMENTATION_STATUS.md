@@ -1,12 +1,24 @@
 # Archive writing implementation status
 
+**8 November: retained SFTP edit uploads implemented; three-platform qualification is running.**
+[Retained SFTP edits](RETAINED_SFTP_EDITS.md) bind a captured edit to its originating server file,
+verify consumed bytes and require complete stage readback before guarded replacement. The first
+Mac/Ubuntu iteration exposed a connection-pool cleanup fixture error; its failures are preserved and
+the corrected 23-case matrix passes on all three platforms as `awe-storage-v18`. Complete Core/Remote/App
+inventories continue on Mac/Ubuntu. The Windows `v19` diagnosis proves Defender blocks the deceptive
+executable-name fixture; FileCat reports that refusal correctly. The `v20` test expansion requires
+that native refusal explicitly and adds a readable variant; all 12 checksum UI checks and 23 retained
+SFTP cases pass on Windows before its active full rerun (one platform-specific checksum UI case skips).
+The previous complete Core suites pass on all three platforms. Complete Mac/Ubuntu App suites pass;
+Windows has one checksum fixture expectation under correction. No factory/profile is enabled.
+
 **8 November: retained native edit snapshots drive legacy ZIP jobs; first integration gates pass.**
 [Retained ZIP edits](RETAINED_LEGACY_ZIP_EDITS.md) remove the source-path byte reopen, bind a single originating
 session replacement and verify source/output hashes. All three platforms pass 18 real-file cases.
 The full application inventory found a canceled-admission retirement defect; its fix passes 29 Core
 and 18 history UI checks on each platform. Ubuntu's four picture-fixture failures are corrected by
 matching the production runtime environment; its 12 boundary checks pass. The `feb9105e` full Core and
-application rerun is still active. Completed failures remain preserved; no factory/profile is enabled.
+application rerun is complete, with the Windows checksum-dialog finding above. Failures remain preserved.
 
 **8 November: Windows capture-tree cleanup and fresh read-only recovery implemented; full regression rerun active.**
 [Capture recovery](ARCHIVE_EDIT_CAPTURE_RECOVERY.md) retains native creation authority through Windows

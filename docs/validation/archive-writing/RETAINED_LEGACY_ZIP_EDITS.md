@@ -19,7 +19,7 @@ the retained input before publication. Missing or duplicate current members are 
 the archive for a separate review. A later editor save stays outside this commit.
 
 The existing ZIP publication, outer metadata and origin-mark behavior is preserved. That compatibility
-protocol is not a new native publication qualification. Save copy, SFTP retained-input integration,
+protocol is not a new native publication qualification. Save copy, [SFTP qualification](RETAINED_SFTP_EDITS.md),
 discard/adoption, Unix cleanup and default factory wiring remain required.
 
 ## Regression found by the complete application inventory
@@ -42,7 +42,8 @@ No sandbox permission was broadened.
 ## Live evidence and limits
 
 Candidate `feb9105e267b06f837b4d86916d633b3f71c7426`, cohort `awe-storage-v16`, has passed these focused
-gates on all three actual platforms while its complete Core/application inventories are still running:
+gates on all three actual platforms. Its complete Core inventories pass on all three; complete App suites
+pass on Mac/Ubuntu, with one Windows checksum-dialog assertion under correction:
 
 | Gate | Windows | Mac | Ubuntu |
 |---|---:|---:|---:|
@@ -59,8 +60,8 @@ hook throws if the ordinary source pathname lease is used. The first Windows coh
 an independent in-place archive edit. The corrected fixture releases that index first.
 
 The completed failed inventories and first ZIP iteration remain in the
-[progress checkpoint](edit-capture-recovery-progress.json). Current `v16` results still need final
-sealing, exact compiler/binary verification and complete-suite review before a completed checkpoint.
+[progress checkpoint](edit-capture-recovery-progress.json). The `v16` results are sealed and exact
+compiler/binary bytes verified; the follow-up still needs a clean complete Windows App inventory.
 
 The full Core comparison retains five explicit case migrations from `c68ec836`: oversized metadata
 now remains visible for read-only recovery; unchanged-byte version-1 checks became part of the
