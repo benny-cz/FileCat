@@ -2,8 +2,8 @@
 from pathlib import Path
 import importlib.util,json,shutil,subprocess,sys,tarfile,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v17'
-PACKET='archive-edit-storage-delta-v17.tar.gz'
+FOLDER='awe-storage-v18'
+PACKET='archive-edit-storage-delta-v18.tar.gz'
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 def sha(path):
     import hashlib
@@ -11,7 +11,7 @@ def sha(path):
 def base(task):
     path=task/'archive-workflow-source-v1/eng/validation/archive-writing/run_job_backend_batch.py'
     spec=importlib.util.spec_from_file_location('edit_storage_base',path);value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value)
-    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v16'
+    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v16' if sys.platform=='win32' else 'awe-storage-v17'
     return value
 def batch_for(task):return base(task).batch_for(task)
 def prepare(task,expected):
@@ -44,6 +44,7 @@ def tests(task):
         if expected is not None:assert counters['total']==str(expected) and counters['passed']==str(expected),counters
         rows[name]=counters;(batch.out/'passed-gates.json').write_text(json.dumps(rows,indent=2))
     run('native-sftp','FileCat.App.Tests','FullyQualifiedName~SftpRetainedEditTests',23)
+    run('verification-ui','FileCat.App.Tests','FullyQualifiedName~VerificationUiTests')
     run('history-retirement-core','FileCat.Core.Tests','FullyQualifiedName~JobRetirementOwnershipTests')
     run('history-retirement-ui','FileCat.App.Tests','FullyQualifiedName~OperationHistoryRetirementTests',18)
     if sys.platform=='linux':run('picture-boundary','FileCat.App.Tests','FullyQualifiedName~LinuxPicturePolicyTests')

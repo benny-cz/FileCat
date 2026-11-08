@@ -114,6 +114,7 @@ public sealed class SftpRetainedEditTests
             }
             Assert.Equal(["notes.txt"],server.Lookup("/up",false)!.Children.Keys);
             Assert.Equal(scenario=="late-save"?"later editor save stays local":System.Text.Encoding.UTF8.GetString(bytes),File.ReadAllText(record.WorkingPath));
+            connections.Dispose(); // A returned lease remains connected in the reusable pool until the owner closes it.
             Assert.Equal(0,server.ActiveChannels);
         }
         finally
