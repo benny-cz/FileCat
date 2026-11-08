@@ -1,0 +1,124 @@
+using System.Security.AccessControl;
+using System.Security.Principal;
+using FileCat.Core.Edit;
+using FileCat.Core.State;
+using FileCat.Platform.Windows.Elevation;
+using FileCat.Platform.Windows.Shell;
+using Microsoft.Win32.SafeHandles;
+using static FileCat.Platform.Windows.Elevation.NtFile;
+
+namespace FileCat.Platform.Windows.Archives;
+
+/// <summary>Unregistered edit namespace primitives. Created children have explicit protected ACLs before working bytes exist.</summary>
+internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
+{
+    private readonly SafeFileHandle directory;
+    private readonly LocalIconFileLease? rootPins;
+    private readonly WindowsEditDirectoryLease? parent;
+    private readonly IDisposable? parentOwner;
+    private readonly string? leaf;
+    private readonly string owner;
+    private readonly byte[] security;
+    private readonly bool isPrivate;
+    internal override string Path { get; }
+    internal override string Identity { get; }
+    internal override SafeFileHandle Handle => directory;
+
+    private WindowsEditDirectoryLease(string path,SafeFileHandle directory,string owner,bool isPrivate,
+        LocalIconFileLease? rootPins=null,WindowsEditDirectoryLease? parent=null,string? leaf=null)
+    {
+        Path=path;this.directory=directory;this.owner=owner;this.isPrivate=isPrivate;this.rootPins=rootPins;this.parent=parent;this.leaf=leaf;
+        try
+        {
+            parentOwner=parent?.RetainForChild();Identity=ProtectedHexFile.Identity(directory).ToString();
+            var descriptor=new RawSecurityDescriptor($"O:{owner}D:P(A;;FA;;;{owner})(A;;FA;;;SY)");
+            security=new byte[descriptor.BinaryLength];descriptor.GetBinaryForm(security,0);
+            ReviewCore(default);
+        }
+        catch { directory.Dispose();rootPins?.Dispose();parentOwner?.Dispose();throw; }
+    }
+    internal static WindowsEditDirectoryLease OpenRoot(string path,bool requirePrivate,CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if(!OperatingSystem.IsWindows())throw new PlatformNotSupportedException("Native Windows edit storage is required.");
+        if(WindowsTokenAuthority.IsHighIntegrity)throw new UnauthorizedAccessException("Edit storage requires an unelevated FileCat process.");
+        string full=System.IO.Path.TrimEndingDirectorySeparator(System.IO.Path.GetFullPath(path));
+        var pins=LocalIconFileLease.TryOpenDirectory(full,LeaseLinks.Refuse,removable:true)
+            ??throw new IOException("The edit root cannot be pinned without following links.");
+        SafeFileHandle? handle=null;
+        try
+        {
+            handle=OpenOrThrow(null,@"\??\"+full,GenericRead|0x20000|Synchronize,ShareRead|ShareWrite,Open,
+                DirectoryFile|OpenReparsePoint,"Open native edit root");
+            using var identity=WindowsIdentity.GetCurrent();string owner=identity.User?.Value??throw new UnauthorizedAccessException("The edit owner is unavailable.");
+            var result=new WindowsEditDirectoryLease(full,handle,owner,requirePrivate,pins);handle=null;return result;
+        }
+        catch { handle?.Dispose();pins.Dispose();throw; }
+    }
+    protected override void ReviewCore(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();WindowsArchiveNative.SourceDirectory(directory);
+        if(ProtectedHexFile.Identity(directory).ToString()!=Identity)throw new IOException("The held edit directory changed.");
+        if(parent is not null)
+        {
+            parent.ReviewRetained(ct);
+            using var named=OpenOrThrow(parent.Handle,leaf!,ReadAttributes|Synchronize,ShareAll,Open,DirectoryFile|OpenReparsePoint,"Review native edit directory");
+            WindowsArchiveNative.SourceDirectory(named);
+            if(ProtectedHexFile.Identity(named).ToString()!=Identity)throw new IOException("The edit directory name identifies a different object.");
+        }
+        else if(rootPins is null||ProtectedHexFile.Identity(rootPins.LastHandle).ToString()!=Identity)
+            throw new IOException("The pinned edit root changed.");
+        if(isPrivate)WindowsArchiveNative.RequirePrivateSecurity(directory,owner);
+    }
+    internal override EditDirectoryLease CreateDirectory(string name,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            RequireOpen();Leaf(name);ReviewCore(ct);
+            int status=TryOpen(directory,name,GenericRead|GenericWrite|Delete|0x20000|Synchronize,ShareRead|ShareWrite,Create,
+                DirectoryFile|OpenReparsePoint,out var child,(uint)FileAttributes.Directory,security);
+            if(status<0){child.Dispose();throw Error(status,"Create private edit directory");}
+            var result=new WindowsEditDirectoryLease(System.IO.Path.Combine(Path,name),child,owner,true,parent:this,leaf:name);
+            try{ReviewCore(ct);return result;}catch{result.Dispose();throw;}
+        }
+    }
+    internal override EditDirectoryLease OpenDirectory(string name,string? expected,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            RequireOpen();Leaf(name);ReviewCore(ct);
+            var child=OpenOrThrow(directory,name,GenericRead|0x20000|Synchronize,ShareRead|ShareWrite,Open,
+                DirectoryFile|OpenReparsePoint,"Open private edit directory");
+            var result=new WindowsEditDirectoryLease(System.IO.Path.Combine(Path,name),child,owner,true,parent:this,leaf:name);
+            try
+            {
+                if(expected is not null&&result.Identity!=expected)throw new IOException("The saved edit directory identity changed.");
+                ReviewCore(ct);return result;
+            }
+            catch{result.Dispose();throw;}
+        }
+    }
+    internal override FileStream CreateFile(string name,CancellationToken ct)=>OpenFileCore(name,null,true,ct);
+    internal override FileStream OpenFile(string name,string? expected,CancellationToken ct)=>OpenFileCore(name,expected,false,ct);
+    private FileStream OpenFileCore(string name,string? expected,bool create,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            RequireOpen();Leaf(name);ReviewCore(ct);
+            if(!isPrivate)throw new UnauthorizedAccessException("Working bytes need a private edit directory.");
+            int status=TryOpen(directory,name,GenericRead|0x20000|Synchronize|(create?GenericWrite|Delete:0),ShareRead,create?Create:Open,
+                NonDirectoryFile|OpenReparsePoint,out var file,(uint)FileAttributes.Normal,create?security:null);
+            if(status<0){file.Dispose();throw Error(status,"Open private edit file");}
+            try
+            {
+                WindowsArchiveNative.Regular(file,FileCat.Core.Edit.EditSessionStore.MaxMemberBytes,artifact:true,mayRename:false);
+                WindowsArchiveNative.RequirePrivateSecurity(file,owner);
+                if(expected is not null&&ProtectedHexFile.Identity(file).ToString()!=expected)throw new IOException("The private edit file identity changed.");
+                ReviewCore(ct);return new(file,create?FileAccess.ReadWrite:FileAccess.Read);
+            }
+            catch{file.Dispose();throw;}
+        }
+    }
+    protected override void CloseCore()
+    {try{directory.Dispose();}finally{try{rootPins?.Dispose();}finally{parentOwner?.Dispose();}}}
+}

@@ -1,0 +1,98 @@
+using FileCat.Core.Archives.Unix;
+using FileCat.Core.FileSystem;
+using Microsoft.Win32.SafeHandles;
+
+namespace FileCat.Core.Edit;
+
+/// <summary>Unregistered native edit creation/read namespace. No pathname cleanup or publication fallback.</summary>
+internal sealed class UnixEditDirectoryLease : EditDirectoryLease
+{
+    private readonly SafeFileHandle directory;
+    private readonly UnixEditDirectoryLease? parent;
+    private readonly IDisposable? parentOwner;
+    private readonly string? leaf;
+    private readonly uint user;
+    private readonly bool isPrivate;
+    internal override string Path { get; }
+    internal override string Identity { get; }
+    internal override SafeFileHandle Handle => directory;
+
+    private UnixEditDirectoryLease(string path, SafeFileHandle directory, uint user, bool isPrivate,
+        UnixEditDirectoryLease? parent=null, string? leaf=null)
+    {
+        Path=path;this.directory=directory;this.user=user;this.isPrivate=isPrivate;this.parent=parent;this.leaf=leaf;
+        try
+        {
+            parentOwner=parent?.RetainForChild();
+            Identity=(UnixFiles.Stat(directory)?.Identity ?? throw UnixArchiveNative.Unavailable()).ToString();
+            ReviewCore(default);
+        }
+        catch { directory.Dispose();parentOwner?.Dispose();throw; }
+    }
+    internal static UnixEditDirectoryLease OpenRoot(string path, bool requirePrivate, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();uint user=UnixArchiveNative.RequireOrdinaryIdentity();
+        string full=System.IO.Path.GetFullPath(path);
+        return new(full,UnixArchiveNative.PinDirectory(full),user,requirePrivate);
+    }
+    protected override void ReviewCore(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (parent is not null)
+        {
+            parent.ReviewRetained(ct);
+            using var named=UnixArchiveNative.ChildDirectory(parent.Handle,leaf!);
+            if (UnixFiles.Stat(named)?.Identity.ToString()!=Identity) throw UnixArchiveNative.Unavailable();
+        }
+        else
+        {
+            using var named=UnixArchiveNative.PinDirectory(Path);
+            if (UnixFiles.Stat(named)?.Identity.ToString()!=Identity) throw UnixArchiveNative.Unavailable();
+        }
+        if (UnixFiles.Stat(directory) is not { IsDirectory:true } facts || facts.Identity.ToString()!=Identity) throw UnixArchiveNative.Unavailable();
+        if (isPrivate) UnixArchiveNative.RequireEditDirectory(directory,user);
+    }
+    internal override EditDirectoryLease CreateDirectory(string name,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            RequireOpen();Leaf(name);ReviewCore(ct);
+            var created=UnixArchiveNative.CreateEditDirectory(directory,name,user,ct);
+            var result=new UnixEditDirectoryLease(System.IO.Path.Combine(Path,name),created,user,true,this,name);
+            try { ReviewCore(ct);return result; } catch { result.Dispose();throw; }
+        }
+    }
+    internal override EditDirectoryLease OpenDirectory(string name,string? expected,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            RequireOpen();Leaf(name);ReviewCore(ct);
+            var result=new UnixEditDirectoryLease(System.IO.Path.Combine(Path,name),UnixArchiveNative.ChildDirectory(directory,name),user,true,this,name);
+            try
+            {
+                if (expected is not null && result.Identity!=expected) throw UnixArchiveNative.Unavailable();
+                ReviewCore(ct);return result;
+            }
+            catch { result.Dispose();throw; }
+        }
+    }
+    internal override FileStream CreateFile(string name,CancellationToken ct) => OpenFileCore(name,null,true,ct);
+    internal override FileStream OpenFile(string name,string? expected,CancellationToken ct) => OpenFileCore(name,expected,false,ct);
+    private FileStream OpenFileCore(string name,string? expected,bool create,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            RequireOpen();Leaf(name);ReviewCore(ct);
+            if(!isPrivate) throw new UnauthorizedAccessException("Working bytes need a private edit directory.");
+            var file=create?UnixArchiveNative.CreateEditFile(directory,name):UnixArchiveNative.Child(directory,name);
+            try
+            {
+                UnixArchiveNative.RequirePrivate(file,user);
+                if(expected is not null&&UnixFiles.Stat(file)?.Identity.ToString()!=expected) throw UnixArchiveNative.Unavailable();
+                ReviewCore(ct);return new(file,create?FileAccess.ReadWrite:FileAccess.Read);
+            }
+            catch { file.Dispose();throw; }
+        }
+    }
+    protected override void CloseCore() { try { directory.Dispose(); } finally { parentOwner?.Dispose(); } }
+}

@@ -39,6 +39,8 @@ public sealed record EditSessionRecord
     [JsonIgnore] public bool IsLegacyZip => !IsRemote && (Version == 1 || ArchiveFormat == ArchiveWriteFormat.Zip);
     [JsonIgnore] public bool IsNativeArchive => !IsRemote && !IsLegacyZip;
     [JsonIgnore] public bool IsSupported => UnsupportedReason is null && Version is 1 or CurrentVersion &&
+        ArchivePath is not null && MemberPath is not null && WorkingPath is not null && BaseSha256 is not null && Baseline is not null &&
+        ProfileId is not null && ServerDisplay is not null && RemotePath is not null &&
         Kind is ArchiveKind or RemoteKind && (!IsNativeArchive ||
         ArchiveFormat is ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip &&
         ArchiveProfile is not null && ArchiveProfile.Format == ArchiveFormat && MemberOccurrence == 0 &&
@@ -144,45 +146,69 @@ public sealed partial class EditSessionStore(string root, IFileSystemOperations 
             {
                 using var stream = new FileStream(Path.Combine(dir, RecordFile), FileMode.Open, FileAccess.Read,
                     FileShare.ReadWrite | FileShare.Delete);
-                if (stream.Length > MaxRecordBytes) continue;
+                if (stream.Length > MaxRecordBytes)
+                {
+                    sessions.Add(UnsupportedSession(dir, "This edit record is larger than the supported metadata budget. Its working folder is kept."));
+                    continue;
+                }
                 byte[] bytes = new byte[checked((int)stream.Length)];
                 stream.ReadExactly(bytes);
-                if (stream.ReadByte() != -1) continue;
-                using var document = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 32 });
-                var value = document.RootElement;
-                if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty(nameof(EditSessionRecord.Id), out var id) ||
-                    id.ValueKind != JsonValueKind.String || id.GetString() != Path.GetFileName(dir)) continue;
-                int version = value.TryGetProperty(nameof(EditSessionRecord.Version), out var versionValue)
-                    ? versionValue.ValueKind == JsonValueKind.Number && versionValue.TryGetInt32(out int parsed) ? parsed : int.MaxValue : 1;
-                EditSessionRecord? record = null;
-                if (version is 1 or EditSessionRecord.CurrentVersion)
-                {
-                    try
-                    {
-                        var parsedRecord = JsonSerializer.Deserialize<EditSessionRecord>(bytes, Json);
-                        if (parsedRecord is not null) record = parsedRecord with { Version = version };
-                    }
-                    catch (Exception error) when (error is JsonException or ArgumentException or NotSupportedException) { }
-                }
-                if (record is null || !record.IsSupported)
-                {
-                    string working = value.TryGetProperty(nameof(EditSessionRecord.WorkingPath), out var pathValue) && pathValue.ValueKind == JsonValueKind.String
-                        ? pathValue.GetString() ?? dir : dir;
-                    try
-                    {
-                        if (!Path.IsPathFullyQualified(working) || !Path.GetFullPath(working).StartsWith(
-                            Path.TrimEndingDirectorySeparator(Path.GetFullPath(dir)) + Path.DirectorySeparatorChar, StringComparison.Ordinal)) working = dir;
-                    }
-                    catch (ArgumentException) { working = dir; }
-                    record = new EditSessionRecord { Version = version, Id = id.GetString()!, WorkingPath = working,
-                        UnsupportedReason = "This edit-session version or archive profile is not supported. Its working files are kept." };
-                }
-                else if (version == 1 && !record.IsRemote) record = record with { ArchiveFormat = ArchiveWriteFormat.Zip, ArchiveProfile = null };
-                sessions.Add(record);
+                sessions.Add(stream.ReadByte() != -1
+                    ? UnsupportedSession(dir, "This edit record changed while it was read. Its working folder is kept.")
+                    : ParseRecord(bytes, dir));
             }
-            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException) { } // An unpublished session may still be being created.
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            { sessions.Add(UnsupportedSession(dir, "This edit record cannot be read completely. Its working folder is kept.")); }
         }
         return sessions.OrderBy(s => s.CreatedUtc).ToList();
+    }
+
+    private static EditSessionRecord UnsupportedSession(string directory, string reason, int version = int.MaxValue, string? working = null) =>
+        new() { Version = version, Id = Path.GetFileName(directory), WorkingPath = SafeRecoveryPath(directory, working), UnsupportedReason = reason };
+
+    private static string SafeRecoveryPath(string directory, string? working)
+    {
+        try
+        {
+            if (working is not null && Path.IsPathFullyQualified(working) && Path.GetFullPath(working).StartsWith(
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory)) + Path.DirectorySeparatorChar, StringComparison.Ordinal)) return Path.GetFullPath(working);
+        }
+        catch (ArgumentException) { }
+        return directory;
+    }
+
+    // Only bounded bytes and the store-owned directory name enter the parser. Unknown shapes never choose .NET types.
+    internal static EditSessionRecord ParseRecord(byte[] bytes, string directory)
+    {
+        const string unsupported = "This edit-session version or archive profile is not supported. Its working files are kept.";
+        if (bytes.Length > MaxRecordBytes) return UnsupportedSession(directory, "This edit record exceeds the metadata budget. Its working folder is kept.");
+        try
+        {
+            using var document = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 32 });
+            var value = document.RootElement;
+            if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty(nameof(EditSessionRecord.Id), out var id) ||
+                id.ValueKind != JsonValueKind.String || id.GetString() != Path.GetFileName(directory))
+                return UnsupportedSession(directory, "This edit record does not identify its working folder. The folder is kept for recovery.");
+            int version = value.TryGetProperty(nameof(EditSessionRecord.Version), out var versionValue)
+                ? versionValue.ValueKind == JsonValueKind.Number && versionValue.TryGetInt32(out int parsed) ? parsed : int.MaxValue : 1;
+            string? working = value.TryGetProperty(nameof(EditSessionRecord.WorkingPath), out var pathValue) && pathValue.ValueKind == JsonValueKind.String
+                ? pathValue.GetString() : null;
+            if (version is not (1 or EditSessionRecord.CurrentVersion)) return UnsupportedSession(directory, unsupported, version, working);
+            try
+            {
+                var record = JsonSerializer.Deserialize<EditSessionRecord>(bytes, Json);
+                if (record is not null)
+                {
+                    record = record with { Version = version };
+                    if (record.IsSupported && SafeRecoveryPath(directory, record.WorkingPath) == record.WorkingPath)
+                        return version == 1 && !record.IsRemote ? record with { ArchiveFormat = ArchiveWriteFormat.Zip, ArchiveProfile = null } : record;
+                }
+            }
+            catch (Exception error) when (error is JsonException or ArgumentException or NotSupportedException or ArchiveWriteException) { }
+            return UnsupportedSession(directory, unsupported, version, working);
+        }
+        catch (JsonException) { return UnsupportedSession(directory, "This edit record is malformed or too deeply nested. Its working folder is kept for recovery."); }
     }
 
     public EditSessionRecord? Find(string archivePath, string memberPath) =>

@@ -26,6 +26,7 @@
   <ItemGroup>
     <Compile Include="..\LiveUsbGuard.cs" Link="LiveUsbGuard.cs" />
     <Compile Include="..\TestCleanup.cs" Link="TestCleanup.cs" />
+    <Compile Include="..\ArchiveEditDirectoryCases.cs" Link="ArchiveEditDirectoryCases.cs" />
     <Compile Include="..\ArchiveStageCrashAssertions.cs" Link="ArchiveStageCrashAssertions.cs" />
     <Compile Include="..\ArchiveJournaledTarAssertions.cs" Link="ArchiveJournaledTarAssertions.cs" />
     <Compile Include="..\ArchiveRar5NativeCases.cs" Link="ArchiveRar5NativeCases.cs" />
