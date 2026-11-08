@@ -1,5 +1,21 @@
 # Archive writing implementation status
 
+**8 November: a Windows full-run close failure is diagnosed and a correction is under test.**
+[Comparison cleanup](COMPARISON_CLOSE_FAILURE_DIAGNOSTIC.md) records the owned-source close exception
+that escaped through an async-finally continuation and left the xUnit unhandled-exception handler waiting.
+Its dump and failed cohort are preserved. Candidate `fa3975d5` returns the selected failure through normal
+task completion after both owners retire; the original 104-case matrix and four deferred regression
+variants pass all 108 Windows `v23` cases. The connected/full inventories and the same correction on
+Mac/Ubuntu remain under validation.
+
+**8 November: retained Save copy destination preparation implemented; first native Unix gates pass.**
+[Saved-copy preparation](NATIVE_EDIT_SAVE_COPY_PREPARATION.md) copies retained views into a fresh native
+private stage, checks complete input/output bytes and preserves exact origin/time and private security.
+Mac and Ubuntu each pass all 17 native cases in `awe-storage-v22`; Windows passes them in `v23`.
+Ubuntu's `v22` complete Core/Remote/App inventories also pass and their raw evidence is preserved.
+Publication/overwrite/recovery and application integration remain required, and the native
+Save copy guard/factory qualification remain unchanged.
+
 **8 November: native archive snapshot requests bind the originating target/profile; live gates queued.**
 [Request binding](NATIVE_EDIT_REQUEST_BINDING.md) closes a gap between the generic replacement shape
 and the archive/member/profile actually reviewed for that session. The snapshot fixture now uses native

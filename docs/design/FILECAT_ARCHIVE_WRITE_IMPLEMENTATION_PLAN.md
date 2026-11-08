@@ -1062,6 +1062,12 @@ also restricts retained archive snapshots to their originating archive/member/pr
 while retaining fresh explicitly approved rebases. Its native adapter fixture and redirection cases
 are queued with the next combined three-platform cohort; this does not complete §12.
 
+The [saved-copy preparation follow-up](../validation/archive-writing/NATIVE_EDIT_SAVE_COPY_PREPARATION.md)
+adds retained byte reads, a distinct native destination stage, complete readback and exact origin/time
+preservation without inventing archive verification for ordinary file data. Its first Mac/Ubuntu native
+gates pass. Complete publication, overwrite/recovery and application integration before removing the
+native Save copy guard; this preparation step does not complete that workflow or authorize registration.
+
 ### 12.2 Review and commit states
 
 | Observed state | Allowed behavior |
