@@ -29,6 +29,7 @@
     <Compile Include="..\ArchiveEditDirectoryCases.cs" Link="ArchiveEditDirectoryCases.cs" />
     <Compile Include="..\ArchiveEditStorageCases.cs" Link="ArchiveEditStorageCases.cs" />
     <Compile Include="..\ArchiveEditSnapshotCases.cs" Link="ArchiveEditSnapshotCases.cs" />
+    <Compile Include="..\ArchiveEditSaveCopyPreparationCases.cs" Link="ArchiveEditSaveCopyPreparationCases.cs" />
     <Compile Include="..\ArchiveEditCaptureRecoveryCases.cs" Link="ArchiveEditCaptureRecoveryCases.cs" />
     <Compile Include="..\ArchiveEditLegacyZipCases.cs" Link="ArchiveEditLegacyZipCases.cs" />
     <Compile Include="..\ArchiveStageCrashAssertions.cs" Link="ArchiveStageCrashAssertions.cs" />

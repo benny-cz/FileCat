@@ -2,8 +2,8 @@
 from pathlib import Path
 import importlib.util,json,shutil,subprocess,sys,tarfile,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v21'
-PACKET='archive-edit-storage-delta-v21.tar.gz'
+FOLDER='awe-storage-v22'
+PACKET='archive-edit-storage-delta-v22.tar.gz'
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 def sha(path):
     import hashlib
@@ -11,7 +11,7 @@ def sha(path):
 def base(task):
     path=task/'archive-workflow-source-v1/eng/validation/archive-writing/run_job_backend_batch.py'
     spec=importlib.util.spec_from_file_location('edit_storage_base',path);value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value)
-    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v20' if sys.platform=='win32' else 'awe-storage-v18'
+    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v21'
     return value
 def batch_for(task):return base(task).batch_for(task)
 def prepare(task,expected):
@@ -43,6 +43,8 @@ def tests(task):
         assert counters['failed']=='0' and int(counters['passed'])>0,counters
         if expected is not None:assert counters['total']==str(expected) and counters['passed']==str(expected),counters
         rows[name]=counters;(batch.out/'passed-gates.json').write_text(json.dumps(rows,indent=2))
+    run('save-copy-preparation','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
+        'FullyQualifiedName~WindowsEditSaveCopyPreparationTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditSaveCopyPreparationTests',17)
     run('native-sftp','FileCat.App.Tests','FullyQualifiedName~SftpRetainedEditTests',23)
     run('verification-ui','FileCat.App.Tests','FullyQualifiedName~VerificationUiTests')
     run('history-retirement-core','FileCat.Core.Tests','FullyQualifiedName~JobRetirementOwnershipTests')
@@ -82,7 +84,7 @@ def review_core_inventory(batch):
     current=ET.parse(batch.out/'results/complete-core.trx').findall('.//t:UnitTestResult',NS)
     spec=importlib.util.spec_from_file_location('edit_inventory',batch.root/'eng/validation/archive-writing/edit_core_inventory.py')
     helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
-    inventory=helper.review(old,current,153)
+    inventory=helper.review(old,current,170)
     (batch.out/'full-case-inventory.json').write_text(json.dumps(inventory,indent=2))
     helper.require_complete(inventory)
 def seal(task):
