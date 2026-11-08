@@ -226,12 +226,21 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
 
     // A streaming import owns this store and file until its actual read/close returns.
     internal static DatasetRead BeginDatasetRead(AnalysisPrivateDirectory directory, string name, CancellationToken cancellation)
+        => BeginRead(directory, name, replacement: false, cancellation);
+    internal static DatasetRead BeginReplacementRead(AnalysisPrivateDirectory directory, string name, CancellationToken cancellation)
+        => BeginRead(directory, name, replacement: true, cancellation);
+    private static DatasetRead BeginRead(AnalysisPrivateDirectory directory, string name, bool replacement, CancellationToken cancellation)
     {
         ArgumentNullException.ThrowIfNull(directory);
         var store = new AnalysisPrivateInventoryStore(directory);
         try
         {
-            ValidateName(name); store.Guard(); cancellation.ThrowIfCancellationRequested();
+            if (replacement)
+            {
+                if (!AnalysisPrivateNames.IsReplacementPayload(name)) throw new ArgumentException("A generated private replacement payload is required.", nameof(name));
+            }
+            else ValidateName(name);
+            store.Guard(); cancellation.ThrowIfCancellationRequested();
             var file = directory.OpenRead(name);
             try
             {

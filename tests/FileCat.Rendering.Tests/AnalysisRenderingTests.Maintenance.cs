@@ -200,15 +200,17 @@ public sealed partial class AnalysisRenderingTests
     private sealed class MaintenanceDirectory(AnalysisPrivateDirectory inner) : AnalysisPrivateDirectory
     {
         internal Action<string>? BeforeRemove, AfterRemove;
+        internal Action<string>? AfterPublish;
         internal Action<string, string>? BeforeMove;
         internal bool LowSpace;
         internal int Publications;
         internal override void Verify() => inner.Verify();
         internal override (UInt128 Capacity, UInt128 Available) Space() => LowSpace ? (1UL << 40, 0) : inner.Space();
         internal override string[] Entries(CancellationToken cancellation) => inner.Entries(cancellation);
-        internal override AnalysisPrivateFile CreateStaging() { Publications++; return inner.CreateStaging(); }
+        internal override AnalysisPrivateFile CreateStaging() { Publications++; return new StagingFile(this, inner.CreateStaging()); }
         internal override AnalysisPrivateFile OpenRead(string name) => inner.OpenRead(name);
         internal override AnalysisPrivateFile OpenMaintenance(string name) => new File(this, inner.OpenMaintenance(name));
+        internal override AnalysisPrivateFile OpenReplacementFile(string name) => new File(this, inner.OpenReplacementFile(name));
         public override void Dispose() => inner.Dispose();
         private sealed class File(MaintenanceDirectory owner, AnalysisPrivateFile inner) : AnalysisPrivateFile
         {
@@ -221,6 +223,27 @@ public sealed partial class AnalysisRenderingTests
             public override void PublishNew(string name) => throw new NotSupportedException();
             internal override void MoveOwnedNew(string name) { owner.BeforeMove?.Invoke(inner.MaintenanceName!, name); inner.MoveOwnedNew(name); }
             internal override void RemoveOwned() { string name = inner.MaintenanceName!; owner.BeforeRemove?.Invoke(name); inner.RemoveOwned(); owner.AfterRemove?.Invoke(name); }
+            internal override void ReplaceOwned(AnalysisPrivateFile destination)
+            {
+                if (destination is not File target) throw new ArgumentException("Wrong private file wrapper.");
+                inner.ReplaceOwned(target.Inner);
+            }
+            private AnalysisPrivateFile Inner => inner;
+            public override void Dispose() => inner.Dispose();
+        }
+        private sealed class StagingFile(MaintenanceDirectory owner, AnalysisPrivateFile inner) : AnalysisPrivateFile
+        {
+            public override Stream Stream => inner.Stream;
+            internal override string Identity => inner.Identity;
+            internal override string PublishedIdentity => inner.PublishedIdentity;
+            public override void Verify() => inner.Verify();
+            public override void Flush() => inner.Flush();
+            public override void PublishNew(string name)
+            {
+                inner.PublishNew(name);
+                try { owner.AfterPublish?.Invoke(name); }
+                catch (Exception error) { throw new AnalysisPublicationUncertainException(name, error); }
+            }
             public override void Dispose() => inner.Dispose();
         }
     }

@@ -19,6 +19,11 @@ public sealed partial class DiskSpaceWindow
         private bool _persistenceBusy, _revisionSaved;
         private string? _savedInventoryName;
         private Guid? _savedInventoryId;
+        private string? _persistenceNotice;
+        private string? PersistenceStatus { set { _persistenceNotice = value; _status.Text = value; } }
+        private void AppendPersistenceNotice() { if (_persistenceNotice is { } notice) _status.Text += "\n" + notice; }
+        internal void RememberOpenedInventory(AnalysisInventoryReceipt receipt)
+        { _savedInventoryName = receipt.Name; _savedInventoryId = receipt.InventoryId; _revisionSaved = true; }
         private CancellationTokenSource? _inventoryCancel;
         private DialogCloser? _inventoryCloser;
         private bool HasInventoryStore => _services is not null && !_services.Io.IsStopped && !_actualWork.HasUnconfirmedClose;
@@ -72,6 +77,7 @@ public sealed partial class DiskSpaceWindow
         private async Task SaveInventoryAsync()
         {
             if (_disposed || _persistenceBusy || !HasInventoryStore) return;
+            _persistenceNotice = null;
             using var actual = _actualWork.Enter(); using var cancel = CancellationTokenSource.CreateLinkedTokenSource(_selectionLifetime.Token);
             _inventoryCancel = cancel; _persistenceBusy = true; Interaction(true); RefreshIndexedPersistence();
             try
@@ -90,6 +96,9 @@ public sealed partial class DiskSpaceWindow
                 var result = await _window._dialogs.ShowCustomAsync("Save named analysis", body,
                     [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Save new inventory", true) { IsAvailable = () => InventoryFilenameError(name.Text) is null }], name, closer: closer);
                 if (result is not true || _disposed) return;
+                var existing = await InventoryProgressAsync("Checking inventory name", token => AnalysisOwnedStoreAccess.FindReplacementTargetAsync(_services!, name.Text!, token), cancel);
+                if (_disposed) return;
+                if (existing is not null) { await ReplaceInventoryAsync(existing.InventoryId, captured, view, cancel); return; }
                 var receipt = await InventoryProgressAsync("Saving inventory", async token =>
                 {
                     AnalysisInventoryReceipt? saved = null;
@@ -119,8 +128,8 @@ public sealed partial class DiskSpaceWindow
                 _inventoryCloser = null; _persistenceBusy = false; Interaction(false); RefreshIndexedPersistence();
             }
         }
-        private sealed record InventoryChoice(string Name, AnalysisSavedEntry? Entry, AnalysisPendingDeletion? Pending = null)
-        { public override string ToString() => AnalysisNames.Display(Name, 200) + (Pending is not null ? " · pending removal · " + (Pending.PayloadPresent ? "saved file present" : "saved file absent") : Entry is null ? " · unindexed" : " · " + Entry.SavedUtc.ToLocalTime().ToString("g")); }
+        private sealed record InventoryChoice(string Name, AnalysisSavedEntry? Entry, AnalysisPendingDeletion? Pending = null, AnalysisPendingReplacement? Replacement = null)
+        { public override string ToString() => AnalysisNames.Display(Name, 200) + (Replacement is not null ? " · replacement pending · review remaining versions" : Pending is not null ? " · pending removal · " + (Pending.PayloadPresent ? "saved file present" : "saved file absent") : Entry is null ? " · unindexed" : " · " + Entry.SavedUtc.ToLocalTime().ToString("g")); }
         private async Task<AnalysisCatalogSnapshot> ReadInventoryCatalogAsync(CancellationToken cancellation)
         {
             AnalysisCatalogSnapshot? result = null;
@@ -134,6 +143,7 @@ public sealed partial class DiskSpaceWindow
         private async Task OpenInventoryAsync()
         {
             if (_disposed || _persistenceBusy || !HasInventoryStore) return;
+            _persistenceNotice = null;
             using var actual = _actualWork.Enter(); using var cancel = CancellationTokenSource.CreateLinkedTokenSource(_selectionLifetime.Token);
             _persistenceBusy = true; _inventoryCancel = cancel; RefreshIndexedPersistence();
             AnalysisCatalogSnapshot? catalog = null; bool closed = false, loading = false;
@@ -145,7 +155,7 @@ public sealed partial class DiskSpaceWindow
                 var choices = new ComboBox { IsVisible = false, HorizontalAlignment = HorizontalAlignment.Stretch, MaxWidth = 600 };
                 AutomationProperties.SetName(choices, "Saved analyses"); var message = new TextBlock { TextWrapping = TextWrapping.Wrap };
                 var browse = new Button { Content = "Browse saved analyses" }; var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
-                inspection = new(_services!.Paths.AnalysisSnapshotsDirectory, () => choices.SelectedItem is InventoryChoice selected && selected.Name == name.Text ? selected.Entry : null,
+                inspection = new(_services!.Paths.AnalysisSnapshotsDirectory, () => choices.SelectedItem is InventoryChoice selected && selected.Name == name.Text && selected.Replacement is null ? selected.Entry : null,
                     (id, token) => AnalysisOwnedStoreAccess.InspectAsync(_services!, id, token), cancel.Token, RememberViewCloseFailure);
                 choices.SelectionChanged += (_, _) => { if (choices.SelectedItem is InventoryChoice choice) name.Text = choice.Name; inspection.SelectionChanged(); };
                 browse.Click += async (_, _) =>
@@ -156,10 +166,11 @@ public sealed partial class DiskSpaceWindow
                         var data = await ReadInventoryCatalogAsync(cancel.Token);
                         if (closed || _disposed) { data.Dispose(); return; }
                         catalog?.Dispose(); catalog = data;
-                        choices.ItemsSource = data.Entries.Select(entry => new InventoryChoice(entry.Name, entry))
+                        choices.ItemsSource = data.Entries.Where(entry => !data.PendingReplacements.Any(p => p.IncomingId == entry.InventoryId)).Select(entry => new InventoryChoice(entry.Name, entry))
                             .Concat(data.PendingDeletions.Select(p => new InventoryChoice(p.Entry.Name, p.Entry, p)))
+                            .Concat(data.PendingReplacements.Select(p => new InventoryChoice(p.Previous.Name, null, Replacement: p)))
                             .Concat(data.UnindexedNames.Select(text => new InventoryChoice(text, null))).ToArray();
-                        choices.IsVisible = true; message.Text = $"{data.Entries.Length:N0} named analyses · {data.PendingDeletions.Length:N0} pending removals · {data.UnindexedNames.Length:N0} unindexed files.";
+                        choices.IsVisible = true; message.Text = $"{data.Entries.Length:N0} named analyses · {data.PendingDeletions.Length:N0} pending removals · {data.PendingReplacements.Length:N0} pending replacements · {data.UnindexedNames.Length:N0} unindexed files.";
                     }
                     catch (OperationCanceledException) { }
                     catch (Exception exception) when (Expected(exception)) { RememberViewCloseFailure(exception); if (!closed && !_disposed) message.Text = "Catalog unavailable: " + AnalysisNames.Display(exception.Message, 400); }
@@ -174,10 +185,17 @@ public sealed partial class DiskSpaceWindow
                 var closer = new DialogCloser(); _inventoryCloser = closer;
                 InventoryChoice? SelectedChoice() => choices.SelectedItem is InventoryChoice selected && selected.Name == name.Text ? selected : null;
                 var result = await _window._dialogs.ShowCustomAsync("Open saved analysis", body,
-                    [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Open inventory", true) { IsAvailable = () => InventoryFilenameError(name.Text) is null && !loading && _window.CanAddSession },
+                    [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Open inventory", true) { IsAvailable = () => InventoryFilenameError(name.Text) is null && !loading && SelectedChoice()?.Replacement is null && _window.CanAddSession },
                     new DialogButton("Delete selected analysis…", SavedAnalysisMaintenanceAction.Delete) { IsAvailable = () => !loading && SelectedChoice()?.Entry is not null },
-                    new DialogButton("Restore pending analysis…", SavedAnalysisMaintenanceAction.Restore) { IsAvailable = () => !loading && SelectedChoice()?.Pending?.PayloadPresent == true }], name, closer: closer);
+                    new DialogButton("Restore pending analysis…", SavedAnalysisMaintenanceAction.Restore) { IsAvailable = () => !loading && SelectedChoice()?.Pending?.PayloadPresent == true },
+                    new DialogButton("Review pending replacement…", SavedAnalysisMaintenanceAction.Replacement) { IsAvailable = () => !loading && SelectedChoice()?.Replacement is not null }], name, closer: closer);
                 closed = true; if (_disposed) return;
+                if (result is SavedAnalysisMaintenanceAction.Replacement && SelectedChoice()?.Replacement is { } replacement)
+                {
+                    catalog?.Dispose(); catalog = null;
+                    if (inspection is not null) { await inspection.CloseAsync(); inspection = null; }
+                    await RecoverSavedAsync(replacement.OperationId, cancel); return;
+                }
                 if (result is SavedAnalysisMaintenanceAction maintenance && SelectedChoice()?.Entry is { } maintained)
                 {
                     catalog?.Dispose(); catalog = null;

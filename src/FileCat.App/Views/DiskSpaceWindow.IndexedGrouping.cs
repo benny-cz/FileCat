@@ -229,6 +229,7 @@ public sealed partial class DiskSpaceWindow
             foreach (var button in _evidence) button.IsEnabled = false;
             _details.Text = "Choose a group or captured member. Group rows are accounting categories; member file sizes and assigned amounts are distinct. Related evidence is paged.";
             _inspectorStatus.Text = "No entry selected.";
+            AppendPersistenceNotice();
             UpdateCharts(); Buttons();
             if (_focus != 0) _ = InspectAsync(_focus);
             else if (_list.SelectedItem is AnalysisDatasetGroup selected) InspectGroup(selected);

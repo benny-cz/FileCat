@@ -5,7 +5,7 @@ using FileCat.Core.Analysis;
 
 namespace FileCat.App.Views;
 
-internal enum SavedAnalysisMaintenanceAction { Delete, Restore }
+internal enum SavedAnalysisMaintenanceAction { Delete, Restore, Replacement }
 
 internal static class SavedAnalysisMaintenanceDialog
 {

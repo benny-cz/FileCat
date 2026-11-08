@@ -56,7 +56,7 @@ public sealed partial class DiskSpaceViewModel : IDisposable
     public ulong SourceCloseFailures { get; private set; }
     public bool Running => Phase is AnalysisPhase.Scanning or AnalysisPhase.Pausing or AnalysisPhase.Paused or AnalysisPhase.Refreshing;
     public bool HasTemporaryWork => !_disposed && (Comparison is not null && ComparisonHasTemporaryWork || IsPreparing || Running || HasDeferredSelection || _prepared.Count > 0 || Selection.Marks.Count > 0 || Selection.Basket.Count > 0 ||
-        !DisplayedRevisionSaved && (_session is not null || _observation is { Origin: AnalysisOrigin.LiveSession, Persistence: AnalysisPersistence.Temporary }));
+        !DisplayedRevisionSaved && (_savedCopyLost || _session is not null || _observation is { Origin: AnalysisOrigin.LiveSession, Persistence: AnalysisPersistence.Temporary }));
     public event Action? Changed;
     public DiskSpaceViewModel(AppServices services) : this(services, Prepare) { }
     internal DiskSpaceViewModel(AppServices services, Func<string, IAnalysisBackend> prepare)

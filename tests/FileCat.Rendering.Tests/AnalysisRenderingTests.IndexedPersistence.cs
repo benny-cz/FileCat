@@ -61,9 +61,14 @@ public sealed partial class AnalysisRenderingTests
             byte[] before = File.ReadAllBytes(Path.Combine(profile.Services.Paths.AnalysisSnapshotsDirectory, entry.Name));
             Click(window, "Save named analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => AutomationProperties.GetName(t) == "Inventory filename"));
             IndexedPersistenceControl<TextBox>(window, "Inventory filename").Text = "STREAMED.fcdsa"; Click(window, "Save new inventory");
-            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t => AutomationProperties.GetName(t) == "Indexed analysis status" && t.Text?.StartsWith("Inventory was not saved:", StringComparison.Ordinal) == true));
+            await Until(() => window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.Content as string == "Keep existing"));
+            var keep = window.GetVisualDescendants().OfType<Button>().Single(b => b.IsEffectivelyVisible && b.Content as string == "Keep existing");
+            Assert.True(keep.IsDefault); Assert.True(keep.IsCancel); Click(window, "Keep existing");
+            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t => AutomationProperties.GetName(t) == "Indexed analysis status" && t.Text?.Contains("The existing saved analysis was kept.", StringComparison.Ordinal) == true),
+                () => string.Join(" | ", window.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsEffectivelyVisible).Select(t => t.Text)));
             Assert.Equal(before, File.ReadAllBytes(Path.Combine(profile.Services.Paths.AnalysisSnapshotsDirectory, entry.Name)));
             Assert.Single(Directory.GetFiles(profile.Services.Paths.AnalysisSnapshotsDirectory, "*.fcdsa"));
+            await Until(() => window.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && b.Content as string == "Open saved analysis" && b.IsEnabled));
             Click(window, "Open saved analysis"); await Until(() => window.GetVisualDescendants().OfType<TextBox>().Any(t => AutomationProperties.GetName(t) == "Saved inventory filename"));
             Click(window, "Browse saved analyses");
             await Until(() => window.GetVisualDescendants().OfType<ComboBox>().Any(control => control.IsEffectivelyVisible && AutomationProperties.GetName(control) == "Saved analyses" && control.ItemCount == 1),

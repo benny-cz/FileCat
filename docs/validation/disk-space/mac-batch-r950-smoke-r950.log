@@ -1,0 +1,28 @@
+  Discovering: FileCat.Core.Tests
+  Discovered:  FileCat.Core.Tests
+  Starting:    FileCat.Core.Tests
+    FileCat.Core.Tests.AnalysisMaintenanceTests.UnknownOrCorruptOriginalIsPreservedAndAVerifiedPreviousCopyCanUseANewName(corrupt: True) [FAIL]
+      System.IO.InvalidDataException : Inventory record lacks its LF delimiter.
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisInventoryFramer.cs(50,0): at FileCat.Core.Analysis.AnalysisInventoryFormat.RecordFramer.Step(CancellationToken cancellation)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisInventoryInspection.cs(38,0): at FileCat.Core.Analysis.AnalysisInventoryFormat.<>c__DisplayClass32_1.<InspectContainerAsync>b__1(CancellationToken token)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisIo.cs(94,0): at FileCat.Core.Analysis.AnalysisIo.<>c__DisplayClass12_1`1.<RunCore>g__Invoke|1(DeviceIoScheduler actualScheduler)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisIo.cs(101,0): at FileCat.Core.Analysis.AnalysisIo.<>c__DisplayClass12_1`1.<RunCore>b__2(CancellationToken _)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Threading\DeviceIoScheduler.cs(148,0): at FileCat.Core.Threading.DeviceIoScheduler.WorkItem`1.Execute()
+        --- End of stack trace from previous location ---
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisIo.cs(102,0): at FileCat.Core.Analysis.AnalysisIo.RunCore[T](DeviceIoScheduler scheduler, AnalysisIoDevices device, Func`2 work, CancellationToken cancellation, Boolean releaseOnly)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisInventoryInspection.cs(32,0): at FileCat.Core.Analysis.AnalysisInventoryFormat.InspectContainerAsync(Stream source, Action verify, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\OwnedAnalysisStore.RecoveryReview.cs(107,0): at FileCat.Core.Analysis.OwnedAnalysisStore.ReadRecoveryFileAsync(Contents data, String name, Boolean present, CancellationToken cancellation)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\OwnedAnalysisStore.RecoveryReview.cs(112,0): at FileCat.Core.Analysis.OwnedAnalysisStore.ReadRecoveryFileAsync(Contents data, String name, Boolean present, CancellationToken cancellation)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\OwnedAnalysisStore.RecoveryReview.cs(78,0): at FileCat.Core.Analysis.OwnedAnalysisStore.<>c__DisplayClass32_0.<<PrepareReplacementRecoveryAsync>b__0>d.MoveNext()
+        --- End of stack trace from previous location ---
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisDataset.cs(160,0): at FileCat.Core.Analysis.AnalysisOwnedDatasetIo`1.<>c__DisplayClass10_0`1.<<UseAsync>g__Execute|0>d.MoveNext()
+        --- End of stack trace from previous location ---
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\Analysis\AnalysisDataset.cs(166,0): at FileCat.Core.Analysis.AnalysisOwnedDatasetIo`1.<>c__DisplayClass10_0`1.<<UseAsync>g__Execute|0>d.MoveNext()
+        --- End of stack trace from previous location ---
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisMaintenanceTests.Recovery.cs(71,0): at FileCat.Core.Tests.AnalysisMaintenanceTests.UnknownOrCorruptOriginalIsPreservedAndAVerifiedPreviousCopyCanUseANewName(Boolean corrupt)
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\AnalysisMaintenanceTests.Recovery.cs(78,0): at FileCat.Core.Tests.AnalysisMaintenanceTests.UnknownOrCorruptOriginalIsPreservedAndAVerifiedPreviousCopyCanUseANewName(Boolean corrupt)
+        --- End of stack trace from previous location ---
+  Finished:    FileCat.Core.Tests (ID = 'dde20be3c7f40db5eb7ff52ef1a0c91c03a78e7b120eee18f18a2eef37a0669c')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Core.Tests  Total: 107, Errors: 0, Failed: 1, Skipped: 0, Not Run: 0, Time: 0,675s

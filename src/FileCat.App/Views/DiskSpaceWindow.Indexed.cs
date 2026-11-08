@@ -26,7 +26,8 @@ public sealed partial class DiskSpaceWindow
         AddPreparedIndexedSessionAsync(token => source.RetainAsync(token), metric, filter, null, cancellation, services);
 
     internal async Task<AnalysisDatasetExplorer> AddPreparedIndexedSessionAsync(Func<CancellationToken, Task<AnalysisDatasetLease>> prepareSource,
-        AnalysisMetric metric, AnalysisFilterRequest? filter, AnalysisSavedView? saved, CancellationToken cancellation, AppServices? services = null)
+        AnalysisMetric metric, AnalysisFilterRequest? filter, AnalysisSavedView? saved, CancellationToken cancellation, AppServices? services = null,
+        Func<AnalysisInventoryReceipt?>? openedInventory = null)
     {
         Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
         AnalysisSessionAdmission.Slot? admission = _admissionPool.Acquire();
@@ -71,6 +72,7 @@ public sealed partial class DiskSpaceWindow
                 cancellation: linked.Token, descending: saved?.SortDescending ?? true), explorer.LoadChartAsync(scope, linked.Token));
             linked.Token.ThrowIfCancellationRequested(); ObjectDisposedException.ThrowIf(_closed, this);
             var view = await IndexedSessionView.CreateAsync(this, retained, explorer, filter ?? new(""), admission, saved, restoreNotice, linked.Token, services);
+            if (openedInventory?.Invoke() is { } receipt) view.RememberOpenedInventory(receipt);
             try { AddView(view); }
             catch { retained = null; explorer = null; admission = null; view.Dispose(); throw; }
             retained = null; admission = null; var result = explorer; explorer = null; return result;
@@ -346,6 +348,7 @@ public sealed partial class DiskSpaceWindow
         }
         private Task RebuildAsync(CapturedFolderRequest? capturedFolder = null)
         {
+            _persistenceNotice = null;
             if (_disposed || _actualWork.HasUnconfirmedClose) return Task.CompletedTask; _again = true; _buildCancel?.Cancel();
             _requestedFolder = capturedFolder;
             return _building ? _buildTask : _buildTask = BuildLoopAsync();
@@ -547,6 +550,7 @@ public sealed partial class DiskSpaceWindow
                 _status.Text = "Exact Other subset. " + _status.Text;
                 _range.Text += " · exact geometry subset";
             }
+            AppendPersistenceNotice();
             _details.Text = "Choose a table entry or chart item to inspect its captured metadata. Related evidence is paged.";
             _inspectorStatus.Text = "No entry selected.";
             _buckets.Children.Clear();

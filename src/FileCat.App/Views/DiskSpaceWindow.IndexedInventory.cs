@@ -11,7 +11,8 @@ public sealed partial class DiskSpaceWindow
     internal Task<AnalysisDatasetExplorer> AddSavedIndexedSessionAsync(AppServices services, string name,
         AnalysisSavedEntry? reviewedEntry = null, CancellationToken cancellation = default)
     {
-        return AddPreparedIndexedSessionAsync(Load, reviewedEntry?.View.Metric ?? AnalysisMetric.OnDisk, null, reviewedEntry?.View, cancellation, services);
+        AnalysisInventoryReceipt? opened = null;
+        return AddPreparedIndexedSessionAsync(Load, reviewedEntry?.View.Metric ?? AnalysisMetric.OnDisk, null, reviewedEntry?.View, cancellation, services, () => opened);
 
         // Local source ownership is transferred only after preparation/import close succeeds.
         async Task<AnalysisDatasetLease> Load(CancellationToken token)
@@ -21,6 +22,7 @@ public sealed partial class DiskSpaceWindow
             {
                 await using var prepared = await AnalysisIndexedAcquisition.PrepareAsync(services, token);
                 await using var inventory = await prepared.LoadInventoryAsync(name, reviewedEntry, token);
+                opened = new(inventory.InventoryId, name, inventory.SourceBytes);
                 result = await inventory.AcquireAsync(token); return result;
             }
             catch { if (result is not null) await result.DisposeAsync(); throw; }

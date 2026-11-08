@@ -4,7 +4,7 @@ using FileCat.Platform.Windows;
 
 namespace FileCat.App.Services;
 
-internal static class AnalysisOwnedStoreAccess
+internal static partial class AnalysisOwnedStoreAccess
 {
     internal static Task<OwnedAnalysisStore> OpenAsync(AppServices services, CancellationToken cancellation)
     {

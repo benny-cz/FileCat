@@ -1,0 +1,26 @@
+[
+  {
+    "changed": [],
+    "verifiedFiles": 109,
+    "baseline": "r950",
+    "bytes": 6629,
+    "platform": "windows",
+    "sha256": "72fae8077f78a45ad5ba2c7d8b04dacb0a258262dda65dbbcaa24a7a543241e4"
+  },
+  {
+    "changed": [],
+    "verifiedFiles": 105,
+    "baseline": "r950",
+    "bytes": 7779,
+    "platform": "mac",
+    "sha256": "4dd1c0195e24a041356c7532f02ca8d2c3cec1ed2e1d8a5904a5c3338a429f2e"
+  },
+  {
+    "changed": [],
+    "verifiedFiles": 104,
+    "baseline": "r950",
+    "bytes": 7715,
+    "platform": "linux",
+    "sha256": "b94236ed3b9657caa6e716c48968c6785f3430fce45668b192e37ab316a62b18"
+  }
+]

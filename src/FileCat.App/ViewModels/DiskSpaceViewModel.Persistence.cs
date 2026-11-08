@@ -9,6 +9,7 @@ public sealed partial class DiskSpaceViewModel : Services.IAnalysisSavedReferenc
     private AnalysisInventory? _inventory;
     private SessionIdentity? _savedRevision;
     private Guid? _savedInventoryId;
+    private bool _savedCopyLost;
     private AnalysisRootDisplayIds? _rootDisplayIds;
     public bool IsSaving { get; private set; }
     public bool HasPrivateStorage => _services is not null && !_services.Io.IsStopped && !_privateStorageUnavailable && !_actualWork.HasUnconfirmedClose;
@@ -35,6 +36,7 @@ public sealed partial class DiskSpaceViewModel : Services.IAnalysisSavedReferenc
         {
             if (_savedInventoryId != id || !string.Equals(SavedInventoryName, name, StringComparison.OrdinalIgnoreCase)) return;
             _savedInventoryId = null; SavedInventoryName = null; _savedRevision = null;
+            _savedCopyLost = true;
         }
         SetStatus("These observations no longer have a confirmed saved copy. Save a new copy to keep them.");
     }
@@ -74,7 +76,7 @@ public sealed partial class DiskSpaceViewModel : Services.IAnalysisSavedReferenc
                 using var store = OpenPrivateStore(path);
                 return new AnalysisSavedCatalog(store).SaveNew(name, snapshot, Guid.NewGuid(), view, token);
             }, cancellation);
-            _savedRevision = snapshot.Identity; SavedInventoryName = receipt.Name; _savedInventoryId = receipt.InventoryId;
+            _savedRevision = snapshot.Identity; SavedInventoryName = receipt.Name; _savedInventoryId = receipt.InventoryId; _savedCopyLost = false;
             SetStatus("Saved " + AnalysisNames.Display(name, 240) + (snapshot.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "." : " · partial observations."));
             return receipt;
         }
@@ -82,7 +84,7 @@ public sealed partial class DiskSpaceViewModel : Services.IAnalysisSavedReferenc
         { SetStatus("The inventory name was published, but durability is uncertain. Keep the file and inspect it before retrying."); throw; }
         catch (AnalysisCatalogUpdateException ex)
         {
-            _savedRevision = snapshot.Identity; SavedInventoryName = ex.Receipt.Name; _savedInventoryId = ex.Receipt.InventoryId;
+            _savedRevision = snapshot.Identity; SavedInventoryName = ex.Receipt.Name; _savedInventoryId = ex.Receipt.InventoryId; _savedCopyLost = false;
             SetStatus("The inventory was saved, but indexing is incomplete. Keep it and open it by filename."); throw;
         }
         catch (OperationCanceledException)
@@ -172,6 +174,7 @@ public sealed partial class DiskSpaceViewModel : Services.IAnalysisSavedReferenc
                 }
             }
             if (notice is not null) model.SetStatus(notice);
+            model._savedRevision = inventory.Snapshot.Identity; model._savedInventoryId = inventory.InventoryId; model.SavedInventoryName = name;
             return model;
             void AddNotice(string text) => notice = notice is null ? text : notice + " " + text;
         }
