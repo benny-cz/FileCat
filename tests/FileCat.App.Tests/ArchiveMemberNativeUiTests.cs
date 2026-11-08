@@ -36,7 +36,8 @@ public sealed class ArchiveMemberNativeUiTests
         string assets = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_APP_ASSETS") ?? throw new InvalidOperationException("Actual application assets required.");
         ArchiveAppContainer.ProvisionRuntimeReadAccess(assets); string executable = Path.Combine(assets, "FileCat.exe");
         using var f = await Fixture.Open(customBackends: new(ArchiveCreationFormat.All.Where(value => value.Format != ArchiveWriteFormat.Zip)
-            .Select(value => WindowsArchiveJobBackend.Create(value.Format, executable))));
+            .Select(value => WindowsArchiveJobBackend.Create(value.Format, executable))), nativeWindowsOriginMarks: true);
+        Assert.IsType<FileCat.Platform.Windows.WindowsFileOperations>(f.Services.Platform.FileOperations);
         foreach (string name in new[] { "a.txt", "b.txt" }) File.SetLastWriteTimeUtc(Path.Combine(f.Files, name), DateTime.UnixEpoch.AddSeconds(1700000000));
         var source = f.Vm.ActiveTab!; var target = f.Vm.Workspace.Panels[1].ActiveTab!;
         var create = f.Vm.ExecuteAsync(CommandIds.Pack); await f.Ready(); f.SelectFormat(format);
@@ -51,7 +52,7 @@ public sealed class ArchiveMemberNativeUiTests
         // every operation still uses fresh confined assessments, native publication and real source removal.
         if (mode != 0) f.Services.Providers.Register(new AssessedListing(f.Services.Archives, () => current));
         var archive = ArchiveProvider.ForFile(path); target.Navigate(archive);
-        await Wait(() => target.Listing.State == ListingState.Complete);
+        await ListingReady();
 
         await Transfer(move: false, replace: null); // F5 adds b.txt as copied.txt.
         Assert.True(File.Exists(Path.Combine(f.Files, "b.txt")));
@@ -91,6 +92,7 @@ public sealed class ArchiveMemberNativeUiTests
 
         async Task Transfer(bool move, bool? replace)
         {
+            int priorJobs = f.Services.Jobs.Jobs.Count;
             f.Vm.Workspace.Activate(source.Panel); source.Navigate(Location.FileSystem(f.Files));
             await Wait(() => source.Listing.State == ListingState.Complete && source.Listing.FocusName("b.txt"));
             var command = f.Vm.ExecuteAsync(move ? CommandIds.Move : CommandIds.Copy);
@@ -98,11 +100,18 @@ public sealed class ArchiveMemberNativeUiTests
             f.Input("Destination").Text = path + Path.DirectorySeparatorChar + "copied.txt";
             await Wait(() => f.Text().Contains("→ as “copied.txt”", StringComparison.Ordinal)); f.Click(move ? "Move" : "Copy");
             await Unlock(); await f.Complete(command);
+            Assert.True(f.Services.Jobs.Jobs.Count == priorJobs + 1, "Transfer submitted no job. UI: " + f.Text());
             var job = f.Services.Jobs.Jobs.Last();
             if (replace is { } approved)
             {
-                await Wait(() => f.Button("Skip") is not null); Assert.True(f.Button("Skip")!.IsDefault);
+                await Wait(() => job.Decision is not null || job.State.IsFinished());
+                Assert.NotNull(job.Decision);
+                var decision = f.Vm.ReviewDecisionAsync(job);
+                await Wait(() => f.Button("Skip") is not null || job.State.IsFinished());
+                Assert.True(f.Button("Skip") is not null, "Conflict review was not shown: " + job.State + ": " + job.Summary + " " + JobIssue.Summarize(job.Issues) + " UI: " + f.Text());
+                Assert.True(f.Button("Skip")!.IsDefault);
                 f.Click(approved ? "Replace reviewed unique names" : "Skip");
+                await decision;
             }
             await Finished(job); profile = job.Request.Archive!.Profile!; current = await ReadBack(); await RefreshTarget();
         }
@@ -114,7 +123,13 @@ public sealed class ArchiveMemberNativeUiTests
         async Task FinishCommand(Task command)
         { await f.Complete(command); var job = f.Services.Jobs.Jobs.Last(); await Finished(job); profile = job.Request.Archive!.Profile!; current = await ReadBack(); }
         async Task RefreshTarget()
-        { target.Navigate(archive); await Wait(() => target.Listing.State == ListingState.Complete); }
+        { target.Navigate(archive); await ListingReady(); }
+        async Task ListingReady()
+        {
+            try { await Wait(() => target.Listing.State is ListingState.Complete or ListingState.Failed); }
+            catch (TimeoutException error) { throw new TimeoutException("Archive listing stayed " + target.Listing.State + ": " + target.Listing.Error + " " + target.Listing.LoadError + " " + string.Join("; ", target.Listing.Issues), error); }
+            Assert.True(target.Listing.State == ListingState.Complete, target.Listing.Error + " " + target.Listing.LoadError + " " + string.Join("; ", target.Listing.Issues));
+        }
         async Task<ArchiveAssessment> ReadBack()
         {
             byte[] bytes = File.ReadAllBytes(path);

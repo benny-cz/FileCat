@@ -294,10 +294,10 @@ public sealed class ArchiveCreationWorkflowTests
             var box = Combo("Archive format"); box.SelectedItem = box.Items.Cast<ArchiveCreationFormat>().Single(value => value.Format == format);
             Dispatcher.UIThread.RunJobs(); Window.UpdateLayout();
         }
-        internal static async Task<Fixture> Open(bool registered = true, ArchiveJobBackends? customBackends = null)
+        internal static async Task<Fixture> Open(bool registered = true, ArchiveJobBackends? customBackends = null, bool nativeWindowsOriginMarks = false)
         {
             var backends = ArchiveCreationFormat.All.Where(value => value.Format != ArchiveWriteFormat.Zip).Select(value => new RecordingBackend(value.Format)).ToArray();
-            var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(archiveBackends: customBackends ?? (registered ? new(backends) : null));
+            var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(archiveBackends: customBackends ?? (registered ? new(backends) : null), nativeWindowsOriginMarks: nativeWindowsOriginMarks);
             var fixture = new Fixture { Services = services, Vm = vm, Window = window, Root = root, Backends = backends };
             await Wait(() => vm.ActiveTab!.Listing.State == ListingState.Complete); Assert.True(vm.ActiveTab!.Listing.FocusName("a.txt")); return fixture;
         }

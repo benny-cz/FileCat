@@ -5,6 +5,8 @@ import importlib.util,json,os,plistlib,shutil,subprocess,sys,time,xml.etree.Elem
 
 SOURCE_FOLDER='archive-workflow-source-v1'
 BATCH_FOLDER='awt-v6'
+TARGET_PREFLIGHT_CASES=28
+CORE_CASE_DELTA=26
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 
 def native(task):
@@ -59,7 +61,7 @@ def tests(batch):
             FILECAT_ARCHIVE_CASE_ROOT='C:/Users/fcarchive42829297/FileCatValidation/NativeCaseProbe-v2/fixture')
     elif sys.platform=='darwin':batch.env['FILECAT_ARCHIVE_CASE_ROOT']=os.environ['FILECAT_ARCHIVE_CASE_ROOT']
     batch.execute('target-preflight',batch.test_args('FileCat.Core.Tests','FullyQualifiedName~ArchiveTargetReviewTests|FullyQualifiedName~DeviceIoOwnedWorkTests|FullyQualifiedName~A_declared_password_mode_cannot_verify_an_archive_with_unencrypted_contents','target-preflight'))
-    rows=cases(out/'results/target-preflight.trx');assert len(rows)==28 and all(row.get('outcome')=='Passed' for row in rows)
+    rows=cases(out/'results/target-preflight.trx');assert len(rows)==TARGET_PREFLIGHT_CASES and all(row.get('outcome')=='Passed' for row in rows)
     batch.execute('update-smoke',batch.test_args('FileCat.App.Tests','FullyQualifiedName~Declining_the_final_add_review_','update-smoke'))
     assert len(cases(out/'results/update-smoke.trx'))==1
     batch.execute('update-ui',batch.test_args('FileCat.App.Tests','FullyQualifiedName~ArchiveTargetUpdateUiTests','update-ui'))
@@ -94,7 +96,7 @@ def tests(batch):
     passed=Counter(row.get('testName') for row in current if row.get('outcome')=='Passed')
     old_passed=Counter(row.get('testName') for row in previous if row.get('outcome')=='Passed')
     assert all(names[name]==count for name,count in old.items()) and all(passed[name]>=count for name,count in old_passed.items())
-    assert len(current)==len(previous)+26
+    assert len(current)==len(previous)+CORE_CASE_DELTA
     (out/'full-case-inventory.json').write_text(json.dumps({'previous':len(previous),'current':len(current),'prior_cases_present':True,'prior_passes_preserved':True},indent=2))
     if sys.platform=='win32':
         batch.execute('native',batch.test_args('FileCat.Platform.Windows.Tests','FullyQualifiedName~ArchiveAppContainer|FullyQualifiedName~ArchiveRetainedStage|FullyQualifiedName~ArchiveContent','native'))

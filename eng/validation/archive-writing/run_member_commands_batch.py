@@ -36,7 +36,7 @@ def tests(task):
     batch.execute('member-core', batch.test_args('FileCat.Core.Tests', '|'.join('FullyQualifiedName~'+name for name in (
         'Member_command', 'Skip_and_replace_reduce', 'Type_conflicts_skip', 'An_all_skipped_selection', 'Borrowed_views_retain',
         'Subset_capture_refuses', 'Listing_revision_is_checked', 'Assessment_reports_password_required', 'ArchiveTargetReviewTests',
-        'ArchiveWorkflowReview', 'Shared_workflow', 'Recursive_workflow', 'ArchiveProviderWritingTests')), 'member-core'))
+        'ArchiveWorkflowReview', 'Shared_workflow', 'Recursive_workflow', 'ArchiveProviderWritingTests', 'Move_keeps_skipped_children')), 'member-core'))
     batch.execute('member-ui', batch.test_args('FileCat.App.Tests',
         'FullyQualifiedName~ArchiveMemberCommandUiTests|FullyQualifiedName~ArchiveTargetUpdateUiTests|FullyQualifiedName~ArchiveCreationWorkflowTests&FullyQualifiedName!~Actual_confined_', 'member-ui'))
     if sys.platform == 'win32':
@@ -53,7 +53,9 @@ def seal(task):
     batch = batch_for(task); batch.idle(); out, root = batch.out, batch.root
     assert not (out/'files.json').exists()
     binaries = out/'binaries'; binaries.mkdir()
-    for project in ('tests/FileCat.Core.Tests', 'tests/FileCat.WorkerProbe', 'src/FileCat.ArchiveWorker', 'src/FileCat.Archives.Writing', 'tests/FileCat.App.Tests'):
+    projects=['tests/FileCat.Core.Tests', 'tests/FileCat.WorkerProbe', 'src/FileCat.ArchiveWorker', 'src/FileCat.Archives.Writing', 'tests/FileCat.App.Tests']
+    if sys.platform=='win32':projects.append('tests/FileCat.Platform.Windows.Tests')
+    for project in projects:
         for path in (root/project/'bin/Release/net10.0').iterdir():
             if path.suffix not in ('.dll', '.pdb') or not (path.name.startswith('FileCat.') or path.name in ('FileCat.dll', 'FileCat.pdb')): continue
             destination = binaries/path.name

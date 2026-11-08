@@ -29,10 +29,19 @@ gate exposed recursive folder intents being validated as file names, now fixed, 
 errors. The next packet's nullable compiler failure was retained without claiming runtime or compiler binding.
 Packet `awm-v3` passes 114/114 focused Core and 53/53 connected UI cases on Mac and Ubuntu. Windows repeats
 those passes in `awm-v3t`, using hash-verified binaries after correcting only the guest driver's standard-user
-path access. Its native UI matrix remains pending.
+path access. The first native UI matrix passed eight cases; its two plain RAR/7z listing failures came from
+mixing a portable path-identity adapter with Windows opened-handle identities in the fixture. Both isolated
+cases pass with the actual Windows filesystem adapter. The matrix also now explicitly invokes background
+jobs' Review decision action. A complete fresh ten-case matrix and broad cohort remain required.
 Its real Windows lane covers creation, F5 addition, all-skipped F6, explicit replacement/removal of the original,
 folder creation/rename/delete, complete confined readback and exported independent-reader vectors. Encrypted
 rows in that lane come from complete real-worker assessments; they do not establish encrypted browse support.
 
 Full regressions, independent readers, additional cancellation/focus/member tests, Unix native mutation and
 confinement, production qualification and final independent review are still required.
+
+The implementation checkpoint is `58842b9da99cced8fa8b7faffa2277efff695d0c`; subsequent fixture and full-cohort
+driver corrections are separate. The full cohort includes 116 focused Core and 53 connected UI cases, all ten
+Windows native cases, existing creation/update/native/crash tests, complete Core inventories and independent
+readers. An early cross-platform gate precedes broad regressions. Driver-only and fixture-only continuations
+must prove that their inherited production binaries match the sealed predecessor.
