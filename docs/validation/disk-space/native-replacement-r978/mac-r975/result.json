@@ -1,0 +1,674 @@
+{
+  "purpose": "Native window control-event and filesystem subset; OS input/a11y/compositor/package coverage remains open",
+  "pid": 88380,
+  "bundleSha256": "66ff69f5fb847519facd983713881a861a6e2fb0f41f0dcdc5c2e298d9701b47",
+  "passed": true,
+  "finished": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "replacement-ui-finished",
+    "sourceUnchanged": null,
+    "deadlineClosed": false,
+    "processId": 88380,
+    "platform": "macOS 27.0.1",
+    "architecture": "Arm64",
+    "run": "/Users/benny/FileCatValidation/dsa-native-r975/app/native-validation/dsa-55cce015538e40fa9fb644db196f9178",
+    "fixture": "/Users/benny/FileCatValidation/dsa-native-r975/app/native-validation/dsa-55cce015538e40fa9fb644db196f9178/fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": true,
+    "lastVisibleWidth": 1100,
+    "lastVisibleHeight": 620,
+    "lastVisibleScale": 2,
+    "lastScreen": {
+      "bounds": "0, 0, 1440, 900",
+      "workingArea": "0, 30, 1440, 791",
+      "Scaling": 1,
+      "position": "130, 30",
+      "frameSize": "1100, 648"
+    },
+    "largeText": false,
+    "compact": false,
+    "sharedProfile": false,
+    "sessions": 8,
+    "createdSessions": 3,
+    "lastObservation": {
+      "Phase": 5,
+      "Status": "These observations no longer have a confirmed saved copy. Save a new copy to keep them.",
+      "FilterError": null,
+      "Query": "",
+      "Metric": 2,
+      "session": "cbf14977-a105-4455-a0c4-61b84ec30a64",
+      "Coverage": 0,
+      "Freshness": 0,
+      "hostProfile": "hp1:e6743b93539f40baa01988b2523492c0:darwin-host-uuid:801a986a482895124a560e56c2487a8cfac070991be7c1733b11e6b10d6ad6cc",
+      "ContinuityNotice": null,
+      "paths": 518,
+      "objects": 508,
+      "issues": [
+        {
+          "Code": "navigation-link-not-followed",
+          "State": 3
+        }
+      ],
+      "known": "3424256",
+      "unverified": "0",
+      "matchingPaths": 509,
+      "rows": 1,
+      "focus": null,
+      "marked": 0,
+      "basket": 0,
+      "tableSort": 0,
+      "tableDescending": true,
+      "tableRows": [
+        {
+          "Key": "n:1",
+          "Name": "fixture",
+          "value": "3424256",
+          "activeText": "3,3 MiB",
+          "fileSizeText": "2,3 MiB",
+          "state": "Shared links"
+        }
+      ],
+      "breadcrumbs": [
+        {
+          "Key": "scope",
+          "Label": "All locations"
+        }
+      ]
+    },
+    "selectedTab": 3,
+    "tabHeaders": [
+      "Analysis 1",
+      "Analysis 2",
+      "Analysis 3",
+      "Analysis 4",
+      "Analysis 5",
+      "Analysis 6",
+      "Analysis 7",
+      "Analysis 8"
+    ],
+    "appSha256": "598c0ebbb19924bc9e2e20a0e921c92474e605a9b0a18211c742e53660af1514",
+    "harnessSha256": "08d4c2cf737be51fc81a132ff51d5f8c91bca0aaa60fdbe4617d6e39ead0cc00",
+    "profileProbe": false,
+    "profileProbeFinished": false,
+    "profileProbeError": null,
+    "profileProbeCaptureError": null,
+    "savedOrderingProbe": null,
+    "acquisitionProbe": null,
+    "indexedProbeRequested": false,
+    "indexedProbeFinished": false,
+    "indexedProbeError": null,
+    "indexedProbe": null,
+    "indexedInventoryProbeRequested": false,
+    "inventoryProbe": null,
+    "memoryFallbackProbeRequested": false,
+    "memoryLifecycleProbeRequested": false,
+    "memoryProbeStage": null,
+    "memoryProbeView": null,
+    "replacementUiProbe": {
+      "finished": true,
+      "passed": true,
+      "cases": [
+        {
+          "indexed": false,
+          "replace": false,
+          "name": "Native memory replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": false,
+          "savedReferenceInvalidated": false,
+          "sessionCount": 2,
+          "captures": [
+            {
+              "frame": "replacement-memory-keep-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": true
+            },
+            {
+              "frame": "replacement-memory-keep-Classic.png",
+              "width": 480,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": true
+            },
+            {
+              "frame": "replacement-memory-keep-HighContrast.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": true
+            }
+          ]
+        },
+        {
+          "indexed": false,
+          "replace": true,
+          "name": "Native memory replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": true,
+          "savedReferenceInvalidated": true,
+          "sessionCount": 2,
+          "captures": [
+            {
+              "frame": "replacement-memory-replace-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": true
+            }
+          ]
+        },
+        {
+          "indexed": true,
+          "replace": false,
+          "name": "Native indexed replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": false,
+          "savedReferenceInvalidated": false,
+          "sessionCount": 8,
+          "captures": [
+            {
+              "frame": "replacement-indexed-keep-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": true
+            },
+            {
+              "frame": "replacement-indexed-keep-Classic.png",
+              "width": 480,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": true
+            },
+            {
+              "frame": "replacement-indexed-keep-HighContrast.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": true
+            }
+          ]
+        },
+        {
+          "indexed": true,
+          "replace": true,
+          "name": "Native indexed replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": true,
+          "savedReferenceInvalidated": true,
+          "sessionCount": 8,
+          "captures": [
+            {
+              "frame": "replacement-indexed-replace-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": true
+            }
+          ]
+        }
+      ],
+      "sessions": 8,
+      "sourceCloseFailures": 0,
+      "nativeWindowControlEvents": true,
+      "osInputQualified": false,
+      "compositorCaptureQualified": false,
+      "assistiveTechnologyQualified": false
+    }
+  },
+  "exitCode": 0,
+  "closed": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "closed",
+    "sourceUnchanged": true,
+    "deadlineClosed": false,
+    "processId": 88380,
+    "platform": "macOS 27.0.1",
+    "architecture": "Arm64",
+    "run": "/Users/benny/FileCatValidation/dsa-native-r975/app/native-validation/dsa-55cce015538e40fa9fb644db196f9178",
+    "fixture": "/Users/benny/FileCatValidation/dsa-native-r975/app/native-validation/dsa-55cce015538e40fa9fb644db196f9178/fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": false,
+    "lastVisibleWidth": 1100,
+    "lastVisibleHeight": 620,
+    "lastVisibleScale": 2,
+    "lastScreen": {
+      "bounds": "0, 0, 1440, 900",
+      "workingArea": "0, 30, 1440, 791",
+      "Scaling": 1,
+      "position": "130, 30",
+      "frameSize": "1100, 648"
+    },
+    "largeText": false,
+    "compact": false,
+    "sharedProfile": false,
+    "sessions": 0,
+    "createdSessions": 3,
+    "lastObservation": {
+      "Phase": 5,
+      "Status": "These observations no longer have a confirmed saved copy. Save a new copy to keep them.",
+      "FilterError": null,
+      "Query": "",
+      "Metric": 2,
+      "session": "cbf14977-a105-4455-a0c4-61b84ec30a64",
+      "Coverage": 0,
+      "Freshness": 0,
+      "hostProfile": "hp1:e6743b93539f40baa01988b2523492c0:darwin-host-uuid:801a986a482895124a560e56c2487a8cfac070991be7c1733b11e6b10d6ad6cc",
+      "ContinuityNotice": null,
+      "paths": 518,
+      "objects": 508,
+      "issues": [
+        {
+          "Code": "navigation-link-not-followed",
+          "State": 3
+        }
+      ],
+      "known": "3424256",
+      "unverified": "0",
+      "matchingPaths": 509,
+      "rows": 1,
+      "focus": null,
+      "marked": 0,
+      "basket": 0,
+      "tableSort": 0,
+      "tableDescending": true,
+      "tableRows": [
+        {
+          "Key": "n:1",
+          "Name": "fixture",
+          "value": "3424256",
+          "activeText": "3,3 MiB",
+          "fileSizeText": "2,3 MiB",
+          "state": "Shared links"
+        }
+      ],
+      "breadcrumbs": [
+        {
+          "Key": "scope",
+          "Label": "All locations"
+        }
+      ]
+    },
+    "selectedTab": 3,
+    "tabHeaders": [
+      "Analysis 1",
+      "Analysis 2",
+      "Analysis 3",
+      "Analysis 4",
+      "Analysis 5",
+      "Analysis 6",
+      "Analysis 7",
+      "Analysis 8"
+    ],
+    "appSha256": "598c0ebbb19924bc9e2e20a0e921c92474e605a9b0a18211c742e53660af1514",
+    "harnessSha256": "08d4c2cf737be51fc81a132ff51d5f8c91bca0aaa60fdbe4617d6e39ead0cc00",
+    "profileProbe": false,
+    "profileProbeFinished": false,
+    "profileProbeError": null,
+    "profileProbeCaptureError": null,
+    "savedOrderingProbe": null,
+    "acquisitionProbe": null,
+    "indexedProbeRequested": false,
+    "indexedProbeFinished": false,
+    "indexedProbeError": null,
+    "indexedProbe": null,
+    "indexedInventoryProbeRequested": false,
+    "inventoryProbe": null,
+    "memoryFallbackProbeRequested": false,
+    "memoryLifecycleProbeRequested": false,
+    "memoryProbeStage": null,
+    "memoryProbeView": null,
+    "replacementUiProbe": {
+      "finished": true,
+      "passed": true,
+      "cases": [
+        {
+          "indexed": false,
+          "replace": false,
+          "name": "Native memory replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": false,
+          "savedReferenceInvalidated": false,
+          "sessionCount": 2,
+          "captures": [
+            {
+              "frame": "replacement-memory-keep-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": true
+            },
+            {
+              "frame": "replacement-memory-keep-Classic.png",
+              "width": 480,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": true
+            },
+            {
+              "frame": "replacement-memory-keep-HighContrast.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": true
+            }
+          ]
+        },
+        {
+          "indexed": false,
+          "replace": true,
+          "name": "Native memory replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": true,
+          "savedReferenceInvalidated": true,
+          "sessionCount": 2,
+          "captures": [
+            {
+              "frame": "replacement-memory-replace-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": true
+            }
+          ]
+        },
+        {
+          "indexed": true,
+          "replace": false,
+          "name": "Native indexed replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": false,
+          "savedReferenceInvalidated": false,
+          "sessionCount": 8,
+          "captures": [
+            {
+              "frame": "replacement-indexed-keep-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": true
+            },
+            {
+              "frame": "replacement-indexed-keep-Classic.png",
+              "width": 480,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": true
+            },
+            {
+              "frame": "replacement-indexed-keep-HighContrast.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": true
+            }
+          ]
+        },
+        {
+          "indexed": true,
+          "replace": true,
+          "name": "Native indexed replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": true,
+          "savedReferenceInvalidated": true,
+          "sessionCount": 8,
+          "captures": [
+            {
+              "frame": "replacement-indexed-replace-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": true
+            }
+          ]
+        }
+      ],
+      "sessions": 8,
+      "sourceCloseFailures": 0,
+      "nativeWindowControlEvents": true,
+      "osInputQualified": false,
+      "compositorCaptureQualified": false,
+      "assistiveTechnologyQualified": false
+    }
+  },
+  "postProcesses": [],
+  "compositorCaptures": [
+    {
+      "frame": "replacement-memory-keep-ClassicDark.png",
+      "ownedWindow": {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 648,
+          "Width": 1100,
+          "X": 130,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowNumber": 1343,
+        "kCGWindowOwnerName": "FileCat",
+        "kCGWindowOwnerPID": 88380,
+        "kCGWindowSharingState": 0,
+        "kCGWindowStoreType": 1
+      },
+      "width": 2880,
+      "height": 1800,
+      "sha256": "649f6bdddc0a161df0ce6fbbb5ba8c2f3bf31dc351d4f26c82c5b10ff4d68733",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper"
+    },
+    {
+      "frame": "replacement-memory-keep-Classic.png",
+      "ownedWindow": {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 648,
+          "Width": 480,
+          "X": 130,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowNumber": 1343,
+        "kCGWindowOwnerName": "FileCat",
+        "kCGWindowOwnerPID": 88380,
+        "kCGWindowSharingState": 0,
+        "kCGWindowStoreType": 1
+      },
+      "width": 2880,
+      "height": 1800,
+      "sha256": "041e27a5d8921439638c1ed00709f01873975ae201cba3110a739f66f2180686",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper"
+    },
+    {
+      "frame": "replacement-memory-keep-HighContrast.png",
+      "ownedWindow": {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 648,
+          "Width": 1100,
+          "X": 130,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowNumber": 1343,
+        "kCGWindowOwnerName": "FileCat",
+        "kCGWindowOwnerPID": 88380,
+        "kCGWindowSharingState": 0,
+        "kCGWindowStoreType": 1
+      },
+      "width": 2880,
+      "height": 1800,
+      "sha256": "2fd906d6f18000cb93b0e997f924999eb6ee9da7e9dedba6091574b94641830b",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper"
+    },
+    {
+      "frame": "replacement-memory-replace-ClassicDark.png",
+      "ownedWindow": {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 648,
+          "Width": 1100,
+          "X": 130,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowNumber": 1343,
+        "kCGWindowOwnerName": "FileCat",
+        "kCGWindowOwnerPID": 88380,
+        "kCGWindowSharingState": 0,
+        "kCGWindowStoreType": 1
+      },
+      "width": 2880,
+      "height": 1800,
+      "sha256": "502570c735fdad27c3c4b62c7e1716825059cb38ebc3a9c351e2bca5cf68ac85",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper"
+    },
+    {
+      "frame": "replacement-indexed-keep-ClassicDark.png",
+      "ownedWindow": {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 648,
+          "Width": 1100,
+          "X": 130,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowNumber": 1343,
+        "kCGWindowOwnerName": "FileCat",
+        "kCGWindowOwnerPID": 88380,
+        "kCGWindowSharingState": 0,
+        "kCGWindowStoreType": 1
+      },
+      "width": 2880,
+      "height": 1800,
+      "sha256": "1ef2d985adeb565d921943a234109423f0952475173e9ad61c02f516c7f48e39",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper"
+    },
+    {
+      "frame": "replacement-indexed-keep-Classic.png",
+      "ownedWindow": {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 648,
+          "Width": 480,
+          "X": 130,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowNumber": 1343,
+        "kCGWindowOwnerName": "FileCat",
+        "kCGWindowOwnerPID": 88380,
+        "kCGWindowSharingState": 0,
+        "kCGWindowStoreType": 1
+      },
+      "width": 2880,
+      "height": 1800,
+      "sha256": "69d5de012af61f249d359e00a270dff2c61168603a7c416a6d4160d2040f6ac1",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper"
+    },
+    {
+      "frame": "replacement-indexed-keep-HighContrast.png",
+      "ownedWindow": {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 648,
+          "Width": 1100,
+          "X": 130,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowNumber": 1343,
+        "kCGWindowOwnerName": "FileCat",
+        "kCGWindowOwnerPID": 88380,
+        "kCGWindowSharingState": 0,
+        "kCGWindowStoreType": 1
+      },
+      "width": 2880,
+      "height": 1800,
+      "sha256": "7bac778175c7d2bc63091af7c5175e68ffa997a508d537982d3519a35790e8be",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper"
+    },
+    {
+      "frame": "replacement-indexed-replace-ClassicDark.png",
+      "ownedWindow": {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 648,
+          "Width": 1100,
+          "X": 130,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowNumber": 1343,
+        "kCGWindowOwnerName": "FileCat",
+        "kCGWindowOwnerPID": 88380,
+        "kCGWindowSharingState": 0,
+        "kCGWindowStoreType": 1
+      },
+      "width": 2880,
+      "height": 1800,
+      "sha256": "22be6cfaca841a849b154cb02cbf3111dcc9f0bf13a5129aa8f006d6bbfa50a7",
+      "scope": "Main display while owned app is frontmost; existing authorized FileCatCapture helper"
+    }
+  ]
+}

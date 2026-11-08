@@ -96,6 +96,7 @@ internal sealed partial class HarnessApp : Application
         if (Program.WindowsInput) BeginWindowsInput();
         if (Program.ProfileProbe) _ = ProfileProbeAsync();
         if (Program.IndexedProbe) _indexedProbeTask = Program.MemoryFallbackProbe ? MemoryFallbackProbeAsync() : IndexedProbeAsync();
+        if (Program.ReplacementUiProbe) _indexedProbeTask = ReplacementUiProbeAsync();
     }
 
     private async Task ProfileProbeAsync()
@@ -215,7 +216,8 @@ internal sealed partial class HarnessApp : Application
             savedOrderingProbe = _savedOrderingProbe, acquisitionProbe = _acquisitionProbe,
             indexedProbeRequested = Program.IndexedProbe, indexedProbeFinished = _indexedProbeFinished, indexedProbeError = _indexedProbeError, indexedProbe = _indexedProbe,
             indexedInventoryProbeRequested = Program.IndexedInventoryProbe, inventoryProbe = _inventoryProbe, memoryFallbackProbeRequested = Program.MemoryFallbackProbe, memoryLifecycleProbeRequested = Program.MemoryLifecycleProbe,
-            memoryProbeStage = _memoryProbeStage, memoryProbeView = _memoryProbeView
+            memoryProbeStage = _memoryProbeStage, memoryProbeView = _memoryProbeView,
+            replacementUiProbe = _replacementUiProbe
         };
         File.WriteAllText(Path.Combine(_run, "report.json"), JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }) + "\n");
     }
@@ -237,10 +239,12 @@ internal static class Program
     internal static bool MemoryFallbackProbe { get; private set; }
     internal static bool MemoryLifecycleProbe { get; private set; }
     internal static bool IndexedInventoryProbe { get; private set; }
+    internal static bool ReplacementUiProbe { get; private set; }
+    internal static bool ReplacementCompositorCapture { get; private set; }
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe" or "--indexed-inventory-probe"))) return 64;
+        if (args.Any(arg => arg is not ("--large-text" or "--compact" or "--windows-input" or "--shared-profile" or "--profile-probe" or "--saved-ordering-probe" or "--acquisition-probe" or "--indexed-probe" or "--memory-fallback-probe" or "--memory-lifecycle-probe" or "--indexed-inventory-probe" or "--replacement-ui-probe" or "--replacement-compositor-capture"))) return 64;
         LargeText = args.Contains("--large-text", StringComparer.Ordinal);
         Compact = args.Contains("--compact", StringComparer.Ordinal);
         WindowsInput = args.Contains("--windows-input", StringComparer.Ordinal);
@@ -254,10 +258,14 @@ internal static class Program
         IndexedInventoryProbe = args.Contains("--indexed-inventory-probe", StringComparer.Ordinal);
         if (IndexedInventoryProbe && (MemoryFallbackProbe || args.Contains("--indexed-probe", StringComparer.Ordinal))) return 64;
         IndexedProbe = args.Contains("--indexed-probe", StringComparer.Ordinal) || MemoryFallbackProbe || IndexedInventoryProbe;
+        ReplacementUiProbe = args.Contains("--replacement-ui-probe", StringComparer.Ordinal);
+        ReplacementCompositorCapture = args.Contains("--replacement-compositor-capture", StringComparer.Ordinal);
+        if (ReplacementCompositorCapture && (!ReplacementUiProbe || !OperatingSystem.IsMacOS())) return 64;
+        if (ReplacementUiProbe && (ProfileProbe || IndexedProbe || WindowsInput || SharedProfile)) return 64;
         if (MemoryFallbackProbe && args.Contains("--indexed-probe", StringComparer.Ordinal)) return 64;
         if (ProfileProbe && WindowsInput) return 64;
         if (IndexedProbe && (ProfileProbe || WindowsInput)) return 64;
-        if ((WindowsInput || (ProfileProbe || IndexedProbe) && OperatingSystem.IsWindows()) && !HarnessApp.WindowsInputVmAllowed()) return 77;
+        if ((WindowsInput || (ProfileProbe || IndexedProbe || ReplacementUiProbe) && OperatingSystem.IsWindows()) && !HarnessApp.WindowsInputVmAllowed()) return 77;
         if (AnalysisAdmission.Refusal() is not null) return 77;
         foreach (var process in Process.GetProcessesByName("FileCat"))
             using (process) if (process.Id != Environment.ProcessId) return 75;

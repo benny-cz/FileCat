@@ -1,0 +1,491 @@
+{
+  "purpose": "Native window control-event and filesystem subset; OS input/a11y/compositor/package coverage remains open",
+  "pid": 655844,
+  "bundleSha256": "9a0b2d14d0753cc7fe4bf0c95ee411fff6c7e40ab9abaad509baf73ed141febc",
+  "passed": true,
+  "finished": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "replacement-ui-finished",
+    "sourceUnchanged": null,
+    "deadlineClosed": false,
+    "processId": 655844,
+    "platform": "Ubuntu 24.04.5 LTS",
+    "architecture": "X64",
+    "run": "/home/benny/FileCatValidation/dsa-native-r977/app/native-validation/dsa-a039a21603494652b3b6874eccc6d429",
+    "fixture": "/home/benny/FileCatValidation/dsa-native-r977/app/native-validation/dsa-a039a21603494652b3b6874eccc6d429/fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": true,
+    "lastVisibleWidth": 1100,
+    "lastVisibleHeight": 620,
+    "lastVisibleScale": 1,
+    "lastScreen": {
+      "bounds": "0, 0, 1280, 800",
+      "workingArea": "0, 32, 1280, 768",
+      "Scaling": 1,
+      "position": "0, 32",
+      "frameSize": "1100, 657"
+    },
+    "largeText": false,
+    "compact": false,
+    "sharedProfile": false,
+    "sessions": 8,
+    "createdSessions": 3,
+    "lastObservation": {
+      "Phase": 5,
+      "Status": "These observations no longer have a confirmed saved copy. Save a new copy to keep them.",
+      "FilterError": null,
+      "Query": "",
+      "Metric": 2,
+      "session": "e7b574b9-32d6-40e2-9365-d8f5fd227b3b",
+      "Coverage": 0,
+      "Freshness": 0,
+      "hostProfile": "hp1:5451e56b1faf4ae4a5df306d2fc65efe:linux-app-machine-id:8646499feb05d3cf986fc2bb37f1427834e1264c7d62d88a079c3db738e84877",
+      "ContinuityNotice": null,
+      "paths": 518,
+      "objects": 508,
+      "issues": [
+        {
+          "Code": "navigation-link-not-followed",
+          "State": 3
+        }
+      ],
+      "known": "3424256",
+      "unverified": "0",
+      "matchingPaths": 509,
+      "rows": 1,
+      "focus": null,
+      "marked": 0,
+      "basket": 0,
+      "tableSort": 0,
+      "tableDescending": true,
+      "tableRows": [
+        {
+          "Key": "n:1",
+          "Name": "fixture",
+          "value": "3424256",
+          "activeText": "3.3 MiB",
+          "fileSizeText": "2.3 MiB",
+          "state": "Shared links"
+        }
+      ],
+      "breadcrumbs": [
+        {
+          "Key": "scope",
+          "Label": "All locations"
+        }
+      ]
+    },
+    "selectedTab": 3,
+    "tabHeaders": [
+      "Analysis 1",
+      "Analysis 2",
+      "Analysis 3",
+      "Analysis 4",
+      "Analysis 5",
+      "Analysis 6",
+      "Analysis 7",
+      "Analysis 8"
+    ],
+    "appSha256": "598c0ebbb19924bc9e2e20a0e921c92474e605a9b0a18211c742e53660af1514",
+    "harnessSha256": "08d4c2cf737be51fc81a132ff51d5f8c91bca0aaa60fdbe4617d6e39ead0cc00",
+    "profileProbe": false,
+    "profileProbeFinished": false,
+    "profileProbeError": null,
+    "profileProbeCaptureError": null,
+    "savedOrderingProbe": null,
+    "acquisitionProbe": null,
+    "indexedProbeRequested": false,
+    "indexedProbeFinished": false,
+    "indexedProbeError": null,
+    "indexedProbe": null,
+    "indexedInventoryProbeRequested": false,
+    "inventoryProbe": null,
+    "memoryFallbackProbeRequested": false,
+    "memoryLifecycleProbeRequested": false,
+    "memoryProbeStage": null,
+    "memoryProbeView": null,
+    "replacementUiProbe": {
+      "finished": true,
+      "passed": true,
+      "cases": [
+        {
+          "indexed": false,
+          "replace": false,
+          "name": "Native memory replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": false,
+          "savedReferenceInvalidated": false,
+          "sessionCount": 2,
+          "captures": [
+            {
+              "frame": "replacement-memory-keep-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-memory-keep-Classic.png",
+              "width": 480,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-memory-keep-HighContrast.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            }
+          ]
+        },
+        {
+          "indexed": false,
+          "replace": true,
+          "name": "Native memory replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": true,
+          "savedReferenceInvalidated": true,
+          "sessionCount": 2,
+          "captures": [
+            {
+              "frame": "replacement-memory-replace-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            }
+          ]
+        },
+        {
+          "indexed": true,
+          "replace": false,
+          "name": "Native indexed replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": false,
+          "savedReferenceInvalidated": false,
+          "sessionCount": 8,
+          "captures": [
+            {
+              "frame": "replacement-indexed-keep-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-indexed-keep-Classic.png",
+              "width": 480,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-indexed-keep-HighContrast.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            }
+          ]
+        },
+        {
+          "indexed": true,
+          "replace": true,
+          "name": "Native indexed replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": true,
+          "savedReferenceInvalidated": true,
+          "sessionCount": 8,
+          "captures": [
+            {
+              "frame": "replacement-indexed-replace-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            }
+          ]
+        }
+      ],
+      "sessions": 8,
+      "sourceCloseFailures": 0,
+      "nativeWindowControlEvents": true,
+      "osInputQualified": false,
+      "compositorCaptureQualified": false,
+      "assistiveTechnologyQualified": false
+    }
+  },
+  "exitCode": 0,
+  "closed": {
+    "schemaVersion": 1,
+    "purpose": "Native desktop development validation; no capability qualification",
+    "state": "closed",
+    "sourceUnchanged": true,
+    "deadlineClosed": false,
+    "processId": 655844,
+    "platform": "Ubuntu 24.04.5 LTS",
+    "architecture": "X64",
+    "run": "/home/benny/FileCatValidation/dsa-native-r977/app/native-validation/dsa-a039a21603494652b3b6874eccc6d429",
+    "fixture": "/home/benny/FileCatValidation/dsa-native-r977/app/native-validation/dsa-a039a21603494652b3b6874eccc6d429/fixture",
+    "fixtureRegularPaths": 509,
+    "fixtureLimitations": [],
+    "nativeWindowVisible": false,
+    "lastVisibleWidth": 1100,
+    "lastVisibleHeight": 620,
+    "lastVisibleScale": 1,
+    "lastScreen": {
+      "bounds": "0, 0, 1280, 800",
+      "workingArea": "0, 32, 1280, 768",
+      "Scaling": 1,
+      "position": "0, 32",
+      "frameSize": "1100, 657"
+    },
+    "largeText": false,
+    "compact": false,
+    "sharedProfile": false,
+    "sessions": 0,
+    "createdSessions": 3,
+    "lastObservation": {
+      "Phase": 5,
+      "Status": "These observations no longer have a confirmed saved copy. Save a new copy to keep them.",
+      "FilterError": null,
+      "Query": "",
+      "Metric": 2,
+      "session": "e7b574b9-32d6-40e2-9365-d8f5fd227b3b",
+      "Coverage": 0,
+      "Freshness": 0,
+      "hostProfile": "hp1:5451e56b1faf4ae4a5df306d2fc65efe:linux-app-machine-id:8646499feb05d3cf986fc2bb37f1427834e1264c7d62d88a079c3db738e84877",
+      "ContinuityNotice": null,
+      "paths": 518,
+      "objects": 508,
+      "issues": [
+        {
+          "Code": "navigation-link-not-followed",
+          "State": 3
+        }
+      ],
+      "known": "3424256",
+      "unverified": "0",
+      "matchingPaths": 509,
+      "rows": 1,
+      "focus": null,
+      "marked": 0,
+      "basket": 0,
+      "tableSort": 0,
+      "tableDescending": true,
+      "tableRows": [
+        {
+          "Key": "n:1",
+          "Name": "fixture",
+          "value": "3424256",
+          "activeText": "3.3 MiB",
+          "fileSizeText": "2.3 MiB",
+          "state": "Shared links"
+        }
+      ],
+      "breadcrumbs": [
+        {
+          "Key": "scope",
+          "Label": "All locations"
+        }
+      ]
+    },
+    "selectedTab": 3,
+    "tabHeaders": [
+      "Analysis 1",
+      "Analysis 2",
+      "Analysis 3",
+      "Analysis 4",
+      "Analysis 5",
+      "Analysis 6",
+      "Analysis 7",
+      "Analysis 8"
+    ],
+    "appSha256": "598c0ebbb19924bc9e2e20a0e921c92474e605a9b0a18211c742e53660af1514",
+    "harnessSha256": "08d4c2cf737be51fc81a132ff51d5f8c91bca0aaa60fdbe4617d6e39ead0cc00",
+    "profileProbe": false,
+    "profileProbeFinished": false,
+    "profileProbeError": null,
+    "profileProbeCaptureError": null,
+    "savedOrderingProbe": null,
+    "acquisitionProbe": null,
+    "indexedProbeRequested": false,
+    "indexedProbeFinished": false,
+    "indexedProbeError": null,
+    "indexedProbe": null,
+    "indexedInventoryProbeRequested": false,
+    "inventoryProbe": null,
+    "memoryFallbackProbeRequested": false,
+    "memoryLifecycleProbeRequested": false,
+    "memoryProbeStage": null,
+    "memoryProbeView": null,
+    "replacementUiProbe": {
+      "finished": true,
+      "passed": true,
+      "cases": [
+        {
+          "indexed": false,
+          "replace": false,
+          "name": "Native memory replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": false,
+          "savedReferenceInvalidated": false,
+          "sessionCount": 2,
+          "captures": [
+            {
+              "frame": "replacement-memory-keep-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-memory-keep-Classic.png",
+              "width": 480,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-memory-keep-HighContrast.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            }
+          ]
+        },
+        {
+          "indexed": false,
+          "replace": true,
+          "name": "Native memory replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": true,
+          "savedReferenceInvalidated": true,
+          "sessionCount": 2,
+          "captures": [
+            {
+              "frame": "replacement-memory-replace-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            }
+          ]
+        },
+        {
+          "indexed": true,
+          "replace": false,
+          "name": "Native indexed replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": false,
+          "savedReferenceInvalidated": false,
+          "sessionCount": 8,
+          "captures": [
+            {
+              "frame": "replacement-indexed-keep-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-indexed-keep-Classic.png",
+              "width": 480,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-indexed-keep-HighContrast.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            }
+          ]
+        },
+        {
+          "indexed": true,
+          "replace": true,
+          "name": "Native indexed replacement.fcdsa",
+          "preservedDefaultAndFocus": true,
+          "dangerClass": true,
+          "bytesChanged": true,
+          "savedReferenceInvalidated": true,
+          "sessionCount": 8,
+          "captures": [
+            {
+              "frame": "replacement-indexed-replace-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            }
+          ]
+        }
+      ],
+      "sessions": 8,
+      "sourceCloseFailures": 0,
+      "nativeWindowControlEvents": true,
+      "osInputQualified": false,
+      "compositorCaptureQualified": false,
+      "assistiveTechnologyQualified": false
+    }
+  },
+  "postProcesses": [],
+  "compositorCaptures": [],
+  "linuxRestore": {
+    "window": "20971539",
+    "pid": 655844,
+    "before": "_NET_WM_STATE(ATOM) = \nWM_NORMAL_HINTS(WM_SIZE_HINTS):\n\t\tprogram specified minimum size: 360 by 360\n\t\tprogram specified resize increment: 1 by 1\n_NET_FRAME_EXTENTS(CARDINAL) = 0, 0, 37, 0\n",
+    "after": "_NET_WM_STATE(ATOM) = \nWM_NORMAL_HINTS(WM_SIZE_HINTS):\n\t\tprogram specified minimum size: 360 by 360\n\t\tprogram specified resize increment: 1 by 1\n_NET_FRAME_EXTENTS(CARDINAL) = 0, 0, 37, 0\n",
+    "initialGeometry": "WINDOW=20971539\nX=14\nY=118\nWIDTH=1180\nHEIGHT=731\nSCREEN=0\n",
+    "resizedGeometry": "WINDOW=20971539\nX=0\nY=106\nWIDTH=1280\nHEIGHT=731\nSCREEN=0\n",
+    "nativeRestoreKeyUsed": false,
+    "nativeResizeRequested": true
+  }
+}

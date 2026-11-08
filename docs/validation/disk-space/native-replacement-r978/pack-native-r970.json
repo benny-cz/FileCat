@@ -1,0 +1,24 @@
+{
+  "elapsedSeconds": 14.0963095,
+  "revision": "r970",
+  "platforms": [
+    {
+      "bytes": 24501058,
+      "sha256": "1046e87392f46e51f0b85790d0e7ec900b9c99959b643f65adad2591ba31bd12",
+      "archive": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\desktop-r970-mac.tgz",
+      "platform": "mac"
+    },
+    {
+      "bytes": 21857104,
+      "sha256": "25f6688f50ebe50968232372f270aeb30830fb3bf71efed9844a27f08a9a455a",
+      "archive": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\desktop-r970-linux.tgz",
+      "platform": "linux"
+    },
+    {
+      "bytes": 50685641,
+      "sha256": "0cc9bf17cbd9a7cbb526475e8d955eeb4aae01b870f540295d857d3fa27aa89d",
+      "archive": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\desktop-r970-windows.tgz",
+      "platform": "windows"
+    }
+  ]
+}

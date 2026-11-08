@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native desktop development validation; no capability qualification",
+  "state": "closed",
+  "sourceUnchanged": true,
+  "deadlineClosed": false,
+  "processId": 88035,
+  "platform": "macOS 27.0.1",
+  "architecture": "Arm64",
+  "run": "/Users/benny/FileCatValidation/dsa-native-r972/app/native-validation/dsa-bc0a10d32db9474090f36595c1c5f842",
+  "fixture": "/Users/benny/FileCatValidation/dsa-native-r972/app/native-validation/dsa-bc0a10d32db9474090f36595c1c5f842/fixture",
+  "fixtureRegularPaths": 509,
+  "fixtureLimitations": [],
+  "nativeWindowVisible": false,
+  "lastVisibleWidth": 1100,
+  "lastVisibleHeight": 760,
+  "lastVisibleScale": 2,
+  "lastScreen": {
+    "bounds": "0, 0, 1440, 900",
+    "workingArea": "0, 30, 1440, 791",
+    "Scaling": 1,
+    "position": "130, 30",
+    "frameSize": "1100, 788"
+  },
+  "largeText": false,
+  "compact": false,
+  "sharedProfile": false,
+  "sessions": 0,
+  "createdSessions": 3,
+  "lastObservation": {
+    "Phase": 5,
+    "Status": "These observations no longer have a confirmed saved copy. Save a new copy to keep them.",
+    "FilterError": null,
+    "Query": "",
+    "Metric": 2,
+    "session": "388c30f8-6c0e-4c10-bf97-15a58e745da9",
+    "Coverage": 0,
+    "Freshness": 0,
+    "hostProfile": "hp1:c0e81138b89445989b9e017569d05a28:darwin-host-uuid:3738c4f5ca070a22e1a93728c549e150de72fb43497f8e7bdfafc23953db9c34",
+    "ContinuityNotice": null,
+    "paths": 518,
+    "objects": 508,
+    "issues": [
+      {
+        "Code": "navigation-link-not-followed",
+        "State": 3
+      }
+    ],
+    "known": "3424256",
+    "unverified": "0",
+    "matchingPaths": 509,
+    "rows": 1,
+    "focus": null,
+    "marked": 0,
+    "basket": 0,
+    "tableSort": 0,
+    "tableDescending": true,
+    "tableRows": [
+      {
+        "Key": "n:1",
+        "Name": "fixture",
+        "value": "3424256",
+        "activeText": "3,3 MiB",
+        "fileSizeText": "2,3 MiB",
+        "state": "Shared links"
+      }
+    ],
+    "breadcrumbs": [
+      {
+        "Key": "scope",
+        "Label": "All locations"
+      }
+    ]
+  },
+  "selectedTab": 3,
+  "tabHeaders": [
+    "Analysis 1",
+    "Analysis 2",
+    "Analysis 3",
+    "Analysis 4",
+    "Analysis 5",
+    "Analysis 6",
+    "Analysis 7",
+    "Analysis 8"
+  ],
+  "appSha256": "598c0ebbb19924bc9e2e20a0e921c92474e605a9b0a18211c742e53660af1514",
+  "harnessSha256": "6db6ffee771282b9e5e25eb8ffd5046843357b637334ce3f2e39348664ce772e",
+  "profileProbe": false,
+  "profileProbeFinished": false,
+  "profileProbeError": null,
+  "profileProbeCaptureError": null,
+  "savedOrderingProbe": null,
+  "acquisitionProbe": null,
+  "indexedProbeRequested": false,
+  "indexedProbeFinished": false,
+  "indexedProbeError": null,
+  "indexedProbe": null,
+  "indexedInventoryProbeRequested": false,
+  "inventoryProbe": null,
+  "memoryFallbackProbeRequested": false,
+  "memoryLifecycleProbeRequested": false,
+  "memoryProbeStage": null,
+  "memoryProbeView": null,
+  "replacementUiProbe": {
+    "finished": true,
+    "passed": true,
+    "cases": [
+      {
+        "indexed": false,
+        "replace": false,
+        "name": "Native memory replacement.fcdsa",
+        "preservedDefaultAndFocus": true,
+        "dangerClass": true,
+        "bytesChanged": false,
+        "savedReferenceInvalidated": false,
+        "sessionCount": 2,
+        "captures": [
+          "replacement-memory-keep-ClassicDark.png",
+          "replacement-memory-keep-Classic.png",
+          "replacement-memory-keep-HighContrast.png"
+        ]
+      },
+      {
+        "indexed": false,
+        "replace": true,
+        "name": "Native memory replacement.fcdsa",
+        "preservedDefaultAndFocus": true,
+        "dangerClass": true,
+        "bytesChanged": true,
+        "savedReferenceInvalidated": true,
+        "sessionCount": 2,
+        "captures": [
+          "replacement-memory-replace-ClassicDark.png"
+        ]
+      },
+      {
+        "indexed": true,
+        "replace": false,
+        "name": "Native indexed replacement.fcdsa",
+        "preservedDefaultAndFocus": true,
+        "dangerClass": true,
+        "bytesChanged": false,
+        "savedReferenceInvalidated": false,
+        "sessionCount": 8,
+        "captures": [
+          "replacement-indexed-keep-ClassicDark.png",
+          "replacement-indexed-keep-Classic.png",
+          "replacement-indexed-keep-HighContrast.png"
+        ]
+      },
+      {
+        "indexed": true,
+        "replace": true,
+        "name": "Native indexed replacement.fcdsa",
+        "preservedDefaultAndFocus": true,
+        "dangerClass": true,
+        "bytesChanged": true,
+        "savedReferenceInvalidated": true,
+        "sessionCount": 8,
+        "captures": [
+          "replacement-indexed-replace-ClassicDark.png"
+        ]
+      }
+    ],
+    "sessions": 8,
+    "sourceCloseFailures": 0,
+    "nativeWindowControlEvents": true,
+    "osInputQualified": false,
+    "compositorCaptureQualified": false,
+    "assistiveTechnologyQualified": false
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Native desktop development validation; no capability qualification",
+  "state": "closed",
+  "sourceUnchanged": true,
+  "deadlineClosed": false,
+  "processId": 651950,
+  "platform": "Ubuntu 24.04.5 LTS",
+  "architecture": "X64",
+  "run": "/home/benny/FileCatValidation/dsa-native-r970/app/native-validation/dsa-2cf243a94bb74870bc6ff34e701d7626",
+  "fixture": "/home/benny/FileCatValidation/dsa-native-r970/app/native-validation/dsa-2cf243a94bb74870bc6ff34e701d7626/fixture",
+  "fixtureRegularPaths": 509,
+  "fixtureLimitations": [],
+  "nativeWindowVisible": false,
+  "lastVisibleWidth": 1180,
+  "lastVisibleHeight": 731,
+  "lastVisibleScale": 1,
+  "lastScreen": {
+    "bounds": "0, 0, 1280, 800",
+    "workingArea": "0, 32, 1280, 768",
+    "Scaling": 1,
+    "position": "0, 32",
+    "frameSize": "1180, 768"
+  },
+  "largeText": false,
+  "compact": false,
+  "sharedProfile": false,
+  "sessions": 0,
+  "createdSessions": 2,
+  "lastObservation": {
+    "Phase": 5,
+    "Status": "Saved Native memory replacement.fcdsa.",
+    "FilterError": null,
+    "Query": "",
+    "Metric": 2,
+    "session": "98653bb2-b4ec-42e2-b0cf-ee97e5012901",
+    "Coverage": 0,
+    "Freshness": 0,
+    "hostProfile": "hp1:3c13e4965c9e41929538c66e21e1f92a:linux-app-machine-id:ed97d5aa2a2876e22a170360e24bca1f7bfdad48b16cdc0adb0c5ac3a183ae48",
+    "ContinuityNotice": null,
+    "paths": 518,
+    "objects": 508,
+    "issues": [
+      {
+        "Code": "navigation-link-not-followed",
+        "State": 3
+      }
+    ],
+    "known": "3424256",
+    "unverified": "0",
+    "matchingPaths": 509,
+    "rows": 1,
+    "focus": null,
+    "marked": 0,
+    "basket": 0,
+    "tableSort": 0,
+    "tableDescending": true,
+    "tableRows": [
+      {
+        "Key": "n:1",
+        "Name": "fixture",
+        "value": "3424256",
+        "activeText": "3.3 MiB",
+        "fileSizeText": "2.3 MiB",
+        "state": "Shared links"
+      }
+    ],
+    "breadcrumbs": [
+      {
+        "Key": "scope",
+        "Label": "All locations"
+      }
+    ]
+  },
+  "selectedTab": 0,
+  "tabHeaders": [
+    "Analysis 1",
+    "Analysis 2"
+  ],
+  "appSha256": "598c0ebbb19924bc9e2e20a0e921c92474e605a9b0a18211c742e53660af1514",
+  "harnessSha256": "b5ba5329fb0f05beccc9101142fb6dce091948e8c01b0674eda93f9dea2ce31d",
+  "profileProbe": false,
+  "profileProbeFinished": false,
+  "profileProbeError": null,
+  "profileProbeCaptureError": null,
+  "savedOrderingProbe": null,
+  "acquisitionProbe": null,
+  "indexedProbeRequested": false,
+  "indexedProbeFinished": false,
+  "indexedProbeError": null,
+  "indexedProbe": null,
+  "indexedInventoryProbeRequested": false,
+  "inventoryProbe": null,
+  "memoryFallbackProbeRequested": false,
+  "memoryLifecycleProbeRequested": false,
+  "memoryProbeStage": null,
+  "memoryProbeView": null,
+  "replacementUiProbe": {
+    "finished": true,
+    "passed": false,
+    "cases": [],
+    "error": "System.TimeoutException: The native indexed window did not publish the requested captured view.\n   at DiskSpaceHarness.HarnessApp.ReadyAsync(Func\u00601 condition) in E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\tests\\FileCat.NativeAcceptance\\DiskSpaceHarness\\Indexed.cs:line 100\n   at DiskSpaceHarness.HarnessApp.\u003C\u003Ec__DisplayClass48_1.\u003C\u003CReplacementUiProbeAsync\u003Eg__ExerciseAsync|5\u003Ed.MoveNext() in E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\tests\\FileCat.NativeAcceptance\\DiskSpaceHarness\\ReplacementUi.cs:line 77\n--- End of stack trace from previous location ---\n   at DiskSpaceHarness.HarnessApp.ReplacementUiProbeAsync() in E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\tests\\FileCat.NativeAcceptance\\DiskSpaceHarness\\ReplacementUi.cs:line 40"
+  }
+}

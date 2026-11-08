@@ -179,7 +179,8 @@
     "Private atomic replacement primitive now has exact-capability, generated incoming/previous payload namespace, file identity/name/privacy, active-reader and readonly controls. Windows uses strict extended rename without classic/read-only override fallback; Unix uses contained descriptor-relative atomic rename under exclusive cooperating leases. Seven native cases and broad r931 regressions pass on all3guest runtimes, including an external namespace observer. source-manifest-r932.json qualifies only9source inputs based on90aa5fb7. Higher-level prepared staging, complete previous backup, catalog publication/recovery and user-facing replacement are NOT qualified by this primitive; separate catalog decoder work remains uncompiled. Full scope and final independent review remain open.",
     "Prepared private inventory replacement core now holds complete immutable staged data and indexed-source/root ownership across a one-use Keep/Replace decision, verifies publication identities including APFS clones, creates a complete reserve-checked previous backup, atomically switches the existing name, and separates new-save confirmation from pending cleanup. Strict inert pending replacement catalog parsing and collision/deletion admission are connected. Broad r939 and indexed-source r941 controls pass on Windows/Mac/Ubuntu; themed conflict UI, fresh restart recovery, interruption qualification and complete W3 remain unfinished.",
     "Named .fcdsa Save now prepares complete bytes and presents a separate preserving Keep existing / Replace review in memory and indexed views. Fresh one-use pending replacement recovery supports actual-file restore/finish states and preserving new-name previous copies; no marker replay. Browser maintenance works at eight tabs. Opened inventories retain verified saved references, removed copies become temporary observations, and uncertain recovery copies preserve original saved markers. r953107 core and31new native/UI preflights pass all3; final r955 broad Windows1503core/48skips+75native+368render/1skip and Mac/Ubuntu1529core/4skips+369render pass. Process-death/power-loss and complete native desktop qualification remain open.",
-    "25 actual process-death boundaries and two replacement root-close controls pass Windows/Mac/Ubuntu. Windows staging cleanup is armed atomically at native create; confirmed save receipts survive final close uncertainty. Applicable broad suites pass all three; power-loss, physical desktop and full persistence qualification remain open."
+    "25 actual process-death boundaries and two replacement root-close controls pass Windows/Mac/Ubuntu. Windows staging cleanup is armed atomically at native create; confirmed save receipts survive final close uncertainty. Applicable broad suites pass all three; power-loss, physical desktop and full persistence qualification remain open.",
+    "Native Keep/Replace control-event cases pass Windows/Mac/Ubuntu for memory and indexed views, including saved-reference invalidation at eight tabs. Actual480/1100 widths, font20 and Classic/Dark/HighContrast are checked; Mac visuals use its authorized compositor helper because native bitmap overlay capture is inaccurate. Sources remain unchanged and all task apps exit. Full physical input, a11y, display/package and persistence gates remain open."
   ],
   "validation": {
     "windowsCore": {
@@ -8286,11 +8287,298 @@
       "fullPersistenceGateQualified": false,
       "publicFeatureRegistered": false,
       "finalIndependentReviewPerformed": false
+    },
+    "nativeNamedReplacement": {
+      "manifest": "source-manifest-r978.json",
+      "matrix": {
+        "windows": {
+          "revision": "r975",
+          "cases": 4,
+          "sessionsAtIndexedReview": 8,
+          "sourceUnchanged": true,
+          "postProcesses": [],
+          "nativeWindowVisible": true,
+          "appSha256": "598c0ebbb19924bc9e2e20a0e921c92474e605a9b0a18211c742e53660af1514",
+          "harnessSha256": "08d4c2cf737be51fc81a132ff51d5f8c91bca0aaa60fdbe4617d6e39ead0cc00",
+          "captures": [
+            {
+              "frame": "replacement-memory-keep-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-memory-keep-Classic.png",
+              "width": 480,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-memory-keep-HighContrast.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-memory-replace-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-indexed-keep-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-indexed-keep-Classic.png",
+              "width": 480,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-indexed-keep-HighContrast.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-indexed-replace-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            }
+          ],
+          "launch": {
+            "childSession": 1,
+            "user": "DESKTOP-A60F1NE\\filecatdsa_r2",
+            "childName": "FileCat",
+            "runnerSession": 1
+          },
+          "linuxRestore": null
+        },
+        "mac": {
+          "revision": "r975",
+          "cases": 4,
+          "sessionsAtIndexedReview": 8,
+          "sourceUnchanged": true,
+          "postProcesses": [],
+          "nativeWindowVisible": true,
+          "appSha256": "598c0ebbb19924bc9e2e20a0e921c92474e605a9b0a18211c742e53660af1514",
+          "harnessSha256": "08d4c2cf737be51fc81a132ff51d5f8c91bca0aaa60fdbe4617d6e39ead0cc00",
+          "captures": [
+            {
+              "frame": "replacement-memory-keep-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": true
+            },
+            {
+              "frame": "replacement-memory-keep-Classic.png",
+              "width": 480,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": true
+            },
+            {
+              "frame": "replacement-memory-keep-HighContrast.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": true
+            },
+            {
+              "frame": "replacement-memory-replace-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": true
+            },
+            {
+              "frame": "replacement-indexed-keep-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": true
+            },
+            {
+              "frame": "replacement-indexed-keep-Classic.png",
+              "width": 480,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": true
+            },
+            {
+              "frame": "replacement-indexed-keep-HighContrast.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": true
+            },
+            {
+              "frame": "replacement-indexed-replace-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 2,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": true
+            }
+          ],
+          "launch": null,
+          "linuxRestore": null
+        },
+        "ubuntu": {
+          "revision": "r977",
+          "cases": 4,
+          "sessionsAtIndexedReview": 8,
+          "sourceUnchanged": true,
+          "postProcesses": [],
+          "nativeWindowVisible": true,
+          "appSha256": "598c0ebbb19924bc9e2e20a0e921c92474e605a9b0a18211c742e53660af1514",
+          "harnessSha256": "08d4c2cf737be51fc81a132ff51d5f8c91bca0aaa60fdbe4617d6e39ead0cc00",
+          "captures": [
+            {
+              "frame": "replacement-memory-keep-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-memory-keep-Classic.png",
+              "width": 480,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-memory-keep-HighContrast.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-memory-replace-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-indexed-keep-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-indexed-keep-Classic.png",
+              "width": 480,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-indexed-keep-HighContrast.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 20,
+              "compositorCaptured": false
+            },
+            {
+              "frame": "replacement-indexed-replace-ClassicDark.png",
+              "width": 1100,
+              "height": 620,
+              "RenderScaling": 1,
+              "windowState": "Normal",
+              "fontSize": 14,
+              "compositorCaptured": false
+            }
+          ],
+          "launch": null,
+          "linuxRestore": {
+            "window": "20971539",
+            "pid": 655844,
+            "before": "_NET_WM_STATE(ATOM) = \nWM_NORMAL_HINTS(WM_SIZE_HINTS):\n\t\tprogram specified minimum size: 360 by 360\n\t\tprogram specified resize increment: 1 by 1\n_NET_FRAME_EXTENTS(CARDINAL) = 0, 0, 37, 0\n",
+            "after": "_NET_WM_STATE(ATOM) = \nWM_NORMAL_HINTS(WM_SIZE_HINTS):\n\t\tprogram specified minimum size: 360 by 360\n\t\tprogram specified resize increment: 1 by 1\n_NET_FRAME_EXTENTS(CARDINAL) = 0, 0, 37, 0\n",
+            "initialGeometry": "WINDOW=20971539\nX=14\nY=118\nWIDTH=1180\nHEIGHT=731\nSCREEN=0\n",
+            "resizedGeometry": "WINDOW=20971539\nX=0\nY=106\nWIDTH=1280\nHEIGHT=731\nSCREEN=0\n",
+            "nativeRestoreKeyUsed": false,
+            "nativeResizeRequested": true
+          }
+        }
+      },
+      "nativeReplacementControlEventsPassedAllThree": true,
+      "memoryAndIndexedAtCapacity": true,
+      "threeThemesAndLargeTextAt480And1100Widths": true,
+      "macVisualFindingUsesCompositorOnly": true,
+      "fullPhysicalInputQualified": false,
+      "fullAccessibilityQualified": false,
+      "fullDpiDisplayPackageMatrixQualified": false,
+      "fullPersistenceGateQualified": false,
+      "publicFeatureRegistered": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
     "W1: the normal development bounded-memory lifecycle shares private-boundary preparation and waits actual view/acquisition work; eight slots now cover windows, pending opens and failed closes process-wide. Finish the qualified public entry/lifecycle and indexed transition without unqualified spill; memory pressure/partial-stop, remaining dataset/CPU queues and full private-memory qualification (producer payload now shares a partitioned8 MiB envelope and explorer creation/page/inspection/chart work shares eight places, with actual-lifetime controls all3), actual mixed-volume/native-device identity, package/session/domain agreement, normal catalog/explorer adoption with indexed persistence/comparison parity, guarded general external-file input and full streaming-import adoption (private catalog-aware loading and saved-view restoration now pass all3) (bounded full native dataset write already passes all3), end-to-end1M/10M and every resource limit remain required. Complete the full native acquisition/constructor/rollback fault matrix and global resource qualification. File/directory/kernel/token close accounting, retained faulted quota workers, the128-handle limit and cross-process capacity/actual-exit probes are implemented with applicable all3 controls; the complete unconfirmed-owner/global resource gate remains unqualified.",
-    "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu dynamic restore/resize remains unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
+    "Continue native desktop qualification beyond the passing initial compact setup: Ubuntu normal native resize at480/1100 now passes (r978); maximize/restore and display changes remain unqualified; Windows complete native input, screen-reader/theme/DPI and display changes remain open.",
     "W2: complete full native pointer/key qualification (runtime deferred materialization/review, memory scoped/hidden-mark review and matching-file capture now pass all3) (indexed captured-folder/scoped marks/cross-page range controls now pass all3), folder and grouped exact Other explorer/chart/history/selection/SaveOpen controls pass all3; complete the remaining geometry, raw-name, interaction and resource parity matrix; qualify full indexed Other-subset persistence parity, full native indexed Save/Open qualification and remaining dimensions (memory grouping/captured selection and schema4 saved grouping restoration now pass all3) (indexed selector/chart/table/navigation/inspection now pass all3) (memory and indexed type/extension/captured-age/location stores, bounded pages and native capture controls now pass all3), owner/comparison/qualified-volume grouping and comparison-growth coloring (basic type/depth/captured-age colors, themed legends and strict saved-view restore now pass all3), scoped selection/marks/baskets/hidden-mark counts and complete columns/tooltips. Indexed numeric/Name/Metadata state directions and focused-ID retention now pass all3 runtimes. Internal native acquisition/Table/link subset passes; full native pointer/a11y/theme/display/package/resource qualification remains open.",
     "W3: named .fcdsa prepared replacement, themed preserving review, explicit fresh recovery/browser/new-name fallback and saved-reference integration now pass Windows/Mac/Ubuntu r953/r955 native-file/headless checks. Actual process-death/anonymous staging and root-close controls now pass all three (r967). Next qualify power-loss boundaries and physical desktop/theme/DPI/a11y/package controls; complete comparison replacement or prescribed qualified unavailable behavior, optional capped rolling history, general import/export and multiple-active/indexed-scale comparison/persistence. The complete persistence gate remains unqualified.",
     "W0: finish raw-name fidelity/display, complete requested-component coverage and per-method qualification, source continuity and fully bounded validation/indexing. A valid data model is never live authority.",

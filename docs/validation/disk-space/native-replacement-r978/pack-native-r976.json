@@ -1,0 +1,31 @@
+{
+  "revision": "r976",
+  "baseline": "r975",
+  "elapsedSeconds": 4.708747500000754,
+  "platforms": [
+    {
+      "platform": "mac",
+      "archive": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\desktop-r976-mac.tgz",
+      "sha256": "546d9ce067a16f8f30dca523324b576e7352a10ec0c8caea1eb9b7388effe328",
+      "bytes": 4485,
+      "guestReuse": true,
+      "changed": []
+    },
+    {
+      "platform": "linux",
+      "archive": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\desktop-r976-linux.tgz",
+      "sha256": "8e2c37c90694396743e1edebda8eda8a27b2f22e799b7ed59921f58a3553e3e9",
+      "bytes": 4427,
+      "guestReuse": true,
+      "changed": []
+    },
+    {
+      "platform": "windows",
+      "archive": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\desktop-r976-windows.tgz",
+      "sha256": "4922588dc79993773e487239987c7cb84666520d3d498e23010d0adac7a310bc",
+      "bytes": 4576,
+      "guestReuse": true,
+      "changed": []
+    }
+  ]
+}

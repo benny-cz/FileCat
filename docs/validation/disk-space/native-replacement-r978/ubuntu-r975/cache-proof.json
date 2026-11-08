@@ -1,0 +1,8 @@
+{
+  "baseline": "/home/benny/FileCatValidation/dsa-native-r972/app",
+  "verifiedInputs": 75,
+  "patched": [
+    "DiskSpaceHarness.dll",
+    "DiskSpaceHarness.pdb"
+  ]
+}

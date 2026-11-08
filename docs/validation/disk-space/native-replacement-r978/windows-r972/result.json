@@ -1,0 +1,12 @@
+{
+    "purpose":  "Native window control-event and filesystem subset; OS input/a11y/compositor/package coverage remains open",
+    "pid":  5284,
+    "bundleSha256":  "9a762f1d36153c06b363070c2876d47bf586e44fa8fdef0156f331f86a998c1b",
+    "passed":  false,
+    "error":  "Owned child ended or another tester appeared\r\nAt C:\\FileCatDsa20261104R2\\native-r972\\run.ps1:28 char:44\r\n+ ... 0]-ne$child.Id){throw \u0027Owned child ended or another tester appeared\u0027}\r\n+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (Owned child end...tester appeared:String) [], Ru \r\n   ntimeException\r\n    + FullyQualifiedErrorId : Owned child ended or another tester appeared\r\n \r\n",
+    "forcedOwnedTermination":  true,
+    "exitCode":  null,
+    "postProcesses":  [
+
+                      ]
+}
