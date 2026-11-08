@@ -43,6 +43,7 @@ internal static class ArchiveEditLegacyZipCases
             var store=new EditSessionStore(Path.Combine(fixture,"sessions"),native,open);
             var location=reader.GetContainerLocation(archive)!;var sink=new Sink();await reader.EnumerateAsync(location,sink,ct);
             var record=store.Create(reader,reader.GetItemRef(location,sink.Entries.Single(entry=>entry.Name=="notes.txt")),ct);
+            reader.Release(archive); // End the browsing index lease before the fixture's independent in-place archive edit.
             Assert.Equal(EditSessionRecord.NativeStorageVersion,record.Version);Assert.True(record.IsLegacyZip);
             byte[] bytes=scenario=="empty"?[]:scenario=="large"?Enumerable.Range(0,2097161).Select(value=>(byte)(value*31)).ToArray():"reviewed immutable edit"u8.ToArray();
             File.WriteAllBytes(record.WorkingPath,bytes);copy=store.PrepareCommit(record,fixture,ct);

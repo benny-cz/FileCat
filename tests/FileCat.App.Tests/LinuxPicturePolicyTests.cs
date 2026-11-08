@@ -25,7 +25,11 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
         }
         var parentBefore = Status("/proc/thread-self/status");
         var start = PictureDecoder.SandboxedWorkerStartInfo(64);
+        // Match the production StartUnix launch: a private SDK can symlink its serviced runtime elsewhere.
+        // The worker admits the actual loaded runtime root, not an inherited SDK/loader override.
+        start.Environment.Clear();
         start.Environment["DOTNET_EnableDiagnostics"] = "0";
+        start.Environment["DOTNET_ROOT"] = LinuxPictureSandbox.RuntimeRoot();
         using var worker = Process.Start(start)!;
         var error = worker.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
         var response = new MemoryStream();
@@ -44,6 +48,12 @@ public sealed class LinuxPicturePolicyTests(ITestOutputHelper output)
                 await Task.Delay(10, TestContext.Current.CancellationToken);
             }
             output.WriteLine(JsonSerializer.Serialize(new { kind, RuntimeInformation.ProcessArchitecture, ParentBefore = parentBefore, PID = worker.Id, WorkerBeforeInput = observed }));
+            if(worker.HasExited)
+            {
+                await reading.WaitAsync(TimeSpan.FromSeconds(5),TestContext.Current.CancellationToken);
+                output.WriteLine(JsonSerializer.Serialize(new{worker.ExitCode,Answer=Convert.ToBase64String(response.ToArray()),
+                    Stderr=await error.WaitAsync(TimeSpan.FromSeconds(5),TestContext.Current.CancellationToken)}));
+            }
             Assert.False(worker.HasExited);
             Assert.NotNull(observed);
             Assert.Equal(1, observed["NoNewPrivs"]);
