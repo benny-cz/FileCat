@@ -106,7 +106,7 @@ internal static class ArchiveEditSnapshotCases
             var profile=new ArchiveWriteProfile(ArchiveWriteFormat.Tar);
             if(scenario.StartsWith("plan-",StringComparison.Ordinal))
             {var parts=scenario.Split('-');profile=ArchiveNativeJobCases.Profile((ArchiveWriteFormat)int.Parse(parts[1]),int.Parse(parts[2]));}
-            var manifest=Original(profile);var source=new ArchiveAssessment(manifest,new string('A',64),2048,new string('B',64));
+            var manifest=Original(profile);var source=new ArchiveAssessment(manifest,new string('B',64),2048,new string('B',64));
             var plan=new ArchivePlan(Path.Combine(fixture,"target.zip"),new(2048,time.Ticks,new string('B',64)),
                 [new(ArchiveChangeKind.Replace,"member.txt",copy.Path,Ordinal:0)],Profile:profile)
             {EditInput=native,ReviewedManifestDigest=manifest.Digest,NativeBaseline=new(new("outer",2048,new string('B',64)),"outer-parent","target.zip",
