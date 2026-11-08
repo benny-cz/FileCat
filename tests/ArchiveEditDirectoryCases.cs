@@ -30,7 +30,7 @@ internal static class ArchiveEditDirectoryCases
             if(scenario=="public-parent")
             { Assert.Throws<UnauthorizedAccessException>(()=>root.CreateFile("never-created",ct));Assert.Empty(Directory.GetFileSystemEntries(path));return; }
             using var session=root.CreateDirectory("session",ct);
-            using var files=session.CreateDirectory("files",ct);
+            using var files=session.CreateDirectory("files",ct,removable:scenario.StartsWith("remove-",StringComparison.Ordinal));
             if(scenario.StartsWith("remove-",StringComparison.Ordinal))
             {
                 if(scenario=="remove-root")Assert.ThrowsAny<IOException>(()=>root.RemoveEmpty(ct));

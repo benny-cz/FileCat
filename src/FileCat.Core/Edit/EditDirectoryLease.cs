@@ -14,7 +14,7 @@ internal abstract class EditDirectoryLease : IDisposable
     internal abstract string Path { get; }
     internal abstract string Identity { get; }
     internal abstract SafeFileHandle Handle { get; }
-    internal abstract EditDirectoryLease CreateDirectory(string leaf, CancellationToken ct);
+    internal abstract EditDirectoryLease CreateDirectory(string leaf,CancellationToken ct,bool removable=false);
     internal abstract EditDirectoryLease OpenDirectory(string leaf, string? expectedIdentity, CancellationToken ct);
     internal abstract FileStream CreateFile(string leaf, CancellationToken ct);
     internal abstract FileStream OpenFile(string leaf, string? expectedIdentity, CancellationToken ct);

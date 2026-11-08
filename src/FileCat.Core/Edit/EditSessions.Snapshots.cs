@@ -15,11 +15,11 @@ public sealed partial class EditSessionStore
         var revision=source.GetRevision()??throw new IOException("The working copy has no native version.");
         admission.ReserveBytes(revision.Length);
         var origin=source.ReadOrigin();Check();
-        var capture=session.CreateDirectory("commit-"+Guid.NewGuid().ToString("N"),ct);
+        var capture=session.CreateDirectory("commit-"+Guid.NewGuid().ToString("N"),ct,removable:true);
         EditDirectoryLease? files=null;FileStream? output=null;var records=new List<EditPublishedRecord>(2);
         try
         {
-            files=capture.CreateDirectory("files",ct);
+            files=capture.CreateDirectory("files",ct,removable:true);
             string leaf=Path.GetFileName(record.WorkingPath),path=Path.Combine(files.Path,leaf);
             records.Add(CreateRecordBytes(capture,"capture.json",JsonSerializer.SerializeToUtf8Bytes(new{Version=1,Session=record.Id,
                 SessionRecord=record.StoredRecordSha256,Directory=capture.Identity,Files=files.Identity,Leaf=leaf},Json),ct));

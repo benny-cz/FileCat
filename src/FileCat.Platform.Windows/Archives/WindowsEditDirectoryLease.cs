@@ -22,14 +22,15 @@ internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
     private readonly string owner;
     private readonly byte[] security;
     private readonly bool isPrivate;
+    private readonly bool removableCreated;
     internal override string Path { get; }
     internal override string Identity { get; }
     internal override SafeFileHandle Handle => directory;
 
     private WindowsEditDirectoryLease(string path,SafeFileHandle directory,string owner,bool isPrivate,
-        LocalIconFileLease? rootPins=null,WindowsEditDirectoryLease? parent=null,string? leaf=null)
+        LocalIconFileLease? rootPins=null,WindowsEditDirectoryLease? parent=null,string? leaf=null,bool removableCreated=false)
     {
-        Path=path;this.directory=directory;this.owner=owner;this.isPrivate=isPrivate;this.rootPins=rootPins;this.parent=parent;this.leaf=leaf;
+        Path=path;this.directory=directory;this.owner=owner;this.isPrivate=isPrivate;this.rootPins=rootPins;this.parent=parent;this.leaf=leaf;this.removableCreated=removableCreated;
         try
         {
             parentOwner=parent?.RetainForChild();Identity=ProtectedHexFile.Identity(directory).ToString();
@@ -72,15 +73,15 @@ internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
             throw new IOException("The pinned edit root changed.");
         if(isPrivate)WindowsArchiveNative.RequirePrivateEditSecurity(directory,owner,true);
     }
-    internal override EditDirectoryLease CreateDirectory(string name,CancellationToken ct)
+    internal override EditDirectoryLease CreateDirectory(string name,CancellationToken ct,bool removable=false)
     {
         lock(Gate)
         {
             RequireOpen();Leaf(name);ReviewCore(ct);
-            int status=TryOpen(directory,name,GenericRead|GenericWrite|0x20000|Synchronize,ShareRead|ShareWrite,Create,
+            int status=TryOpen(directory,name,GenericRead|GenericWrite|0x20000|Synchronize|(removable?Delete:0),ShareRead|ShareWrite|(removable?ShareDelete:0),Create,
                 DirectoryFile|OpenReparsePoint,out var child,(uint)FileAttributes.Directory,security);
             if(status<0){child.Dispose();throw Error(status,"Create private edit directory");}
-            var result=new WindowsEditDirectoryLease(System.IO.Path.Combine(Path,name),child,owner,true,parent:this,leaf:name);
+            var result=new WindowsEditDirectoryLease(System.IO.Path.Combine(Path,name),child,owner,true,parent:this,leaf:name,removableCreated:removable);
             try{ReviewCore(ct);return result;}catch{result.Dispose();throw;}
         }
     }
@@ -173,21 +174,15 @@ internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
         lock(Gate)
         {
             RequireNoChildren();ReviewCore(ct);
-            if(!isPrivate||parent is null||leaf is null)throw new IOException("Only an owned private child directory can be removed.");
+            if(!isPrivate||!removableCreated||parent is null||leaf is null)throw new IOException("Only a private child directory created for removal by this live scope can be removed.");
             if(Names(ct).Count!=0)throw new IOException("The private edit directory is not empty: "+Path);
-            // Preserve exact-object authority while dropping the original access/share combination. No path reopen.
-            using var retained=WindowsArchiveNative.ReopenEditDirectory(directory,GenericRead|0x20000|Synchronize,ShareAll);
-            if(ProtectedHexFile.Identity(retained).ToString()!=Identity)throw new IOException("The retained directory identity changed.");
-            directory.Dispose();
-            using var deleting=WindowsArchiveNative.ReopenEditDirectory(retained,GenericRead|Delete|0x20000|Synchronize,ShareRead|ShareWrite);
-            WindowsArchiveNative.SourceDirectory(deleting);WindowsArchiveNative.RequirePrivateEditSecurity(deleting,owner,true);
-            if(ProtectedHexFile.Identity(deleting).ToString()!=Identity)throw new IOException("The directory removal handle identifies another object.");
+            // DELETE was granted at exclusive creation. Keep the exact native object through its final disposition.
             parent.ReviewRetained(ct);
             using(var named=OpenOrThrow(parent.Handle,leaf,ReadAttributes|Synchronize,ShareAll,Open,DirectoryFile|OpenReparsePoint,"Review empty edit directory"))
                 if(ProtectedHexFile.Identity(named).ToString()!=Identity)throw new IOException("The directory name changed; its files are kept.");
-            if(List(deleting).Count!=0)throw new IOException("A new child appeared in the private edit directory: "+Path);
+            if(List(directory).Count!=0)throw new IOException("A new child appeared in the private edit directory: "+Path);
             ct.ThrowIfCancellationRequested();
-            try{WindowsArchiveNative.DeleteExact(deleting);deleting.Dispose();}
+            try{WindowsArchiveNative.DeleteExact(directory);directory.Dispose();}
             catch(System.ComponentModel.Win32Exception error){throw new IOException("The empty private edit directory could not be removed: "+Path,error);}
             Dispose();
         }

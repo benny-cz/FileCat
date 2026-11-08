@@ -54,7 +54,7 @@ internal sealed class UnixEditDirectoryLease : EditDirectoryLease
         if (UnixFiles.Stat(directory) is not { IsDirectory:true } facts || facts.Identity.ToString()!=Identity) throw UnixArchiveNative.Unavailable();
         if (isPrivate) UnixArchiveNative.RequireEditDirectory(directory,user);
     }
-    internal override EditDirectoryLease CreateDirectory(string name,CancellationToken ct)
+    internal override EditDirectoryLease CreateDirectory(string name,CancellationToken ct,bool removable=false)
     {
         lock(Gate)
         {
