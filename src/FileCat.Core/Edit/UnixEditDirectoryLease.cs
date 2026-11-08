@@ -78,6 +78,26 @@ internal sealed class UnixEditDirectoryLease : EditDirectoryLease
     }
     internal override FileStream CreateFile(string name,CancellationToken ct) => OpenFileCore(name,null,true,ct);
     internal override FileStream OpenFile(string name,string? expected,CancellationToken ct) => OpenFileCore(name,expected,false,ct);
+    internal override string Identify(SafeFileHandle file)
+    {UnixArchiveNative.RequirePrivate(file,user);return UnixFiles.Stat(file)!.Value.Identity.ToString();}
+    internal override void PublishNewFile(FileStream file,string source,string target,EditFileVersion expected,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            RequireOpen();Leaf(source);Leaf(target);ReviewCore(ct);
+            if(!isPrivate||source==target||Inspect(file,ct)!=expected)throw new IOException("The new edit record does not match its owned artifact.");
+            using(var named=UnixArchiveNative.Child(directory,source))
+                if(UnixFiles.Stat(named)?.Identity.ToString()!=expected.Identity)throw new IOException("The edit record's source name changed.");
+            file.Flush(true);UnixArchiveNative.SyncFile(file.SafeFileHandle);ct.ThrowIfCancellationRequested();
+            UnixArchiveNative.PublishEditFile(directory,source,target);
+            // The exclusive rename may already have happened. An uncertain post-review retains both names; no pathname rollback/deletion.
+            ReviewCore(CancellationToken.None);
+            using(var named=UnixArchiveNative.Child(directory,target))
+                if(UnixFiles.Stat(named)?.Identity.ToString()!=expected.Identity)throw new IOException("The published edit record needs review.");
+            if(Inspect(file,CancellationToken.None)!=expected)throw new IOException("The published edit record bytes changed.");
+            UnixArchiveNative.SyncDirectory(directory);
+        }
+    }
     private FileStream OpenFileCore(string name,string? expected,bool create,CancellationToken ct)
     {
         lock(Gate)

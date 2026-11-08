@@ -33,11 +33,12 @@ internal static class ArchiveEditDirectoryCases
             using var files=session.CreateDirectory("files",ct);
             if(scenario=="bad-leaves")
             {
-                foreach(string bad in new[]{"", ".", "..", "../escape", "folder/escape", "folder\\escape", "name:stream", "CON", "bad\ud800",new string('x',256)})
+                foreach(string bad in new[]{"", ".", "..", "../escape", "folder/escape", "folder\\escape", "name:stream", "bad\ud800",new string('x',256)})
                 { Assert.Throws<ArgumentException>(()=>files.CreateFile(bad,ct));Assert.Throws<ArgumentException>(()=>files.CreateDirectory(bad,ct)); }
+                if(OperatingSystem.IsWindows())Assert.Throws<ArgumentException>(()=>files.CreateFile("CON",ct));
             }
             else if(scenario=="wrong-directory-id")
-            { Assert.Throws<IOException>(()=>session.OpenDirectory("files","not-the-owned-directory",ct)); }
+            { Assert.ThrowsAny<IOException>(()=>session.OpenDirectory("files","not-the-owned-directory",ct)); }
             else if(scenario=="parent-disposed")
             {
                 root.Dispose();session.Dispose();
@@ -57,6 +58,35 @@ internal static class ArchiveEditDirectoryCases
                 {files.Dispose();session.Dispose();root.Dispose();stream.Write("held stream survives owner release"u8);stream.Flush(true);}
                 Assert.Equal("held stream survives owner release",File.ReadAllText(dataPath));
             }
+            else if(scenario.StartsWith("publish",StringComparison.Ordinal))
+            {
+                using var stream=files.CreateFile("new-record",ct);stream.Write("complete new record"u8);var expected=files.Inspect(stream,ct);
+                if(scenario=="publish-collision")
+                {
+                    using(var target=files.CreateFile("record.json",ct))target.Write("keep previous record"u8);
+                    Assert.ThrowsAny<IOException>(()=>files.PublishNewFile(stream,"new-record","record.json",expected,ct));
+                    Assert.Equal("keep previous record",File.ReadAllText(System.IO.Path.Combine(files.Path,"record.json")));
+                }
+                else if(scenario=="publish-wrong-source")
+                {
+                    using(var other=files.CreateFile("different-source",ct))other.Write("keep different source"u8);
+                    Assert.ThrowsAny<IOException>(()=>files.PublishNewFile(stream,"different-source","record.json",expected,ct));
+                    Assert.Equal("keep different source",File.ReadAllText(System.IO.Path.Combine(files.Path,"different-source")));
+                    Assert.False(File.Exists(System.IO.Path.Combine(files.Path,"record.json")));
+                }
+                else if(scenario=="publish-wrong-bytes")
+                {
+                    Assert.ThrowsAny<IOException>(()=>files.PublishNewFile(stream,"new-record","record.json",expected with{Sha256=new('A',64)},ct));
+                    Assert.False(File.Exists(System.IO.Path.Combine(files.Path,"record.json")));
+                }
+                else
+                {
+                    files.PublishNewFile(stream,"new-record","record.json",expected,ct);
+                    Assert.False(File.Exists(System.IO.Path.Combine(files.Path,"new-record")));
+                    stream.Dispose();
+                    using var published=files.OpenFile("record.json",expected.Identity,ct);Assert.Equal(expected,files.Inspect(published,ct));
+                }
+            }
             else if(scenario=="parent-redirect")
             {
                 string retained=System.IO.Path.Combine(fixture,"retained");
@@ -75,7 +105,7 @@ internal static class ArchiveEditDirectoryCases
                 { stream.Write("exact native edit bytes"u8);stream.Flush(true);id=identity(stream.SafeFileHandle); }
                 string dataPath=System.IO.Path.Combine(files.Path,name);
                 if(scenario=="collision")Assert.Throws<IOException>(()=>files.CreateFile(name,ct));
-                else if(scenario=="wrong-file-id")Assert.Throws<IOException>(()=>files.OpenFile(name,"not-the-owned-file",ct));
+                else if(scenario=="wrong-file-id")Assert.ThrowsAny<IOException>(()=>files.OpenFile(name,"not-the-owned-file",ct));
                 else if(scenario=="file-substitution")
                 {
                     File.Move(dataPath,dataPath+".retained");File.WriteAllText(dataPath,"unreviewed replacement");

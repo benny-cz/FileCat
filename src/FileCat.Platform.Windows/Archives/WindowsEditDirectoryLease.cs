@@ -100,6 +100,24 @@ internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
     }
     internal override FileStream CreateFile(string name,CancellationToken ct)=>OpenFileCore(name,null,true,ct);
     internal override FileStream OpenFile(string name,string? expected,CancellationToken ct)=>OpenFileCore(name,expected,false,ct);
+    internal override string Identify(SafeFileHandle file)
+    {WindowsArchiveNative.Regular(file,FileCat.Core.Edit.EditSessionStore.MaxMemberBytes,true,false);WindowsArchiveNative.RequirePrivateSecurity(file,owner);return ProtectedHexFile.Identity(file).ToString();}
+    internal override void PublishNewFile(FileStream file,string source,string target,EditFileVersion expected,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            RequireOpen();Leaf(source);Leaf(target);ReviewCore(ct);
+            if(!isPrivate||source==target||Inspect(file,ct)!=expected)throw new IOException("The new edit record does not match its owned artifact.");
+            using(var named=OpenOrThrow(directory,source,ReadAttributes|Synchronize,ShareAll,Open,NonDirectoryFile|OpenReparsePoint,"Review new edit record"))
+                if(ProtectedHexFile.Identity(named).ToString()!=expected.Identity)throw new IOException("The edit record's source name changed.");
+            file.Flush(true);WindowsArchiveNative.Flush(file.SafeFileHandle);ct.ThrowIfCancellationRequested();
+            Rename(file.SafeFileHandle,directory,target,replace:false);
+            ReviewCore(CancellationToken.None);
+            using(var named=OpenOrThrow(directory,target,ReadAttributes|Synchronize,ShareAll,Open,NonDirectoryFile|OpenReparsePoint,"Review published edit record"))
+                if(ProtectedHexFile.Identity(named).ToString()!=expected.Identity)throw new IOException("The published edit record needs review.");
+            if(Inspect(file,CancellationToken.None)!=expected)throw new IOException("The published edit record bytes changed.");
+        }
+    }
     private FileStream OpenFileCore(string name,string? expected,bool create,CancellationToken ct)
     {
         lock(Gate)
