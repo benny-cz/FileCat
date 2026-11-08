@@ -1,0 +1,10 @@
+{
+  "observedUtc": "2026-11-08T06:03:52.368655+00:00",
+  "exitCode": 0,
+  "filecatOrDotnet": [
+    " 746925  744328 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet test /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --no-build --disable-build-servers -p:NuGetAudit=false -m:1 --filter FullyQualifiedName~FileCat.Core.Tests --logger trx;LogFileName=archive-creation-core.trx --results-directory /home/benny/FileCatValidation/archive-writing-42829297/awt-v2/results",
+    " 746941  746925 dotnet exec /home/benny/FileCatValidation/archive-writing-42829297/dotnet/sdk/10.0.101/vstest.console.dll --framework:.NETCoreApp,Version=v10.0 --testCaseFilter:FullyQualifiedName~FileCat.Core.Tests --logger:trx;LogFileName=archive-creation-core.trx --resultsDirectory:/home/benny/FileCatValidation/archive-writing-42829297/awt-v2/results /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll --logger:Console;Verbosity=minimal --artifactsProcessingMode-collect --testSessionCorrelationId:746925_2eeea033-b7e5-47a2-b0d2-60ed35fe5492",
+    " 746954  746941 /home/benny/FileCatValidation/archive-writing-42829297/dotnet/dotnet exec --runtimeconfig /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.runtimeconfig.json --depsfile /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.deps.json /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/testhost.dll --port 42991 --endpoint 127.0.0.1:042991 --role client --parentprocessid 746941 --telemetryoptedin false",
+    " 747003  746954 /home/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests @@ /tmp/tmpCloLIS.tmp"
+  ]
+}

@@ -137,13 +137,20 @@ public sealed partial class AnalysisRenderingTests
             await Until(() => IndexedDetails(window).Text?.Contains("match-target.bin", StringComparison.Ordinal) == true); Frame(window);
             var check = window.GetVisualDescendants().OfType<CheckBox>().Single(check => check.Tag is ulong id && id == row.Member.Path.Id);
             check.BringIntoView(); Frame(window); point = check.TranslatePoint(new Point(check.Bounds.Width / 2, check.Bounds.Height / 2), window)!.Value;
-            var before = list.ItemsSource; window.MouseMove(point); window.MouseDown(point, MouseButton.Left); pressed = true;
+            var hit = window.InputHitTest(point) as Visual;
+            Assert.True(hit == check || hit?.GetVisualAncestors().Contains(check) == true,
+                $"Pointer {point} missed checkbox {check.Bounds}; hit {hit?.GetType().Name}.");
+            var before = list.ItemsSource; window.MouseMove(point); Frame(window); window.MouseDown(point, MouseButton.Left); pressed = true;
+            Assert.True(check.IsPressed, "The rendered checkbox must own the press before changing the filter.");
             window.GetVisualDescendants().OfType<TextBox>().Single(text => AutomationProperties.GetName(text) == "Filter indexed observations").Text = "name:file-0000.bin";
             Click(window, "Apply filter");
             await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Query ready. Finish the current interaction to display it."));
-            Assert.Same(before, list.ItemsSource); window.MouseUp(point, MouseButton.Left); pressed = false;
+            Assert.Same(before, list.ItemsSource);
+            var afterPoint = check.TranslatePoint(new Point(check.Bounds.Width / 2, check.Bounds.Height / 2), window);
+            bool pressedBeforeRelease = check.IsPressed, overBeforeRelease = check.IsPointerOver;
+            window.MouseUp(point, MouseButton.Left); pressed = false;
             await Until(() => GroupReady(window) && !ReferenceEquals(before, list.ItemsSource)); Frame(window);
-            Assert.True(IndexedSelectionCount(window, 1, 0)); Click(window, "Add to review basket");
+            Assert.True(IndexedSelectionCount(window, 1, 0), $"Checkbox before={point}, after={afterPoint}, pressed={pressedBeforeRelease}, over={overBeforeRelease}; {IndexedSelectionSummary(window)}"); Click(window, "Add to review basket");
             Click(window, "Review captured basket"); await Until(() => window.GetVisualDescendants().OfType<ListBox>().Any(control => AutomationProperties.GetName(control) == "Captured basket entries")); Frame(window);
             var basket = window.GetVisualDescendants().OfType<ListBox>().Single(control => AutomationProperties.GetName(control) == "Captured basket entries");
             Assert.Contains("match-target.bin", Assert.Single(basket.Items)?.ToString()); Click(window, "Keep files / Close review");

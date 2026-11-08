@@ -14,7 +14,7 @@ internal sealed class AnalysisHistorySettingsEditor
     private readonly NumericUpDown _age = Number(1, AnalysisRollingHistoryPolicy.AgeHardLimitDays, 1);
     private readonly NumericUpDown _bytes = Number(1, AnalysisRollingHistoryPolicy.ByteHardLimit, 1L << 20);
     internal Control View { get; }
-    internal AnalysisHistorySettingsEditor(AnalysisRollingHistoryPolicy current, string directory)
+    internal AnalysisHistorySettingsEditor(AnalysisRollingHistoryPolicy current, string directory, Func<Task>? browseHistory = null)
     {
         current.Validate(); _enabled.IsChecked = current.Enabled;
         _count.Value = current.MaximumEntries; _age.Value = current.MaximumAgeDays; _bytes.Value = current.MaximumBytes;
@@ -25,6 +25,12 @@ internal sealed class AnalysisHistorySettingsEditor
             ("", Note("History is off by default. When enabled, successful live metadata scans are captured once after source cleanup. Imported, stopped and failed sessions are excluded. Partial coverage stays labelled. File contents are excluded; names, paths and metadata can be sensitive.")),
             ("", Note("OK reviews changes to history separately before applying them. Automatic pruning affects only rolling copies in this folder. Turning history off keeps existing files. Named analyses, pinned named copies and source files are outside pruning. Deletion is logical, not secure erasure."))
         ]);
+        if (browseHistory is not null && View is DialogForm form)
+        {
+            var browse = new Button { Content = "Browse and manage history" };
+            browse.Click += async (_, _) => await browseHistory();
+            View = new StackPanel { Spacing = 8, Children = { form, browse, Note("History uses the last applied policy until you confirm Settings.") } };
+        }
     }
     internal bool TryGet(out AnalysisRollingHistoryPolicy policy, out string? error, out Control invalid)
     {

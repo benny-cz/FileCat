@@ -7,10 +7,11 @@ public sealed class AnalysisIndexedInventory : IAsyncDisposable
 {
     private readonly AnalysisDataset _dataset;
     private static readonly SemaphoreSlim Loads = new(2, 2);
-    internal AnalysisIndexedInventory(Guid inventoryId, long sourceBytes, AnalysisDataset dataset)
-    { InventoryId = inventoryId; SourceBytes = sourceBytes; _dataset = dataset; }
+    internal AnalysisIndexedInventory(Guid inventoryId, long sourceBytes, string sourceSha256, AnalysisDataset dataset)
+    { InventoryId = inventoryId; SourceBytes = sourceBytes; SourceSha256 = sourceSha256; _dataset = dataset; }
     public Guid InventoryId { get; }
     public long SourceBytes { get; }
+    internal string SourceSha256 { get; }
     public AnalysisDatasetDescriptor Descriptor => _dataset.Descriptor;
     public Task<AnalysisDatasetLease> AcquireAsync(CancellationToken cancellation = default) => _dataset.AcquireAsync(cancellation);
     public ValueTask DisposeAsync() => _dataset.DisposeAsync();
@@ -83,7 +84,7 @@ public static partial class AnalysisInventoryFormat
             if (reviewedEntry is { } selected && (selected.InventoryId != stage.InventoryId || selected.Bytes != stage.SourceBytes ||
                 selected.Coverage != header.Historical.Coverage || AnalysisPrivacy.Join(selected.Taint) != AnalysisPrivacy.Join(header.Historical.Taint)))
                 throw new InvalidDataException("The saved inventory does not match the reviewed catalog identity, size, coverage or privacy classification.");
-            result = new(stage.InventoryId, stage.SourceBytes, await stage.BuildDatasetAsync(cancellation).ConfigureAwait(false));
+            result = new(stage.InventoryId, stage.SourceBytes, stage.SourceSha256, await stage.BuildDatasetAsync(cancellation).ConfigureAwait(false));
             return result;
         }
         finally

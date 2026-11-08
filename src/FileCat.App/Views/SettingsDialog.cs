@@ -358,7 +358,8 @@ public static class SettingsDialog
         var paths = new SelectableTextBlock { Text = $"Settings: {vm.Services.Paths.SettingsDirectory}\nLocal data: {vm.Services.Paths.LocalDirectory}{(vm.Services.Paths.IsPortable ? "\n(portable mode)" : string.Empty)}", TextWrapping = TextWrapping.Wrap };
         tabs.Items.Add(new TabItem { Header = "Privacy", Content = Form(("", diag), ("", updates), ("", updateNote), ("", shellPictures), ("", shellSlow), ("", shellNote), ("Storage", paths)) });
 
-        var historyEditor = new AnalysisHistorySettingsEditor(vm.Services.AnalysisHistory.Policy, vm.Services.Paths.AnalysisHistoryDirectory);
+        var historyEditor = new AnalysisHistorySettingsEditor(vm.Services.AnalysisHistory.Policy, vm.Services.Paths.AnalysisHistoryDirectory,
+            () => AnalysisHistoryBrowser.ShowAsync(vm.Services, vm.Dialogs));
         int historyTab = tabs.Items.Count;
         tabs.Items.Add(new TabItem { Header = "Analysis history", Content = historyEditor.View });
 

@@ -16,6 +16,8 @@ public sealed partial class DiskSpaceViewModel
     internal Task CloseCompletion { get; private set; } = Task.CompletedTask;
     internal Task HistoryObservation { get; private set; } = Task.CompletedTask;
     public string? HistoryNotice { get; internal set; }
+    internal AppServices? HistoryServices => _services;
+    internal CancellationToken HistoryLifetime => _selectionLifetime.Token;
 
     private static string? PrivateBoundaryNotice(AnalysisSnapshot observations)
     {

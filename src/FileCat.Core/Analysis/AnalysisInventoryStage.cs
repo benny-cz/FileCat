@@ -23,10 +23,12 @@ internal sealed partial class AnalysisInventoryStage : IAsyncDisposable
     private readonly ulong[] _counts;
     internal Guid InventoryId { get; }
     internal long SourceBytes { get; }
+    internal string SourceSha256 { get; }
     internal AnalysisTaint Taint { get; }
     internal AnalysisInventoryStage(Contents data, DeviceIoScheduler io, AnalysisIoDevices devices)
     {
         InventoryId = data.Header!.Historical.Id; SourceBytes = data.SourceBytes; Taint = data.Header.Taint;
+        SourceSha256 = data.SourceSha256 ?? throw new InvalidDataException("The completed source digest is absent.");
         _counts = Enumerable.Range(0, 4).Select(data.Metadata!.Count).ToArray();
         _io = io; _devices = devices; _owned = new(data, io, devices);
     }
@@ -100,6 +102,7 @@ internal sealed partial class AnalysisInventoryStage : IAsyncDisposable
         internal AnalysisScratchCompositeRevision? Metadata;
         internal AnalysisInventoryStageHeader? Header;
         internal long RawBytes, SourceBytes, Reservation;
+        internal string? SourceSha256;
         internal RecordLocator Locator(int table, ulong row, CancellationToken cancellation) => RecordLocator.Decode(Metadata!.Read(table, row, cancellation), table, RawBytes);
         internal IEnumerable<AnalysisInventoryPathIdentity> PathIdentities(CancellationToken cancellation)
         {

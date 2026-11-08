@@ -28,8 +28,12 @@ public sealed partial class OwnedAnalysisStore : IAsyncDisposable
         Func<AnalysisPrivateDirectory> prepareDirectory, CancellationToken cancellation = default) =>
         OpenCoreAsync(io, device, prepareDirectory, rolling: true, cancellation);
 
+    internal static Task<OwnedAnalysisStore> OpenRollingReviewAsync(DeviceIoScheduler io, string device,
+        Func<AnalysisPrivateDirectory> prepareDirectory, CancellationToken cancellation = default) =>
+        OpenCoreAsync(io, device, prepareDirectory, rolling: true, cancellation, reviewUnindexed: true);
+
     private static async Task<OwnedAnalysisStore> OpenCoreAsync(DeviceIoScheduler io, string device,
-        Func<AnalysisPrivateDirectory> prepareDirectory, bool rolling, CancellationToken cancellation)
+        Func<AnalysisPrivateDirectory> prepareDirectory, bool rolling, CancellationToken cancellation, bool reviewUnindexed = false)
     {
         ArgumentNullException.ThrowIfNull(io); ArgumentNullException.ThrowIfNull(prepareDirectory);
         var devices = new AnalysisIoDevices(device); var data = new Contents { Rolling = rolling };
@@ -39,7 +43,7 @@ public sealed partial class OwnedAnalysisStore : IAsyncDisposable
             {
                 data.Store = new(prepareDirectory());
                 using (var catalog = new AnalysisSavedCatalog(data.Store).Read(token))
-                    if (rolling) ValidateRollingShape(data.Store, catalog, allowedIncoming: null, token);
+                    if (rolling) ValidateRollingShape(data.Store, catalog, allowedIncoming: null, token, reviewUnindexed: reviewUnindexed);
                 data.Profile = new AnalysisPrivateProfileState(data.Store).LoadOrCreate(token);
                 return true;
             }, cancellation).ConfigureAwait(false);

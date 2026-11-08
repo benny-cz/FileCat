@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 namespace FileCat.App.Services;
 
 /// <summary>Trusted application policy and bounded actual capture lifetime; inventories supply no authority.</summary>
-internal sealed class AnalysisRollingHistoryController(AppServices services)
+internal sealed partial class AnalysisRollingHistoryController(AppServices services)
 {
     private readonly SemaphoreSlim _writer = new(1, 1);
     private int _pending;
@@ -89,8 +89,8 @@ internal sealed class AnalysisRollingHistoryController(AppServices services)
             {
             owner = await AnalysisRollingHistoryAccess.OpenAsync(services, cancellation).ConfigureAwait(false);
             outcome = dataset is not null
-                ? await owner.CaptureRollingAsync(policy, dataset, AnalysisSavedView.Default, null, cancellation).ConfigureAwait(false)
-                : await owner.CaptureRollingAsync(policy, memory!.Snapshot, AnalysisSavedView.Default, null, cancellation).ConfigureAwait(false);
+                ? await owner.CaptureRollingAsync(policy, dataset, AnalysisSavedView.Default, ProtectedHistory(), cancellation).ConfigureAwait(false)
+                : await owner.CaptureRollingAsync(policy, memory!.Snapshot, AnalysisSavedView.Default, ProtectedHistory(), cancellation).ConfigureAwait(false);
             }
         }
         catch (Exception error) { failure = error; outcome = (error as AnalysisRollingCaptureException)?.Outcome; }

@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Security.Cryptography;
 using FileCat.Core.Threading;
 
 namespace FileCat.Core.Analysis;
@@ -32,6 +33,7 @@ public static partial class AnalysisInventoryFormat
         await Imports.WaitAsync(cancellation).ConfigureAwait(false);
         long reservation = 0; var build = new StageBuild(); AnalysisInventoryStage? result = null;
         var data = new AnalysisInventoryStage.Contents(); bool transferred = false;
+        using var sourceHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         try
         {
             Reserve(StageMemory, ref reservation);
@@ -64,7 +66,11 @@ public static partial class AnalysisInventoryFormat
                 }, cancellation).ConfigureAwait(false);
                 if (status == FrameStatus.Pending) continue;
                 if (status == FrameStatus.End) { ended = true; break; }
-                var record = await Task.Run(() => build.Decoder!.Read(build.Frame!.Line, cancellation), cancellation).ConfigureAwait(false);
+                var record = await Task.Run(() =>
+                {
+                    sourceHash.AppendData(build.Frame!.Line.Span); sourceHash.AppendData(Lf);
+                    return build.Decoder!.Read(build.Frame.Line, cancellation);
+                }, cancellation).ConfigureAwait(false);
                 if (record.Kind == RecordKind.Manifest) manifest = record.Manifest;
                 else if (record.Kind == RecordKind.Coverage) { coverage = record.Coverage; totals = record.IssueTotals!; }
                 else if (record.Kind != RecordKind.Trailer)
@@ -84,6 +90,7 @@ public static partial class AnalysisInventoryFormat
             // EOF is observed by the actual source read, never inferred from a trailer or timeout.
             build.Decoder!.Complete();
             data.SourceBytes = build.Frame!.BytesRead;
+            data.SourceSha256 = Convert.ToHexStringLower(sourceHash.GetHashAndReset());
             if (manifest is null || coverage is null) throw Invalid("Incomplete inventory.");
             await AnalysisIo.Run(io, devices, token =>
             {

@@ -31,6 +31,8 @@ public sealed partial class DiskSpaceWindow
         {
             _services?.AnalysisSavedReferences.Track(this);
             bar.Children.Add(_saveInventory); bar.Children.Add(_openInventory);
+            var history = new Button { Content = "History…", IsEnabled = _services is not null };
+            history.Click += async (_, _) => await ShowHistoryAsync(); bar.Children.Add(history);
             _saveInventory.Click += async (_, _) => await SaveInventoryAsync(); _openInventory.Click += async (_, _) => await OpenInventoryAsync();
             ToolTip.SetTip(_saveInventory, new RichTip("Save the whole captured inventory", detail: "Save all recorded paths and metadata without file contents. The display filter does not limit the inventory. Current display settings are retained; marks and the basket are not saved."));
             ToolTip.SetTip(_openInventory, new RichTip("Open captured observations", detail: "Open a named inventory from this FileCat profile. Its recorded locations are not reconnected and it grants no file actions."));

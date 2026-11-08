@@ -55,8 +55,12 @@ internal sealed partial class AnalysisIndexedAcquisition
             }, cancellation).ConfigureAwait(false);
         }
     }
-    internal async Task<AnalysisIndexedInventory> LoadInventoryAsync(string name, AnalysisSavedEntry? reviewedEntry = null,
-        CancellationToken cancellation = default)
+    internal Task<AnalysisIndexedInventory> LoadInventoryAsync(string name, AnalysisSavedEntry? reviewedEntry = null,
+        CancellationToken cancellation = default) => LoadInventoryCoreAsync(name, reviewedEntry, false, cancellation);
+    internal Task<AnalysisIndexedInventory> LoadHistoryInventoryAsync(AnalysisSavedEntry reviewedEntry,
+        CancellationToken cancellation) => LoadInventoryCoreAsync(reviewedEntry.Name, reviewedEntry, true, cancellation);
+    private async Task<AnalysisIndexedInventory> LoadInventoryCoreAsync(string name, AnalysisSavedEntry? reviewedEntry,
+        bool history, CancellationToken cancellation)
     {
         IDisposable actualWork;
         lock (_gate)
@@ -70,8 +74,9 @@ internal sealed partial class AnalysisIndexedAcquisition
             if (AnalysisAdmission.Refusal() is { } refusal) throw new InvalidOperationException(refusal);
             if (!_indexedStorage || MemoryPreparationNotice is not null || _profile == Guid.Empty || Profile is null)
                 throw new NotSupportedException("Secure private scratch and profile capacity storage are required to open an indexed inventory.");
+            int input = history ? 2 : 0;
             var devices = new AnalysisIoDevices(PathUtil.GetDeviceKey(_privatePaths[1]), PathUtil.GetDeviceKey(_privatePaths[0]));
-            return await AnalysisIndexedInventory.LoadPrivateAsync(_services.Io, devices, PathUtil.GetDeviceKey(_privatePaths[0]), name,
+            return await AnalysisIndexedInventory.LoadPrivateAsync(_services.Io, devices, PathUtil.GetDeviceKey(_privatePaths[input]), name,
                 () =>
                 {
                     CheckPreparation(0, cancellation); CheckPreparation(1, cancellation);
@@ -79,9 +84,9 @@ internal sealed partial class AnalysisIndexedAcquisition
                 }, OpenProfileQuota,
                 () =>
                     {
-                        CheckPreparation(0, cancellation);
-                        var directory = OpenDirectory(_privatePaths[0]);
-                        try { RequireSamePrivateRoot(directory, _protection[0] ?? throw new IOException("The prepared private profile is unavailable.")); return directory; }
+                        CheckPreparation(input, cancellation);
+                        var directory = OpenDirectory(_privatePaths[input]);
+                        try { RequireSamePrivateRoot(directory, _protection[input] ?? throw new IOException("The prepared private inventory boundary is unavailable.")); return directory; }
                         catch { DisposePreparedOnWorker(directory); throw; }
                     }, reviewedEntry, cancellation).ConfigureAwait(false);
         }

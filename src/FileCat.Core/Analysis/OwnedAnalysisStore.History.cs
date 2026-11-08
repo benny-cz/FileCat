@@ -14,6 +14,12 @@ internal sealed class AnalysisRollingCaptureException(AnalysisRollingCaptureOutc
 public sealed partial class OwnedAnalysisStore
 {
     internal static string RollingName(Guid inventory) => inventory != Guid.Empty ? $"history-{inventory:N}.fcdsa" : throw new ArgumentException("A generated history identity is required.");
+    internal static bool TryRollingName(string name, out Guid inventory)
+    {
+        inventory = Guid.Empty;
+        return name.Length == 46 && name.StartsWith("history-", StringComparison.Ordinal) && name.EndsWith(".fcdsa", StringComparison.Ordinal) &&
+            Guid.TryParseExact(name.AsSpan(8, 32), "N", out inventory) && inventory != Guid.Empty && name == RollingName(inventory);
+    }
 
     // The application must supply a separately prepared history-root factory, never a catalog
     // locator or a named-store owner. This internal role is process-owned and not serialized.
@@ -193,14 +199,16 @@ public sealed partial class OwnedAnalysisStore
     }
 
     private static void ValidateRollingShape(AnalysisPrivateInventoryStore store, AnalysisCatalogSnapshot catalog, string? allowedIncoming,
-        CancellationToken cancellation, bool checkDirectory = true)
+        CancellationToken cancellation, bool checkDirectory = true, bool reviewUnindexed = false)
     {
         if (catalog.Entries.Concat(catalog.PendingDeletions.Select(p => p.Entry)).Any(e => e.Name != RollingName(e.InventoryId)) ||
-            catalog.PendingReplacements.Length != 0 || catalog.UnindexedNames.Any(n => n != allowedIncoming))
+            catalog.PendingReplacements.Length != 0 || catalog.UnindexedNames.Length > AnalysisSavedCatalog.EntryLimit ||
+            catalog.UnindexedNames.Any(n => n != allowedIncoming && !(reviewUnindexed && TryRollingName(n, out _))))
             throw new InvalidDataException("The history store contains non-history or unresolved inventory data. Existing files were preserved.");
         if (!checkDirectory) return;
         var allowed = new HashSet<string>(catalog.Entries.Select(e => e.Name).Concat(catalog.PendingDeletions.Select(p => p.Entry.Name)), StringComparer.Ordinal);
         if (allowedIncoming is not null) allowed.Add(allowedIncoming);
+        if (reviewUnindexed) allowed.UnionWith(catalog.UnindexedNames);
         using var directory = store.BorrowDirectory();
         if (directory.Entries(cancellation).Any(name => !AnalysisPrivateNames.IsMetadata(name) && !allowed.Contains(name)))
             throw new InvalidDataException("The history directory contains unrelated private files. Automatic capture was stopped without removing them.");

@@ -27,7 +27,7 @@ public sealed partial class DiskSpaceWindow
 
     internal async Task<AnalysisDatasetExplorer> AddPreparedIndexedSessionAsync(Func<CancellationToken, Task<AnalysisDatasetLease>> prepareSource,
         AnalysisMetric metric, AnalysisFilterRequest? filter, AnalysisSavedView? saved, CancellationToken cancellation, AppServices? services = null,
-        Func<AnalysisInventoryReceipt?>? openedInventory = null, string? historyNotice = null)
+        Func<AnalysisInventoryReceipt?>? openedInventory = null, string? historyNotice = null, IAsyncDisposable? additionalOwner = null)
     {
         Dispatcher.UIThread.VerifyAccess(); ObjectDisposedException.ThrowIf(_closed, this);
         AnalysisSessionAdmission.Slot? admission = _admissionPool.Acquire();
@@ -74,6 +74,7 @@ public sealed partial class DiskSpaceWindow
             var view = await IndexedSessionView.CreateAsync(this, retained, explorer, filter ?? new(""), admission, saved, restoreNotice, linked.Token, services);
             view.SetHistoryNotice(historyNotice);
             if (openedInventory?.Invoke() is { } receipt) view.RememberOpenedInventory(receipt);
+            view._historyOwner = additionalOwner; additionalOwner = null;
             try { AddView(view); }
             catch { retained = null; explorer = null; admission = null; view.Dispose(); throw; }
             retained = null; admission = null; var result = explorer; explorer = null; return result;
@@ -97,6 +98,7 @@ public sealed partial class DiskSpaceWindow
                 void Remember(Exception error) => failure = failure is null ? error : new AggregateException(failure, error);
                 try { if (explorer is not null) await explorer.DisposeAsync(); } catch (Exception error) { Remember(error as AnalysisCloseUnconfirmedException ?? new AnalysisCloseUnconfirmedException(error)); }
                 try { if (retained is not null) await retained.DisposeAsync(); } catch (Exception error) { Remember(error as AnalysisCloseUnconfirmedException ?? new AnalysisCloseUnconfirmedException(error)); }
+                try { if (additionalOwner is not null) await additionalOwner.DisposeAsync(); } catch (Exception error) { Remember(error as AnalysisCloseUnconfirmedException ?? new AnalysisCloseUnconfirmedException(error)); }
                 if (failure is not null)
                 {
                     if (failure is not AnalysisCloseUnconfirmedException && AnalysisCloseUnconfirmedException.IsPresent(failure))
@@ -113,6 +115,7 @@ public sealed partial class DiskSpaceWindow
         private readonly AnalysisSessionAdmission.Slot _admission;
         private readonly AnalysisViewWork _actualWork = new();
         private readonly AnalysisDatasetLease _source;
+        internal IAsyncDisposable? _historyOwner;
         private AnalysisDatasetExplorer _explorer;
         private AnalysisExplorerPage? _shownPage;
         private AnalysisIndexedChart? _shownChart;
@@ -692,7 +695,7 @@ public sealed partial class DiskSpaceWindow
             // Explorer disposal cancels its inspection/page/chart lanes. View continuations
             // must also unwind before their admission can be reused in another window.
             try { await _buildTask; }
-            finally { try { await _explorer.DisposeAsync(); } finally { try { await actualWork; } finally { try { if (_grouping is not null) await _grouping.DisposeAsync(); } finally { try { await _source.DisposeAsync(); } finally { _selectionLifetime.Dispose(); } } } } }
+            finally { try { await _explorer.DisposeAsync(); } finally { try { await actualWork; } finally { try { if (_grouping is not null) await _grouping.DisposeAsync(); } finally { try { await _source.DisposeAsync(); } finally { try { if (_historyOwner is not null) await _historyOwner.DisposeAsync(); } finally { _selectionLifetime.Dispose(); } } } } } }
         }
     }
 }

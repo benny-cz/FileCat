@@ -1,0 +1,10 @@
+{
+  "observedUtc": "2026-11-08T05:56:16.664004+00:00",
+  "exitCode": 0,
+  "filecatOrDotnet": [
+    "  892   277 /Users/benny/.dotnet/dotnet test /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj -c Release --no-build --disable-build-servers -p:NuGetAudit=false -m:1 --filter FullyQualifiedName~FileCat.Core.Tests --logger trx;LogFileName=archive-creation-core.trx --results-directory /Users/benny/FileCatValidation/archive-writing-42829297/archive-target-update-ui-v1/results",
+    "  896   892 dotnet exec /Users/benny/.dotnet/sdk/10.0.101/vstest.console.dll --framework:.NETCoreApp,Version=v10.0 --testCaseFilter:FullyQualifiedName~FileCat.Core.Tests --logger:trx;LogFileName=archive-creation-core.trx --resultsDirectory:/Users/benny/FileCatValidation/archive-writing-42829297/archive-target-update-ui-v1/results /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.dll --logger:Console;Verbosity=minimal --artifactsProcessingMode-collect --testSessionCorrelationId:892_e6ad12b8-6dc9-4c53-96c9-fe81f900d521",
+    "  900   896 /Users/benny/.dotnet/dotnet exec --runtimeconfig /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.runtimeconfig.json --depsfile /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests.deps.json /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/testhost.dll --port 52011 --endpoint 127.0.0.1:052011 --role client --parentprocessid 896 --telemetryoptedin false",
+    "  939   900 /Users/benny/FileCatValidation/archive-writing-42829297/archive-workflow-source-v1/tests/FileCat.Core.Tests/bin/Release/net10.0/FileCat.Core.Tests @@ /var/folders/zy/bsrr65210bj1s85fr6g0l0dr0000gn/T/tmpnurlk9.tmp"
+  ]
+}
