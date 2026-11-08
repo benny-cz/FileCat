@@ -2,8 +2,8 @@
 from pathlib import Path
 import importlib.util,json,os,shutil,subprocess,sys
 
-FOLDER='awm-v4'
-PACKET='archive-member-commands-delta-v4.tar.gz'
+FOLDER=os.environ.get('FILECAT_MEMBER_BATCH','awm-v4')
+PACKET=os.environ.get('FILECAT_MEMBER_PACKET','archive-member-commands-delta-v4.tar.gz')
 
 def read_module(name,path):
     spec=importlib.util.spec_from_file_location(name,path);value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value);return value
@@ -14,7 +14,7 @@ def member(task):
 
 def native(task):
     value=member(task).module(task);value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET
-    value.PREVIOUS_FOLDER='awm-v3g' if sys.platform=='win32' else 'awm-v3'
+    value.PREVIOUS_FOLDER=os.environ.get('FILECAT_MEMBER_PREVIOUS','awm-v3g' if sys.platform=='win32' else 'awm-v3')
     value.tests=tests;return value
 
 def batch_for(task):return native(task).batch_for(task)
