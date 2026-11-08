@@ -1,0 +1,79 @@
+{
+  "revision": "r1101",
+  "qualifiedProductRevision": "r1096",
+  "pinnedProductReference": true,
+  "gitBase": "08c02504e7339689395f28786224b6a22ecae836",
+  "buildLog": ".tmp/csv-pinned-build-r1101.txt",
+  "archive": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\csv-scale-r1101.tgz",
+  "sha256": "533b3e868f04f34463f74b52011859e229ad0e10f417235acae735909eaefa63",
+  "bytes": 5163289,
+  "inputs": [
+    {
+      "name": "BouncyCastle.Cryptography.dll",
+      "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+      "bytes": 5155728
+    },
+    {
+      "name": "FileCat.Core.dll",
+      "sha256": "26c4aec75802a37dccacf4da11f3bd2710080b213b2cdb1c243e27b9335cb3aa",
+      "bytes": 4231168
+    },
+    {
+      "name": "FileCat.Core.pdb",
+      "sha256": "17a7aafe9c8fc5d71e64688696caa72c9f68a3678616cd4124b3884fa23a6e08",
+      "bytes": 1293976
+    },
+    {
+      "name": "FileCat.CoreCrashHarness.deps.json",
+      "sha256": "21a45b65a6ee6c193ccc9255fcca6f0f9f43ca658c91bfed504e0a341bc04eed",
+      "bytes": 1558
+    },
+    {
+      "name": "FileCat.CoreCrashHarness.dll",
+      "sha256": "d8a828aadf7cbfa5f2031f937a0a6a0f2f8aaa61d443818714b1e8c201cee41d",
+      "bytes": 48640
+    },
+    {
+      "name": "FileCat.CoreCrashHarness.exe",
+      "sha256": "751ab8db3ec4dea5f605759e2183d1fc5fe815883149f984be0604cb82302f69",
+      "bytes": 162816
+    },
+    {
+      "name": "FileCat.CoreCrashHarness.pdb",
+      "sha256": "0015973c7775305c3c06f73ba40a7e15320401370b65487374d9ffc4657c075f",
+      "bytes": 17012
+    },
+    {
+      "name": "FileCat.CoreCrashHarness.runtimeconfig.json",
+      "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+      "bytes": 270
+    },
+    {
+      "name": "FileCat.Platform.Windows.dll",
+      "sha256": "842bbc8c3c2739c78ebe27a64c2d1ac9e083c1cc4463d03c75c4e1c86dd05ecf",
+      "bytes": 733696
+    }
+  ],
+  "sources": [
+    {
+      "path": "tests/FileCat.CoreCrashHarness/CsvReportScale.cs",
+      "sha256": "a0e7f17c3730798353048a213ca72b40398feb777321001e267f434923b71ed3"
+    },
+    {
+      "path": ".tmp/csv-pinned-r1101/PinnedCsv.csproj",
+      "sha256": "5a23d6d11739773ad22bcddf94a45630f8f2d4bde4cce9588c526a2fd0eec49f"
+    },
+    {
+      "path": ".tmp/csv-pinned-r1101/Program.cs",
+      "sha256": "545ccb5710f70a14bd6fac5386c23ce2761acfb40e05ce790a1ea7405827bcc9"
+    },
+    {
+      "path": ".tmp/csv-pinned-r1101/Directory.cs",
+      "sha256": "3c6f35e9e0e72590ff6af4c2f7bcdafa4bf683efb1157d12e7e6096eb8d37c99"
+    },
+    {
+      "path": ".tmp/csv-pinned-r1101/packages.lock.json",
+      "sha256": "5911aedf0aebb407abf519f7da0b58a9e2bb1214600775d5af4f6ac923f999c6"
+    }
+  ]
+}

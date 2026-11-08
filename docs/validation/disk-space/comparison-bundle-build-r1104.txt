@@ -1,0 +1,61 @@
+  FileCat.Core -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\bin\Debug\net10.0\FileCat.Core.dll
+  FileCat.Archives.Rar15 -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives.Rar15\bin\Debug\net10.0\FileCat.Archives.Rar15.dll
+  FileCat.SharpCompress -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\ThirdParty\SharpCompress\bin\Debug\net10.0\FileCat.SharpCompress.dll
+  FileCat.Archives -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives\bin\Debug\net10.0\FileCat.Archives.dll
+  FileCat.Recovery -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Recovery\bin\Debug\net10.0\FileCat.Recovery.dll
+  FileCat.CoreCrashHarness -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.CoreCrashHarness\bin\Debug\net10.0\FileCat.CoreCrashHarness.dll
+  FileCat.Core.Tests -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Core.Tests\bin\Debug\net10.0\FileCat.Core.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:08.73
+  FileCat.Core -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\bin\Debug\net10.0\FileCat.Core.dll
+  FileCat.Recovery -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Recovery\bin\Debug\net10.0\FileCat.Recovery.dll
+  FileCat.Platform.Windows -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Platform.Windows\bin\Debug\net10.0\FileCat.Platform.Windows.dll
+  FileCat.CoreCrashHarness -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.CoreCrashHarness\bin\Debug\net10.0\FileCat.CoreCrashHarness.dll
+  FileCat.PrivilegedHost -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.PrivilegedHost\bin\Debug\net10.0\FileCat.PrivilegedHost.dll
+  Native bootstrap built: 229 reported headers, 11 searched libraries, 7 reported tool components.
+  FileCat.ShellHost -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.ShellHost\bin\Debug\net10.0\FileCat.ShellHost.dll
+  FileCat.WorkerProbe -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.WorkerProbe\bin\Debug\net10.0\FileCat.WorkerProbe.dll
+  FileCat.Platform.Windows.Tests -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Platform.Windows.Tests\bin\Debug\net10.0\FileCat.Platform.Windows.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:06.67
+  FileCat.Core -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\bin\Debug\net10.0\FileCat.Core.dll
+  FileCat.Recovery -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Recovery\bin\Debug\net10.0\FileCat.Recovery.dll
+  FileCat.Platform.Windows -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Platform.Windows\bin\Debug\net10.0\FileCat.Platform.Windows.dll
+  FileCat.Remote -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Remote\bin\Debug\net10.0\FileCat.Remote.dll
+  FileCat.Archives.Rar15 -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives.Rar15\bin\Debug\net10.0\FileCat.Archives.Rar15.dll
+  FileCat.SharpCompress -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\ThirdParty\SharpCompress\bin\Debug\net10.0\FileCat.SharpCompress.dll
+  FileCat.Archives -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives\bin\Debug\net10.0\FileCat.Archives.dll
+  FileCat.ShellHost -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.ShellHost\bin\Debug\net10.0\FileCat.ShellHost.dll
+  FileCat.App -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\bin\Debug\net10.0\FileCat.dll
+  FileCat.CoreCrashHarness -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.CoreCrashHarness\bin\Debug\net10.0\FileCat.CoreCrashHarness.dll
+  FileCat.Rendering.Tests -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\bin\Debug\net10.0\FileCat.Rendering.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.76
+  FileCat.Core -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Core\bin\Debug\net10.0\FileCat.Core.dll
+  FileCat.Recovery -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Recovery\bin\Debug\net10.0\FileCat.Recovery.dll
+  FileCat.Platform.Windows -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Platform.Windows\bin\Debug\net10.0\FileCat.Platform.Windows.dll
+  FileCat.Remote -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Remote\bin\Debug\net10.0\FileCat.Remote.dll
+  FileCat.Archives.Rar15 -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives.Rar15\bin\Debug\net10.0\FileCat.Archives.Rar15.dll
+  FileCat.SharpCompress -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\ThirdParty\SharpCompress\bin\Debug\net10.0\FileCat.SharpCompress.dll
+  FileCat.Archives -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.Archives\bin\Debug\net10.0\FileCat.Archives.dll
+  FileCat.ShellHost -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.ShellHost\bin\Debug\net10.0\FileCat.ShellHost.dll
+  FileCat.App -> E:\FileCat\.tmp\worktrees\disk-space-analysis\src\FileCat.App\bin\Debug\net10.0\FileCat.dll
+  FileCat.App.Tests -> E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.App.Tests\bin\Debug\net10.0\FileCat.App.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.87

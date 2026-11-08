@@ -1,0 +1,618 @@
+{
+  "purpose": "Measured bounded CSV store/export slice; no source traversal or complete 10M export support claim",
+  "matrix": {
+    "windows/1M/wide": {
+      "revision": "r1098",
+      "measurement": {
+        "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+        "records": 1000000,
+        "shape": "wide",
+        "directories": 1,
+        "observedSourceWasNeverCreated": true,
+        "writeSeconds": 6.003834,
+        "sealSeconds": 44.2922547,
+        "reports": [
+          {
+            "redact": true,
+            "captureSeconds": 121.4116595,
+            "exportSeconds": 51.1197068,
+            "bytes": 245890429,
+            "lines": 1000002,
+            "sha256": "aa9c4e1e733dc709a9efd1ec37f7f726788b0eea0a387a6d85b223f2ab6a0662",
+            "verifiedEveryDeclaredRow": true
+          },
+          {
+            "redact": false,
+            "captureSeconds": 117.2179253,
+            "exportSeconds": 53.0760426,
+            "bytes": 337004524,
+            "lines": 1000002,
+            "sha256": "f6d07026524fdd1d0b9c5cfc808e8494580d0e6548fdd6541e5faf89edca00a6",
+            "verifiedEveryDeclaredRow": true
+          }
+        ],
+        "sampledPeakSessionScratchBytes": 858775054,
+        "sampledIntervalMilliseconds": 50,
+        "baselinePrivateBytes": 11878400,
+        "sampledPeakPrivateIncrement": 189673472,
+        "privateMemoryBudgetVerified": true,
+        "privateMemoryBasis": ".NET process private bytes; sampled, not an absolute peak",
+        "sampledPeakWorkingSetIncrement": 197124096,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "remainingQuotaBytes": 0,
+        "remainingProfileQuotaBytes": 0,
+        "passed": true
+      }
+    },
+    "windows/10M/wide": {
+      "revision": "r1102",
+      "measurement": {
+        "purpose": "Measured 10M report-capture scratch refusal with retained source and native cleanup; full 10M CSV export is not qualified",
+        "records": 10000000,
+        "shape": "wide",
+        "directories": 1,
+        "limitRefusal": true,
+        "fullCsvExportQualified": false,
+        "retainedSourceUnchanged": true,
+        "sourcePaths": 10000000,
+        "firstSourcePath": 1,
+        "lastSourcePath": 10000000,
+        "retainedSourceScratchBytes": 2919346903,
+        "sampledPeakSessionScratchBytes": 4294911159,
+        "scratchLimitBytes": 4294967296,
+        "destinationWasNeverOpened": true,
+        "observedSourceWasNeverCreated": true,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "baselinePrivateBytes": 12345344,
+        "sampledPeakPrivateIncrement": 123981824,
+        "privateMemoryBudgetVerified": true,
+        "sampledPeakWorkingSetIncrement": 114823168,
+        "remainingQuotaBytes": 0,
+        "remainingProfileQuotaBytes": 0,
+        "passed": true
+      }
+    },
+    "windows/1M/deep": {
+      "revision": "r1101",
+      "measurement": {
+        "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+        "records": 1000000,
+        "shape": "deep",
+        "directories": 64,
+        "observedSourceWasNeverCreated": true,
+        "writeSeconds": 7.0176052,
+        "sealSeconds": 48.9462016,
+        "reports": [
+          {
+            "redact": true,
+            "captureSeconds": 124.3704817,
+            "exportSeconds": 52.1881276,
+            "bytes": 245891815,
+            "lines": 1000002,
+            "sha256": "567f0f7cb05fe96a0e659f8b0fa82e2d135d579ae1f3f50cda28d3e29793492b",
+            "verifiedEveryDeclaredRow": true
+          },
+          {
+            "redact": false,
+            "captureSeconds": 121.4571679,
+            "exportSeconds": 75.2682682,
+            "bytes": 966985120,
+            "lines": 1000002,
+            "sha256": "81ed7bbf211f2072b670ba436f96dabac392b07e4302b06f630fab4c579ff18a",
+            "verifiedEveryDeclaredRow": true
+          }
+        ],
+        "sampledPeakSessionScratchBytes": 859060516,
+        "sampledIntervalMilliseconds": 50,
+        "baselinePrivateBytes": 11505664,
+        "sampledPeakPrivateIncrement": 133828608,
+        "privateMemoryBudgetVerified": true,
+        "privateMemoryBasis": ".NET process private bytes; sampled, not an absolute peak",
+        "sampledPeakWorkingSetIncrement": 142962688,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "remainingQuotaBytes": 0,
+        "remainingProfileQuotaBytes": 0,
+        "passed": true
+      }
+    },
+    "windows/10M/deep": {
+      "revision": "r1102",
+      "measurement": {
+        "purpose": "Measured 10M report-capture scratch refusal with retained source and native cleanup; full 10M CSV export is not qualified",
+        "records": 10000000,
+        "shape": "deep",
+        "directories": 64,
+        "limitRefusal": true,
+        "fullCsvExportQualified": false,
+        "retainedSourceUnchanged": true,
+        "sourcePaths": 10000000,
+        "firstSourcePath": 1,
+        "lastSourcePath": 10000000,
+        "retainedSourceScratchBytes": 2919338020,
+        "sampledPeakSessionScratchBytes": 4294902276,
+        "scratchLimitBytes": 4294967296,
+        "destinationWasNeverOpened": true,
+        "observedSourceWasNeverCreated": true,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "baselinePrivateBytes": 11407360,
+        "sampledPeakPrivateIncrement": 124313600,
+        "privateMemoryBudgetVerified": true,
+        "sampledPeakWorkingSetIncrement": 112672768,
+        "remainingQuotaBytes": 0,
+        "remainingProfileQuotaBytes": 0,
+        "passed": true
+      }
+    },
+    "mac/1M/wide": {
+      "revision": "r1098",
+      "measurement": {
+        "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+        "records": 1000000,
+        "shape": "wide",
+        "directories": 1,
+        "observedSourceWasNeverCreated": true,
+        "writeSeconds": 3.163906,
+        "sealSeconds": 25.9988725,
+        "reports": [
+          {
+            "redact": true,
+            "captureSeconds": 68.4938372,
+            "exportSeconds": 32.4702545,
+            "bytes": 244890427,
+            "lines": 1000002,
+            "sha256": "0e9fe84f6840584da0499536258ea5fe918f340732dc3e0e46d2ac54605e73de",
+            "verifiedEveryDeclaredRow": true
+          },
+          {
+            "redact": false,
+            "captureSeconds": 68.6094525,
+            "exportSeconds": 34.9282489,
+            "bytes": 343004522,
+            "lines": 1000002,
+            "sha256": "bf99caafad552199544bd25991f910e92acea4709ca232885a9c56df78b28d0a",
+            "verifiedEveryDeclaredRow": true
+          }
+        ],
+        "sampledPeakSessionScratchBytes": 839769141,
+        "sampledIntervalMilliseconds": 50,
+        "baselinePrivateBytes": null,
+        "sampledPeakPrivateIncrement": null,
+        "privateMemoryBudgetVerified": false,
+        "privateMemoryBasis": "Unavailable; working-set samples are not private bytes",
+        "sampledPeakWorkingSetIncrement": 103825408,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "remainingQuotaBytes": 0,
+        "remainingProfileQuotaBytes": 0,
+        "passed": true
+      }
+    },
+    "mac/10M/wide": {
+      "revision": "r1101",
+      "measurement": {
+        "purpose": "Measured 10M report-capture scratch refusal with retained source and native cleanup; full 10M CSV export is not qualified",
+        "records": 10000000,
+        "shape": "wide",
+        "directories": 1,
+        "limitRefusal": true,
+        "fullCsvExportQualified": false,
+        "retainedSourceUnchanged": true,
+        "sourcePaths": 10000000,
+        "firstSourcePath": 1,
+        "lastSourcePath": 10000000,
+        "retainedSourceScratchBytes": 2739327373,
+        "sampledPeakSessionScratchBytes": 4294945305,
+        "scratchLimitBytes": 4294967296,
+        "destinationWasNeverOpened": true,
+        "observedSourceWasNeverCreated": true,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "baselinePrivateBytes": null,
+        "sampledPeakPrivateIncrement": null,
+        "privateMemoryBudgetVerified": false,
+        "sampledPeakWorkingSetIncrement": 81215488,
+        "remainingQuotaBytes": 0,
+        "remainingProfileQuotaBytes": 0,
+        "passed": true
+      }
+    },
+    "mac/1M/deep": {
+      "revision": "r1098",
+      "measurement": {
+        "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+        "records": 1000000,
+        "shape": "deep",
+        "directories": 64,
+        "observedSourceWasNeverCreated": true,
+        "writeSeconds": 3.244024,
+        "sealSeconds": 26.2035964,
+        "reports": [
+          {
+            "redact": true,
+            "captureSeconds": 68.5691508,
+            "exportSeconds": 32.3896796,
+            "bytes": 244891813,
+            "lines": 1000002,
+            "sha256": "e67dd9d124c22e73eae33ad2039a37e5525f3bc919fc55c5e6d5b5ed981ed7f9",
+            "verifiedEveryDeclaredRow": true
+          },
+          {
+            "redact": false,
+            "captureSeconds": 68.7065508,
+            "exportSeconds": 49.4984062,
+            "bytes": 972985118,
+            "lines": 1000002,
+            "sha256": "23f6e0607a99018cce6ae6d0b8137be56113cea639596c4fec26f8e9609028f2",
+            "verifiedEveryDeclaredRow": true
+          }
+        ],
+        "sampledPeakSessionScratchBytes": 840300595,
+        "sampledIntervalMilliseconds": 50,
+        "baselinePrivateBytes": null,
+        "sampledPeakPrivateIncrement": null,
+        "privateMemoryBudgetVerified": false,
+        "privateMemoryBasis": "Unavailable; working-set samples are not private bytes",
+        "sampledPeakWorkingSetIncrement": 109248512,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "remainingQuotaBytes": 0,
+        "remainingProfileQuotaBytes": 0,
+        "passed": true
+      }
+    },
+    "mac/10M/deep": {
+      "revision": "r1101",
+      "measurement": {
+        "purpose": "Measured 10M report-capture scratch refusal with retained source and native cleanup; full 10M CSV export is not qualified",
+        "records": 10000000,
+        "shape": "deep",
+        "directories": 64,
+        "limitRefusal": true,
+        "fullCsvExportQualified": false,
+        "retainedSourceUnchanged": true,
+        "sourcePaths": 10000000,
+        "firstSourcePath": 1,
+        "lastSourcePath": 10000000,
+        "retainedSourceScratchBytes": 2739318490,
+        "sampledPeakSessionScratchBytes": 4294936422,
+        "scratchLimitBytes": 4294967296,
+        "destinationWasNeverOpened": true,
+        "observedSourceWasNeverCreated": true,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "baselinePrivateBytes": null,
+        "sampledPeakPrivateIncrement": null,
+        "privateMemoryBudgetVerified": false,
+        "sampledPeakWorkingSetIncrement": 82558976,
+        "remainingQuotaBytes": 0,
+        "remainingProfileQuotaBytes": 0,
+        "passed": true
+      }
+    },
+    "ubuntu/1M/wide": {
+      "revision": "r1098",
+      "measurement": {
+        "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+        "records": 1000000,
+        "shape": "wide",
+        "directories": 1,
+        "observedSourceWasNeverCreated": true,
+        "writeSeconds": 6.3820512,
+        "sealSeconds": 44.5196601,
+        "reports": [
+          {
+            "redact": true,
+            "captureSeconds": 120.5770637,
+            "exportSeconds": 49.6921561,
+            "bytes": 244890427,
+            "lines": 1000002,
+            "sha256": "73dfe051a6d5a2a33df6377955989f9bebc36ee71d0f1b87c60fd7971a187d74",
+            "verifiedEveryDeclaredRow": true
+          },
+          {
+            "redact": false,
+            "captureSeconds": 118.9786535,
+            "exportSeconds": 53.8915368,
+            "bytes": 342004522,
+            "lines": 1000002,
+            "sha256": "176008f1cfc7dc138d71290eb3a400e7b33d9bf048c5e1976f2832f31e15d3ac",
+            "verifiedEveryDeclaredRow": true
+          }
+        ],
+        "sampledPeakSessionScratchBytes": 840371517,
+        "sampledIntervalMilliseconds": 50,
+        "baselinePrivateBytes": 98152448,
+        "sampledPeakPrivateIncrement": 176119808,
+        "privateMemoryBudgetVerified": true,
+        "privateMemoryBasis": ".NET process private bytes; sampled, not an absolute peak",
+        "sampledPeakWorkingSetIncrement": 146579456,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "remainingQuotaBytes": 0,
+        "remainingProfileQuotaBytes": 0,
+        "passed": true
+      }
+    },
+    "ubuntu/10M/wide": {
+      "revision": "r1101",
+      "measurement": {
+        "purpose": "Measured 10M report-capture scratch refusal with retained source and native cleanup; full 10M CSV export is not qualified",
+        "records": 10000000,
+        "shape": "wide",
+        "directories": 1,
+        "limitRefusal": true,
+        "fullCsvExportQualified": false,
+        "retainedSourceUnchanged": true,
+        "sourcePaths": 10000000,
+        "firstSourcePath": 1,
+        "lastSourcePath": 10000000,
+        "retainedSourceScratchBytes": 2739327373,
+        "sampledPeakSessionScratchBytes": 4294945305,
+        "scratchLimitBytes": 4294967296,
+        "destinationWasNeverOpened": true,
+        "observedSourceWasNeverCreated": true,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "baselinePrivateBytes": 97935360,
+        "sampledPeakPrivateIncrement": 170307584,
+        "privateMemoryBudgetVerified": true,
+        "sampledPeakWorkingSetIncrement": 129060864,
+        "remainingQuotaBytes": 0,
+        "remainingProfileQuotaBytes": 0,
+        "passed": true
+      }
+    },
+    "ubuntu/1M/deep": {
+      "revision": "r1098",
+      "measurement": {
+        "purpose": "Production canonical CSV capture, bounded row/lineage reads and guarded native publication over an inert generated indexed dataset; no source traversal qualification",
+        "records": 1000000,
+        "shape": "deep",
+        "directories": 64,
+        "observedSourceWasNeverCreated": true,
+        "writeSeconds": 6.6215998,
+        "sealSeconds": 45.9750107,
+        "reports": [
+          {
+            "redact": true,
+            "captureSeconds": 115.1358437,
+            "exportSeconds": 50.0077436,
+            "bytes": 244891813,
+            "lines": 1000002,
+            "sha256": "5acbab6dfd481996ea63283cf1619b466d5575423f234dde8400b09a5736fcf3",
+            "verifiedEveryDeclaredRow": true
+          },
+          {
+            "redact": false,
+            "captureSeconds": 114.0809814,
+            "exportSeconds": 72.5584104,
+            "bytes": 971985118,
+            "lines": 1000002,
+            "sha256": "02c697295794e7c25194d7e54e601b728805872833f2610045fa49bfef76dedb",
+            "verifiedEveryDeclaredRow": true
+          }
+        ],
+        "sampledPeakSessionScratchBytes": 840551586,
+        "sampledIntervalMilliseconds": 50,
+        "baselinePrivateBytes": 98164736,
+        "sampledPeakPrivateIncrement": 178266112,
+        "privateMemoryBudgetVerified": true,
+        "privateMemoryBasis": ".NET process private bytes; sampled, not an absolute peak",
+        "sampledPeakWorkingSetIncrement": 153096192,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "remainingQuotaBytes": 0,
+        "remainingProfileQuotaBytes": 0,
+        "passed": true
+      }
+    },
+    "ubuntu/10M/deep": {
+      "revision": "r1101",
+      "measurement": {
+        "purpose": "Measured 10M report-capture scratch refusal with retained source and native cleanup; full 10M CSV export is not qualified",
+        "records": 10000000,
+        "shape": "deep",
+        "directories": 64,
+        "limitRefusal": true,
+        "fullCsvExportQualified": false,
+        "retainedSourceUnchanged": true,
+        "sourcePaths": 10000000,
+        "firstSourcePath": 1,
+        "lastSourcePath": 10000000,
+        "retainedSourceScratchBytes": 2739318490,
+        "sampledPeakSessionScratchBytes": 4294936422,
+        "scratchLimitBytes": 4294967296,
+        "destinationWasNeverOpened": true,
+        "observedSourceWasNeverCreated": true,
+        "ownedArtifactsRemoved": true,
+        "foreignNeighborPreserved": true,
+        "baselinePrivateBytes": 97935360,
+        "sampledPeakPrivateIncrement": 174673920,
+        "privateMemoryBudgetVerified": true,
+        "sampledPeakWorkingSetIncrement": 132485120,
+        "remainingQuotaBytes": 0,
+        "remainingProfileQuotaBytes": 0,
+        "passed": true
+      }
+    }
+  },
+  "originalFailures": {
+    "windows": [
+      {
+        "records": 1000000,
+        "shape": "deep",
+        "warmup": false,
+        "error": "Unhandled exception. System.IO.IOException: Not enough output space remains above the analysis reserve."
+      }
+    ],
+    "mac": [
+      {
+        "records": 10000000,
+        "shape": "wide",
+        "warmup": false,
+        "ownedPid": 29125,
+        "exitCode": -6,
+        "ownedProcessExited": true,
+        "error": "Expecting value: line 1 column 1 (char 0)"
+      }
+    ],
+    "ubuntu": [
+      {
+        "records": 10000000,
+        "shape": "wide",
+        "warmup": false,
+        "ownedPid": 1032441,
+        "exitCode": -6,
+        "ownedProcessExited": true,
+        "error": "Expecting value: line 1 column 1 (char 0)"
+      }
+    ]
+  },
+  "qualification": {
+    "oneMillionFileSizeCsvWideDeepBothPrivacyModesAllThree": true,
+    "tenMillionScratchRefusalRetainsCompleteSourceAllThree": true,
+    "taskOwnedProcessesExited": true,
+    "tenMillionFullCsvExportQualified": false,
+    "macProcessPrivateMemoryQualified": false,
+    "fullSourceTraversalAndPhysicalQualificationComplete": false,
+    "fullPlanComplete": false
+  },
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/csv-pinned-build-r1100.txt",
+      "sha256": "fd4f6882f60785dd7d81534f8c5f34a4481de977ce68a8689428882e7101cd47"
+    },
+    {
+      "path": "docs/validation/disk-space/csv-pinned-build-r1101.txt",
+      "sha256": "2d423fbf67f06a6024cd072a4a6d563be1605d41b13378508e69cc660e4a74d5"
+    },
+    {
+      "path": "docs/validation/disk-space/csv-scale-build-r1098.txt",
+      "sha256": "83a481cd0898f88c57b10293c7660140a597f741f9bbb60a39de758ae67e331f"
+    },
+    {
+      "path": "docs/validation/disk-space/csv-scale-drivers-r1101.tgz",
+      "sha256": "96d08c36ec1eb2afa35e14eba4344079222318e37c73bb768b096ddd0b0c8b5e"
+    },
+    {
+      "path": "docs/validation/disk-space/csv-scale-manifest-r1098.json",
+      "sha256": "912122a1500ff123655aae758e812e525ea559018859b0e3dd09dacaa4efcab3"
+    },
+    {
+      "path": "docs/validation/disk-space/csv-scale-manifest-r1101.json",
+      "sha256": "0f5a719f081eb59c3173a114b33b97286df1e4ccddde947aed8d6e86f809cb10"
+    },
+    {
+      "path": "docs/validation/disk-space/csv-scale-manifest-r1102.json",
+      "sha256": "b44de4f2500e43db810aea9b61c750e25f345238ba49d60c4475016a1afae7b7"
+    },
+    {
+      "path": "docs/validation/disk-space/csv-scale-source-r1098.tgz",
+      "sha256": "57f6aeaf090e076e9254e7ef228680bfa7035b174c5b2e9c8e911135e4389dde"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-csv-scale-r1098-original.json",
+      "sha256": "ceae78a0766cc94c71c26b27d984aea184b2e28c37e747206f60163768c31322"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-csv-scale-r1098-post.json",
+      "sha256": "2da3b4330cc78b2f89c39c90eef58eea91c5da0496a251112fecaca91f3e732f"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-csv-scale-r1098-results.tgz",
+      "sha256": "be928a03ce0acc547b392601af1e88f7cc50a6d8dbb93cf561162bcad6b2677c"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-csv-scale-r1101-original.json",
+      "sha256": "464a5cba9ff275bb601f308dad5e1962acd5bbf0cefa01c3063c829e6b85113b"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-csv-scale-r1101-post.json",
+      "sha256": "8fd38a5cc4cbda7c3fe120705f099643096d34d2408a20c0b48a907a91ce0bf9"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-csv-scale-r1101-results.tgz",
+      "sha256": "e31133b0e222660b5aeb3d5c5099781c02f8c63e0a883e5122d90cdbfce91474"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-csv-scale-r1098-original.json",
+      "sha256": "af2a2d46adc46bb65b4b0976c11a2ddb57c40c54564f35a64a33f00a31eb4122"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-csv-scale-r1098-post.json",
+      "sha256": "f868f1b68fed238b97fdf80d750cef3971aee4d8a13d802cd404ff05e96d80d5"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-csv-scale-r1098-results.tgz",
+      "sha256": "f657f94351ccd569691b41317cfe4eecf347c35623812ec754ee80c2e25c2440"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-csv-scale-r1101-original.json",
+      "sha256": "3d219daf4c999788a88a4afd615f7e199d3560a4eb9659fb5ae2e709baf339e0"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-csv-scale-r1101-post.json",
+      "sha256": "e5f403e06813707a4a20498e0cc8659ccbd6424a6542cc1788973947f880e965"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-csv-scale-r1101-results.tgz",
+      "sha256": "cf587136137b840e7d12307787e3bc4d64fd4093389a96d06d90441657876091"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-csv-scale-r1098-original.json",
+      "sha256": "6e2ee219889aae9a21292ec88f4378b72a8fe921a8b4df0c53716b7505f2a343"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-csv-scale-r1098-post.json",
+      "sha256": "7f96aa6af1e8aa584cc5cde7af9a33a4964ae1bb774561c88dd8ec6f27616c1b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-csv-scale-r1098-results.tgz",
+      "sha256": "813ed8ffd2b1983f180f1803200004ae1930150829c2d3d60b4f87cd1ac2b3b4"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-csv-scale-r1101-original.json",
+      "sha256": "a256ccb0af96eded08b8915db78ed1183893014fcd10c1e5e0e421b8f62f55c9"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-csv-scale-r1101-post.json",
+      "sha256": "08179035c005debd7479ad71d67b4c601970f8eaea7fc3c58f8850fbc1a55e65"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-csv-scale-r1101-results.tgz",
+      "sha256": "bafa75e69e77a7e8d41339cc40dda4b44841a856f4b49e7e98dbdab8a35d937f"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-csv-scale-r1102-original.json",
+      "sha256": "c86128d1412ce96f50b0184e8d0492f09c11595534dda843fe65c7d2547fb2a9"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-csv-scale-r1102-post.json",
+      "sha256": "a5cba67700fd53cc00c7c84509c699063c19101650d74cd3d9e4929e1f50a452"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-csv-scale-r1102-results.tgz",
+      "sha256": "d5c3c532d69952063b74b2525b629796ab8d0fc85157f7b11d268fc3e7f9424c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-csv-space-probe-r1100.json",
+      "sha256": "997cd865389c120be188b63fed914168337b9a5449559c0a6cd23e8221e31d5d"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-foreign-process-r1104.json",
+      "sha256": "ea9c11657813646e501b84f3ff0bb9da265b27e57c60179eb04dd2e642241176"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-retired-payload-cleanup-r1101.json",
+      "sha256": "932c0330774089d36657ccf1e5e03c28b9ead96d950b2bb6f56e867d3fc4be72"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-retired-payloads-r1101.json",
+      "sha256": "081c7f44b1df2b824b0c685510e10a92bcebb454fc403c898270d3ebe74fddd6"
+    }
+  ]
+}

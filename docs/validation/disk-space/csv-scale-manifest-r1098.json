@@ -1,0 +1,66 @@
+{
+  "revision": "r1098",
+  "qualifiedProductRevision": "r1096",
+  "gitBase": "08c02504e7339689395f28786224b6a22ecae836",
+  "buildLog": ".tmp/csv-scale-build-r1098.txt",
+  "archive": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\csv-scale-r1098.tgz",
+  "sha256": "e915cc4066ee98c91465e3a263edd9c4fc86c3bf349b7e49f70449804724ca33",
+  "bytes": 5217802,
+  "inputs": [
+    {
+      "name": "BouncyCastle.Cryptography.dll",
+      "sha256": "ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5",
+      "bytes": 5155728
+    },
+    {
+      "name": "FileCat.Core.dll",
+      "sha256": "26c4aec75802a37dccacf4da11f3bd2710080b213b2cdb1c243e27b9335cb3aa",
+      "bytes": 4231168
+    },
+    {
+      "name": "FileCat.Core.pdb",
+      "sha256": "17a7aafe9c8fc5d71e64688696caa72c9f68a3678616cd4124b3884fa23a6e08",
+      "bytes": 1293976
+    },
+    {
+      "name": "FileCat.CoreCrashHarness.deps.json",
+      "sha256": "21a45b65a6ee6c193ccc9255fcca6f0f9f43ca658c91bfed504e0a341bc04eed",
+      "bytes": 1558
+    },
+    {
+      "name": "FileCat.CoreCrashHarness.dll",
+      "sha256": "7fca64d89778ae575944c436a177dceebea7a926d837145958882c5f70520fd0",
+      "bytes": 164352
+    },
+    {
+      "name": "FileCat.CoreCrashHarness.exe",
+      "sha256": "751ab8db3ec4dea5f605759e2183d1fc5fe815883149f984be0604cb82302f69",
+      "bytes": 162816
+    },
+    {
+      "name": "FileCat.CoreCrashHarness.pdb",
+      "sha256": "139cbf30a2e4e259d085bb8110fac1c04c1bf2f8b00ea0a9c205acdc1dc81588",
+      "bytes": 37996
+    },
+    {
+      "name": "FileCat.CoreCrashHarness.runtimeconfig.json",
+      "sha256": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+      "bytes": 270
+    },
+    {
+      "name": "FileCat.Platform.Windows.dll",
+      "sha256": "842bbc8c3c2739c78ebe27a64c2d1ac9e083c1cc4463d03c75c4e1c86dd05ecf",
+      "bytes": 733696
+    }
+  ],
+  "sources": [
+    {
+      "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+      "sha256": "6a6d1a5cc917bdc5003086a99f2d563f0a8b32280f74c5be1d962649cc847c11"
+    },
+    {
+      "path": "tests/FileCat.CoreCrashHarness/CsvReportScale.cs",
+      "sha256": "f9fbdc68cf960886a693341b557c7e36d512472ba971311faa613dc8ec8e1fba"
+    }
+  ]
+}

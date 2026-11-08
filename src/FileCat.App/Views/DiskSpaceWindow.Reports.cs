@@ -13,11 +13,12 @@ public sealed partial class DiskSpaceWindow
     {
         internal AnalysisReportViewKind ViewKind { get; init; }
         internal AnalysisChartFormat? ChartFormat { get; init; }
+        internal bool ComparisonBundle { get; init; }
         internal int ChartWidth { get; init; } = 1280;
         internal int ChartHeight { get; init; } = 960;
         internal AnalysisReportFormat CaptureFormat => ChartFormat is null ? Format : AnalysisReportFormat.Csv;
-        internal string Extension => ChartFormat is { } chart ? chart == AnalysisChartFormat.Svg ? ".svg" : ".png" : Format switch { AnalysisReportFormat.Markdown => ".md", AnalysisReportFormat.Html => ".html", _ => ".csv" };
-        internal string Description => ChartFormat is not null ? $"Export the current captured chart at {ChartWidth}×{ChartHeight}, including its metric, scope, observation time, legend and partial-state notice. Small items may be aggregated; this image does not include every table row. " +
+        internal string Extension => ComparisonBundle ? ".fcdsc" : ChartFormat is { } chart ? chart == AnalysisChartFormat.Svg ? ".svg" : ".png" : Format switch { AnalysisReportFormat.Markdown => ".md", AnalysisReportFormat.Html => ".html", _ => ".csv" };
+        internal string Description => ComparisonBundle ? "Export both entire captured inventories and the applied comparison metric, query, ranking, focus and chart settings in one self-contained .fcdsc bundle. Filters do not reduce the inventories. Exact raw names, locations, identities and observed metadata are included; this machine bundle cannot omit paths. File contents, current source connections and operation approvals are excluded. Opening the bundle restores offline observations." : ChartFormat is not null ? $"Export the current captured chart at {ChartWidth}×{ChartHeight}, including its metric, scope, observation time, legend and partial-state notice. Small items may be aggregated; this image does not include every table row. " +
             (RedactPaths ? "Names, locations and source identifiers are omitted throughout the image." : "Sensitive displayed names and scope are included.") + " Image memory is bounded; choose a smaller image if unavailable. File contents and operation approvals are excluded." : (Scope switch
         {
             AnalysisReportScope.FilteredView => ViewKind switch

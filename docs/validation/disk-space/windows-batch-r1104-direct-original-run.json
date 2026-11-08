@@ -1,0 +1,8 @@
+{
+  "state": "postponed-before-direct-deployment",
+  "previousAttempt": "postponed-no-deployment",
+  "exitCode": 75,
+  "hostPid": 48280,
+  "observedUtc": "2026-11-08T16:19:05.3565579Z",
+  "reason": "Fresh Windows inventory found foreign Admin dotnet PID9716; no deployment invoked."
+}

@@ -25,8 +25,12 @@ public static partial class AnalysisInventoryFormat
         return ExportNewAsync(io, devices, name, createDestination,
             (sink, token) => WriteHumanReportPipeAsync(sink, io, devices, header, rows, format, redactPaths, token), cancellation);
     }
-    private static async Task WriteHumanReportPipeAsync(IAnalysisInventoryWriteSink output, DeviceIoScheduler io, AnalysisIoDevices devices,
-        AnalysisReportHeader header, IAsyncEnumerable<AnalysisReportRow> rows, AnalysisReportFormat format, bool redactPaths, CancellationToken cancellation)
+    private static Task WriteHumanReportPipeAsync(IAnalysisInventoryWriteSink output, DeviceIoScheduler io, AnalysisIoDevices devices,
+        AnalysisReportHeader header, IAsyncEnumerable<AnalysisReportRow> rows, AnalysisReportFormat format, bool redactPaths, CancellationToken cancellation) =>
+        WritePreparedPipeAsync(output, io, devices, (stream, token) => AnalysisHumanReport.WriteAsync(stream, header, rows, format, redactPaths, token), cancellation);
+
+    internal static async Task WritePreparedPipeAsync(IAnalysisInventoryWriteSink output, DeviceIoScheduler io, AnalysisIoDevices devices,
+        Func<Stream, CancellationToken, Task> write, CancellationToken cancellation)
     {
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         var pipe = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(2) { SingleReader = true, SingleWriter = true, FullMode = BoundedChannelFullMode.Wait });
@@ -36,7 +40,7 @@ public static partial class AnalysisInventoryFormat
             try
             {
                 using var stream = new PreparedPipeStream(pipe.Writer, stop.Token);
-                await AnalysisHumanReport.WriteAsync(stream, header, rows, format, redactPaths, stop.Token).ConfigureAwait(false);
+                await write(stream, stop.Token).ConfigureAwait(false);
             }
             catch (Exception error) { failure = error; throw; }
             finally { pipe.Writer.TryComplete(failure); }

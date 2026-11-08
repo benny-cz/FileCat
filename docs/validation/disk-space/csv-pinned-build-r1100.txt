@@ -1,0 +1,10 @@
+  Determining projects to restore...
+E:\FileCat\.tmp\worktrees\disk-space-analysis\Directory.Build.targets(45,5): error : FileCat dependency lock is missing. Regeneration requires explicit FileCatUpdateDependencyLocks=true and review of the resulting lock changes. [E:\FileCat\.tmp\worktrees\disk-space-analysis\.tmp\csv-pinned-r1100\PinnedCsv.csproj]
+
+Build FAILED.
+
+E:\FileCat\.tmp\worktrees\disk-space-analysis\Directory.Build.targets(45,5): error : FileCat dependency lock is missing. Regeneration requires explicit FileCatUpdateDependencyLocks=true and review of the resulting lock changes. [E:\FileCat\.tmp\worktrees\disk-space-analysis\.tmp\csv-pinned-r1100\PinnedCsv.csproj]
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:00.65

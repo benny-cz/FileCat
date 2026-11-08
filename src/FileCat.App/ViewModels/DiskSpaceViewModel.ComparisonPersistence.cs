@@ -20,6 +20,7 @@ public sealed partial class DiskSpaceViewModel
     public string? SavedComparisonName { get; private set; }
     private Guid? _savedComparisonId;
     public bool CanSaveComparison => !_disposed && _comparisonReady && Comparison is not null && HasPrivateStorage && !IsSaving;
+    internal bool CanExportComparison => !_disposed && _comparisonReady && Comparison is not null && _comparisonPrevious is not null && _comparisonCurrent is not null && _services is not null && !_services.Io.IsStopped && !_actualWork.HasUnconfirmedClose && !IsSaving;
     internal bool ComparisonReady => !_disposed && _comparisonReady && Comparison is not null;
     internal bool ComparisonHasTemporaryWork => !_comparisonReady || _comparisonDraftChanged || SavedComparisonName is null || ComparisonView != _savedComparisonView;
     internal void SetComparisonDraftChanged(bool changed) { if (ComparisonReady) _comparisonDraftChanged = changed; }
@@ -53,10 +54,10 @@ public sealed partial class DiskSpaceViewModel
         }
         public void Dispose() { try { _rows.Dispose(); } finally { try { Previous.Dispose(); } finally { Current.Dispose(); } } }
     }
-    internal ComparisonCapture CaptureComparison()
+    internal ComparisonCapture CaptureComparison(bool forExport = false)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!CanSaveComparison) throw new InvalidOperationException("Wait for an available comparison and private profile storage before saving.");
+        if (forExport ? !CanExportComparison : !CanSaveComparison) throw new InvalidOperationException(forExport ? "Wait for an available captured comparison before exporting." : "Wait for an available comparison and private profile storage before saving.");
         AnalysisSnapshotLease? before = null, now = null; AnalysisComparisonResult.ReadLease? rows = null;
         try
         {

@@ -194,7 +194,9 @@
     "Indexed report capture retains the exact offline dataset and canonical hierarchy through actual export and cancellation. Markdown/HTML/CSV support explicitly reviewed filtered-folder, marked-real-path, and entire-unfiltered scopes with declared detail/count limits. Default redaction, explicit folder/name review, protected native output boundaries and preserving existing files are tested. Twenty new native/view cases and applicable broad suites pass Windows/Mac/Ubuntu (r1084); only rendering-test DLL/PDB changed after correcting assertions for Markdown escaping and the existing dialog availability timer. Memory and grouped-filtered captures, basis/context details, charts and physical desktop qualification remain open.",
     "Memory report capture now uses retained immutable source data and the existing canonical tree fold, with a shared 64 MiB report admission and existing bounded table-order admission held through actual output completion. Filtered-folder, explicit marked paths and entire-result CSV/human reports share indexed output ownership and preserving review. Scoped identity-unverified unique-size amounts no longer disappear from memory summaries or enter chart area. Native roots and Unix trailing backslashes retain displayed path meaning. Reports include escaped/redactable captured filter details, allocation preset and bounded provider-basis labels taken from existing accounting state without another fact scan. Twenty-six new Core and eleven native cases, the twenty indexed report controls and broad suites pass all three (r1088). Grouped-filtered reports, charts, complete physical/resource/scale qualification and later work packets remain open.",
     "Reports now capture group overviews, real member paths and exact Other scopes in both indexed and memory views. Indexed reports retain independent existing explorer scopes rather than rebuilding source membership. Canonical grouped statistics remain separate from reference logical statistics and omitted allocation buckets. Report roles, not-applicable directory file statistics, typed displayed order and filter timezone context are explicit and safely redacted. Entire human reports select active-metric descending root detail; missing allocation no longer falsely marks memory namespace rows incomplete. Fourteen new Core and fifteen native/view cases plus broad suites pass Windows/Mac/Ubuntu (r1091), including memory/indexed parity after original owners close and generated sources move offline. Native parity exposed and fixed Other-overview logical membership outside an entry group. Charts, large-CSV performance, full physical/resource qualification, later packets and final independent review remain open.",
-    "PNG and inert SVG exports capture the existing treemap/sunburst geometry with metric, scope, observation interval, legend, freshness, partial watermark and privacy/privileged notices. Default redaction removes all source names, locators and identifiers before scene encoding. Full-result CSV now reads existing canonical namespace summaries in bounded batches and reuses directory prefixes through a per-producer 2 MiB/2,048-entry LRU cache over captured metadata. Cancellation clears that cache after the actual producer stops. Shared 64 MiB chart admission covers scene, encoded buffer and conservative PNG working memory; dimensions also have 16,384/side and 64 MP hard bounds. The shared actual-completion output lifetime retains captured owners and memory through native write/publication/close and cancellation. Both memory and indexed UIs use the existing reviewed protected create-new route, keep existing outputs and explicit scope/size choices. Comparison views no longer silently export the primary snapshot. Nineteen new chart native/view and five new CSV batch/lineage checks plus broad suites pass all three platforms (r1096). Full comparison export, large CSV performance, physical/resource qualification and later packets/final independent review remain open."
+    "PNG and inert SVG exports capture the existing treemap/sunburst geometry with metric, scope, observation interval, legend, freshness, partial watermark and privacy/privileged notices. Default redaction removes all source names, locators and identifiers before scene encoding. Full-result CSV now reads existing canonical namespace summaries in bounded batches and reuses directory prefixes through a per-producer 2 MiB/2,048-entry LRU cache over captured metadata. Cancellation clears that cache after the actual producer stops. Shared 64 MiB chart admission covers scene, encoded buffer and conservative PNG working memory; dimensions also have 16,384/side and 64 MP hard bounds. The shared actual-completion output lifetime retains captured owners and memory through native write/publication/close and cancellation. Both memory and indexed UIs use the existing reviewed protected create-new route, keep existing outputs and explicit scope/size choices. Comparison views no longer silently export the primary snapshot. Nineteen new chart native/view and five new CSV batch/lineage checks plus broad suites pass all three platforms (r1096). Full comparison export, large CSV performance, physical/resource qualification and later packets/final independent review remain open.",
+    "Production File-size CSV export over inert indexed fixtures completed 1M-wide/deep datasets with both privacy modes on all three platforms, exact declared row counts and output hashes, bounded scratch, actual cleanup and preserved neighbors. The 10M-wide/deep report captures reached the independent 4GiB scratch ceiling; targeted native checks prove the complete captured source remains readable, no destination opens and derived/source quota returns to zero. This is safe-refusal evidence, not complete 10M CSV export support. Windows output-space refusal was preserved and its focused 1M-deep rerun passed after removing only hash-verified retired task payloads. Mac .NET private bytes remain unavailable; working set is not substituted. Full traversal/physical/private-memory qualification and final independent review remain open.",
+    "The comparison footer can export both complete immutable inputs and applied comparison settings as a self-contained .fcdsc machine bundle through the protected reviewed create-new route. Default Cancel and Keep existing remain in force; exact names/IDs are explicitly disclosed, and a path-omission claim is rejected before opening output. Both owners survive original-view closure/offline sources and actual blocked-output cancellation. Five new native/review cases plus affected broad suites pass Windows/Mac/Ubuntu (r1104). External comparison import UI and human/comparison-chart reports remain separate open work; this is not full interoperability or full-plan qualification."
   ],
   "validation": {
     "windowsCore": {
@@ -12661,6 +12663,298 @@
       "fullPhysicalAndResourceQualificationComplete": false,
       "publicFeatureRegistered": false,
       "finalIndependentReviewPerformed": false
+    },
+    "csvScaleSlice": {
+      "manifest": "source-manifest-r1102-csv-scale.json",
+      "oneMillionFileSizeCsvWideDeepBothPrivacyModesAllThree": true,
+      "tenMillionScratchRefusalRetainsCompleteSourceAllThree": true,
+      "taskOwnedProcessesExited": true,
+      "tenMillionFullCsvExportQualified": false,
+      "macProcessPrivateMemoryQualified": false,
+      "fullSourceTraversalAndPhysicalQualificationComplete": false,
+      "fullPlanComplete": false
+    },
+    "comparisonBundleExport": {
+      "manifest": "source-manifest-r1104-comparison-bundle.json",
+      "matrix": {
+        "windows/smoke": {
+          "revision": "r1104",
+          "total": "64",
+          "passed": "64",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "0.973",
+          "skippedNames": []
+        },
+        "windows/preview": {
+          "revision": "r1104",
+          "total": "76",
+          "passed": "76",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "26.926",
+          "skippedNames": [],
+          "newCases": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.ComparisonBundleExportReviewDeclaresBothFullInputsAndKeepsCancelDefault",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleCannotWriteIntoProtectedApplicationState",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleCloseWaitsForActualOutputAndReleasesBothInputsAfterCancellation",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleExportRetainsBothInputsOfflineAndKeepsExistingOutput",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleRejectsAPathOmissionClaimAndWrongSuffixBeforeOpeningOutput"
+          ]
+        },
+        "windows/core": {
+          "revision": "r1104",
+          "total": "1641",
+          "passed": "1593",
+          "failed": "0",
+          "skipped": "48",
+          "errors": "0",
+          "time": "62.086",
+          "skippedNames": [
+            "FileCat.Core.Tests.AnalysisCatalogTests.NativeUnixCatalogCanBeReopenedAndNeverFollowsMetadataLinks",
+            "FileCat.Core.Tests.AnalysisComparisonTests.NativeUnixInventoriesCompareActualGrowthAndHardLinkAttribution",
+            "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeFileTokenCloseRefusalKeepsCapacityAfterFinalQuotaCloseUntilActualExit",
+            "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-removed\\\")",
+            "FileCat.Core.Tests.AnalysisIndexedSessionTests.NativeUnixSourcesExcludePrivateRootsWhenSecureScratchIsUnavailable",
+            "FileCat.Core.Tests.AnalysisInventoryPathMapTests.UnixNativeOriginalIdMapOutlivesItsWorkspaceOwnerAndClosesAllAnonymousFiles",
+            "FileCat.Core.Tests.AnalysisInventoryStageTests.NativeUnixStagingRetainsTheWholeContainerAndOriginalIdMapAfterInputAndWorkspaceClose",
+            "FileCat.Core.Tests.AnalysisNativeHandleTests.NativeBackendChildCloseFailureStopsNewWorkAndRemainsVisibleAtFinalClosure",
+            "FileCat.Core.Tests.AnalysisNativeHandleTests.RepeatedUnixPrivateCatalogCursorsReturnTheirNativeReservations",
+            "FileCat.Core.Tests.AnalysisOperationFeasibilityTests.UnixHeldChildDoesNotPreventReplacementBeforeUnlinkAt",
+            "FileCat.Core.Tests.AnalysisOperationFeasibilityTests.UnixHeldParentDoesNotPinItsSelectedAncestorBinding",
+            "FileCat.Core.Tests.AnalysisPrivateRootExclusionTests.ExplicitFileRootInsidePrivateStorageRetainsOnlyExcludedEvidence",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.LinuxScratchCannotBePublishedThroughItsKernelDescriptorButInventoryStagingCan",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.MacNativeExtendedAclGrantIsRefusedBeforePayloadCreation",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeCoordinatorUsesIndexedStorageAndExcludesItsProtectedDirectory",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeCreateNewRoundTripConflictsAndInterruptedWritesKeepExistingBytes",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeExternalIndexKeepsExactRangesAndReleasesRunArtifacts",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeMetadataCaptureCoalescesActualHardLinksWithoutReadingFileContent",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeRefusesLinksBroadPermissionsAndMovedAncestry",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeRehydratedReadWitnessRejectsAQueuedDirectoryReplacement",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeRelatedTablesRetainOneCoherentRevisionAfterOwnerClosure",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeScratchHasNoPayloadNameAfterAbruptProcessDeath",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeScratchIsAnonymousAndItsReaderSurvivesWriterClosure",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeTypedGraphKeepsItsExactRelatedIndexesAfterOwnerClosure",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeWideDirectoryScanSpillsItsLiveFrontierInsteadOfDroppingChildren",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixNativeWorkspaceSharesDirectoryAndQuotaUntilAllArenaReadersClose",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.UnixScratchPrivacyOrAncestryLossRefusesFurtherIoAndNeverTouchesTheReplacement",
+            "FileCat.Core.Tests.AnalysisProfileQuotaTests.NativePrivateFilesCoordinateOwnedChildrenThroughActualExit(crash: False)",
+            "FileCat.Core.Tests.AnalysisProfileQuotaTests.NativePrivateFilesCoordinateOwnedChildrenThroughActualExit(crash: True)",
+            "FileCat.Core.Tests.AnalysisProfileQuotaTests.NativePrivateFilesPreserveForeignTokensAndRefuseAChangedProfile",
+            "FileCat.Core.Tests.AnalysisProfileQuotaTests.NativePrivateFilesShareCapacityAndRetainItAfterOwnerClose",
+            "FileCat.Core.Tests.AnalysisProfileQuotaTests.QuarantinedNativeScratchKeepsCrossProcessCapacityUntilActualProcessExit",
+            "FileCat.Core.Tests.AnalysisProfileQuotaTests.UnixUnknownOrNonprivateKernelRecordsAreRefusedWithoutMutation(count: 4, mode: 384, marker: 0)",
+            "FileCat.Core.Tests.AnalysisProfileQuotaTests.UnixUnknownOrNonprivateKernelRecordsAreRefusedWithoutMutation(count: 4, mode: 384, marker: 17987)",
+            "FileCat.Core.Tests.AnalysisProfileQuotaTests.UnixUnknownOrNonprivateKernelRecordsAreRefusedWithoutMutation(count: 4, mode: 384, marker: 29)",
+            "FileCat.Core.Tests.AnalysisProfileQuotaTests.UnixUnknownOrNonprivateKernelRecordsAreRefusedWithoutMutation(count: 4, mode: 438, marker: 17987)",
+            "FileCat.Core.Tests.AnalysisProfileQuotaTests.UnixUnknownOrNonprivateKernelRecordsAreRefusedWithoutMutation(count: 5, mode: 384, marker: 17987)",
+            "FileCat.Core.Tests.AnalysisProfileTests.NativeUnixProfileStateSurvivesReopenAndRejectsASymlinkWithoutChangingItsTarget",
+            "FileCat.Core.Tests.AnalysisScanningTests.UnixExplicitHardLinkedFileRootsAreTwoPathsAndOneObject",
+            "FileCat.Core.Tests.AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink(detailed: False)",
+            "FileCat.Core.Tests.AnalysisScanningTests.UnixNativeScannerCountsHardLinksOnceAndDoesNotTraverseSymlink(detailed: True)",
+            "FileCat.Core.Tests.AnalysisScanningTests.UnixNestedRootsAreCoveredOnceInEitherSelectionOrder(childFirst: False)",
+            "FileCat.Core.Tests.AnalysisScanningTests.UnixNestedRootsAreCoveredOnceInEitherSelectionOrder(childFirst: True)",
+            "FileCat.Core.Tests.AnalysisScanningTests.UnixQueuedDirectoryRetainsItsAncestorBinding",
+            "FileCat.Core.Tests.AnalysisScanningTests.UnixUnreadableDirectoryDoesNotLoseReadableSiblingFiles",
+            "FileCat.Core.Tests.CommandTests.Unix_language_file_fifo_is_ignored_without_waiting_for_a_writer(linked: False)",
+            "FileCat.Core.Tests.CommandTests.Unix_language_file_fifo_is_ignored_without_waiting_for_a_writer(linked: True)",
+            "FileCat.Core.Tests.PathAndStateTests.FileCats_own_folders_are_its_users_alone_on_Linux_and_macOS"
+          ]
+        },
+        "windows/render": {
+          "revision": "r1104",
+          "total": "611",
+          "passed": "610",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "257.054",
+          "skippedNames": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.RestoredUnixPrivatePathCannotAcceptAReplacementExclusionCapability"
+          ],
+          "newCases": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.ComparisonBundleExportReviewDeclaresBothFullInputsAndKeepsCancelDefault",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleCannotWriteIntoProtectedApplicationState",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleCloseWaitsForActualOutputAndReleasesBothInputsAfterCancellation",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleExportRetainsBothInputsOfflineAndKeepsExistingOutput",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleRejectsAPathOmissionClaimAndWrongSuffixBeforeOpeningOutput"
+          ]
+        },
+        "windows/appsettings": {
+          "revision": "r1104",
+          "total": "35",
+          "passed": "34",
+          "failed": "0",
+          "skipped": "1",
+          "errors": "0",
+          "time": "18.130",
+          "skippedNames": [
+            "FileCat.App.Tests.SettingsPreservationTests.Protected_profiles_remain_inspectable_with_the_correct_reason_and_no_edit_actions(status: UnavailableReadOnly, reason: \\\"could not be read safely\\\")"
+          ]
+        },
+        "windows/native": {
+          "revision": "r1104",
+          "total": "75",
+          "passed": "75",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "37.241",
+          "skippedNames": []
+        },
+        "mac/smoke": {
+          "revision": "r1104",
+          "total": "64",
+          "passed": "64",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "0.452",
+          "skippedNames": []
+        },
+        "mac/preview": {
+          "revision": "r1104",
+          "total": "76",
+          "passed": "76",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "20.217",
+          "skippedNames": [],
+          "newCases": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.ComparisonBundleExportReviewDeclaresBothFullInputsAndKeepsCancelDefault",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleCannotWriteIntoProtectedApplicationState",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleCloseWaitsForActualOutputAndReleasesBothInputsAfterCancellation",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleExportRetainsBothInputsOfflineAndKeepsExistingOutput",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleRejectsAPathOmissionClaimAndWrongSuffixBeforeOpeningOutput"
+          ]
+        },
+        "mac/core": {
+          "revision": "r1104",
+          "total": "1623",
+          "passed": "1619",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "33.712",
+          "skippedNames": [
+            "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-close\\\")",
+            "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-release\\\")",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.LinuxScratchCannotBePublishedThroughItsKernelDescriptorButInventoryStagingCan",
+            "FileCat.Core.Tests.AnalysisProfileQuotaTests.WindowsForeignObjectTypeIsPreservedAndItsPrivateNameDoesNotEscapeTheFailure"
+          ]
+        },
+        "mac/render": {
+          "revision": "r1104",
+          "total": "611",
+          "passed": "611",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "192.926",
+          "skippedNames": [],
+          "newCases": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.ComparisonBundleExportReviewDeclaresBothFullInputsAndKeepsCancelDefault",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleCannotWriteIntoProtectedApplicationState",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleCloseWaitsForActualOutputAndReleasesBothInputsAfterCancellation",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleExportRetainsBothInputsOfflineAndKeepsExistingOutput",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleRejectsAPathOmissionClaimAndWrongSuffixBeforeOpeningOutput"
+          ]
+        },
+        "mac/appsettings": {
+          "revision": "r1104",
+          "total": "35",
+          "passed": "35",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "15.360",
+          "skippedNames": []
+        },
+        "ubuntu/smoke": {
+          "revision": "r1104",
+          "total": "64",
+          "passed": "64",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "0.794",
+          "skippedNames": []
+        },
+        "ubuntu/preview": {
+          "revision": "r1104",
+          "total": "76",
+          "passed": "76",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "16.596",
+          "skippedNames": [],
+          "newCases": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.ComparisonBundleExportReviewDeclaresBothFullInputsAndKeepsCancelDefault",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleCannotWriteIntoProtectedApplicationState",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleCloseWaitsForActualOutputAndReleasesBothInputsAfterCancellation",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleExportRetainsBothInputsOfflineAndKeepsExistingOutput",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleRejectsAPathOmissionClaimAndWrongSuffixBeforeOpeningOutput"
+          ]
+        },
+        "ubuntu/core": {
+          "revision": "r1104",
+          "total": "1623",
+          "passed": "1619",
+          "failed": "0",
+          "skipped": "4",
+          "errors": "0",
+          "time": "127.128",
+          "skippedNames": [
+            "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-close\\\")",
+            "FileCat.Core.Tests.AnalysisFileProfileRetirementTests.NativeKernelRetirementKeepsUnconfirmedOwnershipAndItsWorker(mode: \\\"kernel-release\\\")",
+            "FileCat.Core.Tests.AnalysisPrivateStorageTests.MacNativeExtendedAclGrantIsRefusedBeforePayloadCreation",
+            "FileCat.Core.Tests.AnalysisProfileQuotaTests.WindowsForeignObjectTypeIsPreservedAndItsPrivateNameDoesNotEscapeTheFailure"
+          ]
+        },
+        "ubuntu/render": {
+          "revision": "r1104",
+          "total": "611",
+          "passed": "611",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "218.838",
+          "skippedNames": [],
+          "newCases": [
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.ComparisonBundleExportReviewDeclaresBothFullInputsAndKeepsCancelDefault",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleCannotWriteIntoProtectedApplicationState",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleCloseWaitsForActualOutputAndReleasesBothInputsAfterCancellation",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleExportRetainsBothInputsOfflineAndKeepsExistingOutput",
+            "FileCat.Rendering.Tests.AnalysisRenderingTests.NativeComparisonBundleRejectsAPathOmissionClaimAndWrongSuffixBeforeOpeningOutput"
+          ]
+        },
+        "ubuntu/appsettings": {
+          "revision": "r1104",
+          "total": "35",
+          "passed": "35",
+          "failed": "0",
+          "skipped": "0",
+          "errors": "0",
+          "time": "16.225",
+          "skippedNames": []
+        }
+      },
+      "guardedComparisonBundleExportQualified": true,
+      "bothImmutableInputOwnersRetainedThroughActualOutput": true,
+      "existingFileAndProtectedStatePreserved": true,
+      "rawMachinePrivacyReviewAndCancelDefaultQualified": true,
+      "newNativeAndReviewCasesPassedAllThree": 5,
+      "broadSuitesPassedAllThree": true,
+      "taskOwnedProcessesExited": true,
+      "externalComparisonImportUiComplete": false,
+      "comparisonHumanReportsAndChartsComplete": false,
+      "fullPhysicalAndResourceQualificationComplete": false,
+      "publicFeatureRegistered": false,
+      "finalIndependentReviewPerformed": false
     }
   },
   "nextWork": [
@@ -12689,5 +12983,12 @@
       "security"
     ],
     "timing": "After the full implementation/testing loop; fix findings and repeat relevant tests before completion."
+  },
+  "pauseCheckpoint": {
+    "requestedByUser": true,
+    "sliceFinished": true,
+    "resumeDocument": "PAUSE_CHECKPOINT.md",
+    "fullGoalComplete": false,
+    "finalIndependentReviewPerformed": false
   }
 }

@@ -24,7 +24,7 @@ public abstract class AnalysisExportDestination : IAnalysisScratchOwned
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         if (name.Length > 120 || !AnalysisNames.IsOrdinaryChild(name, windows: true) ||
             !AnalysisPrivateInventoryStore.WellFormedText(name) || System.Text.Encoding.UTF8.GetByteCount(name) > 240 ||
-            name.StartsWith(".", StringComparison.Ordinal) || !new[] { ".fcdsa", ".jsonl", ".md", ".html", ".csv", ".svg", ".png" }.Any(extension => name.EndsWith(extension, StringComparison.Ordinal)))
+            name.StartsWith(".", StringComparison.Ordinal) || !new[] { ".fcdsa", ".fcdsc", ".jsonl", ".md", ".html", ".csv", ".svg", ".png" }.Any(extension => name.EndsWith(extension, StringComparison.Ordinal)))
             throw new ArgumentException("Choose a portable output filename with the selected supported extension.");
     }
 }

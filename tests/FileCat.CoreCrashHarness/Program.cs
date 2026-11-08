@@ -33,6 +33,8 @@ if (args is ["--analysis-sort-index", var sortText, var sortParent])
     return await ScratchSortScale.RunAsync(int.Parse(sortText, System.Globalization.CultureInfo.InvariantCulture), sortParent);
 if (args is ["--analysis-indexed-graph", var graphText, var graphParent])
     return await ScratchGraphScale.RunAsync(int.Parse(graphText, System.Globalization.CultureInfo.InvariantCulture), graphParent);
+if (args is ["--analysis-csv-scale", var csvCount, var csvShape, var csvParent])
+    return await CsvReportScale.RunAsync(int.Parse(csvCount, System.Globalization.CultureInfo.InvariantCulture), csvShape, csvParent);
 
 if (args is ["--analysis-scratch-hold", var scratchParent])
 {

@@ -37,8 +37,8 @@ public sealed partial class DiskSpaceWindow
         } };
         var closer = new DialogCloser();
         using var close = cancellation.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => closer.Close(false)));
-        var choice = await dialogs.ShowCustomAsync(report is null ? "Export entire inventory" : "Export captured report", body,
-            [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton(report is null ? "Export new inventory" : "Export new report", true) { IsAvailable = () => NameError() is null }], name, closer: closer);
+        var choice = await dialogs.ShowCustomAsync(report is null ? "Export entire inventory" : report.ComparisonBundle ? "Export comparison bundle" : "Export captured report", body,
+            [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton(report is null ? "Export new inventory" : report.ComparisonBundle ? "Export new comparison bundle" : "Export new report", true) { IsAvailable = () => NameError() is null }], name, closer: closer);
         return choice is true ? name.Text : null;
     }
     internal static async Task<bool> ReviewExistingExternalExportAsync(IDialogService dialogs, string name, CancellationToken cancellation)
@@ -57,7 +57,7 @@ public sealed partial class DiskSpaceWindow
         try
         {
             if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
-            var items = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = report is null ? "Choose inventory export folder" : "Choose report export folder", AllowMultiple = false });
+            var items = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = report is null ? "Choose inventory export folder" : report.ComparisonBundle ? "Choose comparison export folder" : "Choose report export folder", AllowMultiple = false });
             using var picked = new PickedStorageItems(items);
             cancel.Token.ThrowIfCancellationRequested(); if (items.Count == 0) return null;
             string folder = items[0].TryGetLocalPath() ?? throw new NotSupportedException("Choose a directly accessible local output folder.");
@@ -75,13 +75,13 @@ public sealed partial class DiskSpaceWindow
                     {
                         if (!task.IsCompleted)
                         {
-                            var dismissed = _dialogs.ShowCustomAsync(report is null ? "Exporting captured inventory" : "Exporting captured report", new TextBlock
+                            var dismissed = _dialogs.ShowCustomAsync(report is null ? "Exporting captured inventory" : report.ComparisonBundle ? "Exporting comparison bundle" : "Exporting captured report", new TextBlock
                             { Text = "Writing the reviewed captured scope. Cancel requests a stop and waits for outstanding work to release its private staging.", TextWrapping = TextWrapping.Wrap },
                                 [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true)], closer: closer);
                             if (await Task.WhenAny(task, dismissed) == dismissed) cancel.Cancel();
                         }
                         var receipt = await task;
-                        return (report is null ? "Exported entire captured inventory as " : "Exported captured report as ") + AnalysisNames.Display(receipt.Name, 240) + " · " + receipt.Bytes.ToString("N0") + " bytes. The tab's named-save and history state did not change.";
+                        return (report is null ? "Exported entire captured inventory as " : report.ComparisonBundle ? "Exported comparison bundle as " : "Exported captured report as ") + AnalysisNames.Display(receipt.Name, 240) + " · " + receipt.Bytes.ToString("N0") + " bytes. The tab's named-save and history state did not change.";
                     }
                     finally { closer.Close(null); }
                     async Task<AnalysisExportReceipt> WriteAsync()

@@ -1,0 +1,50 @@
+[
+  {
+    "path": "src/FileCat.App/Services/AnalysisIndexedAcquisition.Export.cs",
+    "sha256": "f115086b2415c2f1c3d7fb79d8e5add1d99403b35b6774542c2d3d0238917358"
+  },
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.ComparisonPersistence.cs",
+    "sha256": "e505642b68ec549b05ebf92c4ff718623081d9fdf1267c0ff3fa69af21940d35"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.ComparisonExport.cs",
+    "sha256": "bc4f835c00480b06dae0b37ee229846fa42dbcb3bfe48fc2fda5fae06571ed08"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.ComparisonPersistence.cs",
+    "sha256": "a1dcb6f90a84255d66d8f16cbd2d40e9498577e3128fb4d724b9affaafab04be"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.ExternalExport.cs",
+    "sha256": "cab65deffea8acfe94dfb1220a74eb0b259429af93636130801507fef69704b9"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Reports.cs",
+    "sha256": "9218459397f83aa04e2de6785e60de0f6e8f0131e8b5ea0fe48cdf2d81645f40"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisCapturedComparisonBundle.cs",
+    "sha256": "b246f53a211f15ae2761b7ccd31aa416846656598eb57fe8a4874133cd1b0725"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisExportDestination.cs",
+    "sha256": "130bc70b3ae532aebd3a92d65667dfc3c75db5c08584d28b566c0e6f46d983cd"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisReportExport.cs",
+    "sha256": "80a36567e54041c69b09b9e622ef09ff61e983d0cff8ad1fa49ae581b1919dbb"
+  },
+  {
+    "path": "tests/FileCat.CoreCrashHarness/CsvReportScale.cs",
+    "sha256": "a0e7f17c3730798353048a213ca72b40398feb777321001e267f434923b71ed3"
+  },
+  {
+    "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+    "sha256": "6a6d1a5cc917bdc5003086a99f2d563f0a8b32280f74c5be1d962649cc847c11"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ComparisonExport.cs",
+    "sha256": "e468b5d78ac8368bcae38a1d4064860d99415b2309ca2e692eb74b358fc5199c"
+  }
+]
