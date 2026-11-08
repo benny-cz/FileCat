@@ -1,5 +1,15 @@
 # Archive writing implementation status
 
+**8 November: native snapshot capture and queued retained-input views pass focused platform gates.**
+[Native snapshots](ARCHIVE_EDIT_SNAPSHOTS.md) retain actual file ownership through job reconciliation,
+preserve exact bytes/origin/time, bind one replacement to a session and avoid queued source pathname reopens.
+All platforms pass 26 snapshot and ten commit-copy cases, their native storage/recovery gates and the
+connected Core/application edit selections. The [checkpoint](edit-snapshots-checkpoint.json) binds exact
+compiler/binary bytes, preserves fixture failures and proves unchanged product binaries across the retry.
+All owned instances are closed; Mac's wake helper remains active. Capture-record/directory cleanup,
+Unix payload cleanup, native Save copy, ZIP/SFTP integration, discard/migration, resource bounds,
+application wiring and the complete qualification/final-review gates remain open. The factory stays disabled.
+
 **8 November: native edit storage and working reads implemented behind an explicit test factory.**
 [Retained edit storage](ARCHIVE_EDIT_STORAGE.md) adds private native creation, interrupted-copy recovery,
 exclusive immutable state revisions, bounded complete history review and atomic-editor-save admission.

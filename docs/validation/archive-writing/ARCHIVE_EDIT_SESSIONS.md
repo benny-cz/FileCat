@@ -84,3 +84,7 @@ The [retained storage follow-up](ARCHIVE_EDIT_STORAGE.md) adds native private cr
 immutable record generations and native working-file reads. Its three-platform focused matrix passes and retains
 all earlier failures. Immutable native snapshot/discard ownership,
 application composition and the complete qualification gates remain open.
+
+The [snapshot follow-up](ARCHIVE_EDIT_SNAPSHOTS.md) now captures through native ownership and grants
+queued archive jobs readonly views of the retained object. Its three-platform focused gates pass;
+fresh cleanup, remaining integrations and release qualification remain open.

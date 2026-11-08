@@ -1034,6 +1034,11 @@ test factory. Its three-platform focused matrix passes. Native immutable snapsho
 and discard ownership, old-record adoption and application composition remain required; this checkpoint
 does not close §12.1 or enable a write profile.
 
+The [snapshot follow-up](../validation/archive-writing/ARCHIVE_EDIT_SNAPSHOTS.md) adds retained capture and
+parent-only queued input views and passes its focused three-platform matrix. Complete capture-record,
+directory and Unix payload cleanup, native Save copy publication, ZIP/SFTP integration, discard/adoption,
+queued resource bounds and application composition before enabling this store. The overall gate remains open.
+
 ### 12.2 Review and commit states
 
 | Observed state | Allowed behavior |

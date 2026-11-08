@@ -69,15 +69,16 @@ cases. This validation does not qualify native snapshot cleanup or archive publi
 
 ## Remaining implementation and qualification
 
-Native immutable commit/save-copy capture, exact owned snapshot cleanup, native discard/new-child
-reconciliation, old-record adoption and application composition are still required. The current
-legacy snapshot and recursive discard implementations do not establish these native ownership gates.
+The [snapshot follow-up](ARCHIVE_EDIT_SNAPSHOTS.md) implements retained native capture and queued readonly
+source views and passes its focused three-platform matrix. Exact snapshot cleanup, native Save copy
+publication, ZIP/remote integration, native discard/new-child reconciliation, old-record adoption and
+application composition are still required. The legacy path-based cleanup does not establish these gates.
 Do not enable this factory or new write profiles before those operations are connected and qualified.
 
 Follow-up `cc5ea3a9` makes repeated commit-copy disposal return before touching a reused pathname and
-adds a replacement-preservation regression. It compiles cleanly; live validation is queued with the
-next snapshot packet and is not part of this frozen v5 evidence. Include `EditCommitCopyTests` in that
-packet's focused selector; the current `EditSession` selector alone does not select that class.
+adds a replacement-preservation regression. It is outside this frozen v5 evidence; all ten commit-copy
+regressions now pass on all three platforms in the snapshot follow-up. Its selector explicitly includes
+`EditCommitCopyTests`, which the `EditSession` filter alone does not select.
 
 Complete directory/record/artifact substitution, interrupted creation/publication/cleanup, editor
 concurrency, origin/metadata, cancellation and restart cases on all three platforms. Then rerun complete
