@@ -401,7 +401,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     /// Navigates this tab. A locked tab keeps its location: navigating away opens a new tab instead
     /// (Total Commander's locked tabs, plan §4.1).
     /// </summary>
-    public void Navigate(Location location, string? focusName = null, bool record = true)
+    public void Navigate(Location location, string? focusName = null, bool record = true, bool refresh = false)
     {
         if (_disposed) return;
         long intent = BeginNavigationIntent();
@@ -436,9 +436,16 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         {
             var preparation = new CancellationTokenSource();
             Task<PreparedLocation>? preparing;
-            try { preparing = Services.Providers.For(location).PrepareNavigationAsync(location, preparation.Token); }
+            NavigationReads? reads = null;
+            try
+            {
+                reads = CaptureContainerReads(location);
+                preparing = Services.Providers.For(location).PrepareNavigationAsync(location, preparation.Token);
+                if (preparing is not null && reads is not null) { preparing = KeepContainerReadsAsync(preparing, reads); reads = null; }
+            }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
+                reads?.Dispose();
                 preparation.Dispose();
                 if (OwnsNavigation(intent))
                     Banner = $"{Formatters.SafeName(Services.Providers.Display(location))} could not be opened: {Formatters.SafeName(ex.Message)}";
@@ -449,16 +456,59 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
                 if (!OwnsNavigation(intent))
                 {
                     preparation.Cancel();
-                    _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation);
+                    _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation, refresh);
                     return;
                 }
                 BeginPendingNavigation(preparation, $"Opening {Formatters.SafeName(Services.Providers.Display(location))}…");
-                _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation);
+                _ = PrepareThenNavigateAsync(location, preparing, focusName, record, intent, preparation, refresh);
                 return;
             }
             preparation.Dispose();
+            if (reads is not null)
+            {
+                var ready = new PreparedLocation(location, reads);
+                bool retained = false;
+                try { retained = CommitNavigation(location, focusName, record, intent, ready, refresh); }
+                finally { if (!retained) ready.Dispose(); }
+                return;
+            }
         }
-        CommitNavigation(location, focusName, record, intent);
+        CommitNavigation(location, focusName, record, intent, refresh: refresh);
+    }
+
+    private sealed class NavigationReads : IDisposable
+    {
+        internal List<IDisposable> Leases { get; } = [];
+        public void Dispose()
+        {
+            foreach (var lease in Leases)
+                try { lease.Dispose(); }
+                catch (Exception error) { Core.Diagnostics.AppLog.Warn("Navigation read cleanup failed: " + error.GetType().Name); }
+            Leases.Clear();
+        }
+    }
+
+    private NavigationReads? CaptureContainerReads(Location location)
+    {
+        var reads = new NavigationReads();
+        try
+        {
+            if (location.Container is { IsFileSystem: false } member && ProviderReadLease.Capture(Services.Providers, [member]) is { } lease)
+                reads.Leases.Add(lease);
+            return reads.Leases.Count == 0 ? null : reads;
+        }
+        catch { reads.Dispose(); throw; }
+    }
+
+    private static async Task<PreparedLocation> KeepContainerReadsAsync(Task<PreparedLocation> pending, NavigationReads reads)
+    {
+        try
+        {
+            var prepared = await pending;
+            reads.Leases.Add(prepared);
+            return new(prepared.Location, reads);
+        }
+        catch { reads.Dispose(); throw; }
     }
 
     private long BeginNavigationIntent()
@@ -502,7 +552,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         return true;
     }
 
-    private bool CommitNavigation(Location location, string? focusName, bool record, long intent, PreparedLocation? prepared = null)
+    private bool CommitNavigation(Location location, string? focusName, bool record, long intent, PreparedLocation? prepared = null, bool refresh = false)
     {
         if (!OwnsNavigation(intent)) return false;
         if (IsLocked && Location is not null && !ReturnToRoot && !Services.Providers.For(location).IsSameLocation(location, Location))
@@ -533,7 +583,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             _sortOutsideJournal = null;
         }
         _navigatedFocus = (location, focusName);
-        Listing.Load(location, focusName);
+        if (refresh && Location == location && Listing.State != Core.Listing.ListingState.Failed) Listing.Refresh();
+        else Listing.Load(location, focusName);
         var previousPreparation = _preparedLocation;
         _preparedLocation = prepared;
         previousPreparation?.Dispose();
@@ -576,7 +627,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
 
     /// <summary>Connects in the background (the server's key and password prompts appear meanwhile) to learn the home folder.</summary>
     private async Task PrepareThenNavigateAsync(Location requested, Task<PreparedLocation> preparing, string? focusName, bool record,
-        long intent, CancellationTokenSource pending)
+        long intent, CancellationTokenSource pending, bool refresh)
     {
         string what = Formatters.SafeName(Services.Providers.Display(requested));
         try
@@ -585,7 +636,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
             bool retained = false;
             try
             {
-                if (OwnsNavigation(intent, pending)) retained = CommitNavigation(ready.Location, focusName, record, intent, ready);
+                if (OwnsNavigation(intent, pending)) retained = CommitNavigation(ready.Location, focusName, record, intent, ready, refresh);
             }
             finally { if (!retained) ready.Dispose(); }
         }
@@ -713,6 +764,11 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     public void Refresh()
     {
         if (_disposed) return;
+        if (Location is { Scheme: Schemes.Archive } archive && Services.Archives.HasPasswordPreparation(archive))
+        {
+            Navigate(archive, record: false, refresh: true);
+            return;
+        }
         ComparisonLabel = null;
         if (Location is { IsFileSystem: true }) _forceFreeSpaceOnListingComplete = true;
         if (Listing.State == ListingState.Failed && Location is not null) Listing.Load(Location);

@@ -2656,11 +2656,13 @@ public static class ViewerLauncher
 
     private static async Task OpenCore(AppServices services, ItemRef item, IContentSource source, bool hex, TabViewModel? tab)
     {
+        ProviderReadLease? readLease = null;
         PagedReader? reader = null;
         ViewerWindow? window = null;
         bool transferred = false;
         try
         {
+            readLease = ProviderReadLease.Capture(services.Providers, [item.Parent]);
             var name = item.FileSystemPath ?? services.Providers.Display(item.Parent).TrimEnd('\\', '/') + "/" + item.Name;
             string deviceKey = services.Providers.For(item.Parent).GetDeviceKey(item.Parent);
             reader = await services.Io.Run(deviceKey, IoPriority.Interactive, _ => new PagedReader(source, services.Io, deviceKey));
@@ -2668,19 +2670,26 @@ public static class ViewerLauncher
             var provider = services.Providers.For(item.Parent);
             Task<IContentSource?> Reopen(CancellationToken ct) => ReopenProviderAsync(services, provider, item, deviceKey, ct);
             window = new ViewerWindow(services, source, name, hex, deviceKey, reader, Reopen);
+            var keptReadLease = readLease;
+            window.Closed += (_, _) => keptReadLease?.Dispose();
             if (tab is not null && item.Kind == EntryKind.File && PictureBrowseContext.IsPictureName(item.Name))
                 window.BrowseContext = new PictureBrowseContext(tab, item);
             window.Show();
             transferred = true;
+            readLease = null;
         }
         finally
         {
-            if (!transferred)
+            try
             {
-                window?.Close();
-                if (reader is not null) reader.Dispose();
-                else source.Dispose();
+                if (!transferred)
+                {
+                    window?.Close();
+                    if (reader is not null) reader.Dispose();
+                    else source.Dispose();
+                }
             }
+            finally { readLease?.Dispose(); }
         }
     }
 

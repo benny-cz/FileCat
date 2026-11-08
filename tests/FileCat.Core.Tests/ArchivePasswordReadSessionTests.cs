@@ -161,4 +161,29 @@ public sealed class ArchivePasswordReadSessionTests
         public void AddBatch(ReadOnlySpan<EntryData> entries) { foreach (var entry in entries) Entries.Add(entry); }
         public void ReportIssue(string message) => Assert.Fail(message);
     }
+
+    [Theory, InlineData(false), InlineData(true)]
+    public async Task Queued_extraction_from_an_inner_archive_retains_its_encrypted_outer_source(bool rar)
+    {
+        using var temp = new TempDir(); string path = Path.Combine(temp.Path, rar ? "owned.rar" : "owned.7z");
+        using var data = new MemoryStream();
+        using (var writer = new System.Formats.Tar.TarWriter(data, System.Formats.Tar.TarEntryFormat.Ustar, leaveOpen: true))
+            writer.WriteEntry(new System.Formats.Tar.UstarTarEntry(System.Formats.Tar.TarEntryType.RegularFile, "text.bin")
+                { DataStream = new MemoryStream("nested queued content"u8.ToArray()) });
+        ArchivePasswordReadFixture.Create(path, rar, true, payload: data.ToArray(), name: "nested.tar");
+        var registry = new ProviderRegistry(); registry.Register(new LocalFileSystemProvider()); var files = new IdentityAwareTestFiles();
+        var provider = new ArchiveProvider(Path.Combine(temp.Path, "scratch"), registry)
+            { GetSourceIdentity = files.GetFileIdentity, GetOpenedSourceIdentity = files.GetHandleIdentity }; registry.Register(provider);
+        var root = ArchiveProvider.ForFile(path); var nested = new Location(Schemes.Archive, "", root.WithPath("nested.tar"));
+        using var password = new ArchiveJobPassword(ArchivePasswordReadFixture.Password); using var view = provider.OpenReadView(root, password, Ct);
+        var sink = new Sink(); await provider.EnumerateAsync(nested, sink, Ct);
+        var destination = Location.FileSystem(Directory.CreateDirectory(Path.Combine(temp.Path, "output")).FullName);
+        var manager = new JobManager(files, registry, Path.Combine(temp.Path, "journals")) { MaxConcurrent = 0 };
+        var job = manager.Submit(new JobRequest { Kind = JobKind.Copy, Sources = [provider.GetItemRef(nested, Assert.Single(sink.Entries))], Destination = destination });
+        view.Dispose(); Assert.Equal(2, provider.RetainedIndexes); // Both the queued member and its outer crypto reader still exist.
+        manager.MaxConcurrent = 1; manager.Schedule();
+        for (int i = 0; i < 1000 && !job.State.IsFinished(); i++) await Task.Delay(10, Ct);
+        Assert.Equal(JobState.Completed, job.State); Assert.Equal("nested queued content", File.ReadAllText(Path.Combine(destination.Path, "text.bin")));
+        Assert.Equal(1, provider.RetainedIndexes); provider.Release(path);
+    }
 }

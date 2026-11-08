@@ -1,6 +1,8 @@
 using Avalonia.Headless.XUnit;
 using FileCat.Archives;
 using FileCat.App.ViewModels;
+using FileCat.App.Views;
+using FileCat.Core.Commands;
 using FileCat.Core.Listing;
 using FileCat.Core.Resources;
 using FileCat.Tests;
@@ -13,6 +15,11 @@ namespace FileCat.App.Tests;
 public sealed class ArchivePasswordBrowsingUiTests
 {
     public static TheoryData<bool, bool> Profiles => new() { { false, false }, { false, true }, { true, false }, { true, true } };
+    public static IEnumerable<object[]> NestedProfiles()
+    {
+        foreach (bool rar in new[] { false, true }) foreach (bool hidden in new[] { false, true }) foreach (bool zip in new[] { false, true })
+            yield return [rar, hidden, zip];
+    }
 
     [AvaloniaTheory, MemberData(nameof(Profiles))]
     public async Task Browsing_password_retries_reads_real_bytes_reuses_tabs_and_forgets_on_last_close(bool rar, bool hidden)
@@ -76,9 +83,87 @@ public sealed class ArchivePasswordBrowsingUiTests
         destination.Panel.CloseTab(destination); Assert.Equal(0, f.Services.Archives.RetainedIndexes);
     }
 
+    [AvaloniaTheory, MemberData(nameof(Profiles))]
+    public async Task Quiet_restoration_keeps_archive_address_and_explicit_refresh_unlocks_without_losing_marks(bool rar, bool hidden)
+    {
+        using var f = await Fixture.Open(nativeWindowsOriginMarks: true);
+        string path = Path.Combine(f.Root, rar ? "restored.rar" : "restored.7z"); ArchivePasswordReadFixture.Create(path, rar, hidden);
+        var root = ArchiveProvider.ForFile(path); var tab = f.Vm.ActiveTab!;
+        f.Vm.QuietConnect = true; tab.Navigate(root);
+        await Wait(() => tab.Location == root && tab.Listing.State is ListingState.Complete or ListingState.Failed);
+        Assert.Null(f.Button("Unlock"));
+        f.Vm.QuietConnect = false; tab.Refresh(); await Wait(() => f.Button("Unlock") is not null);
+        f.Input("Existing archive password").Text = ArchivePasswordReadFixture.Password; f.Click("Unlock");
+        await Wait(() => tab.Location == root && tab.Listing.State == ListingState.Complete && !tab.Listing.IsRefreshing &&
+            tab.Banner?.StartsWith("Opening", StringComparison.Ordinal) != true);
+        int folder = Enumerable.Range(0, tab.Listing.Store.Count).Single(i => tab.Listing.Store[i].Name == "folder");
+        tab.Listing.SelectStoreMark(folder); Assert.True(tab.Listing.FocusName("folder"));
+        var history = tab.BackHistory.ToArray(); tab.Refresh();
+        await Wait(() => !tab.Listing.IsRefreshing && tab.Banner?.StartsWith("Opening", StringComparison.Ordinal) != true);
+        Assert.Null(f.Button("Unlock")); Assert.Equal(history, tab.BackHistory);
+        int refreshed = Enumerable.Range(0, tab.Listing.Store.Count).Single(i => tab.Listing.Store[i].Name == "folder");
+        Assert.True(tab.Listing.IsMarked(refreshed)); Assert.True(tab.Listing.TryGetFocused(out var focused)); Assert.Equal("folder", focused.Name);
+    }
+
     private static async Task Wait(Func<bool> ready)
     {
         for (int i = 0; i < 500 && !ready(); i++) await Task.Delay(20, TestContext.Current.CancellationToken);
         Assert.True(ready());
+    }
+
+    [AvaloniaTheory, MemberData(nameof(NestedProfiles))]
+    public async Task Entering_nested_ZIP_or_TAR_keeps_outer_password_alive_until_its_new_tab_leaves(bool rar, bool hidden, bool zip)
+    {
+        using var f = await Fixture.Open(nativeWindowsOriginMarks: true);
+        using var data = new MemoryStream();
+        if (zip)
+        {
+            using var archive = new System.IO.Compression.ZipArchive(data, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true);
+            using var entry = archive.CreateEntry("text.txt").Open(); entry.Write("nested content"u8);
+        }
+        else
+        {
+            using var archive = new System.Formats.Tar.TarWriter(data, System.Formats.Tar.TarEntryFormat.Ustar, leaveOpen: true);
+            archive.WriteEntry(new System.Formats.Tar.UstarTarEntry(System.Formats.Tar.TarEntryType.RegularFile, "text.txt")
+                { DataStream = new MemoryStream("nested content"u8.ToArray()) });
+        }
+        string path = Path.Combine(f.Root, rar ? "outer.rar" : "outer.7z"); string name = zip ? "nested.zip" : "nested.tar";
+        ArchivePasswordReadFixture.Create(path, rar, hidden, payload: data.ToArray(), name: name);
+        var root = ArchiveProvider.ForFile(path); var tab = f.Vm.ActiveTab!; tab.Navigate(root);
+        await Wait(() => f.Button("Unlock") is not null); f.Input("Existing archive password").Text = ArchivePasswordReadFixture.Password; f.Click("Unlock");
+        await Wait(() => tab.Location == root && tab.Listing.State == ListingState.Complete && tab.Listing.FocusName(name));
+        Assert.True(tab.TryEnterFocused(out _));
+        await Wait(() => tab.Location != root && tab.Listing.State == ListingState.Complete);
+        Assert.Equal(zip ? Schemes.Zip : Schemes.Archive, tab.Location!.Scheme);
+        using (var content = f.Services.Providers.For(tab.Location).OpenContent(new(tab.Location, "text.txt", EntryKind.File)))
+        {
+            Assert.NotNull(content); byte[] bytes = new byte[32]; int read = content.Read(0, bytes);
+            Assert.Equal("nested content", System.Text.Encoding.UTF8.GetString(bytes, 0, read));
+        }
+        Assert.True(f.Services.Archives.RetainedIndexes >= 1);
+        tab.Navigate(Location.FileSystem(f.Files));
+        Assert.Throws<ArchiveReadPasswordRequiredException>(() => f.Services.Archives.OpenReadView(root, null, TestContext.Current.CancellationToken));
+    }
+
+    [AvaloniaTheory, MemberData(nameof(Profiles))]
+    public async Task F3_viewer_retains_password_for_reopen_after_tab_navigation_and_forgets_on_viewer_close(bool rar, bool hidden)
+    {
+        using var f = await Fixture.Open(nativeWindowsOriginMarks: true);
+        string path = Path.Combine(f.Root, rar ? "viewer.rar" : "viewer.7z"); ArchivePasswordReadFixture.Create(path, rar, hidden);
+        var root = ArchiveProvider.ForFile(path); var tab = f.Vm.ActiveTab!; var before = ViewerWindow.OpenWindows.ToHashSet();
+        try
+        {
+            tab.Navigate(root.WithPath("folder")); await Wait(() => f.Button("Unlock") is not null);
+            f.Input("Existing archive password").Text = ArchivePasswordReadFixture.Password; f.Click("Unlock");
+            await Wait(() => tab.Location == root.WithPath("folder") && tab.Listing.State == ListingState.Complete && tab.Listing.FocusName("private-界.bin"));
+            await f.Vm.ExecuteAsync(CommandIds.ViewAlternate);
+            await Wait(() => ViewerWindow.OpenWindows.Any(window => !before.Contains(window)));
+            var viewer = Assert.Single(ViewerWindow.OpenWindows, window => !before.Contains(window));
+            tab.Navigate(Location.FileSystem(f.Files)); Assert.Equal(1, f.Services.Archives.RetainedIndexes);
+            using (var reopened = f.Services.Archives.OpenContent(new(root.WithPath("folder"), "private-界.bin", EntryKind.File))) Assert.NotNull(reopened);
+            viewer.Close(); await Wait(() => f.Services.Archives.RetainedIndexes == 0);
+            tab.Navigate(root); await Wait(() => f.Button("Unlock") is not null); f.Click("Cancel");
+        }
+        finally { foreach (var viewer in ViewerWindow.OpenWindows.Where(window => !before.Contains(window)).ToArray()) viewer.Close(); }
     }
 }

@@ -8,7 +8,7 @@ namespace FileCat.Archives.Rar;
 /// </summary>
 internal sealed partial class RarArchive
 {
-    public const string EncryptedListMessage = "The archive's file list is encrypted; FileCat does not ask for archive passwords.";
+    public const string EncryptedListMessage = "The archive's file list is encrypted. Refresh or reopen the archive to enter its password.";
 
     private static ReadOnlySpan<byte> Rar5Signature => "Rar!\x1A\x07\x01\x00"u8;
     private static ReadOnlySpan<byte> Rar4Signature => "Rar!\x1A\x07\x00"u8;

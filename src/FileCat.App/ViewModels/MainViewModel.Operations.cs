@@ -887,8 +887,10 @@ public sealed partial class MainViewModel
         try
         {
             var provider = Services.Providers.For(item.Parent);
-            var source = await Services.Io.Run(provider.GetDeviceKey(item.Parent), Core.Threading.IoPriority.Interactive,
-                _ => provider.OpenContent(item));
+            using var readLease = ProviderReadLease.Capture(Services.Providers, [item.Parent]);
+            var source = await Services.Io.RunOwned(provider.GetDeviceKey(item.Parent), Core.Threading.IoPriority.Interactive,
+                _ => provider.OpenContent(item), Services.Io.StoppingToken);
+            if (Services.Io.IsStopped) { source?.Dispose(); return; }
             if (source is null)
             {
                 Notify("This item has no viewable content.", true);

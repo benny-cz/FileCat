@@ -1,9 +1,10 @@
 """Guest-only password view/queued extraction gate; retain failed runs and exact compiler evidence."""
 from pathlib import Path
-import hashlib, importlib.util, json, os, shutil, subprocess, sys, tarfile, xml.etree.ElementTree as ET
+from collections import Counter
+import hashlib, importlib.util, json, os, plistlib, shutil, subprocess, sys, tarfile, xml.etree.ElementTree as ET
 
-FOLDER = 'awp-v1'
-PACKET = 'archive-password-browsing-delta-v1.tar.gz'
+FOLDER = 'awp-v2'
+PACKET = 'archive-password-browsing-delta-v2.tar.gz'
 NS = {'t': 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 
 def sha(path):
@@ -14,7 +15,7 @@ def base(task):
     spec = importlib.util.spec_from_file_location('password_browsing_base', path)
     module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
     module.BATCH_FOLDER, module.PACKET_NAME = FOLDER, PACKET
-    module.PREVIOUS_FOLDER = 'awm-v5' if sys.platform == 'darwin' else 'awm-v4'
+    module.PREVIOUS_FOLDER = 'awp-v1'
     return module
 
 def batch_for(task): return base(task).batch_for(task)
@@ -26,6 +27,12 @@ def prepare(task, expected):
     ledger = next(row for row in rows if row['path'] == 'source-files.json')
     assert sha(previous/'source-files.json') == ledger['sha256']
     module.prepare(task, expected)
+    cohort = task/('awm-v5' if sys.platform == 'darwin' else 'awm-v4')
+    baseline = cohort/'results/archive-creation-core.trx'
+    proof = next(row for row in json.loads((cohort/'files.json').read_text())['files'] if row['path'] == 'results/archive-creation-core.trx')
+    assert baseline.stat().st_size == proof['bytes'] and sha(baseline) == proof['sha256']
+    out = batch_for(task).out; shutil.copyfile(baseline, out/'previous-full-core.trx')
+    (out/'core-baseline-proof.json').write_text(json.dumps({'cohort':cohort.name, 'manifest_sha256':sha(cohort/'files.json'), **proof}, indent=2))
 
 def build(task):
     batch = batch_for(task)
@@ -36,6 +43,7 @@ def build(task):
 
 def tests(task):
     batch = batch_for(task); batch.idle()
+    if sys.platform == 'win32': batch.env['FILECAT_ARCHIVE_CASE_ROOT'] = 'C:/Users/fcarchive42829297/FileCatValidation/NativeCaseProbe-v2/fixture'
     rows = {}
     def run(name, assembly, selected, expected=None):
         batch.execute(name, batch.test_args(assembly, selected, name))
@@ -44,17 +52,45 @@ def tests(task):
         if expected is not None: assert counters['passed'] == str(expected) and counters['total'] == str(expected), counters
         rows[name] = counters
         (batch.out/'passed-gates.json').write_text(json.dumps(rows, indent=2))
-    run('password-read-core', 'FileCat.Core.Tests', 'FullyQualifiedName~ArchivePasswordReadSessionTests', 18)
-    run('password-read-ui', 'FileCat.App.Tests', 'FullyQualifiedName~ArchivePasswordBrowsingUiTests|FullyQualifiedName~PreparedNavigationOwnershipTests', 11)
+    run('password-read-core', 'FileCat.Core.Tests', 'FullyQualifiedName~ArchivePasswordReadSessionTests', 20)
+    run('password-read-ui', 'FileCat.App.Tests', 'FullyQualifiedName~ArchivePasswordBrowsingUiTests|FullyQualifiedName~PreparedNavigationOwnershipTests', 27)
     # Stop at the focused gate on failure, before spending time on the unchanged regression inventory.
     run('navigation-member-regressions', 'FileCat.App.Tests', '|'.join('FullyQualifiedName~'+name for name in (
-        'NavigationIntentTests', 'ClipboardIntentTests', 'ArchiveMemberCommandUiTests', 'ArchiveTargetUpdateUiTests',
+        'NavigationIntentTests', 'ClipboardIntentTests', 'ArchiveMemberCommandUiTests', 'ArchiveTargetUpdateUiTests', 'ViewerAdmissionTests', 'PictureBrowseContextTests',
         'ArchiveCreationWorkflowTests&FullyQualifiedName!~Actual_confined_')))
     run('core-regressions', 'FileCat.Core.Tests', 'FullyQualifiedName~FileCat.Core.Tests')
+    old = ET.parse(batch.out/'previous-full-core.trx').findall('.//t:UnitTestResult', NS)
+    current = ET.parse(batch.out/'results/core-regressions.trx').findall('.//t:UnitTestResult', NS)
+    names = Counter(row.get('testName') for row in current); before = Counter(row.get('testName') for row in old)
+    passed = Counter(row.get('testName') for row in current if row.get('outcome') == 'Passed')
+    old_passed = Counter(row.get('testName') for row in old if row.get('outcome') == 'Passed')
+    missing = list((before-names).elements()); lost = list((old_passed-passed).elements())
+    (batch.out/'full-case-inventory.json').write_text(json.dumps({'previous':len(old), 'current':len(current),
+        'missing_prior_cases':missing, 'lost_prior_passes':lost, 'expected_new_cases':20}, indent=2))
+    assert not missing and not lost and len(current) == len(old)+20
     batch.idle()
     (batch.out/'tests-complete.json').write_text(json.dumps(rows, indent=2))
 
 def run_tests(task):
+    if sys.platform == 'darwin':
+        batch = batch_for(task); batch.idle()
+        attached = subprocess.run(['diskutil', 'image', 'attach', '--nobrowse', '--plist', str(task/'native-move-case-v1.asif')], capture_output=True, check=True)
+        (batch.out/'case-image-attach.plist').write_bytes(attached.stdout)
+        entities = plistlib.loads(attached.stdout)['system-entities']
+        physical = next(row['dev-entry'] for row in entities if row.get('content-hint') == 'GUID_partition_scheme')
+        if not physical.startswith('/dev/'): physical = '/dev/'+physical
+        mounted = next(Path(row['mount-point']) for row in entities if 'mount-point' in row)
+        try:
+            info = subprocess.run(['diskutil', 'info', '-plist', str(mounted)], capture_output=True, check=True)
+            (batch.out/'case-volume.plist').write_bytes(info.stdout)
+            assert 'case-sensitive' in plistlib.loads(info.stdout)['FilesystemName'].lower()
+            target = mounted/(FOLDER+'-cases'); target.mkdir(); os.environ['FILECAT_ARCHIVE_CASE_ROOT'] = str(target)
+            (batch.out/'case-fixture.json').write_text(json.dumps({'mount':str(mounted), 'source':str(target), 'device':physical}))
+            tests(task)
+        finally:
+            detached = subprocess.run(['hdiutil', 'detach', physical], capture_output=True, check=True)
+            (batch.out/'case-image-detach.stdout').write_bytes(detached.stdout)
+        return
     if sys.platform != 'linux': return tests(task)
     batch = batch_for(task)
     batch.execute('private-tests', ['dbus-run-session', '--', sys.executable, '-B', str(Path(__file__).resolve()), 'inside-private', str(task)])

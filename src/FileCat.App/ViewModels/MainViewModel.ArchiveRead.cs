@@ -29,7 +29,7 @@ public sealed partial class MainViewModel
                 catch (ArchiveReadPasswordRequiredException)
                 {
                     if (QuietConnect || _dialogs is null)
-                        throw new IOException("This archive needs a password. Open it again to unlock it.");
+                        return new(location); // Restore the address/listing; explicit Refresh can ask later.
                 }
                 catch (InvalidDataException) when (password is not null)
                 {

@@ -692,7 +692,7 @@ internal sealed class SharpArchiveReader : IMemberReader, IVolumeStreams
 
     private static string Describe(Exception ex) =>
         ex.Message.Contains("password", StringComparison.OrdinalIgnoreCase) || ex is System.Security.Cryptography.CryptographicException
-            ? "The archive's file list is encrypted; FileCat does not ask for archive passwords."
+            ? "The archive's file list is encrypted. Refresh or reopen the archive to enter its password."
             : "The archive cannot be read: " + ex.Message;
 
     public IEnumerable<MemberInfo> List(Action<string> warn, CancellationToken ct)

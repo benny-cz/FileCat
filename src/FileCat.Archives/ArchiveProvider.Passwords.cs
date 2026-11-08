@@ -18,12 +18,15 @@ public sealed partial class ArchiveProvider
     }
 
     public override Task<PreparedLocation>? PrepareNavigationAsync(Location location, CancellationToken ct)
+        => HasPasswordPreparation(location) && PreparePasswordNavigation is { } prepare
+            ? prepare(location, ct) : base.PrepareNavigationAsync(location, ct);
+
+    internal bool HasPasswordPreparation(Location location)
     {
         string name = location.Container?.Path ?? "";
         var kind = location.Session is { Length: > 0 } forced && Enum.TryParse<ArchiveKind>(forced, out var value)
             ? value : ArchiveFormats.ByName(name);
-        return kind is ArchiveKind.Rar or ArchiveKind.SevenZip && PreparePasswordNavigation is { } prepare
-            ? prepare(location, ct) : base.PrepareNavigationAsync(location, ct);
+        return kind is ArchiveKind.Rar or ArchiveKind.SevenZip;
     }
 
     /// <summary>

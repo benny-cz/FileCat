@@ -1,4 +1,5 @@
 using FileCat.Core.Diagnostics;
+using FileCat.Core.Resources;
 
 namespace FileCat.Core.Jobs;
 
@@ -10,13 +11,8 @@ public sealed partial class JobManager
     {
         var leases = new List<IDisposable>();
         if (request.Kind is not (JobKind.Copy or JobKind.Extract)) return leases;
-        try
-        {
-            foreach (var location in request.Sources.Select(item => item.Parent).Distinct())
-                if (_providers.For(location).RetainRead(location) is { } lease) leases.Add(lease);
-            return leases;
-        }
-        catch { DisposeReadLeases(leases); throw; }
+        if (ProviderReadLease.Capture(_providers, request.Sources.Select(item => item.Parent)) is { } lease) leases.Add(lease);
+        return leases;
     }
 
     private void ReleaseReadLeases(Job job)
