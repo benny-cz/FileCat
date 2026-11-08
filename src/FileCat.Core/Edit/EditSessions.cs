@@ -123,7 +123,9 @@ public sealed class EditCommitCopy : IDisposable
     }
     public void Dispose()
     {
-        Interlocked.Exchange(ref _pin, null)?.Dispose();
+        var pin=Interlocked.Exchange(ref _pin,null);
+        if(pin is null)return; // A previously closed copy has no authority over a later pathname replacement.
+        pin.Dispose();
         // This GUID folder contains only this owned snapshot; the published working copy is elsewhere.
         if (File.Exists(Path)) File.Delete(Path);
         string directory = System.IO.Path.GetDirectoryName(Path)!;

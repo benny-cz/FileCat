@@ -21,6 +21,18 @@ public sealed class EditCommitCopyTests(ITestOutputHelper output) : IDisposable
     }
     private static T Value<T>(object copy, string name) => (T)copy.GetType().GetProperty(name)!.GetValue(copy)!;
 
+    [Fact]
+    public void Repeated_disposal_keeps_a_later_file_at_the_previous_snapshot_path()
+    {
+        var store=new EditSessionStore(Path.Combine(_dir.Path,"sessions"),new PortableFileOperations());
+        string working=_dir.File("working.txt","owned edit");
+        using var copy=store.PrepareCommit(new EditSessionRecord{WorkingPath=working},_dir.Path,TestContext.Current.CancellationToken);
+        string path=copy.Path;copy.Dispose();Assert.False(Directory.Exists(Path.GetDirectoryName(path)));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);File.WriteAllText(path,"unrelated later replacement");
+        copy.Dispose();Assert.Equal("unrelated later replacement",File.ReadAllText(path));
+        Assert.Equal("owned edit",File.ReadAllText(working));
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(4)]
