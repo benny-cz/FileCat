@@ -15,7 +15,7 @@ namespace FileCat.App.Services;
 /// </summary>
 public sealed class AppServices : IDisposable
 {
-    private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null)
+    private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null, Core.Archives.ArchiveJobBackends? archiveBackends = null)
     {
         Paths = paths;
         AppLog.Initialize(paths.LogDirectory);
@@ -98,7 +98,8 @@ public sealed class AppServices : IDisposable
         Zip.SpoolForeignMember = Archives.Spool;
         if (Providers.Get(Schemes.FileSystem) is LocalFileSystemProvider local) local.ContainerDetector = new ContainerDetectors(Zip, Archives);
         Formatters.DateFormat = Settings.DateFormat;
-        Jobs = new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory);
+        Jobs = archiveBackends is null ? new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory)
+            : new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory, archiveBackends);
         // SFTP (P6): FileCat's own known_hosts beside its state, seeded read-only by OpenSSH's.
         // FTP and FTPS (P8) share the remote stack; FTPS certificates the OS does not accept are pinned only on request.
         Sftp = new Remote.Sftp.SftpConnections(FindRemoteProfile,
@@ -231,6 +232,10 @@ public sealed class AppServices : IDisposable
     /// <summary>Constructs an isolated composition root at explicit paths (including headless UI tests).</summary>
     /// <param name="sftpConnector">Tests connect to an in-memory server instead of SSH.NET.</param>
     public static AppServices CreateForPaths(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null) => new(paths, sftpConnector);
+
+    // Explicit isolated composition for qualifying the real workflows; ordinary startup never adds these backends.
+    internal static AppServices CreateForPathsWithArchiveBackends(AppPaths paths, Core.Archives.ArchiveJobBackends archiveBackends,
+        Remote.Sftp.ISftpConnector? sftpConnector = null) => new(paths, sftpConnector, archiveBackends);
 
     /// <param name="overrideRoot">Isolated state root (the TV-01 benchmark never touches the user's profile).</param>
     /// <param name="dataRoot">--data: everything FileCat writes goes below this folder.</param>

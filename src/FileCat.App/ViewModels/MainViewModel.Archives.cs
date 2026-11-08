@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using FileCat.App.Services;
+using FileCat.App.Views;
 using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 using FileCat.Core.Jobs;
@@ -78,10 +79,12 @@ public sealed partial class MainViewModel
     }
 
     private void SubmitArchive(ArchivePlan plan, IReadOnlyList<ItemRef> sources, Location? refreshed, string description, string? focus = null, TabViewModel? origin = null,
-        QueueMode mode = QueueMode.Start)
+        QueueMode mode = QueueMode.Start, Location? originLocation = null)
     {
         if (Services.Io.IsStopped) return;
-        var job = Services.Jobs.Submit(new JobRequest
+        var tab = origin ?? ActiveTab;
+        var context = originLocation ?? tab?.Location;
+        Services.Jobs.SubmitWithRegistration(new JobRequest
         {
             Kind = JobKind.ArchiveUpdate,
             Archive = plan,
@@ -89,12 +92,11 @@ public sealed partial class MainViewModel
             Destination = refreshed,
             Description = description,
             Mode = mode,
-        });
-        if ((origin ?? ActiveTab) is { } tab)
+        }, job =>
         {
-            Track(job, tab);
+            if (tab is not null && context is not null) _jobOrigins[job] = (tab, context);
             if (focus is not null) _focusAfter[job] = focus;
-        }
+        });
     }
 
     /// <summary>F5 into an archive folder: files and folders from disk are added; existing names ask once.</summary>
@@ -102,7 +104,7 @@ public sealed partial class MainViewModel
         => await AddToArchiveTransferAsync(kind, items, destination, options, null, QueueMode.Start, null);
 
     private async Task AddToArchiveTransferAsync(JobKind kind, IReadOnlyList<ItemRef> items, Location destination, TransferOptions options,
-        string? newName, QueueMode mode, TabViewModel? sourceTab)
+        string? newName, QueueMode mode, TabViewModel? sourceTab, Location? sourceContext = null)
     {
         if (items.Count == 0) return;
         if (newName is not null && (items.Count != 1 || ArchivePaths.Problem(newName) is not null))
@@ -142,7 +144,7 @@ public sealed partial class MainViewModel
                     TextWrapping = TextWrapping.Wrap, MaxWidth = 620,
                     Text = $"{Formatters.Plural(clashes, "item has a name that already exists", "items have names that already exist")} in {Path.GetFileName(archive)}. Replace the members with the new files, or keep the members and skip those files?",
                 },
-                [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Skip existing", "skip", IsDefault: true), new DialogButton("Replace", "replace")]);
+                [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Skip existing", "skip", IsDefault: true), new DialogButton("Replace", "replace", IsDanger: true)]);
             if (answer is not ("skip" or "replace")) return;
             replace = answer as string == "replace";
         }
@@ -153,7 +155,7 @@ public sealed partial class MainViewModel
         var changes = items.Select(i => new ArchiveChange(i.IsContainer ? ArchiveChangeKind.AddFolder : ArchiveChangeKind.AddFile,
             InArchive(destination, newName ?? i.Name), i.FileSystemPath)).ToList();
         SubmitArchive(new ArchivePlan(archive, baseline, changes, ReplaceExisting: replace) { MoveSources = kind == JobKind.Move }, items, destination,
-            $"{verb} {Formatters.Plural(items.Count, "item", "items")} to \"{Path.GetFileName(archive)}\"", origin: origin, mode: mode);
+            $"{verb} {Formatters.Plural(items.Count, "item", "items")} to \"{Path.GetFileName(archive)}\"", origin: origin, mode: mode, originLocation: sourceContext);
     }
 
     private async Task DeleteArchiveMembersAsync(Location folder, IReadOnlyList<ItemRef> items)
@@ -236,78 +238,89 @@ public sealed partial class MainViewModel
     /// </summary>
     private async Task PackAsync()
     {
-        var sel = SourceSelection();
-        if (sel is null) return;
-        var origin = sel.Value.Tab;
-        if (sel.Value.Items.Count > MaxArchiveBatch) { ItemSources.Release(sel.Value.Items); Notify($"Pack at most {MaxArchiveBatch:N0} items at a time.", true); return; }
+        var selected = SourceSelection();
+        if (selected is null) return;
+        var origin = selected.Value.Tab; var originLocation = origin.Location;
         List<ItemRef> items;
-        try { items = sel.Value.Items.ToList(); } finally { ItemSources.Release(sel.Value.Items); }
-        if (items.Any(i => i.FileSystemPath is null))
-        {
-            Notify("Pack works on files and folders on disk.", true);
-            return;
-        }
+        try { items = selected.Value.Items.ToList(); } finally { ItemSources.Release(selected.Value.Items); }
         if (items.Count > MaxArchiveBatch) { Notify($"Pack at most {MaxArchiveBatch:N0} items at a time.", true); return; }
-        if (items.Select(i => i.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() != items.Count)
-        {
-            Notify("Two selected items have the same name; pack them from their own folders.", true);
-            return;
-        }
-        var targetFolder = Workspace.ActiveTarget?.ActiveTab?.Location is { IsFileSystem: true } t ? t.Path : Path.GetDirectoryName(items[0].FileSystemPath!)!;
-        string stem = items.Count == 1 ? Path.GetFileNameWithoutExtension(items[0].Name) : Path.GetFileName(Path.GetDirectoryName(items[0].FileSystemPath!)!.TrimEnd('\\', '/'));
+        if (items.Count == 0) return;
+        if (items.Any(item => item.FileSystemPath is null)) { Notify("Pack works on files and folders on disk.", true); return; }
+        if (items.Select(item => item.Name).Distinct(StringComparer.Ordinal).Count() != items.Count)
+        { Notify("Two selected items have the same name; pack them from their own folders.", true); return; }
+        string targetFolder = Workspace.ActiveTarget?.ActiveTab?.Location is { IsFileSystem: true } target
+            ? target.Path : Path.GetDirectoryName(items[0].FileSystemPath!)!;
+        string stem = items.Count == 1 ? items[0].IsContainer ? items[0].Name : Path.GetFileNameWithoutExtension(items[0].Name)
+            : Path.GetFileName(Path.GetDirectoryName(items[0].FileSystemPath!)!.TrimEnd('\\', '/'));
         if (string.IsNullOrEmpty(stem)) stem = "archive";
-        var pathBox = new TextBox { Text = Path.Combine(targetFolder, stem + ".zip"), MinWidth = 240 };
-        Avalonia.Automation.AutomationProperties.SetName(pathBox, "Archive path");
-        var level = new ComboBox { ItemsSource = new[] { "Normal compression", "Fastest", "No compression (store)" }, SelectedIndex = 0, MinWidth = 220 };
-        Avalonia.Automation.AutomationProperties.SetName(level, "Compression");
-        var body = new StackPanel
+        string suggestion = Path.Combine(targetFolder, stem + ".zip");
+        var formats = ArchiveCreationFormat.All.Where(format => format.DefaultProfile is not { } profile ||
+            Services.Jobs.ArchiveAvailability(new(suggestion, null, [], Profile: profile)).Available).ToArray();
+        using var dialog = new ArchiveCreationDialog(suggestion, selected.Value.Summary, formats, Services.Jobs.ArchiveAvailability);
+        while (!Services.Io.IsStopped)
         {
-            Spacing = 8,
-            Children =
+            // A refused destination keeps the form and password draft. Each overlay owns a fresh wrapper;
+            // detach the reusable form before the next overlay takes ownership of it.
+            var body = new Border { Child = dialog.Content };
+            object? answer;
+            try
             {
-                new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 620, Text = $"Pack {sel.Value.Summary} into:" },
-                pathBox,
-                new WrapPanel { ItemSpacing = 8, LineSpacing = 4, Children = { new TextBlock { Text = "Compression:", VerticalAlignment = VerticalAlignment.Center }, level } },
-                new TextBlock
+                answer = await Dialogs.ShowCustomAsync("Create archive", body,
+                    [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Pack", "pack", IsDefault: true)],
+                    dialog.InitialFocus, canConfirm: () => dialog.CanConfirm);
+            }
+            finally { body.Child = null; }
+            if (answer as string != "pack" || dialog.Selection is not { } choice || Services.Io.IsStopped) return;
+            FileSystemItemInfo? info;
+            try
+            {
+                info = await MutationIoAsync(choice.Path, () => Services.Platform.FileOperations.TryGetInfo(choice.Path),
+                    () => { if (Services.Io.IsStopped) throw new OperationCanceledException(); });
+            }
+            catch (OperationCanceledException) { return; }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            { if (!Services.Io.IsStopped) dialog.ShowProblem("Cannot read this archive path: " + Formatters.SafeName(error.Message)); continue; }
+            if (info?.IsDirectory == true) { dialog.ShowProblem("A folder with that name exists; choose an archive filename."); continue; }
+            if (items.Any(item => PathUtil.IsSameOrUnder(choice.Path, item.FileSystemPath!)))
+            { dialog.ShowProblem("The archive cannot be created inside a folder that is being packed."); continue; }
+            if (info is not null)
+            {
+                if (choice.Format.Format != ArchiveWriteFormat.Zip)
+                { dialog.ShowProblem("That filename already exists. Choose a new filename; the existing file will be kept."); continue; }
+                await AddToArchiveTransferAsync(JobKind.Copy, items, ZipProvider.ForFile(choice.Path), new TransferOptions(),
+                    null, QueueMode.Start, origin, originLocation);
+                return;
+            }
+            string? focus = originLocation is { IsFileSystem: true } &&
+                string.Equals(originLocation.Path, Path.GetDirectoryName(choice.Path), StringComparison.Ordinal) ? Path.GetFileName(choice.Path) : null;
+            string description = $"Create {choice.Format.Name} archive “{Path.GetFileName(choice.Path)}”";
+            var changes = items.Select(item => new ArchiveChange(item.IsContainer ? ArchiveChangeKind.AddFolder : ArchiveChangeKind.AddFile,
+                item.Name, item.FileSystemPath)).ToArray();
+            if (choice.Profile is null)
+            {
+                SubmitArchive(new(choice.Path, null, changes, choice.LegacyLevel), items, Location.FileSystem(Path.GetDirectoryName(choice.Path)!),
+                    description, focus, origin, originLocation: originLocation);
+                return;
+            }
+            var plan = new ArchivePlan(choice.Path, null, changes, Profile: choice.Profile);
+            if (!Services.Jobs.ArchiveAvailability(plan).Available)
+            { dialog.ShowProblem("Writing this format is unavailable here. Choose another format or location."); continue; }
+            ArchiveJobPassword? password = null;
+            try
+            {
+                password = dialog.TakePassword();
+                Services.Jobs.SubmitArchive(plan, password, description: description, register: job =>
                 {
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    TextWrapping = TextWrapping.Wrap, MaxWidth = 620, Classes = { "muted" },
-                    Text = "An existing ZIP gets the items added (you choose what happens to names it already has). Links are not followed or stored.",
-                },
-            },
-        };
-        var answer = await Dialogs.ShowCustomAsync("Pack into ZIP", body,
-            [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Pack", "pack", IsDefault: true)], pathBox);
-        if (answer as string != "pack") return;
-        string archive;
-        try { archive = Path.GetFullPath(PathUtil.ExpandUserInput(pathBox.Text?.Trim() ?? "")); }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException)
-        {
-            Notify("That is not a valid archive path: " + ex.Message, true);
-            return;
+                    if (originLocation is not null) _jobOrigins[job] = (origin, originLocation);
+                    if (focus is not null) _focusAfter[job] = focus;
+                });
+                password = null; // The manager now owns the secret through queueing, execution and cleanup.
+                return;
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+            { Notify("Cannot create this archive: " + Formatters.SafeName(error.Message), true); return; }
+            finally { password?.Dispose(); }
         }
-        if (!archive.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) archive += ".zip";
-        if (Services.Io.IsStopped) return;
-        FileSystemItemInfo? archiveInfo;
-        try { archiveInfo = await MutationIoAsync(archive, () => Services.Platform.FileOperations.TryGetInfo(archive), () => { if (Services.Io.IsStopped) throw new OperationCanceledException(); }); }
-        catch (OperationCanceledException) { return; }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { if (!Services.Io.IsStopped) Notify("Cannot read the archive path: " + ex.Message, true); return; }
-        if (archiveInfo?.IsDirectory == true) { Notify("A folder with that name exists; choose a file name for the archive.", true); return; }
-        if (items.Any(i => PathUtil.IsSameOrUnder(archive, i.FileSystemPath!)))
-        {
-            Notify("The archive cannot be created inside a folder that is being packed.", true);
-            return;
-        }
-        var compression = level.SelectedIndex switch { 1 => CompressionLevel.Fastest, 2 => CompressionLevel.NoCompression, _ => CompressionLevel.Optimal };
-        var changes = items.Select(i => new ArchiveChange(i.IsContainer ? ArchiveChangeKind.AddFolder : ArchiveChangeKind.AddFile, i.Name, i.FileSystemPath)).ToList();
-        if (archiveInfo is not null)
-        {
-            var zip = ZipProvider.ForFile(archive);
-            await AddToArchiveAsync(JobKind.Copy, items, zip, new TransferOptions());
-            return;
-        }
-        SubmitArchive(new ArchivePlan(archive, null, changes, compression), items, Location.FileSystem(Path.GetDirectoryName(archive)!),
-            $"Pack {Formatters.Plural(items.Count, "item", "items")} into \"{Path.GetFileName(archive)}\"", Path.GetFileName(archive), origin);
     }
 
     /// <summary>Test archive: decompress every member of the selected ZIPs (or the open archive) and compare checksums.</summary>

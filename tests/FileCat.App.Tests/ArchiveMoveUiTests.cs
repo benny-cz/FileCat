@@ -92,6 +92,7 @@ public sealed class ArchiveMoveUiTests
             await Wait(() => FindButton(move ? "Move" : "Copy")?.IsEffectivelyEnabled == true);
             FindButton(move ? "Move" : "Copy")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Wait(() => FindButton("Skip existing")?.IsEffectivelyEnabled == true && FindButton("Skip existing")!.IsFocused);
+            Assert.Contains("danger", FindButton("Replace")!.Classes);
             if (replace) FindButton("Replace")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             else window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             await command.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);

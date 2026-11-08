@@ -106,6 +106,7 @@ public sealed record ArchiveMemberKey
 /// <summary>Initial profile ceilings, independent of claims inside an archive (implementation plan §9).</summary>
 public static class ArchiveWritePolicy
 {
+    public const int MaxPasswordEncodedBytes = 1024;
     public const int MaxMembers = 100_000;
     public const int MaxNameChars = 32_000;
     public const int MaxNameBytes = MaxNameChars * 4;

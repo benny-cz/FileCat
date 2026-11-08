@@ -1,0 +1,270 @@
+{
+  "component": "Shared creation UI and encoded password admission",
+  "baseline": "98a404e6",
+  "batch": "archive-creation-ui-v5",
+  "production_backend_qualified": false,
+  "goal": "active; shared member/edit/password, Unix platform and final qualification/review gates unfinished",
+  "platforms": [
+    {
+      "platform": "mac",
+      "bytes": 44023884,
+      "sha256": "b499bdd5055f7cb02b9d0b45fa2fc9640a3e9a5f73472447ffb74cac239ff77c",
+      "rows": 3996,
+      "tests": {
+        "application-regressions.trx": {
+          "Passed": 113,
+          "NotExecuted": 1
+        },
+        "archive-creation-core.trx": {
+          "Passed": 8164,
+          "NotExecuted": 207
+        },
+        "creation-smoke.trx": {
+          "Passed": 2
+        },
+        "creation-ui.trx": {
+          "Passed": 20
+        },
+        "password-preflight.trx": {
+          "Passed": 21
+        }
+      },
+      "current_CSharp_sources_bound": 12,
+      "DLL_PDB_pairs_bound": 15,
+      "census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "production_backend_qualified": false
+    },
+    {
+      "platform": "ubuntu",
+      "bytes": 44025458,
+      "sha256": "9fc0e33732489b51a802871dfed841fdb7c3953117751544804875d9713f3314",
+      "rows": 3998,
+      "tests": {
+        "application-regressions.trx": {
+          "Passed": 113,
+          "NotExecuted": 1
+        },
+        "archive-creation-core.trx": {
+          "Passed": 8186,
+          "NotExecuted": 185
+        },
+        "creation-smoke.trx": {
+          "Passed": 2
+        },
+        "creation-ui.trx": {
+          "Passed": 20
+        },
+        "password-preflight.trx": {
+          "Passed": 21
+        }
+      },
+      "current_CSharp_sources_bound": 12,
+      "DLL_PDB_pairs_bound": 15,
+      "census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "production_backend_qualified": false
+    },
+    {
+      "platform": "windows",
+      "bytes": 170753438,
+      "sha256": "b6cd8269000eec7397d4bf5f8d1c8ce15eb817fec256da9c07dd1f9e73cccc7b",
+      "rows": 4983,
+      "tests": {
+        "app-entry.trx": {
+          "Passed": 14
+        },
+        "application-regressions.trx": {
+          "Passed": 114
+        },
+        "archive-creation-core.trx": {
+          "Passed": 7915,
+          "NotExecuted": 461
+        },
+        "creation-cleanup-crashes.trx": {
+          "Passed": 18
+        },
+        "creation-native-ui.trx": {
+          "Passed": 10
+        },
+        "creation-smoke.trx": {
+          "Passed": 2
+        },
+        "creation-ui.trx": {
+          "Passed": 20
+        },
+        "native.trx": {
+          "Passed": 217
+        },
+        "password-preflight.trx": {
+          "Passed": 21
+        }
+      },
+      "current_CSharp_sources_bound": 12,
+      "DLL_PDB_pairs_bound": 17,
+      "census": {
+        "busy": false,
+        "owned_filecat_or_test_processes": 0
+      },
+      "production_backend_qualified": false
+    }
+  ],
+  "retained_failed_phases": [
+    {
+      "platform": "mac",
+      "version": "v1",
+      "bytes": 18167399,
+      "sha256": "555962b122e8bd657df501d209dc8bd947a7e8a2ad20cec9a67b13e3c662c7aa",
+      "rows": 2140,
+      "result": "aborted-hung-creation-ui-preflight"
+    },
+    {
+      "platform": "mac",
+      "version": "v2",
+      "bytes": 18043509,
+      "sha256": "088441a4e7ada58f37fcaaaa5b76f331b38027d015a1983e79779b856e40621e",
+      "rows": 2127,
+      "result": "aborted-after-repeated-bounded-creation-timeouts"
+    },
+    {
+      "platform": "mac",
+      "version": "v3",
+      "bytes": 18041982,
+      "sha256": "93c481717cc50965e3e8cc864e6ed2ab78f7712894d7b240bf39ad0ebdaa123f",
+      "rows": 2126,
+      "result": "failed-creation-smoke-generated-suffix"
+    },
+    {
+      "platform": "mac",
+      "version": "v4",
+      "bytes": 18050929,
+      "sha256": "69fa42bf8959b51b108c977af92aebfd695e6d12f8282e439b244650ffa27205",
+      "rows": 2132,
+      "result": "failed-creation-draft-overlay-reuse"
+    },
+    {
+      "platform": "ubuntu",
+      "version": "v1",
+      "bytes": 18137937,
+      "sha256": "8ca774696c50b0e0932206ac822f07468c31145e61885ca70a68f0b97aab8c69",
+      "rows": 2141,
+      "result": "aborted-hung-creation-ui-preflight"
+    },
+    {
+      "platform": "ubuntu",
+      "version": "v2",
+      "bytes": 18040169,
+      "sha256": "4f636c70119156acab45afbcb3c1e040c7362680334cbeec60147fc63dd1c148",
+      "rows": 2128,
+      "result": "aborted-after-repeated-bounded-creation-timeouts"
+    },
+    {
+      "platform": "ubuntu",
+      "version": "v3",
+      "bytes": 18038173,
+      "sha256": "fb148ccd1af4f93696b88fda102e07c55b9081aae74ded1669833933a4ed7df2",
+      "rows": 2127,
+      "result": "failed-creation-smoke-generated-suffix"
+    },
+    {
+      "platform": "ubuntu",
+      "version": "v4",
+      "bytes": 18044497,
+      "sha256": "a86c3f3b4ba2e88a78f81c9d5b116a6a47a44ac64fe81e10402c1ff60498aa8b",
+      "rows": 2133,
+      "result": "failed-creation-draft-overlay-reuse"
+    },
+    {
+      "platform": "windows",
+      "version": "v1",
+      "bytes": 144413003,
+      "sha256": "00bb5bd60322f95faae9575fc1a401d7f9997a9594917008d2edfe0d99aa3c30",
+      "rows": 2773,
+      "result": "aborted-hung-creation-ui-preflight"
+    },
+    {
+      "platform": "windows",
+      "version": "v2",
+      "bytes": 144332511,
+      "sha256": "58a0c935aabed88d004e79228bd2774b48cf35af1c1534a3b725dd6356d1cbb7",
+      "rows": 2760,
+      "result": "aborted-after-repeated-bounded-creation-timeouts"
+    },
+    {
+      "platform": "windows",
+      "version": "v3",
+      "bytes": 144313665,
+      "sha256": "6d2b549d9b91c5e4d718ab93a9acaf16de4807fe9e9543ff25e9ef709e3229c1",
+      "rows": 2758,
+      "result": "failed-creation-smoke-generated-suffix"
+    },
+    {
+      "platform": "windows",
+      "version": "v4",
+      "bytes": 143322465,
+      "sha256": "82aa91cccfcd6fdcc8ed817d68cee5f3d723f9edc5ad3bcd2a30ec2448bf51a6",
+      "rows": 2724,
+      "result": "build-failed-full-guest-disk-before-tests"
+    }
+  ],
+  "current_CSharp": [
+    {
+      "path": "src/FileCat.App/Services/AppServices.cs",
+      "sha256": "3d6a02e05e001f3c44b1223e2b6b439001d9b6529f2ea3afd38b0eed535aa90b"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/MainViewModel.Archives.cs",
+      "sha256": "fc9a213ced9df244f81cc4315951cdad720ae7ff098fff0a4ef901eb1b8c2006"
+    },
+    {
+      "path": "src/FileCat.App/ViewModels/MainViewModel.Operations.cs",
+      "sha256": "9abfa76bbc9846225ba7b217224170d9f31a79841616e2a289783b2c32c9e381"
+    },
+    {
+      "path": "src/FileCat.App/Views/ArchiveCreationDialog.cs",
+      "sha256": "6f38b5af8d5ddc528575d7738501762b193b1fb2a08ada0c35afc41d0dbc0daa"
+    },
+    {
+      "path": "src/FileCat.Archives/Writing/ArchiveCryptoWorkBudget.cs",
+      "sha256": "fa92e761121b5267cffaada43bb2480c4bb4969f534346267691ce95decc2747"
+    },
+    {
+      "path": "src/FileCat.Core/Archives/ArchiveJobPassword.cs",
+      "sha256": "f5b024947ebeee63c21337162fd80a4a17fbcfeb6433578fb31177021b564050"
+    },
+    {
+      "path": "src/FileCat.Core/Archives/ArchiveWriteContracts.cs",
+      "sha256": "a88eb4a751d566da695796782b8bd1d28d1d620dcdb3761333611141bc8d55a9"
+    },
+    {
+      "path": "tests/FileCat.App.Tests/AccessibilityTests.cs",
+      "sha256": "caa32ea9374b3134646cced51134e7dba4590bd117974eebb8821a7a39961429"
+    },
+    {
+      "path": "tests/FileCat.App.Tests/ArchiveCreationWorkflowTests.cs",
+      "sha256": "4c780da7c1c31c7e2d992fd19e8b5f6c52fd0f86c520807a3e1767199d601338"
+    },
+    {
+      "path": "tests/FileCat.App.Tests/ArchiveMoveUiTests.cs",
+      "sha256": "803830bb8d76f57377bc9b1bbbe9014bfaf604d7c4a210ea0375dd78694fd3c3"
+    },
+    {
+      "path": "tests/FileCat.App.Tests/MutationPreparationTests.cs",
+      "sha256": "2514ec53250e788f079f6f4786f9428d913ea3548181a30dff87407640cd585c"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/ArchiveJobPasswordTests.cs",
+      "sha256": "5898ef8e1fea7f39a1d13e6919996cf0a8dd198f58377fee425a1c33ec9096ec"
+    }
+  ],
+  "postfreeze_validation_helper": {
+    "path": "eng/validation/archive-writing/run_creation_ui_batch.py",
+    "sha256": "e6fd988b9ebf6c998af9d2cf51b3924f1e0002e2ba65766aaef9fe0704dc3fa8",
+    "change": "Skip a duplicate App.Tests build and check 2 GiB free before future packets. These guards postdate the frozen v5 helper; Windows v5 resumed unchanged CSharp and verified runtime assets after preserving the refusal."
+  }
+}

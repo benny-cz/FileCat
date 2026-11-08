@@ -41,4 +41,28 @@ public sealed class ArchiveJobPasswordTests
         var profile = ArchiveWriteProfile.ForRar5(encryption: extra ? null : new(ArchiveEncryptionMode.Data));
         Assert.Equal(ArchiveWriteReason.InvalidRequest, Assert.Throws<ArchiveWriteException>(() => ArchiveJobPassword.Require(profile, owner)).Reason);
     }
+
+    [Theory]
+    [InlineData(ArchiveWriteFormat.Rar5, "x", 1024, true)]
+    [InlineData(ArchiveWriteFormat.Rar5, "é", 512, true)]
+    [InlineData(ArchiveWriteFormat.Rar5, "é", 513, false)]
+    [InlineData(ArchiveWriteFormat.Rar5, "暗", 341, true)]
+    [InlineData(ArchiveWriteFormat.Rar5, "暗", 342, false)]
+    [InlineData(ArchiveWriteFormat.Rar5, "🔐", 256, true)]
+    [InlineData(ArchiveWriteFormat.Rar5, "🔐", 257, false)]
+    [InlineData(ArchiveWriteFormat.SevenZip, "x", 512, true)]
+    [InlineData(ArchiveWriteFormat.SevenZip, "x", 513, false)]
+    [InlineData(ArchiveWriteFormat.SevenZip, "é", 512, true)]
+    [InlineData(ArchiveWriteFormat.SevenZip, "é", 513, false)]
+    [InlineData(ArchiveWriteFormat.SevenZip, "🔐", 256, true)]
+    [InlineData(ArchiveWriteFormat.SevenZip, "🔐", 257, false)]
+    public void Queue_password_admission_uses_the_formats_actual_encoded_length(ArchiveWriteFormat format, string unit, int count, bool accepted)
+    {
+        string text = string.Concat(Enumerable.Repeat(unit, count)); using var owner = new ArchiveJobPassword(text);
+        var profile = format == ArchiveWriteFormat.Rar5 ? ArchiveWriteProfile.ForRar5(encryption: new(ArchiveEncryptionMode.Data))
+            : ArchiveWriteProfile.ForSevenZip(encryption: new(ArchiveEncryptionMode.DataAndNames));
+        if (accepted) ArchiveJobPassword.Require(profile, owner);
+        else Assert.Equal(ArchiveWriteReason.InvalidRequest, Assert.Throws<ArchiveWriteException>(() => ArchiveJobPassword.Require(profile, owner)).Reason);
+        using var grant = owner.CreateGrant(); Assert.True(grant.UseOnce(value => value.SequenceEqual(text)));
+    }
 }

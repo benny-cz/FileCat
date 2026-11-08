@@ -209,7 +209,19 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
         if (operation == "pack")
         {
             await Wait(() => f.Button("Pack") is not null);
+            var first = f.Button("Pack");
             f.PathBox("Archive path").Text = f.Archive; f.Click("Pack");
+            if (outcome != "plain")
+            {
+                await Wait(() => f.Button("Pack") is { IsEnabled: false } current && !ReferenceEquals(current, first));
+                Assert.False(task.IsCompleted); AssertWorkers(f.Gate, "info");
+                Assert.Contains(f.Window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.Contains("Cannot read this archive path", StringComparison.Ordinal) == true);
+                Assert.Equal(f.Archive, f.PathBox("Archive path").Text);
+                f.Click("Cancel"); await task.WaitAsync(TimeSpan.FromSeconds(15));
+                Assert.Empty(f.Services.Jobs.Jobs); Assert.Equal(f.Before, f.Hash());
+                Emit("archive-admission-draft-retained", f, new { operation, outcome });
+                return;
+            }
         }
         await Wait(() => task.IsCompleted || f.Button(operation == "delete" ? "Delete" : "Create") is not null);
         bool shown = !task.IsCompleted; if (shown) f.Click("Cancel"); await task.WaitAsync(TimeSpan.FromSeconds(15));

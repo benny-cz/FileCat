@@ -1,5 +1,14 @@
 # Archive writing implementation status
 
+**8 November: shared creation options and encoded password admission implemented, unregistered.**
+[Creation UI](ARCHIVE_CREATION_UI.md) connects explicit format/compression/7z options and masked password
+confirmation to captured job inputs. All platforms pass 20 creation UI cases, 21 password cases, the affected
+application regression selection and complete Core suites. Windows also passes ten real confined-worker UI
+creations, 217 native regressions, 18 cleanup crash cases and independent readback of all ten new archives.
+The [checkpoint](creation-ui-checkpoint.json) records source/PDB bindings, failed runs and instance cleanup.
+Delayed suffix validation and refused-draft control ownership defects are fixed. No new writer is registered;
+shared member/update/edit/password journeys and the remaining platform/release/final-review gates stay open.
+
 **8 November: automatic native cleanup and creation recovery implemented, unregistered.**
 [Automatic cleanup and creation recovery](ARCHIVE_AUTOMATIC_CLEANUP.md) pass the focused platform checks,
 complete Core regressions, Windows native/crash/application matrix and independent readers. The
@@ -65,8 +74,8 @@ This is an **incomplete implementation**, not format or release qualification. T
 [the archive writing plan](../../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md). No new writer is enabled in the
 application. An explicit new-profile job refuses instead of entering the legacy ZIP executor.
 
-**Next coherent implementation chunk:** finish safe native job cleanup and explicit F6 source removal, then
-connect creation/member/edit/password and recovery UI to the shared native jobs and qualify Unix confinement/update.
+**Next coherent implementation chunk:** connect member/update/edit/password journeys to strict assessments and
+shared native jobs; qualify Unix confinement/update, moves and cleanup/recovery.
 Present the declared 7z precision policy and resolve remaining header compatibility gaps before enabling a profile. Reuse
 passed codec/native evidence when its compiler inputs are unchanged; batch the shared UI and native acceptance
 work, then complete resource/crash/fuzz/RID/package gates and the final independent review.

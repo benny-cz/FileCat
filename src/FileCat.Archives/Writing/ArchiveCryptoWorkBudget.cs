@@ -24,7 +24,7 @@ internal sealed class ArchiveCryptoWorkBudget(long maxRounds = 1L << 26, long ma
 
 internal static class ArchivePasswordEncoding
 {
-    internal const int MaximumBytes = 1024;
+    internal const int MaximumBytes = ArchiveWritePolicy.MaxPasswordEncodedBytes;
     private static readonly UTF8Encoding Utf8 = new(false, true);
     private static readonly UnicodeEncoding Utf16 = new(false, false, true);
 

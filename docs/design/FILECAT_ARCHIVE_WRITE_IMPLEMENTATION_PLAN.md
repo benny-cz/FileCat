@@ -108,9 +108,15 @@ application workflows, Unix native mutation, production qualification and the fi
 The [native F6 packet](../validation/archive-writing/NATIVE_ARCHIVE_MOVES.md) now connects shared source accounting
 and Windows native removal after verified publication. Its checkpoint records twenty actual create/update moves
 across all container/password profiles, native stream/directory guards and independent readers. The legacy
-case-distinct ZIP move fix has actual Windows and Unix acceptance evidence. Unix native moves, safe cleanup and
-recovery, shared UI and remaining platform qualification stay open. Preserve actual failed runs and repaired
+case-distinct ZIP move fix has actual Windows and Unix acceptance evidence. Unix native moves/cleanup/recovery,
+shared member/edit/password UI and remaining platform qualification stay open. Preserve actual failed runs and repaired
 fixtures; combined or reused evidence must be identified explicitly.
+
+The [automatic cleanup checkpoint](../validation/archive-writing/ARCHIVE_AUTOMATIC_CLEANUP.md) now supplies Windows
+creation/update cleanup and creation/RAR5/7z recovery UI. The [shared creation checkpoint](../validation/archive-writing/ARCHIVE_CREATION_UI.md)
+adds explicit format/compression/7z options and exact password confirmation/admission. Its common UI/password,
+complete Core, actual Windows worker, crash and independent-reader matrix passes without enabling a profile.
+Continue with shared member/update/edit/password journeys and Unix platform qualification before registration.
 
 **Approved validation acceleration (8 November):** coalesce focused/native checks, inherited regressions,
 independent readers, source/assembly evidence and final instance cleanup into one large batch per available

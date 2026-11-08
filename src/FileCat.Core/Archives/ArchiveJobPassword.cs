@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text;
 
 namespace FileCat.Core.Archives;
 
@@ -12,6 +13,8 @@ namespace FileCat.Core.Archives;
 [JsonConverter(typeof(ArchiveJobPasswordJsonConverter))]
 public sealed class ArchiveJobPassword : IDisposable
 {
+    private static readonly UTF8Encoding Utf8 = new(false, true);
+    private static readonly UnicodeEncoding Utf16 = new(false, false, true);
     private readonly object gate = new();
     private char[]? password;
     private bool jobOwned;
@@ -37,8 +40,26 @@ public sealed class ArchiveJobPassword : IDisposable
     {
         if ((profile.Encryption.Mode != ArchiveEncryptionMode.None) != (password is not null))
             throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "The job password does not match the requested archive password mode.");
-        password?.Live();
+        if (password is not null)
+            lock (password.gate) { password.Live(); ValidateEncoding(profile.Format, password.password); }
     }
+    internal static void ValidateEncoding(ArchiveWriteFormat format, ReadOnlySpan<char> value)
+    {
+        Encoding encoding = format switch
+        {
+            ArchiveWriteFormat.Rar5 => Utf8,
+            ArchiveWriteFormat.SevenZip => Utf16,
+            _ => throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "Password protection is unavailable for this archive format."),
+        };
+        try
+        {
+            if (value.Length > ArchiveWorkerSecretGrant.MaximumCharacters || encoding.GetByteCount(value) > ArchiveWritePolicy.MaxPasswordEncodedBytes)
+                throw InvalidPassword();
+        }
+        catch (EncoderFallbackException) { throw InvalidPassword(); }
+    }
+    private static ArchiveWriteException InvalidPassword() => new(ArchiveWriteReason.InvalidRequest,
+        "The archive password is invalid Unicode or exceeds the supported encoded length.");
     public void Dispose()
     {
         lock (gate)

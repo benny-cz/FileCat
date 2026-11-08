@@ -633,8 +633,10 @@ public sealed partial class MainViewModel
             try
             {
                 if (_focusAfter.Remove(job, out var focus) && job.State is JobState.Completed or JobState.CompletedWithIssues && tab.Location == origin.Location)
+                {
                     tab.Listing.Refresh();
-                if (focus is not null) FocusWhenPresent(tab, focus);
+                    if (focus is not null) FocusWhenPresent(tab, focus);
+                }
             }
             catch (ObjectDisposedException) { }
         }
@@ -710,12 +712,13 @@ public sealed partial class MainViewModel
         if (job.Request.Destination is { } d) folders.Add(d);
         // A rebuilt archive changes every folder shown inside it.
         string? archive = job.Request.Archive?.ArchivePath is { } a ? Path.GetFullPath(a) : null;
+        if (archive is not null && Path.GetDirectoryName(archive) is { } archiveParent) folders.Add(Location.FileSystem(archiveParent));
         foreach (var p in Workspace.Panels)
         {
             foreach (var t in p.Tabs)
             {
                 if (t.Location is { } l && (folders.Contains(l) || l.Scheme == Schemes.ResultSet || parents is null && l.IsFileSystem ||
-                                            archive is not null && l.Scheme == Schemes.Zip && string.Equals(l.Container?.Path, archive, StringComparison.OrdinalIgnoreCase)))
+                                            archive is not null && l.Scheme is Schemes.Zip or Schemes.Archive && string.Equals(l.Container?.Path, archive, StringComparison.Ordinal)))
                     t.Refresh();
             }
         }
