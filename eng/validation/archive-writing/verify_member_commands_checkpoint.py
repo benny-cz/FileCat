@@ -54,6 +54,17 @@ def verify(platform,folder,candidate,reader_candidate='HEAD'):
     audit=js('compiler-sources/facts.json');assert audit['compilerSourceChecksumsMatched'] and all(row['pdbBoundToAssembly'] for row in audit['binaries'])
     for row in audit['binaries']:
         for extension,key in [('dll','dllSha256'),('pdb','pdbSha256')]:assert index['binaries/'+row['assembly']+'.'+extension]['sha256']==row[key].lower()
+    if platform=='mac' and folder=='awm-v5':
+        _,old_index,old_data=transport(platform,'awm-v4')
+        failed=[row.get('testName') for row in cases(old_data['results/archive-creation-core.trx']) if row.get('outcome')=='Failed']
+        assert failed==['FileCat.Core.Tests.FreedesktopIconsTests.A_stalled_theme_setting_helper_does_not_hold_icon_detection']
+        reuse=js('unchanged-production.json');assert reuse['only_test_assembly_changed'] and reuse['parent_manifest_sha256']==old_index['files.json']['sha256']
+        assert tests['icons-readiness.trx']=={'Passed':5,'NotExecuted':1}
+        for key,row in index.items():
+            if key.startswith('binaries/') and not key.startswith('binaries/FileCat.Core.Tests.'):
+                assert row==old_index[key],key
+        delta=subprocess.check_output(['git','diff','--name-only','-z','630d3491',candidate],cwd=ROOT).decode().strip('\0').split('\0')
+        assert set(delta)=={'tests/FileCat.Core.Tests/FreedesktopIconsTests.cs','eng/validation/archive-writing/run_member_commands_full_batch.py'}
     changed=[name for name in subprocess.check_output(['git','diff','--name-only','-z','1e3ea8de',candidate],cwd=ROOT).decode().split('\0') if name.endswith('.cs')]
     source={row['path']:row for row in js('source-files.json')['files']};checked=[]
     for name in changed:
@@ -83,11 +94,11 @@ def verify(platform,folder,candidate,reader_candidate='HEAD'):
             assert hashlib.sha256(snapshot).hexdigest()==row['sha256']
             blob=subprocess.check_output(['git','show',reader_candidate+':'+row['source']],cwd=ROOT)
             assert snapshot.replace(b'\r\n',b'\n')==blob.replace(b'\r\n',b'\n'),row['source']
-        for folder,seven,tar in [('moves',(6,33,21),(8,44,28)),('cleanup',(6,9,9),(8,12,12)),('creation-ui',(3,3,3),(4,4,4)),('update-ui',(3,6,6),(4,8,8)),('member-ui-vectors',(3,6,6),(4,8,8))]:
+        for scope,seven,tar in [('moves',(6,33,21),(8,44,28)),('cleanup',(6,9,9),(8,12,12)),('creation-ui',(3,3,3),(4,4,4)),('update-ui',(3,6,6),(4,8,8)),('member-ui-vectors',(3,6,6),(4,8,8))]:
             for leaf,keys,wanted in [('independent-pipeline.json',('archives','metadata','payloads'),seven),('independent-workflow-rar.json',('official_archives','independent_metadata_records','exact_payloads'),seven),('independent-workflow-tar.json',('archives','metadata','payloads'),tar)]:
-                observed=reader_data if folder=='member-ui-vectors' else data;observed_index=reader_index if folder=='member-ui-vectors' else index
-                result=json.loads(observed[folder+'/'+leaf]);assert tuple(result[key] for key in keys)==wanted,(folder,leaf)
-                for row in result['rows']:assert observed_index[folder+'/'+row['archive']]['sha256']==row['sha256'].lower()
+                observed=reader_data if scope=='member-ui-vectors' else data;observed_index=reader_index if scope=='member-ui-vectors' else index
+                result=json.loads(observed[scope+'/'+leaf]);assert tuple(result[key] for key in keys)==wanted,(scope,leaf)
+                for row in result['rows']:assert observed_index[scope+'/'+row['archive']]['sha256']==row['sha256'].lower()
     census=js('final-census.json');assert census['owned_filecat_or_test_processes']==0 and not census['production_backend_qualified']
     if platform=='mac':assert census['preserved_wake_helper'].startswith('36765 ')
     if platform=='ubuntu':assert js('private-keyring.json')['pid']==js('private-keyring-stopped.json')['pid']

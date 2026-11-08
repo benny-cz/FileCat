@@ -1,11 +1,14 @@
 # Archive writing implementation status
 
-**8 November: connected member/F5/F6 component implemented; validation in progress.**
+**8 November: connected member/F5/F6 component matrix passes, unregistered.**
 [Member commands](ARCHIVE_MEMBER_COMMANDS.md) connect exact occurrences and recursive folders, listing-revision
-checks, password retry, typed destination review and skip-aware F6 source removal. All three platforms pass
-114 focused Core and 53 connected UI cases (`awm-v3`, Windows frozen continuation `awm-v3t`). Windows native
-results are pending. Historical failures are preserved. Additional
-tests and the full regression/reader cohort remain required; no new profile is registered or qualified.
+checks, password retry, typed destination review and skip-aware F6 source removal. All platforms pass 116
+focused Core, 53 connected UI and their complete Core inventories. Windows also passes ten real member UI
+cases, 217 native regressions, crash/application checks and independent readback of all ten member vectors.
+The [checkpoint](member-commands-checkpoint.json) binds frozen source and DLL/PDB bytes, identifies Mac's
+test-only startup repair and Windows' reader-only continuation, and records zero remaining owned instances.
+Mac's wake helper remains active. Further UX/session, Unix native and release/final-review gates remain open;
+no new profile is registered or qualified.
 
 **8 November: retained target review and existing-archive Pack updates implemented, unregistered.**
 [Target review](ARCHIVE_TARGET_UPDATE_UI.md) binds queued updates to a complete manifest and native source
