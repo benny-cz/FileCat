@@ -1,0 +1,50 @@
+[
+  {
+    "path": "src/FileCat.App/Services/AnalysisIndexedAcquisition.External.cs",
+    "sha256": "edf5ff002ae0235ad37e954c3c1a8ba3fa5ff0384cda4236dad5682b971b351f"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+    "sha256": "3773a4ffdd823610b0f8634d2fee8092a521f5b2d0c1d41cf7b941fb4d5f6713"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.ExternalInventory.cs",
+    "sha256": "f1fd33069daaa6748853318f02f310b7a7564494cd6d7cde2b977e1f6c2ac57d"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedPersistence.cs",
+    "sha256": "f51f0b54d5e59b4cd08fcf4845e76bc31ba81a9cad0622258eb676fc716341fa"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisIndexedInventory.cs",
+    "sha256": "143aa88c84da5d1e9c13df7c130d6955559c3158400ea3811af54b2b4d377f70"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisIndexedInventory.External.cs",
+    "sha256": "cba89f2c50e272ad09177d2eb87cc15179ef96ceaaeb775cbe8751ca9893e946"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisInventoryInput.cs",
+    "sha256": "3ca387653348ec39e27532331d921329d957fe5807750f659a3c6009684784c5"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisInventoryStage.Writer.cs",
+    "sha256": "735743288a5670bcddf471066aa257f00263fdd96e2221eda35fdf8151961766"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.cs",
+    "sha256": "95a4d41abf8fddea0dda5819ad6d89df1652a129ea71cc56d2e1c176723ec56f"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/UnixAnalysisPrivateDirectory.Input.cs",
+    "sha256": "007643e011a3f5a4c68117226320efc24315455ce103aae64bc0ea1cce20d1c6"
+  },
+  {
+    "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.Input.cs",
+    "sha256": "5bb8b84d234571aa2306b1fb3b754b24eb50761795c03bf39542da325dd27e95"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ExternalInventory.cs",
+    "sha256": "ed80a22f91fb1d856faa02f4496b0f5f5c610a4d32e9166641bf6356474eb881"
+  }
+]

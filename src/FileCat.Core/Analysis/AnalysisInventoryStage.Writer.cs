@@ -13,22 +13,30 @@ public static partial class AnalysisInventoryFormat
     // Includes all four fixed-row block directories/caches at their observation caps and the
     // bounded decoded header. A retained stage keeps its reservation until actual file closure.
     private const long StageMemory = 16L * AnalysisLimits.RecordBytes, StageHeaderMemory = 8L * AnalysisLimits.RecordBytes;
-    internal static async Task<AnalysisInventoryStage> StagePrivateAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io,
+    internal static Task<AnalysisInventoryStage> StagePrivateAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io,
         AnalysisIoDevices scratchDevices, string inputDevice, string name, Func<AnalysisPrivateDirectory> openInput,
         CancellationToken cancellation = default)
     {
+        ArgumentNullException.ThrowIfNull(openInput); AnalysisPrivateInventoryStore.ValidateName(name);
+        return StageInputAsync(workspace, io, scratchDevices, inputDevice,
+            token => AnalysisPrivateInventoryStore.BeginDatasetRead(openInput(), name, token), cancellation);
+    }
+    internal static async Task<AnalysisInventoryStage> StageInputAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io,
+        AnalysisIoDevices scratchDevices, string inputDevice, Func<CancellationToken, AnalysisInventoryInput> openInput,
+        CancellationToken cancellation = default)
+    {
         ArgumentNullException.ThrowIfNull(workspace); ArgumentNullException.ThrowIfNull(io); ArgumentNullException.ThrowIfNull(openInput);
-        ArgumentNullException.ThrowIfNull(scratchDevices); AnalysisPrivateInventoryStore.ValidateName(name);
+        ArgumentNullException.ThrowIfNull(scratchDevices);
         var devices = scratchDevices.Include(inputDevice);
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         object gate = new(); bool finished = false;
         void HealthChanged(string key, DeviceHealth health) { if (health == DeviceHealth.NotResponding && devices.Contains(key)) lock (gate) { if (!finished) stop.Cancel(); } }
         io.HealthChanged += HealthChanged;
-        try { return await StageActualAsync(workspace, io, scratchDevices, devices, name, openInput, stop.Token).ConfigureAwait(false); }
+        try { return await StageActualAsync(workspace, io, scratchDevices, devices, openInput, stop.Token).ConfigureAwait(false); }
         finally { io.HealthChanged -= HealthChanged; lock (gate) finished = true; }
     }
     private static async Task<AnalysisInventoryStage> StageActualAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io,
-        AnalysisIoDevices scratchDevices, AnalysisIoDevices devices, string name, Func<AnalysisPrivateDirectory> openInput, CancellationToken cancellation)
+        AnalysisIoDevices scratchDevices, AnalysisIoDevices devices, Func<CancellationToken, AnalysisInventoryInput> openInput, CancellationToken cancellation)
     {
         await Imports.WaitAsync(cancellation).ConfigureAwait(false);
         long reservation = 0; var build = new StageBuild(); AnalysisInventoryStage? result = null;
@@ -40,7 +48,7 @@ public static partial class AnalysisInventoryFormat
             await AnalysisIo.Run(io, devices, token =>
             {
                 build.Workspace = workspace.Borrow();
-                build.Input = AnalysisPrivateInventoryStore.BeginDatasetRead(openInput(), name, token);
+                build.Input = openInput(token); build.Input.Verify();
                 build.Frame = new(build.Input.Stream); build.Decoder = new();
                 build.Raw = build.Workspace.CreateArena(); build.Log = new(build.Raw);
                 var arena = build.Workspace.CreateArena();
@@ -173,7 +181,7 @@ public static partial class AnalysisInventoryFormat
     private sealed class StageBuild : IAnalysisScratchOwned
     {
         internal AnalysisScratchWorkspace? Workspace;
-        internal AnalysisPrivateInventoryStore.DatasetRead? Input;
+        internal AnalysisInventoryInput? Input;
         internal RecordFramer? Frame;
         internal RecordDecoder? Decoder;
         internal AnalysisScratchArena? Raw;

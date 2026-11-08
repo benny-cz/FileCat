@@ -1,0 +1,29 @@
+{
+  "revision": "r1071",
+  "renderRevision": "r1071",
+  "buildLog": ".tmp/external-import-build-r1071.txt",
+  "sourceManifest": ".tmp/source-candidate-r1071.json",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 17.0982506,
+  "archives": [
+    {
+      "bytes": 44899929,
+      "platform": "mac",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r1071.tgz",
+      "sha256": "767ebd2900a3ae47c702bca8eda1a199675882ef9c4b7f08910f66cd2cd17e0c"
+    },
+    {
+      "bytes": 42230357,
+      "platform": "linux",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r1071.tgz",
+      "sha256": "b69ac8dd97bb3511ba588e13954d60d62d9cadf82aeb60b6b1e1fd01f2ff351a"
+    },
+    {
+      "bytes": 81439358,
+      "platform": "windows",
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r1071.tgz",
+      "sha256": "c14cb4399721cb51ff02045849828206ab250bb7188cbf5813ff24ca48f76a2e"
+    }
+  ]
+}

@@ -317,6 +317,9 @@ public sealed partial class DiskSpaceWindow : Window
             _save = ActionButton("Save…", () => _ = SaveAsync(), "Save the displayed analysis, including all captured paths and metadata. The current display filter does not reduce the saved inventory.");
             _openSaved = ActionButton("Open saved…", () => _ = OpenSavedAsync(), "Open a named inventory from this private profile as inert observations. No source is reconnected or scanned.");
             nav.Children.Add(_save); nav.Children.Add(_openSaved);
+            _importExternal.IsVisible = Model.HistoryServices is not null;
+            _importExternal.Click += async (_, _) => await ImportExternalAsync(); nav.Children.Add(_importExternal);
+            ToolTip.SetTip(_importExternal, new RichTip("Import offline observations", detail: "Choose a local .fcdsa inventory. Validation uses private bounded scratch; imported paths never reconnect sources or authorize file actions."));
             var history = ActionButton("History…", () => _ = ShowHistoryAsync(), "Browse, open, pin and review removal of this profile's rolling analysis history.");
             history.IsEnabled = Model.HistoryServices is not null; nav.Children.Add(history);
             _openComparison = ActionButton("Open comparison…", () => _ = OpenComparisonSavedAsync(), "Open both captured inventories and saved comparison settings from this private profile. Sources remain disconnected.");
@@ -596,6 +599,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _pause.IsEnabled = Model.Running; _stop.IsEnabled = Model.Running || Model.IsPreparing;
                 _save.IsEnabled = Model.CanSave && !_persistenceBusy;
                 _openSaved.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
+                _importExternal.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
                 _compare.IsEnabled = Model.CanCompare && !_persistenceBusy;
                 RefreshComparisonPersistence();
                 _stop.Content = Model.IsPreparing ? "Stop binding" : "Stop";

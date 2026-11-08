@@ -1,11 +1,15 @@
 param([Parameter(Mandatory=$true)][ValidatePattern('^r[0-9]+[a-z]?$')][string]$Revision,
  [Parameter(Mandatory=$true)][string]$BuildLog,
- [string[]]$AdditionalRenderMethods=@(), [ValidateRange(0,10000)][int]$AdditionalRenderCases=0)
+ [string[]]$AdditionalRenderMethods=@(), [ValidateRange(0,10000)][int]$AdditionalRenderCases=0,
+ [string[]]$CorePreviewMethods=@(), [ValidateRange(0,10000)][int]$CorePreviewCases=0,
+ [string[]]$RenderPreviewMethods=@(), [ValidateRange(0,10000)][int]$RenderPreviewCases=0)
 $ErrorActionPreference='Stop'
 $build=[IO.File]::ReadAllText((Join-Path $PWD $BuildLog))
 if($build.Contains('Build FAILED.')-or([regex]::Matches($build,'(?m)^Build succeeded[.]\r?$')).Count-ne4-or
  ([regex]::Matches($build,'(?m)^    0 Warning\(s\)\r?$')).Count-ne4-or([regex]::Matches($build,'(?m)^    0 Error\(s\)\r?$')).Count-ne4){throw 'Four completed clean project builds are required'}
 if(($AdditionalRenderMethods.Count-eq0)-ne($AdditionalRenderCases-eq0)){throw 'Additional selectors require an exact nonzero case count'}
+if(($CorePreviewMethods.Count-eq0)-ne($CorePreviewCases-eq0)-or($RenderPreviewMethods.Count-eq0)-ne($RenderPreviewCases-eq0)){throw 'Preview overrides require an exact nonzero case count'}
+if($RenderPreviewMethods.Count-and$AdditionalRenderMethods.Count){throw 'Use either a complete preview override or additional history selectors'}
 $render='tests/FileCat.Rendering.Tests/bin/Debug/net10.0';$app='tests/FileCat.App.Tests/bin/Debug/net10.0';$compared=0
 foreach($file in (Get-ChildItem -LiteralPath $app -File -Filter '*.dll'|Where-Object Name -ne 'FileCat.App.Tests.dll')){
  $other=Join-Path $render $file.Name
@@ -31,6 +35,9 @@ $renderMethods=@('*AnalysisRenderingTests.NativeRolling*','*AnalysisRenderingTes
  '*AnalysisRenderingTests.NativeHistoryRecoveryGraphAttestation*','*AnalysisRenderingTests.NativePendingHistory*')
 $renderMethods+=$AdditionalRenderMethods
 $renderCases=38+$AdditionalRenderCases
-& (Join-Path $PSScriptRoot 'add-windows-previews.ps1') -Revision $Revision -CoreMethods $core -CoreCases 27 -RenderMethods $renderMethods -RenderCases $renderCases
-foreach($platform in 'mac','linux'){& (Join-Path $PSScriptRoot 'add-unix-previews.ps1') -Platform $platform -Revision $Revision -CoreMethods $core -CoreCases 27 -RenderMethods $renderMethods -RenderCases $renderCases}
+$coreCases=27
+if($CorePreviewMethods.Count){$core=$CorePreviewMethods;$coreCases=$CorePreviewCases}
+if($RenderPreviewMethods.Count){$renderMethods=$RenderPreviewMethods;$renderCases=$RenderPreviewCases}
+& (Join-Path $PSScriptRoot 'add-windows-previews.ps1') -Revision $Revision -CoreMethods $core -CoreCases $coreCases -RenderMethods $renderMethods -RenderCases $renderCases
+foreach($platform in 'mac','linux'){& (Join-Path $PSScriptRoot 'add-unix-previews.ps1') -Platform $platform -Revision $Revision -CoreMethods $core -CoreCases $coreCases -RenderMethods $renderMethods -RenderCases $renderCases}
 & (Join-Path $PSScriptRoot 'add-app-settings-suite.ps1') -Revision $Revision

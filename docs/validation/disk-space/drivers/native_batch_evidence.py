@@ -46,7 +46,7 @@ def assert_clean_build(path, projects):
         assert len(re.findall(pattern, text, re.M)) == projects
 
 
-def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, phase_revisions=None, expected_states=None):
+def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, phase_revisions=None, expected_states=None, source_snapshot=None):
     assert re.fullmatch(r'r[0-9]+[a-z]?', revision)
     temp = root / '.tmp'
     out = root / 'docs/validation/disk-space'
@@ -54,12 +54,33 @@ def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, pha
     packing = read(packing_path)
     sources_path = root / packing['sourceManifest']
     sources = read(sources_path)
-    assert sources and all(sha(root / source['path']) == source['sha256'] for source in sources)
+    assert sources
+    snapshot_path = None
+    if source_snapshot is None:
+        assert all(sha(root / source['path']) == source['sha256'] for source in sources)
+    else:
+        # A helper-only rerun may update a test after its original broad cohort was
+        # frozen. Verify the exact original sources without restoring/replacing the
+        # current checkout. The caller separately proves every helper input delta.
+        snapshot_path = root / source_snapshot
+        assert snapshot_path.resolve().is_relative_to(root.resolve())
+        with tarfile.open(snapshot_path) as archive:
+            members = archive.getmembers()
+            assert len(members) <= 1000 and sum(member.size for member in members) <= 64 * 1024 * 1024
+            expected_sources = {source['path']: source['sha256'] for source in sources}
+            assert len(expected_sources) == len(sources) == len(members)
+            assert {member.name for member in members} == set(expected_sources)
+            for member in members:
+                name = pathlib.PurePosixPath(member.name)
+                assert member.isfile() and not name.is_absolute() and '..' not in name.parts and ':' not in member.name
+                assert hashlib.sha256(archive.extractfile(member).read()).hexdigest() == expected_sources[member.name]
     build_path = root / packing['buildLog']
     assert_clean_build(build_path, build_projects)
     assert packing['archiveCount'] == 3 and {row['platform'] for row in packing['archives']} == {'windows', 'mac', 'linux'}
     matrix, inputs, processes, receipts = {}, {}, {}, {}
     files = {packing_path, sources_path, build_path, temp / f'app-settings-inputs-{revision}.json'}
+    if snapshot_path is not None:
+        files.add(snapshot_path)
     runners = set()
     phase_revisions = phase_revisions or {}
     expected_states = expected_states or {}
@@ -107,6 +128,8 @@ def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, pha
     record = {'revision': revision, 'observedUtc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
               'gitBase': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
               'sources': sources, 'inputs': inputs, 'matrix': matrix, 'postRunProcesses': processes}
+    if snapshot_path is not None:
+        record['productSourceSnapshot'] = {'path': (out / snapshot_path.name).relative_to(root).as_posix(), 'sha256': sha(snapshot_path)}
     return record, files, runners, receipts
 
 

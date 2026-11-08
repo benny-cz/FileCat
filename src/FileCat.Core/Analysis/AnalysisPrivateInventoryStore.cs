@@ -255,16 +255,16 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
         }
         catch { AnalysisIo.CloseOnWorker(store); throw; }
     }
-    internal sealed class DatasetRead : IAnalysisScratchOwned
+    internal sealed class DatasetRead : AnalysisInventoryInput
     {
         private readonly AnalysisPrivateInventoryStore _store;
         private AnalysisPrivateFile? _file;
-        internal Stream Stream { get; }
+        internal override Stream Stream { get; }
         internal DatasetRead(AnalysisPrivateInventoryStore store, AnalysisPrivateFile file, CancellationToken cancellation)
         { _store = store; _file = file; Stream = new GuardedReadStream(file.Stream, () => { store.Guard(); file.Verify(); }, cancellation); }
-        internal void Verify() { _store.Guard(); (_file ?? throw new ObjectDisposedException(nameof(DatasetRead))).Verify(); }
-        internal string Identity => (_file ?? throw new ObjectDisposedException(nameof(DatasetRead))).Identity;
-        public void Dispose()
+        internal override void Verify() { _store.Guard(); (_file ?? throw new ObjectDisposedException(nameof(DatasetRead))).Verify(); }
+        internal override string Identity => (_file ?? throw new ObjectDisposedException(nameof(DatasetRead))).Identity;
+        public override void Dispose()
         { try { Interlocked.Exchange(ref _file, null)?.Dispose(); } finally { _store.Dispose(); } }
     }
 

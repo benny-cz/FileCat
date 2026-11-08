@@ -3,7 +3,7 @@ using FileCat.Core.Threading;
 namespace FileCat.Core.Analysis;
 
 /// <summary>A validated inert private import owner. No original locator is bound to a native source.</summary>
-public sealed class AnalysisIndexedInventory : IAsyncDisposable
+public sealed partial class AnalysisIndexedInventory : IAsyncDisposable
 {
     private readonly AnalysisDataset _dataset;
     private static readonly SemaphoreSlim Loads = new(2, 2);
@@ -76,10 +76,20 @@ public static partial class AnalysisInventoryFormat
         AnalysisSavedEntry? reviewedEntry = null, CancellationToken cancellation = default)
     {
         ValidateReviewedSelection(name, reviewedEntry);
+        return await LoadStagedIndexedAsync(() => StagePrivateAsync(workspace, io, scratchDevices, inputDevice, name, openInput, cancellation),
+            reviewedEntry, cancellation).ConfigureAwait(false);
+    }
+    internal static Task<AnalysisIndexedInventory> LoadExternalIndexedAsync(AnalysisScratchWorkspace workspace, DeviceIoScheduler io,
+        AnalysisIoDevices scratchDevices, string inputDevice, Func<AnalysisInventoryInput> openInput, CancellationToken cancellation) =>
+        LoadStagedIndexedAsync(() => StageInputAsync(workspace, io, scratchDevices, inputDevice, _ => openInput(), cancellation), null, cancellation);
+
+    private static async Task<AnalysisIndexedInventory> LoadStagedIndexedAsync(Func<Task<AnalysisInventoryStage>> read,
+        AnalysisSavedEntry? reviewedEntry, CancellationToken cancellation)
+    {
         AnalysisInventoryStage? stage = null; AnalysisIndexedInventory? result = null;
         try
         {
-            stage = await StagePrivateAsync(workspace, io, scratchDevices, inputDevice, name, openInput, cancellation).ConfigureAwait(false);
+            stage = await read().ConfigureAwait(false);
             var header = await stage.ReadHeaderAsync(cancellation).ConfigureAwait(false);
             if (reviewedEntry is { } selected && (selected.InventoryId != stage.InventoryId || selected.Bytes != stage.SourceBytes ||
                 selected.Coverage != header.Historical.Coverage || AnalysisPrivacy.Join(selected.Taint) != AnalysisPrivacy.Join(header.Historical.Taint)))
