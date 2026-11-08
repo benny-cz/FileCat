@@ -17,6 +17,7 @@ namespace FileCat.Core.Edit;
 public sealed record EditSessionRecord
 {
     public const int CurrentVersion = 2;
+    public const int NativeStorageVersion = 3;
     public const string ArchiveKind = "archive";
     public const string RemoteKind = "sftp";
     public int Version { get; init; } = CurrentVersion;
@@ -43,10 +44,12 @@ public sealed record EditSessionRecord
     [JsonIgnore] public string? UnsupportedReason { get; init; }
     [JsonIgnore] public bool IsLegacyZip => !IsRemote && (Version == 1 || ArchiveFormat == ArchiveWriteFormat.Zip);
     [JsonIgnore] public bool IsNativeArchive => !IsRemote && !IsLegacyZip;
-    [JsonIgnore] public bool IsSupported => UnsupportedReason is null && Version is 1 or CurrentVersion &&
+    [JsonIgnore] public bool IsSupported => UnsupportedReason is null && Version is 1 or CurrentVersion or NativeStorageVersion &&
         ArchivePath is not null && MemberPath is not null && WorkingPath is not null && BaseSha256 is not null && Baseline is not null &&
         ProfileId is not null && ServerDisplay is not null && RemotePath is not null &&
         StorageRootIdentity is not null && SessionDirectoryIdentity is not null && PreviousRecordSha256 is not null && StorageRevision>=0 &&
+        (Version!=NativeStorageVersion||!string.IsNullOrEmpty(StorageRootIdentity)&&!string.IsNullOrEmpty(SessionDirectoryIdentity)&&
+            !string.IsNullOrEmpty(WorkingDirectoryIdentity)&&!string.IsNullOrEmpty(WorkingIdentity))&&
         Kind is ArchiveKind or RemoteKind && (!IsNativeArchive ||
         ArchiveFormat is ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip &&
         ArchiveProfile is not null && ArchiveProfile.Format == ArchiveFormat && MemberOccurrence == 0 &&
@@ -217,7 +220,7 @@ public sealed partial class EditSessionStore
                 ? versionValue.ValueKind == JsonValueKind.Number && versionValue.TryGetInt32(out int parsed) ? parsed : int.MaxValue : 1;
             string? working = value.TryGetProperty(nameof(EditSessionRecord.WorkingPath), out var pathValue) && pathValue.ValueKind == JsonValueKind.String
                 ? pathValue.GetString() : null;
-            if (version is not (1 or EditSessionRecord.CurrentVersion)) return UnsupportedSession(directory, unsupported, version, working);
+            if (version is not (1 or EditSessionRecord.CurrentVersion or EditSessionRecord.NativeStorageVersion)) return UnsupportedSession(directory, unsupported, version, working);
             try
             {
                 var record = JsonSerializer.Deserialize<EditSessionRecord>(bytes, Json);
@@ -491,7 +494,7 @@ public sealed partial class EditSessionStore
     {
         RefuseElevatedSession();
         if (!record.IsSupported) throw new NotSupportedException("Unsupported edit-session records are kept without rewriting them.");
-        if(nativeOpen is not null&&record.StorageRootIdentity.Length!=0)return SaveNativeRevision(record);
+        if(record.StorageRootIdentity.Length!=0)return SaveNativeRevision(record);
         string dir = SessionDirectory(record);
         string destination = Path.Combine(dir, RecordFile);
         byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(record, Json);
@@ -540,7 +543,8 @@ public sealed partial class EditSessionStore
         try
         {
             Check();
-            using var source = Content.ProgressiveContent.Sequential(provider.OpenContent(ItemRef.ForFileSystemPath(record.WorkingPath, EntryKind.File)));
+            using var source = record.StorageRootIdentity.Length!=0?OpenNativeWorking(record,default):
+                Content.ProgressiveContent.Sequential(provider.OpenContent(ItemRef.ForFileSystemPath(record.WorkingPath, EntryKind.File)));
             Check();
             if (source is null) return new(EditState.Unavailable, null);
             long length = source.Length; Check(); ValidateLength(length); CheckComplete(source);

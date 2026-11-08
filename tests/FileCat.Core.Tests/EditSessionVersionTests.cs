@@ -9,21 +9,21 @@ namespace FileCat.Core.Tests;
 
 public sealed class EditSessionVersionTests
 {
-    [Theory, InlineData(false), InlineData(true)]
-    public void Version_one_archive_and_remote_records_remain_readable_without_rewriting(bool remote)
+    [Theory, InlineData(1,false), InlineData(1,true),InlineData(2,false),InlineData(2,true)]
+    public void Legacy_archive_and_remote_records_remain_readable_without_rewriting(int version,bool remote)
     {
         using var temp = new TempDir(); var store = new EditSessionStore(temp.Path, new PortableFileOperations());
         string id = Guid.NewGuid().ToString("N"), directory = Directory.CreateDirectory(Path.Combine(temp.Path, id)).FullName;
         string working = Path.Combine(directory, "owned.txt"); File.WriteAllText(working, "owned legacy edit");
-        var record = new EditSessionRecord { Version = 1, Id = id, Kind = remote ? EditSessionRecord.RemoteKind : EditSessionRecord.ArchiveKind,
+        var record = new EditSessionRecord { Version = version, Id = id, Kind = remote ? EditSessionRecord.RemoteKind : EditSessionRecord.ArchiveKind,
             WorkingPath = working, ArchivePath = Path.Combine(temp.Path, "renamed-as.rar"), MemberPath = "owned.txt", RemotePath = "/owned.txt" };
         string metadata = Path.Combine(directory, "session.json"); File.WriteAllText(metadata, JsonSerializer.Serialize(record));
         var bytes = File.ReadAllBytes(metadata); var loaded = Assert.Single(store.LoadAll());
-        Assert.Equal(1, loaded.Version); Assert.True(loaded.IsSupported); Assert.Equal(remote, loaded.IsRemote);
+        Assert.Equal(version, loaded.Version); Assert.True(loaded.IsSupported); Assert.Equal(remote, loaded.IsRemote);
         Assert.Equal(!remote, loaded.IsLegacyZip); Assert.Equal(bytes, File.ReadAllBytes(metadata)); Assert.Equal("owned legacy edit", File.ReadAllText(loaded.WorkingPath));
     }
 
-    [Theory, InlineData(3), InlineData(999)]
+    [Theory, InlineData(4), InlineData(999)]
     public void Future_versions_remain_visible_and_cannot_be_rewritten_or_discarded(int version)
     {
         using var temp = new TempDir(); var store = new EditSessionStore(temp.Path, new PortableFileOperations());

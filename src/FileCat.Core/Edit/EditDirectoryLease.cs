@@ -18,6 +18,8 @@ internal abstract class EditDirectoryLease : IDisposable
     internal abstract EditDirectoryLease OpenDirectory(string leaf, string? expectedIdentity, CancellationToken ct);
     internal abstract FileStream CreateFile(string leaf, CancellationToken ct);
     internal abstract FileStream OpenFile(string leaf, string? expectedIdentity, CancellationToken ct);
+    internal abstract FileStream OpenWorkingFile(string leaf,CancellationToken ct);
+    internal abstract FileCat.Core.Resources.ContentRevision ReviewWorkingFile(FileStream file,string leaf,CancellationToken ct);
     internal abstract IReadOnlyList<string> Names(CancellationToken ct);
     internal abstract string Identify(SafeFileHandle file);
     internal abstract void PublishNewFile(FileStream file,string sourceLeaf,string targetLeaf,EditFileVersion expected,CancellationToken ct);

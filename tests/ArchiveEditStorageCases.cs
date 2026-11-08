@@ -28,14 +28,30 @@ internal static class ArchiveEditStorageCases
                 Assert.True(File.Exists(Path.Combine(store.SessionDirectory(recovery),"creation.json")));return;
             }
             var first=store.CreateRemote("owned","owned","/owned.txt",source,source.GetRevision()!.Value,null,ct);
-            Assert.Equal(first,Assert.Single(store.LoadAll()));Assert.NotEmpty(first.StorageRootIdentity);Assert.NotEmpty(first.SessionDirectoryIdentity);
+            Assert.Equal(first,Assert.Single(store.LoadAll()));Assert.Equal(EditSessionRecord.NativeStorageVersion,first.Version);
+            Assert.NotEmpty(first.StorageRootIdentity);Assert.NotEmpty(first.SessionDirectoryIdentity);
             Assert.NotEmpty(first.WorkingDirectoryIdentity);Assert.NotEmpty(first.WorkingIdentity);Assert.Equal(0,first.StorageRevision);
             string directory=store.SessionDirectory(first);string anchor=Path.Combine(directory,"session.json");byte[] original=File.ReadAllBytes(anchor);
+            Assert.Equal(EditState.Unchanged,store.StateOf(first));
+            if(scenario=="working-symlink")
+            {
+                string outside=Path.Combine(fixture,"outside.txt");File.WriteAllText(outside,"unrelated outside bytes");File.Delete(first.WorkingPath);
+                try{File.CreateSymbolicLink(first.WorkingPath,outside);}
+                catch(UnauthorizedAccessException)when(OperatingSystem.IsWindows()){Assert.Skip("The standard account cannot create a symbolic link.");}
+                Assert.Equal(EditState.Unavailable,store.StateOf(first));Assert.Equal("unrelated outside bytes",File.ReadAllText(outside));return;
+            }
+            if(scenario=="working-read")
+            {
+                File.WriteAllText(first.WorkingPath,"reviewed current bytes");var review=store.ReviewWorking(first,new LocalFileSystemProvider());
+                Assert.Equal(EditState.Modified,review.State);
+                Assert.Equal(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData("reviewed current bytes"u8)),review.Sha256);return;
+            }
             if(scenario=="working-directory-replaced")
             {
                 string files=Path.GetDirectoryName(first.WorkingPath)!;Directory.Move(files,files+".retained");Directory.CreateDirectory(files);
                 var error=Record.Exception(()=>store.Save(first with{LastCommitUtc=DateTime.UtcNow}));Assert.True(error is IOException or UnauthorizedAccessException,error?.ToString());
-                Assert.False(Assert.Single(store.LoadAll()).IsSupported);Assert.Equal(original,File.ReadAllBytes(anchor));return;
+                Assert.False(Assert.Single(store.LoadAll()).IsSupported);Assert.Equal(EditState.Unavailable,store.StateOf(first));
+                Assert.Equal(original,File.ReadAllBytes(anchor));return;
             }
             if(scenario=="future-state"||scenario=="collision")
             {
@@ -51,6 +67,7 @@ internal static class ArchiveEditStorageCases
             if(scenario=="atomic-editor-save")
             {
                 string replacement=first.WorkingPath+".editor-new";File.WriteAllText(replacement,"later atomic editor save");File.Move(replacement,first.WorkingPath,true);
+                Assert.Equal(EditState.Modified,store.StateOf(first));
             }
             if(scenario=="concurrent-save")
             {

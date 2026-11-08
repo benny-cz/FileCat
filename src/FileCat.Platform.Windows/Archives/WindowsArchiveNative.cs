@@ -83,6 +83,10 @@ internal static unsafe partial class WindowsArchiveNative
     }
 
     internal static void RequirePrivateSecurity(SafeFileHandle handle, string owner)
+        =>RequireScopedPrivateSecurity(handle,owner,false,false);
+    internal static void RequirePrivateEditSecurity(SafeFileHandle handle,string owner,bool directory)
+        =>RequireScopedPrivateSecurity(handle,owner,directory,!directory);
+    private static void RequireScopedPrivateSecurity(SafeFileHandle handle,string owner,bool editDirectory,bool inheritedFile)
     {
         int error = GetSecurityInfo(handle, 1 /* SE_FILE_OBJECT */, 1 | 4 /* OWNER | DACL */, out _, out _, out _, out _, out nint pointer);
         try
@@ -93,13 +97,14 @@ internal static unsafe partial class WindowsArchiveNative
             if (length <= 0 || length > 64 * 1024) throw new IOException("Archive artifact permissions are unsupported.");
             byte[] bytes = new byte[length]; Marshal.Copy(pointer, bytes, 0, length);
             var security = new RawSecurityDescriptor(bytes, 0);
-            if (security.Owner?.Value != owner || (security.ControlFlags & ControlFlags.DiscretionaryAclProtected) == 0 ||
+            if (security.Owner?.Value != owner || !inheritedFile&&(security.ControlFlags & ControlFlags.DiscretionaryAclProtected) == 0 ||
                 security.DiscretionaryAcl is not { Count: 2 } acl)
                 throw new UnauthorizedAccessException("Archive artifact permissions are no longer private.");
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var entry in acl)
-                if (entry is not CommonAce { AceQualifier: AceQualifier.AccessAllowed, IsCallback: false,
-                        AceFlags: AceFlags.None, AccessMask: 0x1f01ff } ace ||
+                if (entry is not CommonAce { AceQualifier: AceQualifier.AccessAllowed, IsCallback: false, AccessMask: 0x1f01ff } ace ||
+                    (editDirectory?ace.AceFlags is not (AceFlags.None or (AceFlags.ObjectInherit|AceFlags.ContainerInherit)):
+                        inheritedFile?ace.AceFlags is not (AceFlags.None or AceFlags.Inherited):ace.AceFlags!=AceFlags.None)||
                     ace.SecurityIdentifier.Value != owner && ace.SecurityIdentifier.Value != "S-1-5-18" || !seen.Add(ace.SecurityIdentifier.Value))
                     throw new UnauthorizedAccessException("Archive artifact permissions are no longer private.");
         }

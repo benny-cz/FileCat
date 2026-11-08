@@ -35,7 +35,7 @@ public sealed partial class EditSessionStore
             try{workingIdentity=files.Identify(stream.SafeFileHandle);return stream;}catch{stream.Dispose();throw;}
         }
         var copy=write(working,Open);ct.ThrowIfCancellationRequested();files.Review(ct);session.Review(ct);root.Review(ct);
-        var record=describe(working,copy)with{Id=id,CreatedUtc=DateTime.UtcNow,StorageRootIdentity=root.Identity,
+        var record=describe(working,copy)with{Id=id,Version=EditSessionRecord.NativeStorageVersion,CreatedUtc=DateTime.UtcNow,StorageRootIdentity=root.Identity,
             SessionDirectoryIdentity=session.Identity,WorkingDirectoryIdentity=files.Identity,WorkingIdentity=workingIdentity};
         if(!record.IsSupported)throw new IOException("The created edit record is incomplete; its private working folder is retained.");
         ct.ThrowIfCancellationRequested();byte[] bytes=JsonSerializer.SerializeToUtf8Bytes(record,Json);

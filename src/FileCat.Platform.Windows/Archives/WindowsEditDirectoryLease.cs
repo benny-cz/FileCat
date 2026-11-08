@@ -2,6 +2,7 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using FileCat.Core.Edit;
 using FileCat.Core.State;
+using FileCat.Core.Resources;
 using FileCat.Platform.Windows.Elevation;
 using FileCat.Platform.Windows.Shell;
 using Microsoft.Win32.SafeHandles;
@@ -31,7 +32,7 @@ internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
         try
         {
             parentOwner=parent?.RetainForChild();Identity=ProtectedHexFile.Identity(directory).ToString();
-            var descriptor=new RawSecurityDescriptor($"O:{owner}D:P(A;;FA;;;{owner})(A;;FA;;;SY)");
+            var descriptor=new RawSecurityDescriptor($"O:{owner}D:P(A;OICI;FA;;;{owner})(A;OICI;FA;;;SY)");
             security=new byte[descriptor.BinaryLength];descriptor.GetBinaryForm(security,0);
             ReviewCore(default);
         }
@@ -68,7 +69,7 @@ internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
         }
         else if(rootPins is null||ProtectedHexFile.Identity(rootPins.LastHandle).ToString()!=Identity)
             throw new IOException("The pinned edit root changed.");
-        if(isPrivate)WindowsArchiveNative.RequirePrivateSecurity(directory,owner);
+        if(isPrivate)WindowsArchiveNative.RequirePrivateEditSecurity(directory,owner,true);
     }
     internal override EditDirectoryLease CreateDirectory(string name,CancellationToken ct)
     {
@@ -100,6 +101,33 @@ internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
     }
     internal override FileStream CreateFile(string name,CancellationToken ct)=>OpenFileCore(name,null,true,ct);
     internal override FileStream OpenFile(string name,string? expected,CancellationToken ct)=>OpenFileCore(name,expected,false,ct);
+    internal override FileStream OpenWorkingFile(string name,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            RequireOpen();Leaf(name);ReviewCore(ct);
+            if(!isPrivate)throw new UnauthorizedAccessException("Working bytes need a private edit directory.");
+            var handle=OpenOrThrow(directory,name,GenericRead|0x20000|Synchronize,ShareRead,Open,NonDirectoryFile|OpenReparsePoint,"Open private editor working file");
+            var file=new FileStream(handle,FileAccess.Read);
+            try{ReviewWorkingFile(file,name,ct);return file;}catch{file.Dispose();throw;}
+        }
+    }
+    internal override ContentRevision ReviewWorkingFile(FileStream file,string name,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            RequireOpen();Leaf(name);ReviewCore(ct);
+            if(!isPrivate)throw new UnauthorizedAccessException("Working bytes need a private edit directory.");
+            WindowsArchiveNative.Regular(file.SafeFileHandle,EditSessionStore.MaxMemberBytes,true,false);
+            WindowsArchiveNative.RequirePrivateEditSecurity(file.SafeFileHandle,owner,false);
+            var identity=ProtectedHexFile.Identity(file.SafeFileHandle);var facts=GetBasic(file.SafeFileHandle);
+            using var named=OpenOrThrow(directory,name,ReadAttributes|Synchronize,ShareAll,Open,NonDirectoryFile|OpenReparsePoint,"Review editor working-file name");
+            if(ProtectedHexFile.Identity(named)!=identity)throw new IOException("The editor replaced the working file during its review.");
+            ReviewCore(ct);
+            return new(RandomAccess.GetLength(file.SafeFileHandle),DateTime.FromFileTimeUtc(facts.LastWriteTime).Ticks,
+                identity+":"+facts.ChangeTime.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+    }
     internal override IReadOnlyList<string> Names(CancellationToken ct)
     {lock(Gate){RequireOpen();ReviewCore(ct);var names=List(directory);if(names.Count>100000)throw new IOException("The edit namespace exceeds its entry budget.");ReviewCore(ct);return names.Select(entry=>entry.Name).ToArray();}}
     internal override string Identify(SafeFileHandle file)
@@ -126,8 +154,10 @@ internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
         {
             RequireOpen();Leaf(name);ReviewCore(ct);
             if(!isPrivate)throw new UnauthorizedAccessException("Working bytes need a private edit directory.");
+            byte[]? fileSecurity=null;
+            if(create){var descriptor=new RawSecurityDescriptor($"O:{owner}D:P(A;;FA;;;{owner})(A;;FA;;;SY)");fileSecurity=new byte[descriptor.BinaryLength];descriptor.GetBinaryForm(fileSecurity,0);}
             int status=TryOpen(directory,name,GenericRead|0x20000|Synchronize|(create?GenericWrite|Delete:0),ShareRead,create?Create:Open,
-                NonDirectoryFile|OpenReparsePoint,out var file,(uint)FileAttributes.Normal,create?security:null);
+                NonDirectoryFile|OpenReparsePoint,out var file,(uint)FileAttributes.Normal,fileSecurity);
             if(status<0){file.Dispose();throw Error(status,"Open private edit file");}
             try
             {
