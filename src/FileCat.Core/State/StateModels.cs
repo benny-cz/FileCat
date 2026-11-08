@@ -69,6 +69,8 @@ public sealed class AppSettings : IVersionedState
     public const int CurrentSchema = 1;
 
     public int SchemaVersion { get; set; } = CurrentSchema;
+    /// <summary>Finite, diagnostic-safe preferences. No private paths or inventories and no runtime approval.</summary>
+    public Analysis.AnalysisPreferences AnalysisPreferences { get; set; } = new();
     /// <summary>"Classic", "ClassicDark", "Cyberpunk", "Psychedelic", "Steampunk", "HighContrast", or "System".</summary>
     public string Theme { get; set; } = "System";
     /// <summary>Animated theme light, edges, and glitches; off, they stand still. The system's reduce-motion setting also stops them.</summary>

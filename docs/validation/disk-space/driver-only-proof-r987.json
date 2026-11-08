@@ -1,0 +1,9 @@
+{
+  "revision": "r987",
+  "baseline": "r986",
+  "verifiedInputs": 231,
+  "changedFiles": 0,
+  "archiveBytes": 8949,
+  "sha256": "519ebd9ba15397eb2ade46881e375a312f934ae7a5346e4714ed14b6650d907e",
+  "purpose": "Driver-only Windows rerun with one exact declared Unix-only skip; all product and test binaries unchanged"
+}

@@ -6,6 +6,7 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Tests;
 
+[Collection("Analysis bounded work capacity")]
 public sealed class AnalysisOwnedStoreTests
 {
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;

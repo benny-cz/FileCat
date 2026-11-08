@@ -1,0 +1,34 @@
+[
+  {
+    "sha256": "8022c2ae462f4d22218a53c71c5c398dfe7eace9a91954e1c515d5244e6f74a8",
+    "path": "src/FileCat.Core/Analysis/AnalysisRollingHistory.cs"
+  },
+  {
+    "sha256": "b6ac170c55df365729ff56eeec0ce452e60e679f3079598914ec490fb13916a0",
+    "path": "src/FileCat.Core/Analysis/AnalysisPreferences.cs"
+  },
+  {
+    "sha256": "3054a2d213bf4d19e4ee7ef59f1a5cc9e06ae1a0b94fb26a4f6617f88057ec42",
+    "path": "src/FileCat.Core/State/StateModels.cs"
+  },
+  {
+    "sha256": "db4ad75bd487cba64ee92d10b30d55ce258b8be68376ba01c11ffec02540406d",
+    "path": "tests/FileCat.Core.Tests/AnalysisHistoryTests.cs"
+  },
+  {
+    "sha256": "7b3d0e542072cd635cb7d3f13bb5d263f4ca0d17298c74ec760a221b4d15a37e",
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.HistoryDiagnostics.cs"
+  },
+  {
+    "sha256": "005a1f7c7be5d55b2d49b7d2a588163bb52a85f01195815c8bdb1317f5509160",
+    "path": "tests/FileCat.Core.Tests/AnalysisCatalogTests.cs"
+  },
+  {
+    "sha256": "90f16be3d4b2ef3c025480e54b22e3f39c234a2d32b1f3462dbb9a686f5d971a",
+    "path": "tests/FileCat.Core.Tests/AnalysisMaintenanceTests.cs"
+  },
+  {
+    "sha256": "d1999c809790f7266a40ac21b542bd5737b9833efe321ac18ad4b58450152f5e",
+    "path": "tests/FileCat.Core.Tests/AnalysisOwnedStoreTests.cs"
+  }
+]

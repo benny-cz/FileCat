@@ -3,6 +3,7 @@ using FileCat.Core.Analysis;
 
 namespace FileCat.Core.Tests;
 
+[Collection("Analysis bounded work capacity")]
 public sealed partial class AnalysisCatalogTests
 {
     private static readonly CancellationToken Cancellation = TestContext.Current.CancellationToken;
