@@ -1,5 +1,15 @@
 # Archive writing implementation status
 
+**8 November: native edit storage and working reads implemented behind an explicit test factory.**
+[Retained edit storage](ARCHIVE_EDIT_STORAGE.md) adds private native creation, interrupted-copy recovery,
+exclusive immutable state revisions, bounded complete history review and atomic-editor-save admission.
+The Mac/Ubuntu correction matrices pass 19 record, 16 directory, 19 native storage, 110 Core and 190
+application cases each. Windows passes the preceding 19/16/13/100/190 matrix; its correction retry is
+postponed before source application while another tester is active. [Twelve preserved bundles](edit-storage-checkpoint.json)
+bind exact sources/binaries and all early failures, including Ubuntu's corrected umask admission defect.
+The application factory remains unchanged; native snapshot/discard ownership, migration/composition,
+complete platform regressions and every release/final-review gate remain open.
+
 **8 November: connected native archive edit/readback matrix passes, ownership gates open, unregistered.**
 [Native edit sessions](ARCHIVE_EDIT_SESSIONS.md) connect F4, immutable commit copies, explicit conflict/rebase,
 positive publication facts and actual published-member readback. The connected packet also preserves old/future

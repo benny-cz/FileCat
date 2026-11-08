@@ -63,5 +63,17 @@ def verify(platform,folder):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--platform',choices=('windows','mac','ubuntu'),required=True);parser.add_argument('--folder',required=True)
-    args=parser.parse_args();print(json.dumps(verify(args.platform,args.folder),indent=2))
+    parser.add_argument('--platform',choices=('windows','mac','ubuntu'));parser.add_argument('--folder')
+    args=parser.parse_args()
+    if bool(args.platform)!=bool(args.folder):parser.error('Specify both --platform and --folder, or neither to verify the checkpoint.')
+    if args.platform:print(json.dumps(verify(args.platform,args.folder),indent=2))
+    else:
+        checkpoint=json.loads((ROOT/'docs/validation/archive-writing/edit-storage-checkpoint.json').read_text())
+        assert checkpoint['schema']==1 and not checkpoint['production_backend_qualified'] and not checkpoint['application_composition_uses_native_store']
+        rows=checkpoint['history']+checkpoint['current']
+        for row in rows:assert verify(row['platform'],row['folder'])==row,(row['platform'],row['folder'])
+        for refusal in checkpoint['postponed']:
+            trace=refusal['trace'];content=(ROOT/trace['path']).read_bytes()
+            assert len(content)==trace['bytes'] and hashlib.sha256(content).hexdigest()==trace['sha256']
+            assert not refusal['source_delta_applied'] and not refusal['tests_started'] and b'Another tester is active; postpone.' in content
+        print(json.dumps(dict(bundles_verified=len(rows),bytes_verified=sum(row['bytes'] for row in rows),production_backend_qualified=False)))

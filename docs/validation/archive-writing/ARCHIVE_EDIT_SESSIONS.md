@@ -79,3 +79,8 @@ The next ownership packet must replace path-only record/snapshot cleanup with re
 plan §12.1 explicitly keeps that gate open, including legitimate editor inode replacement and restart cases.
 Include unsupported profile-constructor, malformed/oversized record and inherited ACL cases in that packet;
 permissions and initial identity fields alone do not establish private native creation and cleanup.
+
+The [retained storage follow-up](ARCHIVE_EDIT_STORAGE.md) adds native private creation, exclusive
+immutable record generations and native working-file reads. Its Mac focused matrix passes and retains
+all earlier failures. Windows/Ubuntu current validation, immutable native snapshot/discard ownership,
+application composition and the complete qualification gates remain open.

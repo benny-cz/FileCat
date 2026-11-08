@@ -1028,6 +1028,12 @@ Exercise directory rename/replacement, reparse/symlink substitution, changed met
 children, cleanup failure, restart and late editor saves against the actual native recipe on each platform.
 Private Unix modes and initial identity fields are useful prerequisites, but do not establish this race gate.
 
+The [retained storage checkpoint](../validation/archive-writing/ARCHIVE_EDIT_STORAGE.md) implements private
+native creation, exclusive immutable record generations and held working-file reads behind an explicit
+test factory. Its Mac focused matrix passes. Windows/Ubuntu current validation, native immutable snapshot
+and discard ownership, old-record adoption and application composition remain required; this checkpoint
+does not close §12.1 or enable a write profile.
+
 ### 12.2 Review and commit states
 
 | Observed state | Allowed behavior |
