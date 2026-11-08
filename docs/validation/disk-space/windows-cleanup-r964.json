@@ -1,0 +1,185 @@
+{
+    "root":  "C:\\FileCatDsa20261104R2",
+    "dryRun":  false,
+    "keep":  [
+                 "batch-r955",
+                 "batch-r959",
+                 "batch-r963"
+             ],
+    "removed":  [
+                    {
+                        "bytes":  236856592,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r868\\payload"
+                    },
+                    {
+                        "bytes":  388992,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r868\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  227563134,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r873\\payload"
+                    },
+                    {
+                        "bytes":  78609348,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r873\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  236983642,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r893\\payload"
+                    },
+                    {
+                        "bytes":  78614206,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r893\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  227799654,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r903\\payload"
+                    },
+                    {
+                        "bytes":  78689988,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r903\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  173468658,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r905\\payload"
+                    },
+                    {
+                        "bytes":  400861,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r905\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  237215742,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r906\\payload"
+                    },
+                    {
+                        "bytes":  403856,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r906\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  237215634,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r910\\payload"
+                    },
+                    {
+                        "bytes":  78689377,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r910\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  173480918,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r913\\payload"
+                    },
+                    {
+                        "bytes":  405311,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r913\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  173480918,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r916\\payload"
+                    },
+                    {
+                        "bytes":  405326,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r916\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  227999474,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r921\\payload"
+                    },
+                    {
+                        "bytes":  78759549,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r921\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  173567558,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r923\\payload"
+                    },
+                    {
+                        "bytes":  415817,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r923\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  237415862,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r924\\payload"
+                    },
+                    {
+                        "bytes":  418713,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r924\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  228038770,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r928\\payload"
+                    },
+                    {
+                        "bytes":  78777884,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r928\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  173587110,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r930\\payload"
+                    },
+                    {
+                        "bytes":  420191,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r930\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  237455612,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r931\\payload"
+                    },
+                    {
+                        "bytes":  422974,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r931\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  237547006,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r936\\payload"
+                    },
+                    {
+                        "bytes":  78804271,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r936\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  237744665,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r939\\payload"
+                    },
+                    {
+                        "bytes":  78872372,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r939\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  173673618,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r941\\payload"
+                    },
+                    {
+                        "bytes":  425964,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r941\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  228650402,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r950\\payload"
+                    },
+                    {
+                        "bytes":  78969122,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r950\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  173835194,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r951\\payload"
+                    },
+                    {
+                        "bytes":  6629,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r951\\bundle.tgz"
+                    },
+                    {
+                        "bytes":  228651846,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r953\\payload"
+                    },
+                    {
+                        "bytes":  78969791,
+                        "path":  "C:\\FileCatDsa20261104R2\\batch-r953\\bundle.tgz"
+                    }
+                ],
+    "skipped":  [
+                    "batch-r581",
+                    "batch-r732"
+                ],
+    "capacity":  213660311552,
+    "available":  6550974464
+}

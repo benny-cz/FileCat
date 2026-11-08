@@ -22,6 +22,8 @@ if (args is ["--analysis-backend-close-probe", var backendProbeRoot])
     return await AnalysisBackendCloseProbe.RunAsync(backendProbeRoot);
 if (args is ["--analysis-capacity-retirement-probe", var capacityProfile, var capacityMode, var capacityParent])
     return AnalysisCapacityRetirementProbe.Run(capacityProfile, capacityMode, capacityParent == "-" ? null : capacityParent);
+if (args is ["--analysis-inventory-death", var inventoryParent, var inventoryBoundary])
+    return await AnalysisInventoryDeath.RunAsync(inventoryParent, inventoryBoundary);
 
 if (args is ["--analysis-scratch-vector", var recordText, var vectorParent])
     return ScratchScale.Run(int.Parse(recordText, System.Globalization.CultureInfo.InvariantCulture), vectorParent);

@@ -104,15 +104,12 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
     internal override AnalysisPrivateFile CreateStaging()
     {
         Verify(); string name = ".staging-" + Guid.NewGuid().ToString("N");
+        // Cleanup is armed in the create itself, including process death before the first
+        // managed instruction. Exclusive sharing prevents another opener retaining staging.
         var owned = OpenOwned(Root, name, GenericRead | GenericWrite | Delete | ReadControl | Synchronize,
-            ShareRead, Create, NonDirectoryFile | OpenReparsePoint, _fileSecurity);
-        try { Private(owned.Handle, directory: false); return new PrivateFile(this, owned, writable: true); }
-        catch
-        {
-            try { DeleteOpen(owned.Handle); }
-            finally { owned.Dispose(); }
-            throw;
-        }
+            0, Create, NonDirectoryFile | OpenReparsePoint | 0x1000, _fileSecurity); // FILE_DELETE_ON_CLOSE
+        try { Private(owned.Handle, directory: false, allowDeletePending: true); return new PrivateFile(this, owned, writable: true); }
+        catch { owned.Dispose(); throw; }
     }
 
     internal override AnalysisPrivateFile OpenRead(string name)
@@ -240,10 +237,10 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
         private readonly OwnedHandle _owned;
         private readonly FileStream _stream;
         private readonly bool _writable;
-        private bool _published, _disposed;
+        private bool _published, _disposed, _deleteOnClose;
         public PrivateFile(WindowsAnalysisPrivateDirectory directory, OwnedHandle owned, bool writable)
         {
-            _directory = directory; _owned = owned; _writable = writable;
+            _directory = directory; _owned = owned; _writable = writable; _deleteOnClose = writable;
             _stream = owned.Handle.OpenStream(writable ? FileAccess.ReadWrite : FileAccess.Read);
         }
         public override Stream Stream => _stream;
@@ -260,7 +257,7 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
             if (Marshal.GetLastPInvokeError() == 33) return false; // ERROR_LOCK_VIOLATION
             throw new IOException("Private profile capacity locking is unavailable.");
         }
-        public override void Verify() => _directory.Private(_owned.Handle, directory: false);
+        public override void Verify() => _directory.Private(_owned.Handle, directory: false, allowDeletePending: _deleteOnClose);
         public override void Flush() => _stream.Flush(flushToDisk: true);
         public override void PublishNew(string name)
         {
@@ -268,14 +265,21 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
             AnalysisPrivateNames.Entry(name); _directory.Verify(); Verify();
             Rename(_owned.Handle, _directory.Root, name, replace: false);
             _published = true;
-            try { Flush(); _directory.Verify(); Verify(); }
+            try
+            {
+                // A death before this succeeds removes the incomplete publication rather than
+                // preserving an unconfirmed named inventory. No classic disposition fallback.
+                KeepPublishedStaging(_owned.Handle); _deleteOnClose = false;
+                Flush(); _directory.Verify(); Verify();
+            }
             catch (Exception ex) { throw new AnalysisPublicationUncertainException(name, ex); }
         }
         public override void Dispose()
         {
             if (_disposed) return; _disposed = true;
-            try { if (_writable && !_published) DeleteOpen(_owned.Handle); }
-            finally { try { _stream.Dispose(); } finally { _owned.Dispose(); } }
+            // Unpublished files remain kernel-owned delete-on-close. Managed cleanup must not
+            // be necessary for removal, and must still close the native owner after stream faults.
+            try { _stream.Dispose(); } finally { _owned.Dispose(); }
         }
     }
 

@@ -4,7 +4,8 @@ param(
  [Parameter(Mandatory=$true)][string[]]$CoreMethods,
  [Parameter(Mandatory=$true)][ValidateRange(1,10000)][int]$CoreCases,
  [Parameter(Mandatory=$true)][string[]]$RenderMethods,
- [Parameter(Mandatory=$true)][ValidateRange(1,10000)][int]$RenderCases
+ [Parameter(Mandatory=$true)][ValidateRange(1,10000)][int]$RenderCases,
+ [switch]$PreviewOnly
 )
 $ErrorActionPreference='Stop'
 foreach($method in @($CoreMethods)+@($RenderMethods)){if($method-notmatch'^[A-Za-z0-9_.*]+$'){throw 'Use fully qualified method patterns'}}
@@ -34,5 +35,6 @@ for check in smoke preview; do
 done
 '@
 $preview=$preview.Replace('@REV@',$Revision).Replace('@COREMETHODS@',(Selectors $CoreMethods)).Replace('@RENDERMETHODS@',(Selectors $RenderMethods)).Replace('@CORE@',[string]$CoreCases).Replace('@RENDER@',[string]$RenderCases)
+if($PreviewOnly){$preview+="`nprintf 'FINISHED exit=0\n' > `"`$base/state.txt`"`nexit 0`n"}
 [IO.File]::WriteAllText($path,$runner.Replace($boundary,$preview+"`n"+$boundary).Replace("`r`n","`n"),[Text.UTF8Encoding]::new($false))
-Write-Output ('Added '+$Platform+' previews: '+$CoreCases+' Core and '+$RenderCases+' rendering cases.')
+Write-Output ('Added '+$Platform+' previews: '+$CoreCases+' Core and '+$RenderCases+' rendering cases; previewOnly='+[bool]$PreviewOnly+'.')

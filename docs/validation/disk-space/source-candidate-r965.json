@@ -1,0 +1,38 @@
+[
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisDataset.cs",
+    "sha256": "65db2f890f8bb5b12558d1292db0eed1118b5cb4869c96dbf2c5e383324f5235"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.ReplacementReview.cs",
+    "sha256": "4d061b281ddef8adbc4f5f233eb83db5d115b0913e8984a7d944ea35e7127354"
+  },
+  {
+    "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.cs",
+    "sha256": "49e200d5c805225f15e755333958d1e7a48910f83d2c1158c0f441127164bba9"
+  },
+  {
+    "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.Staging.cs",
+    "sha256": "c32c58b73ff1fba3b1e3d6f7658a9aedf0813bbab103bbfd0818a9f46e5efcf9"
+  },
+  {
+    "path": "tests/FileCat.CoreCrashHarness/AnalysisInventoryDeath.cs",
+    "sha256": "c61f1a2b5d9de67cb42f84e3ef9a6ee96be988ca60a48a595a1f9c8809b5b4c0"
+  },
+  {
+    "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+    "sha256": "971c2586407549d28f0e8f65959dd61d9e5da77e60e2684cf147aa719af4c78e"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.InventoryDeath.cs",
+    "sha256": "a5ec9dce506e6302f0ec8436032af673417a01145030ca4b935a9760416e5703"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ReplacementClose.cs",
+    "sha256": "c20748c1fbcde39abea5d6b14cf1c150aa99a9ca49084127bd15d42347d801f5"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/FileCat.Rendering.Tests.csproj",
+    "sha256": "4f81f8610134228c187ed64a8aa9b2c70bcbef49bfa6bf29c7bf227ca12caca3"
+  }
+]

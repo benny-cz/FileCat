@@ -141,6 +141,9 @@ internal sealed class AnalysisOwnedDatasetIo<T>(T resource, DeviceIoScheduler io
     private T? _resource = resource;
     private readonly object _gate = new(); private int _active; private bool _disposed, _closing;
     private readonly TaskCompletionSource _closed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    // Observation only: callers must not wait here while another undecided scope still owns
+    // the resource. Completed owner-close failure remains available after its actual close.
+    internal Exception? CloseFailure => _closed.Task.IsFaulted ? _closed.Task.Exception!.InnerException : null;
     internal Task<R> RunAsync<R>(Func<T, CancellationToken, R> read, CancellationToken cancellation) =>
         UseAsync(captured => AnalysisIo.Run(io, device, token => read(captured, token), cancellation));
     // Compound operations admit their own bounded I/O batches. Their ownership spans the entire

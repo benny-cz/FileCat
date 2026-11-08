@@ -78,6 +78,7 @@ public sealed partial class OwnedAnalysisStore
         // Observe failure even when preparation fails before a review can be returned.
         _ = completed.Task.ContinueWith(t => { _ = t.Exception; }, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
         Task<OwnedAnalysisReplacementOutcome> lifetime;
+        OwnedAnalysisReplacementOutcome? completedOperation = null;
         try
         {
             var old = await PrepareDeleteAsync(previousId, cancellation).ConfigureAwait(false);
@@ -109,11 +110,12 @@ public sealed partial class OwnedAnalysisStore
                         inspected.Started, inspected.Observed, inspected.Sha256);
                     ready.TrySetResult(new(this, previous, prepared, decision, completed.Task));
                     var choice = await decision.Task.ConfigureAwait(false);
-                    if (!choice.Replace) return new OwnedAnalysisReplacementOutcome(OwnedAnalysisReplacementState.Kept, previousId, incoming, old.Entry.Name,
-                        null, null, "The existing saved analysis was kept. The prepared inventory was discarded.");
+                    if (!choice.Replace) return Complete(new OwnedAnalysisReplacementOutcome(OwnedAnalysisReplacementState.Kept, previousId, incoming, old.Entry.Name,
+                        null, null, "The existing saved analysis was kept. The prepared inventory was discarded."));
                     var consumed = output; output = null;
-                    return await ExecuteReplacementAsync(data, old, incoming, operation, view, inspected, consumed, devices, choice.Cancellation).ConfigureAwait(false);
+                    return Complete(await ExecuteReplacementAsync(data, old, incoming, operation, view, inspected, consumed, devices, choice.Cancellation).ConfigureAwait(false));
                 }
+                catch (OwnedAnalysisReplacementException error) { completedOperation = error.Outcome; throw; }
                 finally
                 {
                     if (output is not null) await AnalysisIo.ReleaseScratchAsync(_io, devices, output).ConfigureAwait(false);
@@ -133,14 +135,31 @@ public sealed partial class OwnedAnalysisStore
             OwnedAnalysisReplacementOutcome? outcome = null; Exception? failure = null;
             try { outcome = await lifetime.ConfigureAwait(false); }
             catch (Exception error) { failure = error; }
+            if (_owned.CloseFailure is { } ownerClose)
+                failure = failure is null ? ownerClose : new AggregateException(failure, ownerClose);
             if (retainedSource is not null)
             {
                 try { await retainedSource.DisposeAsync().ConfigureAwait(false); }
                 catch (Exception error) { failure = failure is null ? error : new AggregateException(failure, error); }
             }
-            if (failure is not null) { ready.TrySetException(failure); completed.TrySetException(failure); }
+            if (failure is not null)
+            {
+                // A source/root close can fail after the compound operation returned a confirmed
+                // receipt. Preserve that fact while refusing to confirm cleanup; do not replace
+                // it with a bare close exception that suggests the named save never happened.
+                if (ready.Task.IsCompletedSuccessfully && completedOperation is { } known && AnalysisCloseUnconfirmedException.IsPresent(failure))
+                    failure = new OwnedAnalysisReplacementException(known with
+                    {
+                        State = OwnedAnalysisReplacementState.Uncertain,
+                        Detail = known.Receipt is not null
+                            ? "The new named analysis was saved, but private cleanup could not be confirmed. Keep these observations and inspect the saved name before retrying."
+                            : "Private replacement cleanup could not be confirmed. Keep remaining files and inspect the saved name before retrying."
+                    }, failure);
+                ready.TrySetException(failure); completed.TrySetException(failure);
+            }
             else completed.TrySetResult(outcome!);
         }
+        OwnedAnalysisReplacementOutcome Complete(OwnedAnalysisReplacementOutcome result) { completedOperation = result; return result; }
     }
 }
 

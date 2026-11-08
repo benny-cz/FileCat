@@ -1,4 +1,6 @@
-param([string[]]$Keep=@('batch-r868','batch-r873'))
+param([string[]]$Keep=@('batch-r955','batch-r959','batch-r963'),
+ [ValidatePattern('^cleanup-r[0-9]+(?:-preview)?[.]json$')][string]$ReportName='cleanup-r964.json',
+ [switch]$DryRun)
 $ErrorActionPreference='Stop'
 $root='C:\FileCatDsa20261104R2'
 if(@(Get-Process -Name 'FileCat*',dotnet -ErrorAction SilentlyContinue).Count){throw 'Another FileCat/test instance is active; cleanup postponed.'}
@@ -23,10 +25,10 @@ foreach($batch in (Get-ChildItem -LiteralPath $resolvedRoot -Directory)){
    $children=@(Get-ChildItem -LiteralPath $absolute -Force -Recurse)
    if(@($children|Where-Object{$_.Attributes-band[IO.FileAttributes]::ReparsePoint}).Count){$skipped+=$absolute;continue}
    $bytes=($children|Where-Object{!$_.PSIsContainer}|Measure-Object Length -Sum).Sum
-   Remove-Item -LiteralPath $absolute -Recurse -Force
-  }else{$bytes=$item.Length;Remove-Item -LiteralPath $absolute -Force}
+   if(!$DryRun){Remove-Item -LiteralPath $absolute -Recurse -Force}
+  }else{$bytes=$item.Length;if(!$DryRun){Remove-Item -LiteralPath $absolute -Force}}
   $removed+=@{path=$absolute;bytes=$bytes}
  }
 }
 $drive=Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
-[ordered]@{root=$resolvedRoot;keep=$Keep;removed=$removed;skipped=$skipped;capacity=$drive.Size;available=$drive.FreeSpace}|ConvertTo-Json -Depth 5|Set-Content -LiteralPath (Join-Path $resolvedRoot 'cleanup-r875.json')
+[ordered]@{root=$resolvedRoot;dryRun=[bool]$DryRun;keep=$Keep;removed=$removed;skipped=$skipped;capacity=$drive.Size;available=$drive.FreeSpace}|ConvertTo-Json -Depth 5|Set-Content -LiteralPath (Join-Path $resolvedRoot $ReportName)

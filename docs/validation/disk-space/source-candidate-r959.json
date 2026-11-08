@@ -1,0 +1,18 @@
+[
+  {
+    "path": "tests/FileCat.CoreCrashHarness/AnalysisInventoryDeath.cs",
+    "sha256": "c61f1a2b5d9de67cb42f84e3ef9a6ee96be988ca60a48a595a1f9c8809b5b4c0"
+  },
+  {
+    "path": "tests/FileCat.CoreCrashHarness/Program.cs",
+    "sha256": "971c2586407549d28f0e8f65959dd61d9e5da77e60e2684cf147aa719af4c78e"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.InventoryDeath.cs",
+    "sha256": "a5ec9dce506e6302f0ec8436032af673417a01145030ca4b935a9760416e5703"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/FileCat.Rendering.Tests.csproj",
+    "sha256": "4f81f8610134228c187ed64a8aa9b2c70bcbef49bfa6bf29c7bf227ca12caca3"
+  }
+]

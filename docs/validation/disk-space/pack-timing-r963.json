@@ -1,0 +1,29 @@
+{
+  "revision": "r963",
+  "renderRevision": "r963",
+  "buildLog": ".tmp/build-r962.txt",
+  "sourceManifest": ".tmp/source-candidate-r963.json",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 22.6351621,
+  "archives": [
+    {
+      "platform": "mac",
+      "sha256": "53ce487127af1fe0b9f7c6e999df3915d90556567fea62366dee6eace3692ffb",
+      "bytes": 42667876,
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r963.tgz"
+    },
+    {
+      "platform": "linux",
+      "sha256": "6045ee484454dfd67779d0c4ef36358fcfaa19d7816e1adb34f40d18457316d6",
+      "bytes": 40002895,
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r963.tgz"
+    },
+    {
+      "platform": "windows",
+      "sha256": "36bf1fc5ed231d2746befabb718df3c33f2a1c82c7e38cd45e4f8030deb15b23",
+      "bytes": 79154169,
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r963.tgz"
+    }
+  ]
+}

@@ -3,7 +3,8 @@ param(
  [Parameter(Mandatory=$true)][string[]]$CoreMethods,
  [Parameter(Mandatory=$true)][ValidateRange(1,10000)][int]$CoreCases,
  [Parameter(Mandatory=$true)][string[]]$RenderMethods,
- [Parameter(Mandatory=$true)][ValidateRange(1,10000)][int]$RenderCases
+ [Parameter(Mandatory=$true)][ValidateRange(1,10000)][int]$RenderCases,
+ [switch]$PreviewOnly
 )
 $ErrorActionPreference='Stop'
 foreach($method in @($CoreMethods)+@($RenderMethods)){if($method-notmatch'^[A-Za-z0-9_.*]+$'){throw 'Use fully qualified method patterns'}}
@@ -30,5 +31,6 @@ $check=@'
 '@
 $check=$check.Replace('@REV@',$Revision).Replace('@CORE@',[string]$CoreCases).Replace('@RENDER@',[string]$RenderCases)
 $runner=ReplaceRequired $runner '  if($result -ne 0){$overall=1}' $check
+if($PreviewOnly){$runner=ReplaceRequired $runner "foreach(`$phase in 'smoke','preview','core','native','render')" "foreach(`$phase in 'smoke','preview')"}
 [IO.File]::WriteAllText($path,$runner.Replace("`r`n","`n"),[Text.UTF8Encoding]::new($false))
-Write-Output ('Added short Windows previews: '+$CoreCases+' Core and '+$RenderCases+' rendering cases; broad suites run only after both pass.')
+Write-Output ('Added Windows previews: '+$CoreCases+' Core and '+$RenderCases+' rendering cases; previewOnly='+[bool]$PreviewOnly+'.')
