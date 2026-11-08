@@ -12,6 +12,14 @@ internal sealed record WindowsArchiveVolume(string FileSystem, uint Flags, uint 
 
 internal static unsafe partial class WindowsArchiveNative
 {
+    internal static SafeFileHandle ReopenEditDirectory(SafeFileHandle source,uint access,uint share)
+    {
+        var result=ReOpenFile(source,access,share,0x02000000|0x00200000 /* backup semantics and no reparse traversal */);
+        if(!result.IsInvalid)return result;
+        int error=Marshal.GetLastPInvokeError();result.Dispose();throw new IOException("The retained edit directory could not be reopened by handle.",new Win32Exception(error));
+    }
+    [LibraryImport("kernel32.dll",SetLastError=true)]
+    private static partial SafeFileHandle ReOpenFile(SafeFileHandle source,uint access,uint share,uint flags);
     [StructLayout(LayoutKind.Sequential)]
     private struct IoStatus { public nint Status, Information; }
     [StructLayout(LayoutKind.Sequential)]

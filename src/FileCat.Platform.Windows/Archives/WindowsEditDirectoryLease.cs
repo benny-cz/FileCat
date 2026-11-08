@@ -167,6 +167,31 @@ internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
             catch(System.ComponentModel.Win32Exception error){throw new IOException("The private commit snapshot could not be removed: "+Path,error);}
         }
     }
+    internal override bool CanRemoveOwnedDirectories=>true;
+    internal override void RemoveEmpty(CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            RequireNoChildren();ReviewCore(ct);
+            if(!isPrivate||parent is null||leaf is null)throw new IOException("Only an owned private child directory can be removed.");
+            if(Names(ct).Count!=0)throw new IOException("The private edit directory is not empty: "+Path);
+            // Preserve exact-object authority while dropping the original access/share combination. No path reopen.
+            using var retained=WindowsArchiveNative.ReopenEditDirectory(directory,GenericRead|0x20000|Synchronize,ShareAll);
+            if(ProtectedHexFile.Identity(retained).ToString()!=Identity)throw new IOException("The retained directory identity changed.");
+            directory.Dispose();
+            using var deleting=WindowsArchiveNative.ReopenEditDirectory(retained,GenericRead|Delete|0x20000|Synchronize,ShareRead|ShareWrite);
+            WindowsArchiveNative.SourceDirectory(deleting);WindowsArchiveNative.RequirePrivateEditSecurity(deleting,owner,true);
+            if(ProtectedHexFile.Identity(deleting).ToString()!=Identity)throw new IOException("The directory removal handle identifies another object.");
+            parent.ReviewRetained(ct);
+            using(var named=OpenOrThrow(parent.Handle,leaf,ReadAttributes|Synchronize,ShareAll,Open,DirectoryFile|OpenReparsePoint,"Review empty edit directory"))
+                if(ProtectedHexFile.Identity(named).ToString()!=Identity)throw new IOException("The directory name changed; its files are kept.");
+            if(List(deleting).Count!=0)throw new IOException("A new child appeared in the private edit directory: "+Path);
+            ct.ThrowIfCancellationRequested();
+            try{WindowsArchiveNative.DeleteExact(deleting);deleting.Dispose();}
+            catch(System.ComponentModel.Win32Exception error){throw new IOException("The empty private edit directory could not be removed: "+Path,error);}
+            Dispose();
+        }
+    }
     internal override string Identify(SafeFileHandle file)
     {WindowsArchiveNative.Regular(file,FileCat.Core.Edit.EditSessionStore.MaxMemberBytes,true,false);WindowsArchiveNative.RequirePrivateSecurity(file,owner);return ProtectedHexFile.Identity(file).ToString();}
     internal override void PublishNewFile(FileStream file,string source,string target,EditFileVersion expected,CancellationToken ct)

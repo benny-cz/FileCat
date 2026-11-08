@@ -23,6 +23,8 @@ internal abstract class EditDirectoryLease : IDisposable
     internal abstract ArchiveOriginSnapshot ReadOrigin(FileStream file,string leaf,CancellationToken ct);
     internal abstract void CopyOrigin(FileStream file,string leaf,ArchiveOriginSnapshot origin,CancellationToken ct);
     internal abstract void DeleteSnapshot(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct);
+    internal virtual bool CanRemoveOwnedDirectories=>false;
+    internal abstract void RemoveEmpty(CancellationToken ct);
     internal abstract IReadOnlyList<string> Names(CancellationToken ct);
     internal abstract string Identify(SafeFileHandle file);
     internal abstract void PublishNewFile(FileStream file,string sourceLeaf,string targetLeaf,EditFileVersion expected,CancellationToken ct);
@@ -30,6 +32,8 @@ internal abstract class EditDirectoryLease : IDisposable
     protected abstract void CloseCore();
 
     protected void RequireOpen() => ObjectDisposedException.ThrowIf(disposed, this);
+    protected void RequireNoChildren()
+    {RequireOpen();if(references!=1)throw new IOException("The private directory still has retained child owners.");}
     internal void Review(CancellationToken ct) { lock (Gate) { RequireOpen(); ReviewCore(ct); } }
     // A child retains its parent's native namespace after the public parent owner has left.
     internal void ReviewRetained(CancellationToken ct)

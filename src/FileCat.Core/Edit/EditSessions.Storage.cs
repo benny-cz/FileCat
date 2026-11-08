@@ -44,12 +44,20 @@ public sealed partial class EditSessionStore
     }
     private static string Digest(byte[] bytes)=>Convert.ToHexString(SHA256.HashData(bytes));
     private static void PublishRecordBytes(EditDirectoryLease session,string name,byte[] bytes,CancellationToken ct)
+    {using var record=CreateRecordBytes(session,name,bytes,ct);}
+    private static EditPublishedRecord CreateRecordBytes(EditDirectoryLease session,string name,byte[] bytes,CancellationToken ct)
     {
         if(bytes.Length>MaxRecordBytes)throw new IOException("The edit record exceeds its metadata budget.");
         string temporary=".record-"+Guid.NewGuid().ToString("N")+".tmp";
-        using var stream=session.CreateFile(temporary,ct);stream.Write(bytes);stream.Flush(true);
-        var expected=new EditFileVersion(session.Identify(stream.SafeFileHandle),bytes.Length,Digest(bytes));
-        session.PublishNewFile(stream,temporary,name,expected,ct);
+        var stream=session.CreateFile(temporary,ct);
+        try
+        {
+            stream.Write(bytes);stream.Flush(true);
+            var expected=new EditFileVersion(session.Identify(stream.SafeFileHandle),bytes.Length,Digest(bytes));
+            session.PublishNewFile(stream,temporary,name,expected,ct);
+            return new(session,stream,session.ObserveSnapshot(stream,name,ct));
+        }
+        catch{stream.Dispose();throw;}
         // Failure retains uncertain artifacts. Neither a GUID pathname nor a prior identity observation authorizes deletion.
     }
     private static byte[] ReadRecordBytes(EditDirectoryLease session,string name,CancellationToken ct)

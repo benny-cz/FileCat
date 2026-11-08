@@ -3,8 +3,8 @@ using FileCat.Core.Archives;
 namespace FileCat.Core.Edit;
 
 /// <summary>Parent-owned immutable bytes. Jobs receive bounded read views over this object, never a path reopen.</summary>
-internal sealed class NativeEditSnapshot(EditDirectoryLease directory,FileStream file,ArchiveFileObservation expected,
-    string sessionId,string sessionRecord):IArchiveOwnedEditInput,IDisposable
+internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirectoryLease directory,FileStream file,ArchiveFileObservation expected,
+    EditPublishedRecord[] records,string sessionId,string sessionRecord,EditSnapshotAdmission admission):IArchiveOwnedEditInput,IDisposable
 {
     private readonly object gate=new();
     private bool disposed;
@@ -52,12 +52,25 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease directory,FileStream
             if(disposed)return;disposed=true;
             try
             {
+                if(!directory.CanRemoveOwnedDirectories)throw new IOException("The temporary edit copy is kept for cleanup review at "+capture.Path);
+                RequireNames(capture,["capture.json","captured.json","files"]);
+                RequireNames(directory,[Expected.LeafName]);
+                foreach(var record in records)record.Review(default);
                 directory.DeleteSnapshot(file,Expected.LeafName,Expected,default);
-                // Metadata records and the private folder stay discoverable until the fresh native cleanup protocol is connected.
-                throw new IOException("Commit bytes were removed; their private capture records remain for cleanup review: "+Path.GetDirectoryName(directory.Path));
+                directory.RemoveEmpty(default);
+                RequireNames(capture,["capture.json","captured.json"]);
+                foreach(var record in records)record.Review(default);
+                foreach(var record in records)record.Delete(default);
+                capture.RemoveEmpty(default);
             }
-            finally{try{file.Dispose();}finally{directory.Dispose();}}
+            finally
+            {try{file.Dispose();}finally{try{foreach(var record in records)record.Dispose();}finally{try{directory.Dispose();}finally{try{capture.Dispose();}finally{admission.Release();}}}}}
         }
+    }
+    private static void RequireNames(EditDirectoryLease directory,string[] expected)
+    {
+        if(!directory.Names(default).Order(StringComparer.Ordinal).SequenceEqual(expected.Order(StringComparer.Ordinal)))
+            throw new IOException("The temporary edit folder contains unexpected entries. Its files are kept at "+directory.Path);
     }
     private sealed class Tree(NativeEditSnapshot owner):IArchiveSelectionTree
     {

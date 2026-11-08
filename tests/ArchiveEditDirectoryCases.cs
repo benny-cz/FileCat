@@ -31,7 +31,25 @@ internal static class ArchiveEditDirectoryCases
             { Assert.Throws<UnauthorizedAccessException>(()=>root.CreateFile("never-created",ct));Assert.Empty(Directory.GetFileSystemEntries(path));return; }
             using var session=root.CreateDirectory("session",ct);
             using var files=session.CreateDirectory("files",ct);
-            if(scenario=="bad-leaves")
+            if(scenario.StartsWith("remove-",StringComparison.Ordinal))
+            {
+                if(scenario=="remove-root")Assert.ThrowsAny<IOException>(()=>root.RemoveEmpty(ct));
+                else if(scenario=="remove-child-held")Assert.ThrowsAny<IOException>(()=>session.RemoveEmpty(ct));
+                else if(scenario=="remove-nonempty")
+                {
+                    using(var stream=files.CreateFile("unrelated",ct))stream.Write("keep the unrelated child"u8);
+                    Assert.ThrowsAny<IOException>(()=>files.RemoveEmpty(ct));
+                    Assert.Equal("keep the unrelated child",File.ReadAllText(System.IO.Path.Combine(files.Path,"unrelated")));
+                }
+                else if(OperatingSystem.IsWindows())
+                {
+                    files.RemoveEmpty(ct);Assert.False(Directory.Exists(files.Path));
+                    Directory.CreateDirectory(files.Path);File.WriteAllText(System.IO.Path.Combine(files.Path,"later"),"later directory occupant");
+                    files.Dispose();Assert.Equal("later directory occupant",File.ReadAllText(System.IO.Path.Combine(files.Path,"later")));
+                }
+                else{Assert.ThrowsAny<IOException>(()=>files.RemoveEmpty(ct));Assert.True(Directory.Exists(files.Path));}
+            }
+            else if(scenario=="bad-leaves")
             {
                 foreach(string bad in new[]{"", ".", "..", "../escape", "folder/escape", "folder\\escape", "name:stream", "bad\ud800",new string('x',256)})
                 { Assert.Throws<ArgumentException>(()=>files.CreateFile(bad,ct));Assert.Throws<ArgumentException>(()=>files.CreateDirectory(bad,ct)); }

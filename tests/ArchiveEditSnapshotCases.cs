@@ -14,7 +14,8 @@ internal static class ArchiveEditSnapshotCases
     {
         foreach(string value in new[]{"regular","empty","large","origin","late-save","save-copy-capture","cancel-before","cancel-copy",
             "stale-record","working-directory-replaced","snapshot-directory-replaced","snapshot-file-replaced","snapshot-bytes-changed",
-            "snapshot-origin-changed","view-after-dispose","request-binding"})yield return [value];
+            "snapshot-origin-changed","view-after-dispose","request-binding","cleanup-extra-file","cleanup-extra-capture-child",
+            "cleanup-record-replaced","cleanup-record-bytes-changed","cleanup-record-origin-changed","cleanup-reused-path","capture-quota","capture-byte-quota"})yield return [value];
         foreach(var profile in ArchiveNativeJobCases.Profiles())yield return [$"plan-{(int)(ArchiveWriteFormat)profile[0]}-{profile[1]}"];
     }
     internal static void Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open)
@@ -24,7 +25,7 @@ internal static class ArchiveEditSnapshotCases
         if(OperatingSystem.IsMacOS()&&parent.StartsWith("/var/",StringComparison.Ordinal))parent="/private"+parent;
         parent=Path.GetFullPath(parent);Directory.CreateDirectory(parent);
         string fixture=Directory.CreateDirectory(Path.Combine(parent,"filecat-edit-snapshot-"+Guid.NewGuid().ToString("N"))).FullName;
-        EditCommitCopy? copy=null;
+        EditCommitCopy? copy=null;string? capturePath=null;bool retainCapture=false;
         try
         {
             var store=new EditSessionStore(Path.Combine(fixture,"sessions"),new PortableFileOperations(),open);
@@ -65,6 +66,7 @@ internal static class ArchiveEditSnapshotCases
             Assert.Equal(Convert.ToHexString(SHA256.HashData(bytes)),copy.Sha256);Assert.Equal(Crc32.Append(0,bytes),copy.Crc32);
             Assert.Equal(time,File.GetLastWriteTimeUtc(copy.Path));
             string captureRoot=Path.GetDirectoryName(Path.GetDirectoryName(copy.Path))!;
+            capturePath=captureRoot;
             Assert.True(File.Exists(Path.Combine(captureRoot,"captured.json")));
             using(var view=native.OpenRead(native.Expected,ct))
             {Assert.False(view.CanWrite);using var memory=new MemoryStream();view.CopyTo(memory);Assert.Equal(bytes,memory.ToArray());}
@@ -75,6 +77,29 @@ internal static class ArchiveEditSnapshotCases
                 using var files=owned.OpenDirectory("files",record.WorkingDirectoryIdentity,ct);using var working=files.OpenWorkingFile("owned.txt",ct);
                 Assert.Equal(files.ReadOrigin(working,"owned.txt",ct).Digest,native.Expected.Origin.Digest);
             }
+            if(scenario=="capture-quota")
+            {
+                var copies=new List<EditCommitCopy>();
+                try
+                {
+                    for(int i=1;i<EditSnapshotAdmission.MaximumCopies;i++)copies.Add(store.PrepareCommit(record,fixture,ct));
+                    Assert.ThrowsAny<IOException>(()=>store.PrepareCommit(record,fixture,ct));
+                    Assert.Equal(EditSnapshotAdmission.MaximumCopies,Directory.GetDirectories(session,"commit-*").Length);
+                    var released=copies[0];copies.RemoveAt(0);var error=Record.Exception(released.Dispose);
+                    if(OperatingSystem.IsWindows())Assert.Null(error);else Assert.IsAssignableFrom<IOException>(error);
+                    copies.Add(store.PrepareCommit(record,fixture,ct));
+                }
+                finally{foreach(var item in copies){var error=Record.Exception(item.Dispose);Assert.True(error is null or IOException,error?.ToString());}}
+                Assert.Equal(bytes,File.ReadAllBytes(record.WorkingPath));return;
+            }
+            if(scenario=="capture-byte-quota")
+            {
+                using var first=EditSnapshotAdmission.Acquire(ct);first.ReserveBytes(EditSessionStore.MaxMemberBytes);
+                using var second=EditSnapshotAdmission.Acquire(ct);second.ReserveBytes(EditSnapshotAdmission.MaximumActiveBytes-EditSessionStore.MaxMemberBytes-copy.Length);
+                using var refused=EditSnapshotAdmission.Acquire(ct);Assert.ThrowsAny<IOException>(()=>refused.ReserveBytes(1));
+                second.Dispose();using var retry=EditSnapshotAdmission.Acquire(ct);retry.ReserveBytes(1);
+                Assert.Equal(bytes,File.ReadAllBytes(record.WorkingPath));return;
+            }
             if(scenario=="late-save")
             {
                 string later=record.WorkingPath+".later";File.WriteAllText(later,"later atomic editor save");File.Move(later,record.WorkingPath,true);
@@ -83,8 +108,38 @@ internal static class ArchiveEditSnapshotCases
             }
             if(scenario=="view-after-dispose")
             {
-                using var view=native.OpenRead(native.Expected,ct);Assert.IsAssignableFrom<IOException>(Record.Exception(copy.Dispose));
+                using var view=native.OpenRead(native.Expected,ct);var error=Record.Exception(copy.Dispose);
+                if(OperatingSystem.IsWindows())Assert.Null(error);else Assert.IsAssignableFrom<IOException>(error);
                 Assert.ThrowsAny<IOException>(()=>view.ReadByte());copy.Dispose();Assert.Equal(bytes,File.ReadAllBytes(record.WorkingPath));return;
+            }
+            if(scenario.StartsWith("cleanup-",StringComparison.Ordinal))
+            {
+                if(scenario=="cleanup-reused-path")
+                {
+                    var first=Record.Exception(copy.Dispose);
+                    if(OperatingSystem.IsWindows()){Assert.Null(first);Assert.False(Directory.Exists(captureRoot));}
+                    else{Assert.IsAssignableFrom<IOException>(first);File.Move(copy.Path,copy.Path+".retained");}
+                    Directory.CreateDirectory(Path.GetDirectoryName(copy.Path)!);File.WriteAllText(copy.Path,"unrelated later occupant");retainCapture=true;
+                    copy.Dispose();Assert.Equal("unrelated later occupant",File.ReadAllText(copy.Path));return;
+                }
+                string foreign=scenario=="cleanup-extra-file"?Path.Combine(Path.GetDirectoryName(copy.Path)!,"foreign.txt"):
+                    scenario=="cleanup-extra-capture-child"?Path.Combine(captureRoot,"foreign.txt"):Path.Combine(captureRoot,"captured.json");
+                void ChangeRecord()
+                {
+                    if(scenario=="cleanup-record-origin-changed")Mark(foreign,mark);
+                    else
+                    {
+                        if(scenario=="cleanup-record-replaced")File.Move(foreign,foreign+".retained");
+                        File.WriteAllText(foreign,"unreviewed child or record");
+                    }
+                }
+                var error=Record.Exception(ChangeRecord);
+                if(error is IOException or UnauthorizedAccessException){Assert.True(OperatingSystem.IsWindows(),error.ToString());return;}
+                Assert.Null(error);retainCapture=true;
+                Assert.IsAssignableFrom<IOException>(Record.Exception(copy.Dispose));Assert.True(File.Exists(copy.Path));
+                Assert.True(File.Exists(Path.Combine(captureRoot,"capture.json")));Assert.True(File.Exists(foreign));
+                if(scenario is not "cleanup-record-origin-changed")Assert.Equal("unreviewed child or record",File.ReadAllText(foreign));
+                Assert.Equal(bytes,File.ReadAllBytes(record.WorkingPath));return;
             }
             if(scenario is "snapshot-directory-replaced" or "snapshot-file-replaced" or "snapshot-bytes-changed" or "snapshot-origin-changed")
             {
@@ -101,7 +156,7 @@ internal static class ArchiveEditSnapshotCases
                 if(error is IOException or UnauthorizedAccessException)
                 {Assert.True(OperatingSystem.IsWindows(),error.ToString());native.Review(ct);}
                 else
-                {Assert.Null(error);Assert.ThrowsAny<IOException>(()=>native.Review(ct));Assert.IsAssignableFrom<IOException>(Record.Exception(copy.Dispose));Assert.True(File.Exists(copy.Path));}
+                {Assert.Null(error);retainCapture=true;Assert.ThrowsAny<IOException>(()=>native.Review(ct));Assert.IsAssignableFrom<IOException>(Record.Exception(copy.Dispose));Assert.True(File.Exists(copy.Path));}
                 Assert.Equal(bytes,File.ReadAllBytes(record.WorkingPath));return;
             }
             var profile=new ArchiveWriteProfile(ArchiveWriteFormat.Tar);
@@ -131,7 +186,12 @@ internal static class ArchiveEditSnapshotCases
         }
         finally
         {
-            if(copy is not null){var error=Record.Exception(copy.Dispose);Assert.True(error is null or IOException,error?.ToString());}
+            if(copy is not null)
+            {
+                var error=Record.Exception(copy.Dispose);
+                if(OperatingSystem.IsWindows()&&!retainCapture){Assert.Null(error);Assert.False(Directory.Exists(capturePath));Assert.False(File.Exists(copy.Path));}
+                else{Assert.True(error is null or IOException,error?.ToString());Assert.True(Directory.Exists(capturePath));}
+            }
             string full=Path.GetFullPath(fixture);
             if(!full.StartsWith(Path.TrimEndingDirectorySeparator(parent)+Path.DirectorySeparatorChar,StringComparison.Ordinal)||
                 !Path.GetFileName(full).StartsWith("filecat-edit-snapshot-",StringComparison.Ordinal))throw new IOException("Unexpected snapshot fixture cleanup root.");

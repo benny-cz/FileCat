@@ -131,6 +131,8 @@ internal sealed class UnixEditDirectoryLease : EditDirectoryLease
             throw new IOException("The private commit snapshot is kept for native cleanup review: "+Path);
         }
     }
+    internal override void RemoveEmpty(CancellationToken ct)
+    {lock(Gate){RequireNoChildren();ReviewCore(ct);throw new IOException("The private edit directory is kept for cleanup review: "+Path);}}
     internal override string Identify(SafeFileHandle file)
     {UnixArchiveNative.RequirePrivate(file,user);return UnixFiles.Stat(file)!.Value.Identity.ToString();}
     internal override void PublishNewFile(FileStream file,string source,string target,EditFileVersion expected,CancellationToken ct)
