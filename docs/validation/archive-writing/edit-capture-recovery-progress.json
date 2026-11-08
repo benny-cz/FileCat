@@ -2,7 +2,7 @@
   "schema": 1,
   "component": "native edit cleanup, restart review and retained ZIP/SFTP integration: progress checkpoint",
   "current_candidate": "f62d81f91dc5b4616f7b83a06502b0154459f66a",
-  "worktree_candidate": "524bc8e6a662555775e254058af3a9420e09de30",
+  "worktree_candidate": "13ebcd081b8b1585b1cba9b3361a9bc604b3c9a1",
   "production_backend_qualified": false,
   "application_composition_uses_native_store": false,
   "history": [
@@ -3251,17 +3251,17 @@
     {
       "platform": "windows",
       "folder": "awe-storage-v28",
-      "state": "v27 all focused gates passed and exact evidence verified with zero owned instances; complete Core/Remote/App runtime milestone queued on unchanged CSharp inputs"
+      "state": "full native edit runtime milestone launched; unchanged CSharp inputs after v27 all-platform focused success; Core/Remote/App inventories required"
     },
     {
       "platform": "mac",
       "folder": "awe-storage-v28",
-      "state": "v27 all focused gates passed and exact evidence verified with zero owned instances; complete Core/Remote/App runtime milestone queued on unchanged CSharp inputs"
+      "state": "full native edit runtime milestone running under PID 56659; Core/Remote/App inventories required; wake helper36765 retained"
     },
     {
       "platform": "ubuntu",
       "folder": "awe-storage-v28",
-      "state": "v27 all focused gates passed and exact evidence verified with zero owned instances; complete Core/Remote/App runtime milestone queued on unchanged CSharp inputs"
+      "state": "full native edit runtime milestone running under PID 1361873; Core/Remote/App inventories required"
     }
   ],
   "fresh_review_authorizes_deletion": false,
