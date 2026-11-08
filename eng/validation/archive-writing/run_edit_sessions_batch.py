@@ -3,8 +3,9 @@ from pathlib import Path
 from collections import Counter
 import importlib.util, json, os, shutil, sys, xml.etree.ElementTree as ET
 
-FOLDER = 'awe-v1'
-PACKET = 'archive-edit-sessions-delta-v1.tar.gz'
+FOLDER = 'awe-v2'
+PACKET = 'archive-edit-sessions-delta-v2.tar.gz'
+PREVIOUS = 'awe-v1'
 NS = {'t': 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 
 def module(task):
@@ -14,7 +15,7 @@ def module(task):
     value.FOLDER, value.PACKET = FOLDER, PACKET
     original = value.base
     def base(task):
-        result = original(task); result.PREVIOUS_FOLDER = 'awp-v3'; return result
+        result = original(task); result.PREVIOUS_FOLDER = PREVIOUS; return result
     value.base = base
     value.tests = tests
     value.__file__ = str(Path(__file__).resolve())
@@ -24,24 +25,45 @@ def batch_for(task): return module(task).batch_for(task)
 
 def prepare(task, expected):
     if shutil.disk_usage(task).free < 2 << 30: raise RuntimeError('Guest needs 2 GiB free.')
-    value = module(task); previous = task/'awp-v3'
+    value = module(task); previous = task/PREVIOUS
     rows = json.loads((previous/'files.json').read_text())['files']
-    for name in ('source-files.json', 'results/core-regressions.trx'):
+    baseline = 'results/core-regressions.trx' if (previous/'results/core-regressions.trx').is_file() else 'previous-full-core.trx'
+    for name in ('source-files.json', baseline):
         row = next(row for row in rows if row['path'] == name)
         assert (previous/name).stat().st_size == row['bytes'] and value.sha(previous/name) == row['sha256']
     value.base(task).prepare(task, expected)
-    shutil.copyfile(previous/'results/core-regressions.trx', batch_for(task).out/'previous-full-core.trx')
+    shutil.copyfile(previous/baseline, batch_for(task).out/'previous-full-core.trx')
 
 def build(task):
     batch = batch_for(task)
-    if sys.platform == 'win32': batch.build()  # validates immutable runtime reuse and overlays all current FileCat binaries
+    delta = json.loads((batch.out/'delta.json').read_text())['files']
+    fixture_only = all(row['path'].startswith(('tests/', 'eng/validation/')) for row in delta)
+    if sys.platform == 'win32' and fixture_only:
+        batch.execute('FileCat.App.Tests-build', [batch.dotnet, 'build', str(batch.root/'tests/FileCat.App.Tests/FileCat.App.Tests.csproj'),
+            '-c', 'Release', '--disable-build-servers', '-p:NuGetAudit=false', '-m:1', '-v', 'minimal'])
+        previous = task/PREVIOUS; proof = json.loads((previous/'files.json').read_text())['files']; checked = []
+        # Reference the immutable prior assets after verifying all their bytes; avoid cloning/repacking runtimes.
+        for row in proof:
+            if not row['path'].startswith(('app/', 'probe/')): continue
+            path = previous/row['path']
+            assert path.stat().st_size == row['bytes'] and module(task).sha(path) == row['sha256'], row['path']
+            checked.append(row)
+        assert any(row['path'] == 'app/FileCat.exe' for row in checked)
+        for name, project in (('app', 'src/FileCat.App'), ('probe', 'tests/FileCat.WorkerProbe')):
+            for path in (batch.root/project/'bin/Release/net10.0').iterdir():
+                if path.suffix not in ('.dll', '.pdb') or not (path.name.startswith('FileCat.') or path.name in ('FileCat.dll', 'FileCat.pdb')): continue
+                assert module(task).sha(path) == module(task).sha(previous/name/path.name), str(path)
+        (batch.out/'runtime-reuse.json').write_text(json.dumps({'source':str(previous),
+            'parent_manifest_sha256':module(task).sha(previous/'files.json'), 'checked':checked}, indent=2))
+    elif sys.platform == 'win32': batch.build()
     else: module(task).build(task)
 
 def tests(task):
     batch = batch_for(task); batch.idle(); rows = {}
     if sys.platform == 'win32':
+        assets = task/PREVIOUS if (batch.out/'runtime-reuse.json').exists() else batch.out
         batch.env.update(FILECAT_ARCHIVE_CONTAINMENT='1', FILECAT_ARCHIVE_TXF_NATIVE='1', FILECAT_ARCHIVE_TEST_REQUIRE_STANDARD_USER='1',
-            FILECAT_ARCHIVE_PROBE_ASSETS=str(batch.out/'probe'), FILECAT_ARCHIVE_APP_ASSETS=str(batch.out/'app'),
+            FILECAT_ARCHIVE_PROBE_ASSETS=str(assets/'probe'), FILECAT_ARCHIVE_APP_ASSETS=str(assets/'app'),
             FILECAT_ARCHIVE_CASE_ROOT='C:/Users/fcarchive42829297/FileCatValidation/NativeCaseProbe-v2/fixture')
     def run(name, assembly, names):
         selected = '|'.join('FullyQualifiedName~'+name for name in names)

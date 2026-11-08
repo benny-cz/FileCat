@@ -44,9 +44,11 @@ public sealed class ArchiveEditNativeUiTests
         // Non-canonical bytes must survive exactly; origin is separate from member metadata.
         byte[] origin = "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.test/owned%20archive\r\n"u8.ToArray();
         File.WriteAllBytes(path + ":Zone.Identifier", origin);
-        var tab = f.Vm.ActiveTab!; tab.Navigate(ArchiveProvider.ForFile(path));
-        await Unlock(); await Wait(() => tab.Listing.State == ListingState.Complete && tab.Listing.FocusName("a.txt"));
-        var edit = f.Vm.ExecuteAsync(CommandIds.Edit); await Unlock(); await f.Complete(edit);
+        var tab = f.Vm.ActiveTab!; var archive = ArchiveProvider.ForFile(path); tab.Navigate(archive);
+        await Unlock(); await Wait(() => tab.Location == archive && !f.Vm.Dialogs.IsOpen &&
+            tab.Listing.State == ListingState.Complete && tab.Listing.FocusName("a.txt"));
+        var available = f.Vm.GetAvailability(CommandIds.Edit); Assert.True(available.Enabled, available.Reason);
+        var edit = f.Vm.ExecuteAsync(CommandIds.Edit); await Unlock(edit); await f.Complete(edit);
         var session = Assert.Single(f.Services.EditSessions.LoadAll()); Assert.True(session.IsNativeArchive);
         Assert.Equal("alpha", File.ReadAllText(session.WorkingPath)); Assert.Equal(origin, File.ReadAllBytes(session.WorkingPath + ":Zone.Identifier"));
         Assert.Equal(creation.Request.Archive.Profile!.Format, session.ArchiveProfile!.Format);
@@ -54,7 +56,7 @@ public sealed class ArchiveEditNativeUiTests
         File.WriteAllText(session.WorkingPath, "authorized archive edit é");
         string authorized = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(session.WorkingPath)));
         var commit = (Task)typeof(MainViewModel).GetMethod("CommitSessionAsync", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(f.Vm, [session])!;
-        await Unlock(); await f.Complete(commit);
+        await Unlock(commit); await f.Complete(commit);
         Assert.Equal(2, f.Services.Jobs.Jobs.Count);
         File.WriteAllText(session.WorkingPath, "later editor save");
         var job = f.Services.Jobs.Jobs.Last(); await Finished(job);
@@ -67,10 +69,11 @@ public sealed class ArchiveEditNativeUiTests
         Assert.NotNull(job.ArchiveEditPublication); Assert.Equal(saved.Baseline.Sha256Hex, job.ArchiveEditPublication.Native.Version.Sha256);
         Assert.Empty(JournalRecovery.Scan(f.Services.Paths.JournalDirectory));
 
-        async Task Unlock()
+        async Task Unlock(Task? pending = null)
         {
             if (mode == 0) return;
-            await Wait(() => f.Button("Unlock") is not null);
+            await Wait(() => f.Button("Unlock") is not null || pending?.IsCompleted == true);
+            Assert.True(f.Button("Unlock") is not null, "No password question: " + f.Vm.Notification + " UI: " + f.Text());
             f.Input("Existing archive password").Text = ArchiveTargetUpdateUiTests.Secret; f.Click("Unlock");
         }
     }
