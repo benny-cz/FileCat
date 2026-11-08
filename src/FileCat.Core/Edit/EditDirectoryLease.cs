@@ -20,6 +20,9 @@ internal abstract class EditDirectoryLease : IDisposable
     internal abstract FileStream OpenFile(string leaf, string? expectedIdentity, CancellationToken ct);
     internal abstract FileStream OpenWorkingFile(string leaf,CancellationToken ct);
     internal abstract FileCat.Core.Resources.ContentRevision ReviewWorkingFile(FileStream file,string leaf,CancellationToken ct);
+    internal abstract ArchiveOriginSnapshot ReadOrigin(FileStream file,string leaf,CancellationToken ct);
+    internal abstract void CopyOrigin(FileStream file,string leaf,ArchiveOriginSnapshot origin,CancellationToken ct);
+    internal abstract void DeleteSnapshot(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct);
     internal abstract IReadOnlyList<string> Names(CancellationToken ct);
     internal abstract string Identify(SafeFileHandle file);
     internal abstract void PublishNewFile(FileStream file,string sourceLeaf,string targetLeaf,EditFileVersion expected,CancellationToken ct);
@@ -67,6 +70,21 @@ internal abstract class EditDirectoryLease : IDisposable
         ct.ThrowIfCancellationRequested();
         if(RandomAccess.GetLength(file.SafeFileHandle)!=length||Identify(file.SafeFileHandle)!=identity)throw new IOException("The held edit artifact changed during inspection.");
         return new(identity,length,Convert.ToHexString(hash.GetHashAndReset()));
+    }
+    internal ArchiveFileObservation ObserveSnapshot(FileStream file,string leaf,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            RequireOpen();Leaf(leaf);var before=ReviewWorkingFile(file,leaf,ct);
+            var origin=ReadOrigin(file,leaf,ct);var version=Inspect(file,ct);
+            var after=ReviewWorkingFile(file,leaf,ct);
+            if(before!=after||origin.Digest!=ReadOrigin(file,leaf,ct).Digest||version.Identity!=Identify(file.SafeFileHandle))
+                throw new IOException("The native commit snapshot changed during complete review.");
+            string metadata=Convert.ToHexString(SHA256.HashData(ArchiveWritePolicy.Utf8.GetBytes(
+                before.NativeId+"\0"+before.ModifiedTicks.ToString(System.Globalization.CultureInfo.InvariantCulture)+"\0"+origin.Digest)));
+            return new(new(version.Identity,version.Length,version.Sha256),Identity,leaf,metadata,origin,
+                new DateTimeOffset(before.ModifiedTicks,TimeSpan.Zero),0x180);
+        }
     }
 }
 

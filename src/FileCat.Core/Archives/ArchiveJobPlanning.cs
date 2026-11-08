@@ -16,6 +16,7 @@ internal sealed class ArchiveJobPlanning
             plan.AddConflictPolicy is { } policy && !Enum.IsDefined(policy)) throw Invalid();
         if (plan.MoveSources && (plan.Changes.Count == 0 || plan.Changes.Any(change => change is null || change.Kind is not (ArchiveChangeKind.AddFile or ArchiveChangeKind.AddFolder)))) throw Invalid();
         this.plan = plan;
+        plan.EditInput?.RequireRequest(plan);
         // Windows also supports case-sensitive directories. Only identical path spellings may be
         // coalesced before native capture proves which objects they identify.
         selectors = new(StringComparer.Ordinal);
@@ -54,6 +55,10 @@ internal sealed class ArchiveJobPlanning
         }
         Sources = sources.AsReadOnly(); RetainedNameChars = budget.NameChars; RetainedHeapBytes = budget.RetainedHeapBytes;
     }
+
+    internal ArchiveCapturedSelection? CaptureInputs(Func<string,IArchiveSelectionTree> open,CancellationToken ct)
+        =>Sources.Count==0?null:ArchiveSelectionForest.Capture(Sources,
+            directory=>plan.EditInput is { } input?input.OpenTree(directory,ct):open(directory),ct,RetainedNameChars,RetainedHeapBytes);
 
     internal ArchiveWorkflowReview Review(ArchiveAssessment? source, ArchiveCapturedSelection? selection,
         ArchiveCapturedInputs captured, CancellationToken ct)

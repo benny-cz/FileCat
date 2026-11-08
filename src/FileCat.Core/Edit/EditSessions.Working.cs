@@ -4,7 +4,7 @@ namespace FileCat.Core.Edit;
 
 public sealed partial class EditSessionStore
 {
-    private IContentSource OpenNativeWorking(EditSessionRecord record,CancellationToken ct)
+    private NativeWorkingContent OpenNativeWorking(EditSessionRecord record,CancellationToken ct)
     {
         if(!record.IsSupported)throw new NotSupportedException("This edit's working folder is kept for recovery.");
         using var root=OpenNativeRoot(ct,false);
@@ -35,6 +35,7 @@ public sealed partial class EditSessionStore
         public bool CanSeek=>true;
         public string? LocalPath=>null;
         public ContentRevision? GetRevision()=>directory.ReviewWorkingFile(stream,leaf,ct);
+        internal FileCat.Core.Archives.ArchiveOriginSnapshot ReadOrigin()=>directory.ReadOrigin(stream,leaf,ct);
         public int Read(long offset,Span<byte> buffer)
         {ct.ThrowIfCancellationRequested();return RandomAccess.Read(stream.SafeFileHandle,buffer,offset);}
         public void Dispose(){try{stream.Dispose();}finally{directory.Dispose();}}

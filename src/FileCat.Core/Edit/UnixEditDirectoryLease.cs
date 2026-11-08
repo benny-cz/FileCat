@@ -119,6 +119,18 @@ internal sealed class UnixEditDirectoryLease : EditDirectoryLease
             ReviewCore(ct);return names;
         }
     }
+    internal override ArchiveOriginSnapshot ReadOrigin(FileStream file,string name,CancellationToken ct)
+    {lock(Gate){ReviewWorkingFile(file,name,ct);return ArchiveUnixOrigin.Read(file.SafeFileHandle,ct);}}
+    internal override void CopyOrigin(FileStream file,string name,ArchiveOriginSnapshot origin,CancellationToken ct)
+    {lock(Gate){ReviewWorkingFile(file,name,ct);ArchiveUnixOrigin.CopyToNewWorkingFile(file.SafeFileHandle,origin,ct);ReviewWorkingFile(file,name,ct);}}
+    internal override void DeleteSnapshot(FileStream file,string name,ArchiveFileObservation expected,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            ReviewCore(ct); // No unlink is attempted; retaining an artifact does not need another full payload read.
+            throw new IOException("The private commit snapshot is kept for native cleanup review: "+Path);
+        }
+    }
     internal override string Identify(SafeFileHandle file)
     {UnixArchiveNative.RequirePrivate(file,user);return UnixFiles.Stat(file)!.Value.Identity.ToString();}
     internal override void PublishNewFile(FileStream file,string source,string target,EditFileVersion expected,CancellationToken ct)

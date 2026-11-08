@@ -58,11 +58,12 @@ public sealed partial class EditSessionStore
 
     internal static ArchivePlan CommitArchivePlan(EditSessionRecord record, ArchiveTargetReview target, EditCommitCopy copy, bool acceptRebase)
     {
+        copy.Native?.RequireSession(record);
         var check = ReviewArchive(record, target);
         if (check == CommitCheck.MemberChanged || check == CommitCheck.ArchiveChanged && !acceptRebase)
             throw new IOException("The archive edit needs a fresh explicit conflict/rebase decision. Your working copy is kept.");
         var member = ArchiveEditEvidence.UniqueMember(target, record.MemberPath);
-        return target.CreatePlan([new(ArchiveChangeKind.Replace, member.Name, copy.Path, Ordinal: member.Occurrence)]);
+        return target.CreatePlan([new(ArchiveChangeKind.Replace, member.Name, copy.Path, Ordinal: member.Occurrence)]) with{EditInput=copy.Native};
     }
 
     internal EditSessionRecord CommittedArchive(EditSessionRecord record, IArchiveEditSource actual, EditCommitCopy copy,

@@ -73,8 +73,7 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         }
         if (request.ReviewedManifestDigest is { } catalog && source?.Manifest.Digest != catalog) throw Changed();
         job.Checkpoint();
-        using var selection = planning.Sources.Count == 0 ? null : ArchiveSelectionForest.Capture(planning.Sources,
-            native.OpenInputTree, ct, planning.RetainedNameChars, planning.RetainedHeapBytes);
+        using var selection = planning.CaptureInputs(native.OpenInputTree,ct);
         using var empty = selection is null ? new ArchiveCapturedInputs() : null;
         if (empty is not null) { empty.RetainSelection(planning.RetainedNameChars, planning.RetainedHeapBytes); empty.Seal(ct); }
         var captured = selection?.Inputs ?? empty!;

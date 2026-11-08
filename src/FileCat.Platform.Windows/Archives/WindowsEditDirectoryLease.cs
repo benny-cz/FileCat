@@ -3,6 +3,7 @@ using System.Security.Principal;
 using FileCat.Core.Edit;
 using FileCat.Core.State;
 using FileCat.Core.Resources;
+using FileCat.Core.Archives;
 using FileCat.Platform.Windows.Elevation;
 using FileCat.Platform.Windows.Shell;
 using Microsoft.Win32.SafeHandles;
@@ -125,11 +126,47 @@ internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
             if(ProtectedHexFile.Identity(named)!=identity)throw new IOException("The editor replaced the working file during its review.");
             ReviewCore(ct);
             return new(RandomAccess.GetLength(file.SafeFileHandle),DateTime.FromFileTimeUtc(facts.LastWriteTime).Ticks,
-                identity+":"+facts.ChangeTime.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                FormattableString.Invariant($"{identity}:{facts.CreationTime}:{facts.ChangeTime}:{facts.FileAttributes}"));
         }
     }
     internal override IReadOnlyList<string> Names(CancellationToken ct)
     {lock(Gate){RequireOpen();ReviewCore(ct);var names=List(directory);if(names.Count>100000)throw new IOException("The edit namespace exceeds its entry budget.");ReviewCore(ct);return names.Select(entry=>entry.Name).ToArray();}}
+    internal override ArchiveOriginSnapshot ReadOrigin(FileStream file,string name,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            ReviewWorkingFile(file,name,ct);var identity=ProtectedHexFile.Identity(file.SafeFileHandle);
+            int status=TryOpen(directory,name+":Zone.Identifier",GenericRead|Synchronize,ShareAll,Open,
+                NonDirectoryFile|OpenReparsePoint,out var origin);
+            using(origin)
+            {
+                if(status==NameNotFound)return ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier);
+                if(status<0)throw Error(status,"Read native edit download mark");
+                WindowsArchiveNative.Regular(origin,ArchiveOriginSnapshot.MaxBytes,false,false);
+                if(ProtectedHexFile.Identity(origin)!=identity)throw new IOException("The edit download mark belongs to another object.");
+                byte[] bytes=new byte[checked((int)RandomAccess.GetLength(origin))];int offset=0;
+                while(offset<bytes.Length)
+                {
+                    ct.ThrowIfCancellationRequested();int read=RandomAccess.Read(origin,bytes.AsSpan(offset),offset);
+                    if(read<=0)throw new IOException("The edit download mark ended during review.");offset+=read;
+                }
+                if(RandomAccess.GetLength(origin)!=bytes.Length)throw new IOException("The edit download mark changed during review.");
+                ReviewWorkingFile(file,name,ct);return ArchiveOriginSnapshot.Present(ArchiveOriginFormat.WindowsZoneIdentifier,bytes);
+            }
+        }
+    }
+    internal override void CopyOrigin(FileStream file,string name,ArchiveOriginSnapshot origin,CancellationToken ct)
+    {lock(Gate){ReviewWorkingFile(file,name,ct);WindowsArchiveEditOrigin.Copy(file,System.IO.Path.Combine(Path,name),origin,ct);ReviewWorkingFile(file,name,ct);}}
+    internal override void DeleteSnapshot(FileStream file,string name,ArchiveFileObservation expected,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            if(!ObserveSnapshot(file,name,ct).Matches(expected))throw new IOException("The retained snapshot changed; its files are kept.");
+            WindowsArchiveNative.RequireCreationStreams(file.SafeFileHandle,expected.Version.Length,expected.Origin);
+            try{WindowsArchiveNative.DeleteExact(file.SafeFileHandle);file.Dispose();}
+            catch(System.ComponentModel.Win32Exception error){throw new IOException("The private commit snapshot could not be removed: "+Path,error);}
+        }
+    }
     internal override string Identify(SafeFileHandle file)
     {WindowsArchiveNative.Regular(file,FileCat.Core.Edit.EditSessionStore.MaxMemberBytes,true,false);WindowsArchiveNative.RequirePrivateSecurity(file,owner);return ProtectedHexFile.Identity(file).ToString();}
     internal override void PublishNewFile(FileStream file,string source,string target,EditFileVersion expected,CancellationToken ct)

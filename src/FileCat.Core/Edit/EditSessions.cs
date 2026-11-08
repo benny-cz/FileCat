@@ -112,6 +112,7 @@ public sealed record EditCommitReview(CommitCheck Check, ArchiveBaseline? Baseli
 public sealed class EditCommitCopy : IDisposable
 {
     private FileStream? _pin;
+    internal NativeEditSnapshot? Native { get; }
     public string Path { get; }
     public string Sha256 { get; }
     public uint Crc32 { get; }
@@ -121,8 +122,11 @@ public sealed class EditCommitCopy : IDisposable
         Path = path; Sha256 = sha256; Crc32 = crc32; Length = length;
         _pin = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
     }
+    internal EditCommitCopy(NativeEditSnapshot snapshot,uint crc32)
+    {Native=snapshot;Path=snapshot.SourcePath;Sha256=snapshot.Expected.Version.Sha256;Length=snapshot.Expected.Version.Length;Crc32=crc32;}
     public void Dispose()
     {
+        if(Native is { } native){native.Dispose();return;}
         var pin=Interlocked.Exchange(ref _pin,null);
         if(pin is null)return; // A previously closed copy has no authority over a later pathname replacement.
         pin.Dispose();
@@ -608,6 +612,7 @@ public sealed partial class EditSessionStore
     {
         RefuseElevatedSession();
         ct.ThrowIfCancellationRequested();
+        if(record.StorageRootIdentity.Length!=0)return PrepareNativeSnapshot(record,ct,null);
         string directory = Path.Combine(tempRoot, "edit-commit-" + Guid.NewGuid().ToString("N"));
         CreatePrivateDirectory(directory);
         string path = Path.Combine(directory, Path.GetFileName(record.WorkingPath));
@@ -635,6 +640,7 @@ public sealed partial class EditSessionStore
     {
         RefuseElevatedSession();
         check();
+        if(record.StorageRootIdentity.Length!=0)return PrepareNativeSnapshot(record,default,check);
         string directory = Path.Combine(tempRoot, "edit-commit-" + Guid.NewGuid().ToString("N"));
         CreatePrivateDirectory(directory);
         string path = Path.Combine(directory, Path.GetFileName(record.WorkingPath));
@@ -661,6 +667,7 @@ public sealed partial class EditSessionStore
     {
         RefuseElevatedSession();
         check();
+        if(copy.Native is not null)throw new NotSupportedException("The private edit snapshot is kept until native save-copy destination publication is qualified.");
         string staged = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(destination))!, ".filecat-edit-copy-" + Guid.NewGuid().ToString("N") + ".tmp");
         try
         {
@@ -723,9 +730,12 @@ public sealed partial class EditSessionStore
         new(record.ArchivePath, rebase ? ArchiveBaseline.Of(record.ArchivePath) : record.Baseline,
             [new ArchiveChange(ArchiveChangeKind.Replace, record.MemberPath, record.WorkingPath)]);
 
-    public ArchivePlan CommitPlan(EditSessionRecord record, EditCommitReview review, EditCommitCopy copy) =>
-        new(record.ArchivePath, review.Baseline ?? throw new IOException("The reviewed archive is unavailable."),
-            [new ArchiveChange(ArchiveChangeKind.Replace, record.MemberPath, copy.Path)]);
+    public ArchivePlan CommitPlan(EditSessionRecord record, EditCommitReview review, EditCommitCopy copy)
+    {
+        if(copy.Native is not null)throw new NotSupportedException("Legacy ZIP commit capture needs its retained-input adapter before native edit storage is enabled.");
+        return new(record.ArchivePath,review.Baseline??throw new IOException("The reviewed archive is unavailable."),
+            [new ArchiveChange(ArchiveChangeKind.Replace,record.MemberPath,copy.Path)]);
+    }
 
     /// <summary>After a successful commit: the archive's new version and the committed content become the base.</summary>
     public EditSessionRecord Committed(EditSessionRecord record, string committedSha256)

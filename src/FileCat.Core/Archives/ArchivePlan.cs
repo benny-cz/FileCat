@@ -69,6 +69,8 @@ public sealed record ArchiveBaseline(long Length, long LastWriteUtcTicks, string
 public sealed record ArchivePlan(string ArchivePath, ArchiveBaseline? Baseline, IReadOnlyList<ArchiveChange> Changes,
     CompressionLevel Level = CompressionLevel.Optimal, bool ReplaceExisting = false, ArchiveWriteProfile? Profile = null)
 {
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal IArchiveOwnedEditInput? EditInput { get; init; }
     /// <summary>Typed native jobs require the complete command-time observation; serialized paths confer no authority.</summary>
     internal ArchiveFileObservation? NativeBaseline { get; init; }
     /// <summary>The complete command-time catalog, rechecked before any input capture or artifact creation.</summary>
