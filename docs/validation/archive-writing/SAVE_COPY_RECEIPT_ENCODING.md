@@ -32,5 +32,7 @@ The 9 November follow-up applies complete UTF-8 review and controlled Unicode ha
 and capture-recovery evidence too. Six added actual startup cases keep malformed IDs/working paths/property names
 visible and refuse save/discard without rewriting any record or working file. Four native restart cases corrupt
 header/receipt names/values and require read-only NeedsReview with unchanged complete fixture contents. Both test
-projects build without warnings/errors. The fresh `v27` record-recovery25/capture-recovery31 gates and subsequent
-complete runtime milestone inventories remain pending.
+projects build without warnings/errors. The fresh `v27` record-recovery25/capture-recovery31 and all connected
+focused gates pass on all three systems with exact sealed evidence and zero owned instances. The subsequent
+`v28` complete runtime milestone inventories remain pending; their Core inventory must preserve the baseline plus
+all 235 additional cases. No receipt/record bytes or broader acceptance criteria are reused as passing new tests.

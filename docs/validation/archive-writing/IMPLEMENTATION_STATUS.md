@@ -1,5 +1,13 @@
 # Archive writing implementation status
 
+**9 November: complete native edit encoding/storage focused milestone passes; full inventories queued.**
+`v27` passes startup record25 and fresh native capture31 on Windows/Mac/Ubuntu, together with record25 mutation,
+publication25/26, snapshot, ZIP/SFTP, history, ownership and edit UI gates. Exact raw evidence/source/binary bindings
+are preserved and verified with zero owned instances; the Mac wake assertion remains. `v28` changes validation
+orchestration only and queues complete Core/Remote/App inventories on these unchanged C# inputs. The complete
+Core case comparison requires 235 additions over the preserved baseline and no unexplained missing cases/lost passes.
+Publication overwrite/recovery/UI composition and the broader plan remain open; no store/profile is enabled.
+
 **9 November: saved-copy publication/encoding gates pass on all three systems; startup-reader follow-up queued.**
 `v26` passes record25 (including 10,000 seeded mutations), native publication25 Windows / 26 Mac/Ubuntu and
 all connected focused gates. Exact source/DLL/PDB evidence is preserved and verified with zero owned instances;
