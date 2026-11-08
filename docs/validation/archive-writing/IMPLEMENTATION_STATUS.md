@@ -1,12 +1,15 @@
 # Archive writing implementation status
 
-**8 November: versioned native archive edit candidate under validation, unregistered.**
+**8 November: connected native archive edit/readback matrix passes, ownership gates open, unregistered.**
 [Native edit sessions](ARCHIVE_EDIT_SESSIONS.md) connect F4, immutable commit copies, explicit conflict/rebase,
 positive publication facts and actual published-member readback. The connected packet also preserves old/future
 session records, avoids metadata filename collisions and makes new Unix edit files private. The retained `14cb2678`
-cohort passes 259 application cases on each platform and both complete Unix Core inventories; its Windows native
-fixture timeout is preserved. Candidate `f758c487` combines the fixture correction and stronger readback refusal
-checks and is running on all three machines with focused gates before complete regressions. Native namespace/cleanup
+cohort and its Windows fixture timeout are preserved. Candidate `f758c487` passes the focused edit gate,
+259 application cases on every platform and complete Core inventories (Windows 8,065 / 465 skipped;
+Mac 8,318 / 207; Ubuntu 8,340 / 185). Windows also passes ten real F4/Commit cases, 217 native checks,
+18 crash cases, 14 application-entry cases and, after a separate navigation-fixture correction, ten member/F5/F6
+cases. The [checkpoint](edit-sessions-checkpoint.json) binds exact compiler bytes and retained failures;
+all owned instances are closed and Mac's wake helper remains active. Native namespace/cleanup and migration
 hardening, remaining UX cases, Unix mutation/confinement and all release/final-review gates remain open.
 
 **8 November: RAR5/7z password browsing and read ownership implemented, unregistered.**
@@ -114,9 +117,9 @@ This is an **incomplete implementation**, not format or release qualification. T
 [the archive writing plan](../../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md). No new writer is enabled in the
 application. An explicit new-profile job refuses instead of entering the legacy ZIP executor.
 
-**Current coherent implementation chunk:** finish validation and native ownership hardening for versioned archive
-external edit creation, explicit commit/rebase and actual published-member acknowledgement, preserving legacy
-ZIP/remote and unknown-version working copies.
+**Next coherent implementation chunk:** native ownership hardening for archive edit directories, working files,
+commit snapshots, record replacement and cleanup, including malformed/future-profile recovery and inherited ACLs.
+Preserve legitimate atomic editor saves, legacy ZIP/remote sessions and unknown-version working copies.
 Then finish member UX edges and qualify Unix confinement/update, moves and cleanup/recovery.
 Present the declared 7z precision policy and resolve remaining header compatibility gaps before enabling a profile. Reuse
 passed codec/native evidence when its compiler inputs are unchanged; batch the shared UI and native acceptance

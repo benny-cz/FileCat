@@ -1,6 +1,6 @@
 # Native archive edit sessions
 
-Candidate `14cb2678441ba9da2eca90b603b4ae08dbf09589` connects F4 and explicit Commit to the
+Candidate `f758c487647fddbc87038d157c65c12f546339c0` connects F4 and explicit Commit to the
 shared native archive job path for TAR, TAR.GZ, TAR.BZ2, TAR.ZST, RAR5 and 7z. This is an
 unregistered component candidate, not format or release qualification.
 
@@ -45,10 +45,31 @@ ran AnalysisRenderingTests; v2 never ran.
 Candidate `f758c487647fddbc87038d157c65c12f546339c0` adds four readback refusal cases and
 guards for partial content/caveats, changed revisions and a source change exposed by content
 close, plus live session demand checks around native source review. It includes the fixture
-correction. Windows became idle, and the combined `awe-v3` cohort is running on all three
-platforms. Its focused Core gate has passed on Mac (156 / 3) and Ubuntu (154 / 5).
-The [checkpoint](edit-sessions-checkpoint.json) retains the exact historical bundles and will
-record the final cohort separately; no component or release qualification is claimed.
+correction. The combined `awe-v3` cohort passes on all three platforms:
+
+| Platform | Focused Core passed / skipped | Connected application passed | Complete Core passed / skipped |
+|---|---:|---:|---:|
+| Windows | 138 / 21 | 259 | 8,065 / 465 |
+| Mac | 156 / 3 | 259 | 8,318 / 207 |
+| Ubuntu | 154 / 5 | 259 | 8,340 / 185 |
+
+Windows additionally passes all ten actual native F4/Commit format/password combinations, including exact
+origin bytes and late editor saves. Each primary bundle binds 24 changed C# inputs and 12 DLL/PDB pairs;
+all inherited Core cases and passes remain present. No component or release qualification is claimed.
+
+The `awe-v3-native-v2` addendum reuses the sealed current product bytes and passes 217 native checks,
+18 creation-cleanup crash cases and 14 application-entry checks. The older member fixture passes eight
+cases but times out on unprotected RAR/7z because its navigation wait can accept the previous listing.
+Fixture-only candidate `b959b0cb9dff73dbde648807c4ab3e72e5e12084` waits for the actual archive and
+closed navigation and passes all ten member/F5/F6 cases in `awe-v3-member-v1`. Static verification proves
+that every captured binary except the changed test assembly is identical to the inherited native cohort.
+The native and member closures bind 15 DLL/PDB pairs and respectively 24 and 25 changed C# inputs.
+An earlier native-addendum startup could not read its bootstrap script; it ran no tests and is retained
+separately with the explicit standard-account read-grant correction.
+
+The [checkpoint](edit-sessions-checkpoint.json) preserves nine exact bundles, both fixture failures,
+the controlled first native abort, the unexecuted v2 sharing refusal and the bootstrap permission failure.
+Every final census has zero owned FileCat/test instances; Mac wake helper 36765 remains active.
 
 Remaining gates include native session-directory/cleanup race hardening, adversarial native
 session recovery and publication uncertainty, missing/unsupported archive UX, cancellation and
@@ -56,3 +77,5 @@ focus cases, Unix native mutation/confinement, and production/package/fuzz/RID a
 The automated Avalonia flow does not establish native desktop/editor/accessibility acceptance.
 The next ownership packet must replace path-only record/snapshot cleanup with retained native authority;
 plan §12.1 explicitly keeps that gate open, including legitimate editor inode replacement and restart cases.
+Include unsupported profile-constructor, malformed/oversized record and inherited ACL cases in that packet;
+permissions and initial identity fields alone do not establish private native creation and cleanup.
