@@ -40,7 +40,7 @@ internal static class SevenZipSemanticCatalog
         if (profile.Version != 2 || profile.Format != ArchiveWriteFormat.SevenZip) throw Invalid();
         var features = Features(catalog.Physical);
         var mode = features.HiddenNames ? ArchiveEncryptionMode.DataAndNames : catalog.Physical.Streams.Folders.Any(f => f.Encrypted) ? ArchiveEncryptionMode.Data : ArchiveEncryptionMode.None;
-        if (profile.Encryption.Mode != mode) throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "The observed 7z password mode differs from the requested profile.");
+        if (profile.Encryption.Mode != mode) throw ArchiveWriteException.ProtectionMismatch(mode);
         var budget = new ArchiveWriteBudget(); budget.AddMetadata(0, checked(catalog.RetainedHeapBytes + catalog.Members.Count * 256L));
         var members = new List<ArchiveManifestMember>(catalog.Members.Count);
         foreach (var member in catalog.Members)

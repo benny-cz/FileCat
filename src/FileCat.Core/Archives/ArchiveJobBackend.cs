@@ -8,6 +8,7 @@ internal interface IArchiveJobBackend
 {
     ArchiveWriteFormat Format { get; }
     ArchiveJobAvailability Availability(ArchivePlan plan);
+    ArchiveTargetReviewer? TargetReviewer => null;
     // Return only after all workers, borrowed secret grants and native transaction/cleanup leases have settled.
     void Execute(ArchiveJobExecution execution);
 }
@@ -45,6 +46,20 @@ internal sealed class ArchiveJobBackends
     internal ArchiveJobAvailability Availability(ArchivePlan plan) =>
         plan.Profile is { } profile && backends.TryGetValue(profile.Format, out var backend)
             ? backend.Availability(plan) : ArchiveJobAvailability.Unqualified;
+
+    internal bool CanReview(ArchivePlan plan) => Availability(plan).Available && plan.Profile is { } profile &&
+        backends.TryGetValue(profile.Format, out var backend) && backend.TargetReviewer is not null;
+
+    internal Task<ArchiveTargetReview> ReviewUpdateAsync(string path, ArchiveWriteProfile profile, ArchiveJobPassword? password, CancellationToken ct,
+        bool preserveEncryption = false)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        var probe = new ArchivePlan(path, null, [], Profile: profile);
+        var state = Availability(probe);
+        if (!state.Available || !backends.TryGetValue(profile.Format, out var backend) || backend.TargetReviewer is not { } reviewer)
+            throw new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, state.Reason ?? ArchiveJobAvailability.Unqualified.Reason!);
+        return reviewer.ReviewAsync(path, profile, password, ct, preserveEncryption);
+    }
 
     internal IJobExecutor Create(Job job, IFileSystemOperations fs, JobJournal journal, ArchiveJobOperation? operation)
     {

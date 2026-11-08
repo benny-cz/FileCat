@@ -265,8 +265,8 @@ public sealed partial class MainViewModel
             object? answer;
             try
             {
-                answer = await Dialogs.ShowCustomAsync("Create archive", body,
-                    [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton("Pack", "pack", IsDefault: true)],
+                answer = await Dialogs.ShowCustomAsync(dialog.ExistingTarget ? "Add to archive" : "Create archive", body,
+                    [new DialogButton("Cancel", "cancel", IsCancel: true), new DialogButton(dialog.ExistingTarget ? "Continue" : "Pack", "pack", IsDefault: true)],
                     dialog.InitialFocus, canConfirm: () => dialog.CanConfirm);
             }
             finally { body.Child = null; }
@@ -281,12 +281,45 @@ public sealed partial class MainViewModel
             catch (Exception error) when (error is IOException or UnauthorizedAccessException)
             { if (!Services.Io.IsStopped) dialog.ShowProblem("Cannot read this archive path: " + Formatters.SafeName(error.Message)); continue; }
             if (info?.IsDirectory == true) { dialog.ShowProblem("A folder with that name exists; choose an archive filename."); continue; }
+            if (info?.IsReadOnly == true) { dialog.ShowProblem("The archive file is read-only; clear its read-only attribute or choose another filename."); continue; }
             if (items.Any(item => PathUtil.IsSameOrUnder(choice.Path, item.FileSystemPath!)))
             { dialog.ShowProblem("The archive cannot be created inside a folder that is being packed."); continue; }
             if (info is not null)
             {
                 if (choice.Format.Format != ArchiveWriteFormat.Zip)
-                { dialog.ShowProblem("That filename already exists. Choose a new filename; the existing file will be kept."); continue; }
+                {
+                    if (!Services.Jobs.CanReviewArchive(new(choice.Path, null, [], Profile: choice.Profile)))
+                    { dialog.ShowProblem("That filename already exists. Choose a new filename; the existing file will be kept."); continue; }
+                    ArchiveJobPassword? existingPassword = null;
+                    try
+                    {
+                        dialog.MarkExistingTarget();
+                        var existingChoice = dialog.Selection ?? throw new ArgumentException("Review the existing archive's password.");
+                        existingPassword = dialog.CopyPassword();
+                        var reviewed = await ReviewArchiveTargetAsync(choice.Path, existingChoice.Profile!, existingPassword);
+                        if (reviewed is null || Services.Io.IsStopped) return;
+                        if (!await Dialogs.ConfirmAsync("Add to existing archive",
+                            $"Add {selected.Value.Summary} to {Path.GetFileName(choice.Path)}? The complete archive is rebuilt and verified before saving. Existing names are reviewed in the job.", "Add")) return;
+                        if (Services.Io.IsStopped) return;
+                        if (reviewed.Profile.Encryption.Mode == ArchiveEncryptionMode.None) { existingPassword?.Dispose(); existingPassword = null; }
+                        var additions = items.Select(item => new ArchiveChange(item.IsContainer ? ArchiveChangeKind.AddFolder : ArchiveChangeKind.AddFile,
+                            item.Name, item.FileSystemPath)).ToArray();
+                        Services.Jobs.SubmitArchive(reviewed.CreatePlan(additions), existingPassword,
+                            description: $"Add {selected.Value.Summary} to “{Path.GetFileName(choice.Path)}”", register: job =>
+                            { if (originLocation is not null) _jobOrigins[job] = (origin, originLocation); });
+                        existingPassword = null;
+                        dialog.CompleteTransfer();
+                        return;
+                    }
+                    catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException or System.ComponentModel.Win32Exception)
+                    {
+                        if (Services.Io.IsStopped) return;
+                        dialog.ShowProblem("Cannot update this archive: " + Formatters.SafeName(error.Message) +
+                            " If it is password protected, enter its existing password and try again.");
+                        continue;
+                    }
+                    finally { existingPassword?.Dispose(); }
+                }
                 await AddToArchiveTransferAsync(JobKind.Copy, items, ZipProvider.ForFile(choice.Path), new TransferOptions(),
                     null, QueueMode.Start, origin, originLocation);
                 return;

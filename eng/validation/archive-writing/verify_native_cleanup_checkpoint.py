@@ -9,7 +9,7 @@ NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 def sha(path):
     with path.open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
 
-def transport(stem,folder):
+def transport(stem,folder,capture_sources=False):
     archive=stem.with_name(stem.name+'.tar.gz');facts=json.loads(stem.with_suffix('.json').read_text())
     assert archive.stat().st_size==facts['bytes'] and sha(archive)==facts['sha256']
     observed={};data={}
@@ -21,7 +21,7 @@ def transport(stem,folder):
             if member.isdir():continue
             name=path.relative_to(folder).as_posix();assert name not in observed
             stream=tar.extractfile(member)
-            if name.endswith(('.json','.trx')):
+            if name.endswith(('.json','.trx')) or capture_sources and name.endswith('.source'):
                 content=stream.read();data[name]=content;digest=hashlib.sha256(content).hexdigest()
             else:digest=hashlib.file_digest(stream,'sha256').hexdigest()
             observed[name]={'bytes':member.size,'sha256':digest}

@@ -25,7 +25,7 @@ internal static class Rar5SemanticCatalog
         var mode = catalog.Physical.HiddenNames ? ArchiveEncryptionMode.DataAndNames : catalog.Members.Any(member => member.Physical.Encryption is not null)
             ? ArchiveEncryptionMode.Data : ArchiveEncryptionMode.None;
         if (profile.Encryption.Mode != mode)
-            throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "The observed RAR password mode differs from the requested profile.");
+            throw ArchiveWriteException.ProtectionMismatch(mode);
         var budget = new ArchiveWriteBudget();
         budget.AddMetadata(0, checked(catalog.Physical.RetainedHeapBytes + catalog.Members.Count * 256L));
         var members = new List<ArchiveManifestMember>(catalog.Members.Count);

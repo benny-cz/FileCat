@@ -27,6 +27,7 @@ internal interface IArchiveJobNativeScope<T> : IDisposable where T : class, IArc
 internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : class, IArchiveRetainedStage
 {
     public ArchiveWriteFormat Format { get; }
+    public ArchiveTargetReviewer? TargetReviewer { get; }
     private readonly Func<ArchivePlan, ArchiveJobAvailability> availability;
     private readonly Func<ArchivePlan, CancellationToken, IArchiveJobNativeScope<T>> open;
     private readonly ArchiveAssessmentClient assessor;
@@ -36,7 +37,8 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
 
     internal ArchiveNativeJobBackend(ArchiveWriteFormat format, Func<ArchivePlan, ArchiveJobAvailability> availability,
         Func<ArchivePlan, CancellationToken, IArchiveJobNativeScope<T>> open, ArchiveAssessmentClient assessor,
-        ArchiveTransformClient transform, ArchiveVerificationClient verifier, bool supportsSourceRemoval = false)
+        ArchiveTransformClient transform, ArchiveVerificationClient verifier, bool supportsSourceRemoval = false,
+        Func<string, CancellationToken, IArchiveTargetReadLease>? openReview = null)
     {
         if (format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or
             ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip)) throw new ArgumentException("A shared container profile is required.");
@@ -44,6 +46,7 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         this.open = open ?? throw new ArgumentNullException(nameof(open)); this.assessor = assessor ?? throw new ArgumentNullException(nameof(assessor));
         this.transform = transform ?? throw new ArgumentNullException(nameof(transform)); this.verifier = verifier ?? throw new ArgumentNullException(nameof(verifier));
         this.supportsSourceRemoval = supportsSourceRemoval;
+        TargetReviewer = openReview is null ? null : new(openReview, assessor);
     }
     public ArchiveJobAvailability Availability(ArchivePlan plan)
     {
@@ -51,6 +54,7 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         if (plan.MoveSources && !supportsSourceRemoval) return new(false, "Native source removal after archive publication has not been qualified for this backend.");
         if ((plan.Baseline is null) != (plan.NativeBaseline is null)) return new(false,
             "Review the archive's current native identity and metadata before queuing this update.");
+        if (plan.Baseline is null && plan.ReviewedManifestDigest is not null) return ArchiveJobAvailability.Unqualified;
         return availability(plan);
     }
     public void Execute(ArchiveJobExecution execution)
@@ -67,6 +71,7 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
             source = assessor.AssessAsync(new(request.Profile!, original.Reviewed.Version.Length, original.Reviewed.Version.Sha256),
                 () => original.File.OpenReadView(original.Reviewed, ct), ct, execution.Password?.CreateGrant()).GetAwaiter().GetResult();
         }
+        if (request.ReviewedManifestDigest is { } catalog && source?.Manifest.Digest != catalog) throw Changed();
         job.Checkpoint();
         using var selection = planning.Sources.Count == 0 ? null : ArchiveSelectionForest.Capture(planning.Sources,
             native.OpenInputTree, ct, planning.RetainedNameChars, planning.RetainedHeapBytes);

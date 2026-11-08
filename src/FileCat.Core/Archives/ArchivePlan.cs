@@ -69,6 +69,8 @@ public sealed record ArchivePlan(string ArchivePath, ArchiveBaseline? Baseline, 
 {
     /// <summary>Typed native jobs require the complete command-time observation; serialized paths confer no authority.</summary>
     internal ArchiveFileObservation? NativeBaseline { get; init; }
+    /// <summary>The complete command-time catalog, rechecked before any input capture or artifact creation.</summary>
+    internal string? ReviewedManifestDigest { get; init; }
     /// <summary>An explicit local move: remove only successfully archived, unchanged sources after verified publication.</summary>
     public bool MoveSources { get; init; }
 }

@@ -100,7 +100,8 @@ public sealed class ArchiveCreationWorkflowTests
         string target = f.Input("Archive path").Text!; File.WriteAllText(target, "concurrent existing file");
         f.Combo("Password protection").SelectedIndex = 2; f.Input("Archive password").Text = f.Input("Confirm archive password").Text = Secret;
         var first = f.Button("Pack"); await Wait(() => first!.IsEffectivelyEnabled); f.Click("Pack");
-        await Wait(() => operation.IsCompleted || f.Button("Pack") is { } current && !ReferenceEquals(current, first));
+        await Wait(() => operation.IsCompleted || f.Button("Pack") is { } current && !ReferenceEquals(current, first) &&
+            f.Text().Contains("filename already exists", StringComparison.Ordinal));
         if (operation.IsCompleted) await f.Complete(operation);
         Assert.False(operation.IsCompleted);
         Assert.Contains("filename already exists", f.Text()); Assert.Equal(Secret, f.Input("Archive password").Text);
@@ -209,6 +210,48 @@ public sealed class ArchiveCreationWorkflowTests
                 format=(int)format,mode,revision=Convert.ToHexString(SHA256.HashData(bytes)),features=Convert.ToHexString(expected.Features),
                 members=expected.Members.Select(member=>new{name=member.Name,type=(int)member.Type,length=member.Length,sha256=member.Sha256,metadata=Convert.ToHexString(member.Metadata)})}));
         }
+        await Wait(()=>f.Vm.ActiveTab!.Listing.State==ListingState.Complete);Dispatcher.UIThread.RunJobs();
+        Assert.True(f.Vm.ActiveTab!.Listing.FocusName("b.txt"));
+        var adding=f.Vm.ExecuteAsync(CommandIds.Pack);await f.Ready();f.SelectFormat(format);f.Input("Archive path").Text=plan.ArchivePath;
+        if(mode!=0)
+        {
+            // The protection setting used to create a new file must never convert an existing archive's mode.
+            f.Combo("Password protection").SelectedIndex=mode==1?2:1;
+            f.Input("Archive password").Text=f.Input("Confirm archive password").Text=Secret;
+        }
+        var updatePassword=f.Input("Archive password");var updateConfirmation=f.Input("Confirm archive password");
+        await Wait(()=>f.Button("Pack")?.IsEffectivelyEnabled==true);f.Click("Pack");await Wait(()=>f.Button("Add") is not null);
+        f.Click("Add");await f.Complete(adding);
+        var added=Assert.Single(f.Services.Jobs.Jobs,value=>!ReferenceEquals(value,job));await Wait(()=>added.State.IsFinished());
+        Assert.True(added.State==JobState.Completed,added.State+": "+added.Summary+" "+JobIssue.Summarize(added.Issues));
+        var updatedPlan=added.Request.Archive!;Assert.NotNull(updatedPlan.NativeBaseline);Assert.NotNull(updatedPlan.ReviewedManifestDigest);
+        Assert.Equal(plan.Profile,updatedPlan.Profile);Assert.Equal("",updatePassword.Text);Assert.Equal("",updateConfirmation.Text);
+        var updatePlanning=new ArchiveJobPlanning(updatedPlan,ct);
+        using var incoming=ArchiveSelectionForest.Capture(updatePlanning.Sources,WindowsArchiveSelectionTree.Open,ct,updatePlanning.RetainedNameChars,updatePlanning.RetainedHeapBytes);
+        var updatedExpected=updatePlanning.Review(actual,incoming,incoming.Inputs,ct).CreatePlan(false,false,ct).Expected;
+        byte[] updatedBytes=File.ReadAllBytes(updatedPlan.ArchivePath);
+        using var updateSecret=mode==0?null:new ArchiveJobPassword(Secret);
+        var checkedUpdate=await new ArchiveAssessmentClient((nonce,cpu)=>ArchiveAppContainer.StartAssessment(executable,nonce,cpu,2),protocolVersion:2)
+            .AssessAsync(new(updatedPlan.Profile!,updatedBytes.Length,Convert.ToHexString(SHA256.HashData(updatedBytes))),()=>new MemoryStream(updatedBytes,false),ct,updateSecret?.CreateGrant());
+        Assert.Equal(updatedExpected.Digest,checkedUpdate.Manifest.Digest);Assert.Equal(new[]{"a.txt","b.txt"},checkedUpdate.Manifest.Members.Select(member=>member.Name));
+        Assert.Equal("alpha",File.ReadAllText(source));Assert.Equal("beta",File.ReadAllText(Path.Combine(f.Files,"b.txt")));
+        using(var directory=WindowsArchiveDirectory.Open(f.Files))
+        using(var file=directory.OpenSource(Path.GetFileName(updatedPlan.ArchivePath)))
+        {
+            var after=((IArchiveRetainedFile)file).Observe(ct);Assert.Equal(updatedPlan.NativeBaseline!.Version.Identity,after.Version.Identity);
+            Assert.Equal(3,ArchiveWindowsOriginZone.Parse(after.Origin).DeclaredZone);
+        }
+        Assert.Empty(JournalRecovery.Scan(f.Services.Paths.JournalDirectory));
+        Assert.DoesNotContain(Directory.GetFiles(f.Files),path=>Path.GetFileName(path).StartsWith(".filecat-archive-",StringComparison.Ordinal));
+        if(Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_UPDATE_UI_EXPORT_ROOT") is { } updateExport)
+        {
+            string folder=Path.Combine(updateExport,$"format-{format}-mode-{mode}");Directory.CreateDirectory(folder);
+            string name="ui-updated"+ArchiveCreationFormat.All.Single(value=>value.Format==format).Extension;
+            File.WriteAllBytes(Path.Combine(folder,name),updatedBytes);
+            File.WriteAllText(Path.Combine(folder,"ui-updated.json"),JsonSerializer.Serialize(new{synthetic_public_vector=true,password=Secret,
+                format=(int)format,mode,revision=Convert.ToHexString(SHA256.HashData(updatedBytes)),features=Convert.ToHexString(updatedExpected.Features),
+                members=updatedExpected.Members.Select(member=>new{name=member.Name,type=(int)member.Type,length=member.Length,sha256=member.Sha256,metadata=Convert.ToHexString(member.Metadata)})}));
+        }
     }
 
     private static async Task Wait(Func<bool> condition)
@@ -217,7 +260,7 @@ public sealed class ArchiveCreationWorkflowTests
         while (!condition()) { Dispatcher.UIThread.RunJobs(); if (watch.Elapsed > TimeSpan.FromSeconds(20)) throw new TimeoutException("Archive creation UI did not reach the expected state."); await Task.Delay(10); }
     }
 
-    private sealed class Fixture : IDisposable
+    internal sealed class Fixture : IDisposable
     {
         internal required AppServices Services; internal required MainViewModel Vm; internal required MainWindow Window;
         internal required string Root; internal required RecordingBackend[] Backends;
@@ -233,7 +276,12 @@ public sealed class ArchiveCreationWorkflowTests
         }
         internal TextBox Input(string name) => Window.GetVisualDescendants().OfType<TextBox>().Single(value => AutomationProperties.GetName(value) == name);
         internal ComboBox Combo(string name) => Window.GetVisualDescendants().OfType<ComboBox>().Single(value => AutomationProperties.GetName(value) == name);
-        internal string Text() => string.Join(" ", Window.GetVisualDescendants().OfType<TextBlock>().Where(value => value.IsVisible).Select(value => value.Text));
+        internal string Text()
+        {
+            // A replacement dialog's buttons can attach before its scroll content completes layout.
+            Window.UpdateLayout();
+            return string.Join(" ", Window.GetVisualDescendants().OfType<TextBlock>().Where(value => value.IsVisible).Select(value => value.Text));
+        }
         internal async Task Complete(Task operation)
         {
             try { await operation.WaitAsync(TimeSpan.FromSeconds(25), TestContext.Current.CancellationToken); }
@@ -256,7 +304,7 @@ public sealed class ArchiveCreationWorkflowTests
         { ((OverlayDialogService)Vm.Dialogs).CancelAll(); AccessibilityTests.Close(Services, Window, Root); }
     }
 
-    private sealed class RecordingBackend(ArchiveWriteFormat format) : IArchiveJobBackend
+    internal sealed class RecordingBackend(ArchiveWriteFormat format) : IArchiveJobBackend
     {
         public ArchiveWriteFormat Format => format;
         internal ArchivePlan? Plan; internal char[]? Buffer; internal bool SecretMatched;

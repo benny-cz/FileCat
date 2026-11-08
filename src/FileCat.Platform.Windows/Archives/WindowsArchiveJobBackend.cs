@@ -16,7 +16,23 @@ internal static class WindowsArchiveJobBackend
             (plan, ct) => new Scope(plan, ct, retainArtifacts),
             new((nonce, cpu) => ArchiveAppContainer.StartAssessment(executable, nonce, cpu, 2), protocolVersion: 2),
             new((nonce, cpu) => ArchiveAppContainer.StartTransform(executable, nonce, cpu, 2), protocolVersion: 2),
-            new((nonce, cpu) => ArchiveAppContainer.StartVerification(executable, nonce, cpu, 2), protocolVersion: 2), supportsSourceRemoval: true);
+            new((nonce, cpu) => ArchiveAppContainer.StartVerification(executable, nonce, cpu, 2), protocolVersion: 2), supportsSourceRemoval: true,
+            openReview: (path, ct) => new ReadLease(path, ct));
+    }
+
+    private sealed class ReadLease : IArchiveTargetReadLease
+    {
+        private readonly WindowsArchiveDirectory directory;
+        private readonly WindowsArchiveFile file;
+        public IArchiveRetainedFile File => file;
+        internal ReadLease(string path, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            directory = WindowsArchiveDirectory.Open(Path.GetDirectoryName(path) ?? throw new ArgumentException("A target directory is required."));
+            try { file = directory.OpenSource(Path.GetFileName(path)); }
+            catch { directory.Dispose(); throw; }
+        }
+        public void Dispose() { try { file.Dispose(); } finally { directory.Dispose(); } }
     }
 
     private sealed class Scope : IArchiveJobNativeScope<WindowsArchiveFile>

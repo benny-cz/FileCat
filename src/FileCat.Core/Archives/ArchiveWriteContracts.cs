@@ -10,6 +10,7 @@ public enum ArchiveWriteReason
 {
     InvalidRequest = 0, InvalidArchive = 1, UnsupportedFeature = 2, BudgetExceeded = 3, SourceChanged = 4,
     VerificationFailed = 5, WorkerUnavailable = 6, ProtocolViolation = 7, PublicationUnavailable = 8, NeedsReview = 9,
+    ProtectionModeNone = 10, ProtectionModeData = 11, ProtectionModeDataAndNames = 12,
 }
 
 /// <summary>A controlled refusal, distinct from an unexpected decoder or programmer exception.</summary>
@@ -18,6 +19,13 @@ public sealed class ArchiveWriteException : IOException
     public ArchiveWriteReason Reason { get; }
     public ArchiveWriteException(ArchiveWriteReason reason, string message) : base(message) { Reason = reason; }
     public ArchiveWriteException(ArchiveWriteReason reason, string message, Exception innerException) : base(message, innerException) { Reason = reason; }
+    internal static ArchiveWriteException ProtectionMismatch(ArchiveEncryptionMode mode) => new(mode switch
+    {
+        ArchiveEncryptionMode.None => ArchiveWriteReason.ProtectionModeNone,
+        ArchiveEncryptionMode.Data => ArchiveWriteReason.ProtectionModeData,
+        ArchiveEncryptionMode.DataAndNames => ArchiveWriteReason.ProtectionModeDataAndNames,
+        _ => throw new ArgumentOutOfRangeException(nameof(mode)),
+    }, "The observed archive protection differs from the requested profile.");
 }
 
 /// <summary>Versioned options. A filename never selects a writer or changes its preservation policy.</summary>

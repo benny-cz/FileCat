@@ -213,7 +213,9 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
             f.PathBox("Archive path").Text = f.Archive; f.Click("Pack");
             if (outcome != "plain")
             {
-                await Wait(() => f.Button("Pack") is { IsEnabled: false } current && !ReferenceEquals(current, first));
+                await Wait(() => f.Button("Pack") is { IsEnabled: false } current && !ReferenceEquals(current, first) &&
+                    f.Window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.IsEffectivelyVisible &&
+                        text.Text?.Contains("Cannot read this archive path", StringComparison.Ordinal) == true));
                 Assert.False(task.IsCompleted); AssertWorkers(f.Gate, "info");
                 Assert.Contains(f.Window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.Contains("Cannot read this archive path", StringComparison.Ordinal) == true);
                 Assert.Equal(f.Archive, f.PathBox("Archive path").Text);

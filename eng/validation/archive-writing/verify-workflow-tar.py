@@ -3,7 +3,7 @@ from pathlib import Path
 import bz2,decimal,gzip,hashlib,io,json,runpy,struct,subprocess,sys,tarfile
 
 def run(root,tool,modules,packet_helper,scope=None):
- assert scope in (None,'--jobs','--source-case','--moves','--cleanup','--creation-ui')
+ assert scope in (None,'--jobs','--source-case','--moves','--cleanup','--creation-ui','--update-ui')
  root,tool,modules=map(Path,(root,tool,modules));sys.path.insert(0,str(modules))
  packet=runpy.run_path(packet_helper)['Packet'];rows=[];payloads=0;metadata=0
  for document in sorted(root.glob('format-Tar*-mode-*/*.json')):
@@ -70,8 +70,8 @@ def run(root,tool,modules,packet_helper,scope=None):
   assert len(rows)==8 and metadata==payloads==12
  else:
   documents=list(root.glob('format-Tar*-mode-*/*.json'));formats={'Tar','TarGzip','TarBzip2','TarZstd'}
-  assert {(p.parent.name,p.stem) for p in documents}=={('format-'+format+'-mode-0','ui-created') for format in formats}
-  assert len(rows)==4 and metadata==payloads==4
+  assert {(p.parent.name,p.stem) for p in documents}=={('format-'+format+'-mode-0','ui-updated' if scope=='--update-ui' else 'ui-created') for format in formats}
+  assert len(rows)==4 and metadata==payloads==(8 if scope=='--update-ui' else 4)
  result={'archives':len(rows),'metadata':metadata,'payloads':payloads,'tool_sha256':hashlib.sha256(tool.read_bytes()).hexdigest(),'rows':rows}
  (root/'independent-workflow-tar.json').write_text(json.dumps(result,indent=2));print(json.dumps({k:v for k,v in result.items() if k!='rows'}),flush=True)
 

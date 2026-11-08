@@ -32,6 +32,12 @@ public sealed partial class UnixArchiveStorageTests
         using var readingPassword = mode == 0 ? null : new ArchiveJobPassword(ArchiveNativeJobCases.Password);
         var fresh = await assessor.AssessAsync(new(profile, bytes.Length, Hash(bytes)), () => new MemoryStream(bytes, false), ct, readingPassword?.CreateGrant());
         Assert.Equal(manifest.Digest, fresh.Manifest.Digest); Assert.Equal(3, children.Count);
+        var namesBeforeReview = Directory.GetFiles(root).Order(StringComparer.Ordinal).ToArray();
+        var reviewed = await new ArchiveTargetReviewer(UnixArchiveTargetReadLease.Open, assessor).ReviewAsync(target, profile, readingPassword, ct);
+        Assert.Equal(manifest.Digest, reviewed.Assessment.Manifest.Digest);
+        Assert.Equal(manifest.Digest, reviewed.CreatePlan([]).ReviewedManifestDigest);
+        Assert.Equal(namesBeforeReview, Directory.GetFiles(root).Order(StringComparer.Ordinal).ToArray());
+        Assert.Equal(4, children.Count);
         Assert.All(children, child => { Assert.True(child.Reaped); Assert.True(child.Disposed); });
         ArchiveNativeJobCases.Export(profile, "created", bytes, manifest);
     }

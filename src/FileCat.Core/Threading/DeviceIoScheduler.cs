@@ -40,10 +40,13 @@ public sealed class DeviceIoScheduler : IDisposable
 {
     private readonly ConcurrentDictionary<string, DeviceQueue> _devices = new(StringComparer.OrdinalIgnoreCase);
     private readonly Timer _watchdog;
+    private readonly CancellationTokenSource _stopping = new();
+    private int _disposeStarted;
     private volatile bool _disposed;
 
     public DeviceIoScheduler(TimeSpan? hangThreshold = null, int threadsPerDevice = 2, int maxThreadsPerDevice = 6)
     {
+        StoppingToken = _stopping.Token;
         HangThreshold = hangThreshold ?? TimeSpan.FromSeconds(8);
         ThreadsPerDevice = Math.Max(1, threadsPerDevice);
         MaxThreadsPerDevice = Math.Max(ThreadsPerDevice, maxThreadsPerDevice);
@@ -57,6 +60,8 @@ public sealed class DeviceIoScheduler : IDisposable
 
     /// <summary>Shutdown has begun; callers must not publish newly admitted work.</summary>
     public bool IsStopped => _disposed;
+    /// <summary>Opt-in cancellation for bounded asynchronous preparations; synchronous calls retain their owner until return.</summary>
+    public CancellationToken StoppingToken { get; }
 
     /// <summary>Raised (on a pool thread) when a device changes between responsive and not responding.</summary>
     public event Action<string, DeviceHealth>? HealthChanged;
@@ -69,10 +74,17 @@ public sealed class DeviceIoScheduler : IDisposable
 
     /// <summary>Queues work for a device. After shutdown began the work is not run and the task is canceled.</summary>
     public Task<T> Run<T>(string deviceKey, IoPriority priority, Func<CancellationToken, T> work, CancellationToken ct = default)
+        => Enqueue(deviceKey, priority, work, ct, retainRunningOwner: false);
+
+    /// <summary>Queued cancellation is immediate; a started call retains its owner until its delegate returns.</summary>
+    public Task<T> RunOwned<T>(string deviceKey, IoPriority priority, Func<CancellationToken, T> work, CancellationToken ct = default)
+        => Enqueue(deviceKey, priority, work, ct, retainRunningOwner: true);
+
+    private Task<T> Enqueue<T>(string deviceKey, IoPriority priority, Func<CancellationToken, T> work, CancellationToken ct, bool retainRunningOwner)
     {
         // Late requests (a watcher notification posted just before exit) are canceled, not thrown at the UI.
         if (_disposed) return Task.FromCanceled<T>(new CancellationToken(canceled: true));
-        var item = new WorkItem<T>(work, ct);
+        var item = new WorkItem<T>(work, ct, retainRunningOwner);
         // A queue may retire between GetOrAdd and admission. Retry on a fresh queue rather than
         // canceling a live caller or leaving work stranded on a worker that has exited.
         while (!_devices.GetOrAdd(deviceKey, k => new DeviceQueue(this, k)).Enqueue(item, priority)) { }
@@ -96,9 +108,16 @@ public sealed class DeviceIoScheduler : IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposeStarted, 1) != 0) return;
         _disposed = true;
-        _watchdog.Dispose();
-        foreach (var q in _devices.Values) q.Shutdown();
+        try { _stopping.Cancel(); }
+        catch (AggregateException error) { Debug.WriteLine(error); }
+        finally
+        {
+            _watchdog.Dispose();
+            foreach (var q in _devices.Values) q.Shutdown();
+            _stopping.Dispose();
+        }
     }
 
     private abstract class WorkItem
@@ -116,11 +135,13 @@ public sealed class DeviceIoScheduler : IDisposable
         private readonly CancellationToken _ct;
         private readonly TaskCompletionSource<T> _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly CancellationTokenRegistration _reg;
+        private readonly bool _retainRunningOwner;
 
-        public WorkItem(Func<CancellationToken, T> work, CancellationToken ct)
+        public WorkItem(Func<CancellationToken, T> work, CancellationToken ct, bool retainRunningOwner)
         {
             _work = work;
             _ct = ct;
+            _retainRunningOwner = retainRunningOwner;
             if (ct.CanBeCanceled)
             {
                 _reg = ct.Register(static s => ((WorkItem<T>)s!).Cancel(), this);
@@ -160,7 +181,7 @@ public sealed class DeviceIoScheduler : IDisposable
         // Canceling a running item only completes its task; the thread finishes at its own safe boundary.
         public override void Cancel()
         {
-            Interlocked.Exchange(ref _work, null);
+            if (Interlocked.Exchange(ref _work, null) is null && _retainRunningOwner) return;
             _tcs.TrySetCanceled(_ct);
             // Nonblocking: cancellation can be executing this very registration. Do not keep a retired
             // work item rooted in an otherwise live CancellationTokenSource after shutdown/queue drain.

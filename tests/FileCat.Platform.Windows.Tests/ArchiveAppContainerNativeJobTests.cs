@@ -46,11 +46,22 @@ public sealed partial class ArchiveAppContainerTests
                 new(ArchiveChangeKind.Delete, "case", Ordinal: 0), new(ArchiveChangeKind.Rename, "renamed", NewMemberPath: "moved"),
                 new(ArchiveChangeKind.AddFile, "added", Path.Combine(root, "b/payload")), new(ArchiveChangeKind.AddFolder, "empty", Path.Combine(root, "a/tree")),
                 new(ArchiveChangeKind.CreateFolderEntry, "new-empty/")];
-            var update = new ArchivePlan(target, ArchiveBaseline.Of(target), updates, Profile: profile) { NativeBaseline = original };
             using var secondPassword = mode == 0 ? null : new ArchiveJobPassword(ArchiveNativeJobCases.Password);
+            var pathsBeforeReview = Directory.GetFiles(root).Order(StringComparer.Ordinal).ToArray();
+            var reviewed = await manager.ReviewArchiveUpdateAsync(target, profile, secondPassword, ct);
+            Assert.True(original.Matches(reviewed.Native)); Assert.Equal(originalManifest.Digest, reviewed.Assessment.Manifest.Digest);
+            Assert.Equal(pathsBeforeReview, Directory.GetFiles(root).Order(StringComparer.Ordinal).ToArray());
+            var update = reviewed.CreatePlan(updates);
+            Assert.Equal(originalManifest.Digest, update.ReviewedManifestDigest);
+            using var stalePassword = mode == 0 ? null : new ArchiveJobPassword(ArchiveNativeJobCases.Password);
+            var stale = manager.SubmitArchive(update with { ReviewedManifestDigest = new string('0', 64) }, stalePassword);
+            await ArchiveNativeJobCases.Finished(stale); Assert.Equal(JobState.Failed, stale.State);
+            string staleJournal = Assert.Single(Directory.GetFiles(journals).Except([firstJournal]));
+            Assert.Equal(originalBytes, File.ReadAllBytes(target));
+            Assert.Equal(pathsBeforeReview, Directory.GetFiles(root).Order(StringComparer.Ordinal).ToArray());
             var updated = manager.SubmitArchive(update, secondPassword); await ArchiveNativeJobCases.Finished(updated);
             if (secondPassword is not null) Assert.Throws<ObjectDisposedException>(() => secondPassword.CreateGrant());
-            string updateJournal = Assert.Single(Directory.GetFiles(journals).Except([firstJournal]));
+            string updateJournal = Assert.Single(Directory.GetFiles(journals).Except([firstJournal, staleJournal]));
             var manifest = ArchiveNativeJobCases.Expected(updateJournal, profile, ct);
             payloads["Case"] = File.ReadAllBytes(Path.Combine(root, "a/payload")); payloads.Remove("case");
             payloads["moved/sub/file"] = payloads["renamed/sub/file"]; payloads.Remove("renamed/sub/file");

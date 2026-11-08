@@ -36,12 +36,14 @@ internal sealed class ArchiveCreationDialog : IDisposable
     private readonly TextBox path, password, confirmation;
     private readonly ComboBox format, level, codec, filter, dictionary, header, protection;
     private readonly NumericUpDown delta;
-    private readonly Control compressionRow, protectionRow, protectionRows, dictionaryRow, deltaRow;
+    private readonly Control compressionRow, protectionRow, protectionRows, confirmationRow, dictionaryRow, deltaRow;
+    private readonly TextBlock passwordHelp;
     private readonly Expander advanced;
     private readonly TextBlock problem, preview;
     private readonly Func<ArchivePlan, ArchiveJobAvailability> availability;
     private bool updating, generatedPath = true;
     private string? externalProblem;
+    internal bool ExistingTarget { get; private set; }
     internal StackPanel Content { get; }
     internal Control InitialFocus => path;
     internal ArchiveCreationSelection? Selection { get; private set; }
@@ -82,7 +84,9 @@ internal sealed class ArchiveCreationDialog : IDisposable
         preview = Text("");
         compressionRow = Row("Compression:", level);
         protectionRow = Row("Protection:", protection);
-        protectionRows = new StackPanel { Spacing = 6, Children = { Row("Password:", password), Row("Confirm password:", confirmation) } };
+        confirmationRow = Row("Confirm password:", confirmation);
+        passwordHelp = Text("Enter the existing archive's password, or leave it empty for an unprotected archive. Its protection mode is preserved.");
+        protectionRows = new StackPanel { Spacing = 6, Children = { passwordHelp, Row("Password:", password), confirmationRow } };
         dictionaryRow = Row("Dictionary:", dictionary); deltaRow = Row("Delta distance:", delta);
         advanced = new() { Header = "7z options", HorizontalAlignment = HorizontalAlignment.Stretch,
             Content = new StackPanel { Spacing = 8, Children = { Row("Method:", codec), Row("Preprocessing:", filter),
@@ -97,11 +101,11 @@ internal sealed class ArchiveCreationDialog : IDisposable
         path.PropertyChanged += (_, change) =>
         {
             if (change.Property != TextBox.TextProperty) return;
-            if (!updating) generatedPath = false;
+            if (!updating) { generatedPath = false; if (ExistingTarget) { ExistingTarget = false; ClearSecrets(); } }
             externalProblem = null; Validate();
         };
-        password.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) Validate(); };
-        confirmation.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) Validate(); };
+        password.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { if (!updating) externalProblem = null; Validate(); } };
+        confirmation.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) { if (!updating) externalProblem = null; Validate(); } };
         format.SelectionChanged += (_, _) => ChangeFormat();
         foreach (var box in new[] { level, codec, filter, dictionary, header, protection }) box.SelectionChanged += (_, _) => Validate();
         delta.ValueChanged += (_, _) => Validate();
@@ -111,6 +115,7 @@ internal sealed class ArchiveCreationDialog : IDisposable
     private void ChangeFormat()
     {
         if (updating || format.SelectedItem is not ArchiveCreationFormat selected) return;
+        if (ExistingTarget) { ExistingTarget = false; ClearSecrets(); }
         updating = true;
         try
         {
@@ -141,14 +146,18 @@ internal sealed class ArchiveCreationDialog : IDisposable
         Selection = null;
         if (format.SelectedItem is not ArchiveCreationFormat selected) return;
         bool seven = selected.Format == ArchiveWriteFormat.SevenZip, encryptedFormat = seven || selected.Format == ArchiveWriteFormat.Rar5;
-        protectionRow.IsVisible = encryptedFormat;
+        protectionRow.IsVisible = encryptedFormat && !ExistingTarget;
         advanced.IsVisible = seven;
         compressionRow.IsVisible = selected.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarBzip2) &&
             (!seven || Value<ArchiveSevenZipCodec>(codec) != ArchiveSevenZipCodec.Copy);
         dictionaryRow.IsVisible = seven && Value<ArchiveSevenZipCodec>(codec) is ArchiveSevenZipCodec.Lzma or ArchiveSevenZipCodec.Lzma2;
         deltaRow.IsVisible = seven && Value<ArchiveSevenZipFilter>(filter) == ArchiveSevenZipFilter.Delta;
-        var mode = encryptedFormat ? Value<ArchiveEncryptionMode>(protection) : ArchiveEncryptionMode.None;
-        protectionRows.IsVisible = mode != ArchiveEncryptionMode.None;
+        var mode = !encryptedFormat ? ArchiveEncryptionMode.None : ExistingTarget
+            ? string.IsNullOrEmpty(password.Text) ? ArchiveEncryptionMode.None : ArchiveEncryptionMode.Data
+            : Value<ArchiveEncryptionMode>(protection);
+        if (!ExistingTarget && mode == ArchiveEncryptionMode.None) ClearSecrets();
+        protectionRows.IsVisible = encryptedFormat && ExistingTarget || mode != ArchiveEncryptionMode.None;
+        confirmationRow.IsVisible = !ExistingTarget; passwordHelp.IsVisible = ExistingTarget;
         string? error = externalProblem;
         try
         {
@@ -174,7 +183,7 @@ internal sealed class ArchiveCreationDialog : IDisposable
             {
                 if (string.IsNullOrEmpty(password.Text)) throw new ArgumentException("Enter a password or choose No password.");
                 ArchiveJobPassword.ValidateEncoding(selected.Format, password.Text.AsSpan());
-                if (!string.Equals(password.Text, confirmation.Text, StringComparison.Ordinal)) throw new ArgumentException("The passwords do not match.");
+                if (!ExistingTarget && !string.Equals(password.Text, confirmation.Text, StringComparison.Ordinal)) throw new ArgumentException("The passwords do not match.");
             }
             if (profile is not null && availability(new(destination, null, [], Profile: profile)) is { Available: false } refused)
                 throw new ArgumentException(refused.Reason ?? "Writing this format is unavailable here. Choose another format or location.");
@@ -205,6 +214,13 @@ internal sealed class ArchiveCreationDialog : IDisposable
         try { return selected.Profile?.Encryption.Mode is ArchiveEncryptionMode.Data or ArchiveEncryptionMode.DataAndNames ? new(password.Text.AsSpan()) : null; }
         finally { ClearSecrets(); }
     }
+    internal ArchiveJobPassword? CopyPassword()
+    {
+        if (Selection is null) throw new InvalidOperationException("Archive options are invalid.");
+        return Selection.Profile?.Encryption.Mode is ArchiveEncryptionMode.Data or ArchiveEncryptionMode.DataAndNames ? new(password.Text.AsSpan()) : null;
+    }
+    internal void CompleteTransfer() { Selection = null; ClearSecrets(); }
+    internal void MarkExistingTarget() { ExistingTarget = true; externalProblem = null; Validate(); }
     internal void ShowProblem(string message) { externalProblem = message; Validate(); }
     private void ClearSecrets()
     {

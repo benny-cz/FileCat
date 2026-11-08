@@ -1155,6 +1155,19 @@ Useful existing routes include dotnet test for FileCat.Core.Tests, FileCat.App.T
 
 Effort below is relative and assumes the current dependency boundary and runtime matrix remain. Worker confinement and filesystem publication are the critical path. Each packet should be divided into reviewable contract, implementation and evidence changes; avoid merging a large refactor, codec restoration and UI launch together. No packet is complete with a prototype that omits its security, UX or packaging exit criteria.
 
+**Validation batching (8 November, user approved):** implement a complete connected workflow before freezing its
+cross-platform validation packet. Build and run the changed contracts, affected error-code expectations, focused
+UI and actual native-worker journeys first on all three available machines. Release the long regression lanes
+only after every platform's focused gate passes. Preserve failures before applying a checked follow-up; resume
+completed reader/sealing phases without repeating successful tests. A fixture-only follow-up may reuse a completed
+lane only with explicit source and compiled-runtime identity evidence, preserved case inventory and a record that
+the lane was reused rather than rerun. A changed production runtime or incomplete/failed lane requires fresh
+validation. Collect one sealed bundle per cohort and verify its manifest, compiler inputs, reader results and
+process cleanup together. Keep the full acceptance, resource, fuzz and package gates; batching changes their
+execution order and avoids redundant work rather than reducing coverage. Guest ownership checks still apply
+before starting or resuming each testing phase; perform independent implementation or evidence work while a
+machine belongs to another tester.
+
 ### AW0 — Freeze baseline, limits and qualification harness
 
 **Outcome:** A repeatable baseline and test scaffolding exist before refactoring. No new user command is enabled. **Dependencies:** none. **Effort:** medium.

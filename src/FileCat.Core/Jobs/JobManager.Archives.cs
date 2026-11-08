@@ -6,6 +6,11 @@ namespace FileCat.Core.Jobs;
 public sealed partial class JobManager
 {
     internal ArchiveJobAvailability ArchiveAvailability(ArchivePlan plan) => _archiveBackends.Availability(plan);
+    internal bool CanReviewArchive(ArchivePlan plan) => _archiveBackends.CanReview(plan);
+
+    // The caller retains password ownership through review and either disposes it or transfers it to SubmitArchive.
+    internal Task<ArchiveTargetReview> ReviewArchiveUpdateAsync(string path, ArchiveWriteProfile profile, ArchiveJobPassword? password,
+        CancellationToken ct, bool preserveEncryption = false) => _archiveBackends.ReviewUpdateAsync(path, profile, password, ct, preserveEncryption);
 
     /// <summary>Consumes password ownership, including on refusal. Native leases are acquired at execution time.</summary>
     internal Job SubmitArchive(ArchivePlan plan, ArchiveJobPassword? password = null, QueueMode mode = QueueMode.Start,
@@ -23,6 +28,7 @@ public sealed partial class JobManager
                 plan.Changes is null || plan.Changes.Count > ArchiveWritePolicy.MaxMembers)
                 throw new ArgumentException("An explicit archive profile, absolute target and bounded changes are required.", nameof(plan));
             ArchiveJobPassword.Require(plan.Profile, password);
+            if (plan.ReviewedManifestDigest is { } revision) ArchiveWritePolicy.ValidateDigest(revision);
             var changes = new ArchiveChange[plan.Changes.Count];
             ItemRef[]? moveSources = plan.MoveSources ? new ItemRef[changes.Length] : null;
             if (moveSources is { Length: 0 }) throw new ArgumentException("An archive move requires selected local sources.", nameof(plan));

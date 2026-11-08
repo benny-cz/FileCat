@@ -158,7 +158,7 @@ public sealed class Rar5WorkerPipelineTests
         byte[] original = Fixture(0); var profile = Profile(mode); Child? child = null;
         var error = await Assert.ThrowsAsync<ArchiveWriteException>(() => new ArchiveAssessmentClient((nonce, _) => child = Child.Start(nonce, "archive-assess-v2"), protocolVersion: 2)
             .AssessAsync(new(profile, original.Length, Sha(original)), () => new MemoryStream(original, false), Ct, Secret(mode)));
-        Assert.Equal(ArchiveWriteReason.UnsupportedFeature, error.Reason); Assert.True(child!.Reaped);
+        Assert.Equal(ArchiveWriteReason.ProtectionModeNone, error.Reason); Assert.True(child!.Reaped);
     }
 
     [Fact]
