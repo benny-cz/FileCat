@@ -2,13 +2,27 @@ using FileCat.Core.Edit;
 
 namespace FileCat.Core.Archives.Unix;
 
-internal sealed partial class UnixArchiveFile:IEditSaveCopyPublicationStage
+internal sealed partial class UnixArchiveFile:IEditSaveCopyPublicationStage,IEditSaveCopyReceiptStage
 {
     private sealed class SaveCopyReview(UnixArchiveFile issuer,ArchiveFileObservation stage,string leaf,ArchiveUnixOuterMetadata metadata)
         :EditSaveCopyNameReview(issuer,stage,leaf)
     {internal ArchiveUnixOuterMetadata Metadata { get; }=metadata;}
     private SaveCopyReview? saveCopyReview;
     private bool saveCopyClaimAttempted;
+    void IEditSaveCopyReceiptStage.FlushReceipt(ArchiveFileObservation expected,CancellationToken ct)
+    {
+        lock(parent.Gate)
+        {
+            Live();ct.ThrowIfCancellationRequested();
+            if(!artifact||!createdWritable||createdKind!=UnixArchiveArtifactKind.Manifest||!evidenceClaimed||rebuildClaimed||writable||namespaceChanged)
+                throw SaveCopyChanged();
+            ((IArchiveRetainedFile)this).Review(expected,ct);parent.CheckPrivate(held);
+            UnixArchiveNative.SyncFile(held);ct.ThrowIfCancellationRequested();
+            // Persist the newly created receipt's name before a later namespace mutation can occur.
+            UnixArchiveNative.SyncDirectory(parent.Handle);
+            parent.VerifyNamespace();parent.RequireName(KnownName,Identity);((IArchiveRetainedFile)this).Review(expected,ct);
+        }
+    }
     ArchiveFileObservation IEditSaveCopyStage.ApplyEditMetadata(ArchiveFileObservation copied,ArchiveFileObservation source,CancellationToken ct)
     {
         lock(parent.Gate)

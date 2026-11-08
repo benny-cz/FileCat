@@ -3,13 +3,24 @@ using FileCat.Core.Edit;
 
 namespace FileCat.Platform.Windows.Archives;
 
-internal sealed partial class WindowsArchiveFile:IEditSaveCopyPublicationStage
+internal sealed partial class WindowsArchiveFile:IEditSaveCopyPublicationStage,IEditSaveCopyReceiptStage
 {
     private sealed class SaveCopyReview(WindowsArchiveFile issuer,ArchiveFileObservation stage,string leaf,WindowsArchiveOuterMetadata metadata)
         :EditSaveCopyNameReview(issuer,stage,leaf)
     {internal WindowsArchiveOuterMetadata Metadata { get; }=metadata;}
     private SaveCopyReview? saveCopyReview;
     private bool saveCopyClaimAttempted;
+    void IEditSaveCopyReceiptStage.FlushReceipt(ArchiveFileObservation expected,CancellationToken ct)
+    {
+        lock(parent.Gate)
+        {
+            EnsureLive();ct.ThrowIfCancellationRequested();
+            if(!artifact||!createdWritable||createdKind!=WindowsArchiveArtifactKind.Manifest||!evidenceClaimed||rebuildClaimed||writable||namespaceChanged)
+                throw SaveCopyChanged();
+            ((IArchiveRetainedFile)this).Review(expected,ct);parent.CheckPrivate(handle);WindowsArchiveNative.Flush(handle);
+            parent.VerifyNamespace();parent.RequireName(KnownName,Identity);((IArchiveRetainedFile)this).Review(expected,ct);
+        }
+    }
     ArchiveFileObservation IEditSaveCopyStage.ApplyEditMetadata(ArchiveFileObservation copied,ArchiveFileObservation source,CancellationToken ct)
     {
         lock(parent.Gate)

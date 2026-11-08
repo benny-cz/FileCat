@@ -25,9 +25,14 @@ receipt exists. Final receipt/target reviews can add a recovery warning without 
 result. Failures before name claim keep the private stage and any receipt. Disposing result/receipt owners closes
 handles and never deletes published, private, substituted or uncertain files.
 
-The native matrix has 24 cases for bytes/empty/multi-buffer files, exact origin/time, late editor saves,
+The receipt-specific native operation flushes its sealed retained file and checks the parent/name again.
+On Unix it also fsyncs the held directory before publication, ordering the new receipt name before the rename.
+Windows uses its retained-file flush. Actual process-crash and power-loss/filesystem qualification remain separate
+requirements; a returned flush syscall does not establish those gates.
+
+The native matrix has 25 cases for bytes/empty/multi-buffer files, exact origin/time, late editor saves,
 collisions/late appearance, changed sources/stages/directories, substituted records/targets, cancellation before
-and after name claim, receipt failure/corrupt readback, post-rename errors and live-review replay/redirection.
+and after name claim, receipt creation/flush failure/corrupt readback, post-rename errors and live-review replay/redirection.
 User-selected names follow native limits: long multibyte Windows names and ordinary Unix punctuation do not
 inherit the stricter extraction/private-session naming restrictions. Their native publication is included.
 Twenty strict receipt cases run on each platform. Builds and guest results are tracked separately; the next

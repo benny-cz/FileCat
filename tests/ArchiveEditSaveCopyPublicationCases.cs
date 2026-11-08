@@ -19,7 +19,7 @@ internal sealed class EditCopyPublicationDestination(IDisposable owner,IEditSave
 internal static class ArchiveEditSaveCopyPublicationCases
 {
     internal static IEnumerable<object[]> Scenarios()=>new[]{"regular","empty","large","origin","late-save","name-collision",
-        "stage-changed","source-changed","ready-receipt-failure","corrupt-ready-readback","outcome-receipt-failure",
+        "stage-changed","source-changed","ready-receipt-failure","corrupt-ready-readback","ready-flush-failure","outcome-receipt-failure",
         "cancel-before","cancel-ready","late-cancel","post-rename-failure","target-race","stage-directory-replaced",
         "repeat-preparation","wrong-receipt-parent","ready-record-substitution","post-publish-replaced","witness-other-stage","witness-stale","platform-name"}
         .Select(value=>new object[]{value});
@@ -86,7 +86,8 @@ internal static class ArchiveEditSaveCopyPublicationCases
                 if(scenario=="ready-receipt-failure"&&sequence==1||scenario=="outcome-receipt-failure"&&sequence==2)
                     throw new IOException("Controlled receipt creation failure.");
                 var file=destination.Create(reservation);
-                return scenario=="corrupt-ready-readback"&&sequence==1?new CorruptReceipt(file):file;
+                return sequence==1&&scenario is "corrupt-ready-readback" or "ready-flush-failure"
+                    ?new ReceiptEffects(file,scenario=="corrupt-ready-readback",scenario=="ready-flush-failure"):file;
             }
             void Check()
             {
@@ -101,7 +102,7 @@ internal static class ArchiveEditSaveCopyPublicationCases
             if(scenario=="cancel-before")cancel.Cancel();
             var error=Record.Exception(()=>result=EditSaveCopyPublication.Publish(prepared,targetLeaf,destination.Space,Reserve,Create,cancel.Token,Check));
             TestContext.Current.TestOutputHelper?.WriteLine(error?.ToString()??result?.Issue?.ToString()??"Published and durably recorded.");
-            bool beforeFailure=scenario is "ready-receipt-failure" or "corrupt-ready-readback" or "wrong-receipt-parent"||
+            bool beforeFailure=scenario is "ready-receipt-failure" or "corrupt-ready-readback" or "ready-flush-failure" or "wrong-receipt-parent"||
                 !blocked&&(scenario is "source-changed" or "stage-changed" or "stage-directory-replaced" or "ready-record-substitution");
             if(scenario is "cancel-before" or "cancel-ready")
             {Assert.IsAssignableFrom<OperationCanceledException>(error);Assert.Null(result);Assert.False(File.Exists(target));}
@@ -166,13 +167,15 @@ internal static class ArchiveEditSaveCopyPublicationCases
         public ArchiveFileObservation ReviewSavedCopy(EditSaveCopyNameReview review,CancellationToken ct)=>stage.ReviewSavedCopy(review,ct);
         public void Dispose()=>throw new InvalidOperationException("Borrowed publication views do not own native disposal.");
     }
-    private sealed class CorruptReceipt(IArchiveRetainedStage stage):IArchiveRetainedStage
+    private sealed class ReceiptEffects(IArchiveRetainedStage stage,bool corrupt,bool failFlush):IEditSaveCopyReceiptStage
     {
         public string ObjectIdentity=>stage.ObjectIdentity;
         public ArchiveFileObservation Observe(CancellationToken ct)=>stage.Observe(ct);
         public void Review(ArchiveFileObservation expected,CancellationToken ct)=>stage.Review(expected,ct);
         public Stream OpenReadView(ArchiveFileObservation expected,CancellationToken ct)
-        {using var input=stage.OpenReadView(expected,ct);using var data=new MemoryStream();input.CopyTo(data);byte[] bytes=data.ToArray();bytes[0]^=1;return new MemoryStream(bytes,false);}
+        {using var input=stage.OpenReadView(expected,ct);using var data=new MemoryStream();input.CopyTo(data);byte[] bytes=data.ToArray();if(corrupt)bytes[0]^=1;return new MemoryStream(bytes,false);}
+        public void FlushReceipt(ArchiveFileObservation expected,CancellationToken ct)
+        {if(failFlush)throw new IOException("Controlled native receipt flush failure.");((IEditSaveCopyReceiptStage)stage).FlushReceipt(expected,ct);}
         public string ReviewCreation(ArchiveArtifactReservation reservation,CancellationToken ct)=>stage.ReviewCreation(reservation,ct);
         public Stream BeginEvidence(ArchiveArtifactReservation reservation,CancellationToken ct)=>stage.BeginEvidence(reservation,ct);
         public ArchiveFileObservation SealEvidence(CancellationToken ct)=>stage.SealEvidence(ct);

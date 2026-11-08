@@ -5,6 +5,11 @@ using FileCat.Core.Archives;
 
 namespace FileCat.Core.Edit;
 
+internal interface IEditSaveCopyReceiptStage:IArchiveRetainedStage
+{
+    void FlushReceipt(ArchiveFileObservation expected,CancellationToken ct);
+}
+
 /// <summary>Bounded immutable recovery evidence, never authority to publish, overwrite or delete.</summary>
 internal sealed record EditSaveCopyRecord(int Version,Guid Nonce,int Sequence,string Phase,string ParentIdentity,string SourceIdentity,
     string StageLeaf,string TargetLeaf,string OutputIdentity,long Length,string Sha256,string MetadataDigest,string OriginDigest,
@@ -71,6 +76,7 @@ internal sealed class EditSaveCopyReceipt(IArchiveRetainedStage file,ArchiveFile
         try
         {
             ct.ThrowIfCancellationRequested();file=create(reservation);
+            if(file is not IEditSaveCopyReceiptStage durable)throw new IOException("The saved-copy receipt needs native flush/namespace support.");
             if(file.ReviewCreation(reservation,ct)!=file.ObjectIdentity||file.ObjectIdentity==outputIdentity||file.ObjectIdentity==record.SourceIdentity)
                 throw new IOException("The saved-copy receipt needs a distinct fresh native object.");
             file.BeginEvidence(reservation,ct).Write(bytes);ct.ThrowIfCancellationRequested();
@@ -78,6 +84,7 @@ internal sealed class EditSaveCopyReceipt(IArchiveRetainedStage file,ArchiveFile
             if(observed.ParentIdentity!=reservation.ParentIdentity||observed.LeafName!=reservation.LeafName||
                 observed.Version.Identity!=file.ObjectIdentity||observed.Version.Length!=bytes.Length||
                 observed.Version.Sha256!=Convert.ToHexString(SHA256.HashData(bytes)))throw new IOException("The native saved-copy receipt changed.");
+            durable.FlushReceipt(observed,ct);
             using(var input=file.OpenReadView(observed,ct))
             {
                 byte[] actual=new byte[bytes.Length];input.ReadExactly(actual);ct.ThrowIfCancellationRequested();
