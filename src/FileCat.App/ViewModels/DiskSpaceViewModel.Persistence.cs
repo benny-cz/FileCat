@@ -14,6 +14,7 @@ public sealed partial class DiskSpaceViewModel : Services.IAnalysisSavedReferenc
     public bool IsSaving { get; private set; }
     public bool HasPrivateStorage => _services is not null && !_services.Io.IsStopped && !_privateStorageUnavailable && !_actualWork.HasUnconfirmedClose;
     public bool CanSave => !_disposed && HasPrivateStorage && Tree is not null && _lease is not null && !IsSaving;
+    public bool CanExport => !_disposed && _services is not null && !_services.Io.IsStopped && !_actualWork.HasUnconfirmedClose && Tree is not null && _lease is not null && !IsSaving;
     public string? SavedInventoryName { get; private set; }
     public string? SavedDirectory => _services?.Paths.AnalysisSnapshotsDirectory;
     public string RootDisplayId(string rootId) => _rootDisplayIds?.GetValueOrDefault(rootId) ?? rootId;

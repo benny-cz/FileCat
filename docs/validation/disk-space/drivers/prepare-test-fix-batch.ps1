@@ -5,7 +5,8 @@ param(
  [Parameter(Mandatory=$true)][string]$BuildLog,
  [Parameter(Mandatory=$true)][string]$SourceManifest,
  [ValidateSet('windows','mac','linux')][string[]]$ReusePlatforms=@('windows'),
- [ValidateSet('TestOnly','AppUi','OldProductControl')][string]$InputScope='TestOnly'
+ [ValidateSet('TestOnly','AppUi','OldProductControl')][string]$InputScope='TestOnly',
+ [ValidateSet('core','render')][string[]]$AdditionalTestPhases=@()
 )
 $ErrorActionPreference='Stop';$watch=[Diagnostics.Stopwatch]::StartNew()
 $build=[IO.File]::ReadAllText((Join-Path $PWD $BuildLog))
@@ -15,7 +16,9 @@ foreach($item in (Get-Content -Raw -LiteralPath $SourceManifest|ConvertFrom-Json
  if((Get-FileHash -LiteralPath $item.path -Algorithm SHA256).Hash.ToLowerInvariant()-ne$item.sha256){throw 'Source changed after freeze'}
 }
 $assemblies=@{core='FileCat.Core.Tests';native='FileCat.Platform.Windows.Tests';render='FileCat.Rendering.Tests'}
-$allowed=@(($Phase+'/'+$assemblies[$Phase]+'.dll'),($Phase+'/'+$assemblies[$Phase]+'.pdb'))
+$testPhases=@(@($Phase)+$AdditionalTestPhases|Sort-Object -Unique)
+if($AdditionalTestPhases.Count-and$InputScope-ne'TestOnly'){throw 'Additional test assemblies are only permitted for TestOnly inputs'}
+$allowed=@($testPhases|ForEach-Object{($_+'/'+$assemblies[$_]+'.dll');($_+'/'+$assemblies[$_]+'.pdb')})
 $appFiles=@('render/FileCat.dll','render/FileCat.pdb')
 if($InputScope-ne'TestOnly'-and$Phase-ne'render'){throw 'App UI changes and old-product controls require rendering inputs'}
 if($InputScope-eq'AppUi'){$allowed+=$appFiles}
@@ -42,7 +45,7 @@ foreach($platform in 'windows','mac','linux'){
  })
  if($InputScope-eq'AppUi'){
   if(@($appFiles|Where-Object{$_-notin$changed}).Count-or$changed.Count-notin2,4){throw 'Expected the App DLL/PDB and optionally one test DLL/PDB pair'}
- }elseif($changed.Count-ne2){throw 'Expected exactly a test DLL and PDB change'}
+ }elseif($changed.Count-ne$allowed.Count-or@($allowed|Where-Object{$_-notin$changed}).Count){throw 'Expected exactly the declared test DLL/PDB pairs'}
  $archive=Join-Path $PWD ('.tmp/dsa-batch-'+$platform+'-'+$Revision+'.tgz')
  if(Test-Path -LiteralPath $archive){throw 'A fresh archive is required'}
  $extension=if($platform-eq'windows'){'ps1'}else{'sh'}
@@ -99,5 +102,5 @@ foreach($platform in 'windows','mac','linux'){
  $proof+=@{platform=$platform;verifiedInputs=$files.Count;changed=$changed;guestReuse=$platform-in$ReusePlatforms;archiveBytes=(Get-Item -LiteralPath $archive).Length;sha256=$hash}
 }
 $watch.Stop()
-[ordered]@{revision=$Revision;baseline=$BaselineRevision;scope=$InputScope;productSourceBaseline=if($InputScope-eq'OldProductControl'){$BaselineRevision}else{$null};elapsedSeconds=$watch.Elapsed.TotalSeconds;platforms=$proof}|ConvertTo-Json -Depth 5|Set-Content ('.tmp/test-fix-proof-'+$Revision+'.json')
+[ordered]@{revision=$Revision;baseline=$BaselineRevision;scope=$InputScope;testPhases=$testPhases;productSourceBaseline=if($InputScope-eq'OldProductControl'){$BaselineRevision}else{$null};elapsedSeconds=$watch.Elapsed.TotalSeconds;platforms=$proof}|ConvertTo-Json -Depth 5|Set-Content ('.tmp/test-fix-proof-'+$Revision+'.json')
 Write-Output ('Prepared one immutable batch per platform; verified guest reuse: '+($ReusePlatforms-join', ')+'. Seconds: '+[math]::Round($watch.Elapsed.TotalSeconds,2))

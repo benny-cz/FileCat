@@ -1,4 +1,4 @@
-"""Copy a verified immutable test baseline into a fresh batch; patch only the declared test DLL/PDB."""
+"""Copy a verified immutable baseline; patch only explicitly declared test or App DLL/PDB pairs."""
 import hashlib
 import json
 import pathlib
@@ -23,8 +23,10 @@ if scope == 'AppUi':
     if allowed != {'render/FileCat.dll', 'render/FileCat.pdb', 'render/FileCat.Rendering.Tests.dll', 'render/FileCat.Rendering.Tests.pdb'}:
         raise RuntimeError('Only the declared App and rendering-test DLL/PDB pairs may be patched')
 elif scope in ('TestOnly', 'OldProductControl'):
-    if len(allowed) != 2 or not any(p.endswith('.Tests.dll') for p in allowed) or not any(p.endswith('.Tests.pdb') for p in allowed):
-        raise RuntimeError('Only one test DLL and PDB may be patched')
+    core = {'core/FileCat.Core.Tests.dll', 'core/FileCat.Core.Tests.pdb'}
+    render = {'render/FileCat.Rendering.Tests.dll', 'render/FileCat.Rendering.Tests.pdb'}
+    if allowed != core and allowed != render and not (scope == 'TestOnly' and allowed == core | render):
+        raise RuntimeError('Only complete declared Core/render test DLL/PDB pairs may be patched')
 else:
     raise RuntimeError('Unknown cached input scope')
 rows = []

@@ -25,7 +25,7 @@ public sealed partial class DiskSpaceWindow
         {
             new TextBlock { Text = "Export the entire captured inventory, including exact paths, raw names, identities and observed metadata. Display filters, selected rows and the current chart do not limit this export. File contents and operation approvals are excluded.", TextWrapping = TextWrapping.Wrap },
             new TextBlock { Text = "Destination folder: " + AnalysisNames.Display(folder, 4096) + "\n" + observed, TextWrapping = TextWrapping.Wrap },
-            new TextBlock { Text = "This sensitive file can be copied or shared outside FileCat. Imported claims are not authenticated. Existing files are kept; qualified external replacement is unavailable, so choose a new filename.", TextWrapping = TextWrapping.Wrap },
+            new TextBlock { Text = "This sensitive file can be copied or shared outside FileCat. Imported claims are not authenticated. Existing files are kept. Replacing an existing export is unavailable here; choose a new filename.", TextWrapping = TextWrapping.Wrap },
             name, error
         } };
         var closer = new DialogCloser();
@@ -40,7 +40,7 @@ public sealed partial class DiskSpaceWindow
         using var close = cancellation.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => closer.Close(false)));
         return await dialogs.ShowCustomAsync("Keep existing output", new TextBlock
         {
-            Text = "The destination already contains " + AnalysisNames.Display(name, 240) + ". It was kept. Qualified external replacement is unavailable. Choose a new name to export another copy.", TextWrapping = TextWrapping.Wrap
+            Text = "The destination already contains " + AnalysisNames.Display(name, 240) + ". It was kept. Replacing an existing export is unavailable here. Choose a new name to export another copy.", TextWrapping = TextWrapping.Wrap
         }, [new DialogButton("Keep existing", false, IsDefault: true, IsCancel: true), new DialogButton("Choose new name", true)], closer: closer) is true;
     }
     private async Task<string?> ExportExternalInventoryAsync(AppServices services, string observed, CancellationToken lifetime,
@@ -82,7 +82,7 @@ public sealed partial class DiskSpaceWindow
                         AnalysisExportReceipt? published = null;
                         try
                         {
-                            await using var prepared = await AnalysisIndexedAcquisition.PrepareAsync(services, cancel.Token);
+                            await using var prepared = await AnalysisIndexedAcquisition.PrepareExportAsync(services, cancel.Token);
                             published = await export(prepared, folder, name, cancel.Token); return published;
                         }
                         catch (Exception error) when (published is not null && error is not AnalysisExportUncertainException)
@@ -110,7 +110,7 @@ public sealed partial class DiskSpaceWindow
         private readonly Button _exportExternal = new() { Content = "Export entire inventory…" };
         private async Task ExportExternalAsync()
         {
-            if (_disposed || _persistenceBusy || !Model.CanSave || Model.HistoryServices is not { } services) return;
+            if (_disposed || _persistenceBusy || !Model.CanExport || _actualWork.HasUnconfirmedClose || Model.HistoryServices is not { } services) return;
             using var actual = _actualWork.Enter(); _persistenceBusy = true; Model.Interaction(true); Refresh();
             try
             {

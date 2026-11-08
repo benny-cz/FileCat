@@ -602,7 +602,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _save.IsEnabled = Model.CanSave && !_persistenceBusy;
                 _openSaved.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
                 _importExternal.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
-                _exportExternal.IsEnabled = Model.CanSave && !_persistenceBusy;
+                _exportExternal.IsEnabled = Model.CanExport && !_persistenceBusy && !_actualWork.HasUnconfirmedClose;
                 _compare.IsEnabled = Model.CanCompare && !_persistenceBusy;
                 RefreshComparisonPersistence();
                 _stop.Content = Model.IsPreparing ? "Stop binding" : "Stop";

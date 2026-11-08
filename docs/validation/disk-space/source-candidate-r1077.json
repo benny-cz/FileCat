@@ -1,0 +1,38 @@
+[
+  {
+    "path": "src/FileCat.App/Services/AnalysisIndexedAcquisition.Export.cs",
+    "sha256": "cace4e4ad65649d52c855c9fa58b478312478427b867dc2a64f2bc9972c23501"
+  },
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Persistence.cs",
+    "sha256": "5c9a67207dd01a5a7511cada7a01a6977b15852212ecda5b130d34e198a994b0"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+    "sha256": "541128f7411e83f2434292d0af0ddc2bd5ca355377baa43309e470e8f0596a09"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.ExternalExport.cs",
+    "sha256": "7e76f52520a845450dbf63d0511459aeb0153981065b677843b81ee8d321fe23"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisHumanReport.cs",
+    "sha256": "457dfa530c415e5f5fff80af2e0b3afb9df7787332a7f222736eb96aec50e15e"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisReportExport.cs",
+    "sha256": "d4c40d65c781880d93e49a3a4dd3e09f94a52f3ec7f3f57d5568317ed222b99b"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisHumanReportTests.cs",
+    "sha256": "8612ee693a715c47518e9cdee14943a6c9695dec2d7c611db111e16d15d801e6"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ExternalExportFallback.cs",
+    "sha256": "75caa66c10e73b4e7f65af21e45b05b22d8634a8d47bfb1802c17528bf48185f"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.HumanReports.cs",
+    "sha256": "931e23e55faf239c9c5536d8f6e76bbae2e5be084c943c7fa7059446bb56f986"
+  }
+]

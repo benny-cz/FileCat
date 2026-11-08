@@ -6,6 +6,30 @@ namespace FileCat.App.Services;
 
 internal sealed partial class AnalysisIndexedAcquisition
 {
+    internal static async Task<AnalysisIndexedAcquisition> PrepareExportAsync(AppServices services, CancellationToken cancellation)
+    {
+        var owner = await PrepareAsync(services, cancellation).ConfigureAwait(false);
+        try
+        {
+            if (OperatingSystem.IsMacOS() && owner._ancestorGuard[1])
+                await AnalysisIo.Run(services.Io, PathUtil.GetDeviceKey(owner._privatePaths[1]), token =>
+                {
+                    // Explicit export can qualify a fresh owner-private scratch leaf even
+                    // when an unrelated corrupt profile forced acquisition into memory.
+                    owner.CheckPreparation(1, token); var scratch = OpenDirectory(owner._privatePaths[1]); IAnalysisBackend? current = null;
+                    try
+                    {
+                        current = PrepareRoot(owner._privatePaths[1]); RequireSamePrivateRoot(scratch, current);
+                        var previous = owner._protection[1]; owner._protection[1] = current; current = null; owner._ancestorGuard[1] = false;
+                        if (previous is not null) DisposePreparedOnWorker(previous);
+                    }
+                    finally { try { if (current is not null) DisposePreparedOnWorker(current); } finally { DisposePreparedOnWorker(scratch); } }
+                    return true;
+                }, cancellation).ConfigureAwait(false);
+            return owner;
+        }
+        catch { await owner.DisposeAsync().ConfigureAwait(false); throw; }
+    }
     internal Task<AnalysisExportReceipt> ExportInventoryAsync(AnalysisSnapshot source, string folder, string name, CancellationToken cancellation) =>
         ExportInventoryCoreAsync(folder, name, (factory, devices) => AnalysisInventoryFormat.ExportSnapshotNewAsync(source, Guid.NewGuid(), _services.Io, devices, name, factory, cancellation), cancellation);
     internal Task<AnalysisExportReceipt> ExportInventoryAsync(AnalysisDatasetLease source, string folder, string name, CancellationToken cancellation) =>
@@ -24,7 +48,9 @@ internal sealed partial class AnalysisIndexedAcquisition
         }
         using (actual)
         {
-            if (MemoryPreparationNotice is not null || _profile == Guid.Empty) throw new NotSupportedException("Qualified private profile staging is required for export.");
+            // Explicit exports do not update or claim ownership of a named profile.
+            // Their native output owns its own private staging; APFS independently
+            // qualifies same-volume private scratch below before accepting bytes.
             var protectedIds = new HashSet<string>(StringComparer.Ordinal);
             var protectedPaths = _services.Paths.WriteFolders.Select(item => item.Folder).Append(AppContext.BaseDirectory)
                 .Concat(_services.Paths.DataRoot is { } data ? new[] { data } : []).Select(Path.GetFullPath).Distinct(PathUtil.SafetyComparer).ToArray();
