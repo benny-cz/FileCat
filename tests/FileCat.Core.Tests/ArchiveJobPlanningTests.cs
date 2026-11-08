@@ -5,6 +5,28 @@ namespace FileCat.Core.Tests;
 
 public sealed partial class ArchiveCapturedInputsTests
 {
+    [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public void Job_planning_keeps_case_distinct_source_leaves_and_parents_separate(bool parents)
+    {
+        using var temp = new TempDir();
+        string first = Path.Combine(temp.Path, parents ? "Root" : "source", parents ? "payload" : "Case");
+        string second = Path.Combine(temp.Path, parents ? "root" : "source", parents ? "payload" : "case");
+        var request = new ArchivePlan(Path.Combine(temp.Path, "output.tar"), null,
+            [new(ArchiveChangeKind.AddFile, "first", first), new(ArchiveChangeKind.AddFile, "second", second)], Profile: new(ArchiveWriteFormat.Tar));
+        var planning = new ArchiveJobPlanning(request, Ct); var opened = new List<string>();
+        Assert.Equal(new[] { first, second }, planning.Sources.Select(source => source.Path));
+        using var selection = ArchiveSelectionForest.Capture(planning.Sources, parent =>
+        {
+            opened.Add(parent); return new Tree { Root = leaf => new(leaf, ArchiveSelectionKind.File, parent + "/" + leaf) };
+        }, Ct, planning.RetainedNameChars, planning.RetainedHeapBytes);
+        var result = planning.Review(null, selection, selection.Inputs, Ct).CreatePlan(false, false, Ct);
+        Assert.Equal(2, result.Inputs.Count);
+        Assert.Equal(2, selection.Inputs.Bindings.Values.Select(binding => binding.Reviewed.Version.Identity).Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(parents ? 2 : 1, opened.Count);
+        Assert.Equal(new[] { "first", "second" }, result.Expected.Members.Select(member => member.Name).Order(StringComparer.Ordinal));
+    }
+
     [Theory, MemberData(nameof(WorkflowProfiles))]
     public void Job_planning_routes_same_spelled_roots_and_renamed_folder_additions(ArchiveWriteFormat format, ArchiveEncryptionMode mode)
     {

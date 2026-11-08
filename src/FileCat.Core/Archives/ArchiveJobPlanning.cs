@@ -14,7 +14,9 @@ internal sealed class ArchiveJobPlanning
         ArgumentNullException.ThrowIfNull(plan);
         if (plan.Profile is null || plan.Changes.Count > ArchiveWritePolicy.MaxMembers) throw Invalid();
         this.plan = plan;
-        selectors = new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        // Windows also supports case-sensitive directories. Only identical path spellings may be
+        // coalesced before native capture proves which objects they identify.
+        selectors = new(StringComparer.Ordinal);
         var sources = new List<ArchiveSelectionSource>();
         var budget = new ArchiveWriteBudget(); budget.AddMetadata(0, 4096);
         budget.AddNameChars(plan.ArchivePath.Length);

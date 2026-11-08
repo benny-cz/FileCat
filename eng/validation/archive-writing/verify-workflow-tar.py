@@ -3,7 +3,7 @@ from pathlib import Path
 import bz2,decimal,gzip,hashlib,io,json,runpy,struct,subprocess,sys,tarfile
 
 def run(root,tool,modules,packet_helper,scope=None):
- assert scope in (None,'--jobs')
+ assert scope in (None,'--jobs','--source-case')
  root,tool,modules=map(Path,(root,tool,modules));sys.path.insert(0,str(modules))
  packet=runpy.run_path(packet_helper)['Packet'];rows=[];payloads=0;metadata=0
  for document in sorted(root.glob('format-Tar*-mode-*/*.json')):
@@ -50,12 +50,16 @@ def run(root,tool,modules,packet_helper,scope=None):
     assert extracted.returncode==0 and extracted.stdout==content,(archive,wanted['name']);payloads+=1
   rows.append({'archive':archive.relative_to(root).as_posix(),'sha256':hashlib.sha256(data).hexdigest()})
  if scope is None:assert len(rows)==8 and metadata==60 and payloads==52
- else:
+ elif scope=='--jobs':
   documents=list(root.glob('format-Tar*-mode-*/*.json'))
   variants={p.stem for p in documents};assert variants in ({'created'},{'created','updated'})
   formats={'Tar','TarGzip','TarBzip2','TarZstd'}
   assert {(p.parent.name,p.stem) for p in documents}=={('format-'+format+'-mode-0',name) for format in formats for name in variants}
   assert len(rows)==len(variants)*4 and metadata==(32 if len(variants)==1 else 76) and payloads==(20 if len(variants)==1 else 44)
+ else:
+  documents=list(root.glob('format-Tar*-mode-*/*.json'));formats={'Tar','TarGzip','TarBzip2','TarZstd'}
+  assert {(p.parent.name,p.stem) for p in documents}=={('format-'+format+'-mode-0',name) for format in formats for name in ('source-leaves','source-parents')}
+  assert len(rows)==8 and metadata==payloads==16
  result={'archives':len(rows),'metadata':metadata,'payloads':payloads,'tool_sha256':hashlib.sha256(tool.read_bytes()).hexdigest(),'rows':rows}
  (root/'independent-workflow-tar.json').write_text(json.dumps(result,indent=2));print(json.dumps({k:v for k,v in result.items() if k!='rows'}),flush=True)
 

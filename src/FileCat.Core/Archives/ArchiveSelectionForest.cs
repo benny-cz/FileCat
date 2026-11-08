@@ -32,7 +32,8 @@ internal sealed class ArchiveSelectionForest : IArchiveSelectionTree, IArchiveSe
             forest.RetainedHeapBytes = checked(retainedHeapBytes + 4096L + requests.Count * 192L);
             forest.CheckBudget();
             var roots = new ArchiveSelectionRoot[requests.Count];
-            var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            // A Windows directory may be case-sensitive; string equality cannot infer native aliases.
+            var comparer = StringComparer.Ordinal;
             var parentNames = new Dictionary<string, string>(comparer);
             var rootParents = new string[requests.Count];
             var frozen = new ArchiveSelectionSource[requests.Count];

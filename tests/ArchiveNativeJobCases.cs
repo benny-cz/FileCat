@@ -80,9 +80,10 @@ internal static class ArchiveNativeJobCases
             Assert.Equal(bytes.Length, files[name].Length); Assert.Equal(Convert.ToHexString(SHA256.HashData(bytes)), files[name].Sha256);
         }
     }
-    internal static void Export(ArchiveWriteProfile profile, string name, byte[] bytes, ArchiveWriteManifest expected)
+    internal static void Export(ArchiveWriteProfile profile, string name, byte[] bytes, ArchiveWriteManifest expected,
+        string exportVariable = "FILECAT_ARCHIVE_JOB_EXPORT_ROOT")
     {
-        if (Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_JOB_EXPORT_ROOT") is not { } export) return;
+        if (Environment.GetEnvironmentVariable(exportVariable) is not { } export) return;
         string directory = Path.Combine(export, $"format-{profile.Format}-mode-{(int)profile.Encryption.Mode}"); Directory.CreateDirectory(directory);
         string extension = profile.Format switch { ArchiveWriteFormat.Tar => ".tar", ArchiveWriteFormat.TarGzip => ".tar.gz", ArchiveWriteFormat.TarBzip2 => ".tar.bz2",
             ArchiveWriteFormat.TarZstd => ".tar.zst", ArchiveWriteFormat.Rar5 => ".rar", _ => ".7z" };

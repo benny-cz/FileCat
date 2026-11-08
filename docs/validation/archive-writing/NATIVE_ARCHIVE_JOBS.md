@@ -94,8 +94,7 @@ The next native/UI batch must also remove the TAR-only format filter in `Archive
 the RAR/7z recovery journeys are connected and exercised. Their native update cleanup catalogs already exist;
 leaving the UI filter in place would hide a required recovery action for those formats.
 
-Native source-path qualification must include case-distinct files and parents on case-sensitive NTFS. The
-current Windows string deduplication uses case-insensitive path keys; this checkpoint does not establish that
-such directories select distinct source objects correctly. Preserve exact source spellings or refuse the
-unsupported native case mode before allowing its production writes. Archive member Case/case and NFC/NFD
-spellings are separately covered by this checkpoint.
+The later [native source-case follow-up](NATIVE_ARCHIVE_SOURCE_CASE.md) fixes the Windows path maps that merged
+distinct source spellings on case-sensitive NTFS. Its twenty actual application-worker cases cover distinct
+files and parents for every shared container/password profile, alongside exact independent readers. Sibling
+target/source admission and legacy/native F6 source accounting remain separate qualification work.

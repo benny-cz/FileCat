@@ -93,6 +93,12 @@ role-bound workers and publication. The next chunk must complete safe cleanup an
 creation/member/edit/password UI and Unix update/confinement. The legacy-shaped queued plan is not native
 publication authority; complete catalog keys, captured-source exclusions and native leases bind the executing operation.
 
+The [native source-case follow-up](../validation/archive-writing/NATIVE_ARCHIVE_SOURCE_CASE.md) fixes Windows
+source-path coalescing before native capture. A real case-sensitive NTFS reproduction and twenty actual worker
+cases cover distinct source files/parents across all six container/password profiles. Its affected archive closure
+retains the preceding full-suite inventory plus the two new cases. Continue native cleanup/F6 and the shared UI;
+this component does not complete their qualification or enable a profile.
+
 **Approved validation acceleration (8 November):** coalesce focused/native checks, inherited regressions,
 independent readers, source/assembly evidence and final instance cleanup into one large batch per available
 machine. Run independent idle machines concurrently and prepare independent implementation/review work while

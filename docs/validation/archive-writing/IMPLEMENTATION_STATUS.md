@@ -1,5 +1,14 @@
 # Archive writing implementation status
 
+**8 November: case-distinct native source selection fixed.**
+[Source-case follow-up](NATIVE_ARCHIVE_SOURCE_CASE.md) preserves distinct file and parent-directory spellings
+before native capture. The real NTFS reproduction showed two distinct files collapsed into one source by the
+previous Windows string maps. Two new core cases and twenty actual application-worker cases cover the fix across
+all six container formats and every RAR/7z password mode. The [checkpoint](native-source-case-checkpoint.json)
+records the complete 3,866-case affected archive closure on each platform, 116 focused cases, 197 Windows native
+cases, independent readers/source bindings and process cleanup. Unchanged non-archive code retains the preceding
+full-core baseline. Native F6/cleanup, shared UI and the remaining qualification/final-review gates remain open.
+
 **8 November: native manager execution and review decisions implemented, unregistered.**
 [Native jobs](NATIVE_ARCHIVE_JOBS.md) connect exact catalog/member/folder scopes, multi-parent source capture,
 bounded safe previews, replacement/exclusion/7z precision decisions, role-bound workers and native publication.
