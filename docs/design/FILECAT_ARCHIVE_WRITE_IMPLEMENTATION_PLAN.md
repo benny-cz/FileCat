@@ -118,6 +118,15 @@ adds explicit format/compression/7z options and exact password confirmation/admi
 complete Core, actual Windows worker, crash and independent-reader matrix passes without enabling a profile.
 Continue with shared member/update/edit/password journeys and Unix platform qualification before registration.
 
+The [existing-target review and Pack update component](../validation/archive-writing/ARCHIVE_TARGET_UPDATE_UI.md)
+adds retained native read-only assessment, complete reviewed-manifest binding, observed RAR5/7z protection modes
+and cancellation ownership through worker exit. Its portable UI, native target-review, complete Core and Windows
+actual create/update matrix passes. Windows' isolated negative-fixture correction retains only the byte-identical
+Core lane and reruns native/UI/crash/readback checks. The [checkpoint](../validation/archive-writing/target-update-ui-checkpoint.json)
+records the frozen source candidate, explicit reuse, original failures and final instance cleanup. Next, complete
+the connected open-archive F5/F6, rename, delete and folder journeys, then browsing/edit password sessions and Unix
+native mutation/confinement. No new profile is registered; remaining production and final-review gates stay open.
+
 **Approved validation acceleration (8 November):** coalesce focused/native checks, inherited regressions,
 independent readers, source/assembly evidence and final instance cleanup into one large batch per available
 machine. Run independent idle machines concurrently and prepare independent implementation/review work while

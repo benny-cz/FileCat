@@ -40,7 +40,8 @@ gate. Builds and completed phases are retained; source changes require a new che
 long runs while retaining complete Core, affected application, native, independent-reader and source/binary checks.
 Only VMs and Mac execute application tests and archive readers. The host reads sealed evidence and compiler inputs.
 
-The frozen source candidate is `3fcf51b09e2c3be90a3e9c11de0a2af09960d34f`. The corrected v6 cohort passes 28 Core
+The production candidate was frozen as `3fcf51b09e2c3be90a3e9c11de0a2af09960d34f`; the Windows-only negative-test
+follow-up is `352b81453003fa4f25476603b863caa71adf5826`. The corrected v6 cohort passes 28 Core
 preflight cases, 16 update UI cases, 20 creation UI cases, eight mutation preparation cases and 21 password cases
 on every platform. Windows also passes ten actual confined-worker UI cases, each creating and then updating an
 archive. The portable update cases use synthetic dispatch fixtures and do not claim publication. Unix's ten actual
@@ -58,7 +59,23 @@ The affected application selection passes all 114 cases on Windows and 113 with 
 platform. Source verification checks exact compiler snapshots and DLL/PDB bindings, then compares their normalized
 C# text with the frozen Git commit. Exact compiler bytes retain their own sealed hashes; line ending normalization
 is used only for Git comparison. This lets implementation advance without rebinding old evidence to a moving
-worktree. No complete Core regression lane is reused in the final v6 cohort.
+worktree. All complete Core suites execute freshly in v6.
+
+Windows' native run then reached an incorrect waiter in the new negative fixture: it required a successful job
+before asserting that the forged manifest review failed. The guard had refused as intended. The corrected test
+waits for a terminal state, asserts failure and absence of a committed step, and then tests the valid update and
+recovery snapshots. All ten corrected native preflight cases pass. The v7 follow-up verifies unchanged production,
+Core and application runtimes, explicitly retains the complete passed v6 Core lane, and reruns focused, application,
+native and crash lanes. Mac and Ubuntu retain v6 evidence: the changed Windows test is not compiled there, and all
+21 applicable changed C# sources still bind to the follow-up commit. The failed Windows native run remains sealed.
+
+Windows also passes the full 217 native regressions, 18 creation-cleanup process-crash cases and 14
+application-entry/cleanup cases. Independent tools read every inherited export and all ten new UI-created and ten
+UI-updated archives, checking retained and added payloads and metadata. The [checkpoint](target-update-ui-checkpoint.json)
+records exact bundle hashes, test outcomes, failed phases, compiler bindings, explicit Core reuse and final process
+census. Mac/Ubuntu bind 21 changed C# sources and 15 DLL/PDB pairs each; Windows binds all 22 and 17 pairs. All
+owned test instances have exited. Mac's until-reboot wake helper is retained. Windows sealing resumed after the
+other tester's native run finished, preserving all passed tests and reader results without repetition.
 
 Shared member commands, browsing/edit password sessions, Unix native mutation/confinement, production resource,
 fuzz, RID and package qualification, and the final independent review remain open.

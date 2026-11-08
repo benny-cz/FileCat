@@ -1,5 +1,17 @@
 # Archive writing implementation status
 
+**8 November: retained target review and existing-archive Pack updates implemented, unregistered.**
+[Target review](ARCHIVE_TARGET_UPDATE_UI.md) binds queued updates to a complete manifest and native source
+observation, preserves existing RAR5/7z password modes and retains preparation ownership through cancellation.
+All three platforms pass 28 Core preflight, 16 update UI, 20 creation UI, eight mutation preparation and 21 password
+cases, the affected application selection and complete Core inventories. Windows additionally passes ten real
+creation/update UI cases, ten native review/update preflights, 217 native regressions, 18 crash cases, 14
+application-entry/cleanup cases and independent readback of the new archives. The [checkpoint](target-update-ui-checkpoint.json)
+binds exact compiler bytes to the frozen Git candidate and records original failures, explicit Windows Core
+reuse after a test-only correction, and zero remaining owned instances. Mac's wake helper remains active.
+The next connected chunk covers open-archive F5/F6 and member commands. Browsing/edit password sessions, Unix
+native mutation/confinement, full production qualification and the final independent review remain unfinished.
+
 **8 November: shared creation options and encoded password admission implemented, unregistered.**
 [Creation UI](ARCHIVE_CREATION_UI.md) connects explicit format/compression/7z options and masked password
 confirmation to captured job inputs. All platforms pass 20 creation UI cases, 21 password cases, the affected

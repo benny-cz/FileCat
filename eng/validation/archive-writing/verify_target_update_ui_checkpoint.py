@@ -8,7 +8,8 @@ BASE = runpy.run_path(str(Path(__file__).with_name('verify_native_cleanup_checkp
 NS = BASE['NS']
 
 
-def verify(platform, version='v6', candidate='HEAD'):
+def verify(platform, version=None, candidate='HEAD'):
+    version = version or ('v7' if platform == 'windows' else 'v6')
     candidate = subprocess.check_output(['git', 'rev-parse', '--verify', candidate + '^{commit}'], cwd=ROOT).decode().strip()
     folder = 'awt-' + version
     facts, index, data = BASE['transport'](ROOT / '.tmp' / (platform + '-target-update-ui-' + version + '-evidence'), folder, capture_sources=True)
@@ -107,8 +108,11 @@ def verify(platform, version='v6', candidate='HEAD'):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--candidate', default='HEAD')
-    parser.add_argument('platforms', nargs='*', choices=('mac', 'ubuntu', 'windows'))
+    parser.add_argument('--candidate')
+    parser.add_argument('platforms', nargs='*')
     args = parser.parse_args()
+    checkpoint = ROOT / 'docs/validation/archive-writing/target-update-ui-checkpoint.json'
+    candidate = args.candidate or (json.loads(checkpoint.read_text())['candidate_source_commit'] if checkpoint.exists() else 'HEAD')
     for platform in args.platforms or ('mac', 'ubuntu', 'windows'):
-        print(json.dumps(verify(platform, candidate=args.candidate)), flush=True)
+        if platform not in ('mac', 'ubuntu', 'windows'): parser.error('Unknown platform: ' + platform)
+        print(json.dumps(verify(platform, candidate=candidate)), flush=True)
