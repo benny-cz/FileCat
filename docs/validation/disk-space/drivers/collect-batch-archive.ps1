@@ -58,6 +58,10 @@ with tarfile.open(source) as archive:
  archive.extractall(target,filter='data')
 '@
 $stage=Join-Path $PWD ('.tmp/'+$tag+'-batch-'+$Revision+'-results')
+# A collected BUSY refusal can precede a hash-verified resume of the same
+# uploaded runner. Preserve its extraction and use a fresh content-addressed
+# directory for the later receipt; no old directory is deleted or overwritten.
+if(Test-Path -LiteralPath $stage){$stage+='-'+(Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()}
 $extract|python - $archive $stage;Check 'Result archive validation/extraction failed'
 Get-ChildItem -LiteralPath $stage -File|ForEach-Object{Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $PWD ('.tmp/'+$tag+'-batch-'+$Revision+'-'+$_.Name))}
 & pwsh.exe -NoProfile -File (Join-Path $PSScriptRoot 'preflight-indexed-r732.ps1') -Platform $Platform -Revision ($Revision+'post')

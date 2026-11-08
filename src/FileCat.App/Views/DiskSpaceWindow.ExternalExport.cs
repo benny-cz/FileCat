@@ -11,27 +11,34 @@ namespace FileCat.App.Views;
 public sealed partial class DiskSpaceWindow
 {
     internal static async Task<string?> ReviewExternalExportAsync(IDialogService dialogs, string folder, string observed, string initialName, CancellationToken cancellation)
+        => await ReviewExternalOutputAsync(dialogs, folder, observed, initialName, null, cancellation);
+    internal static async Task<string?> ReviewExternalOutputAsync(IDialogService dialogs, string folder, string observed, string initialName, ReportOptions? report, CancellationToken cancellation)
     {
         var name = new TextBox { Text = initialName, MaxLength = 120 };
-        AutomationProperties.SetName(name, "External inventory filename");
+        AutomationProperties.SetName(name, report is null ? "External inventory filename" : "Report filename");
         var error = new TextBlock { TextWrapping = TextWrapping.Wrap };
         string? NameError()
         {
-            try { AnalysisPrivateInventoryStore.ValidateName(name.Text ?? ""); return null; }
-            catch (ArgumentException) { return "Use a portable filename ending in .fcdsa, up to 120 characters."; }
+            try
+            {
+                if (report is null) AnalysisPrivateInventoryStore.ValidateName(name.Text ?? "");
+                else { AnalysisExportDestination.ValidateName(name.Text ?? ""); if (!(name.Text ?? "").EndsWith(report.Extension, StringComparison.Ordinal)) return "Use the selected report extension: " + report.Extension; }
+                return null;
+            }
+            catch (ArgumentException) { return "Use a portable filename ending in " + (report?.Extension ?? ".fcdsa") + ", up to 120 characters."; }
         }
         name.TextChanged += (_, _) => error.Text = NameError();
         var body = new StackPanel { Spacing = 8, Children =
         {
-            new TextBlock { Text = "Export the entire captured inventory, including exact paths, raw names, identities and observed metadata. Display filters, selected rows and the current chart do not limit this export. File contents and operation approvals are excluded.", TextWrapping = TextWrapping.Wrap },
+            new TextBlock { Text = report?.Description ?? "Export the entire captured inventory, including exact paths, raw names, identities and observed metadata. Display filters, selected rows and the current chart do not limit this export. File contents and operation approvals are excluded.", TextWrapping = TextWrapping.Wrap },
             new TextBlock { Text = "Destination folder: " + AnalysisNames.Display(folder, 4096) + "\n" + observed, TextWrapping = TextWrapping.Wrap },
             new TextBlock { Text = "This sensitive file can be copied or shared outside FileCat. Imported claims are not authenticated. Existing files are kept. Replacing an existing export is unavailable here; choose a new filename.", TextWrapping = TextWrapping.Wrap },
             name, error
         } };
         var closer = new DialogCloser();
         using var close = cancellation.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => closer.Close(false)));
-        var choice = await dialogs.ShowCustomAsync("Export entire inventory", body,
-            [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton("Export new inventory", true) { IsAvailable = () => NameError() is null }], name, closer: closer);
+        var choice = await dialogs.ShowCustomAsync(report is null ? "Export entire inventory" : "Export captured report", body,
+            [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new DialogButton(report is null ? "Export new inventory" : "Export new report", true) { IsAvailable = () => NameError() is null }], name, closer: closer);
         return choice is true ? name.Text : null;
     }
     internal static async Task<bool> ReviewExistingExternalExportAsync(IDialogService dialogs, string name, CancellationToken cancellation)
@@ -44,21 +51,21 @@ public sealed partial class DiskSpaceWindow
         }, [new DialogButton("Keep existing", false, IsDefault: true, IsCancel: true), new DialogButton("Choose new name", true)], closer: closer) is true;
     }
     private async Task<string?> ExportExternalInventoryAsync(AppServices services, string observed, CancellationToken lifetime,
-        Func<AnalysisIndexedAcquisition, string, string, CancellationToken, Task<AnalysisExportReceipt>> export, Action<Exception> rememberFailure)
+        Func<AnalysisIndexedAcquisition, string, string, CancellationToken, Task<AnalysisExportReceipt>> export, Action<Exception> rememberFailure, ReportOptions? report = null)
     {
         using var cancel = CancellationTokenSource.CreateLinkedTokenSource(lifetime, _indexedLifetime.Token);
         try
         {
             if (AnalysisAdmission.Refusal() is { } reason) throw new InvalidOperationException(reason);
-            var items = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Choose inventory export folder", AllowMultiple = false });
+            var items = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = report is null ? "Choose inventory export folder" : "Choose report export folder", AllowMultiple = false });
             using var picked = new PickedStorageItems(items);
             cancel.Token.ThrowIfCancellationRequested(); if (items.Count == 0) return null;
             string folder = items[0].TryGetLocalPath() ?? throw new NotSupportedException("Choose a directly accessible local output folder.");
             AnalysisExportDestination.ValidateFolder(folder);
-            string name = "Analysis " + DateTime.Now.ToString("yyyy-MM-dd HHmmss", System.Globalization.CultureInfo.InvariantCulture) + ".fcdsa";
+            string name = "Analysis " + DateTime.Now.ToString("yyyy-MM-dd HHmmss", System.Globalization.CultureInfo.InvariantCulture) + (report?.Extension ?? ".fcdsa");
             while (true)
             {
-                string? reviewed = await ReviewExternalExportAsync(_dialogs, folder, observed, name, cancel.Token);
+                string? reviewed = await ReviewExternalOutputAsync(_dialogs, folder, observed, name, report, cancel.Token);
                 if (reviewed is null) return null; name = reviewed; cancel.Token.ThrowIfCancellationRequested();
                 try
                 {
@@ -68,13 +75,13 @@ public sealed partial class DiskSpaceWindow
                     {
                         if (!task.IsCompleted)
                         {
-                            var dismissed = _dialogs.ShowCustomAsync("Exporting captured inventory", new TextBlock
-                            { Text = "Writing a complete new inventory. Cancel requests a stop and waits for outstanding work to release its private staging.", TextWrapping = TextWrapping.Wrap },
+                            var dismissed = _dialogs.ShowCustomAsync(report is null ? "Exporting captured inventory" : "Exporting captured report", new TextBlock
+                            { Text = "Writing the reviewed captured scope. Cancel requests a stop and waits for outstanding work to release its private staging.", TextWrapping = TextWrapping.Wrap },
                                 [new DialogButton("Cancel", false, IsDefault: true, IsCancel: true)], closer: closer);
                             if (await Task.WhenAny(task, dismissed) == dismissed) cancel.Cancel();
                         }
                         var receipt = await task;
-                        return "Exported entire captured inventory as " + AnalysisNames.Display(receipt.Name, 240) + " · " + receipt.Bytes.ToString("N0") + " bytes. The tab's named-save and history state did not change.";
+                        return (report is null ? "Exported entire captured inventory as " : "Exported captured report as ") + AnalysisNames.Display(receipt.Name, 240) + " · " + receipt.Bytes.ToString("N0") + " bytes. The tab's named-save and history state did not change.";
                     }
                     finally { closer.Close(null); }
                     async Task<AnalysisExportReceipt> WriteAsync()
@@ -99,7 +106,7 @@ public sealed partial class DiskSpaceWindow
         catch (AggregateException error)
         { rememberFailure(new AnalysisCloseUnconfirmedException(error)); return "Output or picker cleanup is unconfirmed. Inspect the destination before starting another export."; }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or NotSupportedException or FormatException or OverflowException)
-        { rememberFailure(error); return "Inventory was not exported: " + AnalysisNames.Display(error.Message, 600); }
+        { rememberFailure(error); return "Output was not exported: " + AnalysisNames.Display(error.Message, 600); }
     }
     private static string ExportObservation(SessionIdentity identity, NamespaceCoverage coverage, AnalysisTaint taint) =>
         "Observed " + identity.StartedUtc.ToString("u") + " – " + identity.ObservedUtc.ToString("u") + ". " +

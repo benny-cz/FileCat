@@ -11,11 +11,19 @@ public enum AnalysisReportScope { FilteredView, SelectedRows, EntireResult }
 /// <summary>Captured accounting, never recomputed from the display rows and never a source capability.</summary>
 public sealed record AnalysisReportHeader(AnalysisMetric Metric, AnalysisReportScope Scope, DateTimeOffset StartedUtc, DateTimeOffset ObservedUtc,
     NamespaceCoverage Coverage, AnalysisFreshness Freshness, AnalysisTaint Taint, AnalysisTotals Totals, AnalysisLogicalTotals Logical,
-    string ScopeLabel, ulong Rows, bool DetailLimited = false);
+    string ScopeLabel, ulong Rows, bool DetailLimited = false)
+{
+    public bool SummaryDescribesSourceScope { get; init; }
+    public bool NamespaceRowsOnly { get; init; }
+    public bool HasUnmeasuredEvidence { get; init; }
+    public bool HasUnmeasuredLogicalEvidence { get; init; }
+}
 public sealed record AnalysisReportRow(AnalysisPathMetadata Path, string? DisplayLocation, AnalysisTotals Totals, AnalysisLogicalTotals Logical,
     bool NamespaceIncomplete, bool HasChargesElsewhere, bool IsFilterContext = false)
 {
     public bool IsAccountingGroup { get; init; }
+    public bool HasUnmeasuredEvidence { get; init; }
+    public bool HasUnmeasuredLogicalEvidence { get; init; }
 }
 
 /// <summary>Inert streamed human output. Redaction omits all source names, locators and identifiers, including hidden metadata.</summary>
@@ -38,7 +46,9 @@ public static partial class AnalysisHumanReport
         string coverage = header.Coverage == NamespaceCoverage.CompleteUnderPolicy ? "Traversal complete under captured policy" : "PARTIAL OBSERVATIONS — not a complete inventory";
         string privacy = (redactPaths ? "Names, locators and source identifiers omitted." : "Sensitive displayed locations included; raw identities and names are available only in a full .fcdsa inventory.") +
             (header.Taint.HasFlag(AnalysisTaint.PrivilegedDerived) ? " Includes privileged-derived observations." : "");
-        const string accounting = "Folder rollups overlap: do not sum parent and child rows. Shared allocations and charges elsewhere are not exclusive reclaimable space. Unknown measurements are not zero.";
+        string accounting = "Folder rollups overlap: do not sum parent and child rows. Shared allocations and charges elsewhere are not exclusive reclaimable space. Unknown measurements are not zero." +
+            (header.SummaryDescribesSourceScope ? " The summary describes the captured source scope; selected rows are not added together." : "") +
+            (header.NamespaceRowsOnly ? " The table contains real namespace rows. Synthetic accounting buckets are omitted; their charges remain in the source summary." : "");
         const string fidelity = "Display text is escaped and may be abbreviated. Reports contain observations, not authenticated provenance or permission to access recorded sources.";
         if (format == AnalysisReportFormat.Csv)
         {
@@ -76,10 +86,10 @@ public static partial class AnalysisHumanReport
             bool boundary = !row.IsAccountingGroup && row.Path.Kind is AnalysisKind.Link or AnalysisKind.Special;
             string known = boundary ? header.Metric == AnalysisMetric.Files ? "Not counted" : "Not measured" : row.Totals.CompatibleBasis ? Number(row.Totals.Known) : "Incomparable bases";
             string unverified = boundary ? "Not measured" : row.Totals.CompatibleBasis ? Number(row.Totals.IdentityUnverified) : "Incomparable bases";
-            string missing = States(row.Totals.Missing);
-            string caveat = string.Join("; ", new[] { row.NamespaceIncomplete ? "Namespace incomplete" : "", row.HasChargesElsewhere ? "Charges elsewhere" : "", row.IsFilterContext ? "Filter context" : "", States(row.Logical.Missing) }.Where(text => text.Length != 0));
+            string missing = Evidence(row.Totals.Missing, row.HasUnmeasuredEvidence);
+            string caveat = string.Join("; ", new[] { row.NamespaceIncomplete ? "Namespace incomplete" : "", row.HasChargesElsewhere ? "Charges elsewhere" : "", row.IsFilterContext ? "Filter context" : "", Evidence(row.Logical.Missing, row.HasUnmeasuredLogicalEvidence) }.Where(text => text.Length != 0));
             if (format == AnalysisReportFormat.Csv)
-                await Line(CsvRow("item", name, location, row.IsAccountingGroup ? "Accounting group" : row.Path.Kind.ToString(), row.Totals, row.Logical, row.NamespaceIncomplete, row.HasChargesElsewhere, row.IsFilterContext, "", boundary));
+                await Line(CsvRow("item", name, location, row.IsAccountingGroup ? "Accounting group" : row.Path.Kind.ToString(), row.Totals, row.Logical, row.NamespaceIncomplete, row.HasChargesElsewhere, row.IsFilterContext, "", boundary, row.HasUnmeasuredEvidence, row.HasUnmeasuredLogicalEvidence));
             else
             {
                 string[] cells = [name, location, known, unverified, missing, boundary ? "Not measured" : Number(row.Logical.KnownBytes), boundary ? "Not counted" : row.Logical.Files.ToString(CultureInfo.InvariantCulture), caveat];
@@ -91,10 +101,10 @@ public static partial class AnalysisHumanReport
         if (format == AnalysisReportFormat.Html) await Line("</tbody></table></body></html>");
         await writer.FlushAsync(cancellation).ConfigureAwait(false);
         Task Line(string value) => writer.WriteLineAsync(value.AsMemory(), cancellation);
-        string CsvRow(string kind, string item, string location, string entryKind, AnalysisTotals totals, AnalysisLogicalTotals logical, bool incomplete, bool elsewhere, bool context, string notes, bool boundary = false) =>
+        string CsvRow(string kind, string item, string location, string entryKind, AnalysisTotals totals, AnalysisLogicalTotals logical, bool incomplete, bool elsewhere, bool context, string notes, bool boundary = false, bool activeUnknown = false, bool logicalUnknown = false) =>
             Csv([kind, "1", scope, metric, item, location, entryKind, boundary ? "" : totals.CompatibleBasis ? Number(totals.Known) : "Incomparable bases",
-                boundary ? "" : totals.CompatibleBasis ? Number(totals.IdentityUnverified) : "Incomparable bases", boundary ? "Not measured" : States(totals.Missing), totals.CompatibleBasis ? "true" : "false",
-                boundary ? "" : Number(logical.KnownBytes), boundary ? "Not measured" : States(logical.Missing), boundary ? "" : logical.Files.ToString(CultureInfo.InvariantCulture), incomplete ? "true" : "false", elsewhere ? "true" : "false", context ? "true" : "false",
+                boundary ? "" : totals.CompatibleBasis ? Number(totals.IdentityUnverified) : "Incomparable bases", boundary ? "Not measured" : Evidence(totals.Missing, activeUnknown || kind == "metadata" && header.HasUnmeasuredEvidence), totals.CompatibleBasis ? "true" : "false",
+                boundary ? "" : Number(logical.KnownBytes), boundary ? "Not measured" : Evidence(logical.Missing, logicalUnknown || kind == "metadata" && header.HasUnmeasuredLogicalEvidence), boundary ? "" : logical.Files.ToString(CultureInfo.InvariantCulture), incomplete ? "true" : "false", elsewhere ? "true" : "false", context ? "true" : "false",
                 coverage, observed, redactPaths ? "true" : "false", "true", header.Rows.ToString(CultureInfo.InvariantCulture), notes]);
     }
     internal static string Safe(string value) => AnalysisNames.Display(value, 4096, escapeTrailing: true);
@@ -113,14 +123,16 @@ public static partial class AnalysisHumanReport
     }
     private static string Csv(IEnumerable<string> values) => string.Join(',', values.Select(CsvCell));
     private static string Number(UInt128 value) => value.ToString(CultureInfo.InvariantCulture);
+    private static string Evidence(ImmutableDictionary<MeasurementState, ulong> states, bool unknown) =>
+        (unknown ? "Unmeasured evidence remains; known values are subtotals. " : "") + States(states);
     private static string States(ImmutableDictionary<MeasurementState, ulong> states)
     {
         if (states.Any(pair => !Enum.IsDefined(pair.Key))) throw new InvalidDataException("A report measurement state is unsupported.");
         return string.Join("; ", states.OrderBy(pair => pair.Key).Select(pair => pair.Key + ": " + pair.Value.ToString(CultureInfo.InvariantCulture)));
     }
     private static string Summary(AnalysisReportHeader header) => "Known active: " + (header.Totals.CompatibleBasis ? Number(header.Totals.Known) : "Incomparable bases") +
-        "; identity unverified: " + (header.Totals.CompatibleBasis ? Number(header.Totals.IdentityUnverified) : "Incomparable bases") + "; missing active: " + States(header.Totals.Missing) +
-        "; known file-size bytes: " + Number(header.Logical.KnownBytes) + "; file paths: " + header.Logical.Files.ToString(CultureInfo.InvariantCulture) + "; missing logical: " + States(header.Logical.Missing);
+        "; identity unverified: " + (header.Totals.CompatibleBasis ? Number(header.Totals.IdentityUnverified) : "Incomparable bases") + "; missing active: " + Evidence(header.Totals.Missing, header.HasUnmeasuredEvidence) +
+        "; known file-size bytes: " + Number(header.Logical.KnownBytes) + "; file paths: " + header.Logical.Files.ToString(CultureInfo.InvariantCulture) + "; missing logical: " + Evidence(header.Logical.Missing, header.HasUnmeasuredLogicalEvidence);
     private static string ScopeName(AnalysisReportScope scope) => scope switch
     { AnalysisReportScope.FilteredView => "Captured filtered view", AnalysisReportScope.SelectedRows => "Captured selected rows", _ => "Entire unfiltered result" };
     private static string MetricName(AnalysisMetric metric) => metric switch

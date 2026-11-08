@@ -31,14 +31,17 @@ internal sealed partial class AnalysisIndexedAcquisition
         catch { await owner.DisposeAsync().ConfigureAwait(false); throw; }
     }
     internal Task<AnalysisExportReceipt> ExportInventoryAsync(AnalysisSnapshot source, string folder, string name, CancellationToken cancellation) =>
-        ExportInventoryCoreAsync(folder, name, (factory, devices) => AnalysisInventoryFormat.ExportSnapshotNewAsync(source, Guid.NewGuid(), _services.Io, devices, name, factory, cancellation), cancellation);
+        ExportCoreAsync(folder, InventoryName(name), (factory, devices) => AnalysisInventoryFormat.ExportSnapshotNewAsync(source, Guid.NewGuid(), _services.Io, devices, name, factory, cancellation), cancellation);
     internal Task<AnalysisExportReceipt> ExportInventoryAsync(AnalysisDatasetLease source, string folder, string name, CancellationToken cancellation) =>
-        ExportInventoryCoreAsync(folder, name, (factory, devices) => source.ExportInventoryNewAsync(name, Guid.NewGuid(), devices, factory, cancellation), cancellation);
+        ExportCoreAsync(folder, InventoryName(name), (factory, devices) => source.ExportInventoryNewAsync(name, Guid.NewGuid(), devices, factory, cancellation), cancellation);
+    private static string InventoryName(string name) { AnalysisPrivateInventoryStore.ValidateName(name); return name; }
+    internal Task<AnalysisExportReceipt> ExportReportAsync(AnalysisCapturedDatasetReport report, string folder, string name, bool redactPaths, CancellationToken cancellation) =>
+        ExportCoreAsync(folder, name, (factory, devices) => report.ExportNewAsync(name, devices, factory, redactPaths, cancellation), cancellation);
 
-    private async Task<AnalysisExportReceipt> ExportInventoryCoreAsync(string folder, string name,
+    private async Task<AnalysisExportReceipt> ExportCoreAsync(string folder, string name,
         Func<Func<AnalysisExportDestination>, AnalysisIoDevices, Task<AnalysisExportReceipt>> export, CancellationToken cancellation)
     {
-        AnalysisExportDestination.ValidateFolder(folder); AnalysisPrivateInventoryStore.ValidateName(name);
+        AnalysisExportDestination.ValidateFolder(folder); AnalysisExportDestination.ValidateName(name);
         IDisposable actual;
         lock (_gate)
         {

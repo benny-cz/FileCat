@@ -46,7 +46,7 @@ def assert_clean_build(path, projects):
         assert len(re.findall(pattern, text, re.M)) == projects
 
 
-def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, phase_revisions=None, expected_states=None, source_snapshot=None):
+def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, phase_revisions=None, expected_states=None, source_snapshot=None, foreign_post_processes=None):
     assert re.fullmatch(r'r[0-9]+[a-z]?', revision)
     temp = root / '.tmp'
     out = root / 'docs/validation/disk-space'
@@ -84,6 +84,13 @@ def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, pha
     runners = set()
     phase_revisions = phase_revisions or {}
     expected_states = expected_states or {}
+    foreign_post_processes = foreign_post_processes or {}
+    def check_processes(inventory, key):
+        # A later foreign tester need not delay receipt verification for a
+        # completed cohort. Any exception is an exact previously inspected
+        # process list, retained by the caller with explicit foreign provenance.
+        actual = inventory['filecatOrDotnet']
+        assert not actual or actual == foreign_post_processes.get(key)
     for platform in ('windows', 'mac', 'ubuntu'):
         tag = 'linux' if platform == 'ubuntu' else platform
         bundle = next(row for row in packing['archives'] if row['platform'] == tag)
@@ -96,7 +103,7 @@ def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, pha
         result = receipts[platform] = reports(archive_path)
         assert result['state.txt'].decode('utf-8-sig').strip() == expected_states.get(platform, 'FINISHED exit=0')
         inventory = read(temp / f'{platform}-batch-{revision}-post.json')
-        assert not inventory['filecatOrDotnet']
+        check_processes(inventory, platform)
         processes[platform] = inventory
         for phase, (total, skip) in expected[platform].items():
             actual_revision = phase_revisions.get(f'{platform}/{phase}', revision)
@@ -106,7 +113,7 @@ def qualify(root, revision, expected, prefixes, new_cases, build_projects=4, pha
                 actual_result = reports(extra_path)
                 assert actual_result['state.txt'].decode('utf-8-sig').strip() == 'FINISHED exit=0'
                 extra_inventory = read(temp / f'{platform}-batch-{actual_revision}-post.json')
-                assert not extra_inventory['filecatOrDotnet']
+                check_processes(extra_inventory, f'{platform}/{actual_revision}')
                 processes[f'{platform}/{actual_revision}'] = extra_inventory
                 files.add(extra_path)
                 runners.add(temp / f'batch-{tag}-{actual_revision}.{"ps1" if platform == "windows" else "sh"}')
