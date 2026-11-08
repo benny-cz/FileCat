@@ -53,7 +53,7 @@ def oracles(task):
     batch=batch_for(task);helpers=batch.root/'eng/validation/archive-writing/sevenzip-feasibility'
     tool=task/'password-oracle-tools-v1/7zip/7z.exe';modules=task/'password-oracle-tools-v1/modules';folder=batch.out/'member-ui-vectors'
     batch.execute('member-ui-sevenzip',[sys.executable,'-B',str(helpers/'verify_pipeline.py'),str(folder),str(tool),str(modules),str(tool)])
-    batch.execute('member-ui-rar',[sys.executable,'-B',str(batch.root/'eng/validation/archive-writing/rar5-independent-probe/verify_native_publication.py'),str(folder),str(tool),str(modules),'0','0','--update-ui'])
+    batch.execute('member-ui-rar',[sys.executable,'-B',str(batch.root/'eng/validation/archive-writing/rar5-independent-probe/verify_native_publication.py'),str(folder),str(tool),str(modules),'0','0','--member-ui'])
     batch.execute('member-ui-tar',[sys.executable,'-B',str(batch.root/'eng/validation/archive-writing/verify-workflow-tar.py'),str(folder),str(tool),str(modules),str(helpers/'verify_pipeline.py'),'--update-ui'])
     facts=json.loads((folder/'independent-pipeline.json').read_text());assert (facts['archives'],facts['metadata'],facts['payloads'])==(3,6,6),facts
 

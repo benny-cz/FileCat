@@ -93,7 +93,7 @@ def run(root,tool,modules,bcj2,adapter=None):
  archives=sorted(root.rglob('*.7z'));assert archives;rows=[];unsupported=[]
  for archive in archives:
   facts=json.loads(archive.with_suffix('.json').read_text());assert facts['synthetic_public_vector']
-  password=facts['password'];assert password in ('Public-7z-worker-暗号-42829324','Public-7z-Native-暗号-42829324','  Public creation é e\u0301 🔐  ')
+  password=facts['password'];assert password in ('Public-7z-worker-暗号-42829324','Public-7z-Native-暗号-42829324','  Public creation é e\u0301 🔐  ',' Public existing archive é 🔐 ')
   assert archive.stat().st_size<16<<20;members=facts['members'];want=[metadata(m['metadata']) for m in members]
   result=subprocess.run([str(tool),'t','-bd','-y','-p'+password,str(archive)],capture_output=True,timeout=120)
   archive.with_suffix('.official.log').write_bytes(result.stdout+result.stderr);observed_headers.clear();observed_files.clear()
