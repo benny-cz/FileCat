@@ -1,0 +1,29 @@
+{
+  "revision": "r1088",
+  "renderRevision": "r1088",
+  "buildLog": ".tmp/memory-report-build-r1088.txt",
+  "sourceManifest": ".tmp/source-candidate-r1088.json",
+  "archiveCount": 3,
+  "standaloneArchives": 0,
+  "elapsedSeconds": 17.161472,
+  "archives": [
+    {
+      "sha256": "fa24f4c5394ba0597525a4ae435392e0ee6cf8e91ec059d25c12981386539b62",
+      "platform": "mac",
+      "bytes": 45061404,
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-mac-r1088.tgz"
+    },
+    {
+      "sha256": "07fe65b686879c879f9186a2299ca2609786a1b167855852fc9ff2dc3b78b906",
+      "platform": "linux",
+      "bytes": 42393940,
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-linux-r1088.tgz"
+    },
+    {
+      "sha256": "9a3ff32ec99a07943b4b529593108a8dc945cfce648882ae6678c013efc5891d",
+      "platform": "windows",
+      "bytes": 81635670,
+      "path": "E:\\FileCat\\.tmp\\worktrees\\disk-space-analysis\\.tmp\\dsa-batch-windows-r1088.tgz"
+    }
+  ]
+}

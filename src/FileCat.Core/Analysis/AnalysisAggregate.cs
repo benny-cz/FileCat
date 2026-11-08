@@ -27,6 +27,7 @@ public static class AnalysisAggregate
         var matching = ImmutableHashSet.CreateBuilder<ulong>();
         var context = ImmutableHashSet.CreateBuilder<ulong>();
         var charges = ImmutableArray.CreateBuilder<AnalysisCharge>();
+        var unverifiedCharges = ImmutableArray.CreateBuilder<AnalysisCharge>();
         var missing = new Dictionary<MeasurementState, ulong>();
         var missingCharges = ImmutableArray.CreateBuilder<AnalysisMissingCharge>();
         var unmeasured = ImmutableDictionary.CreateBuilder<ulong, MeasurementState>();
@@ -59,6 +60,7 @@ public static class AnalysisAggregate
         }
 
         bool compatible = true;
+        AnalysisReportBases? reportBases = null;
         if (metric is AnalysisMetric.UniqueFileSize or AnalysisMetric.OnDisk)
         {
             var byObject = snapshot.Facts.Where(f => f.ObjectId is not null).ToLookup(f => f.ObjectId!, StringComparer.Ordinal);
@@ -117,12 +119,13 @@ public static class AnalysisAggregate
                 }
                 var sets = basesByRoot.Values.ToArray();
                 compatible = sets.Length < 2 || sets.Skip(1).All(s => s.SetEquals(sets[0]));
+                reportBases = AnalysisReportBases.Capture(basesByRoot.Values.SelectMany(values => values));
             }
         }
         if (!compatible) { known = 0; unverified = 0; charges.Clear(); }
         return new(snapshot.Identity.SessionId, snapshot.Identity.Epoch, snapshot.Identity.Revision, metric,
             charges.ToImmutable(), new(known, unverified, count, missing.ToImmutableDictionary(), compatible), matching.ToImmutable())
-            { UnmeasuredStates = unmeasured.ToImmutable(), MissingCharges = missingCharges.ToImmutable(), AliasContextNodes = context.ToImmutable(), Taint = AnalysisPrivacy.Join(snapshot.Taint) };
+            { UnmeasuredStates = unmeasured.ToImmutable(), MissingCharges = missingCharges.ToImmutable(), UnverifiedCharges = unverifiedCharges.ToImmutable(), MeasurementBases = reportBases, AliasContextNodes = context.ToImmutable(), Taint = AnalysisPrivacy.Join(snapshot.Taint) };
 
         void Missing(AnalysisMeasurement measurement, IEnumerable<ulong> ids, ulong? directory = null)
         {
@@ -137,7 +140,8 @@ public static class AnalysisAggregate
         {
             if (uncertain) unverified = checked(unverified + value); else known = checked(known + value);
             if (metric == AnalysisMetric.OnDisk) _ = checked(known + unverified);
-            if (metric == AnalysisMetric.UniqueFileSize && uncertain) return; // separately reported, never asserted unique chart area
+            if (metric == AnalysisMetric.UniqueFileSize && uncertain)
+            { unverifiedCharges.Add(new(parent, label, value, ids, shared, true, directory)); return; }
             charges.Add(new(parent, label, value, ids, shared, uncertain, directory));
         }
     }

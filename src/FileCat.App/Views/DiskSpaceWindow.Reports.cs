@@ -83,9 +83,48 @@ public sealed partial class DiskSpaceWindow
                 finally { closer.Close(null); }
             }
             catch (OperationCanceledException) { if (!_disposed) PersistenceStatus = "Report canceled. No successful full output is claimed."; }
-            catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or NotSupportedException or AggregateException)
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or NotSupportedException or AggregateException or OverflowException or FormatException)
             { RememberViewCloseFailure(error); if (!_disposed) PersistenceStatus = "Report or captured-data release failed; inspect any existing output before retrying: " + AnalysisNames.Display(error.Message, 600); }
             finally { _persistenceBusy = false; Interaction(false); if (!_disposed) RefreshIndexedPersistence(); }
+        }
+    }
+    private sealed partial class SessionView
+    {
+        private readonly Button _exportReport = new() { Content = "Export report…" };
+        private async Task ExportReportAsync()
+        {
+            if (_disposed || _persistenceBusy || !Model.CanExport || _actualWork.HasUnconfirmedClose || Model.HistoryServices is not { } services) return;
+            using var actual = _actualWork.Enter(); using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Model.HistoryLifetime, _window._indexedLifetime.Token);
+            _persistenceBusy = true; Model.Interaction(true); Refresh();
+            try
+            {
+                using var revision = Model.CaptureDisplayedRevision(); var tree = Model.Tree!; var view = Model.PublishedReportView;
+                string folder = Model.Selection.Scope; var marks = Model.Selection.Marks.Order().ToImmutableArray();
+                var options = await ReviewReportOptionsAsync(_window._dialogs, tree.GroupingDimension == AnalysisGroupingDimension.FolderHierarchy && !folder.StartsWith("other:", StringComparison.Ordinal), marks.Length, cancel.Token);
+                if (options is null) return; cancel.Token.ThrowIfCancellationRequested();
+                var captureTask = AnalysisCapturedMemoryReport.CaptureAsync(revision, tree, services.Io, options.Format, options.Scope, folder, marks, view.Sort, view.SortDescending, cancel.Token,
+                    context: new(view.Query, view.CaseSensitive, view.ShowUnknown, view.Root));
+                var closer = new ViewModels.DialogCloser();
+                try
+                {
+                    if (!captureTask.IsCompleted)
+                    {
+                        var dismissed = _window._dialogs.ShowCustomAsync("Preparing captured report", new TextBlock { Text = "Preparing the immutable report scope. Cancel waits for outstanding captured-data work to stop.", TextWrapping = TextWrapping.Wrap },
+                            [new ViewModels.DialogButton("Cancel", false, IsDefault: true, IsCancel: true)], closer: closer);
+                        if (await Task.WhenAny(captureTask, dismissed) == dismissed) cancel.Cancel();
+                    }
+                    await using var report = await captureTask; closer.Close(null);
+                    var snapshot = revision.Snapshot;
+                    var status = await _window.ExportExternalInventoryAsync(services, ExportObservation(snapshot.Identity, snapshot.Coverage, snapshot.Taint), cancel.Token,
+                        (prepared, destination, name, token) => prepared.ExportReportAsync(report, destination, name, options.RedactPaths, token), _actualWork.RecordUnconfirmedClose, options);
+                    if (!_disposed && status is not null) Model.SetStatus(status);
+                }
+                finally { closer.Close(null); }
+            }
+            catch (OperationCanceledException) { if (!_disposed) Model.SetStatus("Report canceled. No successful full output is claimed."); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or NotSupportedException or AggregateException or OverflowException or FormatException)
+            { _actualWork.RecordUnconfirmedClose(error); if (!_disposed) Model.SetStatus("Report or captured-data release failed; inspect any existing output before retrying: " + AnalysisNames.Display(error.Message, 600)); }
+            finally { _persistenceBusy = false; Model.Interaction(false); if (!_disposed) Refresh(); }
         }
     }
 }

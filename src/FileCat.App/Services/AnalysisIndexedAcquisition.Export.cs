@@ -35,7 +35,7 @@ internal sealed partial class AnalysisIndexedAcquisition
     internal Task<AnalysisExportReceipt> ExportInventoryAsync(AnalysisDatasetLease source, string folder, string name, CancellationToken cancellation) =>
         ExportCoreAsync(folder, InventoryName(name), (factory, devices) => source.ExportInventoryNewAsync(name, Guid.NewGuid(), devices, factory, cancellation), cancellation);
     private static string InventoryName(string name) { AnalysisPrivateInventoryStore.ValidateName(name); return name; }
-    internal Task<AnalysisExportReceipt> ExportReportAsync(AnalysisCapturedDatasetReport report, string folder, string name, bool redactPaths, CancellationToken cancellation) =>
+    internal Task<AnalysisExportReceipt> ExportReportAsync(AnalysisCapturedReport report, string folder, string name, bool redactPaths, CancellationToken cancellation) =>
         ExportCoreAsync(folder, name, (factory, devices) => report.ExportNewAsync(name, devices, factory, redactPaths, cancellation), cancellation);
 
     private async Task<AnalysisExportReceipt> ExportCoreAsync(string folder, string name,

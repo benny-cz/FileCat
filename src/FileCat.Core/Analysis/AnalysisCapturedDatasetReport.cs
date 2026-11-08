@@ -6,27 +6,20 @@ using FileCat.Core.Threading;
 namespace FileCat.Core.Analysis;
 
 /// <summary>A retained immutable dataset/hierarchy and declared report scope. No recorded location is opened.</summary>
-public sealed class AnalysisCapturedDatasetReport : IAsyncDisposable
+public sealed class AnalysisCapturedDatasetReport : AnalysisCapturedReport
 {
     private readonly AnalysisDatasetLease _source;
     private readonly AnalysisDatasetHierarchy _hierarchy;
-    private readonly DeviceIoScheduler _io;
-    private readonly AnalysisIoDevices _devices;
     private readonly AnalysisReportScope _scope;
     private readonly AnalysisReportFormat _format;
     private readonly ulong _folder;
     private readonly ImmutableArray<ulong> _selected;
     private readonly AnalysisHierarchySort _sort;
     private readonly bool _descending;
-    private readonly object _gate = new();
-    private readonly object _cancelGate = new();
-    private readonly CancellationTokenSource _lifetime = new();
-    private readonly TaskCompletionSource _closed = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private bool _disposed, _closing, _active, _cancelled;
-    public AnalysisReportHeader Header { get; }
     private AnalysisCapturedDatasetReport(AnalysisDatasetLease source, AnalysisDatasetHierarchy hierarchy, DeviceIoScheduler io, AnalysisIoDevices devices,
         AnalysisReportHeader header, AnalysisReportScope scope, AnalysisReportFormat format, ulong folder, ImmutableArray<ulong> selected, AnalysisHierarchySort sort, bool descending)
-    { _source = source; _hierarchy = hierarchy; _io = io; _devices = devices; Header = header; _scope = scope; _format = format; _folder = folder; _selected = selected; _sort = sort; _descending = descending; }
+        : base(io, devices, header, format)
+    { _source = source; _hierarchy = hierarchy; _scope = scope; _format = format; _folder = folder; _selected = selected; _sort = sort; _descending = descending; }
 
     internal static async Task<AnalysisCapturedDatasetReport> CreateAsync(AnalysisDatasetLease source, DeviceIoScheduler io, AnalysisIoDevices devices,
         AnalysisMetric metric, AnalysisReportFormat format, AnalysisReportScope scope, AnalysisFilterRequest filter, ulong folder,
@@ -65,7 +58,10 @@ public sealed class AnalysisCapturedDatasetReport : IAsyncDisposable
                 descriptor.Freshness, descriptor.Taint, parent?.Totals ?? hierarchy.Totals, parent?.Logical ?? hierarchy.LogicalTotals, scopeLabel, rows, limited)
                 { SummaryDescribesSourceScope = scope == AnalysisReportScope.SelectedRows, NamespaceRowsOnly = true,
                     HasUnmeasuredEvidence = parent?.HasUnmeasuredEvidence ?? hierarchy.HasUnmeasuredEvidence,
-                    HasUnmeasuredLogicalEvidence = parent?.HasUnmeasuredLogicalEvidence ?? hierarchy.HasUnmeasuredLogicalEvidence };
+                    HasUnmeasuredLogicalEvidence = parent?.HasUnmeasuredLogicalEvidence ?? hierarchy.HasUnmeasuredLogicalEvidence,
+                    MeasurementBases = hierarchy.MeasurementBases, DetailedAllocation = descriptor.Policy.ComponentPreset == "detailed",
+                    FilterContext = scope == AnalysisReportScope.FilteredView && (!string.IsNullOrWhiteSpace(filter.Text) || filter.RootId is not null || filter.UnknownOnly)
+                        ? new(filter.Text, filter.CaseSensitive, filter.UnknownOnly, filter.RootId is not null) : null };
             var result = new AnalysisCapturedDatasetReport(retained, hierarchy, io, devices, header, scope, format, folder, selected, sort, descending);
             retained = null; hierarchy = null; return result;
         }
@@ -81,42 +77,7 @@ public sealed class AnalysisCapturedDatasetReport : IAsyncDisposable
         }
     }
 
-    public async Task<AnalysisExportReceipt> ExportNewAsync(string name, AnalysisIoDevices destinationDevices, Func<AnalysisExportDestination> createDestination,
-        bool redactPaths, CancellationToken cancellation = default)
-    {
-        ArgumentNullException.ThrowIfNull(destinationDevices); ArgumentNullException.ThrowIfNull(createDestination);
-        var devices = _devices; foreach (string key in destinationDevices.Keys) devices = devices.Include(key);
-        lock (_gate)
-        {
-            ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_active) throw new InvalidOperationException("This captured report already has an export in progress.");
-            _active = true;
-        }
-        bool published = false;
-        try
-        {
-            try
-            {
-                using var cancel = CancellationTokenSource.CreateLinkedTokenSource(cancellation, _lifetime.Token);
-                try
-                {
-                    var receipt = await AnalysisHumanReport.ExportNewAsync(_io, devices, name, createDestination, Header,
-                        RowsAsync(!redactPaths, cancel.Token), _format, redactPaths, cancel.Token).ConfigureAwait(false);
-                    published = true; return receipt;
-                }
-                catch (AnalysisExportUncertainException) { published = true; throw; }
-            }
-            finally
-            {
-                bool close, disposed; lock (_gate) { _active = false; disposed = _disposed; close = BeginClose(); }
-                if (close) await CloseAsync().ConfigureAwait(false);
-                if (disposed) await _closed.Task.ConfigureAwait(false);
-            }
-        }
-        catch (Exception error) when (published && error is not AnalysisExportUncertainException)
-        { throw new AnalysisExportUncertainException(name, error); }
-    }
-    private async IAsyncEnumerable<AnalysisReportRow> RowsAsync(bool locations, [EnumeratorCancellation] CancellationToken cancellation)
+    protected override async IAsyncEnumerable<AnalysisReportRow> RowsAsync(bool locations, [EnumeratorCancellation] CancellationToken cancellation)
     {
         ulong written = 0;
         if (_scope == AnalysisReportScope.SelectedRows)
@@ -168,27 +129,16 @@ public sealed class AnalysisCapturedDatasetReport : IAsyncDisposable
             if (current.RootId != path.RootId) throw new InvalidDataException("The captured report lineage changed roots.");
         }
         var root = _source.Descriptor.Roots.Single(value => value.Id == path.RootId); names.Reverse();
-        string separator = root.NameRules == AnalysisNameRules.Windows ? "\\" : "/";
-        string value = AnalysisNames.Display(root.DisplayLocator, 4096).TrimEnd('/', '\\');
-        if (names.Count != 0) value += separator + string.Join(separator, names);
-        return value.Length <= AnalysisLimits.LocatorBytes ? value : "[Displayed location exceeds the report bound; use the full inventory for raw names.]";
+        return AnalysisReportLocations.Append(root, names);
     }
-    public ValueTask DisposeAsync()
-    {
-        bool close;
-        lock (_gate) { _disposed = true; close = BeginClose(); }
-        lock (_cancelGate) { if (!_cancelled) { _cancelled = true; _lifetime.Cancel(); } }
-        if (close) _ = CloseAsync(); return new(_closed.Task);
-    }
-    private bool BeginClose() { if (!_disposed || _active || _closing) return false; _closing = true; return true; }
-    private async Task CloseAsync()
+    protected override async ValueTask ReleaseAsync()
     {
         Exception? failure = null;
         try { await _hierarchy.DisposeAsync().ConfigureAwait(false); } catch (Exception error) { failure = error; }
         try { await _source.DisposeAsync().ConfigureAwait(false); } catch (Exception error) { failure = failure is null ? error : new AggregateException(failure, error); }
-        lock (_cancelGate) { _cancelled = true; _lifetime.Dispose(); }
-        if (failure is null) _closed.TrySetResult(); else _closed.TrySetException(failure);
+        if (failure is not null) throw AnalysisCloseUnconfirmedException.From(failure);
     }
+
 }
 
 public sealed partial class AnalysisDatasetLease

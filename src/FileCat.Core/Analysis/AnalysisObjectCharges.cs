@@ -35,7 +35,8 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
     public Task<AnalysisDatasetHierarchy> BuildHierarchyAsync(CancellationToken cancellation = default) =>
         _owned.UseAsync(state => AnalysisDatasetHierarchy.BuildAsync(state.Graph, Descriptor, Metric, state.PlacementEntries(cancellation),
             Totals.CompatibleBasis, _io, _device, cancellation, state.Query,
-            Metric is AnalysisMetric.UniqueFileSize or AnalysisMetric.OnDisk ? state.UnmeasuredCohorts(cancellation) : null));
+            Metric is AnalysisMetric.UniqueFileSize or AnalysisMetric.OnDisk ? state.UnmeasuredCohorts(cancellation) : null,
+            Metric == AnalysisMetric.OnDisk ? state.ReportBases() : null));
 
     internal static async Task<AnalysisObjectChargeIndex> BuildAsync(AnalysisIndexedGraphReader source, AnalysisDatasetDescriptor descriptor,
         AnalysisMetric metric, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation, AnalysisIndexedFilter? query = null)
@@ -332,6 +333,7 @@ public sealed partial class AnalysisObjectChargeIndex : IAsyncDisposable
             bool compatible = Metric != AnalysisMetric.OnDisk || populated.Length < 2 || populated.Skip(1).All(b => b.SetEquals(populated[0]));
             return new(compatible ? _known : 0, compatible ? _unverified : 0, _count, _missing.ToImmutableDictionary(), compatible);
         }
+        internal AnalysisReportBases ReportBases() => AnalysisReportBases.Capture(_bases.SelectMany(values => values));
         internal void Seal(CancellationToken token)
         { if (!Finished) throw Invalid(); _writer!.Flush(token); _rows = _writer.CaptureCommitted(); _writer.Dispose(); _writer = null; }
         internal IEnumerable<AnalysisSortInput> Entries(CancellationToken token)

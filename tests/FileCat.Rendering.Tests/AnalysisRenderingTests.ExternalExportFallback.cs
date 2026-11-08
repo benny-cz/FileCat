@@ -21,6 +21,7 @@ public sealed partial class AnalysisRenderingTests
             window.AddSession(model); window.Show(); Frame(window);
             var export = window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible && button.Content as string == "Export entire inventory…");
             Assert.True(export.IsEnabled); Assert.False(window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible && button.Content as string == "Save…").IsEnabled);
+            Assert.True(window.GetVisualDescendants().OfType<Button>().Single(button => button.IsEffectivelyVisible && button.Content as string == "Export report…").IsEnabled);
         }
         finally { window.ForceClose(); await window.WaitForIndexedCloseAsync(); }
     }

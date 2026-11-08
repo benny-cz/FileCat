@@ -64,21 +64,24 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
     public AnalysisLogicalTotals LogicalTotals { get; }
     public bool HasUnmeasuredEvidence { get; }
     public bool HasUnmeasuredLogicalEvidence { get; }
+    internal AnalysisReportBases? MeasurementBases { get; }
     private AnalysisDatasetHierarchy(State state, AnalysisDatasetDescriptor descriptor, DeviceIoScheduler io, AnalysisIoDevices device)
     {
         Descriptor = descriptor; Metric = state.Metric; Filter = state.FilterSummary; Totals = state.Total.Export(state.Compatible); LogicalTotals = state.TotalLogical.ExportLogical();
         HasUnmeasuredEvidence = state.TotalUnknown; HasUnmeasuredLogicalEvidence = state.TotalLogicalUnknown;
+        MeasurementBases = state.MeasurementBases;
         _owned = new(state, io, device); _io = io; _device = device;
     }
 
     internal static async Task<AnalysisDatasetHierarchy> BuildAsync(AnalysisIndexedGraphReader source, AnalysisDatasetDescriptor descriptor,
         AnalysisMetric metric, IEnumerable<AnalysisSortInput>? charges, bool compatible, DeviceIoScheduler io, AnalysisIoDevices device, CancellationToken cancellation,
-        AnalysisIndexedFilter? query = null, IEnumerable<AnalysisSortInput>? unmeasuredCohorts = null)
+        AnalysisIndexedFilter? query = null, IEnumerable<AnalysisSortInput>? unmeasuredCohorts = null, AnalysisReportBases? reportBases = null)
     {
         await Builds.WaitAsync(cancellation).ConfigureAwait(false); State? state = null;
         try
         {
             state = await AnalysisIo.Run(io, device, _ => State.Create(source, metric, compatible, query), cancellation).ConfigureAwait(false);
+            state.MeasurementBases = reportBases;
             if (unmeasuredCohorts is not null)
             {
                 using var entries = unmeasuredCohorts.GetEnumerator();
@@ -239,6 +242,7 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
     }
     private sealed partial class State : IAnalysisScratchOwned
     {
+        internal AnalysisReportBases? MeasurementBases;
         private readonly AnalysisIndexedGraphReader _graph;
         internal AnalysisIndexedGraphReader Graph => _graph;
         internal AnalysisScratchWorkspace? Workspace;

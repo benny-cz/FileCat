@@ -322,6 +322,8 @@ public sealed partial class DiskSpaceWindow : Window
             ToolTip.SetTip(_importExternal, new RichTip("Import offline observations", detail: "Choose a local .fcdsa inventory. Validation uses private bounded scratch; imported paths never reconnect sources or authorize file actions."));
             _exportExternal.IsVisible = Model.HistoryServices is not null; _exportExternal.Click += async (_, _) => await ExportExternalAsync(); nav.Children.Add(_exportExternal);
             ToolTip.SetTip(_exportExternal, new RichTip("Export entire captured inventory", detail: "Choose a folder and new filename, then review sensitive paths and metadata. Display filters do not limit this inventory; existing files are preserved."));
+            _exportReport.IsVisible = Model.HistoryServices is not null; _exportReport.Click += async (_, _) => await ExportReportAsync(); nav.Children.Add(_exportReport);
+            ToolTip.SetTip(_exportReport, new RichTip("Export a captured report", detail: "Choose Markdown, HTML or spreadsheet-safe CSV, the explicit captured scope, and whether to omit names and locations. Existing files are kept."));
             var history = ActionButton("History…", () => _ = ShowHistoryAsync(), "Browse, open, pin and review removal of this profile's rolling analysis history.");
             history.IsEnabled = Model.HistoryServices is not null; nav.Children.Add(history);
             _openComparison = ActionButton("Open comparison…", () => _ = OpenComparisonSavedAsync(), "Open both captured inventories and saved comparison settings from this private profile. Sources remain disconnected.");
@@ -603,6 +605,7 @@ public sealed partial class DiskSpaceWindow : Window
                 _openSaved.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
                 _importExternal.IsEnabled = Model.HasPrivateStorage && !_persistenceBusy;
                 _exportExternal.IsEnabled = Model.CanExport && !_persistenceBusy && !_actualWork.HasUnconfirmedClose;
+                _exportReport.IsEnabled = Model.CanExport && !_persistenceBusy && !_actualWork.HasUnconfirmedClose;
                 _compare.IsEnabled = Model.CanCompare && !_persistenceBusy;
                 RefreshComparisonPersistence();
                 _stop.Content = Model.IsPreparing ? "Stop binding" : "Stop";

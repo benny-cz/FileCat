@@ -122,6 +122,10 @@ public sealed record AnalysisProjection(Guid SessionId, long Epoch, long Revisio
     ImmutableArray<AnalysisCharge> Charges, AnalysisTotals Totals, ImmutableHashSet<ulong> MatchingNodes)
 {
     public ImmutableArray<AnalysisMissingCharge> MissingCharges { get; init; } = [];
+    // Identity-unverified unique-size observations remain outside chart area,
+    // but their canonical attribution is still needed for scoped summaries.
+    public ImmutableArray<AnalysisCharge> UnverifiedCharges { get; init; } = [];
+    internal AnalysisReportBases? MeasurementBases { get; init; }
     public ImmutableDictionary<ulong, MeasurementState> UnmeasuredStates { get; init; } = ImmutableDictionary<ulong, MeasurementState>.Empty;
     public AnalysisTaint Taint { get; init; } = AnalysisTaint.OrdinarySensitive;
     public ImmutableHashSet<ulong> UnknownFilterNodes { get; init; } = ImmutableHashSet<ulong>.Empty;

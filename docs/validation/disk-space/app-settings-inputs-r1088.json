@@ -1,0 +1,21 @@
+{
+  "sharedDllsVerified": 78,
+  "appTestFiles": [
+    {
+      "name": "FileCat.App.Tests.dll",
+      "sha256": "1af910202768f47330de70062ed36a257ad9af871801ac459024cc45a9c3a8e2"
+    },
+    {
+      "name": "FileCat.App.Tests.pdb",
+      "sha256": "75dd96ef3bca156300db4179efb521f63ccfacf33eecb825dbc9fe39a14f4da7"
+    },
+    {
+      "name": "FileCat.App.Tests.deps.json",
+      "sha256": "5be2b401e0db40ee3c0b689ae929f1b6137a20fd4292af95141e118de92093db"
+    },
+    {
+      "name": "FileCat.App.Tests.runtimeconfig.json",
+      "sha256": "90751b8460971c2289443df1768438644dfc508933067f78211841d2972717f8"
+    }
+  ]
+}

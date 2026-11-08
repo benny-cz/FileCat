@@ -17,6 +17,9 @@ public sealed record AnalysisReportHeader(AnalysisMetric Metric, AnalysisReportS
     public bool NamespaceRowsOnly { get; init; }
     public bool HasUnmeasuredEvidence { get; init; }
     public bool HasUnmeasuredLogicalEvidence { get; init; }
+    public AnalysisReportFilterContext? FilterContext { get; init; }
+    public AnalysisReportBases? MeasurementBases { get; init; }
+    public bool DetailedAllocation { get; init; }
 }
 public sealed record AnalysisReportRow(AnalysisPathMetadata Path, string? DisplayLocation, AnalysisTotals Totals, AnalysisLogicalTotals Logical,
     bool NamespaceIncomplete, bool HasChargesElsewhere, bool IsFilterContext = false)
@@ -39,6 +42,9 @@ public static partial class AnalysisHumanReport
             format == AnalysisReportFormat.Csv && header.DetailLimited ||
             format != AnalysisReportFormat.Csv && header.Rows > AnalysisLimits.ChartLeaves || header.ScopeLabel.Length > AnalysisLimits.LocatorBytes)
             throw new InvalidDataException("The captured report exceeds its format or detail limits. Choose fewer human-report rows or a full CSV export.");
+        if (header.FilterContext is { } filterContext && (filterContext.Query is null || filterContext.Query.Length > AnalysisLimits.QueryBytes) ||
+            header.MeasurementBases is { } bases && (bases.Labels.IsDefault || bases.Labels.Length > AnalysisLimits.Components || bases.Labels.Any(label => label is null || label.Length > 256) || bases.Labels.Sum(label => label.Length) > 65536))
+            throw new InvalidDataException("The captured report context exceeds its bounds.");
         using var writer = new StreamWriter(output, new UTF8Encoding(false, true), 64 * 1024, leaveOpen: true);
         string metric = MetricName(header.Metric), scope = ScopeName(header.Scope);
         string label = redactPaths ? "Captured scope" : Safe(header.ScopeLabel);
@@ -50,18 +56,19 @@ public static partial class AnalysisHumanReport
             (header.SummaryDescribesSourceScope ? " The summary describes the captured source scope; selected rows are not added together." : "") +
             (header.NamespaceRowsOnly ? " The table contains real namespace rows. Synthetic accounting buckets are omitted; their charges remain in the source summary." : "");
         const string fidelity = "Display text is escaped and may be abbreviated. Reports contain observations, not authenticated provenance or permission to access recorded sources.";
+        string context = Context(header, redactPaths);
         if (format == AnalysisReportFormat.Csv)
         {
             await Line(Csv(["row_kind", "format_version", "export_scope", "metric", "item", "display_location", "entry_kind", "active_known", "identity_unverified", "active_missing", "basis_comparable",
                 "file_size_known_bytes", "file_size_missing", "file_paths", "namespace_incomplete", "charges_elsewhere", "filter_context", "coverage", "observed_utc", "paths_redacted", "spreadsheet_safe", "declared_item_rows", "notes"]));
             await Line(CsvRow("metadata", label, "", "", header.Totals, header.Logical, header.Coverage != NamespaceCoverage.CompleteUnderPolicy, false, false,
-                MetricDefinition(header.Metric) + " " + privacy + " " + accounting + " " + fidelity + " Formula-leading display text is prefixed with an apostrophe."));
+                MetricDefinition(header.Metric) + " " + context + " " + privacy + " " + accounting + " " + fidelity + " Formula-leading display text is prefixed with an apostrophe."));
         }
         else if (format == AnalysisReportFormat.Html)
         {
             await Line("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>FileCat disk space report</title><style>body{font:1rem system-ui,sans-serif;max-width:80rem;margin:2rem auto;padding:0 1rem;color:#171717;background:#fff}table{border-collapse:collapse;width:100%}td,th{border:1px solid #777;padding:.5rem;vertical-align:top;overflow-wrap:anywhere;text-align:left}td{font-variant-numeric:tabular-nums}.notice{font-weight:bold}</style></head><body><h1>FileCat disk space report</h1>");
             foreach (string value in new[] { scope + ": " + label, "Observed UTC: " + observed, "Metric: " + metric + ". " + MetricDefinition(header.Metric), coverage,
-                "Freshness: " + header.Freshness, privacy, Summary(header), accounting, fidelity,
+                "Freshness: " + header.Freshness, privacy, context, Summary(header), accounting, fidelity,
                 header.DetailLimited ? "Top captured items only; detail is limited. Use a separately labelled full-result CSV or entire inventory for all observations." : "Captured report rows: " + header.Rows.ToString(CultureInfo.InvariantCulture),
                 "Insights: no separate insight results were captured for this report." }) await Line("<p>" + Html(value) + "</p>");
             await Line("<h2>Captured items</h2><table><thead><tr><th>Item</th><th>Displayed location</th><th>Known active value</th><th>Identity unverified</th><th>Missing states</th><th>Known file-size bytes</th><th>File paths</th><th>Caveats</th></tr></thead><tbody>");
@@ -70,7 +77,7 @@ public static partial class AnalysisHumanReport
         {
             await Line("# FileCat disk space report\n");
             foreach (string value in new[] { scope + ": " + label, "Observed UTC: " + observed, "Metric: " + metric + ". " + MetricDefinition(header.Metric), coverage,
-                "Freshness: " + header.Freshness, privacy, Summary(header), accounting, fidelity,
+                "Freshness: " + header.Freshness, privacy, context, Summary(header), accounting, fidelity,
                 header.DetailLimited ? "Top captured items only; detail is limited. Use a separately labelled full-result CSV or entire inventory for all observations." : "Captured report rows: " + header.Rows.ToString(CultureInfo.InvariantCulture),
                 "Insights: no separate insight results were captured for this report." }) await Line(Markdown(value) + "\n");
             await Line("## Captured items\n\n| Item | Displayed location | Known active value | Identity unverified | Missing states | Known file-size bytes | File paths | Caveats |\n| --- | --- | ---: | ---: | --- | ---: | ---: | --- |");
@@ -108,6 +115,17 @@ public static partial class AnalysisHumanReport
                 coverage, observed, redactPaths ? "true" : "false", "true", header.Rows.ToString(CultureInfo.InvariantCulture), notes]);
     }
     internal static string Safe(string value) => AnalysisNames.Display(value, 4096, escapeTrailing: true);
+    private static string Context(AnalysisReportHeader header, bool redact)
+    {
+        static string Choice(bool? value) => value is null ? "not captured" : value.Value ? "yes" : "no";
+        string filter = header.FilterContext is { } captured ? "Captured filter query: " + (redact ? "omitted" : captured.Query.Length == 0 ? captured.RootScoped is null ? "query text not captured" : "no text predicate" : Safe(captured.Query)) +
+            "; case sensitive: " + Choice(captured.CaseSensitive) + "; captured-location restriction: " + Choice(captured.RootScoped) + "; unknown-results cohort: " + Choice(captured.UnknownOnly) + ". " : "No display predicate limits this captured report scope. ";
+        string basis = header.Metric != AnalysisMetric.OnDisk ? "The active metric uses captured logical observations; native allocation bases do not define it."
+            : header.MeasurementBases is not { } values ? "Provider allocation basis labels were not captured. Use the full inventory for recorded facts."
+            : "Source-scope provider allocation bases: " + (redact ? "labels omitted" : values.Labels.IsEmpty ? "none recorded" : string.Join("; ", values.Labels.Select(Safe))) +
+                (values.DetailLimited ? ". Basis label detail is limited; use the full inventory for every fact." : ".") + " This source context does not assign an exclusive or reclaimable basis to each table row.";
+        return filter + (header.DetailedAllocation ? "Detailed allocation policy. " : "Standard allocation policy. ") + basis;
+    }
     internal static string Html(string value) => WebUtility.HtmlEncode(value);
     internal static string Markdown(string value)
     {

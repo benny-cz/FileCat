@@ -12,6 +12,22 @@ public sealed class AnalysisHumanReportTests
     [InlineData(AnalysisReportFormat.Markdown, false)] [InlineData(AnalysisReportFormat.Markdown, true)]
     [InlineData(AnalysisReportFormat.Html, false)] [InlineData(AnalysisReportFormat.Html, true)]
     [InlineData(AnalysisReportFormat.Csv, false)] [InlineData(AnalysisReportFormat.Csv, true)]
+    public async Task CapturedFilterAndProviderBasisContextEscapesLabelsAndOmitsAllRedactedSourceText(AnalysisReportFormat format, bool redacted)
+    {
+        var fixture = Fixture("name");
+        var header = fixture.Header with { FilterContext = new("name:PRIVATEQUERY<script>", true, true, true),
+            MeasurementBases = new(["PRIVATEBASIS<svg/onload=1>"], true), DetailedAllocation = true };
+        string text = await Write(header, [fixture.Row], format, redacted);
+        foreach (string marker in new[] { "PRIVATEQUERY", "PRIVATEBASIS" })
+            if (redacted) Assert.DoesNotContain(marker, text); else Assert.Contains(marker, text);
+        Assert.Contains("case sensitive: yes", text); Assert.Contains("Detailed allocation policy", text); Assert.Contains("Basis label detail is limited", text);
+        if (format == AnalysisReportFormat.Html) { Assert.DoesNotContain("<script>", text); Assert.DoesNotContain("<svg/", text); }
+        if (format == AnalysisReportFormat.Csv) Assert.All(ParseCsv(text), row => Assert.Equal(23, row.Length));
+    }
+    [Theory]
+    [InlineData(AnalysisReportFormat.Markdown, false)] [InlineData(AnalysisReportFormat.Markdown, true)]
+    [InlineData(AnalysisReportFormat.Html, false)] [InlineData(AnalysisReportFormat.Html, true)]
+    [InlineData(AnalysisReportFormat.Csv, false)] [InlineData(AnalysisReportFormat.Csv, true)]
     public async Task HumanFormatsEscapePoisonedLabelsKeepExactNumbersAndOmitEveryRedactedLocator(AnalysisReportFormat format, bool redacted)
     {
         var fixture = Fixture("=PRIVATENAME<svg/onload=alert(1)>[link](https://example.invalid/a)\u202E,\n\"end");

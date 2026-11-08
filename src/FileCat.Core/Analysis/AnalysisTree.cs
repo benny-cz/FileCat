@@ -22,6 +22,8 @@ public sealed record AnalysisTreeItem(string Key, string ParentKey, string Name,
     public string? ChargeLocation { get; init; }
     public bool IsFilterContext { get; init; }
     public AnalysisLogicalTotals? ReferenceLogical { get; init; }
+    internal AnalysisTotals? ReportTotals { get; init; }
+    internal AnalysisLogicalTotals? ReportLogical { get; init; }
     // Only the bounded-memory tree keeps this reference to its already owned
     // snapshot name. Indexed chart projections never retain full ordering names.
     internal string? CapturedOrderName { get; init; }
@@ -114,7 +116,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
         }
     }
     public static AnalysisTree Build(AnalysisSnapshot snapshot, AnalysisProjection projection, bool filterApplied, CancellationToken cancellation = default,
-        Func<AnalysisNode, bool>? namespaceVisible = null)
+        Func<AnalysisNode, bool>? namespaceVisible = null, bool retainReportStatistics = false)
     {
         if (snapshot.Identity.SessionId != projection.SessionId || snapshot.Identity.Epoch != projection.Epoch || snapshot.Identity.Revision != projection.Revision)
             throw new InvalidOperationException("The projection belongs to another observation revision.");
@@ -151,6 +153,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
                 item.PathLogical = obj?.LogicalLength ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported);
                 if (obj?.LogicalLength.IsKnown == true) item.Logical = obj.LogicalLength.Value!.Value;
                 else item.LogicalUnknown = true;
+                if (retainReportStatistics && !item.PathLogical.Value.IsKnown) item.AddLogicalMissing(item.PathLogical.Value.State, 1);
                 item.Unknown |= !projection.Totals.CompatibleBasis || projection.UnmeasuredStates.ContainsKey(node.Id) || projection.Metric switch
                 {
                     AnalysisMetric.Files => false,
@@ -161,15 +164,17 @@ public sealed partial class AnalysisTree : IAnalysisChartData
             }
             map.Add(key, item); parentItem.Children.Add(key); order.Add(key);
         }
-        foreach (var charge in projection.Charges)
+        foreach (var charge in projection.Charges.Concat(projection.UnverifiedCharges))
         {
             cancellation.ThrowIfCancellationRequested();
+            bool unverifiedUnique = projection.Metric == AnalysisMetric.UniqueFileSize && charge.IdentityUnverified;
             string parent = charge.ParentId == 0 ? RootKey : Key(charge.ParentId);
             if (!map.ContainsKey(parent)) throw new InvalidDataException("Invalid charge parent.");
             if (!charge.Shared && !charge.DirectorySelf && charge.Aliases.Length == 1)
             {
-                var item = map[Key(charge.Aliases[0])]; item.Value = checked(item.Value + charge.Value);
+                var item = map[Key(charge.Aliases[0])]; if (!unverifiedUnique) item.Value = checked(item.Value + charge.Value);
                 if (charge.IdentityUnverified) item.Unverified = checked(item.Unverified + charge.Value);
+                item.Unknown |= unverifiedUnique;
                 item.Visible = true; continue;
             }
             string key = (charge.DirectorySelf ? "directory:" : "shared:") + parent;
@@ -179,7 +184,8 @@ public sealed partial class AnalysisTree : IAnalysisChartData
                 bucket.PathMemberStatistics = !charge.DirectorySelf;
                 map.Add(key, bucket); map[parent].Children.Add(key); order.Add(key);
             }
-            bucket.Value = checked(bucket.Value + charge.Value);
+            if (!unverifiedUnique) bucket.Value = checked(bucket.Value + charge.Value);
+            bucket.Unknown |= unverifiedUnique;
             if (charge.IdentityUnverified) bucket.Unverified = checked(bucket.Unverified + charge.Value);
             foreach (ulong alias in charge.Aliases)
             {
@@ -196,6 +202,8 @@ public sealed partial class AnalysisTree : IAnalysisChartData
         foreach (var missing in projection.MissingCharges)
         {
             cancellation.ThrowIfCancellationRequested();
+            if (retainReportStatistics && missing.DirectoryId is null && missing.Aliases.Length == 1)
+                map[Key(missing.Aliases[0])].AddMissing(missing.State, 1);
             if (missing.DirectoryId is not null || missing.Aliases.Length >= 2)
             {
                 ulong owner;
@@ -215,6 +223,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
                     map.Add(key, bucket); map[parent].Children.Add(key); order.Add(key);
                 }
                 bucket.Unknown = true; foreach (ulong alias in missing.Aliases) bucket.Members.Add(alias);
+                if (retainReportStatistics) bucket.AddMissing(missing.State, 1);
             }
             if (missing.DirectoryId is not null || missing.Aliases.Length < 2) continue;
             foreach (ulong alias in missing.Aliases)
@@ -234,6 +243,11 @@ public sealed partial class AnalysisTree : IAnalysisChartData
             parent.Unverified = checked(parent.Unverified + item.Unverified);
             parent.Unknown |= item.Unknown; parent.SharedElsewhere |= item.SharedElsewhere; parent.Visible |= item.Visible;
             parent.LogicalUnknown |= item.LogicalUnknown;
+            if (retainReportStatistics)
+            {
+                if (item.Missing is not null) foreach (var pair in item.Missing) parent.AddMissing(pair.Key, pair.Value);
+                if (item.LogicalMissing is not null) foreach (var pair in item.LogicalMissing) parent.AddLogicalMissing(pair.Key, pair.Value);
+            }
         }
         // These are references to real namespace paths, which already contributed
         // their logical bytes/counts. Keep descriptive statistics separate so chart
@@ -246,7 +260,7 @@ public sealed partial class AnalysisTree : IAnalysisChartData
                 (bucket.ReferenceLogical ??= new()).Add(item.PathLogical ?? AnalysisMeasurement.Missing(MeasurementState.Unsupported));
                 bucket.LogicalUnknown |= item.LogicalUnknown;
             }
-        return new(snapshot, projection, map.ToImmutableDictionary(p => p.Key, p => p.Value.Freeze(), StringComparer.Ordinal), filterApplied);
+        return new(snapshot, projection, map.ToImmutableDictionary(p => p.Key, p => p.Value.Freeze(retainReportStatistics, projection), StringComparer.Ordinal), filterApplied);
     }
     private sealed class Builder(string key, string parent, string name, ulong? node, AnalysisKind kind, bool synthetic, bool visible, string family)
     {
@@ -266,10 +280,18 @@ public sealed partial class AnalysisTree : IAnalysisChartData
         public ulong ModifiedPrecisionTicks;
         public List<string> Children = [];
         public HashSet<ulong> Members = [];
-        public AnalysisTreeItem Freeze() => new(key, Parent, name, node, kind, synthetic, Visible, Value, Logical, Files, Unknown,
+        public Dictionary<MeasurementState, ulong>? Missing, LogicalMissing;
+        public void AddMissing(MeasurementState state, ulong count)
+        { Missing ??= []; Missing[state] = checked(Missing.GetValueOrDefault(state) + count); }
+        public void AddLogicalMissing(MeasurementState state, ulong count)
+        { LogicalMissing ??= []; LogicalMissing[state] = checked(LogicalMissing.GetValueOrDefault(state) + count); }
+        public AnalysisTreeItem Freeze(bool report, AnalysisProjection projection) => new(key, Parent, name, node, kind, synthetic, Visible, Value, Logical, Files, Unknown,
             SharedElsewhere, family, Children.ToImmutableArray(), Members.Order().ToImmutableArray())
             { IdentityUnverified = Unverified, MetadataState = MetadataState, IncludedByPolicy = IncludedByPolicy, IsFilterContext = FilterContext,
                 LogicalUnknown = LogicalUnknown, ReferenceLogical = ReferenceLogical?.Export(), NameEvidence = NameEvidence, CapturedOrderName = CapturedOrderName,
-                ModifiedUtc = ModifiedUtc, ModifiedPrecisionTicks = ModifiedPrecisionTicks };
+                ModifiedUtc = ModifiedUtc, ModifiedPrecisionTicks = ModifiedPrecisionTicks,
+                ReportTotals = report ? new(projection.Metric == AnalysisMetric.UniqueFileSize ? Value : checked(Value - Unverified), Unverified, Files,
+                    Missing?.ToImmutableDictionary() ?? ImmutableDictionary<MeasurementState, ulong>.Empty, projection.Totals.CompatibleBasis) : null,
+                ReportLogical = report ? new(Logical, Files, LogicalMissing?.ToImmutableDictionary() ?? ImmutableDictionary<MeasurementState, ulong>.Empty) : null };
     }
 }

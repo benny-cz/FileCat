@@ -48,6 +48,7 @@ public sealed partial class DiskSpaceViewModel : Services.IAnalysisSavedReferenc
         if (Tree is null || _lease is null) throw new InvalidOperationException("Wait for a published analysis revision before saving.");
         return _lease.Retain();
     }
+    internal AnalysisSavedView PublishedReportView => _publishedView ?? throw new InvalidOperationException("Wait for a published report view.");
 
     public async Task<AnalysisInventoryReceipt> SaveNewAsync(string name, CancellationToken cancellation = default)
     {

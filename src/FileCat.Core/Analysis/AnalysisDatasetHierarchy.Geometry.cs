@@ -59,7 +59,7 @@ public sealed partial class AnalysisDatasetHierarchy
             {
                 clone = new(graph, null!, null!, null!, Metric, Compatible)
                     { _rows = _rows!.Retain(), Total = Total, TotalLogical = TotalLogical, TotalUnknown = TotalUnknown,
-                        TotalLogicalUnknown = TotalLogicalUnknown, FilterSummary = FilterSummary, Finished = true };
+                        TotalLogicalUnknown = TotalLogicalUnknown, FilterSummary = FilterSummary, MeasurementBases = MeasurementBases, Finished = true };
                 clone._buckets = _buckets!.Retain();
                 foreach (var index in Indexes) clone.Indexes.Add(index.Retain());
                 clone.Placements = Placements?.Retain(); return clone;

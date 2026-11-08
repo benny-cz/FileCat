@@ -1,0 +1,78 @@
+[
+  {
+    "path": "src/FileCat.App/Services/AnalysisIndexedAcquisition.Export.cs",
+    "sha256": "4d98a11cc959b6c1457aac7c839af32cf98ac27ab18a24573f2116c0cf4d8e4a"
+  },
+  {
+    "path": "src/FileCat.App/ViewModels/DiskSpaceViewModel.Persistence.cs",
+    "sha256": "63c0f8bc3d194f3596a40c901e638ec5a587880f5a72b8dc5ccc2c83cfe7f0c8"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+    "sha256": "42f278d907d49295c858135023618617bdc1f8c522f8836422f3a9d220167ece"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Reports.cs",
+    "sha256": "691fde5e90684a4d11b241bd6683f5734b2892e5d1788ac100fc6747475bbe7b"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisAggregate.cs",
+    "sha256": "456b274eb4fe1308e618e8c1aa75bb8c6c21b34e655c935580930d21b6982619"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisCapturedDatasetReport.cs",
+    "sha256": "8e0c7923e8b64e890811def95ca8db993615bc329543bb92096c159382969bcf"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisCapturedMemoryReport.cs",
+    "sha256": "b6c05ad5b827363bd25e8e804426b432e715c0ee252b1260c05fcc0d0d6eec5f"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisCapturedReport.cs",
+    "sha256": "97147ed79c44f5019af8e13bf6c066234dae8714db9c87f0fbe22dd3f34c3995"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+    "sha256": "66cc432cd0212ed064a9071161e2a9c0af6bc3178440139fcd0e15006cd66c56"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.Geometry.cs",
+    "sha256": "2f472223fb7f465fa01fab76652c47718b97d51bf7902ee2dd1f34ece7a6c05b"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisHumanReport.cs",
+    "sha256": "a2966aa1b71862ae55e6e71099a9a18bad81537d7326a731d8a8670a542d9a33"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisModel.cs",
+    "sha256": "7162c30a2a41ad0905034955b9d145eb114345424ed2de9494922258d0e48777"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisObjectCharges.cs",
+    "sha256": "9a12f66cb11c7fc05e381351d671aa58f6360ca0af591d569ad8da1141c26bb4"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisReportContext.cs",
+    "sha256": "1de868376ba73cb5b569f975986066a1136d9bf3a16173467e649f738bc4240e"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisTree.cs",
+    "sha256": "e0e4d7711c4f9c7ca5bbe8df3ebfd8f3464ee804fe44ac9b75580ce5bf8883ae"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisHumanReportTests.cs",
+    "sha256": "e7160ad6732e2944afbbdc8615fa1b657feaf0420b15471632444df7cbfcdc4d"
+  },
+  {
+    "path": "tests/FileCat.Core.Tests/AnalysisMemoryReportTests.cs",
+    "sha256": "256f7eadf66e2195eb5d3ffbfc33b5aa3c96e8bcb25dd94b342bc956b9e5ef99"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ExternalExportFallback.cs",
+    "sha256": "30391c9c9c4574c75f239a7ebd10542b2ade1cbbac7dc64f697b661703d450f5"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.MemoryReports.cs",
+    "sha256": "49b17cdefaaede7ce23751d68d970c37452961f862831823a27883165b6167d0"
+  }
+]
