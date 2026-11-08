@@ -1,5 +1,13 @@
 # Archive writing implementation status
 
+**8 November: retained native edit snapshots drive legacy ZIP jobs; first integration gates pass.**
+[Retained ZIP edits](RETAINED_LEGACY_ZIP_EDITS.md) remove the source-path byte reopen, bind a single originating
+session replacement and verify source/output hashes. All three platforms pass 18 real-file cases.
+The full application inventory found a canceled-admission retirement defect; its fix passes 29 Core
+and 18 history UI checks on each platform. Ubuntu's four picture-fixture failures are corrected by
+matching the production runtime environment; its 12 boundary checks pass. The `feb9105e` full Core and
+application rerun is still active. Completed failures remain preserved; no factory/profile is enabled.
+
 **8 November: Windows capture-tree cleanup and fresh read-only recovery implemented; full regression rerun active.**
 [Capture recovery](ARCHIVE_EDIT_CAPTURE_RECOVERY.md) retains native creation authority through Windows
 payload/record/directory removal, preserves exact opaque origin marks and reports retained copies after restart.

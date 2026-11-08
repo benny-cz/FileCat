@@ -2,7 +2,7 @@
   "schema": 1,
   "component": "native edit runtime cleanup and read-only restart review: progress checkpoint",
   "current_candidate": "f62d81f91dc5b4616f7b83a06502b0154459f66a",
-  "worktree_candidate": "b99299878e09436c8de4f54655d77e1930c94d15",
+  "worktree_candidate": "feb9105e267b06f837b4d86916d633b3f71c7426",
   "production_backend_qualified": false,
   "application_composition_uses_native_store": false,
   "history": [
@@ -648,6 +648,243 @@
         "storage_integrated": false
       },
       "production_backend_qualified": false
+    },
+    {
+      "platform": "windows",
+      "folder": "awe-storage-v13",
+      "candidate": "0809752611307c9120ca7781ea5db2151679e503",
+      "bytes": 24161132,
+      "sha256": "4bdf326442f5b7324b8164e414e9e2e21a048e50b26f92b00af3710d009f6e1d",
+      "manifest_sha256": "b1156c2748399f0bad741465becf2020310a17a1e09f66e079006a794cc0688b",
+      "changed_CSharp_sources_bound": 38,
+      "DLL_PDB_pairs_bound": 15,
+      "uncompiled_platform_sources": [],
+      "tests": {
+        "capture-recovery": {
+          "Passed": 27
+        },
+        "commit-copy": {
+          "Passed": 10
+        },
+        "complete-app": {
+          "Passed": 2808,
+          "NotExecuted": 118,
+          "Failed": 3
+        },
+        "complete-core": {
+          "Passed": 8087,
+          "NotExecuted": 576
+        },
+        "edit-core": {
+          "Passed": 100,
+          "NotExecuted": 10
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "job-input-regressions": {
+          "Passed": 269
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-origin-regressions": {
+          "Passed": 18
+        },
+        "native-snapshot": {
+          "Passed": 35
+        },
+        "native-storage": {
+          "Passed": 14
+        },
+        "origin-policy": {
+          "Passed": 15
+        },
+        "record-recovery": {
+          "Passed": 19
+        }
+      },
+      "focused_gates_complete": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false
+      },
+      "production_backend_qualified": false
+    },
+    {
+      "platform": "mac",
+      "folder": "awe-storage-v14",
+      "candidate": "b99299878e09436c8de4f54655d77e1930c94d15",
+      "bytes": 22779457,
+      "sha256": "76ba6f3a50369a92b491fab513a5201a54491fb2620c8341d2d6e7a76102b78d",
+      "manifest_sha256": "c614976649b4a0be3e4804ae9f76ae359c65e8afc350021a2e3b69b5b7f6f53b",
+      "changed_CSharp_sources_bound": 34,
+      "DLL_PDB_pairs_bound": 12,
+      "uncompiled_platform_sources": [
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditCaptureRecoveryTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditDirectoryLeaseTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSnapshotTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageTests.cs"
+      ],
+      "tests": {
+        "capture-recovery": {
+          "Passed": 27
+        },
+        "commit-copy": {
+          "Passed": 10
+        },
+        "complete-app": {
+          "Passed": 2736,
+          "NotExecuted": 190,
+          "Failed": 3
+        },
+        "complete-core": {
+          "Passed": 8451,
+          "NotExecuted": 207
+        },
+        "edit-core": {
+          "Passed": 110
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "job-input-regressions": {
+          "Passed": 269
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-snapshot": {
+          "Passed": 34
+        },
+        "native-storage": {
+          "Passed": 19
+        },
+        "origin-policy": {
+          "Passed": 15
+        },
+        "record-recovery": {
+          "Passed": 19
+        }
+      },
+      "focused_gates_complete": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "production_backend_qualified": false
+    },
+    {
+      "platform": "ubuntu",
+      "folder": "awe-storage-v14",
+      "candidate": "b99299878e09436c8de4f54655d77e1930c94d15",
+      "bytes": 22760843,
+      "sha256": "a557d0bac9e2c7a13f81f05b4a184f456c6224f29a3687169af4d9694694b58a",
+      "manifest_sha256": "8bc113c4d24510a0a3c6e95aeb676faa27091e5fb33f5965a49f13d495af3b67",
+      "changed_CSharp_sources_bound": 34,
+      "DLL_PDB_pairs_bound": 12,
+      "uncompiled_platform_sources": [
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditCaptureRecoveryTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditDirectoryLeaseTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSnapshotTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageTests.cs"
+      ],
+      "tests": {
+        "capture-recovery": {
+          "Passed": 27
+        },
+        "commit-copy": {
+          "Passed": 10
+        },
+        "complete-app": {
+          "Passed": 2734,
+          "NotExecuted": 188,
+          "Failed": 7
+        },
+        "complete-core": {
+          "Passed": 8473,
+          "NotExecuted": 185
+        },
+        "edit-core": {
+          "Passed": 110
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "job-input-regressions": {
+          "Passed": 269
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-snapshot": {
+          "Passed": 34
+        },
+        "native-storage": {
+          "Passed": 19
+        },
+        "origin-policy": {
+          "Passed": 15
+        },
+        "record-recovery": {
+          "Passed": 19
+        }
+      },
+      "focused_gates_complete": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false
+      },
+      "production_backend_qualified": false
+    },
+    {
+      "platform": "windows",
+      "folder": "awe-storage-v15",
+      "candidate": "824f72d5645d278a39368cf50b7d9fa9b14fe8fb",
+      "bytes": 17906257,
+      "sha256": "990397e3a3cbbb89c0253696a7ea2fedff41245069ec7a69ffefbb54baffb658",
+      "manifest_sha256": "5915ff9da778ff5c206399479c0968a4b05954f47e61d3167bbae18b8b5063c1",
+      "changed_CSharp_sources_bound": 44,
+      "DLL_PDB_pairs_bound": 15,
+      "uncompiled_platform_sources": [],
+      "tests": {
+        "capture-recovery": {
+          "Passed": 27
+        },
+        "history-retirement-core": {
+          "Passed": 29
+        },
+        "history-retirement-ui": {
+          "Passed": 18
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-legacy-zip": {
+          "Passed": 14,
+          "Failed": 4
+        },
+        "native-snapshot": {
+          "Passed": 35
+        },
+        "native-storage": {
+          "Passed": 14
+        },
+        "record-recovery": {
+          "Passed": 19
+        }
+      },
+      "focused_gates_complete": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false
+      },
+      "production_backend_qualified": false
     }
   ],
   "current": [
@@ -821,18 +1058,18 @@
   "pending": [
     {
       "platform": "windows",
-      "folder": "awe-storage-v13",
-      "state": "complete Core passed; application inventory running"
+      "folder": "awe-storage-v16",
+      "state": "retained ZIP/history focused gates passed; complete inventories and final evidence seal pending"
     },
     {
       "platform": "mac",
-      "folder": "awe-storage-v14",
-      "state": "case-sensitive fixture rerun active"
+      "folder": "awe-storage-v16",
+      "state": "retained ZIP/history focused gates passed; complete inventories and final evidence seal pending"
     },
     {
       "platform": "ubuntu",
-      "folder": "awe-storage-v14",
-      "state": "private bus/keyring rerun active"
+      "folder": "awe-storage-v16",
+      "state": "retained ZIP/history focused gates passed; complete inventories and final evidence seal pending"
     }
   ],
   "fresh_review_authorizes_deletion": false,
@@ -846,7 +1083,7 @@
     "Unix exact-object runtime cleanup",
     "fresh recovery cleanup action and startup UI",
     "native Save copy publication",
-    "ZIP/SFTP retained source integration",
+    "SFTP retained source integration and complete ZIP/native qualification",
     "safe discard and adoption",
     "durable retained disk/resource qualification",
     "application composition",

@@ -81,10 +81,11 @@ newly appearing children and explicit payload-cleanup filesystem postconditions 
 follow-up for subsequent Windows runtime cleanup and fresh read-only recovery inspection. Resolve the
 remaining Unix cleanup recipe without a conditional-check-then-path-unlink fallback.
 
-Implement native Save copy destination publication, retained-input integration for ZIP and remote commits,
-safe discard, legacy record adoption, bounded queued-snapshot resource ownership and application composition.
-The present native Save copy/legacy ZIP guards intentionally keep those routes unavailable in the explicit
-test factory; they must be completed before enabling it. Preserve existing legacy ZIP/SFTP behavior.
+At this checkpoint native Save copy and legacy ZIP capture still had guards. The later
+[retained ZIP integration](RETAINED_LEGACY_ZIP_EDITS.md) removes the ZIP source-ownership guard and passes
+its initial all-platform matrix. Native Save copy destination publication, SFTP retained-input integration,
+safe discard, adoption, durable resource admission and application composition remain required. Preserve
+existing legacy ZIP/SFTP behavior.
 
 Then run complete Core and ordinary typed-job/input regressions, actual native F4/Commit/rebase/uncertainty
 journeys, native desktop/editor/accessibility acceptance and all inherited platform, fuzz, resource, RID,

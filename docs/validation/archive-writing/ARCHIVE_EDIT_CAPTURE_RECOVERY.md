@@ -57,8 +57,12 @@ when included in the complete inventory.
 platform skips and four case-distinct move-fixture failures on the case-insensitive volume. Ubuntu
 reports 8,472 passes, 185 skips and a desktop-keyring collection failure. `v14` restores the earlier
 case-sensitive Mac image and isolated Linux bus/keyring setup; the test assertions are unchanged.
-Windows `v13` completed Core with 8,087 passes and 576 skips and is still running the application inventory.
-The complete Core/application qualification remains open until all required results are preserved and checked.
+Windows `v13` completed Core with 8,087 passes and 576 skips, then its application inventory exposed
+three history-retirement failures. Mac/Ubuntu `v14` completed Core with 8,451/8,473 passes and 207/185
+skips respectively. Their application inventories exposed the same three history failures, plus four
+Ubuntu picture-launch fixture failures. All results are preserved. The
+[retained ZIP follow-up](RETAINED_LEGACY_ZIP_EDITS.md) implements the history fix, corrects the picture
+fixture and adds the next integration matrix; its complete `v16` inventories are still running.
 
 ```powershell
 python -B -X utf8 eng/validation/archive-writing/verify_edit_storage_checkpoint.py --checkpoint docs/validation/archive-writing/edit-capture-recovery-progress.json
@@ -68,7 +72,7 @@ python -B -X utf8 eng/validation/archive-writing/verify_edit_storage_checkpoint.
 
 Unix exact-object payload/directory removal is still unavailable and retains the copy. Fresh restart
 inspection does not authorize destructive cleanup on any platform. Complete the native cleanup/recovery
-action, native Save copy destination publication, ZIP/SFTP retained-input integration, safe discard,
+action, native Save copy destination publication, SFTP retained-input integration, full ZIP/native qualification, safe discard,
 legacy adoption and application composition. The new inspection also needs its connected startup UI.
 
 Complete durable-retention disk admission, full scale/memory/CPU/IO/handle measurements, complete Core

@@ -1045,6 +1045,12 @@ active-copy count/byte reservations. Fresh receipts never confer deletion author
 cleanup, the restart recovery action and startup UI, durable retained-disk admission and the integration
 gates above; focused evidence does not complete §12 or authorize production registration.
 
+The [retained ZIP integration](../validation/archive-writing/RETAINED_LEGACY_ZIP_EDITS.md) connects these
+copies to the legacy ZIP executor without full-path input-byte reopens, verifies source/output hashes
+and refuses missing/duplicate current members. Its initial native matrix passes on all three platforms;
+the complete inventories are still running. Existing ZIP publication semantics remain a compatibility
+boundary; SFTP, native Save copy and the remaining ownership/composition/qualification work above are open.
+
 ### 12.2 Review and commit states
 
 | Observed state | Allowed behavior |
