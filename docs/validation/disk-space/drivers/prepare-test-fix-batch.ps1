@@ -30,7 +30,7 @@ foreach($platform in 'windows','mac','linux'){
   $relative=[IO.Path]::GetRelativePath($old,$_.FullName).Replace('\','/')
   $parts=$relative.Split('/',2);$bin=Join-Path $PWD ('tests/'+$assemblies[$parts[0]]+'/bin/Debug/net10.0')
   $current=Join-Path $bin $parts[1]
-  if($InputScope-eq'OldProductControl'-and$relative-in$appFiles){$current=$_.FullName}
+  if($InputScope-eq'OldProductControl'-and$relative-notin$allowed){$current=$_.FullName}
   $before=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
   $after=(Get-FileHash -LiteralPath $current -Algorithm SHA256).Hash.ToLowerInvariant()
   $patch=$before-ne$after

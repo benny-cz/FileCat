@@ -147,7 +147,7 @@ public sealed partial class OwnedAnalysisStore
                 return new(AnalysisRollingCaptureState.TooLarge, null, null, false, [], "The complete analysis exceeds the history byte cap. No partial inventory was saved; existing history was kept.");
             // Preserve the complete new file after publication, including failed metadata
             // registration. A pending/unindexed entry blocks further automatic capture.
-            bool uncertain = AnalysisCloseUnconfirmedException.IsPresent(failure) || PublicationUncertain(failure);
+            bool uncertain = AnalysisCloseUnconfirmedException.IsPresent(failure) || PublicationUncertain(failure) || ContainsUncertainDeletion(failure);
             var state = uncertain ? AnalysisRollingCaptureState.Uncertain : receipt is not null || pruningStarted
                 ? AnalysisRollingCaptureState.RecoveryRequired : AnalysisRollingCaptureState.Deferred;
             var outcome = new AnalysisRollingCaptureOutcome(state, receipt is not null || uncertain ? name : null, receipt, cataloged, pruned.ToImmutable(),

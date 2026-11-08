@@ -15,7 +15,7 @@ public sealed partial class OwnedAnalysisStore
         if (restore && (!review.IsRecovery || !review.PayloadPresent)) throw new InvalidOperationException("Only a pending analysis whose saved file is present can be restored.");
         if (restore && review.OpaqueBytes is not null) throw new InvalidOperationException("Restore requires a fresh valid-inventory review.");
         review.Consume(this);
-        return _owned.UseAsync<OwnedAnalysisDeletionOutcome>(async data =>
+        return FinishDeletionAsync(review.Entry.InventoryId, review.Entry.Name, () => _owned.UseAsync<OwnedAnalysisDeletionOutcome>(async data =>
         {
             var work = new DeletionWork(); Exception? failure = null;
             Guid operation = review.IsRecovery ? review.ExistingOperation : Guid.NewGuid();
@@ -147,7 +147,7 @@ public sealed partial class OwnedAnalysisStore
             { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw(); }
             throw new OwnedAnalysisDeletionException(new(state, review.Entry.InventoryId, review.Entry.Name, work.PayloadAbsent,
                 needsRecovery || uncertain ? operation : null, detail), failure);
-        });
+        }));
     }
     private static void RequireAbsent(AnalysisPrivateDirectory directory, string name, CancellationToken cancellation)
     {

@@ -1,0 +1,10 @@
+[
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.HistoryFaults.cs",
+    "sha256": "36eb35912e3edd3581c92d6fc67986b13020f34f386a7dea43c860fb033f30b7"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.Maintenance.cs",
+    "sha256": "ce2111fb1eab2a3d78936068cc83359ddd3e4d8b64057d8bfa2ca789158d0273"
+  }
+]

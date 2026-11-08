@@ -107,7 +107,7 @@ public sealed partial class OwnedAnalysisStore
     {
         ArgumentNullException.ThrowIfNull(review); review.Consume(this);
         if (review.Indexed is { } indexed) return DeleteAsync(indexed, cancellation);
-        return _owned.UseAsync(async data =>
+        return FinishDeletionAsync(review.InventoryId, review.Name, () => _owned.UseAsync(async data =>
         {
             var work = new OpaqueHistoryWork(); Exception? failure = null; bool attempted = false, absent = false;
             try
@@ -131,7 +131,11 @@ public sealed partial class OwnedAnalysisStore
                     return true;
                 }, cancellation).ConfigureAwait(false);
             }
-            catch (Exception error) { failure = error; }
+            catch (Exception error)
+            {
+                failure = error;
+                if (work.Payload is { RemovalRequested: false }) attempted = false;
+            }
             finally
             {
                 try { await AnalysisIo.ReleaseScratchAsync(_io, _device, work).ConfigureAwait(false); }
@@ -150,7 +154,7 @@ public sealed partial class OwnedAnalysisStore
                 RequireUnindexed(data, catalog, review.Name, token);
                 if (catalog.CatalogId != review.CatalogId) throw new InvalidDataException("History changed after removal review.");
             }
-        });
+        }));
     }
     private sealed class OpaqueHistoryWork : IAnalysisScratchOwned
     {

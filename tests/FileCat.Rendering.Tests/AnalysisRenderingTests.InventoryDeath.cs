@@ -47,8 +47,30 @@ public sealed partial class AnalysisRenderingTests
             Assert.Equal("preserve this independent neighbor", File.ReadAllText(foreign));
             Assert.Equal(ready.GetProperty("otherSha256").GetString(), Hash(Path.Combine(root, "other.fcdsa")));
             using var io = new DeviceIoScheduler(); string device = PathUtil.GetDeviceKey(parent);
-            await using var owned = await OwnedAnalysisStore.OpenAsync(io, device, () => OperatingSystem.IsWindows()
-                ? new WindowsAnalysisPrivateDirectory(parent, "scratch") : new UnixAnalysisPrivateDirectory(parent, "scratch"), cancellation);
+            await using var owned = await OwnedAnalysisStore.OpenAsync(io, device, () =>
+            {
+                AnalysisPrivateDirectory directory = OperatingSystem.IsWindows()
+                    ? new WindowsAnalysisPrivateDirectory(parent, "scratch") : new UnixAnalysisPrivateDirectory(parent, "scratch");
+                try
+                {
+                    if (boundary is "marker-removed" or "writer-closed" or "completed")
+                    {
+                        // The child stops after requesting removal, before closing its
+                        // handle. Check the same native namespace the catalog will read.
+                        Guid catalogId = ready.GetProperty("catalog").GetGuid(), previousId = ready.GetProperty("previous").GetGuid(), incomingId = ready.GetProperty("incoming").GetGuid();
+                        bool RetiringMarkerPresent() => directory.Entries(cancellation).Any(name =>
+                            AnalysisPrivateNames.TryPendingReplacement(name, out Guid catalog, out Guid previous, out Guid incoming, out _) &&
+                            catalog == catalogId && previous == previousId && incoming == incomingId);
+                        clock.Restart();
+                        while (RetiringMarkerPresent() && clock.Elapsed < TimeSpan.FromSeconds(2))
+                        { cancellation.ThrowIfCancellationRequested(); Thread.Sleep(10); }
+                        Assert.False(RetiringMarkerPresent(), "The requested replacement-marker removal must finish before fresh catalog inspection.");
+                        Console.WriteLine($"Owned inventory death {boundary}: native retiring marker absent after {clock.ElapsedMilliseconds} ms.");
+                    }
+                    return directory;
+                }
+                catch { AnalysisIo.CloseOnWorker(directory); throw; }
+            }, cancellation);
             var beforeRead = Directory.EnumerateFiles(root).Order(StringComparer.Ordinal).ToArray();
             using (var catalog = await owned.ReadCatalogAsync(cancellation))
             {

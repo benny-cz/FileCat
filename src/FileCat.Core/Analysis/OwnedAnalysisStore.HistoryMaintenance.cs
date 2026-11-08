@@ -76,7 +76,7 @@ public sealed partial class OwnedAnalysisStore
                 catch (Exception error) { failure = failure is null ? error : new AggregateException(failure, error); }
             }
             if (failure is null) return result!;
-            var state = AnalysisCloseUnconfirmedException.IsPresent(failure) ? AnalysisRollingCaptureState.Uncertain
+            var state = AnalysisCloseUnconfirmedException.IsPresent(failure) || ContainsUncertainDeletion(failure) ? AnalysisRollingCaptureState.Uncertain
                 : mutationStarted ? AnalysisRollingCaptureState.RecoveryRequired : AnalysisRollingCaptureState.Deferred;
             throw new AnalysisRollingCaptureException(new(state, null, null, false, removed.ToImmutable(),
                 mutationStarted ? "History maintenance was not fully confirmed. Keep remaining files and review current history before retrying."

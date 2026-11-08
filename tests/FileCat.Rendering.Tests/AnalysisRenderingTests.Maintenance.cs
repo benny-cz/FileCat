@@ -202,6 +202,7 @@ public sealed partial class AnalysisRenderingTests
         internal Action<string>? BeforeRemove, AfterRemove;
         internal Action<string>? AfterPublish;
         internal Action<string, string>? BeforeMove;
+        internal Action<string, string>? AfterMove;
         internal bool LowSpace;
         internal int Publications;
         internal override void Verify() => inner.Verify();
@@ -221,7 +222,11 @@ public sealed partial class AnalysisRenderingTests
             public override void Verify() => inner.Verify();
             public override void Flush() => inner.Flush();
             public override void PublishNew(string name) => throw new NotSupportedException();
-            internal override void MoveOwnedNew(string name) { owner.BeforeMove?.Invoke(inner.MaintenanceName!, name); inner.MoveOwnedNew(name); }
+            internal override void MoveOwnedNew(string name)
+            {
+                string before = inner.MaintenanceName!; owner.BeforeMove?.Invoke(before, name);
+                inner.MoveOwnedNew(name); owner.AfterMove?.Invoke(before, name);
+            }
             internal override void RemoveOwned() { string name = inner.MaintenanceName!; owner.BeforeRemove?.Invoke(name); inner.RemoveOwned(); owner.AfterRemove?.Invoke(name); }
             internal override void ReplaceOwned(AnalysisPrivateFile destination)
             {
