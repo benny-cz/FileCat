@@ -1,5 +1,14 @@
 # Archive writing implementation status
 
+**8 November: versioned native archive edit candidate under validation, unregistered.**
+[Native edit sessions](ARCHIVE_EDIT_SESSIONS.md) connect F4, immutable commit copies, explicit conflict/rebase,
+positive publication facts and actual published-member readback. The connected packet also preserves old/future
+session records, avoids metadata filename collisions and makes new Unix edit files private. The retained `14cb2678`
+cohort passes 259 application cases on each platform and both complete Unix Core inventories; its Windows native
+fixture timeout is preserved. Candidate `f758c487` combines the fixture correction and stronger readback refusal
+checks and is running on all three machines with focused gates before complete regressions. Native namespace/cleanup
+hardening, remaining UX cases, Unix mutation/confinement and all release/final-review gates remain open.
+
 **8 November: RAR5/7z password browsing and read ownership implemented, unregistered.**
 [Password browsing](ARCHIVE_PASSWORD_BROWSING.md) connects masked password retry, source-bound readers,
 restored-tab Refresh, nested archive/viewer lifetime and queued extraction after tab closure. All platforms pass
@@ -105,8 +114,9 @@ This is an **incomplete implementation**, not format or release qualification. T
 [the archive writing plan](../../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md). No new writer is enabled in the
 application. An explicit new-profile job refuses instead of entering the legacy ZIP executor.
 
-**Next coherent implementation chunk:** versioned native archive external edit creation, explicit commit/rebase
-and actual published-member acknowledgement, preserving legacy ZIP/remote and unknown-version working copies.
+**Current coherent implementation chunk:** finish validation and native ownership hardening for versioned archive
+external edit creation, explicit commit/rebase and actual published-member acknowledgement, preserving legacy
+ZIP/remote and unknown-version working copies.
 Then finish member UX edges and qualify Unix confinement/update, moves and cleanup/recovery.
 Present the declared 7z precision policy and resolve remaining header compatibility gaps before enabling a profile. Reuse
 passed codec/native evidence when its compiler inputs are unchanged; batch the shared UI and native acceptance

@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "component": "native archive edit sessions",
+  "production_backend_qualified": false,
+  "component_complete": false,
+  "current_candidate": "f758c487647fddbc87038d157c65c12f546339c0",
+  "history": [
+    {
+      "platform": "windows",
+      "folder": "awe-v1",
+      "candidate": "14cb2678441ba9da2eca90b603b4ae08dbf09589",
+      "bytes": 159472225,
+      "sha256": "6d624fd83f99e2c68e55050ee15a69a4276ac151d79a2bf88446636b3e1cdc24",
+      "changed_compiler_inputs": 24,
+      "binaries": 12,
+      "tests": {
+        "edit-core.trx": {
+          "Passed": 134,
+          "NotExecuted": 21
+        },
+        "edit-ui.trx": {
+          "Passed": 259
+        },
+        "native-edit-ui.trx": {
+          "Passed": 1,
+          "Failed": 1
+        }
+      },
+      "full_core_inventory_verified": false,
+      "production_backend_qualified": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false
+      }
+    },
+    {
+      "platform": "mac",
+      "folder": "awe-v1",
+      "candidate": "14cb2678441ba9da2eca90b603b4ae08dbf09589",
+      "bytes": 26012819,
+      "sha256": "34be630f99f6e064cccce59a9a2c3c965021db7763a6dc9220f644d9283b3a11",
+      "changed_compiler_inputs": 24,
+      "binaries": 12,
+      "tests": {
+        "core-regressions.trx": {
+          "Passed": 8314,
+          "NotExecuted": 207
+        },
+        "edit-core.trx": {
+          "Passed": 152,
+          "NotExecuted": 3
+        },
+        "edit-ui.trx": {
+          "Passed": 259
+        }
+      },
+      "full_core_inventory_verified": true,
+      "production_backend_qualified": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      }
+    },
+    {
+      "platform": "ubuntu",
+      "folder": "awe-v1",
+      "candidate": "14cb2678441ba9da2eca90b603b4ae08dbf09589",
+      "bytes": 25994970,
+      "sha256": "9329bc2d6d8dc660a3a706d14e0bf344ece2ed8e3cf0a8efc04f0c09f943089c",
+      "changed_compiler_inputs": 24,
+      "binaries": 12,
+      "tests": {
+        "core-regressions.trx": {
+          "Passed": 8336,
+          "NotExecuted": 185
+        },
+        "edit-core.trx": {
+          "Passed": 150,
+          "NotExecuted": 5
+        },
+        "edit-ui.trx": {
+          "Passed": 259
+        }
+      },
+      "full_core_inventory_verified": true,
+      "production_backend_qualified": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false
+      }
+    }
+  ],
+  "final": [],
+  "unapplied_startup_refusals": [
+    {
+      "path": ".tmp/edit-windows-v2-start-error.txt",
+      "bytes": 492,
+      "sha256": "8018ee8ccaa600b905de66af6d21c3bd68da06df8585082ffa7fbbfe4918fc3a"
+    },
+    {
+      "path": ".tmp/awe-other-process-v2.json",
+      "bytes": 479,
+      "sha256": "86cf736976e75626a0cbd177c5a4b8a2aeca2877a8112693643c5f6f4ade7ac9"
+    }
+  ],
+  "windows_awe_v2_applied_or_run": false,
+  "owned_v1_native_abort": {
+    "pid": 9244,
+    "reason": "Stop remaining fixture cases after a stale-navigation wait timeout; collect diagnostics."
+  },
+  "remaining": [
+    "native session namespace and cleanup ownership hardening",
+    "remaining UX/uncertainty/cancellation cases",
+    "Unix native mutation/confinement and recovery",
+    "native desktop/accessibility acceptance",
+    "release/fuzz/RID/package gates",
+    "final independent review"
+  ]
+}

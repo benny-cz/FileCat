@@ -58,7 +58,7 @@ The product promises preservation within a clearly defined archive profile, not 
 
 Production availability is per format, profile, runtime identifier, and destination filesystem capability. A platform that lacks the worker or publication guarantees stays read-only for the affected operation; there is no silent unsafe fallback. Qualify all supported runtime identifiers before describing a format as supported across FileCat's desktop platforms.
 
-**Current implementation priority (8 November):** RAR5/7z encoders, strict catalogs, shared native jobs, Windows native moves/cleanup, creation/update/member UI and password browsing have recorded component checkpoints. Complete versioned external edit creation/commit/rebase and actual published-member acknowledgement next, preserving legacy ZIP/remote and unknown-version working copies. Then finish remaining member UX edges and Unix native mutation/confinement/moves/recovery before production resource/fuzz/RID/package qualification and the final independent review. Keep optional XZ/ISO work later. The release rows above describe independently qualified availability; no new writer is enabled. Source preservation, complete compressed-stream verification and bounded worker execution remain prerequisites for replacing an archive.
+**Current implementation priority (8 November):** RAR5/7z encoders, strict catalogs, shared native jobs, Windows native moves/cleanup, creation/update/member UI and password browsing have recorded component checkpoints. The [versioned external edit candidate](../validation/archive-writing/ARCHIVE_EDIT_SESSIONS.md) now connects creation/commit/rebase and actual published-member acknowledgement; complete its connected platform validation and native working-directory/cleanup ownership hardening, preserving legacy ZIP/remote and unknown-version working copies. Then finish remaining member UX edges and Unix native mutation/confinement/moves/recovery before production resource/fuzz/RID/package qualification and the final independent review. Keep optional XZ/ISO work later. The release rows above describe independently qualified availability; no new writer is enabled. Source preservation, complete compressed-stream verification and bounded worker execution remain prerequisites for replacing an archive.
 
 **Integration sequencing:** shared versioned format/options, public-request binding and password-role plumbing can
 advance while the remaining 7z graph-ending checks are completed. The completed RAR5 logical-catalog component
@@ -1015,6 +1015,18 @@ Qualify 100/125/150/200% scaling and a 640×480 effective viewport: content can 
 Add an archive adapter contract rather than spreading TarReader/SevenZip APIs into EditSessionStore. New archive session records use a new version with explicit format/profile version, outer archive path and identity evidence, baseline, exact raw member key, content SHA-256, length, semantic metadata digest and owned working-copy identity. Optional legacy CRC stays an additional ZIP field, not the universal member version.
 
 Create the working copy only after a complete strict source assessment; extract from the pinned member stream, propagate origin marks, hash the exact bytes, and verify the source version again before publishing the session record. Initial direct editing requires a unique regular member in an admitted outer archive. Duplicate members and unsupported profiles remain extract/edit/save-copy workflows.
+
+Session and snapshot GUID paths do not confer cleanup authority. Bind the session root, record directory,
+working directory and owned artifacts to retained native objects for creation, record replacement, commit-copy
+capture and discard/cleanup. Persist the directory evidence needed for a fresh restart review. A normal editor
+may replace the working-file inode atomically within its owned directory; validate that namespace and the
+reviewed current bytes rather than rejecting every such save. Path-only identity checks followed by recursive
+directory deletion or file deletion do not meet this gate. When native ownership cannot be established, retain
+the files for review and keep the corresponding mutation unavailable; never remove an unreviewed replacement.
+
+Exercise directory rename/replacement, reparse/symlink substitution, changed metadata records, newly appearing
+children, cleanup failure, restart and late editor saves against the actual native recipe on each platform.
+Private Unix modes and initial identity fields are useful prerequisites, but do not establish this race gate.
 
 ### 12.2 Review and commit states
 
