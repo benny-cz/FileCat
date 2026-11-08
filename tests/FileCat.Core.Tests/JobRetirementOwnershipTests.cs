@@ -9,6 +9,25 @@ namespace FileCat.Core.Tests;
 
 public sealed class JobRetirementOwnershipTests(ITestOutputHelper output)
 {
+    [Theory,InlineData(0),InlineData(1)]
+    public void Removal_of_a_canceled_admission_waits_for_owners_and_all_add_observers(int concurrent)
+    {
+        using var temp=new TempDir();string source=Path.Combine(temp.Path,"source.txt");File.WriteAllText(source,"unchanged source");
+        var manager=Manager(temp.Path);manager.MaxConcurrent=concurrent;
+        Job? registered=null;int added=0,removed=0,finished=0;
+        manager.JobAdded+=job=>
+        {
+            Assert.Same(registered,job);added++;job.Cancel();manager.Remove(job);
+            Assert.Equal(JobState.Queued,job.State);Assert.Null(job.StartedUtc);Assert.Contains(job,manager.Jobs);
+        };
+        manager.JobAdded+=job=>{Assert.Equal(1,added);Assert.Same(registered,job);Assert.Equal(JobState.Queued,job.State);added++;};
+        manager.JobRemoved+=job=>{removed++;Assert.Equal(2,added);Assert.Equal(JobState.Canceled,job.State);Assert.Null(job.StartedUtc);};
+        manager.JobFinished+=job=>{finished++;Assert.Same(registered,job);Assert.Equal(2,added);Assert.DoesNotContain(job,manager.Jobs);};
+        var submitted=manager.SubmitWithRegistration(Copy(temp.Path,source,1),job=>registered=job);
+        Assert.Same(registered,submitted);Assert.Equal(JobState.Canceled,submitted.State);Assert.Null(submitted.StartedUtc);
+        Assert.Equal(1,removed);Assert.Equal(1,finished);Assert.Empty(manager.Jobs);Assert.Equal("unchanged source",File.ReadAllText(source));
+    }
+
     public static IEnumerable<object[]> RetiredCases()
     {
         foreach (string route in new[] { "remove", "clear", "trim" })

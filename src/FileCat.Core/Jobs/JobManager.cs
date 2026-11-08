@@ -19,6 +19,7 @@ public sealed partial class JobManager
     private readonly Dictionary<Job, SyncGroup> _syncByJob = [];
     private readonly HashSet<Job> _starting = []; // chosen to start, not yet Running: no other Schedule may choose them
     private readonly HashSet<Job> _admitting = []; // observers and ownership must settle before scheduling
+    private readonly HashSet<Job> _removeAfterAdmission = []; // explicit removal of a canceled admission waits for terminal ownership cleanup
     private readonly Dictionary<Job, ArchiveJobOperation> _archiveOperations = [];
     private readonly ArchiveJobBackends _archiveBackends;
     private readonly IFileSystemOperations _fs;
@@ -216,6 +217,7 @@ public sealed partial class JobManager
                 {
                     _jobs.Remove(job);
                     _admitting.Remove(job);
+                    _removeAfterAdmission.Remove(job);
                     _archiveOperations.Remove(job);
                     job.Changed -= OnJobChanged;
                 }
@@ -242,10 +244,16 @@ public sealed partial class JobManager
 
     public void Remove(Job job)
     {
-        if (!job.State.IsFinished()) return;
         bool removed;
         lock (_lock)
         {
+            if(!job.State.IsFinished())
+            {
+                if(_admitting.Contains(job)&&job.State==JobState.Queued&&job.IsCancellationRequested)
+                    _removeAfterAdmission.Add(job);
+                return;
+            }
+            _removeAfterAdmission.Remove(job);
             removed = _jobs.Remove(job);
             if (removed) job.Changed -= OnJobChanged;
         }
@@ -355,7 +363,7 @@ public sealed partial class JobManager
     public void Schedule()
     {
         var toStart = new List<Job>();
-        var canceled = new List<Job>();
+        var canceled = new List<(Job Job,bool Remove)>();
         lock (_lock)
         {
             if (_suppressScheduling > 0) return;
@@ -365,11 +373,12 @@ public sealed partial class JobManager
             {
                 if (job.IsCancellationRequested)
                 {
+                    bool remove=_removeAfterAdmission.Remove(job);
                     ReleaseArchiveOperation(job);
                     job.SetState(JobState.Canceled);
                     if (job.Kind == JobKind.Undo && job.Request.UndoPlan is { } plan)
                         job.SetUndoReport(UndoReport.NotStarted(plan, "Canceled before the inverse started; no inverse steps ran."));
-                    canceled.Add(job);
+                    canceled.Add((job,remove));
                     continue;
                 }
                 if (job.IsPaused)
@@ -408,7 +417,8 @@ public sealed partial class JobManager
                 toStart.Add(job);
             }
         }
-        foreach (var job in canceled) { ReleaseReadLeases(job); JobFinished?.Invoke(job); }
+        foreach (var (job,remove) in canceled)
+        {ReleaseReadLeases(job);if(remove)Remove(job);JobFinished?.Invoke(job);}
         foreach (var job in toStart) Start(job);
     }
 
