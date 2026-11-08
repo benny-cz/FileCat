@@ -108,7 +108,8 @@ public sealed partial class EditSessionStore
     private static EditSessionRecord NativeRecord(EditSessionRecord record, ArchiveTargetReview target, ArchiveManifestMember member, string sha256) =>
         record with
         {
-            Version = EditSessionRecord.CurrentVersion, ArchivePath = target.Path, ArchiveFormat = target.Profile.Format, ArchiveProfile = target.Profile,
+            Version = record.StorageRootIdentity.Length==0?EditSessionRecord.CurrentVersion:EditSessionRecord.NativeStorageVersion,
+            ArchivePath = target.Path, ArchiveFormat = target.Profile.Format, ArchiveProfile = target.Profile,
             ArchiveIdentity = target.Native.Version.Identity, ArchiveParentIdentity = target.Native.ParentIdentity, ArchiveMetadataDigest = target.Native.MetadataDigest,
             Baseline = target.Baseline, MemberPath = member.Name, MemberOccurrence = member.Occurrence, MemberCatalogRevision = target.Assessment.CatalogRevision,
             MemberLength = member.Length, MemberMetadataSha256 = ArchiveEditEvidence.Metadata(member), BaseSha256 = sha256, MemberCrc32 = 0,

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using FileCat.Core.Archives;
 using FileCat.Core.Edit;
 using FileCat.Core.FileSystem;
+using FileCat.Core.Jobs;
 using FileCat.Core.Resources;
 using FileCat.Tests;
 using Microsoft.Win32.SafeHandles;
@@ -13,6 +14,22 @@ public sealed class ArchiveEditSessionTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     public static IEnumerable<object[]> Profiles() => ArchiveNativeJobCases.Profiles();
+
+    [Theory,MemberData(nameof(Profiles))]
+    public void Native_storage_schema_survives_verified_archive_acknowledgement(ArchiveWriteFormat format,int mode)
+    {
+        if(OperatingSystem.IsWindows())Assert.Skip("Unix native store adapter case; Windows uses its platform lane.");
+        using var f=new Fixture(ArchiveNativeJobCases.Profile(format,mode),native:true);
+        var record=f.Store.CreateArchive(f.Source,"notes.txt",Ct);
+        Assert.Equal(EditSessionRecord.NativeStorageVersion,record.Version);Assert.Equal(EditState.Unchanged,f.Store.StateOf(record));
+        string frozen=Path.Combine(Directory.CreateDirectory(Path.Combine(f.Temp.Path,"commit-fixture")).FullName,"notes.txt");
+        File.WriteAllBytes(frozen,f.Before);
+        using var copy=new EditCommitCopy(frozen,record.BaseSha256,Crc32.Append(0,f.Before),f.Before.Length);
+        var published=f.Published(f.Before);
+        var updated=f.Store.CommittedArchive(record,published,copy,Receipt(published.Target),Ct);
+        Assert.Equal(EditSessionRecord.NativeStorageVersion,updated.Version);Assert.Equal(1,updated.StorageRevision);
+        Assert.Equal(updated,Assert.Single(f.Store.LoadAll()));Assert.Equal(EditState.Unchanged,f.Store.StateOf(updated));
+    }
 
     [Theory, MemberData(nameof(Profiles))]
     public void Explicit_profile_survives_restart_and_only_verified_published_bytes_advance_the_baseline(ArchiveWriteFormat format, int mode)
@@ -133,9 +150,11 @@ public sealed class ArchiveEditSessionTests
         internal readonly TempDir Temp = new(); internal readonly IdentityAwareTestFiles Files = new();
         internal readonly ArchiveWriteProfile Profile; internal readonly EditSessionStore Store; internal readonly Source Source;
         internal readonly byte[] Before = "complete original editable bytes"u8.ToArray();
-        internal Fixture(ArchiveWriteProfile profile)
+        internal Fixture(ArchiveWriteProfile profile,bool native=false)
         {
-            Profile = profile; Store = new(Path.Combine(Temp.Path, "sessions"), Files); Source = Published(Before, original: true);
+            string root=Path.Combine(Temp.Path,"sessions");
+            if(native&&OperatingSystem.IsMacOS()&&root.StartsWith("/var/",StringComparison.Ordinal))root="/private"+root;
+            Profile = profile; Store = new(root,Files,native?UnixEditDirectoryLease.OpenRoot:null); Source = Published(Before, original: true);
         }
         internal Source Published(byte[] bytes, bool original = false)
         {

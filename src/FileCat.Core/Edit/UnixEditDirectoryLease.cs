@@ -96,14 +96,17 @@ internal sealed class UnixEditDirectoryLease : EditDirectoryLease
         {
             RequireOpen();Leaf(name);ReviewCore(ct);
             if(!isPrivate||UnixFiles.Stat(file.SafeFileHandle) is not {IsRegular:true,Owner:var owner,Mode:var mode}||owner!=user||
-                (mode&~0x1a4u)!=0)throw new IOException("The working file is not an ordinary creator-owned file in its private directory.");
+                (mode&~0x1b6u)!=0)throw new IOException("The working file is not an ordinary creator-owned file in its private directory.");
+            // Unix traversal requires access to the retained 0700 parent. Normal editor umasks may leave group/other
+            // read/write bits on a replacement; those bits confer no access through this private namespace.
             var metadata=ArchiveUnixOuterMetadata.Capture(file.SafeFileHandle,ct);var facts=metadata.Native;
             if(facts.LinkCount!=1||facts.Length>EditSessionStore.MaxMemberBytes)throw new IOException("The working file is linked or exceeds its byte budget.");
             using var named=UnixArchiveNative.Child(directory,name);
             if(UnixFiles.Stat(named)?.Identity!=facts.Identity)throw new IOException("The editor replaced the working file during its review.");
             ReviewCore(ct);
-            long ticks=checked(DateTime.UnixEpoch.Ticks+facts.Modified.Seconds*TimeSpan.TicksPerSecond+facts.Modified.Nanoseconds/100);
-            return new(facts.Length,ticks,facts.Identity+":"+metadata.Digest);
+            Int128 ticks=(Int128)DateTime.UnixEpoch.Ticks+(Int128)facts.Modified.Seconds*TimeSpan.TicksPerSecond+facts.Modified.Nanoseconds/100;
+            if(ticks<DateTime.MinValue.Ticks||ticks>DateTime.MaxValue.Ticks)throw new IOException("The editor's modification time is outside the supported range.");
+            return new(facts.Length,(long)ticks,facts.Identity+":"+metadata.Digest);
         }
     }
     internal override IReadOnlyList<string> Names(CancellationToken ct)

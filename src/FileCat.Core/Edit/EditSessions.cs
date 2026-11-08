@@ -181,7 +181,9 @@ public sealed partial class EditSessionStore
                         using var nativeRoot=OpenNativeRoot(default,false);using var session=nativeRoot.OpenDirectory(Path.GetFileName(dir),null,default);
                         sessions.Add(ParseRecord(ReadRecordBytes(session,CreationMarker,default),dir));
                     }
-                    catch(Exception markerError)when(markerError is IOException or UnauthorizedAccessException){ }
+                    catch(Exception markerError)when(markerError is FileNotFoundException or DirectoryNotFoundException){ }
+                    catch(Exception markerError)when(markerError is IOException or UnauthorizedAccessException)
+                    {sessions.Add(UnsupportedSession(dir,"This interrupted edit's recovery record cannot be read. Its working folder is kept."));}
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

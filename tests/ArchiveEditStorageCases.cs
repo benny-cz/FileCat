@@ -20,12 +20,19 @@ internal static class ArchiveEditStorageCases
         {
             var store=new EditSessionStore(Path.Combine(fixture,"sessions"),new PortableFileOperations(),open);
             using var source=new MemoryContentSource("owned.txt","original complete working copy"u8.ToArray());
-            if(scenario=="failed-copy")
+            if(scenario is "failed-copy" or "failed-copy-marker-directory")
             {
                 using var failed=new FailingSource(source);
                 Assert.Throws<IOException>(()=>store.CreateRemote("owned","owned","/owned.txt",failed,failed.GetRevision()!.Value,null,ct));
                 var recovery=Assert.Single(store.LoadAll());Assert.False(recovery.IsSupported);Assert.NotEmpty(recovery.UnsupportedReason!);
-                Assert.True(File.Exists(Path.Combine(store.SessionDirectory(recovery),"creation.json")));return;
+                string marker=Path.Combine(store.SessionDirectory(recovery),"creation.json");Assert.True(File.Exists(marker));
+                if(scenario=="failed-copy-marker-directory")
+                {
+                    File.Delete(marker);Directory.CreateDirectory(marker);
+                    var unreadable=Assert.Single(store.LoadAll());Assert.False(unreadable.IsSupported);
+                    Assert.Contains("cannot be read",unreadable.UnsupportedReason);Assert.True(Directory.Exists(marker));
+                }
+                return;
             }
             var first=store.CreateRemote("owned","owned","/owned.txt",source,source.GetRevision()!.Value,null,ct);
             Assert.Equal(first,Assert.Single(store.LoadAll()));Assert.Equal(EditSessionRecord.NativeStorageVersion,first.Version);
@@ -33,6 +40,19 @@ internal static class ArchiveEditStorageCases
             Assert.NotEmpty(first.WorkingDirectoryIdentity);Assert.NotEmpty(first.WorkingIdentity);Assert.Equal(0,first.StorageRevision);
             string directory=store.SessionDirectory(first);string anchor=Path.Combine(directory,"session.json");byte[] original=File.ReadAllBytes(anchor);
             Assert.Equal(EditState.Unchanged,store.StateOf(first));
+            if(scenario.StartsWith("working-mode-",StringComparison.Ordinal))
+            {
+                File.WriteAllText(first.WorkingPath,"current private editor bytes");
+                File.SetUnixFileMode(first.WorkingPath,(UnixFileMode)Convert.ToInt32(scenario["working-mode-".Length..],8));
+                Assert.Equal(EditState.Modified,store.StateOf(first));return;
+            }
+            if(scenario=="working-directory-public")
+            {
+                string files=Path.GetDirectoryName(first.WorkingPath)!;
+                try{File.SetUnixFileMode(files,(UnixFileMode)0x1ed);Assert.Equal(EditState.Unavailable,store.StateOf(first));}
+                finally{File.SetUnixFileMode(files,(UnixFileMode)0x1c0);}
+                Assert.Equal("original complete working copy",File.ReadAllText(first.WorkingPath));return;
+            }
             if(scenario=="working-symlink")
             {
                 string outside=Path.Combine(fixture,"outside.txt");File.WriteAllText(outside,"unrelated outside bytes");File.Delete(first.WorkingPath);
