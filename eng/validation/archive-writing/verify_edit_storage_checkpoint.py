@@ -51,12 +51,12 @@ def verify(platform,folder):
     if platform=='windows':assert not js('account.json')['AdministratorsMember'] and js('account.json')['HiveLoaded']
     complete='tests-complete.json' in data
     if complete:
-        cleanup=folder in ('awe-storage-v8','awe-storage-v9')
+        cleanup=folder in ('awe-storage-v8','awe-storage-v9','awe-storage-v10')
         assert tests['record-recovery']=={'Passed':19} and tests['native-directory']=={'Passed':20 if cleanup else 16}
-        expected=(14 if platform=='windows' else 19) if folder in ('awe-storage-v5','awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9') else (13 if platform=='windows' else 14)
+        expected=(14 if platform=='windows' else 19) if folder in ('awe-storage-v5','awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10') else (13 if platform=='windows' else 14)
         assert tests['native-storage']=={'Passed':expected}
         gates={'record-recovery','native-directory','native-storage','edit-core','edit-ui'}
-        if folder in ('awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9'):
+        if folder in ('awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10'):
             gates.update(('native-snapshot','commit-copy'));assert tests['native-snapshot']=={'Passed':34 if cleanup else 26} and tests['commit-copy']=={'Passed':10}
         if cleanup:
             gates.add('job-input-regressions');assert tests['job-input-regressions'].get('Passed',0)>0

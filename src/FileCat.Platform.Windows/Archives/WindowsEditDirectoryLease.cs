@@ -157,7 +157,7 @@ internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
         }
     }
     internal override void CopyOrigin(FileStream file,string name,ArchiveOriginSnapshot origin,CancellationToken ct)
-    {lock(Gate){ReviewWorkingFile(file,name,ct);WindowsArchiveEditOrigin.Copy(file,System.IO.Path.Combine(Path,name),origin,ct);ReviewWorkingFile(file,name,ct);}}
+    {lock(Gate){ReviewWorkingFile(file,name,ct);WindowsArchiveEditOrigin.Copy(file,directory,name,origin,ct);ReviewWorkingFile(file,name,ct);}}
     internal override void DeleteSnapshot(FileStream file,string name,ArchiveFileObservation expected,CancellationToken ct)
     {
         lock(Gate)
