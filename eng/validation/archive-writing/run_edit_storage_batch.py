@@ -1,6 +1,7 @@
 """Guest-only early storage/record gates. Full integration/release qualification remains separate."""
 from pathlib import Path
-import importlib.util,json,shutil,subprocess,sys,tarfile,xml.etree.ElementTree as ET
+from datetime import datetime,timezone
+import importlib.util,json,shutil,subprocess,sys,tarfile,time,uuid,xml.etree.ElementTree as ET
 
 FOLDER='awe-storage-v23'
 PACKET='archive-edit-storage-delta-v23.tar.gz'
@@ -13,7 +14,23 @@ def base(task):
     spec=importlib.util.spec_from_file_location('edit_storage_base',path);value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value)
     value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v21' if sys.platform=='win32' else 'awe-storage-v22'
     return value
-def batch_for(task):return base(task).batch_for(task)
+def batch_for(task):
+    batch=base(task).batch_for(task);execute=batch.execute
+    def measured(name,args,env=None):
+        # Diagnostic timings only; these never replace raw results or grant test completion.
+        operation=uuid.uuid4().hex;started=time.monotonic()
+        def record(**fields):
+            with (batch.out/'execution-timings.jsonl').open('a',encoding='utf-8') as output:
+                output.write(json.dumps(dict(operation=operation,name=name,utc=datetime.now(timezone.utc).isoformat(),**fields))+'\n')
+        record(event='started',command=[str(arg) for arg in args],cwd=str(batch.root))
+        try:execute(name,args,env=env)
+        except BaseException as error:
+            record(event='failed',elapsed_seconds=time.monotonic()-started,error_type=type(error).__name__,
+                returncode=error.returncode if isinstance(error,subprocess.CalledProcessError) else None)
+            raise
+        else:record(event='returned',elapsed_seconds=time.monotonic()-started,returncode=0)
+    batch.execute=measured
+    return batch
 def prepare(task,expected):
     value=base(task);previous=task/value.PREVIOUS_FOLDER
     proof=json.loads((previous/'files.json').read_text())['files'];row=next(row for row in proof if row['path']=='source-files.json')
@@ -69,11 +86,33 @@ def tests(task):
     run('edit-core','FileCat.Core.Tests','FullyQualifiedName~EditSession&FullyQualifiedName!~EditSessionRecoveryRecordTests|FullyQualifiedName~ArchivePasswordReadSessionTests')
     run('job-input-regressions','FileCat.Core.Tests','FullyQualifiedName~ArchiveJobBackendTests|FullyQualifiedName~ArchiveCapturedInputsTests')
     run('edit-ui','FileCat.App.Tests','FullyQualifiedName~EditSession|FullyQualifiedName~EditCommit')
-    run('complete-core','FileCat.Core.Tests','FullyQualifiedName~FileCat.Core.Tests')
-    review_core_inventory(batch)
-    run('complete-remote','FileCat.Remote.Tests','FullyQualifiedName~FileCat.Remote.Tests')
-    run('complete-app','FileCat.App.Tests','FullyQualifiedName~FileCat.App.Tests')
+    run_full_regressions(batch,run)
     batch.idle();(batch.out/'tests-complete.json').write_text(json.dumps(rows,indent=2))
+
+def run_full_regressions(batch,run):
+    """Collect independent findings after an ordinary terminal test failure; never hide a failed gate."""
+    failures=[];attempts=[]
+    for name,assembly in [('complete-core','FileCat.Core.Tests'),('complete-remote','FileCat.Remote.Tests'),('complete-app','FileCat.App.Tests')]:
+        # The previous subprocess returned. Refuse to overlap any surviving test/other tester.
+        # An idle refusal is not a test failure and must stop this machine's sequence immediately.
+        batch.idle()
+        attempt=dict(name=name,assembly=assembly,status='started');attempts.append(attempt)
+        def record():
+            (batch.out/'full-regression-attempts.json').write_text(json.dumps(attempts,indent=2))
+        record()
+        try:
+            run(name,assembly,'FullyQualifiedName~'+assembly)
+            if name=='complete-core':review_core_inventory(batch)
+        except (subprocess.CalledProcessError,AssertionError) as error:
+            attempt.update(status='failed',error_type=type(error).__name__,message=str(error)[:4096])
+            if isinstance(error,subprocess.CalledProcessError):attempt['returncode']=error.returncode
+            failures.append(name)
+        except BaseException as error:
+            attempt.update(status='interrupted',error_type=type(error).__name__,message=str(error)[:4096])
+            raise
+        else:attempt['status']='passed'
+        finally:record()
+    if failures:raise RuntimeError('Full regression gates failed: '+', '.join(failures))
 
 def review_core_inventory(batch):
     previous=batch.task/'awe-v3';index=json.loads((previous/'files.json').read_text())['files']

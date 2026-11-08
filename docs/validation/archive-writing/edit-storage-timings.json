@@ -1,0 +1,1144 @@
+{
+  "schema": 1,
+  "production_backend_qualified": false,
+  "reports": [
+    {
+      "evidence_path": ".tmp/storage-evidence/ubuntu/awe-storage-v22-evidence.tar.gz",
+      "bytes": 29348645,
+      "sha256": "57fc3b2c9115eb208e8ae332843ff5d2222ff9cef8dd4758de9f714bacbaf2ce",
+      "note": "Observed wall times, not CPU time or proof of qualification. Test cases may overlap; do not sum individual case durations.",
+      "build_seconds": 69.26,
+      "focused_suite_seconds": 174.175,
+      "full_suite_seconds": 1357.313,
+      "builds": [
+        {
+          "name": "FileCat.App.Tests-build.log",
+          "seconds": 32.64
+        },
+        {
+          "name": "FileCat.Core.Tests-build.log",
+          "seconds": 28.82
+        },
+        {
+          "name": "FileCat.Remote.Tests-build.log",
+          "seconds": 6.94
+        },
+        {
+          "name": "PdbSourceAudit-build.log",
+          "seconds": 0.86
+        }
+      ],
+      "suites": [
+        {
+          "name": "capture-recovery",
+          "seconds": 4.679,
+          "counters": {
+            "total": "27",
+            "executed": "27",
+            "passed": "27",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "commit-copy",
+          "seconds": 3.755,
+          "counters": {
+            "total": "10",
+            "executed": "10",
+            "passed": "10",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "complete-app",
+          "seconds": 814.779,
+          "counters": {
+            "total": "2953",
+            "executed": "2765",
+            "passed": "2765",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "complete-core",
+          "seconds": 493.242,
+          "counters": {
+            "total": "8695",
+            "executed": "8510",
+            "passed": "8510",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "complete-remote",
+          "seconds": 49.292,
+          "counters": {
+            "total": "2669",
+            "executed": "2543",
+            "passed": "2543",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "edit-core",
+          "seconds": 33.352,
+          "counters": {
+            "total": "110",
+            "executed": "110",
+            "passed": "110",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "edit-ui",
+          "seconds": 49.021,
+          "counters": {
+            "total": "190",
+            "executed": "190",
+            "passed": "190",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "history-retirement-core",
+          "seconds": 3.775,
+          "counters": {
+            "total": "29",
+            "executed": "29",
+            "passed": "29",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "history-retirement-ui",
+          "seconds": 2.551,
+          "counters": {
+            "total": "18",
+            "executed": "18",
+            "passed": "18",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "job-input-regressions",
+          "seconds": 21.447,
+          "counters": {
+            "total": "269",
+            "executed": "269",
+            "passed": "269",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "native-directory",
+          "seconds": 3.648,
+          "counters": {
+            "total": "21",
+            "executed": "21",
+            "passed": "21",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "native-legacy-zip",
+          "seconds": 4.623,
+          "counters": {
+            "total": "18",
+            "executed": "18",
+            "passed": "18",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "native-sftp",
+          "seconds": 3.556,
+          "counters": {
+            "total": "23",
+            "executed": "23",
+            "passed": "23",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "native-snapshot",
+          "seconds": 5.158,
+          "counters": {
+            "total": "34",
+            "executed": "34",
+            "passed": "34",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "native-storage",
+          "seconds": 4.024,
+          "counters": {
+            "total": "19",
+            "executed": "19",
+            "passed": "19",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "origin-policy",
+          "seconds": 3.551,
+          "counters": {
+            "total": "15",
+            "executed": "15",
+            "passed": "15",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "picture-boundary",
+          "seconds": 2.805,
+          "counters": {
+            "total": "12",
+            "executed": "12",
+            "passed": "12",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "record-recovery",
+          "seconds": 3.633,
+          "counters": {
+            "total": "19",
+            "executed": "19",
+            "passed": "19",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "save-copy-preparation",
+          "seconds": 4.479,
+          "counters": {
+            "total": "17",
+            "executed": "17",
+            "passed": "17",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "verification-ui",
+          "seconds": 20.118,
+          "counters": {
+            "total": "13",
+            "executed": "12",
+            "passed": "12",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        }
+      ],
+      "slowest_cases": [
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.OpenPgpHelperOutputDeadlineTests.Exited_helper_with_a_descendant_held_status_pipe_obeys_the_one_minute_deadline",
+          "outcome": "Passed",
+          "seconds": 60.119
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.SevenZipWritingTests.Codecs_create_independent_folders_exact_content_names_empty_members_and_times(codecId: 6, compressedHeader: True)",
+          "outcome": "Passed",
+          "seconds": 53.5
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.SevenZipPpmdTests.Damaged_ppmd_data_is_refused_or_decoded_as_upstream_decodes_it",
+          "outcome": "Passed",
+          "seconds": 50.769
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.ArchivePasswordReadSessionTests.Borrowed_progressive_content_finishes_after_the_last_tab_closes(rar: False)",
+          "outcome": "Passed",
+          "seconds": 49.273
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.CompareCorpusTests.Every_difference_can_be_reached_beyond_the_ranges_listed",
+          "outcome": "Passed",
+          "seconds": 41.237
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.SevenZipCrcTests.Damaged_members_are_refused_never_read_as_if_whole(fixture: \"FileCat.PPMd.o2.m64k.7z\", crcRefusesSome: True)",
+          "outcome": "Passed",
+          "seconds": 25.806
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.RarReaderTests.Rar29_ppmd_members_match_the_reference_reader(order: 8, megabytes: 1, size: 900000, seed: 4)",
+          "outcome": "Passed",
+          "seconds": 19.639
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.SevenZipWritingTests.Codecs_create_independent_folders_exact_content_names_empty_members_and_times(codecId: 6, compressedHeader: False)",
+          "outcome": "Passed",
+          "seconds": 17.89
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.ArchiveTarBzip2PipelineTests.Expansion_policy_applies_to_a_stream_written_by_FileCat",
+          "outcome": "Passed",
+          "seconds": 16.483
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.CompareCorpusTests.Text_comparison_never_claims_equality_that_is_not_there_and_labels_what_it_did_not_align",
+          "outcome": "Passed",
+          "seconds": 15.209
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.UnixDeviceToolDeadlineTests.Native_topology_tool_refuses_a_descendant_held_output_pipe_at_its_deadline",
+          "outcome": "Passed",
+          "seconds": 15.154
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.ArchiveManifestSidecarTests.Streaming_discard_does_not_reset_aggregate_name_or_metadata_policy",
+          "outcome": "Passed",
+          "seconds": 15.047
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.RarFuzzTests.Damaged_rar_archives_are_refused_never_crashed_hung_or_blown_up(fixture: \"libarchive/test_read_format_rar_multivolume.part00\"\u00b7\u00b7\u00b7)",
+          "outcome": "Passed",
+          "seconds": 14.834
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.SearchCorpusTests.Content_search_finds_what_reading_each_whole_file_finds_and_nothing_else",
+          "outcome": "Passed",
+          "seconds": 14.695
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.RarFuzzTests.Damaged_rar_archives_are_refused_never_crashed_hung_or_blown_up(fixture: \"libarchive/test_read_format_rar_ppmd_lzss_conversi\"\u00b7\u00b7\u00b7)",
+          "outcome": "Passed",
+          "seconds": 12.099
+        },
+        {
+          "suite": "complete-remote",
+          "name": "FileCat.Remote.Tests.OpenSshIntegrationTests.Stopped_listings_close_their_folders_on_the_server",
+          "outcome": "Passed",
+          "seconds": 12.0
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.SevenZipPpmdTests.Members_decode_as_7zip_and_the_upstream_reader_decode_them(name: \"FileCat.PPMd.restarts.7z\")",
+          "outcome": "Passed",
+          "seconds": 11.964
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.SevenZipWritingTests.Codecs_create_independent_folders_exact_content_names_empty_members_and_times(codecId: 3, compressedHeader: True)",
+          "outcome": "Passed",
+          "seconds": 11.657
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.Rar5AssemblyTests.Metadata_and_retained_packed_bytes_survive_creation_rename_and_reassembly(index: 105)",
+          "outcome": "Passed",
+          "seconds": 11.312
+        },
+        {
+          "suite": "complete-app",
+          "name": "FileCat.App.Tests.GitLazyFetchTests.Fixture_setup_accepts_success_after_the_old_ten_second_cutoff",
+          "outcome": "Passed",
+          "seconds": 11.005
+        }
+      ]
+    },
+    {
+      "evidence_path": ".tmp/storage-evidence/mac/awe-storage-v21-evidence.tar.gz",
+      "bytes": 29561973,
+      "sha256": "083191b0924ea1d2148562d5fefb3490b8d7bea801fc82b9bd8b8eb56a9606ed",
+      "note": "Observed wall times, not CPU time or proof of qualification. Test cases may overlap; do not sum individual case durations.",
+      "build_seconds": 27.27,
+      "focused_suite_seconds": 183.815,
+      "full_suite_seconds": 1886.96,
+      "builds": [
+        {
+          "name": "FileCat.App.Tests-build.log",
+          "seconds": 14.56
+        },
+        {
+          "name": "FileCat.Core.Tests-build.log",
+          "seconds": 11.47
+        },
+        {
+          "name": "FileCat.Remote.Tests-build.log",
+          "seconds": 0.78
+        },
+        {
+          "name": "PdbSourceAudit-build.log",
+          "seconds": 0.46
+        }
+      ],
+      "suites": [
+        {
+          "name": "capture-recovery",
+          "seconds": 4.788,
+          "counters": {
+            "total": "27",
+            "executed": "27",
+            "passed": "27",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "commit-copy",
+          "seconds": 2.577,
+          "counters": {
+            "total": "10",
+            "executed": "10",
+            "passed": "10",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "complete-app",
+          "seconds": 1031.09,
+          "counters": {
+            "total": "2953",
+            "executed": "2763",
+            "passed": "2763",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "complete-core",
+          "seconds": 518.069,
+          "counters": {
+            "total": "8678",
+            "executed": "8471",
+            "passed": "8471",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "complete-remote",
+          "seconds": 337.801,
+          "counters": {
+            "total": "2669",
+            "executed": "2638",
+            "passed": "2638",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "edit-core",
+          "seconds": 31.545,
+          "counters": {
+            "total": "110",
+            "executed": "110",
+            "passed": "110",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "edit-ui",
+          "seconds": 77.668,
+          "counters": {
+            "total": "190",
+            "executed": "190",
+            "passed": "190",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "history-retirement-core",
+          "seconds": 2.851,
+          "counters": {
+            "total": "29",
+            "executed": "29",
+            "passed": "29",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "history-retirement-ui",
+          "seconds": 1.547,
+          "counters": {
+            "total": "18",
+            "executed": "18",
+            "passed": "18",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "job-input-regressions",
+          "seconds": 19.071,
+          "counters": {
+            "total": "269",
+            "executed": "269",
+            "passed": "269",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "native-directory",
+          "seconds": 2.555,
+          "counters": {
+            "total": "21",
+            "executed": "21",
+            "passed": "21",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "native-legacy-zip",
+          "seconds": 4.669,
+          "counters": {
+            "total": "18",
+            "executed": "18",
+            "passed": "18",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "native-sftp",
+          "seconds": 4.638,
+          "counters": {
+            "total": "23",
+            "executed": "23",
+            "passed": "23",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "native-snapshot",
+          "seconds": 6.382,
+          "counters": {
+            "total": "34",
+            "executed": "34",
+            "passed": "34",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "native-storage",
+          "seconds": 3.308,
+          "counters": {
+            "total": "19",
+            "executed": "19",
+            "passed": "19",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "origin-policy",
+          "seconds": 2.384,
+          "counters": {
+            "total": "15",
+            "executed": "15",
+            "passed": "15",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "record-recovery",
+          "seconds": 2.501,
+          "counters": {
+            "total": "19",
+            "executed": "19",
+            "passed": "19",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "name": "verification-ui",
+          "seconds": 17.331,
+          "counters": {
+            "total": "13",
+            "executed": "12",
+            "passed": "12",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        }
+      ],
+      "slowest_cases": [
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.OpenPgpHelperOutputDeadlineTests.Exited_helper_with_a_descendant_held_status_pipe_obeys_the_one_minute_deadline",
+          "outcome": "Passed",
+          "seconds": 60.318
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.ArchivePasswordReadSessionTests.Borrowed_progressive_content_finishes_after_the_last_tab_closes(rar: False)",
+          "outcome": "Passed",
+          "seconds": 44.166
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.SevenZipCrcTests.Damaged_members_are_refused_never_read_as_if_whole(fixture: \"FileCat.PPMd.o2.m64k.7z\", crcRefusesSome: True)",
+          "outcome": "Passed",
+          "seconds": 26.483
+        },
+        {
+          "suite": "complete-remote",
+          "name": "FileCat.Remote.Tests.FtpJobTests.A_changed_local_move_source_retries_the_new_version_or_discards_its_FTP_stage(protocol: \"ftpes\", action: Retry)",
+          "outcome": "Passed",
+          "seconds": 24.536
+        },
+        {
+          "suite": "complete-remote",
+          "name": "FileCat.Remote.Tests.FtpJobTests.A_changed_local_move_source_retries_the_new_version_or_discards_its_FTP_stage(protocol: \"ftps\", action: Retry)",
+          "outcome": "Passed",
+          "seconds": 24.462
+        },
+        {
+          "suite": "complete-remote",
+          "name": "FileCat.Remote.Tests.FtpJobTests.A_changed_local_move_source_retries_the_new_version_or_discards_its_FTP_stage(protocol: \"ftp\", action: Retry)",
+          "outcome": "Passed",
+          "seconds": 24.269
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.RarReaderTests.Rar29_ppmd_members_match_the_reference_reader(order: 4, megabytes: 1, size: 1500000, seed: 2)",
+          "outcome": "Passed",
+          "seconds": 23.413
+        },
+        {
+          "suite": "complete-remote",
+          "name": "FileCat.Remote.Tests.FtpJobTests.Retrying_after_an_FTP_connection_drops_reconnects_and_publishes_only_a_complete_move(protocol: \"ftpes\")",
+          "outcome": "Passed",
+          "seconds": 22.635
+        },
+        {
+          "suite": "complete-remote",
+          "name": "FileCat.Remote.Tests.FtpJobTests.Retrying_after_an_FTP_connection_drops_reconnects_and_publishes_only_a_complete_move(protocol: \"ftps\")",
+          "outcome": "Passed",
+          "seconds": 22.614
+        },
+        {
+          "suite": "complete-remote",
+          "name": "FileCat.Remote.Tests.FtpJobTests.Retrying_after_an_FTP_connection_drops_reconnects_and_publishes_only_a_complete_move(protocol: \"ftp\")",
+          "outcome": "Passed",
+          "seconds": 22.439
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.SevenZipPpmdTests.Damaged_ppmd_data_is_refused_or_decoded_as_upstream_decodes_it",
+          "outcome": "Passed",
+          "seconds": 21.957
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.RarFuzzTests.Damaged_rar_archives_are_refused_never_crashed_hung_or_blown_up(fixture: \"libarchive/test_read_format_rar_multivolume.part00\"\u00b7\u00b7\u00b7)",
+          "outcome": "Passed",
+          "seconds": 20.533
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.RarReaderTests.Rar29_ppmd_members_match_the_reference_reader(order: 8, megabytes: 1, size: 900000, seed: 4)",
+          "outcome": "Passed",
+          "seconds": 18.159
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.SevenZipWritingTests.Codecs_create_independent_folders_exact_content_names_empty_members_and_times(codecId: 3, compressedHeader: True)",
+          "outcome": "Passed",
+          "seconds": 17.154
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.RarFuzzTests.Damaged_rar_archives_are_refused_never_crashed_hung_or_blown_up(fixture: \"libarchive/test_read_format_rar_ppmd_lzss_conversi\"\u00b7\u00b7\u00b7)",
+          "outcome": "Passed",
+          "seconds": 16.106
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.ComparisonReviewBudgetTests.Many_new_items_on_one_side_leave_the_other_sides_own_items_reviewed",
+          "outcome": "Passed",
+          "seconds": 15.221
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.UnixDeviceToolDeadlineTests.Native_topology_tool_refuses_a_descendant_held_output_pipe_at_its_deadline",
+          "outcome": "Passed",
+          "seconds": 15.128
+        },
+        {
+          "suite": "complete-remote",
+          "name": "FileCat.Remote.Tests.OpenSshIntegrationTests.Stopped_listings_close_their_folders_on_the_server",
+          "outcome": "Passed",
+          "seconds": 14.481
+        },
+        {
+          "suite": "complete-core",
+          "name": "FileCat.Core.Tests.SevenZipPpmdTests.Members_decode_as_7zip_and_the_upstream_reader_decode_them(name: \"FileCat.PPMd.restarts.7z\")",
+          "outcome": "Passed",
+          "seconds": 14.431
+        },
+        {
+          "suite": "complete-remote",
+          "name": "FileCat.Remote.Tests.FtpJobTests.Canceling_or_skipping_after_an_FTP_connection_drops_reports_the_retained_unpublished_stage(protocol: \"ftps\", skip: True)",
+          "outcome": "Passed",
+          "seconds": 13.499
+        }
+      ]
+    }
+  ]
+}

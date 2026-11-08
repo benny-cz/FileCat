@@ -1239,6 +1239,21 @@ execution order and avoids redundant work rather than reducing coverage. Guest o
 before starting or resuming each testing phase; perform independent implementation or evidence work while a
 machine belongs to another tester.
 
+**Measured cadence refinement (8 November):** [preserved batch timings](../validation/archive-writing/VALIDATION_CADENCE.md)
+show full inventories dominate the current machine window; builds and short native gates are a much smaller
+cost. During implementation, accumulate the connected ownership/publication/recovery/UI work into a coherent
+workflow and freshly validate its affected contracts and native paths. Intermediate focused evidence must
+explicitly leave the full inventories not run; it cannot qualify a profile or inherit a passing result for changed
+runtime bytes. Run complete Core/Remote/App inventories at connected-workflow milestones, after findings requiring
+broader coverage, and on the final qualification candidate. All existing release/AT/FZ/resource/RID/desktop gates
+remain mandatory. Keep deliberate deadline, hostile-input and corpus coverage rather than shortening them for speed.
+For the full-inventory phase, an ordinary terminal suite failure does not suppress the other independent suites:
+record the failure, check that no test/other instance survives, and collect the remaining independent results.
+Any surviving process, sharing refusal, infrastructure uncertainty or unreturned operation stops that sequence.
+Fail the aggregate when any suite or required case-inventory check fails. Verify each newly sealed evidence bundle
+when received, and repeat the complete inherited-evidence audit at workflow milestones and final qualification.
+Record per-command UTC/elapsed/exit timings for future batches. Never mutate an already executing frozen runner.
+
 ### AW0 — Freeze baseline, limits and qualification harness
 
 **Outcome:** A repeatable baseline and test scaffolding exist before refactoring. No new user command is enabled. **Dependencies:** none. **Effort:** medium.
