@@ -40,7 +40,10 @@ failures: ordinary pathname assertion readers used incompatible Windows sharing,
 the test destination group writable. The strict record20 gate passes on both. The fixture correction creates new
 Unix test directories as 0700 and uses explicitly shared read-only assertion readers while native owners remain
 held. One additional Unix case explicitly requires the original group-write refusal. Product code is unchanged.
-The corrected `v25` packet requires publication25 Windows / 26 Unix and record20, plus all connected focused gates.
+The corrected `v25` packet passes publication25 Windows / 26 Ubuntu and record20 on both, plus every connected
+focused gate. Exact raw bundles/compiler-source/DLL/PDB bindings are preserved and verified with zero owned
+instances. All 26 Windows / 22 Ubuntu product DLL/PDB files are byte-identical to the failed `v24` candidate;
+the correction changes fixture code only. It requires the same 26 native cases on Mac after the previous full batch finishes.
 Complete inventories are explicitly not run for these changed runtime bytes; the preceding `v23` complete
 qualification remains attached to its own candidate. Mac receives the corrected candidate after its current full run.
 

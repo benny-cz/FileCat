@@ -1,11 +1,22 @@
 # Archive writing implementation status
 
-**8 November: native saved-copy exclusive publication and immutable receipts implemented, guest gates queued.**
+**8 November: malformed receipt UTF-8 refusal corrected; expanded regression candidate queued.**
+The [encoding probe](SAVE_COPY_RECEIPT_ENCODING.md) found `InvalidOperationException` escaping through delayed
+JSON Unicode materialization on malformed receipt bytes. Exact failed probe/source/binary evidence is preserved.
+Complete bounded UTF-8 validation and controlled Unicode refusal are implemented with five new cases, including
+10,000 deterministic mutations. `v26` queues record25 and native publication/connected regressions on all three
+systems. The preceding `v23` complete Core/Remote/App inventories now pass everywhere and remain attached to
+their own runtime bytes; no store/profile is enabled.
+
+**8 November: native saved-copy exclusive publication and receipts pass Windows/Ubuntu focused gates.**
 [Saved-copy publication](NATIVE_EDIT_SAVE_COPY_PUBLICATION.md) adds single-owner native name reviews, complete
 receipt readback and confirmed/uncertain outcomes that survive late cancellation or receipt failure. Core and
 Windows-platform builds pass without warnings/errors. The first `v24` native gates preserve Windows sharing-reader
-and Ubuntu umask fixture failures, with record20 passing. The corrected `v25` candidate runs publication25 Windows /
-26 Unix and 20 strict receipt cases plus connected regressions; its complete inventories are explicitly not run yet under
+and Ubuntu umask fixture failures, with record20 passing. The corrected `v25` candidate passes publication25 Windows /
+26 Ubuntu and 20 strict receipt cases on both; all connected focused regressions also pass. Exact sealed bundles
+and source/binary bindings are preserved, with zero owned instances and unchanged product binaries across the
+fixture correction. Mac follows its active `v23` full
+inventory. The changed candidate's complete inventories are explicitly not run yet under
 the [measured cadence](VALIDATION_CADENCE.md). Replacement, restart discovery/actions, cleanup/crashes and UI/job
 integration remain open; native store/profile registration and the existing guard remain unchanged.
 

@@ -36,6 +36,9 @@ internal sealed record EditSaveCopyRecord(int Version,Guid Nonce,int Sequence,st
         if(bytes.Length==0||bytes.Length>MaximumBytes)throw new IOException("The saved-copy receipt exceeds its bound.");
         try
         {
+            // JsonDocument can retain invalid UTF-8 until a property name/string is accessed, then throw
+            // InvalidOperationException. Reject the complete bounded encoding before materializing any field.
+            _=ArchiveWritePolicy.Utf8.GetCharCount(bytes);
             using var document=JsonDocument.Parse(bytes.ToArray(),new(){MaxDepth=4});
             if(document.RootElement.ValueKind!=JsonValueKind.Object)throw new IOException("Invalid saved-copy receipt.");
             var names=new HashSet<string>(StringComparer.Ordinal);
@@ -44,7 +47,7 @@ internal sealed record EditSaveCopyRecord(int Version,Guid Nonce,int Sequence,st
             var result=JsonSerializer.Deserialize<EditSaveCopyRecord>(bytes,Json)??throw new IOException("Missing saved-copy receipt.");
             result.Validate();return result;
         }
-        catch(Exception error) when(error is JsonException or ArgumentException or ArchiveWriteException)
+        catch(Exception error) when(error is JsonException or ArgumentException or ArchiveWriteException or InvalidOperationException)
         {throw new IOException("The saved-copy receipt cannot be interpreted; retain it without mutation authority.",error);}
     }
     private void Validate()
