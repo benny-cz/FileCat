@@ -51,20 +51,20 @@ def verify(platform,folder):
     if platform=='windows':assert not js('account.json')['AdministratorsMember'] and js('account.json')['HiveLoaded']
     complete='tests-complete.json' in data
     if complete:
-        cleanup=folder in ('awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13')
-        assert tests['record-recovery']=={'Passed':19} and tests['native-directory']=={'Passed':21 if folder in ('awe-storage-v12','awe-storage-v13') else 20 if cleanup else 16}
-        expected=(14 if platform=='windows' else 19) if folder in ('awe-storage-v5','awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13') else (13 if platform=='windows' else 14)
+        cleanup=folder in ('awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14')
+        assert tests['record-recovery']=={'Passed':19} and tests['native-directory']=={'Passed':21 if folder in ('awe-storage-v12','awe-storage-v13','awe-storage-v14') else 20 if cleanup else 16}
+        expected=(14 if platform=='windows' else 19) if folder in ('awe-storage-v5','awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14') else (13 if platform=='windows' else 14)
         assert tests['native-storage']=={'Passed':expected}
         gates={'record-recovery','native-directory','native-storage','edit-core','edit-ui'}
-        if folder in ('awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13'):
-            snapshots=35 if folder in ('awe-storage-v11','awe-storage-v12','awe-storage-v13') and platform=='windows' else 34 if cleanup else 26
+        if folder in ('awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14'):
+            snapshots=35 if folder in ('awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14') and platform=='windows' else 34 if cleanup else 26
             gates.update(('native-snapshot','commit-copy'));assert tests['native-snapshot']=={'Passed':snapshots} and tests['commit-copy']=={'Passed':10}
-        if folder in ('awe-storage-v11','awe-storage-v12','awe-storage-v13'):
+        if folder in ('awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14'):
             gates.add('capture-recovery');assert tests['capture-recovery']=={'Passed':27}
             origins=['origin-policy']+(['native-origin-regressions'] if platform=='windows' else [])
             for name in origins:
                 gates.add(name);assert set(tests[name])=={'Passed'} and tests[name]['Passed']>0
-        if folder=='awe-storage-v13':
+        if folder in ('awe-storage-v13','awe-storage-v14'):
             gates.update(('complete-core','complete-app'))
             assert tests['complete-core'].get('Passed',0)>8000 and tests['complete-app'].get('Passed',0)>190
         if cleanup:
@@ -75,6 +75,13 @@ def verify(platform,folder):
     return dict(platform=platform,folder=folder,candidate=candidate,**facts,manifest_sha256=index['files.json']['sha256'],
         changed_CSharp_sources_bound=len(bound),DLL_PDB_pairs_bound=len(audit['binaries']),uncompiled_platform_sources=sorted(excluded),
         tests=tests,focused_gates_complete=complete,final_census=census,production_backend_qualified=False)
+
+def unchanged_product_binaries(platform,previous,current):
+    _,old,_=base.transport(ROOT/'.tmp/storage-evidence'/platform/(previous+'-evidence.tar.gz'),previous)
+    _,new,_=base.transport(ROOT/'.tmp/storage-evidence'/platform/(current+'-evidence.tar.gz'),current)
+    names=sorted(name for name in new if name.startswith('binaries/') and '.Tests.' not in name and name.endswith(('.dll','.pdb')))
+    assert names and all(new[name]==old[name] for name in names),platform
+    return dict(platform=platform,previous=previous,current=current,unchanged_product_binaries=names)
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
@@ -89,6 +96,8 @@ if __name__=='__main__':
         assert checkpoint['schema']==1 and not checkpoint['production_backend_qualified'] and not checkpoint['application_composition_uses_native_store']
         rows=checkpoint['history']+checkpoint['current']
         for row in rows:assert verify(row['platform'],row['folder'])==row,(row['platform'],row['folder'])
+        for proof in checkpoint.get('fixture_retry_product_binaries',[]):
+            assert unchanged_product_binaries(proof['platform'],proof['previous'],proof['current'])==proof
         for refusal in checkpoint.get('postponed',[])+checkpoint.get('unapplied_startup_refusals',[]):
             trace=refusal['trace'];content=(ROOT/trace['path']).read_bytes()
             assert len(content)==trace['bytes'] and hashlib.sha256(content).hexdigest()==trace['sha256']

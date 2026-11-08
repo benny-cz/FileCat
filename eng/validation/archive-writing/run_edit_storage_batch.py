@@ -2,8 +2,8 @@
 from pathlib import Path
 import importlib.util,json,shutil,subprocess,sys,tarfile,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v13'
-PACKET='archive-edit-storage-delta-v13.tar.gz'
+FOLDER='awe-storage-v14'
+PACKET='archive-edit-storage-delta-v14.tar.gz'
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 def sha(path):
     import hashlib
@@ -11,7 +11,7 @@ def sha(path):
 def base(task):
     path=task/'archive-workflow-source-v1/eng/validation/archive-writing/run_job_backend_batch.py'
     spec=importlib.util.spec_from_file_location('edit_storage_base',path);value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value)
-    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v12'
+    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v13'
     return value
 def batch_for(task):return base(task).batch_for(task)
 def prepare(task,expected):
@@ -24,6 +24,14 @@ def build(task):
     for project in projects:
         batch.execute(Path(project).name+'-build',[batch.dotnet,'build',str(batch.root/project/(Path(project).name+'.csproj')),
             '-c','Release','--disable-build-servers','-p:NuGetAudit=false','-m:1','-v','minimal'])
+
+def test_environment(task):
+    # Reuse the qualified full-inventory fixture: native case-sensitive Mac volume and private Linux bus/keyring.
+    path=task/'archive-workflow-source-v1/eng/validation/archive-writing/run_password_browsing_batch.py'
+    spec=importlib.util.spec_from_file_location('edit_storage_environment',path)
+    value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value)
+    value.FOLDER=FOLDER;value.tests=tests;value.__file__=str(Path(__file__).resolve())
+    return value
 def tests(task):
     batch=batch_for(task);batch.idle()
     fixture=Path.home()/'AppData/Local/Temp'/(FOLDER+'-native-fixtures') if sys.platform=='win32' else task/FOLDER/'native-fixtures'
@@ -87,10 +95,11 @@ if __name__=='__main__':
     phase,task,*rest=sys.argv[1:];task=Path(task).resolve()
     if phase=='prepare':prepare(task,rest[0])
     elif phase=='build':build(task)
-    elif phase=='tests':tests(task)
+    elif phase=='tests':test_environment(task).run_tests(task)
+    elif phase=='inside-private':test_environment(task).private_tests(task)
     elif phase=='seal':seal(task)
     elif phase=='run':
         prepare(task,rest[0]);build(task)
-        try:tests(task)
+        try:test_environment(task).run_tests(task)
         finally:seal(task)
     else:raise SystemExit('Unknown phase')
