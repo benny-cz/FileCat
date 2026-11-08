@@ -82,58 +82,49 @@ public sealed class AnalysisCapturedDatasetReport : AnalysisCapturedReport
 
     protected override async IAsyncEnumerable<AnalysisReportRow> RowsAsync(bool locations, [EnumeratorCancellation] CancellationToken cancellation)
     {
-        ulong written = 0;
-        if (_scope == AnalysisReportScope.SelectedRows)
+        var lineage = locations ? new AnalysisReportLineage(_source) : null;
+        try
         {
-            foreach (ulong id in _selected)
-            { cancellation.ThrowIfCancellationRequested(); yield return await RowAsync(await _hierarchy.ReadAsync(id, cancellation).ConfigureAwait(false), locations, cancellation).ConfigureAwait(false); }
-        }
-        else if (_scope == AnalysisReportScope.EntireResult && _format == AnalysisReportFormat.Csv)
-        {
-            ulong offset = 0;
-            while (offset < _source.Descriptor.Paths)
+            ulong written = 0;
+            if (_scope == AnalysisReportScope.SelectedRows)
             {
-                var page = await _source.ReadPathsAsync(offset, cancellation: cancellation).ConfigureAwait(false);
-                if (page.Rows.IsEmpty) throw new InvalidDataException("The captured report path page made no progress.");
-                foreach (var path in page.Rows)
-                    yield return await RowAsync(await _hierarchy.ReadAsync(path.Id, cancellation).ConfigureAwait(false), locations, cancellation).ConfigureAwait(false);
-                offset = page.NextOffset;
+                foreach (ulong id in _selected)
+                { cancellation.ThrowIfCancellationRequested(); yield return await RowAsync(await _hierarchy.ReadAsync(id, cancellation).ConfigureAwait(false), lineage, cancellation).ConfigureAwait(false); }
             }
-        }
-        else
-        {
-            ulong offset = 0;
-            while (written < Header.Rows)
+            else if (_scope == AnalysisReportScope.EntireResult && _format == AnalysisReportFormat.Csv)
             {
-                var page = await _hierarchy.ReadChildrenAsync(_folder, _sort, offset, cancellation: cancellation, descending: _descending).ConfigureAwait(false);
-                if (page.Rows.IsEmpty) throw new InvalidDataException("The captured folder report made no progress.");
-                foreach (var row in page.Rows)
+                ulong offset = 0;
+                while (offset < _source.Descriptor.Paths)
                 {
-                    if (written >= Header.Rows) yield break; written++;
-                    yield return await RowAsync(row, locations, cancellation).ConfigureAwait(false);
+                    var page = await _hierarchy.ReadNamespaceRowsAsync(offset, cancellation: cancellation).ConfigureAwait(false);
+                    if (page.Rows.IsEmpty) throw new InvalidDataException("The captured report path page made no progress.");
+                    foreach (var row in page.Rows)
+                        yield return await RowAsync(row, lineage, cancellation).ConfigureAwait(false);
+                    offset = page.NextOffset;
                 }
-                offset = page.NextOffset;
+            }
+            else
+            {
+                ulong offset = 0;
+                while (written < Header.Rows)
+                {
+                    var page = await _hierarchy.ReadChildrenAsync(_folder, _sort, offset, cancellation: cancellation, descending: _descending).ConfigureAwait(false);
+                    if (page.Rows.IsEmpty) throw new InvalidDataException("The captured folder report made no progress.");
+                    foreach (var row in page.Rows)
+                    {
+                        if (written >= Header.Rows) yield break; written++;
+                        yield return await RowAsync(row, lineage, cancellation).ConfigureAwait(false);
+                    }
+                    offset = page.NextOffset;
+                }
             }
         }
+        finally { lineage?.Clear(); }
     }
-    private async Task<AnalysisReportRow> RowAsync(AnalysisHierarchyRow row, bool locations, CancellationToken cancellation) =>
-        new(row.Path, locations ? await DisplayLocationAsync(row.Path, cancellation).ConfigureAwait(false) : null,
+    private async Task<AnalysisReportRow> RowAsync(AnalysisHierarchyRow row, AnalysisReportLineage? lineage, CancellationToken cancellation) =>
+        new(row.Path, lineage is not null ? await lineage.ResolveAsync(row.Path, cancellation).ConfigureAwait(false) : null,
             row.Totals, row.Logical, row.NamespaceIncomplete, row.HasChargesElsewhere, row.IsFilterContext)
             { HasUnmeasuredEvidence = row.HasUnmeasuredEvidence, HasUnmeasuredLogicalEvidence = row.HasUnmeasuredLogicalEvidence };
-    private async Task<string> DisplayLocationAsync(AnalysisPathMetadata path, CancellationToken cancellation)
-    {
-        var names = new List<string>(); var current = path; int chars = 0;
-        for (int depth = 0; current.ParentId != 0; depth++)
-        {
-            if (depth >= AnalysisLimits.Depth) throw new InvalidDataException("The captured report lineage exceeds its depth bound.");
-            string name = AnalysisNames.DisplayName(current); chars = checked(chars + name.Length + 1);
-            if (chars > AnalysisLimits.LocatorBytes) return "[Displayed location exceeds the report bound; use the full inventory for raw names.]";
-            names.Add(name); current = await _source.ReadPathAsync(current.ParentId, cancellation).ConfigureAwait(false);
-            if (current.RootId != path.RootId) throw new InvalidDataException("The captured report lineage changed roots.");
-        }
-        var root = _source.Descriptor.Roots.Single(value => value.Id == path.RootId); names.Reverse();
-        return AnalysisReportLocations.Append(root, names);
-    }
     protected override async ValueTask ReleaseAsync()
     {
         Exception? failure = null;

@@ -1,0 +1,42 @@
+[
+  {
+    "path": "src/FileCat.App/Controls/DiskSpace/AnalysisChartControl.cs",
+    "sha256": "c4d4795be9003e8a76bbb99d397d55b09f9c60c3f5379e3b9dbedc22ecec8e63"
+  },
+  {
+    "path": "src/FileCat.App/Controls/DiskSpace/AnalysisChartControl.Export.cs",
+    "sha256": "5308e8f7183b2895662aebf8800c76dfc690db20f356a5e9cb9d10460fa029d3"
+  },
+  {
+    "path": "src/FileCat.App/Services/AnalysisCapturedChart.cs",
+    "sha256": "79f9a8a72311ed7e45113ca847ac582ee5c75859640683b91c2778f8aaac83d8"
+  },
+  {
+    "path": "src/FileCat.App/Services/AnalysisIndexedAcquisition.Export.cs",
+    "sha256": "c11a79a276c2253cc0117170b86e0bcdbc4b39b3bc819973d0138398f021cffa"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+    "sha256": "7ded41429101b3f226a29dffbfe1b5257d1ded0bf8c375026264fcdd70f35d5f"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedPersistence.cs",
+    "sha256": "b5c759479501391232c8d793e17909c3fc92d5649bd57aa5f4bc23f326aa5fbd"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Reports.cs",
+    "sha256": "2ebcd5c2890690177d16063698379f38fab37d45c93c2f33cf239d90f53ecc2d"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisCapturedOutput.cs",
+    "sha256": "dccae877b27a7671f97f9f663a0f91091987799e34734a8e41460bbd41e2f925"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisCapturedReport.cs",
+    "sha256": "9b78be8ad7c8d11150313951ce1d89d07649c1e7e9608ebdddcd6c22f9df0e7f"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ChartExport.cs",
+    "sha256": "465386a276482968851c80bde0f0f0783195c60274d0a9f7b28a286301faac02"
+  }
+]

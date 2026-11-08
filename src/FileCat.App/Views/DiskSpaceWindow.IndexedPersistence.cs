@@ -37,7 +37,7 @@ public sealed partial class DiskSpaceWindow
             _exportExternal.IsVisible = _services is not null; bar.Children.Add(_exportExternal); _exportExternal.Click += async (_, _) => await ExportExternalAsync();
             ToolTip.SetTip(_exportExternal, new RichTip("Export entire captured inventory", detail: "Choose a folder and unused filename. The sensitivity review explains that filters and chart scope do not reduce the complete inventory."));
             _exportReport.IsVisible = _services is not null; bar.Children.Add(_exportReport); _exportReport.Click += async (_, _) => await ExportReportAsync();
-            ToolTip.SetTip(_exportReport, new RichTip("Export a captured report", detail: "Choose Markdown, HTML or spreadsheet-safe CSV, the explicit captured scope, and whether to omit names and locations. Existing destination files are kept."));
+            ToolTip.SetTip(_exportReport, new RichTip("Export a captured report", detail: "Choose Markdown, HTML, spreadsheet-safe CSV or the current PNG/SVG chart, the explicit captured scope, and whether to omit names and locations. Existing destination files are kept."));
             var history = new Button { Content = "History…", IsEnabled = _services is not null };
             history.Click += async (_, _) => await ShowHistoryAsync(); bar.Children.Add(history);
             _saveInventory.Click += async (_, _) => await SaveInventoryAsync(); _openInventory.Click += async (_, _) => await OpenInventoryAsync();

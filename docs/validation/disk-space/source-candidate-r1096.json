@@ -1,0 +1,62 @@
+[
+  {
+    "path": "src/FileCat.App/Controls/DiskSpace/AnalysisChartControl.cs",
+    "sha256": "c4d4795be9003e8a76bbb99d397d55b09f9c60c3f5379e3b9dbedc22ecec8e63"
+  },
+  {
+    "path": "src/FileCat.App/Controls/DiskSpace/AnalysisChartControl.Export.cs",
+    "sha256": "465a1ebf34dc3e036de56209339ecb123308e375ce6aafbd9016ff18e286ce33"
+  },
+  {
+    "path": "src/FileCat.App/Services/AnalysisCapturedChart.cs",
+    "sha256": "79f9a8a72311ed7e45113ca847ac582ee5c75859640683b91c2778f8aaac83d8"
+  },
+  {
+    "path": "src/FileCat.App/Services/AnalysisIndexedAcquisition.Export.cs",
+    "sha256": "c11a79a276c2253cc0117170b86e0bcdbc4b39b3bc819973d0138398f021cffa"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Comparison.cs",
+    "sha256": "a292c3fb7e60fcec0aa22f1c37c3616c6337f0ca4f069efdf798aa610d25c84c"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.cs",
+    "sha256": "7ded41429101b3f226a29dffbfe1b5257d1ded0bf8c375026264fcdd70f35d5f"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.IndexedPersistence.cs",
+    "sha256": "b5c759479501391232c8d793e17909c3fc92d5649bd57aa5f4bc23f326aa5fbd"
+  },
+  {
+    "path": "src/FileCat.App/Views/DiskSpaceWindow.Reports.cs",
+    "sha256": "2ebcd5c2890690177d16063698379f38fab37d45c93c2f33cf239d90f53ecc2d"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisCapturedDatasetReport.cs",
+    "sha256": "d112ed3a626b64ef0df0ca89d944efce82fc057dbeddaa9c4e1f11886bde07f0"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisCapturedOutput.cs",
+    "sha256": "dccae877b27a7671f97f9f663a0f91091987799e34734a8e41460bbd41e2f925"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisCapturedReport.cs",
+    "sha256": "9b78be8ad7c8d11150313951ce1d89d07649c1e7e9608ebdddcd6c22f9df0e7f"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisDatasetHierarchy.cs",
+    "sha256": "963ce0f365a97d0e50eaa9321c0930f431e301a98da7b0c9f8faa60d03b3aea7"
+  },
+  {
+    "path": "src/FileCat.Core/Analysis/AnalysisReportLineage.cs",
+    "sha256": "0ae1b2e7df6e50ef3f14d22924d2b8b8c4c733ec7a881ae5c8b5c1ba394dc3d8"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.CsvBatch.cs",
+    "sha256": "a6021b9fed245ec9b3fe4cc08efa452905c23f4a6e79f227ea8172e8b998ec7b"
+  },
+  {
+    "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.ChartExport.cs",
+    "sha256": "a54c0d4eeb731f2937048acde0d2e49cec7af889d6fff9b79a964c1ad63939fb"
+  }
+]

@@ -11,7 +11,7 @@ using FileCat.Core.Analysis;
 namespace FileCat.App.Controls.DiskSpace;
 
 /// <summary>Both chart modes consume the same immutable accounting tree and stable item keys.</summary>
-public abstract class AnalysisChartControl : Control
+public abstract partial class AnalysisChartControl : Control
 {
     protected sealed record Part(string Key, Rect Bounds, double Start = 0, double Sweep = 0, int Depth = 0, bool Branch = false);
     private sealed record View(IAnalysisChartData Tree, string Scope, string? Focus, ImmutableHashSet<ulong> Marks, AnalysisColorDimension Color);

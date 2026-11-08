@@ -3,6 +3,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Media;
 using FileCat.Core.Analysis;
+using FileCat.App.Services;
 
 namespace FileCat.App.Views;
 
@@ -11,8 +12,13 @@ public sealed partial class DiskSpaceWindow
     internal sealed record ReportOptions(AnalysisReportFormat Format, AnalysisReportScope Scope, bool RedactPaths)
     {
         internal AnalysisReportViewKind ViewKind { get; init; }
-        internal string Extension => Format switch { AnalysisReportFormat.Markdown => ".md", AnalysisReportFormat.Html => ".html", _ => ".csv" };
-        internal string Description => (Scope switch
+        internal AnalysisChartFormat? ChartFormat { get; init; }
+        internal int ChartWidth { get; init; } = 1280;
+        internal int ChartHeight { get; init; } = 960;
+        internal AnalysisReportFormat CaptureFormat => ChartFormat is null ? Format : AnalysisReportFormat.Csv;
+        internal string Extension => ChartFormat is { } chart ? chart == AnalysisChartFormat.Svg ? ".svg" : ".png" : Format switch { AnalysisReportFormat.Markdown => ".md", AnalysisReportFormat.Html => ".html", _ => ".csv" };
+        internal string Description => ChartFormat is not null ? $"Export the current captured chart at {ChartWidth}×{ChartHeight}, including its metric, scope, observation time, legend and partial-state notice. Small items may be aggregated; this image does not include every table row. " +
+            (RedactPaths ? "Names, locations and source identifiers are omitted throughout the image." : "Sensitive displayed names and scope are included.") + " Image memory is bounded; choose a smaller image if unavailable. File contents and operation approvals are excluded." : (Scope switch
         {
             AnalysisReportScope.FilteredView => ViewKind switch
             {
@@ -32,7 +38,7 @@ public sealed partial class DiskSpaceWindow
 
     internal static async Task<ReportOptions?> ReviewReportOptionsAsync(ViewModels.IDialogService dialogs, bool folderView, int marked, CancellationToken cancellation, AnalysisReportViewKind viewKind = AnalysisReportViewKind.NamespaceRows)
     {
-        var format = new ComboBox { ItemsSource = new[] { "Markdown (.md)", "HTML (.html)", "Spreadsheet-safe CSV (.csv)" }, SelectedIndex = 0 };
+        var format = new ComboBox { ItemsSource = new[] { "Markdown (.md)", "HTML (.html)", "Spreadsheet-safe CSV (.csv)", "Current chart · SVG (.svg)", "Current chart · PNG (.png)" }, SelectedIndex = 0 };
         var scopes = new List<(string Label, AnalysisReportScope Scope)>();
         if (folderView) scopes.Add((viewKind switch { AnalysisReportViewKind.GroupOverview or AnalysisReportViewKind.SmallGroups => "Captured accounting groups",
             AnalysisReportViewKind.GroupMembers or AnalysisReportViewKind.SmallGroupMembers => "Captured group member paths", AnalysisReportViewKind.SmallItems => "Captured Other small-item view", _ => "Captured filtered folder" }, AnalysisReportScope.FilteredView));
@@ -41,18 +47,27 @@ public sealed partial class DiskSpaceWindow
         var scope = new ComboBox { ItemsSource = scopes.Select(value => value.Label).ToArray(), SelectedIndex = 0 };
         var redact = new CheckBox { Content = "Omit names, locations and source identifiers", IsChecked = true };
         var detail = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        var size = new ComboBox { ItemsSource = new[] { "960 × 720", "1280 × 960", "1600 × 1200" }, SelectedIndex = 1, IsVisible = false };
+        AutomationProperties.SetName(size, "Chart image dimensions");
         AutomationProperties.SetName(format, "Report format"); AutomationProperties.SetName(scope, "Report scope");
-        ReportOptions Read() => new((AnalysisReportFormat)format.SelectedIndex, scopes[scope.SelectedIndex].Scope, redact.IsChecked == true) { ViewKind = viewKind };
-        void Update() { if (format.SelectedIndex >= 0 && scope.SelectedIndex >= 0) detail.Text = Read().Description; }
-        format.SelectionChanged += (_, _) => Update(); scope.SelectionChanged += (_, _) => Update(); redact.IsCheckedChanged += (_, _) => Update(); Update();
+        ReportOptions Read() => new(format.SelectedIndex < 3 ? (AnalysisReportFormat)format.SelectedIndex : AnalysisReportFormat.Markdown, scopes[scope.SelectedIndex].Scope, redact.IsChecked == true)
+        { ViewKind = viewKind, ChartFormat = format.SelectedIndex >= 3 ? (AnalysisChartFormat)(format.SelectedIndex - 3) : null,
+            ChartWidth = size.SelectedIndex switch { 0 => 960, 2 => 1600, _ => 1280 }, ChartHeight = size.SelectedIndex switch { 0 => 720, 2 => 1200, _ => 960 } };
+        void Update()
+        {
+            bool chart = format.SelectedIndex >= 3; size.IsVisible = chart; scope.IsEnabled = !chart;
+            if (chart && folderView && scope.SelectedIndex != 0) scope.SelectedIndex = 0;
+            if (format.SelectedIndex >= 0 && scope.SelectedIndex >= 0) detail.Text = Read().Description;
+        }
+        format.SelectionChanged += (_, _) => Update(); scope.SelectionChanged += (_, _) => Update(); size.SelectionChanged += (_, _) => Update(); redact.IsCheckedChanged += (_, _) => Update(); Update();
         var body = new StackPanel { Spacing = 8, Children = { new TextBlock { Text = "Choose the captured report to share. These choices do not change the analysis or its marks.", TextWrapping = TextWrapping.Wrap },
-            format, scope, redact, detail } };
+            format, scope, size, redact, detail } };
         if (!folderView) body.Children.Add(new TextBlock { Text = "No current view is available to capture. The other scopes remain explicit choices.", TextWrapping = TextWrapping.Wrap });
         var closer = new ViewModels.DialogCloser();
         using var close = cancellation.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => closer.Close(false)));
         var choice = await dialogs.ShowCustomAsync("Choose report scope", body,
             [new ViewModels.DialogButton("Cancel", false, IsDefault: true, IsCancel: true), new ViewModels.DialogButton("Choose destination…", true)
-                { IsAvailable = () => format.SelectedIndex >= 0 && scope.SelectedIndex >= 0 && (Read().Scope != AnalysisReportScope.SelectedRows || Read().Format == AnalysisReportFormat.Csv || marked <= AnalysisLimits.ChartLeaves) }], format, closer: closer);
+                { IsAvailable = () => format.SelectedIndex >= 0 && scope.SelectedIndex >= 0 && (Read().ChartFormat is null || folderView) && (Read().Scope != AnalysisReportScope.SelectedRows || Read().Format == AnalysisReportFormat.Csv || marked <= AnalysisLimits.ChartLeaves) }], format, closer: closer);
         return choice is true ? Read() : null;
     }
 
@@ -66,6 +81,7 @@ public sealed partial class DiskSpaceWindow
             _persistenceBusy = true; Interaction(true); RefreshIndexedPersistence();
             try
             {
+                var chart = (_chartMode.SelectedIndex == 1 ? (Controls.DiskSpace.AnalysisChartControl)_sunburst : _treemap).CaptureExportView();
                 var view = CapturePublishedView(); var marks = _selection.Marks.Order().ToImmutableArray();
                 await using var source = await _source.RetainAsync(cancel.Token);
                 var viewKind = _grouping is null ? _explorer.OtherScopeKey is null ? AnalysisReportViewKind.NamespaceRows : AnalysisReportViewKind.SmallItems
@@ -76,9 +92,9 @@ public sealed partial class DiskSpaceWindow
                 var filter = new AnalysisFilterRequest(view.Query, view.CaseSensitive, view.ShowUnknown, view.Root) { RootDisplayIds = view.RootDisplayIds };
                 Task<AnalysisCapturedReport> captureTask = Capture();
                 async Task<AnalysisCapturedReport> Capture() => options.Scope == AnalysisReportScope.FilteredView
-                    ? _grouping is not null ? await source.CaptureViewReportAsync(_grouping, _groupKey, options.Format, view.Sort, view.SortDescending, cancel.Token)
-                        : await source.CaptureViewReportAsync(_explorer, _scope, options.Format, SavedIndexedSort(view.Sort), view.SortDescending, cancel.Token)
-                    : await source.CaptureReportAsync(view.Metric, options.Format, options.Scope, filter, _scope, marks,
+                    ? _grouping is not null ? await source.CaptureViewReportAsync(_grouping, _groupKey, options.CaptureFormat, view.Sort, view.SortDescending, cancel.Token)
+                        : await source.CaptureViewReportAsync(_explorer, _scope, options.CaptureFormat, SavedIndexedSort(view.Sort), view.SortDescending, cancel.Token)
+                    : await source.CaptureReportAsync(view.Metric, options.CaptureFormat, options.Scope, filter, _scope, marks,
                     _shownPage?.Scope is { } shownFolder ? AnalysisNames.DisplayName(shownFolder.Path) : "All captured locations",
                     SavedIndexedSort(view.Sort), view.SortDescending, cancel.Token);
                 var closer = new ViewModels.DialogCloser();
@@ -91,9 +107,10 @@ public sealed partial class DiskSpaceWindow
                         if (await Task.WhenAny(captureTask, dismissed) == dismissed) cancel.Cancel();
                     }
                     await using var report = await captureTask; closer.Close(null);
+                    await using var image = options.ChartFormat is { } imageFormat ? await AnalysisCapturedChart.CaptureAsync(_services!.Io, report, chart ?? throw new InvalidOperationException("No current chart is available to capture."), imageFormat, options.ChartWidth, options.ChartHeight, options.RedactPaths, cancel.Token) : null;
                     var descriptor = source.Descriptor;
                     var status = await _window.ExportExternalInventoryAsync(_services!, ExportObservation(descriptor.Identity, descriptor.Coverage, descriptor.Taint), cancel.Token,
-                        (prepared, folder, name, token) => prepared.ExportReportAsync(report, folder, name, options.RedactPaths, token), RememberViewCloseFailure, options);
+                        (prepared, folder, name, token) => image is null ? prepared.ExportReportAsync(report, folder, name, options.RedactPaths, token) : prepared.ExportChartAsync(image, folder, name, options.RedactPaths, token), RememberViewCloseFailure, options);
                     if (!_disposed && status is not null) PersistenceStatus = status;
                 }
                 finally { closer.Close(null); }
@@ -109,11 +126,12 @@ public sealed partial class DiskSpaceWindow
         private readonly Button _exportReport = new() { Content = "Export report…" };
         private async Task ExportReportAsync()
         {
-            if (_disposed || _persistenceBusy || !Model.CanExport || _actualWork.HasUnconfirmedClose || Model.HistoryServices is not { } services) return;
+            if (_disposed || IsComparison || _persistenceBusy || !Model.CanExport || _actualWork.HasUnconfirmedClose || Model.HistoryServices is not { } services) return;
             using var actual = _actualWork.Enter(); using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Model.HistoryLifetime, _window._indexedLifetime.Token);
             _persistenceBusy = true; Model.Interaction(true); Refresh();
             try
             {
+                var chart = (_mode.SelectedIndex == 1 ? (Controls.DiskSpace.AnalysisChartControl)_sunburst : _treemap).CaptureExportView();
                 using var revision = Model.CaptureDisplayedRevision(); var tree = Model.Tree!; var view = Model.PublishedReportView;
                 string folder = Model.Selection.Scope; var marks = Model.Selection.Marks.Order().ToImmutableArray();
                 var scopeInfo = AnalysisSavedCatalog.SplitAggregationScope(folder);
@@ -122,7 +140,7 @@ public sealed partial class DiskSpaceWindow
                     : scopeInfo.Skipped == 0 ? AnalysisReportViewKind.GroupMembers : AnalysisReportViewKind.SmallGroupMembers;
                 var options = await ReviewReportOptionsAsync(_window._dialogs, true, marks.Length, cancel.Token, viewKind);
                 if (options is null) return; cancel.Token.ThrowIfCancellationRequested();
-                var captureTask = AnalysisCapturedMemoryReport.CaptureAsync(revision, tree, services.Io, options.Format, options.Scope, folder, marks, view.Sort, view.SortDescending, cancel.Token,
+                var captureTask = AnalysisCapturedMemoryReport.CaptureAsync(revision, tree, services.Io, options.CaptureFormat, options.Scope, folder, marks, view.Sort, view.SortDescending, cancel.Token,
                     context: new(view.Query, view.CaseSensitive, view.ShowUnknown, view.Root));
                 var closer = new ViewModels.DialogCloser();
                 try
@@ -134,9 +152,10 @@ public sealed partial class DiskSpaceWindow
                         if (await Task.WhenAny(captureTask, dismissed) == dismissed) cancel.Cancel();
                     }
                     await using var report = await captureTask; closer.Close(null);
+                    await using var image = options.ChartFormat is { } imageFormat ? await AnalysisCapturedChart.CaptureAsync(services.Io, report, chart ?? throw new InvalidOperationException("No current chart is available to capture."), imageFormat, options.ChartWidth, options.ChartHeight, options.RedactPaths, cancel.Token) : null;
                     var snapshot = revision.Snapshot;
                     var status = await _window.ExportExternalInventoryAsync(services, ExportObservation(snapshot.Identity, snapshot.Coverage, snapshot.Taint), cancel.Token,
-                        (prepared, destination, name, token) => prepared.ExportReportAsync(report, destination, name, options.RedactPaths, token), _actualWork.RecordUnconfirmedClose, options);
+                        (prepared, destination, name, token) => image is null ? prepared.ExportReportAsync(report, destination, name, options.RedactPaths, token) : prepared.ExportChartAsync(image, destination, name, options.RedactPaths, token), _actualWork.RecordUnconfirmedClose, options);
                     if (!_disposed && status is not null) Model.SetStatus(status);
                 }
                 finally { closer.Close(null); }

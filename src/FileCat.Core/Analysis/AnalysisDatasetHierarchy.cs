@@ -132,6 +132,25 @@ public sealed partial class AnalysisDatasetHierarchy : IAsyncDisposable
             var range = state.Indexes[0].FindRange(Key(path), token); if (range.Count != 1) throw Invalid();
             return state.Read(state.Indexes[0].Read(range.First, token).Value, token);
         }, cancellation);
+    /// <summary>Raw captured namespace order and existing canonical summaries in one bounded I/O turn.</summary>
+    internal Task<AnalysisDatasetPage<AnalysisHierarchyRow>> ReadNamespaceRowsAsync(ulong offset, int maximum = 256, CancellationToken cancellation = default) =>
+        _owned.RunAsync((state, token) =>
+        {
+            if (offset > Descriptor.Paths || maximum is < 1 or > AnalysisLimits.BatchRecords) throw new ArgumentOutOfRangeException(nameof(offset));
+            var rows = ImmutableArray.CreateBuilder<AnalysisHierarchyRow>(); long bytes = 0;
+            while (offset + (ulong)rows.Count < Descriptor.Paths && rows.Count < maximum)
+            {
+                token.ThrowIfCancellationRequested();
+                var path = state.Graph.ReadPathRow(offset + (ulong)rows.Count + 1, token);
+                var range = state.Indexes[0].FindRange(Key(path.Id), token); if (range.Count != 1) throw Invalid();
+                var row = state.Read(state.Indexes[0].Read(range.First, token).Value, token);
+                long cost = 1536L + row.Path.Name.Length * 2L + row.Path.RawName.Length + row.Path.RootId.Length * 2L +
+                    (row.Path.ObjectId?.Length ?? 0) * 2L + (row.Path.ObservedIdentity?.Length ?? 0) * 2L;
+                if (cost > AnalysisLimits.BatchBytes) throw Invalid(); if (cost > AnalysisLimits.BatchBytes - bytes) break;
+                rows.Add(row); bytes += cost;
+            }
+            return new AnalysisDatasetPage<AnalysisHierarchyRow>(offset, Descriptor.Paths, rows.ToImmutable());
+        }, cancellation);
     public Task<AnalysisDatasetPage<AnalysisHierarchyRow>> ReadChildrenAsync(ulong parent, AnalysisHierarchySort sort = AnalysisHierarchySort.Metric,
         ulong offset = 0, int maximum = 256, CancellationToken cancellation = default, bool descending = true) =>
         _owned.RunAsync((state, token) =>
