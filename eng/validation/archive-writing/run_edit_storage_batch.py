@@ -2,8 +2,8 @@
 from pathlib import Path
 import importlib.util,json,shutil,subprocess,sys,tarfile,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v18'
-PACKET='archive-edit-storage-delta-v18.tar.gz'
+FOLDER='awe-storage-v19'
+PACKET='archive-edit-storage-delta-v19.tar.gz'
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 def sha(path):
     import hashlib
@@ -11,7 +11,7 @@ def sha(path):
 def base(task):
     path=task/'archive-workflow-source-v1/eng/validation/archive-writing/run_job_backend_batch.py'
     spec=importlib.util.spec_from_file_location('edit_storage_base',path);value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value)
-    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v16' if sys.platform=='win32' else 'awe-storage-v17'
+    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v18'
     return value
 def batch_for(task):return base(task).batch_for(task)
 def prepare(task,expected):

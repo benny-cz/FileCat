@@ -472,9 +472,19 @@ public sealed class VerificationUiTests
             await Until(() => row.CanShowResults, "the operations strip offers the results");
             var again = vm.ShowVerificationResultsAsync(job);
             await Until(() => dialogs.IsOpen, "the results open again");
-            // The modal is open before its templated, selected-file details have completed layout.
-            await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t =>
-                t.Text == "report\\u202Etxt.exe is intact: it matches its checksum"), "the reopened results display the selected file");
+            try
+            {
+                await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(t =>
+                    t.Text == "report\\u202Etxt.exe is intact: it matches its checksum"), "the reopened results display the selected file");
+            }
+            catch
+            {
+                TestContext.Current.TestOutputHelper?.WriteLine("Visible text:\n"+string.Join("\n",window.GetVisualDescendants()
+                    .OfType<TextBlock>().Select(t=>t.Text).Where(t=>!string.IsNullOrEmpty(t))));
+                TestContext.Current.TestOutputHelper?.WriteLine("Verification files:\n"+string.Join("\n",job.VerificationReport!.Files.Select(f=>
+                    f.Name+" | "+f.Outcome+" | "+f.Text+" | "+string.Join(", ",f.Checksums.Select(c=>c.Claim.Expected+"="+c.Actual)))));
+                throw;
+            }
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "report\\u202Etxt.exe is intact: it matches its checksum");
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             await again;
