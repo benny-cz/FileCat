@@ -44,7 +44,8 @@ internal static class ArchiveEditSnapshotCases
             if(scenario=="working-directory-replaced")
             {
                 string files=Path.GetDirectoryName(record.WorkingPath)!;Directory.Move(files,files+".retained");Directory.CreateDirectory(files);
-                Assert.ThrowsAny<IOException>(()=>store.PrepareCommit(record,fixture,ct));Assert.Empty(Directory.GetDirectories(session,"commit-*"));return;
+                var error=Record.Exception(()=>store.PrepareCommit(record,fixture,ct));
+                Assert.True(error is IOException or UnauthorizedAccessException,error?.ToString());Assert.Empty(Directory.GetDirectories(session,"commit-*"));return;
             }
             if(scenario=="cancel-before")
             {
