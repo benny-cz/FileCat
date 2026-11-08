@@ -63,7 +63,8 @@ public sealed partial class EditSessionStore
         if (check == CommitCheck.MemberChanged || check == CommitCheck.ArchiveChanged && !acceptRebase)
             throw new IOException("The archive edit needs a fresh explicit conflict/rebase decision. Your working copy is kept.");
         var member = ArchiveEditEvidence.UniqueMember(target, record.MemberPath);
-        return target.CreatePlan([new(ArchiveChangeKind.Replace, member.Name, copy.Path, Ordinal: member.Occurrence)]) with{EditInput=copy.Native};
+        var plan=target.CreatePlan([new(ArchiveChangeKind.Replace, member.Name, copy.Path, Ordinal: member.Occurrence)]) with{EditInput=copy.Native};
+        copy.Native?.RequireRequest(plan);return plan;
     }
 
     internal EditSessionRecord CommittedArchive(EditSessionRecord record, IArchiveEditSource actual, EditCommitCopy copy,

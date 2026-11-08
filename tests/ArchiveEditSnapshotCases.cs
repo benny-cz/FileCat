@@ -21,7 +21,7 @@ internal static class ArchiveEditSnapshotCases
             "cleanup-record-replaced","cleanup-record-bytes-changed","cleanup-record-origin-changed","cleanup-reused-path","capture-quota","capture-byte-quota"})yield return [value];
         foreach(var profile in ArchiveNativeJobCases.Profiles())yield return [$"plan-{(int)(ArchiveWriteFormat)profile[0]}-{profile[1]}"];
     }
-    internal static void Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open)
+    internal static void Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open,IFileSystemOperations? nativeFiles=null)
     {
         var ct=TestContext.Current.CancellationToken;
         string parent=Environment.GetEnvironmentVariable("FILECAT_EDIT_NATIVE_ROOT")??Path.GetTempPath();
@@ -31,9 +31,16 @@ internal static class ArchiveEditSnapshotCases
         EditCommitCopy? copy=null;string? capturePath=null;bool retainCapture=false;
         try
         {
-            var store=new EditSessionStore(Path.Combine(fixture,"sessions"),new PortableFileOperations(),open);
-            using var content=new MemoryContentSource("owned.txt","complete original working bytes"u8.ToArray());
-            var record=store.CreateRemote("test","test","/owned.txt",content,content.GetRevision()!.Value,null,ct);
+            var store=new EditSessionStore(Path.Combine(fixture,"sessions"),nativeFiles??new UnixFileOperations(),open);
+            var profile=new ArchiveWriteProfile(ArchiveWriteFormat.Tar);
+            if(scenario.StartsWith("plan-",StringComparison.Ordinal))
+            {var parts=scenario.Split('-');profile=ArchiveNativeJobCases.Profile((ArchiveWriteFormat)int.Parse(parts[1]),int.Parse(parts[2]));}
+            var manifest=Original(profile);var source=new ArchiveAssessment(manifest,new string('B',64),2048,new string('B',64));
+            var target=new ArchiveTargetReview(Path.Combine(fixture,"target.zip"),profile,
+                new(new("outer",2048,new string('B',64)),"outer-parent","target.zip",new string('C',64),
+                    ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier),new(1700000000,0),0x180),source);
+            var record=store.CreateArchive(new Source(target,store.Root,open),"owned.txt",ct);
+            Assert.True(record.IsNativeArchive);Assert.Equal(EditSessionRecord.NativeStorageVersion,record.Version);
             byte[] bytes=scenario=="empty"?[]:Enumerable.Range(0,scenario is "large" or "cancel-copy"?2097153:73).Select(index=>(byte)(index*31)).ToArray();
             File.WriteAllBytes(record.WorkingPath,bytes);
             const string mark="[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.test/owned\r\nQuarantine=0081;6553f100;FileCat;public-test\r\n";
@@ -162,21 +169,35 @@ internal static class ArchiveEditSnapshotCases
                 {Assert.Null(error);retainCapture=true;Assert.ThrowsAny<IOException>(()=>native.Review(ct));Assert.IsAssignableFrom<IOException>(Record.Exception(copy.Dispose));Assert.True(File.Exists(copy.Path));}
                 Assert.Equal(bytes,File.ReadAllBytes(record.WorkingPath));return;
             }
-            var profile=new ArchiveWriteProfile(ArchiveWriteFormat.Tar);
-            if(scenario.StartsWith("plan-",StringComparison.Ordinal))
-            {var parts=scenario.Split('-');profile=ArchiveNativeJobCases.Profile((ArchiveWriteFormat)int.Parse(parts[1]),int.Parse(parts[2]));}
-            var manifest=Original(profile);var source=new ArchiveAssessment(manifest,new string('B',64),2048,new string('B',64));
-            var plan=new ArchivePlan(Path.Combine(fixture,"target.zip"),new(2048,time.Ticks,new string('B',64)),
-                [new(ArchiveChangeKind.Replace,"member.txt",copy.Path,Ordinal:0)],Profile:profile)
-            {EditInput=native,ReviewedManifestDigest=manifest.Digest,NativeBaseline=new(new("outer",2048,new string('B',64)),"outer-parent","target.zip",
-                new string('C',64),ArchiveOriginSnapshot.Absent(native.Expected.Origin.Format),new(1700000000,0),0x180)};
+            var plan=EditSessionStore.CommitArchivePlan(record,target,copy,false);Assert.Same(native,plan.EditInput);
             if(scenario=="request-binding")
             {
                 Assert.ThrowsAny<IOException>(()=>new ArchiveJobPlanning(plan with{MoveSources=true},ct));
                 Assert.ThrowsAny<IOException>(()=>new ArchiveJobPlanning(plan with{Changes=[plan.Changes[0] with{SourcePath=record.WorkingPath}]},ct));
                 Assert.ThrowsAny<IOException>(()=>new ArchiveJobPlanning(plan with{Changes=[plan.Changes[0],plan.Changes[0]]},ct));
                 Assert.ThrowsAny<IOException>(()=>new ArchiveJobPlanning(plan with{Baseline=null},ct));
+                Assert.ThrowsAny<IOException>(()=>new ArchiveJobPlanning(plan with{ArchivePath=Path.Combine(fixture,"other.zip")},ct));
+                Assert.ThrowsAny<IOException>(()=>new ArchiveJobPlanning(plan with{Profile=ArchiveNativeJobCases.Profile(ArchiveWriteFormat.SevenZip,0)},ct));
+                Assert.ThrowsAny<IOException>(()=>new ArchiveJobPlanning(plan with{Changes=[plan.Changes[0] with{MemberPath="other.txt"}]},ct));
+                Assert.ThrowsAny<IOException>(()=>new ArchiveJobPlanning(plan with{Changes=[plan.Changes[0] with{Ordinal=1}]},ct));
+                Assert.ThrowsAny<IOException>(()=>new ArchiveJobPlanning(plan with{Changes=[plan.Changes[0] with{NewMemberPath="other.txt"}]},ct));
+                Assert.ThrowsAny<IOException>(()=>new ArchiveJobPlanning(plan with{NativeBaseline=null},ct));
+                Assert.ThrowsAny<IOException>(()=>new ArchiveJobPlanning(plan with{ReviewedManifestDigest=null},ct));
+                Assert.ThrowsAny<IOException>(()=>new ArchiveJobPlanning(plan with{ReplaceExisting=true},ct));
+                Assert.ThrowsAny<IOException>(()=>new ArchiveJobPlanning(plan with{AddConflictPolicy=ArchiveAddConflictPolicy.Replace},ct));
                 native.RequireSession(record);Assert.ThrowsAny<IOException>(()=>native.RequireSession(record with{Id="unrelated"}));
+                using var remoteContent=new MemoryContentSource("owned.txt","old member"u8.ToArray());
+                var remote=store.CreateRemote("test","test","/owned.txt",remoteContent,remoteContent.GetRevision()!.Value,null,ct);
+                var remoteCopy=store.PrepareCommit(remote,fixture,ct);
+                try{Assert.ThrowsAny<IOException>(()=>new ArchiveJobPlanning(plan with{EditInput=remoteCopy.Native,
+                    Changes=[plan.Changes[0] with{SourcePath=remoteCopy.Path}]},ct));}
+                finally{Assert.True(Record.Exception(remoteCopy.Dispose) is null or IOException);}
+                var changedNative=new ArchiveFileObservation(new("new-outer",2048,new string('D',64)),target.Native.ParentIdentity,
+                    target.Native.LeafName,target.Native.MetadataDigest,target.Native.Origin,new(1700000001,0),0x180);
+                var rebased=new ArchiveTargetReview(target.Path,profile,changedNative,new(manifest,new string('D',64),2048,new string('D',64)));
+                Assert.ThrowsAny<IOException>(()=>EditSessionStore.CommitArchivePlan(record,rebased,copy,false));
+                var reviewedRebase=EditSessionStore.CommitArchivePlan(record,rebased,copy,true);
+                native.RequireRequest(reviewedRebase);Assert.Same(changedNative,reviewedRebase.NativeBaseline);
             }
             var planning=new ArchiveJobPlanning(plan,ct);
             using var selection=planning.CaptureInputs(_=>throw new InvalidOperationException("A retained edit must never reopen its source path."),ct)!;
@@ -203,6 +224,17 @@ internal static class ArchiveEditSnapshotCases
     }
     private static void Mark(string path,string value)
     {if(OperatingSystem.IsWindows())File.WriteAllText(path+":Zone.Identifier",value);else Assert.True(new UnixFileOperations().WriteOriginMark(path,value));}
+    private sealed class Source(ArchiveTargetReview target,string root,Func<string,bool,CancellationToken,EditDirectoryLease> open):IArchiveEditSource
+    {
+        public ArchiveTargetReview Target=>target;
+        public ArchiveManifestMember Member=>target.Assessment.Manifest.Members.Single();
+        public IContentSource OpenContent(CancellationToken ct){ct.ThrowIfCancellationRequested();return new MemoryContentSource("owned.txt","old member"u8.ToArray());}
+        public void ReviewSource(CancellationToken ct)=>ct.ThrowIfCancellationRequested();
+        public string WorkingIdentity(Microsoft.Win32.SafeHandles.SafeFileHandle handle)
+        {using var owner=open(root,false,default);return owner.Identify(handle);}
+        public void PreserveOrigin(FileStream working,string path,CancellationToken ct)=>ct.ThrowIfCancellationRequested();
+    }
+
     private static ArchiveWriteManifest Original(ArchiveWriteProfile profile)
     {
         var ct=TestContext.Current.CancellationToken;byte[] bytes="old member"u8.ToArray();

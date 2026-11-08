@@ -41,7 +41,7 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
         {
             Live();
             if(request.Baseline is null||request.MoveSources||request.Changes.Count!=1||
-                request.Changes[0] is not {Kind:ArchiveChangeKind.Replace} change||change.SourcePath!=SourcePath)
+                request.Changes[0] is not {Kind:ArchiveChangeKind.Replace,NewMemberPath:null} change||change.SourcePath!=SourcePath)
                 throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest,"The retained edit snapshot authorizes one exact native member replacement.");
             if(request.Profile is null)
             {
@@ -49,8 +49,15 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
                     change.Ordinal is not null||request.NativeBaseline is not null||request.ReviewedManifestDigest is not null||request.AddConflictPolicy is not null)
                     throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest,"The retained copy belongs to a different ZIP edit.");
             }
-            else if(request.NativeBaseline is null||request.ReviewedManifestDigest is null)
-                throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest,"The native archive review is missing.");
+            else
+            {
+                if(!session.IsNativeArchive||request.ArchivePath!=session.ArchivePath||request.Profile!=session.ArchiveProfile||
+                    change.MemberPath!=session.MemberPath||change.Ordinal!=session.MemberOccurrence||
+                    request.ReplaceExisting||request.AddConflictPolicy is not null)
+                    throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest,"The retained copy belongs to a different native archive edit.");
+                if(request.NativeBaseline is null||request.ReviewedManifestDigest is null)
+                    throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest,"The native archive review is missing.");
+            }
         }
     }
     public IArchiveSelectionTree OpenTree(string parent,CancellationToken ct)
