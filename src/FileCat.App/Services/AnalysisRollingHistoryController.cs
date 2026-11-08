@@ -42,6 +42,7 @@ internal sealed partial class AnalysisRollingHistoryController(AppServices servi
             // This is the Settings draft commit. The Settings caller saves its whole reviewed
             // draft through the normal settings writer; cancellation never assigns this value.
             services.Settings.AnalysisPreferences = (services.Settings.AnalysisPreferences ?? new()) with { RollingHistory = proposed };
+            WakeMaintenance();
             return true;
         }
         finally { if (entered) _writer.Release(); Interlocked.Decrement(ref _pending); }

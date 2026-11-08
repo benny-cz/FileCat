@@ -45,6 +45,7 @@ internal sealed partial class AnalysisRollingHistoryController
                 current._protectionCount--;
                 if (--current._protectedHistory[id] == 0) current._protectedHistory.Remove(id);
             }
+            current.WakeMaintenance();
         }
     }
     internal void RecordHistoryFailure(Exception error)

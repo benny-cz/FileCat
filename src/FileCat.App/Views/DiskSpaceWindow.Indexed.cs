@@ -150,6 +150,7 @@ public sealed partial class DiskSpaceWindow
         private TaskCompletionSource? _interactionEnd;
         private bool _interacting;
         private int _interactionDepth;
+        private double? _interactionStatusHeight;
         private ulong _scope, _offset, _focus;
         private string? _chartFocusKey;
         private int _navigation, _inspection;
@@ -309,8 +310,23 @@ public sealed partial class DiskSpaceWindow
         private void Interaction(bool active)
         {
             if (_disposed) return;
-            if (active) { if (_interactionDepth++ == 0) { _interacting = true; _interactionEnd = new(TaskCreationOptions.RunContinuationsAsynchronously); } }
-            else if (_interactionDepth > 0 && --_interactionDepth == 0) { _interacting = false; _interactionEnd?.TrySetResult(); _interactionEnd = null; }
+            if (active)
+            {
+                if (_interactionDepth++ == 0)
+                {
+                    _interacting = true; _interactionEnd = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                    // Status text can wrap differently while the query waits to publish.
+                    // Keep its rendered space until release so the pressed row stays put.
+                    if (_status.Bounds.Height > 0)
+                    { _interactionStatusHeight = _status.Height; _status.Height = _status.Bounds.Height; }
+                }
+            }
+            else if (_interactionDepth > 0 && --_interactionDepth == 0)
+            {
+                _interacting = false;
+                if (_interactionStatusHeight is { } height) { _status.Height = height; _interactionStatusHeight = null; }
+                _interactionEnd?.TrySetResult(); _interactionEnd = null;
+            }
             _color.IsEnabled = !_interacting;
         }
         private Task WaitForInteractionAsync(CancellationToken cancellation) => _interacting && _interactionEnd is { } end ? end.Task.WaitAsync(cancellation) : Task.CompletedTask;

@@ -13,6 +13,7 @@ public sealed partial class OwnedAnalysisStore
     {
         ArgumentNullException.ThrowIfNull(review);
         if (restore && (!review.IsRecovery || !review.PayloadPresent)) throw new InvalidOperationException("Only a pending analysis whose saved file is present can be restored.");
+        if (restore && review.OpaqueBytes is not null) throw new InvalidOperationException("Restore requires a fresh valid-inventory review.");
         review.Consume(this);
         return _owned.UseAsync<OwnedAnalysisDeletionOutcome>(async data =>
         {
@@ -24,6 +25,8 @@ public sealed partial class OwnedAnalysisStore
             {
                 await AnalysisIo.Run(_io, _device, token =>
                 {
+                    if (review.OpaqueBytes is not null && !data.Rolling) throw new InvalidOperationException("Opaque removal requires an isolated history owner.");
+                    if (review.OpaqueBytes is not null && review.Entry.Name != RollingName(review.Entry.InventoryId)) throw new InvalidDataException("Opaque removal is limited to generated history names.");
                     work.Writer = inheritedWriter ?? data.Store!.OpenCatalogLock(token); work.InheritedWriter = inheritedWriter is not null;
                     work.Writer.Verify();
                     var selected = Select(data, review.Entry.InventoryId, token);
@@ -38,7 +41,7 @@ public sealed partial class OwnedAnalysisStore
                     if (review.PayloadPresent)
                     {
                         work.Payload = directory.OpenMaintenance(review.Entry.Name);
-                        if (work.Payload.Identity != review.PayloadIdentity || work.Payload.Stream.Length != review.Entry.Bytes)
+                        if (work.Payload.Identity != review.PayloadIdentity || work.Payload.Stream.Length != (review.OpaqueBytes ?? review.Entry.Bytes))
                             throw new InvalidDataException("The reviewed inventory object changed. Obtain a fresh review.");
                     }
                     else RequireAbsent(directory, review.Entry.Name, token);
@@ -46,10 +49,18 @@ public sealed partial class OwnedAnalysisStore
                 }, cancellation).ConfigureAwait(false);
                 if (work.Payload is not null)
                 {
-                    var inspected = await AnalysisInventoryFormat.InspectContainerAsync(work.Payload.Stream, work.Payload.Verify,
-                        _io, _device, cancellation).ConfigureAwait(false);
-                    ValidateContainer(review.Entry, inspected);
-                    if (inspected.Sha256 != review.PayloadSha256) throw new InvalidDataException("The reviewed saved bytes changed. Obtain a fresh review.");
+                    if (review.OpaqueBytes is { } opaqueBytes)
+                    {
+                        var raw = await InspectOpaqueBytesAsync(work.Payload.Stream, work.Payload.Verify, cancellation).ConfigureAwait(false);
+                        if (raw.Bytes != opaqueBytes || raw.Sha256 != review.PayloadSha256) throw new InvalidDataException("The reviewed private history bytes changed. Review them again.");
+                    }
+                    else
+                    {
+                        var inspected = await AnalysisInventoryFormat.InspectContainerAsync(work.Payload.Stream, work.Payload.Verify,
+                            _io, _device, cancellation).ConfigureAwait(false);
+                        ValidateContainer(review.Entry, inspected);
+                        if (inspected.Sha256 != review.PayloadSha256) throw new InvalidDataException("The reviewed saved bytes changed. Obtain a fresh review.");
+                    }
                 }
                 await AnalysisIo.Run(_io, _device, token =>
                 {

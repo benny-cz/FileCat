@@ -11,7 +11,7 @@ namespace FileCat.App.Views;
 /// <summary>One bounded history page; rows are inert facts and every action obtains fresh runtime ownership.</summary>
 internal static class AnalysisHistoryBrowser
 {
-    private enum Action { Close, Refresh, Previous, Next, Inspect, Open, Pin, Delete, Restore, Recover }
+    private enum Action { Close, Refresh, Previous, Next, Inspect, Open, Pin, Delete, Restore, Recover, RemoveOpaque }
     private sealed record Choice(Action Action, AnalysisHistoryRow? Row);
     internal static async Task ShowAsync(AppServices services, IDialogService dialogs, CancellationToken cancellation = default)
     {
@@ -34,7 +34,7 @@ internal static class AnalysisHistoryBrowser
                 new TextBlock { Text = (services.AnalysisHistory.Policy.Enabled ? "History is enabled." : "History is off; existing entries are kept.") +
                     " Open observations stay offline and cannot connect to recorded sources. Open views and pending reviews protect their rolling copy from automatic pruning. Pin an independent named copy to keep it outside retention.", TextWrapping = TextWrapping.Wrap },
                 summary, list,
-                new TextBlock { Text = notice ?? "Select an entry to inspect, open, pin or review its removal. Unindexed copies require full inspection and explicit recovery before normal use.", TextWrapping = TextWrapping.Wrap }
+                new TextBlock { Text = notice ?? services.AnalysisHistory.LastMaintenance?.Detail ?? "Select an entry to inspect, open, pin or review its removal. Unindexed copies require full inspection and explicit recovery before normal use.", TextWrapping = TextWrapping.Wrap }
             } };
             AnalysisHistoryRow? Selected() => list.SelectedItem as AnalysisHistoryRow;
             var browserCloser = new DialogCloser();
@@ -46,7 +46,8 @@ internal static class AnalysisHistoryBrowser
             var commands = new WrapPanel { ItemSpacing = 8, LineSpacing = 6 };
             var inspect = Button("Inspect history entry", Action.Inspect); var open = Button("Open observations", Action.Open); var pinCommand = Button("Pin named copy", Action.Pin);
             var remove = Button("Review removal", Action.Delete); var restoreCommand = Button("Restore history entry", Action.Restore); var recover = Button("Inspect recovery", Action.Recover);
-            foreach (var command in new[] { inspect, open, pinCommand, remove, restoreCommand, recover }) commands.Children.Add(command);
+            var opaque = Button("Review damaged or unindexed removal", Action.RemoveOpaque);
+            foreach (var command in new[] { inspect, open, pinCommand, remove, restoreCommand, recover, opaque }) commands.Children.Add(command);
             void SelectionChanged()
             {
                 var state = Selected()?.State;
@@ -54,6 +55,7 @@ internal static class AnalysisHistoryBrowser
                 open.IsVisible = pinCommand.IsVisible = state == AnalysisHistoryRowState.Saved;
                 remove.IsVisible = state is AnalysisHistoryRowState.Saved or AnalysisHistoryRowState.PendingPresent or AnalysisHistoryRowState.PendingAbsent;
                 restoreCommand.IsVisible = state == AnalysisHistoryRowState.PendingPresent; recover.IsVisible = state == AnalysisHistoryRowState.Unindexed;
+                opaque.IsVisible = state is AnalysisHistoryRowState.Saved or AnalysisHistoryRowState.PendingPresent or AnalysisHistoryRowState.Unindexed;
             }
             list.SelectionChanged += (_, _) => SelectionChanged(); SelectionChanged();
             body.Children.Insert(3, navigation); body.Children.Add(commands);
@@ -127,10 +129,30 @@ internal static class AnalysisHistoryBrowser
                             else notice = "The complete copy was kept unindexed. Automatic history changes stay paused until unresolved data is reviewed.";
                         }
                         break;
+                    case Action.RemoveOpaque:
+                        await using (var captured = await ProgressAsync("Checking exact private history bytes", dialogs, token => services.AnalysisHistory.PrepareOpaqueHistoryRemovalAsync(row, token), cancellation))
+                        {
+                            if (await ConfirmOpaqueRemovalAsync(dialogs, captured.Review, services.Paths.AnalysisHistoryDirectory))
+                            {
+                                var removed = await ProgressAsync("Removing reviewed history copy", dialogs, token => services.AnalysisHistory.RemoveOpaqueHistoryAsync(captured, token), cancellation);
+                                notice = removed.Detail;
+                            }
+                            else notice = "The private history copy was kept. No source or named file was changed.";
+                        }
+                        break;
                 }
             }
             catch (Exception error) when (Expected(error)) { services.AnalysisHistory.RecordHistoryFailure(error); notice = DisplayError(error); }
         }
+    }
+    internal static async Task<bool> ConfirmOpaqueRemovalAsync(IDialogService dialogs, AnalysisRollingOpaqueDeleteReview review, string directory)
+    {
+        return await dialogs.ShowCustomAsync("Remove damaged or unindexed history copy", new TextBlock { TextWrapping = TextWrapping.Wrap, Text =
+            "Remove only these exact private history bytes and any associated history catalog record. The bytes may be incomplete or corrupt; this review does not validate their inventory records. Recovery may become impossible after removal." +
+            "\nName: " + AnalysisNames.Display(review.Name, 160) + "\nFolder: " + AnalysisNames.Display(directory, 4096) +
+            "\nActual size: " + review.Bytes.ToString("N0") + " bytes\nSHA256: " + review.Sha256 +
+            "\nOther history entries, named analyses and source files are unchanged. Removal is logical deletion, not secure erasure." },
+            [new DialogButton("Keep private copy", false, IsDefault: true, IsCancel: true), new DialogButton("Remove private history copy", true, IsDanger: true)]) is true;
     }
     private static async Task<bool> ConfirmMaintenanceAsync(IDialogService dialogs, OwnedAnalysisDeleteReview review, string directory, bool restore)
     {

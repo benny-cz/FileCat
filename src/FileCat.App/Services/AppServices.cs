@@ -384,6 +384,9 @@ public sealed class AppServices : IDisposable
 
     public void Dispose()
     {
+        // Cancellation requests stop; the controller retains its owner until actual I/O
+        // and release complete, including the existing shutdown-only close worker.
+        _ = AnalysisHistory.StopMaintenanceAsync();
         Drives.Dispose();
         Recovery.CloseAll(); // drives' helper sessions end with FileCat
         WorkingSets.Dispose();

@@ -3,7 +3,7 @@ using FileCat.Core.Threading;
 
 namespace FileCat.Core.Analysis;
 
-internal enum AnalysisRollingCaptureState { Saved, Disabled, TooLarge, Deferred, RecoveryRequired, Uncertain }
+internal enum AnalysisRollingCaptureState { Saved, Disabled, TooLarge, Deferred, RecoveryRequired, Uncertain, Maintained }
 internal sealed record AnalysisRollingCaptureOutcome(AnalysisRollingCaptureState State, string? IncomingName,
     AnalysisInventoryReceipt? Receipt, bool Cataloged, ImmutableArray<Guid> Pruned, string Detail);
 internal sealed class AnalysisRollingCaptureException(AnalysisRollingCaptureOutcome outcome, Exception inner) : IOException(outcome.Detail, inner)

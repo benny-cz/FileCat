@@ -10,14 +10,16 @@ public sealed class OwnedAnalysisDeleteReview
     internal readonly string? PayloadIdentity, PayloadSha256;
     internal readonly Guid ExistingOperation;
     internal readonly AnalysisInventoryFormat.ContainerInspection? Inspection;
+    internal readonly long? OpaqueBytes;
     private int _used;
     internal OwnedAnalysisDeleteReview(OwnedAnalysisStore owner, Guid catalog, AnalysisSavedEntry entry, Guid operation, bool payloadPresent,
         string metadataIdentity, string metadataSha, string? payloadIdentity, string? payloadSha,
-        AnalysisInventoryFormat.ContainerInspection? inspection = null)
+        AnalysisInventoryFormat.ContainerInspection? inspection = null, long? opaqueBytes = null)
     {
         Owner = owner; CatalogId = catalog; Entry = entry; ExistingOperation = operation; PayloadPresent = payloadPresent;
         MetadataIdentity = metadataIdentity; MetadataSha256 = metadataSha; PayloadIdentity = payloadIdentity; PayloadSha256 = payloadSha;
         Inspection = inspection;
+        OpaqueBytes = opaqueBytes;
     }
     public AnalysisSavedEntry Entry { get; }
     public Guid CatalogId { get; }
@@ -78,6 +80,8 @@ public sealed partial class OwnedAnalysisStore
     }
 
     public Task<OwnedAnalysisDeleteReview> PrepareDeleteAsync(Guid inventoryId, CancellationToken cancellation = default)
+        => PrepareDeleteCoreAsync(inventoryId, cancellation, opaque: false);
+    private Task<OwnedAnalysisDeleteReview> PrepareDeleteCoreAsync(Guid inventoryId, CancellationToken cancellation, bool opaque)
     {
         if (inventoryId == Guid.Empty) throw new ArgumentException("A generated inventory identity is required.", nameof(inventoryId));
         return _owned.UseAsync<OwnedAnalysisDeleteReview>(async data =>
@@ -87,23 +91,30 @@ public sealed partial class OwnedAnalysisStore
             {
                 var basis = await AnalysisIo.Run(_io, _device, token =>
                 {
+                    if (opaque && !data.Rolling) throw new InvalidOperationException("Opaque removal is limited to an isolated history owner.");
                     var selected = Select(data, inventoryId, token);
+                    if (opaque && selected.Entry.Name != RollingName(inventoryId)) throw new InvalidDataException("Opaque removal is limited to generated history names.");
                     using var directory = data.Store!.BorrowDirectory();
                     var metadata = ReadMetadataIdentity(directory, selected.MetadataName);
                     string? payloadIdentity = null;
                     if (selected.PayloadPresent)
                     {
                         input = AnalysisPrivateInventoryStore.BeginDatasetRead(data.Store.BorrowDirectory(), selected.Entry.Name, token);
-                        if (input.Stream.Length != selected.Entry.Bytes) throw new InvalidDataException("The saved analysis size changed. Review it again.");
+                        if (!opaque && input.Stream.Length != selected.Entry.Bytes) throw new InvalidDataException("The saved analysis size changed. Review it again.");
                         payloadIdentity = input.Identity;
                     }
                     return (Selected: selected, Metadata: metadata, PayloadIdentity: payloadIdentity);
                 }, cancellation).ConfigureAwait(false);
                 AnalysisInventoryFormat.ContainerInspection? inspected = null;
+                (long Bytes, string Sha256)? raw = null;
                 if (input is not null)
                 {
-                    inspected = await AnalysisInventoryFormat.InspectContainerAsync(input, _io, _device, cancellation).ConfigureAwait(false);
-                    ValidateContainer(basis.Selected.Entry, inspected);
+                    if (opaque) raw = await InspectOpaqueBytesAsync(input.Stream, input.Verify, cancellation).ConfigureAwait(false);
+                    else
+                    {
+                        inspected = await AnalysisInventoryFormat.InspectContainerAsync(input, _io, _device, cancellation).ConfigureAwait(false);
+                        ValidateContainer(basis.Selected.Entry, inspected);
+                    }
                     await AnalysisIo.ReleaseScratchAsync(_io, _device, input).ConfigureAwait(false); input = null;
                 }
                 await AnalysisIo.Run(_io, _device, token =>
@@ -117,13 +128,13 @@ public sealed partial class OwnedAnalysisStore
                     if (current.PayloadPresent)
                     {
                         var payload = directory.OpenMaintenance(current.Entry.Name); using var closePayload = new AnalysisWorkerClose(payload);
-                        if (payload.Identity != basis.PayloadIdentity || payload.Stream.Length != current.Entry.Bytes)
+                        if (payload.Identity != basis.PayloadIdentity || payload.Stream.Length != (raw?.Bytes ?? current.Entry.Bytes))
                             throw new InvalidDataException("The selected saved file changed. Review it again.");
                     }
                     return true;
                 }, cancellation).ConfigureAwait(false);
                 return new(this, basis.Selected.Catalog, basis.Selected.Entry, basis.Selected.Pending?.OperationId ?? Guid.Empty,
-                    basis.Selected.PayloadPresent, basis.Metadata.Identity, basis.Metadata.Sha256, basis.PayloadIdentity, inspected?.Sha256, inspected);
+                    basis.Selected.PayloadPresent, basis.Metadata.Identity, basis.Metadata.Sha256, basis.PayloadIdentity, raw?.Sha256 ?? inspected?.Sha256, inspected, raw?.Bytes);
             }
             finally { if (input is not null) await AnalysisIo.ReleaseScratchAsync(_io, _device, input).ConfigureAwait(false); }
         });

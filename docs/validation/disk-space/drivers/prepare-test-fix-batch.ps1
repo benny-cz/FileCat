@@ -4,16 +4,21 @@ param(
  [Parameter(Mandatory=$true)][ValidateSet('core','render')][string]$Phase,
  [Parameter(Mandatory=$true)][string]$BuildLog,
  [Parameter(Mandatory=$true)][string]$SourceManifest,
- [ValidateSet('windows','mac','linux')][string[]]$ReusePlatforms=@('windows')
+ [ValidateSet('windows','mac','linux')][string[]]$ReusePlatforms=@('windows'),
+ [ValidateSet('TestOnly','AppUi','OldProductControl')][string]$InputScope='TestOnly'
 )
 $ErrorActionPreference='Stop';$watch=[Diagnostics.Stopwatch]::StartNew()
 $build=[IO.File]::ReadAllText((Join-Path $PWD $BuildLog))
+if($build.Contains('Build FAILED.')){throw 'A failed build cannot qualify a cached delta'}
 foreach($required in 'Build succeeded.','0 Warning(s)','0 Error(s)'){if(!$build.Contains($required)){throw 'A completed clean build is required'}}
 foreach($item in (Get-Content -Raw -LiteralPath $SourceManifest|ConvertFrom-Json)){
  if((Get-FileHash -LiteralPath $item.path -Algorithm SHA256).Hash.ToLowerInvariant()-ne$item.sha256){throw 'Source changed after freeze'}
 }
 $assemblies=@{core='FileCat.Core.Tests';native='FileCat.Platform.Windows.Tests';render='FileCat.Rendering.Tests'}
 $allowed=@(($Phase+'/'+$assemblies[$Phase]+'.dll'),($Phase+'/'+$assemblies[$Phase]+'.pdb'))
+$appFiles=@('render/FileCat.dll','render/FileCat.pdb')
+if($InputScope-ne'TestOnly'-and$Phase-ne'render'){throw 'App UI changes and old-product controls require rendering inputs'}
+if($InputScope-eq'AppUi'){$allowed+=$appFiles}
 $proof=@()
 foreach($platform in 'windows','mac','linux'){
  $old=Join-Path $PWD ('.tmp/batch-'+$BaselineRevision+'-'+$platform)
@@ -25,16 +30,19 @@ foreach($platform in 'windows','mac','linux'){
   $relative=[IO.Path]::GetRelativePath($old,$_.FullName).Replace('\','/')
   $parts=$relative.Split('/',2);$bin=Join-Path $PWD ('tests/'+$assemblies[$parts[0]]+'/bin/Debug/net10.0')
   $current=Join-Path $bin $parts[1]
+  if($InputScope-eq'OldProductControl'-and$relative-in$appFiles){$current=$_.FullName}
   $before=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
   $after=(Get-FileHash -LiteralPath $current -Algorithm SHA256).Hash.ToLowerInvariant()
   $patch=$before-ne$after
-  if($patch){if($relative-notin$allowed){throw ('A test-only fix changed a product input: '+$relative)};$script:changed+=@($relative)}
+  if($patch){if($relative-notin$allowed){throw ('An undeclared input changed: '+$relative)};$script:changed+=@($relative)}
   $target=Join-Path $stage $relative;New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($target)) -Force|Out-Null
   Copy-Item -LiteralPath $current -Destination $target
   if((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()-ne$after){throw 'Staged input mismatch'}
   [ordered]@{path=$relative;baselineSha256=$before;sha256=$after;patch=$patch}
  })
- if($changed.Count-ne2){throw 'Expected exactly a test DLL and PDB change'}
+ if($InputScope-eq'AppUi'){
+  if(@($appFiles|Where-Object{$_-notin$changed}).Count-or$changed.Count-notin2,4){throw 'Expected the App DLL/PDB and optionally one test DLL/PDB pair'}
+ }elseif($changed.Count-ne2){throw 'Expected exactly a test DLL and PDB change'}
  $archive=Join-Path $PWD ('.tmp/dsa-batch-'+$platform+'-'+$Revision+'.tgz')
  if(Test-Path -LiteralPath $archive){throw 'A fresh archive is required'}
  $extension=if($platform-eq'windows'){'ps1'}else{'sh'}
@@ -44,7 +52,7 @@ foreach($platform in 'windows','mac','linux'){
   $delta=Join-Path $PWD ('.tmp/test-fix-delta-'+$Revision);New-Item -ItemType Directory -Path $delta|Out-Null
   foreach($relative in $changed){$target=Join-Path $delta ('patch/'+$relative);New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($target)) -Force|Out-Null;Copy-Item -LiteralPath (Join-Path $stage $relative) -Destination $target}
   $baseline='C:\FileCatDsa20261104R2\batch-'+$BaselineRevision+'\payload'
-  [ordered]@{baseline=$baseline;files=$files}|ConvertTo-Json -Depth 5|Set-Content (Join-Path $delta 'plan.json')
+  [ordered]@{baseline=$baseline;files=$files;scope=$InputScope}|ConvertTo-Json -Depth 5|Set-Content (Join-Path $delta 'plan.json')
   & tar.exe -czf $archive -C $delta .
   $start=$runner.IndexOf(" `$payload=Join-Path `$base 'payload'");$finish=$runner.IndexOf(' $overall=0')
   if($start-lt0-or$finish-le$start){throw 'Runner extraction boundary changed'}
@@ -58,7 +66,7 @@ foreach($platform in 'windows','mac','linux'){
  if($plan.baseline-ne'@BASELINE@'){throw 'Unexpected cached baseline'}
  foreach($item in $plan.files){
   if([IO.Path]::IsPathRooted($item.path)-or$item.path.Contains(':')-or@($item.path-split'/'|Where-Object{$_-eq'..'}).Count){throw 'Invalid cached input path'}
-  if($item.patch-and$item.path-notin @('@DLL@','@PDB@')){throw 'Product input patch refused'}
+  if($item.patch-and$item.path-notin @(@ALLOWED@)){throw 'Undeclared input patch refused'}
   if((Get-FileHash -LiteralPath (Join-Path $plan.baseline $item.path) -Algorithm SHA256).Hash.ToLowerInvariant()-ne$item.baselineSha256){throw 'Cached input changed'}
  }
  $payload=Join-Path $base 'payload';if(Test-Path -LiteralPath $payload){throw 'Fresh payload required'}
@@ -70,14 +78,14 @@ foreach($platform in 'windows','mac','linux'){
  }
  ('VERIFIED cachedFiles='+$plan.files.Count+' changedFiles='+@($plan.files|Where-Object{$_.patch}).Count)|Set-Content (Join-Path $base 'cache-proof.txt')
 '@
-  $reuse=$reuse.Replace('@BASELINE@',$baseline).Replace('@DLL@',$allowed[0]).Replace('@PDB@',$allowed[1])
+  $reuse=$reuse.Replace('@BASELINE@',$baseline).Replace('@ALLOWED@',(($allowed|ForEach-Object{"'"+$_+"'"})-join','))
   $runner=$runner.Substring(0,$start)+$reuse+"`n"+$runner.Substring($finish)
  }elseif($platform-in$ReusePlatforms){
   $delta=Join-Path $PWD ('.tmp/test-fix-delta-'+$platform+'-'+$Revision);New-Item -ItemType Directory -Path $delta|Out-Null
   foreach($relative in $changed){$target=Join-Path $delta ('patch/'+$relative);New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($target)) -Force|Out-Null;Copy-Item -LiteralPath (Join-Path $stage $relative) -Destination $target}
   $guestRoot=if($platform-eq'mac'){'/Users/benny/FileCatValidation/'}else{'/home/benny/FileCatValidation/'}
   $baseline=$guestRoot+'dsa-batch-20261107-'+$BaselineRevision+'/payload'
-  [ordered]@{baseline=$baseline;files=$files;allowed=$allowed}|ConvertTo-Json -Depth 5|Set-Content (Join-Path $delta 'plan.json')
+  [ordered]@{baseline=$baseline;files=$files;allowed=$allowed;scope=$InputScope}|ConvertTo-Json -Depth 5|Set-Content (Join-Path $delta 'plan.json')
   Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'run-batch-cache.py') -Destination (Join-Path $delta 'reuse.py')
   & tar.exe -czf $archive -C $delta .
   $extract="mkdir payload`ntar -xzf bundle.tgz -C payload"
@@ -91,5 +99,5 @@ foreach($platform in 'windows','mac','linux'){
  $proof+=@{platform=$platform;verifiedInputs=$files.Count;changed=$changed;guestReuse=$platform-in$ReusePlatforms;archiveBytes=(Get-Item -LiteralPath $archive).Length;sha256=$hash}
 }
 $watch.Stop()
-[ordered]@{revision=$Revision;baseline=$BaselineRevision;elapsedSeconds=$watch.Elapsed.TotalSeconds;platforms=$proof}|ConvertTo-Json -Depth 5|Set-Content ('.tmp/test-fix-proof-'+$Revision+'.json')
+[ordered]@{revision=$Revision;baseline=$BaselineRevision;scope=$InputScope;productSourceBaseline=if($InputScope-eq'OldProductControl'){$BaselineRevision}else{$null};elapsedSeconds=$watch.Elapsed.TotalSeconds;platforms=$proof}|ConvertTo-Json -Depth 5|Set-Content ('.tmp/test-fix-proof-'+$Revision+'.json')
 Write-Output ('Prepared one immutable batch per platform; verified guest reuse: '+($ReusePlatforms-join', ')+'. Seconds: '+[math]::Round($watch.Elapsed.TotalSeconds,2))

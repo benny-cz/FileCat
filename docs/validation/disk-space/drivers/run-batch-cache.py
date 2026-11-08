@@ -18,8 +18,15 @@ baseline = pathlib.Path(sys.argv[1]).resolve(strict=True)
 if str(baseline) != plan['baseline']:
     raise RuntimeError('Unexpected cached baseline')
 allowed = set(plan['allowed'])
-if len(allowed) != 2 or not any(p.endswith('.Tests.dll') for p in allowed) or not any(p.endswith('.Tests.pdb') for p in allowed):
-    raise RuntimeError('Only one test DLL and PDB may be patched')
+scope = plan.get('scope', 'TestOnly')
+if scope == 'AppUi':
+    if allowed != {'render/FileCat.dll', 'render/FileCat.pdb', 'render/FileCat.Rendering.Tests.dll', 'render/FileCat.Rendering.Tests.pdb'}:
+        raise RuntimeError('Only the declared App and rendering-test DLL/PDB pairs may be patched')
+elif scope in ('TestOnly', 'OldProductControl'):
+    if len(allowed) != 2 or not any(p.endswith('.Tests.dll') for p in allowed) or not any(p.endswith('.Tests.pdb') for p in allowed):
+        raise RuntimeError('Only one test DLL and PDB may be patched')
+else:
+    raise RuntimeError('Unknown cached input scope')
 rows = []
 seen = set()
 for item in plan['files']:

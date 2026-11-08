@@ -86,6 +86,7 @@ public partial class App : Application
             if (!benchmark)
             {
                 var startupUpdateCheck = new CancellationTokenSource();
+                window.Opened += (_, _) => services.AnalysisHistory.StartMaintenance();
                 window.Opened += (_, _) => Dispatcher.UIThread.Post(
                     () => _ = vm.CheckForUpdatesOnStartupAsync(startupUpdateCheck.Token), DispatcherPriority.Background);
                 window.Closed += (_, _) => startupUpdateCheck.Cancel();

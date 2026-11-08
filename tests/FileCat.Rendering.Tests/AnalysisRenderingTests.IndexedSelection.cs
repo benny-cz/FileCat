@@ -135,6 +135,10 @@ public sealed partial class AnalysisRenderingTests
             list.SelectedItem = Assert.Single(list.Items.OfType<AnalysisDatasetGroup>()); Click(window, "Explore selected group"); await Until(() => MemberReady(window)); Frame(window);
             var row = list.Items.OfType<AnalysisDatasetGroupRow>().Single(row => row.Member.Path.Name == "match-target.bin"); list.SelectedItem = row;
             await Until(() => IndexedDetails(window).Text?.Contains("match-target.bin", StringComparison.Ordinal) == true); Frame(window);
+            // A pending query replaces multiline status text; its layout must not move
+            // the rendered checkbox away from a pointer which is already pressing it.
+            var status = window.GetVisualDescendants().OfType<TextBlock>().Single(text => AutomationProperties.GetName(text) == "Indexed analysis status");
+            status.Text = "Captured observations ready.\nWaiting for the next query.\nThe table remains available."; Frame(window);
             var check = window.GetVisualDescendants().OfType<CheckBox>().Single(check => check.Tag is ulong id && id == row.Member.Path.Id);
             check.BringIntoView(); Frame(window); point = check.TranslatePoint(new Point(check.Bounds.Width / 2, check.Bounds.Height / 2), window)!.Value;
             var hit = window.InputHitTest(point) as Visual;
@@ -146,6 +150,7 @@ public sealed partial class AnalysisRenderingTests
             Click(window, "Apply filter");
             await Until(() => window.GetVisualDescendants().OfType<TextBlock>().Any(text => text.Text == "Query ready. Finish the current interaction to display it."));
             Assert.Same(before, list.ItemsSource);
+            Frame(window);
             var afterPoint = check.TranslatePoint(new Point(check.Bounds.Width / 2, check.Bounds.Height / 2), window);
             bool pressedBeforeRelease = check.IsPressed, overBeforeRelease = check.IsPointerOver;
             window.MouseUp(point, MouseButton.Left); pressed = false;
