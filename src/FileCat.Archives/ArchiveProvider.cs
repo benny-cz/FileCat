@@ -129,11 +129,11 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
 
     public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate | LocationCapabilities.ReadContent |
         (MutationState(location).Available ? LocationCapabilities.TransferTarget | LocationCapabilities.CreateDirectory |
-            (MemberMutationProblem(location) is null ? LocationCapabilities.Delete | LocationCapabilities.Rename : LocationCapabilities.None) : LocationCapabilities.None);
+            (MemberMutationProblem(location) is null ? LocationCapabilities.Delete | LocationCapabilities.Rename | LocationCapabilities.ExternalEdit : LocationCapabilities.None) : LocationCapabilities.None);
 
     public override string ExplainUnavailable(Location location, LocationCapabilities capability) => capability switch
     {
-        LocationCapabilities.Delete or LocationCapabilities.Rename when MutationState(location).Available && MemberMutationProblem(location) is { } problem => problem,
+        LocationCapabilities.Delete or LocationCapabilities.Rename or LocationCapabilities.ExternalEdit when MutationState(location).Available && MemberMutationProblem(location) is { } problem => problem,
         LocationCapabilities.CreateDirectory or LocationCapabilities.CreateFile or LocationCapabilities.Delete or LocationCapabilities.Rename or
             LocationCapabilities.TransferTarget or LocationCapabilities.ExternalEdit or LocationCapabilities.Recycle =>
             "This archive is read-only here. Copy (extract) members with F5 to work with them in a folder.",
@@ -255,7 +255,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         lock (_cacheLock) return GetIndex(root, source, ct);
     }
 
-    private ArchiveIndex GetIndex(Location root, ArchiveSourceLease source, CancellationToken ct, ArchiveJobPassword? password = null)
+    private ArchiveIndex GetIndex(Location root, ArchiveSourceLease source, CancellationToken ct, ArchiveJobPassword? password = null, bool requireRevision = false)
     {
         string path = source.Path;
         var fi = new FileInfo(path);
@@ -270,6 +270,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
                 if (!cached.CanReuse) throw new IOException("The archive source has no change token for cache reuse.");
                 if (password is not null && !cached.PasswordUnlocked) throw new IOException("Unlock this archive with a new reader.");
                 if (!cached.WriteRevisionAttempted && MutationState(root).Available) throw new IOException("Refresh the newly writable archive's revision.");
+                if (requireRevision && !cached.WriteRevisionAttempted) throw new IOException("Read the complete revision before preparing an edit.");
                 cached.VerifySource();
                 cached.VerifyVolumePaths();
                 cached.Touch();
@@ -324,7 +325,8 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
             index.PasswordUnlocked = password is not null;
             index.ContainerSession = root.Session;
             index.ContainerLocation = root;
-            if (MutationState(root).Available)
+            index.SourceIdentity = sourceIdentity;
+            if (requireRevision || MutationState(root).Available)
             {
                 index.WriteRevisionAttempted = true;
                 if (before is null) index.WriteRevisionProblem = "This location cannot identify a stable archive listing for member changes.";
@@ -529,6 +531,7 @@ internal sealed class ArchiveIndex : IDisposable
     internal string? ContainerPath => _source?.Path;
     internal string? ContainerSession { get; set; }
     internal Location? ContainerLocation { get; set; }
+    internal string? SourceIdentity { get; set; }
     internal bool PasswordUnlocked { get; set; }
     internal bool WriteRevisionAttempted { get; set; }
     internal string? WriteRevision { get; set; }

@@ -55,6 +55,17 @@ internal sealed class ArchiveTargetReview
 /// <summary>Complete confined assessment over one pinned native source, followed by a full native recheck.</summary>
 internal sealed class ArchiveTargetReviewer(Func<string, CancellationToken, IArchiveTargetReadLease> open, ArchiveAssessmentClient assessor)
 {
+    /// <summary>Consumes retained reads inside the callback; returned values must not borrow this native lease.</summary>
+    internal T ReadRetained<T>(ArchiveTargetReview review, Func<IArchiveRetainedFile, T> read, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(review); ArgumentNullException.ThrowIfNull(read);
+        ct.ThrowIfCancellationRequested();
+        using var lease = open(review.Path, ct);
+        lease.File.Review(review.Native, ct);
+        ct.ThrowIfCancellationRequested();
+        return read(lease.File);
+    }
+
     internal async Task<ArchiveTargetReview> ReviewAsync(string path, ArchiveWriteProfile profile, ArchiveJobPassword? password, CancellationToken ct,
         bool preserveEncryption = false, string? expectedSourceSha256 = null)
     {

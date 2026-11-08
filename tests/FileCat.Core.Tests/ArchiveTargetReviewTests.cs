@@ -35,6 +35,29 @@ public sealed class ArchiveTargetReviewTests
     }
     public static IEnumerable<object[]> Profiles() => ArchiveNativeJobCases.Profiles();
 
+    [Theory, InlineData("success"), InlineData("changed"), InlineData("read-failure"), InlineData("canceled")]
+    public void Retained_edit_read_checks_the_original_observation_and_owns_native_authority_through_the_callback(string outcome)
+    {
+        using var temp = new TempDir(); var profile = new ArchiveWriteProfile(ArchiveWriteFormat.Tar);
+        var lease = new Lease("target", () => true);
+        var review = new ArchiveTargetReview(System.IO.Path.Combine(temp.Path, "target"), profile, lease.Observe(Ct), new(Manifest(profile), Revision, 2048, Revision));
+        lease.Changed = outcome == "changed";
+        var reviewer = new ArchiveTargetReviewer((_, _) => lease, new((_, _) => throw new InvalidOperationException("A retained read must not launch another assessment.")));
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(Ct); bool entered = false;
+        int Read(IArchiveRetainedFile file)
+        {
+            entered = true; Assert.False(lease.Disposed);
+            if (outcome == "read-failure") throw new IOException("Public retained read failure");
+            if (outcome == "canceled") { stop.Cancel(); file.Review(review.Native, stop.Token); }
+            using var input = file.OpenReadView(review.Native, stop.Token);
+            Assert.Equal(2048, input.Length); file.Review(review.Native, stop.Token); return 17;
+        }
+        if (outcome is "changed" or "read-failure") Assert.Throws<IOException>(() => reviewer.ReadRetained(review, Read, stop.Token));
+        else if (outcome == "canceled") Assert.ThrowsAny<OperationCanceledException>(() => reviewer.ReadRetained(review, Read, stop.Token));
+        else Assert.Equal(17, reviewer.ReadRetained(review, Read, stop.Token));
+        Assert.Equal(outcome != "changed", entered); Assert.True(lease.Disposed);
+    }
+
     [Theory, MemberData(nameof(Profiles))]
     public void Member_review_accepts_explicit_folder_markers_and_validates_the_complete_recursive_plan(ArchiveWriteFormat format, int mode)
     {

@@ -5,13 +5,40 @@ using Microsoft.Win32.SafeHandles;
 namespace FileCat.Core.Archives;
 
 /// <summary>
-/// Trusted-parent observations of the fixed native origin xattr on an already-held regular file or directory.
-/// No path is opened and no value is interpreted, changed or deleted. Admission of the handle/filesystem and
+/// Trusted-parent observations of the fixed native origin xattr, plus create-only propagation to a new editor file.
+/// No path is opened and origin bytes remain opaque. Admission of the handle/filesystem and
 /// later source/publication reconciliation remain the caller's responsibility. Matching observations do not
 /// establish an atomic snapshot against a concurrent equivalent-privilege writer.
 /// </summary>
 internal static partial class ArchiveUnixOrigin
 {
+    internal static void CopyToNewWorkingFile(SafeFileHandle handle, ArchiveOriginSnapshot origin, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var format = OperatingSystem.IsMacOS() ? ArchiveOriginFormat.MacQuarantine : ArchiveOriginFormat.LinuxOriginUrl;
+        if (origin.Format != format || origin.State == ArchiveOriginState.Unavailable)
+            throw new IOException("The archive origin cannot be preserved on the private edit copy.");
+        if (origin.State == ArchiveOriginState.Absent) return;
+        var existing = Read(handle, ct);
+        if (existing.Digest == origin.Digest) return;
+        if (existing.State != ArchiveOriginState.Absent) throw new IOException("The new working file already has different or unreadable origin data.");
+        bool added = false;
+        try
+        {
+            handle.DangerousAddRef(ref added);
+            if (UnixFiles.Stat(handle) is not { IsRegular: true }) throw new IOException("An owned regular edit file is required.");
+            int fd = checked((int)handle.DangerousGetHandle()); byte[] bytes = origin.Bytes.ToArray();
+            int result = OperatingSystem.IsMacOS()
+                ? MacSet(fd, UnixFileOperations.QuarantineAttribute, bytes, bytes.Length, 0, 2 /* XATTR_CREATE */)
+                : LinuxSet(fd, UnixFileOperations.OriginAttribute, bytes, bytes.Length, 1 /* XATTR_CREATE */);
+            if (result != 0) throw new IOException("The private edit origin could not be created without replacement.", Marshal.GetLastPInvokeError());
+            if (Read(handle, CancellationToken.None).Digest != origin.Digest)
+                throw new IOException("The private edit origin did not survive exact readback.");
+            ct.ThrowIfCancellationRequested();
+        }
+        finally { if (added) handle.DangerousRelease(); }
+    }
+
     internal static ArchiveOriginSnapshot Read(SafeFileHandle handle, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(handle);
@@ -86,4 +113,10 @@ internal static partial class ArchiveUnixOrigin
 
     [LibraryImport("libc", EntryPoint = "fgetxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial nint MacGet(int fd, string name, byte[]? value, nint size, uint position, int options);
+
+    [LibraryImport("libc", EntryPoint = "fsetxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial int LinuxSet(int fd, string name, byte[] value, nint size, int flags);
+
+    [LibraryImport("libc", EntryPoint = "fsetxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial int MacSet(int fd, string name, byte[] value, nint size, uint position, int options);
 }

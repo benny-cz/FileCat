@@ -13,6 +13,42 @@ public sealed class ArchivePasswordReadSessionTests
     public static TheoryData<bool, bool> Profiles => new() { { false, false }, { false, true }, { true, false }, { true, true } };
 
     [Theory, MemberData(nameof(Profiles))]
+    public async Task Reviewed_edit_reader_binds_the_exact_native_identity_and_complete_archive_hash(bool rar, bool hidden)
+    {
+        using var temp = new TempDir(); string path = Path.Combine(temp.Path, rar ? "owned.rar" : "owned.7z");
+        byte[] expected = ArchivePasswordReadFixture.Create(path, rar, hidden, name: "notes.txt");
+        var files = new IdentityAwareTestFiles(); var provider = Provider(temp.Path); var root = ArchiveProvider.ForFile(path);
+        using var password = new ArchiveJobPassword(ArchivePasswordReadFixture.Password);
+        var profile = rar ? ArchiveWriteProfile.ForRar5(encryption: new(hidden ? ArchiveEncryptionMode.DataAndNames : ArchiveEncryptionMode.Data))
+            : ArchiveWriteProfile.ForSevenZip(encryption: new(hidden ? ArchiveEncryptionMode.DataAndNames : ArchiveEncryptionMode.Data));
+        ArchiveTransformInput[] inputs = [new(1, expected.Length, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(expected)), new ArchiveTimestamp(1700000000, 0), 0x1a4)];
+        ArchiveTransformAddition[] additions = [new("notes.txt", ArchiveMemberType.File, 1)];
+        var manifest = (rar ? (ArchiveContainerTransformPlan)ArchiveRar5TransformPlan.Create(profile, null, inputs, [], additions, Ct)
+            : ArchiveSevenZipTransformPlan.Create(profile, null, inputs, [], additions, Ct)).Expected;
+        string digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path)));
+        var native = new ArchiveFileObservation(new(files.GetFileIdentity(path)!, new FileInfo(path).Length, digest), "parent", Path.GetFileName(path), new('C', 64),
+            ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.WindowsZoneIdentifier), new(1700000000, 0), 0x180);
+        var target = new ArchiveTargetReview(path, profile, native, new(manifest, digest, native.Version.Length, digest));
+        try
+        {
+            using var view = provider.OpenReadView(root, password, Ct);
+            var sink = new Sink(); await provider.EnumerateAsync(root, sink, Ct);
+            var item = provider.GetItemRef(root, Assert.Single(sink.Entries));
+            Assert.Equal("notes.txt", provider.ReviewedMemberPath(target, item, password, Ct));
+            using (var content = provider.OpenReviewedMember(target, "notes.txt", password, Ct))
+            {
+                byte[] actual = new byte[expected.Length]; Assert.Equal(actual.Length, content.Read(0, actual)); Assert.Equal(expected, actual);
+            }
+            var wrongIdentity = new ArchiveFileObservation(new("wrong-native-identity", native.Version.Length, digest), native.ParentIdentity,
+                native.LeafName, native.MetadataDigest, native.Origin, native.MemberModified, native.MemberMode);
+            var wrong = new ArchiveTargetReview(path, profile, wrongIdentity, target.Assessment);
+            Assert.Throws<IOException>(() => provider.OpenReviewedMember(wrong, "notes.txt", password, Ct));
+            Assert.Throws<IOException>(() => provider.OpenReviewedMember(target, "missing.txt", password, Ct));
+        }
+        finally { provider.Release(path); }
+    }
+
+    [Theory, MemberData(nameof(Profiles))]
     public async Task Password_view_reads_actual_bytes_keeps_protected_flags_and_forgets_after_last_view(bool rar, bool hidden)
     {
         using var temp = new TempDir(); string path = Path.Combine(temp.Path, rar ? "owned.rar" : "owned.7z");

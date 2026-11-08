@@ -61,6 +61,15 @@ internal sealed class ArchiveJobBackends
         return reviewer.ReviewAsync(path, profile, password, ct, preserveEncryption, expectedSourceSha256);
     }
 
+    internal T ReadRetainedTarget<T>(ArchiveTargetReview review, Func<IArchiveRetainedFile, T> read, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(review); ArgumentNullException.ThrowIfNull(read);
+        var state = Availability(review.CreatePlan([]));
+        if (!state.Available || !backends.TryGetValue(review.Profile.Format, out var backend) || backend.TargetReviewer is not { } reviewer)
+            throw new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, state.Reason ?? ArchiveJobAvailability.Unqualified.Reason!);
+        return reviewer.ReadRetained(review, read, ct);
+    }
+
     internal IJobExecutor Create(Job job, IFileSystemOperations fs, JobJournal journal, ArchiveJobOperation? operation)
     {
         if (operation is null || !ReferenceEquals(job.Request.Archive, operation.Plan))

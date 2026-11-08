@@ -110,6 +110,7 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
             native.Original, activeInputs.Bindings, native.Reserve, native.Create, transform, verifier, ct, password: execution.Password).GetAwaiter().GetResult();
         job.Checkpoint();
         var published = native.Publish(execution.Journal, prepared, activeInputs.Bindings, ct);
+        job.RecordArchiveEditPublication(new(request.ArchivePath, request.Profile!, published.Published, plan.Expected.Digest));
         // Publication may have committed immediately before cancellation. Always record the visible result first.
         job.AddTotals(checked(1L + review.ExcludedCount + skippedNames), 0); job.ItemDone();
         for (int i = 0; i < review.ExcludedCount; i++) job.ItemSkipped();

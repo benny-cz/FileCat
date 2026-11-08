@@ -33,7 +33,7 @@ public sealed partial class ArchiveProvider
     /// Opens a pinned, bounded reader off the UI thread. The returned runtime lease owns an unlocked view;
     /// leaving its last tab evicts credentials, while content already borrowed can finish before zeroing keys.
     /// </summary>
-    internal PreparedLocation OpenReadView(Location location, ArchiveJobPassword? password, CancellationToken ct)
+    internal PreparedLocation OpenReadView(Location location, ArchiveJobPassword? password, CancellationToken ct, bool requireRevision = false)
     {
         ct.ThrowIfCancellationRequested();
         var root = location.WithPath("");
@@ -41,7 +41,7 @@ public sealed partial class ArchiveProvider
         lock (_cacheLock)
         {
             ArchiveIndex index;
-            try { index = GetIndex(root, source, ct, password); }
+            try { index = GetIndex(root, source, ct, password, requireRevision); }
             catch (InvalidDataException error) when (password is null && NeedsPassword(error))
             { throw new ArchiveReadPasswordRequiredException(); }
             try

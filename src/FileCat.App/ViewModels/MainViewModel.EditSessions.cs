@@ -42,10 +42,11 @@ public sealed partial class MainViewModel
         foreach (string id in _sessionWatchers.Keys.ToArray()) Unwatch(id);
     }
     private readonly HashSet<string> _announcedEdits = new(StringComparer.Ordinal);
-    private sealed class SessionCommit(EditSessionRecord session, EditCommitCopy copy)
+    private sealed class SessionCommit(EditSessionRecord session, EditCommitCopy copy, ArchiveJobPassword? readbackPassword = null)
     {
         public EditSessionRecord Session { get; } = session;
         public EditCommitCopy Copy { get; } = copy;
+        public ArchiveJobPassword? ReadbackPassword { get; } = readbackPassword;
         public bool Finishing { get; set; }
     }
     private readonly Dictionary<Job, SessionCommit> _sessionCommits = new();
@@ -72,7 +73,7 @@ public sealed partial class MainViewModel
                 var state = await ReadEditStateAsync(session); CheckSessionAction();
                 if (state == EditState.Modified) modified++;
                 if (state == EditState.Unavailable) unavailable++;
-                Watch(session);
+                if (session.IsSupported) Watch(session);
             }
             if (modified == 0 && unavailable == 0) return null;
             return (modified == 0 ? "" : $"{Formatters.Plural(modified, "edit has", "edits have")} changes that are not committed yet.") +
@@ -91,6 +92,7 @@ public sealed partial class MainViewModel
     private async Task<EditWorkingReview> ReadEditReviewAsync(EditSessionRecord session, Action? check = null)
     {
         check ??= CheckSessionAction; check();
+        if (!session.IsSupported) return new(EditState.Unavailable, null);
         var location = Location.FileSystem(session.WorkingPath); var provider = Services.Providers.For(location);
         var state = await Services.Io.Run(provider.GetDeviceKey(location), IoPriority.Normal,
             _ => Services.EditSessions.ReviewWorking(session, provider, check));
@@ -136,9 +138,9 @@ public sealed partial class MainViewModel
         {
             Notify(progress);
             var provider = Services.Providers.For(item.Parent);
-            // Do not pass cancellation to the scheduler: an active synchronous call must keep this owner
-            // until it returns. The scope is checked between reads and before publishing the record/editor.
-            var prepared = await Services.Io.Run(provider.GetDeviceKey(item.Parent), IoPriority.Normal, _ =>
+            // Queued cancellation is immediate; a started call retains all borrowed owners until it returns.
+            using var readLease = ProviderReadLease.Capture(Services.Providers, [item.Parent]);
+            var prepared = await Services.Io.RunOwned(provider.GetDeviceKey(item.Parent), IoPriority.Normal, _ =>
             {
                 scope.Check(); var existing = find(); scope.Check();
                 if (existing is not null)
@@ -147,7 +149,7 @@ public sealed partial class MainViewModel
                 }
                 var session = create(new EditPreparationProvider(provider, scope.Check), scope.Stop.Token);
                 return (Session: session, State: EditState.Unchanged, Created: true);
-            });
+            }, scope.Stop.Token);
             if (!scope.Current) return;
             var session = prepared.Session;
             void Check() { scope.Check(); CheckSessionAction(); }
@@ -324,6 +326,19 @@ public sealed partial class MainViewModel
     {
         try
         {
+            if (!session.IsSupported)
+            {
+                string directory = Services.EditSessions.SessionDirectory(session);
+                var unsupportedAnswer = await Dialogs.ShowCustomAsync("Unsupported edit session", new TextBlock
+                {
+                    Text = (session.UnsupportedReason ?? "This edit session requires a different FileCat version.") +
+                        "\nWorking copy: " + session.WorkingPath + "\nWorking folder: " + directory,
+                    TextWrapping = TextWrapping.Wrap, MaxWidth = 640,
+                }, [new("Close", "close", IsCancel: true, IsDefault: true), new("Open working folder", "folder")]);
+                CheckSessionAction();
+                if (unsupportedAnswer as string == "folder") Services.Shell.Open(directory);
+                return;
+            }
             var state = await ReadEditStateAsync(session);
             var body = new StackPanel { Spacing = 6 };
             body.Children.Add(new TextBlock { HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Text = session.DisplayContainer });
@@ -357,11 +372,13 @@ public sealed partial class MainViewModel
 
     private async Task CommitSessionAsync(EditSessionRecord session)
     {
+        if (!session.IsSupported) { await ShowSessionAsync(session); return; }
         if (!EditSessionsActive || !_sessionActions.Add(session.Id)) return;
         var origin = ActiveTab;
         try
         {
-            if (session.IsRemote) await CommitRemoteAsync(session, origin);
+            if (session.IsNativeArchive) await CommitNativeArchiveSessionAsync(session, origin);
+            else if (session.IsRemote) await CommitRemoteAsync(session, origin);
             else await CommitArchiveSessionAsync(session, origin);
         }
         catch (OperationCanceledException) { }
@@ -390,18 +407,24 @@ public sealed partial class MainViewModel
 
     private void SubmitEditCommit(EditSessionRecord session, EditCommitCopy copy, JobRequest request, TabViewModel? origin)
     {
+        Job? registered = null;
         try
         {
             TraceEditCommit("submit-start");
             CheckSessionAction(); _ = Operations; // Register the finish observer before a fast job can return.
             var job = Services.Jobs.SubmitWithRegistration(request, admitted =>
             {
+                registered = admitted;
                 _sessionCommits[admitted] = new SessionCommit(session, copy);
                 TraceEditCommit($"owner-registered:{admitted.ShortId}:{admitted.State}");
             });
             if (origin is not null) Track(job, origin);
         }
-        catch { TraceEditCommit("submit-error"); copy.Dispose(); throw; }
+        catch
+        {
+            if (registered is not null) _sessionCommits.Remove(registered);
+            TraceEditCommit("submit-error"); copy.Dispose(); throw;
+        }
     }
 
     private async Task CommitArchiveSessionAsync(EditSessionRecord session, TabViewModel? origin)
@@ -564,12 +587,15 @@ public sealed partial class MainViewModel
         try
         {
             CheckSessionAction();
-            if (job.State != JobState.Completed)
+            if (job.State != JobState.Completed && !(session.IsNativeArchive && job.State == JobState.CompletedWithIssues && job.ArchiveEditPublication is not null))
             {
-                Notify($"\"{session.DisplayName}\" was not committed; your edit is kept. Details are in the operations pane (Ctrl+J).", true);
+                Notify(job.ArchiveEditPublication is not null
+                    ? $"A publication was recorded for \"{session.DisplayName}\", but this session was not acknowledged. Your working copy and previous baseline are kept. Review the operations pane (Ctrl+J)."
+                    : $"The commit of \"{session.DisplayName}\" was not confirmed; your edit is kept. Details are in the operations pane (Ctrl+J).", true);
                 return;
             }
-            if (session.IsRemote)
+            if (session.IsNativeArchive) await AcknowledgeNativeArchiveEditAsync(job, commit);
+            else if (session.IsRemote)
             {
                 var folder = job.Request.Destination!;
                 TraceEditCommit("remote-revision-start");
@@ -598,10 +624,17 @@ public sealed partial class MainViewModel
         {
             // JobFinished is delivered only after the executor and journal have returned. Failed/canceled jobs
             // release their snapshots too. Shutdown can suppress acknowledgment, never snapshot ownership.
-            try { await Task.Run(commit.Copy.Dispose); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            { if (EditSessionsActive) Notify($"The temporary commit copy could not be removed: {ex.Message}", true); }
-            _sessionCommits.Remove(job); _sessionActions.Remove(session.Id);
+            try
+            {
+                try { await Task.Run(commit.Copy.Dispose); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                { if (EditSessionsActive) Notify($"The temporary commit copy could not be removed: {ex.Message}", true); }
+            }
+            finally
+            {
+                commit.ReadbackPassword?.Dispose();
+                _sessionCommits.Remove(job); _sessionActions.Remove(session.Id);
+            }
         }
     }
 

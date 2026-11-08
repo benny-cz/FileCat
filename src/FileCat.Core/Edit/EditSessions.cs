@@ -16,7 +16,7 @@ namespace FileCat.Core.Edit;
 /// </summary>
 public sealed record EditSessionRecord
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
     public const string ArchiveKind = "archive";
     public const string RemoteKind = "sftp";
     public int Version { get; init; } = CurrentVersion;
@@ -25,6 +25,27 @@ public sealed record EditSessionRecord
     public string Kind { get; init; } = ArchiveKind;
     public DateTime CreatedUtc { get; init; }
     public string ArchivePath { get; init; } = "";
+    public ArchiveWriteFormat ArchiveFormat { get; init; } = ArchiveWriteFormat.Zip;
+    public ArchiveWriteProfile? ArchiveProfile { get; init; }
+    public string ArchiveIdentity { get; init; } = "";
+    public string ArchiveParentIdentity { get; init; } = "";
+    public string ArchiveMetadataDigest { get; init; } = "";
+    public string MemberCatalogRevision { get; init; } = "";
+    public int MemberOccurrence { get; init; }
+    public string MemberMetadataSha256 { get; init; } = "";
+    public string WorkingIdentity { get; init; } = "";
+    public string WorkingDirectoryIdentity { get; init; } = "";
+    [JsonIgnore] public string? UnsupportedReason { get; init; }
+    [JsonIgnore] public bool IsLegacyZip => !IsRemote && (Version == 1 || ArchiveFormat == ArchiveWriteFormat.Zip);
+    [JsonIgnore] public bool IsNativeArchive => !IsRemote && !IsLegacyZip;
+    [JsonIgnore] public bool IsSupported => UnsupportedReason is null && Version is 1 or CurrentVersion &&
+        Kind is ArchiveKind or RemoteKind && (!IsNativeArchive ||
+        ArchiveFormat is ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip &&
+        ArchiveProfile is not null && ArchiveProfile.Format == ArchiveFormat && MemberOccurrence == 0 &&
+        !string.IsNullOrEmpty(ArchiveIdentity) && !string.IsNullOrEmpty(ArchiveParentIdentity) && !string.IsNullOrEmpty(WorkingIdentity) && !string.IsNullOrEmpty(WorkingDirectoryIdentity) &&
+        IsDigest(ArchiveMetadataDigest) && IsDigest(MemberCatalogRevision) && IsDigest(MemberMetadataSha256) && IsDigest(BaseSha256) &&
+        MemberLength is >= 0 and <= EditSessionStore.MaxMemberBytes);
+    private static bool IsDigest(string? value) => value is { Length: 64 } && value.All(c => c is >= '0' and <= '9' or >= 'A' and <= 'F');
     /// <summary>For a server file: the connection profile, its display ("user@host"), and the absolute remote path.</summary>
     public string ProfileId { get; init; } = "";
     public string ServerDisplay { get; init; } = "";
@@ -35,7 +56,8 @@ public sealed record EditSessionRecord
     public bool IsRemote => Kind == RemoteKind;
 
     /// <summary>The edited file's own name.</summary>
-    public string DisplayName => IsRemote ? RemotePath[(RemotePath.LastIndexOf('/') + 1)..] : Path.GetFileName(MemberPath);
+    public string DisplayName => IsRemote ? RemotePath[(RemotePath.LastIndexOf('/') + 1)..] :
+        MemberPath.Length != 0 ? Path.GetFileName(MemberPath) : Path.GetFileName(WorkingPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
 
     /// <summary>Where it lives: the member in its archive, or the server and path.</summary>
     public string DisplayContainer => IsRemote ? $"{ServerDisplay}:{RemotePath}" : $"{MemberPath} in {ArchivePath}";
@@ -102,7 +124,7 @@ public sealed class EditCommitCopy : IDisposable
 /// Protected session records and working copies under the user's local data (one folder per session, so the editor sees
 /// the member's own file name). Temporary copies are removed only on Discard; deletion is not secure erasure.
 /// </summary>
-public sealed class EditSessionStore(string root, IFileSystemOperations fs)
+public sealed partial class EditSessionStore(string root, IFileSystemOperations fs)
 {
     public const long MaxMemberBytes = 1L * 1024 * 1024 * 1024;
     private const string RecordFile = "session.json";
@@ -126,8 +148,37 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
                 byte[] bytes = new byte[checked((int)stream.Length)];
                 stream.ReadExactly(bytes);
                 if (stream.ReadByte() != -1) continue;
-                var record = JsonSerializer.Deserialize<EditSessionRecord>(bytes, Json);
-                if (record is { Version: EditSessionRecord.CurrentVersion } && record.Id == Path.GetFileName(dir)) sessions.Add(record);
+                using var document = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 32 });
+                var value = document.RootElement;
+                if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty(nameof(EditSessionRecord.Id), out var id) ||
+                    id.ValueKind != JsonValueKind.String || id.GetString() != Path.GetFileName(dir)) continue;
+                int version = value.TryGetProperty(nameof(EditSessionRecord.Version), out var versionValue)
+                    ? versionValue.ValueKind == JsonValueKind.Number && versionValue.TryGetInt32(out int parsed) ? parsed : int.MaxValue : 1;
+                EditSessionRecord? record = null;
+                if (version is 1 or EditSessionRecord.CurrentVersion)
+                {
+                    try
+                    {
+                        var parsedRecord = JsonSerializer.Deserialize<EditSessionRecord>(bytes, Json);
+                        if (parsedRecord is not null) record = parsedRecord with { Version = version };
+                    }
+                    catch (Exception error) when (error is JsonException or ArgumentException or NotSupportedException) { }
+                }
+                if (record is null || !record.IsSupported)
+                {
+                    string working = value.TryGetProperty(nameof(EditSessionRecord.WorkingPath), out var pathValue) && pathValue.ValueKind == JsonValueKind.String
+                        ? pathValue.GetString() ?? dir : dir;
+                    try
+                    {
+                        if (!Path.IsPathFullyQualified(working) || !Path.GetFullPath(working).StartsWith(
+                            Path.TrimEndingDirectorySeparator(Path.GetFullPath(dir)) + Path.DirectorySeparatorChar, StringComparison.Ordinal)) working = dir;
+                    }
+                    catch (ArgumentException) { working = dir; }
+                    record = new EditSessionRecord { Version = version, Id = id.GetString()!, WorkingPath = working,
+                        UnsupportedReason = "This edit-session version or archive profile is not supported. Its working files are kept." };
+                }
+                else if (version == 1 && !record.IsRemote) record = record with { ArchiveFormat = ArchiveWriteFormat.Zip, ArchiveProfile = null };
+                sessions.Add(record);
             }
             catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { }
         }
@@ -135,7 +186,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
     }
 
     public EditSessionRecord? Find(string archivePath, string memberPath) =>
-        LoadAll().FirstOrDefault(s => !s.IsRemote && string.Equals(s.ArchivePath, Path.GetFullPath(archivePath), StringComparison.OrdinalIgnoreCase) &&
+        LoadAll().FirstOrDefault(s => s.IsSupported && s.IsLegacyZip && string.Equals(s.ArchivePath, Path.GetFullPath(archivePath), StringComparison.OrdinalIgnoreCase) &&
                                       s.MemberPath == memberPath);
 
     public EditSessionRecord? FindRemote(string profileId, string remotePath) =>
@@ -232,10 +283,15 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         ct.ThrowIfCancellationRequested();
         string id = Guid.NewGuid().ToString("N");
         string dir = Path.Combine(Root, id);
-        Directory.CreateDirectory(dir);
-        string working = Path.Combine(dir, SafeNames.Validate(fileName) is null ? fileName : "file" + Path.GetExtension(fileName));
+        CreatePrivateDirectory(dir);
+        // Keep metadata outside the editor's file namespace, including a member named session.json.
+        string files = Path.Combine(dir, "files");
+        string fallback = "file" + Path.GetExtension(fileName);
+        string safeName = SafeNames.Validate(fileName) is null ? fileName : SafeNames.Validate(fallback) is null ? fallback : "file";
+        string working = Path.Combine(files, safeName);
         try
         {
+            Directory.CreateDirectory(files);
             var copy = write(working);
             ct.ThrowIfCancellationRequested();
             var record = describe(working, copy) with { Id = id, CreatedUtc = DateTime.UtcNow };
@@ -257,6 +313,12 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         if (length > MaxMemberBytes) throw new IOException("Files over 1 GiB are not edited through sessions; copy the file with F5 instead.");
     }
 
+    private static void CreatePrivateDirectory(string path)
+    {
+        if (OperatingSystem.IsWindows()) Directory.CreateDirectory(path);
+        else Directory.CreateDirectory(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+    }
+
     private static void CheckComplete(IContentSource source)
     {
         if (source is IPartialContent partial && (partial.MissingRanges.Count > 0 || partial.Caveat is not null))
@@ -264,7 +326,8 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
     }
 
     /// <summary>The caller owns the source. Nothing is published unless exact bytes, EOF and available revisions agree.</summary>
-    private static WorkingCopy WriteWorkingCopy(IContentSource source, string working, CancellationToken ct, ContentRevision? expected = null, Action? check = null)
+    private static WorkingCopy WriteWorkingCopy(IContentSource source, string working, CancellationToken ct, ContentRevision? expected = null,
+        Action? check = null, Action<FileStream>? finalize = null)
     {
         void Check() { ct.ThrowIfCancellationRequested(); check?.Invoke(); }
         Check();
@@ -273,7 +336,9 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         Check();
         if (before is { } revision && revision.Length != length || expected is { } pinned && before != pinned)
             throw new IOException("The file changed before its edit could be copied.");
-        using var output = new FileStream(working, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.ReadWrite, Share = FileShare.None };
+        if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        using var output = new FileStream(working, options);
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var buffer = new byte[1024 * 1024];
         uint crc = 0; long offset = 0;
@@ -299,6 +364,8 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         Check();
         if (source.Length != length || source.GetRevision() != before) throw new IOException("The file's length or revision changed while its edit was copied.");
         Check(); CheckComplete(source);
+        if (finalize is not null) { output.Flush(flushToDisk: true); finalize(output); }
+        Check();
         return new WorkingCopy(Convert.ToHexString(hash.GetHashAndReset()), crc, offset);
     }
 
@@ -375,7 +442,8 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
     public void Save(EditSessionRecord record)
     {
         RefuseElevatedSession();
-        string dir = Path.Combine(Root, record.Id);
+        if (!record.IsSupported) throw new NotSupportedException("Unsupported edit-session records are kept without rewriting them.");
+        string dir = SessionDirectory(record);
         string destination = Path.Combine(dir, RecordFile);
         byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(record, Json);
         // Readers share deletion so a record can be replaced atomically. On
@@ -483,7 +551,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         RefuseElevatedSession();
         ct.ThrowIfCancellationRequested();
         string directory = Path.Combine(tempRoot, "edit-commit-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
+        CreatePrivateDirectory(directory);
         string path = Path.Combine(directory, Path.GetFileName(record.WorkingPath));
         try
         {
@@ -510,7 +578,7 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
         RefuseElevatedSession();
         check();
         string directory = Path.Combine(tempRoot, "edit-commit-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
+        CreatePrivateDirectory(directory);
         string path = Path.Combine(directory, Path.GetFileName(record.WorkingPath));
         try
         {
@@ -634,7 +702,16 @@ public sealed class EditSessionStore(string root, IFileSystemOperations fs)
     public void Discard(EditSessionRecord record)
     {
         RefuseElevatedSession();
-        Directory.Delete(Path.Combine(Root, record.Id), recursive: true);
+        if (!record.IsSupported) throw new NotSupportedException("Unsupported edit-session directories are kept for manual recovery.");
+        Directory.Delete(SessionDirectory(record), recursive: true);
+    }
+
+    public string SessionDirectory(EditSessionRecord record)
+    {
+        if (string.IsNullOrEmpty(record.Id) || record.Id is "." or ".." || Path.GetFileName(record.Id) != record.Id ||
+            record.Id.IndexOfAny(['/', '\\']) >= 0)
+            throw new IOException("The edit session does not name an owned session directory.");
+        return Path.Combine(Path.GetFullPath(Root), record.Id);
     }
 
     private static void RefuseElevatedSession()

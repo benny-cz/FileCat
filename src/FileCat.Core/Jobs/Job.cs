@@ -19,6 +19,10 @@ public readonly record struct JobCommandResultTotals(long Total, int Retained, l
 /// </summary>
 public sealed partial class Job
 {
+    private FileCat.Core.Edit.ArchiveEditPublication? _archiveEditPublication;
+    internal FileCat.Core.Edit.ArchiveEditPublication? ArchiveEditPublication => Volatile.Read(ref _archiveEditPublication);
+    internal void RecordArchiveEditPublication(FileCat.Core.Edit.ArchiveEditPublication publication) =>
+        Interlocked.Exchange(ref _archiveEditPublication, publication);
     private readonly object _lock = new();
     private readonly List<JobIssue> _issues = [];
     private readonly List<JobCommandResult> _commandResults = [];

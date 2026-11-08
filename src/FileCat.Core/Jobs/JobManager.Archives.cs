@@ -13,6 +13,9 @@ public sealed partial class JobManager
         CancellationToken ct, bool preserveEncryption = false, string? expectedSourceSha256 = null) =>
         _archiveBackends.ReviewUpdateAsync(path, profile, password, ct, preserveEncryption, expectedSourceSha256);
 
+    internal T ReadReviewedArchive<T>(ArchiveTargetReview review, Func<IArchiveRetainedFile, T> read, CancellationToken ct) =>
+        _archiveBackends.ReadRetainedTarget(review, read, ct);
+
     /// <summary>Consumes password ownership, including on refusal. Native leases are acquired at execution time.</summary>
     internal Job SubmitArchive(ArchivePlan plan, ArchiveJobPassword? password = null, QueueMode mode = QueueMode.Start,
         string? description = null, Action<Job>? register = null)

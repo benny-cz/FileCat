@@ -9,6 +9,29 @@ namespace FileCat.Core.Tests;
 
 public sealed partial class ArchiveUnixOriginTests
 {
+    [Theory, InlineData(0), InlineData(1), InlineData(2)]
+    public void Private_editor_file_receives_exact_present_origin_without_rewriting_its_data(int kind)
+    {
+        RequireUnix(); using var root = new TempDir(); using var handle = Open(root.File("private-editor-file", "editor bytes"));
+        byte[] value = kind switch { 0 => [], 1 => "https://example.test/é?q=a\0b"u8.ToArray(), _ => [0xff, 0, 0x80, 0xfe] };
+        var expected = ArchiveOriginSnapshot.Present(Format, value); var before = UnixFiles.Stat(handle)!.Value;
+        ArchiveUnixOrigin.CopyToNewWorkingFile(handle, expected, TestContext.Current.CancellationToken);
+        Assert.Equal(expected.Digest, ArchiveUnixOrigin.Read(handle, TestContext.Current.CancellationToken).Digest);
+        Assert.Equal(before.Identity, UnixFiles.Stat(handle)!.Value.Identity);
+        Assert.Equal("editor bytes", File.ReadAllText(Path.Combine(root.Path, "private-editor-file")));
+        ArchiveUnixOrigin.CopyToNewWorkingFile(handle, expected, TestContext.Current.CancellationToken); // Identical readback is idempotent.
+    }
+
+    [Fact]
+    public void Private_editor_origin_does_not_overwrite_a_different_existing_mark()
+    {
+        RequireUnix(); using var root = new TempDir(); using var handle = Open(root.File("owned", "editor bytes"));
+        Set(handle, "other origin"u8.ToArray());
+        Assert.Throws<IOException>(() => ArchiveUnixOrigin.CopyToNewWorkingFile(handle,
+            ArchiveOriginSnapshot.Present(Format, "wanted origin"u8), TestContext.Current.CancellationToken));
+        Assert.Equal("other origin"u8.ToArray(), ArchiveUnixOrigin.Read(handle, TestContext.Current.CancellationToken).Bytes.ToArray());
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]

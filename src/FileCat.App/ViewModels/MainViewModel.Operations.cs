@@ -934,6 +934,11 @@ public sealed partial class MainViewModel
             await EditArchiveMemberAsync(item);
             return;
         }
+        if (item.Parent.Scheme == Schemes.Archive)
+        {
+            await EditNativeArchiveMemberAsync(item);
+            return;
+        }
         if (item.Parent.Scheme == Schemes.Sftp)
         {
             await EditRemoteFileAsync(item);

@@ -18,14 +18,23 @@ public sealed partial class MainViewModel
         internal ArchiveTargetReview Target { get; } = target;
         internal ArchiveMemberCommandReview Members { get; } = members;
         private ArchiveJobPassword? secret = password;
+        internal ArchiveJobPassword? Password => secret;
         internal ArchiveJobPassword? TakePassword() { var value = secret; secret = null; return value; }
         public void Dispose() { secret?.Dispose(); secret = null; }
     }
 
-    private async Task<NativeArchiveCommand?> PrepareNativeArchiveCommandAsync(Location folder, bool moveSources = false, string? expectedRevision = null)
+    private async Task<NativeArchiveCommand?> PrepareNativeArchiveCommandAsync(Location folder, bool moveSources = false, string? expectedRevision = null,
+        ArchiveWriteProfile? requestedProfile = null)
     {
         if (!Services.Archives.TryGetWriteTarget(folder, out string path, out var profile))
         { Notify(Services.Archives.ExplainUnavailable(folder, LocationCapabilities.TransferTarget), true); return null; }
+        if (requestedProfile is not null)
+        {
+            if (requestedProfile.Format != profile.Format) throw new NotSupportedException("The saved edit profile does not match this archive.");
+            // Re-discover protection with the current password; retain the explicitly saved codec options.
+            profile = new(requestedProfile.Format, requestedProfile.Version, requestedProfile.CompressionLevel,
+                requestedProfile.DictionaryBytes, requestedProfile.SevenZip, requestedProfile.Rar5);
+        }
         var probe = new ArchivePlan(path, null, [], Profile: profile) { MoveSources = moveSources };
         if (!Services.Jobs.CanReviewArchive(probe))
         { Notify(Services.Jobs.ArchiveAvailability(probe).Reason ?? "Updating this archive is unavailable here.", true); return null; }
