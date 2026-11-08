@@ -34,8 +34,9 @@ The `v22` cohort also runs the connected storage, snapshot, legacy ZIP, SFTP, hi
 complete Core/Remote/App inventories. The full Core comparison requires 170 additional cases over the
 preserved baseline (the earlier 153 plus these 17), with the same five explicit schema/name migrations
 and no other missing cases or lost passes. Ubuntu's complete inventories pass (8,510 Core, 2,543 Remote,
-2,765 App; platform skips remain explicit). Its sealed evidence is preserved and verified. Mac's App
-inventory and Windows' corrected complete inventories remain pending.
+2,765 App), as do Mac's (8,488 Core, 2,638 Remote, 2,763 App; platform skips remain explicit).
+Their sealed evidence is preserved and verified. Windows' corrected `v23` complete Core inventory also
+passes; final connected/full `v23` evidence remains pending.
 
 The real-file matrix covers empty/multi-buffer bytes, exact origin and time, later editor saves,
 cancellation, disposed/changed/replaced sources, replaced destination directories, corrupt source

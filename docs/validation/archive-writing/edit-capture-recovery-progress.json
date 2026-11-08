@@ -1815,6 +1815,95 @@
         "storage_integrated": false
       },
       "production_backend_qualified": false
+    },
+    {
+      "platform": "mac",
+      "folder": "awe-storage-v22",
+      "candidate": "3143d6f9440580b373a21c023426196674adad98",
+      "bytes": 29362598,
+      "sha256": "c69bbb746cc3011dc24d2ceafa958a8638ddcc9db4ff83ced23f1c07176b9b16",
+      "manifest_sha256": "ca49f534a0751e1ed9cf96e762474aed897de05238e8af362ca5d47c340af8c7",
+      "changed_CSharp_sources_bound": 53,
+      "DLL_PDB_pairs_bound": 14,
+      "uncompiled_platform_sources": [
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditCaptureRecoveryTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditDirectoryLeaseTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditLegacyZipTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPreparationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSnapshotTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageTests.cs"
+      ],
+      "tests": {
+        "capture-recovery": {
+          "Passed": 27
+        },
+        "commit-copy": {
+          "Passed": 10
+        },
+        "complete-app": {
+          "Passed": 2763,
+          "NotExecuted": 190
+        },
+        "complete-core": {
+          "Passed": 8488,
+          "NotExecuted": 207
+        },
+        "complete-remote": {
+          "Passed": 2638,
+          "NotExecuted": 31
+        },
+        "edit-core": {
+          "Passed": 110
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "history-retirement-core": {
+          "Passed": 29
+        },
+        "history-retirement-ui": {
+          "Passed": 18
+        },
+        "job-input-regressions": {
+          "Passed": 269
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-legacy-zip": {
+          "Passed": 18
+        },
+        "native-sftp": {
+          "Passed": 23
+        },
+        "native-snapshot": {
+          "Passed": 34
+        },
+        "native-storage": {
+          "Passed": 19
+        },
+        "origin-policy": {
+          "Passed": 15
+        },
+        "record-recovery": {
+          "Passed": 19
+        },
+        "save-copy-preparation": {
+          "Passed": 17
+        },
+        "verification-ui": {
+          "Passed": 12,
+          "NotExecuted": 1
+        }
+      },
+      "focused_gates_complete": true,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "production_backend_qualified": false
     }
   ],
   "current": [
@@ -1993,8 +2082,8 @@
     },
     {
       "platform": "mac",
-      "folder": "awe-storage-v22",
-      "state": "saved-copy preparation17 passed; preceding v21 full inventories passed and exact evidence preserved; connected gates and full v22 inventories pending"
+      "folder": "awe-storage-v23",
+      "state": "v22 complete Core/Remote/App passed; raw evidence preserved and verified; corrected comparison candidate launched as PID 51761"
     },
     {
       "platform": "ubuntu",

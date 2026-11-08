@@ -1067,6 +1067,10 @@ adds retained byte reads, a distinct native destination stage, complete readback
 preservation without inventing archive verification for ordinary file data. Its first Mac/Ubuntu native
 gates pass. Complete publication, overwrite/recovery and application integration before removing the
 native Save copy guard; this preparation step does not complete that workflow or authorize registration.
+The following [native publication component](../validation/archive-writing/NATIVE_EDIT_SAVE_COPY_PUBLICATION.md)
+adds live exclusive name authority, bounded immutable preparation/outcome receipts and positive/uncertain result
+handling. Existing-target replacement, receipt/session recovery discovery and actions, exact cleanup, application
+integration and actual crash/durability qualification remain open; no workflow/profile is enabled by this component.
 
 ### 12.2 Review and commit states
 

@@ -1,18 +1,26 @@
 # Archive writing implementation status
 
+**8 November: native saved-copy exclusive publication and immutable receipts implemented, guest gates queued.**
+[Saved-copy publication](NATIVE_EDIT_SAVE_COPY_PUBLICATION.md) adds single-owner native name reviews, complete
+receipt readback and confirmed/uncertain outcomes that survive late cancellation or receipt failure. Core and
+Windows-platform builds pass without warnings/errors. The next `v24` frozen candidate runs 23 native publication
+and 20 strict receipt cases plus connected regressions; its complete inventories are explicitly not run yet under
+the [measured cadence](VALIDATION_CADENCE.md). Replacement, restart discovery/actions, cleanup/crashes and UI/job
+integration remain open; native store/profile registration and the existing guard remain unchanged.
+
 **8 November: a Windows full-run close failure is diagnosed and a correction is under test.**
 [Comparison cleanup](COMPARISON_CLOSE_FAILURE_DIAGNOSTIC.md) records the owned-source close exception
 that escaped through an async-finally continuation and left the xUnit unhandled-exception handler waiting.
 Its dump and failed cohort are preserved. Candidate `fa3975d5` returns the selected failure through normal
 task completion after both owners retire; the original 104-case matrix and four deferred regression
-variants pass all 108 Windows `v23` cases. The connected/full inventories and the same correction on
-Mac/Ubuntu remain under validation.
+variants pass all 108 `v23` cases on Windows/Mac/Ubuntu. The corrected complete Core inventories pass on Windows
+(8,093 passed / 611 skipped) and Ubuntu (8,514 / 185); Mac's Core and the complete App inventories remain active.
 
 **8 November: retained Save copy destination preparation implemented; first native Unix gates pass.**
 [Saved-copy preparation](NATIVE_EDIT_SAVE_COPY_PREPARATION.md) copies retained views into a fresh native
 private stage, checks complete input/output bytes and preserves exact origin/time and private security.
 Mac and Ubuntu each pass all 17 native cases in `awe-storage-v22`; Windows passes them in `v23`.
-Ubuntu's `v22` complete Core/Remote/App inventories also pass and their raw evidence is preserved.
+Mac/Ubuntu `v22` complete Core/Remote/App inventories also pass and their raw evidence is preserved and verified.
 Publication/overwrite/recovery and application integration remain required, and the native
 Save copy guard/factory qualification remain unchanged.
 

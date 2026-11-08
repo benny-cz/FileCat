@@ -3,8 +3,9 @@ from pathlib import Path
 from datetime import datetime,timezone
 import importlib.util,json,shutil,subprocess,sys,tarfile,time,uuid,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v23'
-PACKET='archive-edit-storage-delta-v23.tar.gz'
+FOLDER='awe-storage-v24'
+PACKET='archive-edit-storage-delta-v24.tar.gz'
+VALIDATION_SCOPE='focused'
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 def sha(path):
     import hashlib
@@ -12,7 +13,7 @@ def sha(path):
 def base(task):
     path=task/'archive-workflow-source-v1/eng/validation/archive-writing/run_job_backend_batch.py'
     spec=importlib.util.spec_from_file_location('edit_storage_base',path);value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value)
-    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v21' if sys.platform=='win32' else 'awe-storage-v22'
+    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v23'
     return value
 def batch_for(task):
     batch=base(task).batch_for(task);execute=batch.execute
@@ -51,6 +52,10 @@ def test_environment(task):
     return value
 def tests(task):
     batch=batch_for(task);batch.idle()
+    assert VALIDATION_SCOPE in ('focused','full')
+    (batch.out/'validation-scope.json').write_text(json.dumps(dict(scope=VALIDATION_SCOPE,
+        full_regressions={name:'not-run' if VALIDATION_SCOPE=='focused' else 'required' for name in ('complete-core','complete-remote','complete-app')},
+        expected_new_core_cases=217,production_backend_qualified=False),indent=2))
     fixture=Path.home()/'AppData/Local/Temp'/(FOLDER+'-native-fixtures') if sys.platform=='win32' else task/FOLDER/'native-fixtures'
     fixture.mkdir();batch.env['FILECAT_EDIT_NATIVE_ROOT']=str(fixture)
     (batch.out/'native-fixture-root.json').write_text(json.dumps({'path':str(fixture),'account_home':str(Path.home())},indent=2))
@@ -61,6 +66,9 @@ def tests(task):
         if expected is not None:assert counters['total']==str(expected) and counters['passed']==str(expected),counters
         rows[name]=counters;(batch.out/'passed-gates.json').write_text(json.dumps(rows,indent=2))
     run('comparison-retirement','FileCat.Core.Tests','FullyQualifiedName~ComparisonContentRetirementTests',108)
+    run('save-copy-record','FileCat.Core.Tests','FullyQualifiedName~EditSaveCopyRecordTests',20)
+    run('save-copy-publication','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
+        'FullyQualifiedName~WindowsEditSaveCopyPublicationTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditSaveCopyPublicationTests',23)
     run('save-copy-preparation','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
         'FullyQualifiedName~WindowsEditSaveCopyPreparationTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditSaveCopyPreparationTests',17)
     run('native-sftp','FileCat.App.Tests','FullyQualifiedName~SftpRetainedEditTests',23)
@@ -86,7 +94,7 @@ def tests(task):
     run('edit-core','FileCat.Core.Tests','FullyQualifiedName~EditSession&FullyQualifiedName!~EditSessionRecoveryRecordTests|FullyQualifiedName~ArchivePasswordReadSessionTests')
     run('job-input-regressions','FileCat.Core.Tests','FullyQualifiedName~ArchiveJobBackendTests|FullyQualifiedName~ArchiveCapturedInputsTests')
     run('edit-ui','FileCat.App.Tests','FullyQualifiedName~EditSession|FullyQualifiedName~EditCommit')
-    run_full_regressions(batch,run)
+    if VALIDATION_SCOPE=='full':run_full_regressions(batch,run)
     batch.idle();(batch.out/'tests-complete.json').write_text(json.dumps(rows,indent=2))
 
 def run_full_regressions(batch,run):
@@ -124,7 +132,7 @@ def review_core_inventory(batch):
     current=ET.parse(batch.out/'results/complete-core.trx').findall('.//t:UnitTestResult',NS)
     spec=importlib.util.spec_from_file_location('edit_inventory',batch.root/'eng/validation/archive-writing/edit_core_inventory.py')
     helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
-    inventory=helper.review(old,current,174)
+    inventory=helper.review(old,current,217)
     (batch.out/'full-case-inventory.json').write_text(json.dumps(inventory,indent=2))
     helper.require_complete(inventory)
 def seal(task):

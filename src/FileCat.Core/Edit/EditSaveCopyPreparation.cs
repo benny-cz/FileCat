@@ -12,11 +12,14 @@ internal interface IEditSaveCopyStage:IArchiveRetainedStage
 /// <summary>Borrowed native owners. The caller retains both until publication and reconciliation have returned.</summary>
 internal sealed class EditPreparedSaveCopy(ArchiveRetainedBinding source,ArchiveRetainedBinding output,ArchiveSpaceReview space)
 {
+    private int publicationClaimed;
     internal ArchiveRetainedBinding Source { get; }=source;
     internal ArchiveRetainedBinding Output { get; }=output;
     internal ArchiveSpaceReview Space { get; }=space;
     internal void Review(CancellationToken ct)
     {Source.File.Review(Source.Reviewed,ct);Output.File.Review(Output.Reviewed,ct);}
+    internal void ClaimPublication()
+    {if(Interlocked.Exchange(ref publicationClaimed,1)!=0)throw new IOException("The saved-copy preparation already has a publication owner.");}
 }
 
 internal static class EditSaveCopyPreparation
