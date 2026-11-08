@@ -47,7 +47,9 @@ public static class AnalysisRollingHistoryPlanner
             throw new ArgumentException("The rolling history proposal exceeds the bounded catalog limit.");
         // A custom collection can misreport Count. Bound the enumeration as well as its declaration.
         var rows = new List<AnalysisRollingHistoryEntry>(Math.Min(existing.Count, AnalysisSavedCatalog.EntryLimit));
-        var ids = new HashSet<Guid>(); UInt128 originalBytes = 0;
+        // Catalog IDs are untrusted data. Ordered sets avoid attacker-controlled GUID
+        // hash collisions turning the bounded proposal into quadratic lookup work.
+        var ids = new SortedSet<Guid>(); UInt128 originalBytes = 0;
         foreach (var row in existing)
         {
             cancellation.ThrowIfCancellationRequested();
@@ -61,6 +63,14 @@ public static class AnalysisRollingHistoryPlanner
             Validate(incoming);
             if (ids.Contains(incoming.InventoryId)) throw new ArgumentException("The incoming rolling inventory identity is already present.");
         }
+        var protectedIds = new SortedSet<Guid>(); int examinedProtected = 0;
+        if (protectedInventories is not null)
+            foreach (Guid id in protectedInventories)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (++examinedProtected > AnalysisSavedCatalog.EntryLimit || id == Guid.Empty || !protectedIds.Add(id))
+                    throw new ArgumentException("The protected history identities are invalid or exceed the bounded catalog limit.");
+            }
         if (!policy.Enabled) return Refuse(AnalysisHistoryPlanState.Disabled, satisfied: null);
         if (incoming?.Bytes > policy.MaximumBytes) return Refuse(AnalysisHistoryPlanState.IncomingTooLarge);
         // Never turn a future serialized timestamp into an immortal retained inventory or a
@@ -72,7 +82,7 @@ public static class AnalysisRollingHistoryPlanner
 
         var ordered = rows.OrderBy(row => row.SavedUtc).ThenBy(row => row.InventoryId).ToArray();
         var proposed = ImmutableArray.CreateBuilder<AnalysisHistoryEviction>();
-        var removed = new HashSet<Guid>();
+        var removed = new SortedSet<Guid>();
         int count = rows.Count + (incoming is null ? 0 : 1);
         UInt128 bytes = originalBytes + (incoming is null ? 0 : (UInt128)incoming.Bytes);
         foreach (var row in ordered)
@@ -101,7 +111,7 @@ public static class AnalysisRollingHistoryPlanner
             retained.OrderByDescending(row => row.SavedUtc).ThenBy(row => row.InventoryId).Select(row => row.InventoryId).ToImmutableArray(),
             proposed.ToImmutable(), bytes, true);
 
-        bool Protected(AnalysisRollingHistoryEntry row) => protectedInventories?.Contains(row.InventoryId) == true;
+        bool Protected(AnalysisRollingHistoryEntry row) => protectedIds.Contains(row.InventoryId);
         void Remove(AnalysisRollingHistoryEntry row, AnalysisHistoryLimit reason)
         {
             removed.Add(row.InventoryId); proposed.Add(new(row.InventoryId, reason)); count--; bytes -= (UInt128)row.Bytes;

@@ -1,0 +1,70 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+    FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(enabled: False, nextEnabled: True, accept: False) [FAIL]
+      Assert.DoesNotContain() Failure: Sub-string found
+               ↓ (pos 0)
+      String: "Settings\nEnable rolling history\nRolling history sa"···
+      Found:  "‮"
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.HistoryReview.cs(47,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(Boolean enabled, Boolean nextEnabled, Boolean accept)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(enabled: False, nextEnabled: True, accept: True) [FAIL]
+      Assert.DoesNotContain() Failure: Sub-string found
+               ↓ (pos 0)
+      String: "Settings\nEnable rolling history\nRolling history sa"···
+      Found:  "‮"
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.HistoryReview.cs(47,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(Boolean enabled, Boolean nextEnabled, Boolean accept)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(enabled: True, nextEnabled: True, accept: False) [FAIL]
+      Assert.DoesNotContain() Failure: Sub-string found
+               ↓ (pos 0)
+      String: "Settings\nChange rolling history\nRolling history sa"···
+      Found:  "‮"
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.HistoryReview.cs(47,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(Boolean enabled, Boolean nextEnabled, Boolean accept)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(enabled: True, nextEnabled: True, accept: True) [FAIL]
+      Assert.DoesNotContain() Failure: Sub-string found
+               ↓ (pos 0)
+      String: "Settings\nChange rolling history\nRolling history sa"···
+      Found:  "‮"
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.HistoryReview.cs(47,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(Boolean enabled, Boolean nextEnabled, Boolean accept)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(enabled: True, nextEnabled: False, accept: False) [FAIL]
+      Assert.DoesNotContain() Failure: Sub-string found
+               ↓ (pos 0)
+      String: "Settings\nTurn off rolling history\nRolling history "···
+      Found:  "‮"
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.HistoryReview.cs(47,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(Boolean enabled, Boolean nextEnabled, Boolean accept)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(enabled: True, nextEnabled: False, accept: True) [FAIL]
+      Assert.DoesNotContain() Failure: Sub-string found
+               ↓ (pos 0)
+      String: "Settings\nTurn off rolling history\nRolling history "···
+      Found:  "‮"
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.HistoryReview.cs(47,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(Boolean enabled, Boolean nextEnabled, Boolean accept)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(enabled: False, nextEnabled: False, accept: False) [FAIL]
+      Assert.DoesNotContain() Failure: Sub-string found
+               ↓ (pos 0)
+      String: "Settings\nUpdate disabled history limits\nRolling hi"···
+      Found:  "‮"
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.HistoryReview.cs(47,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(Boolean enabled, Boolean nextEnabled, Boolean accept)
+        --- End of stack trace from previous location ---
+    FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(enabled: False, nextEnabled: False, accept: True) [FAIL]
+      Assert.DoesNotContain() Failure: Sub-string found
+               ↓ (pos 0)
+      String: "Settings\nUpdate disabled history limits\nRolling hi"···
+      Found:  "‮"
+      Stack Trace:
+        E:\FileCat\.tmp\worktrees\disk-space-analysis\tests\FileCat.Rendering.Tests\AnalysisRenderingTests.HistoryReview.cs(47,0): at FileCat.Rendering.Tests.AnalysisRenderingTests.RollingHistoryPolicyReviewPreservesTheCurrentChoiceAndNamesOnlyItsPrivateScope(Boolean enabled, Boolean nextEnabled, Boolean accept)
+        --- End of stack trace from previous location ---
+  Finished:    FileCat.Rendering.Tests (ID = '43fa4146883db45273cd3eeb591b3d5a4a30208a6972fd5f505882b31e48cbde')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 9, Errors: 0, Failed: 8, Skipped: 0, Not Run: 0, Time: 1,403s

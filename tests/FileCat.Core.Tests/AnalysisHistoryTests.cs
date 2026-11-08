@@ -140,6 +140,21 @@ public sealed class AnalysisHistoryTests
     }
 
     [Fact]
+    public void CollidingInventoryHashesPreserveBoundedStableRetentionAndProtection()
+    {
+        var rows = Enumerable.Range(1, AnalysisSavedCatalog.EntryLimit).Select(id =>
+            new AnalysisRollingHistoryEntry(new Guid(id, (short)id, 0, new byte[8]), 1, Now)).ToArray();
+        Assert.Single(rows.Select(row => row.InventoryId.GetHashCode()).Distinct());
+        var protectedIds = new HashSet<Guid>(rows.Take(5).Select(row => row.InventoryId));
+        var plan = Plan(Enabled(), rows.Reverse().ToArray(), Now, protectedInventories: protectedIds);
+        Assert.True(plan.LimitsSatisfied); Assert.Equal(10, plan.RetainedInventories.Length);
+        Assert.Equal((UInt128)10, plan.RetainedBytes); Assert.Equal(rows.Length - 10, plan.ProposedEvictions.Length);
+        Assert.All(protectedIds, id => Assert.Contains(id, plan.RetainedInventories));
+        Assert.Equal(rows[5].InventoryId, plan.ProposedEvictions[0].InventoryId);
+        Assert.Equal(rows[^6].InventoryId, plan.ProposedEvictions[^1].InventoryId);
+    }
+
+    [Fact]
     public void CheckedWideAccountingHandlesLargestAcceptedCatalogWithoutOverflow()
     {
         var rows = Enumerable.Range(1, AnalysisSavedCatalog.EntryLimit).Select(id => Entry(id, long.MaxValue)).ToArray();
