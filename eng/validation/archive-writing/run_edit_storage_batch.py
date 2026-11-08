@@ -2,8 +2,8 @@
 from pathlib import Path
 import importlib.util,json,shutil,subprocess,sys,tarfile,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v16'
-PACKET='archive-edit-storage-delta-v16.tar.gz'
+FOLDER='awe-storage-v17'
+PACKET='archive-edit-storage-delta-v17.tar.gz'
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 def sha(path):
     import hashlib
@@ -11,7 +11,7 @@ def sha(path):
 def base(task):
     path=task/'archive-workflow-source-v1/eng/validation/archive-writing/run_job_backend_batch.py'
     spec=importlib.util.spec_from_file_location('edit_storage_base',path);value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value)
-    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v15' if sys.platform=='win32' else 'awe-storage-v14'
+    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v16'
     return value
 def batch_for(task):return base(task).batch_for(task)
 def prepare(task,expected):
@@ -19,7 +19,7 @@ def prepare(task,expected):
     proof=json.loads((previous/'files.json').read_text())['files'];row=next(row for row in proof if row['path']=='source-files.json')
     assert sha(previous/'source-files.json')==row['sha256'];value.prepare(task,expected)
 def build(task):
-    batch=batch_for(task);projects=['tests/FileCat.Core.Tests','tests/FileCat.App.Tests','eng/validation/archive-writing/PdbSourceAudit']
+    batch=batch_for(task);projects=['tests/FileCat.Core.Tests','tests/FileCat.App.Tests','tests/FileCat.Remote.Tests','eng/validation/archive-writing/PdbSourceAudit']
     if sys.platform=='win32':projects.insert(2,'tests/FileCat.Platform.Windows.Tests')
     for project in projects:
         batch.execute(Path(project).name+'-build',[batch.dotnet,'build',str(batch.root/project/(Path(project).name+'.csproj')),
@@ -43,6 +43,7 @@ def tests(task):
         assert counters['failed']=='0' and int(counters['passed'])>0,counters
         if expected is not None:assert counters['total']==str(expected) and counters['passed']==str(expected),counters
         rows[name]=counters;(batch.out/'passed-gates.json').write_text(json.dumps(rows,indent=2))
+    run('native-sftp','FileCat.App.Tests','FullyQualifiedName~SftpRetainedEditTests',23)
     run('history-retirement-core','FileCat.Core.Tests','FullyQualifiedName~JobRetirementOwnershipTests')
     run('history-retirement-ui','FileCat.App.Tests','FullyQualifiedName~OperationHistoryRetirementTests',18)
     if sys.platform=='linux':run('picture-boundary','FileCat.App.Tests','FullyQualifiedName~LinuxPicturePolicyTests')
@@ -66,6 +67,7 @@ def tests(task):
     run('edit-ui','FileCat.App.Tests','FullyQualifiedName~EditSession|FullyQualifiedName~EditCommit')
     run('complete-core','FileCat.Core.Tests','FullyQualifiedName~FileCat.Core.Tests')
     review_core_inventory(batch)
+    run('complete-remote','FileCat.Remote.Tests','FullyQualifiedName~FileCat.Remote.Tests')
     run('complete-app','FileCat.App.Tests','FullyQualifiedName~FileCat.App.Tests')
     batch.idle();(batch.out/'tests-complete.json').write_text(json.dumps(rows,indent=2))
 
@@ -84,7 +86,7 @@ def review_core_inventory(batch):
     helper.require_complete(inventory)
 def seal(task):
     batch=batch_for(task);batch.idle();out=batch.out;binaries=out/'binaries';binaries.mkdir()
-    projects=['tests/FileCat.Core.Tests','tests/FileCat.App.Tests']
+    projects=['tests/FileCat.Core.Tests','tests/FileCat.App.Tests','tests/FileCat.Remote.Tests']
     if sys.platform=='win32':projects.append('tests/FileCat.Platform.Windows.Tests')
     for project in projects:
         for path in (batch.root/project/'bin/Release/net10.0').iterdir():

@@ -731,6 +731,12 @@ public sealed partial class EditSessionStore
         new(record.ArchivePath, rebase ? ArchiveBaseline.Of(record.ArchivePath) : record.Baseline,
             [new ArchiveChange(ArchiveChangeKind.Replace, record.MemberPath, record.WorkingPath)]);
 
+    internal IRetainedEditUpload? RemoteCommitInput(EditSessionRecord record,EditCommitCopy copy)
+    {
+        if(!record.IsRemote)throw new IOException("This edit does not belong to a server file.");
+        copy.Native?.RequireSession(record);return copy.Native;
+    }
+
     public ArchivePlan CommitPlan(EditSessionRecord record, EditCommitReview review, EditCommitCopy copy)
     {
         copy.Native?.RequireSession(record);

@@ -538,6 +538,7 @@ public sealed partial class MainViewModel
             NewName = session.DisplayName,
             ExpectedTarget = expected,
             ExpectedTargetSha256 = expectedSha256,
+            EditUpload = Services.EditSessions.RemoteCommitInput(session, copy),
             Options = new TransferOptions { Conflicts = ConflictPolicy.Skip },
             Description = $"Commit \"{session.DisplayName}\" to {profile.Display}",
         }, origin);

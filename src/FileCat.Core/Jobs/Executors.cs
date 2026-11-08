@@ -64,6 +64,7 @@ public static class JobExecutors
         Archives.ArchiveJobBackends archiveBackends, Archives.ArchiveJobOperation? archiveOperation)
     {
         var r = job.Request;
+        r.EditUpload?.RequireRequest(r);
         bool fsSources = r.Sources.All(s => s.Parent.IsFileSystem);
         switch (r.Kind)
         {

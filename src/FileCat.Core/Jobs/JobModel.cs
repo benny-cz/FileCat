@@ -138,6 +138,8 @@ public sealed class TransferOptions
 
 public sealed class JobRequest
 {
+    /// <summary>In-process native edit authority; never reconstructed from a source pathname or persisted request.</summary>
+    internal Edit.IRetainedEditUpload? EditUpload { get; init; }
     /// <summary>The immutable captured inverse; ordinary callers obtain it through a Job Undo reservation.</summary>
     public UndoPlan? UndoPlan { get; init; }
     public required JobKind Kind { get; init; }

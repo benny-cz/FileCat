@@ -4,7 +4,7 @@ namespace FileCat.Core.Edit;
 
 /// <summary>Parent-owned immutable bytes. Jobs receive bounded read views over this object, never a path reopen.</summary>
 internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirectoryLease directory,FileStream file,ArchiveFileObservation expected,
-    EditPublishedRecord[] records,EditSessionRecord session,EditSnapshotAdmission admission):IArchiveOwnedEditInput,IDisposable
+    EditPublishedRecord[] records,EditSessionRecord session,EditSnapshotAdmission admission):IArchiveOwnedEditInput,IRetainedEditUpload,IDisposable
 {
     private readonly object gate=new();
     private bool disposed;
@@ -18,6 +18,23 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
     Stream IArchiveRetainedFile.OpenReadView(ArchiveFileObservation reviewed,CancellationToken ct)=>OpenRead(reviewed,ct);
     internal void RequireSession(EditSessionRecord record)
     {lock(gate){Live();if(record.Id!=session.Id||record.StoredRecordSha256!=session.StoredRecordSha256)throw Changed();}}
+    void IRetainedEditUpload.RequireRequest(Jobs.JobRequest request)
+    {
+        lock(gate)
+        {
+            Live();
+            int slash=session.RemotePath.LastIndexOf('/');
+            string folder=slash==0?"/":slash>0?session.RemotePath[..slash]:"";
+            if(!session.IsRemote||slash<0||request.Kind!=Jobs.JobKind.Copy||request.Sources.Count!=1||
+                request.Sources[0].IsContainer||request.Sources[0].FileSystemPath!=SourcePath||
+                (request.Sources[0].Flags&Resources.EntryFlags.Link)!=0||
+                request.Destination is not {Scheme:Resources.Schemes.Sftp,Container:null} destination||
+                destination.Session!=session.ProfileId||destination.Path!=folder||request.NewName!=session.DisplayName||
+                request.ExpectedTarget is null||request.ExpectedTargetSha256 is not {Length:64} digest||
+                !digest.All(char.IsAsciiHexDigit))
+                throw new IOException("The retained edit copy authorizes one replacement of its originating server file.");
+        }
+    }
     public void RequireRequest(ArchivePlan request)
     {
         lock(gate)
