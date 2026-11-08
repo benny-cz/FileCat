@@ -214,6 +214,41 @@
       "production_backend_qualified": false
     },
     {
+      "platform": "windows",
+      "folder": "awe-storage-v4",
+      "candidate": "c68ec8363bbe2681d22babe59551a4e38d793d03",
+      "bytes": 17868737,
+      "sha256": "254eecfa584311954f2c4561622bfd95ae8a132effb473015b8c2f3f89aff6db",
+      "manifest_sha256": "42e0309d9d5af9c189fb847d6c8f3c97ae02a035de2d5fca793ddce953d18339",
+      "changed_CSharp_sources_bound": 22,
+      "DLL_PDB_pairs_bound": 15,
+      "uncompiled_platform_sources": [],
+      "tests": {
+        "edit-core": {
+          "Passed": 100
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "native-directory": {
+          "Passed": 16
+        },
+        "native-storage": {
+          "Passed": 13
+        },
+        "record-recovery": {
+          "Passed": 19
+        }
+      },
+      "focused_gates_complete": true,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false
+      },
+      "production_backend_qualified": false
+    },
+    {
       "platform": "mac",
       "folder": "awe-storage-v4",
       "candidate": "c68ec8363bbe2681d22babe59551a4e38d793d03",
@@ -289,17 +324,18 @@
   "current": [
     {
       "platform": "windows",
-      "folder": "awe-storage-v4",
-      "candidate": "c68ec8363bbe2681d22babe59551a4e38d793d03",
-      "bytes": 17868737,
-      "sha256": "254eecfa584311954f2c4561622bfd95ae8a132effb473015b8c2f3f89aff6db",
-      "manifest_sha256": "42e0309d9d5af9c189fb847d6c8f3c97ae02a035de2d5fca793ddce953d18339",
+      "folder": "awe-storage-v5",
+      "candidate": "b35d59920723ffdd06bad23aa18f7fef4a03267f",
+      "bytes": 17858416,
+      "sha256": "60469fd84ab0e81366a3d7fa663bffd8feb768700ae2abc5745b9848c63a4308",
+      "manifest_sha256": "eb0b411eb53b00a5cc33f88663499374992d361fec568699a476b42d7d1af2ff",
       "changed_CSharp_sources_bound": 22,
       "DLL_PDB_pairs_bound": 15,
       "uncompiled_platform_sources": [],
       "tests": {
         "edit-core": {
-          "Passed": 100
+          "Passed": 100,
+          "NotExecuted": 10
         },
         "edit-ui": {
           "Passed": 190
@@ -308,7 +344,7 @@
           "Passed": 16
         },
         "native-storage": {
-          "Passed": 13
+          "Passed": 14
         },
         "record-recovery": {
           "Passed": 19
@@ -400,7 +436,9 @@
       "production_backend_qualified": false
     }
   ],
-  "postponed": [
+  "postponed": [],
+  "windows_current_retry_completed": true,
+  "unapplied_startup_refusals": [
     {
       "platform": "windows",
       "folder": "awe-storage-v5",
@@ -414,8 +452,16 @@
       }
     }
   ],
+  "unvalidated_followups": [
+    {
+      "candidate": "cc5ea3a9",
+      "change": "Idempotent commit-copy disposal across pathname reuse",
+      "host_compilation": true,
+      "live_validation": false
+    }
+  ],
   "remaining": [
-    "Windows current-candidate native store correction gates",
+    "Repeated-disposal regression in the next snapshot packet",
     "retained native immutable commit/save-copy capture and cleanup",
     "native discard and changed/new child reconciliation",
     "native old-record adoption and application composition",

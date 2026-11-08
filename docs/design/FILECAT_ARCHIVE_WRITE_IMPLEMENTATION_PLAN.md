@@ -1030,7 +1030,7 @@ Private Unix modes and initial identity fields are useful prerequisites, but do 
 
 The [retained storage checkpoint](../validation/archive-writing/ARCHIVE_EDIT_STORAGE.md) implements private
 native creation, exclusive immutable record generations and held working-file reads behind an explicit
-test factory. Its Mac focused matrix passes. Windows/Ubuntu current validation, native immutable snapshot
+test factory. Its three-platform focused matrix passes. Native immutable snapshot
 and discard ownership, old-record adoption and application composition remain required; this checkpoint
 does not close §12.1 or enable a write profile.
 

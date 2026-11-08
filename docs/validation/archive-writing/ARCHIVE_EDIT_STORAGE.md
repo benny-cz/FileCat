@@ -31,7 +31,7 @@ admission checks owner, type, mode, link count, native metadata/version and the 
 
 ## Evidence
 
-The [checkpoint](edit-storage-checkpoint.json) preserves twelve verified bundles, 201,665,844 bytes,
+The [checkpoint](edit-storage-checkpoint.json) preserves thirteen verified bundles, 219,524,260 bytes,
 including every initial failure. The static verifier binds Git source bytes, compiler snapshots,
 DLL/PDB checksums, test results and final process censuses:
 
@@ -40,19 +40,19 @@ python -B -X utf8 eng/validation/archive-writing/verify_edit_storage_checkpoint.
 python -B -X utf8 eng/validation/archive-writing/verify_edit_storage_checkpoint.py --platform mac --folder awe-storage-v5
 ```
 
-| Focused gate | Windows v4, `c68ec836` | Mac v5, `b35d5992` | Ubuntu v5, `b35d5992` |
+| Focused gate, `b35d5992` / v5 | Windows | Mac | Ubuntu |
 |---|---:|---:|---:|
 | Bounded record/recovery parser | 19 | 19 | 19 |
 | Native private-directory primitives | 16 | 16 | 16 |
-| Native session storage and working reads | 13 | 19 | 19 |
-| Connected edit/session/password Core selection | 100 | 110 | 110 |
+| Native session storage and working reads | 14 | 19 | 19 |
+| Connected edit/session/password Core selection | 100 passed / 10 Unix-only skipped | 110 | 110 |
 | Connected application edit selection | 190 | 190 | 190 |
 
 The focused packets bind 22 changed C# inputs and 15 DLL/PDB pairs on Windows, and 20 inputs and
 12 pairs on each Unix platform. They are not complete Core or native desktop acceptance runs. Every
 final census has zero owned instances and the Mac preserves wake helper 36765. Windows v5 was
-refused before source application by the initial sharing check when another tester resumed; its
-current source baseline remains the sealed v4 ledger. Its correction packet is staged for a safe retry.
+initially refused before source application by the sharing check when another tester resumed. That
+refusal is preserved; the identical frozen packet later completed successfully when the VM was idle.
 
 The initial Windows lane used an inaccessible administrator-profile fixture; subsequent test roots
 use the standard account's own temporary directory. Darwin's native creation mode required the ARM64
@@ -73,6 +73,11 @@ Native immutable commit/save-copy capture, exact owned snapshot cleanup, native 
 reconciliation, old-record adoption and application composition are still required. The current
 legacy snapshot and recursive discard implementations do not establish these native ownership gates.
 Do not enable this factory or new write profiles before those operations are connected and qualified.
+
+Follow-up `cc5ea3a9` makes repeated commit-copy disposal return before touching a reused pathname and
+adds a replacement-preservation regression. It compiles cleanly; live validation is queued with the
+next snapshot packet and is not part of this frozen v5 evidence. Include `EditCommitCopyTests` in that
+packet's focused selector; the current `EditSession` selector alone does not select that class.
 
 Complete directory/record/artifact substitution, interrupted creation/publication/cleanup, editor
 concurrency, origin/metadata, cancellation and restart cases on all three platforms. Then rerun complete

@@ -72,7 +72,7 @@ if __name__=='__main__':
         assert checkpoint['schema']==1 and not checkpoint['production_backend_qualified'] and not checkpoint['application_composition_uses_native_store']
         rows=checkpoint['history']+checkpoint['current']
         for row in rows:assert verify(row['platform'],row['folder'])==row,(row['platform'],row['folder'])
-        for refusal in checkpoint['postponed']:
+        for refusal in checkpoint.get('postponed',[])+checkpoint.get('unapplied_startup_refusals',[]):
             trace=refusal['trace'];content=(ROOT/trace['path']).read_bytes()
             assert len(content)==trace['bytes'] and hashlib.sha256(content).hexdigest()==trace['sha256']
             assert not refusal['source_delta_applied'] and not refusal['tests_started'] and b'Another tester is active; postpone.' in content

@@ -4,8 +4,8 @@
 [Retained edit storage](ARCHIVE_EDIT_STORAGE.md) adds private native creation, interrupted-copy recovery,
 exclusive immutable state revisions, bounded complete history review and atomic-editor-save admission.
 The Mac/Ubuntu correction matrices pass 19 record, 16 directory, 19 native storage, 110 Core and 190
-application cases each. Windows passes the preceding 19/16/13/100/190 matrix; its correction retry is
-postponed before source application while another tester is active. [Twelve preserved bundles](edit-storage-checkpoint.json)
+application cases each. Windows passes 19/16/14/100/190 with ten Unix-only Core cases skipped after an
+initial sharing refusal and a later idle-machine retry. [Thirteen preserved bundles](edit-storage-checkpoint.json)
 bind exact sources/binaries and all early failures, including Ubuntu's corrected umask admission defect.
 The application factory remains unchanged; native snapshot/discard ownership, migration/composition,
 complete platform regressions and every release/final-review gate remain open.
