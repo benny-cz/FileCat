@@ -1,0 +1,455 @@
+{
+  "purpose": "Prepared named inventory replacement core, inert catalog pending states, complete previous backup and one-use retained review; full user-facing and restart recovery implementation remains open",
+  "observedUtc": "2026-11-08T00:07:01.2797447Z",
+  "gitBase": "9bc114bae696e3fb59e637fd7d2a7e8b0e7366fb",
+  "testedSourceProjection": true,
+  "broadRevision": "r939",
+  "precursorRevision": "r936",
+  "focusedRevision": "r941",
+  "testOnlyDelta": "Final native test source adds only two indexed-source cases; r940/r941 changed only rendering test DLL/PDB, with all product inputs verified unchanged",
+  "sources": [
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisInventoryPreparedWriter.cs",
+      "sha256": "1168e9c9fbec0d4fe717c3d2eb9d33d6cf1738a75f287b6d144618f318d86829"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisPrivateInventoryStore.cs",
+      "sha256": "3c113331428fd5e19f44c1290e2ba2229eff3747cbd187d8748bfc4110a96e47"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.cs",
+      "sha256": "10c7e143201a19cba34cdc88f2b9bb7eac2a98732cad61a8830ec1e3af4147f2"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.Replacements.cs",
+      "sha256": "c9e311061532318f1566dae69b85dbfbf17c609ece7cc76f5cde4e8a8d8fd24d"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.ReplacementWriting.cs",
+      "sha256": "00a39cd5a21672905511749b2a2b2c4c335705be059d0a1292fc903a9c444e64"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/AnalysisSavedCatalog.Writing.cs",
+      "sha256": "8e6063beea1ae579c9f77874d916597591264188fbad68af35b44de02b04965b"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.Replacement.cs",
+      "sha256": "c8ca7635398cf54a244d2603ff7d39ee120d34061aad81cd31ebaf828830cb9c"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.ReplacementReview.cs",
+      "sha256": "88eda0309b7f7bce9971039d0bb6f1bb02451f2bc41bd0a6dcf9dbd0402c0ab2"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/OwnedAnalysisStore.Review.cs",
+      "sha256": "92b4d3789417eaee399ce07ec440c98fa05fae0492065062b1a9d80a583691ea"
+    },
+    {
+      "path": "src/FileCat.Core/Analysis/UnixAnalysisPrivateDirectory.cs",
+      "sha256": "15dcc775759b394a99bb1cbf64a6ccfdddff014ec0ccba4f33091737515e709e"
+    },
+    {
+      "path": "src/FileCat.Platform.Windows/WindowsAnalysisPrivateDirectory.cs",
+      "sha256": "61a85bd2800aed73afcbbe46726083d80b81f838ff1d0687e0ae385237fc22c1"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisMaintenanceTests.Directory.cs",
+      "sha256": "285422dc2935d539a519b53691f6642a41242805c216d15f319233a9c9f86711"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisMaintenanceTests.PreparedWriter.cs",
+      "sha256": "55db6b50c16127277fb1daf4473f86ef0fddfa00bde0f5d4872eb02433748fc9"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisMaintenanceTests.Replacement.cs",
+      "sha256": "8473e548e1c117fd6994b3810e79450a9015dc700e442de0dc0152f98fb1d618"
+    },
+    {
+      "path": "tests/FileCat.Core.Tests/AnalysisMaintenanceTests.ReplacementCatalog.cs",
+      "sha256": "35f65a8eedab7fad3c910d8e1def5de844bd276d4bfec732103b3b43be42b30b"
+    },
+    {
+      "path": "tests/FileCat.Rendering.Tests/AnalysisRenderingTests.NativeNamedReplacement.cs",
+      "sha256": "0c076c2ab5a5d67876dec7bd798e5c2b836d716ed433354a38a21e1197473a4b"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/validation/disk-space/mac-batch-r936-core-r936.log",
+      "sha256": "0b879fbc69bd86c8d4048f681539805c16ccdd20308f58da2f0c4010e3cbf690"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r936-core-r936.xml",
+      "sha256": "f3760812c27b693ea5ccd8af0dbe25e96dd4ea84d0c2feb303310f984ac31b32"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r936-post.json",
+      "sha256": "eaaae36f39d4ff57c55861fadd5b7928f008e53c6762e711c016fd05ea0df80a"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r936-preview-r936.log",
+      "sha256": "c9475bcb83252a8b3a938142899a1f2115a490784808d6008d2c286efb2cd591"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r936-preview-r936.xml",
+      "sha256": "0d825473c7e2b3ea4141ac2745ca37f463a4da5e1f732278224545c456722a12"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r936-render-r936.log",
+      "sha256": "d0089594304cccd148645a522d44e4dd7b9ce2b3a18b2a22316691f64c0688c3"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r936-render-r936.xml",
+      "sha256": "393df3665a376f19dd1c3f6f924ad0619072c3770aa50670d1a1765c3ffe7ce9"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r936-smoke-r936.log",
+      "sha256": "9c24dbdf5d7450a33221e23716b4bc606e82e7b3a621132c50c48f1444ee3c8f"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r936-smoke-r936.xml",
+      "sha256": "b0d3495fe119c92f9141eea9a165e10bf7dacfa81fcfc8784476c31e2a05f7ba"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r936-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r939-core-r939.log",
+      "sha256": "b9d40e2be202b69288c411407365e68ab864d79d4350b9a92b73ff7829ed0eb5"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r939-core-r939.xml",
+      "sha256": "57f94be29892275c251230ad4580a1df1689cffc6eaf5a1529a0a097c8928323"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r939-post.json",
+      "sha256": "a39be9e950bd815ec805059c260afe45ad3984fb3024f53e9bb023432428c871"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r939-preview-r939.log",
+      "sha256": "9e13ca66ca8635549a73e69d1f53e9d78cbc2e8d4a93966e80f55474efb7147d"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r939-preview-r939.xml",
+      "sha256": "1e71f7d770682e14d66d55a539bcb8f97330797522473b0211e4c2bfb27dc954"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r939-render-r939.log",
+      "sha256": "ed4fcfb77283578bbce6b53223064f38c0937dc039ff5a45dd76c1b0f65fc659"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r939-render-r939.xml",
+      "sha256": "1b9c27d2915f98d36cae3e218c62727d426a19a81e71a51b696d51dc0975ae57"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r939-smoke-r939.log",
+      "sha256": "dd08e1d30d0fc838b4b0266b471c9f4d1010a9c668a4cfa5ed2f7a3e720f6151"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r939-smoke-r939.xml",
+      "sha256": "9df1fe74fe95f76b51a0402c0d366698fa200b872fb20080b353b2aec33b93d9"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r939-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r941-cache-proof.txt",
+      "sha256": "7efe24ae7a6ecfadd48c05b9fdc7bd6ba0b93b714cc4f0acbc046e6ea705b6a8"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r941-post.json",
+      "sha256": "a5d2023fe66a1e01452a36fbdbf62dd981a168802b01d6df0e113d4a013037a4"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r941-render-r941.log",
+      "sha256": "91229fbb33d05b9c63bb2f9597a91017de192b7ea7f8cbfed92bdd1761eddb12"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r941-render-r941.xml",
+      "sha256": "df8c2747d07cee0107458f9f73be3bde8e6f2f9185f7dc771a8ae17ddd1348cb"
+    },
+    {
+      "path": "docs/validation/disk-space/mac-batch-r941-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/OWNED_REPLACEMENT_TRANSACTION_QUALIFICATION.md",
+      "sha256": "5b7ca6c3d5fbaa481f8f90e9b26058e2a344f7f36b6698556ea7d9c6c9e4785a"
+    },
+    {
+      "path": "docs/validation/disk-space/owned-replacement-build-r935.txt",
+      "sha256": "0ebdcbeba8f260371fbdbb312ca922b94add34eeff2f9057145e2b740c23e622"
+    },
+    {
+      "path": "docs/validation/disk-space/owned-replacement-build-r938.txt",
+      "sha256": "e11287cb4f8f2b70e9897631b7542d7974f050d0cf0c5f621afc39b4a8dfd2d2"
+    },
+    {
+      "path": "docs/validation/disk-space/owned-replacement-build-r940.txt",
+      "sha256": "8c26fe2dbd9001a73088c80e19b8b70a6163ac9c30d9ab962f5505785cba5015"
+    },
+    {
+      "path": "docs/validation/disk-space/owned-replacement-focused-delta-proof-r941.json",
+      "sha256": "9da1a43db537b21c77dfdf92361aa968563820bffc1676dbc8fc8b03e1e7fe22"
+    },
+    {
+      "path": "docs/validation/disk-space/owned-replacement-mac-pre-r939.json",
+      "sha256": "cb02e8e7270eccfc8a6bd7c2e24381cb5dece2f16498315fcf53e68429666454"
+    },
+    {
+      "path": "docs/validation/disk-space/owned-replacement-pack-timing-r939.json",
+      "sha256": "d2b45dd4058442da13ae8a6905b08b71a1feb116a3780b1dea1f29523bb530e2"
+    },
+    {
+      "path": "docs/validation/disk-space/owned-replacement-source-candidate-r936.json",
+      "sha256": "cf372189bd1e831eb3afce41516951ba3fb0346f3686c9163150d2b8960b495e"
+    },
+    {
+      "path": "docs/validation/disk-space/owned-replacement-source-candidate-r939.json",
+      "sha256": "5d4027e9cc5d2281874326ecc74b3b9a75ba1f8865afd78582ad30bea3807763"
+    },
+    {
+      "path": "docs/validation/disk-space/owned-replacement-ubuntu-pre-r939.json",
+      "sha256": "8ac7dad4ac6880f18b1e3fcd7908e7f568c2a3f09b35795368a34d91c63b0049"
+    },
+    {
+      "path": "docs/validation/disk-space/owned-replacement-windows-pre-r939.json",
+      "sha256": "9f478f1adc2e32e70d3aad80ce84d1140534d1f2dc7f966e3e65cf8390fab56d"
+    },
+    {
+      "path": "docs/validation/disk-space/owned-replacement-windows-pre-r941verify.json",
+      "sha256": "0bda950feee0f4d932861b5cf72bb5b2184af8fd5acd2145b4886dedcd2dc154"
+    },
+    {
+      "path": "docs/validation/disk-space/progress.json",
+      "sha256": "411cb91139f739840eb0505b1e880b20079cbdcbb427fe0e8bf475eda02eeea9"
+    },
+    {
+      "path": "docs/validation/disk-space/TESTING_PROCESS_IMPROVEMENTS.md",
+      "sha256": "9eac770780839376b48e6a9fbe6117644cd3f866de84793f7c0800035680bfea"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r936-core-r936.log",
+      "sha256": "e06a9506e87522d488eb4e762a625df29d88644073e85496c2684ac3848d5027"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r936-core-r936.xml",
+      "sha256": "6bee6cc56066bc4a95659532822040e6995d37f89de69f00d3432c814eb4f9b2"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r936-post.json",
+      "sha256": "fc682f08b70c61383086c76f6e86f904f286d1b38146681c5394edb332159bc9"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r936-preview-r936.log",
+      "sha256": "17a8de1b69ded662b45db1055548e785f0bc7aa46c23078370549cd02f92608c"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r936-preview-r936.xml",
+      "sha256": "73b4fc280d0d313fc6600c92013fcd634c3311611aa303af275ae515fac041a4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r936-render-r936.log",
+      "sha256": "838a67731c742016a9a21680c1bafc30c8381acf1884923ecc732a7b7d2016cf"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r936-render-r936.xml",
+      "sha256": "6b1120fb2284eb4d34f45efb222308e029fe8bd50f808a61e8009c8b19ac9c5f"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r936-smoke-r936.log",
+      "sha256": "5ad3579282353cdadf7405fbb6a50e1abacad83797654a29aa698adeec497abe"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r936-smoke-r936.xml",
+      "sha256": "cf7819e8a60b265b2b9459a67241cc3b13734b2adcb75dc221546e677de7503c"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r936-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r939-core-r939.log",
+      "sha256": "68cca02bd70cfd6ce14ac1de35d1fba024fa531652f508adeda0b5badf9534ec"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r939-core-r939.xml",
+      "sha256": "73fd92a907c386f678dab90feff424e4bbfd2dfe61c3e1a5467326f1ffb07ef7"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r939-post.json",
+      "sha256": "de16350c674cb863163121dc13550dd9e0163da04b75fbfdf49608ad7252f989"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r939-preview-r939.log",
+      "sha256": "f247d44bdac9a7650fac2c5936f2329bf1c686fe64ce67b4f022e5fa9b5e6dcd"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r939-preview-r939.xml",
+      "sha256": "fdd52a74874f7167b079a18de480978aa87c1583960ecea8be972b016ca4de6d"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r939-render-r939.log",
+      "sha256": "5953be6a8449b297d39c17c82c73ef5427447e2448da8226f7f173ca94e51140"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r939-render-r939.xml",
+      "sha256": "a54c2c4160a71279ac106b191d1589118621170f0f46507b0abd578563781c4a"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r939-smoke-r939.log",
+      "sha256": "d05279db2a063273617d68a82a099edb8a14ef608474e3abde4e2d8159643fe4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r939-smoke-r939.xml",
+      "sha256": "854d9e11cdcf0694fcd241a39ba45a4f9ded12072b4bf025ed6a6f6e5802a924"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r939-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r941-cache-proof.txt",
+      "sha256": "d943b5f9d7b03a4bf8c2bf9f436054db0526efe469d9bac5605a79c94dd4d244"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r941-post.json",
+      "sha256": "6494c62119812f20c192fbf141cdb28e564af30a487f4a038d65fb2f21dd82fc"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r941-render-r941.log",
+      "sha256": "07cc19433915cc3458067674eafd43c80a538b454d77428198687af5f9d27811"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r941-render-r941.xml",
+      "sha256": "b7e5a756600432a95946f353e8259721d3041891a611b417844b3b00eaf281c7"
+    },
+    {
+      "path": "docs/validation/disk-space/ubuntu-batch-r941-state.txt",
+      "sha256": "95e1e0bc590aa98976e674e0defe3550a4cd3de5937e43d779e61cc411078eb4"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r936-core-r936.log",
+      "sha256": "ca48605b16faa02754847f98161f861518de735dcbc28a5c157a29f8a11c1b5c"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r936-core-r936.xml",
+      "sha256": "f7698e6465f198a8f1a25c97e28a639605e43f85d6af7cae12bae348676c621b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r936-native-r936.log",
+      "sha256": "7d10c07fa1f0b135cc3b575fde4b5e091f6fe2fefa2907091c24739ff2886554"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r936-native-r936.xml",
+      "sha256": "a7fe301417465d0e52a3e9804df9cc32f615f6c618d67a97a3fe371f3013202f"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r936-post.json",
+      "sha256": "edbe6f30a9e53f8461e3942f240f07d365a0298453270e90324aa537866438c8"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r936-preview-r936.log",
+      "sha256": "36bce5a4094015036889318971e77aae43d10f40824186e97d528c8e1a97eeed"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r936-preview-r936.xml",
+      "sha256": "0acae790ad35eea131b801850f7e500fb58a75b0bcde05107f03e4a252e8d5a6"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r936-render-r936.log",
+      "sha256": "6bbae6726268d9d9037e0413a5955e62300df539319cb3126bee354d53be355d"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r936-render-r936.xml",
+      "sha256": "8175ab0e7a58d1fbe261f8493d0bd361191dde2bdaff87ccb66c954eb5aebd38"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r936-smoke-r936.log",
+      "sha256": "1360450afe160ed129bed0050308a88e2ee0b50561090730b9958d27bd4ce050"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r936-smoke-r936.xml",
+      "sha256": "4f0fd23903c6d1f833f59680f86966a1dcb2879c4b8084e8a054802727bcd146"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r936-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r939-core-r939.log",
+      "sha256": "46c37bbb8a59d2b7a4a8529e21a4b2b20f290b2f5fbe5539b257b1a5b306caff"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r939-core-r939.xml",
+      "sha256": "1ec61c26402cad2836a3712c87554deea76cbaaf063d9f3b860009728ac905c6"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r939-native-r939.log",
+      "sha256": "637d7af0dcd64a7a8e30d637bcb2fdac5ec149f3c9d8c3edbded1132b895c3d7"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r939-native-r939.xml",
+      "sha256": "99b87e9d20b4f68abae734c22299a47ce2507c65baa79390d1910e2c42ba71f3"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r939-observed-state.txt",
+      "sha256": "626ba8085e69f41a97b7c5e307fda6ca496f1e7bc8478ce7a5a36eebe4a2a570"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r939-post.json",
+      "sha256": "bd878c390bfff9dc67949171c4d95212fa1858d7a8adca12350199277b1af0a8"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r939-preview-r939.log",
+      "sha256": "33c8ba2d89d74b6fb21ee5df42e2d969d5eb3800cdaa013990e7e8f530e59e8e"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r939-preview-r939.xml",
+      "sha256": "73968105dd2fab164a932ca726aa48add43d4708276f5d17f3fdef37b7f29b35"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r939-render-r939.log",
+      "sha256": "396ae1e738652f82217d63490cb9f37d8605df3d27a9bae089e8171731a49174"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r939-render-r939.xml",
+      "sha256": "3ff26030b39685b07fa1bd8659bc1ef5c49fcab214c6c1607059eb9bcc22bb45"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r939-smoke-r939.log",
+      "sha256": "96762e460d58d82fcb010663ce6e35646d867852b4eca1f02e83fcd15ea9b3be"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r939-smoke-r939.xml",
+      "sha256": "dd6de49333d22b43a3568113a762c16023425a9044ea2aed7a18618864392d64"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r939-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r941-cache-proof.txt",
+      "sha256": "b9b60cc886503deeea62325485aa570030fdf15d73a6aa1cacea3b458529560f"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r941-post.json",
+      "sha256": "362553bb8591c0d713e946a35f426e5e479c199d8c31cd7aa1744facd1e77a3b"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r941-render-r941.log",
+      "sha256": "848125a2eab0faf55c7e72a0fad9c0c1be256657452bd514d785f2187053b5e1"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r941-render-r941.xml",
+      "sha256": "849f222826106e42a17b0304487fcbce7e69b1a3f45fb285194b4e2ce390fd46"
+    },
+    {
+      "path": "docs/validation/disk-space/windows-batch-r941-state.txt",
+      "sha256": "71496fe84dcf4a10a4570810c67724e2a365199d5e39d08a389bbfa8890604fd"
+    }
+  ],
+  "qualification": "Actual Windows/macOS/Ubuntu native filesystems plus headless suites. Physical desktop, conflict/recovery UI, fresh restart recovery, process-death boundaries, full plan and final independent review remain unqualified."
+}

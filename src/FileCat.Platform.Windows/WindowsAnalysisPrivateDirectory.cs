@@ -248,6 +248,7 @@ public sealed unsafe partial class WindowsAnalysisPrivateDirectory : AnalysisPri
         }
         public override Stream Stream => _stream;
         internal override string Identity { get { Verify(); return FileIdentity(_owned.Handle); } }
+        internal override string PublishedIdentity => _published ? Identity : throw new InvalidOperationException("Publication has not been confirmed.");
         internal override bool TryLockCapacity()
         {
             if (_writable) throw new InvalidOperationException("Capacity requires an immutable published file.");

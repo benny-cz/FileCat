@@ -15,6 +15,9 @@ public sealed partial class AnalysisMaintenanceTests
     {
         internal readonly Dictionary<string, Node> Files = new(StringComparer.Ordinal);
         internal Action<string, string>? BeforeMove, AfterMove;
+        internal Action<string, string>? BeforeReplace, AfterReplace;
+        internal Action<string>? BeforePublish;
+        internal Action<string>? BeforeReplacementOpen;
         internal Action<string>? BeforeRemove, AfterRemove;
         internal Action<string>? BeforeRead;
         internal int LargestRead;
@@ -26,6 +29,7 @@ public sealed partial class AnalysisMaintenanceTests
         internal override string[] Entries(CancellationToken cancellation) { cancellation.ThrowIfCancellationRequested(); return Files.Keys.ToArray(); }
         internal override AnalysisPrivateFile OpenRead(string name) => new File(this, name, false);
         internal override AnalysisPrivateFile OpenMaintenance(string name) { AnalysisPrivateNames.Maintenance(name); return new File(this, name, true); }
+        internal override AnalysisPrivateFile OpenReplacementFile(string name) { AnalysisPrivateNames.ReplacementData(name); BeforeReplacementOpen?.Invoke(name); return new File(this, name, true); }
         public override void Dispose() { }
         private sealed class File : AnalysisPrivateFile
         {
@@ -36,6 +40,7 @@ public sealed partial class AnalysisMaintenanceTests
             private readonly bool _exclusive, _reader;
             private string? _name;
             private bool _closed, _removed, _capacity;
+            private string? _publishedIdentity;
             internal File(Directory owner) { _owner = owner; _stream = new(); owner.Leases++; }
             internal File(Directory owner, string name, bool exclusive)
             {
@@ -50,13 +55,16 @@ public sealed partial class AnalysisMaintenanceTests
             }
             public override Stream Stream => _readerStream ?? _stream;
             internal override string Identity { get { Verify(); return _node!.Id; } }
+            internal override string PublishedIdentity => _publishedIdentity ?? throw new InvalidOperationException("Not published");
             internal override string? MaintenanceName => _exclusive ? _name : null;
             internal override bool RemovalRequested => _removed;
             public override void Verify() => ObjectDisposedException.ThrowIf(_closed, this);
             public override void Flush() => Verify();
             public override void PublishNew(string name)
             {
+                _owner.BeforePublish?.Invoke(name);
                 Verify(); if (_node is not null || ! _owner.Files.TryAdd(name, new(_stream.ToArray()))) throw new IOException("Existing name");
+                _publishedIdentity = _owner.Files[name].Id;
                 _owner.Publications++;
             }
             internal override bool TryLockCapacity()
@@ -78,6 +86,14 @@ public sealed partial class AnalysisMaintenanceTests
             {
                 Exact(); _owner.BeforeRemove?.Invoke(_name!); _owner.Files.Remove(_name!); _removed = true; _owner.AfterRemove?.Invoke(_name!);
             }
+            internal override void ReplaceOwned(AnalysisPrivateFile destination)
+            {
+                if (destination is not File target || !ReferenceEquals(_owner, target._owner)) throw new ArgumentException("Wrong directory");
+                Exact(); target.Exact(); AnalysisPrivateNames.ReplacementTarget(_name!, target._name!);
+                _owner.BeforeReplace?.Invoke(_name!, target._name!);
+                string old = _name!; _owner.Files[target._name!] = _node!; _owner.Files.Remove(old); _name = target._name; target._removed = true;
+                _owner.AfterReplace?.Invoke(old, _name!);
+            }
             public override void Dispose()
             {
                 if (_closed) return; _closed = true;
@@ -90,13 +106,13 @@ public sealed partial class AnalysisMaintenanceTests
         {
             public override bool CanRead => true;
             public override bool CanWrite => false;
-            public override bool CanSeek => false;
+            public override bool CanSeek => inner.CanSeek;
             public override long Length => inner.Length;
-            public override long Position { get => inner.Position; set => throw new NotSupportedException(); }
+            public override long Position { get => inner.Position; set => inner.Position = value; }
             public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
             public override int Read(Span<byte> buffer) { before(buffer.Length); return inner.Read(buffer); }
             public override void Flush() => throw new NotSupportedException();
-            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+            public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
             public override void SetLength(long length) => throw new NotSupportedException();
             public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         }

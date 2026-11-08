@@ -22,6 +22,7 @@ public abstract class AnalysisPrivateDirectory : IDisposable
 internal abstract class AnalysisPrivateFile : IDisposable
 {
     internal virtual string Identity => throw new NotSupportedException("Private file identity is unavailable.");
+    internal virtual string PublishedIdentity => throw new NotSupportedException("The published private file identity is unavailable.");
     internal virtual string? MaintenanceName => null;
     internal virtual bool RemovalRequested => false;
     internal virtual void MoveOwnedNew(string name) => throw new NotSupportedException("Guarded private metadata movement is unavailable.");
@@ -96,12 +97,21 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
     // The async dataset save owns this new store exclusively. Every call, including disposal,
     // runs on the captured source+destination Background turn; no monitor spans an await.
     internal static DatasetWrite BeginDatasetWrite(AnalysisPrivateDirectory directory, string name, CancellationToken cancellation)
+        => BeginWrite(directory, name, replacement: false, cancellation);
+    internal static DatasetWrite BeginReplacementWrite(AnalysisPrivateDirectory directory, string name, CancellationToken cancellation)
+        => BeginWrite(directory, name, replacement: true, cancellation);
+    private static DatasetWrite BeginWrite(AnalysisPrivateDirectory directory, string name, bool replacement, CancellationToken cancellation)
     {
         ArgumentNullException.ThrowIfNull(directory);
         var store = new AnalysisPrivateInventoryStore(directory);
         try
         {
-            ValidateName(name); store.Guard(); cancellation.ThrowIfCancellationRequested();
+            if (replacement)
+            {
+                if (!AnalysisPrivateNames.IsReplacementPayload(name)) throw new ArgumentException("A generated private replacement payload name is required.", nameof(name));
+            }
+            else ValidateName(name);
+            store.Guard(); cancellation.ThrowIfCancellationRequested();
             var file = directory.CreateStaging();
             try { return new(store, file, name, cancellation, directory.Space); }
             catch { AnalysisIo.CloseOnWorker(file); throw; }
@@ -116,7 +126,13 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
         private readonly CancellationToken _cancel;
         private readonly GuardedWriteStream _guarded;
         private BufferedStream? _buffer;
-        internal Stream Stream => _buffer ?? throw new ObjectDisposedException(nameof(DatasetWrite));
+        private bool _prepared, _published;
+        internal Stream Stream => !_prepared ? _buffer ?? throw new ObjectDisposedException(nameof(DatasetWrite)) : throw new InvalidOperationException("The prepared inventory is immutable.");
+        internal Stream PreparedStream => _prepared ? (_file ?? throw new ObjectDisposedException(nameof(DatasetWrite))).Stream : throw new InvalidOperationException("Prepare the inventory before reading it.");
+        internal long Bytes => _guarded.Written;
+        internal string PublishedIdentity => _published ? (_file ?? throw new ObjectDisposedException(nameof(DatasetWrite))).PublishedIdentity
+            : throw new InvalidOperationException("The prepared inventory has not been published.");
+        internal void Verify() { _store.Guard(); (_file ?? throw new ObjectDisposedException(nameof(DatasetWrite))).Verify(); }
         internal DatasetWrite(AnalysisPrivateInventoryStore store, AnalysisPrivateFile file, string name, CancellationToken cancellation,
             Func<(UInt128 Capacity, UInt128 Available)> space)
         {
@@ -126,11 +142,22 @@ public sealed partial class AnalysisPrivateInventoryStore : IDisposable
         }
         internal void FlushBatch() { _cancel.ThrowIfCancellationRequested(); _buffer!.Flush(); }
         internal AnalysisInventoryReceipt Commit(Guid inventoryId)
+        { Prepare(); return PublishPrepared(inventoryId, _cancel); }
+        internal void Prepare()
         {
             var file = _file ?? throw new ObjectDisposedException(nameof(DatasetWrite));
+            if (_prepared) { Verify(); return; }
             _cancel.ThrowIfCancellationRequested(); _buffer!.Flush();
             _cancel.ThrowIfCancellationRequested(); _store.Guard(); file.Verify(); file.Flush();
-            _cancel.ThrowIfCancellationRequested(); _store.Guard(); file.Verify(); file.PublishNew(_name);
+            _cancel.ThrowIfCancellationRequested(); _store.Guard(); file.Verify(); file.Stream.Position = 0; _prepared = true;
+        }
+        internal AnalysisInventoryReceipt PublishPrepared(Guid inventoryId, CancellationToken cancellation)
+        {
+            if (!_prepared || _published || inventoryId == Guid.Empty) throw new InvalidOperationException("Only one prepared inventory can be published once.");
+            var file = _file ?? throw new ObjectDisposedException(nameof(DatasetWrite));
+            cancellation.ThrowIfCancellationRequested(); _store.Guard(); file.Verify();
+            try { file.PublishNew(_name); _published = true; }
+            catch (AnalysisPublicationUncertainException) { _published = true; throw; }
             return new(inventoryId, _name, _guarded.Written);
         }
         public void Dispose()

@@ -20,18 +20,21 @@ public sealed record AnalysisSavedView(AnalysisMetric Metric, string Chart, stri
 public sealed record AnalysisSavedEntry(Guid InventoryId, string Name, long Bytes, DateTimeOffset SavedUtc,
     NamespaceCoverage Coverage, AnalysisTaint Taint, AnalysisSavedView View);
 public sealed record AnalysisPendingDeletion(Guid OperationId, AnalysisSavedEntry Entry, bool PayloadPresent);
+public sealed record AnalysisPendingReplacement(Guid OperationId, Guid IncomingId, AnalysisSavedEntry Previous,
+    AnalysisSavedEntry? Current, bool OriginalPresent, bool IncomingPresent, bool PreviousPresent);
 
 /// <summary>An inert bounded catalog result. Dispose after copying the selected entry; no native handles are retained.</summary>
 public sealed class AnalysisCatalogSnapshot : IDisposable
 {
     private IDisposable? _memory;
     internal AnalysisCatalogSnapshot(Guid? id, ImmutableArray<AnalysisSavedEntry> entries, ImmutableArray<string> unindexed, int metadataBytes, IDisposable memory,
-        ImmutableArray<AnalysisPendingDeletion> pending = default)
-    { CatalogId = id; Entries = entries; UnindexedNames = unindexed; MetadataBytes = metadataBytes; _memory = memory; PendingDeletions = pending.IsDefault ? [] : pending; }
+        ImmutableArray<AnalysisPendingDeletion> pending = default, ImmutableArray<AnalysisPendingReplacement> replacements = default)
+    { CatalogId = id; Entries = entries; UnindexedNames = unindexed; MetadataBytes = metadataBytes; _memory = memory; PendingDeletions = pending.IsDefault ? [] : pending; PendingReplacements = replacements.IsDefault ? [] : replacements; }
     public Guid? CatalogId { get; }
     public ImmutableArray<AnalysisSavedEntry> Entries { get; }
     public ImmutableArray<string> UnindexedNames { get; }
     public ImmutableArray<AnalysisPendingDeletion> PendingDeletions { get; }
+    public ImmutableArray<AnalysisPendingReplacement> PendingReplacements { get; }
     internal int MetadataBytes { get; }
     public void Dispose() => Interlocked.Exchange(ref _memory, null)?.Dispose();
 }
@@ -92,10 +95,11 @@ public sealed partial class AnalysisSavedCatalog
                 Fields(root, "schema", "kind", "catalog"); Schema(root, "catalog"); catalog = Id(root.GetProperty("catalog"));
             }
             var ids = new HashSet<Guid>(); var indexed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var replacements = ReadReplacements(names, set, catalog, ref bytes, cancellation);
             foreach (string name in names)
             {
                 cancellation.ThrowIfCancellationRequested();
-                if (!AnalysisPrivateNames.IsMetadata(name) || name is AnalysisPrivateNames.Catalog or AnalysisPrivateNames.PrivateState or AnalysisPrivateNames.CatalogWriteLock || AnalysisPrivateNames.IsCapacityToken(name)) continue;
+                if (!AnalysisPrivateNames.IsMetadata(name) || name is AnalysisPrivateNames.Catalog or AnalysisPrivateNames.PrivateState or AnalysisPrivateNames.CatalogWriteLock || AnalysisPrivateNames.IsCapacityToken(name) || AnalysisPrivateNames.IsPendingReplacement(name)) continue;
                 bool deleting = AnalysisPrivateNames.TryPendingDeletion(name, out var deletingCatalog, out var deletingInventory, out var operation);
                 if (catalog is null || (deleting ? deletingCatalog != catalog.Value : name.AsSpan(8, 32).ToString() != catalog.Value.ToString("N"))) throw Invalid("A catalog entry has no matching supported catalog header.");
                 if (entries.Count + pending.Count >= EntryLimit) throw Invalid("The saved analysis catalog entry limit was reached.");
@@ -105,9 +109,11 @@ public sealed partial class AnalysisSavedCatalog
                 if ((deleting ? deletingInventory != entry.InventoryId : name != AnalysisPrivateNames.CatalogEntry(catalog.Value, entry.InventoryId)) || !ids.Add(entry.InventoryId) || !indexed.Add(entry.Name))
                     throw Invalid("The saved analysis catalog has conflicting generated identities or names.");
                 if (deleting) { pending.Add(new(operation, entry, set.Contains(entry.Name))); continue; }
-                if (!set.Contains(entry.Name)) throw Invalid("A cataloged inventory is missing. Open remaining files by filename; no catalog repair was performed.");
+                if (!set.Contains(entry.Name) && !replacements.Any(p => p.IncomingId == entry.InventoryId && p.Previous.Name == entry.Name))
+                    throw Invalid("A cataloged inventory is missing. Open remaining files by filename; no catalog repair was performed.");
                 entries.Add(entry);
             }
+            CompleteReplacements(replacements, entries, pending, ids, indexed);
             var unindexed = ImmutableArray.CreateBuilder<string>();
             foreach (string name in names)
             {
@@ -117,9 +123,10 @@ public sealed partial class AnalysisSavedCatalog
                 catch (ArgumentException) { continue; }
                 unindexed.Add(name);
             }
-            if (pending.Count != 0) _ = new AnalysisPrivateProfileState(store).ReadExisting(cancellation);
+            if (pending.Count != 0 || replacements.Count != 0) _ = new AnalysisPrivateProfileState(store).ReadExisting(cancellation);
             var result = new AnalysisCatalogSnapshot(catalog, entries.OrderByDescending(e => e.SavedUtc).ThenBy(e => e.Name, StringComparer.Ordinal).ToImmutableArray(),
-                unindexed.Order(StringComparer.Ordinal).ToImmutableArray(), bytes, memory, pending.OrderBy(p => p.Entry.Name, StringComparer.Ordinal).ToImmutableArray());
+                unindexed.Order(StringComparer.Ordinal).ToImmutableArray(), bytes, memory, pending.OrderBy(p => p.Entry.Name, StringComparer.Ordinal).ToImmutableArray(),
+                replacements.OrderBy(p => p.Previous.Name, StringComparer.Ordinal).ToImmutableArray());
             memory = null!; return result;
         }
         finally { memory?.Dispose(); }

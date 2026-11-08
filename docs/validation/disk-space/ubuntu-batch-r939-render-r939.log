@@ -1,0 +1,44 @@
+  Discovering: FileCat.Rendering.Tests
+  Discovered:  FileCat.Rendering.Tests
+  Starting:    FileCat.Rendering.Tests
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+Native name creation: platform=Ubuntu; files=15; caseDistinct=True; invalidUnixCreationErrors=
+  Finished:    FileCat.Rendering.Tests (ID = '64113306edc5b6e794cb15d7d4e69849abb33ca837d8301117e30250efce22c7')
+=== TEST EXECUTION SUMMARY ===
+   FileCat.Rendering.Tests  Total: 336, Errors: 0, Failed: 0, Skipped: 0, Not Run: 0, Time: 189.427s

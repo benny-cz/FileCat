@@ -9,12 +9,15 @@ public sealed class OwnedAnalysisDeleteReview
     internal readonly string MetadataIdentity, MetadataSha256;
     internal readonly string? PayloadIdentity, PayloadSha256;
     internal readonly Guid ExistingOperation;
+    internal readonly AnalysisInventoryFormat.ContainerInspection? Inspection;
     private int _used;
     internal OwnedAnalysisDeleteReview(OwnedAnalysisStore owner, Guid catalog, AnalysisSavedEntry entry, Guid operation, bool payloadPresent,
-        string metadataIdentity, string metadataSha, string? payloadIdentity, string? payloadSha)
+        string metadataIdentity, string metadataSha, string? payloadIdentity, string? payloadSha,
+        AnalysisInventoryFormat.ContainerInspection? inspection = null)
     {
         Owner = owner; CatalogId = catalog; Entry = entry; ExistingOperation = operation; PayloadPresent = payloadPresent;
         MetadataIdentity = metadataIdentity; MetadataSha256 = metadataSha; PayloadIdentity = payloadIdentity; PayloadSha256 = payloadSha;
+        Inspection = inspection;
     }
     public AnalysisSavedEntry Entry { get; }
     public Guid CatalogId { get; }
@@ -47,6 +50,8 @@ public sealed partial class OwnedAnalysisStore
     {
         RequireProfile(data, cancellation);
         using var current = new AnalysisSavedCatalog(data.Store!).Read(cancellation);
+        if (current.PendingReplacements.Any(p => p.Previous.InventoryId == inventoryId || p.IncomingId == inventoryId))
+            throw new InvalidOperationException("Finish or restore the pending replacement before another named-analysis operation.");
         var entry = current.Entries.SingleOrDefault(e => e.InventoryId == inventoryId);
         var pending = current.PendingDeletions.SingleOrDefault(p => p.Entry.InventoryId == inventoryId);
         entry ??= pending?.Entry;
@@ -118,7 +123,7 @@ public sealed partial class OwnedAnalysisStore
                     return true;
                 }, cancellation).ConfigureAwait(false);
                 return new(this, basis.Selected.Catalog, basis.Selected.Entry, basis.Selected.Pending?.OperationId ?? Guid.Empty,
-                    basis.Selected.PayloadPresent, basis.Metadata.Identity, basis.Metadata.Sha256, basis.PayloadIdentity, inspected?.Sha256);
+                    basis.Selected.PayloadPresent, basis.Metadata.Identity, basis.Metadata.Sha256, basis.PayloadIdentity, inspected?.Sha256, inspected);
             }
             finally { if (input is not null) await AnalysisIo.ReleaseScratchAsync(_io, _device, input).ConfigureAwait(false); }
         });

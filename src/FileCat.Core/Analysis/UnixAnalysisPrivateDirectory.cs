@@ -253,6 +253,7 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
         private readonly FileStream _stream;
         private readonly bool _writable;
         private bool _published;
+        private string? _publishedIdentity;
         public PrivateFile(UnixAnalysisPrivateDirectory directory, OwnedHandle owned, bool writable)
         {
             _directory = directory; _owned = owned; _writable = writable;
@@ -260,6 +261,7 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
         }
         public override Stream Stream => _stream;
         internal override string Identity { get { Verify(); return FileIdentity(_owned.Handle); } }
+        internal override string PublishedIdentity => _publishedIdentity ?? throw new InvalidOperationException("Publication has not been confirmed.");
         internal override bool TryLockCapacity()
         {
             if (_writable) throw new InvalidOperationException("Capacity requires an immutable published file.");
@@ -318,6 +320,7 @@ public sealed unsafe partial class UnixAnalysisPrivateDirectory : AnalysisPrivat
                     throw Error("The newly published private inventory durability could not be confirmed.");
                 if (Fsync(_directory.Root) != 0) throw Error("Private inventory directory durability could not be confirmed.");
                 _directory.Verify();
+                _publishedIdentity = FileIdentity(committed.Handle);
             }
             catch (Exception ex) { throw new AnalysisPublicationUncertainException(name, ex); }
         }

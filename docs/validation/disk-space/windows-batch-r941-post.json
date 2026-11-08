@@ -1,0 +1,8 @@
+{
+  "observedUtc": "2026-11-08T00:04:18.8050059Z",
+  "exitCode": 0,
+  "filecatOrDotnet": [
+    "pid=10672, owner=, cmd=dotnet.exe",
+    "pid=10336, owner=, cmd=dotnet.exe"
+  ]
+}

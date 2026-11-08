@@ -21,8 +21,9 @@ public sealed partial class AnalysisSavedCatalog
     }
     private static void RequireCapacity(AnalysisCatalogSnapshot current, Guid inventory, string name, bool published = false)
     {
-        if (current.Entries.Length + current.PendingDeletions.Length >= EntryLimit || current.Entries.Any(entry => entry.InventoryId == inventory || entry.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ||
+        if (current.Entries.Length + current.PendingDeletions.Length + current.PendingReplacements.Count(p => p.Current is null) >= EntryLimit || current.Entries.Any(entry => entry.InventoryId == inventory || entry.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ||
             current.PendingDeletions.Any(p => p.Entry.InventoryId == inventory || p.Entry.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ||
+            current.PendingReplacements.Any(p => p.Previous.InventoryId == inventory || p.IncomingId == inventory || p.Previous.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) ||
             (!published && current.UnindexedNames.Any(n => n.Equals(name, StringComparison.OrdinalIgnoreCase))))
             throw new IOException("That inventory name or identity already exists, or the catalog is full. Keep existing files and choose another name.");
         if (published && !current.UnindexedNames.Contains(name, StringComparer.Ordinal)) throw Invalid("The newly published inventory is absent from the private directory.");
