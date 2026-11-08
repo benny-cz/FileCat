@@ -45,6 +45,7 @@ public sealed partial class MainViewModel : ObservableObject
     public MainViewModel(AppServices services)
     {
         Services = services;
+        services.Archives.PreparePasswordNavigation = PrepareArchiveReadNavigationAsync;
         Workspace = new WorkspaceViewModel(services);
         AttachRemoteInteraction();
         _drives = services.Drives.Listen(change => services.Ui.Post(() => OnDrivesChanged(change)));

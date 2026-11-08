@@ -40,6 +40,7 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     private bool _disposed;
     private CancellationTokenSource? _pendingNavigation;
     private string? _bannerBeforePendingNavigation;
+    private PreparedLocation? _preparedLocation;
 
     public TabViewModel(AppServices services, PanelViewModel panel)
     {
@@ -405,6 +406,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (_disposed) return;
         long intent = BeginNavigationIntent();
         if (!OwnsNavigation(intent)) return;
+        // The destination's new tab must own preparation too (including its one password question).
+        if (IsLocked && Location is not null && !ReturnToRoot && Services.Providers.IsRegistered(location.Scheme) &&
+            !Services.Providers.For(location).IsSameLocation(location, Location))
+        {
+            Panel.OpenTab(location, focusName, activate: true);
+            return;
+        }
         // An SFTP home folder ("~") becomes its absolute path, so the tab, its history, and ".." know where they are.
         if (location.Scheme == Schemes.Sftp && location.Path.StartsWith('~'))
         {
@@ -427,8 +435,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         if (Services.Providers.IsRegistered(location.Scheme))
         {
             var preparation = new CancellationTokenSource();
-            Task<Location>? preparing;
-            try { preparing = Services.Providers.For(location).PrepareAsync(location, preparation.Token); }
+            Task<PreparedLocation>? preparing;
+            try { preparing = Services.Providers.For(location).PrepareNavigationAsync(location, preparation.Token); }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 preparation.Dispose();
@@ -494,13 +502,13 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         return true;
     }
 
-    private void CommitNavigation(Location location, string? focusName, bool record, long intent)
+    private bool CommitNavigation(Location location, string? focusName, bool record, long intent, PreparedLocation? prepared = null)
     {
-        if (!OwnsNavigation(intent)) return;
+        if (!OwnsNavigation(intent)) return false;
         if (IsLocked && Location is not null && !ReturnToRoot && !Services.Providers.For(location).IsSameLocation(location, Location))
         {
             Panel.OpenTab(location, focusName, activate: true);
-            return;
+            return false;
         }
         if (record && Location is not null && Location != location)
         {
@@ -526,10 +534,14 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         }
         _navigatedFocus = (location, focusName);
         Listing.Load(location, focusName);
+        var previousPreparation = _preparedLocation;
+        _preparedLocation = prepared;
+        previousPreparation?.Dispose();
         if (IsActiveTab) StartWatching();
         Services.RecordFolder(location);
         UpdateTitle();
         ColumnsChanged?.Invoke(this, EventArgs.Empty);
+        return true;
     }
 
     /// <summary>The name the last navigation was to put the cursor on, and where: a link shown by its target keeps it.</summary>
@@ -563,14 +575,19 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Connects in the background (the server's key and password prompts appear meanwhile) to learn the home folder.</summary>
-    private async Task PrepareThenNavigateAsync(Location requested, Task<Location> preparing, string? focusName, bool record,
+    private async Task PrepareThenNavigateAsync(Location requested, Task<PreparedLocation> preparing, string? focusName, bool record,
         long intent, CancellationTokenSource pending)
     {
         string what = Formatters.SafeName(Services.Providers.Display(requested));
         try
         {
-            Location ready = await preparing;
-            if (OwnsNavigation(intent, pending)) CommitNavigation(ready, focusName, record, intent);
+            var ready = await preparing;
+            bool retained = false;
+            try
+            {
+                if (OwnsNavigation(intent, pending)) retained = CommitNavigation(ready.Location, focusName, record, intent, ready);
+            }
+            finally { if (!retained) ready.Dispose(); }
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -1213,6 +1230,8 @@ public sealed partial class TabViewModel : ObservableObject, IDisposable
         Services.Columns.Changed -= OnProfilesChanged;
         Services.Metadata.ValuesChanged -= OnMetadataValuesChanged;
         Listing.Dispose();
+        _preparedLocation?.Dispose();
+        _preparedLocation = null;
     }
 
     public override string ToString() => Title;

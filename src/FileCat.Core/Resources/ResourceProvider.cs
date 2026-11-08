@@ -97,6 +97,14 @@ public abstract class ResourceProvider
     /// </summary>
     public virtual Task<Location>? PrepareAsync(Location location, CancellationToken ct) => null;
 
+    /// <summary>Preparation with temporary resources retained by the tab until it leaves or closes.</summary>
+    public virtual Task<PreparedLocation>? PrepareNavigationAsync(Location location, CancellationToken ct)
+    {
+        var pending = PrepareAsync(location, ct);
+        return pending is null ? null : Wrap(pending);
+        static async Task<PreparedLocation> Wrap(Task<Location> pending) => new(await pending);
+    }
+
     /// <summary>Identity of an entry listed at <paramref name="listing"/>. Result sets override this.</summary>
     public virtual ItemRef GetItemRef(Location listing, in EntryData entry) => ItemRef.FromEntry(listing, entry);
 
@@ -105,6 +113,9 @@ public abstract class ResourceProvider
 
     /// <summary>Opens item content for random-access reading, or null when unsupported.</summary>
     public virtual IContentSource? OpenContent(ItemRef item) => null;
+
+    /// <summary>Retains existing runtime read credentials for a queued operation. Must perform no I/O or prompts.</summary>
+    public virtual IDisposable? RetainRead(Location location) => null;
 
     /// <summary>
     /// Why copying out of <paramref name="source"/> into <paramref name="destinationDirectory"/> must not happen, or null.
@@ -136,6 +147,14 @@ public abstract class ResourceProvider
         LocationCapabilities.MoveSource => "moving items out",
         _ => c.ToString(),
     };
+}
+
+/// <summary>Runtime-only navigation ownership. Never part of a saved location, history or workspace.</summary>
+public sealed class PreparedLocation(Location location, IDisposable? lifetime = null) : IDisposable
+{
+    private IDisposable? _lifetime = lifetime;
+    public Location Location { get; } = location;
+    public void Dispose() => Interlocked.Exchange(ref _lifetime, null)?.Dispose();
 }
 
 /// <summary>Scheme → provider map plus shared parsing of user-typed locations.</summary>

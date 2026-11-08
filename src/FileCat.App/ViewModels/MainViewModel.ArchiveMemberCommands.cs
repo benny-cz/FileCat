@@ -66,7 +66,8 @@ public sealed partial class MainViewModel
         finally { password?.Dispose(); }
     }
 
-    private async Task<ArchiveJobPassword?> AskArchivePasswordAsync(string path, ArchiveWriteFormat format, bool retry)
+    private async Task<ArchiveJobPassword?> AskArchivePasswordAsync(string path, ArchiveWriteFormat format, bool retry,
+        CancellationToken ct = default, bool reading = false)
     {
         var password = new TextBox { PasswordChar = '•', MinWidth = 260 };
         AutomationProperties.SetName(password, "Existing archive password");
@@ -87,14 +88,18 @@ public sealed partial class MainViewModel
         var body = new StackPanel { Spacing = 10, Children = {
             new TextBlock { Text = System.IO.Path.GetFileName(path), TextWrapping = TextWrapping.Wrap, MaxWidth = 620 },
             new TextBlock { Text = retry ? "The password did not unlock a verifiable archive. Try again, or cancel to leave it unchanged."
+                : reading ? "Enter the password to browse and extract this archive. It is kept only while its tabs or borrowed content remain open."
                 : "Enter the existing password to check this archive. Its protection will be preserved.", TextWrapping = TextWrapping.Wrap, MaxWidth = 620 },
             password, problem,
         } };
         try
         {
+            var closer = new DialogCloser();
+            using var cancellation = ct.Register(() => Services.Ui.Post(() => closer.Close("cancel")));
+            ct.ThrowIfCancellationRequested();
             var answer = await Dialogs.ShowCustomAsync("Archive password", body,
-                [new("Cancel", "cancel", IsCancel: true), new("Unlock", "unlock", IsDefault: true)], password, canConfirm: () => valid);
-            return answer as string == "unlock" && valid && !Services.Io.IsStopped ? new(password.Text.AsSpan()) : null;
+                [new("Cancel", "cancel", IsCancel: true), new("Unlock", "unlock", IsDefault: true)], password, canConfirm: () => valid, closer: closer);
+            return answer as string == "unlock" && valid && !ct.IsCancellationRequested && !Services.Io.IsStopped ? new(password.Text.AsSpan()) : null;
         }
         finally { password.Text = ""; }
     }

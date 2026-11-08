@@ -191,6 +191,7 @@ internal sealed class RarReader : IMemberReader, IVolumeStreams
 
     private static bool IsCompressedFile(RarMember member) => member.Kind == MemberKind.File && member.Method != 0;
     private bool CanDecrypt(RarMember member) => _password is not null && member.Encryption is not null;
+    internal bool SupportsPasswordRead(int index) => _archive.Members[index].Encryption is not null;
     private Stream OpenPacked(RarMember member)
     {
         var packed = new RarPackedStream(_volumes, member.Segments);

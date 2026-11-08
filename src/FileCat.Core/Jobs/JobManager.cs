@@ -118,6 +118,16 @@ public sealed partial class JobManager
             if (job.Kind is JobKind.Delete or JobKind.Recycle) job.Pause();
         }
         var group = new SyncGroup(this, source, target, reviewedPlan, jobs);
+        var readOwnership = new Dictionary<Job, List<IDisposable>>();
+        try
+        {
+            foreach (var job in jobs) readOwnership.Add(job, CaptureReadLeases(job.Request));
+        }
+        catch
+        {
+            foreach (var leases in readOwnership.Values) DisposeReadLeases(leases);
+            throw;
+        }
         IReadOnlyList<Job> retired;
         IReadOnlyList<SyncGroup> retiredGroups;
         lock (_lock)
@@ -126,6 +136,7 @@ public sealed partial class JobManager
             {
                 job.QueueOrder = ++_order;
                 _jobs.Add(job);
+                _readLeases.Add(job, readOwnership[job]);
                 _syncByJob.Add(job, group);
                 job.Changed += OnJobChanged;
             }
@@ -164,12 +175,14 @@ public sealed partial class JobManager
     private Job Submit(JobRequest request, UndoReservation? reservation, Action<Job>? register = null, ArchiveJobOperation? archiveOperation = null)
     {
         Job? job = null;
+        List<IDisposable>? readLeases = null;
         try
         {
             if (reservation is null && (request.Kind == JobKind.Undo || request.UndoPlan is not null))
                 throw new ArgumentException("An inverse must be admitted through an approved Undo reservation.", nameof(request));
             var (title, device, reads, writes) = Describe(request);
             job = new Job(request, title, device, reads, writes);
+            readLeases = CaptureReadLeases(request);
             IReadOnlyList<Job> retired = [];
             lock (_lock)
             {
@@ -179,6 +192,8 @@ public sealed partial class JobManager
                     _jobs.Add(job);
                     _admitting.Add(job);
                     if (archiveOperation is not null) _archiveOperations.Add(job, archiveOperation);
+                    _readLeases.Add(job, readLeases ?? throw new InvalidOperationException("Missing source read ownership."));
+                    readLeases = null;
                 }
                 if (reservation is null) Admit();
                 else if (!reservation.TryAdmit(job, Admit)) throw new InvalidOperationException("This Undo approval no longer owns the original operation.");
@@ -206,6 +221,8 @@ public sealed partial class JobManager
                 }
             }
             archiveOperation?.Dispose();
+            if (readLeases is not null) DisposeReadLeases(readLeases);
+            if (job is not null) ReleaseReadLeases(job);
             if (job is not null)
             {
                 try { job.Cancel(); job.SetState(JobState.Canceled); }
@@ -391,7 +408,7 @@ public sealed partial class JobManager
                 toStart.Add(job);
             }
         }
-        foreach (var job in canceled) JobFinished?.Invoke(job);
+        foreach (var job in canceled) { ReleaseReadLeases(job); JobFinished?.Invoke(job); }
         foreach (var job in toStart) Start(job);
     }
 
@@ -433,6 +450,7 @@ public sealed partial class JobManager
             {
                 lock (_lock) _starting.Remove(job);
                 ReleaseArchiveOperation(job);
+                ReleaseReadLeases(job);
                 if (!job.State.IsFinished())
                 {
                     job.SetState(JobState.Canceled);
@@ -449,6 +467,7 @@ public sealed partial class JobManager
         {
             lock (_lock) _starting.Remove(job);
             ReleaseArchiveOperation(job);
+            ReleaseReadLeases(job);
             try { if (!job.State.IsFinished()) job.SetState(JobState.Failed); }
             catch (Exception ex) { AppLog.Warn("Failed worker handoff observer failed", ex); }
             throw;
@@ -479,7 +498,7 @@ public sealed partial class JobManager
             job.AddIssue(new JobIssue(IssueSeverity.Error, string.Empty, ex.Message, StepOutcome.Failed));
             final = JobState.Failed;
         }
-        finally { ReleaseArchiveOperation(job); }
+        finally { ReleaseArchiveOperation(job); ReleaseReadLeases(job); }
         if (job.IsCancellationRequested && final != JobState.Failed) final = JobState.Canceled;
         if (job.Kind == JobKind.Undo && job.UndoReport is null && job.Request.UndoPlan is { } undoPlan)
             job.SetUndoReport(UndoReport.NotStarted(undoPlan, "The inverse could not start. " + (JobIssue.Summarize(job.Issues) ?? final.Describe()), journal?.Path));

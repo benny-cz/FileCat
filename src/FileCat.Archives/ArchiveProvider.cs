@@ -137,7 +137,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         LocationCapabilities.CreateDirectory or LocationCapabilities.CreateFile or LocationCapabilities.Delete or LocationCapabilities.Rename or
             LocationCapabilities.TransferTarget or LocationCapabilities.ExternalEdit or LocationCapabilities.Recycle =>
             "This archive is read-only here. Copy (extract) members with F5 to work with them in a folder.",
-        LocationCapabilities.MoveSource => "Members cannot be moved out of a read-only archive: copy (extract) them with F5.",
+        LocationCapabilities.MoveSource => "Moving members out of this archive is not supported here. Copy (extract) them with F5.",
         _ => base.ExplainUnavailable(location, capability),
     };
 
@@ -198,7 +198,8 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         if (entry.Kind == EntryKind.Parent) return GetParent(parent);
         string member = parent.Path.Length == 0 ? entry.Name : parent.Path + "/" + entry.Name;
         if (entry.Kind == EntryKind.Directory) return parent.WithPath(member);
-        if (entry.Has(EntryFlags.Container) && entry.Tag is ArchiveMemberTag { Encrypted: false, UnsafeReason: null, DuplicateOrdinal: 0, Kind: MemberKind.File })
+        if (entry.Has(EntryFlags.Container) && entry.Tag is ArchiveMemberTag { UnsafeReason: null, DuplicateOrdinal: 0, Kind: MemberKind.File } tag &&
+            (!tag.Encrypted || _cache.Values.Any(index => index.PasswordUnlocked && index.ContainerLocation == parent.WithPath(""))))
         {
             var at = parent.WithPath(member);
             if (Zip?.IsContainer(entry.Name) == true) return new Location(Schemes.Zip, string.Empty, at);
@@ -227,7 +228,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
             var index = GetIndex(root, source, CancellationToken.None);
             var node = index.FindFile(item.Parent.Path, item.Name, item.Ordinal);
             if (node?.Tag is not { } tag) throw new FileNotFoundException($"\"{item.Name}\" is not in the archive.");
-            if (tag.Encrypted) return null;
+            if (tag.Encrypted && !index.PasswordUnlocked) return null;
             if (tag.UnsafeReason is not null) throw new InvalidDataException("This member has an unsafe name: " + tag.UnsafeReason);
             if (tag.Kind is MemberKind.SymbolicLink or MemberKind.HardLink)
                 throw new InvalidDataException("Links inside archives are not followed or extracted" + (tag.LinkTarget is { } target ? $" (it points to \"{target}\")." : "."));
@@ -254,7 +255,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         lock (_cacheLock) return GetIndex(root, source, ct);
     }
 
-    private ArchiveIndex GetIndex(Location root, ArchiveSourceLease source, CancellationToken ct)
+    private ArchiveIndex GetIndex(Location root, ArchiveSourceLease source, CancellationToken ct, ArchiveJobPassword? password = null)
     {
         string path = source.Path;
         var fi = new FileInfo(path);
@@ -267,6 +268,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
             try
             {
                 if (!cached.CanReuse) throw new IOException("The archive source has no change token for cache reuse.");
+                if (password is not null && !cached.PasswordUnlocked) throw new IOException("Unlock this archive with a new reader.");
                 if (!cached.WriteRevisionAttempted && MutationState(root).Available) throw new IOException("Refresh the newly writable archive's revision.");
                 cached.VerifySource();
                 cached.VerifyVolumePaths();
@@ -291,8 +293,9 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
             witness = ArchiveFormats.OpenShared(path, VerifyOpened);
             string? before = SourceChangeToken.FromHandle(witness.SafeFileHandle);
             IMemberReader reader;
-            try { reader = ArchiveFormats.Open(path, kind, displayName, VerifyOpened); }
-            catch (Exception ex) when (ex is not (OperationCanceledException or IOException or UnauthorizedAccessException or InvalidDataException))
+            try { reader = password is null ? ArchiveFormats.Open(path, kind, displayName, VerifyOpened)
+                    : PasswordMemberReader.Open(path, kind, password, VerifyOpened, ct); }
+            catch (Exception ex) when (ex is not (OperationCanceledException or IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException))
             {
                 throw new InvalidDataException("The archive cannot be read: " + ex.Message, ex);
             }
@@ -318,7 +321,9 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
                 throw;
             }
             index = ArchiveIndex.Build(reader, fi.Length, ct);
+            index.PasswordUnlocked = password is not null;
             index.ContainerSession = root.Session;
+            index.ContainerLocation = root;
             if (MutationState(root).Available)
             {
                 index.WriteRevisionAttempted = true;
@@ -340,6 +345,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
             index.VerifySource();
             index.VerifyVolumePaths();
             index.KeepSource(source);
+            if (password is not null) index.VerifyPassword(ct);
         }
         catch
         {
@@ -517,11 +523,13 @@ internal sealed class ArchiveIndex : IDisposable
     }
     // A volume without an opened identity cannot be tied to its path on the next request. Its change token
     // guards the current open handle, but is not sufficient to authorize reuse of a multipart catalog.
-    public bool CanReuse => _openedChangeToken is not null &&
+    public bool CanReuse => (!PasswordUnlocked || Volatile.Read(ref _views) >= 0) && _openedChangeToken is not null &&
         _volumes.All(volume => volume.Token is not null && volume.Identity is { Length: > 0 });
     private ArchiveSourceLease? _source;
     internal string? ContainerPath => _source?.Path;
     internal string? ContainerSession { get; set; }
+    internal Location? ContainerLocation { get; set; }
+    internal bool PasswordUnlocked { get; set; }
     internal bool WriteRevisionAttempted { get; set; }
     internal string? WriteRevision { get; set; }
     internal string? WriteRevisionProblem { get; set; }
@@ -547,6 +555,50 @@ internal sealed class ArchiveIndex : IDisposable
     public long EstimatedBytes { get; }
 
     public void Touch() => LastUsed = DateTime.UtcNow;
+
+    internal void VerifyPassword(CancellationToken ct)
+    {
+        lock (_lock)
+        {
+            ct.ThrowIfCancellationRequested();
+            // Header encryption is checked while opening. Data-only protection also needs an actual
+            // bounded, checksum-verified member read before the tab accepts this password.
+            var tag = Children.Values.SelectMany(nodes => nodes).Select(node => node.Tag)
+                .FirstOrDefault(tag => tag is { Encrypted: true, Kind: MemberKind.File });
+            if (tag is not null)
+            {
+                if (_reader is PasswordMemberReader passwordReader && !passwordReader.SupportsPasswordRead(tag.Index))
+                    throw new NotSupportedException("Password reading for this older RAR encryption format is not implemented.");
+                using var stream = new DamageReportingStream(_reader.Open(tag.Index, ct));
+                var limits = MemberLimits.Of(tag.Size, tag.CompressedSize > 0 ? tag.CompressedSize : _archiveLength,
+                    ArchiveProvider.MaxSpooledMember, ArchiveProvider.MaxExpansionRatio);
+                (limits with { MaxLength = Math.Min(limits.MaxLength, ArchiveProvider.MaxSpooledMember) }).CopyAll(stream, Stream.Null, ct);
+            }
+            VerifySource(); VerifyVolumePaths(); ct.ThrowIfCancellationRequested();
+        }
+    }
+
+    private int _views;
+    internal int ViewCount => Math.Max(0, Volatile.Read(ref _views));
+    internal bool AcquireView()
+    {
+        while (true)
+        {
+            int previous = Volatile.Read(ref _views);
+            if (previous < 0) return false;
+            if (Interlocked.CompareExchange(ref _views, previous + 1, previous) == previous) return true;
+        }
+    }
+    internal int ReturnView()
+    {
+        while (true)
+        {
+            int previous = Volatile.Read(ref _views);
+            if (previous <= 0) throw new InvalidOperationException("Unbalanced archive password view.");
+            int next = previous == 1 ? -1 : previous - 1; // Last close cannot race a new runtime grant.
+            if (Interlocked.CompareExchange(ref _views, next, previous) == previous) return Math.Max(0, next);
+        }
+    }
 
     public Dictionary<string, List<Node>> Children { get; }
 
@@ -753,7 +805,7 @@ internal sealed class ArchiveIndex : IDisposable
         lock (_lock)
         {
             if (ReferenceEquals(_cursorOwner, content)) _cursorOwner = null;
-            if (--_leases == 0 && _closing) Close();
+            if (--_leases == 0 && _closing && ViewCount == 0) Close();
         }
     }
 
@@ -761,13 +813,15 @@ internal sealed class ArchiveIndex : IDisposable
     {
         lock (_lock)
         {
-            if (_closing) return;
+            if (_closed) return;
             _closing = true;
-            if (_leases == 0) Close();
+            if (_leases == 0 && ViewCount == 0) Close();
         }
     }
     private void Close()
     {
+        if (_closed) return;
+        _closed = true;
         Exception? failure = null;
         void CloseOne(Action action, string name)
         {
@@ -783,6 +837,7 @@ internal sealed class ArchiveIndex : IDisposable
         CloseOne(() => Interlocked.Exchange(ref _source, null)?.Dispose(), "source");
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
+    private bool _closed;
 }
 
 /// <summary>
