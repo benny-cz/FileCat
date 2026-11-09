@@ -37,10 +37,12 @@ independent verification. RAR5 password fuzz remains active. These are individua
 and target floors, not production qualification.
 
 **Open cleanup defect to resolve before native routing.** The still-active legacy
-`EditCommitCopy.Dispose`, failed capture cleanup, and `PublishSaveCopy` stage cleanup use
-pathname deletion after ownership was observed. A same-user process can replace the name
-between review and deletion. The native Unix route correctly refuses uncertain cleanup;
-the legacy route needs a bound replacement, regression cases and honest retained-artifact UI.
+`EditCommitCopy.Dispose`, failed capture/session creation, record-publication temp cleanup,
+`PublishSaveCopy` stage cleanup and legacy `Discard` use pathname deletion after ownership
+was observed. A same-user process can replace the name between review and deletion. The
+native Unix route correctly refuses uncertain cleanup; the legacy route needs a bound
+replacement, regression cases and honest retained-artifact UI. The broader source audit
+extends plan risk R21; it does not claim a fix.
 
 **9 November: retained adoption integrity and full-target review.** Mac's full integrity
 candidate passed Core 8,679/207 skipped, Remote 2,638/31 skipped and App 2,769/193 skipped;
