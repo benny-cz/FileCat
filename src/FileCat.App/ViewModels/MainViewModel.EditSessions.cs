@@ -381,16 +381,27 @@ public sealed partial class MainViewModel
                 CheckSessionAction();
                 string relationText = relation?.State == EditLegacyAdoptionCatalogState.LinkedRetainedCopy
                     ? "The old edit is still the active commit route. This linked native copy is retained for review."
-                    : "The link to the old edit needs review. Both copies are kept.";
+                    : "The link to the old edit needs review. " +
+                      (relation?.Reason ?? "The original could not be reviewed. Both copies are kept.");
                 string directory = Services.EditSessions.SessionDirectory(session);
+                string? oldDirectory = relation?.ActiveLegacy is { } active
+                    ? Services.EditSessions.SessionDirectory(active) : null;
+                var actions = new List<DialogButton>
+                {
+                    new("Close", "close", IsCancel: true, IsDefault: true),
+                    new("Open working folder", "folder")
+                };
+                if (oldDirectory is not null) actions.Add(new("Open original folder", "original"));
                 var retainedAnswer = await Dialogs.ShowCustomAsync("Retained adopted edit", new TextBlock
                 {
                     Text = relationText + "\nWorking copy: " + Formatters.SafeName(session.WorkingPath) +
-                           "\nWorking folder: " + Formatters.SafeName(directory),
+                           "\nWorking folder: " + Formatters.SafeName(directory) +
+                           (oldDirectory is null ? "" : "\nOriginal edit folder: " + Formatters.SafeName(oldDirectory)),
                     TextWrapping = TextWrapping.Wrap, MaxWidth = 640,
-                }, [new("Close", "close", IsCancel: true, IsDefault: true), new("Open working folder", "folder")]);
+                }, actions);
                 CheckSessionAction();
                 if (retainedAnswer as string == "folder") Services.Shell.Open(directory);
+                if (retainedAnswer as string == "original" && oldDirectory is not null) Services.Shell.Open(oldDirectory);
                 return;
             }
             var state = await ReadEditStateAsync(session);

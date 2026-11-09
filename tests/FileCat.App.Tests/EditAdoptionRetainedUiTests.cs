@@ -60,6 +60,8 @@ public sealed class EditAdoptionRetainedUiTests
                 dialogText[^Math.Min(2000,dialogText.Length)..]);
             Assert.Null(DialogButton("Commit"));Assert.Null(DialogButton("Discard…"));
             Assert.Null(DialogButton("Reopen editor"));Assert.Null(DialogButton("Save copy…"));
+            Assert.NotNull(DialogButton("Open original folder"));
+            Assert.Contains("Original edit folder:",dialogText,StringComparison.Ordinal);
             DialogButton("Close")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await task.WaitAsync(TimeSpan.FromSeconds(15),ct);
             Assert.True(File.Exists(old.WorkingPath));Assert.True(File.Exists(adopted.WorkingPath));
