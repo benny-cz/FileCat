@@ -26,8 +26,9 @@ public sealed partial class EditSessionStore
         if(created.Path==path)return created;
         created.Dispose();throw new IOException("The created native edit root differs from the configured store.");
     }
-    private EditSessionRecord CreateNativeSession(string fileName,Func<string,Func<long,FileStream>?,WorkingCopy> write,
-        Func<string,WorkingCopy,EditSessionRecord> describe,CancellationToken ct)
+    private EditSessionRecord CreateNativeSession(string fileName,
+        Func<string,Func<long,FileStream>?,Func<EditDirectoryLease>,WorkingCopy> write,
+        Func<string,WorkingCopy,EditSessionRecord> describe,CancellationToken ct,Action? reviewOldSource=null)
     {
         using var root=OpenNativeRoot(ct,true);using var allocation=EditStorageAdmission.Acquire(root,ct);
         string id=Guid.NewGuid().ToString("N");EditDirectoryLease? session=null,files=null;
@@ -48,12 +49,14 @@ public sealed partial class EditSessionStore
         }
         try
         {
-            var copy=write(working,Open);ct.ThrowIfCancellationRequested();
+            var copy=write(working,Open,()=>files??throw new IOException("The native working directory is unavailable."));
+            ct.ThrowIfCancellationRequested();
             if(files is null||session is null)throw new IOException("The native working file was not created.");
+            reviewOldSource?.Invoke();
             allocation.Review(ct);files.Review(ct);session.Review(ct);root.Review(ct);
             var record=describe(working,copy)with{Id=id,Version=EditSessionRecord.NativeStorageVersion,CreatedUtc=DateTime.UtcNow,StorageRootIdentity=root.Identity,
                 SessionDirectoryIdentity=session.Identity,WorkingDirectoryIdentity=files.Identity,WorkingIdentity=workingIdentity};
-            if(!record.IsSupported)throw new IOException("The created edit record is incomplete; its private working folder is retained.");
+            if(!record.IsSupported&&!record.IsPendingAdoption)throw new IOException("The created edit record is incomplete; its private working folder is retained.");
             ct.ThrowIfCancellationRequested();byte[] bytes=JsonSerializer.SerializeToUtf8Bytes(record,Json);
             PublishRecordBytes(session,RecordFile,bytes,ct);allocation.Review(ct);return record with{StoredRecordSha256=Digest(bytes)};
         }
@@ -87,8 +90,8 @@ public sealed partial class EditSessionStore
     }
     private EditSessionRecord ReadStoredRecord(byte[] bytes,string directory)
     {
-        var record=ParseRecord(bytes,directory);
-        if(!record.IsSupported)return record;
+        var record=ParseRecord(bytes,directory,allowPendingAdoption:true);
+        if(!record.IsSupported&&!record.IsPendingAdoption)return record;
         if(record.StorageRootIdentity.Length==0)return record;
         record=record with{StoredRecordSha256=Digest(bytes)};
         if(nativeOpen is null)return UnsupportedSession(directory,"This edit needs native storage support. Its working folder is kept.");
@@ -97,7 +100,8 @@ public sealed partial class EditSessionStore
         RequireStorage(record,root,session);
         if(!ReadRecordBytes(session,RecordFile,default).AsSpan().SequenceEqual(bytes))
             throw new IOException("The initial edit record changed while its native namespace was reviewed.");
-        return ReadNativeLatest(record,bytes,root,session);
+        var latest=ReadNativeLatest(record,bytes,root,session);
+        return latest.IsPendingAdoption?UnsupportedSession(directory,"This copied old edit is awaiting durable adoption review. Its files are kept."):latest;
     }
     private static void RequireStorage(EditSessionRecord record,EditDirectoryLease root,EditDirectoryLease session)
     {
@@ -123,23 +127,26 @@ public sealed partial class EditSessionStore
             if(!TryRevision(name,out long value))return UnsupportedSession(session.Path,"This edit has an unknown state-record name. Its working folder is kept.");
             revision=Math.Max(revision,value);
         }
-        if(anchor.StorageRevision!=0||anchor.PreviousRecordSha256.Length!=0)
+        if(anchor.StorageRevision!=0||anchor.PreviousRecordSha256.Length!=0||
+            anchor.LegacyAdoption is not null&&anchor.LegacyAdoptionReady)
             return UnsupportedSession(session.Path,"This edit's initial state record has an invalid revision. Its working folder is kept.");
         // Review the complete chain, with an aggregate budget. A valid tail cannot hide a damaged ancestor.
         if(revision>4096)return UnsupportedSession(session.Path,"This edit's revision history exceeds the review budget. Its working folder is kept.");
-        var latest=anchor;string previousHash=Digest(anchorBytes);long reviewedBytes=anchorBytes.Length;
+        var latest=anchor;bool wasReady=anchor.LegacyAdoptionReady;
+        string previousHash=Digest(anchorBytes);long reviewedBytes=anchorBytes.Length;
         history?.Add(previousHash,anchor with{StoredRecordSha256=previousHash});
         for(long current=1;current<=revision;current++)
         {
             ct.ThrowIfCancellationRequested();byte[] bytes=ReadRecordBytes(session,RevisionName(current),ct);reviewedBytes+=bytes.Length;
             if(reviewedBytes>32L*1024*1024)return UnsupportedSession(session.Path,"This edit's revision history exceeds the review budget. Its working folder is kept.");
-            latest=ParseRecord(bytes,session.Path);
-            if(!latest.IsSupported)return latest;
+            latest=ParseRecord(bytes,session.Path,allowPendingAdoption:true);
+            if(!latest.IsSupported&&!latest.IsPendingAdoption)return latest;
             if(latest.StorageRevision!=current||latest.PreviousRecordSha256!=previousHash||
-                latest.Id!=anchor.Id||latest.Kind!=anchor.Kind||latest.WorkingPath!=anchor.WorkingPath||latest.StorageRootIdentity!=anchor.StorageRootIdentity||
+                latest.Id!=anchor.Id||latest.Kind!=anchor.Kind||latest.WorkingPath!=anchor.WorkingPath||latest.LegacyAdoption!=anchor.LegacyAdoption||
+                wasReady&&!latest.LegacyAdoptionReady||latest.StorageRootIdentity!=anchor.StorageRootIdentity||
                 latest.SessionDirectoryIdentity!=anchor.SessionDirectoryIdentity||latest.WorkingDirectoryIdentity!=anchor.WorkingDirectoryIdentity)
                 return UnsupportedSession(session.Path,"This edit's state record has a broken revision link. Its working folder is kept.");
-            previousHash=Digest(bytes);
+            wasReady=latest.LegacyAdoptionReady;previousHash=Digest(bytes);
             history?.Add(previousHash,latest with{StoredRecordSha256=previousHash});
         }
         RequireStorage(latest,root,session);return latest with{StoredRecordSha256=previousHash};
@@ -148,10 +155,13 @@ public sealed partial class EditSessionStore
     {
         using var root=OpenNativeRoot(default,false);using var allocation=EditStorageAdmission.Acquire(root,default);
         using var session=root.OpenDirectory(record.Id,record.SessionDirectoryIdentity,default);
-        RequireStorage(record,root,session);byte[] anchorBytes=ReadRecordBytes(session,RecordFile,default);var anchor=ParseRecord(anchorBytes,session.Path);
-        if(!anchor.IsSupported)throw new IOException("The initial edit record is no longer supported; the working copy is kept.");
+        RequireStorage(record,root,session);byte[] anchorBytes=ReadRecordBytes(session,RecordFile,default);
+        var anchor=ParseRecord(anchorBytes,session.Path,allowPendingAdoption:true);
+        if(!anchor.IsSupported&&!anchor.IsPendingAdoption)throw new IOException("The initial edit record is no longer supported; the working copy is kept.");
         var current=ReadNativeLatest(anchor,anchorBytes,root,session);
-        if(!current.IsSupported||string.IsNullOrEmpty(record.StoredRecordSha256)||current.StoredRecordSha256!=record.StoredRecordSha256||current.StorageRevision!=record.StorageRevision)
+        if(!current.IsSupported&&!current.IsPendingAdoption||string.IsNullOrEmpty(record.StoredRecordSha256)||
+            current.StoredRecordSha256!=record.StoredRecordSha256||current.StorageRevision!=record.StorageRevision||
+            current.LegacyAdoption!=record.LegacyAdoption||current.LegacyAdoptionReady&&!record.LegacyAdoptionReady)
             throw new IOException("This edit record changed since it was reviewed. Reload it before saving a new state.");
         var next=record with{StorageRevision=checked(current.StorageRevision+1),PreviousRecordSha256=current.StoredRecordSha256};
         byte[] bytes=JsonSerializer.SerializeToUtf8Bytes(next,Json);

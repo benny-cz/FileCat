@@ -21,8 +21,9 @@ public sealed partial class EditSessionStore
         using var allocation=EditStorageAdmission.Acquire(root,ct);
         using var session=root.OpenDirectory(record.Id,record.SessionDirectoryIdentity,ct);
         RequireStorage(record,root,session);
-        byte[] anchorBytes=ReadRecordBytes(session,RecordFile,ct);var anchor=ParseRecord(anchorBytes,session.Path);
-        if(!anchor.IsSupported)throw RecoveredChanged();
+        byte[] anchorBytes=ReadRecordBytes(session,RecordFile,ct);
+        var anchor=ParseRecord(anchorBytes,session.Path,allowPendingAdoption:true);
+        if(!anchor.IsSupported&&!anchor.IsPendingAdoption)throw RecoveredChanged();
         var history=new Dictionary<string,EditSessionRecord>(StringComparer.Ordinal);
         var current=ReadNativeLatest(anchor,anchorBytes,root,session,ct,history);
         if(!current.IsSupported||current.StoredRecordSha256!=record.StoredRecordSha256||current.StorageRevision!=record.StorageRevision)

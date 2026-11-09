@@ -11,7 +11,7 @@ namespace FileCat.Core.Edit;
 /// Its working bytes can be copied only while the legacy record, namespace, metadata and origin still match.
 /// It does not enable migration; a separate destination/retention transaction must consume this lease.
 /// </summary>
-internal sealed class UnixLegacyEditSource : IDisposable
+internal sealed class UnixLegacyEditSource : ILegacyEditSource
 {
     private readonly string path;
     private readonly string leaf;
@@ -26,11 +26,24 @@ internal sealed class UnixLegacyEditSource : IDisposable
     internal EditSessionRecord Session { get; }
     internal EditFileVersion Working => new(workingIdentity, workingLength, workingSha256);
     internal ArchiveOriginSnapshot Origin { get; }
+    internal string RootPath => path;
     internal string RecordSha256 => recordSha256;
     internal string RootIdentity => rootIdentity;
     internal string SessionIdentity => sessionIdentity;
     internal string FilesIdentity => filesIdentity;
     internal string RecordIdentity => recordIdentity;
+
+    EditSessionRecord ILegacyEditSource.Session => Session;
+    EditFileVersion ILegacyEditSource.Working => Working;
+    ArchiveOriginSnapshot ILegacyEditSource.Origin => Origin;
+    string ILegacyEditSource.RootPath => RootPath;
+    string ILegacyEditSource.RootIdentity => RootIdentity;
+    string ILegacyEditSource.SessionIdentity => SessionIdentity;
+    string ILegacyEditSource.FilesIdentity => FilesIdentity;
+    string ILegacyEditSource.RecordIdentity => RecordIdentity;
+    string ILegacyEditSource.RecordSha256 => RecordSha256;
+    void ILegacyEditSource.Review(CancellationToken ct) => Review(ct);
+    void ILegacyEditSource.CopyTo(Stream destination,CancellationToken ct) => CopyTo(destination,ct);
 
     private UnixLegacyEditSource(string path,string leaf,uint user,SafeFileHandle root,SafeFileHandle session,
         SafeFileHandle files,SafeFileHandle record,SafeFileHandle working,EditSessionRecord expected,CancellationToken ct)
@@ -38,7 +51,7 @@ internal sealed class UnixLegacyEditSource : IDisposable
         this.path=path;this.leaf=leaf;this.user=user;
         this.root=root;this.session=session;this.files=files;this.record=record;this.working=working;
         Session=expected;
-        RequireDirectory(root,false,user);RequireDirectory(session,true,user);RequireDirectory(files,false,user);
+        RequireLegacyRoot(root,path,user);RequireDirectory(session,true,user);RequireInheritedFiles(files,session,user);
         rootIdentity=RequireStat(root).Identity.ToString();sessionIdentity=RequireStat(session).Identity.ToString();
         filesIdentity=RequireStat(files).Identity.ToString();
         var recordFacts=Inspect(record,EditSessionStore.MaxRecordBytes,user,ct);
@@ -73,9 +86,9 @@ internal sealed class UnixLegacyEditSource : IDisposable
         SafeFileHandle? root=null,session=null,files=null,record=null,working=null;
         try
         {
-            root=UnixArchiveNative.PinDirectory(path);RequireDirectory(root,false,user);
+            root=UnixArchiveNative.PinDirectory(path);RequireLegacyRoot(root,path,user);
             session=UnixArchiveNative.ChildDirectory(root,expected.Id);RequireDirectory(session,true,user);
-            files=UnixArchiveNative.ChildDirectory(session,"files");RequireDirectory(files,false,user);
+            files=UnixArchiveNative.ChildDirectory(session,"files");RequireInheritedFiles(files,session,user);
             record=UnixArchiveNative.Child(session,"session.json");
             working=UnixArchiveNative.Child(files,leaf);
             var result=new UnixLegacyEditSource(path,leaf,user,root,session,files,record,working,expected,ct);
@@ -88,7 +101,7 @@ internal sealed class UnixLegacyEditSource : IDisposable
     internal void Review(CancellationToken ct=default)
     {
         ObjectDisposedException.ThrowIf(disposed,this);ct.ThrowIfCancellationRequested();
-        RequireDirectory(root,false,user);RequireDirectory(session,true,user);RequireDirectory(files,false,user);
+        RequireLegacyRoot(root,path,user);RequireDirectory(session,true,user);RequireInheritedFiles(files,session,user);
         if(RequireStat(root).Identity.ToString()!=rootIdentity||RequireStat(session).Identity.ToString()!=sessionIdentity||
             RequireStat(files).Identity.ToString()!=filesIdentity)throw Changed("The old edit directories changed.");
         using(var namedRoot=UnixArchiveNative.PinDirectory(path))
@@ -149,8 +162,10 @@ internal sealed class UnixLegacyEditSource : IDisposable
     private static ArchiveUnixOuterMetadata Inspect(SafeFileHandle handle,long limit,uint user,CancellationToken ct)
     {
         var facts=ArchiveUnixOuterMetadata.Capture(handle,ct);
-        if(facts.Native.Owner!=user||facts.Native.LinkCount!=1||facts.Native.Length<0||facts.Native.Length>limit||
-            (facts.Native.Mode&0x12u)!=0)throw Changed("The old edit file is linked, exposed or exceeds its byte budget.");
+        // The historical record may have inherited 0664. Its held 0700 session parent is
+        // required throughout admission, so those mode bits cannot expose the file by name.
+        if(facts.Native.Owner!=user||facts.Native.LinkCount!=1||facts.Native.Length<0||facts.Native.Length>limit)
+            throw Changed("The old edit file is linked, exposed or exceeds its byte budget.");
         return facts;
     }
     private static UnixStat RequireStat(SafeFileHandle handle)=>UnixFiles.Stat(handle)??throw Changed("A held old edit object is unavailable.");
@@ -158,6 +173,30 @@ internal sealed class UnixLegacyEditSource : IDisposable
     {
         if(session)UnixArchiveNative.RequireEditDirectory(handle,user);
         else UnixArchiveNative.RequireCreationDirectory(handle,user);
+    }
+    private static void RequireLegacyRoot(SafeFileHandle handle,string path,uint user)
+    {
+        var facts=RequireStat(handle);
+        if(!facts.IsDirectory||facts.Owner!=user)throw Changed("The old edit root is not a creator-owned directory.");
+        // Old roots were created under the process umask. Even a 0700 root has a replaceable
+        // name when its parent is exposed; require an owner-private parent in every case.
+        using var parent=UnixArchiveNative.PinDirectory(Path.GetDirectoryName(path)!);
+        RequirePrivateContainer(parent,user);
+    }
+    private static void RequireInheritedFiles(SafeFileHandle files,SafeFileHandle session,uint user)
+    {
+        UnixArchiveNative.RequireEditDirectory(session,user);
+        var facts=RequireStat(files);
+        if(!facts.IsDirectory||facts.Owner!=user)
+            throw Changed("The old working directory is not creator-owned.");
+        // The historical files child may also inherit 0775, but its held 0700 session parent
+        // is the only namespace route to it. Every named child and complete byte is rechecked.
+    }
+    private static void RequirePrivateContainer(SafeFileHandle parent,uint user)
+    {
+        UnixArchiveNative.RequireCreationDirectory(parent,user);
+        if((RequireStat(parent).Mode&0x3Fu)!=0)
+            throw Changed("The old edit root has a group-writable name outside a private parent.");
     }
     private static string Hash(SafeFileHandle handle,long length,CancellationToken ct)
     {

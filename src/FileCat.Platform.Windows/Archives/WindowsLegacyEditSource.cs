@@ -12,7 +12,7 @@ namespace FileCat.Platform.Windows.Archives;
 /// Read-only admission of one old v1/v2 edit folder on local NTFS. Its source files remain held and unchanged;
 /// this object has no publication or deletion API, and does not register native edit storage.
 /// </summary>
-internal sealed class WindowsLegacyEditSource : IDisposable
+internal sealed class WindowsLegacyEditSource : ILegacyEditSource
 {
     private readonly WindowsArchiveDirectory root,session,files;
     private readonly WindowsArchiveFile record,working;
@@ -21,12 +21,26 @@ internal sealed class WindowsLegacyEditSource : IDisposable
     private bool disposed;
 
     internal EditSessionRecord Session { get; }
-    internal ArchiveObjectVersion Working => workingVersion;
+    internal EditFileVersion Working => new(workingVersion.Identity,workingVersion.Length,workingVersion.Sha256);
     internal ArchiveOriginSnapshot Origin { get; }
     internal string RecordSha256 => recordSha256;
+    internal string RootPath => root.DisplayPath;
     internal string RootIdentity => root.Identity.ToString();
     internal string SessionIdentity => session.Identity.ToString();
     internal string FilesIdentity => files.Identity.ToString();
+    internal string RecordIdentity => recordVersion.Identity;
+
+    EditSessionRecord ILegacyEditSource.Session => Session;
+    EditFileVersion ILegacyEditSource.Working => Working;
+    ArchiveOriginSnapshot ILegacyEditSource.Origin => Origin;
+    string ILegacyEditSource.RootPath => RootPath;
+    string ILegacyEditSource.RootIdentity => RootIdentity;
+    string ILegacyEditSource.SessionIdentity => SessionIdentity;
+    string ILegacyEditSource.FilesIdentity => FilesIdentity;
+    string ILegacyEditSource.RecordIdentity => RecordIdentity;
+    string ILegacyEditSource.RecordSha256 => RecordSha256;
+    void ILegacyEditSource.Review(CancellationToken ct) => Review(ct);
+    void ILegacyEditSource.CopyTo(Stream destination,CancellationToken ct) => CopyTo(destination,ct);
 
     private WindowsLegacyEditSource(WindowsArchiveDirectory root,WindowsArchiveDirectory session,
         WindowsArchiveDirectory files,WindowsArchiveFile record,WindowsArchiveFile working,

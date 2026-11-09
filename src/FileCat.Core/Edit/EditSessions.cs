@@ -9,6 +9,32 @@ using FileCat.Core.State;
 
 namespace FileCat.Core.Edit;
 
+/// <summary>Path-free, read-only evidence binding a native copy to the retained old edit.</summary>
+public sealed record EditLegacyAdoption
+{
+    public int SourceVersion { get; init; }
+    public string SourceId { get; init; } = "";
+    public string RootIdentity { get; init; } = "";
+    public string SessionIdentity { get; init; } = "";
+    public string FilesIdentity { get; init; } = "";
+    public string RecordIdentity { get; init; } = "";
+    public string RecordSha256 { get; init; } = "";
+    public string WorkingIdentity { get; init; } = "";
+    public long WorkingLength { get; init; }
+    public string WorkingSha256 { get; init; } = "";
+    public string OriginDigest { get; init; } = "";
+
+    internal bool IsValid => SourceVersion is 1 or EditSessionRecord.CurrentVersion &&
+        Guid.TryParseExact(SourceId,"N",out _) &&
+        new[]{RootIdentity,SessionIdentity,FilesIdentity,RecordIdentity,WorkingIdentity}.All(Identity) &&
+        new[]{RecordSha256,WorkingSha256,OriginDigest}.All(Digest) &&
+        WorkingLength is >=0 and <=EditSessionStore.MaxMemberBytes;
+    private static bool Identity(string value)=>value is { Length: >0 and <=256 } &&
+        value.All(c=>c is >= '!' and <= '~');
+    private static bool Digest(string value)=>value is { Length:64 } &&
+        value.All(c=>c is >= '0' and <= '9' or >= 'A' and <= 'F');
+}
+
 /// <summary>
 /// One external edit of an archive member or a file on a server (plan §14.2, NET-003): its origin and version
 /// evidence, a private working copy, and what was last written back. It survives navigation, tab closing, and
@@ -38,18 +64,23 @@ public sealed record EditSessionRecord
     public string WorkingDirectoryIdentity { get; init; } = "";
     public string StorageRootIdentity { get; init; } = "";
     public string SessionDirectoryIdentity { get; init; } = "";
+    [JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] public EditLegacyAdoption? LegacyAdoption { get; init; }
+    [JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingDefault)] public bool LegacyAdoptionReady { get; init; }
     public long StorageRevision { get; init; }
     public string PreviousRecordSha256 { get; init; } = "";
     [JsonIgnore] internal string StoredRecordSha256 { get; init; } = "";
     [JsonIgnore] public string? UnsupportedReason { get; init; }
     [JsonIgnore] public bool IsLegacyZip => !IsRemote && (Version == 1 || ArchiveFormat == ArchiveWriteFormat.Zip);
     [JsonIgnore] public bool IsNativeArchive => !IsRemote && !IsLegacyZip;
-    [JsonIgnore] public bool IsSupported => UnsupportedReason is null && Version is 1 or CurrentVersion or NativeStorageVersion &&
+    [JsonIgnore] public bool IsSupported => HasValidShape && (LegacyAdoption is null || LegacyAdoptionReady);
+    [JsonIgnore] internal bool IsPendingAdoption => HasValidShape && LegacyAdoption is not null && !LegacyAdoptionReady;
+    [JsonIgnore] private bool HasValidShape => UnsupportedReason is null && Version is 1 or CurrentVersion or NativeStorageVersion &&
         ArchivePath is not null && MemberPath is not null && WorkingPath is not null && BaseSha256 is not null && Baseline is not null &&
         ProfileId is not null && ServerDisplay is not null && RemotePath is not null &&
         StorageRootIdentity is not null && SessionDirectoryIdentity is not null && PreviousRecordSha256 is not null && StorageRevision>=0 &&
         (Version!=NativeStorageVersion||!string.IsNullOrEmpty(StorageRootIdentity)&&!string.IsNullOrEmpty(SessionDirectoryIdentity)&&
             !string.IsNullOrEmpty(WorkingDirectoryIdentity)&&!string.IsNullOrEmpty(WorkingIdentity))&&
+        (LegacyAdoption is null && !LegacyAdoptionReady || Version==NativeStorageVersion&&LegacyAdoption is { IsValid:true }&&LegacyAdoption.SourceId!=Id) &&
         Kind is ArchiveKind or RemoteKind && (!IsNativeArchive ||
         ArchiveFormat is ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip &&
         ArchiveProfile is not null && ArchiveProfile.Format == ArchiveFormat && MemberOccurrence == 0 &&
@@ -238,7 +269,7 @@ public sealed partial class EditSessionStore
     }
 
     // Only bounded bytes and the store-owned directory name enter the parser. Unknown shapes never choose .NET types.
-    internal static EditSessionRecord ParseRecord(byte[] bytes, string directory)
+    internal static EditSessionRecord ParseRecord(byte[] bytes, string directory,bool allowPendingAdoption=false)
     {
         const string unsupported = "This edit-session version or archive profile is not supported. Its working files are kept.";
         if (bytes.Length > MaxRecordBytes) return UnsupportedSession(directory, "This edit record exceeds the metadata budget. Its working folder is kept.");
@@ -261,7 +292,8 @@ public sealed partial class EditSessionStore
                 if (record is not null)
                 {
                     record = record with { Version = version };
-                    if (record.IsSupported && SafeRecoveryPath(directory, record.WorkingPath) == record.WorkingPath)
+                    if ((record.IsSupported || allowPendingAdoption && record.IsPendingAdoption) &&
+                        SafeRecoveryPath(directory, record.WorkingPath) == record.WorkingPath)
                         return version == 1 && !record.IsRemote ? record with { ArchiveFormat = ArchiveWriteFormat.Zip, ArchiveProfile = null } : record;
                 }
             }
@@ -367,7 +399,7 @@ public sealed partial class EditSessionStore
     {
         RefuseElevatedSession();
         ct.ThrowIfCancellationRequested();
-        if(nativeOpen is not null)return CreateNativeSession(fileName,write,describe,ct);
+        if(nativeOpen is not null)return CreateNativeSession(fileName,(path,open,_)=>write(path,open),describe,ct);
         string id = Guid.NewGuid().ToString("N");
         string dir = Path.Combine(Root, id);
         CreatePrivateDirectory(dir);

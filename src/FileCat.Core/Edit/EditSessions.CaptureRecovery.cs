@@ -36,8 +36,9 @@ public sealed partial class EditSessionStore
             throw new NotSupportedException("This edit does not have native capture recovery support. Its files are kept.");
         using var root=OpenNativeRoot(ct,false);
         using var session=root.OpenDirectory(record.Id,record.SessionDirectoryIdentity,ct);RequireStorage(record,root,session);
-        byte[] anchorBytes=ReadRecordBytes(session,RecordFile,ct);var anchor=ParseRecord(anchorBytes,session.Path);
-        if(!anchor.IsSupported)throw new IOException("The edit record cannot be reviewed. Its captured files are kept.");
+        byte[] anchorBytes=ReadRecordBytes(session,RecordFile,ct);
+        var anchor=ParseRecord(anchorBytes,session.Path,allowPendingAdoption:true);
+        if(!anchor.IsSupported&&!anchor.IsPendingAdoption)throw new IOException("The edit record cannot be reviewed. Its captured files are kept.");
         var history=new Dictionary<string,EditSessionRecord>(StringComparer.Ordinal);
         var current=ReadNativeLatest(anchor,anchorBytes,root,session,ct,history);
         if(!current.IsSupported||string.IsNullOrEmpty(record.StoredRecordSha256)||current.StoredRecordSha256!=record.StoredRecordSha256)

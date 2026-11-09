@@ -44,7 +44,7 @@ def main():
     for name, digest in expected.items():
         if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest) or \
             index["binaries/" + name]["sha256"] != digest or \
-            sha(verified / "binaries" / name) != digest or sha(product / name) != digest:
+            sha(verified / "binaries" / name) != digest:
             raise ValueError("Guest product binary differs from sealed v40 evidence: " + name)
     root = task / args.image_name
     root.mkdir(exist_ok=False)
@@ -63,7 +63,15 @@ def main():
         for name in ("FileCat.Core.dll", "FileCat.Core.pdb", "FileCat.Archives.dll", "FileCat.Archives.pdb", "FileCat.Archives.Rar15.dll",
                      "FileCat.Archives.Rar15.pdb", "FileCat.SharpCompress.dll", "FileCat.SharpCompress.pdb",
                      "DiscUtils.Core.dll", "DiscUtils.Streams.dll", "DiscUtils.Iso9660.dll", "DiscUtils.Udf.dll"):
-            shutil.copyfile(product / name, root / phase / name)
+            # A later product build may already be under test. Freeze the exact v40
+            # assemblies in this campaign without changing that build's output.
+            sealed = verified / "binaries" / name
+            if sealed.is_file():
+                row = index.get("binaries/" + name)
+                if row is None or sha(sealed) != row["sha256"]:
+                    raise ValueError("Sealed v40 dependency differs from its manifest: " + name)
+            shutil.copyfile(sealed if sealed.is_file() else product / name,
+                            root / phase / name)
     (root / "runs").mkdir()
     dotnet = task / "dotnet" / "dotnet"
     env = os.environ.copy()

@@ -10,8 +10,9 @@ public sealed partial class EditSessionStore
         using var root=OpenNativeRoot(ct,false);
         using var session=root.OpenDirectory(record.Id,record.SessionDirectoryIdentity,ct);
         RequireStorage(record,root,session);
-        byte[] anchorBytes=ReadRecordBytes(session,RecordFile,ct);var anchor=ParseRecord(anchorBytes,session.Path);
-        if(!anchor.IsSupported)throw new IOException("The initial edit record needs recovery review.");
+        byte[] anchorBytes=ReadRecordBytes(session,RecordFile,ct);
+        var anchor=ParseRecord(anchorBytes,session.Path,allowPendingAdoption:true);
+        if(!anchor.IsSupported&&!anchor.IsPendingAdoption)throw new IOException("The initial edit record needs recovery review.");
         var current=ReadNativeLatest(anchor,anchorBytes,root,session);
         if(!current.IsSupported||string.IsNullOrEmpty(record.StoredRecordSha256)||current.StoredRecordSha256!=record.StoredRecordSha256)
             throw new IOException("The edit record changed before its working file was reviewed. Reload the session.");

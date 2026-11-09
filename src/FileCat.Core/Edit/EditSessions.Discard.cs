@@ -13,6 +13,8 @@ public sealed partial class EditSessionStore
     {
         RefuseElevatedSession();ct.ThrowIfCancellationRequested();check?.Invoke();
         if(!record.IsSupported)throw new NotSupportedException("Unsupported edit-session directories are kept for recovery.");
+        if(record.LegacyAdoption is not null)
+            throw new NotSupportedException("An adopted edit and its old recovery folder need separate exact-object retirement review. Both are kept.");
         if(record.StorageRootIdentity.Length==0)
         {
             // The existing legacy composition remains separate until explicit native adoption is qualified.

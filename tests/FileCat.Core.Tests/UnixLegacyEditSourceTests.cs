@@ -24,6 +24,7 @@ public sealed class UnixLegacyEditSourceTests
         string parent=Path.GetFullPath(Environment.GetEnvironmentVariable("FILECAT_EDIT_NATIVE_ROOT")??Path.GetTempPath());
         if(OperatingSystem.IsMacOS()&&parent.StartsWith("/var/",StringComparison.Ordinal))parent="/private"+parent;
         string fixture=Directory.CreateDirectory(Path.Combine(parent,"filecat-legacy-zip-"+Guid.NewGuid().ToString("N"))).FullName;
+        File.SetUnixFileMode(fixture,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute);
         try
         {
             string archivePath=Path.Combine(fixture,"docs.zip");
@@ -49,7 +50,8 @@ public sealed class UnixLegacyEditSourceTests
 
     [Theory,InlineData("copy"),InlineData("in-place-change"),InlineData("working-replacement"),
         InlineData("record-replacement"),InlineData("working-symlink"),InlineData("exposed-files"),
-        InlineData("working-hardlink"),InlineData("origin"),InlineData("unknown-xattr")]
+        InlineData("working-hardlink"),InlineData("origin"),InlineData("unknown-xattr"),
+        InlineData("inherited-layout"),InlineData("exposed-root-parent")]
     public void Old_edit_source_is_read_only_and_refuses_changed_or_exposed_objects(string scenario)
     {
         if(OperatingSystem.IsWindows())Assert.Skip("This is the Unix descriptor lane.");
@@ -57,6 +59,7 @@ public sealed class UnixLegacyEditSourceTests
         string parent=Path.GetFullPath(Environment.GetEnvironmentVariable("FILECAT_EDIT_NATIVE_ROOT")??Path.GetTempPath());
         if(OperatingSystem.IsMacOS()&&parent.StartsWith("/var/",StringComparison.Ordinal))parent="/private"+parent;
         string fixture=Directory.CreateDirectory(Path.Combine(parent,"filecat-legacy-source-"+Guid.NewGuid().ToString("N"))).FullName;
+        File.SetUnixFileMode(fixture,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute);
         try
         {
             string root=Path.Combine(fixture,"legacy");var operations=new UnixFileOperations();
@@ -68,7 +71,21 @@ public sealed class UnixLegacyEditSourceTests
             string session=store.SessionDirectory(old),record=Path.Combine(session,"session.json");
             Assert.Equal(EditSessionRecord.CurrentVersion,old.Version);
             Assert.True(File.Exists(old.WorkingPath));
-            if(scenario=="working-symlink")
+            if(scenario=="inherited-layout")
+            {
+                File.SetUnixFileMode(root,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute|
+                    UnixFileMode.GroupRead|UnixFileMode.GroupWrite|UnixFileMode.GroupExecute);
+                File.SetUnixFileMode(Path.GetDirectoryName(old.WorkingPath)!,UnixFileMode.UserRead|
+                    UnixFileMode.UserWrite|UnixFileMode.UserExecute|UnixFileMode.GroupRead|
+                    UnixFileMode.GroupWrite|UnixFileMode.GroupExecute);
+            }
+            if(scenario=="exposed-root-parent")
+            {
+                File.SetUnixFileMode(fixture,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute|
+                    UnixFileMode.GroupRead|UnixFileMode.GroupWrite|UnixFileMode.GroupExecute);
+                Assert.ThrowsAny<IOException>(()=>UnixLegacyEditSource.Open(root,old,ct));
+            }
+            else if(scenario=="working-symlink")
             {
                 string retained=Path.Combine(session,"retained-original");File.Move(old.WorkingPath,retained);
                 File.CreateSymbolicLink(old.WorkingPath,retained);
@@ -76,7 +93,7 @@ public sealed class UnixLegacyEditSourceTests
             }
             else if(scenario=="exposed-files")
             {
-                File.SetUnixFileMode(Path.GetDirectoryName(old.WorkingPath)!,
+                File.SetUnixFileMode(session,
                     UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute|
                     UnixFileMode.GroupRead|UnixFileMode.GroupWrite|UnixFileMode.GroupExecute|
                     UnixFileMode.OtherRead|UnixFileMode.OtherWrite|UnixFileMode.OtherExecute);
@@ -98,7 +115,7 @@ public sealed class UnixLegacyEditSourceTests
                 Assert.Equal(old,held.Session);Assert.Equal(bytes.Length,held.Working.Length);
                 Assert.False(string.IsNullOrEmpty(held.RootIdentity));
                 Assert.False(string.IsNullOrEmpty(held.RecordSha256));
-                if(scenario=="copy")
+                if(scenario is "copy" or "inherited-layout")
                 {
                     using var copy=new MemoryStream();held.CopyTo(copy,ct);Assert.Equal(bytes,copy.ToArray());
                     held.Review(ct);
