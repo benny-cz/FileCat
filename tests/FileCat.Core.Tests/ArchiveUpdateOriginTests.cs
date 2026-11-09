@@ -42,6 +42,65 @@ public sealed class ArchiveUpdateOriginTests
         Assert.Throws<ArchiveWriteException>(() => Review(original, inputs, expectedOriginal, expected, mutation == "checksum"));
     }
 
+    [Theory]
+    [InlineData(ArchiveOriginFormat.MacQuarantine, false, false)]
+    [InlineData(ArchiveOriginFormat.MacQuarantine, false, true)]
+    [InlineData(ArchiveOriginFormat.MacQuarantine, true, false)]
+    [InlineData(ArchiveOriginFormat.MacQuarantine, true, true)]
+    [InlineData(ArchiveOriginFormat.LinuxOriginUrl, false, false)]
+    [InlineData(ArchiveOriginFormat.LinuxOriginUrl, false, true)]
+    [InlineData(ArchiveOriginFormat.LinuxOriginUrl, true, false)]
+    [InlineData(ArchiveOriginFormat.LinuxOriginUrl, true, true)]
+    public void Unix_update_retains_one_exact_mark_from_the_original_or_inputs(ArchiveOriginFormat format, bool oldMarked, bool inputMarked)
+    {
+        var mark = ArchiveOriginSnapshot.Present(format, [0, 255, 9]);
+        var absent = ArchiveOriginSnapshot.Absent(format);
+        var original = Source("original", oldMarked ? mark : absent);
+        var input = Source("input", inputMarked ? mark : absent);
+        var result = ReviewUnix(original, [input], original, [input]);
+        Assert.Equal(oldMarked || inputMarked ? mark.Digest : absent.Digest, result.Digest);
+    }
+
+    [Theory]
+    [InlineData(ArchiveOriginFormat.MacQuarantine)] [InlineData(ArchiveOriginFormat.LinuxOriginUrl)]
+    public void Unix_update_binds_directories_and_refuses_conflicting_or_unavailable_marks(ArchiveOriginFormat format)
+    {
+        var mark = ArchiveOriginSnapshot.Present(format, []);
+        var different = ArchiveOriginSnapshot.Present(format, [1]);
+        var absent = ArchiveOriginSnapshot.Absent(format);
+        var original = Source("original", mark);
+        var input = Source("input", absent);
+        ArchiveDirectoryObservation Directory(ArchiveOriginSnapshot origin) => new("folder", "parent", "folder", Empty, origin, new(0, 0), 0x1c0);
+        var directory = Directory(mark);
+        Assert.Equal(mark.Digest, ReviewUnix(original, [input], original, [input], [directory], [directory]).Digest);
+        Assert.Equal(ArchiveWriteReason.NeedsReview, Assert.Throws<ArchiveWriteException>(() =>
+            ReviewUnix(original, [input], original, [input], [directory], [Directory(absent)])).Reason);
+        Assert.Equal(ArchiveWriteReason.PublicationUnavailable, Assert.Throws<ArchiveWriteException>(() =>
+            ReviewUnix(original, [Source("input", different)], original, [Source("input", different)], [directory], [directory])).Reason);
+        Assert.Equal(ArchiveWriteReason.NeedsReview, Assert.Throws<ArchiveWriteException>(() =>
+            ReviewUnix(original, [Source("input", ArchiveOriginSnapshot.Unavailable(format, ArchiveOriginFailure.AccessDenied))],
+                original, [Source("input", ArchiveOriginSnapshot.Unavailable(format, ArchiveOriginFailure.AccessDenied))])).Reason);
+        Assert.Equal(ArchiveWriteReason.NeedsReview, Assert.Throws<ArchiveWriteException>(() =>
+            ReviewUnix(original, [input], original, [input], [Directory(different)], [Directory(different)], corrupt: true)).Reason);
+    }
+
+    private static ArchiveOriginSnapshot ReviewUnix(ArchiveFileObservation original, ArchiveFileObservation[] inputs,
+        ArchiveFileObservation expectedOriginal, ArchiveFileObservation[] expected,
+        ArchiveDirectoryObservation[]? directories = null, ArchiveDirectoryObservation[]? expectedDirectories = null, bool corrupt = false)
+    {
+        var scope = new ArchiveOriginEvidenceScope(Guid.NewGuid(), new(ArchiveWriteFormat.Tar), ArchiveOriginOperation.Update,
+            inputs.Length + (directories?.Length ?? 0) + 1);
+        using var stream = new MemoryStream(); using var writer = new ArchiveOriginEvidenceWriter(stream, scope);
+        writer.Append(new(ArchiveOriginSourceKind.OriginalArchive, original.Version, original.Origin));
+        foreach (var input in inputs) writer.Append(new(ArchiveOriginSourceKind.File, input.Version, input.Origin));
+        foreach (var directory in directories ?? []) writer.Append(new(ArchiveOriginSourceKind.Directory, directory.Version, directory.Origin));
+        var info = writer.Complete(); byte[] bytes = stream.ToArray(); if (corrupt) bytes[^1] ^= 1;
+        using var view = new MemoryStream(bytes, false);
+        try { return ArchiveUpdateOrigin.ReviewUnixExact(view, info, scope, expectedOriginal, expected,
+            TestContext.Current.CancellationToken, expectedDirectories); }
+        finally { Assert.False(view.CanRead); }
+    }
+
     private static ArchiveOriginSnapshot Review(ArchiveFileObservation original, ArchiveFileObservation[] inputs,
         ArchiveFileObservation expectedOriginal, ArchiveFileObservation[] expected, bool corrupt = false)
     {

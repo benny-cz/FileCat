@@ -87,7 +87,7 @@ internal static class ArchiveJournaledSnapshotPreparation
                 var originStream = originSidecar.File.OpenReadView(originSidecar.Observation, ct);
                 var origin = target.Reviewed.Origin.Format == ArchiveOriginFormat.WindowsZoneIdentifier
                     ? ArchiveUpdateOrigin.ReviewWindows(originStream, evidence, setup.Origin, target.Reviewed, [snapshot.Reviewed], ct)
-                    : ArchiveUpdateOrigin.ReviewUnmarked(originStream, evidence, setup.Origin, target.Reviewed, [snapshot.Reviewed], ct);
+                    : ArchiveUpdateOrigin.ReviewUnixExact(originStream, evidence, setup.Origin, target.Reviewed, [snapshot.Reviewed], ct);
                 // A private new stage uses the canonical zone-only creation mark. The eventual existing target
                 // separately retains its complete original fields and receives the full update-origin union.
                 var stageOrigin = origin.Format == ArchiveOriginFormat.WindowsZoneIdentifier && origin.State == ArchiveOriginState.Present
