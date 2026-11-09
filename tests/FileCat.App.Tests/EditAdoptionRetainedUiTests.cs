@@ -17,8 +17,9 @@ namespace FileCat.App.Tests;
 [Collection("Native edit snapshot reservations")]
 public sealed class EditAdoptionRetainedUiTests
 {
-    [AvaloniaFact]
-    public async Task Copied_old_edit_stays_active_and_native_copy_has_review_only_actions()
+    [AvaloniaTheory]
+    [InlineData(false),InlineData(true)]
+    public async Task Copied_old_edit_stays_active_and_native_copy_has_review_only_actions(bool changedNative)
     {
         var ct=TestContext.Current.CancellationToken;
         string parent=Path.GetFullPath(Environment.GetEnvironmentVariable("FILECAT_EDIT_NATIVE_ROOT")??Path.GetTempPath());
@@ -44,6 +45,7 @@ public sealed class EditAdoptionRetainedUiTests
                 ?(ILegacyEditSource)WindowsLegacyEditSource.Open(paths.EditSessionsDirectory,old,ct)
                 :UnixLegacyEditSource.Open(paths.EditSessionsDirectory,old,ct);
             var adopted=services.EditSessions.CopyLegacyForAdoption(source,ct);
+            if(changedNative)File.WriteAllBytes(adopted.WorkingPath,"changed after adoption"u8.ToArray());
             Assert.Equal(old.Id,services.EditSessions.FindRemote("server","/owned.txt")!.Id);
             string? startup=await vm.RestoreEditSessionsAsync();
             Assert.Contains("adopted copy needs review before use",startup,StringComparison.Ordinal);
@@ -51,10 +53,10 @@ public sealed class EditAdoptionRetainedUiTests
                 .Invoke(vm,[adopted])!;
             await Wait(()=>DialogButton("Open working folder") is not null&&
                 window.GetVisualDescendants().OfType<TextBlock>().Any(row=>
-                    row.Text?.Contains("active commit route",StringComparison.Ordinal)==true)||task.IsCompleted);
+                    row.Text?.Contains(changedNative?"link to the old edit needs review":"active commit route",StringComparison.Ordinal)==true)||task.IsCompleted);
             Assert.False(task.IsCompleted);
             string dialogText=string.Join(" | ",window.GetVisualDescendants().OfType<TextBlock>().Select(row=>row.Text));
-            Assert.True(dialogText.Contains("old edit is still the active commit route",StringComparison.Ordinal),
+            Assert.True(dialogText.Contains(changedNative?"link to the old edit needs review":"old edit is still the active commit route",StringComparison.Ordinal),
                 dialogText[^Math.Min(2000,dialogText.Length)..]);
             Assert.Null(DialogButton("Commit"));Assert.Null(DialogButton("Discard…"));
             Assert.Null(DialogButton("Reopen editor"));Assert.Null(DialogButton("Save copy…"));

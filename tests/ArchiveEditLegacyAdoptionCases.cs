@@ -80,6 +80,16 @@ internal static class ArchiveEditLegacyAdoptionCases
                 Assert.True(File.Exists(adopted.WorkingPath));
                 return;
             }
+            if(scenario=="native-origin-changed")
+            {
+                Assert.True(operations.WriteOriginMark(adopted.WorkingPath,
+                    "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.test/changed.txt\r\n"));
+                var changed=Assert.Single(store.ReviewLegacyAdoptions(legacyOpen,ct));
+                Assert.Equal(EditLegacyAdoptionCatalogState.NeedsReview,changed.State);
+                Assert.Equal(expected,File.ReadAllBytes(old.WorkingPath));
+                Assert.True(File.Exists(adopted.WorkingPath));
+                return;
+            }
             if(scenario=="duplicate")
             {
                 using var second=legacyOpen(oldRoot,old,ct);
