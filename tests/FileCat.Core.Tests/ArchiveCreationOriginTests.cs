@@ -100,6 +100,12 @@ public sealed class ArchiveCreationOriginTests
         var stale = inputs.ToArray(); stale[1] = Input("other", ArchiveOriginSnapshot.Absent(format));
         Assert.Equal(ArchiveWriteReason.NeedsReview,
             Assert.Throws<ArchiveWriteException>(() => Review(Evidence(inputs), stale, format)).Reason);
+        var staleAfterConflict = inputs.ToArray(); staleAfterConflict[2] = Input("other", inputs[2].Origin);
+        Assert.Equal(ArchiveWriteReason.NeedsReview,
+            Assert.Throws<ArchiveWriteException>(() => Review(Evidence(inputs), staleAfterConflict, format)).Reason);
+        var corrupt = Evidence(inputs); corrupt.Bytes[^1] ^= 1;
+        Assert.Equal(ArchiveWriteReason.NeedsReview,
+            Assert.Throws<ArchiveWriteException>(() => Review(corrupt, inputs, format)).Reason);
     }
 
     [Theory]

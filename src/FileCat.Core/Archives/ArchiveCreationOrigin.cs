@@ -11,7 +11,7 @@ internal static class ArchiveCreationOrigin
         if (scope.Operation != ArchiveOriginOperation.Create || !Enum.IsDefined(format)) throw Invalid();
         using var reader = new ArchiveOriginEvidenceReader(ownedEvidence, evidence, scope, ct);
         using var expected = ArchiveCapturedOriginSources.Enumerate(captured, directories).GetEnumerator();
-        bool marked = false; int maximum = 0, count = 0;
+        bool marked = false, conflictingUnixMarks = false; int maximum = 0, count = 0;
         ArchiveOriginSnapshot? unixMark = null;
         while (reader.ReadNext() is { } record)
         {
@@ -29,13 +29,13 @@ internal static class ArchiveCreationOrigin
             {
                 // Unix origin bytes are opaque. A single exact mark can be retained, including when other
                 // inputs have no mark; distinct marks have no defined ordering or truthful merged value.
-                if (unixMark is not null && unixMark.Digest != record.Origin.Digest)
-                    throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
-                        "The selected files have different origin marks that cannot be combined into one archive mark.");
-                unixMark = record.Origin;
+                if (unixMark is not null && unixMark.Digest != record.Origin.Digest) conflictingUnixMarks = true;
+                else unixMark = record.Origin;
             }
         }
         if (!reader.IsComplete || reader.VerifiedInfo != evidence || count != scope.Sources || expected.MoveNext()) throw Invalid();
+        if (conflictingUnixMarks) throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
+            "The selected files have different origin marks that cannot be combined into one archive mark.");
         return format == ArchiveOriginFormat.WindowsZoneIdentifier
             ? marked ? ArchiveWindowsOriginZone.ZoneOnly(maximum) : ArchiveOriginSnapshot.Absent(format)
             : unixMark ?? ArchiveOriginSnapshot.Absent(format);
