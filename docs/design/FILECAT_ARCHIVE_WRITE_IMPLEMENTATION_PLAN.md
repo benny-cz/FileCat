@@ -1166,6 +1166,11 @@ Use small primary inputs to make allocation amplification visible: normally at m
 | FZ14 | Optional external RAR request/snapshot/executable selection and process/output handling | No argument/list-file/config/environment injection, executable/path substitution, unintended input disclosure, network, process escape or publication authority |
 
 Each target calls the real production boundary or adapter. Model-only FZ10 complements actual filesystem fault tests; it does not prove kernel behavior. Fuzz the real wrapper entry path, not just a sanitized decoded object created by the harness.
+FZ03 and FZ13 also require password-aware source/header/payload seeds: data-only and hidden-name
+encryption, wrong passwords, damaged ciphertext and password checks, KDF work bounds, and the
+production read-session lifetime. Use only labeled public synthetic passwords in test corpora;
+no user secret or derived key enters fuzz evidence. The [v16 replay checkpoint](../validation/archive-writing/FUZZ_CAMPAIGN_SETUP.md)
+establishes encrypted seed reachability, but not a long campaign floor.
 
 ### 13.4 Corpus and mutators
 

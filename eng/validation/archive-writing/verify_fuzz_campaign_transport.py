@@ -53,7 +53,8 @@ def verify(image,run,target,minimum_cpu_seconds):
             'ustar-one-file.tar','ustar-directory.tar','ustar-duplicate.tar','pax-unicode-time.tar'}
         assert any('StrictTarCatalog::Read' in name for name in report['production_methods'])
         assert any('StrictTarCatalog::CompareDecoder' in name for name in report['production_methods'])
-    if target in ('journal-state','sevenzip-strict','rar5-strict'):
+    qualified_targets=('journal-state','sevenzip-strict','rar5-strict','sevenzip-password','rar5-password')
+    if target in qualified_targets:
         canary_name,replay_name,short_name=index['qualification_runs']
         assert len({canary_name,replay_name,short_name})==3
         assert all(name.replace('-','').isalnum() for name in (canary_name,replay_name,short_name))
@@ -98,6 +99,44 @@ def verify(image,run,target,minimum_cpu_seconds):
                 mac_manifest=json.load(mac_tar.extractfile('seeds/manifest.json'))
             expected_seeds={row['name']:(row['bytes'],row['sha256']) for row in mac_manifest['seeds']}
             assert mac_manifest['target']=='sevenzip-strict' and set(expected_seeds)==names
+            assert {row['name']:(row['bytes'],row['sha256']) for row in result['extra_seeds']}==expected_seeds
+        elif target=='sevenzip-password':
+            required=('StrictSevenZipCatalog::Read','StrictSevenZipFraming::Read')
+            names={'EmptyEntries.7z','EmptyEntries.solid.7z','FileCat.Methods.Copy.7z',
+                   'FileCat.Methods.LZMA.7z','FileCat.Methods.BZip2.7z','FileCat.Methods.Deflate.7z',
+                   'FileCat.Methods.Deflate64.7z','7Zip.LZMA2.7z'} | {
+                       f'generated-codec-{codec}-protection-{protection}.7z'
+                       for codec in range(7) for protection in range(3)}
+            assert report['SecondaryModuleSha256'].lower()==sha(file('clean/FileCat.Archives.dll'))
+            assert {'FileCat.Archives.Writing.StrictSevenZipCatalog',
+                    'FileCat.Archives.Writing.StrictSevenZipFraming',
+                    'FileCat.Archives.SevenZipReadPasswordSession',
+                    'FileCat.Archives.Writing.SevenZipEncryptionPrimitives',
+                    'FileCat.Archives.Writing.ArchiveCryptoWorkBudget'}.issubset(prep['instrumented_tar_types']['clean'])
+            mac=ROOT/'.tmp/storage-evidence/mac/fuzz-sevenzip-password-v16-mac-seeds.tar.gz'
+            assert sha(mac.read_bytes())=='53ee853544fcb5a36865b213fd6839e481956643ce22f6bc45cb943e0ff9d10b'
+            with tarfile.open(mac,'r:gz') as mac_tar:
+                mac_manifest=json.load(mac_tar.extractfile('seeds/manifest.json'))
+            expected_seeds={row['name']:(row['bytes'],row['sha256']) for row in mac_manifest['seeds']}
+            assert mac_manifest['target']=='sevenzip-password' and set(expected_seeds)==names
+            assert {row['name']:(row['bytes'],row['sha256']) for row in result['extra_seeds']}==expected_seeds
+        elif target=='rar5-password':
+            required=('StrictRar5Catalog::Read','StrictRar5Framing::Read')
+            names={'Rar4.rar','Rar.malformed_512byte.rar'} | {
+                f'generated-method-{method}-mode-{mode}-{stage}.rar'
+                for method in range(6) for mode in range(3) for stage in ('source','rebuilt')}
+            assert report['SecondaryModuleSha256'].lower()==sha(file('clean/FileCat.Archives.dll'))
+            assert {'FileCat.Archives.Writing.StrictRar5Catalog',
+                    'FileCat.Archives.Writing.StrictRar5Framing',
+                    'FileCat.Archives.Rar.Rar5ReadPasswordSession',
+                    'FileCat.Archives.Writing.Rar5EncryptionPrimitives',
+                    'FileCat.Archives.Writing.ArchiveCryptoWorkBudget'}.issubset(prep['instrumented_tar_types']['clean'])
+            mac=ROOT/'.tmp/storage-evidence/mac/fuzz-rar5-password-v16-mac-seeds.tar.gz'
+            assert sha(mac.read_bytes())=='3c7b0f96918e42abff8c7adede2fd33f93b3fa14351e338b4527e88fef51299b'
+            with tarfile.open(mac,'r:gz') as mac_tar:
+                mac_manifest=json.load(mac_tar.extractfile('seeds/manifest.json'))
+            expected_seeds={row['name']:(row['bytes'],row['sha256']) for row in mac_manifest['seeds']}
+            assert mac_manifest['target']=='rar5-password' and set(expected_seeds)==names
             assert {row['name']:(row['bytes'],row['sha256']) for row in result['extra_seeds']}==expected_seeds
         else:
             required=('StrictRar5Catalog::Read','StrictRar5Framing::Read')

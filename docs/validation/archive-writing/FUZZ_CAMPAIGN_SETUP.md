@@ -27,6 +27,19 @@ types were instrumented. The packet and corpus are staged inert on Ubuntu. The v
 serve both FZ03 and FZ13 once FZ09 ends, but canary, short and long runs for each target,
 password-aware paths, structured mutations, and full format floors remain open.
 
+The v16 packet (493,581 bytes, SHA-256
+`c41697f6e37fd8d4dd76f02cbfb246a6fe37264827f8859689ed98b20ea1d355`)
+adds dedicated password-aware 7z/RAR5 strict-catalog targets with public synthetic passwords,
+bounded production read sessions/KDFs and instrumentation of both password stacks. Mac's full
+synthetic 7z matrix passed 273/273 cases. Its v16 replay accepted all 21 generated 7z codec and
+protection vectors and all 36 generated RAR5 method, mode and rewrite vectors; eight older 7z
+fixtures and two RAR4/malformed inputs controlled-refused. The exact Mac transports have SHA-256
+`53ee853544fcb5a36865b213fd6839e481956643ce22f6bc45cb943e0ff9d10b` (7z) and
+`3c7b0f96918e42abff8c7adede2fd33f93b3fa14351e338b4527e88fef51299b` (RAR5).
+Separate host verifiers checked packet/binary/seed identities and 38 selected Archive types.
+These transports and the packet are staged inert on Ubuntu during FZ09. The password targets
+need their own canary-bound short and long campaigns, structured mutations and CPU floors.
+
 9 November 2026. This is an **experimental test-only checkpoint**, not a format or release gate. The
 product candidate under test is `8355ee58cd21edf2b7e4eab185309be669c3c9ad`; application UI changes
 made afterward are outside these fuzz results. No new writer profile is registered.
@@ -51,7 +64,8 @@ The clean copies are distinct from the copy with an intentionally injected canar
 product DLLs and source are never modified by instrumentation.
 
 The guest runner `run_fuzz_guest.py` launches only its owned benny-user systemd service. It enforces
-1 GiB cgroup memory, zero swap, a 2-second per-input watchdog, 1 MiB maximum input, a finite wall
+1 GiB cgroup memory, zero swap, a 2-second per-input watchdog (10 seconds for the password/KDF
+targets), 1 MiB maximum input, a finite wall
 deadline, 16 MiB per-file output limit, 256 MiB total run-output monitor and writable paths confined
 to its run directory. It disables network access and new privileges, retains kernel CPU/memory-peak
 observations before stopping the service, and records command, seeds, product/instrumented hashes,
@@ -87,14 +101,14 @@ and decoder replay with one accepted input, zero refusals, zero crashes. Their g
 was deliberately stopped after about 170 CPU seconds because it did not reach member/PAX paths;
 its terminal status 72 and raw log remain as nonqualifying evidence. The restarted
 `tar-nightly-v2` run includes the 60-second corpus and all four valid synthetic seeds. Its initial
-coverage has 719 features versus 179 in the early empty-only run. It is **running**, bounded to
-12,000 wall seconds, and does **not** satisfy the two-CPU-hour nightly floor until its final result
-is sealed and verified.
+coverage had 719 features versus 179 in the early empty-only run. It completed 9,708.590486 CPU
+seconds and 45,447,001 executions with zero crash artifacts; the independently verified transport
+SHA-256 is `325385e6040e65c17f1e63a43ffca1b7f9f2a1f1d08ff1d951f39813b00a9625`.
 
 ## Open fuzz qualification
 
 FZ01 still needs complete corpus evolution, fresh-process replay, targeted pre-allocation and
-structured mutation oracles, cross-platform replay and its required CPU floor. FZ02–14, all other
+structured mutation oracles and cross-platform replay. FZ02–14, all other
 affected format and shared-state families, complete campaign floors, minimized findings,
 native containment, package/RID evidence and the final code review remain open. Current callback
 coverage is managed FileCat methods only; .NET runtime, native driver and unrelated codecs are not

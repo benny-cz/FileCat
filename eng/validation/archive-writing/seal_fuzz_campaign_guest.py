@@ -56,7 +56,8 @@ def main():
             not any("StrictTarCatalog::Read" in name for name in report["production_methods"]) or \
             not any("StrictTarCatalog::CompareDecoder" in name for name in report["production_methods"]):
             raise ValueError("The strict TAR and decoder coverage evidence is incomplete")
-    if args.target in ("journal-state", "sevenzip-strict", "rar5-strict"):
+    qualified_targets = ("journal-state", "sevenzip-strict", "rar5-strict", "sevenzip-password", "rar5-password")
+    if args.target in qualified_targets:
         qualifications = (args.canary_run, args.canary_replay_run, args.short_run)
         if any(name is None or not name.replace("-", "").isalnum() for name in qualifications) or len(set(qualifications)) != 3:
             raise ValueError("Stateful journal evidence needs distinct canary, replay and short-run names")
@@ -97,6 +98,30 @@ def main():
             instrumented = {"FileCat.Archives.Writing.StrictSevenZipCatalog",
                             "FileCat.Archives.Writing.StrictSevenZipFraming"}.issubset(
                                 prep["instrumented_tar_types"]["clean"])
+        elif args.target == "sevenzip-password":
+            required = ("StrictSevenZipCatalog::Read", "StrictSevenZipFraming::Read")
+            names = {"EmptyEntries.7z", "EmptyEntries.solid.7z", "FileCat.Methods.Copy.7z",
+                     "FileCat.Methods.LZMA.7z", "FileCat.Methods.BZip2.7z", "FileCat.Methods.Deflate.7z",
+                     "FileCat.Methods.Deflate64.7z", "7Zip.LZMA2.7z"} | {
+                         f"generated-codec-{codec}-protection-{protection}.7z"
+                         for codec in range(7) for protection in range(3)}
+            instrumented = {"FileCat.Archives.Writing.StrictSevenZipCatalog",
+                            "FileCat.Archives.Writing.StrictSevenZipFraming",
+                            "FileCat.Archives.SevenZipReadPasswordSession",
+                            "FileCat.Archives.Writing.SevenZipEncryptionPrimitives",
+                            "FileCat.Archives.Writing.ArchiveCryptoWorkBudget"}.issubset(
+                                prep["instrumented_tar_types"]["clean"])
+        elif args.target == "rar5-password":
+            required = ("StrictRar5Catalog::Read", "StrictRar5Framing::Read")
+            names = {"Rar4.rar", "Rar.malformed_512byte.rar"} | {
+                f"generated-method-{method}-mode-{mode}-{stage}.rar"
+                for method in range(6) for mode in range(3) for stage in ("source", "rebuilt")}
+            instrumented = {"FileCat.Archives.Writing.StrictRar5Catalog",
+                            "FileCat.Archives.Writing.StrictRar5Framing",
+                            "FileCat.Archives.Rar.Rar5ReadPasswordSession",
+                            "FileCat.Archives.Writing.Rar5EncryptionPrimitives",
+                            "FileCat.Archives.Writing.ArchiveCryptoWorkBudget"}.issubset(
+                                prep["instrumented_tar_types"]["clean"])
         else:
             required = ("StrictRar5Catalog::Read", "StrictRar5Framing::Read")
             names = {"Rar4.rar", "Rar.malformed_512byte.rar"} | {
@@ -105,7 +130,7 @@ def main():
             instrumented = {"FileCat.Archives.Writing.StrictRar5Catalog",
                             "FileCat.Archives.Writing.StrictRar5Framing"}.issubset(
                                 prep["instrumented_tar_types"]["clean"])
-        if args.target in ("sevenzip-strict", "rar5-strict"):
+        if args.target in ("sevenzip-strict", "rar5-strict", "sevenzip-password", "rar5-password"):
             if report["SecondaryModuleSha256"].lower() != sha(root / "clean" / "FileCat.Archives.dll"):
                 raise ValueError("The format run did not use the instrumented production archive assembly")
         if any(not any(method in name for name in methods) for method in required):
@@ -116,7 +141,7 @@ def main():
             raise ValueError("The format/recovery coverage or structured seed evidence is incomplete")
     if any((run / "crashes").iterdir()):
         raise ValueError("A crash artifact was found after result collection")
-    review_runs = [run] + (diagnostics if args.target in ("journal-state", "sevenzip-strict", "rar5-strict") else [])
+    review_runs = [run] + (diagnostics if args.target in qualified_targets else [])
     if any(path.is_symlink() for review in review_runs for path in review.rglob("*")):
         raise ValueError("A fuzz evidence entry is a symbolic link")
     members = [packet, root / "preparation.json",
@@ -126,10 +151,10 @@ def main():
     # instrument Core; retain that report whenever the preparation claims it.
     if "instrumented_core_types" in prep:
         members.append(root / "instrumented-types-core-clean.json")
-    elif args.target in ("journal-state", "sevenzip-strict", "rar5-strict"):
+    elif args.target in qualified_targets:
         raise ValueError("The image lacks its required Core instrumentation report")
     members += sorted(path for path in run.rglob("*") if path.is_file())
-    if args.target in ("journal-state", "sevenzip-strict", "rar5-strict"):
+    if args.target in qualified_targets:
         members += sorted(path for diagnostic in diagnostics if diagnostic != run
                           for path in diagnostic.rglob("*") if path.is_file())
     if sum(path.stat().st_size for path in members) > 256 * 1048576:
@@ -143,7 +168,7 @@ def main():
     output = task / (args.image + "-" + args.run + "-evidence.tar.gz")
     index = json.dumps({"image": args.image, "run": args.run, "target": args.target,
                         "minimum_cpu_seconds": args.minimum_cpu_seconds,
-                        "qualification_runs": list(qualifications) if args.target in ("journal-state", "sevenzip-strict", "rar5-strict") else [],
+                        "qualification_runs": list(qualifications) if args.target in qualified_targets else [],
                         "files": rows}, indent=2).encode()
     with tarfile.open(output, "x:gz", compresslevel=1) as archive:
         for path, row in zip(members, rows):
