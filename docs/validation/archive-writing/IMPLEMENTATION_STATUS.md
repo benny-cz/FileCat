@@ -6,6 +6,11 @@ codec seeds while controlled-refusing eight older variants. All 27 selected Arch
 instrumented. The packet and replay transport are independently byte/binary verified and staged
 inert on Ubuntu. The active FZ09 run must finish before an Ubuntu FZ03 image or campaign starts;
 no 7z fuzz CPU floor is claimed. See [fuzz setup](FUZZ_CAMPAIGN_SETUP.md).
+The follow-on v15 packet adds the RAR5 logical catalog and physical framing target. Mac guest
+replay accepted all 12 generated source/rewrite seeds for methods 0–5 and controlled-refused two
+incompatible/malformed inputs; the separate verifier bound its packet, binary, 14 seed bytes
+and 33 instrumented Archive types. The v15 packet and corpus are staged inert on Ubuntu. It can
+serve the next FZ03/FZ13 image after FZ09; neither format has a campaign floor yet.
 
 **9 November: first long FZ01 floor verified; stateful FZ09 campaign started.**
 Ubuntu's clean strict-TAR campaign reached 9,708.590486 CPU seconds and 45,447,001

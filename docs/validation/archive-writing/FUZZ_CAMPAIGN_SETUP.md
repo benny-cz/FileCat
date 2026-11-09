@@ -15,6 +15,18 @@ which passed a separate host-side byte/binary/packet verifier. The packet and co
 are staged inert on Ubuntu. A canary, short FZ03 run, long run, encrypted-header/path seeds,
 structured graph mutations and the complete format floor remain open. No FZ03 CPU floor is claimed.
 
+The follow-on `fuzz-harness-v15.tar.gz` packet (491,603 bytes, SHA-256
+`e7e0443d48240b809a2ac25ce4c074fd7317625187268a5f96b5c5f416ae72c1`)
+adds a direct production RAR5 logical-catalog target and instruments both the strict catalog
+and physical framing. Mac generated six methods' source/rewrite archives under the sealed
+v45 product candidate. All 12 generated RAR5 seeds replayed as accepted; a RAR4 archive and
+a malformed RAR input controlled-refused. The exact 14-seed result/instrumentation transport
+has SHA-256 `5fc4ee4fc07e8852d610ff03bf8bc65356bb4bbf9db5e0932b9b1eda8bd61a95`
+and passed a separate host-side packet/guest-binary/seed verifier. The 33 selected Archive
+types were instrumented. The packet and corpus are staged inert on Ubuntu. The v15 image can
+serve both FZ03 and FZ13 once FZ09 ends, but canary, short and long runs for each target,
+password-aware paths, structured mutations, and full format floors remain open.
+
 9 November 2026. This is an **experimental test-only checkpoint**, not a format or release gate. The
 product candidate under test is `8355ee58cd21edf2b7e4eab185309be669c3c9ad`; application UI changes
 made afterward are outside these fuzz results. No new writer profile is registered.

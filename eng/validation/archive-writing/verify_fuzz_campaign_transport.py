@@ -53,7 +53,7 @@ def verify(image,run,target,minimum_cpu_seconds):
             'ustar-one-file.tar','ustar-directory.tar','ustar-duplicate.tar','pax-unicode-time.tar'}
         assert any('StrictTarCatalog::Read' in name for name in report['production_methods'])
         assert any('StrictTarCatalog::CompareDecoder' in name for name in report['production_methods'])
-    if target in ('journal-state','sevenzip-strict'):
+    if target in ('journal-state','sevenzip-strict','rar5-strict'):
         canary_name,replay_name,short_name=index['qualification_runs']
         assert len({canary_name,replay_name,short_name})==3
         assert all(name.replace('-','').isalnum() for name in (canary_name,replay_name,short_name))
@@ -83,7 +83,7 @@ def verify(image,run,target,minimum_cpu_seconds):
                    'unsupported-archive-record.json','duplicate-end.json',
                    'damaged-after-header.json','record-before-begin.json'}
             assert 'FileCat.Core.Archives.ArchiveTransactionCollector' in prep['instrumented_core_types']['clean']
-        else:
+        elif target=='sevenzip-strict':
             required=('StrictSevenZipCatalog::Read','StrictSevenZipFraming::Read')
             names={'EmptyEntries.7z','EmptyEntries.solid.7z','FileCat.Methods.Copy.7z',
                    'FileCat.Methods.LZMA.7z','FileCat.Methods.BZip2.7z','FileCat.Methods.Deflate.7z',
@@ -98,6 +98,21 @@ def verify(image,run,target,minimum_cpu_seconds):
                 mac_manifest=json.load(mac_tar.extractfile('seeds/manifest.json'))
             expected_seeds={row['name']:(row['bytes'],row['sha256']) for row in mac_manifest['seeds']}
             assert mac_manifest['target']=='sevenzip-strict' and set(expected_seeds)==names
+            assert {row['name']:(row['bytes'],row['sha256']) for row in result['extra_seeds']}==expected_seeds
+        else:
+            required=('StrictRar5Catalog::Read','StrictRar5Framing::Read')
+            names={'Rar4.rar','Rar.malformed_512byte.rar'} | {
+                f'generated-method-{method}-{stage}.rar'
+                for method in range(6) for stage in ('source','rebuilt')}
+            assert report['SecondaryModuleSha256'].lower()==sha(file('clean/FileCat.Archives.dll'))
+            assert {'FileCat.Archives.Writing.StrictRar5Catalog',
+                    'FileCat.Archives.Writing.StrictRar5Framing'}.issubset(prep['instrumented_tar_types']['clean'])
+            mac=ROOT/'.tmp/storage-evidence/mac/fuzz-rar5-v15-mac-seeds.tar.gz'
+            assert sha(mac.read_bytes())=='5fc4ee4fc07e8852d610ff03bf8bc65356bb4bbf9db5e0932b9b1eda8bd61a95'
+            with tarfile.open(mac,'r:gz') as mac_tar:
+                mac_manifest=json.load(mac_tar.extractfile('seeds/manifest.json'))
+            expected_seeds={row['name']:(row['bytes'],row['sha256']) for row in mac_manifest['seeds']}
+            assert mac_manifest['target']=='rar5-strict' and set(expected_seeds)==names
             assert {row['name']:(row['bytes'],row['sha256']) for row in result['extra_seeds']}==expected_seeds
         assert {row['name'] for row in result['extra_seeds']}==names
         assert all(any(method in name for name in short['managed_report']['production_methods']) for method in required)

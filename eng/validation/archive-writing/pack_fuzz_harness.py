@@ -22,6 +22,7 @@ def main():
     source = ("Program.cs", "ArchiveFuzzHarness.csproj", "packages.lock.json", "toolchain.json")
     contents = [(output / n, "harness/" + n) for n in names] + [(project / n, "source/" + n) for n in source]
     for name in ("make_session_fuzz_seeds.py", "make_tar_fuzz_seeds.py", "make_sevenzip_fuzz_seeds.py",
+                 "make_rar5_fuzz_seeds.py",
                  "prepare_fuzz_guest.py", "run_fuzz_guest.py", "pack_fuzz_harness.py"):
         contents.append((project.parent / name, "source/" + name))
     for path, _ in contents:
