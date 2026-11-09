@@ -350,6 +350,7 @@ public sealed partial class MainViewModel
                        (session.LastCommitUtc is { } at ? $". Last committed {at.ToLocalTime():g}." : "."),
             });
             var buttons = new List<DialogButton> { new("Close", "close", IsCancel: true), new("Discard…", "discard", IsDanger: true), new("Save copy…", "copy") };
+            if (session.StorageRootIdentity.Length != 0) buttons.Add(new DialogButton("Review retained copies…", "retained"));
             if (state is EditState.Unchanged or EditState.Modified) buttons.Add(new DialogButton("Reopen editor", "reopen", IsDefault: state != EditState.Modified));
             if (state == EditState.Modified) buttons.Add(new DialogButton("Commit", "commit", IsDefault: true));
             var answer = await Dialogs.ShowCustomAsync(session.IsRemote ? "Server file edit" : "Archive edit", body, buttons);
@@ -363,11 +364,53 @@ public sealed partial class MainViewModel
                     else Notify(Describe(now) + ". Your edit is kept.", true);
                     break;
                 case "copy": await SaveSessionCopyAsync(session); break;
+                case "retained": await ReviewSessionRetainedCopiesAsync(session); break;
                 case "discard": await DiscardSessionAsync(session, state); break;
             }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { if (EditSessionsActive) Notify($"Cannot review the edit: {ex.Message}", true); }
+    }
+
+    private async Task ReviewSessionRetainedCopiesAsync(EditSessionRecord session)
+    {
+        try
+        {
+            CheckSessionAction();
+            var reviews = await MutationIoAsync(Services.EditSessions.Root,
+                () => Services.EditSessions.ReviewRetainedCaptures(session), CheckSessionAction);
+            CheckSessionAction();
+            if (reviews.Count == 0) { Notify("No retained copies were found for this edit."); return; }
+            var items = reviews.Select(copy => new ChoiceItem(Path.GetFileName(copy.Directory),
+                copy.State switch
+                {
+                    EditCaptureRecoveryState.Complete => "Verified retained copy",
+                    EditCaptureRecoveryState.Interrupted => "Interrupted copy",
+                    _ => "Needs review",
+                })).ToList();
+            var choice = await Dialogs.ChooseAsync(new ChoiceOptions("Retained edit copies", items)
+            {
+                Hint = "Select a copy to see its recovery state and exact retained folder. Nothing is deleted or published.",
+            });
+            CheckSessionAction();
+            if (choice.Index < 0 || choice.Index >= reviews.Count) return;
+            var selected = reviews[choice.Index];
+            string detail = selected.Reason + "\nRetained folder: " + Formatters.SafeName(selected.Directory) +
+                (selected.Length is { } length ? "\nVerified bytes: " + length : "") +
+                (selected.Sha256 is { } digest ? "\nSHA-256: " + digest : "");
+            if (selected.SavedCopy is { } saved)
+                detail += "\nSaved copy: " + Formatters.SafeName(saved.Destination) +
+                          "\n" + saved.State + ". " + saved.Reason;
+            var answer = await Dialogs.ShowCustomAsync("Retained edit copy", new TextBlock
+            {
+                Text = detail, TextWrapping = TextWrapping.Wrap, MaxWidth = 640,
+            }, [new("Close", "close", IsCancel: true, IsDefault: true), new("Open retained folder", "folder")]);
+            CheckSessionAction();
+            if (answer as string == "folder") Services.Shell.Open(selected.Directory);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        { if (EditSessionsActive) Notify("The retained copies could not be reviewed: " + Formatters.SafeName(error.Message), true); }
     }
 
     private async Task CommitSessionAsync(EditSessionRecord session)

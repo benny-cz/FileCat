@@ -1,5 +1,15 @@
 # Archive writing implementation status
 
+**9 November: coverage-guided fuzz canary passes; structured FZ01 campaign is running.**
+The [test-only setup](FUZZ_CAMPAIGN_SETUP.md) pins the .NET 10/SharpFuzz/native driver artifacts and
+uses separately instrumented guest copies of the verified product DLLs. Ubuntu's canary-only input
+adaptation found a post-validation defect in the real Core guard; the artifact crashes only the
+patched image. A clean strict TAR/raw-decoder 60-second gate completed 391,877 inputs with no crash.
+Four individually accepted synthetic member/PAX seeds now feed a bounded 12,000-second Ubuntu run.
+Its nightly floor is **not yet earned**. Other fuzz targets/floors, linked-native tooling provenance,
+three-platform and release qualification remain open. The next unregistered native-edit candidate
+adds a read-only retained-capture recovery dialog; it compiles but guest UI tests are pending.
+
 **9 November: reviewed Discard allocation and mapped-editor follow-up passes everywhere applicable.**
 `v36` passes Windows40 discard cases (including writable mapped pages after the editor's original file handle
 closes),6 native-store UI cases and45 admission cases. Mac/Ubuntu each pass45 admission,3 Unix refusal-preservation

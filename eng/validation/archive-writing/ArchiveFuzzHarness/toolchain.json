@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "status": "Experimental test-only tooling; compatibility/canary proof in progress; no fuzz floor or release qualification.",
+  "managed_packages": [
+    {
+      "id": "sharpfuzz",
+      "version": "2.3.0",
+      "license": "MIT",
+      "nupkg_bytes": 43753,
+      "nupkg_sha256": "08ea22ffb1b0b0bcebe088a78017ae1ad8d6ce339c8f8ce8c860d6a728ff25ac",
+      "nuspec_sha256": "42112ba8556e159c7fd1faa3e03d44b64c9bc144ce2ae2294174c5b783447ac9",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/Metalnem/sharpfuzz.git",
+        "commit": "7dde242459c5459cb988fb8ace4397a9485d720f"
+      }
+    },
+    {
+      "id": "sharpfuzz.common",
+      "version": "2.2.0",
+      "license": "MIT",
+      "nupkg_bytes": 14714,
+      "nupkg_sha256": "a7db820b3a89fb6acc5824224e4c61b191074c4114f276aa44af5e64aad06418",
+      "nuspec_sha256": "1724b3cecf489ea29155a8a31d11b149910772f5532103ebb8c2f77d2c2a7e05",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/Metalnem/sharpfuzz.git"
+      }
+    },
+    {
+      "id": "dnlib",
+      "version": "4.4.0",
+      "license": "MIT",
+      "nupkg_bytes": 2371388,
+      "nupkg_sha256": "c7c4616ba3520d91701c7e4572a63e95b924a412d894b63005153d24b2950fba",
+      "nuspec_sha256": "7f3dcefba77b6ef7fb8e0f652ee7931d06b052939ec8542d089be20570e68885",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/0xd4d/dnlib",
+        "commit": "34267646667b97717067c9f408c2b6333f438331"
+      }
+    }
+  ],
+  "native_driver": {
+    "repository": "https://github.com/Metalnem/libfuzzer-dotnet",
+    "release": "v2025.05.02.0904",
+    "asset": "libfuzzer-dotnet-ubuntu",
+    "bytes": 827976,
+    "sha256": "c2c2a90d94c409a4af339a0d4f244e0442c5a5d249be0f1252ba07871f285958",
+    "source_sha256": "90f019e2e9ad3a0b93c7ecc2c5afb2fbfc8b5aab6aac51c7e0d349ec79354f36",
+    "license_sha256": "94739947b5a867a482da2e799aa0d21b754f7751ef21f9a0af0344a8d5df714c",
+    "license": "MIT driver; linked LLVM runtime provenance/notices still require qualification",
+    "compiler_reproduction_verified": false
+  },
+  "sources": [
+    "https://www.nuget.org/packages/SharpFuzz/2.3.0",
+    "https://github.com/Metalnem/sharpfuzz",
+    "https://raw.githubusercontent.com/Metalnem/sharpfuzz/master/docs/libFuzzer.md"
+  ]
+}
