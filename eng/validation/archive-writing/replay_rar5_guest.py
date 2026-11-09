@@ -25,10 +25,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=Path, required=True)
     parser.add_argument("--packet-sha256", required=True)
+    parser.add_argument("--packet-name", default="fuzz-harness-v15.tar.gz")
+    parser.add_argument("--password-target", action="store_true")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
     task = args.task.resolve(strict=True)
-    packet = task / "fuzz-harness-v15.tar.gz"
+    packet = task / args.packet_name
     if sha(packet) != args.packet_sha256:
         raise ValueError("RAR5 fuzz packet changed")
     cohort = task / "awe-storage-v45"
@@ -54,20 +56,21 @@ def main():
     seeds = out / "seeds"
     subprocess.run(["python3", str(out / "source" / "make_rar5_fuzz_seeds.py"),
                     "--fixtures", str(product / "TestData" / "Archives"),
-                    "--generated", str(task / "fuzz-rar5-export-v15"), "--out", str(seeds)], check=True)
+                    "--generated", str(task / "fuzz-rar5-export-v15"), "--out", str(seeds),
+                    *(["--password-target"] if args.password_target else [])], check=True)
     dotnet = task / "dotnet" / "dotnet"
     if not dotnet.is_file():
         dotnet = Path.home() / ".dotnet" / "dotnet"
     harness = image / "FileCat.ArchiveFuzzHarness.dll"
     results = []
     for seed in sorted(seeds.glob("*.rar")):
-        completed = subprocess.run([str(dotnet), str(harness), "replay-format", "rar5-strict", str(seed)],
-                                   capture_output=True, text=True, timeout=30)
+        completed = subprocess.run([str(dotnet), str(harness), "replay-format", "rar5-password" if args.password_target else "rar5-strict", str(seed)],
+                                   capture_output=True, text=True, timeout=60 if args.password_target else 30)
         answer = json.loads(completed.stdout) if completed.returncode == 0 else None
         results.append({"name": seed.name, "sha256": sha(seed), "returncode": completed.returncode,
                         "accepted": None if answer is None else answer["accepted"],
                         "stderr": completed.stderr[-2000:]})
-    if any(row["returncode"] != 0 for row in results) or sum(row["accepted"] is True for row in results) < 12:
+    if any(row["returncode"] != 0 for row in results) or sum(row["accepted"] is True for row in results) < (36 if args.password_target else 12):
         raise ValueError("RAR5 replay lacks all twelve valid transform seeds: " + json.dumps(results))
     types = out / "instrumented-types.json"
     completed = subprocess.run([str(dotnet), str(harness), "instrument-tar", str(image / "FileCat.Archives.dll"), str(types)],
@@ -75,8 +78,10 @@ def main():
     if completed.returncode:
         raise ValueError("RAR5 instrumentation failed: " + completed.stdout + completed.stderr)
     instrumented = json.loads(types.read_text())
-    if not {"FileCat.Archives.Writing.StrictRar5Catalog",
-            "FileCat.Archives.Writing.StrictRar5Framing"}.issubset(instrumented):
+    if not ({"FileCat.Archives.Writing.StrictRar5Catalog",
+             "FileCat.Archives.Writing.StrictRar5Framing"} |
+            ({"FileCat.Archives.Rar.Rar5ReadPasswordSession", "FileCat.Archives.Writing.Rar5EncryptionPrimitives",
+              "FileCat.Archives.Writing.ArchiveCryptoWorkBudget"} if args.password_target else set())).issubset(instrumented):
         raise ValueError("Production RAR5 methods were absent from instrumentation")
     evidence = {"packet_sha256": sha(packet), "core_sha256": sha(cohort / "binaries" / "FileCat.Core.dll"),
                 "archives_sha256": sha(cohort / "binaries" / "FileCat.Archives.dll"),

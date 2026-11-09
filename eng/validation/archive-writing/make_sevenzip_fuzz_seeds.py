@@ -29,6 +29,7 @@ def main():
     parser.add_argument("--fixtures", type=Path, required=True)
     parser.add_argument("--generated", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--password-target", action="store_true")
     args = parser.parse_args()
     fixtures = args.fixtures.resolve(strict=True)
     generated = args.generated.resolve(strict=True)
@@ -50,20 +51,21 @@ def main():
             raise ValueError("7z fixture changed during corpus copy: " + name)
         rows.append({"name": name, "bytes": size, "sha256": sha(target)})
     for codec in range(7):
-        name = f"generated-codec-{codec}.7z"
-        source = generated / f"codec-{codec}-filter-0-protection-0" / "members.7z"
-        if not source.is_file() or source.is_symlink():
-            raise ValueError("Missing generated 7z catalog seed: " + name)
-        size = source.stat().st_size
-        total += size
-        if size > 1048576 or total > 4 * 1048576:
-            raise ValueError("7z seed corpus exceeds its byte budget")
-        target = out / name
-        shutil.copyfile(source, target)
-        if sha(target) != sha(source):
-            raise ValueError("Generated 7z vector changed during corpus copy: " + name)
-        rows.append({"name": name, "bytes": size, "sha256": sha(target)})
-    (out / "manifest.json").write_text(json.dumps({"target": "sevenzip-strict", "seeds": rows}, indent=2))
+        for protection in (range(3) if args.password_target else (0,)):
+            name = f"generated-codec-{codec}" + (f"-protection-{protection}" if args.password_target else "") + ".7z"
+            source = generated / f"codec-{codec}-filter-0-protection-{protection}" / "members.7z"
+            if not source.is_file() or source.is_symlink():
+                raise ValueError("Missing generated 7z catalog seed: " + name)
+            size = source.stat().st_size
+            total += size
+            if size > 1048576 or total > 4 * 1048576:
+                raise ValueError("7z seed corpus exceeds its byte budget")
+            target = out / name
+            shutil.copyfile(source, target)
+            if sha(target) != sha(source):
+                raise ValueError("Generated 7z vector changed during corpus copy: " + name)
+            rows.append({"name": name, "bytes": size, "sha256": sha(target)})
+    (out / "manifest.json").write_text(json.dumps({"target": "sevenzip-password" if args.password_target else "sevenzip-strict", "seeds": rows}, indent=2))
     print(json.dumps({"seeds": len(rows), "bytes": total}))
 
 

@@ -4,7 +4,7 @@
 can now keep v1/v2 sessions in their old root while creating and loading v3 sessions from a
 separate native root. Misplaced records are reported as unsupported, and old records retain
 their own save path. The shared Mac guest gate passes including two wrong-root records. Host
-Core and Windows test builds have zero warnings; Windows/Ubuntu guest gates and the separate
+Core and Windows test builds have zero warnings; the Ubuntu guest gate and the separate
 read-only old-folder admission/copy/retirement implementation remain open. The product factory
 is still disabled. See [adoption boundary](LEGACY_EDIT_ADOPTION_BOUNDARY.md).
 The v47 Mac connected focused batch passed all 27 gates, including 20 native storage cases.
@@ -26,6 +26,16 @@ replay accepted all 12 generated source/rewrite seeds for methods 0–5 and cont
 incompatible/malformed inputs; the separate verifier bound its packet, binary, 14 seed bytes
 and 33 instrumented Archive types. The v15 packet and corpus are staged inert on Ubuntu. It can
 serve the next FZ03/FZ13 image after FZ09; neither format has a campaign floor yet.
+The v16 password-aware test packet extends both strict targets through their production read
+password sessions, bounded KDFs and encrypted payload/header graphs. Mac's full synthetic 7z
+matrix passed 273/273 cases; independent guest replay accepted 21 generated 7z vectors across
+seven codecs and all three protection modes, and 36 generated RAR5 source/rewrite vectors
+across six methods and all three modes. Eight older 7z fixtures and two RAR4/malformed inputs
+were controlled refusals. The 7z transport SHA-256 is
+`53ee853544fcb5a36865b213fd6839e481956643ce22f6bc45cb943e0ff9d10b`; the RAR5
+transport SHA-256 is `3c7b0f96918e42abff8c7adede2fd33f93b3fa14351e338b4527e88fef51299b`.
+Both passed independent packet, sealed Mac binary, exact seed and 38-type instrumentation
+verification. This is corpus/replay evidence, not a long fuzz CPU floor.
 
 **9 November: first long FZ01 floor verified; stateful FZ09 campaign started.**
 Ubuntu's clean strict-TAR campaign reached 9,708.590486 CPU seconds and 45,447,001

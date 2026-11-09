@@ -100,7 +100,10 @@ def main():
                 "FileCat.Archives.Writing.SevenZipStrictMetadata",
                 "FileCat.Archives.Writing.SevenZipStrictHeaderReader",
                 "FileCat.Archives.Writing.StrictRar5Catalog",
-                "FileCat.Archives.Writing.StrictRar5Framing"}.issubset(types):
+                "FileCat.Archives.Writing.StrictRar5Framing",
+                "FileCat.Archives.SevenZipReadPasswordSession",
+                "FileCat.Archives.Rar.Rar5ReadPasswordSession",
+                "FileCat.Archives.Writing.ArchiveCryptoWorkBudget"}.issubset(types):
             raise ValueError("Strict TAR, 7z or RAR5 scanner was not instrumented")
     facts = {"candidate": CANDIDATE, "verified_folder": "awe-storage-v40",
              "verified_index_sha256": sha(verified / "files.json"),

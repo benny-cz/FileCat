@@ -17,6 +17,7 @@ def main():
     parser.add_argument("--fixtures", type=Path, required=True)
     parser.add_argument("--generated", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--password-target", action="store_true")
     args = parser.parse_args()
     fixtures = args.fixtures.resolve(strict=True)
     generated = args.generated.resolve(strict=True)
@@ -26,9 +27,10 @@ def main():
     total = 0
     sources = [(name, fixtures / name) for name in ("Rar4.rar", "Rar.malformed_512byte.rar")]
     for method in range(6):
-        for stage in ("source", "rebuilt"):
-            sources.append((f"generated-method-{method}-{stage}.rar",
-                            generated / f"method-{method}-mode-0" / f"{stage}.rar"))
+        for mode in (range(3) if args.password_target else (0,)):
+            for stage in ("source", "rebuilt"):
+                name = f"generated-method-{method}" + (f"-mode-{mode}" if args.password_target else "") + f"-{stage}.rar"
+                sources.append((name, generated / f"method-{method}-mode-{mode}" / f"{stage}.rar"))
     for name, source in sources:
         if not source.is_file() or source.is_symlink():
             raise ValueError("Unreviewable RAR seed: " + name)
@@ -41,7 +43,7 @@ def main():
         if sha(target) != sha(source):
             raise ValueError("RAR seed changed during corpus copy: " + name)
         rows.append({"name": name, "bytes": size, "sha256": sha(target)})
-    (out / "manifest.json").write_text(json.dumps({"target": "rar5-strict", "seeds": rows}, indent=2))
+    (out / "manifest.json").write_text(json.dumps({"target": "rar5-password" if args.password_target else "rar5-strict", "seeds": rows}, indent=2))
     print(json.dumps({"seeds": len(rows), "bytes": total}))
 
 

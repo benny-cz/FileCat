@@ -26,6 +26,7 @@ def main():
     parser.add_argument("--task", type=Path, required=True)
     parser.add_argument("--packet-sha256", required=True)
     parser.add_argument("--packet-name", default="fuzz-harness-v14.tar.gz")
+    parser.add_argument("--password-target", action="store_true")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
     task = args.task.resolve(strict=True)
@@ -57,21 +58,21 @@ def main():
     fixtures = product / "TestData" / "Archives"
     seeds = out / "seeds"
     subprocess.run(["python3", str(out / "source" / "make_sevenzip_fuzz_seeds.py"),
-                    "--fixtures", str(fixtures), "--generated", str(task / "fuzz-sevenzip-export-v13"),
-                    "--out", str(seeds)], check=True)
+                    "--fixtures", str(fixtures), "--generated", str(task / ("fuzz-sevenzip-password-export-v16" if args.password_target else "fuzz-sevenzip-export-v13")),
+                    "--out", str(seeds), *(["--password-target"] if args.password_target else [])], check=True)
     dotnet = task / "dotnet" / "dotnet"
     if not dotnet.is_file():
         dotnet = Path.home() / ".dotnet" / "dotnet"
     harness = image / "FileCat.ArchiveFuzzHarness.dll"
     results = []
     for seed in sorted(seeds.glob("*.7z")):
-        command = [str(dotnet), str(harness), "replay-format", "sevenzip-strict", str(seed)]
-        completed = subprocess.run(command, capture_output=True, text=True, timeout=30)
+        command = [str(dotnet), str(harness), "replay-format", "sevenzip-password" if args.password_target else "sevenzip-strict", str(seed)]
+        completed = subprocess.run(command, capture_output=True, text=True, timeout=60 if args.password_target else 30)
         answer = json.loads(completed.stdout) if completed.returncode == 0 else None
         results.append({"name": seed.name, "sha256": sha(seed), "returncode": completed.returncode,
                         "accepted": None if answer is None else answer["accepted"],
                         "stderr": completed.stderr[-2000:]})
-    if any(row["returncode"] != 0 for row in results) or sum(row["accepted"] is True for row in results) < 3:
+    if any(row["returncode"] != 0 for row in results) or sum(row["accepted"] is True for row in results) < (21 if args.password_target else 3):
         raise ValueError("7z production replay lacks three valid seeded paths: " + json.dumps(results))
     types = out / "instrumented-types.json"
     completed = subprocess.run([str(dotnet), str(harness), "instrument-tar", str(image / "FileCat.Archives.dll"), str(types)],
@@ -79,10 +80,12 @@ def main():
     if completed.returncode:
         raise ValueError("7z instrumentation failed: " + completed.stdout + completed.stderr)
     instrumented = json.loads(types.read_text())
-    if not {"FileCat.Archives.Writing.StrictSevenZipCatalog",
+    if not ({"FileCat.Archives.Writing.StrictSevenZipCatalog",
             "FileCat.Archives.Writing.StrictSevenZipFraming",
             "FileCat.Archives.Writing.SevenZipStrictMetadata",
-            "FileCat.Archives.Writing.SevenZipStrictHeaderReader"}.issubset(instrumented):
+            "FileCat.Archives.Writing.SevenZipStrictHeaderReader"} |
+            ({"FileCat.Archives.SevenZipReadPasswordSession", "FileCat.Archives.Writing.SevenZipEncryptionPrimitives",
+              "FileCat.Archives.Writing.ArchiveCryptoWorkBudget"} if args.password_target else set())).issubset(instrumented):
         raise ValueError("Production 7z methods were absent from instrumentation")
     evidence = {"packet_sha256": sha(packet), "core_sha256": sha(cohort / "binaries" / "FileCat.Core.dll"),
                 "archives_sha256": sha(cohort / "binaries" / "FileCat.Archives.dll"),

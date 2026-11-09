@@ -33,7 +33,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--phase", choices=("canary", "clean"), required=True)
-    parser.add_argument("--target", choices=("digest", "tar-strict", "sevenzip-strict", "rar5-strict", "session-record", "capture-record", "save-copy-intent",
+    parser.add_argument("--target", choices=("digest", "tar-strict", "sevenzip-strict", "rar5-strict", "sevenzip-password", "rar5-password", "session-record", "capture-record", "save-copy-intent",
                                               "save-copy-receipt", "journal-record", "journal-state", "manifest-member"), default="digest")
     parser.add_argument("--seconds", type=int, required=True)
     parser.add_argument("--seed", type=int, required=True)
@@ -88,8 +88,8 @@ def main():
     for name in ("corpus", "crashes", "reports", "tmp"):
         (run / name).mkdir()
     (run / "corpus" / "valid").write_bytes(b"\0" * 1024 if args.target == "tar-strict" else
-                                            b"7z\xbc\xaf\x27\x1c" if args.target == "sevenzip-strict" else
-                                            b"Rar!\x1a\x07\x01\x00" if args.target == "rar5-strict" else
+                                            b"7z\xbc\xaf\x27\x1c" if args.target in ("sevenzip-strict", "sevenzip-password") else
+                                            b"Rar!\x1a\x07\x01\x00" if args.target in ("rar5-strict", "rar5-password") else
                                             b"0{}" if args.target == "capture-record" else
                                             b"{}" if args.target in ("session-record", "save-copy-intent", "save-copy-receipt") else
                                             b"00000000 {}\n" if args.target in ("journal-record", "journal-state") else
@@ -131,7 +131,7 @@ def main():
         if folder.parent != root or not folder.is_dir():
             raise ValueError("Extra corpus must be a direct synthetic seed directory within this image")
         total = 0
-        extension = "*.tar" if args.target == "tar-strict" else "*.7z" if args.target == "sevenzip-strict" else "*.rar" if args.target == "rar5-strict" else "*.bin" if args.target == "manifest-member" else "*.json"
+        extension = "*.tar" if args.target == "tar-strict" else "*.7z" if args.target.startswith("sevenzip-") else "*.rar" if args.target.startswith("rar5-") else "*.bin" if args.target == "manifest-member" else "*.json"
         for index, source in enumerate(sorted(p for p in folder.glob(extension) if p.name != "manifest.json")):
             if index >= 64 or not source.is_file() or source.is_symlink():
                 raise ValueError("Extra corpus has an unreviewable entry")
@@ -143,7 +143,8 @@ def main():
             extra_seeds.append({"name": source.name, "bytes": size, "sha256": sha(source)})
 
     replay = args.replay_text is not None or args.replay_file is not None
-    native = [str(driver), "-runs=1" if replay else f"-max_total_time={args.seconds}", "-timeout=2",
+    native = [str(driver), "-runs=1" if replay else f"-max_total_time={args.seconds}",
+              "-timeout=10" if args.target in ("sevenzip-password", "rar5-password") else "-timeout=2",
               "-rss_limit_mb=900", "-max_len=2" if args.canary_two_byte else "-max_len=1048576", f"-seed={args.seed}",
               "-print_final_stats=1", f"-artifact_prefix={run / 'crashes'}/",
               f"--target_path={managed}", f"--target_arg={harness}", str(run / ("replay-input" if replay else "corpus"))]

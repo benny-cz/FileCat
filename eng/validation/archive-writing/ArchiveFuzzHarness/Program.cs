@@ -71,8 +71,13 @@ if(args is ["instrument-tar",var tarAssembly,var tarTypeReport])
             name.StartsWith("FileCat.Archives.Writing.SevenZipStrictHeaderReader",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Archives.Writing.StrictSevenZipFolderDecoder",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Archives.Writing.StrictSevenZipHeaderDecoder",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.SevenZipReadPasswordSession",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Writing.SevenZipEncryptionPrimitives",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Archives.Writing.StrictRar5Catalog",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.StrictRar5Framing",StringComparison.Ordinal),Options.Value).ToArray();
+            name.StartsWith("FileCat.Archives.Writing.StrictRar5Framing",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Rar.Rar5ReadPasswordSession",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Writing.Rar5EncryptionPrimitives",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Writing.ArchiveCryptoWorkBudget",StringComparison.Ordinal),Options.Value).ToArray();
     File.WriteAllText(tarTypeReport,JsonSerializer.Serialize(types));
     if(!types.Contains("FileCat.Archives.Writing.StrictTarCatalog")||!types.Contains("FileCat.Archives.TarHeaderGuard")||
         !types.Contains("FileCat.Archives.Writing.StrictSevenZipCatalog")||
@@ -80,13 +85,16 @@ if(args is ["instrument-tar",var tarAssembly,var tarTypeReport])
         !types.Contains("FileCat.Archives.Writing.SevenZipStrictMetadata")||
         !types.Contains("FileCat.Archives.Writing.SevenZipStrictHeaderReader")||
         !types.Contains("FileCat.Archives.Writing.StrictRar5Catalog")||
-        !types.Contains("FileCat.Archives.Writing.StrictRar5Framing"))
+        !types.Contains("FileCat.Archives.Writing.StrictRar5Framing")||
+        !types.Contains("FileCat.Archives.SevenZipReadPasswordSession")||
+        !types.Contains("FileCat.Archives.Rar.Rar5ReadPasswordSession")||
+        !types.Contains("FileCat.Archives.Writing.ArchiveCryptoWorkBudget"))
         throw new InvalidOperationException("Production strict TAR/7z/RAR5 scanners were not instrumented.");
     Console.WriteLine(JsonSerializer.Serialize(new{instrumented_types=types.Length,production_tar=true,production_sevenzip=true,production_rar5=true}));return 0;
 }
 if(args is ["replay-format",var formatTarget,var formatInput])
 {
-    if(formatTarget is not ("tar-strict" or "sevenzip-strict" or "rar5-strict"))throw new ArgumentException("Unknown format replay target.");
+    if(formatTarget is not ("tar-strict" or "sevenzip-strict" or "rar5-strict" or "sevenzip-password" or "rar5-password"))throw new ArgumentException("Unknown format replay target.");
     using var file=new FileStream(formatInput,FileMode.Open,FileAccess.Read,FileShare.Read);
     if(file.Length>1048576)throw new ArgumentException("Format replay exceeds 1 MiB.");
     byte[] bytes=new byte[checked((int)file.Length)];file.ReadExactly(bytes);
@@ -120,13 +128,14 @@ if(args.Length!=0)throw new ArgumentException("Fuzz targets receive input throug
 
 Stats.Target=Environment.GetEnvironmentVariable("FILECAT_FUZZ_TARGET")??"digest";
 if(Stats.Target is not ("digest" or "tar-strict" or "session-record" or "capture-record" or "save-copy-intent" or
-    "save-copy-receipt" or "journal-record" or "journal-state" or "manifest-member" or "sevenzip-strict" or "rar5-strict"))
+    "save-copy-receipt" or "journal-record" or "journal-state" or "manifest-member" or "sevenzip-strict" or "rar5-strict" or
+    "sevenzip-password" or "rar5-password"))
     throw new ArgumentException("Unknown fuzz target.");
 Stats.CanaryPrefixMode=Environment.GetEnvironmentVariable("FILECAT_FUZZ_CANARY_PREFIX_MODE")=="1";
 if(Stats.CanaryPrefixMode&&Stats.Target!="digest")throw new ArgumentException("The canary input transform is digest-only.");
 Stats.Module=typeof(ArchiveWritePolicy).Assembly.Location;
 Stats.ModuleSha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Stats.Module)));
-if(Stats.Target is "tar-strict" or "sevenzip-strict" or "rar5-strict")Format.Bind(Stats.Target);
+if(Stats.Target is "tar-strict" or "sevenzip-strict" or "rar5-strict" or "sevenzip-password" or "rar5-password")Format.Bind(Stats.Target);
 Stats.Report=Environment.GetEnvironmentVariable("FILECAT_FUZZ_REPORT");
 if(Stats.Report is not null&&(!Path.IsPathFullyQualified(Stats.Report)||!Directory.Exists(Path.GetDirectoryName(Stats.Report))))
     throw new ArgumentException("The supervisor must select an existing absolute report directory.");
@@ -157,7 +166,7 @@ static void Exercise(ReadOnlySpan<byte> data)
             if(Stats.Calls==1||(Stats.Calls&4095)==0)Stats.Publish();
             return;
         }
-        if(Stats.Target is "tar-strict" or "sevenzip-strict" or "rar5-strict")
+        if(Stats.Target is "tar-strict" or "sevenzip-strict" or "rar5-strict" or "sevenzip-password" or "rar5-password")
         {if(!Format.Exercise(data,Stats.Target))Stats.Refused++;else Stats.Accepted++;}
         else
         {
@@ -165,7 +174,7 @@ static void Exercise(ReadOnlySpan<byte> data)
             if(Stats.CanaryPrefixMode&&data.Length==2)digest+=new string('0',62);
             ArchiveWritePolicy.ValidateDigest(digest);
         }
-        if(Stats.Target is not ("tar-strict" or "sevenzip-strict" or "rar5-strict"))Stats.Accepted++;
+        if(Stats.Target is not ("tar-strict" or "sevenzip-strict" or "rar5-strict" or "sevenzip-password" or "rar5-password"))Stats.Accepted++;
     }
     catch(ArchiveWriteException){Stats.Refused++;}
     catch{Stats.Publish();throw;}
@@ -377,6 +386,9 @@ static class Tar
 static class Format
 {
     internal static MethodInfo SevenRead=null!,RarRead=null!;
+    private static Func<string,IDisposable>? PasswordSession;
+    private const string SevenPassword="Public-7z-catalog-暗号-42829323";
+    private const string RarPassword="Public-RAR-Transform-暗号-42829316";
     internal static void Bind(string target)
     {
         var assembly=Assembly.LoadFrom(Path.Combine(AppContext.BaseDirectory,"FileCat.Archives.dll"));
@@ -389,7 +401,7 @@ static class Format
             Tar.Compare=type.GetMethod("CompareDecoder",BindingFlags.Static|BindingFlags.NonPublic)!;
             if(Tar.Read is null||Tar.Compare is null)throw new InvalidOperationException("Production TAR scanner/decoder entry is absent.");
         }
-        else if(target=="sevenzip-strict")
+        else if(target is "sevenzip-strict" or "sevenzip-password")
         {
             var type=assembly.GetType("FileCat.Archives.Writing.StrictSevenZipCatalog",throwOnError:true)!;
             SevenRead=type.GetMethod("Read",BindingFlags.Static|BindingFlags.NonPublic)!;
@@ -403,6 +415,28 @@ static class Format
             if(RarRead is null||RarRead.GetParameters().Length!=3)
                 throw new InvalidOperationException("Production RAR5 catalog entry changed.");
         }
+        if(target is "sevenzip-password" or "rar5-password")PasswordSession=BindPassword(assembly,target=="sevenzip-password");
+    }
+    private static Func<string,IDisposable> BindPassword(Assembly assembly,bool seven)
+    {
+        var budget=assembly.GetType("FileCat.Archives.Writing.ArchiveCryptoWorkBudget",throwOnError:true)!;
+        var budgetCtor=budget.GetConstructor(BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic,null,
+            [typeof(long),typeof(long)],null)??throw new InvalidOperationException("Production crypto budget constructor changed.");
+        var session=assembly.GetType(seven?"FileCat.Archives.SevenZipReadPasswordSession":"FileCat.Archives.Rar.Rar5ReadPasswordSession",throwOnError:true)!;
+        var constructor=session.GetConstructor(BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic,null,
+            [typeof(ReadOnlySpan<char>),budget,typeof(CancellationToken)],null)
+            ??throw new InvalidOperationException("Production password session constructor changed.");
+        var asSpan=typeof(MemoryExtensions).GetMethod("AsSpan",[typeof(string)])
+            ??throw new InvalidOperationException("String-to-span adapter changed.");
+        var thunk=new ReflectionEmit.DynamicMethod("FileCatFuzzPasswordSession",typeof(IDisposable),[typeof(string)],typeof(Format).Module,true);
+        var il=thunk.GetILGenerator();var token=il.DeclareLocal(typeof(CancellationToken));
+        il.Emit(ReflectionEmit.OpCodes.Ldarg_0);il.Emit(ReflectionEmit.OpCodes.Call,asSpan);
+        il.Emit(ReflectionEmit.OpCodes.Ldc_I8,1L<<22);il.Emit(ReflectionEmit.OpCodes.Ldc_I8,2L<<30);
+        il.Emit(ReflectionEmit.OpCodes.Newobj,budgetCtor);
+        il.Emit(ReflectionEmit.OpCodes.Ldloca_S,token);il.Emit(ReflectionEmit.OpCodes.Initobj,typeof(CancellationToken));
+        il.Emit(ReflectionEmit.OpCodes.Ldloc,token);il.Emit(ReflectionEmit.OpCodes.Newobj,constructor);
+        il.Emit(ReflectionEmit.OpCodes.Castclass,typeof(IDisposable));il.Emit(ReflectionEmit.OpCodes.Ret);
+        return thunk.CreateDelegate<Func<string,IDisposable>>();
     }
     internal static bool Exercise(ReadOnlySpan<byte> data,string target)
     {
@@ -412,7 +446,8 @@ static class Format
             else
             {
                 using var stream=new MemoryStream(data.ToArray(),writable:false);
-                try{_ = (target=="sevenzip-strict"?SevenRead:RarRead).Invoke(null,[stream,CancellationToken.None,null]);}
+                using var password=PasswordSession?.Invoke(target=="sevenzip-password"?SevenPassword:RarPassword);
+                try{_ = (target.StartsWith("sevenzip",StringComparison.Ordinal)?SevenRead:RarRead).Invoke(null,[stream,CancellationToken.None,password]);}
                 catch(TargetInvocationException error)when(error.InnerException is not null)
                 {ExceptionDispatchInfo.Capture(error.InnerException).Throw();throw;}
             }
