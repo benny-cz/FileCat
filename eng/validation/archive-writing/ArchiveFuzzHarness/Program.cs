@@ -40,10 +40,12 @@ if(args is ["patch-canary",var originalPath,var patchedPath])
 if(args is ["instrument",var targetAssembly,var typeReport])
 {
     var types=Fuzzer.Instrument(targetAssembly,
-        name=>name.StartsWith("FileCat.Core.Archives.ArchiveWritePolicy",StringComparison.Ordinal),Options.Value).ToArray();
+        name=>name.StartsWith("FileCat.Core.Archives.ArchiveWritePolicy",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Core.Edit.EditSessionStore",StringComparison.Ordinal),Options.Value).ToArray();
     File.WriteAllText(typeReport,JsonSerializer.Serialize(types));
-    if(!types.Contains("FileCat.Core.Archives.ArchiveWritePolicy"))throw new InvalidOperationException("Production guard was not instrumented.");
-    Console.WriteLine(JsonSerializer.Serialize(new{instrumented_types=types.Length,production_guard=true}));return 0;
+    if(!types.Contains("FileCat.Core.Archives.ArchiveWritePolicy")||!types.Contains("FileCat.Core.Edit.EditSessionStore"))
+        throw new InvalidOperationException("Production guard or session parser was not instrumented.");
+    Console.WriteLine(JsonSerializer.Serialize(new{instrumented_types=types.Length,production_guard=true,production_session=true}));return 0;
 }
 if(args is ["instrument-tar",var tarAssembly,var tarTypeReport])
 {
@@ -58,7 +60,7 @@ if(args is ["instrument-tar",var tarAssembly,var tarTypeReport])
 if(args.Length!=0)throw new ArgumentException("Fuzz targets receive input through the bounded native driver, not command-line paths.");
 
 Stats.Target=Environment.GetEnvironmentVariable("FILECAT_FUZZ_TARGET")??"digest";
-if(Stats.Target is not ("digest" or "tar-strict"))throw new ArgumentException("Unknown fuzz target.");
+if(Stats.Target is not ("digest" or "tar-strict" or "session-record"))throw new ArgumentException("Unknown fuzz target.");
 Stats.CanaryPrefixMode=Environment.GetEnvironmentVariable("FILECAT_FUZZ_CANARY_PREFIX_MODE")=="1";
 if(Stats.CanaryPrefixMode&&Stats.Target!="digest")throw new ArgumentException("The canary input transform is digest-only.");
 Stats.Module=typeof(ArchiveWritePolicy).Assembly.Location;
@@ -86,6 +88,12 @@ static void Exercise(ReadOnlySpan<byte> data)
     Stats.Calls++;
     try
     {
+        if(Stats.Target=="session-record")
+        {
+            if(Session.Exercise(data))Stats.Accepted++;else Stats.Refused++;
+            if(Stats.Calls==1||(Stats.Calls&4095)==0)Stats.Publish();
+            return;
+        }
         if(Stats.Target=="tar-strict")Tar.Exercise(data);
         else
         {
@@ -98,6 +106,31 @@ static void Exercise(ReadOnlySpan<byte> data)
     catch(ArchiveWriteException){Stats.Refused++;}
     catch{Stats.Publish();throw;}
     if(Stats.Calls==1||(Stats.Calls&4095)==0)Stats.Publish();
+}
+
+static class Session
+{
+    private const string Directory="/tmp/filecat-fuzz-session/0123456789abcdef0123456789abcdef";
+    private static readonly MethodInfo Parser=typeof(FileCat.Core.Edit.EditSessionStore).GetMethod("ParseRecord",BindingFlags.Static|BindingFlags.NonPublic)
+        ??throw new InvalidOperationException("Production edit-session parser is unavailable.");
+    internal static bool Exercise(ReadOnlySpan<byte> data)
+    {
+        FileCat.Core.Edit.EditSessionRecord record;
+        try{record=(FileCat.Core.Edit.EditSessionRecord)Parser.Invoke(null,[data.ToArray(),Directory])!;}
+        catch(TargetInvocationException error)when(error.InnerException is not null)
+        {ExceptionDispatchInfo.Capture(error.InnerException).Throw();throw;}
+        if(record.IsSupported)
+        {
+            if(record.Version is not (1 or FileCat.Core.Edit.EditSessionRecord.CurrentVersion or FileCat.Core.Edit.EditSessionRecord.NativeStorageVersion)||
+                !Path.GetFullPath(record.WorkingPath).StartsWith(Directory+Path.DirectorySeparatorChar,StringComparison.Ordinal))
+                throw new InvalidOperationException("A supported edit record escaped its bounded session namespace.");
+            return true;
+        }
+        if(record.UnsupportedReason is null||record.Id!="0123456789abcdef0123456789abcdef"||
+            !Path.GetFullPath(record.WorkingPath).StartsWith(Directory,StringComparison.Ordinal))
+            throw new InvalidOperationException("An unsupported edit record lost its recovery location.");
+        return false;
+    }
 }
 
 static class Stats

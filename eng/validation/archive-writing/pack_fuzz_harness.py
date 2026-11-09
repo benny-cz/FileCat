@@ -9,7 +9,6 @@ import sys
 
 
 def main():
-    root = Path(__file__).resolve().parents[3]
     project = Path(__file__).resolve().parent / "ArchiveFuzzHarness"
     output = project / "bin" / "Release" / "net10.0"
     packet = Path(sys.argv[1]).resolve()
@@ -22,6 +21,7 @@ def main():
              "SharpFuzz.dll", "SharpFuzz.Common.dll", "dnlib.dll")
     source = ("Program.cs", "ArchiveFuzzHarness.csproj", "packages.lock.json", "toolchain.json")
     contents = [(output / n, "harness/" + n) for n in names] + [(project / n, "source/" + n) for n in source]
+    contents.append((project.parent / "make_session_fuzz_seeds.py", "source/make_session_fuzz_seeds.py"))
     for path, _ in contents:
         if not path.is_file():
             raise FileNotFoundError(path)

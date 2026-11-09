@@ -1,5 +1,13 @@
 # Archive writing implementation status
 
+**9 November: FZ09 session-record packet is built; legacy adoption boundary is recorded.**
+The test-only v4 harness builds cleanly, adds an instrumented production session-record parser
+target and nine synthetic schema/corruption seeds; its sealed packet is queued behind the active
+Ubuntu FZ01 campaign, so no FZ09 runtime claim is made. A legacy-adoption draft exposed that old
+inherited permissions cannot be opened under version-3's exact private lease; the draft was removed.
+The [adoption boundary](LEGACY_EDIT_ADOPTION_BOUNDARY.md) now requires a pinned read-only legacy
+source and separate private destination before migration, routing or retirement can proceed.
+
 **9 November: retained-copy recovery UI passes Mac and Windows focused guest gates.**
 `v37` passes the new read-only retained-copy review case, all 26 connected Mac and 27 Windows focused
 gates, 45 native storage-admission cases on each, and the applicable Discard cases with zero failures.

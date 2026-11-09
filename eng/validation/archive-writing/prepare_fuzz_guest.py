@@ -50,7 +50,7 @@ def main():
         shutil.copytree(prior / phase, root / phase)
         for source in (root / "harness").iterdir():
             shutil.copyfile(source, root / phase / source.name)
-        for name in ("FileCat.Archives.dll", "FileCat.Archives.pdb", "FileCat.Archives.Rar15.dll",
+        for name in ("FileCat.Core.dll", "FileCat.Core.pdb", "FileCat.Archives.dll", "FileCat.Archives.pdb", "FileCat.Archives.Rar15.dll",
                      "FileCat.Archives.Rar15.pdb", "FileCat.SharpCompress.dll", "FileCat.SharpCompress.pdb",
                      "DiscUtils.Core.dll", "DiscUtils.Streams.dll", "DiscUtils.Iso9660.dll", "DiscUtils.Udf.dll"):
             shutil.copyfile(product / name, root / phase / name)
@@ -59,6 +59,21 @@ def main():
     env = os.environ.copy()
     env.update(SHARPFUZZ_ENABLE_ON_BRANCH_CALLBACK="1", DOTNET_EnableDiagnostics="0")
     for phase in ("clean", "canary"):
+        if phase == "canary":
+            patched = root / phase / "FileCat.Core.canary.dll"
+            with (root / "patch-canary.log").open("x") as log:
+                subprocess.run([str(dotnet), str(root / phase / "FileCat.ArchiveFuzzHarness.dll"),
+                                "patch-canary", str(root / phase / "FileCat.Core.dll"), str(patched)],
+                               env=env, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=60)
+            patched.replace(root / phase / "FileCat.Core.dll")
+        with (root / f"instrument-core-{phase}.log").open("x") as log:
+            subprocess.run([str(dotnet), str(root / phase / "FileCat.ArchiveFuzzHarness.dll"),
+                            "instrument", str(root / phase / "FileCat.Core.dll"),
+                            str(root / f"instrumented-types-core-{phase}.json")],
+                           env=env, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=60)
+        core_types = json.loads((root / f"instrumented-types-core-{phase}.json").read_text())
+        if "FileCat.Core.Edit.EditSessionStore" not in core_types or "FileCat.Core.Archives.ArchiveWritePolicy" not in core_types:
+            raise ValueError("Production recovery parser/write guard was not instrumented")
         with (root / f"instrument-tar-{phase}.log").open("x") as log:
             subprocess.run([str(dotnet), str(root / phase / "FileCat.ArchiveFuzzHarness.dll"),
                             "instrument-tar", str(root / phase / "FileCat.Archives.dll"),
@@ -78,6 +93,9 @@ def main():
                         for phase in ("clean", "canary")},
              "instrumented_tar_types": {
                  phase: json.loads((root / f"instrumented-types-tar-{phase}.json").read_text())
+                 for phase in ("clean", "canary")},
+             "instrumented_core_types": {
+                 phase: json.loads((root / f"instrumented-types-core-{phase}.json").read_text())
                  for phase in ("clean", "canary")}}
     (root / "preparation.json").write_text(json.dumps(facts, indent=2))
     print(json.dumps(facts))

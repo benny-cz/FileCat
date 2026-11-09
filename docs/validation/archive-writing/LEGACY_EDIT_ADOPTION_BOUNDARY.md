@@ -1,0 +1,35 @@
+# Legacy edit adoption boundary
+
+9 November 2026. This is a design and refusal checkpoint; no legacy session is migrated or
+retired by the current native store.
+
+The version-1/2 creator uses `CreatePrivateDirectory` for the session folder, ordinary
+`Directory.CreateDirectory` for its `files` child, ordinary `FileStream` creation for the working
+file, and `Save` for `session.json`. The native version-3 lease requires explicit private security
+on its root, every child directory and record file. On Unix, the older `files` child can inherit
+mode 0755 while its parent is 0700. On Windows, older objects can inherit a profile DACL rather
+than the exact native DACL. The root itself may also have been created implicitly with inherited
+security. Calling `OpenNativeRoot` and then `OpenDirectory`/`OpenFile` on these objects therefore
+does not form a general adoption bridge. A code draft based on that assumption was removed before
+guest execution.
+
+The adoption implementation needs a separate **read-only** legacy source admission. It must pin
+the exact root, session, `files`, record and working file without following links; inspect their
+owners, effective permissions, identities, file types, hard-link counts, lengths and origin marks;
+and refuse ambiguous or exposed paths. It must recheck the bounded record bytes, working version,
+content hash and origin through completion. It must create version-3 records in a separately
+admitted private destination root when the old root cannot satisfy native security, with a
+descriptor-bound way to copy the origin mark. Both roots must remain discoverable on restart.
+Any failed or interrupted copy keeps the old folder and the new partial folder for review.
+
+After a complete copy, the old record remains a retained recovery copy. Session lookup and startup
+UI need an explicit active/retained relationship before any automatic routing changes. Retirement
+requires a distinct exact-object cleanup review and confirmation; matching a GUID/path alone does
+not authorize deletion. Version-1 ZIP and remote sessions must still commit through their old
+path until the new record is durably reviewed. Unknown future records are never adoption inputs.
+
+Qualification needs real old-version fixtures from each guest, inherited ACL/mode cases,
+hard links, symlinks/reparse points, atomically replaced editor files, concurrent record changes,
+origin-mark preservation, destination refusal, process-kill at each durable step, restart discovery,
+and zero loss of the original session on any refusal. No product factory may enable adoption
+before this matrix and the full connected tests pass.

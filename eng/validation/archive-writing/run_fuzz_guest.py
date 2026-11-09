@@ -33,7 +33,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--phase", choices=("canary", "clean"), required=True)
-    parser.add_argument("--target", choices=("digest", "tar-strict"), default="digest")
+    parser.add_argument("--target", choices=("digest", "tar-strict", "session-record"), default="digest")
     parser.add_argument("--seconds", type=int, required=True)
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--run-id", required=True)
@@ -43,7 +43,7 @@ def main():
     parser.add_argument("--replay-file", type=Path, help="Replay one bounded synthetic input file")
     parser.add_argument("--canary-two-byte", action="store_true", help="Test-only canary input adaptation for a valid digest")
     parser.add_argument("--reuse-run-id", help="Copy bounded corpus entries from a completed run in the same image")
-    parser.add_argument("--extra-seed-directory", type=Path, help="Copy synthetic .tar seeds into a TAR campaign")
+    parser.add_argument("--extra-seed-directory", type=Path, help="Copy synthetic TAR or session-record seeds into a campaign")
     parser.add_argument("--sudo-password", default="a", help="Disposable VM password")
     args = parser.parse_args()
     if not 1 <= args.seconds <= 86400:
@@ -66,8 +66,8 @@ def main():
         parser.error("Choose one replay input")
     if args.reuse_run_id is not None and (not args.reuse_run_id.replace("-", "").isalnum() or args.replay_text is not None or args.replay_file is not None):
         parser.error("reuse-run-id must name a completed run and cannot be used with replay")
-    if args.extra_seed_directory is not None and args.target != "tar-strict":
-        parser.error("Extra TAR seeds apply only to the strict TAR target")
+    if args.extra_seed_directory is not None and args.target not in ("tar-strict", "session-record"):
+        parser.error("Extra seeds apply only to the strict TAR and session-record targets")
 
     root = args.root.resolve(strict=True)
     parent = root.parent
@@ -87,6 +87,7 @@ def main():
     for name in ("corpus", "crashes", "reports", "tmp"):
         (run / name).mkdir()
     (run / "corpus" / "valid").write_bytes(b"\0" * 1024 if args.target == "tar-strict" else
+                                            b"{}" if args.target == "session-record" else
                                             args.valid_prefix.encode() if args.canary_two_byte else
                                             args.valid_prefix.encode() + b"0" * 62)
     (run / "corpus" / "short").write_bytes(b"0")
@@ -124,7 +125,8 @@ def main():
         if folder.parent != root or not folder.is_dir():
             raise ValueError("Extra corpus must be a direct synthetic seed directory within this image")
         total = 0
-        for index, source in enumerate(sorted(folder.glob("*.tar"))):
+        extension = "*.tar" if args.target == "tar-strict" else "*.json"
+        for index, source in enumerate(sorted(p for p in folder.glob(extension) if p.name != "manifest.json")):
             if index >= 64 or not source.is_file() or source.is_symlink():
                 raise ValueError("Extra corpus has an unreviewable entry")
             size = source.stat().st_size
