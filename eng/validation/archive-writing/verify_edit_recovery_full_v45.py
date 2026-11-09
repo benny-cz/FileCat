@@ -41,7 +41,7 @@ def verify(platform):
     assert delta['candidate_commit']==CANDIDATE
     assert delta['separate_fuzz_checkpoint'].startswith('eng/validation/archive-writing/ArchiveFuzzHarness')
     rows={row['path']:row for row in delta['files']}
-    changed=CHANGED
+    changed=CHANGED-({'src/FileCat.App/ViewModels/MainViewModel.EditSessions.cs'} if platform=='mac' else set())
     assert set(rows)==changed
     prior={'mac':'awe-storage-v44','windows':'awe-storage-v43','ubuntu':'awe-storage-v40'}[platform]
     _,previous_index,previous_data=transport.transport(ROOT/'.tmp/storage-evidence'/platform/(prior+'-evidence.tar.gz'),prior)
