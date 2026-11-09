@@ -14,6 +14,20 @@ public sealed partial class EditSessionStore
     internal const int MaximumRecoveryCaptures=1024;
     private const int MaximumCaptureRecordBytes=16384;
 
+    /// <summary>
+    /// A cheap read-only startup hint. The names are only potential retained copies; the full
+    /// receipt, payload and state-chain review still happens when the user opens one.
+    /// </summary>
+    public bool HasRetainedNativeCaptures(EditSessionRecord record,CancellationToken ct=default)
+    {
+        RefuseElevatedSession();ct.ThrowIfCancellationRequested();
+        if(nativeOpen is null||!record.IsSupported||record.StorageRootIdentity.Length==0)return false;
+        using var root=OpenNativeRoot(ct,false);
+        using var session=root.OpenDirectory(record.Id,record.SessionDirectoryIdentity,ct);
+        RequireStorage(record,root,session);
+        return session.Names(ct).Any(name=>name.StartsWith("commit-",StringComparison.Ordinal));
+    }
+
     /// <summary>Inspect retained native commit copies after restart without modifying any working or captured file.</summary>
     public IReadOnlyList<EditCaptureRecovery> ReviewRetainedCaptures(EditSessionRecord record,CancellationToken ct=default)
     {

@@ -58,6 +58,8 @@ public sealed class EditRetainedCopyUiTests
             Assert.IsAssignableFrom<IOException>(Record.Exception(copy.Dispose));
             File.Delete(sentinel);
             string retainedPath=copy.Path, digest=copy.Sha256;
+            string? startup=await vm.RestoreEditSessionsAsync();
+            Assert.Contains("edit has retained copy folders to review",startup,StringComparison.Ordinal);
             var task=(Task)typeof(MainViewModel).GetMethod("ShowSessionAsync",BindingFlags.Instance|BindingFlags.NonPublic)!
                 .Invoke(vm,[record])!;
             await Wait(()=>DialogButton("Review retained copies…") is not null||task.IsCompleted);

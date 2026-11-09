@@ -67,17 +67,25 @@ public sealed partial class MainViewModel
     {
         try
         {
-            var sessions = await LoadEditSessionsAsync(); int modified = 0, unavailable = 0;
+            var sessions = await LoadEditSessionsAsync(); int modified = 0, unavailable = 0, retained = 0, retainedUnknown = 0;
             foreach (var session in sessions)
             {
                 var state = await ReadEditStateAsync(session); CheckSessionAction();
                 if (state == EditState.Modified) modified++;
                 if (state == EditState.Unavailable) unavailable++;
+                if (session.IsSupported && session.StorageRootIdentity.Length != 0)
+                {
+                    try { if (await HasRetainedCaptureHintAsync(session)) retained++; }
+                    catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
+                    { retainedUnknown++; }
+                }
                 if (session.IsSupported) Watch(session);
             }
-            if (modified == 0 && unavailable == 0) return null;
-            return (modified == 0 ? "" : $"{Formatters.Plural(modified, "edit has", "edits have")} changes that are not committed yet.") +
+            if (modified == 0 && unavailable == 0 && retained == 0 && retainedUnknown == 0) return null;
+            return ((modified == 0 ? "" : $"{Formatters.Plural(modified, "edit has", "edits have")} changes that are not committed yet.") +
                 (unavailable == 0 ? "" : $" {(Formatters.Plural(unavailable, "working copy cannot", "working copies cannot"))} be read.") +
+                (retained == 0 ? "" : $" {Formatters.Plural(retained, "edit has", "edits have")} retained copy folders to review.") +
+                (retainedUnknown == 0 ? "" : $" {Formatters.Plural(retainedUnknown, "edit has", "edits have")} retained-copy state that could not be checked.")).TrimStart() +
                 " Review them in File → Edit sessions.";
         }
         catch (OperationCanceledException) { return null; }
@@ -85,6 +93,10 @@ public sealed partial class MainViewModel
 
     private Task<IReadOnlyList<EditSessionRecord>> LoadEditSessionsAsync(Action? check = null) =>
         MutationIoAsync(Services.EditSessions.Root, Services.EditSessions.LoadAll, check ?? CheckSessionAction);
+
+    private Task<bool> HasRetainedCaptureHintAsync(EditSessionRecord session) =>
+        MutationIoAsync(Services.EditSessions.Root,
+            () => Services.EditSessions.HasRetainedNativeCaptures(session), CheckSessionAction);
 
     private async Task<EditState> ReadEditStateAsync(EditSessionRecord session, Action? check = null) =>
         (await ReadEditReviewAsync(session, check)).State;
@@ -301,7 +313,17 @@ public sealed partial class MainViewModel
                 return;
             }
             var items = new List<ChoiceItem>();
-            foreach (var session in sessions) items.Add(new ChoiceItem(session.DisplayName, $"{Describe(await ReadEditStateAsync(session))} · {session.DisplayContainer}"));
+            foreach (var session in sessions)
+            {
+                string detail = $"{Describe(await ReadEditStateAsync(session))} · {session.DisplayContainer}";
+                if (session.IsSupported && session.StorageRootIdentity.Length != 0)
+                {
+                    try { if (await HasRetainedCaptureHintAsync(session)) detail += " · retained copy folders"; }
+                    catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
+                    { detail += " · retained-copy state unavailable"; }
+                }
+                items.Add(new ChoiceItem(session.DisplayName, detail));
+            }
             CheckSessionAction();
             var pick = await Dialogs.ChooseAsync(new ChoiceOptions("Edit sessions", items)
             {
