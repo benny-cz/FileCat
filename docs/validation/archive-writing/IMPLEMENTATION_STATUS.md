@@ -1,14 +1,19 @@
 # Archive writing implementation status
 
-**9 November: full recovery-byte regression cohort queued on Mac and Windows.**
-The latest v40 focused product candidate is sealed on both guests. A runner-only v41 follow-up
-repeats connected gates and the complete Core/Remote/App inventories against those same product
-sources. Ubuntu follows its active FZ01 campaign, focused v40 batch and first native FZ09 launch.
-Mac has passed complete Core and Remote, with App in progress. Windows passed complete Core and
-the exact 335-new-case inventory but stopped before Remote when free space fell below the unchanged
-8 GiB preflight reserve. Its failed v41 bundle is sealed. Older extracted guest cohorts are being
-verified against retained host bundles before cleanup; a runner-only v42 Windows retry follows.
-No full release qualification is claimed.
+**9 November: Mac full recovery-byte regressions pass; Windows full retry is running.**
+The runner-only v41 cohort uses the v40 product sources. Mac passed all 30 connected and complete
+Core/Remote/App gates with zero failures, including the exact 335-new-case Core inventory and no
+missing prior case or lost prior pass. Its independently verified sealed bundle is 29,697,811 bytes /
+SHA-256 `f685aca5fc7b4876819ed30e05a017d88d6774569367a35accb891533420553f`.
+Windows v41 passed complete Core and the same inventory, then preserved a sealed failure when the
+unchanged 8 GiB preflight reserve refused Remote. Twenty-six old extracted guest cohorts were
+checked against retained host indexes before removal; the cleanup receipt records 26 verified and
+26 removed folders, zero errors, and 10,190,790,656 bytes free afterward. Two v42 retry attempts
+stopped before tests because the packet's expected predecessor hash and runner predecessor folder
+did not match the actual sealed v41 source ledger. The v43 runner uses that exact v41 ledger and is
+now executing the full Windows cohort. No failed attempt is counted as a pass. Ubuntu follows its
+active FZ01 campaign, focused v40 batch and first native FZ09 launch. Full release qualification
+remains open.
 
 **9 November: retained-copy Save verified copy UI passes Mac and Windows focused gates.**
 The recovery dialog offers the action only for a complete unused capture when a native destination
