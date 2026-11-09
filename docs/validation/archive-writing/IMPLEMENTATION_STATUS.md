@@ -12,9 +12,18 @@ The bounded 12,000-second FZ09 `journal-state-nightly-v1` run is active, with no
 Mac v44's full Remote and App suites passed; its full Core suite preserved one recorder-test
 race failure in a sealed 25,104,400-byte bundle (SHA-256
 `9654ec8a4ee9038fff5165e2206336d51c7c3e568b33d3d130a0ff507bbf176c`). The race
-is fixed in candidate `bf6690d4cc6775218b7b3777d7618af023b0a1e5`; Mac v45 is running
-its full retry. Windows v43 passed its full suites and independent verifier. Windows v45's
-Core and Remote suites have passed and App is running. No native store or new writer is enabled.
+is fixed in candidate `bf6690d4cc6775218b7b3777d7618af023b0a1e5`. Mac and Windows v45
+both passed complete Core/Remote/App inventories and independent source/compiler/DLL/PDB/raw-test
+verification, with zero failures, no missing prior Core cases or lost prior passes. Mac's 30-gate
+bundle is 29,716,209 bytes / SHA-256
+`effa3bccc8d5e0f62059c0c4ec04782dac58714545ae744d966c5c8e94ee3974`;
+Windows' 31-gate bundle is 31,229,247 bytes /
+`8dfbee6e2f9a3b05d068123b4930858633251fe19c3d9ce844ce7fddbc85c5a1`.
+Windows v46 then passed all 28 connected focused gates for the new read-only retained-copy
+startup/session-list hint, with its 18,935,275-byte bundle independently verified (SHA-256
+`cc6c465b5d5055c13b410ed6918453423f27d8b6251ed027533a5b44870eba22`).
+Mac v46 focused testing is running; Ubuntu v46 waits for the FZ09 campaign to finish.
+The v46 candidate's full suites remain unrun. No native store or new writer is enabled.
 
 **Earlier 9 November checkpoint: late retained-copy fix and fuzz preparation.**
 Candidate `8d0946ff49c16b1950017f31ec52dff66407ac0e` keeps the result of a running native
