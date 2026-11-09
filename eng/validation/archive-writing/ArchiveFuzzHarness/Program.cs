@@ -64,11 +64,32 @@ if(args is ["instrument-tar",var tarAssembly,var tarTypeReport])
 {
     var types=Fuzzer.Instrument(tarAssembly,
         name=>name.StartsWith("FileCat.Archives.Writing.StrictTarCatalog",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.TarHeaderGuard",StringComparison.Ordinal),Options.Value).ToArray();
+            name.StartsWith("FileCat.Archives.TarHeaderGuard",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Writing.StrictSevenZipCatalog",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Writing.StrictSevenZipFraming",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Writing.SevenZipStrictMetadata",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Writing.SevenZipStrictHeaderReader",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Writing.StrictSevenZipFolderDecoder",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Writing.StrictSevenZipHeaderDecoder",StringComparison.Ordinal),Options.Value).ToArray();
     File.WriteAllText(tarTypeReport,JsonSerializer.Serialize(types));
-    if(!types.Contains("FileCat.Archives.Writing.StrictTarCatalog")||!types.Contains("FileCat.Archives.TarHeaderGuard"))
-        throw new InvalidOperationException("Production strict TAR scanner/decoder guard was not instrumented.");
-    Console.WriteLine(JsonSerializer.Serialize(new{instrumented_types=types.Length,production_tar=true}));return 0;
+    if(!types.Contains("FileCat.Archives.Writing.StrictTarCatalog")||!types.Contains("FileCat.Archives.TarHeaderGuard")||
+        !types.Contains("FileCat.Archives.Writing.StrictSevenZipCatalog")||
+        !types.Contains("FileCat.Archives.Writing.StrictSevenZipFraming")||
+        !types.Contains("FileCat.Archives.Writing.SevenZipStrictMetadata")||
+        !types.Contains("FileCat.Archives.Writing.SevenZipStrictHeaderReader"))
+        throw new InvalidOperationException("Production strict TAR or 7z scanner/catalog was not instrumented.");
+    Console.WriteLine(JsonSerializer.Serialize(new{instrumented_types=types.Length,production_tar=true,production_sevenzip=true}));return 0;
+}
+if(args is ["replay-format",var formatTarget,var formatInput])
+{
+    if(formatTarget is not ("tar-strict" or "sevenzip-strict"))throw new ArgumentException("Unknown format replay target.");
+    using var file=new FileStream(formatInput,FileMode.Open,FileAccess.Read,FileShare.Read);
+    if(file.Length>1048576)throw new ArgumentException("Format replay exceeds 1 MiB.");
+    byte[] bytes=new byte[checked((int)file.Length)];file.ReadExactly(bytes);
+    if(file.ReadByte()!=-1)throw new IOException("Format replay file changed during its bounded read.");
+    Format.Bind(formatTarget);
+    bool accepted=Format.Exercise(bytes,formatTarget);
+    Console.WriteLine(JsonSerializer.Serialize(new{target=formatTarget,accepted}));return 0;
 }
 if(args is ["replay-record",var recordTarget,var inputPath])
 {
@@ -95,22 +116,13 @@ if(args.Length!=0)throw new ArgumentException("Fuzz targets receive input throug
 
 Stats.Target=Environment.GetEnvironmentVariable("FILECAT_FUZZ_TARGET")??"digest";
 if(Stats.Target is not ("digest" or "tar-strict" or "session-record" or "capture-record" or "save-copy-intent" or
-    "save-copy-receipt" or "journal-record" or "journal-state" or "manifest-member"))
+    "save-copy-receipt" or "journal-record" or "journal-state" or "manifest-member" or "sevenzip-strict"))
     throw new ArgumentException("Unknown fuzz target.");
 Stats.CanaryPrefixMode=Environment.GetEnvironmentVariable("FILECAT_FUZZ_CANARY_PREFIX_MODE")=="1";
 if(Stats.CanaryPrefixMode&&Stats.Target!="digest")throw new ArgumentException("The canary input transform is digest-only.");
 Stats.Module=typeof(ArchiveWritePolicy).Assembly.Location;
 Stats.ModuleSha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Stats.Module)));
-if(Stats.Target=="tar-strict")
-{
-    var assembly=Assembly.LoadFrom(Path.Combine(AppContext.BaseDirectory,"FileCat.Archives.dll"));
-    Stats.SecondaryModule=assembly.Location;
-    Stats.SecondaryModuleSha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Stats.SecondaryModule)));
-    var type=assembly.GetType("FileCat.Archives.Writing.StrictTarCatalog",throwOnError:true)!;
-    Tar.Read=type.GetMethod("Read",BindingFlags.Static|BindingFlags.NonPublic)!;
-    Tar.Compare=type.GetMethod("CompareDecoder",BindingFlags.Static|BindingFlags.NonPublic)!;
-    if(Tar.Read is null||Tar.Compare is null)throw new InvalidOperationException("Production TAR scanner/decoder entry is absent.");
-}
+if(Stats.Target is "tar-strict" or "sevenzip-strict")Format.Bind(Stats.Target);
 Stats.Report=Environment.GetEnvironmentVariable("FILECAT_FUZZ_REPORT");
 if(Stats.Report is not null&&(!Path.IsPathFullyQualified(Stats.Report)||!Directory.Exists(Path.GetDirectoryName(Stats.Report))))
     throw new ArgumentException("The supervisor must select an existing absolute report directory.");
@@ -141,14 +153,15 @@ static void Exercise(ReadOnlySpan<byte> data)
             if(Stats.Calls==1||(Stats.Calls&4095)==0)Stats.Publish();
             return;
         }
-        if(Stats.Target=="tar-strict")Tar.Exercise(data);
+        if(Stats.Target is "tar-strict" or "sevenzip-strict")
+        {if(!Format.Exercise(data,Stats.Target))Stats.Refused++;else Stats.Accepted++;}
         else
         {
             string digest=Encoding.Latin1.GetString(data);
             if(Stats.CanaryPrefixMode&&data.Length==2)digest+=new string('0',62);
             ArchiveWritePolicy.ValidateDigest(digest);
         }
-        Stats.Accepted++;
+        if(Stats.Target is not ("tar-strict" or "sevenzip-strict"))Stats.Accepted++;
     }
     catch(ArchiveWriteException){Stats.Refused++;}
     catch{Stats.Publish();throw;}
@@ -354,5 +367,46 @@ static class Tar
         try{return method.Invoke(null,arguments);}
         catch(TargetInvocationException error)when(error.InnerException is not null)
         {ExceptionDispatchInfo.Capture(error.InnerException).Throw();throw;}
+    }
+}
+
+static class Format
+{
+    internal static MethodInfo SevenRead=null!;
+    internal static void Bind(string target)
+    {
+        var assembly=Assembly.LoadFrom(Path.Combine(AppContext.BaseDirectory,"FileCat.Archives.dll"));
+        Stats.SecondaryModule=assembly.Location;
+        Stats.SecondaryModuleSha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Stats.SecondaryModule)));
+        if(target=="tar-strict")
+        {
+            var type=assembly.GetType("FileCat.Archives.Writing.StrictTarCatalog",throwOnError:true)!;
+            Tar.Read=type.GetMethod("Read",BindingFlags.Static|BindingFlags.NonPublic)!;
+            Tar.Compare=type.GetMethod("CompareDecoder",BindingFlags.Static|BindingFlags.NonPublic)!;
+            if(Tar.Read is null||Tar.Compare is null)throw new InvalidOperationException("Production TAR scanner/decoder entry is absent.");
+        }
+        else
+        {
+            var type=assembly.GetType("FileCat.Archives.Writing.StrictSevenZipCatalog",throwOnError:true)!;
+            SevenRead=type.GetMethod("Read",BindingFlags.Static|BindingFlags.NonPublic)!;
+            if(SevenRead is null||SevenRead.GetParameters().Length!=3)
+                throw new InvalidOperationException("Production 7z catalog entry changed.");
+        }
+    }
+    internal static bool Exercise(ReadOnlySpan<byte> data,string target)
+    {
+        try
+        {
+            if(target=="tar-strict")Tar.Exercise(data);
+            else
+            {
+                using var stream=new MemoryStream(data.ToArray(),writable:false);
+                try{_ = SevenRead.Invoke(null,[stream,CancellationToken.None,null]);}
+                catch(TargetInvocationException error)when(error.InnerException is not null)
+                {ExceptionDispatchInfo.Capture(error.InnerException).Throw();throw;}
+            }
+            return true;
+        }
+        catch(ArchiveWriteException){return false;}
     }
 }

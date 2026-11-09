@@ -56,7 +56,7 @@ def main():
             not any("StrictTarCatalog::Read" in name for name in report["production_methods"]) or \
             not any("StrictTarCatalog::CompareDecoder" in name for name in report["production_methods"]):
             raise ValueError("The strict TAR and decoder coverage evidence is incomplete")
-    if args.target == "journal-state":
+    if args.target in ("journal-state", "sevenzip-strict"):
         qualifications = (args.canary_run, args.canary_replay_run, args.short_run)
         if any(name is None or not name.replace("-", "").isalnum() for name in qualifications) or len(set(qualifications)) != 3:
             raise ValueError("Stateful journal evidence needs distinct canary, replay and short-run names")
@@ -72,31 +72,42 @@ def main():
             any(item["final_properties"]["Result"] != "exit-code" or item["final_properties"]["ExecMainStatus"] != "77"
                 for item in (canary, replay)) or \
             any(item["sha256"]["core"] != prep["images"]["canary"]["FileCat.Core.dll"]["sha256"] for item in (canary, replay)) or \
-            short["phase"] != "clean" or short["target"] != "journal-state" or not short["terminal"] or short["artifacts"] or \
+            short["phase"] != "clean" or short["target"] != args.target or not short["terminal"] or short["artifacts"] or \
             short["final_properties"]["Result"] != "success" or short["sha256"]["core"] != prep["images"]["clean"]["FileCat.Core.dll"]["sha256"] or \
             short["managed_report"]["Calls"] <= 0:
-            raise ValueError("The stateful journal canary or short clean run is incomplete")
+            raise ValueError("The format/recovery canary or short clean run is incomplete")
         artifact = diagnostics[0] / "crashes" / crashed[0]["name"]
         if artifact.stat().st_size != 2 or sha(artifact) != crashed[0]["sha256"] or \
             sha(diagnostics[1] / "replay-input") != crashed[0]["sha256"]:
             raise ValueError("The intentional canary artifact changed")
         methods = short["managed_report"]["production_methods"]
-        if not any("JobJournal::ReadRecords" in name for name in methods) or \
-            not any("ArchiveTransactionCollector::Read" in name for name in methods):
-            raise ValueError("The short run missed a stateful production method")
-        names = {"valid-begin.json", "valid-two.json", "bad-crc.json", "torn.json",
-                 "invalid-utf8.json", "unknown-tag.json", "valid-end.json", "future-header.json",
-                 "unsupported-archive-record.json", "duplicate-end.json",
-                 "damaged-after-header.json", "record-before-begin.json"}
+        if args.target == "journal-state":
+            required = ("JobJournal::ReadRecords", "ArchiveTransactionCollector::Read")
+            names = {"valid-begin.json", "valid-two.json", "bad-crc.json", "torn.json",
+                     "invalid-utf8.json", "unknown-tag.json", "valid-end.json", "future-header.json",
+                     "unsupported-archive-record.json", "duplicate-end.json",
+                     "damaged-after-header.json", "record-before-begin.json"}
+            instrumented = "FileCat.Core.Archives.ArchiveTransactionCollector" in prep["instrumented_core_types"]["clean"]
+        else:
+            required = ("StrictSevenZipCatalog::Read", "StrictSevenZipFraming::Read")
+            names = {"EmptyEntries.7z", "EmptyEntries.solid.7z", "FileCat.Methods.Copy.7z",
+                     "FileCat.Methods.LZMA.7z", "FileCat.Methods.BZip2.7z", "FileCat.Methods.Deflate.7z",
+                     "FileCat.Methods.Deflate64.7z", "7Zip.LZMA2.7z"} | {
+                         f"generated-codec-{number}.7z" for number in range(7)}
+            instrumented = {"FileCat.Archives.Writing.StrictSevenZipCatalog",
+                            "FileCat.Archives.Writing.StrictSevenZipFraming"}.issubset(
+                                prep["instrumented_tar_types"]["clean"])
+            if report["SecondaryModuleSha256"].lower() != sha(root / "clean" / "FileCat.Archives.dll"):
+                raise ValueError("The 7z run did not use the instrumented production archive assembly")
+        if any(not any(method in name for name in methods) for method in required):
+            raise ValueError("The short run missed a required production method")
         if {row["name"] for row in result["extra_seeds"]} != names or \
-            {row["name"] for row in short["extra_seeds"]} != names or \
-            "FileCat.Core.Archives.ArchiveTransactionCollector" not in prep["instrumented_core_types"]["clean"] or \
-            not any("FileCat.Core.Jobs.JobJournal::ReadRecords" in name for name in report["production_methods"]) or \
-            not any("FileCat.Core.Archives.ArchiveTransactionCollector::Read" in name for name in report["production_methods"]):
-            raise ValueError("The stateful journal recovery coverage or structured seed evidence is incomplete")
+            {row["name"] for row in short["extra_seeds"]} != names or not instrumented or \
+            any(not any(method in name for name in report["production_methods"]) for method in required):
+            raise ValueError("The format/recovery coverage or structured seed evidence is incomplete")
     if any((run / "crashes").iterdir()):
         raise ValueError("A crash artifact was found after result collection")
-    review_runs = [run] + (diagnostics if args.target == "journal-state" else [])
+    review_runs = [run] + (diagnostics if args.target in ("journal-state", "sevenzip-strict") else [])
     if any(path.is_symlink() for review in review_runs for path in review.rglob("*")):
         raise ValueError("A fuzz evidence entry is a symbolic link")
     members = [packet, root / "preparation.json",
@@ -106,10 +117,10 @@ def main():
     # instrument Core; retain that report whenever the preparation claims it.
     if "instrumented_core_types" in prep:
         members.append(root / "instrumented-types-core-clean.json")
-    elif args.target == "journal-state":
-        raise ValueError("The journal image lacks its required Core instrumentation report")
+    elif args.target in ("journal-state", "sevenzip-strict"):
+        raise ValueError("The image lacks its required Core instrumentation report")
     members += sorted(path for path in run.rglob("*") if path.is_file())
-    if args.target == "journal-state":
+    if args.target in ("journal-state", "sevenzip-strict"):
         members += sorted(path for diagnostic in diagnostics if diagnostic != run
                           for path in diagnostic.rglob("*") if path.is_file())
     if sum(path.stat().st_size for path in members) > 256 * 1048576:
@@ -123,7 +134,7 @@ def main():
     output = task / (args.image + "-" + args.run + "-evidence.tar.gz")
     index = json.dumps({"image": args.image, "run": args.run, "target": args.target,
                         "minimum_cpu_seconds": args.minimum_cpu_seconds,
-                        "qualification_runs": list(qualifications) if args.target == "journal-state" else [],
+                        "qualification_runs": list(qualifications) if args.target in ("journal-state", "sevenzip-strict") else [],
                         "files": rows}, indent=2).encode()
     with tarfile.open(output, "x:gz", compresslevel=1) as archive:
         for path, row in zip(members, rows):

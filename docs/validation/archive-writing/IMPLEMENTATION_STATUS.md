@@ -1,5 +1,12 @@
 # Archive writing implementation status
 
+**9 November: FZ03 strict 7z corpus and instrumentation are staged.** The test-only v14 packet
+adds a direct production strict-catalog target, and a Mac guest replay accepted seven generated
+codec seeds while controlled-refusing eight older variants. All 27 selected Archive types were
+instrumented. The packet and replay transport are independently byte/binary verified and staged
+inert on Ubuntu. The active FZ09 run must finish before an Ubuntu FZ03 image or campaign starts;
+no 7z fuzz CPU floor is claimed. See [fuzz setup](FUZZ_CAMPAIGN_SETUP.md).
+
 **9 November: first long FZ01 floor verified; stateful FZ09 campaign started.**
 Ubuntu's clean strict-TAR campaign reached 9,708.590486 CPU seconds and 45,447,001
 executions with no crash artifacts. The 2,223,951-byte sealed transport has SHA-256
@@ -22,7 +29,11 @@ Windows' 31-gate bundle is 31,229,247 bytes /
 Windows v46 then passed all 28 connected focused gates for the new read-only retained-copy
 startup/session-list hint, with its 18,935,275-byte bundle independently verified (SHA-256
 `cc6c465b5d5055c13b410ed6918453423f27d8b6251ed027533a5b44870eba22`).
-Mac v46 focused testing is running; Ubuntu v46 waits for the FZ09 campaign to finish.
+Mac v46 also passed its 27 connected focused gates and exact source/compiler/DLL/PDB/raw-test
+verification. Its 17,573,297-byte sealed bundle has SHA-256
+`14c6d36b28958491c3e14af4e512ac6c35e333b5ab91389e638b60b3d9a4e787`.
+The Mac test processes exited and its keep-awake helper remains active. Ubuntu v46 waits for the
+FZ09 campaign to finish.
 The v46 candidate's full suites remain unrun. No native store or new writer is enabled.
 
 **Earlier 9 November checkpoint: late retained-copy fix and fuzz preparation.**

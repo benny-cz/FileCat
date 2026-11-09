@@ -94,8 +94,12 @@ def main():
                             str(root / f"instrumented-types-tar-{phase}.json")],
                            env=env, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=60)
         types = json.loads((root / f"instrumented-types-tar-{phase}.json").read_text())
-        if "FileCat.Archives.Writing.StrictTarCatalog" not in types:
-            raise ValueError("Strict TAR scanner was not instrumented")
+        if not {"FileCat.Archives.Writing.StrictTarCatalog",
+                "FileCat.Archives.Writing.StrictSevenZipCatalog",
+                "FileCat.Archives.Writing.StrictSevenZipFraming",
+                "FileCat.Archives.Writing.SevenZipStrictMetadata",
+                "FileCat.Archives.Writing.SevenZipStrictHeaderReader"}.issubset(types):
+            raise ValueError("Strict TAR or 7z scanner was not instrumented")
     facts = {"candidate": CANDIDATE, "verified_folder": "awe-storage-v40",
              "verified_index_sha256": sha(verified / "files.json"),
              "packet_sha256": sha(packet), "product_core_sha256": expected["FileCat.Core.dll"],

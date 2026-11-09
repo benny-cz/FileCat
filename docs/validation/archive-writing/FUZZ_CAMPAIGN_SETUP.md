@@ -1,5 +1,20 @@
 # Coverage-guided archive-writing fuzz setup
 
+**9 November 2026, current checkpoint.** The first strict-TAR two-hour FZ01 floor is sealed
+and independently verified below. Ubuntu's 12,000-second stateful FZ09 run is still active;
+its terminal evidence has not been collected. The next test-only packet, `fuzz-harness-v14.tar.gz`
+(490,767 bytes, SHA-256 `6b9ffe4d8b8bee85733d0b44a1599ec3bf78c99ea01e04df477634df7047c3a6`),
+adds a direct production `StrictSevenZipCatalog.Read` FZ03 target. It instruments the strict
+7z framing, metadata, header and payload decoder types together with the existing TAR target.
+Mac guest replay against the independently sealed v45 Core/Archives binaries accepted all seven
+new FileCat-generated codec seeds and controlled-refused eight older fixture variants. The
+27-type instrumentation completed. The 15 exact seeds, result and type report are retained in
+a 7z replay transport (SHA-256
+`0096d979dda7b6a2df368aaa2c062b09a0fb7a814a7a2cae9010d035abdac664`),
+which passed a separate host-side byte/binary/packet verifier. The packet and corpus transport
+are staged inert on Ubuntu. A canary, short FZ03 run, long run, encrypted-header/path seeds,
+structured graph mutations and the complete format floor remain open. No FZ03 CPU floor is claimed.
+
 9 November 2026. This is an **experimental test-only checkpoint**, not a format or release gate. The
 product candidate under test is `8355ee58cd21edf2b7e4eab185309be669c3c9ad`; application UI changes
 made afterward are outside these fuzz results. No new writer profile is registered.

@@ -53,7 +53,7 @@ def verify(image,run,target,minimum_cpu_seconds):
             'ustar-one-file.tar','ustar-directory.tar','ustar-duplicate.tar','pax-unicode-time.tar'}
         assert any('StrictTarCatalog::Read' in name for name in report['production_methods'])
         assert any('StrictTarCatalog::CompareDecoder' in name for name in report['production_methods'])
-    if target=='journal-state':
+    if target in ('journal-state','sevenzip-strict'):
         canary_name,replay_name,short_name=index['qualification_runs']
         assert len({canary_name,replay_name,short_name})==3
         assert all(name.replace('-','').isalnum() for name in (canary_name,replay_name,short_name))
@@ -73,20 +73,36 @@ def verify(image,run,target,minimum_cpu_seconds):
         assert all(item['managed_report']['ModuleSha256'].lower()==item['sha256']['core'] and
                    any('ArchiveWritePolicy::ValidateDigest' in name for name in item['managed_report']['production_methods'])
                    for item in (canary,replay))
-        assert short['phase']=='clean' and short['target']=='journal-state' and short['terminal'] and not short['artifacts']
+        assert short['phase']=='clean' and short['target']==target and short['terminal'] and not short['artifacts']
         assert short['final_properties']['Result']=='success' and short['sha256']['core']==result['sha256']['core']
         assert short['managed_report']['Calls']>0
-        assert any('JobJournal::ReadRecords' in name for name in short['managed_report']['production_methods'])
-        assert any('ArchiveTransactionCollector::Read' in name for name in short['managed_report']['production_methods'])
-        assert 'FileCat.Core.Archives.ArchiveTransactionCollector' in prep['instrumented_core_types']['clean']
-        assert {row['name'] for row in result['extra_seeds']}=={
-            'valid-begin.json','valid-two.json','bad-crc.json','torn.json',
-            'invalid-utf8.json','unknown-tag.json','valid-end.json','future-header.json',
-            'unsupported-archive-record.json','duplicate-end.json',
-            'damaged-after-header.json','record-before-begin.json'}
-        assert any('FileCat.Core.Jobs.JobJournal::ReadRecords' in name for name in report['production_methods'])
-        assert any('FileCat.Core.Archives.ArchiveTransactionCollector::Read' in name for name in report['production_methods'])
-        assert {row['name'] for row in short['extra_seeds']}=={row['name'] for row in result['extra_seeds']}
+        if target=='journal-state':
+            required=('JobJournal::ReadRecords','ArchiveTransactionCollector::Read')
+            names={'valid-begin.json','valid-two.json','bad-crc.json','torn.json',
+                   'invalid-utf8.json','unknown-tag.json','valid-end.json','future-header.json',
+                   'unsupported-archive-record.json','duplicate-end.json',
+                   'damaged-after-header.json','record-before-begin.json'}
+            assert 'FileCat.Core.Archives.ArchiveTransactionCollector' in prep['instrumented_core_types']['clean']
+        else:
+            required=('StrictSevenZipCatalog::Read','StrictSevenZipFraming::Read')
+            names={'EmptyEntries.7z','EmptyEntries.solid.7z','FileCat.Methods.Copy.7z',
+                   'FileCat.Methods.LZMA.7z','FileCat.Methods.BZip2.7z','FileCat.Methods.Deflate.7z',
+                   'FileCat.Methods.Deflate64.7z','7Zip.LZMA2.7z'} | {
+                       f'generated-codec-{number}.7z' for number in range(7)}
+            assert report['SecondaryModuleSha256'].lower()==sha(file('clean/FileCat.Archives.dll'))
+            assert {'FileCat.Archives.Writing.StrictSevenZipCatalog',
+                    'FileCat.Archives.Writing.StrictSevenZipFraming'}.issubset(prep['instrumented_tar_types']['clean'])
+            mac=ROOT/'.tmp/storage-evidence/mac/fuzz-sevenzip-v14-mac-seeds.tar.gz'
+            assert sha(mac.read_bytes())=='0096d979dda7b6a2df368aaa2c062b09a0fb7a814a7a2cae9010d035abdac664'
+            with tarfile.open(mac,'r:gz') as mac_tar:
+                mac_manifest=json.load(mac_tar.extractfile('seeds/manifest.json'))
+            expected_seeds={row['name']:(row['bytes'],row['sha256']) for row in mac_manifest['seeds']}
+            assert mac_manifest['target']=='sevenzip-strict' and set(expected_seeds)==names
+            assert {row['name']:(row['bytes'],row['sha256']) for row in result['extra_seeds']}==expected_seeds
+        assert {row['name'] for row in result['extra_seeds']}==names
+        assert all(any(method in name for name in short['managed_report']['production_methods']) for method in required)
+        assert all(any(method in name for name in report['production_methods']) for method in required)
+        assert {row['name'] for row in short['extra_seeds']}==names
         for number,row in enumerate(short['extra_seeds']):
             content=file('runs/'+short_name+f'/corpus/synthetic-{number:04d}')
             assert len(content)==row['bytes'] and sha(content)==row['sha256']
