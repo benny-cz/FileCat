@@ -1,12 +1,17 @@
 # Archive writing implementation status
 
-**9 November: retained-copy Save verified copy UI candidate is ready for guest validation.**
+**9 November: retained-copy Save verified copy UI passes Mac and Windows focused gates.**
 The recovery dialog offers the action only for a complete unused capture when a native destination
 adapter is present. It uses a local save picker, exclusive native publication, and reports a
 published copy separately from later receipt uncertainty. A two-case headless dialog check
-reviews without publishing and follows the picker through a real native copy. The App test
-project builds with zero warnings. The default factory remains disabled; three-platform guest
-validation for this new candidate is pending.
+reviews without publishing and follows the picker through a real native copy. Candidate
+`a521bf45285110a2c836d9caec824e207fb99a5e` passes Mac's 27 and Windows' 28 connected
+focused gates, including the two-case dialog gate, with zero failures. The sealed Mac evidence
+is 17,565,568 bytes / SHA-256 `dc4d8abaa11f12d002ec2e07a7755a2076eb7d6c9304e07a48e1b9c80156efb1`;
+Windows is 18,930,371 bytes / `a91ad57620a7a84fdc2934ec371e1f1bc460057beafbbf56814a5c282dfa4956`.
+The [independent verifier](../../eng/validation/archive-writing/verify_edit_recovered_save_copy_ui_v40.py)
+passes source/compiler/DLL/PDB/raw-test binding. The default factory remains disabled. Ubuntu's
+direct v36→v40 packet is staged, but execution waits for its FZ01 long campaign to finish.
 
 **9 November: restarted retained-capture Save copy passes Mac and Windows focused gates.**
 A new internal action reopens one complete, unlinked capture through native handles, binds it to
