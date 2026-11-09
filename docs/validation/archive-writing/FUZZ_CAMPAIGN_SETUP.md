@@ -107,6 +107,20 @@ packet fixes that selector and is staged on Ubuntu: 487,066 bytes / SHA-256
 Its harness DLL remains byte-identical to v8/v9. Use v10 for the Ubuntu native campaign;
 v9 remains a preserved preparatory packet and has not run.
 
+The subsequent v11 test-only packet adds a seventh `journal-state` target. It feeds bounded,
+CRC-checked records into the production `ArchiveTransactionCollector` and checks that damaged or
+unsupported archive history still requires review. Twelve synthetic seeds cover clean begin/end,
+future headers, unknown archive facts, duplicate endings, damaged suffixes and facts before begin.
+The 488,793-byte v11 packet has SHA-256
+`1dda94c53f511ef404604a827233c36a9713b9952cd5b668fdfdb96abe29ff6b`.
+Mac passed all 54 seven-target replays against its sealed v40 Core (15 accepted, 39 controlled
+refusals, zero crashes); the raw result SHA-256 is
+`27922504822323a13047c0f8f02811016c3ea0cbd806e60dee8a8bc55f76fc37`.
+The independent verifier checks exact committed harness and seed sources, packet, seed bytes,
+guest runner and sealed product Core. Windows and Ubuntu v11 replays and a native stateful campaign
+remain pending. The v10 first native campaign remains queued ahead of v11; this new target does not
+change its frozen image.
+
 A separate guest sealer and host verifier now check the terminal service result, kernel CPU and
 memory observations, managed execution counts, production method coverage, exact image/packet
 hashes, structured seed copies and every raw evidence file before a floor can be recorded. These
