@@ -107,6 +107,12 @@ packet fixes that selector and is staged on Ubuntu: 487,066 bytes / SHA-256
 Its harness DLL remains byte-identical to v8/v9. Use v10 for the Ubuntu native campaign;
 v9 remains a preserved preparatory packet and has not run.
 
+A separate guest sealer and host verifier now check the terminal service result, kernel CPU and
+memory observations, managed execution counts, production method coverage, exact image/packet
+hashes, structured seed copies and every raw evidence file before a floor can be recorded. These
+scripts are staged but have not yet sealed the active FZ01 run. The active campaign remains
+unqualified until its service exits cleanly and that independent transport check passes.
+
 The next test-only harness packet `fuzz-harness-v7.tar.gz` is 484,533 bytes, SHA-256
 `df43851a4e45cddbfe90583d2e315a577ad9d361b3f08926e9792992bb8442bd`.
 It adds direct production targets for `EditSessionStore.ParseRecord`,
