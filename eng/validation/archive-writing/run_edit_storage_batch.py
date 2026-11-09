@@ -3,13 +3,13 @@ from pathlib import Path
 from datetime import datetime,timezone
 import importlib.util,json,shutil,subprocess,sys,tarfile,tempfile,time,uuid,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v46'
-PACKET='archive-edit-storage-delta-v46.tar.gz'
+FOLDER='awe-storage-v47'
+PACKET='archive-edit-storage-delta-v47.tar.gz'
 def cohort_policy(platform):
-    # Check the connected startup/session-list recovery hint against real native captures.
+    # Check dual-root native/legacy composition with the established connected edit gates.
     # Complete inventories remain attached to v45; this is a focused next candidate.
-    return {'win32':('awe-storage-v45','focused'),
-            'darwin':('awe-storage-v45','focused'),
+    return {'win32':('awe-storage-v46','focused'),
+            'darwin':('awe-storage-v46','focused'),
             'linux':('awe-storage-v40','focused')}[platform]
 
 PREVIOUS_FOLDER,VALIDATION_SCOPE=cohort_policy(sys.platform)
@@ -113,7 +113,7 @@ def tests(task):
     run('native-directory','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
         'FullyQualifiedName~WindowsEditDirectoryLeaseTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditDirectoryLeaseTests',21)
     run('native-storage','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
-        'FullyQualifiedName~WindowsEditStorageTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditStorageTests',14 if sys.platform=='win32' else 19)
+        'FullyQualifiedName~WindowsEditStorageTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditStorageTests',15 if sys.platform=='win32' else 20)
     run('native-snapshot','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
         'FullyQualifiedName~WindowsEditSnapshotTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditSnapshotTests',35 if sys.platform=='win32' else 34)
     run('capture-recovery','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
