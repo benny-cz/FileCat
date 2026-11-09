@@ -6,9 +6,15 @@ passes, respectively, with zero failures. Its source/compiler/binary/raw-result 
 24,611,390 bytes, SHA-256
 `e39b9cabc68a2e04bd159bd316f1511b52448bf05858dc0c3cfe60b87ee115ac`, and passed
 independent verification. No prior raw case or pass was lost after the explicit UI
-parameterization mapping. Windows' matching candidate has passed focused and full Core/Remote
-suites; full App and sealing remain pending. Ubuntu replay waits for the active RAR5 password
-campaign. Native routing and old-folder retirement are still disabled.
+parameterization mapping. Windows' matching candidate passed 15/15 focused Core, 10/10
+focused UI, and complete Core/Remote/App inventories of 8,139/2,405/2,845 passes with
+754/264/118 skips and zero failures in the accepted runs. Its 26,003,925-byte transport,
+SHA-256 `034949b428f676b1a07429670774bb4214e5f64c3b1ebb046436db942fee0aef`,
+passed the same independent verification; raw inventories retained every prior pass. The
+first Windows full App attempt had one folder-count quick-view timeout, followed by a 7/7
+isolated pass and a complete zero-failure rerun. That initial failed raw result remains
+available for timing diagnosis. Ubuntu replay waits for the active RAR5 password campaign.
+Native routing and old-folder retirement are still disabled.
 
 9 November 2026. This remains a test-only compatibility boundary. A pinned old-source copy
 transaction and durable pending/ready relationship are under qualification; ordinary startup

@@ -1014,8 +1014,11 @@ Qualify 100/125/150/200% scaling and a 640×480 effective viewport: content can 
 
 Current checkpoint (9 November): the combined retained-adoption candidate passed complete
 Mac Core/Remote/App inventories and independent source/binary/raw-result verification. Its
-Windows focused/Core/Remote suites passed; Windows App/sealing and Ubuntu post-fuzz replay
-remain pending. The old record remains the active commit route. Exact old-folder retirement
+Windows focused and complete Core/Remote/App suites passed, with independent source/binary/raw
+transport verification and no lost prior pass. An initial unrelated folder-count UI timeout
+preceded an isolated pass and a clean complete App rerun; its failed raw result remains
+retained for timing diagnosis. Ubuntu post-fuzz replay remains pending. The old record remains
+the active commit route. Exact old-folder retirement
 and production composition are not qualified.
 
 Add an archive adapter contract rather than spreading TarReader/SevenZip APIs into EditSessionStore. New archive session records use a new version with explicit format/profile version, outer archive path and identity evidence, baseline, exact raw member key, content SHA-256, length, semantic metadata digest and owned working-copy identity. Optional legacy CRC stays an additional ZIP field, not the universal member version.

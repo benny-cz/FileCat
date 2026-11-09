@@ -7,8 +7,16 @@ App 2,770/193, with zero failures. Its 24,611,390-byte source/compiler/binary/ra
 transport (SHA-256 `e39b9cabc68a2e04bd159bd316f1511b52448bf05858dc0c3cfe60b87ee115ac`)
 passed independent verification. Raw case inventories retained every prior pass after the
 explicit UI parameterization mapping. Windows' same candidate passed 15/15 focused Core,
-10/10 focused UI, full Core 8,139 passed/754 skipped and Remote 2,405/264 with zero failures;
-its full App run and sealed transport remain pending. Ubuntu's 7z password long fuzz target
+10/10 focused UI, full Core 8,139 passed/754 skipped and Remote 2,405/264 with zero failures.
+Its accepted full App rerun passed 2,845/118 skipped with zero failures; the 26,003,925-byte
+transport (SHA-256 `034949b428f676b1a07429670774bb4214e5f64c3b1ebb046436db942fee0aef`)
+passed independent source/compiler/binary/PDB/raw-result verification. Raw inventories found
+one added Core skip and no lost prior case or pass. The first full App attempt had one
+folder-count quick-view timeout (2,844 passed, one failed, 118 skipped); its raw TRX is
+retained (SHA-256 `99e59030378a2405c492ac7f65349bf99a9cf1457575fc9cfc16400ca3e10673`).
+That exact seven-case folder-count class then passed in isolation, and the complete App rerun
+passed. The intermittent UI timing has not been attributed to a product defect.
+Ubuntu's 7z password long fuzz target
 reached 11,687.566561 CPU seconds and 5,855,094 executions with zero crash artifacts; its
 2,898,774-byte transport (SHA-256
 `4d8ef4f653df31023dc234ab65dd52d6e0f8cb2a264c25630f0350f1aa1e7791`) passed
@@ -32,8 +40,9 @@ Its 25,989,953-byte transport independently verified (SHA-256
 Raw case inventories retained every prior pass, with an explicit one-to-two parameterized
 UI case replacement. The next test-only candidate compares every retained native target and
 baseline field to its original and shows the original folder and specific review reason in
-the UI. Mac and Windows complete cohorts, Ubuntu post-fuzz replay, old-folder retirement,
-production composition and the larger release/final-review gates remain open.
+the UI. The subsequently verified Mac and Windows combined candidate is reported above.
+Ubuntu post-fuzz replay, old-folder retirement, production composition and the larger
+release/final-review gates remain open.
 
 **9 November: dual-root legacy/native edit composition begins.** A test-only `EditSessionStore`
 can now keep v1/v2 sessions in their old root while creating and loading v3 sessions from a
