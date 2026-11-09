@@ -42,13 +42,32 @@ def main():
     parser.add_argument('previous', type=Path)
     parser.add_argument('current', type=Path)
     parser.add_argument('--casefold-substring', default='')
+    parser.add_argument('--replacement', action='append', default=[], metavar='OLD=NEW',
+                        help='Explicitly map one renamed prior case to one current case.')
     parser.add_argument('--output', type=Path)
     args = parser.parse_args()
     before, prior_pass, before_counts = read(args.previous, args.casefold_substring)
     after, current_pass, after_counts = read(args.current, args.casefold_substring)
+    replacements = {}
+    replacement_targets = set()
+    for pair in args.replacement:
+        if '=' not in pair:
+            parser.error(f'Invalid replacement: {pair}')
+        old, new = pair.split('=', 1)
+        if not old or not new or old in replacements or new in replacement_targets:
+            parser.error(f'Duplicate or empty replacement: {pair}')
+        if before[old] != 1 or after[old] or after[new] != 1 or before[new]:
+            parser.error(f'Replacement must bind one removed prior case to one added current case: {pair}')
+        replacements[old] = new
+        replacement_targets.add(new)
+    for old, new in replacements.items():
+        before[new] += before.pop(old)
+        if prior_pass[old]:
+            prior_pass[new] += prior_pass.pop(old)
     missing = list((before - after).elements())
     lost = list((prior_pass - current_pass).elements())
     report = dict(previous=before_counts, current=after_counts,
+                  replacements=replacements,
                   added_cases=sum((after - before).values()),
                   missing_prior_cases=missing, lost_prior_passes=lost)
     if args.output:
