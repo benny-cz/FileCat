@@ -210,6 +210,18 @@ The independent host verifier checked every member, exact image and packet hashe
 TAR method coverage, structured seeds and the 7,200-second floor. This earns that FZ01 target's
 first clean two-hour floor; it does not qualify other targets, formats or a release.
 
+The v16 test-only packet and Mac-replayed seed transports add password-aware 7z and RAR5
+targets across all seven 7z codecs and six RAR5 methods, each with stored/plain, data-encrypted
+and header-encrypted profiles. Ubuntu's fresh `fuzz-campaign-v5` image is bound to the sealed
+v40 Core/Archives binaries; the preparer copies those binaries from the verified evidence
+folder so a newer product build cannot change the campaign candidate. Both 29-file 7z and
+38-file RAR5 seed sets were installed with transport SHA-256 checks. The two-byte intentional
+canary crashed with exit 77 and its exact replay reproduced exit 77 without a new artifact.
+The 60-second clean `sevenzip-password-short-v5` run completed 43,022 executions: 116
+accepted, 42,906 controlled refusals, zero crash artifacts. A bounded 12,000-second 7z password
+campaign was then started on Ubuntu and remains active; it has not earned a long CPU floor yet.
+The RAR5 password long campaign and the remaining FZ targets are still open.
+
 The next test-only harness packet `fuzz-harness-v7.tar.gz` is 484,533 bytes, SHA-256
 `df43851a4e45cddbfe90583d2e315a577ad9d361b3f08926e9792992bb8442bd`.
 It adds direct production targets for `EditSessionStore.ParseRecord`,
