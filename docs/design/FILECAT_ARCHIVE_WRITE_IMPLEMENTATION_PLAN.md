@@ -1041,7 +1041,10 @@ read-only source and copy candidate has independently verified Mac and Windows s
 evidence; Ubuntu exact-candidate replay is pending behind the active password fuzz campaign.
 Active/retained catalog review and review-only application presentation are staged but do
 not switch the commit route. Mac/Windows process-kill checks at creation, pending and ready
-boundaries pass; the Ubuntu replay and application UI matrix are pending. Exact-object
+boundaries pass. The earlier Mac and Windows integrity candidates passed their focused UI
+and complete Core/Remote/App suites with independently verified source-bound transports;
+the full-target comparison and original-folder review UI are in a newer combined candidate.
+Ubuntu post-fuzz replay remains pending. Exact-object
 old-folder retirement, recovery/confirmation UI and connected three-platform qualification
 remain required before any native factory registration.
 

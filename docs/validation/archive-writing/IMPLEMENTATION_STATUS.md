@@ -1,5 +1,19 @@
 # Archive writing implementation status
 
+**9 November: retained adoption integrity and full-target review.** Mac's full integrity
+candidate passed Core 8,679/207 skipped, Remote 2,638/31 skipped and App 2,769/193 skipped;
+its 24,593,503-byte source/compiler/binary/raw-result transport independently verified
+(SHA-256 `5e81fff13ef9c9d0b4e18a196fc52a273f8ce05e58c19e6d350227b58be58d37`).
+Windows' next candidate passed full Core 8,139/753 skipped, Remote 2,405/264 skipped and App
+2,845/118 skipped, plus 14/14 focused Core and 10/10 focused UI, all with zero failures.
+Its 25,989,953-byte transport independently verified (SHA-256
+`27e7c61241e18f3670daa9ec002a5e0f87b1718e25cd58bc0a14aceb78363a51`).
+Raw case inventories retained every prior pass, with an explicit one-to-two parameterized
+UI case replacement. The next test-only candidate compares every retained native target and
+baseline field to its original and shows the original folder and specific review reason in
+the UI. Mac and Windows complete cohorts, Ubuntu post-fuzz replay, old-folder retirement,
+production composition and the larger release/final-review gates remain open.
+
 **9 November: dual-root legacy/native edit composition begins.** A test-only `EditSessionStore`
 can now keep v1/v2 sessions in their old root while creating and loading v3 sessions from a
 separate native root. Misplaced records are reported as unsupported, and old records retain

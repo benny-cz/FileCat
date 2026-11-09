@@ -109,3 +109,23 @@ ready copy to the old active route. Mac passed 41/41 focused and 8,675 full Core
 207 skips; Windows passed 74 focused and 8,139 full Core tests with 748 skips. Both full
 inventories retained every prior case and pass and added exactly three expected rows.
 Ubuntu and additional failure points still await replay; old-folder retirement remains open.
+
+The subsequent Mac integrity candidate passed 13 focused Core cases and six focused UI cases,
+then the complete Core (8,679 passed, 207 skipped), Remote (2,638 passed, 31 skipped) and App
+(2,769 passed, 193 skipped) suites with zero failures. Its 24,593,503-byte source, PDB, binary
+and raw-result transport, SHA-256
+`5e81fff13ef9c9d0b4e18a196fc52a273f8ce05e58c19e6d350227b58be58d37`,
+passed independent verification. A later test-only tamper candidate passed 14/14 focused Core
+and seven focused UI cases with three platform skips. The raw UI inventory's apparent missing
+case was an explicit replacement by two parameterized cases; both pass and no prior pass was lost.
+
+Windows' equivalent source-bound integrity candidate passed 14/14 focused Core, 10/10 focused
+UI, full Core (8,139 passed, 753 skipped), Remote (2,405 passed, 264 skipped) and App
+(2,845 passed, 118 skipped), all without failures. Its 25,989,953-byte transport, SHA-256
+`27e7c61241e18f3670daa9ec002a5e0f87b1718e25cd58bc0a14aceb78363a51`,
+passed independent source/compiler/DLL/PDB/raw-test verification. The raw Core and App
+inventories retained all prior cases and passes after explicitly accounting for the same
+parameterized UI case. The test processes exited. The later full-target catalog comparison
+and original-folder review UI are undergoing a combined three-platform batch; these earlier
+results do not qualify those newer bytes. Old-folder retirement, production composition,
+Ubuntu replay and the wider release gates remain open.
