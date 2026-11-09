@@ -1,5 +1,17 @@
 # Archive writing implementation status
 
+**9 November: late retained-copy outcome fix and stateful fuzz preparation are in flight.**
+Candidate `8d0946ff49c16b1950017f31ec52dff66407ac0e` keeps the result of a running native
+saved-copy publication through late IO shutdown, disposes its receipts and reports a confirmed
+copy while the edit UI is active. The host App/test build has zero warnings; Mac's complete v44
+Core/Remote/App cohort is running, and the Windows packet is staged behind its v43 full cohort.
+Ubuntu remains occupied by FZ01. The test-only v12 FZ09 packet adds the production archive
+transaction collector to instrumentation, requires it in image preparation, and is staged for
+Ubuntu replay/canary/short-run checks after v40. Its two-hour-per-target and shared campaign
+floors have not started or been claimed. The
+[Unix cleanup boundary](UNIX_EDIT_EXACT_REMOVAL_BOUNDARY.md) records why same-user replacements
+still prohibit pathname-based native Discard.
+
 **9 November: Mac full recovery-byte regressions pass; Windows full retry is running.**
 The runner-only v41 cohort uses the v40 product sources. Mac passed all 30 connected and complete
 Core/Remote/App gates with zero failures, including the exact 335-new-case Core inventory and no
