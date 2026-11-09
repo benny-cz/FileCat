@@ -3,13 +3,13 @@ from pathlib import Path
 from datetime import datetime,timezone
 import importlib.util,json,shutil,subprocess,sys,tarfile,tempfile,time,uuid,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v38'
-PACKET='archive-edit-storage-delta-v38.tar.gz'
+FOLDER='awe-storage-v39'
+PACKET='archive-edit-storage-delta-v39.tar.gz'
 def cohort_policy(platform):
-    # Historical retained-capture recovery receives affected gates before the next workflow milestone.
+    # Restarted retained-capture publication receives affected gates before the next workflow milestone.
     # Ubuntu's last sealed predecessor is v36 while its long FZ01 run occupies the guest.
-    return {'win32':('awe-storage-v37','focused'),
-            'darwin':('awe-storage-v37','focused'),
+    return {'win32':('awe-storage-v38','focused'),
+            'darwin':('awe-storage-v38','focused'),
             'linux':('awe-storage-v36','focused')}[platform]
 
 PREVIOUS_FOLDER,VALIDATION_SCOPE=cohort_policy(sys.platform)
@@ -74,7 +74,7 @@ def tests(task):
     assert VALIDATION_SCOPE in ('focused','full')
     (batch.out/'validation-scope.json').write_text(json.dumps(dict(scope=VALIDATION_SCOPE,
         full_regressions={name:'not-run' if VALIDATION_SCOPE=='focused' else 'required' for name in ('complete-core','complete-remote','complete-app')},
-        expected_new_core_cases=326,production_backend_qualified=False),indent=2))
+        expected_new_core_cases=335,production_backend_qualified=False),indent=2))
     fixture=Path.home()/'AppData/Local/Temp'/(FOLDER+'-native-fixtures') if sys.platform=='win32' else task/FOLDER/'native-fixtures'
     fixture.mkdir();batch.env['FILECAT_EDIT_NATIVE_ROOT']=str(fixture)
     require_space(batch,'focused')
@@ -95,6 +95,8 @@ def tests(task):
     run('save-copy-intent','FileCat.Core.Tests','FullyQualifiedName~EditSaveCopyIntentTests',14)
     run('save-copy-session','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
         'FullyQualifiedName~WindowsEditSaveCopySessionTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditSaveCopySessionTests',26)
+    run('recovered-save-copy','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
+        'FullyQualifiedName~WindowsEditRecoveredSaveCopyTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditRecoveredSaveCopyTests',9)
     run('cancellation-fixture','FileCat.Core.Tests','FullyQualifiedName~JobEngineTests.Cancel_leaves_no_partial_destination|FullyQualifiedName~JobEngineTests.Cancellation_fixture_reports_startup_error',2)
     run('comparison-retirement','FileCat.Core.Tests','FullyQualifiedName~ComparisonContentRetirementTests',108)
     run('save-copy-record','FileCat.Core.Tests','FullyQualifiedName~EditSaveCopyRecordTests',25)
@@ -164,7 +166,7 @@ def review_core_inventory(batch):
     current=ET.parse(batch.out/'results/complete-core.trx').findall('.//t:UnitTestResult',NS)
     spec=importlib.util.spec_from_file_location('edit_inventory',batch.root/'eng/validation/archive-writing/edit_core_inventory.py')
     helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
-    inventory=helper.review(old,current,326)
+    inventory=helper.review(old,current,335)
     (batch.out/'full-case-inventory.json').write_text(json.dumps(inventory,indent=2))
     helper.require_complete(inventory)
 def seal(task):

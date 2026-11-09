@@ -39,6 +39,7 @@
     <Compile Include="..\ArchiveEditSaveCopyPreparationCases.cs" Link="ArchiveEditSaveCopyPreparationCases.cs" />
     <Compile Include="..\ArchiveEditSaveCopyPublicationCases.cs" Link="ArchiveEditSaveCopyPublicationCases.cs" />
     <Compile Include="..\ArchiveEditSaveCopySessionCases.cs" Link="ArchiveEditSaveCopySessionCases.cs" />
+    <Compile Include="..\ArchiveEditRecoveredSaveCopyCases.cs" Link="ArchiveEditRecoveredSaveCopyCases.cs" />
     <Compile Include="..\ArchiveEditStorageAdmissionCases.cs" Link="ArchiveEditStorageAdmissionCases.cs" />
     <Compile Include="..\ArchiveEditDiscardCases.cs" Link="ArchiveEditDiscardCases.cs" />
     <Compile Include="..\ArchiveEditCaptureRecoveryCases.cs" Link="ArchiveEditCaptureRecoveryCases.cs" />

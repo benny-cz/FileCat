@@ -1,5 +1,16 @@
 # Archive writing implementation status
 
+**9 November: restarted retained-capture Save copy candidate compiles; guest gates queued.**
+A new internal action reopens one complete, unlinked capture through native handles, binds it to
+the fully validated historical state, checks exact payload/record bytes and metadata, admits the
+new source intent under the root storage gate, and uses the existing exclusive new-file native
+publication protocol. The original working file and captured bytes are retained. Nine shared
+cases cover restart, later state, destination collision, corrupt/foreign source evidence,
+repeat attempt, stale state and cancellation. Core and Windows test builds pass with zero warnings.
+No default UI/factory route is enabled. Mac/Windows focused guest execution is queued; Ubuntu
+waits for FZ01. Recovery UI, partial-outcome handling, crash/resource matrix and complete
+inventories remain open.
+
 **9 November: historical retained-capture recovery passes Mac and Windows guest gates.**
 The native review now binds each capture to its exact record in the fully validated bounded
 session-state chain, so a later legitimate state revision does not hide an older complete capture.
