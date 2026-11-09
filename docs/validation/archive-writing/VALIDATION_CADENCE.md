@@ -1,5 +1,14 @@
 # Archive validation cadence
 
+**9 November follow-up.** The remaining measurable handoff opportunity is between
+multi-hour guest campaigns. Ubuntu now has guarded user-service queues for post-fuzz
+adoption, strict 7z/RAR5 campaigns and the next gzip/BZip2/Zstd campaigns. Each queue
+waits for its predecessor's passing status, checks for other guest test processes and
+preserves separate raw runs and evidence seals. This can remove unattended idle gaps;
+it does not shorten any fuzz floor, overlap CPU-intensive tests or reduce qualification
+scope. The actual time saved has not been measured. Mac replay grouped all three wrapper
+formats into one idle guest visit with one isolated build and one sealed evidence bundle.
+
 ## Current execution decision, 9 November
 
 The remaining saving is to apply the cadence consistently. The storage-admission Windows corrections

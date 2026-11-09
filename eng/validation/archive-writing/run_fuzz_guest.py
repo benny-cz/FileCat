@@ -7,6 +7,8 @@ hashes, kernel resource observations, and termination status for each run.
 """
 
 import argparse
+import bz2
+import gzip
 import hashlib
 import json
 import os
@@ -33,7 +35,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--phase", choices=("canary", "clean"), required=True)
-    parser.add_argument("--target", choices=("digest", "tar-strict", "sevenzip-strict", "rar5-strict", "sevenzip-password", "rar5-password", "session-record", "capture-record", "save-copy-intent",
+    parser.add_argument("--target", choices=("digest", "tar-strict", "sevenzip-strict", "rar5-strict", "sevenzip-password", "rar5-password",
+                                              "gzip-strict", "bzip2-strict", "zstd-strict", "session-record", "capture-record", "save-copy-intent",
                                               "save-copy-receipt", "journal-record", "journal-state", "manifest-member"), default="digest")
     parser.add_argument("--seconds", type=int, required=True)
     parser.add_argument("--seed", type=int, required=True)
@@ -90,6 +93,9 @@ def main():
     (run / "corpus" / "valid").write_bytes(b"\0" * 1024 if args.target == "tar-strict" else
                                             b"7z\xbc\xaf\x27\x1c" if args.target in ("sevenzip-strict", "sevenzip-password") else
                                             b"Rar!\x1a\x07\x01\x00" if args.target in ("rar5-strict", "rar5-password") else
+                                            gzip.compress(b"", mtime=0) if args.target == "gzip-strict" else
+                                            bz2.compress(b"") if args.target == "bzip2-strict" else
+                                            bytes.fromhex("28b52ffd2000010000") if args.target == "zstd-strict" else
                                             b"0{}" if args.target == "capture-record" else
                                             b"{}" if args.target in ("session-record", "save-copy-intent", "save-copy-receipt") else
                                             b"00000000 {}\n" if args.target in ("journal-record", "journal-state") else
@@ -131,7 +137,9 @@ def main():
         if folder.parent != root or not folder.is_dir():
             raise ValueError("Extra corpus must be a direct synthetic seed directory within this image")
         total = 0
-        extension = "*.tar" if args.target == "tar-strict" else "*.7z" if args.target.startswith("sevenzip-") else "*.rar" if args.target.startswith("rar5-") else "*.bin" if args.target == "manifest-member" else "*.json"
+        extension = "*.tar" if args.target == "tar-strict" else "*.7z" if args.target.startswith("sevenzip-") else "*.rar" if args.target.startswith("rar5-") else \
+                    "*.gz" if args.target == "gzip-strict" else "*.bz2" if args.target == "bzip2-strict" else "*.zst" if args.target == "zstd-strict" else \
+                    "*.bin" if args.target == "manifest-member" else "*.json"
         for index, source in enumerate(sorted(p for p in folder.glob(extension) if p.name != "manifest.json")):
             if index >= 64 or not source.is_file() or source.is_symlink():
                 raise ValueError("Extra corpus has an unreviewable entry")

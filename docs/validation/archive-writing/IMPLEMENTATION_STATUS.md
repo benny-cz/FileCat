@@ -1,5 +1,19 @@
 # Archive writing implementation status
 
+**9 November: FZ02 strict-wrapper fuzz targets are replay-ready, with no duration floor yet.**
+The test-only harness now drives the production gzip, BZip2 and Zstd strict readers to
+physical EOF with a 1 MiB encoded-input and 16 MiB decoded-output harness budget. On Mac,
+24 deterministic valid, truncated, corrupt, concatenated, trailing and window/header seeds
+produced nine accepted reads and 15 controlled refusals. The four required production reader/
+frame types were present in the 45-type instrumented archive assembly. The 3,410,893-
+byte replay transport is retained under `.tmp/storage-evidence/mac/fuzz-wrapper-v17` with
+guest SHA-256 `5bfb3420d976733fcb6530256161b6e6989c9a49e611c48a148e6dbe685829e6`;
+an independent verifier checked source, binaries, regenerated seed bytes, per-case outcomes
+and zero-warning Mac build. No FZ02 native campaign or cross-platform qualification is claimed.
+The v17 source-bound packet and three-format seed bundle are staged on Ubuntu; a guarded
+queue will start its canary, short runs and long campaigns only after the already-running
+RAR5 password, adoption and strict-format batches complete successfully.
+
 **9 November: Mac AW0 extraction benchmark found an open performance gate.** The canonical
 20,000-note/four-64-MiB-file fixture (273 MiB payload) took 11.931 seconds for FileCat's
 ZIP F5 extraction versus 2.268 seconds for the in-box extractor, or 5.26× against the
@@ -12,6 +26,13 @@ queries taking 3.988 seconds; its raw TRX SHA-256 is
 An attempted Unix-path cache still took 10.730/2.113 seconds and failed the gate, so it
 was reverted. The Mac source and test build were restored and all test processes exited.
 This is an unresolved measured qualification failure, not a passed AW0 budget.
+
+The same canonical 20,000-note/four-64-MiB-file fixture also completed the Mac TAR.GZ
+benchmark: FileCat extracted in 11.4 seconds versus 3.0 seconds for the in-box
+`TarFile.ExtractToDirectory`, or 3.77×, within that individual 4× limit. Its raw TRX
+SHA-256 is `49b2b89e8844aa9163c390765da0bd53e184512a26e17f5b7389d08ac4c307eb`;
+the raw test log SHA-256 is `691b2df446fb3c3c287c046544de37c9ef15b4be14557d93b045854e908aaa83`.
+This one passing format does not close the ZIP failure or the overall AW0 gate.
 
 **9 November: legacy reviewed discard now rechecks its record and complete working bytes.**
 Commit `1f88274b` closes a stale-confirmation gap before the existing legacy deletion route.

@@ -56,7 +56,8 @@ def main():
             not any("StrictTarCatalog::Read" in name for name in report["production_methods"]) or \
             not any("StrictTarCatalog::CompareDecoder" in name for name in report["production_methods"]):
             raise ValueError("The strict TAR and decoder coverage evidence is incomplete")
-    qualified_targets = ("journal-state", "sevenzip-strict", "rar5-strict", "sevenzip-password", "rar5-password")
+    qualified_targets = ("journal-state", "sevenzip-strict", "rar5-strict", "sevenzip-password", "rar5-password",
+                         "gzip-strict", "bzip2-strict", "zstd-strict")
     if args.target in qualified_targets:
         qualifications = (args.canary_run, args.canary_replay_run, args.short_run)
         if any(name is None or not name.replace("-", "").isalnum() for name in qualifications) or len(set(qualifications)) != 3:
@@ -122,6 +123,24 @@ def main():
                             "FileCat.Archives.Writing.Rar5EncryptionPrimitives",
                             "FileCat.Archives.Writing.ArchiveCryptoWorkBudget"}.issubset(
                                 prep["instrumented_tar_types"]["clean"])
+        elif args.target in ("gzip-strict", "bzip2-strict", "zstd-strict"):
+            reader = {"gzip-strict": "StrictGzipReadStream", "bzip2-strict": "StrictBzip2ReadStream",
+                      "zstd-strict": "StrictZstdReadStream"}[args.target]
+            required = (reader + "::.ctor", reader + "::Read")
+            names = {
+                "gzip-strict": {"empty.gz", "payload.gz", "bad-crc.gz", "bad-size.gz", "metadata.gz",
+                                "truncated.gz", "concatenated.gz", "trailing.gz"},
+                "bzip2-strict": {"empty.bz2", "payload.bz2", "block-one.bz2", "bad-crc.bz2",
+                                 "truncated.bz2", "concatenated.bz2", "trailing.bz2"},
+                "zstd-strict": {"empty.zst", "payload.zst", "windowed.zst", "checksummed-fixture.zst",
+                               "bad-checksum.zst", "huge-window.zst", "truncated.zst", "concatenated.zst",
+                               "trailing.zst"},
+            }[args.target]
+            instrumented = {"FileCat.Archives.Writing." + reader}.issubset(
+                prep["instrumented_tar_types"]["clean"])
+            if args.target == "zstd-strict":
+                required += ("ZstdFrameHeader::Read",)
+                instrumented &= "FileCat.Archives.Writing.ZstdFrameHeader" in prep["instrumented_tar_types"]["clean"]
         else:
             required = ("StrictRar5Catalog::Read", "StrictRar5Framing::Read")
             names = {"Rar4.rar", "Rar.malformed_512byte.rar"} | {
@@ -130,7 +149,8 @@ def main():
             instrumented = {"FileCat.Archives.Writing.StrictRar5Catalog",
                             "FileCat.Archives.Writing.StrictRar5Framing"}.issubset(
                                 prep["instrumented_tar_types"]["clean"])
-        if args.target in ("sevenzip-strict", "rar5-strict", "sevenzip-password", "rar5-password"):
+        if args.target in ("sevenzip-strict", "rar5-strict", "sevenzip-password", "rar5-password",
+                           "gzip-strict", "bzip2-strict", "zstd-strict"):
             if report["SecondaryModuleSha256"].lower() != sha(root / "clean" / "FileCat.Archives.dll"):
                 raise ValueError("The format run did not use the instrumented production archive assembly")
         if any(not any(method in name for name in methods) for method in required):

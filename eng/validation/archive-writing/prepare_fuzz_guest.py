@@ -109,10 +109,14 @@ def main():
                 "FileCat.Archives.Writing.SevenZipStrictHeaderReader",
                 "FileCat.Archives.Writing.StrictRar5Catalog",
                 "FileCat.Archives.Writing.StrictRar5Framing",
+                "FileCat.Archives.Writing.StrictGzipReadStream",
+                "FileCat.Archives.Writing.StrictBzip2ReadStream",
+                "FileCat.Archives.Writing.StrictZstdReadStream",
+                "FileCat.Archives.Writing.ZstdFrameHeader",
                 "FileCat.Archives.SevenZipReadPasswordSession",
                 "FileCat.Archives.Rar.Rar5ReadPasswordSession",
                 "FileCat.Archives.Writing.ArchiveCryptoWorkBudget"}.issubset(types):
-            raise ValueError("Strict TAR, 7z or RAR5 scanner was not instrumented")
+            raise ValueError("Strict TAR, wrapper, 7z or RAR5 scanner was not instrumented")
     facts = {"candidate": CANDIDATE, "verified_folder": "awe-storage-v40",
              "verified_index_sha256": sha(verified / "files.json"),
              "packet_sha256": sha(packet), "product_core_sha256": expected["FileCat.Core.dll"],

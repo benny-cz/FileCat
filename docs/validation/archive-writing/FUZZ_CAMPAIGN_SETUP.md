@@ -1,5 +1,26 @@
 # Coverage-guided archive-writing fuzz setup
 
+**9 November, FZ02 setup checkpoint.** The next test-only harness adds direct production
+`StrictGzipReadStream`, `StrictBzip2ReadStream` and `StrictZstdReadStream` targets. It
+drains each accepted stream to physical EOF, limits encoded input to 1 MiB and decoded
+output to 16 MiB, and instruments those readers plus `ZstdFrameHeader`. The Mac guest
+built the isolated harness with zero warnings/errors and replayed 24 deterministic
+wrapper seeds: nine valid reads and 15 controlled refusals. The exact guest source,
+product and instrumented binaries, seed bytes and raw results were sealed in a
+3,410,893-byte transport (guest/host SHA-256
+`5bfb3420d976733fcb6530256161b6e6989c9a49e611c48a148e6dbe685829e6`)
+and passed `verify_wrapper_replay_transport.py`. This validates the replay and
+instrumentation selection only. The canary-bound Ubuntu native campaigns, CPU floors,
+codec coverage and fresh-process cross-platform replay remain open.
+The source-bound v17 test packet is 497,222 bytes (SHA-256
+`300cfb93b0c134917e59b8cd5de35f045ad5fb5c315a18baa634bd68513c8a59`).
+Its three-format seed bundle is 132,696 bytes (SHA-256
+`69a898f3c57d53bfb04c313297f65267a2f40e73db44dee5401bebe9d389f6f9`).
+Both are staged on Ubuntu. The guarded `filecat-archive-wrapper-fuzz-v17-queue` waits for
+the adoption and strict-format queues to pass, checks machine idleness, creates a separate
+instrumented image, runs its own canary/replay and short runs, then attempts a 7,200
+CPU-second minimum for each gzip, BZip2 and Zstd target. No v17 campaign has started yet.
+
 **9 November, password-target progress.** Ubuntu's `sevenzip-password-nightly-v5` completed
 the 12,000-second wall campaign with 11,687.566561 CPU seconds, 5,855,094 executions
 (16,036 accepted and 5,839,058 controlled refusals), zero crash artifacts and a 95,035,392-byte

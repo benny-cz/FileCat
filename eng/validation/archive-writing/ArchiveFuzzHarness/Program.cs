@@ -75,6 +75,10 @@ if(args is ["instrument-tar",var tarAssembly,var tarTypeReport])
             name.StartsWith("FileCat.Archives.Writing.SevenZipEncryptionPrimitives",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Archives.Writing.StrictRar5Catalog",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Archives.Writing.StrictRar5Framing",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Writing.StrictGzipReadStream",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Writing.StrictBzip2ReadStream",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Writing.StrictZstdReadStream",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Writing.ZstdFrameHeader",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Archives.Rar.Rar5ReadPasswordSession",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Archives.Writing.Rar5EncryptionPrimitives",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Archives.Writing.ArchiveCryptoWorkBudget",StringComparison.Ordinal),Options.Value).ToArray();
@@ -86,6 +90,10 @@ if(args is ["instrument-tar",var tarAssembly,var tarTypeReport])
         !types.Contains("FileCat.Archives.Writing.SevenZipStrictHeaderReader")||
         !types.Contains("FileCat.Archives.Writing.StrictRar5Catalog")||
         !types.Contains("FileCat.Archives.Writing.StrictRar5Framing")||
+        !types.Contains("FileCat.Archives.Writing.StrictGzipReadStream")||
+        !types.Contains("FileCat.Archives.Writing.StrictBzip2ReadStream")||
+        !types.Contains("FileCat.Archives.Writing.StrictZstdReadStream")||
+        !types.Contains("FileCat.Archives.Writing.ZstdFrameHeader")||
         !types.Contains("FileCat.Archives.SevenZipReadPasswordSession")||
         !types.Contains("FileCat.Archives.Rar.Rar5ReadPasswordSession")||
         !types.Contains("FileCat.Archives.Writing.ArchiveCryptoWorkBudget"))
@@ -94,7 +102,8 @@ if(args is ["instrument-tar",var tarAssembly,var tarTypeReport])
 }
 if(args is ["replay-format",var formatTarget,var formatInput])
 {
-    if(formatTarget is not ("tar-strict" or "sevenzip-strict" or "rar5-strict" or "sevenzip-password" or "rar5-password"))throw new ArgumentException("Unknown format replay target.");
+    if(formatTarget is not ("tar-strict" or "sevenzip-strict" or "rar5-strict" or "sevenzip-password" or "rar5-password" or
+        "gzip-strict" or "bzip2-strict" or "zstd-strict"))throw new ArgumentException("Unknown format replay target.");
     using var file=new FileStream(formatInput,FileMode.Open,FileAccess.Read,FileShare.Read);
     if(file.Length>1048576)throw new ArgumentException("Format replay exceeds 1 MiB.");
     byte[] bytes=new byte[checked((int)file.Length)];file.ReadExactly(bytes);
@@ -129,13 +138,14 @@ if(args.Length!=0)throw new ArgumentException("Fuzz targets receive input throug
 Stats.Target=Environment.GetEnvironmentVariable("FILECAT_FUZZ_TARGET")??"digest";
 if(Stats.Target is not ("digest" or "tar-strict" or "session-record" or "capture-record" or "save-copy-intent" or
     "save-copy-receipt" or "journal-record" or "journal-state" or "manifest-member" or "sevenzip-strict" or "rar5-strict" or
-    "sevenzip-password" or "rar5-password"))
+    "sevenzip-password" or "rar5-password" or "gzip-strict" or "bzip2-strict" or "zstd-strict"))
     throw new ArgumentException("Unknown fuzz target.");
 Stats.CanaryPrefixMode=Environment.GetEnvironmentVariable("FILECAT_FUZZ_CANARY_PREFIX_MODE")=="1";
 if(Stats.CanaryPrefixMode&&Stats.Target!="digest")throw new ArgumentException("The canary input transform is digest-only.");
 Stats.Module=typeof(ArchiveWritePolicy).Assembly.Location;
 Stats.ModuleSha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Stats.Module)));
-if(Stats.Target is "tar-strict" or "sevenzip-strict" or "rar5-strict" or "sevenzip-password" or "rar5-password")Format.Bind(Stats.Target);
+if(Stats.Target is "tar-strict" or "sevenzip-strict" or "rar5-strict" or "sevenzip-password" or "rar5-password" or
+    "gzip-strict" or "bzip2-strict" or "zstd-strict")Format.Bind(Stats.Target);
 Stats.Report=Environment.GetEnvironmentVariable("FILECAT_FUZZ_REPORT");
 if(Stats.Report is not null&&(!Path.IsPathFullyQualified(Stats.Report)||!Directory.Exists(Path.GetDirectoryName(Stats.Report))))
     throw new ArgumentException("The supervisor must select an existing absolute report directory.");
@@ -166,7 +176,8 @@ static void Exercise(ReadOnlySpan<byte> data)
             if(Stats.Calls==1||(Stats.Calls&4095)==0)Stats.Publish();
             return;
         }
-        if(Stats.Target is "tar-strict" or "sevenzip-strict" or "rar5-strict" or "sevenzip-password" or "rar5-password")
+        if(Stats.Target is "tar-strict" or "sevenzip-strict" or "rar5-strict" or "sevenzip-password" or "rar5-password" or
+            "gzip-strict" or "bzip2-strict" or "zstd-strict")
         {if(!Format.Exercise(data,Stats.Target))Stats.Refused++;else Stats.Accepted++;}
         else
         {
@@ -174,7 +185,8 @@ static void Exercise(ReadOnlySpan<byte> data)
             if(Stats.CanaryPrefixMode&&data.Length==2)digest+=new string('0',62);
             ArchiveWritePolicy.ValidateDigest(digest);
         }
-        if(Stats.Target is not ("tar-strict" or "sevenzip-strict" or "rar5-strict" or "sevenzip-password" or "rar5-password"))Stats.Accepted++;
+        if(Stats.Target is not ("tar-strict" or "sevenzip-strict" or "rar5-strict" or "sevenzip-password" or "rar5-password" or
+            "gzip-strict" or "bzip2-strict" or "zstd-strict"))Stats.Accepted++;
     }
     catch(ArchiveWriteException){Stats.Refused++;}
     catch{Stats.Publish();throw;}
@@ -386,6 +398,7 @@ static class Tar
 static class Format
 {
     internal static MethodInfo SevenRead=null!,RarRead=null!;
+    private static ConstructorInfo WrapperRead=null!;
     private static Func<string,IDisposable>? PasswordSession;
     private const string SevenPassword="Public-7z-catalog-暗号-42829323";
     private const string RarPassword="Public-RAR-Transform-暗号-42829316";
@@ -394,6 +407,20 @@ static class Format
         var assembly=Assembly.LoadFrom(Path.Combine(AppContext.BaseDirectory,"FileCat.Archives.dll"));
         Stats.SecondaryModule=assembly.Location;
         Stats.SecondaryModuleSha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Stats.SecondaryModule)));
+        if(target is "gzip-strict" or "bzip2-strict" or "zstd-strict")
+        {
+            string name=target switch
+            {
+                "gzip-strict"=>"StrictGzipReadStream",
+                "bzip2-strict"=>"StrictBzip2ReadStream",
+                _=>"StrictZstdReadStream",
+            };
+            var type=assembly.GetType("FileCat.Archives.Writing."+name,throwOnError:true)!;
+            WrapperRead=type.GetConstructor(BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic,null,
+                [typeof(Stream),typeof(CancellationToken)],null)
+                ??throw new InvalidOperationException("Production strict wrapper constructor changed.");
+            return;
+        }
         if(target=="tar-strict")
         {
             var type=assembly.GetType("FileCat.Archives.Writing.StrictTarCatalog",throwOnError:true)!;
@@ -442,7 +469,25 @@ static class Format
     {
         try
         {
-            if(target=="tar-strict")Tar.Exercise(data);
+            if(target is "gzip-strict" or "bzip2-strict" or "zstd-strict")
+            {
+                using var source=new MemoryStream(data.ToArray(),writable:false);
+                Stream decoder;
+                try{decoder=(Stream)WrapperRead.Invoke([source,CancellationToken.None]);}
+                catch(TargetInvocationException error)when(error.InnerException is not null)
+                {ExceptionDispatchInfo.Capture(error.InnerException).Throw();throw;}
+                using(decoder)
+                {
+                    Span<byte> block=stackalloc byte[4096];long output=0;
+                    int count;
+                    while((count=decoder.Read(block))!=0)
+                    {
+                        output+=count;
+                        if(output>(16L<<20))return false; // Fuzz output budget; no partial decode counts as accepted.
+                    }
+                }
+            }
+            else if(target=="tar-strict")Tar.Exercise(data);
             else
             {
                 using var stream=new MemoryStream(data.ToArray(),writable:false);

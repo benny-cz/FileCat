@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independently verify one sealed Ubuntu FZ01/FZ09 native fuzz transport."""
+"""Independently verify one sealed Ubuntu archive-writing native fuzz transport."""
 
 import hashlib
 import json
@@ -53,7 +53,8 @@ def verify(image,run,target,minimum_cpu_seconds):
             'ustar-one-file.tar','ustar-directory.tar','ustar-duplicate.tar','pax-unicode-time.tar'}
         assert any('StrictTarCatalog::Read' in name for name in report['production_methods'])
         assert any('StrictTarCatalog::CompareDecoder' in name for name in report['production_methods'])
-    qualified_targets=('journal-state','sevenzip-strict','rar5-strict','sevenzip-password','rar5-password')
+    qualified_targets=('journal-state','sevenzip-strict','rar5-strict','sevenzip-password','rar5-password',
+                       'gzip-strict','bzip2-strict','zstd-strict')
     if target in qualified_targets:
         canary_name,replay_name,short_name=index['qualification_runs']
         assert len({canary_name,replay_name,short_name})==3
@@ -137,6 +138,29 @@ def verify(image,run,target,minimum_cpu_seconds):
                 mac_manifest=json.load(mac_tar.extractfile('seeds/manifest.json'))
             expected_seeds={row['name']:(row['bytes'],row['sha256']) for row in mac_manifest['seeds']}
             assert mac_manifest['target']=='rar5-password' and set(expected_seeds)==names
+            assert {row['name']:(row['bytes'],row['sha256']) for row in result['extra_seeds']}==expected_seeds
+        elif target in ('gzip-strict','bzip2-strict','zstd-strict'):
+            reader={'gzip-strict':'StrictGzipReadStream','bzip2-strict':'StrictBzip2ReadStream',
+                    'zstd-strict':'StrictZstdReadStream'}[target]
+            required=(reader+'::.ctor',reader+'::Read')
+            names={
+                'gzip-strict':{'empty.gz','payload.gz','bad-crc.gz','bad-size.gz','metadata.gz',
+                               'truncated.gz','concatenated.gz','trailing.gz'},
+                'bzip2-strict':{'empty.bz2','payload.bz2','block-one.bz2','bad-crc.bz2',
+                                'truncated.bz2','concatenated.bz2','trailing.bz2'},
+                'zstd-strict':{'empty.zst','payload.zst','windowed.zst','checksummed-fixture.zst',
+                               'bad-checksum.zst','huge-window.zst','truncated.zst','concatenated.zst',
+                               'trailing.zst'},
+            }[target]
+            assert report['SecondaryModuleSha256'].lower()==sha(file('clean/FileCat.Archives.dll'))
+            assert 'FileCat.Archives.Writing.'+reader in prep['instrumented_tar_types']['clean']
+            if target=='zstd-strict':
+                required+=('ZstdFrameHeader::Read',)
+                assert 'FileCat.Archives.Writing.ZstdFrameHeader' in prep['instrumented_tar_types']['clean']
+            # The exact deterministic corpus and its acceptance labels were checked during the Mac replay.
+            # The long run must retain every seed in both the short and long corpus.
+            from make_wrapper_fuzz_seeds import variants
+            expected_seeds={name:(len(raw),sha(raw)) for name,(raw,_) in variants(target).items()}
             assert {row['name']:(row['bytes'],row['sha256']) for row in result['extra_seeds']}==expected_seeds
         else:
             required=('StrictRar5Catalog::Read','StrictRar5Framing::Read')
