@@ -104,8 +104,8 @@ A preparatory review caught that the supervisor's extra-seed loader selected onl
 for non-TAR targets, which would have left the binary manifest-member corpus unseeded. The v10
 packet fixes that selector and is staged on Ubuntu: 487,066 bytes / SHA-256
 `b764c9c6b34c8750f6f0398d992f158d899b035307e3ff61e5316e920aa53d5d`.
-Its harness DLL remains byte-identical to v8/v9. Use v10 for the Ubuntu native campaign;
-v9 remains a preserved preparatory packet and has not run.
+Its harness DLL remains byte-identical to v8/v9. The later v12 packet supersedes v10 for the
+first Ubuntu native campaign; v9/v10 remain preserved preparatory packets and have not run.
 
 The subsequent v11 test-only packet adds a seventh `journal-state` target. It feeds bounded,
 CRC-checked records into the production `ArchiveTransactionCollector` and checks that damaged or
@@ -117,9 +117,18 @@ Mac passed all 54 seven-target replays against its sealed v40 Core (15 accepted,
 refusals, zero crashes); the raw result SHA-256 is
 `27922504822323a13047c0f8f02811016c3ea0cbd806e60dee8a8bc55f76fc37`.
 The independent verifier checks exact committed harness and seed sources, packet, seed bytes,
-guest runner and sealed product Core. Windows and Ubuntu v11 replays and a native stateful campaign
-remain pending. The v10 first native campaign remains queued ahead of v11; this new target does not
-change its frozen image.
+guest runner and sealed product Core. The v11 native image was not launched: a prelaunch review
+found that its instrumentation filter omitted `ArchiveTransactionCollector`, so state transitions
+would not guide mutations. Windows and Ubuntu v11 replays remain pending.
+
+The v12 packet corrects that filter and makes image preparation require the collector in its
+instrumented Core type report. It is 488,815 bytes / SHA-256
+`758aa0dcc9865ae30eac26d4aa53653243748798868a068aaee4e028699ffb3b`.
+Its replay harness keeps the same seven targets and v11 synthetic corpus. The packet, preparer and
+replay runner are staged on Ubuntu without starting another product process during FZ01. After
+Ubuntu v40 passes, replay, instrumentation, the intentional canary and a short clean run must pass
+before v12 is used for the first native FZ09 long campaign. v10/v11 are retained preparatory
+artifacts, not native qualification results.
 
 A separate guest sealer and host verifier now check the terminal service result, kernel CPU and
 memory observations, managed execution counts, production method coverage, exact image/packet
