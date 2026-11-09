@@ -4,6 +4,8 @@ namespace FileCat.Core.Edit;
 
 public sealed partial class EditSessionStore
 {
+    internal bool SupportsRecoveredNativeCopy => nativeOpen is not null && nativeCopyOpen is not null;
+
     /// <summary>
     /// Make a new ordinary file from one complete retained capture after restart. The captured file and every
     /// old record remain; a persisted intent precedes any destination artifact or public name claim.

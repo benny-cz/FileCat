@@ -3,13 +3,13 @@ from pathlib import Path
 from datetime import datetime,timezone
 import importlib.util,json,shutil,subprocess,sys,tarfile,tempfile,time,uuid,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v39'
-PACKET='archive-edit-storage-delta-v39.tar.gz'
+FOLDER='awe-storage-v40'
+PACKET='archive-edit-storage-delta-v40.tar.gz'
 def cohort_policy(platform):
     # Restarted retained-capture publication receives affected gates before the next workflow milestone.
     # Ubuntu's last sealed predecessor is v36 while its long FZ01 run occupies the guest.
-    return {'win32':('awe-storage-v38','focused'),
-            'darwin':('awe-storage-v38','focused'),
+    return {'win32':('awe-storage-v39','focused'),
+            'darwin':('awe-storage-v39','focused'),
             'linux':('awe-storage-v36','focused')}[platform]
 
 PREVIOUS_FOLDER,VALIDATION_SCOPE=cohort_policy(sys.platform)
@@ -89,7 +89,7 @@ def tests(task):
         'FullyQualifiedName~WindowsEditDiscardTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditDiscardTests',40 if sys.platform=='win32' else 3)
     run('discard-ui','FileCat.App.Tests','FullyQualifiedName~EditDiscardNativeUiTests')
     assert rows['discard-ui']['total']=='6' and rows['discard-ui']['passed']==('6' if sys.platform=='win32' else '3')
-    run('retained-copy-ui','FileCat.App.Tests','FullyQualifiedName~EditRetainedCopyUiTests',1)
+    run('retained-copy-ui','FileCat.App.Tests','FullyQualifiedName~EditRetainedCopyUiTests',2)
     run('storage-admission','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
         'FullyQualifiedName~WindowsEditStorageAdmissionTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditStorageAdmissionTests',45)
     run('save-copy-intent','FileCat.Core.Tests','FullyQualifiedName~EditSaveCopyIntentTests',14)

@@ -390,7 +390,7 @@ public sealed partial class MainViewModel
                 })).ToList();
             var choice = await Dialogs.ChooseAsync(new ChoiceOptions("Retained edit copies", items)
             {
-                Hint = "Select a copy to see its recovery state and exact retained folder. Nothing is deleted or published.",
+                Hint = "Select a copy to review its state and retained folder. A verified copy can be saved separately.",
             });
             CheckSessionAction();
             if (choice.Index < 0 || choice.Index >= reviews.Count) return;
@@ -401,16 +401,67 @@ public sealed partial class MainViewModel
             if (selected.SavedCopy is { } saved)
                 detail += "\nSaved copy: " + Formatters.SafeName(saved.Destination) +
                           "\n" + saved.State + ". " + saved.Reason;
+            var actions = new List<DialogButton> { new("Close", "close", IsCancel: true, IsDefault: true),
+                new("Open retained folder", "folder") };
+            if (selected.State == EditCaptureRecoveryState.Complete && selected.SavedCopy is null &&
+                Services.EditSessions.SupportsRecoveredNativeCopy)
+                actions.Add(new("Save verified copy…", "save"));
             var answer = await Dialogs.ShowCustomAsync("Retained edit copy", new TextBlock
             {
                 Text = detail, TextWrapping = TextWrapping.Wrap, MaxWidth = 640,
-            }, [new("Close", "close", IsCancel: true, IsDefault: true), new("Open retained folder", "folder")]);
+            }, actions);
             CheckSessionAction();
             if (answer as string == "folder") Services.Shell.Open(selected.Directory);
+            else if (answer as string == "save") await SaveRecoveredSessionCopyAsync(session, selected);
         }
         catch (OperationCanceledException) { }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         { if (EditSessionsActive) Notify("The retained copies could not be reviewed: " + Formatters.SafeName(error.Message), true); }
+    }
+
+    private async Task SaveRecoveredSessionCopyAsync(EditSessionRecord session, EditCaptureRecovery selected)
+    {
+        if (selected.State != EditCaptureRecoveryState.Complete || selected.SavedCopy is not null ||
+            !EditSessionsActive || View.TopLevel is not { } top || !_sessionCopyActions.Add(session.Id)) return;
+        try
+        {
+            CheckSessionAction();
+            using var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save verified retained edit copy",
+                SuggestedFileName = Path.GetFileName(session.WorkingPath),
+            });
+            CheckSessionAction();
+            string? destination = file?.TryGetLocalPath();
+            if (destination is null) return;
+            destination = Path.GetFullPath(destination);
+            var result = await MutationIoAsync(destination, () =>
+                Services.EditSessions.SaveRecoveredNativeCopy(session, selected.Directory, destination,
+                    check: CheckSessionAction), CheckSessionAction);
+            var published = result.Published;
+            var issue = result.Issue;
+            bool recorded = result.OutcomeRecorded;
+            try { result.Dispose(); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            { issue = issue is null ? error : new AggregateException(issue, error); }
+            CheckSessionAction();
+            if (published is not null)
+            {
+                if (issue is null && recorded)
+                    Notify($"Saved the verified retained copy to {destination}. The edit session and captured copy are kept.");
+                else Notify($"A copy was published at {destination}, but its outcome needs review: " +
+                    Formatters.SafeName(issue?.Message ?? "The final receipt is missing.") +
+                    " The edit session and captured copy are kept.", true);
+            }
+            else Notify($"The save-copy outcome at {destination} needs review: " +
+                Formatters.SafeName(issue?.Message ?? "Publication was not confirmed.") +
+                " The edit session and captured copy are kept.", true);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException or ArgumentException)
+        { if (EditSessionsActive) Notify("The retained copy could not be saved: " + Formatters.SafeName(error.Message) +
+            ". The edit session and captured copy are kept; review the destination before trying again.", true); }
+        finally { _sessionCopyActions.Remove(session.Id); }
     }
 
     private async Task CommitSessionAsync(EditSessionRecord session)

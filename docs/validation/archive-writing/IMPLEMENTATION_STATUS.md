@@ -1,5 +1,13 @@
 # Archive writing implementation status
 
+**9 November: retained-copy Save verified copy UI candidate is ready for guest validation.**
+The recovery dialog offers the action only for a complete unused capture when a native destination
+adapter is present. It uses a local save picker, exclusive native publication, and reports a
+published copy separately from later receipt uncertainty. A two-case headless dialog check
+reviews without publishing and follows the picker through a real native copy. The App test
+project builds with zero warnings. The default factory remains disabled; three-platform guest
+validation for this new candidate is pending.
+
 **9 November: restarted retained-capture Save copy passes Mac and Windows focused gates.**
 A new internal action reopens one complete, unlinked capture through native handles, binds it to
 the fully validated historical state, checks exact payload/record bytes and metadata, admits the
