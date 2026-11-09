@@ -3,12 +3,12 @@ from pathlib import Path
 from datetime import datetime,timezone
 import importlib.util,json,shutil,subprocess,sys,tarfile,tempfile,time,uuid,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v42'
-PACKET='archive-edit-storage-delta-v42.tar.gz'
+FOLDER='awe-storage-v43'
+PACKET='archive-edit-storage-delta-v43.tar.gz'
 def cohort_policy(platform):
     # Recheck complete test inventories for the currently focused recovery bytes.
     # Ubuntu enters this cohort after its dedicated FZ01 and focused v40 batches.
-    return {'win32':('awe-storage-v40','full'),
+    return {'win32':('awe-storage-v41','full'),
             'darwin':('awe-storage-v40','full'),
             'linux':('awe-storage-v40','full')}[platform]
 
