@@ -26,6 +26,13 @@ internal abstract class EditDirectoryLease : IDisposable
     internal virtual bool CanRemoveOwnedDirectories=>false;
     internal abstract void RemoveEmpty(CancellationToken ct);
     internal abstract IReadOnlyList<string> Names(CancellationToken ct);
+    internal virtual IReadOnlyList<string> Names(CancellationToken ct,int maximum)
+    {
+        if(maximum is <0 or >100000)throw new ArgumentOutOfRangeException(nameof(maximum));
+        var names=Names(ct);if(names.Count>maximum)throw new IOException("The edit namespace exceeds its review budget.");return names;
+    }
+    internal virtual EditStoredFileSize MeasureStoredFile(string leaf,CancellationToken ct)=>throw new NotSupportedException("Native storage accounting is unavailable.");
+    internal virtual EditStoredDirectorySize MeasureStoredDirectory(CancellationToken ct)=>throw new NotSupportedException("Native storage accounting is unavailable.");
     internal abstract string Identify(SafeFileHandle file);
     internal abstract void PublishNewFile(FileStream file,string sourceLeaf,string targetLeaf,EditFileVersion expected,CancellationToken ct);
     protected abstract void ReviewCore(CancellationToken ct);

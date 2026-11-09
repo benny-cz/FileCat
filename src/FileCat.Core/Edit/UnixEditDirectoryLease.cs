@@ -7,7 +7,7 @@ using Microsoft.Win32.SafeHandles;
 namespace FileCat.Core.Edit;
 
 /// <summary>Unregistered native edit creation/read namespace. No pathname cleanup or publication fallback.</summary>
-internal sealed class UnixEditDirectoryLease : EditDirectoryLease
+internal sealed partial class UnixEditDirectoryLease : EditDirectoryLease
 {
     private readonly SafeFileHandle directory;
     private readonly UnixEditDirectoryLease? parent;
@@ -109,13 +109,15 @@ internal sealed class UnixEditDirectoryLease : EditDirectoryLease
             return new(facts.Length,(long)ticks,facts.Identity+":"+metadata.Digest);
         }
     }
-    internal override IReadOnlyList<string> Names(CancellationToken ct)
+    internal override IReadOnlyList<string> Names(CancellationToken ct)=>Names(ct,100000);
+    internal override IReadOnlyList<string> Names(CancellationToken ct,int maximum)
     {
         lock(Gate)
         {
+            if(maximum is <0 or >100000)throw new ArgumentOutOfRangeException(nameof(maximum));
             RequireOpen();ReviewCore(ct);var names=new List<string>();
             UnixArchiveNative.EnumerateSelection(directory,entry=>
-            {if(names.Count>=100000)throw new IOException("The edit namespace exceeds its entry budget.");names.Add(entry.Leaf);},ct);
+            {if(names.Count>=maximum)throw new IOException("The edit namespace exceeds its entry budget.");names.Add(entry.Leaf);},ct);
             ReviewCore(ct);return names;
         }
     }

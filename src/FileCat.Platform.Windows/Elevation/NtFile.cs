@@ -151,7 +151,11 @@ internal static unsafe partial class NtFile
 
     /// <summary>Names in a directory (without "." and ".."), read through the handle, never by path.</summary>
     public static List<(string Name, uint Attributes, uint ReparseTag)> List(SafeFileHandle directory)
+        =>List(directory,int.MaxValue,default);
+
+    public static List<(string Name, uint Attributes, uint ReparseTag)> List(SafeFileHandle directory,int maximum,CancellationToken ct)
     {
+        if(maximum<0)throw new ArgumentOutOfRangeException(nameof(maximum));
         const int FullDirectoryInfo = 14, FullDirectoryRestartInfo = 15, NoMoreFiles = 18;
         var result = new List<(string, uint, uint)>();
         var buffer = new byte[64 * 1024];
@@ -160,6 +164,7 @@ internal static unsafe partial class NtFile
         {
             while (true)
             {
+                ct.ThrowIfCancellationRequested();
                 if (!GetFileInformationByHandleEx(directory, first ? FullDirectoryRestartInfo : FullDirectoryInfo, start, (uint)buffer.Length))
                 {
                     int error = Marshal.GetLastPInvokeError();
@@ -169,16 +174,24 @@ internal static unsafe partial class NtFile
                 first = false;
                 for (int offset = 0; ;)
                 {
+                    ct.ThrowIfCancellationRequested();
+                    if(offset<0||offset>buffer.Length-68)throw new IOException("Invalid native directory entry.");
                     // FILE_FULL_DIR_INFO: attributes at 56, name length (bytes) at 60, then the EA size, which holds a
                     // reparse point's tag, at 64, and the name at 68.
                     byte* entry = start + offset;
                     uint attributes = *(uint*)(entry + 56);
                     int length = (int)*(uint*)(entry + 60);
+                    if(length<0||(length&1)!=0||length>buffer.Length-offset-68)throw new IOException("Invalid native directory name length.");
                     uint tag = IsReparsePoint(attributes) ? *(uint*)(entry + 64) : 0;
                     var name = new string((char*)(entry + 68), 0, length / 2);
-                    if (name is not ("." or "..")) result.Add((name, attributes, tag));
+                    if (name is not ("." or ".."))
+                    {
+                        if(result.Count>=maximum)throw new IOException("The native directory exceeds its entry budget.");
+                        result.Add((name, attributes, tag));
+                    }
                     int next = (int)*(uint*)entry;
                     if (next == 0) break;
+                    if(next<68+length||(next&7)!=0||next>buffer.Length-offset-68)throw new IOException("Invalid native directory entry offset.");
                     offset += next;
                 }
             }

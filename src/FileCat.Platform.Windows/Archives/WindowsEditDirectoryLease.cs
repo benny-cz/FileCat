@@ -12,7 +12,7 @@ using static FileCat.Platform.Windows.Elevation.NtFile;
 namespace FileCat.Platform.Windows.Archives;
 
 /// <summary>Unregistered edit namespace primitives. Created children have explicit protected ACLs before working bytes exist.</summary>
-internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
+internal sealed partial class WindowsEditDirectoryLease : EditDirectoryLease
 {
     private readonly SafeFileHandle directory;
     private readonly LocalIconFileLease? rootPins;
@@ -131,7 +131,9 @@ internal sealed class WindowsEditDirectoryLease : EditDirectoryLease
         }
     }
     internal override IReadOnlyList<string> Names(CancellationToken ct)
-    {lock(Gate){RequireOpen();ReviewCore(ct);var names=List(directory);if(names.Count>100000)throw new IOException("The edit namespace exceeds its entry budget.");ReviewCore(ct);return names.Select(entry=>entry.Name).ToArray();}}
+        =>Names(ct,100000);
+    internal override IReadOnlyList<string> Names(CancellationToken ct,int maximum)
+    {lock(Gate){if(maximum is <0 or >100000)throw new ArgumentOutOfRangeException(nameof(maximum));RequireOpen();ReviewCore(ct);var names=List(directory,maximum,ct);ReviewCore(ct);return names.Select(entry=>entry.Name).ToArray();}}
     internal override ArchiveOriginSnapshot ReadOrigin(FileStream file,string name,CancellationToken ct)
     {
         lock(Gate)
