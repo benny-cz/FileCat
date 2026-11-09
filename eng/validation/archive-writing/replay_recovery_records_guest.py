@@ -11,11 +11,14 @@ import subprocess
 import tarfile
 
 
-TARGETS = ("session-record", "capture-record", "save-copy-intent", "save-copy-receipt")
+TARGETS = ("session-record", "capture-record", "save-copy-intent", "save-copy-receipt",
+           "journal-record", "manifest-member")
 EXPECTED_ACCEPTED = {"session-record": {"remote-v1.json", "zip-v2.json", "remote-v3.json"},
                      "capture-record": {"start.json", "complete.json"},
                      "save-copy-intent": {"valid.json"},
-                     "save-copy-receipt": {"valid.json", "published.json"}}
+                     "save-copy-receipt": {"valid.json", "published.json"},
+                     "journal-record": {"valid-begin.json", "valid-two.json"},
+                     "manifest-member": {"valid.bin", "directory.bin"}}
 
 
 def sha(path):
@@ -30,11 +33,11 @@ def main():
     parser.add_argument("--platform", choices=("unix", "windows"), required=True)
     args = parser.parse_args()
     task = args.task.resolve(strict=True)
-    packet = task / "fuzz-harness-v7.tar.gz"
-    seeds = task / ("recovery-record-seeds-" + args.platform + "-v7.tar.gz")
+    packet = task / "fuzz-harness-v8.tar.gz"
+    seeds = task / ("recovery-record-seeds-" + args.platform + "-v8.tar.gz")
     if sha(packet) != args.packet_sha256 or sha(seeds) != args.seeds_sha256:
         raise ValueError("FZ09 replay packet or seed hash changed")
-    out = task / "recovery-record-replay-v7"
+    out = task / "recovery-record-replay-v8"
     out.mkdir(exist_ok=False)
     for source in (packet, seeds):
         with tarfile.open(source) as tar:
@@ -45,9 +48,9 @@ def main():
             tar.extractall(out, filter="data")
     harness = out / "harness"
     product = task / "archive-workflow-source-v1" / "tests" / "FileCat.Core.Tests" / "bin" / "Release" / "net10.0"
-    verified = task / "awe-storage-v38" / "binaries" / "FileCat.Core.dll"
+    verified = task / "awe-storage-v40" / "binaries" / "FileCat.Core.dll"
     if sha(product / "FileCat.Core.dll") != sha(verified):
-        raise ValueError("Guest product Core differs from the sealed v38 binary")
+        raise ValueError("Guest product Core differs from the sealed v40 binary")
     for file in product.iterdir():
         if file.suffix == ".dll" and (file.name.startswith("FileCat.") or file.name.startswith("DiscUtils.")):
             target = harness / file.name
@@ -65,7 +68,7 @@ def main():
         if manifest["target"] != target or manifest["platform"] != args.platform:
             raise ValueError("Seed target/platform mismatch")
         listed = {item["name"] for item in manifest["seeds"]}
-        if listed != {file.name for file in folder.glob("*.json") if file.name != "manifest.json"}:
+        if listed != {file.name for file in folder.iterdir() if file.suffix in (".json", ".bin") and file.name != "manifest.json"}:
             raise ValueError("Seed list changed")
         for item in manifest["seeds"]:
             sample = folder / item["name"]
@@ -84,7 +87,7 @@ def main():
             (out / "progress.json").write_text(json.dumps(results, indent=2))
             if process.returncode != 0 or accepted != expected:
                 raise RuntimeError("Recovery-record replay failed: " + target + "/" + item["name"])
-    facts = {"candidate": "a59c7d2aa5515cb81f6c59a2af8a0e138a2437b8", "platform": args.platform,
+    facts = {"candidate": "a521bf45285110a2c836d9caec824e207fb99a5e", "platform": args.platform,
              "packet_sha256": args.packet_sha256, "seeds_sha256": args.seeds_sha256,
              "product_core_sha256": sha(verified), "runner_sha256": sha(Path(__file__)),
              "replays": results, "passed": len(results), "failed": 0}

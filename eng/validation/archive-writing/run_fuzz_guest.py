@@ -33,7 +33,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--phase", choices=("canary", "clean"), required=True)
-    parser.add_argument("--target", choices=("digest", "tar-strict", "session-record", "capture-record", "save-copy-intent", "save-copy-receipt"), default="digest")
+    parser.add_argument("--target", choices=("digest", "tar-strict", "session-record", "capture-record", "save-copy-intent",
+                                              "save-copy-receipt", "journal-record", "manifest-member"), default="digest")
     parser.add_argument("--seconds", type=int, required=True)
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--run-id", required=True)
@@ -89,6 +90,8 @@ def main():
     (run / "corpus" / "valid").write_bytes(b"\0" * 1024 if args.target == "tar-strict" else
                                             b"0{}" if args.target == "capture-record" else
                                             b"{}" if args.target in ("session-record", "save-copy-intent", "save-copy-receipt") else
+                                            b"00000000 {}\n" if args.target == "journal-record" else
+                                            b"\x01\x00" if args.target == "manifest-member" else
                                             args.valid_prefix.encode() if args.canary_two_byte else
                                             args.valid_prefix.encode() + b"0" * 62)
     (run / "corpus" / "short").write_bytes(b"0")

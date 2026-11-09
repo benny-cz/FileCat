@@ -4,6 +4,8 @@
 import argparse
 import hashlib
 import json
+import struct
+import zlib
 from pathlib import Path
 
 
@@ -13,7 +15,8 @@ IDENTIFIER = "0123456789abcdef0123456789abcdef"
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--target", choices=("session-record", "capture-record", "save-copy-intent", "save-copy-receipt"),default="session-record")
+    parser.add_argument("--target", choices=("session-record", "capture-record", "save-copy-intent", "save-copy-receipt",
+                                              "journal-record", "manifest-member"),default="session-record")
     parser.add_argument("--platform",choices=("unix","windows"),default="unix")
     args = parser.parse_args()
     output = args.output.resolve()
@@ -61,7 +64,7 @@ def main():
                  "escaped-target":json.dumps({**intent,"TargetLeaf":"../outside"},separators=(",", ":")).encode(),
                  "bad-digest":json.dumps({**intent,"Sha256":"not-a-digest"},separators=(",", ":")).encode(),
                  "torn":b'{"Version":1,"Nonce":',"invalid-utf8":b'{"Version":1,"Bad":"\xff"}'}
-    else:
+    elif args.target=="save-copy-receipt":
         receipt={"Version":1,"Nonce":nonce,"Sequence":1,"Phase":"prepared","ParentIdentity":"parent",
                  "SourceIdentity":"source","StageLeaf":artifact+"a.stage","TargetLeaf":"saved.txt",
                  "OutputIdentity":"output","Length":13,"Sha256":"B"*64,"MetadataDigest":"C"*64,
@@ -74,9 +77,29 @@ def main():
                  "bad-digest":json.dumps({**receipt,"Sha256":"bad"},separators=(",", ":")).encode(),
                  "duplicate-field":b'{"Version":1,'+json.dumps(receipt,separators=(",", ":")).encode()[1:],
                  "torn":b'{"Version":1,"Nonce":',"invalid-utf8":b'{"Version":1,"Bad":"\xff"}'}
+    elif args.target=="journal-record":
+        def line(value):
+            encoded=json.dumps(value,separators=(",", ":")).encode()
+            return f"{zlib.crc32(encoded):08x} ".encode()+encoded+b"\n"
+        begin=line({"t":"begin","kind":"ArchiveUpdate","archiveJournalVersion":5})
+        samples={"valid-begin":begin,"valid-two":begin+line({"t":"note","message":"synthetic"}),
+                 "bad-crc":b"00000000 "+begin[9:],"torn":begin[:-4],
+                 "invalid-utf8":b"00000000 {\"t\":\"\xff\"}\n",
+                 "unknown-tag":line({"x":"no type"})}
+    else:
+        empty=bytes.fromhex("E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855")
+        def member(name,kind=0,digest=empty,metadata=b""):
+            encoded=name.encode()
+            return struct.pack("<Hi",1,len(encoded))+encoded+struct.pack("<iiq",kind,0,0)+digest+struct.pack("<i",len(metadata))+metadata
+        valid=member("owned.txt")
+        samples={"valid":valid,"directory":member("folder/",1),
+                 "future-schema":b"\x02\x00"+valid[2:],"negative-name":b"\x01\x00\xff\xff\xff\xff"+valid[6:],
+                 "bad-empty-digest":member("owned.txt",digest=b"A"*32),
+                 "trailing":valid+b"foreign","torn":valid[:-3],
+                 "invalid-utf8":valid[:6]+b"\xff"+valid[7:]}
     manifest = []
     for name, content in samples.items():
-        path = output / (name + ".json")
+        path = output / (name + (".bin" if args.target=="manifest-member" else ".json"))
         path.write_bytes(content)
         manifest.append({"name": path.name, "bytes": len(content),
                          "sha256": hashlib.sha256(content).hexdigest()})

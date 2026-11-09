@@ -5,6 +5,7 @@ using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Text.Json;
 using FileCat.Core.Archives;
+using FileCat.Core.Jobs;
 using SharpFuzz;
 using dnlib.DotNet;
 using dnlib.DotNet.Emit;
@@ -44,10 +45,15 @@ if(args is ["instrument",var targetAssembly,var typeReport])
         name=>name.StartsWith("FileCat.Core.Archives.ArchiveWritePolicy",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Core.Edit.EditSessionStore",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Core.Edit.EditSaveCopyIntent",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Edit.EditSaveCopyRecord",StringComparison.Ordinal),Options.Value).ToArray();
+            name.StartsWith("FileCat.Core.Edit.EditSaveCopyRecord",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Core.Jobs.JobJournal",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Core.Archives.ArchiveAssessmentWire",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Core.Archives.ArchiveWriteBudget",StringComparison.Ordinal),Options.Value).ToArray();
     File.WriteAllText(typeReport,JsonSerializer.Serialize(types));
     if(!types.Contains("FileCat.Core.Archives.ArchiveWritePolicy")||!types.Contains("FileCat.Core.Edit.EditSessionStore")||
-        !types.Contains("FileCat.Core.Edit.EditSaveCopyIntent")||!types.Contains("FileCat.Core.Edit.EditSaveCopyRecord"))
+        !types.Contains("FileCat.Core.Edit.EditSaveCopyIntent")||!types.Contains("FileCat.Core.Edit.EditSaveCopyRecord")||
+        !types.Contains("FileCat.Core.Jobs.JobJournal")||!types.Contains("FileCat.Core.Archives.ArchiveAssessmentWire")||
+        !types.Contains("FileCat.Core.Archives.ArchiveWriteBudget"))
         throw new InvalidOperationException("Production guard or recovery record parser was not instrumented.");
     Console.WriteLine(JsonSerializer.Serialize(new{instrumented_types=types.Length,production_guard=true,production_recovery=true}));return 0;
 }
@@ -63,7 +69,8 @@ if(args is ["instrument-tar",var tarAssembly,var tarTypeReport])
 }
 if(args is ["replay-record",var recordTarget,var inputPath])
 {
-    if(recordTarget is not ("session-record" or "capture-record" or "save-copy-intent" or "save-copy-receipt"))
+    if(recordTarget is not ("session-record" or "capture-record" or "save-copy-intent" or "save-copy-receipt" or
+        "journal-record" or "manifest-member"))
         throw new ArgumentException("Unknown recovery-record replay target.");
     using var file=new FileStream(inputPath,FileMode.Open,FileAccess.Read,FileShare.Read);
     if(file.Length>1048576)throw new ArgumentException("Recovery-record replay exceeds 1 MiB.");
@@ -74,14 +81,17 @@ if(args is ["replay-record",var recordTarget,var inputPath])
         "session-record"=>Session.Exercise(bytes),
         "capture-record"=>Capture.Exercise(bytes),
         "save-copy-intent"=>Intent.Exercise(bytes),
-        _=>Receipt.Exercise(bytes),
+        "save-copy-receipt"=>Receipt.Exercise(bytes),
+        "journal-record"=>Journal.Exercise(bytes),
+        _=>ManifestMember.Exercise(bytes),
     };
     Console.WriteLine(JsonSerializer.Serialize(new{target=recordTarget,accepted}));return 0;
 }
 if(args.Length!=0)throw new ArgumentException("Fuzz targets receive input through the bounded native driver, not command-line paths.");
 
 Stats.Target=Environment.GetEnvironmentVariable("FILECAT_FUZZ_TARGET")??"digest";
-if(Stats.Target is not ("digest" or "tar-strict" or "session-record" or "capture-record" or "save-copy-intent" or "save-copy-receipt"))
+if(Stats.Target is not ("digest" or "tar-strict" or "session-record" or "capture-record" or "save-copy-intent" or
+    "save-copy-receipt" or "journal-record" or "manifest-member"))
     throw new ArgumentException("Unknown fuzz target.");
 Stats.CanaryPrefixMode=Environment.GetEnvironmentVariable("FILECAT_FUZZ_CANARY_PREFIX_MODE")=="1";
 if(Stats.CanaryPrefixMode&&Stats.Target!="digest")throw new ArgumentException("The canary input transform is digest-only.");
@@ -110,14 +120,17 @@ static void Exercise(ReadOnlySpan<byte> data)
     Stats.Calls++;
     try
     {
-        if(Stats.Target is "session-record" or "capture-record" or "save-copy-intent" or "save-copy-receipt")
+        if(Stats.Target is "session-record" or "capture-record" or "save-copy-intent" or "save-copy-receipt" or
+            "journal-record" or "manifest-member")
         {
             bool accepted=Stats.Target switch
             {
                 "session-record"=>Session.Exercise(data),
                 "capture-record"=>Capture.Exercise(data),
                 "save-copy-intent"=>Intent.Exercise(data),
-                _=>Receipt.Exercise(data),
+                "save-copy-receipt"=>Receipt.Exercise(data),
+                "journal-record"=>Journal.Exercise(data),
+                _=>ManifestMember.Exercise(data),
             };
             if(accepted)Stats.Accepted++;else Stats.Refused++;
             if(Stats.Calls==1||(Stats.Calls&4095)==0)Stats.Publish();
@@ -157,6 +170,48 @@ static class Receipt
     }
     internal static bool Exercise(ReadOnlySpan<byte> data)
     {try{return Decode(data.ToArray()) is not null;}catch(IOException){return false;}}
+}
+
+static class Journal
+{
+    private static readonly MethodInfo Lines=typeof(JobJournal).GetMethods(BindingFlags.Static|BindingFlags.NonPublic)
+        .Single(method=>method.Name=="ReadBoundedLines"&&method.GetParameters() is
+            [{ParameterType:var first},_ ]&&first==typeof(Stream));
+    private static readonly MethodInfo Records=typeof(JobJournal).GetMethods(BindingFlags.Static|BindingFlags.NonPublic)
+        .Single(method=>method.Name=="ReadRecords"&&method.GetParameters() is
+            [{ParameterType:var first},_ ]&&first==typeof(IEnumerable<string>));
+    internal static bool Exercise(ReadOnlySpan<byte> data)
+    {
+        using var input=new MemoryStream(data.ToArray(),writable:false);
+        bool damaged=false;Action report=()=>damaged=true;
+        try
+        {
+            var lines=(IEnumerable<string>)Lines.Invoke(null,[input,false])!;
+            var records=(IEnumerable<JournalRecord>)Records.Invoke(null,[lines,report])!;
+            int count=0;
+            foreach(var record in records)
+            {
+                if(++count>4096)return false;
+                if(record.Type.Length==0)throw new InvalidOperationException("A journal record lacks its type.");
+            }
+            return count>0&&!damaged;
+        }
+        catch(TargetInvocationException error)when(error.InnerException is IOException){return false;}
+        catch(IOException){return false;}
+    }
+}
+
+static class ManifestMember
+{
+    internal static bool Exercise(ReadOnlySpan<byte> data)
+    {
+        try
+        {
+            var value=ArchiveAssessmentWire.ReadMember(data,new ArchiveWriteBudget());
+            return value.Name.Length>0;
+        }
+        catch(ArchiveWriteException){return false;}
+    }
 }
 
 static class Capture

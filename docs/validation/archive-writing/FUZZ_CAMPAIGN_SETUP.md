@@ -75,6 +75,22 @@ instrumented by this image. The canary proof does not imply they are covered.
 
 ## Queued FZ09 recovery-record targets
 
+The v8 test-only packet adds the production bounded journal line/CRC reader and the archive
+assessment manifest-member decoder to the four existing record targets. Its six-target synthetic
+corpus includes CRC-valid journal headers and two records, invalid checksums and torn lines,
+plus valid file/directory members and corrupt binary framing. Mac and Windows each replayed
+all 42 inputs against their sealed v40 Core build: twelve accepted and 30 controlled refusals,
+zero crashes. The v8 packet is 486,928 bytes / SHA-256
+`c357872eb75baa277e56603c42e026278f002b8b04f404572c094c078595cd61`.
+Unix seeds are 5,212 bytes / `cf43ad458f8f22118b86fe6974335e436894b1b500b48035bed933c8f02a632e`;
+Windows seeds are 5,159 bytes / `f94ab1c71b9e53dff057b782deb5b5d24d79e2e988ed119829516a81e9030c66`.
+The raw guest result hashes are `00c01d9e764c18a430ee2c767d27b3de73139612c406ba5faae0671108f36f44`
+and `416aa7e654a0f82b7e8af5eb03477c1d0bf04711da250f98047bd948b2fb3336`.
+Independent replay verification and Ubuntu's v40 test/replay are pending. These additions parse
+single journal records and single assessment members; full archive transaction state transitions,
+sidecar completeness and crash/restart mutation oracles remain open. The 1 MiB input cap also
+does not exercise the journal's 4 MiB per-line limit. No native fuzz floor is earned by replay.
+
 The next test-only harness packet `fuzz-harness-v7.tar.gz` is 484,533 bytes, SHA-256
 `df43851a4e45cddbfe90583d2e315a577ad9d361b3f08926e9792992bb8442bd`.
 It adds direct production targets for `EditSessionStore.ParseRecord`,

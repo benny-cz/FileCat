@@ -15,12 +15,13 @@ def main():
     platform = sys.argv[1]
     root = Path(__file__).resolve().parents[3]
     generator = Path(__file__).with_name("make_session_fuzz_seeds.py")
-    folder = root / ".tmp" / ("recovery-replay-v7-" + platform)
+    folder = root / ".tmp" / ("recovery-replay-v8-" + platform)
     folder.mkdir(exist_ok=False)
-    for target in ("session-record", "capture-record", "save-copy-intent", "save-copy-receipt"):
+    for target in ("session-record", "capture-record", "save-copy-intent", "save-copy-receipt",
+                   "journal-record", "manifest-member"):
         subprocess.run([sys.executable, "-B", str(generator), "--platform", platform,
                         "--target", target, "--output", str(folder / target)], check=True)
-    packet = root / ".tmp" / ("recovery-record-seeds-" + platform + "-v7.tar.gz")
+    packet = root / ".tmp" / ("recovery-record-seeds-" + platform + "-v8.tar.gz")
     with tarfile.open(packet, "x:gz") as tar:
         for file in sorted(folder.rglob("*")):
             if file.is_file():
@@ -28,7 +29,7 @@ def main():
     facts = {"platform": platform, "bytes": packet.stat().st_size,
              "sha256": hashlib.sha256(packet.read_bytes()).hexdigest(),
              "generator_sha256": hashlib.sha256(generator.read_bytes()).hexdigest(),
-             "seeds": sum(1 for file in folder.rglob("*.json") if file.name != "manifest.json")}
+             "seeds": sum(1 for file in folder.rglob("*") if file.suffix in (".json", ".bin") and file.name != "manifest.json")}
     packet.with_name(packet.name.removesuffix(".tar.gz") + ".json").write_text(json.dumps(facts, indent=2))
     print(json.dumps(facts))
 
