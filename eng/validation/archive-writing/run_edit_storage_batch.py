@@ -3,13 +3,13 @@ from pathlib import Path
 from datetime import datetime,timezone
 import importlib.util,json,shutil,subprocess,sys,tarfile,tempfile,time,uuid,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v44'
-PACKET='archive-edit-storage-delta-v44.tar.gz'
+FOLDER='awe-storage-v45'
+PACKET='archive-edit-storage-delta-v45.tar.gz'
 def cohort_policy(platform):
-    # Recheck complete inventories after the owned-result UI fix on each guest's sealed predecessor.
+    # Recheck complete inventories after the owned-result UI fix and the tool-recorder test race fix.
     # Ubuntu enters only after its dedicated FZ01 and focused v40 batches and the first FZ09 launch.
     return {'win32':('awe-storage-v43','full'),
-            'darwin':('awe-storage-v41','full'),
+            'darwin':('awe-storage-v44','full'),
             'linux':('awe-storage-v40','full')}[platform]
 
 PREVIOUS_FOLDER,VALIDATION_SCOPE=cohort_policy(sys.platform)
