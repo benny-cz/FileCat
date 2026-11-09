@@ -11,10 +11,11 @@ import subprocess
 import tarfile
 
 
-TARGETS = ("session-record", "capture-record", "save-copy-intent")
+TARGETS = ("session-record", "capture-record", "save-copy-intent", "save-copy-receipt")
 EXPECTED_ACCEPTED = {"session-record": {"remote-v1.json", "zip-v2.json", "remote-v3.json"},
                      "capture-record": {"start.json", "complete.json"},
-                     "save-copy-intent": {"valid.json"}}
+                     "save-copy-intent": {"valid.json"},
+                     "save-copy-receipt": {"valid.json", "published.json"}}
 
 
 def sha(path):
@@ -29,11 +30,11 @@ def main():
     parser.add_argument("--platform", choices=("unix", "windows"), required=True)
     args = parser.parse_args()
     task = args.task.resolve(strict=True)
-    packet = task / "fuzz-harness-v6.tar.gz"
-    seeds = task / ("recovery-record-seeds-" + args.platform + "-v6.tar.gz")
+    packet = task / "fuzz-harness-v7.tar.gz"
+    seeds = task / ("recovery-record-seeds-" + args.platform + "-v7.tar.gz")
     if sha(packet) != args.packet_sha256 or sha(seeds) != args.seeds_sha256:
         raise ValueError("FZ09 replay packet or seed hash changed")
-    out = task / "recovery-record-replay-v6"
+    out = task / "recovery-record-replay-v7"
     out.mkdir(exist_ok=False)
     for source in (packet, seeds):
         with tarfile.open(source) as tar:

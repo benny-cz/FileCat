@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Reflection;
+using ReflectionEmit=System.Reflection.Emit;
 using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Text.Json;
@@ -42,10 +43,11 @@ if(args is ["instrument",var targetAssembly,var typeReport])
     var types=Fuzzer.Instrument(targetAssembly,
         name=>name.StartsWith("FileCat.Core.Archives.ArchiveWritePolicy",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Core.Edit.EditSessionStore",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Edit.EditSaveCopyIntent",StringComparison.Ordinal),Options.Value).ToArray();
+            name.StartsWith("FileCat.Core.Edit.EditSaveCopyIntent",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Core.Edit.EditSaveCopyRecord",StringComparison.Ordinal),Options.Value).ToArray();
     File.WriteAllText(typeReport,JsonSerializer.Serialize(types));
     if(!types.Contains("FileCat.Core.Archives.ArchiveWritePolicy")||!types.Contains("FileCat.Core.Edit.EditSessionStore")||
-        !types.Contains("FileCat.Core.Edit.EditSaveCopyIntent"))
+        !types.Contains("FileCat.Core.Edit.EditSaveCopyIntent")||!types.Contains("FileCat.Core.Edit.EditSaveCopyRecord"))
         throw new InvalidOperationException("Production guard or recovery record parser was not instrumented.");
     Console.WriteLine(JsonSerializer.Serialize(new{instrumented_types=types.Length,production_guard=true,production_recovery=true}));return 0;
 }
@@ -61,7 +63,7 @@ if(args is ["instrument-tar",var tarAssembly,var tarTypeReport])
 }
 if(args is ["replay-record",var recordTarget,var inputPath])
 {
-    if(recordTarget is not ("session-record" or "capture-record" or "save-copy-intent"))
+    if(recordTarget is not ("session-record" or "capture-record" or "save-copy-intent" or "save-copy-receipt"))
         throw new ArgumentException("Unknown recovery-record replay target.");
     using var file=new FileStream(inputPath,FileMode.Open,FileAccess.Read,FileShare.Read);
     if(file.Length>1048576)throw new ArgumentException("Recovery-record replay exceeds 1 MiB.");
@@ -71,14 +73,15 @@ if(args is ["replay-record",var recordTarget,var inputPath])
     {
         "session-record"=>Session.Exercise(bytes),
         "capture-record"=>Capture.Exercise(bytes),
-        _=>Intent.Exercise(bytes),
+        "save-copy-intent"=>Intent.Exercise(bytes),
+        _=>Receipt.Exercise(bytes),
     };
     Console.WriteLine(JsonSerializer.Serialize(new{target=recordTarget,accepted}));return 0;
 }
 if(args.Length!=0)throw new ArgumentException("Fuzz targets receive input through the bounded native driver, not command-line paths.");
 
 Stats.Target=Environment.GetEnvironmentVariable("FILECAT_FUZZ_TARGET")??"digest";
-if(Stats.Target is not ("digest" or "tar-strict" or "session-record" or "capture-record" or "save-copy-intent"))
+if(Stats.Target is not ("digest" or "tar-strict" or "session-record" or "capture-record" or "save-copy-intent" or "save-copy-receipt"))
     throw new ArgumentException("Unknown fuzz target.");
 Stats.CanaryPrefixMode=Environment.GetEnvironmentVariable("FILECAT_FUZZ_CANARY_PREFIX_MODE")=="1";
 if(Stats.CanaryPrefixMode&&Stats.Target!="digest")throw new ArgumentException("The canary input transform is digest-only.");
@@ -107,13 +110,14 @@ static void Exercise(ReadOnlySpan<byte> data)
     Stats.Calls++;
     try
     {
-        if(Stats.Target is "session-record" or "capture-record" or "save-copy-intent")
+        if(Stats.Target is "session-record" or "capture-record" or "save-copy-intent" or "save-copy-receipt")
         {
             bool accepted=Stats.Target switch
             {
                 "session-record"=>Session.Exercise(data),
                 "capture-record"=>Capture.Exercise(data),
-                _=>Intent.Exercise(data),
+                "save-copy-intent"=>Intent.Exercise(data),
+                _=>Receipt.Exercise(data),
             };
             if(accepted)Stats.Accepted++;else Stats.Refused++;
             if(Stats.Calls==1||(Stats.Calls&4095)==0)Stats.Publish();
@@ -131,6 +135,28 @@ static void Exercise(ReadOnlySpan<byte> data)
     catch(ArchiveWriteException){Stats.Refused++;}
     catch{Stats.Publish();throw;}
     if(Stats.Calls==1||(Stats.Calls&4095)==0)Stats.Publish();
+}
+
+static class Receipt
+{
+    // Reflection Invoke cannot box ReadOnlySpan<byte>; this test-only thunk calls the actual internal decoder.
+    private static readonly Func<byte[],object> Decode=Bind();
+    private static Func<byte[],object> Bind()
+    {
+        var type=typeof(FileCat.Core.Edit.EditSessionStore).Assembly.GetType("FileCat.Core.Edit.EditSaveCopyRecord",throwOnError:true)!;
+        var method=type.GetMethod("Decode",BindingFlags.Static|BindingFlags.NonPublic)
+            ??throw new InvalidOperationException("Production saved-copy receipt parser is unavailable.");
+        if(method.GetParameters() is not [{ParameterType:var parameter}]||parameter!=typeof(ReadOnlySpan<byte>))
+            throw new InvalidOperationException("Production saved-copy receipt parser signature changed.");
+        var constructor=typeof(ReadOnlySpan<byte>).GetConstructor([typeof(byte[])])
+            ??throw new InvalidOperationException("Bounded receipt input adapter is unavailable.");
+        var thunk=new ReflectionEmit.DynamicMethod("FileCatFuzzDecodeReceipt",typeof(object),[typeof(byte[])],typeof(Receipt).Module,true);
+        var il=thunk.GetILGenerator();il.Emit(ReflectionEmit.OpCodes.Ldarg_0);il.Emit(ReflectionEmit.OpCodes.Newobj,constructor);
+        il.Emit(ReflectionEmit.OpCodes.Call,method);il.Emit(ReflectionEmit.OpCodes.Ret);
+        return thunk.CreateDelegate<Func<byte[],object>>();
+    }
+    internal static bool Exercise(ReadOnlySpan<byte> data)
+    {try{return Decode(data.ToArray()) is not null;}catch(IOException){return false;}}
 }
 
 static class Capture

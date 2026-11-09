@@ -13,7 +13,7 @@ IDENTIFIER = "0123456789abcdef0123456789abcdef"
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--target", choices=("session-record", "capture-record", "save-copy-intent"),default="session-record")
+    parser.add_argument("--target", choices=("session-record", "capture-record", "save-copy-intent", "save-copy-receipt"),default="session-record")
     parser.add_argument("--platform",choices=("unix","windows"),default="unix")
     args = parser.parse_args()
     output = args.output.resolve()
@@ -55,11 +55,24 @@ def main():
                  "wrong-version":b"0"+json.dumps({**capture,"Version":999},separators=(",", ":")).encode(),
                  "escaped-leaf":b"1"+json.dumps({**complete,"Leaf":"../outside"},separators=(",", ":")).encode(),
                  "torn":b'1{"Version":',"invalid-utf8":b'0{"Version":1,"Bad":"\xff"}'}
-    else:
+    elif args.target=="save-copy-intent":
         samples={"valid":json.dumps(intent,separators=(",", ":")).encode(),
                  "wrong-version":json.dumps({**intent,"Version":999},separators=(",", ":")).encode(),
                  "escaped-target":json.dumps({**intent,"TargetLeaf":"../outside"},separators=(",", ":")).encode(),
                  "bad-digest":json.dumps({**intent,"Sha256":"not-a-digest"},separators=(",", ":")).encode(),
+                 "torn":b'{"Version":1,"Nonce":',"invalid-utf8":b'{"Version":1,"Bad":"\xff"}'}
+    else:
+        receipt={"Version":1,"Nonce":nonce,"Sequence":1,"Phase":"prepared","ParentIdentity":"parent",
+                 "SourceIdentity":"source","StageLeaf":artifact+"a.stage","TargetLeaf":"saved.txt",
+                 "OutputIdentity":"output","Length":13,"Sha256":"B"*64,"MetadataDigest":"C"*64,
+                 "OriginDigest":"D"*64,"ModifiedSeconds":1700000000,"ModifiedNanoseconds":0,
+                 "PublishedMetadataDigest":None}
+        published={**receipt,"Sequence":2,"Phase":"published","PublishedMetadataDigest":"E"*64}
+        samples={"valid":json.dumps(receipt,separators=(",", ":")).encode(),
+                 "published":json.dumps(published,separators=(",", ":")).encode(),
+                 "future-version":json.dumps({**receipt,"Version":999},separators=(",", ":")).encode(),
+                 "bad-digest":json.dumps({**receipt,"Sha256":"bad"},separators=(",", ":")).encode(),
+                 "duplicate-field":b'{"Version":1,'+json.dumps(receipt,separators=(",", ":")).encode()[1:],
                  "torn":b'{"Version":1,"Nonce":',"invalid-utf8":b'{"Version":1,"Bad":"\xff"}'}
     manifest = []
     for name, content in samples.items():

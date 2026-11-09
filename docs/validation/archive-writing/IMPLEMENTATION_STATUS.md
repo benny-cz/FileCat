@@ -14,10 +14,10 @@ and Mac's wake helper remains. Ubuntu's same-candidate packet is sealed but wait
 Full inventories for these bytes, recovery actions and all other plan gates remain open.
 
 **9 November: FZ09 recovery-record packet is built; legacy adoption boundary is recorded.**
-The test-only v6 harness builds cleanly, adds instrumented production session, capture and saved-copy
-intent parser targets with synthetic schema/corruption seeds; its sealed native-fuzz packet is queued behind
+The test-only v7 harness builds cleanly, adds instrumented production session, capture, saved-copy
+intent and receipt parser targets with synthetic schema/corruption seeds; its sealed native-fuzz packet is queued behind
 the active Ubuntu FZ01 campaign. Separately, Mac/Windows each pass all21 uninstrumented guest
-replays against exact v38 product DLLs (six accepted, fifteen controlled refusals), source/seed
+v6 replays against exact v38 product DLLs (six accepted, fifteen controlled refusals), source/seed
 hashes independently checked. No FZ09 campaign floor is claimed. A legacy-adoption draft exposed that old
 inherited permissions cannot be opened under version-3's exact private lease; the draft was removed.
 The [adoption boundary](LEGACY_EDIT_ADOPTION_BOUNDARY.md) now requires a pinned read-only legacy

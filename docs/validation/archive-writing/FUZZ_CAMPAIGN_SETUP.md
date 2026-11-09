@@ -75,26 +75,30 @@ instrumented by this image. The canary proof does not imply they are covered.
 
 ## Queued FZ09 recovery-record targets
 
-The next test-only harness packet `fuzz-harness-v6.tar.gz` is 482,934 bytes, SHA-256
-`50fc367859efe7ce7c68f809fb9ebff3e2b9e75efe99b538132d72d402176428`.
+The next test-only harness packet `fuzz-harness-v7.tar.gz` is 484,533 bytes, SHA-256
+`df43851a4e45cddbfe90583d2e315a577ad9d361b3f08926e9792992bb8442bd`.
 It adds direct production targets for `EditSessionStore.ParseRecord`,
-`EditSessionStore.ParseCaptureRecord` and `EditSaveCopyIntent.Decode`. The Core instrumentation
+`EditSessionStore.ParseCaptureRecord`, `EditSaveCopyIntent.Decode` and
+`EditSaveCopyRecord.Decode`. The Core instrumentation
 includes those types alongside the write guard. Synthetic per-platform seeds cover supported
-session versions, complete/interrupted capture records, a valid saved-copy intent, future
+session versions, complete/interrupted capture records, valid saved-copy intent/receipts, future
 versions, path escape attempts, torn JSON, invalid UTF-8, bad digests and depth limits. The
 `replay-record` command can run a bounded single seed without the native fuzzer on Mac/Windows.
 This packet also seals the guest preparation, runner and seed-generator source. The preceding v4
 session-only and v5 three-parser packets are preserved as preparatory artifacts and have not run.
+The v6 three-parser packet passed the Mac/Windows bounded replay below but was never used for a
+native campaign.
 
 The next Ubuntu guest image must be prepared from the same verified product Core/Archives bytes,
 with fresh clean/canary Core copies before instrumentation. The packet excludes product DLLs
 and has **not yet run under the native fuzzer**. The separate uninstrumented `replay-record`
-command passed all 21 sealed synthetic inputs on Mac and Windows against their exact v38
+command in v6 passed all 21 sealed synthetic inputs on Mac and Windows against their exact v38
 guest-built Core DLLs: six valid records accepted and 15 malformed/unsupported records refused
 on each. Independent verification binds guest results to source, seed hashes and v38 DLL hashes;
 the result JSON SHA-256 values are
 `31bdfb0d115cb96dc50722e37e0125ea9ef90cd00be5a0443fe2589e695162bd` (Mac) and
 `21d56c41c0851fef93bd38c5f4e6e536dfee5720b7252890b383ccde15b44300` (Windows).
-Install the Ubuntu image only after its current FZ01 service exits, then begin bounded FZ09
-campaigns. Journal, archive-manifest, saved-copy receipt and stateful
+The v7 receipt extension and its 28-seed replay remain unrun at this point. Install the Ubuntu
+image only after its current FZ01 service exits, then begin bounded FZ09 campaigns. Journal,
+archive-manifest and stateful
 recovery oracles remain separate unfinished FZ09 work.

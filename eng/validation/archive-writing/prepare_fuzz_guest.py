@@ -73,6 +73,7 @@ def main():
                            env=env, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=60)
         core_types = json.loads((root / f"instrumented-types-core-{phase}.json").read_text())
         if not {"FileCat.Core.Edit.EditSessionStore", "FileCat.Core.Edit.EditSaveCopyIntent",
+                "FileCat.Core.Edit.EditSaveCopyRecord",
                 "FileCat.Core.Archives.ArchiveWritePolicy"}.issubset(core_types):
             raise ValueError("Production recovery parser/write guard was not instrumented")
         with (root / f"instrument-tar-{phase}.log").open("x") as log:
