@@ -3927,6 +3927,50 @@
           "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
         }
       ]
+    },
+    {
+      "platform": "windows",
+      "folder": "awe-storage-v31",
+      "candidate": "1bb98f43034ad8277e18d43165b4fd7100f11fce",
+      "bytes": 18485626,
+      "sha256": "34b667dd6d0e0975f68030cee189c72fda574c714a92a02c5ceb926163f7b4c7",
+      "manifest_sha256": "13f5ad127ea32193e1c67c688fa162de7675b0f41cd51f96d22f4c22e9538e0d",
+      "changed_CSharp_sources_bound": 97,
+      "DLL_PDB_pairs_bound": 17,
+      "uncompiled_platform_sources": [],
+      "tests": {
+        "storage-admission": {
+          "Passed": 30,
+          "Failed": 4
+        }
+      },
+      "focused_gates_complete": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false
+      },
+      "production_backend_qualified": false,
+      "validation_scope": "full",
+      "full_regressions_not_run": [
+        "complete-app",
+        "complete-core",
+        "complete-remote"
+      ],
+      "excluded_diagnostic_sources": [
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        },
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs",
+          "bytes": 2509,
+          "sha256": "3c6ab0b6702235fbba356c4b785d3b54810f3c7d40d69499daadc871ed065a79",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        }
+      ]
     }
   ],
   "current": [
@@ -4099,19 +4143,22 @@
   "complete_inventory_qualification": false,
   "pending": [
     {
-      "platform": "windows",
-      "folder": "awe-storage-v31",
-      "state": "Corrected combined admission candidate queued: explicit Windows file ACL and fixture releases its deliberate exclusive hold before no-mutation readback. Full native/connected/Core/Remote/App milestone remains required."
-    },
-    {
       "platform": "mac",
       "folder": "awe-storage-v31",
-      "state": "Corrected combined admission candidate queued: explicit Windows file ACL and fixture releases its deliberate exclusive hold before no-mutation readback. Full native/connected/Core/Remote/App milestone remains required."
+      "candidate": "1bb98f43034ad8277e18d43165b4fd7100f11fce",
+      "state": "All34 native storage admission cases and existing focused gates pass; complete Core running under confirmed live parent PID61682. Remote/App, final seal and source/binary verification remain required; preserve wake helper36765."
     },
     {
       "platform": "ubuntu",
       "folder": "awe-storage-v31",
-      "state": "Corrected combined admission candidate queued: explicit Windows file ACL and fixture releases its deliberate exclusive hold before no-mutation readback. Full native/connected/Core/Remote/App milestone remains required."
+      "candidate": "1bb98f43034ad8277e18d43165b4fd7100f11fce",
+      "state": "All34 native storage admission cases and existing focused gates pass; complete Core running under confirmed live parent PID1412395. Remote/App, final seal and source/binary verification remain required."
+    },
+    {
+      "platform": "windows",
+      "folder": "awe-storage-v32",
+      "candidate": "4b4399cf2ec0f1cd77719f4220f5ed4542d5f96f",
+      "state": "Corrected read-only directory-sharing candidate launched under vmrun session24495. Native gate starts under dotnet PID7944/testhost10512. Affected and full Core/Remote/App inventories required. Do not mutate running sources or restart without terminal evidence."
     }
   ],
   "fresh_review_authorizes_deletion": false,

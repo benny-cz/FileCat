@@ -1,5 +1,17 @@
 # Archive writing implementation status
 
+**9 November: native edit retained-storage admission is implemented and under connected guest qualification.**
+The [admission/accounting component](NATIVE_EDIT_STORAGE_ACCOUNTING.md) now serializes cooperating writers,
+creates working namespaces only after validated source sizing, charges retained copies and future saved-copy
+artifacts across restarts, and checks held-volume space. Its 34-case native matrix covers real process contention,
+process death, quota races, cancellation, limits, metadata, exclusive handles and read-only/refusal preservation.
+Core/Windows-platform builds pass. The first Unix fixture-lock and Windows ACL failures are preserved and corrected.
+Mac/Ubuntu `v31` pass all 34 and existing focused gates and now run complete inventories. Windows `v31` passes 30
+and finds four live-directory sharing failures; the separate read-only inventory lease fixes those without changing
+mutation lease sharing, and `v32` is running. Source/binary/raw evidence remains bound to each individual candidate.
+Cleanup, fresh recovery/actions/UI composition and the full remaining plan are still required; no native
+store/profile is enabled.
+
 **9 November: connected native saved-copy gates pass everywhere; Windows full retry also passes.**
 `v29` passes native session25, strict intent14, cancellation fixture2 and all connected gates on Windows/Mac/Ubuntu.
 The Windows complete inventories pass: Core8,139/666 skipped (275 required additions, no lost baseline cases/passes),
