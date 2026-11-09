@@ -13,7 +13,7 @@ public sealed partial class EditSessionStore
     private EditDirectoryLease OpenNativeRoot(CancellationToken ct,bool create)
     {
         if(nativeOpen is null)throw new NotSupportedException("Native edit storage is unavailable.");
-        string path=Path.TrimEndingDirectorySeparator(Path.GetFullPath(Root));
+        string path=nativeRoot;
         if(!create||Directory.Exists(path))
         {
             var root=nativeOpen(path,true,ct);

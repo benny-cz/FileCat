@@ -3,6 +3,13 @@
 9 November 2026. This is a design and refusal checkpoint; no legacy session is migrated or
 retired by the current native store.
 
+The dual-root test-only store now permits a separate legacy root and native v3 root. It creates
+new native sessions only in the native root, discovers both roots, keeps each version's save
+route, and marks a record found in the wrong root unsupported. Mac's native test passes these
+composition and misplaced-record cases. This is a prerequisite, not adoption: legacy discard
+still refuses when native storage is present; no old payload is copied or retired, and the
+Windows/Ubuntu connected guest gate is pending.
+
 The version-1/2 creator uses `CreatePrivateDirectory` for the session folder, ordinary
 `Directory.CreateDirectory` for its `files` child, ordinary `FileStream` creation for the working
 file, and `Save` for `session.json`. The native version-3 lease requires explicit private security

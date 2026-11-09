@@ -3,6 +3,13 @@ using FileCat.Tests;
 namespace FileCat.Platform.Windows.Tests;
 public sealed class WindowsEditStorageTests
 {
+    [Fact]
+    public void Legacy_and_native_roots_keep_their_own_sessions_and_revisions()
+    {
+        if(!OperatingSystem.IsWindows())Assert.Skip("Windows native storage required.");
+        ArchiveEditDualRootCases.Run(WindowsEditDirectoryLease.OpenRoot);
+    }
+
     [Theory,InlineData("roundtrip"),InlineData("stale-save"),InlineData("atomic-editor-save"),InlineData("future-state"),
         InlineData("collision"),InlineData("broken-link"),InlineData("working-directory-replaced"),InlineData("failed-copy"),InlineData("concurrent-save"),
         InlineData("damaged-ancestor"),InlineData("missing-ancestor"),InlineData("revision-budget"),InlineData("working-read"),InlineData("failed-copy-marker-directory")]

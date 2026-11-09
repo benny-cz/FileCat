@@ -147,27 +147,41 @@ public sealed partial class EditSessionStore
     private readonly Func<string,bool,CancellationToken,EditDirectoryLease>? nativeOpen;
     private readonly Func<string,CancellationToken,EditSaveCopyDestination>? nativeCopyOpen;
     private readonly EditStorageReviewLimits storageLimits;
+    private readonly string nativeRoot;
     public EditSessionStore(string root,IFileSystemOperations fs):this(root,fs,null) { }
     internal EditSessionStore(string root,IFileSystemOperations fs,Func<string,bool,CancellationToken,EditDirectoryLease>? nativeOpen):this(root,fs,nativeOpen,null) { }
     internal EditSessionStore(string root,IFileSystemOperations fs,Func<string,bool,CancellationToken,EditDirectoryLease>? nativeOpen,
         Func<string,CancellationToken,EditSaveCopyDestination>? nativeCopyOpen):this(root,fs,nativeOpen,nativeCopyOpen,null) { }
     internal EditSessionStore(string root,IFileSystemOperations fs,Func<string,bool,CancellationToken,EditDirectoryLease>? nativeOpen,
         Func<string,CancellationToken,EditSaveCopyDestination>? nativeCopyOpen,EditStorageReviewLimits? storageLimits)
-    {Root=root;this.fs=fs;this.nativeOpen=nativeOpen;this.nativeCopyOpen=nativeCopyOpen;this.storageLimits=storageLimits??new();this.storageLimits.Validate();}
+        :this(root,fs,nativeOpen,nativeCopyOpen,storageLimits,null) { }
+    internal EditSessionStore(string root,IFileSystemOperations fs,Func<string,bool,CancellationToken,EditDirectoryLease>? nativeOpen,
+        Func<string,CancellationToken,EditSaveCopyDestination>? nativeCopyOpen,EditStorageReviewLimits? storageLimits,string? nativeRoot)
+    {
+        Root=Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        this.nativeRoot=Path.TrimEndingDirectorySeparator(Path.GetFullPath(nativeRoot??root));
+        this.fs=fs;this.nativeOpen=nativeOpen;this.nativeCopyOpen=nativeCopyOpen;
+        this.storageLimits=storageLimits??new();this.storageLimits.Validate();
+        if(nativeOpen is null&&this.nativeRoot!=Root)
+            throw new ArgumentException("A separate native edit root requires native storage support.",nameof(nativeRoot));
+    }
     public const long MaxMemberBytes = 1L * 1024 * 1024 * 1024;
     private const string RecordFile = "session.json";
     private const int MaxRecordBytes = 1024 * 1024;
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
 
     public string Root { get; }
+    internal string NativeRoot => nativeRoot;
 
     public IReadOnlyList<EditSessionRecord> LoadAll()
     {
         if (WindowsTokenAuthority.IsHighIntegrity) return [];
-        if (!Directory.Exists(Root)) return [];
         var sessions = new List<EditSessionRecord>();
-        foreach (var dir in Directory.EnumerateDirectories(Root))
+        foreach (var (storeRoot,isNative) in nativeRoot==Root
+                     ? new[]{(Root,true)} : new[]{(Root,false),(nativeRoot,true)})
         {
+            if(!Directory.Exists(storeRoot))continue;
+            foreach (var dir in Directory.EnumerateDirectories(storeRoot))
             try
             {
                 using var stream = new FileStream(Path.Combine(dir, RecordFile), FileMode.Open, FileAccess.Read,
@@ -180,14 +194,18 @@ public sealed partial class EditSessionStore
                 }
                 byte[] bytes = new byte[checked((int)recordLength)];
                 stream.ReadExactly(bytes);
-                sessions.Add(stream.ReadByte() != -1
+                var loaded=stream.ReadByte() != -1
                     ? UnsupportedSession(dir, "This edit record changed while it was read. Its working folder is kept.")
-                    : ReadStoredRecord(bytes, dir));
+                    : ReadStoredRecord(bytes, dir);
+                if(nativeRoot!=Root&&loaded.IsSupported&&
+                   (isNative != (loaded.StorageRootIdentity.Length!=0)))
+                    loaded=UnsupportedSession(dir,"This edit record belongs to a different storage root. Its files are kept.");
+                sessions.Add(loaded);
             }
             catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
             {
                 // Native creation leaves a private recovery marker before any working bytes are copied.
-                if(nativeOpen is not null)
+                if(isNative&&nativeOpen is not null)
                 {
                     try
                     {
@@ -796,7 +814,14 @@ public sealed partial class EditSessionStore
         if (string.IsNullOrEmpty(record.Id) || record.Id is "." or ".." || Path.GetFileName(record.Id) != record.Id ||
             record.Id.IndexOfAny(['/', '\\']) >= 0)
             throw new IOException("The edit session does not name an owned session directory.");
-        return Path.Combine(Path.GetFullPath(Root), record.Id);
+        if(!record.IsSupported&&nativeRoot!=Root)
+        {
+            string nativeSession=Path.Combine(nativeRoot,record.Id);
+            string recovered=record.WorkingPath;
+            if(recovered==nativeSession||recovered.StartsWith(nativeSession+Path.DirectorySeparatorChar,StringComparison.Ordinal))
+                return nativeSession;
+        }
+        return Path.Combine(record.StorageRootIdentity.Length!=0?nativeRoot:Root, record.Id);
     }
 
     private static void RefuseElevatedSession()

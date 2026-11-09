@@ -1,5 +1,13 @@
 # Archive writing implementation status
 
+**9 November: dual-root legacy/native edit composition begins.** A test-only `EditSessionStore`
+can now keep v1/v2 sessions in their old root while creating and loading v3 sessions from a
+separate native root. Misplaced records are reported as unsupported, and old records retain
+their own save path. The shared Mac guest gate passes including two wrong-root records. Host
+Core and Windows test builds have zero warnings; Windows/Ubuntu guest gates and the separate
+read-only old-folder admission/copy/retirement implementation remain open. The product factory
+is still disabled. See [adoption boundary](LEGACY_EDIT_ADOPTION_BOUNDARY.md).
+
 **9 November: FZ03 strict 7z corpus and instrumentation are staged.** The test-only v14 packet
 adds a direct production strict-catalog target, and a Mac guest replay accepted seven generated
 codec seeds while controlled-refusing eight older variants. All 27 selected Archive types were
