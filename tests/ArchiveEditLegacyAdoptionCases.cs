@@ -60,6 +60,26 @@ internal static class ArchiveEditLegacyAdoptionCases
                 (_,_,_)=>throw new IOException("The original is unavailable during restart review."),ct));
             Assert.Equal(EditLegacyAdoptionCatalogState.NeedsReview,refused.State);
             Assert.True(File.Exists(old.WorkingPath));Assert.True(File.Exists(adopted.WorkingPath));
+            if(scenario=="source-changed")
+            {
+                source.Dispose();
+                File.WriteAllBytes(old.WorkingPath,"changed after adoption"u8.ToArray());
+                var changed=Assert.Single(store.ReviewLegacyAdoptions(legacyOpen,ct));
+                Assert.Equal(EditLegacyAdoptionCatalogState.NeedsReview,changed.State);
+                Assert.True(File.Exists(old.WorkingPath));
+                Assert.Equal(expected,File.ReadAllBytes(adopted.WorkingPath));
+                return;
+            }
+            if(scenario=="duplicate")
+            {
+                using var second=legacyOpen(oldRoot,old,ct);
+                store.CopyLegacyForAdoption(second,ct);
+                var ambiguous=store.ReviewLegacyAdoptions(legacyOpen,ct);
+                Assert.Equal(2,ambiguous.Count);
+                Assert.All(ambiguous,row=>Assert.Equal(EditLegacyAdoptionCatalogState.NeedsReview,row.State));
+                Assert.True(File.Exists(old.WorkingPath));
+                return;
+            }
             if(scenario=="tampered-link")
             {
                 string revision=Path.Combine(nativeRoot,adopted.Id,

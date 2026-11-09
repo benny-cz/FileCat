@@ -15,7 +15,7 @@ public sealed class UnixLegacyEditAdoptionTests
     }
 
     [Theory,InlineData("copy"),InlineData("edited"),InlineData("origin"),InlineData("pending-failure"),
-        InlineData("tampered-link"),InlineData("discard")]
+        InlineData("tampered-link"),InlineData("discard"),InlineData("source-changed"),InlineData("duplicate")]
     public void Native_copy_preserves_old_session_and_durable_adoption_state(string scenario)
     {
         Assert.SkipWhen(OperatingSystem.IsWindows(),"Unix native edit admission required.");
