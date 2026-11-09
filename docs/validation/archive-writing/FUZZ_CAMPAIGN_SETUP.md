@@ -130,11 +130,22 @@ Ubuntu v40 passes, replay, instrumentation, the intentional canary and a short c
 before v12 is used for the first native FZ09 long campaign. v10/v11 are retained preparatory
 artifacts, not native qualification results.
 
+Windows independently passed the v12 bounded replay against its sealed v43 Core: 54/54 seeds,
+15 accepted and 39 controlled refusals, with zero crashes. Its raw result SHA-256 is
+`516f2f0ae65c178e100d2724ed5f57b82cfd7a66fef7cb1bc5d5af520a97c3c4`.
+
 A separate guest sealer and host verifier now check the terminal service result, kernel CPU and
 memory observations, managed execution counts, production method coverage, exact image/packet
 hashes, structured seed copies and every raw evidence file before a floor can be recorded. These
-scripts are staged but have not yet sealed the active FZ01 run. The active campaign remains
-unqualified until its service exits cleanly and that independent transport check passes.
+scripts sealed the first long FZ01 run. The early TAR image did not instrument Core, so the
+sealer now requires the Core instrumentation report only when the preparation records it;
+`journal-state` always requires that report. The finished TAR service recorded 9,708.590486
+kernel CPU seconds, 45,447,001 executions (250,613 accepted, 45,196,388 refused), no crash
+artifacts and an 84,934,656-byte memory peak. The 2,223,951-byte evidence transport has
+SHA-256 `325385e6040e65c17f1e63a43ffca1b7f9f2a1f1d08ff1d951f39813b00a9625`.
+The independent host verifier checked every member, exact image and packet hashes, production
+TAR method coverage, structured seeds and the 7,200-second floor. This earns that FZ01 target's
+first clean two-hour floor; it does not qualify other targets, formats or a release.
 
 The next test-only harness packet `fuzz-harness-v7.tar.gz` is 484,533 bytes, SHA-256
 `df43851a4e45cddbfe90583d2e315a577ad9d361b3f08926e9792992bb8442bd`.

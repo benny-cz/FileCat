@@ -67,9 +67,15 @@ def main():
         raise ValueError("A crash artifact was found after result collection")
     if any(path.is_symlink() for path in run.rglob("*")):
         raise ValueError("A fuzz evidence entry is a symbolic link")
-    members = [packet, root / "preparation.json", root / "instrumented-types-core-clean.json",
+    members = [packet, root / "preparation.json",
                root / "instrumented-types-tar-clean.json", root / "clean" / "FileCat.Core.dll",
                root / "clean" / "FileCat.Archives.dll", root / "clean" / "FileCat.ArchiveFuzzHarness.dll"]
+    # Early TAR images instrumented only Archives. Later journal images also
+    # instrument Core; retain that report whenever the preparation claims it.
+    if "instrumented_core_types" in prep:
+        members.append(root / "instrumented-types-core-clean.json")
+    elif args.target == "journal-state":
+        raise ValueError("The journal image lacks its required Core instrumentation report")
     members += sorted(path for path in run.rglob("*") if path.is_file())
     if sum(path.stat().st_size for path in members) > 256 * 1048576:
         raise ValueError("Fuzz evidence exceeds its retained byte limit")
