@@ -1,5 +1,15 @@
 # Archive writing implementation status
 
+**9 November: reviewed Discard allocation and mapped-editor follow-up passes everywhere applicable.**
+`v36` passes Windows40 discard cases (including writable mapped pages after the editor's original file handle
+closes),6 native-store UI cases and45 admission cases. Mac/Ubuntu each pass45 admission,3 Unix refusal-preservation
+and3 applicable UI cases; their3 destructive UI cases remain explicitly skipped because Unix deletion is unavailable.
+Every connected focused gate passes on all three systems. Exact raw/compiler/DLL/PDB evidence is preserved and
+verified, owned instances are zero and Mac's wake helper remains. The128-inspection allocation ceiling passes;
+empty-gate hashing no longer allocates an unused1 MiB buffer per inspection. This candidate's new full inventories
+remain unrun. Native registration, Unix exact removal, recovery/adoption/overwrite, full native desktop acceptance,
+canary-validated fuzz/RID/package/release gates and final independent review remain open.
+
 **9 November: reviewed Windows Discard and its confirmation flow pass connected guest gates.**
 `v35` passes Windows39 real-file discard cases and6 native-store headless UI cases. Mac/Ubuntu each pass3
 unavailable-operation preservation cases and3 applicable UI cases; exact Unix deletion remains unavailable.
