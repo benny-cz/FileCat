@@ -1,5 +1,29 @@
 # Archive writing implementation status
 
+**9 November: Mac AW0 extraction benchmark found an open performance gate.** The canonical
+20,000-note/four-64-MiB-file fixture (273 MiB payload) took 11.931 seconds for FileCat's
+ZIP F5 extraction versus 2.268 seconds for the in-box extractor, or 5.26× against the
+benchmark's strict 4× limit. The raw TRX SHA-256 is
+`a734283995979641f7399820e99deb84d9ce5b2bff369b0b1f447e706dd25c53`.
+Two preceding 8 MiB diagnostic fixtures likewise took 11.633/2.255 and 10.914/2.112
+seconds. A separate temporary test-only instrumented run counted 240,049 final-path
+queries taking 3.988 seconds; its raw TRX SHA-256 is
+`7458a16a1c929c800cf28edb68b9cd843b5325566d364d50540947bde1bf3019`.
+An attempted Unix-path cache still took 10.730/2.113 seconds and failed the gate, so it
+was reverted. The Mac source and test build were restored and all test processes exited.
+This is an unresolved measured qualification failure, not a passed AW0 budget.
+
+**9 November: legacy reviewed discard now rechecks its record and complete working bytes.**
+Commit `1f88274b` closes a stale-confirmation gap before the existing legacy deletion route.
+The Mac guest passed 58/58 focused edit cases, including all four new unchanged/stale-save/
+stale-record/wrong-review cases. The Windows standard-user VM passed 48/58 with ten expected
+Windows platform skips; the same four new cases passed. Guest builds and the host compile
+had zero warnings or errors, and both guests ended without FileCat/test processes. An initial
+Windows result-check script incorrectly counted TRX skip rows as `notExecuted`; the raw test
+run was passing and a corrected verifier confirmed its 48/10 inventory. Ubuntu's matching
+source packet is staged for its post-fuzz replay. This recheck does **not** resolve R21's
+pathname deletion race or qualify legacy exact cleanup.
+
 **9 November: current-source Windows native UI addendum passed.** Fresh guest-built application
 and probe assets drove real confined workers, NTFS publication and actual UI command paths.
 Creation passed 10/10, F5/F6 member operations 10/10, F4 edit commit 10/10 and retained
