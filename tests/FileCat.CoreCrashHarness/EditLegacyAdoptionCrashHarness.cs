@@ -34,7 +34,14 @@ internal static class EditLegacyAdoptionCrashHarness
 
     private static void Pause(string marker,string point)
     {
-        File.WriteAllText(marker,point);
+        // The parent waits for this pathname. Publish it only after the complete marker exists;
+        // File.Exists could otherwise race File.WriteAllText and observe an empty file.
+        string pending=marker+".tmp";
+        using(var stream=new FileStream(pending,FileMode.CreateNew,FileAccess.Write,FileShare.None,4096,FileOptions.WriteThrough))
+        {
+            stream.Write(System.Text.Encoding.UTF8.GetBytes(point));stream.Flush(true);
+        }
+        File.Move(pending,marker);
         Console.WriteLine("PAUSED");Console.Out.Flush();
         Thread.Sleep(Timeout.Infinite);
     }
