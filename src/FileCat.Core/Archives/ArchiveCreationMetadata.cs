@@ -17,7 +17,13 @@ internal abstract class ArchiveCreatePublicationReview
     {
         ArgumentNullException.ThrowIfNull(issuer); ArgumentNullException.ThrowIfNull(stage);
         if (!Enum.IsDefined(backend) || witness.Length > ArchiveCreationMetadata.MaximumWitnessBytes ||
-            stage.Origin.State != ArchiveOriginState.Absent && backend != ArchiveCreationBackend.WindowsNtfs)
+            stage.Origin.Format != (backend switch
+            {
+                ArchiveCreationBackend.WindowsNtfs => ArchiveOriginFormat.WindowsZoneIdentifier,
+                ArchiveCreationBackend.LinuxExt4 => ArchiveOriginFormat.LinuxOriginUrl,
+                ArchiveCreationBackend.MacApfs => ArchiveOriginFormat.MacQuarantine,
+                _ => throw new ArgumentOutOfRangeException(nameof(backend))
+            }))
             throw new ArgumentException("Invalid private creation witness.");
         ArchiveCreationOrigin.RequireSupported(stage.Origin);
         ArchiveTransactionFacts.ValidateText(targetLeaf, 1024);
@@ -55,9 +61,10 @@ internal sealed class ArchiveCreationMetadata
         nonce = facts.Nonce; profile = facts.Profile; stage = review.Stage.Version; parent = facts.ParentIdentity; archive = facts.ArchivePath;
         using var output = new BoundedBuffer(MaximumBytes); using var writer = new BinaryWriter(output, ArchiveWritePolicy.Utf8, leaveOpen: true);
         bool marked = review.Stage.Origin.State == ArchiveOriginState.Present;
-        writer.Write("FCCMETA1"u8); writer.Write((ushort)(marked ? 2 : 1)); writer.Write((ushort)0);
+        int policy = !marked ? 1 : review.Backend == ArchiveCreationBackend.WindowsNtfs ? 2 : 3;
+        writer.Write("FCCMETA1"u8); writer.Write((ushort)policy); writer.Write((ushort)0);
         writer.Write(facts.Nonce.ToByteArray(bigEndian: true)); ArchiveWriteProfileEncoding.Write(writer, facts.Profile);
-        writer.Write(marked ? 2 : 1); // 1: private unmarked; 2: private Windows zone-only. Never an update/backup policy.
+        writer.Write(policy); // 1: unmarked; 2: Windows zone-only; 3: exact opaque Unix mark. Never update/backup authority.
         writer.Write((int)review.Backend); Text(review.Stage.ParentIdentity); Text(review.Stage.LeafName); Text(review.TargetLeaf); Text(review.Stage.Version.Identity);
         writer.Write(review.Stage.Version.Length); writer.Write(Convert.FromHexString(review.Stage.Version.Sha256));
         writer.Write(Convert.FromHexString(review.Stage.MetadataDigest)); writer.Write(review.Witness.Length); writer.Write(review.Witness);

@@ -7,14 +7,18 @@ namespace FileCat.Core.Tests;
 public sealed class ArchiveCreationMetadataTests
 {
     private static readonly string Empty = Convert.ToHexString(SHA256.HashData([]));
-    private sealed class Review(object issuer, ArchiveFileObservation stage, string target, byte[] witness)
-        : ArchiveCreatePublicationReview(issuer, stage, target, ArchiveCreationBackend.LinuxExt4, witness);
-    private static (ArchiveTransactionFacts Facts, Review Review) Fixture(string root, Guid? nonce = null)
+    private sealed class Review(object issuer, ArchiveFileObservation stage, string target, byte[] witness, ArchiveCreationBackend backend = ArchiveCreationBackend.LinuxExt4)
+        : ArchiveCreatePublicationReview(issuer, stage, target, backend, witness);
+    private static (ArchiveTransactionFacts Facts, Review Review) Fixture(string root, Guid? nonce = null,
+        ArchiveOriginSnapshot? origin = null, ArchiveCreationBackend backend = ArchiveCreationBackend.LinuxExt4)
     {
         var version = new ArchiveObjectVersion("stage-id", 0, Empty);
-        var stage = new ArchiveFileObservation(version, "parent-id", "stage", new string('A', 64), ArchiveOriginSnapshot.Absent(ArchiveOriginFormat.LinuxOriginUrl), new ArchiveTimestamp(0, 0), 0x180);
+        var format = backend == ArchiveCreationBackend.MacApfs ? ArchiveOriginFormat.MacQuarantine :
+            backend == ArchiveCreationBackend.WindowsNtfs ? ArchiveOriginFormat.WindowsZoneIdentifier : ArchiveOriginFormat.LinuxOriginUrl;
+        var stage = new ArchiveFileObservation(version, "parent-id", "stage", new string('A', 64),
+            origin ?? ArchiveOriginSnapshot.Absent(format), new ArchiveTimestamp(0, 0), 0x180);
         return (new(nonce ?? Guid.NewGuid(), 1, new(ArchiveWriteFormat.Tar), ArchiveTransactionPhase.Verifying, Path.Combine(root, "result.tar"), "parent-id", null,
-            Path.Combine(root, "stage"), "stage-id", verifiedStage: version), new(new object(), stage, "result.tar", [1, 0, 0, 0]));
+            Path.Combine(root, "stage"), "stage-id", verifiedStage: version), new(new object(), stage, "result.tar", [1, 0, 0, 0], backend));
     }
 
     [Fact]
@@ -29,6 +33,26 @@ public sealed class ArchiveCreationMetadataTests
             Assert.ThrowsAny<IOException>(() => metadata.Readback(new MemoryStream(encoded, 0, length, false), TestContext.Current.CancellationToken));
         Assert.Throws<ArchiveWriteException>(() => metadata.Readback(new MemoryStream([.. encoded, 0]), TestContext.Current.CancellationToken));
         encoded[encoded.Length / 2] ^= 1; Assert.Throws<ArchiveWriteException>(() => metadata.Readback(new MemoryStream(encoded), TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public void Marked_Unix_creation_uses_version_three_with_exact_private_readback(bool mac)
+    {
+        using var root = new TempDir();
+        var backend = mac ? ArchiveCreationBackend.MacApfs : ArchiveCreationBackend.LinuxExt4;
+        var format = backend == ArchiveCreationBackend.MacApfs ? ArchiveOriginFormat.MacQuarantine : ArchiveOriginFormat.LinuxOriginUrl;
+        var marked = Fixture(root.Path, origin: ArchiveOriginSnapshot.Present(format, [0, 255, 0]), backend: backend);
+        var metadata = new ArchiveCreationMetadata(marked.Facts, marked.Review);
+        using var stream = new MemoryStream(); metadata.Write(stream, TestContext.Current.CancellationToken);
+        byte[] encoded = stream.ToArray();
+        Assert.Equal((ushort)3, BitConverter.ToUInt16(encoded, 8));
+        metadata.Readback(new MemoryStream(encoded, false), TestContext.Current.CancellationToken);
+        var unmarked = Fixture(root.Path, origin: ArchiveOriginSnapshot.Absent(format), backend: backend);
+        using var plain = new MemoryStream(); new ArchiveCreationMetadata(unmarked.Facts, unmarked.Review).Write(plain, TestContext.Current.CancellationToken);
+        Assert.Equal((ushort)1, BitConverter.ToUInt16(plain.ToArray(), 8));
+        Assert.Throws<ArgumentException>(() => new Review(new object(), marked.Review.Stage, "result.tar", [1],
+            backend == ArchiveCreationBackend.MacApfs ? ArchiveCreationBackend.LinuxExt4 : ArchiveCreationBackend.MacApfs));
     }
 
     [Fact]

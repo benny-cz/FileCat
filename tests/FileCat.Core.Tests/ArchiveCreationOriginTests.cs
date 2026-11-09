@@ -64,10 +64,32 @@ public sealed class ArchiveCreationOriginTests
 
     [Theory]
     [InlineData(ArchiveOriginFormat.LinuxOriginUrl)] [InlineData(ArchiveOriginFormat.MacQuarantine)]
-    public void Unqualified_marked_Unix_creation_refuses_without_weakening_the_evidence(ArchiveOriginFormat format)
+    public void Unix_creation_retains_one_exact_opaque_mark_among_marked_and_unmarked_inputs(ArchiveOriginFormat format)
     {
-        var inputs = new[] { Input("first", ArchiveOriginSnapshot.Present(format, "opaque evidence"u8)) };
-        Assert.Equal(ArchiveWriteReason.PublicationUnavailable, Assert.Throws<ArchiveWriteException>(() => Review(Evidence(inputs), inputs, format)).Reason);
+        foreach (byte[] bytes in new byte[][] { [], [0, 255, 1, 0] })
+        {
+            var mark = ArchiveOriginSnapshot.Present(format, bytes);
+            var inputs = new[] { Input("first", ArchiveOriginSnapshot.Absent(format)), Input("second", mark), Input("third", mark) };
+            var required = Review(Evidence(inputs), inputs, format);
+            Assert.Equal(ArchiveOriginState.Present, required.State);
+            Assert.Equal(mark.Digest, required.Digest);
+            Assert.Equal(bytes, required.Bytes.ToArray());
+            ArchiveCreationOrigin.RequireSupported(required);
+        }
+    }
+
+    [Theory]
+    [InlineData(ArchiveOriginFormat.LinuxOriginUrl)] [InlineData(ArchiveOriginFormat.MacQuarantine)]
+    public void Unix_creation_refuses_conflicting_marks_and_stale_evidence(ArchiveOriginFormat format)
+    {
+        var first = ArchiveOriginSnapshot.Present(format, [0, 1]);
+        var inputs = new[] { Input("first", first), Input("second", ArchiveOriginSnapshot.Absent(format)),
+            Input("third", ArchiveOriginSnapshot.Present(format, [0, 2])) };
+        Assert.Equal(ArchiveWriteReason.PublicationUnavailable,
+            Assert.Throws<ArchiveWriteException>(() => Review(Evidence(inputs), inputs, format)).Reason);
+        var stale = inputs.ToArray(); stale[1] = Input("other", ArchiveOriginSnapshot.Absent(format));
+        Assert.Equal(ArchiveWriteReason.NeedsReview,
+            Assert.Throws<ArchiveWriteException>(() => Review(Evidence(inputs), stale, format)).Reason);
     }
 
     [Theory]

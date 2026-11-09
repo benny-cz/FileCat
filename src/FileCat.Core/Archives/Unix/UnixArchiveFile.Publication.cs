@@ -11,13 +11,17 @@ internal sealed partial class UnixArchiveFile
         lock (parent.Gate)
         {
             Live(); ct.ThrowIfCancellationRequested();
-            if (required.State != ArchiveOriginState.Absent)
-                throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, "Marked creation needs a qualified native origin representation.");
+            ArchiveCreationOrigin.RequireSupported(required);
+            if (required.Format != (UnixArchiveNative.Mac ? ArchiveOriginFormat.MacQuarantine : ArchiveOriginFormat.LinuxOriginUrl))
+                throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, "The required Unix origin format differs from this platform.");
             if (!artifact || !createdWritable || createdKind != UnixArchiveArtifactKind.Stage || !rebuildClaimed || evidenceClaimed || writable || namespaceChanged)
                 throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "Creation origin requires the sealed rebuilt stage.");
             ((IArchiveRetainedFile)this).Review(sealedStage, ct);
             CopyOriginNoReplace(required, ct);
-            var observed = ObserveRetained(ct); if (!observed.Matches(sealedStage) || observed.Origin.Digest != required.Digest) throw Changed();
+            var observed = ObserveRetained(ct);
+            if (observed.Version != sealedStage.Version || observed.ParentIdentity != sealedStage.ParentIdentity ||
+                observed.LeafName != sealedStage.LeafName || observed.MemberModified != sealedStage.MemberModified ||
+                observed.MemberMode != sealedStage.MemberMode || observed.Origin.Digest != required.Digest) throw Changed();
             return observed;
         }
     }
@@ -31,7 +35,8 @@ internal sealed partial class UnixArchiveFile
                 throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "Only this transaction's sealed rebuilt private stage can create a new archive.");
             parent.VerifyNamespace(); parent.CheckCreationNamespace(); parent.RequireName(KnownName, Identity); parent.CheckPrivate(held);
             var observed = ObserveRetained(ct); var metadata = CaptureOuterMetadata(ct);
-            if (!observed.Matches(verified) || metadata.Digest != verified.MetadataDigest || metadata.Origin.State != ArchiveOriginState.Absent) throw Changed();
+            ArchiveCreationOrigin.RequireSupported(verified.Origin);
+            if (!observed.Matches(verified) || metadata.Digest != verified.MetadataDigest || metadata.Origin.Digest != verified.Origin.Digest) throw Changed();
             metadata.RequireSupportedExtendedAttributes();
             byte[] witness = ArchiveCreationMetadata.EncodeWitness(w =>
             {
