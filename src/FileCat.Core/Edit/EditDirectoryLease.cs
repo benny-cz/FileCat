@@ -25,6 +25,13 @@ internal abstract class EditDirectoryLease : IDisposable
     internal abstract ArchiveOriginSnapshot ReadOrigin(FileStream file,string leaf,CancellationToken ct);
     internal abstract void CopyOrigin(FileStream file,string leaf,ArchiveOriginSnapshot origin,CancellationToken ct);
     internal abstract void DeleteSnapshot(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct);
+    internal virtual bool CanDiscardReviewedSession=>false;
+    internal virtual EditDirectoryLease OpenDiscardDirectory(string leaf,string? expectedIdentity,CancellationToken ct)
+        =>throw new NotSupportedException("FileCat cannot safely discard this edit on this system. Its files are kept.");
+    internal virtual FileStream OpenDiscardFile(string leaf,string? expectedIdentity,CancellationToken ct)
+        =>throw new NotSupportedException("FileCat cannot safely discard this edit on this system. Its files are kept.");
+    internal virtual void ReviewRemoval(FileStream file,string leaf,ArchiveFileObservation expected,CancellationToken ct)
+        =>throw new NotSupportedException("FileCat cannot safely remove this file. Its files are kept.");
     internal virtual bool CanRemoveOwnedDirectories=>false;
     internal abstract void RemoveEmpty(CancellationToken ct);
     internal abstract IReadOnlyList<string> Names(CancellationToken ct);

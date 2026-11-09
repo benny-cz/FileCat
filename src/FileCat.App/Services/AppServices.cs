@@ -15,7 +15,8 @@ namespace FileCat.App.Services;
 /// </summary>
 public sealed class AppServices : IDisposable
 {
-    private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null, Core.Archives.ArchiveJobBackends? archiveBackends = null)
+    private AppServices(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null, Core.Archives.ArchiveJobBackends? archiveBackends = null,
+        Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore>? editSessionFactory = null)
     {
         Paths = paths;
         AppLog.Initialize(paths.LogDirectory);
@@ -127,7 +128,8 @@ public sealed class AppServices : IDisposable
         // Shell handlers run only in the restricted helper beside FileCat (plan §8.2, TV-16), started on first use.
         if (FileCat.Platform.Windows.Shell.ShellHostClient.FindExecutable() is { } shellHelper)
             ShellPictures = new FileCat.Platform.Windows.Shell.ShellPreviews(new FileCat.Platform.Windows.Shell.ShellHostClient(shellHelper), () => Settings.ShellPicturesOnNetworkAndRemovable);
-        EditSessions = new Core.Edit.EditSessionStore(paths.EditSessionsDirectory, Platform.FileOperations);
+        EditSessions = editSessionFactory is null ? new Core.Edit.EditSessionStore(paths.EditSessionsDirectory, Platform.FileOperations)
+            : editSessionFactory(paths,Platform.FileOperations);
         Metadata = new Core.Metadata.MetadataService(Io);
         // Checksums and signatures beside files (D-57): results kept in the cache folder; trusted minisign keys in the keys
         // folder (made now, so the advice that names it points to a folder that is there).
@@ -234,6 +236,12 @@ public sealed class AppServices : IDisposable
     /// <summary>Constructs an isolated composition root at explicit paths (including headless UI tests).</summary>
     /// <param name="sftpConnector">Tests connect to an in-memory server instead of SSH.NET.</param>
     public static AppServices CreateForPaths(AppPaths paths, Remote.Sftp.ISftpConnector? sftpConnector = null) => new(paths, sftpConnector);
+
+    // Explicit native-store test composition. Ordinary startup keeps the legacy store until qualification.
+    internal static AppServices CreateForPathsWithEditSessions(AppPaths paths,
+        Func<AppPaths,IFileSystemOperations,Core.Edit.EditSessionStore> factory,
+        Remote.Sftp.ISftpConnector? sftpConnector = null,Core.Archives.ArchiveJobBackends? archiveBackends = null)
+    {ArgumentNullException.ThrowIfNull(factory);return new(paths,sftpConnector,archiveBackends,factory);}
 
     // Explicit isolated composition for qualifying the real workflows; ordinary startup never adds these backends.
     internal static AppServices CreateForPathsWithArchiveBackends(AppPaths paths, Core.Archives.ArchiveJobBackends archiveBackends,

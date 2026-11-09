@@ -3,14 +3,14 @@ from pathlib import Path
 from datetime import datetime,timezone
 import importlib.util,json,shutil,subprocess,sys,tarfile,tempfile,time,uuid,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v34'
-PACKET='archive-edit-storage-delta-v34.tar.gz'
+FOLDER='awe-storage-v35'
+PACKET='archive-edit-storage-delta-v35.tar.gz'
 def cohort_policy(platform):
     # Connected mutation/recovery corrections get affected gates before the next workflow milestone.
-    # Keep each machine's sealed predecessor explicit: Unix never ran v32.
-    return {'win32':('awe-storage-v33','focused'),
-            'darwin':('awe-storage-v31','focused'),
-            'linux':('awe-storage-v31','focused')}[platform]
+    # All three predecessors are sealed v34 affected cohorts.
+    return {'win32':('awe-storage-v34','focused'),
+            'darwin':('awe-storage-v34','focused'),
+            'linux':('awe-storage-v34','focused')}[platform]
 
 PREVIOUS_FOLDER,VALIDATION_SCOPE=cohort_policy(sys.platform)
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
@@ -74,7 +74,7 @@ def tests(task):
     assert VALIDATION_SCOPE in ('focused','full')
     (batch.out/'validation-scope.json').write_text(json.dumps(dict(scope=VALIDATION_SCOPE,
         full_regressions={name:'not-run' if VALIDATION_SCOPE=='focused' else 'required' for name in ('complete-core','complete-remote','complete-app')},
-        expected_new_core_cases=319,production_backend_qualified=False),indent=2))
+        expected_new_core_cases=322,production_backend_qualified=False),indent=2))
     fixture=Path.home()/'AppData/Local/Temp'/(FOLDER+'-native-fixtures') if sys.platform=='win32' else task/FOLDER/'native-fixtures'
     fixture.mkdir();batch.env['FILECAT_EDIT_NATIVE_ROOT']=str(fixture)
     require_space(batch,'focused')
@@ -85,6 +85,10 @@ def tests(task):
         assert counters['failed']=='0' and int(counters['passed'])>0,counters
         if expected is not None:assert counters['total']==str(expected) and counters['passed']==str(expected),counters
         rows[name]=counters;(batch.out/'passed-gates.json').write_text(json.dumps(rows,indent=2))
+    run('native-discard','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
+        'FullyQualifiedName~WindowsEditDiscardTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditDiscardTests',39 if sys.platform=='win32' else 3)
+    run('discard-ui','FileCat.App.Tests','FullyQualifiedName~EditDiscardNativeUiTests')
+    assert rows['discard-ui']['total']=='6' and rows['discard-ui']['passed']==('6' if sys.platform=='win32' else '3')
     run('storage-admission','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
         'FullyQualifiedName~WindowsEditStorageAdmissionTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditStorageAdmissionTests',44)
     run('save-copy-intent','FileCat.Core.Tests','FullyQualifiedName~EditSaveCopyIntentTests',14)
@@ -159,7 +163,7 @@ def review_core_inventory(batch):
     current=ET.parse(batch.out/'results/complete-core.trx').findall('.//t:UnitTestResult',NS)
     spec=importlib.util.spec_from_file_location('edit_inventory',batch.root/'eng/validation/archive-writing/edit_core_inventory.py')
     helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
-    inventory=helper.review(old,current,319)
+    inventory=helper.review(old,current,322)
     (batch.out/'full-case-inventory.json').write_text(json.dumps(inventory,indent=2))
     helper.require_complete(inventory)
 def seal(task):

@@ -40,6 +40,7 @@
     <Compile Include="..\ArchiveEditSaveCopyPublicationCases.cs" Link="ArchiveEditSaveCopyPublicationCases.cs" />
     <Compile Include="..\ArchiveEditSaveCopySessionCases.cs" Link="ArchiveEditSaveCopySessionCases.cs" />
     <Compile Include="..\ArchiveEditStorageAdmissionCases.cs" Link="ArchiveEditStorageAdmissionCases.cs" />
+    <Compile Include="..\ArchiveEditDiscardCases.cs" Link="ArchiveEditDiscardCases.cs" />
     <Compile Include="..\ArchiveEditCaptureRecoveryCases.cs" Link="ArchiveEditCaptureRecoveryCases.cs" />
     <Compile Include="..\ArchiveEditLegacyZipCases.cs" Link="ArchiveEditLegacyZipCases.cs" />
     <Compile Include="..\ArchivePasswordReadFixture.cs" Link="ArchivePasswordReadFixture.cs" />

@@ -1,5 +1,33 @@
 # Native edit storage accounting
 
+## Explicit reviewed discard candidate
+
+The connected `v35` candidate implements a separate `DiscardReviewed` path. On Windows it obtains
+fresh relative native directory/file handles with DELETE authority, private security, no link traversal
+and matching native identities. Ordinary directory opens still grant no removal authority. The explicit
+user decision is bound to the complete working SHA-256 (or reviewed absence); editor saves between
+review and deletion refuse. Initial/state records, the full bounded revision chain and creation marker
+must agree with the actual session namespace before removal begins.
+
+The preflight inventories known entries and verifies complete captures, interrupted copies and saved-copy
+intents. A retained capture may bind an earlier verified state in this session's chain. Saved destinations
+are never opened or removed by Discard. Unknown entries, malformed records, foreign identities, unexpected
+record origin/streams and active writers retain the edit. Actual deletion reopens and pins each reviewed
+object, rechecks its complete observation, deletes that exact handle and removes directories only when empty.
+Native directory owners stay held throughout; recursive pathname deletion is not used by this path.
+
+Review is bounded to 8,192 entries, 1,024 captures, 4,096 revisions, 32 MiB of record bytes and 8 GiB of
+payload reads, with the existing 1 GiB per-file bound. Capture metadata retains its 16 KiB bound and intents
+their 64 KiB bound. Handles are used in a bounded depth-first walk, rather than retaining thousands of
+file owners at once. Cancellation before mutation keeps all data; a later cancellation/failure returns an
+explicit partial result so the UI cannot claim that every file remains or that Discard succeeded.
+
+The actual confirmation action now calls this reviewed API and explains recovery-copy removal and
+separately saved file preservation. Explicit test composition exercises the native store through the App;
+ordinary startup still uses the legacy store. The candidate adds 39 Windows real-file cases, three Unix
+unavailable-operation preservation cases and six headless UI cases. Host builds pass; guest execution is
+required. Unix exact removal, recovery actions/adoption and the complete qualification gates remain open.
+
 ## Connected mutation coordination
 
 The next `v34` affected candidate extends the native matrix from 34 to 44 cases. Saved-copy intent

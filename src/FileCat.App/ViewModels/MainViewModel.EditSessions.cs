@@ -692,24 +692,32 @@ public sealed partial class MainViewModel
             var reviewed = await ReadEditReviewAsync(session);
             state = reviewed.State;
             if (state == EditState.Unavailable) { Notify("The working copy cannot be read completely. Your edit is kept; try again when it is available.", true); return; }
+            string retained = session.StorageRootIdentity.Length == 0 ? "" :
+                " Any temporary copies kept for recovery will also be deleted. Files you saved separately are kept.";
             if (!await Dialogs.ConfirmAsync("Discard edit",
                 state == EditState.Modified
-                    ? $"Discard your uncommitted changes to \"{session.DisplayName}\"? The working copy is deleted; {session.DisplayTarget} keeps its current content."
-                    : $"Close the edit of \"{session.DisplayName}\" and delete its working copy?",
-                "Discard", danger: state == EditState.Modified))
+                    ? $"Discard your uncommitted changes to \"{session.DisplayName}\"? The working copy is deleted; {session.DisplayTarget} keeps its current content." + retained
+                    : $"Close the edit of \"{session.DisplayName}\" and delete its working copy?" + retained,
+                "Discard", danger: state == EditState.Modified || session.StorageRootIdentity.Length != 0))
                 return;
             CheckSessionAction();
+            EditDiscardResult? result = null;
             bool discarded = await MutationIoAsync(session.WorkingPath, () =>
             {
                 // Recheck after device admission, without another queued gap between review and deletion.
                 var local = Location.FileSystem(session.WorkingPath);
                 var current = Services.EditSessions.ReviewWorking(session, Services.Providers.For(local), CheckSessionAction);
                 if (current != reviewed) return false;
-                CheckSessionAction(); Services.EditSessions.Discard(session); return true;
+                CheckSessionAction(); result = Services.EditSessions.DiscardReviewed(session, current, check: CheckSessionAction); return true;
             }, CheckSessionAction);
             if (!discarded)
             {
                 Notify("The working copy changed or became unavailable while you reviewed the discard. Your edit is kept; review it again before discarding.", true);
+                return;
+            }
+            if (result is not { Complete: true })
+            {
+                if (EditSessionsActive) Notify(Formatters.SafeName(result?.Issue ?? "Discard did not finish. Review the retained working folder."), true);
                 return;
             }
             Unwatch(session.Id);

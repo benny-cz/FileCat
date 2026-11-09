@@ -22,15 +22,16 @@ internal sealed partial class WindowsEditDirectoryLease : EditDirectoryLease
     private readonly string owner;
     private readonly byte[] security;
     private readonly bool isPrivate;
-    private readonly bool removableCreated;
+    private enum RemovalAuthority { None,Created,DiscardReviewed }
+    private readonly RemovalAuthority removal;
     internal override string Path { get; }
     internal override string Identity { get; }
     internal override SafeFileHandle Handle => directory;
 
     private WindowsEditDirectoryLease(string path,SafeFileHandle directory,string owner,bool isPrivate,
-        LocalIconFileLease? rootPins=null,WindowsEditDirectoryLease? parent=null,string? leaf=null,bool removableCreated=false)
+        LocalIconFileLease? rootPins=null,WindowsEditDirectoryLease? parent=null,string? leaf=null,RemovalAuthority removal=RemovalAuthority.None)
     {
-        Path=path;this.directory=directory;this.owner=owner;this.isPrivate=isPrivate;this.rootPins=rootPins;this.parent=parent;this.leaf=leaf;this.removableCreated=removableCreated;
+        Path=path;this.directory=directory;this.owner=owner;this.isPrivate=isPrivate;this.rootPins=rootPins;this.parent=parent;this.leaf=leaf;this.removal=removal;
         try
         {
             parentOwner=parent?.RetainForChild();Identity=ProtectedHexFile.Identity(directory).ToString();
@@ -81,7 +82,8 @@ internal sealed partial class WindowsEditDirectoryLease : EditDirectoryLease
             int status=TryOpen(directory,name,GenericRead|GenericWrite|0x20000|Synchronize|(removable?Delete:0),ShareRead|ShareWrite|(removable?ShareDelete:0),Create,
                 DirectoryFile|OpenReparsePoint,out var child,(uint)FileAttributes.Directory,security);
             if(status<0){child.Dispose();throw Error(status,"Create private edit directory");}
-            var result=new WindowsEditDirectoryLease(System.IO.Path.Combine(Path,name),child,owner,true,parent:this,leaf:name,removableCreated:removable);
+            var result=new WindowsEditDirectoryLease(System.IO.Path.Combine(Path,name),child,owner,true,parent:this,leaf:name,
+                removal:removable?RemovalAuthority.Created:RemovalAuthority.None);
             try{ReviewCore(ct);return result;}catch{result.Dispose();throw;}
         }
     }
@@ -164,8 +166,7 @@ internal sealed partial class WindowsEditDirectoryLease : EditDirectoryLease
     {
         lock(Gate)
         {
-            if(!ObserveSnapshot(file,name,ct).Matches(expected))throw new IOException("The retained snapshot changed; its files are kept.");
-            WindowsArchiveNative.RequireSnapshotStreams(file.SafeFileHandle,expected.Version.Length,expected.Origin);
+            ReviewRemoval(file,name,expected,ct);
             try{WindowsArchiveNative.DeleteExact(file.SafeFileHandle);file.Dispose();}
             catch(System.ComponentModel.Win32Exception error){throw new IOException("The private commit snapshot could not be removed: "+Path,error);}
         }
@@ -176,9 +177,9 @@ internal sealed partial class WindowsEditDirectoryLease : EditDirectoryLease
         lock(Gate)
         {
             RequireNoChildren();ReviewCore(ct);
-            if(!isPrivate||!removableCreated||parent is null||leaf is null)throw new IOException("Only a private child directory created for removal by this live scope can be removed.");
+            if(!isPrivate||removal==RemovalAuthority.None||parent is null||leaf is null)throw new IOException("This live scope has no native authority to remove the private child directory.");
             if(Names(ct).Count!=0)throw new IOException("The private edit directory is not empty: "+Path);
-            // DELETE was granted at exclusive creation. Keep the exact native object through its final disposition.
+            // DELETE was granted at creation or explicit fresh discard review. Keep that object through disposition.
             parent.ReviewRetained(ct);
             using(var named=OpenOrThrow(parent.Handle,leaf,ReadAttributes|Synchronize,ShareAll,Open,DirectoryFile|OpenReparsePoint,"Review empty edit directory"))
                 if(ProtectedHexFile.Identity(named).ToString()!=Identity)throw new IOException("The directory name changed; its files are kept.");

@@ -1,5 +1,21 @@
 # Archive writing implementation status
 
+**9 November: mutation gates pass on all three systems; reviewed native Discard/UI candidate queued.**
+`v34` passes all44 storage/mutation cases and every connected focused gate on Windows/Mac/Ubuntu.
+Each sealed raw/source/DLL/PDB bundle is verified with zero owned instances; Mac's wake helper remains.
+Windows' initial 8 GiB startup refusal is preserved separately inside its resumed same-candidate bundle.
+Two matching preserved-host duplicate archives reclaimed772,614,362 bytes; sources/extracted evidence remain.
+The startup collector omitted two lengths after moving files; raw data remains unchanged and its sealed
+transport independently proves the actual lengths/hashes. This metadata defect is explicit in the checkpoint.
+The preceding full milestone also passes: Mac/Ubuntu `v31`, Windows `v33`, each bound to its own candidate.
+
+The [next connected candidate](NATIVE_EDIT_STORAGE_ACCOUNTING.md) implements fresh native Windows Discard
+ownership, full preflight and exact-handle removal for reviewed working/retained files, earlier capture states,
+interrupted copies and saved-copy intents. The confirmation action uses its typed complete/partial outcome.
+It adds39 native Windows,3 Unix refusal-preservation and6 headless UI cases; Core/Windows/App builds pass.
+Fresh guest affected gates are queued. Unix deletion, recovery/adoption, overwrite/composition, native desktop,
+fuzz/RID/package/release and final independent review remain required. No production factory/profile is enabled.
+
 **9 November: native retained-storage admission passes Ubuntu's full milestone; connected mutation corrections queued.**
 Ubuntu `v31` passes native admission34 and every affected gate plus complete Core8,649/185 skipped,
 Remote2,543/126 and App2,765/188. Its sealed raw/source/DLL/PDB evidence is verified with zero owned instances.

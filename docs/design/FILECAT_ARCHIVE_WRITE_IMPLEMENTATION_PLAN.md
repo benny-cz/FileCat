@@ -1055,6 +1055,11 @@ same root gate, checks fresh native-root identity and keeps root admission befor
 Cleanup refusal closes every owner and releases active-copy permits. Native Discard cannot fall back to
 recursive pathname deletion while its exact-object cleanup authority remains unimplemented. The expanded
 44-case affected matrix is queued; these guards do not complete discard/recovery or permit registration.
+That matrix now passes on all three platforms with sealed source/binary evidence. The next connected
+reviewed-Discard candidate obtains fresh Windows native removal handles for the explicit user decision,
+verifies the bounded session/history/capture tree, rechecks each object at deletion and reports partial
+cleanup honestly through the confirmation UI. Its 39 Windows / 3 Unix refusal / 6 UI cases require fresh
+guest execution. Unix exact removal, adoption/recovery actions and production composition remain open.
 
 The [retained ZIP integration](../validation/archive-writing/RETAINED_LEGACY_ZIP_EDITS.md) connects these
 copies to the legacy ZIP executor without full-path input-byte reopens, verifies source/output hashes

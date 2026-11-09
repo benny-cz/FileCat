@@ -4519,6 +4519,259 @@
           "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
         }
       ]
+    },
+    {
+      "platform": "windows",
+      "folder": "awe-storage-v33",
+      "candidate": "3bf3bbec4141f588e269e758c5b6b522e88f5ede",
+      "bytes": 31101883,
+      "sha256": "8d668752ec85a51f237fc48408eea823e86131668551cb369ae33697077ade8c",
+      "manifest_sha256": "86721e00eacc83f30c0041ce759a7696bd1e0c75d9f90bb1aed22e91cb6f3486",
+      "changed_CSharp_sources_bound": 97,
+      "DLL_PDB_pairs_bound": 17,
+      "uncompiled_platform_sources": [],
+      "tests": {
+        "cancellation-fixture": {
+          "Passed": 2
+        },
+        "capture-recovery": {
+          "Passed": 31
+        },
+        "commit-copy": {
+          "Passed": 10
+        },
+        "comparison-retirement": {
+          "Passed": 108
+        },
+        "complete-app": {
+          "Passed": 2835,
+          "NotExecuted": 118
+        },
+        "complete-core": {
+          "Passed": 8139,
+          "NotExecuted": 700
+        },
+        "complete-remote": {
+          "Passed": 2405,
+          "NotExecuted": 264
+        },
+        "edit-core": {
+          "Passed": 100,
+          "NotExecuted": 10
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "history-retirement-core": {
+          "Passed": 29
+        },
+        "history-retirement-ui": {
+          "Passed": 18
+        },
+        "job-input-regressions": {
+          "Passed": 269
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-legacy-zip": {
+          "Passed": 18
+        },
+        "native-origin-regressions": {
+          "Passed": 18
+        },
+        "native-sftp": {
+          "Passed": 23
+        },
+        "native-snapshot": {
+          "Passed": 35
+        },
+        "native-storage": {
+          "Passed": 14
+        },
+        "origin-policy": {
+          "Passed": 15
+        },
+        "record-recovery": {
+          "Passed": 25
+        },
+        "save-copy-intent": {
+          "Passed": 14
+        },
+        "save-copy-preparation": {
+          "Passed": 17
+        },
+        "save-copy-publication": {
+          "Passed": 25
+        },
+        "save-copy-record": {
+          "Passed": 25
+        },
+        "save-copy-session": {
+          "Passed": 25
+        },
+        "storage-admission": {
+          "Passed": 34
+        },
+        "verification-ui": {
+          "Passed": 12,
+          "NotExecuted": 1
+        }
+      },
+      "focused_gates_complete": true,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false
+      },
+      "production_backend_qualified": false,
+      "validation_scope": "full",
+      "full_regressions_not_run": [],
+      "excluded_diagnostic_sources": [
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        },
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs",
+          "bytes": 2509,
+          "sha256": "3c6ab0b6702235fbba356c4b785d3b54810f3c7d40d69499daadc871ed065a79",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        }
+      ]
+    },
+    {
+      "platform": "windows",
+      "folder": "awe-storage-v34",
+      "candidate": "0e28c5e202ca5d421c6253f43f5fb8b3fcc15c6b",
+      "bytes": 18890649,
+      "sha256": "db3e8dc2ff5c42112814cd3755c9cbf674ae9d831ecdaa7e8b3c3ce391a65770",
+      "manifest_sha256": "dc4d96fb51d76cf951849b7808ea193d402b716b14e0c1436b0d30e0fef8c897",
+      "changed_CSharp_sources_bound": 98,
+      "DLL_PDB_pairs_bound": 17,
+      "uncompiled_platform_sources": [],
+      "tests": {
+        "cancellation-fixture": {
+          "Passed": 2
+        },
+        "capture-recovery": {
+          "Passed": 31
+        },
+        "commit-copy": {
+          "Passed": 10
+        },
+        "comparison-retirement": {
+          "Passed": 108
+        },
+        "edit-core": {
+          "Passed": 100,
+          "NotExecuted": 10
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "history-retirement-core": {
+          "Passed": 29
+        },
+        "history-retirement-ui": {
+          "Passed": 18
+        },
+        "job-input-regressions": {
+          "Passed": 269
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-legacy-zip": {
+          "Passed": 18
+        },
+        "native-origin-regressions": {
+          "Passed": 18
+        },
+        "native-sftp": {
+          "Passed": 23
+        },
+        "native-snapshot": {
+          "Passed": 35
+        },
+        "native-storage": {
+          "Passed": 14
+        },
+        "origin-policy": {
+          "Passed": 15
+        },
+        "record-recovery": {
+          "Passed": 25
+        },
+        "save-copy-intent": {
+          "Passed": 14
+        },
+        "save-copy-preparation": {
+          "Passed": 17
+        },
+        "save-copy-publication": {
+          "Passed": 25
+        },
+        "save-copy-record": {
+          "Passed": 25
+        },
+        "save-copy-session": {
+          "Passed": 25
+        },
+        "storage-admission": {
+          "Passed": 44
+        },
+        "verification-ui": {
+          "Passed": 12,
+          "NotExecuted": 1
+        }
+      },
+      "focused_gates_complete": true,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false
+      },
+      "production_backend_qualified": false,
+      "validation_scope": "focused",
+      "full_regressions_not_run": [
+        "complete-app",
+        "complete-core",
+        "complete-remote"
+      ],
+      "excluded_diagnostic_sources": [
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        },
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs",
+          "bytes": 2509,
+          "sha256": "3c6ab0b6702235fbba356c4b785d3b54810f3c7d40d69499daadc871ed065a79",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        }
+      ],
+      "startup_refusal_review": {
+        "reason": "8 GiB build preflight refused",
+        "independently_verified_files": {
+          "startup-refusal/resource-preflight.jsonl": {
+            "bytes": 516,
+            "sha256": "74ee2f23b9c13833a56409a9878fa53a82bc611c10436c51c86046b3b425a655"
+          },
+          "startup-refusal/build-driver.log": {
+            "bytes": 2512,
+            "sha256": "9e8ca25ea88026a141d1fad47eb3b771030513189e4bf365628ba34fe15c58f3"
+          }
+        },
+        "collector_missing_lengths": [
+          "startup-refusal/resource-preflight.jsonl",
+          "startup-refusal/build-driver.log"
+        ]
+      }
     }
   ],
   "current": [
@@ -4689,14 +4942,7 @@
     }
   ],
   "complete_inventory_qualification": false,
-  "pending": [
-    {
-      "platform": "windows",
-      "folder": "awe-storage-v33",
-      "candidate": "3bf3bbec4141f588e269e758c5b6b522e88f5ede",
-      "state": "Frozen v33 full retry remains live under controller95568, dotnet5004/testhost5108/App.Tests2176. Native admission34 and every affected gate plus complete Core/Remote pass; App is confirmed live with increasing CPU and advancing logs. Do not restart or replace its sources/runner before terminal evidence. Seal/verify it, then prepare frozen v34 affected-only mutation candidate from this v33 predecessor."
-    }
-  ],
+  "pending": [],
   "fresh_review_authorizes_deletion": false,
   "unix_runtime_cleanup_available": false,
   "inherited_checkpoints": [
@@ -4834,11 +5080,5 @@
       "result_file_name": "result-fixed-v26.json"
     }
   ],
-  "queued_candidate": {
-    "candidate": "0e28c5e202ca5d421c6253f43f5fb8b3fcc15c6b",
-    "platform": "windows",
-    "folder": "awe-storage-v34",
-    "scope": "focused",
-    "state": "Wait for authoritative terminal/sealed v33 predecessor, preserve and verify it before packet creation. Mac/Ubuntu v34 evidence is already verified. Subsequent App unsupported-Discard handling is host-build-only and outside the frozen v34 candidate."
-  }
+  "next_connected_candidate": "Reviewed native Windows discard, retained capture removal and native-store UI actions: 39 Windows / 3 Unix refusal / 6 UI cases; no production factory/profile enabled."
 }
