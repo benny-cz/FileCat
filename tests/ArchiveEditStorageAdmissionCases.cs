@@ -18,7 +18,7 @@ internal static class ArchiveEditStorageAdmissionCases
         "cancel-before","cancel-wait","same-process","other-root","process-contention","process-death","process-quota-race",
         "gate-content","gate-replaced","wrong-root","invalid-policy","intent-wait","intent-cancel-wait",
         "intent-gate-failure","cleanup-admission","cleanup-gate-failure","intent-cleanup-race",
-        "native-discard","native-discard-no-factory","native-discard-replaced","wrong-new-root-parent"}.Select(value=>new object[]{value});
+        "native-discard","native-discard-no-factory","native-discard-replaced","wrong-new-root-parent","gate-inspection-budget"}.Select(value=>new object[]{value});
 
     internal static async Task Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open,IFileSystemOperations fs,string nativeAssembly)
     {
@@ -157,6 +157,14 @@ internal static class ArchiveEditStorageAdmissionCases
             }
             if(scenario=="cancel-before")
             {using var stop=new CancellationTokenSource();stop.Cancel();Assert.ThrowsAny<OperationCanceledException>(()=>store.PrepareCommit(record,fixture,stop.Token));Assert.Equal(before,Snapshot());return;}
+            if(scenario=="gate-inspection-budget")
+            {
+                using var reader=open(path,true,ct);using var gate=reader.OpenStorageGate(ct);
+                var expected=reader.Inspect(gate,ct,0);long allocated=GC.GetAllocatedBytesForCurrentThread();
+                for(int i=0;i<128;i++)Assert.Equal(expected,reader.Inspect(gate,ct,0));
+                Assert.InRange(GC.GetAllocatedBytesForCurrentThread()-allocated,0,2L*1024*1024);
+                Assert.Equal(before,Snapshot());return;
+            }
             if(scenario=="gate-content")
             {
                 File.WriteAllText(Path.Combine(path,EditStorageAdmission.GateName),"preserve invalid gate contents");before=Snapshot();

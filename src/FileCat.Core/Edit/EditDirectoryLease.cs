@@ -85,7 +85,8 @@ internal abstract class EditDirectoryLease : IDisposable
         ct.ThrowIfCancellationRequested();file.Flush();
         string identity=Identify(file.SafeFileHandle);long length=RandomAccess.GetLength(file.SafeFileHandle);
         if(maximumBytes<0||maximumBytes>EditSessionStore.MaxMemberBytes||length<0||length>maximumBytes)throw new IOException("The edit artifact exceeds its byte budget.");
-        using var hash=IncrementalHash.CreateHash(HashAlgorithmName.SHA256);byte[] buffer=new byte[1024*1024];long offset=0;
+        using var hash=IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        byte[] buffer=length==0?[]:new byte[(int)Math.Min(1024*1024,length)];long offset=0;
         while(offset<length)
         {
             ct.ThrowIfCancellationRequested();int count=RandomAccess.Read(file.SafeFileHandle,buffer.AsSpan(0,(int)Math.Min(buffer.Length,length-offset)),offset);

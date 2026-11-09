@@ -1,5 +1,14 @@
 # Archive writing implementation status
 
+**9 November: reviewed Windows Discard and its confirmation flow pass connected guest gates.**
+`v35` passes Windows39 real-file discard cases and6 native-store headless UI cases. Mac/Ubuntu each pass3
+unavailable-operation preservation cases and3 applicable UI cases; exact Unix deletion remains unavailable.
+All three also pass admission44 and their complete connected focused selections. Sealed raw/source/DLL/PDB
+bundles are verified, owned instances are zero and Mac's wake helper remains. New full inventories are unrun.
+A follow-up now avoids an unused1 MiB buffer in every empty gate inspection, adds a128-review allocation ceiling
+and tests an editor retaining writable mapped pages after closing its file handle. The `v36` candidate queues
+admission45 and Windows discard40; its host Windows build passes. No production factory/profile is enabled.
+
 **9 November: mutation gates pass on all three systems; reviewed native Discard/UI candidate queued.**
 `v34` passes all44 storage/mutation cases and every connected focused gate on Windows/Mac/Ubuntu.
 Each sealed raw/source/DLL/PDB bundle is verified with zero owned instances; Mac's wake helper remains.

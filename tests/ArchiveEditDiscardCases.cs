@@ -10,7 +10,7 @@ namespace FileCat.Tests;
 
 internal static class ArchiveEditDiscardCases
 {
-    internal static IEnumerable<object[]> Scenarios()=>new[]{"working","empty","missing","revision","record-time","origin",
+    internal static IEnumerable<object[]> Scenarios()=>new[]{"working","empty","missing","revision","record-time","origin","mapped-editor",
         "complete-capture","old-capture","interrupted-empty","interrupted-partial","saved-intent","live-capture","open-editor",
         "cancel-before","cancel-preflight","cancel-partial","late-working","wrong-review","unavailable-review","stale-record",
         "record-changed","record-missing","marker-changed","marker-unknown","marker-origin","extra-session","extra-working",
@@ -25,6 +25,8 @@ internal static class ArchiveEditDiscardCases
         if(OperatingSystem.IsMacOS()&&parent.StartsWith("/var/",StringComparison.Ordinal))parent="/private"+parent;
         string fixture=Private(Path.Combine(parent,"filecat-edit-discard-"+Guid.NewGuid().ToString("N")));
         EditCommitCopy? copy=null;FileStream? editor=null;
+        System.IO.MemoryMappedFiles.MemoryMappedFile? mapping=null;
+        System.IO.MemoryMappedFiles.MemoryMappedViewAccessor? view=null;
         using var stop=CancellationTokenSource.CreateLinkedTokenSource(ct);
         var hook=new Faults(scenario,stop);bool refuse=false;
         EditDirectoryLease Factory(string path,bool priv,CancellationToken token)
@@ -81,6 +83,14 @@ internal static class ArchiveEditDiscardCases
                 var before=Snapshot();Assert.Throws<NotSupportedException>(()=>store.DiscardReviewed(record,reviewed,ct));Assert.Equal(before,Snapshot());return;
             }
             if(scenario=="open-editor")editor=new FileStream(record.WorkingPath,FileMode.Open,FileAccess.ReadWrite,FileShare.ReadWrite|FileShare.Delete);
+            if(scenario=="mapped-editor")
+            {
+                using var mappedFile=new FileStream(record.WorkingPath,FileMode.Open,FileAccess.ReadWrite,FileShare.ReadWrite|FileShare.Delete);
+                mapping=System.IO.MemoryMappedFiles.MemoryMappedFile.CreateFromFile(mappedFile,null,0,
+                    System.IO.MemoryMappedFiles.MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen:true);
+                view=mapping.CreateViewAccessor(0,0,System.IO.MemoryMappedFiles.MemoryMappedFileAccess.ReadWrite);
+                // Retain writable pages after the original file handle closes, as an editor can.
+            }
             if(scenario=="late-working")File.WriteAllText(record.WorkingPath,"keep the later editor save");
             if(scenario=="wrong-review")reviewed=reviewed with{Sha256=new string('A',64)};
             if(scenario=="unavailable-review")reviewed=new(EditState.Unavailable,null);
@@ -110,6 +120,11 @@ internal static class ArchiveEditDiscardCases
                 if(scenario=="saved-intent")Assert.Equal("keep this separate saved file",File.ReadAllText(Path.Combine(fixture,"saved.txt")));
                 Assert.Empty(store.LoadAll());
             }
+            else if(scenario=="mapped-editor")
+            {
+                Assert.True(error is IOException or UnauthorizedAccessException||error is null&&result is {Complete:false},error?.ToString()??result?.ToString());
+                Assert.Equal(beforeAll,Snapshot());view!.Write(0,(byte)'x');view.Flush();Assert.Equal((byte)'x',Read(record.WorkingPath)[0]);
+            }
             else if(scenario is "cancel-partial" or "extra-after-review")
             {
                 Assert.Null(error);Assert.NotNull(result);Assert.False(result.Complete);Assert.True(result.MayHaveRemovedFiles);
@@ -126,6 +141,7 @@ internal static class ArchiveEditDiscardCases
                 else Assert.Equal(beforeAll,Snapshot());
                 if(scenario=="marker-origin")Assert.NotNull(fs.ReadOriginMark(Path.Combine(session,"creation.json")));
             }
+            view?.Dispose();view=null;mapping?.Dispose();mapping=null;
             editor?.Dispose();editor=null;if(copy is not null){Record.Exception(copy.Dispose);copy=null;}
             using var timeout=CancellationTokenSource.CreateLinkedTokenSource(ct);timeout.CancelAfter(TimeSpan.FromSeconds(5));
             using(var root=open(store.Root,true,ct))using(EditStorageAdmission.Acquire(root,timeout.Token)) { }
@@ -137,7 +153,7 @@ internal static class ArchiveEditDiscardCases
         }
         finally
         {
-            hook.Armed=false;editor?.Dispose();if(copy is not null)Assert.True(Record.Exception(copy.Dispose) is null or IOException);
+            hook.Armed=false;view?.Dispose();mapping?.Dispose();editor?.Dispose();if(copy is not null)Assert.True(Record.Exception(copy.Dispose) is null or IOException);
             if(!Path.GetFullPath(fixture).StartsWith(Path.TrimEndingDirectorySeparator(parent)+Path.DirectorySeparatorChar,StringComparison.Ordinal))
                 throw new IOException("Unexpected native discard fixture root.");
             TestCleanup.DeleteTree(fixture);

@@ -17,7 +17,9 @@ object, rechecks its complete observation, deletes that exact handle and removes
 Native directory owners stay held throughout; recursive pathname deletion is not used by this path.
 
 Review is bounded to 8,192 entries, 1,024 captures, 4,096 revisions, 32 MiB of record bytes and 8 GiB of
-payload reads, with the existing 1 GiB per-file bound. Capture metadata retains its 16 KiB bound and intents
+payload bytes reviewed, with the existing 1 GiB per-file bound. Current preflight/removal checks hash each
+payload at most four times (at most 32 GiB of payload hashing), plus bounded native metadata reviews.
+Capture metadata retains its 16 KiB bound and intents
 their 64 KiB bound. Handles are used in a bounded depth-first walk, rather than retaining thousands of
 file owners at once. Cancellation before mutation keeps all data; a later cancellation/failure returns an
 explicit partial result so the UI cannot claim that every file remains or that Discard succeeded.
@@ -27,6 +29,12 @@ separately saved file preservation. Explicit test composition exercises the nati
 ordinary startup still uses the legacy store. The candidate adds 39 Windows real-file cases, three Unix
 unavailable-operation preservation cases and six headless UI cases. Host builds pass; guest execution is
 required. Unix exact removal, recovery actions/adoption and the complete qualification gates remain open.
+
+The subsequent resource/race follow-up sizes hash buffers to the held file length (at most 1 MiB).
+Zero-byte admission-gate reviews allocate no payload buffer instead of an unused 1 MiB each time.
+A 128-review allocation ceiling and an editor retaining a writable memory map after closing its original
+file handle are queued as additional native cases. The latter must be tested against the actual Windows
+disposition behavior; [Microsoft documents mapped-view refusal and POSIX deletion semantics](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information_ex).
 
 ## Connected mutation coordination
 

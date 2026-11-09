@@ -4772,6 +4772,386 @@
           "startup-refusal/build-driver.log"
         ]
       }
+    },
+    {
+      "platform": "windows",
+      "folder": "awe-storage-v35",
+      "candidate": "7f6bba0460de7e13db794ba4a136dfc4f432a01a",
+      "bytes": 18955839,
+      "sha256": "d093a030ac8196d192bdbe0febb244e012733138e375b7071762415e598f0eb1",
+      "manifest_sha256": "cd80f762a77ea05fdd65d8e5493a857fd6ec84a16be546edb136fe1b0bc58f67",
+      "changed_CSharp_sources_bound": 106,
+      "DLL_PDB_pairs_bound": 17,
+      "uncompiled_platform_sources": [],
+      "tests": {
+        "cancellation-fixture": {
+          "Passed": 2
+        },
+        "capture-recovery": {
+          "Passed": 31
+        },
+        "commit-copy": {
+          "Passed": 10
+        },
+        "comparison-retirement": {
+          "Passed": 108
+        },
+        "discard-ui": {
+          "Passed": 6
+        },
+        "edit-core": {
+          "NotExecuted": 10,
+          "Passed": 100
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "history-retirement-core": {
+          "Passed": 29
+        },
+        "history-retirement-ui": {
+          "Passed": 18
+        },
+        "job-input-regressions": {
+          "Passed": 269
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-discard": {
+          "Passed": 39
+        },
+        "native-legacy-zip": {
+          "Passed": 18
+        },
+        "native-origin-regressions": {
+          "Passed": 18
+        },
+        "native-sftp": {
+          "Passed": 23
+        },
+        "native-snapshot": {
+          "Passed": 35
+        },
+        "native-storage": {
+          "Passed": 14
+        },
+        "origin-policy": {
+          "Passed": 15
+        },
+        "record-recovery": {
+          "Passed": 25
+        },
+        "save-copy-intent": {
+          "Passed": 14
+        },
+        "save-copy-preparation": {
+          "Passed": 17
+        },
+        "save-copy-publication": {
+          "Passed": 25
+        },
+        "save-copy-record": {
+          "Passed": 25
+        },
+        "save-copy-session": {
+          "Passed": 25
+        },
+        "storage-admission": {
+          "Passed": 44
+        },
+        "verification-ui": {
+          "Passed": 12,
+          "NotExecuted": 1
+        }
+      },
+      "focused_gates_complete": true,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false
+      },
+      "production_backend_qualified": false,
+      "validation_scope": "focused",
+      "full_regressions_not_run": [
+        "complete-app",
+        "complete-core",
+        "complete-remote"
+      ],
+      "excluded_diagnostic_sources": [
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        },
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs",
+          "bytes": 2509,
+          "sha256": "3c6ab0b6702235fbba356c4b785d3b54810f3c7d40d69499daadc871ed065a79",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        }
+      ]
+    },
+    {
+      "platform": "mac",
+      "folder": "awe-storage-v35",
+      "candidate": "7f6bba0460de7e13db794ba4a136dfc4f432a01a",
+      "bytes": 17595327,
+      "sha256": "2b0a7f866ddd4981dbfae8db3a5055f48db6c46408c108abd1aa0f924786671c",
+      "manifest_sha256": "cc9bc867234175b3479dad6b837469af4e74e1021eb6742a7f06ede6e5cbbeed",
+      "changed_CSharp_sources_bound": 96,
+      "DLL_PDB_pairs_bound": 14,
+      "uncompiled_platform_sources": [
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditCaptureRecoveryTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditDirectoryLeaseTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditDiscardTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditLegacyZipTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPreparationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPublicationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopySessionTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSnapshotTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageAdmissionTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageTests.cs"
+      ],
+      "tests": {
+        "cancellation-fixture": {
+          "Passed": 2
+        },
+        "capture-recovery": {
+          "Passed": 31
+        },
+        "commit-copy": {
+          "Passed": 10
+        },
+        "comparison-retirement": {
+          "Passed": 108
+        },
+        "discard-ui": {
+          "NotExecuted": 3,
+          "Passed": 3
+        },
+        "edit-core": {
+          "Passed": 110
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "history-retirement-core": {
+          "Passed": 29
+        },
+        "history-retirement-ui": {
+          "Passed": 18
+        },
+        "job-input-regressions": {
+          "Passed": 269
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-discard": {
+          "Passed": 3
+        },
+        "native-legacy-zip": {
+          "Passed": 18
+        },
+        "native-sftp": {
+          "Passed": 23
+        },
+        "native-snapshot": {
+          "Passed": 34
+        },
+        "native-storage": {
+          "Passed": 19
+        },
+        "origin-policy": {
+          "Passed": 15
+        },
+        "record-recovery": {
+          "Passed": 25
+        },
+        "save-copy-intent": {
+          "Passed": 14
+        },
+        "save-copy-preparation": {
+          "Passed": 17
+        },
+        "save-copy-publication": {
+          "Passed": 26
+        },
+        "save-copy-record": {
+          "Passed": 25
+        },
+        "save-copy-session": {
+          "Passed": 25
+        },
+        "storage-admission": {
+          "Passed": 44
+        },
+        "verification-ui": {
+          "Passed": 12,
+          "NotExecuted": 1
+        }
+      },
+      "focused_gates_complete": true,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "production_backend_qualified": false,
+      "validation_scope": "focused",
+      "full_regressions_not_run": [
+        "complete-app",
+        "complete-core",
+        "complete-remote"
+      ],
+      "excluded_diagnostic_sources": [
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        },
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs",
+          "bytes": 2509,
+          "sha256": "3c6ab0b6702235fbba356c4b785d3b54810f3c7d40d69499daadc871ed065a79",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        }
+      ]
+    },
+    {
+      "platform": "ubuntu",
+      "folder": "awe-storage-v35",
+      "candidate": "7f6bba0460de7e13db794ba4a136dfc4f432a01a",
+      "bytes": 17579209,
+      "sha256": "1caafec7972ce3829bc909d48d19f36b44ea90dc6551494ca142cc0c0512a9c7",
+      "manifest_sha256": "8411c828efa57341a0727d3d71e53723c7beb631a9cdd8f3512ef51b56a4fa61",
+      "changed_CSharp_sources_bound": 96,
+      "DLL_PDB_pairs_bound": 14,
+      "uncompiled_platform_sources": [
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditCaptureRecoveryTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditDirectoryLeaseTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditDiscardTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditLegacyZipTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPreparationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPublicationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopySessionTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSnapshotTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageAdmissionTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageTests.cs"
+      ],
+      "tests": {
+        "cancellation-fixture": {
+          "Passed": 2
+        },
+        "capture-recovery": {
+          "Passed": 31
+        },
+        "commit-copy": {
+          "Passed": 10
+        },
+        "comparison-retirement": {
+          "Passed": 108
+        },
+        "discard-ui": {
+          "NotExecuted": 3,
+          "Passed": 3
+        },
+        "edit-core": {
+          "Passed": 110
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "history-retirement-core": {
+          "Passed": 29
+        },
+        "history-retirement-ui": {
+          "Passed": 18
+        },
+        "job-input-regressions": {
+          "Passed": 269
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-discard": {
+          "Passed": 3
+        },
+        "native-legacy-zip": {
+          "Passed": 18
+        },
+        "native-sftp": {
+          "Passed": 23
+        },
+        "native-snapshot": {
+          "Passed": 34
+        },
+        "native-storage": {
+          "Passed": 19
+        },
+        "origin-policy": {
+          "Passed": 15
+        },
+        "picture-boundary": {
+          "Passed": 12
+        },
+        "record-recovery": {
+          "Passed": 25
+        },
+        "save-copy-intent": {
+          "Passed": 14
+        },
+        "save-copy-preparation": {
+          "Passed": 17
+        },
+        "save-copy-publication": {
+          "Passed": 26
+        },
+        "save-copy-record": {
+          "Passed": 25
+        },
+        "save-copy-session": {
+          "Passed": 25
+        },
+        "storage-admission": {
+          "Passed": 44
+        },
+        "verification-ui": {
+          "Passed": 12,
+          "NotExecuted": 1
+        }
+      },
+      "focused_gates_complete": true,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false
+      },
+      "production_backend_qualified": false,
+      "validation_scope": "focused",
+      "full_regressions_not_run": [
+        "complete-app",
+        "complete-core",
+        "complete-remote"
+      ],
+      "excluded_diagnostic_sources": [
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        },
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs",
+          "bytes": 2509,
+          "sha256": "3c6ab0b6702235fbba356c4b785d3b54810f3c7d40d69499daadc871ed065a79",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        }
+      ]
     }
   ],
   "current": [
@@ -5080,5 +5460,5 @@
       "result_file_name": "result-fixed-v26.json"
     }
   ],
-  "next_connected_candidate": "Reviewed native Windows discard, retained capture removal and native-store UI actions: 39 Windows / 3 Unix refusal / 6 UI cases; no production factory/profile enabled."
+  "next_connected_candidate": "Post-discard allocation/mapped-editor follow-up:45 admission cases,40 Windows /3 Unix discard and6 UI cases. All prior v35 focused gates pass; complete workflow/release qualification stays open."
 }
