@@ -88,6 +88,13 @@ session-only and v5 three-parser packets are preserved as preparatory artifacts 
 
 The next Ubuntu guest image must be prepared from the same verified product Core/Archives bytes,
 with fresh clean/canary Core copies before instrumentation. The packet excludes product DLLs
-and has **not yet run**. Install and replay it only after Ubuntu's current FZ01 service exits,
-then begin bounded FZ09 campaigns. Journal, archive-manifest, saved-copy receipt and stateful
+and has **not yet run under the native fuzzer**. The separate uninstrumented `replay-record`
+command passed all 21 sealed synthetic inputs on Mac and Windows against their exact v38
+guest-built Core DLLs: six valid records accepted and 15 malformed/unsupported records refused
+on each. Independent verification binds guest results to source, seed hashes and v38 DLL hashes;
+the result JSON SHA-256 values are
+`31bdfb0d115cb96dc50722e37e0125ea9ef90cd00be5a0443fe2589e695162bd` (Mac) and
+`21d56c41c0851fef93bd38c5f4e6e536dfee5720b7252890b383ccde15b44300` (Windows).
+Install the Ubuntu image only after its current FZ01 service exits, then begin bounded FZ09
+campaigns. Journal, archive-manifest, saved-copy receipt and stateful
 recovery oracles remain separate unfinished FZ09 work.
