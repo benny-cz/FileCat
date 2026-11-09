@@ -1,5 +1,26 @@
 # Archive writing implementation status
 
+**9 November: Mac's combined retained-adoption candidate is verified.** The final-target
+comparison and original-folder review UI passed 15/15 focused Core cases and seven focused UI
+cases (three platform skips), then full Core 8,681 passed/207 skipped, Remote 2,638/31, and
+App 2,770/193, with zero failures. Its 24,611,390-byte source/compiler/binary/raw-result
+transport (SHA-256 `e39b9cabc68a2e04bd159bd316f1511b52448bf05858dc0c3cfe60b87ee115ac`)
+passed independent verification. Raw case inventories retained every prior pass after the
+explicit UI parameterization mapping. Windows' same candidate passed 15/15 focused Core,
+10/10 focused UI, full Core 8,139 passed/754 skipped and Remote 2,405/264 with zero failures;
+its full App run and sealed transport remain pending. Ubuntu's 7z password long fuzz target
+reached 11,687.566561 CPU seconds and 5,855,094 executions with zero crash artifacts; its
+2,898,774-byte transport (SHA-256
+`4d8ef4f653df31023dc234ab65dd52d6e0f8cb2a264c25630f0350f1aa1e7791`) passed
+independent verification. RAR5 password fuzz remains active. These are individual candidate
+and target floors, not production qualification.
+
+**Open cleanup defect to resolve before native routing.** The still-active legacy
+`EditCommitCopy.Dispose`, failed capture cleanup, and `PublishSaveCopy` stage cleanup use
+pathname deletion after ownership was observed. A same-user process can replace the name
+between review and deletion. The native Unix route correctly refuses uncertain cleanup;
+the legacy route needs a bound replacement, regression cases and honest retained-artifact UI.
+
 **9 November: retained adoption integrity and full-target review.** Mac's full integrity
 candidate passed Core 8,679/207 skipped, Remote 2,638/31 skipped and App 2,769/193 skipped;
 its 24,593,503-byte source/compiler/binary/raw-result transport independently verified

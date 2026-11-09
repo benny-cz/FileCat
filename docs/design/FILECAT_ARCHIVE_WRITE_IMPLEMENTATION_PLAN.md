@@ -1012,6 +1012,12 @@ Qualify 100/125/150/200% scaling and a 640×480 effective viewport: content can 
 
 ### 12.1 Explicit, versioned archive sessions
 
+Current checkpoint (9 November): the combined retained-adoption candidate passed complete
+Mac Core/Remote/App inventories and independent source/binary/raw-result verification. Its
+Windows focused/Core/Remote suites passed; Windows App/sealing and Ubuntu post-fuzz replay
+remain pending. The old record remains the active commit route. Exact old-folder retirement
+and production composition are not qualified.
+
 Add an archive adapter contract rather than spreading TarReader/SevenZip APIs into EditSessionStore. New archive session records use a new version with explicit format/profile version, outer archive path and identity evidence, baseline, exact raw member key, content SHA-256, length, semantic metadata digest and owned working-copy identity. Optional legacy CRC stays an additional ZIP field, not the universal member version.
 
 Create the working copy only after a complete strict source assessment; extract from the pinned member stream, propagate origin marks, hash the exact bytes, and verify the source version again before publishing the session record. Initial direct editing requires a unique regular member in an admitted outer archive. Duplicate members and unsupported profiles remain extract/edit/save-copy workflows.
@@ -1607,6 +1613,7 @@ Provide bounded diagnostic details with profile/reason code, job ID, application
 | R18 | Expanding scope delays a complete usable feature | R1 TAR/gzip end-to-end, independent wrappers/7z/native/ISO gates; no partial UI launch | AW4 release gate |
 | R19 | Independent RAR work derives from restricted material or never establishes feasibility | Source/knowledge ledger; explicit AW10a go/no-go with evidence; authorized stored/external fallback; no unsupported clean-room claim | AW10; AT20/23 |
 | R20 | External RAR gains host authority or silently changes archive semantics | Explicit optional backend; qualified private inputs/process controls; strict profile and fresh independent verification; parent-only publication | AW10c; AT21/24; FZ14 |
+| R21 | Legacy edit snapshots and save-copy stages delete a pathname after releasing their held file, so a same-user replacement can be removed | Replace the legacy temporary-copy lifecycle with object-bound ownership and exact cleanup where qualified; retain an uncertain artifact and report its path. Cover replacement before dispose, partial copy, cancellation and disk pressure on all three platforms. The native snapshot's Unix refusal is not a reason to use legacy pathname cleanup as a fallback | AW4/§12.1; AT10/14 |
 
 ## 19. Open questions and required evidence
 

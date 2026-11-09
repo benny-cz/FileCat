@@ -1,5 +1,15 @@
 # Legacy edit adoption boundary
 
+The combined final-target candidate passed on Mac with 15/15 focused Core, seven focused UI
+passes (three platform skips), and complete Core/Remote/App inventories of 8,681/2,638/2,770
+passes, respectively, with zero failures. Its source/compiler/binary/raw-result transport is
+24,611,390 bytes, SHA-256
+`e39b9cabc68a2e04bd159bd316f1511b52448bf05858dc0c3cfe60b87ee115ac`, and passed
+independent verification. No prior raw case or pass was lost after the explicit UI
+parameterization mapping. Windows' matching candidate has passed focused and full Core/Remote
+suites; full App and sealing remain pending. Ubuntu replay waits for the active RAR5 password
+campaign. Native routing and old-folder retirement are still disabled.
+
 9 November 2026. This remains a test-only compatibility boundary. A pinned old-source copy
 transaction and durable pending/ready relationship are under qualification; ordinary startup
 does not migrate or retire legacy sessions.

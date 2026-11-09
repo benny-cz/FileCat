@@ -1,5 +1,14 @@
 # Coverage-guided archive-writing fuzz setup
 
+**9 November, password-target progress.** Ubuntu's `sevenzip-password-nightly-v5` completed
+the 12,000-second wall campaign with 11,687.566561 CPU seconds, 5,855,094 executions
+(16,036 accepted and 5,839,058 controlled refusals), zero crash artifacts and a 95,035,392-byte
+memory peak. Its 2,898,774-byte source/image/canary/seed/raw-result transport (SHA-256
+`4d8ef4f653df31023dc234ab65dd52d6e0f8cb2a264c25630f0350f1aa1e7791`) passed
+independent verification against the 7,200 CPU-second target floor. This is one long password
+target, not the complete per-format floor. The RAR5 password campaign is running; no result
+is claimed for it yet.
+
 **9 November 2026, current checkpoint.** The first strict-TAR two-hour FZ01 floor and the
 first stateful FZ09 `journal-state` floor are sealed and independently verified below. The
 next test-only packet, `fuzz-harness-v14.tar.gz`
