@@ -99,6 +99,36 @@ public sealed class EditCommitCopyTests(ITestOutputHelper output) : IDisposable
         Assert.Equal("mine", File.ReadAllText(working));
     }
 
+    [Theory]
+    [InlineData("unchanged")]
+    [InlineData("later-editor-save")]
+    [InlineData("later-record-revision")]
+    [InlineData("wrong-review")]
+    public void Legacy_discard_requires_the_current_record_and_reviewed_working_bytes(string scenario)
+    {
+        var store = new EditSessionStore(Path.Join(_dir.Path, "legacy-" + scenario), new PortableFileOperations());
+        using var content = new MemoryContentSource("owned.txt", "original edit"u8.ToArray());
+        var record = store.CreateRemote("test", "test", "/owned.txt", content,
+            content.GetRevision()!.Value, null, TestContext.Current.CancellationToken);
+        var reviewed = store.ReviewWorking(record, new LocalFileSystemProvider());
+        Assert.Equal(EditState.Unchanged, reviewed.State);
+        if (scenario == "later-editor-save") File.WriteAllText(record.WorkingPath, "new editor contents");
+        if (scenario == "later-record-revision") store.Save(record with { LastCommitUtc = DateTime.UtcNow });
+        if (scenario == "wrong-review") reviewed = reviewed with { Sha256 = new string('A', 64) };
+        if (scenario == "unchanged")
+        {
+            Assert.True(store.DiscardReviewed(record, reviewed, TestContext.Current.CancellationToken).Complete);
+            Assert.False(Directory.Exists(store.SessionDirectory(record)));
+        }
+        else
+        {
+            Assert.Throws<IOException>(() => store.DiscardReviewed(record, reviewed, TestContext.Current.CancellationToken));
+            Assert.True(Directory.Exists(store.SessionDirectory(record)));
+            Assert.True(File.Exists(record.WorkingPath));
+            if (scenario == "later-editor-save") Assert.Equal("new editor contents", File.ReadAllText(record.WorkingPath));
+        }
+    }
+
     [Fact]
     public async Task A_committed_archive_baseline_describes_written_bytes_even_when_the_editor_has_saved_again()
     {

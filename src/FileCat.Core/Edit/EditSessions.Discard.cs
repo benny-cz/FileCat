@@ -17,7 +17,16 @@ public sealed partial class EditSessionStore
             throw new NotSupportedException("An adopted edit and its old recovery folder need separate exact-object retirement review. Both are kept.");
         if(record.StorageRootIdentity.Length==0)
         {
-            // The existing legacy composition remains separate until explicit native adoption is qualified.
+            // Legacy deletion remains a pathname operation pending native adoption. Do not discard a
+            // newer editor save or a replaced session from an earlier confirmation snapshot.
+            void CheckLegacy(){ct.ThrowIfCancellationRequested();check?.Invoke();}
+            CheckLegacy();
+            var current=LoadAll().Where(row=>row.Id==record.Id&&row.StorageRootIdentity.Length==0).Take(2).ToArray();
+            if(current.Length!=1||current[0]!=record)
+                throw new IOException("The old edit record changed. Reload it before discarding; its files are kept.");
+            if(reviewed.State==EditState.Unavailable||ReviewWorking(record,new FileCat.Core.FileSystem.LocalFileSystemProvider(),CheckLegacy)!=reviewed)
+                throw new IOException("The working copy changed after discard review. Review it again; its files are kept.");
+            CheckLegacy();
             Discard(record);return new(true,true);
         }
         if(nativeOpen is null)throw new NotSupportedException("FileCat cannot safely discard this edit in the current session. Its files are kept.");
