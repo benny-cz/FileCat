@@ -1,15 +1,22 @@
 # Archive writing implementation status
 
-**9 November: restarted retained-capture Save copy candidate compiles; guest gates queued.**
+**9 November: restarted retained-capture Save copy passes Mac and Windows focused gates.**
 A new internal action reopens one complete, unlinked capture through native handles, binds it to
 the fully validated historical state, checks exact payload/record bytes and metadata, admits the
 new source intent under the root storage gate, and uses the existing exclusive new-file native
 publication protocol. The original working file and captured bytes are retained. Nine shared
 cases cover restart, later state, destination collision, corrupt/foreign source evidence,
-repeat attempt, stale state and cancellation. Core and Windows test builds pass with zero warnings.
-No default UI/factory route is enabled. Mac/Windows focused guest execution is queued; Ubuntu
-waits for FZ01. Recovery UI, partial-outcome handling, crash/resource matrix and complete
-inventories remain open.
+repeat attempt, stale state and cancellation. Candidate `248100915688bb5e76e073776755703e5531147d`
+passes 27 Mac and 28 Windows connected gates, including recovered-save-copy9, capture33,
+saved-copy-session26 and admission45 on each, with zero failures. Mac's sealed transport is
+17,539,497 bytes / SHA-256 `3be7514445ae3729125319e64228d43b3598a1c38066e7262031514715779071`;
+Windows is 18,901,969 bytes / `61ceb7374f527ddae1720f691962e2c45f61b1c86a248987accb665ab92dfaf8`.
+The [independent verifier](../../eng/validation/archive-writing/verify_edit_recovered_save_copy_v39.py)
+passes source/compiler/DLL/PDB/raw-test binding. Windows' first 8 GiB reserve refusal remains
+in its sealed evidence; after exact hash/size checks against host copies, 528,229,959 bytes of
+duplicate older guest tar files were removed and the same candidate resumed without lowering
+the reserve. No default UI/factory route is enabled. Ubuntu waits for FZ01. Recovery UI,
+partial-outcome handling, crash/resource matrix and complete inventories remain open.
 
 **9 November: historical retained-capture recovery passes Mac and Windows guest gates.**
 The native review now binds each capture to its exact record in the fully validated bounded
