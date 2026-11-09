@@ -13,6 +13,12 @@ and zero-warning Mac build. No FZ02 native campaign or cross-platform qualificat
 The v17 source-bound packet and three-format seed bundle are staged on Ubuntu; a guarded
 queue will start its canary, short runs and long campaigns only after the already-running
 RAR5 password, adoption and strict-format batches complete successfully.
+The Windows 11 VM then replayed the same 24 seeds against its own guest-built Core/Archives:
+nine accepted and 15 controlled refusals, with 45 instrumented Archive types and a clean
+test-only build. Its 3,444,092-byte raw transport SHA-256 is
+`f63cd83e1c7566b1f7d3c1059cc612c773cd401cb9eba0b076142329d10e2da3`;
+the separate host verifier checked the complete case, seed, source and binary inventory.
+No guest test processes remained. Ubuntu's native FZ02 campaign is still queued.
 
 **9 November: Mac AW0 extraction benchmark found an open performance gate.** The canonical
 20,000-note/four-64-MiB-file fixture (273 MiB payload) took 11.931 seconds for FileCat's

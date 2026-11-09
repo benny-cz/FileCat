@@ -7,7 +7,8 @@ waits for its predecessor's passing status, checks for other guest test processe
 preserves separate raw runs and evidence seals. This can remove unattended idle gaps;
 it does not shorten any fuzz floor, overlap CPU-intensive tests or reduce qualification
 scope. The actual time saved has not been measured. Mac replay grouped all three wrapper
-formats into one idle guest visit with one isolated build and one sealed evidence bundle.
+formats into one idle guest visit with one isolated build and one sealed evidence bundle;
+Windows repeated that three-format batch in one guest visit and ended without test processes.
 
 ## Current execution decision, 9 November
 

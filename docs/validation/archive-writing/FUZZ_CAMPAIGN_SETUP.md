@@ -20,6 +20,15 @@ Both are staged on Ubuntu. The guarded `filecat-archive-wrapper-fuzz-v17-queue` 
 the adoption and strict-format queues to pass, checks machine idleness, creates a separate
 instrumented image, runs its own canary/replay and short runs, then attempts a 7,200
 CPU-second minimum for each gzip, BZip2 and Zstd target. No v17 campaign has started yet.
+The Windows 11 VM independently built the same test-only source with zero warnings/errors
+against its own product DLLs and replayed the same 24 seeds: nine accepted and 15 controlled
+refusals, with the required types among 45 instrumented Archive types. Its 3,444,092-byte
+transport (guest/host SHA-256
+`f63cd83e1c7566b1f7d3c1059cc612c773cd401cb9eba0b076142329d10e2da3`) passed
+`verify_wrapper_windows_transport.py`, which checks source, packet/corpus and binary hashes,
+every regenerated seed and raw output, compiler log and instrumentation. The guest ended
+without FileCat, dotnet or testhost processes. The Mac and Windows replays are two platform
+checks of the harness and selected readers, not long campaigns or final product qualification.
 
 **9 November, password-target progress.** Ubuntu's `sevenzip-password-nightly-v5` completed
 the 12,000-second wall campaign with 11,687.566561 CPU seconds, 5,855,094 executions
