@@ -66,9 +66,13 @@ def verify(image,run,target,minimum_cpu_seconds):
                    for item in (canary,replay))
         assert len(canary['artifacts'])==1 and canary['artifacts'][0]['bytes']==2
         crash=canary['artifacts'][0]
+        assert len(file('runs/'+canary_name+'/crashes/'+crash['name']))==2
         assert sha(file('runs/'+canary_name+'/crashes/'+crash['name']))==crash['sha256']
         assert sha(file('runs/'+replay_name+'/replay-input'))==crash['sha256']
         assert not replay['artifacts'] and replay['managed_report']['Calls']==1
+        assert all(item['managed_report']['ModuleSha256'].lower()==item['sha256']['core'] and
+                   any('ArchiveWritePolicy::ValidateDigest' in name for name in item['managed_report']['production_methods'])
+                   for item in (canary,replay))
         assert short['phase']=='clean' and short['target']=='journal-state' and short['terminal'] and not short['artifacts']
         assert short['final_properties']['Result']=='success' and short['sha256']['core']==result['sha256']['core']
         assert short['managed_report']['Calls']>0
@@ -83,6 +87,9 @@ def verify(image,run,target,minimum_cpu_seconds):
         assert any('FileCat.Core.Jobs.JobJournal::ReadRecords' in name for name in report['production_methods'])
         assert any('FileCat.Core.Archives.ArchiveTransactionCollector::Read' in name for name in report['production_methods'])
         assert {row['name'] for row in short['extra_seeds']}=={row['name'] for row in result['extra_seeds']}
+        for number,row in enumerate(short['extra_seeds']):
+            content=file('runs/'+short_name+f'/corpus/synthetic-{number:04d}')
+            assert len(content)==row['bytes'] and sha(content)==row['sha256']
     for number,row in enumerate(result['extra_seeds']):
         content=file('runs/'+run+f'/corpus/synthetic-{number:04d}')
         assert len(content)==row['bytes'] and sha(content)==row['sha256']
