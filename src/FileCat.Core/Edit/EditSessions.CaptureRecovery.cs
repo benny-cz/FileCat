@@ -24,7 +24,8 @@ public sealed partial class EditSessionStore
         using var session=root.OpenDirectory(record.Id,record.SessionDirectoryIdentity,ct);RequireStorage(record,root,session);
         byte[] anchorBytes=ReadRecordBytes(session,RecordFile,ct);var anchor=ParseRecord(anchorBytes,session.Path);
         if(!anchor.IsSupported)throw new IOException("The edit record cannot be reviewed. Its captured files are kept.");
-        var current=ReadNativeLatest(anchor,anchorBytes,root,session,ct);
+        var history=new Dictionary<string,EditSessionRecord>(StringComparer.Ordinal);
+        var current=ReadNativeLatest(anchor,anchorBytes,root,session,ct,history);
         if(!current.IsSupported||string.IsNullOrEmpty(record.StoredRecordSha256)||current.StoredRecordSha256!=record.StoredRecordSha256)
             throw new IOException("The edit record changed. Reload it before reviewing its captured files.");
         var names=session.Names(ct).Where(name=>name.StartsWith("commit-",StringComparison.Ordinal)).Order(StringComparer.Ordinal).ToArray();
@@ -36,7 +37,7 @@ public sealed partial class EditSessionStore
             ct.ThrowIfCancellationRequested();string path=Path.Combine(session.Path,name);
             if(name.Length!=39||!Guid.TryParseExact(name.AsSpan(7),"N",out _))
             {result.Add(new(path,EditCaptureRecoveryState.NeedsReview,"This captured folder has an unknown name. Its files are kept."));continue;}
-            try{result.Add(ReviewCapture(session,name,current,ref remainingBytes,ct));}
+            try{result.Add(ReviewCapture(session,name,history,ref remainingBytes,ct));}
             catch(Exception error)when(error is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException)
             {result.Add(new(path,EditCaptureRecoveryState.NeedsReview,"This retained copy is in use, changed, or cannot be read completely. Its files are kept."));}
         }
@@ -47,7 +48,8 @@ public sealed partial class EditSessionStore
         return result;
     }
 
-    private EditCaptureRecovery ReviewCapture(EditDirectoryLease session,string name,EditSessionRecord record,ref long remainingBytes,CancellationToken ct)
+    private EditCaptureRecovery ReviewCapture(EditDirectoryLease session,string name,
+        IReadOnlyDictionary<string,EditSessionRecord> history,ref long remainingBytes,CancellationToken ct)
     {
         using var capture=session.OpenDirectory(name,null,ct);
         var names=capture.Names(ct).Order(StringComparer.Ordinal).ToArray();
@@ -57,6 +59,8 @@ public sealed partial class EditSessionStore
         if(!complete&&!names.SequenceEqual(new[]{"capture.json","files"}))throw new IOException("Unknown capture entries.");
         using var header=new CaptureRecord(capture,"capture.json",ct);
         var start=ParseCaptureRecord(header.Bytes,false);
+        if(!history.TryGetValue(start.SessionRecord,out var record))
+            throw new IOException("The capture does not match a reviewed edit state.");
         RequireCaptureBinding(start,capture,record);
         using var files=capture.OpenDirectory("files",start.Files,ct);
         var fileNames=files.Names(ct);

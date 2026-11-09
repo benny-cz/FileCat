@@ -10,7 +10,7 @@ namespace FileCat.Tests;
 
 internal static class ArchiveEditSaveCopySessionCases
 {
-    internal static IEnumerable<object[]> Scenarios()=>new[]{"complete","empty","large","origin","late-save","cancel-before","cancel-after-intent",
+    internal static IEnumerable<object[]> Scenarios()=>new[]{"complete","empty","large","origin","late-save","later-revision","cancel-before","cancel-after-intent",
         "target-collision","stage-create-failure","outcome-receipt-failure","wrong-session","wrong-destination","inside-store","second-attempt",
         "intent-malformed","intent-future","intent-invalid-utf8","source-payload-changed","target-changed","target-replaced",
         "prepared-receipt-corrupt","destination-replaced","missing-outcome","missing-ready","reader-unavailable"}
@@ -95,9 +95,10 @@ internal static class ArchiveEditSaveCopySessionCases
             {var path=Path.Combine(folder,intent.PreparedLeaf);var node=JsonNode.Parse(File.ReadAllBytes(path))!.AsObject();node["Nonce"]=Guid.NewGuid();File.WriteAllText(path,node.ToJsonString());}
             if(scenario=="missing-outcome")File.Delete(Path.Combine(folder,intent.OutcomeLeaf));
             if(scenario=="missing-ready")File.Delete(Path.Combine(folder,intent.PreparedLeaf));
+            var reviewRecord=scenario=="later-revision"?store.Save(record with{LastCommitUtc=DateTime.UnixEpoch.AddSeconds(1700000001)}):record;
             var before=Snapshot();
             var restarted=new EditSessionStore(store.Root,files,open,scenario=="reader-unavailable"?null:destinationOpen);
-            var review=Assert.Single(restarted.ReviewRetainedCaptures(record,ct));
+            var review=Assert.Single(restarted.ReviewRetainedCaptures(reviewRecord,ct));
             if(scenario is "intent-malformed" or "intent-future" or "intent-invalid-utf8" or "source-payload-changed")
             {Assert.Equal(EditCaptureRecoveryState.NeedsReview,review.State);Assert.Null(review.SavedCopy);}
             else

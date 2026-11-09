@@ -14,7 +14,7 @@ internal static class ArchiveEditCaptureRecoveryCases
         foreach(string scenario in new[]{"none","complete","interrupted-empty","interrupted-partial","header-missing","receipt-version",
             "receipt-version-string","receipt-duplicate","receipt-unknown","receipt-malformed","receipt-depth","receipt-large","receipt-length",
             "receipt-length-string","receipt-digest","receipt-session","header-files","header-leaf","extra-child","extra-file","payload-changed",
-            "payload-missing","payload-replaced","stale-record","cancel","capture-budget","unknown-name",
+            "payload-missing","payload-replaced","stale-record","later-revision","later-second-revision","cancel","capture-budget","unknown-name",
             "header-utf8-name","receipt-utf8-value","header-unpaired-name","receipt-unpaired-value"})yield return [scenario];
     }
     internal static void Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open)
@@ -86,6 +86,12 @@ internal static class ArchiveEditCaptureRecoveryCases
             else if(scenario=="payload-missing")File.Delete(copy.Path);
             else if(scenario=="payload-replaced"){File.Move(copy.Path,Path.Combine(fixture,"preserved-payload"));File.WriteAllText(copy.Path,"complete recovery source");}
             else if(scenario=="stale-record")store.Save(record with{LastCommitUtc=DateTime.UtcNow});
+            var reviewRecord=record;
+            if(scenario is "later-revision" or "later-second-revision")
+            {
+                reviewRecord=store.Save(record with{LastCommitUtc=DateTime.UnixEpoch.AddSeconds(1700000001)});
+                if(scenario=="later-second-revision")reviewRecord=store.Save(reviewRecord with{LastCommitUtc=DateTime.UnixEpoch.AddSeconds(1700000002)});
+            }
             var before=Files();
             // A new store and freshly opened native handles must inspect durable evidence without creator authority.
             var restarted=new EditSessionStore(store.Root,new PortableFileOperations(),open);
@@ -94,11 +100,11 @@ internal static class ArchiveEditCaptureRecoveryCases
             {using var stop=new CancellationTokenSource();stop.Cancel();Assert.ThrowsAny<OperationCanceledException>(()=>restarted.ReviewRetainedCaptures(record,stop.Token));}
             else
             {
-                var review=Assert.Single(restarted.ReviewRetainedCaptures(record,ct));
-                Assert.Equal(scenario=="complete"?EditCaptureRecoveryState.Complete:scenario.StartsWith("interrupted-",StringComparison.Ordinal)?
+                var review=Assert.Single(restarted.ReviewRetainedCaptures(reviewRecord,ct));
+                Assert.Equal(scenario is "complete" or "later-revision" or "later-second-revision"?EditCaptureRecoveryState.Complete:scenario.StartsWith("interrupted-",StringComparison.Ordinal)?
                     EditCaptureRecoveryState.Interrupted:EditCaptureRecoveryState.NeedsReview,review.State);
                 Assert.Equal(capture,review.Directory);Assert.NotEmpty(review.Reason);
-                if(scenario=="complete"){Assert.Equal(copy.Length,review.Length);Assert.Equal(copy.Sha256,review.Sha256);}
+                if(scenario is "complete" or "later-revision" or "later-second-revision"){Assert.Equal(copy.Length,review.Length);Assert.Equal(copy.Sha256,review.Sha256);}
                 else{Assert.Null(review.Length);Assert.Null(review.Sha256);}
             }
             Assert.Equal(before,Files());Assert.Equal("complete recovery source",File.ReadAllText(record.WorkingPath));

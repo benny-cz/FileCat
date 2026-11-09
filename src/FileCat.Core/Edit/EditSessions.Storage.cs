@@ -113,7 +113,8 @@ public sealed partial class EditSessionStore
         revision=0;return name.Length==RevisionPrefix.Length+19+5&&name.StartsWith(RevisionPrefix,StringComparison.Ordinal)&&name.EndsWith(".json",StringComparison.Ordinal)&&
             long.TryParse(name.AsSpan(RevisionPrefix.Length,19),NumberStyles.None,CultureInfo.InvariantCulture,out revision)&&revision>0;
     }
-    private static EditSessionRecord ReadNativeLatest(EditSessionRecord anchor,byte[] anchorBytes,EditDirectoryLease root,EditDirectoryLease session,CancellationToken ct=default)
+    private static EditSessionRecord ReadNativeLatest(EditSessionRecord anchor,byte[] anchorBytes,EditDirectoryLease root,EditDirectoryLease session,
+        CancellationToken ct=default,Dictionary<string,EditSessionRecord>? history=null)
     {
         long revision=0;
         foreach(string name in session.Names(ct))
@@ -127,6 +128,7 @@ public sealed partial class EditSessionStore
         // Review the complete chain, with an aggregate budget. A valid tail cannot hide a damaged ancestor.
         if(revision>4096)return UnsupportedSession(session.Path,"This edit's revision history exceeds the review budget. Its working folder is kept.");
         var latest=anchor;string previousHash=Digest(anchorBytes);long reviewedBytes=anchorBytes.Length;
+        history?.Add(previousHash,anchor with{StoredRecordSha256=previousHash});
         for(long current=1;current<=revision;current++)
         {
             ct.ThrowIfCancellationRequested();byte[] bytes=ReadRecordBytes(session,RevisionName(current),ct);reviewedBytes+=bytes.Length;
@@ -138,6 +140,7 @@ public sealed partial class EditSessionStore
                 latest.SessionDirectoryIdentity!=anchor.SessionDirectoryIdentity||latest.WorkingDirectoryIdentity!=anchor.WorkingDirectoryIdentity)
                 return UnsupportedSession(session.Path,"This edit's state record has a broken revision link. Its working folder is kept.");
             previousHash=Digest(bytes);
+            history?.Add(previousHash,latest with{StoredRecordSha256=previousHash});
         }
         RequireStorage(latest,root,session);return latest with{StoredRecordSha256=previousHash};
     }

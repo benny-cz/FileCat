@@ -1,5 +1,12 @@
 # Archive writing implementation status
 
+**9 November: historical retained-capture recovery correction compiles; guest gates queued.**
+The native review now binds each capture to its exact record in the fully validated bounded
+session-state chain, so a later legitimate state revision does not hide an older complete capture.
+Three new shared cases cover one and two later revisions and a saved-copy intent linked to the
+earlier state. Core and Windows test projects build with zero warnings; Mac/Windows/Ubuntu runtime
+and sealed evidence remain pending for this newer candidate. No writer profile is enabled.
+
 **9 November: FZ09 session-record packet is built; legacy adoption boundary is recorded.**
 The test-only v4 harness builds cleanly, adds an instrumented production session-record parser
 target and nine synthetic schema/corruption seeds; its sealed packet is queued behind the active
