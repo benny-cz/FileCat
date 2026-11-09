@@ -86,7 +86,8 @@ Unix seeds are 5,212 bytes / `cf43ad458f8f22118b86fe6974335e436894b1b500b48035be
 Windows seeds are 5,159 bytes / `f94ab1c71b9e53dff057b782deb5b5d24d79e2e988ed119829516a81e9030c66`.
 The raw guest result hashes are `00c01d9e764c18a430ee2c767d27b3de73139612c406ba5faae0671108f36f44`
 and `416aa7e654a0f82b7e8af5eb03477c1d0bf04711da250f98047bd948b2fb3336`.
-Independent replay verification and Ubuntu's v40 test/replay are pending. These additions parse
+Independent replay verification binds these Mac/Windows results to the source, seed bytes, packet
+and sealed product Core. Ubuntu's v40 test/replay is pending. These additions parse
 single journal records and single assessment members; full archive transaction state transitions,
 sidecar completeness and crash/restart mutation oracles remain open. The 1 MiB input cap also
 does not exercise the journal's 4 MiB per-line limit. No native fuzz floor is earned by replay.
