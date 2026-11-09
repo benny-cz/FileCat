@@ -58,31 +58,31 @@ def verify(platform,folder):
     if platform=='mac':assert census['preserved_wake_helper'].startswith('36765 ')
     if platform=='windows':assert not js('account.json')['AdministratorsMember'] and js('account.json')['HiveLoaded']
     scope='full'
-    if folder in ('awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28'):
+    if folder in ('awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29'):
         coverage=js('validation-scope.json');scope=coverage['scope']
-        assert scope==('full' if folder=='awe-storage-v28' else 'focused') and coverage['expected_new_core_cases']=={'awe-storage-v24':219,'awe-storage-v25':220,'awe-storage-v26':225,'awe-storage-v27':235,'awe-storage-v28':235}[folder] and not coverage['production_backend_qualified']
+        assert scope==('full' if folder=='awe-storage-v28' or folder=='awe-storage-v29' and platform=='windows' else 'focused') and coverage['expected_new_core_cases']=={'awe-storage-v24':219,'awe-storage-v25':220,'awe-storage-v26':225,'awe-storage-v27':235,'awe-storage-v28':235,'awe-storage-v29':275}[folder] and not coverage['production_backend_qualified']
         assert coverage['full_regressions']=={name:'required' if scope=='full' else 'not-run' for name in ('complete-core','complete-remote','complete-app')}
         if scope=='focused':assert not any('results/'+name+'.trx' in data for name in coverage['full_regressions'])
     complete='tests-complete.json' in data
     if complete:
-        cleanup=folder in ('awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28')
-        assert tests['record-recovery']=={'Passed':25 if folder in ('awe-storage-v27','awe-storage-v28') else 19} and tests['native-directory']=={'Passed':21 if folder in ('awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28') else 20 if cleanup else 16}
-        expected=(14 if platform=='windows' else 19) if folder in ('awe-storage-v5','awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28') else (13 if platform=='windows' else 14)
+        cleanup=folder in ('awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29')
+        assert tests['record-recovery']=={'Passed':25 if folder in ('awe-storage-v27','awe-storage-v28','awe-storage-v29') else 19} and tests['native-directory']=={'Passed':21 if folder in ('awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29') else 20 if cleanup else 16}
+        expected=(14 if platform=='windows' else 19) if folder in ('awe-storage-v5','awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29') else (13 if platform=='windows' else 14)
         assert tests['native-storage']=={'Passed':expected}
         gates={'record-recovery','native-directory','native-storage','edit-core','edit-ui'}
-        if folder in ('awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28'):
-            snapshots=35 if folder in ('awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28') and platform=='windows' else 34 if cleanup else 26
+        if folder in ('awe-storage-v6','awe-storage-v7','awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29'):
+            snapshots=35 if folder in ('awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29') and platform=='windows' else 34 if cleanup else 26
             gates.update(('native-snapshot','commit-copy'));assert tests['native-snapshot']=={'Passed':snapshots} and tests['commit-copy']=={'Passed':10}
-        if folder in ('awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28'):
-            gates.add('capture-recovery');assert tests['capture-recovery']=={'Passed':31 if folder in ('awe-storage-v27','awe-storage-v28') else 27}
+        if folder in ('awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29'):
+            gates.add('capture-recovery');assert tests['capture-recovery']=={'Passed':31 if folder in ('awe-storage-v27','awe-storage-v28','awe-storage-v29') else 27}
             origins=['origin-policy']+(['native-origin-regressions'] if platform=='windows' else [])
             for name in origins:
                 gates.add(name);assert set(tests[name])=={'Passed'} and tests[name]['Passed']>0
-        if folder in ('awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28'):
+        if folder in ('awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29'):
             if scope=='full':
                 gates.update(('complete-core','complete-app'))
                 assert tests['complete-core'].get('Passed',0)>8000 and tests['complete-app'].get('Passed',0)>190
-        if folder in ('awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28'):
+        if folder in ('awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29'):
             gates.update(('native-legacy-zip','history-retirement-core','history-retirement-ui'))
             assert tests['native-legacy-zip']=={'Passed':18} and tests['history-retirement-ui']=={'Passed':18}
             assert set(tests['history-retirement-core'])=={'Passed'} and tests['history-retirement-core']['Passed']>0
@@ -92,10 +92,10 @@ def verify(platform,folder):
                 assert baseline['folder']=='awe-v3' and baseline['manifest_sha256']==prior_index['files.json']['sha256']
                 assert baseline['trx_sha256']==hashlib.sha256(data['previous-full-core.trx']).hexdigest()==prior_index['results/core-regressions.trx']['sha256']
                 old=base.cases(prior_data['results/core-regressions.trx']);current=base.cases(data['results/complete-core.trx'])
-                if folder in ('awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28'):
+                if folder in ('awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29'):
                     spec=importlib.util.spec_from_file_location('edit_inventory',Path(__file__).with_name('edit_core_inventory.py'))
                     helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
-                    inventory=helper.review(old,current,235 if folder in ('awe-storage-v27','awe-storage-v28') else 225 if folder=='awe-storage-v26' else 220 if folder=='awe-storage-v25' else 219 if folder=='awe-storage-v24' else 174 if folder=='awe-storage-v23' else 170 if folder=='awe-storage-v22' else 153);assert js('full-case-inventory.json')==inventory;helper.require_complete(inventory)
+                    inventory=helper.review(old,current,275 if folder=='awe-storage-v29' else 235 if folder in ('awe-storage-v27','awe-storage-v28','awe-storage-v29') else 225 if folder=='awe-storage-v26' else 220 if folder=='awe-storage-v25' else 219 if folder=='awe-storage-v24' else 174 if folder=='awe-storage-v23' else 170 if folder=='awe-storage-v22' else 153);assert js('full-case-inventory.json')==inventory;helper.require_complete(inventory)
                     if platform=='ubuntu':
                         gates.add('picture-boundary');assert set(tests['picture-boundary'])=={'Passed'} and tests['picture-boundary']['Passed']>0
                 else:
@@ -103,21 +103,24 @@ def verify(platform,folder):
                     missing=sorted((names(old)-names(current)).elements());lost=sorted((names(old,True)-names(current,True)).elements())
                     assert js('full-case-inventory.json')==dict(previous=len(old),current=len(current),missing_prior_cases=missing,lost_prior_passes=lost,expected_new_cases=153)
                     assert not missing and not lost and len(current)==len(old)+153
-        if folder in ('awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28'):
+        if folder in ('awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29'):
             gates.add('native-sftp');assert tests['native-sftp']=={'Passed':23}
             if scope=='full':
                 gates.add('complete-remote');assert tests['complete-remote'].get('Passed',0)>0
-        if folder in ('awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28'):
-            gates.add('verification-ui');assert tests['verification-ui']=={'Passed':12 if folder in ('awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28') else 11,'NotExecuted':1}
-        if folder in ('awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28'):
+        if folder in ('awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29'):
+            gates.add('verification-ui');assert tests['verification-ui']=={'Passed':12 if folder in ('awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29') else 11,'NotExecuted':1}
+        if folder in ('awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29'):
             gates.add('save-copy-preparation');assert tests['save-copy-preparation']=={'Passed':17}
-        if folder in ('awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28'):
+        if folder in ('awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29'):
             gates.add('comparison-retirement');assert tests['comparison-retirement']=={'Passed':108}
-        if folder in ('awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28'):
+        if folder in ('awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29'):
             gates.update(('save-copy-publication','save-copy-record'))
-            assert tests['save-copy-publication']=={'Passed':26 if folder in ('awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28') and platform!='windows' else 25} and tests['save-copy-record']=={'Passed':25 if folder in ('awe-storage-v26','awe-storage-v27','awe-storage-v28') else 20}
+            assert tests['save-copy-publication']=={'Passed':26 if folder in ('awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29') and platform!='windows' else 25} and tests['save-copy-record']=={'Passed':25 if folder in ('awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29') else 20}
             if platform=='ubuntu':
                 gates.add('picture-boundary');assert set(tests['picture-boundary'])=={'Passed'} and tests['picture-boundary']['Passed']>0
+        if folder=='awe-storage-v29':
+            gates.update(('save-copy-intent','save-copy-session','cancellation-fixture'))
+            assert tests['save-copy-intent']=={'Passed':14} and tests['save-copy-session']=={'Passed':25} and tests['cancellation-fixture']=={'Passed':2}
         if cleanup:
             gates.add('job-input-regressions');assert tests['job-input-regressions'].get('Passed',0)>0
         assert set(tests)==gates
@@ -126,7 +129,7 @@ def verify(platform,folder):
     return dict(platform=platform,folder=folder,candidate=candidate,**facts,manifest_sha256=index['files.json']['sha256'],
         changed_CSharp_sources_bound=len(bound),DLL_PDB_pairs_bound=len(audit['binaries']),uncompiled_platform_sources=sorted(excluded),
         tests=tests,focused_gates_complete=complete,final_census=census,production_backend_qualified=False,
-        **(dict(validation_scope=scope,full_regressions_not_run=sorted(name for name in coverage['full_regressions'] if 'results/'+name+'.trx' not in data)) if folder in ('awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28') else {}),
+        **(dict(validation_scope=scope,full_regressions_not_run=sorted(name for name in coverage['full_regressions'] if 'results/'+name+'.trx' not in data)) if folder in ('awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29') else {}),
         **(dict(excluded_diagnostic_sources=diagnostic_exclusions) if diagnostic_exclusions else {}))
 
 def unchanged_product_binaries(platform,previous,current):

@@ -1,12 +1,18 @@
 # Archive writing implementation status
 
-**9 November: complete native edit encoding/storage focused milestone passes; full inventories queued.**
-`v27` passes startup record25 and fresh native capture31 on Windows/Mac/Ubuntu, together with record25 mutation,
-publication25/26, snapshot, ZIP/SFTP, history, ownership and edit UI gates. Exact raw evidence/source/binary bindings
-are preserved and verified with zero owned instances; the Mac wake assertion remains. `v28` changes validation
-orchestration only and queues complete Core/Remote/App inventories on these unchanged C# inputs. The complete
-Core case comparison requires 235 additions over the preserved baseline and no unexplained missing cases/lost passes.
-Publication overwrite/recovery/UI composition and the broader plan remain open; no store/profile is enabled.
+**9 November: native edit full milestone passes on Mac/Ubuntu; Windows capacity failure is preserved.**
+`v28` completes Core/Remote/App on Mac and Ubuntu with zero failures, 235 required new Core cases and no missing
+baseline cases/lost passes. Sealed raw/source/DLL/PDB evidence is preserved and verified, with zero owned
+instances and the Mac wake helper retained. Windows Core encountered a confirmed disk-full error and an
+unbounded cancellation-fixture wait. Its exact process/dump/exception evidence is retained; 76 checksum-matched
+duplicate archives were reclaimed and the independent suites continue. The failed Core inventory requires a retry.
+
+The connected [native Save copy session/recovery implementation](NATIVE_EDIT_SAVE_COPY_SESSIONS.md) now compiles,
+with 25 native session cases and 14 strict-intent cases queued per system. The next cohort also validates a bounded
+cancellation fixture and records disk-space preflights. Windows runs full inventories on that combined candidate;
+Mac/Ubuntu use affected gates before the next complete workflow milestone. The [cadence reassessment](VALIDATION_CADENCE.md)
+adds compact read-only observation and keeps all final QA requirements. Overwrite, cleanup, retained resources,
+UI composition and the wider plan remain open; no native store/profile is enabled.
 
 **9 November: saved-copy publication/encoding gates pass on all three systems; startup-reader follow-up queued.**
 `v26` passes record25 (including 10,000 seeded mutations), native publication25 Windows / 26 Mac/Ubuntu and

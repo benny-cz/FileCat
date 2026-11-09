@@ -48,3 +48,44 @@ Their time is part of the asserted behavior or coverage, so this reassessment do
 reduce corpora, raise concurrency on shared machines or trim formats/platforms to improve the totals. Grouping
 focused filters into fewer processes might save additional seconds, but would need a new raw case-to-gate proof;
 the measured cost does not justify that harness work before the remaining product integration.
+
+## 9 November follow-up
+
+The next connected candidate now includes the native Save copy session link, destination adapters and fresh
+read-only recovery, rather than qualifying each helper independently. Both test projects compile cleanly on
+the host; runtime validation remains guest-only. This implementation proceeds while the unchanged previous
+C# candidate completes its full `v28` Core/Remote/App milestone on all three systems. A focused workflow cohort
+will precede its next full milestone. Passing the previous candidate never qualifies the newer runtime bytes.
+Windows will run complete inventories on the connected next candidate as the required retry of its failed
+`v28` Core run; the new native focused prerequisites run first.
+
+Keep the existing test cadence. Another harness refactor, increased concurrency within a shared guest, or
+shortened adverse-condition deadlines has no demonstrated benefit sufficient to justify its cost here.
+The small remaining improvement is compact read-only observation:
+`eng/validation/archive-writing/observe_edit_storage_batch.py TASK awe-storage-v28` reads timing events,
+passed-gate counters, full-suite attempts, completion/census records and sealed transport metadata in one call.
+An unfinished timing event is explicitly an unconfirmed command, not proof of a live process. Partial records
+produce warnings. The helper runs only Python standard-library file reads and grants neither machine idleness
+nor qualification; the existing process checks and sealed source/binary/raw-result verifier remain required.
+This avoids repeated log discovery and large status dumps without changing the frozen running cohorts.
+
+The observer was checked with synthetic missing, active, terminal, partial/corrupt and malformed/path inputs,
+then used on all three live cohorts. It helped identify a Windows capacity failure: a mini dump records
+`ERROR_DISK_FULL` (`80070070`) allocating the ordinary cancellation test's destination. Its existing loop waited
+for copied bytes while the job waited for an error decision, without a deadline. The runner's source path/start
+time, exception, native stacks and space observations were preserved before retiring that exact owned failed
+process. Its full Core result remains unsuccessful; independent Remote/App collection continues.
+
+Capacity repair removed 76 duplicate guest archives, 7,903,851,449 bytes, only after every size/SHA-256 matched
+a preserved host copy. Sources, extracted evidence, active cohort data and other testers' files remain. The
+observed free space rose from about 1.2 GB to 9,120,296,960 bytes. Future cohorts record an 8 GiB working reserve
+check for build/output/default temporary/native edit fixture filesystems before builds, focused tests and each
+independent full suite. This operational threshold does not replace product quota/no-space tests or promise
+that a volume cannot fill later. The intentionally small separate case-sensitivity probe volume is unchanged.
+
+The real 200 MiB/rate-limited cancellation case still reaches actual copy progress before cancellation; its
+startup wait now has a deadline, reports unexpected decisions and always cancels/retires the job. A new forced
+startup-error case proves that path fails promptly and leaves its source intact. The next guest batch runs both
+cases before the connected existing regressions. Static resource boundary and eight orchestration scenarios
+pass without running product code on the host; runtime results remain required. No test deadline asserting
+product behavior, corpus, format/platform, sharing check, source binding or final QA gate was reduced.

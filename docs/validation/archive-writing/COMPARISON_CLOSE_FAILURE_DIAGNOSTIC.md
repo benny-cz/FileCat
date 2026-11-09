@@ -14,9 +14,11 @@ a particular compiler/runtime defect.
 
 The diagnostic used `dotnet-dump` 10.0.750501 inside the guest. Process identity/start time were checked
 before collection and retirement. Mini/heap analysis, tool output and the mini dump were copied into
-the failed cohort before its one owned failed test runner was terminated. The heap remains in the
-task's diagnostic directory with SHA-256
+the failed cohort before its one owned failed test runner was terminated. The heap is preserved at
+`.tmp/windows-core-v21-preserved-heap.dmp` (1,586,216,883 bytes), with SHA-256
 `E23C0DD42379EF62B402E01392D0C4126ED425BD3ED3D690E763D90753DCEDE0`.
+On 9 November its guest duplicate was reclaimed only after the host copy and guest original both matched
+this length/hash, preserving the diagnostic while restoring validation disk space.
 The failed batch is sealed with zero remaining owned test processes and exact compiler/PDB/DLL bindings:
 25,815,650 bytes, SHA-256
 `e487807d67058bbea7ecb0541a76fb782d5712eec7192dcf0f72ad257c388095`.

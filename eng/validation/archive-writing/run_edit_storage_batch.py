@@ -1,11 +1,11 @@
 """Guest-only early storage/record gates. Full integration/release qualification remains separate."""
 from pathlib import Path
 from datetime import datetime,timezone
-import importlib.util,json,shutil,subprocess,sys,tarfile,time,uuid,xml.etree.ElementTree as ET
+import importlib.util,json,shutil,subprocess,sys,tarfile,tempfile,time,uuid,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v28'
-PACKET='archive-edit-storage-delta-v28.tar.gz'
-VALIDATION_SCOPE='full'
+FOLDER='awe-storage-v29'
+PACKET='archive-edit-storage-delta-v29.tar.gz'
+VALIDATION_SCOPE='full' if sys.platform=='win32' else 'focused'
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 def sha(path):
     import hashlib
@@ -13,7 +13,7 @@ def sha(path):
 def base(task):
     path=task/'archive-workflow-source-v1/eng/validation/archive-writing/run_job_backend_batch.py'
     spec=importlib.util.spec_from_file_location('edit_storage_base',path);value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value)
-    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v27'
+    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v28'
     return value
 def batch_for(task):
     batch=base(task).batch_for(task);execute=batch.execute
@@ -38,10 +38,22 @@ def prepare(task,expected):
     assert sha(previous/'source-files.json')==row['sha256'];value.prepare(task,expected)
 def build(task):
     batch=batch_for(task);projects=['tests/FileCat.Core.Tests','tests/FileCat.App.Tests','tests/FileCat.Remote.Tests','eng/validation/archive-writing/PdbSourceAudit']
+    require_space(batch,'build')
     if sys.platform=='win32':projects.insert(2,'tests/FileCat.Platform.Windows.Tests')
     for project in projects:
         batch.execute(Path(project).name+'-build',[batch.dotnet,'build',str(batch.root/project/(Path(project).name+'.csproj')),
             '-c','Release','--disable-build-servers','-p:NuGetAudit=false','-m:1','-v','minimal'])
+
+def require_space(batch,phase,minimum=8*1024**3):
+    # Keep room for ordinary regression fixtures and diagnostic preservation. This does not replace
+    # product quota/no-space coverage or promise that the filesystem cannot fill during a suite.
+    paths={str(batch.root),str(batch.out),str(batch.env.get('TEMP') or batch.env.get('TMPDIR') or tempfile.gettempdir())}
+    if batch.env.get('FILECAT_EDIT_NATIVE_ROOT'):paths.add(batch.env['FILECAT_EDIT_NATIVE_ROOT'])
+    rows=[dict(path=path,free=shutil.disk_usage(path).free,minimum_free=minimum) for path in sorted(paths)]
+    with (batch.out/'resource-preflight.jsonl').open('a',encoding='utf-8') as output:
+        output.write(json.dumps(dict(phase=phase,utc=datetime.now(timezone.utc).isoformat(),filesystems=rows))+'\n')
+    if any(row['free']<minimum for row in rows):
+        raise RuntimeError('Validation filesystem has less than the 8 GiB working reserve. Preserve evidence and reclaim only owned artifacts before retrying.')
 
 def test_environment(task):
     # Reuse the qualified full-inventory fixture: native case-sensitive Mac volume and private Linux bus/keyring.
@@ -55,9 +67,10 @@ def tests(task):
     assert VALIDATION_SCOPE in ('focused','full')
     (batch.out/'validation-scope.json').write_text(json.dumps(dict(scope=VALIDATION_SCOPE,
         full_regressions={name:'not-run' if VALIDATION_SCOPE=='focused' else 'required' for name in ('complete-core','complete-remote','complete-app')},
-        expected_new_core_cases=235,production_backend_qualified=False),indent=2))
+        expected_new_core_cases=275,production_backend_qualified=False),indent=2))
     fixture=Path.home()/'AppData/Local/Temp'/(FOLDER+'-native-fixtures') if sys.platform=='win32' else task/FOLDER/'native-fixtures'
     fixture.mkdir();batch.env['FILECAT_EDIT_NATIVE_ROOT']=str(fixture)
+    require_space(batch,'focused')
     (batch.out/'native-fixture-root.json').write_text(json.dumps({'path':str(fixture),'account_home':str(Path.home())},indent=2))
     rows={}
     def run(name,assembly,selected,expected=None):
@@ -65,6 +78,10 @@ def tests(task):
         assert counters['failed']=='0' and int(counters['passed'])>0,counters
         if expected is not None:assert counters['total']==str(expected) and counters['passed']==str(expected),counters
         rows[name]=counters;(batch.out/'passed-gates.json').write_text(json.dumps(rows,indent=2))
+    run('save-copy-intent','FileCat.Core.Tests','FullyQualifiedName~EditSaveCopyIntentTests',14)
+    run('save-copy-session','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
+        'FullyQualifiedName~WindowsEditSaveCopySessionTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditSaveCopySessionTests',25)
+    run('cancellation-fixture','FileCat.Core.Tests','FullyQualifiedName~JobEngineTests.Cancel_leaves_no_partial_destination|FullyQualifiedName~JobEngineTests.Cancellation_fixture_reports_startup_error',2)
     run('comparison-retirement','FileCat.Core.Tests','FullyQualifiedName~ComparisonContentRetirementTests',108)
     run('save-copy-record','FileCat.Core.Tests','FullyQualifiedName~EditSaveCopyRecordTests',25)
     run('save-copy-publication','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
@@ -104,6 +121,7 @@ def run_full_regressions(batch,run):
         # The previous subprocess returned. Refuse to overlap any surviving test/other tester.
         # An idle refusal is not a test failure and must stop this machine's sequence immediately.
         batch.idle()
+        require_space(batch,name)
         attempt=dict(name=name,assembly=assembly,status='started');attempts.append(attempt)
         def record():
             (batch.out/'full-regression-attempts.json').write_text(json.dumps(attempts,indent=2))
@@ -132,7 +150,7 @@ def review_core_inventory(batch):
     current=ET.parse(batch.out/'results/complete-core.trx').findall('.//t:UnitTestResult',NS)
     spec=importlib.util.spec_from_file_location('edit_inventory',batch.root/'eng/validation/archive-writing/edit_core_inventory.py')
     helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
-    inventory=helper.review(old,current,235)
+    inventory=helper.review(old,current,275)
     (batch.out/'full-case-inventory.json').write_text(json.dumps(inventory,indent=2))
     helper.require_complete(inventory)
 def seal(task):
