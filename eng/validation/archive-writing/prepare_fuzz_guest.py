@@ -11,8 +11,7 @@ import subprocess
 import tarfile
 
 
-PRODUCT_CORE = "9d1897fb1ba19c0c16a19477cd2d82e996c00d42671d6e22db5e3f890953faba"
-PRODUCT_ARCHIVES = "1ad84b8bc81b659ce04f1356c3874ec6877bb67b646901eb7812391b72f3e4a2"
+CANDIDATE = "a521bf45285110a2c836d9caec824e207fb99a5e"
 
 
 def sha(path):
@@ -25,6 +24,8 @@ def main():
     parser.add_argument("--packet", type=Path, required=True)
     parser.add_argument("--packet-sha256", required=True)
     parser.add_argument("--image-name", required=True)
+    parser.add_argument("--product-core-sha256", required=True)
+    parser.add_argument("--product-archives-sha256", required=True)
     args = parser.parse_args()
     task = args.task.resolve(strict=True)
     packet = args.packet.resolve(strict=True)
@@ -34,8 +35,17 @@ def main():
         parser.error("image-name must be alphanumeric with optional dashes")
     prior = task / "fuzz-canary-v2"
     product = task / "archive-workflow-source-v1" / "tests" / "FileCat.Core.Tests" / "bin" / "Release" / "net10.0"
-    if sha(product / "FileCat.Core.dll") != PRODUCT_CORE or sha(product / "FileCat.Archives.dll") != PRODUCT_ARCHIVES:
-        raise ValueError("Verified guest product binaries have changed")
+    verified = task / "awe-storage-v40"
+    if json.loads((verified / "delta.json").read_text())["candidate_commit"] != CANDIDATE:
+        raise ValueError("Guest product candidate differs from the v40 recovery cohort")
+    index = {row["path"]: row for row in json.loads((verified / "files.json").read_text())["files"]}
+    expected = {"FileCat.Core.dll": args.product_core_sha256,
+                "FileCat.Archives.dll": args.product_archives_sha256}
+    for name, digest in expected.items():
+        if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest) or \
+            index["binaries/" + name]["sha256"] != digest or \
+            sha(verified / "binaries" / name) != digest or sha(product / name) != digest:
+            raise ValueError("Guest product binary differs from sealed v40 evidence: " + name)
     root = task / args.image_name
     root.mkdir(exist_ok=False)
     for name in ("libfuzzer-dotnet", "driver.cc", "LICENSE", "tool-artifacts.json"):
@@ -85,9 +95,10 @@ def main():
         types = json.loads((root / f"instrumented-types-tar-{phase}.json").read_text())
         if "FileCat.Archives.Writing.StrictTarCatalog" not in types:
             raise ValueError("Strict TAR scanner was not instrumented")
-    facts = {"candidate": "8355ee58cd21edf2b7e4eab185309be669c3c9ad",
-             "packet_sha256": sha(packet), "product_core_sha256": PRODUCT_CORE,
-             "product_archives_sha256": PRODUCT_ARCHIVES,
+    facts = {"candidate": CANDIDATE, "verified_folder": "awe-storage-v40",
+             "verified_index_sha256": sha(verified / "files.json"),
+             "packet_sha256": sha(packet), "product_core_sha256": expected["FileCat.Core.dll"],
+             "product_archives_sha256": expected["FileCat.Archives.dll"],
              "driver_sha256": sha(root / "libfuzzer-dotnet"),
              "images": {phase: {name: {"bytes": (root / phase / name).stat().st_size,
                                          "sha256": sha(root / phase / name)}

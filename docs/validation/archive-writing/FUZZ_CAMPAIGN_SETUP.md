@@ -92,6 +92,14 @@ single journal records and single assessment members; full archive transaction s
 sidecar completeness and crash/restart mutation oracles remain open. The 1 MiB input cap also
 does not exercise the journal's 4 MiB per-line limit. No native fuzz floor is earned by replay.
 
+The staged v9 fuzz packet is 487,056 bytes / SHA-256
+`4e0f203dcf92c69ad8cb3a3598b2108b3a42b3e5e63150bf6d91f40feb88a776`.
+Its harness DLL is byte-identical to v8; only the preparation source changes. The preparer now
+requires the exact v40 Ubuntu Core and Archives hashes, checks both against the sealed guest
+binary index and active build outputs, and records the evidence index hash before making any
+instrumented image. The Ubuntu packet and seeds are staged; image creation waits for FZ01 to
+finish and the Ubuntu v40 focused cohort to pass. No v9 campaign has started.
+
 The next test-only harness packet `fuzz-harness-v7.tar.gz` is 484,533 bytes, SHA-256
 `df43851a4e45cddbfe90583d2e315a577ad9d361b3f08926e9792992bb8442bd`.
 It adds direct production targets for `EditSessionStore.ParseRecord`,
