@@ -3,14 +3,14 @@ from pathlib import Path
 from datetime import datetime,timezone
 import importlib.util,json,shutil,subprocess,sys,tarfile,tempfile,time,uuid,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v45'
-PACKET='archive-edit-storage-delta-v45.tar.gz'
+FOLDER='awe-storage-v46'
+PACKET='archive-edit-storage-delta-v46.tar.gz'
 def cohort_policy(platform):
-    # Recheck complete inventories after the owned-result UI fix and the tool-recorder test race fix.
-    # Ubuntu enters only after its dedicated FZ01 and focused v40 batches and the first FZ09 launch.
-    return {'win32':('awe-storage-v43','full'),
-            'darwin':('awe-storage-v44','full'),
-            'linux':('awe-storage-v40','full')}[platform]
+    # Check the connected startup/session-list recovery hint against real native captures.
+    # Complete inventories remain attached to v45; this is a focused next candidate.
+    return {'win32':('awe-storage-v45','focused'),
+            'darwin':('awe-storage-v45','focused'),
+            'linux':('awe-storage-v40','focused')}[platform]
 
 PREVIOUS_FOLDER,VALIDATION_SCOPE=cohort_policy(sys.platform)
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
