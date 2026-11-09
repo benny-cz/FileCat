@@ -1,5 +1,11 @@
 # Archive writing implementation status
 
+**9 November: full recovery-byte regression cohort queued on Mac and Windows.**
+The latest v40 focused product candidate is sealed on both guests. A runner-only v41 follow-up
+repeats connected gates and the complete Core/Remote/App inventories against those same product
+sources. Ubuntu follows its active FZ01 campaign, focused v40 batch and first native FZ09 launch.
+The full v41 results are not yet available and no release qualification is claimed.
+
 **9 November: retained-copy Save verified copy UI passes Mac and Windows focused gates.**
 The recovery dialog offers the action only for a complete unused capture when a native destination
 adapter is present. It uses a local save picker, exclusive native publication, and reports a

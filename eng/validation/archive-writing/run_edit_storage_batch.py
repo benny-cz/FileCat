@@ -3,14 +3,14 @@ from pathlib import Path
 from datetime import datetime,timezone
 import importlib.util,json,shutil,subprocess,sys,tarfile,tempfile,time,uuid,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v40'
-PACKET='archive-edit-storage-delta-v40.tar.gz'
+FOLDER='awe-storage-v41'
+PACKET='archive-edit-storage-delta-v41.tar.gz'
 def cohort_policy(platform):
-    # Restarted retained-capture publication receives affected gates before the next workflow milestone.
-    # Ubuntu's last sealed predecessor is v36 while its long FZ01 run occupies the guest.
-    return {'win32':('awe-storage-v39','focused'),
-            'darwin':('awe-storage-v39','focused'),
-            'linux':('awe-storage-v36','focused')}[platform]
+    # Recheck complete test inventories for the currently focused recovery bytes.
+    # Ubuntu enters this cohort after its dedicated FZ01 and focused v40 batches.
+    return {'win32':('awe-storage-v40','full'),
+            'darwin':('awe-storage-v40','full'),
+            'linux':('awe-storage-v40','full')}[platform]
 
 PREVIOUS_FOLDER,VALIDATION_SCOPE=cohort_policy(sys.platform)
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
