@@ -77,8 +77,18 @@ the old source lease, checks its recorded identities, bytes and origin, and revi
 working copy. It reports missing, changed or ambiguous pairs for recovery review. The old
 record remains the active commit route; this snapshot grants no deletion or routing authority.
 Both test assemblies compile with zero warnings on the host. Mac's connected catalog-focused
-batch passed 38/38; its full Core regression and Windows catalog batch are underway. Ubuntu
-catalog replay awaits the password fuzz campaign's terminal state.
+batch passed 38/38 and full Core passed 8,672 with 207 skips. Windows passed 71 focused
+cases and 8,139 full Core passes with zero failures. Comparing raw full Core case names to
+the preceding runs found no missing prior case or lost prior pass. Both machines then passed
+11/11 focused adoption cases covering a changed original and duplicate native copies.
+Ubuntu catalog replay awaits the password fuzz campaign's terminal state.
+
+The next composition candidate orders lookup toward the old session even if its timestamp
+is later than the copy, and presents the adopted native copy as a review-only item in the
+edit-session UI. The startup hint counts it separately; opening it rereviews the old source
+and native copy before describing their relationship. Commit, editor reopen and discard
+are unavailable on that retained item. The combined Core/App/Windows test projects build
+with zero warnings on the host; direct guest UI and lookup tests remain pending.
 
 After a complete copy, the old record remains a retained recovery copy. Session lookup and startup
 UI need an explicit active/retained relationship before any automatic routing changes. Retirement
@@ -92,7 +102,10 @@ origin-mark preservation, destination refusal, process-kill at each durable step
 and zero loss of the original session on any refusal. No product factory may enable adoption
 before this matrix and the full connected tests pass.
 
-The next recovery batch adds an actual child-process kill at the native creation marker,
-pending adoption anchor and ready revision boundaries, then restarts discovery and checks
-that the old record and working bytes survived. These cases compile on the host and await
-direct guest execution; they do not cover old-folder retirement or every failure point.
+An actual child-process kill at the native creation marker, pending adoption anchor and
+ready revision boundaries passed on Mac and Windows. Restart discovery kept the old record
+and working bytes, classified the first two native copies as unsupported, and linked the
+ready copy to the old active route. Mac passed 41/41 focused and 8,675 full Core tests with
+207 skips; Windows passed 74 focused and 8,139 full Core tests with 748 skips. Both full
+inventories retained every prior case and pass and added exactly three expected rows.
+Ubuntu and additional failure points still await replay; old-folder retirement remains open.

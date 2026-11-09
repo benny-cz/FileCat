@@ -1039,7 +1039,9 @@ with wrong-root records unsupported. It is test-only. Old-folder read-only admis
 copy and a path-free pending/ready relationship are staged behind the test factory. The
 read-only source and copy candidate has independently verified Mac and Windows source-bound
 evidence; Ubuntu exact-candidate replay is pending behind the active password fuzz campaign.
-Active/retained catalog review is staged but does not switch the commit route. Exact-object
+Active/retained catalog review and review-only application presentation are staged but do
+not switch the commit route. Mac/Windows process-kill checks at creation, pending and ready
+boundaries pass; the Ubuntu replay and application UI matrix are pending. Exact-object
 old-folder retirement, recovery/confirmation UI and connected three-platform qualification
 remain required before any native factory registration.
 

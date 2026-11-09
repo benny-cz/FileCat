@@ -26,6 +26,7 @@ internal static class ArchiveEditLegacyAdoptionCases
             byte[] initial="original remote bytes"u8.ToArray();using var content=new MemoryContentSource("old.txt",initial);
             string? mark=scenario=="origin"?"[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.test/old.txt\r\n":null;
             var old=oldStore.CreateRemote("server","server","/old.txt",content,content.GetRevision()!.Value,mark,ct);
+            if(scenario=="future-old")old=oldStore.Save(old with{CreatedUtc=DateTime.UtcNow.AddYears(1)});
             byte[] expected=initial;
             if(scenario=="edited")
             {expected="unsaved editor changes"u8.ToArray();File.WriteAllBytes(old.WorkingPath,expected);}
@@ -103,6 +104,7 @@ internal static class ArchiveEditLegacyAdoptionCases
             var restarted=Assert.Single(loaded,row=>row.Id==adopted.Id);
             Assert.True(restarted.IsSupported);Assert.True(restarted.LegacyAdoptionReady);
             Assert.Equal(adopted.LegacyAdoption,restarted.LegacyAdoption);
+            Assert.Equal(old.Id,store.FindRemote("server","/old.txt")!.Id);
             Assert.Equal(scenario=="edited"?EditState.Modified:EditState.Unchanged,
                 store.StateOf(restarted,new LocalFileSystemProvider()));
         }

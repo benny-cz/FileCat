@@ -67,9 +67,11 @@ public sealed partial class MainViewModel
     {
         try
         {
-            var sessions = await LoadEditSessionsAsync(); int modified = 0, unavailable = 0, retained = 0, retainedUnknown = 0;
+            var sessions = await LoadEditSessionsAsync(); int modified = 0, unavailable = 0, retained = 0, retainedUnknown = 0, adopted = 0;
             foreach (var session in sessions)
             {
+                // Adoption currently retains the native copy while the old session remains the commit route.
+                if (session.LegacyAdoption is not null) { adopted++; continue; }
                 var state = await ReadEditStateAsync(session); CheckSessionAction();
                 if (state == EditState.Modified) modified++;
                 if (state == EditState.Unavailable) unavailable++;
@@ -81,11 +83,12 @@ public sealed partial class MainViewModel
                 }
                 if (session.IsSupported) Watch(session);
             }
-            if (modified == 0 && unavailable == 0 && retained == 0 && retainedUnknown == 0) return null;
+            if (modified == 0 && unavailable == 0 && retained == 0 && retainedUnknown == 0 && adopted == 0) return null;
             return ((modified == 0 ? "" : $"{Formatters.Plural(modified, "edit has", "edits have")} changes that are not committed yet.") +
                 (unavailable == 0 ? "" : $" {(Formatters.Plural(unavailable, "working copy cannot", "working copies cannot"))} be read.") +
                 (retained == 0 ? "" : $" {Formatters.Plural(retained, "edit has", "edits have")} retained copy folders to review.") +
-                (retainedUnknown == 0 ? "" : $" {Formatters.Plural(retainedUnknown, "edit has", "edits have")} retained-copy state that could not be checked.")).TrimStart() +
+                (retainedUnknown == 0 ? "" : $" {Formatters.Plural(retainedUnknown, "edit has", "edits have")} retained-copy state that could not be checked.") +
+                (adopted == 0 ? "" : $" {Formatters.Plural(adopted, "adopted copy needs", "adopted copies need")} review before use.")).TrimStart() +
                 " Review them in File → Edit sessions.";
         }
         catch (OperationCanceledException) { return null; }
@@ -164,6 +167,7 @@ public sealed partial class MainViewModel
             }, scope.Stop.Token);
             if (!scope.Current) return;
             var session = prepared.Session;
+            if (session.LegacyAdoption is not null) { await ShowSessionAsync(session); return; }
             void Check() { scope.Check(); CheckSessionAction(); }
             var state = prepared.Created ? prepared.State : await ReadEditStateAsync(session, Check);
             Check();
@@ -315,7 +319,9 @@ public sealed partial class MainViewModel
             var items = new List<ChoiceItem>();
             foreach (var session in sessions)
             {
-                string detail = $"{Describe(await ReadEditStateAsync(session))} · {session.DisplayContainer}";
+                string detail = session.LegacyAdoption is not null
+                    ? "retained adopted copy · review before use · " + session.DisplayContainer
+                    : $"{Describe(await ReadEditStateAsync(session))} · {session.DisplayContainer}";
                 if (session.IsSupported && session.StorageRootIdentity.Length != 0)
                 {
                     try { if (await HasRetainedCaptureHintAsync(session)) detail += " · retained copy folders"; }
@@ -327,7 +333,7 @@ public sealed partial class MainViewModel
             CheckSessionAction();
             var pick = await Dialogs.ChooseAsync(new ChoiceOptions("Edit sessions", items)
             {
-                Hint = "Enter shows the actions: commit, reopen the editor, save a copy, or discard.",
+                Hint = "Enter shows edit actions or recovery details for a retained copy.",
             });
             CheckSessionAction();
             if (pick.Index >= 0) await ShowSessionAsync(sessions[pick.Index]);
@@ -359,6 +365,32 @@ public sealed partial class MainViewModel
                 }, [new("Close", "close", IsCancel: true, IsDefault: true), new("Open working folder", "folder")]);
                 CheckSessionAction();
                 if (unsupportedAnswer as string == "folder") Services.Shell.Open(directory);
+                return;
+            }
+            if (session.LegacyAdoption is not null)
+            {
+                EditLegacyAdoptionCatalogEntry? relation = null;
+                try
+                {
+                    relation = await MutationIoAsync(Services.EditSessions.Root,
+                        () => Services.EditSessions.ReviewLegacyAdoptions(OpenLegacyAdoptionSource)
+                            .FirstOrDefault(row => row.Native.Id == session.Id), CheckSessionAction);
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
+                { /* An unavailable source is a retained recovery state, not permission to use the copy. */ }
+                CheckSessionAction();
+                string relationText = relation?.State == EditLegacyAdoptionCatalogState.LinkedRetainedCopy
+                    ? "The old edit is still the active commit route. This linked native copy is retained for review."
+                    : "The link to the old edit needs review. Both copies are kept.";
+                string directory = Services.EditSessions.SessionDirectory(session);
+                var retainedAnswer = await Dialogs.ShowCustomAsync("Retained adopted edit", new TextBlock
+                {
+                    Text = relationText + "\nWorking copy: " + Formatters.SafeName(session.WorkingPath) +
+                           "\nWorking folder: " + Formatters.SafeName(directory),
+                    TextWrapping = TextWrapping.Wrap, MaxWidth = 640,
+                }, [new("Close", "close", IsCancel: true, IsDefault: true), new("Open working folder", "folder")]);
+                CheckSessionAction();
+                if (retainedAnswer as string == "folder") Services.Shell.Open(directory);
                 return;
             }
             var state = await ReadEditStateAsync(session);
@@ -393,6 +425,11 @@ public sealed partial class MainViewModel
         catch (OperationCanceledException) { }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { if (EditSessionsActive) Notify($"Cannot review the edit: {ex.Message}", true); }
     }
+
+    private static ILegacyEditSource OpenLegacyAdoptionSource(string root, EditSessionRecord old, CancellationToken ct) =>
+        OperatingSystem.IsWindows()
+            ? FileCat.Platform.Windows.Archives.WindowsLegacyEditSource.Open(root, old, ct)
+            : UnixLegacyEditSource.Open(root, old, ct);
 
     private async Task ReviewSessionRetainedCopiesAsync(EditSessionRecord session)
     {
@@ -496,6 +533,7 @@ public sealed partial class MainViewModel
     private async Task CommitSessionAsync(EditSessionRecord session)
     {
         if (!session.IsSupported) { await ShowSessionAsync(session); return; }
+        if (session.LegacyAdoption is not null) { await ShowSessionAsync(session); return; }
         if (!EditSessionsActive || !_sessionActions.Add(session.Id)) return;
         var origin = ActiveTab;
         try

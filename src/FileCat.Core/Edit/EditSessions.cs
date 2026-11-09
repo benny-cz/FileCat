@@ -305,11 +305,12 @@ public sealed partial class EditSessionStore
     }
 
     public EditSessionRecord? Find(string archivePath, string memberPath) =>
-        LoadAll().FirstOrDefault(s => s.IsSupported && s.IsLegacyZip && string.Equals(s.ArchivePath, Path.GetFullPath(archivePath), StringComparison.OrdinalIgnoreCase) &&
-                                      s.MemberPath == memberPath);
+        LoadAll().Where(s => s.IsSupported && s.IsLegacyZip && string.Equals(s.ArchivePath, Path.GetFullPath(archivePath), StringComparison.OrdinalIgnoreCase) &&
+                             s.MemberPath == memberPath).OrderBy(s=>s.LegacyAdoption is null?0:1).FirstOrDefault();
 
     public EditSessionRecord? FindRemote(string profileId, string remotePath) =>
-        LoadAll().FirstOrDefault(s => s.IsRemote && s.ProfileId == profileId && s.RemotePath == remotePath);
+        LoadAll().Where(s => s.IsSupported && s.IsRemote && s.ProfileId == profileId && s.RemotePath == remotePath)
+            .OrderBy(s=>s.LegacyAdoption is null?0:1).FirstOrDefault();
 
     /// <summary>
     /// Copies a server file into a new private working copy, marked as coming from the server, with the revision it was
