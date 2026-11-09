@@ -95,20 +95,23 @@ def verify(path):
         rows = xml.findall('.//t:UnitTestResult', NS)
         counter = xml.find('.//t:Counters', NS).attrib
         actual = {'total': len(rows), 'passed': sum(row.attrib['outcome'] == 'Passed' for row in rows),
-                  'notExecuted': sum(row.attrib['outcome'] == 'NotExecuted' for row in rows),
                   'failed': sum(row.attrib['outcome'] == 'Failed' for row in rows)}
-        assert actual == counts and all(int(counter[key]) == value for key, value in actual.items())
-        assert actual['failed'] == 0 and actual['passed'] > 0
-        tests[label] = actual
+        skipped = sum(row.attrib['outcome'] == 'NotExecuted' for row in rows)
+        # VSTest's Counters.notExecuted is zero for xUnit skips. The raw result rows
+        # still retain them; verify both representations without relabeling skips as passes.
+        assert actual == {key: counts[key] for key in actual}
+        assert all(int(counter[key]) == value for key, value in counts.items())
+        assert actual['total'] == actual['passed'] + skipped and actual['failed'] == 0 and actual['passed'] > 0
+        tests[label] = {**counts, 'skipped_rows': skipped}
     assert {'windows': {'legacy-adoption', 'legacy-source', 'native-storage', 'native-discard',
                         'full-core'},
             'mac': {'focused', 'full-core'},
             'ubuntu': {'focused'}}[platform] == set(tests)
     if platform == 'windows':
-        assert tests['legacy-adoption'] == {'total': 6, 'passed': 6, 'notExecuted': 0, 'failed': 0}
-        assert tests['legacy-source'] == {'total': 10, 'passed': 10, 'notExecuted': 0, 'failed': 0}
+        assert tests['legacy-adoption'] == {'total': 6, 'passed': 6, 'notExecuted': 0, 'failed': 0, 'skipped_rows': 0}
+        assert tests['legacy-source'] == {'total': 10, 'passed': 10, 'notExecuted': 0, 'failed': 0, 'skipped_rows': 0}
     else:
-        assert tests['focused'] == {'total': 38, 'passed': 38, 'notExecuted': 0, 'failed': 0}
+        assert tests['focused'] == {'total': 38, 'passed': 38, 'notExecuted': 0, 'failed': 0, 'skipped_rows': 0}
     return {'platform': platform, 'candidate': CANDIDATE, 'tests': tests,
             'transport_bytes': path.stat().st_size, 'transport_sha256': sidecar['sha256']}
 

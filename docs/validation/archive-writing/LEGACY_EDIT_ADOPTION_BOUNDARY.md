@@ -55,9 +55,14 @@ root, verifies complete copied bytes and origin, publishes a pending anchor, rer
 copy, rechecks the old source and appends a linked ready revision. Restart discovery keeps a
 pending copy unsupported and the old record available. Its relation records source object
 identities and content hashes without paths. Mac, Windows and Ubuntu focused runs of the
-initial four adoption cases passed; Mac full Core passed 8,668 cases and Windows full Core
-passed 8,139, both with zero failures. The revised tamper/discard and inherited-mode cases
-and the remaining full inventories are still running or awaiting replay. The application
+initial four adoption cases passed; the revised Mac candidate passed 38/38 adoption, source
+and adjacent storage cases. Its exact committed source, PDB snapshots and raw full Core result
+(8,672 passes, 207 skips, zero failures) independently verified in a 14,104,856-byte transport,
+SHA-256 `ce54964bf407ec417418fc502fe712e071fc7cef0e4079d02f703e99670dc745`.
+Windows' earlier full Core passed 8,139 tests with zero failures; the independent baseline
+review retained all 8,065 prior passes and accounted for 336 added cases after narrowly
+normalizing one case-insensitive Windows fixture path. Windows and Ubuntu exact-candidate
+focused tests and the remaining full inventories are still running or awaiting replay. The application
 factory remains on the legacy store until active/retained routing, old-folder retirement,
 process-kill recovery and full platform evidence are complete.
 
