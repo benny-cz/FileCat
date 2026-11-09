@@ -3,14 +3,14 @@ from pathlib import Path
 from datetime import datetime,timezone
 import importlib.util,json,shutil,subprocess,sys,tarfile,tempfile,time,uuid,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v36'
-PACKET='archive-edit-storage-delta-v36.tar.gz'
+FOLDER='awe-storage-v37'
+PACKET='archive-edit-storage-delta-v37.tar.gz'
 def cohort_policy(platform):
-    # Connected mutation/recovery corrections get affected gates before the next workflow milestone.
-    # All three predecessors are sealed v35 affected cohorts.
-    return {'win32':('awe-storage-v35','focused'),
-            'darwin':('awe-storage-v35','focused'),
-            'linux':('awe-storage-v35','focused')}[platform]
+    # Connected read-only recovery UI receives affected gates before the next workflow milestone.
+    # All three predecessors are sealed v36 affected cohorts.
+    return {'win32':('awe-storage-v36','focused'),
+            'darwin':('awe-storage-v36','focused'),
+            'linux':('awe-storage-v36','focused')}[platform]
 
 PREVIOUS_FOLDER,VALIDATION_SCOPE=cohort_policy(sys.platform)
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
@@ -89,6 +89,7 @@ def tests(task):
         'FullyQualifiedName~WindowsEditDiscardTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditDiscardTests',40 if sys.platform=='win32' else 3)
     run('discard-ui','FileCat.App.Tests','FullyQualifiedName~EditDiscardNativeUiTests')
     assert rows['discard-ui']['total']=='6' and rows['discard-ui']['passed']==('6' if sys.platform=='win32' else '3')
+    run('retained-copy-ui','FileCat.App.Tests','FullyQualifiedName~EditRetainedCopyUiTests',1)
     run('storage-admission','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
         'FullyQualifiedName~WindowsEditStorageAdmissionTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditStorageAdmissionTests',45)
     run('save-copy-intent','FileCat.Core.Tests','FullyQualifiedName~EditSaveCopyIntentTests',14)
