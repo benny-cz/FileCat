@@ -86,6 +86,8 @@ that a volume cannot fill later. The intentionally small separate case-sensitivi
 The real 200 MiB/rate-limited cancellation case still reaches actual copy progress before cancellation; its
 startup wait now has a deadline, reports unexpected decisions and always cancels/retires the job. A new forced
 startup-error case proves that path fails promptly and leaves its source intact. The next guest batch runs both
-cases before the connected existing regressions. Static resource boundary and eight orchestration scenarios
-pass without running product code on the host; runtime results remain required. No test deadline asserting
+cases before the connected existing regressions. Both cases and the complete connected focused gates now pass
+on Mac/Ubuntu, with sealed raw/source/binary evidence verified and zero owned instances. Windows still requires
+its affected/full retry. Static resource boundary and eight orchestration scenarios also pass without running
+product code on the host. No test deadline asserting
 product behavior, corpus, format/platform, sharing check, source binding or final QA gate was reduced.

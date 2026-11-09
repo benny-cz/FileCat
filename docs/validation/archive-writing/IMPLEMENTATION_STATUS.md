@@ -7,10 +7,11 @@ instances and the Mac wake helper retained. Windows Core encountered a confirmed
 unbounded cancellation-fixture wait. Its exact process/dump/exception evidence is retained; 76 checksum-matched
 duplicate archives were reclaimed and the independent suites continue. The failed Core inventory requires a retry.
 
-The connected [native Save copy session/recovery implementation](NATIVE_EDIT_SAVE_COPY_SESSIONS.md) now compiles,
-with 25 native session cases and 14 strict-intent cases queued per system. The next cohort also validates a bounded
-cancellation fixture and records disk-space preflights. Windows runs full inventories on that combined candidate;
-Mac/Ubuntu use affected gates before the next complete workflow milestone. The [cadence reassessment](VALIDATION_CADENCE.md)
+The connected [native Save copy session/recovery implementation](NATIVE_EDIT_SAVE_COPY_SESSIONS.md) passes `v29`
+on Mac/Ubuntu: native session25, strict intent14, cancellation fixture2 and all connected focused gates. Sealed
+raw/source/DLL/PDB evidence is verified, with zero owned instances and the Mac wake helper preserved. Windows
+runs affected gates and full inventories on the same candidate after its current failed-cohort collection.
+Mac/Ubuntu full suites for these newer runtime bytes remain unrun until the next complete workflow milestone. The [cadence reassessment](VALIDATION_CADENCE.md)
 adds compact read-only observation and keeps all final QA requirements. Overwrite, cleanup, retained resources,
 UI composition and the wider plan remain open; no native store/profile is enabled.
 

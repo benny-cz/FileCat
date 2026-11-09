@@ -3309,6 +3309,242 @@
           "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
         }
       ]
+    },
+    {
+      "platform": "mac",
+      "folder": "awe-storage-v29",
+      "candidate": "caffed1fc63448167113945a940d20db649936af",
+      "bytes": 17492245,
+      "sha256": "e410e49e9ce4cadf9be16c1c8edd800258f93201082f6abe9418c5f4a0486ffb",
+      "manifest_sha256": "c53ddc47e73da5cf6fd51f6124448531dd0f0139ff4c62975f96c85b94f7735c",
+      "changed_CSharp_sources_bound": 74,
+      "DLL_PDB_pairs_bound": 14,
+      "uncompiled_platform_sources": [
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditCaptureRecoveryTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditDirectoryLeaseTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditLegacyZipTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPreparationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPublicationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopySessionTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSnapshotTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageTests.cs"
+      ],
+      "tests": {
+        "cancellation-fixture": {
+          "Passed": 2
+        },
+        "capture-recovery": {
+          "Passed": 31
+        },
+        "commit-copy": {
+          "Passed": 10
+        },
+        "comparison-retirement": {
+          "Passed": 108
+        },
+        "edit-core": {
+          "Passed": 110
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "history-retirement-core": {
+          "Passed": 29
+        },
+        "history-retirement-ui": {
+          "Passed": 18
+        },
+        "job-input-regressions": {
+          "Passed": 269
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-legacy-zip": {
+          "Passed": 18
+        },
+        "native-sftp": {
+          "Passed": 23
+        },
+        "native-snapshot": {
+          "Passed": 34
+        },
+        "native-storage": {
+          "Passed": 19
+        },
+        "origin-policy": {
+          "Passed": 15
+        },
+        "record-recovery": {
+          "Passed": 25
+        },
+        "save-copy-intent": {
+          "Passed": 14
+        },
+        "save-copy-preparation": {
+          "Passed": 17
+        },
+        "save-copy-publication": {
+          "Passed": 26
+        },
+        "save-copy-record": {
+          "Passed": 25
+        },
+        "save-copy-session": {
+          "Passed": 25
+        },
+        "verification-ui": {
+          "Passed": 12,
+          "NotExecuted": 1
+        }
+      },
+      "focused_gates_complete": true,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "production_backend_qualified": false,
+      "validation_scope": "focused",
+      "full_regressions_not_run": [
+        "complete-app",
+        "complete-core",
+        "complete-remote"
+      ],
+      "excluded_diagnostic_sources": [
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        },
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs",
+          "bytes": 2509,
+          "sha256": "3c6ab0b6702235fbba356c4b785d3b54810f3c7d40d69499daadc871ed065a79",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        }
+      ]
+    },
+    {
+      "platform": "ubuntu",
+      "folder": "awe-storage-v29",
+      "candidate": "caffed1fc63448167113945a940d20db649936af",
+      "bytes": 17475846,
+      "sha256": "ba186f25c34418e90edec5fad3a164e76aa28decae13db0714d3433c31f74b33",
+      "manifest_sha256": "08a21f5b7683c6b086e50fdd7dc340f5ffd295a30666f8c5c613911969beeb60",
+      "changed_CSharp_sources_bound": 74,
+      "DLL_PDB_pairs_bound": 14,
+      "uncompiled_platform_sources": [
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditCaptureRecoveryTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditDirectoryLeaseTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditLegacyZipTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPreparationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPublicationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopySessionTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSnapshotTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageTests.cs"
+      ],
+      "tests": {
+        "cancellation-fixture": {
+          "Passed": 2
+        },
+        "capture-recovery": {
+          "Passed": 31
+        },
+        "commit-copy": {
+          "Passed": 10
+        },
+        "comparison-retirement": {
+          "Passed": 108
+        },
+        "edit-core": {
+          "Passed": 110
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "history-retirement-core": {
+          "Passed": 29
+        },
+        "history-retirement-ui": {
+          "Passed": 18
+        },
+        "job-input-regressions": {
+          "Passed": 269
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-legacy-zip": {
+          "Passed": 18
+        },
+        "native-sftp": {
+          "Passed": 23
+        },
+        "native-snapshot": {
+          "Passed": 34
+        },
+        "native-storage": {
+          "Passed": 19
+        },
+        "origin-policy": {
+          "Passed": 15
+        },
+        "picture-boundary": {
+          "Passed": 12
+        },
+        "record-recovery": {
+          "Passed": 25
+        },
+        "save-copy-intent": {
+          "Passed": 14
+        },
+        "save-copy-preparation": {
+          "Passed": 17
+        },
+        "save-copy-publication": {
+          "Passed": 26
+        },
+        "save-copy-record": {
+          "Passed": 25
+        },
+        "save-copy-session": {
+          "Passed": 25
+        },
+        "verification-ui": {
+          "Passed": 12,
+          "NotExecuted": 1
+        }
+      },
+      "focused_gates_complete": true,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false
+      },
+      "production_backend_qualified": false,
+      "validation_scope": "focused",
+      "full_regressions_not_run": [
+        "complete-app",
+        "complete-core",
+        "complete-remote"
+      ],
+      "excluded_diagnostic_sources": [
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        },
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs",
+          "bytes": 2509,
+          "sha256": "3c6ab0b6702235fbba356c4b785d3b54810f3c7d40d69499daadc871ed065a79",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        }
+      ]
     }
   ],
   "current": [

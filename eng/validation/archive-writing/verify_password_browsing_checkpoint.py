@@ -6,7 +6,7 @@ import argparse, hashlib, json, subprocess, tarfile, xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[3]
 NS = {'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 
-def transport(packet, folder):
+def transport(packet, folder, retain=()):
     facts = json.loads(packet.with_suffix('.json').read_text(encoding='utf-8-sig'))
     with packet.open('rb') as stream: assert hashlib.file_digest(stream, 'sha256').hexdigest() == facts['sha256']
     assert packet.stat().st_size == facts['bytes']; index = {}; data = {}
@@ -18,7 +18,7 @@ def transport(packet, folder):
             if item.isdir(): continue
             key = path.relative_to(folder).as_posix(); assert key not in index
             stream = tar.extractfile(item)
-            if key.endswith(('.json', '.trx', '.source')):
+            if key.endswith(('.json', '.trx', '.source')) or key in retain:
                 content = stream.read(); data[key] = content; digest = hashlib.sha256(content).hexdigest()
             else: digest = hashlib.file_digest(stream, 'sha256').hexdigest()
             index[key] = {'bytes':item.size, 'sha256':digest}

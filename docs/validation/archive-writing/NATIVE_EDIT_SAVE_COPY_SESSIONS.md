@@ -26,12 +26,15 @@ level. Final native re-review checks for changes during observation. No deserial
 replacement, replay or adoption authority. Linked review accounts conservatively against the existing bounded
 byte budget; larger captures can require separate review rather than unbounded background hashing.
 
-Core and Windows-platform test projects compile without warnings/errors. The next guest cohort adds 25 native
-session/restart cases per platform and 14 strict-intent cases, including 10,000 seeded byte mutations. It covers
+Core and Windows-platform test projects compile without warnings/errors. The `v29` guest cohort passes 25 native
+session/restart cases and 14 strict-intent cases on Mac and Ubuntu, including 10,000 seeded byte mutations. It covers
 empty/large/origin-bearing sources, late editor saves, cancellation, collisions and creation/receipt failures,
 wrong session/destination, repeat attempts, malformed links, changed/replaced sources/destinations, corrupt or
 missing receipts and unavailable readers. Whole-fixture hashes before/after fresh recovery assert no mutation.
-Runtime results remain pending; compilation is not guest qualification.
+Both systems also pass the two cancellation-fixture cases and all connected focused gates, with 74 changed C#
+sources and 14 DLL/PDB pairs bound in each verified raw bundle, zero owned instances and the Mac wake helper
+preserved. Windows follows the current failed-cohort evidence collection and must run both the affected checks
+and complete inventories. These focused results do not qualify unrun full suites or the complete workflow.
 
 Existing-target overwrite, exact cleanup, durable retained-resource accounting, startup actions, job/UI
 composition and actual crash/power-loss qualification remain open. This work does not authorize native store

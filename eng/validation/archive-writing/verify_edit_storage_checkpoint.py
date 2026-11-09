@@ -8,7 +8,8 @@ spec=importlib.util.spec_from_file_location('storage_transport',Path(__file__).w
 base=importlib.util.module_from_spec(spec);spec.loader.exec_module(base)
 
 def verify(platform,folder):
-    facts,index,data=base.transport(ROOT/'.tmp/storage-evidence'/platform/(folder+'-evidence.tar.gz'),folder)
+    facts,index,data=base.transport(ROOT/'.tmp/storage-evidence'/platform/(folder+'-evidence.tar.gz'),folder,
+        retain=('resource-preflight.jsonl',) if folder=='awe-storage-v29' else ())
     js=lambda name:json.loads(data[name].decode('utf-8-sig'))
     candidate=js('delta.json')['candidate_commit']
     subprocess.check_call(['git','cat-file','-e',candidate+'^{commit}'],cwd=ROOT)
@@ -66,7 +67,8 @@ def verify(platform,folder):
     complete='tests-complete.json' in data
     if folder=='awe-storage-v29':
         assert index['executed-storage-batch.py']['sha256']==ledger['eng/validation/archive-writing/run_edit_storage_batch.py']['sha256']
-        assert data['executed-storage-batch.py']==subprocess.check_output(['git','show',candidate+':eng/validation/archive-writing/run_edit_storage_batch.py'],cwd=ROOT)
+        runner=subprocess.check_output(['git','show',candidate+':eng/validation/archive-writing/run_edit_storage_batch.py'],cwd=ROOT)
+        assert index['executed-storage-batch.py']==dict(bytes=len(runner),sha256=hashlib.sha256(runner).hexdigest())
         resources=[json.loads(line) for line in data['resource-preflight.jsonl'].decode('utf-8').splitlines()]
         phases=['build','focused']+(['complete-core','complete-remote','complete-app'] if scope=='full' else [])
         assert [row['phase'] for row in resources]==phases[:len(resources)] and len(resources)>=2
