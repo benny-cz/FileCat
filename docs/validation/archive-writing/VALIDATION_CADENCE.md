@@ -15,6 +15,9 @@ security cohorts did so while Ubuntu's guarded fuzz/recovery chain continued. Ea
 built in a separate task directory and sealed its own raw results; a failed assertion on
 one guest did not change another guest's compiler inputs. This removes cross-platform
 waiting, but does not make any platform result stand in for another.
+Ubuntu's same-source follow-on batch is queued behind the active fuzz chain with a
+passing-predecessor check and an idle wait. This uses that VM as soon as the existing
+campaigns and other testers release it, without overlapping CPU-heavy runs.
 
 ## Current execution decision, 9 November
 

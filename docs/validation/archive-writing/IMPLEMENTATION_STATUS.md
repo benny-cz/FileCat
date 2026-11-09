@@ -15,7 +15,13 @@ Unix-only skips) and 66/66 native backing-source cases; raw bundle SHA-256 is
 The host verifier checked both transport hashes, source-file hashes, raw TRX inventories,
 the exact Windows skips and Mac timing. Both guests ended without FileCat/test processes.
 Ubuntu's queued fuzz/recovery campaigns still own that VM, so its representative product
-and budget check on this candidate remains open. This focused result does not qualify the
+and budget check on this candidate remains open. Exact commit `4a0cb2bc` was staged there
+as a 66,616,264-byte source packet (SHA-256
+`d9737d303aa078d9a8598d7ea171d40cf5e8c58339d5dac828852bed22d5a153`).
+The guarded `filecat-archive-aw0-observation-v1-queue.service` waits for the existing
+wrapper-fuzz queue to pass and the VM to become idle, then runs fresh focused cases and
+canonical ZIP/TAR.GZ benchmarks. Queue activity is not a passing result. This focused
+result does not qualify the
 whole AW0 stage or replace final full-platform regression.
 
 **9 November: FZ02 strict-wrapper fuzz targets are replay-ready, with no duration floor yet.**
