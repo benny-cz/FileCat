@@ -64,6 +64,14 @@ def verify(platform,folder):
         assert coverage['full_regressions']=={name:'required' if scope=='full' else 'not-run' for name in ('complete-core','complete-remote','complete-app')}
         if scope=='focused':assert not any('results/'+name+'.trx' in data for name in coverage['full_regressions'])
     complete='tests-complete.json' in data
+    if folder=='awe-storage-v29':
+        assert index['executed-storage-batch.py']['sha256']==ledger['eng/validation/archive-writing/run_edit_storage_batch.py']['sha256']
+        assert data['executed-storage-batch.py']==subprocess.check_output(['git','show',candidate+':eng/validation/archive-writing/run_edit_storage_batch.py'],cwd=ROOT)
+        resources=[json.loads(line) for line in data['resource-preflight.jsonl'].decode('utf-8').splitlines()]
+        phases=['build','focused']+(['complete-core','complete-remote','complete-app'] if scope=='full' else [])
+        assert [row['phase'] for row in resources]==phases[:len(resources)] and len(resources)>=2
+        if complete:assert len(resources)==len(phases)
+        assert all(row['filesystems'] and all(item['minimum_free']==8*1024**3 and item['free']>=item['minimum_free'] for item in row['filesystems']) for row in resources)
     if complete:
         cleanup=folder in ('awe-storage-v8','awe-storage-v9','awe-storage-v10','awe-storage-v11','awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29')
         assert tests['record-recovery']=={'Passed':25 if folder in ('awe-storage-v27','awe-storage-v28','awe-storage-v29') else 19} and tests['native-directory']=={'Passed':21 if folder in ('awe-storage-v12','awe-storage-v13','awe-storage-v14','awe-storage-v15','awe-storage-v16','awe-storage-v17','awe-storage-v18','awe-storage-v19','awe-storage-v20','awe-storage-v21','awe-storage-v22','awe-storage-v23','awe-storage-v24','awe-storage-v25','awe-storage-v26','awe-storage-v27','awe-storage-v28','awe-storage-v29') else 20 if cleanup else 16}
