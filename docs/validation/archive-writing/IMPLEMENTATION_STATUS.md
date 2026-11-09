@@ -1,5 +1,27 @@
 # Archive writing implementation status
 
+**9 November: exact marked Unix private creation has a Mac native checkpoint.**
+Commit `1b5e6129` carries one byte-identical Linux or macOS origin value from complete
+captured evidence to a creator-private new archive, including empty/binary marks and
+mixed marked/unmarked inputs; conflicting marks refuse. Mac guest tests passed 52/53
+focused and 190/192 broad native cases with expected platform skips, including both
+marked publications. Windows guest policy tests passed 25/27 with Unix-only skips, and
+120/259 native storage cases passed under a measured medium-integrity child; both Windows
+zone-only publication cases passed. A separate real standard-user/AppContainer batch is
+running on the VM. Ubuntu's native check is queued and has no result yet. The detailed
+[checkpoint](UNIX_MARKED_CREATION_ORIGIN.md) records source and evidence hashes. No profile
+is enabled, and Unix marked updates remain unfinished.
+
+**9 November: Ubuntu fuzz qualification and dependent queues are being repaired.** The
+RAR5 password long run finished cleanly with 12,003 CPU seconds and no crash artifact,
+but its 60-second short run timed out. The sealer correctly refused the short run, so
+the original adoption, strict, wrapper and later acceptance queues failed without
+running dependent tests. A bounded longer short qualification and a new guarded queue
+are active. After that passes, 7z/RAR strict campaigns can run concurrently in separate
+1 GiB units, followed by concurrent gzip/BZip2/Zstd campaigns; each retains its own
+canary, short check, 12,000-second wall run and 7,200 CPU-second floor. Ubuntu AW0 and
+marked creation follow those gates. Queued work is not passing evidence.
+
 **9 November: the Mac ZIP extraction performance gate now passes on the focused candidate.**
 The built-in Unix file operations observe the resolved file's device/inode with one native
 `stat` at each existing backing-source checkpoint. Custom operations retain their previous
@@ -18,9 +40,10 @@ Ubuntu's queued fuzz/recovery campaigns still own that VM, so its representative
 and budget check on this candidate remains open. Exact commit `4a0cb2bc` was staged there
 as a 66,616,264-byte source packet (SHA-256
 `d9737d303aa078d9a8598d7ea171d40cf5e8c58339d5dac828852bed22d5a153`).
-The guarded `filecat-archive-aw0-observation-v1-queue.service` waits for the existing
-wrapper-fuzz queue to pass and the VM to become idle, then runs fresh focused cases and
-canonical ZIP/TAR.GZ benchmarks. Queue activity is not a passing result. This focused
+The original `filecat-archive-aw0-observation-v1-queue.service` failed on the upstream
+fuzz dependency before running its tests; the guarded v2 queue now waits for the repaired
+chain and an idle VM, then runs fresh focused cases and canonical ZIP/TAR.GZ benchmarks.
+Queue activity is not a passing result. This focused
 result does not qualify the
 whole AW0 stage or replace final full-platform regression.
 
@@ -34,9 +57,9 @@ byte replay transport is retained under `.tmp/storage-evidence/mac/fuzz-wrapper-
 guest SHA-256 `5bfb3420d976733fcb6530256161b6e6989c9a49e611c48a148e6dbe685829e6`;
 an independent verifier checked source, binaries, regenerated seed bytes, per-case outcomes
 and zero-warning Mac build. No FZ02 native campaign or cross-platform qualification is claimed.
-The v17 source-bound packet and three-format seed bundle are staged on Ubuntu; a guarded
-queue will start its canary, short runs and long campaigns only after the already-running
-RAR5 password, adoption and strict-format batches complete successfully.
+The v17 source-bound packet and three-format seed bundle are staged on Ubuntu; the repaired
+guarded queue will start its canary, short runs and independent long campaigns only after
+RAR5 password qualification, adoption and strict-format batches complete successfully.
 The Windows 11 VM then replayed the same 24 seeds against its own guest-built Core/Archives:
 nine accepted and 15 controlled refusals, with 45 instrumented Archive types and a clean
 test-only build. Its 3,444,092-byte raw transport SHA-256 is
