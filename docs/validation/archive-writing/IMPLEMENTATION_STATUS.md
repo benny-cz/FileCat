@@ -3,15 +3,14 @@
 **9 November: native retained-storage admission passes Ubuntu's full milestone; connected mutation corrections queued.**
 Ubuntu `v31` passes native admission34 and every affected gate plus complete Core8,649/185 skipped,
 Remote2,543/126 and App2,765/188. Its sealed raw/source/DLL/PDB evidence is verified with zero owned instances.
-Mac's same-candidate Core/Remote pass and App remains active with its wake helper retained. Windows `v33`
-passes admission34, connected affected gates and complete Core; Remote/App and sealing remain in progress.
+Mac's same-candidate full suites also pass: Core8,627/207 skipped, Remote2,638/31 and App2,763/190. Its sealed evidence is verified, owned instances are zero and the wake helper remains. Windows `v33`
+passes admission34, connected affected gates and complete Core/Remote; App remains confirmed live and sealing is pending.
 Its `v32` failed fixture evidence remains preserved and verified, independently from this correction.
 
 The next connected `v34` candidate serializes saved-copy intent and exact live capture cleanup with storage
 admission, uses root-before-snapshot lock ordering, retires all owners/permits after cleanup refusal and checks
 new-root parent/child paths. Native Discard's unsafe recursive-path fallback is disabled until exact native
-ownership is implemented. Ten new failure/race/retention cases expand the native matrix to44; Core and
-Windows-platform builds pass cleanly. Fresh guest affected gates are required; these changes are unqualified.
+ownership is implemented. Ten new failure/race/retention cases expand the native matrix to44. All44 and every connected focused gate pass on Mac/Ubuntu; sealed source/binary/raw evidence is verified with zero owned instances. Windows follows its active v33 full retry. New complete inventories remain explicitly unrun for these newer runtime bytes. Core and Windows-platform builds pass cleanly. A subsequent UI correction catches unsupported Discard refusals and builds App cleanly; its runtime validation belongs to the next UI candidate.
 Safe discard, recovery actions/startup UI, overwrite/adoption/composition and the full original plan remain open.
 No native store/profile is enabled. The [cadence](VALIDATION_CADENCE.md) reserves the next complete inventory
 for a connected recovery workflow milestone or a finding requiring broader coverage.

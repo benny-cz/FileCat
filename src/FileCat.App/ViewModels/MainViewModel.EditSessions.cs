@@ -716,7 +716,7 @@ public sealed partial class MainViewModel
             Notify("The edit was discarded.");
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
             if (EditSessionsActive) Notify($"The working copy could not be deleted (is it still open in the editor?): {ex.Message}", true);
         }
