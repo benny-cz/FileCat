@@ -45,5 +45,13 @@ flags and keeps the original strict file-security validator. Raw/source/binary e
 owned instances on all systems. `v31` reruns the same combined milestone with these corrections; no failed result
 is treated as passing and no test requirement is removed.
 
+The corrected `v31` native matrix passes all 34 cases on Mac/Ubuntu and continues into existing checks/full
+inventories. Windows passes 30 and exposes four failures while counting still-live capture directories: its
+ordinary protected directory open intentionally excludes delete sharing, which conflicts with the live
+creator's retained DELETE handle. Inventory now has a separate read/list-only open with delete sharing and
+the same identity/private-parent reviews. Mutation/ordinary namespace opens keep their previous sharing rules.
+The failed Windows bundle is sealed/verified with zero owned instances; the `v32` Windows retry is queued.
+Mac/Ubuntu frozen `v31` sources remain untouched while their current complete runs finish.
+
 Runtime qualification remains pending. Exact cleanup, recovery/UI composition, crash/durability/resource qualification
 and the wider plan remain open. No store or archive write profile is enabled by this component.

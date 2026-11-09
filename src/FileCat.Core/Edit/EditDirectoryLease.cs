@@ -16,6 +16,8 @@ internal abstract class EditDirectoryLease : IDisposable
     internal abstract SafeFileHandle Handle { get; }
     internal abstract EditDirectoryLease CreateDirectory(string leaf,CancellationToken ct,bool removable=false);
     internal abstract EditDirectoryLease OpenDirectory(string leaf, string? expectedIdentity, CancellationToken ct);
+    // Inventory retains read-only observations while a live creator may still own DELETE access.
+    internal virtual EditDirectoryLease OpenStorageDirectory(string leaf,CancellationToken ct)=>OpenDirectory(leaf,null,ct);
     internal abstract FileStream CreateFile(string leaf, CancellationToken ct);
     internal abstract FileStream OpenFile(string leaf, string? expectedIdentity, CancellationToken ct);
     internal abstract FileStream OpenWorkingFile(string leaf,CancellationToken ct);

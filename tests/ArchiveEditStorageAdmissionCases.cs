@@ -215,6 +215,7 @@ internal static class ArchiveEditStorageAdmissionCases
         internal override string Path=>owner.Path;internal override string Identity=>owner.Identity;internal override SafeFileHandle Handle=>owner.Handle;
         internal override EditDirectoryLease CreateDirectory(string leaf,CancellationToken ct,bool removable=false)=>owner.CreateDirectory(leaf,ct,removable);
         internal override EditDirectoryLease OpenDirectory(string leaf,string? identity,CancellationToken ct)=>owner.OpenDirectory(leaf,identity,ct);
+        internal override EditDirectoryLease OpenStorageDirectory(string leaf,CancellationToken ct)=>owner.OpenStorageDirectory(leaf,ct);
         internal override FileStream CreateFile(string leaf,CancellationToken ct)=>owner.CreateFile(leaf,ct);
         internal override FileStream OpenFile(string leaf,string? identity,CancellationToken ct)=>owner.OpenFile(leaf,identity,ct);
         internal override FileStream OpenWorkingFile(string leaf,CancellationToken ct)=>owner.OpenWorkingFile(leaf,ct);

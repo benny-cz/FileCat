@@ -7,6 +7,17 @@ namespace FileCat.Platform.Windows.Archives;
 
 internal sealed partial class WindowsEditDirectoryLease
 {
+    internal override EditDirectoryLease OpenStorageDirectory(string name,CancellationToken ct)
+    {
+        lock(Gate)
+        {
+            RequireOpen();Leaf(name);ReviewCore(ct);
+            var handle=OpenOrThrow(directory,name,GenericRead|0x20000|Synchronize,ShareAll,Open,
+                DirectoryFile|OpenReparsePoint,"Open read-only edit storage inventory");
+            var child=new WindowsEditDirectoryLease(System.IO.Path.Combine(Path,name),handle,owner,true,parent:this,leaf:name);
+            try{ReviewCore(ct);return child;}catch{child.Dispose();throw;}
+        }
+    }
     internal override EditStoredFileSize MeasureStoredFile(string name,CancellationToken ct)
     {
         lock(Gate)

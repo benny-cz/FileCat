@@ -50,7 +50,7 @@ public sealed partial class EditSessionStore
                 }
                 else if(level is 1 or 2&&name=="files"){childDirectory=true;childLevel=3;}
                 if(childDirectory)
-                {using var child=directory.OpenDirectory(name,null,ct);Walk(child,childLevel,level==2&&name=="files");}
+                {using var child=directory.OpenStorageDirectory(name,ct);Walk(child,childLevel,level==2&&name=="files");}
                 else
                 {
                     if(++entries>limits.Entries)throw Limit();files++;
