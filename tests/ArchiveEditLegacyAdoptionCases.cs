@@ -52,6 +52,14 @@ internal static class ArchiveEditLegacyAdoptionCases
             Assert.Equal(expected,File.ReadAllBytes(old.WorkingPath));
             Assert.Equal(oldRecord,File.ReadAllBytes(Path.Combine(oldRoot,old.Id,"session.json")));
             Assert.Equal(scenario=="origin"?ArchiveOriginState.Present:ArchiveOriginState.Absent,source.Origin.State);
+            var linked=Assert.Single(store.ReviewLegacyAdoptions(legacyOpen,ct));
+            Assert.Equal(EditLegacyAdoptionCatalogState.LinkedRetainedCopy,linked.State);
+            Assert.Equal(old.Id,linked.ActiveLegacy!.Id);
+            Assert.Equal(adopted.Id,linked.Native.Id);
+            var refused=Assert.Single(store.ReviewLegacyAdoptions(
+                (_,_,_)=>throw new IOException("The original is unavailable during restart review."),ct));
+            Assert.Equal(EditLegacyAdoptionCatalogState.NeedsReview,refused.State);
+            Assert.True(File.Exists(old.WorkingPath));Assert.True(File.Exists(adopted.WorkingPath));
             if(scenario=="tampered-link")
             {
                 string revision=Path.Combine(nativeRoot,adopted.Id,

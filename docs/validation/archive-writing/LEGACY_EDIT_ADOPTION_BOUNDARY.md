@@ -66,6 +66,13 @@ focused tests and the remaining full inventories are still running or awaiting r
 factory remains on the legacy store until active/retained routing, old-folder retirement,
 process-kill recovery and full platform evidence are complete.
 
+A read-only catalog review now pairs a ready native copy with exactly one old record, reopens
+the old source lease, checks its recorded identities, bytes and origin, and reviews the native
+working copy. It reports missing, changed or ambiguous pairs for recovery review. The old
+record remains the active commit route; this snapshot grants no deletion or routing authority.
+Both test assemblies compile with zero warnings on the host; connected guest tests of this
+new catalog review are pending.
+
 After a complete copy, the old record remains a retained recovery copy. Session lookup and startup
 UI need an explicit active/retained relationship before any automatic routing changes. Retirement
 requires a distinct exact-object cleanup review and confirmation; matching a GUID/path alone does
