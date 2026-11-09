@@ -1,5 +1,17 @@
 # Archive writing implementation status
 
+**9 November: retained-copy recovery UI passes Mac and Windows focused guest gates.**
+`v37` passes the new read-only retained-copy review case, all 26 connected Mac and 27 Windows focused
+gates, 45 native storage-admission cases on each, and the applicable Discard cases with zero failures.
+The sealed Mac transport is 17,540,399 bytes / SHA-256
+`6009c4c7ea6a4176a54914530a102eb65655100dfa642a95f304eb6119189f13`; Windows is
+18,909,575 bytes / `55bdb00cae83c1de66814fd922e6608685ecfdbb14ea0d18d59fa4f887a0aaf6`.
+Independent verification binds the exact source, compiler documents, DLL/PDBs and test counts to candidate
+`6cd1b63e92f0b498ea3883d8cdf39c4b7affc93d`. Owned processes are zero on both guests; Mac's
+wake helper remains. Ubuntu's `v37` UI batch waits for its active long FZ01 campaign. The dialog only
+reviews preserved data; fresh recovery actions, adoption, default composition, full inventories and all
+remaining qualification remain open.
+
 **9 November: coverage-guided fuzz canary passes; structured FZ01 campaign is running.**
 The [test-only setup](FUZZ_CAMPAIGN_SETUP.md) pins the .NET 10/SharpFuzz/native driver artifacts and
 uses separately instrumented guest copies of the verified product DLLs. Ubuntu's canary-only input
@@ -8,7 +20,7 @@ patched image. A clean strict TAR/raw-decoder 60-second gate completed 391,877 i
 Four individually accepted synthetic member/PAX seeds now feed a bounded 12,000-second Ubuntu run.
 Its nightly floor is **not yet earned**. Other fuzz targets/floors, linked-native tooling provenance,
 three-platform and release qualification remain open. The next unregistered native-edit candidate
-adds a read-only retained-capture recovery dialog; it compiles but guest UI tests are pending.
+adds a read-only retained-capture recovery dialog; its Mac/Windows guest UI gates pass above.
 
 **9 November: reviewed Discard allocation and mapped-editor follow-up passes everywhere applicable.**
 `v36` passes Windows40 discard cases (including writable mapped pages after the editor's original file handle

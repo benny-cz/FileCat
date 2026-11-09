@@ -52,7 +52,7 @@ def verify(platform):
                 assert index[snapshot]['sha256']==item['sha256'].lower()==row['sha256']
                 assert data[snapshot].replace(b'\r\n',b'\n')==blob.replace(b'\r\n',b'\n')
     runner=git('eng/validation/archive-writing/run_edit_storage_batch.py')
-    assert data['executed-storage-batch.py']==runner
+    assert index['executed-storage-batch.py']=={'bytes':len(runner),'sha256':hashlib.sha256(runner).hexdigest()}
     scope=js('validation-scope.json')
     assert scope['scope']=='focused' and scope['expected_new_core_cases']==323 and not scope['production_backend_qualified']
     assert all(value=='not-run' for value in scope['full_regressions'].values())
