@@ -123,6 +123,15 @@ internal sealed partial class WindowsArchiveFile : Stream, IArchiveCreatePublica
         }
     }
 
+    internal void ReviewLegacyStreams(long length,ArchiveOriginSnapshot origin,CancellationToken ct)
+    {
+        lock(parent.Gate)
+        {
+            EnsureLive();ct.ThrowIfCancellationRequested();Validate();
+            WindowsArchiveNative.RequireSnapshotStreams(handle,length,origin);
+        }
+    }
+
     public void RenameNoReplace(string leaf, ArchiveObjectVersion expected, WindowsArchiveOuterMetadata expectedMetadata,
         CancellationToken cancellationToken = default)
     {

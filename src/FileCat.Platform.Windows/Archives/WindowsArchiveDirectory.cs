@@ -37,14 +37,15 @@ internal sealed partial class WindowsArchiveDirectory : IDisposable, IArchiveDes
     public FileIdentity Identity { get; }
     public WindowsArchiveVolume Volume { get; }
 
-    private WindowsArchiveDirectory(string path)
+    private WindowsArchiveDirectory(string path,bool readControl=false)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Windows archive handles are required.");
         if (WindowsTokenAuthority.IsHighIntegrity)
             throw new UnauthorizedAccessException("New archive writes require an unelevated FileCat process.");
         if (!Path.IsPathFullyQualified(path)) throw new ArgumentException("An absolute archive directory is required.", nameof(path));
         DisplayPath = Path.GetFullPath(path);
-        directory = LocalIconFileLease.TryOpenDirectory(DisplayPath, LeaseLinks.Refuse, removable: true)
+        directory = (readControl?LocalIconFileLease.TryOpenDirectoryWithSecurity(DisplayPath):
+            LocalIconFileLease.TryOpenDirectory(DisplayPath, LeaseLinks.Refuse, removable: true))
             ?? throw new IOException("The archive directory could not be pinned without following links.");
         try
         {
@@ -61,6 +62,7 @@ internal sealed partial class WindowsArchiveDirectory : IDisposable, IArchiveDes
     }
 
     public static WindowsArchiveDirectory Open(string path) => new(path);
+    internal static WindowsArchiveDirectory OpenLegacyReadOnly(string path) => new(path,readControl:true);
 
     ArchiveSpaceReview IArchiveDestinationSpace.ReviewSpace(string expectedParentIdentity, ArchiveSpaceEstimate estimate, CancellationToken ct)
     {

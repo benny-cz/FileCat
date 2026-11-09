@@ -32,7 +32,7 @@ admitted private destination root when the old root cannot satisfy native securi
 descriptor-bound way to copy the origin mark. Both roots must remain discoverable on restart.
 Any failed or interrupted copy keeps the old folder and the new partial folder for review.
 
-A first Unix-only admission lease now pins the v1/v2 root, 0700 session directory, inherited-mode
+A Unix admission lease now pins the v1/v2 root, 0700 session directory, inherited-mode
 `files` directory, `session.json` and working file without following links. It checks creator
 ownership, no writable group/other namespace, exact directory and file identities, single-link
 regular files, bounded record/working lengths, complete record and working hashes, outer metadata
@@ -40,8 +40,11 @@ and origin marks. Its `CopyTo` rechecks the source before and after copying and 
 publishes an object. Mac's direct guest gate passed 10/10 cases, including a real ZIP member
 record downgraded to the historical version-1 shape, origin marks, hard links, symlinks,
 replacements, unknown xattrs and exposed directories; the host Core test build has zero warnings. This is
-still an unregistered source component. Windows read-only admission, destination transaction,
-durable relationship, retirement and connected three-platform evidence remain open.
+still an unregistered source component. A separate Windows read-only source lease now pins the
+old NTFS namespace and checks owner/DACL through a read-control leaf handle. Its standard-user
+VM test passed 10/10 focused and 168 adjacent cases with zero failures; 139 guarded cases skipped.
+See [Windows source checkpoint](WINDOWS_LEGACY_SOURCE.md). Destination transaction, durable
+relationship, retirement and connected three-platform evidence remain open.
 
 After a complete copy, the old record remains a retained recovery copy. Session lookup and startup
 UI need an explicit active/retained relationship before any automatic routing changes. Retirement

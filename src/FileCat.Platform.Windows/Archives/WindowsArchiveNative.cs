@@ -115,7 +115,16 @@ internal static unsafe partial class WindowsArchiveNative
     {
         // This explicitly includes the readable resource attributes/CAP alongside permissions and the label.
         // It does not imply that audit or other unqueried security state is absent; preservation must address those.
-        int error = GetSecurityInfo(handle, 1 /* SE_FILE_OBJECT */, WindowsArchiveOuterMetadata.QueriedSecurityInformation,
+        return ReadSecurity(handle,WindowsArchiveOuterMetadata.QueriedSecurityInformation);
+    }
+
+    // A legacy directory is a read-only source namespace, not an output artifact. Ordinary users can review
+    // its owner and DACL without the extra label/resource-attribute access needed for output preservation.
+    internal static byte[] ReadOwnerDaclSecurity(SafeFileHandle handle)=>ReadSecurity(handle,1|4);
+
+    private static byte[] ReadSecurity(SafeFileHandle handle,uint requested)
+    {
+        int error = GetSecurityInfo(handle, 1 /* SE_FILE_OBJECT */, requested,
             out _, out _, out _, out _, out nint pointer);
         try
         {

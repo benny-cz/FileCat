@@ -52,7 +52,8 @@ public sealed class LocalIconFileLease : IDisposable
     /// </summary>
     public static LeaseLinks ForTransfers => WindowsTokenAuthority.IsHighIntegrity ? LeaseLinks.Refuse : LeaseLinks.Follow;
 
-    private LocalIconFileLease(string path, bool directory, LeaseLinks links, bool removable = false, string? chosen = null)
+    private LocalIconFileLease(string path, bool directory, LeaseLinks links, bool removable = false, string? chosen = null,
+        bool readControl = false)
     {
         string full = Path.GetFullPath(path);
         int followable = PortableFileOperations.FollowableComponents(full, chosen, file: !directory);
@@ -76,6 +77,7 @@ public sealed class LocalIconFileLease : IDisposable
                 bool leaf = i == parts.Length - 1;
                 bool file = leaf && !directory;
                 uint access = (file ? GenericRead : Traverse | ReadAttributes) | Synchronize;
+                if (leaf && readControl) access |= 0x20000 /* READ_CONTROL */;
                 // Denying delete sharing keeps each name bound. Writers stay allowed: a live log, a database or a download
                 // another program is writing is still added to an archive, as before the hold (finding F-M6 of f134ba37).
                 uint share = ShareRead | ShareWrite;
@@ -133,6 +135,16 @@ public sealed class LocalIconFileLease : IDisposable
         {
             return null;
         }
+    }
+
+    // The final component must carry READ_CONTROL when reviewing an old edit folder's owner and DACL.
+    // Ancestors stay namespace pins; no extra security privilege is requested for them.
+    internal static LocalIconFileLease? TryOpenDirectoryWithSecurity(string path)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try { return new LocalIconFileLease(path, directory: true, LeaseLinks.Refuse, removable: true, readControl: true); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException
+            or System.ComponentModel.Win32Exception) { return null; }
     }
 
     public void Dispose()

@@ -4,8 +4,8 @@
 can now keep v1/v2 sessions in their old root while creating and loading v3 sessions from a
 separate native root. Misplaced records are reported as unsupported, and old records retain
 their own save path. The shared Mac guest gate passes including two wrong-root records. Host
-Core and Windows test builds have zero warnings; the Ubuntu guest gate and the separate
-Windows old-folder admission and the copy/retirement implementation remain open. The product factory
+Core and Windows test builds have zero warnings; the Ubuntu guest gate and the
+copy/relationship/retirement implementation remain open. The product factory
 is still disabled. See [adoption boundary](LEGACY_EDIT_ADOPTION_BOUNDARY.md).
 The v47 Mac connected focused batch passed all 27 gates, including 20 native storage cases.
 Its 17,569,160-byte transport (SHA-256
@@ -18,8 +18,13 @@ A Unix-only read-only old-folder admission component now pins v1/v2 objects and 
 linked, exposed or changed record/working paths while preserving their bytes. Mac's direct
 10-case guest gate passed, including a real ZIP v1 record, origin marks, hard links and unknown
 xattrs; the host Core test build has
-zero warnings. It remains unregistered and needs a connected sealed gate, Windows admission,
-copy/relationship/retirement and Ubuntu qualification.
+zero warnings. It remains unregistered and needs a connected sealed gate,
+copy/relationship/retirement and Ubuntu qualification. The separate Windows read-only old-folder
+admission passed 10/10 focused standard-user VM tests, including a real ZIP v1 record, and an
+adjacent run passed 168 with 139 guarded skips and zero failures. Eight guest source files and
+three DLLs matched the independently verified evidence manifest SHA-256
+`dfe38d56ac23dc84ed4e5afeb8466e64429c2e9920647109aa72072ecda9355c`.
+See [Windows source checkpoint](WINDOWS_LEGACY_SOURCE.md).
 
 **9 November: FZ03 strict 7z corpus and instrumentation are staged.** The test-only v14 packet
 adds a direct production strict-catalog target, and a Mac guest replay accepted seven generated
