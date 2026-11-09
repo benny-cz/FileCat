@@ -1,16 +1,22 @@
 # Archive writing implementation status
 
-**9 November: historical retained-capture recovery correction compiles; guest gates queued.**
+**9 November: historical retained-capture recovery passes Mac and Windows guest gates.**
 The native review now binds each capture to its exact record in the fully validated bounded
 session-state chain, so a later legitimate state revision does not hide an older complete capture.
 Three new shared cases cover one and two later revisions and a saved-copy intent linked to the
-earlier state. Core and Windows test projects build with zero warnings; Mac/Windows/Ubuntu runtime
-and sealed evidence remain pending for this newer candidate. No writer profile is enabled.
+earlier state. Candidate `a59c7d2aa5515cb81f6c59a2af8a0e138a2437b8` passes all 26 Mac and
+27 Windows connected focused gates, including capture recovery33 and saved-copy sessions26 on
+each, with zero failures. The sealed Mac evidence is 17,546,759 bytes / SHA-256
+`5189bbd807e501aad149678df79f1b8074b19308a1106aa3032d4d93d46bb0be`;
+Windows is 18,907,206 bytes / `7983b336985294c24dad4c99db7b7cf44a99df9d4864385343f6690654a92911`.
+Independent source/compiler/DLL/PDB/raw-result verification passes; owned processes are zero
+and Mac's wake helper remains. Ubuntu's same-candidate packet is sealed but waits for FZ01.
+Full inventories for these bytes, recovery actions and all other plan gates remain open.
 
-**9 November: FZ09 session-record packet is built; legacy adoption boundary is recorded.**
-The test-only v4 harness builds cleanly, adds an instrumented production session-record parser
-target and nine synthetic schema/corruption seeds; its sealed packet is queued behind the active
-Ubuntu FZ01 campaign, so no FZ09 runtime claim is made. A legacy-adoption draft exposed that old
+**9 November: FZ09 recovery-record packet is built; legacy adoption boundary is recorded.**
+The test-only v6 harness builds cleanly, adds instrumented production session, capture and saved-copy
+intent parser targets with synthetic schema/corruption seeds; its sealed packet is queued behind
+the active Ubuntu FZ01 campaign, so no FZ09 runtime claim is made. A legacy-adoption draft exposed that old
 inherited permissions cannot be opened under version-3's exact private lease; the draft was removed.
 The [adoption boundary](LEGACY_EDIT_ADOPTION_BOUNDARY.md) now requires a pinned read-only legacy
 source and separate private destination before migration, routing or retirement can proceed.

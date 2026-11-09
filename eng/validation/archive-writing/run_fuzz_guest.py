@@ -33,7 +33,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--phase", choices=("canary", "clean"), required=True)
-    parser.add_argument("--target", choices=("digest", "tar-strict", "session-record"), default="digest")
+    parser.add_argument("--target", choices=("digest", "tar-strict", "session-record", "capture-record", "save-copy-intent"), default="digest")
     parser.add_argument("--seconds", type=int, required=True)
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--run-id", required=True)
@@ -66,8 +66,8 @@ def main():
         parser.error("Choose one replay input")
     if args.reuse_run_id is not None and (not args.reuse_run_id.replace("-", "").isalnum() or args.replay_text is not None or args.replay_file is not None):
         parser.error("reuse-run-id must name a completed run and cannot be used with replay")
-    if args.extra_seed_directory is not None and args.target not in ("tar-strict", "session-record"):
-        parser.error("Extra seeds apply only to the strict TAR and session-record targets")
+    if args.extra_seed_directory is not None and args.target == "digest":
+        parser.error("Extra seeds apply only to the format and recovery-record targets")
 
     root = args.root.resolve(strict=True)
     parent = root.parent
@@ -87,7 +87,8 @@ def main():
     for name in ("corpus", "crashes", "reports", "tmp"):
         (run / name).mkdir()
     (run / "corpus" / "valid").write_bytes(b"\0" * 1024 if args.target == "tar-strict" else
-                                            b"{}" if args.target == "session-record" else
+                                            b"0{}" if args.target == "capture-record" else
+                                            b"{}" if args.target in ("session-record", "save-copy-intent") else
                                             args.valid_prefix.encode() if args.canary_two_byte else
                                             args.valid_prefix.encode() + b"0" * 62)
     (run / "corpus" / "short").write_bytes(b"0")

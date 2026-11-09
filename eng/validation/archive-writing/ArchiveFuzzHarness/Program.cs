@@ -41,11 +41,13 @@ if(args is ["instrument",var targetAssembly,var typeReport])
 {
     var types=Fuzzer.Instrument(targetAssembly,
         name=>name.StartsWith("FileCat.Core.Archives.ArchiveWritePolicy",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Edit.EditSessionStore",StringComparison.Ordinal),Options.Value).ToArray();
+            name.StartsWith("FileCat.Core.Edit.EditSessionStore",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Core.Edit.EditSaveCopyIntent",StringComparison.Ordinal),Options.Value).ToArray();
     File.WriteAllText(typeReport,JsonSerializer.Serialize(types));
-    if(!types.Contains("FileCat.Core.Archives.ArchiveWritePolicy")||!types.Contains("FileCat.Core.Edit.EditSessionStore"))
-        throw new InvalidOperationException("Production guard or session parser was not instrumented.");
-    Console.WriteLine(JsonSerializer.Serialize(new{instrumented_types=types.Length,production_guard=true,production_session=true}));return 0;
+    if(!types.Contains("FileCat.Core.Archives.ArchiveWritePolicy")||!types.Contains("FileCat.Core.Edit.EditSessionStore")||
+        !types.Contains("FileCat.Core.Edit.EditSaveCopyIntent"))
+        throw new InvalidOperationException("Production guard or recovery record parser was not instrumented.");
+    Console.WriteLine(JsonSerializer.Serialize(new{instrumented_types=types.Length,production_guard=true,production_recovery=true}));return 0;
 }
 if(args is ["instrument-tar",var tarAssembly,var tarTypeReport])
 {
@@ -57,10 +59,27 @@ if(args is ["instrument-tar",var tarAssembly,var tarTypeReport])
         throw new InvalidOperationException("Production strict TAR scanner/decoder guard was not instrumented.");
     Console.WriteLine(JsonSerializer.Serialize(new{instrumented_types=types.Length,production_tar=true}));return 0;
 }
+if(args is ["replay-record",var recordTarget,var inputPath])
+{
+    if(recordTarget is not ("session-record" or "capture-record" or "save-copy-intent"))
+        throw new ArgumentException("Unknown recovery-record replay target.");
+    using var file=new FileStream(inputPath,FileMode.Open,FileAccess.Read,FileShare.Read);
+    if(file.Length>1048576)throw new ArgumentException("Recovery-record replay exceeds 1 MiB.");
+    byte[] bytes=new byte[checked((int)file.Length)];file.ReadExactly(bytes);
+    if(file.ReadByte()!=-1)throw new IOException("Recovery-record replay file changed during its bounded read.");
+    bool accepted=recordTarget switch
+    {
+        "session-record"=>Session.Exercise(bytes),
+        "capture-record"=>Capture.Exercise(bytes),
+        _=>Intent.Exercise(bytes),
+    };
+    Console.WriteLine(JsonSerializer.Serialize(new{target=recordTarget,accepted}));return 0;
+}
 if(args.Length!=0)throw new ArgumentException("Fuzz targets receive input through the bounded native driver, not command-line paths.");
 
 Stats.Target=Environment.GetEnvironmentVariable("FILECAT_FUZZ_TARGET")??"digest";
-if(Stats.Target is not ("digest" or "tar-strict" or "session-record"))throw new ArgumentException("Unknown fuzz target.");
+if(Stats.Target is not ("digest" or "tar-strict" or "session-record" or "capture-record" or "save-copy-intent"))
+    throw new ArgumentException("Unknown fuzz target.");
 Stats.CanaryPrefixMode=Environment.GetEnvironmentVariable("FILECAT_FUZZ_CANARY_PREFIX_MODE")=="1";
 if(Stats.CanaryPrefixMode&&Stats.Target!="digest")throw new ArgumentException("The canary input transform is digest-only.");
 Stats.Module=typeof(ArchiveWritePolicy).Assembly.Location;
@@ -88,9 +107,15 @@ static void Exercise(ReadOnlySpan<byte> data)
     Stats.Calls++;
     try
     {
-        if(Stats.Target=="session-record")
+        if(Stats.Target is "session-record" or "capture-record" or "save-copy-intent")
         {
-            if(Session.Exercise(data))Stats.Accepted++;else Stats.Refused++;
+            bool accepted=Stats.Target switch
+            {
+                "session-record"=>Session.Exercise(data),
+                "capture-record"=>Capture.Exercise(data),
+                _=>Intent.Exercise(data),
+            };
+            if(accepted)Stats.Accepted++;else Stats.Refused++;
             if(Stats.Calls==1||(Stats.Calls&4095)==0)Stats.Publish();
             return;
         }
@@ -108,9 +133,41 @@ static void Exercise(ReadOnlySpan<byte> data)
     if(Stats.Calls==1||(Stats.Calls&4095)==0)Stats.Publish();
 }
 
+static class Capture
+{
+    private static readonly MethodInfo Parser=typeof(FileCat.Core.Edit.EditSessionStore).GetMethod("ParseCaptureRecord",BindingFlags.Static|BindingFlags.NonPublic)
+        ??throw new InvalidOperationException("Production capture parser is unavailable.");
+    internal static bool Exercise(ReadOnlySpan<byte> data)
+    {
+        if(data.Length<2||data[0] is not ((byte)'0' or (byte)'1'))return false;
+        try{return Parser.Invoke(null,[data[1..].ToArray(),data[0]==(byte)'1']) is not null;}
+        catch(TargetInvocationException error)when(error.InnerException is IOException or ArgumentException or JsonException or InvalidOperationException)
+        {return false;}
+        catch(TargetInvocationException error)when(error.InnerException is not null)
+        {ExceptionDispatchInfo.Capture(error.InnerException).Throw();throw;}
+    }
+}
+
+static class Intent
+{
+    private static readonly MethodInfo Parser=typeof(FileCat.Core.Edit.EditSessionStore).Assembly
+        .GetType("FileCat.Core.Edit.EditSaveCopyIntent",throwOnError:true)!
+        .GetMethod("Decode",BindingFlags.Static|BindingFlags.NonPublic)
+        ??throw new InvalidOperationException("Production saved-copy intent parser is unavailable.");
+    internal static bool Exercise(ReadOnlySpan<byte> data)
+    {
+        try{return Parser.Invoke(null,[data.ToArray()]) is not null;}
+        catch(TargetInvocationException error)when(error.InnerException is IOException){return false;}
+        catch(TargetInvocationException error)when(error.InnerException is not null)
+        {ExceptionDispatchInfo.Capture(error.InnerException).Throw();throw;}
+    }
+}
+
 static class Session
 {
-    private const string Directory="/tmp/filecat-fuzz-session/0123456789abcdef0123456789abcdef";
+    private static readonly string Directory=OperatingSystem.IsWindows()
+        ? @"C:\filecat-fuzz-session\0123456789abcdef0123456789abcdef"
+        : "/tmp/filecat-fuzz-session/0123456789abcdef0123456789abcdef";
     private static readonly MethodInfo Parser=typeof(FileCat.Core.Edit.EditSessionStore).GetMethod("ParseRecord",BindingFlags.Static|BindingFlags.NonPublic)
         ??throw new InvalidOperationException("Production edit-session parser is unavailable.");
     internal static bool Exercise(ReadOnlySpan<byte> data)
