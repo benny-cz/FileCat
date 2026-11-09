@@ -100,6 +100,13 @@ binary index and active build outputs, and records the evidence index hash befor
 instrumented image. The Ubuntu packet and seeds are staged; image creation waits for FZ01 to
 finish and the Ubuntu v40 focused cohort to pass. No v9 campaign has started.
 
+A preparatory review caught that the supervisor's extra-seed loader selected only JSON files
+for non-TAR targets, which would have left the binary manifest-member corpus unseeded. The v10
+packet fixes that selector and is staged on Ubuntu: 487,066 bytes / SHA-256
+`b764c9c6b34c8750f6f0398d992f158d899b035307e3ff61e5316e920aa53d5d`.
+Its harness DLL remains byte-identical to v8/v9. Use v10 for the Ubuntu native campaign;
+v9 remains a preserved preparatory packet and has not run.
+
 The next test-only harness packet `fuzz-harness-v7.tar.gz` is 484,533 bytes, SHA-256
 `df43851a4e45cddbfe90583d2e315a577ad9d361b3f08926e9792992bb8442bd`.
 It adds direct production targets for `EditSessionStore.ParseRecord`,

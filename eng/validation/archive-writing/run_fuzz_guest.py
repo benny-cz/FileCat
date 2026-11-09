@@ -129,7 +129,7 @@ def main():
         if folder.parent != root or not folder.is_dir():
             raise ValueError("Extra corpus must be a direct synthetic seed directory within this image")
         total = 0
-        extension = "*.tar" if args.target == "tar-strict" else "*.json"
+        extension = "*.tar" if args.target == "tar-strict" else "*.bin" if args.target == "manifest-member" else "*.json"
         for index, source in enumerate(sorted(p for p in folder.glob(extension) if p.name != "manifest.json")):
             if index >= 64 or not source.is_file() or source.is_symlink():
                 raise ValueError("Extra corpus has an unreviewable entry")
