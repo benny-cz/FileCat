@@ -55,7 +55,11 @@ def verify(path):
     assert summary['candidate'] == CANDIDATE and summary['packet_sha256'] == PACKET_SHA
     assert summary['production_store_enabled'] is False
     assert sha(retained['source-packet.tar.gz']) == PACKET_SHA
-    assert retained['executed-sealer.py'].replace(b'\r\n', b'\n') == (ROOT / 'eng/validation/archive-writing/seal_legacy_adoption_guest.py').read_bytes().replace(b'\r\n', b'\n')
+    sealer_path = 'eng/validation/archive-writing/seal_legacy_adoption_guest.py'
+    platform = summary['platform']
+    sealer = (ROOT / sealer_path).read_bytes() if platform == 'windows' else \
+        subprocess.check_output(['git', 'show', '70ba680b:' + sealer_path], cwd=ROOT)
+    assert retained['executed-sealer.py'].replace(b'\r\n', b'\n') == sealer.replace(b'\r\n', b'\n')
     paths = subprocess.check_output(['git', 'diff-tree', '--no-commit-id', '--name-only', '-r', CANDIDATE], cwd=ROOT).decode().splitlines()
     assert len(paths) == 18 and set(summary['source_files']) == set(paths)
     for source in paths:
@@ -75,8 +79,8 @@ def verify(path):
                 'src/FileCat.Core/Edit/EditSessions.Storage.cs',
                 'src/FileCat.Core/Edit/UnixLegacyEditSource.cs',
                 'tests/ArchiveEditLegacyAdoptionCases.cs'}
-    platform = summary['platform']
     if platform == 'windows':
+        assert any(row['assembly'] == 'FileCat.Core.Tests' for row in facts['binaries'])
         required |= {'src/FileCat.Platform.Windows/Archives/WindowsLegacyEditSource.cs',
                      'tests/FileCat.Platform.Windows.Tests/WindowsLegacyEditAdoptionTests.cs'}
     else:

@@ -107,6 +107,18 @@ def main():
         shutil.copyfile(path, binaries / path.name)
     if not (binaries / 'FileCat.Core.dll').is_file() or not (binaries / 'FileCat.Core.pdb').is_file():
         raise ValueError('The guest Core assembly and compiler symbols are missing')
+    if platform == 'windows':
+        # The focused Windows cases live in Platform.Windows.Tests, but full-core uses
+        # Core.Tests. Bind both executed test assemblies to the same product binaries.
+        core_tests = root / 'tests' / 'FileCat.Core.Tests' / 'bin' / 'Release' / 'net10.0'
+        for name in ('FileCat.Core.dll', 'FileCat.Core.pdb'):
+            if sha(core_tests / name) != sha(binaries / name):
+                raise ValueError('Windows test projects used different Core binaries: ' + name)
+        for name in ('FileCat.Core.Tests.dll', 'FileCat.Core.Tests.pdb'):
+            path = core_tests / name
+            if not path.is_file() or path.is_symlink() or path.stat().st_size > 80 * 1024 * 1024:
+                raise ValueError('The full Core test binary or symbols are unavailable: ' + name)
+            shutil.copyfile(path, binaries / name)
     dotnet = task / 'dotnet' / ('dotnet.exe' if platform == 'windows' else 'dotnet')
     if platform == 'mac':
         dotnet = Path.home() / '.dotnet' / 'dotnet'
