@@ -17,6 +17,16 @@ public sealed class ArchiveCreationOriginTests
         foreach (var input in inputs) writer.Append(new(ArchiveOriginSourceKind.File, input.Version, input.Origin));
         var info = writer.Complete(); return (stream.ToArray(), info, scope);
     }
+    private static (byte[] Bytes, ArchiveOriginEvidenceInfo Info, ArchiveOriginEvidenceScope Scope) Evidence(
+        ArchiveFileObservation[] files, ArchiveDirectoryObservation[] directories)
+    {
+        var scope = new ArchiveOriginEvidenceScope(Guid.NewGuid(), new(ArchiveWriteFormat.Tar), ArchiveOriginOperation.Create,
+            files.Length + directories.Length);
+        using var stream = new MemoryStream(); using var writer = new ArchiveOriginEvidenceWriter(stream, scope);
+        foreach (var file in files) writer.Append(new(ArchiveOriginSourceKind.File, file.Version, file.Origin));
+        foreach (var directory in directories) writer.Append(new(ArchiveOriginSourceKind.Directory, directory.Version, directory.Origin));
+        var info = writer.Complete(); return (stream.ToArray(), info, scope);
+    }
     private static ArchiveOriginSnapshot Review((byte[] Bytes, ArchiveOriginEvidenceInfo Info, ArchiveOriginEvidenceScope Scope) evidence,
         ArchiveFileObservation[] captured, ArchiveOriginFormat format = ArchiveOriginFormat.WindowsZoneIdentifier) =>
         ArchiveCreationOrigin.Review(new MemoryStream(evidence.Bytes, false), evidence.Info, evidence.Scope, captured, format, TestContext.Current.CancellationToken);
@@ -90,6 +100,29 @@ public sealed class ArchiveCreationOriginTests
         var stale = inputs.ToArray(); stale[1] = Input("other", ArchiveOriginSnapshot.Absent(format));
         Assert.Equal(ArchiveWriteReason.NeedsReview,
             Assert.Throws<ArchiveWriteException>(() => Review(Evidence(inputs), stale, format)).Reason);
+    }
+
+    [Theory]
+    [InlineData(ArchiveOriginFormat.LinuxOriginUrl)] [InlineData(ArchiveOriginFormat.MacQuarantine)]
+    public void Unix_creation_binds_directory_marks_to_the_same_exact_policy(ArchiveOriginFormat format)
+    {
+        var mark = ArchiveOriginSnapshot.Present(format, [0, 255, 1]);
+        var files = new[] { Input("file", ArchiveOriginSnapshot.Absent(format)) };
+        ArchiveDirectoryObservation Directory(ArchiveOriginSnapshot origin) => new("tree", "parent", "tree", Empty, origin, new(0, 0), 0x1c0);
+        var directories = new[] { Directory(mark) }; var evidence = Evidence(files, directories);
+        ArchiveOriginSnapshot ReviewDirectories(ArchiveFileObservation[] capturedFiles, ArchiveDirectoryObservation[] capturedDirectories) =>
+            ArchiveCreationOrigin.Review(new MemoryStream(evidence.Bytes, false), evidence.Info, evidence.Scope,
+                capturedFiles, format, TestContext.Current.CancellationToken, capturedDirectories);
+        Assert.Equal(mark.Digest, ReviewDirectories(files, directories).Digest);
+        Assert.Equal(ArchiveWriteReason.NeedsReview, Assert.Throws<ArchiveWriteException>(() =>
+            ReviewDirectories(files, [Directory(ArchiveOriginSnapshot.Absent(format))])).Reason);
+        files = [Input("file", ArchiveOriginSnapshot.Present(format, [0, 1]))];
+        Assert.Equal(ArchiveWriteReason.NeedsReview, Assert.Throws<ArchiveWriteException>(() =>
+            ReviewDirectories(files, directories)).Reason);
+        var conflicting = Evidence(files, directories);
+        Assert.Equal(ArchiveWriteReason.PublicationUnavailable, Assert.Throws<ArchiveWriteException>(() =>
+            ArchiveCreationOrigin.Review(new MemoryStream(conflicting.Bytes, false), conflicting.Info, conflicting.Scope,
+                files, format, TestContext.Current.CancellationToken, directories)).Reason);
     }
 
     [Theory]

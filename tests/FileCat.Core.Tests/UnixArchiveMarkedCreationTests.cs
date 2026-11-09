@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using FileCat.Core.Archives;
 using FileCat.Core.Archives.Unix;
+using FileCat.Core.Jobs;
 using FileCat.Tests;
 using Child = FileCat.Core.Tests.ArchiveAssessmentClientTests.Child;
 
@@ -9,8 +10,14 @@ namespace FileCat.Core.Tests;
 public sealed partial class UnixArchiveStorageTests
 {
     [Theory]
-    [InlineData(false)] [InlineData(true)]
-    public async Task New_archive_publication_preserves_the_exact_native_source_mark(bool empty)
+    [InlineData(ArchiveWriteFormat.Tar, false, 0)] [InlineData(ArchiveWriteFormat.Tar, true, 0)]
+    [InlineData(ArchiveWriteFormat.Rar5, false, 0)] [InlineData(ArchiveWriteFormat.Rar5, true, 0)]
+    [InlineData(ArchiveWriteFormat.Rar5, false, 1)] [InlineData(ArchiveWriteFormat.Rar5, true, 1)]
+    [InlineData(ArchiveWriteFormat.Rar5, false, 2)] [InlineData(ArchiveWriteFormat.Rar5, true, 2)]
+    [InlineData(ArchiveWriteFormat.SevenZip, false, 0)] [InlineData(ArchiveWriteFormat.SevenZip, true, 0)]
+    [InlineData(ArchiveWriteFormat.SevenZip, false, 1)] [InlineData(ArchiveWriteFormat.SevenZip, true, 1)]
+    [InlineData(ArchiveWriteFormat.SevenZip, false, 2)] [InlineData(ArchiveWriteFormat.SevenZip, true, 2)]
+    public async Task New_archive_publication_preserves_the_exact_native_source_mark(ArchiveWriteFormat archiveFormat, bool empty, int encryption)
     {
         Native(); var ct = TestContext.Current.CancellationToken; using var temp = new TempDir(); string root = Canonical(temp.Path);
         File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
@@ -21,18 +28,37 @@ public sealed partial class UnixArchiveStorageTests
         using var directory = UnixArchiveDirectory.Open(root); using var captured = new ArchiveCapturedInputs();
         directory.CaptureSource(captured, 1, "payload", ct); captured.Seal(ct);
         Assert.Equal(wanted.Digest, captured.Bindings[1].Reviewed.Origin.Digest);
-        var profile = new ArchiveWriteProfile(ArchiveWriteFormat.Tar);
+        var profile = archiveFormat switch
+        {
+            ArchiveWriteFormat.Tar => new ArchiveWriteProfile(ArchiveWriteFormat.Tar),
+            ArchiveWriteFormat.Rar5 => ArchiveRar5NativeCases.Profile(1, encryption),
+            ArchiveWriteFormat.SevenZip => ArchiveSevenZipNativeCases.Profile(1, encryption),
+            _ => throw new ArgumentOutOfRangeException(nameof(archiveFormat))
+        };
+        string target = Path.Combine(root, archiveFormat switch
+        {
+            ArchiveWriteFormat.Rar5 => "result.rar", ArchiveWriteFormat.SevenZip => "result.7z", _ => "result.tar"
+        });
+        using var password = encryption == 0 ? null : new ArchiveJobPassword(archiveFormat == ArchiveWriteFormat.Rar5
+            ? ArchiveRar5NativeCases.Password : ArchiveSevenZipNativeCases.Password);
         var plan = captured.CreatePlan(profile, null, [], [new("payload", ArchiveMemberType.File, 1)], ct);
         using var journal = ReservationJournal(root, profile);
-        using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, Path.Combine(root, "result.tar"), plan, null, captured.Bindings,
+        bool versioned = archiveFormat is ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip;
+        ArchiveTransformClient transformer = versioned
+            ? new((nonce, _) => Child.Start(nonce, "archive-transform-v2"), protocolVersion: 2)
+            : new((nonce, _) => Child.Start(nonce, "archive-transform"));
+        ArchiveVerificationClient verifier = versioned
+            ? new((nonce, _) => Child.Start(nonce, "archive-verify-v2"), protocolVersion: 2)
+            : new((nonce, _) => Child.Start(nonce, "archive-verify"));
+        using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, target, plan, null, captured.Bindings,
             (nonce, kind, maximum) => directory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum), directory.CreateArtifact,
-            new((nonce, _) => Child.Start(nonce, "archive-transform")), new((nonce, _) => Child.Start(nonce, "archive-verify")), ct);
+            transformer, verifier, ct, password: password);
         Assert.Equal(wanted.Digest, prepared.Verified.Stage.Origin.Digest);
         Assert.Equal(bytes, prepared.Verified.Stage.Origin.Bytes.ToArray());
         var published = await ArchiveNewFilePublication.PublishAsync(journal, prepared, captured.Bindings, directory.CreateArtifact, ct);
         Assert.Equal(ArchiveTransactionPhase.CommittedWithRetainedArtifacts, published.Facts.Phase);
         Assert.Equal(wanted.Digest, published.Published.Origin.Digest);
-        using (var result = File.OpenHandle(Path.Combine(root, "result.tar")))
+        using (var result = File.OpenHandle(target))
             Assert.Equal(bytes, ArchiveUnixOrigin.Read(result, ct).Bytes.ToArray());
         Assert.Equal(new byte[] { 7, 0, 255, 9 }, File.ReadAllBytes(source));
         var evidence = published.Facts.Sidecars.Single(s => s.Role == ArchiveSidecarRole.CreationMetadata);
