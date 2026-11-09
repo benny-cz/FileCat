@@ -91,3 +91,8 @@ hard links, symlinks/reparse points, atomically replaced editor files, concurren
 origin-mark preservation, destination refusal, process-kill at each durable step, restart discovery,
 and zero loss of the original session on any refusal. No product factory may enable adoption
 before this matrix and the full connected tests pass.
+
+The next recovery batch adds an actual child-process kill at the native creation marker,
+pending adoption anchor and ready revision boundaries, then restarts discovery and checks
+that the old record and working bytes survived. These cases compile on the host and await
+direct guest execution; they do not cover old-folder retirement or every failure point.
