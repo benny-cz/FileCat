@@ -2,7 +2,7 @@
   "schema": 1,
   "component": "native edit cleanup, restart review and retained ZIP/SFTP integration: progress checkpoint",
   "current_candidate": "f62d81f91dc5b4616f7b83a06502b0154459f66a",
-  "worktree_candidate": "13ebcd081b8b1585b1cba9b3361a9bc604b3c9a1",
+  "worktree_candidate": "3bf3bbec4141f588e269e758c5b6b522e88f5ede",
   "production_backend_qualified": false,
   "application_composition_uses_native_store": false,
   "history": [
@@ -4200,9 +4200,9 @@
     },
     {
       "platform": "windows",
-      "folder": "awe-storage-v32",
-      "candidate": "4b4399cf2ec0f1cd77719f4220f5ed4542d5f96f",
-      "state": "Terminal failed v32, sealed/verified with zero owned instances: 33/34 pass, unsupported-directory fixture expected IOException but native refusal is UnauthorizedAccessException. Corrected fixture accepts either with unchanged-file assertion; Windows full retry planned as v33."
+      "folder": "awe-storage-v33",
+      "candidate": "3bf3bbec4141f588e269e758c5b6b522e88f5ede",
+      "state": "Launched under vmrun controller session95568. Native admission34, intent14, saved-copy session25, cancellation fixture2, comparison108, record25, publication25 and preparation17 pass; native-SFTP active in observed dotnet1996/testhost9248/App.Tests10456. Remaining affected/full gates, final seal and source/binary verification are required. Frozen runner uses full Windows / focused Unix policy."
     }
   ],
   "fresh_review_authorizes_deletion": false,
