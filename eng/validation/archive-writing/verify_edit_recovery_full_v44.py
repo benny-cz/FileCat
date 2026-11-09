@@ -24,6 +24,14 @@ def git(name):
     return subprocess.check_output(['git','show',CANDIDATE+':'+name],cwd=ROOT)
 
 
+def committed_checkout(name,expected):
+    blob=git(name)
+    for value in (blob,blob.replace(b'\n',b'\r\n')):
+        if {'bytes':len(value),'sha256':hashlib.sha256(value).hexdigest()}==expected:
+            return value
+    raise AssertionError('Sealed source differs from the committed Git blob: '+name)
+
+
 def verify(platform):
     _,index,data=transport.transport(ROOT/'.tmp/storage-evidence'/platform/(FOLDER+'-evidence.tar.gz'),FOLDER,
                                      retain=('resource-preflight.jsonl',))
@@ -49,8 +57,7 @@ def verify(platform):
         for extension,key in (('dll','dllSha256'),('pdb','pdbSha256')):
             assert index['binaries/'+row['assembly']+'.'+extension]['sha256']==row[key].lower()
     for name,row in rows.items():
-        blob=git(name)
-        assert row['bytes']==len(blob) and row['sha256']==hashlib.sha256(blob).hexdigest()
+        blob=committed_checkout(name,{key:row[key] for key in ('bytes','sha256')})
         assert ledger[name]['sha256']==row['sha256']
         if name.endswith('.cs'):
             matches=[item for item in audit['sources'] if item['document'].replace('\\','/').endswith('/'+name)]
@@ -62,8 +69,7 @@ def verify(platform):
                 snapshot='compiler-sources/'+item['snapshot']
                 assert index[snapshot]['sha256']==item['sha256'].lower()==row['sha256']
                 assert data[snapshot].replace(b'\r\n',b'\n')==blob.replace(b'\r\n',b'\n')
-    runner=git('eng/validation/archive-writing/run_edit_storage_batch.py')
-    assert index['executed-storage-batch.py']=={'bytes':len(runner),'sha256':hashlib.sha256(runner).hexdigest()}
+    runner=committed_checkout('eng/validation/archive-writing/run_edit_storage_batch.py',index['executed-storage-batch.py'])
     scope=js('validation-scope.json')
     assert scope['scope']=='full' and scope['expected_new_core_cases']==335 and not scope['production_backend_qualified']
     assert all(value=='required' for value in scope['full_regressions'].values())
