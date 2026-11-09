@@ -1078,7 +1078,8 @@ integration and actual crash/durability qualification remain open; no workflow/p
 The connected [session-link/restart review](../validation/archive-writing/NATIVE_EDIT_SAVE_COPY_SESSIONS.md)
 publishes the source-side intent before destination artifacts, binds native reservations under one operation,
 and reopens retained receipts/targets only for bounded read-only review. Its combined native and strict-record
-focused matrix passes on Mac/Ubuntu; Windows affected/full gates remain required. Existing-target overwrite,
+focused matrix passes on all three systems, with the Windows full inventory also passing. Mac/Ubuntu complete
+inventories for those newer bytes remain unrun. Existing-target overwrite,
 destructive recovery/cleanup, retained-disk accounting,
 application composition and crash qualification still gate the complete native Save copy workflow.
 

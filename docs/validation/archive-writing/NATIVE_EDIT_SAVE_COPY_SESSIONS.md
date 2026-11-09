@@ -33,8 +33,10 @@ wrong session/destination, repeat attempts, malformed links, changed/replaced so
 missing receipts and unavailable readers. Whole-fixture hashes before/after fresh recovery assert no mutation.
 Both systems also pass the two cancellation-fixture cases and all connected focused gates, with 74 changed C#
 sources and 14 DLL/PDB pairs bound in each verified raw bundle, zero owned instances and the Mac wake helper
-preserved. Windows follows the current failed-cohort evidence collection and must run both the affected checks
-and complete inventories. These focused results do not qualify unrun full suites or the complete workflow.
+preserved. Windows now also passes these affected gates and its complete inventories: Core8,139/666 skipped,
+Remote2,405/264 skipped and App2,835/118 skipped. Its sealed evidence binds 82 changed C# sources and 17 DLL/PDB
+pairs, zero owned instances and all 275 required Core additions with no lost baseline cases/passes. Mac/Ubuntu
+full inventories for these newer runtime bytes remain explicitly unrun. The complete workflow is still unqualified.
 
 Existing-target overwrite, exact cleanup, durable retained-resource accounting, startup actions, job/UI
 composition and actual crash/power-loss qualification remain open. This work does not authorize native store

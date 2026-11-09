@@ -1,16 +1,29 @@
 # Archive writing implementation status
 
-**9 November: native edit full milestone passes on Mac/Ubuntu; Windows capacity failure is preserved.**
+**9 November: connected native saved-copy gates pass everywhere; Windows full retry also passes.**
+`v29` passes native session25, strict intent14, cancellation fixture2 and all connected gates on Windows/Mac/Ubuntu.
+The Windows complete inventories pass: Core8,139/666 skipped (275 required additions, no lost baseline cases/passes),
+Remote2,405/264 skipped and App2,835/118 skipped. Sealed raw/source/DLL/PDB evidence is verified, with zero owned
+instances on each system and the Mac wake helper retained. Mac/Ubuntu `v29` full suites remain explicitly unrun;
+their preceding `v28` full milestone is attached to its own runtime bytes.
+
+The [native storage-accounting draft](NATIVE_EDIT_STORAGE_ACCOUNTING.md) now compiles and measures bounded logical
+data plus native metadata without hashing payloads. Windows uses metadata-only handles and a complete bounded
+stream-size catalogue. Root-wide write admission, persistent contingency charges, space checks and native
+resource/concurrency/crash qualification remain required for the next connected batch. No store/profile is enabled.
+
+**9 November: preceding native edit full milestone passes on Mac/Ubuntu; Windows capacity failure is preserved.**
 `v28` completes Core/Remote/App on Mac and Ubuntu with zero failures, 235 required new Core cases and no missing
 baseline cases/lost passes. Sealed raw/source/DLL/PDB evidence is preserved and verified, with zero owned
 instances and the Mac wake helper retained. Windows Core encountered a confirmed disk-full error and an
 unbounded cancellation-fixture wait. Its exact process/dump/exception evidence is retained; 76 checksum-matched
-duplicate archives were reclaimed and the independent suites continue. The failed Core inventory requires a retry.
+duplicate archives were reclaimed and the independent Remote/App suites completed successfully. That failed
+cohort remains preserved separately from the successful `v29` retry above.
 
 The connected [native Save copy session/recovery implementation](NATIVE_EDIT_SAVE_COPY_SESSIONS.md) passes `v29`
 on Mac/Ubuntu: native session25, strict intent14, cancellation fixture2 and all connected focused gates. Sealed
 raw/source/DLL/PDB evidence is verified, with zero owned instances and the Mac wake helper preserved. Windows
-runs affected gates and full inventories on the same candidate after its current failed-cohort collection.
+runs affected gates and full inventories on the same candidate, with successful results recorded above.
 Mac/Ubuntu full suites for these newer runtime bytes remain unrun until the next complete workflow milestone. The [cadence reassessment](VALIDATION_CADENCE.md)
 adds compact read-only observation and keeps all final QA requirements. Overwrite, cleanup, retained resources,
 UI composition and the wider plan remain open; no native store/profile is enabled.
