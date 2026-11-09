@@ -38,8 +38,7 @@ public sealed partial class EditSessionStore
                 continue;
             }
             var old=originals[0];
-            if(old.Kind!=native.Kind||old.ArchivePath!=native.ArchivePath||old.MemberPath!=native.MemberPath||
-                old.ProfileId!=native.ProfileId||old.RemotePath!=native.RemotePath)
+            if(!MatchesOriginalTarget(old,native))
             {
                 result.Add(new(native,old,EditLegacyAdoptionCatalogState.NeedsReview,
                     "The adoption target differs from its old edit. Both copies are kept."));
@@ -78,5 +77,20 @@ public sealed partial class EditSessionStore
             }
         }
         return result;
+    }
+
+    private static bool MatchesOriginalTarget(EditSessionRecord old,EditSessionRecord native)
+    {
+        // The copy changes only storage ownership and the working path. While it is retained,
+        // no commit may revise its archive/server target or baseline independently of the old edit.
+        return old==native with
+        {
+            Version=old.Version,Id=old.Id,CreatedUtc=old.CreatedUtc,WorkingPath=old.WorkingPath,
+            WorkingIdentity=old.WorkingIdentity,WorkingDirectoryIdentity=old.WorkingDirectoryIdentity,
+            StorageRootIdentity=old.StorageRootIdentity,SessionDirectoryIdentity=old.SessionDirectoryIdentity,
+            LegacyAdoption=old.LegacyAdoption,LegacyAdoptionReady=old.LegacyAdoptionReady,
+            StorageRevision=old.StorageRevision,PreviousRecordSha256=old.PreviousRecordSha256,
+            StoredRecordSha256=old.StoredRecordSha256
+        };
     }
 }

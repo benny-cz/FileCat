@@ -90,6 +90,20 @@ internal static class ArchiveEditLegacyAdoptionCases
                 Assert.True(File.Exists(adopted.WorkingPath));
                 return;
             }
+            if(scenario=="native-target-changed")
+            {
+                string revision=Path.Combine(nativeRoot,adopted.Id,
+                    "session-state-"+adopted.StorageRevision.ToString("D19",CultureInfo.InvariantCulture)+".json");
+                var json=JsonNode.Parse(File.ReadAllText(revision))!.AsObject();
+                json["ServerDisplay"]="different server";
+                File.WriteAllText(revision,json.ToJsonString());
+                Assert.True(Assert.Single(store.LoadAll(),row=>row.Id==adopted.Id).IsSupported);
+                var changed=Assert.Single(store.ReviewLegacyAdoptions(legacyOpen,ct));
+                Assert.Equal(EditLegacyAdoptionCatalogState.NeedsReview,changed.State);
+                Assert.Equal(oldRecord,File.ReadAllBytes(Path.Combine(oldRoot,old.Id,"session.json")));
+                Assert.True(File.Exists(old.WorkingPath));Assert.True(File.Exists(adopted.WorkingPath));
+                return;
+            }
             if(scenario=="duplicate")
             {
                 using var second=legacyOpen(oldRoot,old,ct);

@@ -14,7 +14,7 @@ public sealed class WindowsLegacyEditAdoptionTests
     }
 
     [Theory,InlineData("copy"),InlineData("edited"),InlineData("origin"),InlineData("pending-failure"),
-        InlineData("tampered-link"),InlineData("discard"),InlineData("source-changed"),InlineData("native-changed"),InlineData("native-origin-changed"),InlineData("duplicate"),InlineData("future-old")]
+        InlineData("tampered-link"),InlineData("discard"),InlineData("source-changed"),InlineData("native-changed"),InlineData("native-origin-changed"),InlineData("native-target-changed"),InlineData("duplicate"),InlineData("future-old")]
     public void Native_copy_preserves_old_session_and_durable_adoption_state(string scenario)
     {
         Assert.SkipWhen(!OperatingSystem.IsWindows(),"Windows native edit admission required.");
