@@ -1044,10 +1044,12 @@ held-handle Windows runtime capture-tree removal, bounded fresh read-only captur
 active-copy count/byte reservations. Fresh receipts never confer deletion authority. Complete Unix runtime
 cleanup, the restart recovery action and startup UI, durable retained-disk admission and the integration
 gates above; focused evidence does not complete §12 or authorize production registration.
-The draft [native storage-accounting follow-up](../validation/archive-writing/NATIVE_EDIT_STORAGE_ACCOUNTING.md)
-adds bounded read-only byte/metadata measurement across retained native namespaces. Root-wide admission,
-restart/resource/concurrency tests, destination artifact accounting and the original cleanup/composition gates
-remain required; observation alone never refunds retained capacity or authorizes another write.
+The [native storage-accounting follow-up](../validation/archive-writing/NATIVE_EDIT_STORAGE_ACCOUNTING.md)
+connects bounded native byte/metadata measurement to a cooperating-process write gate, deferred size-bound
+working-file creation, retained output/receipt contingencies and held-volume capacity checks. Its combined native
+resource/concurrency matrix and complete inventories are queued on all three systems. Exact cleanup, recovery/UI
+composition and the original qualification gates remain required; observation alone never refunds capacity or
+authorizes another write.
 
 The [retained ZIP integration](../validation/archive-writing/RETAINED_LEGACY_ZIP_EDITS.md) connects these
 copies to the legacy ZIP executor without full-path input-byte reopens, verifies source/output hashes

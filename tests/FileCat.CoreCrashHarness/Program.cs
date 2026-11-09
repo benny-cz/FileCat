@@ -8,6 +8,9 @@ using FileCat.Core.Search;
 using FileCat.Core.State;
 using FileCat.Core.Archives;
 
+if(args is ["--edit-storage-gate",var editRoot,var editNativeAssembly,var editMode])
+    return EditStorageGateHarness.Run(editRoot,editNativeAssembly,editMode);
+
 if (args.Length > 0 && args[0] == "--archive-test-medium")
     return await ArchiveTestMedium.Run(args[1..]);
 

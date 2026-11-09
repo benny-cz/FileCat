@@ -33,6 +33,9 @@ internal abstract class EditDirectoryLease : IDisposable
     }
     internal virtual EditStoredFileSize MeasureStoredFile(string leaf,CancellationToken ct)=>throw new NotSupportedException("Native storage accounting is unavailable.");
     internal virtual EditStoredDirectorySize MeasureStoredDirectory(CancellationToken ct)=>throw new NotSupportedException("Native storage accounting is unavailable.");
+    internal virtual FileStream OpenStorageGate(CancellationToken ct)=>throw new NotSupportedException("Native storage admission is unavailable.");
+    internal virtual bool TryLockStorageGate(FileStream file,CancellationToken ct)=>throw new NotSupportedException("Native storage admission is unavailable.");
+    internal virtual FileCat.Core.FileSystem.FileSystemCapacitySnapshot? StorageCapacity(CancellationToken ct)=>null;
     internal abstract string Identify(SafeFileHandle file);
     internal abstract void PublishNewFile(FileStream file,string sourceLeaf,string targetLeaf,EditFileVersion expected,CancellationToken ct);
     protected abstract void ReviewCore(CancellationToken ct);

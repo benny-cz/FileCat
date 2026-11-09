@@ -146,11 +146,14 @@ public sealed partial class EditSessionStore
     private readonly IFileSystemOperations fs;
     private readonly Func<string,bool,CancellationToken,EditDirectoryLease>? nativeOpen;
     private readonly Func<string,CancellationToken,EditSaveCopyDestination>? nativeCopyOpen;
+    private readonly EditStorageReviewLimits storageLimits;
     public EditSessionStore(string root,IFileSystemOperations fs):this(root,fs,null) { }
     internal EditSessionStore(string root,IFileSystemOperations fs,Func<string,bool,CancellationToken,EditDirectoryLease>? nativeOpen):this(root,fs,nativeOpen,null) { }
     internal EditSessionStore(string root,IFileSystemOperations fs,Func<string,bool,CancellationToken,EditDirectoryLease>? nativeOpen,
-        Func<string,CancellationToken,EditSaveCopyDestination>? nativeCopyOpen)
-    {Root=root;this.fs=fs;this.nativeOpen=nativeOpen;this.nativeCopyOpen=nativeCopyOpen;}
+        Func<string,CancellationToken,EditSaveCopyDestination>? nativeCopyOpen):this(root,fs,nativeOpen,nativeCopyOpen,null) { }
+    internal EditSessionStore(string root,IFileSystemOperations fs,Func<string,bool,CancellationToken,EditDirectoryLease>? nativeOpen,
+        Func<string,CancellationToken,EditSaveCopyDestination>? nativeCopyOpen,EditStorageReviewLimits? storageLimits)
+    {Root=root;this.fs=fs;this.nativeOpen=nativeOpen;this.nativeCopyOpen=nativeCopyOpen;this.storageLimits=storageLimits??new();this.storageLimits.Validate();}
     public const long MaxMemberBytes = 1L * 1024 * 1024 * 1024;
     private const string RecordFile = "session.json";
     private const int MaxRecordBytes = 1024 * 1024;
@@ -342,7 +345,7 @@ public sealed partial class EditSessionStore
             throw new IOException("The download mark could not be kept on the private edit copy.");
     }
 
-    private EditSessionRecord CreateSession(string fileName, Func<string,Func<FileStream>?,WorkingCopy> write, Func<string, WorkingCopy, EditSessionRecord> describe, CancellationToken ct)
+    private EditSessionRecord CreateSession(string fileName, Func<string,Func<long,FileStream>?,WorkingCopy> write, Func<string, WorkingCopy, EditSessionRecord> describe, CancellationToken ct)
     {
         RefuseElevatedSession();
         ct.ThrowIfCancellationRequested();
@@ -392,7 +395,7 @@ public sealed partial class EditSessionStore
 
     /// <summary>The caller owns the source. Nothing is published unless exact bytes, EOF and available revisions agree.</summary>
     private static WorkingCopy WriteWorkingCopy(IContentSource source, string working, CancellationToken ct, ContentRevision? expected = null,
-        Action? check = null, Action<FileStream>? finalize = null,Func<FileStream>? outputFactory=null)
+        Action? check = null, Action<FileStream>? finalize = null,Func<long,FileStream>? outputFactory=null)
     {
         void Check() { ct.ThrowIfCancellationRequested(); check?.Invoke(); }
         Check();
@@ -403,7 +406,7 @@ public sealed partial class EditSessionStore
             throw new IOException("The file changed before its edit could be copied.");
         var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.ReadWrite, Share = FileShare.None };
         if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
-        using var output = outputFactory?.Invoke() ?? new FileStream(working, options);
+        using var output = outputFactory?.Invoke(length) ?? new FileStream(working, options);
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var buffer = new byte[1024 * 1024];
         uint crc = 0; long offset = 0;

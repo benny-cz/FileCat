@@ -1,9 +1,9 @@
 namespace FileCat.Core.Edit;
 
 /// <summary>Read-only observed logical bytes and conservatively charged native metadata; never cleanup authority.</summary>
-internal sealed record EditStorageUsage(string RootIdentity,int Sessions,int Captures,int Directories,int Files,long PayloadBytes,long MetadataBytes)
+internal sealed record EditStorageUsage(string RootIdentity,int Sessions,int Captures,int Directories,int Files,long PayloadBytes,long MetadataBytes,long ReservedBytes=0)
 {
-    internal long ChargedBytes=>checked(PayloadBytes+MetadataBytes);
+    internal long ChargedBytes=>checked(PayloadBytes+MetadataBytes+ReservedBytes);
 }
 
 internal sealed record EditStorageReviewLimits(int Entries=8192,int Sessions=128,int Captures=128,

@@ -14,33 +14,46 @@ public sealed partial class EditSessionStore
     {
         if(nativeOpen is null)throw new NotSupportedException("Native edit storage is unavailable.");
         string path=Path.TrimEndingDirectorySeparator(Path.GetFullPath(Root));
-        if(!create||Directory.Exists(path))return nativeOpen(path,false,ct);
+        if(!create||Directory.Exists(path))
+        {
+            var root=nativeOpen(path,true,ct);
+            if(root.Path==path)return root;root.Dispose();throw new IOException("The native edit root differs from the configured store.");
+        }
         using var parent=nativeOpen(Path.GetDirectoryName(path)!,false,ct);
         return parent.CreateDirectory(Path.GetFileName(path),ct);
     }
-    private EditSessionRecord CreateNativeSession(string fileName,Func<string,Func<FileStream>?,WorkingCopy> write,
+    private EditSessionRecord CreateNativeSession(string fileName,Func<string,Func<long,FileStream>?,WorkingCopy> write,
         Func<string,WorkingCopy,EditSessionRecord> describe,CancellationToken ct)
     {
-        using var root=OpenNativeRoot(ct,true);string id=Guid.NewGuid().ToString("N");
-        using var session=root.CreateDirectory(id,ct);using var files=session.CreateDirectory("files",ct);
+        using var root=OpenNativeRoot(ct,true);using var allocation=EditStorageAdmission.Acquire(root,ct);
+        string id=Guid.NewGuid().ToString("N");EditDirectoryLease? session=null,files=null;
         string fallback="file"+Path.GetExtension(fileName);
         string name=FileCat.Core.Jobs.SafeNames.Validate(fileName) is null?fileName:FileCat.Core.Jobs.SafeNames.Validate(fallback) is null?fallback:"file";
-        string working=Path.Combine(files.Path,name);string workingIdentity="";
-        // The marker makes an interrupted native creation recoverable. It never authorizes mutation or automatic cleanup.
-        byte[] marker=JsonSerializer.SerializeToUtf8Bytes(new{Id=id,Version=int.MaxValue,WorkingPath=working},Json);
-        PublishRecordBytes(session,CreationMarker,marker,ct);
-        FileStream Open()
+        string working=Path.Combine(root.Path,id,"files",name);string workingIdentity="";
+        FileStream Open(long length)
         {
+            ValidateLength(length);if(session is not null)throw new IOException("The working file was requested more than once.");
+            var usage=MeasureNativeStorageUsage(root,storageLimits,ct);
+            allocation.Require(usage,storageLimits,1,0,5,checked(length+2L*MaxRecordBytes),5*EditStorageAdmission.MetadataPerEntry,0,
+                checked(length+2L*MaxRecordBytes),ct);
+            session=root.CreateDirectory(id,ct);files=session.CreateDirectory("files",ct);
+            byte[] marker=JsonSerializer.SerializeToUtf8Bytes(new{Id=id,Version=int.MaxValue,WorkingPath=working},Json);
+            PublishRecordBytes(session,CreationMarker,marker,ct);allocation.Review(ct);
             var stream=files.CreateFile(name,ct);
             try{workingIdentity=files.Identify(stream.SafeFileHandle);return stream;}catch{stream.Dispose();throw;}
         }
-        var copy=write(working,Open);ct.ThrowIfCancellationRequested();files.Review(ct);session.Review(ct);root.Review(ct);
-        var record=describe(working,copy)with{Id=id,Version=EditSessionRecord.NativeStorageVersion,CreatedUtc=DateTime.UtcNow,StorageRootIdentity=root.Identity,
-            SessionDirectoryIdentity=session.Identity,WorkingDirectoryIdentity=files.Identity,WorkingIdentity=workingIdentity};
-        if(!record.IsSupported)throw new IOException("The created edit record is incomplete; its private working folder is retained.");
-        ct.ThrowIfCancellationRequested();byte[] bytes=JsonSerializer.SerializeToUtf8Bytes(record,Json);
-        PublishRecordBytes(session,RecordFile,bytes,ct);
-        return record with{StoredRecordSha256=Digest(bytes)};
+        try
+        {
+            var copy=write(working,Open);ct.ThrowIfCancellationRequested();
+            if(files is null||session is null)throw new IOException("The native working file was not created.");
+            allocation.Review(ct);files.Review(ct);session.Review(ct);root.Review(ct);
+            var record=describe(working,copy)with{Id=id,Version=EditSessionRecord.NativeStorageVersion,CreatedUtc=DateTime.UtcNow,StorageRootIdentity=root.Identity,
+                SessionDirectoryIdentity=session.Identity,WorkingDirectoryIdentity=files.Identity,WorkingIdentity=workingIdentity};
+            if(!record.IsSupported)throw new IOException("The created edit record is incomplete; its private working folder is retained.");
+            ct.ThrowIfCancellationRequested();byte[] bytes=JsonSerializer.SerializeToUtf8Bytes(record,Json);
+            PublishRecordBytes(session,RecordFile,bytes,ct);allocation.Review(ct);return record with{StoredRecordSha256=Digest(bytes)};
+        }
+        finally{try{files?.Dispose();}finally{session?.Dispose();}}
     }
     private static string Digest(byte[] bytes)=>Convert.ToHexString(SHA256.HashData(bytes));
     private static void PublishRecordBytes(EditDirectoryLease session,string name,byte[] bytes,CancellationToken ct)
@@ -126,7 +139,8 @@ public sealed partial class EditSessionStore
     }
     private EditSessionRecord SaveNativeRevision(EditSessionRecord record)
     {
-        using var root=OpenNativeRoot(default,false);using var session=root.OpenDirectory(record.Id,record.SessionDirectoryIdentity,default);
+        using var root=OpenNativeRoot(default,false);using var allocation=EditStorageAdmission.Acquire(root,default);
+        using var session=root.OpenDirectory(record.Id,record.SessionDirectoryIdentity,default);
         RequireStorage(record,root,session);byte[] anchorBytes=ReadRecordBytes(session,RecordFile,default);var anchor=ParseRecord(anchorBytes,session.Path);
         if(!anchor.IsSupported)throw new IOException("The initial edit record is no longer supported; the working copy is kept.");
         var current=ReadNativeLatest(anchor,anchorBytes,root,session);
@@ -134,7 +148,10 @@ public sealed partial class EditSessionStore
             throw new IOException("This edit record changed since it was reviewed. Reload it before saving a new state.");
         var next=record with{StorageRevision=checked(current.StorageRevision+1),PreviousRecordSha256=current.StoredRecordSha256};
         byte[] bytes=JsonSerializer.SerializeToUtf8Bytes(next,Json);
+        var usage=MeasureNativeStorageUsage(root,storageLimits,default);
+        allocation.Require(usage,storageLimits,0,0,1,bytes.Length,EditStorageAdmission.MetadataPerEntry,0,bytes.Length,default);
         PublishRecordBytes(session,RevisionName(next.StorageRevision),bytes,default);
+        allocation.Review(default);
         return next with{StoredRecordSha256=Digest(bytes)};
     }
 }
