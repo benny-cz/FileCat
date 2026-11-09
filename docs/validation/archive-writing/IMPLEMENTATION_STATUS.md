@@ -4,7 +4,11 @@
 The latest v40 focused product candidate is sealed on both guests. A runner-only v41 follow-up
 repeats connected gates and the complete Core/Remote/App inventories against those same product
 sources. Ubuntu follows its active FZ01 campaign, focused v40 batch and first native FZ09 launch.
-The full v41 results are not yet available and no release qualification is claimed.
+Mac has passed complete Core and Remote, with App in progress. Windows passed complete Core and
+the exact 335-new-case inventory but stopped before Remote when free space fell below the unchanged
+8 GiB preflight reserve. Its failed v41 bundle is sealed. Older extracted guest cohorts are being
+verified against retained host bundles before cleanup; a runner-only v42 Windows retry follows.
+No full release qualification is claimed.
 
 **9 November: retained-copy Save verified copy UI passes Mac and Windows focused gates.**
 The recovery dialog offers the action only for a complete unused capture when a native destination
