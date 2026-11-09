@@ -53,6 +53,15 @@ def verify(image,run,target,minimum_cpu_seconds):
             'ustar-one-file.tar','ustar-directory.tar','ustar-duplicate.tar','pax-unicode-time.tar'}
         assert any('StrictTarCatalog::Read' in name for name in report['production_methods'])
         assert any('StrictTarCatalog::CompareDecoder' in name for name in report['production_methods'])
+    if target=='journal-state':
+        assert 'FileCat.Core.Archives.ArchiveTransactionCollector' in prep['instrumented_core_types']['clean']
+        assert {row['name'] for row in result['extra_seeds']}=={
+            'valid-begin.json','valid-two.json','bad-crc.json','torn.json',
+            'invalid-utf8.json','unknown-tag.json','valid-end.json','future-header.json',
+            'unsupported-archive-record.json','duplicate-end.json',
+            'damaged-after-header.json','record-before-begin.json'}
+        assert any('FileCat.Core.Jobs.JobJournal::ReadRecords' in name for name in report['production_methods'])
+        assert any('FileCat.Core.Archives.ArchiveTransactionCollector::Read' in name for name in report['production_methods'])
     for number,row in enumerate(result['extra_seeds']):
         content=file('runs/'+run+f'/corpus/synthetic-{number:04d}')
         assert len(content)==row['bytes'] and sha(content)==row['sha256']

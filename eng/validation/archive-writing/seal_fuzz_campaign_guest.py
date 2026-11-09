@@ -53,6 +53,16 @@ def main():
             not any("StrictTarCatalog::Read" in name for name in report["production_methods"]) or \
             not any("StrictTarCatalog::CompareDecoder" in name for name in report["production_methods"]):
             raise ValueError("The strict TAR and decoder coverage evidence is incomplete")
+    if args.target == "journal-state":
+        names = {row["name"] for row in result["extra_seeds"]}
+        if names != {"valid-begin.json", "valid-two.json", "bad-crc.json", "torn.json",
+                     "invalid-utf8.json", "unknown-tag.json", "valid-end.json", "future-header.json",
+                     "unsupported-archive-record.json", "duplicate-end.json",
+                     "damaged-after-header.json", "record-before-begin.json"} or \
+            "FileCat.Core.Archives.ArchiveTransactionCollector" not in prep["instrumented_core_types"]["clean"] or \
+            not any("FileCat.Core.Jobs.JobJournal::ReadRecords" in name for name in report["production_methods"]) or \
+            not any("FileCat.Core.Archives.ArchiveTransactionCollector::Read" in name for name in report["production_methods"]):
+            raise ValueError("The stateful journal recovery coverage or structured seed evidence is incomplete")
     if any((run / "crashes").iterdir()):
         raise ValueError("A crash artifact was found after result collection")
     if any(path.is_symlink() for path in run.rglob("*")):
