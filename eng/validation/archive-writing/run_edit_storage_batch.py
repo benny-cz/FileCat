@@ -3,12 +3,12 @@ from pathlib import Path
 from datetime import datetime,timezone
 import importlib.util,json,shutil,subprocess,sys,tarfile,tempfile,time,uuid,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v33'
-PACKET='archive-edit-storage-delta-v33.tar.gz'
+FOLDER='awe-storage-v34'
+PACKET='archive-edit-storage-delta-v34.tar.gz'
 def cohort_policy(platform):
-    # Retry Windows' failed milestone; Unix gets fresh affected gates after its v31 full run.
+    # Connected mutation/recovery corrections get affected gates before the next workflow milestone.
     # Keep each machine's sealed predecessor explicit: Unix never ran v32.
-    return {'win32':('awe-storage-v32','full'),
+    return {'win32':('awe-storage-v33','focused'),
             'darwin':('awe-storage-v31','focused'),
             'linux':('awe-storage-v31','focused')}[platform]
 
@@ -74,7 +74,7 @@ def tests(task):
     assert VALIDATION_SCOPE in ('focused','full')
     (batch.out/'validation-scope.json').write_text(json.dumps(dict(scope=VALIDATION_SCOPE,
         full_regressions={name:'not-run' if VALIDATION_SCOPE=='focused' else 'required' for name in ('complete-core','complete-remote','complete-app')},
-        expected_new_core_cases=309,production_backend_qualified=False),indent=2))
+        expected_new_core_cases=319,production_backend_qualified=False),indent=2))
     fixture=Path.home()/'AppData/Local/Temp'/(FOLDER+'-native-fixtures') if sys.platform=='win32' else task/FOLDER/'native-fixtures'
     fixture.mkdir();batch.env['FILECAT_EDIT_NATIVE_ROOT']=str(fixture)
     require_space(batch,'focused')
@@ -86,7 +86,7 @@ def tests(task):
         if expected is not None:assert counters['total']==str(expected) and counters['passed']==str(expected),counters
         rows[name]=counters;(batch.out/'passed-gates.json').write_text(json.dumps(rows,indent=2))
     run('storage-admission','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
-        'FullyQualifiedName~WindowsEditStorageAdmissionTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditStorageAdmissionTests',34)
+        'FullyQualifiedName~WindowsEditStorageAdmissionTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditStorageAdmissionTests',44)
     run('save-copy-intent','FileCat.Core.Tests','FullyQualifiedName~EditSaveCopyIntentTests',14)
     run('save-copy-session','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
         'FullyQualifiedName~WindowsEditSaveCopySessionTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditSaveCopySessionTests',25)
@@ -159,7 +159,7 @@ def review_core_inventory(batch):
     current=ET.parse(batch.out/'results/complete-core.trx').findall('.//t:UnitTestResult',NS)
     spec=importlib.util.spec_from_file_location('edit_inventory',batch.root/'eng/validation/archive-writing/edit_core_inventory.py')
     helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
-    inventory=helper.review(old,current,309)
+    inventory=helper.review(old,current,319)
     (batch.out/'full-case-inventory.json').write_text(json.dumps(inventory,indent=2))
     helper.require_complete(inventory)
 def seal(task):

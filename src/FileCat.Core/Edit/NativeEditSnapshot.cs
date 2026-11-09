@@ -4,7 +4,8 @@ namespace FileCat.Core.Edit;
 
 /// <summary>Parent-owned immutable bytes. Jobs receive bounded read views over this object, never a path reopen.</summary>
 internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirectoryLease directory,FileStream file,ArchiveFileObservation expected,
-    EditPublishedRecord[] records,EditSessionRecord session,EditSnapshotAdmission admission):IArchiveOwnedEditInput,IRetainedEditUpload,IDisposable
+    EditPublishedRecord[] records,EditSessionRecord session,EditSnapshotAdmission admission,
+    Func<CancellationToken,EditStorageMutation> acquireMutation):IArchiveOwnedEditInput,IRetainedEditUpload,IDisposable
 {
     private readonly object gate=new();
     private readonly List<EditPublishedRecord> ownedRecords=records.ToList();
@@ -23,9 +24,12 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
     internal string CaptureIdentity=>capture.Identity;
     internal void AttachSavedCopy(EditSaveCopyIntent intent,CancellationToken ct)
     {
+        lock(gate)Live();
+        // A root writer always precedes the snapshot lock, including during disposal.
+        using var mutation=acquireMutation(ct);
         lock(gate)
         {
-            Review(ct);intent.RequireSource(session,capture.Identity,Expected);
+            mutation.Review(ct);Review(ct);intent.RequireSource(session,capture.Identity,Expected);
             if(savedCopyHold)throw new IOException("This captured edit already has a saved-copy attempt.");
             string storage=Path.GetDirectoryName(Path.GetDirectoryName(capture.Path)!)!;
             string destination=Path.TrimEndingDirectorySeparator(intent.DestinationDirectory);
@@ -34,7 +38,7 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
                 throw new IOException("Choose a saved-copy destination outside the private edit-session store.");
             byte[] bytes=intent.Encode();savedCopyHold=true;
             ownedRecords.Add(EditSessionStore.CreateRecordBytes(capture,EditSaveCopyIntent.FileName,bytes,ct));
-            Review(ct);
+            Review(ct);mutation.Review(ct);
         }
     }
     void IRetainedEditUpload.RequireRequest(Jobs.JobRequest request)
@@ -103,25 +107,41 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
     private static ArchiveWriteException Changed()=>new(ArchiveWriteReason.SourceChanged,"The retained edit snapshot is no longer the reviewed source.");
     public void Dispose()
     {
+        bool needsMutation;
+        lock(gate)
+        {if(disposed)return;needsMutation=!savedCopyHold&&directory.CanRemoveOwnedDirectories;}
+        EditStorageMutation? mutation=null;Exception? issue=null;
+        // Never wait for admission while holding the snapshot lock: saved-copy creation uses the same order.
+        if(needsMutation)try{mutation=acquireMutation(CancellationToken.None);}catch(Exception error){issue=error;}
         lock(gate)
         {
-            if(disposed)return;disposed=true;
-            try
+            if(disposed)issue=null;
+            else
             {
-                if(savedCopyHold||!directory.CanRemoveOwnedDirectories)throw new IOException("The temporary edit copy is kept for cleanup review at "+capture.Path);
-                RequireNames(capture,["capture.json","captured.json","files"]);
-                RequireNames(directory,[Expected.LeafName]);
-                foreach(var record in ownedRecords)record.Review(default);
-                directory.DeleteSnapshot(file,Expected.LeafName,Expected,default);
-                directory.RemoveEmpty(default);
-                RequireNames(capture,["capture.json","captured.json"]);
-                foreach(var record in ownedRecords)record.Review(default);
-                foreach(var record in ownedRecords)record.Delete(default);
-                capture.RemoveEmpty(default);
+                disposed=true;
+                if(issue is null)try
+                {
+                    if(savedCopyHold||!directory.CanRemoveOwnedDirectories)throw new IOException("The temporary edit copy is kept for cleanup review at "+capture.Path);
+                    mutation!.Review(default);
+                    RequireNames(capture,["capture.json","captured.json","files"]);
+                    RequireNames(directory,[Expected.LeafName]);
+                    foreach(var record in ownedRecords)record.Review(default);
+                    directory.DeleteSnapshot(file,Expected.LeafName,Expected,default);
+                    directory.RemoveEmpty(default);
+                    RequireNames(capture,["capture.json","captured.json"]);
+                    foreach(var record in ownedRecords)record.Review(default);
+                    foreach(var record in ownedRecords)record.Delete(default);
+                    capture.RemoveEmpty(default);mutation.Review(default);
+                }
+                catch(Exception error){issue=error;}
+                Close(file.Dispose);
+                foreach(var record in ownedRecords)Close(record.Dispose);
+                Close(directory.Dispose);Close(capture.Dispose);Close(admission.Release);
             }
-            finally
-            {try{file.Dispose();}finally{try{foreach(var record in ownedRecords)record.Dispose();}finally{try{directory.Dispose();}finally{try{capture.Dispose();}finally{admission.Release();}}}}}
         }
+        if(mutation is not null)Close(mutation.Dispose);
+        if(issue is not null)System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(issue).Throw();
+        void Close(Action action){try{action();}catch(Exception error){issue??=error;}}
     }
     private static void RequireNames(EditDirectoryLease directory,string[] expected)
     {

@@ -19,8 +19,12 @@ public sealed partial class EditSessionStore
             var root=nativeOpen(path,true,ct);
             if(root.Path==path)return root;root.Dispose();throw new IOException("The native edit root differs from the configured store.");
         }
-        using var parent=nativeOpen(Path.GetDirectoryName(path)!,false,ct);
-        return parent.CreateDirectory(Path.GetFileName(path),ct);
+        string parentPath=Path.GetDirectoryName(path)!;
+        using var parent=nativeOpen(parentPath,false,ct);
+        if(parent.Path!=parentPath)throw new IOException("The native edit parent differs from the configured store.");
+        var created=parent.CreateDirectory(Path.GetFileName(path),ct);
+        if(created.Path==path)return created;
+        created.Dispose();throw new IOException("The created native edit root differs from the configured store.");
     }
     private EditSessionRecord CreateNativeSession(string fileName,Func<string,Func<long,FileStream>?,WorkingCopy> write,
         Func<string,WorkingCopy,EditSessionRecord> describe,CancellationToken ct)

@@ -786,6 +786,8 @@ public sealed partial class EditSessionStore
     {
         RefuseElevatedSession();
         if (!record.IsSupported) throw new NotSupportedException("Unsupported edit-session directories are kept for manual recovery.");
+        if(nativeOpen is not null||record.StorageRootIdentity.Length!=0)
+            throw new NotSupportedException("This edit needs native cleanup ownership before it can be discarded. Its working files are kept.");
         Directory.Delete(SessionDirectory(record), recursive: true);
     }
 

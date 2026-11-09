@@ -1050,6 +1050,11 @@ working-file creation, retained output/receipt contingencies and held-volume cap
 resource/concurrency matrix and complete inventories are queued on all three systems. Exact cleanup, recovery/UI
 composition and the original qualification gates remain required; observation alone never refunds capacity or
 authorizes another write.
+The next connected correction serializes saved-copy intents and live Windows capture cleanup with this
+same root gate, checks fresh native-root identity and keeps root admission before the snapshot lock.
+Cleanup refusal closes every owner and releases active-copy permits. Native Discard cannot fall back to
+recursive pathname deletion while its exact-object cleanup authority remains unimplemented. The expanded
+44-case affected matrix is queued; these guards do not complete discard/recovery or permit registration.
 
 The [retained ZIP integration](../validation/archive-writing/RETAINED_LEGACY_ZIP_EDITS.md) connects these
 copies to the legacy ZIP executor without full-path input-byte reopens, verifies source/output hashes

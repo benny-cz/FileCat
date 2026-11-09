@@ -41,7 +41,9 @@ public sealed partial class EditSessionStore
             records.Add(CreateRecordBytes(capture,"captured.json",JsonSerializer.SerializeToUtf8Bytes(new{Version=1,Session=record.Id,
                 SessionRecord=record.StoredRecordSha256,Directory=capture.Identity,Files=files.Identity,Leaf=leaf,
                 Identity=observed.Version.Identity,Length=bytes.Length,Sha256=bytes.Sha256,Metadata=observed.MetadataDigest,Origin=origin.Digest},Json),ct));
-            Check();allocation.Review(ct);var snapshot=new NativeEditSnapshot(capture,files,output,observed,records.ToArray(),record,admission);
+            Check();allocation.Review(ct);string rootIdentity=root.Identity;
+            var snapshot=new NativeEditSnapshot(capture,files,output,observed,records.ToArray(),record,admission,
+                token=>OpenCaptureMutation(rootIdentity,token));
             var result=new EditCommitCopy(snapshot,bytes.Crc);admission.Transfer();return result;
         }
         catch
@@ -49,5 +51,16 @@ public sealed partial class EditSessionStore
             try{output?.Dispose();}finally{try{foreach(var item in records)item.Dispose();}finally{try{files?.Dispose();}finally{capture.Dispose();}}}
             throw; // All uncertain artifacts remain in the recorded session namespace.
         }
+    }
+
+    private EditStorageMutation OpenCaptureMutation(string expectedRoot,CancellationToken ct)
+    {
+        RefuseElevatedSession();ct.ThrowIfCancellationRequested();var root=OpenNativeRoot(ct,false);
+        try
+        {
+            if(root.Identity!=expectedRoot)throw new IOException("The captured edit belongs to another native store. Its files are kept.");
+            return new(root,EditStorageAdmission.Acquire(root,ct));
+        }
+        catch{root.Dispose();throw;}
     }
 }

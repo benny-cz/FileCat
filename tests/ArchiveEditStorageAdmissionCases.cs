@@ -16,7 +16,9 @@ internal static class ArchiveEditStorageAdmissionCases
         "unknown-root","unknown-directory","malformed-capture","byte-review-limit","metadata-review-limit","entry-review-limit",
         "session-limit","capture-limit","new-session-bytes","new-capture-bytes","no-space","revision-admission",
         "cancel-before","cancel-wait","same-process","other-root","process-contention","process-death","process-quota-race",
-        "gate-content","gate-replaced","wrong-root","invalid-policy"}.Select(value=>new object[]{value});
+        "gate-content","gate-replaced","wrong-root","invalid-policy","intent-wait","intent-cancel-wait",
+        "intent-gate-failure","cleanup-admission","cleanup-gate-failure","intent-cleanup-race",
+        "native-discard","native-discard-no-factory","native-discard-replaced","wrong-new-root-parent"}.Select(value=>new object[]{value});
 
     internal static async Task Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open,IFileSystemOperations fs,string nativeAssembly)
     {
@@ -28,7 +30,17 @@ internal static class ArchiveEditStorageAdmissionCases
         try
         {
             string path=Path.Combine(fixture,"sessions");
-            var store=new EditSessionStore(path,fs,open);
+            bool refuseOpen=false;
+            EditDirectoryLease Open(string directory,bool priv,CancellationToken token)
+            {if(refuseOpen&&directory==path)throw new IOException("Injected fresh native root refusal.");return open(directory,priv,token);}
+            var store=new EditSessionStore(path,fs,Open);
+            if(scenario=="wrong-new-root-parent")
+            {
+                string other=Private(Path.Combine(fixture,"unrelated-parent"));
+                var wrong=new EditSessionStore(path,fs,(_,priv,token)=>open(other,priv,token));
+                Assert.ThrowsAny<IOException>(()=>Create(wrong,"refused.txt"));
+                Assert.False(Directory.Exists(path));Assert.Empty(Directory.EnumerateFileSystemEntries(other));return;
+            }
             using(var outer=open(fixture,false,ct))using(outer.CreateDirectory("sessions",ct)) { }
             if(scenario=="empty")
             {var empty=store.ReviewNativeStorageUsage(ct);Assert.Equal(0,empty.Sessions);Assert.Equal(0,empty.Files);Assert.Equal(1,empty.Directories);return;}
@@ -47,6 +59,8 @@ internal static class ArchiveEditStorageAdmissionCases
                 finally{await Retire(one);await Retire(two);}
             }
             var record=Create(store,"one.txt");
+            if(scenario.StartsWith("intent-",StringComparison.Ordinal)||scenario.StartsWith("cleanup-",StringComparison.Ordinal))
+            {await MutationCase(scenario,store,record,fixture,open,value=>refuseOpen=value,copies,ct);return;}
             long length=new FileInfo(record.WorkingPath).Length;
             if(scenario=="large-logical")using(var file=File.Open(record.WorkingPath,FileMode.Open,FileAccess.Write,FileShare.ReadWrite|FileShare.Delete))file.SetLength(128L*1024*1024);
             if(scenario=="extra-working")File.WriteAllText(Path.Combine(Path.GetDirectoryName(record.WorkingPath)!,"editor.bak"),"ordinary editor backup");
@@ -71,6 +85,16 @@ internal static class ArchiveEditStorageAdmissionCases
                 }
             }
             var before=Snapshot();
+            if(scenario.StartsWith("native-discard",StringComparison.Ordinal))
+            {
+                if(scenario=="native-discard-replaced")
+                {
+                    string original=store.SessionDirectory(record);Directory.Move(original,original+".retained");
+                    File.WriteAllText(Path.Combine(Private(original),"unrelated.txt"),"keep this replacement");before=Snapshot();
+                }
+                var discard=scenario=="native-discard-no-factory"?new EditSessionStore(path,fs):store;
+                Assert.Throws<NotSupportedException>(()=>discard.Discard(record));Assert.Equal(before,Snapshot());return;
+            }
             if(scenario is "working" or "large-logical" or "extra-working" or "extra-session-file" or "dishonest-record" or "origin" or "native-extra-data" or "captured" or "retained-restart")
             {
                 var usage=store.ReviewNativeStorageUsage(ct);
@@ -187,6 +211,91 @@ internal static class ArchiveEditStorageAdmissionCases
             if(!Path.GetFullPath(fixture).StartsWith(Path.TrimEndingDirectorySeparator(parent)+Path.DirectorySeparatorChar,StringComparison.Ordinal)||
                 !Path.GetFileName(fixture).StartsWith("filecat-edit-admission-",StringComparison.Ordinal))throw new IOException("Unexpected storage fixture root.");
             TestCleanup.DeleteTree(fixture);
+        }
+    }
+    private static async Task MutationCase(string scenario,EditSessionStore store,EditSessionRecord record,string fixture,
+        Func<string,bool,CancellationToken,EditDirectoryLease> open,Action<bool> refuseOpen,List<EditCommitCopy> copies,CancellationToken ct)
+    {
+        var copy=store.PrepareCommit(record,fixture,ct);copies.Add(copy);var native=copy.Native!;
+        string capture=Path.GetDirectoryName(Path.GetDirectoryName(copy.Path))!;
+        string intentPath=Path.Combine(capture,EditSaveCopyIntent.FileName);
+        var expected=native.Expected;var time=expected.MemberModified!.Value;Guid nonce=Guid.NewGuid();
+        string prefix=".filecat-archive-"+nonce.ToString("N")+"-";
+        var intent=new EditSaveCopyIntent(1,nonce,record.Id,record.StoredRecordSha256,native.CaptureIdentity,
+            expected.Version.Identity,expected.Version.Length,expected.Version.Sha256,expected.MetadataDigest,expected.Origin.Digest,
+            time.Seconds,time.Nanoseconds,fixture,"test-destination-identity","saved.txt",prefix+"data.stage",prefix+"ready.manifest",prefix+"outcome.manifest");
+        byte[] original=ReadShared(copy.Path);
+        if(scenario.EndsWith("gate-failure",StringComparison.Ordinal))
+        {
+            refuseOpen(true);
+            try
+            {
+                if(scenario=="intent-gate-failure")
+                {
+                    Assert.ThrowsAny<IOException>(()=>native.AttachSavedCopy(intent,ct));
+                    Assert.False(File.Exists(intentPath));Assert.Equal(expected,native.Review(ct));
+                }
+                else
+                {
+                    Assert.ThrowsAny<IOException>(copy.Dispose);Assert.Null(Record.Exception(copy.Dispose));
+                    Assert.ThrowsAny<IOException>(()=>native.Review(ct));
+                    // Every owner must retire even when admission refused cleanup, including all record handles.
+                    foreach(string path in Directory.EnumerateFiles(capture,"*",SearchOption.AllDirectories))
+                        using(new FileStream(path,FileMode.Open,FileAccess.ReadWrite,FileShare.None)) { }
+                    var permits=new List<EditSnapshotAdmission>();
+                    try{for(int i=0;i<EditSnapshotAdmission.MaximumCopies;i++)permits.Add(EditSnapshotAdmission.Acquire(ct));}
+                    finally{foreach(var permit in permits)permit.Dispose();}
+                }
+                Assert.Equal(original,ReadShared(copy.Path));
+            }
+            finally{refuseOpen(false);}
+            return;
+        }
+        using var root=open(store.Root,true,ct);using var held=EditStorageAdmission.Acquire(root,ct);
+        using var stop=CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var started=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending=Task.Run(()=>
+        {
+            started.SetResult();
+            return Record.Exception(()=>
+            {if(scenario=="cleanup-admission")copy.Dispose();else native.AttachSavedCopy(intent,stop.Token);});
+        },CancellationToken.None);
+        Task<Exception?>? cleanup=null;
+        try
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(10),ct);
+            if(scenario=="cleanup-admission"&&!OperatingSystem.IsWindows())
+            {
+                Assert.IsAssignableFrom<IOException>(await pending.WaitAsync(TimeSpan.FromSeconds(10),ct));
+                Assert.Equal(original,ReadShared(copy.Path));return;
+            }
+            await Task.Delay(150,ct);Assert.False(pending.IsCompleted);Assert.False(File.Exists(intentPath));
+            if(scenario=="intent-cancel-wait")
+            {
+                stop.Cancel();Assert.IsAssignableFrom<OperationCanceledException>(await pending.WaitAsync(TimeSpan.FromSeconds(10),ct));
+                Assert.False(File.Exists(intentPath));Assert.Equal(expected,native.Review(ct));return;
+            }
+            if(scenario=="intent-cleanup-race")cleanup=Task.Run(()=>Record.Exception(copy.Dispose),CancellationToken.None);
+            held.Review(ct);held.Dispose();
+            var error=await pending.WaitAsync(TimeSpan.FromSeconds(10),ct);
+            if(scenario=="cleanup-admission")
+            {Assert.Null(error);Assert.False(File.Exists(copy.Path));}
+            else if(cleanup is not null)
+            {
+                var cleanupError=await cleanup.WaitAsync(TimeSpan.FromSeconds(10),ct);
+                Assert.True(error is null or IOException);Assert.True(cleanupError is null or IOException);
+                Assert.Equal(error is null,File.Exists(intentPath));
+                if(error is null)Assert.IsAssignableFrom<IOException>(cleanupError);
+                if(File.Exists(copy.Path))Assert.Equal(original,ReadShared(copy.Path));
+            }
+            else
+            {Assert.Null(error);Assert.Equal(intent,EditSaveCopyIntent.Decode(ReadShared(intentPath)));Assert.Equal(original,ReadShared(copy.Path));}
+        }
+        finally
+        {
+            stop.Cancel();held.Dispose();
+            await pending.WaitAsync(TimeSpan.FromSeconds(35));
+            if(cleanup is not null)await cleanup.WaitAsync(TimeSpan.FromSeconds(35));
         }
     }
     private static byte[] ReadShared(string path)

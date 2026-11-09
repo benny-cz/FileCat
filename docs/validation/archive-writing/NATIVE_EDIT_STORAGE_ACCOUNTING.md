@@ -1,5 +1,25 @@
 # Native edit storage accounting
 
+## Connected mutation coordination
+
+The next `v34` affected candidate extends the native matrix from 34 to 44 cases. Saved-copy intent
+creation and exact live Windows capture cleanup now acquire the same native-root writer gate as
+working-file creation, captures and state revisions. A fresh private root must match the actual root
+retained at capture creation. Root admission precedes the snapshot lock in both paths, so a saved-copy
+attempt racing disposal cannot invert their lock order. Canceled intent admission writes no intent.
+
+Cleanup admission failures retain the files but retire every live file/record/directory owner and the
+active-copy permit. One close failure cannot prevent attempts to close later owners. Saved-copy
+intent uncertainty and unsupported Unix exact deletion still retain their copies. The new cases cover
+waiting/cancellation, fresh-root refusal, disposal races, permit/handle retirement, unsupported native
+discard and a redirected new-root parent. They require guest execution; clean host builds are not runtime evidence.
+
+Native Discard previously fell through to recursive pathname deletion. That path is now unavailable
+for native records or a native-store composition until exact native discard ownership is implemented.
+The legacy composition is unchanged. This closes an unsafe fallback, not the Discard implementation gate.
+New-root creation also checks the native parent's path before creating a child and the returned child's
+path before writing records or working bytes. No native store/profile is enabled by these changes.
+
 The draft native accounting component measures retained default-stream bytes and conservatively charged native
 metadata through held private namespaces. It includes working files, complete/interrupted captures, state records
 and other ordinary files in the admitted session/capture/file layout. Unknown directory layouts, symlinks,
