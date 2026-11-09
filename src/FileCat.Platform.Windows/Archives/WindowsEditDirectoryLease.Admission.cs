@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
 using FileCat.Core.Edit;
 using FileCat.Core.FileSystem;
 using FileCat.Platform.Windows.Shell;
@@ -14,8 +15,10 @@ internal sealed unsafe partial class WindowsEditDirectoryLease
         lock(Gate)
         {
             RequireOpen();ReviewCore(ct);if(!isPrivate)throw new IOException("Edit admission needs a private root.");
+            var descriptor=new RawSecurityDescriptor($"O:{owner}D:P(A;;FA;;;{owner})(A;;FA;;;SY)");
+            byte[] fileSecurity=new byte[descriptor.BinaryLength];descriptor.GetBinaryForm(fileSecurity,0);
             var handle=OpenOrThrow(directory,EditStorageAdmission.GateName,GenericRead|GenericWrite|0x20000|Synchronize,ShareAll,3 /* OPEN_IF */,
-                NonDirectoryFile|OpenReparsePoint,"Open native edit storage gate",(uint)FileAttributes.Normal,security);
+                NonDirectoryFile|OpenReparsePoint,"Open native edit storage gate",(uint)FileAttributes.Normal,fileSecurity);
             try
             {
                 WindowsArchiveNative.Regular(handle,0,true,false);WindowsArchiveNative.RequirePrivateSecurity(handle,owner);

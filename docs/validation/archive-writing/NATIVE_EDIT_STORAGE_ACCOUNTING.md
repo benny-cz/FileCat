@@ -37,5 +37,13 @@ budgets, known insufficient capacity, cancellation, same/different-root callers 
 contention/death/quota races. Read-only snapshots assert no observation/refusal mutation. The combined `v30`
 cohort runs this gate first and then existing affected checks and complete Core/Remote/App inventories on all
 three platforms, requiring 309 additions over the preserved Core baseline and no lost prior cases/passes.
-Runtime results remain pending. Exact cleanup, recovery/UI composition, crash/durability/resource qualification
+The first `v30` runs preserve Mac/Ubuntu 33 passes and one fixture failure: a no-mutation pathname reader tried
+to acquire its shared lock while the test intentionally held the exclusive gate. The corrected fixture releases
+that test hold before readback. Windows preserves one pass/33 failures because the new gate incorrectly used
+directory-inheritance ACE flags. The correction creates its owner/SYSTEM protected file ACL without inheritance
+flags and keeps the original strict file-security validator. Raw/source/binary evidence is verified with zero
+owned instances on all systems. `v31` reruns the same combined milestone with these corrections; no failed result
+is treated as passing and no test requirement is removed.
+
+Runtime qualification remains pending. Exact cleanup, recovery/UI composition, crash/durability/resource qualification
 and the wider plan remain open. No store or archive write profile is enabled by this component.

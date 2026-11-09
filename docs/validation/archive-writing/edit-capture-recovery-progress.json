@@ -3774,6 +3774,159 @@
           "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
         }
       ]
+    },
+    {
+      "platform": "windows",
+      "folder": "awe-storage-v30",
+      "candidate": "31e8c84d26e604113fc5e9e4bb0007ef8e6cca77",
+      "bytes": 18576881,
+      "sha256": "3e5ce8c4c5c387f6d092d2aa1bc14fee5fe82b93dadfeb30426a14e7f9f266ae",
+      "manifest_sha256": "c5ef5ac29dc8987e40bb4bf3b3988a2564ea87a7afc1a01322c11f8db0539ef2",
+      "changed_CSharp_sources_bound": 97,
+      "DLL_PDB_pairs_bound": 17,
+      "uncompiled_platform_sources": [],
+      "tests": {
+        "storage-admission": {
+          "Failed": 33,
+          "Passed": 1
+        }
+      },
+      "focused_gates_complete": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false
+      },
+      "production_backend_qualified": false,
+      "validation_scope": "full",
+      "full_regressions_not_run": [
+        "complete-app",
+        "complete-core",
+        "complete-remote"
+      ],
+      "excluded_diagnostic_sources": [
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        },
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs",
+          "bytes": 2509,
+          "sha256": "3c6ab0b6702235fbba356c4b785d3b54810f3c7d40d69499daadc871ed065a79",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        }
+      ]
+    },
+    {
+      "platform": "mac",
+      "folder": "awe-storage-v30",
+      "candidate": "31e8c84d26e604113fc5e9e4bb0007ef8e6cca77",
+      "bytes": 17238897,
+      "sha256": "0ad54f324bb5cf6d1287d4709c40ee74b5796566f763562028ce128083e9d5fe",
+      "manifest_sha256": "4c56da4a6e316ac6d655d1c009ca27f9d937e7248435ec9763dfb04291bed954",
+      "changed_CSharp_sources_bound": 88,
+      "DLL_PDB_pairs_bound": 14,
+      "uncompiled_platform_sources": [
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditCaptureRecoveryTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditDirectoryLeaseTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditLegacyZipTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPreparationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPublicationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopySessionTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSnapshotTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageAdmissionTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageTests.cs"
+      ],
+      "tests": {
+        "storage-admission": {
+          "Passed": 33,
+          "Failed": 1
+        }
+      },
+      "focused_gates_complete": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false,
+        "preserved_wake_helper": "36765 /bin/bash /Users/benny/FileCatValidation/archive-writing-42829297/keep-mac-active-until-reboot-v1.sh"
+      },
+      "production_backend_qualified": false,
+      "validation_scope": "full",
+      "full_regressions_not_run": [
+        "complete-app",
+        "complete-core",
+        "complete-remote"
+      ],
+      "excluded_diagnostic_sources": [
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        },
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs",
+          "bytes": 2509,
+          "sha256": "3c6ab0b6702235fbba356c4b785d3b54810f3c7d40d69499daadc871ed065a79",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        }
+      ]
+    },
+    {
+      "platform": "ubuntu",
+      "folder": "awe-storage-v30",
+      "candidate": "31e8c84d26e604113fc5e9e4bb0007ef8e6cca77",
+      "bytes": 17220679,
+      "sha256": "c40efcca6572a03950921600b6d2044ad14c35c6ef80fb75f41de90c8af4cf91",
+      "manifest_sha256": "21f4d1232419d70802568cad9a3c73e6aff94ae067f82071e6c9a53bd4981798",
+      "changed_CSharp_sources_bound": 88,
+      "DLL_PDB_pairs_bound": 14,
+      "uncompiled_platform_sources": [
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditCaptureRecoveryTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditDirectoryLeaseTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditLegacyZipTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPreparationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopyPublicationTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSaveCopySessionTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditSnapshotTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageAdmissionTests.cs",
+        "tests/FileCat.Platform.Windows.Tests/WindowsEditStorageTests.cs"
+      ],
+      "tests": {
+        "storage-admission": {
+          "Passed": 33,
+          "Failed": 1
+        }
+      },
+      "focused_gates_complete": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false
+      },
+      "production_backend_qualified": false,
+      "validation_scope": "full",
+      "full_regressions_not_run": [
+        "complete-app",
+        "complete-core",
+        "complete-remote"
+      ],
+      "excluded_diagnostic_sources": [
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        },
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs",
+          "bytes": 2509,
+          "sha256": "3c6ab0b6702235fbba356c4b785d3b54810f3c7d40d69499daadc871ed065a79",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        }
+      ]
     }
   ],
   "current": [
@@ -3944,7 +4097,23 @@
     }
   ],
   "complete_inventory_qualification": false,
-  "pending": [],
+  "pending": [
+    {
+      "platform": "windows",
+      "folder": "awe-storage-v31",
+      "state": "Corrected combined admission candidate queued: explicit Windows file ACL and fixture releases its deliberate exclusive hold before no-mutation readback. Full native/connected/Core/Remote/App milestone remains required."
+    },
+    {
+      "platform": "mac",
+      "folder": "awe-storage-v31",
+      "state": "Corrected combined admission candidate queued: explicit Windows file ACL and fixture releases its deliberate exclusive hold before no-mutation readback. Full native/connected/Core/Remote/App milestone remains required."
+    },
+    {
+      "platform": "ubuntu",
+      "folder": "awe-storage-v31",
+      "state": "Corrected combined admission candidate queued: explicit Windows file ACL and fixture releases its deliberate exclusive hold before no-mutation readback. Full native/connected/Core/Remote/App milestone remains required."
+    }
+  ],
   "fresh_review_authorizes_deletion": false,
   "unix_runtime_cleanup_available": false,
   "inherited_checkpoints": [

@@ -165,6 +165,7 @@ internal static class ArchiveEditStorageAdmissionCases
                 using var stop=CancellationTokenSource.CreateLinkedTokenSource(ct);
                 var waiting=Task.Run(()=>store.PrepareCommit(record,fixture,stop.Token),CancellationToken.None);
                 await Task.Delay(100,ct);stop.Cancel();await Assert.ThrowsAnyAsync<OperationCanceledException>(async()=>await waiting.WaitAsync(TimeSpan.FromSeconds(10),ct));
+                held.Review(ct);held.Dispose();
                 Assert.Equal(before,Snapshot());return;
             }
             Assert.Equal("same-process",scenario);
