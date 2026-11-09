@@ -22,6 +22,9 @@ def main():
     parser.add_argument("--packet", type=Path, required=True)
     parser.add_argument("--target", required=True)
     parser.add_argument("--minimum-cpu-seconds", type=int, required=True)
+    parser.add_argument("--canary-run")
+    parser.add_argument("--canary-replay-run")
+    parser.add_argument("--short-run")
     args = parser.parse_args()
     if not args.image.replace("-", "").isalnum() or not args.run.replace("-", "").isalnum():
         parser.error("image and run must have simple alphanumeric names")
@@ -54,18 +57,47 @@ def main():
             not any("StrictTarCatalog::CompareDecoder" in name for name in report["production_methods"]):
             raise ValueError("The strict TAR and decoder coverage evidence is incomplete")
     if args.target == "journal-state":
-        names = {row["name"] for row in result["extra_seeds"]}
-        if names != {"valid-begin.json", "valid-two.json", "bad-crc.json", "torn.json",
-                     "invalid-utf8.json", "unknown-tag.json", "valid-end.json", "future-header.json",
-                     "unsupported-archive-record.json", "duplicate-end.json",
-                     "damaged-after-header.json", "record-before-begin.json"} or \
+        qualifications = (args.canary_run, args.canary_replay_run, args.short_run)
+        if any(name is None or not name.replace("-", "").isalnum() for name in qualifications) or len(set(qualifications)) != 3:
+            raise ValueError("Stateful journal evidence needs distinct canary, replay and short-run names")
+        diagnostics = [root / "runs" / name for name in qualifications]
+        if any(path.resolve(strict=True).parent != root / "runs" for path in diagnostics):
+            raise ValueError("A qualification run is outside this fuzz image")
+        canary, replay, short = [json.loads((path / "result.json").read_text()) for path in diagnostics]
+        crashed = canary["artifacts"]
+        if (canary["phase"], canary["target"], canary["terminal"], canary["canary_two_byte"]) != ("canary", "digest", True, True) or \
+            (replay["phase"], replay["target"], replay["terminal"], replay["canary_two_byte"]) != ("canary", "digest", True, True) or \
+            len(crashed) != 1 or crashed[0]["bytes"] != 2 or replay["artifacts"] or \
+            replay["managed_report"]["Calls"] != 1 or \
+            any(item["final_properties"]["Result"] != "exit-code" or item["final_properties"]["ExecMainStatus"] != "77"
+                for item in (canary, replay)) or \
+            any(item["sha256"]["core"] != prep["images"]["canary"]["FileCat.Core.dll"]["sha256"] for item in (canary, replay)) or \
+            short["phase"] != "clean" or short["target"] != "journal-state" or not short["terminal"] or short["artifacts"] or \
+            short["final_properties"]["Result"] != "success" or short["sha256"]["core"] != prep["images"]["clean"]["FileCat.Core.dll"]["sha256"] or \
+            short["managed_report"]["Calls"] <= 0:
+            raise ValueError("The stateful journal canary or short clean run is incomplete")
+        artifact = diagnostics[0] / "crashes" / crashed[0]["name"]
+        if artifact.stat().st_size != 2 or sha(artifact) != crashed[0]["sha256"] or \
+            sha(diagnostics[1] / "replay-input") != crashed[0]["sha256"]:
+            raise ValueError("The intentional canary artifact changed")
+        methods = short["managed_report"]["production_methods"]
+        if not any("JobJournal::ReadRecords" in name for name in methods) or \
+            not any("ArchiveTransactionCollector::Read" in name for name in methods):
+            raise ValueError("The short run missed a stateful production method")
+        names = {"valid-begin.json", "valid-two.json", "bad-crc.json", "torn.json",
+                 "invalid-utf8.json", "unknown-tag.json", "valid-end.json", "future-header.json",
+                 "unsupported-archive-record.json", "duplicate-end.json",
+                 "damaged-after-header.json", "record-before-begin.json"}
+        if {row["name"] for row in result["extra_seeds"]} != names or \
+            {row["name"] for row in short["extra_seeds"]} != names or \
             "FileCat.Core.Archives.ArchiveTransactionCollector" not in prep["instrumented_core_types"]["clean"] or \
             not any("FileCat.Core.Jobs.JobJournal::ReadRecords" in name for name in report["production_methods"]) or \
             not any("FileCat.Core.Archives.ArchiveTransactionCollector::Read" in name for name in report["production_methods"]):
             raise ValueError("The stateful journal recovery coverage or structured seed evidence is incomplete")
     if any((run / "crashes").iterdir()):
         raise ValueError("A crash artifact was found after result collection")
-    if any(path.is_symlink() for path in run.rglob("*")):
+    review_runs = [run] + (diagnostics if args.target == "journal-state" else [])
+    if any(path.is_symlink() for review in review_runs for path in review.rglob("*")):
         raise ValueError("A fuzz evidence entry is a symbolic link")
     members = [packet, root / "preparation.json",
                root / "instrumented-types-tar-clean.json", root / "clean" / "FileCat.Core.dll",
@@ -77,6 +109,9 @@ def main():
     elif args.target == "journal-state":
         raise ValueError("The journal image lacks its required Core instrumentation report")
     members += sorted(path for path in run.rglob("*") if path.is_file())
+    if args.target == "journal-state":
+        members += sorted(path for diagnostic in diagnostics if diagnostic != run
+                          for path in diagnostic.rglob("*") if path.is_file())
     if sum(path.stat().st_size for path in members) > 256 * 1048576:
         raise ValueError("Fuzz evidence exceeds its retained byte limit")
     rows = []
@@ -87,7 +122,9 @@ def main():
         rows.append({"path": name, "bytes": path.stat().st_size, "sha256": sha(path)})
     output = task / (args.image + "-" + args.run + "-evidence.tar.gz")
     index = json.dumps({"image": args.image, "run": args.run, "target": args.target,
-                        "minimum_cpu_seconds": args.minimum_cpu_seconds, "files": rows}, indent=2).encode()
+                        "minimum_cpu_seconds": args.minimum_cpu_seconds,
+                        "qualification_runs": list(qualifications) if args.target == "journal-state" else [],
+                        "files": rows}, indent=2).encode()
     with tarfile.open(output, "x:gz", compresslevel=1) as archive:
         for path, row in zip(members, rows):
             archive.add(path, arcname=row["path"], recursive=False)

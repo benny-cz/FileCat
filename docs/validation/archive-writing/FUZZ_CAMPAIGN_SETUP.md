@@ -142,6 +142,14 @@ finished without artifacts: 363,670 executions, 35 accepted, 363,635 refused, an
 of both `JobJournal::ReadRecords` and `ArchiveTransactionCollector::Read`. The bounded
 12,000-second `journal-state-nightly-v1` campaign is now active on Ubuntu. No FZ09 CPU floor
 is claimed until its terminal result and transport independently pass verification.
+The canary, exact crash replay and short clean run are themselves bundled with the short-run
+transport: 2,137,119 bytes / SHA-256
+`bfbd3f8c578601b46a447f674a704dd6a8207f191ce78c7ef1b8f1121336cd3a`.
+The independent host verifier checks every retained member, the two-byte canary artifact and
+replay input, expected exit status 77, exact clean/canary Core hashes, both production methods
+and all twelve structured seeds. The long-run sealer now requires and includes these same
+qualification runs before it can attest a stateful CPU floor; the short transport itself
+earns no release floor. The unchanged FZ01 transport still passes the updated verifier.
 
 A separate guest sealer and host verifier now check the terminal service result, kernel CPU and
 memory observations, managed execution counts, production method coverage, exact image/packet

@@ -54,6 +54,26 @@ def verify(image,run,target,minimum_cpu_seconds):
         assert any('StrictTarCatalog::Read' in name for name in report['production_methods'])
         assert any('StrictTarCatalog::CompareDecoder' in name for name in report['production_methods'])
     if target=='journal-state':
+        canary_name,replay_name,short_name=index['qualification_runs']
+        assert len({canary_name,replay_name,short_name})==3
+        assert all(name.replace('-','').isalnum() for name in (canary_name,replay_name,short_name))
+        canary=json.loads(file('runs/'+canary_name+'/result.json'))
+        replay=json.loads(file('runs/'+replay_name+'/result.json'))
+        short=json.loads(file('runs/'+short_name+'/result.json'))
+        assert all(item['phase']=='canary' and item['target']=='digest' and item['terminal'] and item['canary_two_byte']
+                   and item['final_properties']['Result']=='exit-code' and item['final_properties']['ExecMainStatus']=='77'
+                   and item['sha256']['core']==prep['images']['canary']['FileCat.Core.dll']['sha256']
+                   for item in (canary,replay))
+        assert len(canary['artifacts'])==1 and canary['artifacts'][0]['bytes']==2
+        crash=canary['artifacts'][0]
+        assert sha(file('runs/'+canary_name+'/crashes/'+crash['name']))==crash['sha256']
+        assert sha(file('runs/'+replay_name+'/replay-input'))==crash['sha256']
+        assert not replay['artifacts'] and replay['managed_report']['Calls']==1
+        assert short['phase']=='clean' and short['target']=='journal-state' and short['terminal'] and not short['artifacts']
+        assert short['final_properties']['Result']=='success' and short['sha256']['core']==result['sha256']['core']
+        assert short['managed_report']['Calls']>0
+        assert any('JobJournal::ReadRecords' in name for name in short['managed_report']['production_methods'])
+        assert any('ArchiveTransactionCollector::Read' in name for name in short['managed_report']['production_methods'])
         assert 'FileCat.Core.Archives.ArchiveTransactionCollector' in prep['instrumented_core_types']['clean']
         assert {row['name'] for row in result['extra_seeds']}=={
             'valid-begin.json','valid-two.json','bad-crc.json','torn.json',
@@ -62,6 +82,7 @@ def verify(image,run,target,minimum_cpu_seconds):
             'damaged-after-header.json','record-before-begin.json'}
         assert any('FileCat.Core.Jobs.JobJournal::ReadRecords' in name for name in report['production_methods'])
         assert any('FileCat.Core.Archives.ArchiveTransactionCollector::Read' in name for name in report['production_methods'])
+        assert {row['name'] for row in short['extra_seeds']}=={row['name'] for row in result['extra_seeds']}
     for number,row in enumerate(result['extra_seeds']):
         content=file('runs/'+run+f'/corpus/synthetic-{number:04d}')
         assert len(content)==row['bytes'] and sha(content)==row['sha256']
