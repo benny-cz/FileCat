@@ -16,7 +16,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--target", choices=("session-record", "capture-record", "save-copy-intent", "save-copy-receipt",
-                                              "journal-record", "manifest-member"),default="session-record")
+                                              "journal-record", "journal-state", "manifest-member"),default="session-record")
     parser.add_argument("--platform",choices=("unix","windows"),default="unix")
     args = parser.parse_args()
     output = args.output.resolve()
@@ -77,7 +77,7 @@ def main():
                  "bad-digest":json.dumps({**receipt,"Sha256":"bad"},separators=(",", ":")).encode(),
                  "duplicate-field":b'{"Version":1,'+json.dumps(receipt,separators=(",", ":")).encode()[1:],
                  "torn":b'{"Version":1,"Nonce":',"invalid-utf8":b'{"Version":1,"Bad":"\xff"}'}
-    elif args.target=="journal-record":
+    elif args.target in ("journal-record","journal-state"):
         def line(value):
             encoded=json.dumps(value,separators=(",", ":")).encode()
             return f"{zlib.crc32(encoded):08x} ".encode()+encoded+b"\n"
@@ -86,6 +86,13 @@ def main():
                  "bad-crc":b"00000000 "+begin[9:],"torn":begin[:-4],
                  "invalid-utf8":b"00000000 {\"t\":\"\xff\"}\n",
                  "unknown-tag":line({"x":"no type"})}
+        if args.target=="journal-state":
+            samples.update({"valid-end":begin+line({"t":"end"}),
+                            "future-header":line({"t":"begin","kind":"ArchiveUpdate","archiveJournalVersion":999}),
+                            "unsupported-archive-record":begin+line({"t":"archive-unknown"}),
+                            "duplicate-end":begin+line({"t":"end"})+line({"t":"end"}),
+                            "damaged-after-header":begin+b"00000000 {\"t\":\"archive-unknown\"}\n",
+                            "record-before-begin":line({"t":"archive-unknown"})+begin})
     else:
         empty=bytes.fromhex("E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855")
         def member(name,kind=0,digest=empty,metadata=b""):

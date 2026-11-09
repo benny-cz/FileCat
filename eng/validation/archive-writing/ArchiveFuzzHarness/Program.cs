@@ -70,7 +70,7 @@ if(args is ["instrument-tar",var tarAssembly,var tarTypeReport])
 if(args is ["replay-record",var recordTarget,var inputPath])
 {
     if(recordTarget is not ("session-record" or "capture-record" or "save-copy-intent" or "save-copy-receipt" or
-        "journal-record" or "manifest-member"))
+        "journal-record" or "journal-state" or "manifest-member"))
         throw new ArgumentException("Unknown recovery-record replay target.");
     using var file=new FileStream(inputPath,FileMode.Open,FileAccess.Read,FileShare.Read);
     if(file.Length>1048576)throw new ArgumentException("Recovery-record replay exceeds 1 MiB.");
@@ -83,6 +83,7 @@ if(args is ["replay-record",var recordTarget,var inputPath])
         "save-copy-intent"=>Intent.Exercise(bytes),
         "save-copy-receipt"=>Receipt.Exercise(bytes),
         "journal-record"=>Journal.Exercise(bytes),
+        "journal-state"=>JournalState.Exercise(bytes),
         _=>ManifestMember.Exercise(bytes),
     };
     Console.WriteLine(JsonSerializer.Serialize(new{target=recordTarget,accepted}));return 0;
@@ -91,7 +92,7 @@ if(args.Length!=0)throw new ArgumentException("Fuzz targets receive input throug
 
 Stats.Target=Environment.GetEnvironmentVariable("FILECAT_FUZZ_TARGET")??"digest";
 if(Stats.Target is not ("digest" or "tar-strict" or "session-record" or "capture-record" or "save-copy-intent" or
-    "save-copy-receipt" or "journal-record" or "manifest-member"))
+    "save-copy-receipt" or "journal-record" or "journal-state" or "manifest-member"))
     throw new ArgumentException("Unknown fuzz target.");
 Stats.CanaryPrefixMode=Environment.GetEnvironmentVariable("FILECAT_FUZZ_CANARY_PREFIX_MODE")=="1";
 if(Stats.CanaryPrefixMode&&Stats.Target!="digest")throw new ArgumentException("The canary input transform is digest-only.");
@@ -121,7 +122,7 @@ static void Exercise(ReadOnlySpan<byte> data)
     try
     {
         if(Stats.Target is "session-record" or "capture-record" or "save-copy-intent" or "save-copy-receipt" or
-            "journal-record" or "manifest-member")
+            "journal-record" or "journal-state" or "manifest-member")
         {
             bool accepted=Stats.Target switch
             {
@@ -130,6 +131,7 @@ static void Exercise(ReadOnlySpan<byte> data)
                 "save-copy-intent"=>Intent.Exercise(data),
                 "save-copy-receipt"=>Receipt.Exercise(data),
                 "journal-record"=>Journal.Exercise(data),
+                "journal-state"=>JournalState.Exercise(data),
                 _=>ManifestMember.Exercise(data),
             };
             if(accepted)Stats.Accepted++;else Stats.Refused++;
@@ -195,6 +197,53 @@ static class Journal
                 if(record.Type.Length==0)throw new InvalidOperationException("A journal record lacks its type.");
             }
             return count>0&&!damaged;
+        }
+        catch(TargetInvocationException error)when(error.InnerException is IOException){return false;}
+        catch(IOException){return false;}
+    }
+}
+
+static class JournalState
+{
+    private static readonly Type Collector=typeof(JobJournal).Assembly.GetType(
+        "FileCat.Core.Archives.ArchiveTransactionCollector",throwOnError:true)!;
+    private static readonly ConstructorInfo Create=Collector.GetConstructor(
+        BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic,null,Type.EmptyTypes,null)
+        ??throw new InvalidOperationException("Production archive recovery collector is unavailable.");
+    private static readonly MethodInfo Read=Collector.GetMethod("Read",BindingFlags.Instance|BindingFlags.Public)
+        ??throw new InvalidOperationException("Production archive recovery state reader is unavailable.");
+    private static readonly MethodInfo Damage=Collector.GetMethod("DamagedRecord",BindingFlags.Instance|BindingFlags.Public)
+        ??throw new InvalidOperationException("Production archive recovery damage marker is unavailable.");
+    private static readonly PropertyInfo Snapshot=Collector.GetProperty("Snapshot",BindingFlags.Instance|BindingFlags.Public)
+        ??throw new InvalidOperationException("Production archive recovery snapshot is unavailable.");
+    private static readonly MethodInfo Lines=typeof(JobJournal).GetMethods(BindingFlags.Static|BindingFlags.NonPublic)
+        .Single(method=>method.Name=="ReadBoundedLines"&&method.GetParameters() is
+            [{ParameterType:var first},_ ]&&first==typeof(Stream));
+    private static readonly MethodInfo Records=typeof(JobJournal).GetMethods(BindingFlags.Static|BindingFlags.NonPublic)
+        .Single(method=>method.Name=="ReadRecords"&&method.GetParameters() is
+            [{ParameterType:var first},_ ]&&first==typeof(IEnumerable<string>));
+    internal static bool Exercise(ReadOnlySpan<byte> data)
+    {
+        using var input=new MemoryStream(data.ToArray(),writable:false);
+        bool damaged=false;Action report=()=>damaged=true;
+        try
+        {
+            object collector=Create.Invoke(null);
+            var lines=(IEnumerable<string>)Lines.Invoke(null,[input,false])!;
+            var records=(IEnumerable<JournalRecord>)Records.Invoke(null,[lines,report])!;
+            int count=0;
+            foreach(var record in records)
+            {
+                if(++count>4096)return false;
+                Read.Invoke(collector,[record.Type,record.Node]);
+            }
+            if(damaged)Damage.Invoke(collector,null);
+            var snapshot=(ArchiveTransactionRecovery)Snapshot.GetValue(collector)!;
+            if(snapshot.HasRecords&&damaged&&!snapshot.RequiresReview)
+                throw new InvalidOperationException("Damaged archive history was accepted without recovery review.");
+            if(snapshot.HasRecords&&snapshot.Problem is not null&&!snapshot.RequiresReview)
+                throw new InvalidOperationException("Unsupported archive history was accepted without recovery review.");
+            return count>0&&!damaged&&!snapshot.RequiresReview;
         }
         catch(TargetInvocationException error)when(error.InnerException is IOException){return false;}
         catch(IOException){return false;}
