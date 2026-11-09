@@ -15,6 +15,17 @@ Windows full Core/Remote/App batch is running. Ubuntu's native check is queued a
 [checkpoint](UNIX_MARKED_CREATION_ORIGIN.md) records source and evidence hashes. No profile
 is enabled, and Unix marked updates remain unfinished.
 
+**10 November: marked Unix restoration preparation has an exact-origin checkpoint.**
+`aee8a384` derives one exact opaque mark from the retained original and snapshot evidence,
+and applies it only to a creator-owned private Unix stage. `9c0b2a46` corrects an invalid
+test fixture for the unreadable-record case. The exact-source Mac APFS run passed 266/269
+selected cases with three expected skips, including all eight snapshot-preparation and
+14 marked TAR/RAR5/7z creation cases (SHA-256
+`6bd266d982b77d6f1aa61ffb3ae0c146a621fdf9a386375406c6cd8675168eca`).
+Ubuntu's matching replay is queued after its existing gates. This does not publish an
+existing Unix archive update or enable a profile. The [checkpoint](UNIX_MARKED_UPDATE_PREPARATION.md)
+records the scope and retained test-only failed run.
+
 **9 November: Ubuntu fuzz qualification and dependent queues are being repaired.** The
 RAR5 password long run finished cleanly with 12,003 CPU seconds and no crash artifact,
 but its 60-second short run timed out. A separate bounded clean longer short run passed,

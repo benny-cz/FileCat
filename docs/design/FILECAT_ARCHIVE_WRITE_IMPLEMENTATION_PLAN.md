@@ -677,6 +677,8 @@ New archives and additions must not launder marked input. Derive a conservative 
 
 The [exact Unix creation checkpoint](../validation/archive-writing/UNIX_MARKED_CREATION_ORIGIN.md) implements a conservative representable subset for private new files: carry one byte-identical macOS or Linux mark across all selected inputs, including mixed marked/unmarked selections; refuse distinct present marks. It uses create-only native application, fresh verification and a version-3 creation witness. This applies across TAR, RAR5 and 7z creation pipelines that use the shared native stage. It does not define a strongest classification for differing Unix marks or qualify marked existing-file updates. Those cases remain refusal paths until a platform-specific representation and full metadata/recovery policy are validated.
 
+The [private Unix snapshot checkpoint](../validation/archive-writing/UNIX_MARKED_UPDATE_PREPARATION.md) binds the original archive, retained snapshot and any directories to one exact representable mark, then applies it only to a creator-owned private stage. This supports marked restoration preparation without asserting an existing-file update route. Distinct marks, unknown reads, native replacement, metadata replay and cleanup remain guarded or unfinished; no writer profile is enabled by this checkpoint.
+
 Add these typed states and platform tests before enabling marked-input creation/update. Unmarked workflows can qualify independently, but lack of mark-reading evidence cannot be treated as unmarked. Copy only the outer metadata explicitly promised by the profile; do not accidentally propagate executable-specific trust/signature state to changed bytes.
 
 ### 7.6 Crash recovery and cleanup
