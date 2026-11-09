@@ -167,7 +167,7 @@ public sealed partial class EditSessionStore
     }
     public const long MaxMemberBytes = 1L * 1024 * 1024 * 1024;
     private const string RecordFile = "session.json";
-    private const int MaxRecordBytes = 1024 * 1024;
+    internal const int MaxRecordBytes = 1024 * 1024;
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true, Converters = { new JsonStringEnumConverter() } };
 
     public string Root { get; }
