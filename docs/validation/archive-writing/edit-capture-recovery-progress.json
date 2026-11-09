@@ -3545,6 +3545,116 @@
           "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
         }
       ]
+    },
+    {
+      "platform": "windows",
+      "folder": "awe-storage-v28",
+      "candidate": "13ebcd081b8b1585b1cba9b3361a9bc604b3c9a1",
+      "bytes": 28632028,
+      "sha256": "4762906970ec9e997b8a3794df43f3ff9db8d172c61fa237d2822b8da1db8b8b",
+      "manifest_sha256": "cd88ed091885906ba320f3b1a581b30f60b479cececf42f813a24350e39bff04",
+      "changed_CSharp_sources_bound": 68,
+      "DLL_PDB_pairs_bound": 17,
+      "uncompiled_platform_sources": [],
+      "tests": {
+        "capture-recovery": {
+          "Passed": 31
+        },
+        "commit-copy": {
+          "Passed": 10
+        },
+        "comparison-retirement": {
+          "Passed": 108
+        },
+        "complete-app": {
+          "Passed": 2835,
+          "NotExecuted": 118
+        },
+        "complete-core": {
+          "Passed": 7781,
+          "NotExecuted": 504
+        },
+        "complete-remote": {
+          "Passed": 2405,
+          "NotExecuted": 264
+        },
+        "edit-core": {
+          "Passed": 100,
+          "NotExecuted": 10
+        },
+        "edit-ui": {
+          "Passed": 190
+        },
+        "history-retirement-core": {
+          "Passed": 29
+        },
+        "history-retirement-ui": {
+          "Passed": 18
+        },
+        "job-input-regressions": {
+          "Passed": 269
+        },
+        "native-directory": {
+          "Passed": 21
+        },
+        "native-legacy-zip": {
+          "Passed": 18
+        },
+        "native-origin-regressions": {
+          "Passed": 18
+        },
+        "native-sftp": {
+          "Passed": 23
+        },
+        "native-snapshot": {
+          "Passed": 35
+        },
+        "native-storage": {
+          "Passed": 14
+        },
+        "origin-policy": {
+          "Passed": 15
+        },
+        "record-recovery": {
+          "Passed": 25
+        },
+        "save-copy-preparation": {
+          "Passed": 17
+        },
+        "save-copy-publication": {
+          "Passed": 25
+        },
+        "save-copy-record": {
+          "Passed": 25
+        },
+        "verification-ui": {
+          "Passed": 12,
+          "NotExecuted": 1
+        }
+      },
+      "focused_gates_complete": false,
+      "final_census": {
+        "owned_filecat_or_test_processes": 0,
+        "production_backend_qualified": false,
+        "storage_integrated": false
+      },
+      "production_backend_qualified": false,
+      "validation_scope": "full",
+      "full_regressions_not_run": [],
+      "excluded_diagnostic_sources": [
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Probe.csproj",
+          "bytes": 211,
+          "sha256": "38e201f047792df530db8c7d157c2b6b19d1ed2e4134dba5da5c59e97d3b0da2",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        },
+        {
+          "path": "eng/validation/archive-writing/EditCopyReceiptProbe/Program.cs",
+          "bytes": 2509,
+          "sha256": "3c6ab0b6702235fbba356c4b785d3b54810f3c7d40d69499daadc871ed065a79",
+          "reason": "Standalone read-only diagnostic tool, outside this batch compiled product/test graph."
+        }
+      ]
     }
   ],
   "current": [
@@ -3718,8 +3828,9 @@
   "pending": [
     {
       "platform": "windows",
-      "folder": "awe-storage-v28",
-      "state": "Core failed with confirmed ERROR_DISK_FULL and unbounded cancellation-fixture wait. Exact process/mini dump/exception/space evidence preserved; owned failed Core runner retired after checksum-verified duplicate archive reclamation. Independent Remote/App collection continues; full Core retry required on next connected candidate."
+      "folder": "awe-storage-v29",
+      "candidate": "caffed1fc63448167113945a940d20db649936af",
+      "state": "Frozen combined native Save copy/cancellation-fixture candidate launched under vmrun session77156 after v28 terminal failure evidence was preserved and verified. All affected gates pass, complete Core passes8139/666skip with275 required new cases and no lost prior cases/passes; complete Remote passes2405/264skip. App runs under PID2988, started2026-11-09T00:46:05.444Z; do not mutate this guest source or restart a live runner. Full final seal/verification remains required."
     }
   ],
   "fresh_review_authorizes_deletion": false,
@@ -3729,7 +3840,7 @@
     "edit-snapshots-checkpoint.json"
   ],
   "remaining": [
-    "Complete Windows runtime milestone after capacity repair; newer Save copy session/recovery workflow requires fresh guest qualification.",
+    "Finish Windows combined runtime milestone; new native storage accounting/admission sources are not covered by frozen v29.",
     "Unix exact-object runtime cleanup",
     "fresh recovery cleanup action and startup UI",
     "native Save copy publication",
