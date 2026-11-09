@@ -32,7 +32,7 @@ def raw_counts(data):
     return result
 
 
-def verify(path):
+def verify(path, profile='adoption'):
     path = path.resolve(strict=True)
     sidecar = json.loads(path.with_suffix('.json').read_text(encoding='utf-8-sig'))
     if path.stat().st_size != sidecar['bytes'] or sha(path.read_bytes()) != sidecar['sha256']:
@@ -103,9 +103,29 @@ def verify(path):
         matches = [row for row in facts['sources'] if row['document'].replace('\\', '/').endswith('/' + name)]
         if not matches or any(row['sha256'].lower() != expected_hash for row in matches):
             raise ValueError('A changed source file is not bound to compiled symbols: ' + name)
-    required = {'focused-core', 'focused-ui', 'full-core', 'full-remote', 'full-app'}
-    if set(summary['tests']) != required:
-        raise ValueError('The connected test inventory is incomplete')
+    if profile == 'adoption':
+        required = {'focused-core', 'focused-ui', 'full-core', 'full-remote', 'full-app'}
+        if set(summary['tests']) != required:
+            raise ValueError('The connected test inventory is incomplete')
+    elif profile == 'native-ui-v96':
+        expected_ui = {
+            'creation-native-ui': ('ArchiveCreationWorkflowTests.Actual_confined_application_workers_create_', 10),
+            'member-native-ui': ('ArchiveMemberNativeUiTests.Actual_native_member_and_transfer_commands_', 10),
+            'edit-native-ui': ('ArchiveEditNativeUiTests.Actual_native_F4_commit_', 10),
+            'cleanup-native-ui': ('ArchiveRetainedCleanupNativeUiTests.Actual_NTFS_archive_cleanup_', 4),
+        }
+        if summary['platform'] != 'windows' or summary['folder'] != 'archive-native-ui-v96' or \
+                set(summary['tests']) != set(expected_ui):
+            raise ValueError('The native UI candidate or suite inventory is wrong')
+        for label, (case_prefix, count) in expected_ui.items():
+            result = summary['tests'][label]
+            rows = ET.fromstring(data['tests/' + label + '.trx']).findall('.//t:UnitTestResult', NS)
+            if result != dict(total=count, passed=count, skipped=0, failed=0) or \
+                    len(rows) != count or any(not row.attrib['testName'].startswith('FileCat.App.Tests.' + case_prefix)
+                                             for row in rows):
+                raise ValueError('A native UI suite omitted or substituted a required case')
+    else:
+        raise ValueError('Unknown connected evidence profile')
     for label, counts in summary['tests'].items():
         if raw_counts(data['tests/' + label + '.trx']) != counts:
             raise ValueError('A test summary differs from raw guest results')
@@ -117,4 +137,6 @@ def verify(path):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('path', type=Path)
-    print(json.dumps(verify(parser.parse_args().path), indent=2))
+    parser.add_argument('--profile', choices=('adoption', 'native-ui-v96'), default='adoption')
+    args = parser.parse_args()
+    print(json.dumps(verify(args.path, args.profile), indent=2))

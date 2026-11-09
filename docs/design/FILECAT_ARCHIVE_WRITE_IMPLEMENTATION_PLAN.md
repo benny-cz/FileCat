@@ -1004,6 +1004,13 @@ Only use “original unchanged” or “not saved” where transaction facts pro
 
 All functions remain keyboard reachable with effective bindings from the command registry. Avoid AltGr-conflicting new chords. Escape cancels a pre-publication dialog; Enter never activates a destructive default. Test held/repeated Enter, key-release carry-through, opening gestures, focus restoration and a changed active tab while preparation runs.
 
+Current Windows test-only native UI addendum (9 November): on source-bound commit `0ee71ae1`,
+real worker/NTFS creation, F5/F6 member commands, F4 edit commit and retained-cleanup approval
+passed 10/10, 10/10, 10/10 and 4/4 cases. Its independently verified transport is documented
+in [implementation status](../validation/archive-writing/IMPLEMENTATION_STATUS.md). These
+headless command paths do not replace desktop visual, scaling, screen-reader or Mac/Ubuntu
+native acceptance, and no production backend is registered.
+
 Screen readers must announce format, target, selected compression, read-only reason, exclusion counts, collision choice, progress phase and final outcome. Disabled actions expose a reason. Do not communicate destructive/read-only states by color alone. Use existing light/dark/high-contrast tokens; no bespoke styling system.
 
 Qualify 100/125/150/200% scaling and a 640×480 effective viewport: content can scroll, action buttons remain reachable, long localized strings do not clip essential consequences, and long paths do not push controls outside the window. Measure UI event processing under a large background scan: no archive work on the UI thread and no repeated callback exceeding 50 ms due to archive progress/capability updates.

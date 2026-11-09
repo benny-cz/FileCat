@@ -1,5 +1,18 @@
 # Archive writing implementation status
 
+**9 November: current-source Windows native UI addendum passed.** Fresh guest-built application
+and probe assets drove real confined workers, NTFS publication and actual UI command paths.
+Creation passed 10/10, F5/F6 member operations 10/10, F4 edit commit 10/10 and retained
+archive cleanup approval 4/4, with zero skips or failures. The 17,947,999-byte transport
+(SHA-256 `b80af4fea33b9972a8851fc41b51662d1001bf4311c33d8b7d1cd351995ba3f3`)
+passed independent source/compiler/DLL/PDB/raw-case verification against product commit
+`0ee71ae1`. The first native UI launch could not read its admin-created driver; after a
+scoped standard-user read grant, creation cases initially failed to add AppContainer read
+access to admin-owned copied assets. Those infrastructure failures are retained; granting
+the standard user control only over this task's copied app/probe assets produced the passing
+batch. No FileCat/test instance remained on the VM. This addendum does not qualify a
+production write profile or replace the Mac/Ubuntu native UI gates.
+
 **9 November: Mac's combined retained-adoption candidate is verified.** The final-target
 comparison and original-folder review UI passed 15/15 focused Core cases and seven focused UI
 cases (three platform skips), then full Core 8,681 passed/207 skipped, Remote 2,638/31, and
