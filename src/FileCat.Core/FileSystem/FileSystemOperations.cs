@@ -255,6 +255,16 @@ public interface IFileSystemOperations
     string? GetFinalPath(string path);
 
     /// <summary>
+    /// Observe the file reached by a path, following links. Implementations may obtain its identity without
+    /// materializing the final path; a missing identity is never evidence that an existing file is safe to replace.
+    /// </summary>
+    ResolvedFileObservation ObserveResolvedFile(string path)
+    {
+        var final = GetFinalPath(path);
+        return new(final, GetFileIdentity(final ?? path));
+    }
+
+    /// <summary>
     /// Whether another file system is mounted at this folder (a drive, a share, a bind mount). On Linux and macOS such a
     /// folder is an ordinary directory, so a permanent delete of a folder above it stops there rather than reach into
     /// another volume; on Windows a folder a volume is mounted at is a reparse point, never followed anyway.
@@ -270,6 +280,8 @@ public enum LinkKind
     /// <summary>Another name of the same file on the same volume.</summary>
     Hard,
 }
+
+public readonly record struct ResolvedFileObservation(string? FinalPath, string? Identity);
 
 /// <summary>
 /// Portable implementation over System.IO: streamed copy with progress, links via .NET link APIs, and the
@@ -789,6 +801,17 @@ public class PortableFileOperations : IFileSystemOperations
     /// <summary>Linux and macOS: realpath (Windows overrides with the handle's final path).</summary>
     public virtual string? GetFinalPath(string path) =>
         PathUtil.HasAmbiguousUnixName(path) ? null : UnixFiles.RealPath(path);
+
+    public virtual ResolvedFileObservation ObserveResolvedFile(string path)
+    {
+        // Exact built-in Unix implementations can obtain the resolved object's device/inode in one stat call.
+        // Keep virtual GetFinalPath/GetFileIdentity observations for subclasses that model changes or failures.
+        if (!OperatingSystem.IsWindows() &&
+            (GetType() == typeof(PortableFileOperations) || GetType() == typeof(UnixFileOperations)))
+            return new(null, UnixFiles.Stat(path, followLinks: true) is { } s ? s.Identity.ToString() : null);
+        var final = GetFinalPath(path);
+        return new(final, GetFileIdentity(final ?? path));
+    }
 
     /// <summary>Hashes the finite file length observed at opening; growth or truncation refuses the result.</summary>
     public static byte[] HashFile(string path, HashAlgorithmName algorithm, CancellationToken ct, Action<long>? progress = null, long? expectedLength = null)

@@ -9,6 +9,12 @@ it does not shorten any fuzz floor, overlap CPU-intensive tests or reduce qualif
 scope. The actual time saved has not been measured. Mac replay grouped all three wrapper
 formats into one idle guest visit with one isolated build and one sealed evidence bundle;
 Windows repeated that three-format batch in one guest visit and ended without test processes.
+Independent frozen-source guest cohorts may run concurrently when each machine passes its
+own idle and ownership checks. The 9 November Mac ZIP/security and Windows backing-source
+security cohorts did so while Ubuntu's guarded fuzz/recovery chain continued. Each guest
+built in a separate task directory and sealed its own raw results; a failed assertion on
+one guest did not change another guest's compiler inputs. This removes cross-platform
+waiting, but does not make any platform result stand in for another.
 
 ## Current execution decision, 9 November
 

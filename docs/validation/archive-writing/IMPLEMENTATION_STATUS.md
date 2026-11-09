@@ -1,5 +1,23 @@
 # Archive writing implementation status
 
+**9 November: the Mac ZIP extraction performance gate now passes on the focused candidate.**
+The built-in Unix file operations observe the resolved file's device/inode with one native
+`stat` at each existing backing-source checkpoint. Custom operations retain their previous
+final-path and identity observations; the checkpoint schedule is unchanged. The final Mac
+guest batch passed 63/63 focused backing-container, alias, replacement, visibility and
+retry cases. Its canonical 20,000-note/four-64-MiB-file ZIP extraction took 8.2 seconds
+versus 2.2 seconds in the in-box extractor, or 3.71× under the strict 4× limit. The
+previous corrected-test run measured 8.0/2.8 seconds, or 2.88×. The final raw Mac bundle
+SHA-256 is `1a6f8f7beaf9c679ab5994d0e013381d53085d07714ef4b9fb75b447c5f3675d`.
+Windows' separate guest-built focused batch passed 61/61 executed Core cases (two explicit
+Unix-only skips) and 66/66 native backing-source cases; raw bundle SHA-256 is
+`e0b3a6d1d86055c2cd6f06acca89c9c1bff1d38e0cca4806d1c2d3c71d060fe6`.
+The host verifier checked both transport hashes, source-file hashes, raw TRX inventories,
+the exact Windows skips and Mac timing. Both guests ended without FileCat/test processes.
+Ubuntu's queued fuzz/recovery campaigns still own that VM, so its representative product
+and budget check on this candidate remains open. This focused result does not qualify the
+whole AW0 stage or replace final full-platform regression.
+
 **9 November: FZ02 strict-wrapper fuzz targets are replay-ready, with no duration floor yet.**
 The test-only harness now drives the production gzip, BZip2 and Zstd strict readers to
 physical EOF with a 1 MiB encoded-input and 16 MiB decoded-output harness budget. On Mac,
@@ -20,7 +38,7 @@ test-only build. Its 3,444,092-byte raw transport SHA-256 is
 the separate host verifier checked the complete case, seed, source and binary inventory.
 No guest test processes remained. Ubuntu's native FZ02 campaign is still queued.
 
-**9 November: Mac AW0 extraction benchmark found an open performance gate.** The canonical
+**9 November baseline: Mac AW0 extraction benchmark exposed a performance failure.** The canonical
 20,000-note/four-64-MiB-file fixture (273 MiB payload) took 11.931 seconds for FileCat's
 ZIP F5 extraction versus 2.268 seconds for the in-box extractor, or 5.26× against the
 benchmark's strict 4× limit. The raw TRX SHA-256 is
@@ -31,14 +49,16 @@ queries taking 3.988 seconds; its raw TRX SHA-256 is
 `7458a16a1c929c800cf28edb68b9cd843b5325566d364d50540947bde1bf3019`.
 An attempted Unix-path cache still took 10.730/2.113 seconds and failed the gate, so it
 was reverted. The Mac source and test build were restored and all test processes exited.
-This is an unresolved measured qualification failure, not a passed AW0 budget.
+The later resolved-object observation result above supersedes this failed baseline on
+the focused candidate.
 
 The same canonical 20,000-note/four-64-MiB-file fixture also completed the Mac TAR.GZ
 benchmark: FileCat extracted in 11.4 seconds versus 3.0 seconds for the in-box
 `TarFile.ExtractToDirectory`, or 3.77×, within that individual 4× limit. Its raw TRX
 SHA-256 is `49b2b89e8844aa9163c390765da0bd53e184512a26e17f5b7389d08ac4c307eb`;
 the raw test log SHA-256 is `691b2df446fb3c3c287c046544de37c9ef15b4be14557d93b045854e908aaa83`.
-This one passing format does not close the ZIP failure or the overall AW0 gate.
+This TAR.GZ measurement is independent of the later ZIP improvement and does not close
+the overall AW0 gate.
 
 **9 November: legacy reviewed discard now rechecks its record and complete working bytes.**
 Commit `1f88274b` closes a stale-confirmation gap before the existing legacy deletion route.

@@ -204,13 +204,15 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         var path = Path.GetFullPath(target);
         foreach (var backing in _backingFiles)
             if (PathUtil.SafetyComparer.Equals(path, backing.Path)) throw new IOException(refusal);
-        var final = Fs.GetFinalPath(path);
-        var identity = Fs.GetFileIdentity(final ?? path);
+        var observed = Fs.ObserveResolvedFile(path);
+        var final = observed.FinalPath;
+        var identity = observed.Identity;
         foreach (var backing in _backingFiles)
         {
             if (observeCancellation) Job.Checkpoint();
-            var currentFinal = Fs.GetFinalPath(backing.Path);
-            var currentIdentity = Fs.GetFileIdentity(currentFinal ?? backing.Path);
+            var current = Fs.ObserveResolvedFile(backing.Path);
+            var currentFinal = current.FinalPath;
+            var currentIdentity = current.Identity;
             // A formerly observed container that moved or changed identity may now occupy the output.
             // Missing answers are not proof that cleanup or publication would leave its bytes alone.
             if (backing.Identity is not null && !StringComparer.Ordinal.Equals(backing.Identity, currentIdentity) ||
