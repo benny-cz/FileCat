@@ -41,7 +41,11 @@ internal static class ArchiveEditLegacyAdoptionCrashCases
             {
                 while(!File.Exists(marker)&&!child.HasExited)
                 {timeout.Token.ThrowIfCancellationRequested();await Task.Delay(25,timeout.Token);}
-                Assert.True(File.Exists(marker),await child.StandardError.ReadToEndAsync(timeout.Token));
+                if(!File.Exists(marker))
+                {
+                    string error=await child.StandardError.ReadToEndAsync(timeout.Token);
+                    Assert.Fail("The child exited before its adoption boundary: "+error);
+                }
                 Assert.Equal(point,File.ReadAllText(marker));
             }
             finally
