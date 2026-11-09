@@ -9,6 +9,7 @@ bool artifactSbom = args.Length == 5 && args[4] == "--artifact-sbom";
 if (args.Length == 5 && !artifactSbom) return 64;
 string repository = Path.TrimEndingDirectorySeparator(Path.GetFullPath(args[0]));
 string publish = Path.GetFullPath(args[1]), output = Path.GetFullPath(args[2]);
+StringComparison pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 // Test assemblies can compile pinned NuGet content sources (e.g. xUnit's generated runner). This explicit extra
 // root is opt-in; default production audits still require every nonembedded document inside the private checkout.
 string? extraSourceRoot = args.Length >= 4 ? Path.TrimEndingDirectorySeparator(Path.GetFullPath(args[3])) : null;
@@ -67,8 +68,8 @@ foreach (string pdb in symbols)
         if (content == null)
         {
             string full = Path.GetFullPath(path);
-            bool permitted = full.StartsWith(repository + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
-                extraSourceRoot != null && full.StartsWith(extraSourceRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+            bool permitted = full.StartsWith(repository + Path.DirectorySeparatorChar, pathComparison) ||
+                extraSourceRoot != null && full.StartsWith(extraSourceRoot + Path.DirectorySeparatorChar, pathComparison);
             if (!permitted ||
                 !File.Exists(full) || new FileInfo(full).Length > 8 << 20)
                 throw new InvalidDataException("Compiler source cannot be verified inside the private checkout: " + path);
