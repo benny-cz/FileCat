@@ -435,16 +435,23 @@ public sealed partial class MainViewModel
             string? destination = file?.TryGetLocalPath();
             if (destination is null) return;
             destination = Path.GetFullPath(destination);
-            var result = await MutationIoAsync(destination, () =>
-                Services.EditSessions.SaveRecoveredNativeCopy(session, selected.Directory, destination,
-                    check: CheckSessionAction), CheckSessionAction);
+            // Publication may succeed just before shutdown/navigation. Retain the running IO owner and return its
+            // outcome without a post-publication action check, so the result is always disposed and reported.
+            var location = Location.FileSystem(destination);
+            var result = await Services.Io.RunOwned(Services.Providers.For(location).GetDeviceKey(location), IoPriority.Normal,
+                _ =>
+                {
+                    CheckSessionAction();
+                    return Services.EditSessions.SaveRecoveredNativeCopy(session, selected.Directory, destination,
+                        check: CheckSessionAction);
+                });
             var published = result.Published;
             var issue = result.Issue;
             bool recorded = result.OutcomeRecorded;
             try { result.Dispose(); }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException)
             { issue = issue is null ? error : new AggregateException(issue, error); }
-            CheckSessionAction();
+            if (!EditSessionsActive) return;
             if (published is not null)
             {
                 if (issue is null && recorded)
