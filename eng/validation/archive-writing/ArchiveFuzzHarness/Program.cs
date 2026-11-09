@@ -47,12 +47,15 @@ if(args is ["instrument",var targetAssembly,var typeReport])
             name.StartsWith("FileCat.Core.Edit.EditSaveCopyIntent",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Core.Edit.EditSaveCopyRecord",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Core.Jobs.JobJournal",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Core.Archives.ArchiveTransactionCollector",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Core.Archives.ArchiveAssessmentWire",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Core.Archives.ArchiveWriteBudget",StringComparison.Ordinal),Options.Value).ToArray();
     File.WriteAllText(typeReport,JsonSerializer.Serialize(types));
     if(!types.Contains("FileCat.Core.Archives.ArchiveWritePolicy")||!types.Contains("FileCat.Core.Edit.EditSessionStore")||
         !types.Contains("FileCat.Core.Edit.EditSaveCopyIntent")||!types.Contains("FileCat.Core.Edit.EditSaveCopyRecord")||
-        !types.Contains("FileCat.Core.Jobs.JobJournal")||!types.Contains("FileCat.Core.Archives.ArchiveAssessmentWire")||
+        !types.Contains("FileCat.Core.Jobs.JobJournal")||
+        !types.Contains("FileCat.Core.Archives.ArchiveTransactionCollector")||
+        !types.Contains("FileCat.Core.Archives.ArchiveAssessmentWire")||
         !types.Contains("FileCat.Core.Archives.ArchiveWriteBudget"))
         throw new InvalidOperationException("Production guard or recovery record parser was not instrumented.");
     Console.WriteLine(JsonSerializer.Serialize(new{instrumented_types=types.Length,production_guard=true,production_recovery=true}));return 0;

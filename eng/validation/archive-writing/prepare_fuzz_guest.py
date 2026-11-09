@@ -84,6 +84,7 @@ def main():
         core_types = json.loads((root / f"instrumented-types-core-{phase}.json").read_text())
         if not {"FileCat.Core.Edit.EditSessionStore", "FileCat.Core.Edit.EditSaveCopyIntent",
                 "FileCat.Core.Edit.EditSaveCopyRecord", "FileCat.Core.Jobs.JobJournal",
+                "FileCat.Core.Archives.ArchiveTransactionCollector",
                 "FileCat.Core.Archives.ArchiveAssessmentWire", "FileCat.Core.Archives.ArchiveWriteBudget",
                 "FileCat.Core.Archives.ArchiveWritePolicy"}.issubset(core_types):
             raise ValueError("Production recovery parser/write guard was not instrumented")
