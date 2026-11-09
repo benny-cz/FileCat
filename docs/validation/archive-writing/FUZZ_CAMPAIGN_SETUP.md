@@ -227,9 +227,9 @@ folder so a newer product build cannot change the campaign candidate. Both 29-fi
 38-file RAR5 seed sets were installed with transport SHA-256 checks. The two-byte intentional
 canary crashed with exit 77 and its exact replay reproduced exit 77 without a new artifact.
 The 60-second clean `sevenzip-password-short-v5` run completed 43,022 executions: 116
-accepted, 42,906 controlled refusals, zero crash artifacts. A bounded 12,000-second 7z password
-campaign was then started on Ubuntu and remains active; it has not earned a long CPU floor yet.
-The RAR5 password long campaign and the remaining FZ targets are still open.
+accepted, 42,906 controlled refusals, zero crash artifacts. Its bounded 12,000-second follow-up
+earned the verified long target floor recorded above. The RAR5 password long campaign is active;
+its result and the remaining FZ targets are still open.
 
 The next test-only harness packet `fuzz-harness-v7.tar.gz` is 484,533 bytes, SHA-256
 `df43851a4e45cddbfe90583d2e315a577ad9d361b3f08926e9792992bb8442bd`.
