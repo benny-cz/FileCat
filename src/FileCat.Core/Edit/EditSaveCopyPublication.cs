@@ -38,7 +38,7 @@ internal static class EditSaveCopyPublication
     /// <summary>Durably records preparation before attempting a new name. Uncertainty never authorizes rollback or cleanup.</summary>
     internal static EditSaveCopyPublicationResult Publish(EditPreparedSaveCopy prepared,string targetLeaf,IArchiveDestinationSpace destination,
         Func<Guid,int,ArchiveArtifactReservation> reserve,Func<ArchiveArtifactReservation,IArchiveRetainedStage> create,
-        CancellationToken ct,Action? check=null)
+        CancellationToken ct,Action? check=null,Guid? operationNonce=null)
     {
         ArgumentNullException.ThrowIfNull(prepared);ArgumentNullException.ThrowIfNull(destination);
         ArgumentNullException.ThrowIfNull(reserve);ArgumentNullException.ThrowIfNull(create);EditSaveCopyNames.Validate(targetLeaf);
@@ -53,7 +53,8 @@ internal static class EditSaveCopyPublication
         capacity.RequireAvailable();
         var review=stage.ReviewSaveCopy(prepared.Output.Reviewed,targetLeaf,ct);
         if(!review.Stage.Matches(prepared.Output.Reviewed)||review.TargetLeaf!=targetLeaf)throw Changed();
-        var ready=EditSaveCopyRecord.Prepared(Guid.NewGuid(),prepared,targetLeaf);
+        if(operationNonce==Guid.Empty)throw new IOException("The saved-copy attempt needs a nonempty operation nonce.");
+        var ready=EditSaveCopyRecord.Prepared(operationNonce??Guid.NewGuid(),prepared,targetLeaf);
         var receipts=new List<EditSaveCopyReceipt>(2);bool transferred=false;
         try
         {

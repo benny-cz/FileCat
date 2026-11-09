@@ -145,9 +145,12 @@ public sealed partial class EditSessionStore
 {
     private readonly IFileSystemOperations fs;
     private readonly Func<string,bool,CancellationToken,EditDirectoryLease>? nativeOpen;
+    private readonly Func<string,CancellationToken,EditSaveCopyDestination>? nativeCopyOpen;
     public EditSessionStore(string root,IFileSystemOperations fs):this(root,fs,null) { }
-    internal EditSessionStore(string root,IFileSystemOperations fs,Func<string,bool,CancellationToken,EditDirectoryLease>? nativeOpen)
-    {Root=root;this.fs=fs;this.nativeOpen=nativeOpen;}
+    internal EditSessionStore(string root,IFileSystemOperations fs,Func<string,bool,CancellationToken,EditDirectoryLease>? nativeOpen):this(root,fs,nativeOpen,null) { }
+    internal EditSessionStore(string root,IFileSystemOperations fs,Func<string,bool,CancellationToken,EditDirectoryLease>? nativeOpen,
+        Func<string,CancellationToken,EditSaveCopyDestination>? nativeCopyOpen)
+    {Root=root;this.fs=fs;this.nativeOpen=nativeOpen;this.nativeCopyOpen=nativeCopyOpen;}
     public const long MaxMemberBytes = 1L * 1024 * 1024 * 1024;
     private const string RecordFile = "session.json";
     private const int MaxRecordBytes = 1024 * 1024;

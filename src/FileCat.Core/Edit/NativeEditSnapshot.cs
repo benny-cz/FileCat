@@ -7,7 +7,9 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
     EditPublishedRecord[] records,EditSessionRecord session,EditSnapshotAdmission admission):IArchiveOwnedEditInput,IRetainedEditUpload,IDisposable
 {
     private readonly object gate=new();
+    private readonly List<EditPublishedRecord> ownedRecords=records.ToList();
     private bool disposed;
+    private bool savedCopyHold;
     internal ArchiveFileObservation Expected { get; }=expected;
     internal string DirectoryPath=>directory.Path;
     public string SourcePath { get; }=Path.Combine(directory.Path,expected.LeafName);
@@ -18,6 +20,23 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
     Stream IArchiveRetainedFile.OpenReadView(ArchiveFileObservation reviewed,CancellationToken ct)=>OpenRead(reviewed,ct);
     internal void RequireSession(EditSessionRecord record)
     {lock(gate){Live();if(record.Id!=session.Id||record.StoredRecordSha256!=session.StoredRecordSha256)throw Changed();}}
+    internal string CaptureIdentity=>capture.Identity;
+    internal void AttachSavedCopy(EditSaveCopyIntent intent,CancellationToken ct)
+    {
+        lock(gate)
+        {
+            Review(ct);intent.RequireSource(session,capture.Identity,Expected);
+            if(savedCopyHold)throw new IOException("This captured edit already has a saved-copy attempt.");
+            string storage=Path.GetDirectoryName(Path.GetDirectoryName(capture.Path)!)!;
+            string destination=Path.TrimEndingDirectorySeparator(intent.DestinationDirectory);
+            if(string.Equals(destination,storage,StringComparison.OrdinalIgnoreCase)||
+                destination.StartsWith(Path.TrimEndingDirectorySeparator(storage)+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))
+                throw new IOException("Choose a saved-copy destination outside the private edit-session store.");
+            byte[] bytes=intent.Encode();savedCopyHold=true;
+            ownedRecords.Add(EditSessionStore.CreateRecordBytes(capture,EditSaveCopyIntent.FileName,bytes,ct));
+            Review(ct);
+        }
+    }
     void IRetainedEditUpload.RequireRequest(Jobs.JobRequest request)
     {
         lock(gate)
@@ -89,19 +108,19 @@ internal sealed class NativeEditSnapshot(EditDirectoryLease capture,EditDirector
             if(disposed)return;disposed=true;
             try
             {
-                if(!directory.CanRemoveOwnedDirectories)throw new IOException("The temporary edit copy is kept for cleanup review at "+capture.Path);
+                if(savedCopyHold||!directory.CanRemoveOwnedDirectories)throw new IOException("The temporary edit copy is kept for cleanup review at "+capture.Path);
                 RequireNames(capture,["capture.json","captured.json","files"]);
                 RequireNames(directory,[Expected.LeafName]);
-                foreach(var record in records)record.Review(default);
+                foreach(var record in ownedRecords)record.Review(default);
                 directory.DeleteSnapshot(file,Expected.LeafName,Expected,default);
                 directory.RemoveEmpty(default);
                 RequireNames(capture,["capture.json","captured.json"]);
-                foreach(var record in records)record.Review(default);
-                foreach(var record in records)record.Delete(default);
+                foreach(var record in ownedRecords)record.Review(default);
+                foreach(var record in ownedRecords)record.Delete(default);
                 capture.RemoveEmpty(default);
             }
             finally
-            {try{file.Dispose();}finally{try{foreach(var record in records)record.Dispose();}finally{try{directory.Dispose();}finally{try{capture.Dispose();}finally{admission.Release();}}}}}
+            {try{file.Dispose();}finally{try{foreach(var record in ownedRecords)record.Dispose();}finally{try{directory.Dispose();}finally{try{capture.Dispose();}finally{admission.Release();}}}}}
         }
     }
     private static void RequireNames(EditDirectoryLease directory,string[] expected)

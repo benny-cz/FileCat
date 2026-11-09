@@ -2,8 +2,16 @@ using FileCat.Core.Edit;
 
 namespace FileCat.Core.Archives.Unix;
 
-internal sealed partial class UnixArchiveFile:IEditSaveCopyPublicationStage,IEditSaveCopyReceiptStage
+internal sealed partial class UnixArchiveFile:IEditSaveCopyPublicationStage,IEditSaveCopyReceiptStage,IEditSaveCopyInspection
 {
+    ArchiveFileObservation IEditSaveCopyInspection.InspectSavedCopy(CancellationToken ct)
+    {
+        lock(parent.Gate)
+        {
+            var observed=ObserveRetained(ct);CaptureOuterMetadata(ct).RequireSupportedExtendedAttributes();
+            ((IArchiveRetainedFile)this).Review(observed,ct);return observed;
+        }
+    }
     private sealed class SaveCopyReview(UnixArchiveFile issuer,ArchiveFileObservation stage,string leaf,ArchiveUnixOuterMetadata metadata)
         :EditSaveCopyNameReview(issuer,stage,leaf)
     {internal ArchiveUnixOuterMetadata Metadata { get; }=metadata;}

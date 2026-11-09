@@ -6,7 +6,8 @@ namespace FileCat.Core.Edit;
 public enum EditCaptureRecoveryState { Complete, Interrupted, NeedsReview }
 
 /// <summary>A bounded read-only observation. Saved records and paths never authorize deletion or publication.</summary>
-public sealed record EditCaptureRecovery(string Directory,EditCaptureRecoveryState State,string Reason,long? Length=null,string? Sha256=null);
+public sealed record EditCaptureRecovery(string Directory,EditCaptureRecoveryState State,string Reason,long? Length=null,string? Sha256=null)
+{public EditSavedCopyRecovery? SavedCopy { get; init; }}
 
 public sealed partial class EditSessionStore
 {
@@ -46,11 +47,13 @@ public sealed partial class EditSessionStore
         return result;
     }
 
-    private static EditCaptureRecovery ReviewCapture(EditDirectoryLease session,string name,EditSessionRecord record,ref long remainingBytes,CancellationToken ct)
+    private EditCaptureRecovery ReviewCapture(EditDirectoryLease session,string name,EditSessionRecord record,ref long remainingBytes,CancellationToken ct)
     {
         using var capture=session.OpenDirectory(name,null,ct);
         var names=capture.Names(ct).Order(StringComparer.Ordinal).ToArray();
-        bool complete=names.SequenceEqual(new[]{"capture.json","captured.json","files"});
+        bool linked=names.Contains(EditSaveCopyIntent.FileName,StringComparer.Ordinal);
+        string[] completeNames=linked?["capture.json","captured.json","files",EditSaveCopyIntent.FileName]:["capture.json","captured.json","files"];
+        bool complete=names.SequenceEqual(completeNames.Order(StringComparer.Ordinal));
         if(!complete&&!names.SequenceEqual(new[]{"capture.json","files"}))throw new IOException("Unknown capture entries.");
         using var header=new CaptureRecord(capture,"capture.json",ct);
         var start=ParseCaptureRecord(header.Bytes,false);
@@ -71,17 +74,25 @@ public sealed partial class EditSessionStore
         if(start.Session!=end.Session||start.SessionRecord!=end.SessionRecord||start.Directory!=end.Directory||start.Files!=end.Files||start.Leaf!=end.Leaf)
             throw new IOException("The capture records do not agree.");
         using var payload=files.OpenFile(start.Leaf,end.Identity,ct);
-        long cost=checked(payload.Length*2);
+        long cost=checked(payload.Length*(linked?8:2)+(linked?16L*EditSaveCopyIntent.MaximumBytes:0));
         if(cost>remainingBytes)return new(capture.Path,EditCaptureRecoveryState.NeedsReview,
             "This copy needs a separate review because the byte limit for this batch has been reached. Its files are kept.");
         remainingBytes-=cost;
         var observed=files.ObserveSnapshot(payload,start.Leaf,ct);
         if(observed.Version.Length!=end.Length||observed.Version.Sha256!=end.Sha256||observed.MetadataDigest!=end.Metadata||observed.Origin.Digest!=end.Origin)
             throw new IOException("The capture no longer matches its complete receipt.");
+        EditSavedCopyRecovery? saved=null;
+        if(linked)
+        {
+            using var intentRecord=new CaptureRecord(capture,EditSaveCopyIntent.FileName,ct,EditSaveCopyIntent.MaximumBytes);
+            var intent=EditSaveCopyIntent.Decode(intentRecord.Bytes);intent.RequireSource(record,capture.Identity,observed);
+            saved=ReviewSavedCopy(intent,ct);intentRecord.Review(ct);
+        }
         header.Review(ct);receipt.Review(ct);files.Review(ct);capture.Review(ct);
         if(!capture.Names(ct).Order(StringComparer.Ordinal).SequenceEqual(names)||!files.Names(ct).SequenceEqual(fileNames)||
             !files.ObserveSnapshot(payload,start.Leaf,ct).Matches(observed))throw new IOException("The retained copy changed during review.");
-        return new(capture.Path,EditCaptureRecoveryState.Complete,"The complete retained copy matches its verification record. Its files are kept.",end.Length,end.Sha256);
+        return new(capture.Path,EditCaptureRecoveryState.Complete,"The complete retained copy matches its verification record. Its files are kept.",end.Length,end.Sha256)
+            {SavedCopy=saved};
     }
 
     private static void RequireCaptureBinding(CaptureFacts facts,EditDirectoryLease capture,EditSessionRecord record)
@@ -128,20 +139,22 @@ public sealed partial class EditSessionStore
         private readonly FileStream file;
         private readonly string name;
         private readonly ArchiveFileObservation expected;
+        private readonly int maximum;
         internal byte[] Bytes{get;}
-        internal CaptureRecord(EditDirectoryLease directory,string name,CancellationToken ct)
+        internal CaptureRecord(EditDirectoryLease directory,string name,CancellationToken ct,int maximum=MaximumCaptureRecordBytes)
         {
-            this.directory=directory;this.name=name;file=directory.OpenFile(name,null,ct);
+            if(maximum<=0||maximum>MaxRecordBytes)throw new ArgumentOutOfRangeException(nameof(maximum));
+            this.directory=directory;this.name=name;this.maximum=maximum;file=directory.OpenFile(name,null,ct);
             try
             {
-                if(file.Length>MaximumCaptureRecordBytes)throw new IOException("The capture record exceeds its review budget.");
-                expected=directory.ObserveSnapshot(file,name,ct,MaximumCaptureRecordBytes);Bytes=new byte[checked((int)expected.Version.Length)];file.ReadExactly(Bytes);
+                if(file.Length>maximum)throw new IOException("The capture record exceeds its review budget.");
+                expected=directory.ObserveSnapshot(file,name,ct,maximum);Bytes=new byte[checked((int)expected.Version.Length)];file.ReadExactly(Bytes);
                 if(file.ReadByte()!=-1)throw new IOException("The capture record grew during review.");Review(ct);
             }
             catch{file.Dispose();throw;}
         }
         internal void Review(CancellationToken ct)
-        {if(!directory.ObserveSnapshot(file,name,ct,MaximumCaptureRecordBytes).Matches(expected))throw new IOException("The capture record changed during review.");}
+        {if(!directory.ObserveSnapshot(file,name,ct,maximum).Matches(expected))throw new IOException("The capture record changed during review.");}
         public void Dispose()=>file.Dispose();
     }
 }

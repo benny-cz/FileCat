@@ -1071,6 +1071,11 @@ The following [native publication component](../validation/archive-writing/NATIV
 adds live exclusive name authority, bounded immutable preparation/outcome receipts and positive/uncertain result
 handling. Existing-target replacement, receipt/session recovery discovery and actions, exact cleanup, application
 integration and actual crash/durability qualification remain open; no workflow/profile is enabled by this component.
+The connected [session-link/restart review](../validation/archive-writing/NATIVE_EDIT_SAVE_COPY_SESSIONS.md)
+publishes the source-side intent before destination artifacts, binds native reservations under one operation,
+and reopens retained receipts/targets only for bounded read-only review. Its combined native and strict-record
+guest matrix is queued. Existing-target overwrite, destructive recovery/cleanup, retained-disk accounting,
+application composition and crash qualification still gate the complete native Save copy workflow.
 
 ### 12.2 Review and commit states
 
