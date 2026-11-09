@@ -1,5 +1,27 @@
 # Archive validation cadence
 
+## Current execution decision, 9 November
+
+The remaining saving is to apply the cadence consistently. The storage-admission Windows corrections
+should not trigger another complete Unix cycle after the running `v31` milestone. The next `v33`
+candidate runs fresh affected gates on Mac/Ubuntu and retries the affected gates plus complete inventories
+on Windows. Its runner pins the actual sealed predecessor separately: `v32` on Windows and `v31` on Unix.
+The verifier enforces those platform-specific scopes; a focused run explicitly leaves full suites unrun.
+Earlier full results continue to describe only their own candidate, and final qualification still requires
+the final runtime on all three systems.
+
+After this correction, freeze the next connected recovery workflow rather than each helper: coordinate
+native saved-copy/cleanup mutations with admission, complete safe discard/recovery decisions and their
+user actions, then integrate the qualified store. Run affected failure/lifetime/security checks during
+implementation. Use a completed workflow, a finding needing wider coverage, or final qualification as
+the next full-inventory trigger. Implement the next independent part while frozen guest tests run;
+never change their compiler inputs or restart them merely because observation timed out.
+
+Keep one concise current status and record each new verified bundle once. Preserve raw failed evidence,
+source/binary binding and the final inherited-evidence audit. Avoid a general harness rewrite, extra
+timing studies or repetitive historical documentation now: their likely saving is smaller than finishing
+the product integration. No deadline, corpus, platform, isolation, resource or final-review gate changes.
+
 The 8 November reassessment uses preserved guest logs and TRX timings, not estimates of compiler or test speed.
 [Timing data](edit-storage-timings.json) records the exact raw bundle hashes and the reproducible summary from
 `eng/validation/archive-writing/summarize_storage_timings.py`. The summarizer reads evidence without running

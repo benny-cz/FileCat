@@ -6,9 +6,13 @@ creates working namespaces only after validated source sizing, charges retained 
 artifacts across restarts, and checks held-volume space. Its 34-case native matrix covers real process contention,
 process death, quota races, cancellation, limits, metadata, exclusive handles and read-only/refusal preservation.
 Core/Windows-platform builds pass. The first Unix fixture-lock and Windows ACL failures are preserved and corrected.
-Mac/Ubuntu `v31` pass all 34 and existing focused gates and now run complete inventories. Windows `v31` passes 30
-and finds four live-directory sharing failures; the separate read-only inventory lease fixes those without changing
-mutation lease sharing, and `v32` is running. Source/binary/raw evidence remains bound to each individual candidate.
+Mac/Ubuntu `v31` pass all 34 and existing focused gates plus complete Core/Remote; App remains active. Windows `v31`
+finds four live-directory sharing failures; the separate read-only inventory lease fixes those without changing
+mutation lease sharing. Its `v32` retry passes 33/34: the last failure is a fixture expecting only `IOException`
+for an unsupported directory, while Windows correctly returns `UnauthorizedAccessException`. The fixture now
+accepts either native refusal and still asserts every file is unchanged; its host build passes. Failed raw evidence
+is preserved and verified. `v33` retries Windows affected/full gates and gives Unix fresh affected gates after
+its `v31` milestone, as required by the [cadence](VALIDATION_CADENCE.md). Each result binds its own source/binaries.
 Cleanup, fresh recovery/actions/UI composition and the full remaining plan are still required; no native
 store/profile is enabled.
 

@@ -3,9 +3,16 @@ from pathlib import Path
 from datetime import datetime,timezone
 import importlib.util,json,shutil,subprocess,sys,tarfile,tempfile,time,uuid,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v32'
-PACKET='archive-edit-storage-delta-v32.tar.gz'
-VALIDATION_SCOPE='full'
+FOLDER='awe-storage-v33'
+PACKET='archive-edit-storage-delta-v33.tar.gz'
+def cohort_policy(platform):
+    # Retry Windows' failed milestone; Unix gets fresh affected gates after its v31 full run.
+    # Keep each machine's sealed predecessor explicit: Unix never ran v32.
+    return {'win32':('awe-storage-v32','full'),
+            'darwin':('awe-storage-v31','focused'),
+            'linux':('awe-storage-v31','focused')}[platform]
+
+PREVIOUS_FOLDER,VALIDATION_SCOPE=cohort_policy(sys.platform)
 NS={'t':'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
 def sha(path):
     import hashlib
@@ -13,7 +20,7 @@ def sha(path):
 def base(task):
     path=task/'archive-workflow-source-v1/eng/validation/archive-writing/run_job_backend_batch.py'
     spec=importlib.util.spec_from_file_location('edit_storage_base',path);value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value)
-    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER='awe-storage-v31'
+    value.BATCH_FOLDER=FOLDER;value.PACKET_NAME=PACKET;value.PREVIOUS_FOLDER=PREVIOUS_FOLDER
     return value
 def batch_for(task):
     batch=base(task).batch_for(task);execute=batch.execute

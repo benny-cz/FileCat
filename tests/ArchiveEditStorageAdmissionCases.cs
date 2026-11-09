@@ -97,7 +97,10 @@ internal static class ArchiveEditStorageAdmissionCases
             {
                 string folder=scenario=="unknown-root"?Path.Combine(path,"foreign"):
                     Path.Combine(store.SessionDirectory(record),scenario=="malformed-capture"?"commit-not-a-guid":"unexpected-directory");
-                Private(folder);before=Snapshot();Assert.ThrowsAny<IOException>(()=>store.ReviewNativeStorageUsage(ct));Assert.Equal(before,Snapshot());return;
+                Private(folder);before=Snapshot();
+                var error=Record.Exception(()=>store.ReviewNativeStorageUsage(ct));
+                Assert.True(error is IOException or UnauthorizedAccessException,error?.ToString());
+                Assert.Equal(before,Snapshot());return;
             }
             var current=store.ReviewNativeStorageUsage(ct);
             if(scenario is "byte-review-limit" or "metadata-review-limit" or "entry-review-limit" or "capture-limit")
