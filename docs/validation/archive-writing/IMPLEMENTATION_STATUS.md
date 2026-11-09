@@ -16,8 +16,8 @@ Full inventories for these bytes, recovery actions and all other plan gates rema
 **9 November: FZ09 recovery-record packet is built; legacy adoption boundary is recorded.**
 The test-only v7 harness builds cleanly, adds instrumented production session, capture, saved-copy
 intent and receipt parser targets with synthetic schema/corruption seeds; its sealed native-fuzz packet is queued behind
-the active Ubuntu FZ01 campaign. Separately, Mac/Windows each pass all21 uninstrumented guest
-v6 replays against exact v38 product DLLs (six accepted, fifteen controlled refusals), source/seed
+the active Ubuntu FZ01 campaign. Separately, Mac/Windows each pass all28 uninstrumented guest
+v7 replays against exact v38 product DLLs (eight accepted, twenty controlled refusals), source/seed
 hashes independently checked. No FZ09 campaign floor is claimed. A legacy-adoption draft exposed that old
 inherited permissions cannot be opened under version-3's exact private lease; the draft was removed.
 The [adoption boundary](LEGACY_EDIT_ADOPTION_BOUNDARY.md) now requires a pinned read-only legacy

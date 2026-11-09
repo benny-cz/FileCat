@@ -98,7 +98,13 @@ on each. Independent verification binds guest results to source, seed hashes and
 the result JSON SHA-256 values are
 `31bdfb0d115cb96dc50722e37e0125ea9ef90cd00be5a0443fe2589e695162bd` (Mac) and
 `21d56c41c0851fef93bd38c5f4e6e536dfee5720b7252890b383ccde15b44300` (Windows).
-The v7 receipt extension and its 28-seed replay remain unrun at this point. Install the Ubuntu
+The v7 receipt extension passed all 28 bounded synthetic inputs on Mac and Windows against
+their verified v38 product Core DLLs: eight accepted, twenty controlled refusals on each.
+Independent replay verification binds the runner source, packet, individual seeds, output and
+product binary. Result JSON SHA-256 values are
+`f7a27c883ca916edfc993629b17c1573f563cefd3e5f2cdcd591cb084c769d2f` (Mac) and
+`5b1ad9bc4f6f37efd768ab248c20fe50299646041316d6ea8ac818fd9a0498ce` (Windows).
+These bounded replays do not earn any native fuzz CPU floor. Install the Ubuntu
 image only after its current FZ01 service exits, then begin bounded FZ09 campaigns. Journal,
 archive-manifest and stateful
 recovery oracles remain separate unfinished FZ09 work.
