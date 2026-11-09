@@ -49,10 +49,13 @@ public sealed class EditAdoptionRetainedUiTests
             Assert.Contains("adopted copy needs review before use",startup,StringComparison.Ordinal);
             var task=(Task)typeof(MainViewModel).GetMethod("ShowSessionAsync",BindingFlags.Instance|BindingFlags.NonPublic)!
                 .Invoke(vm,[adopted])!;
-            await Wait(()=>DialogButton("Open working folder") is not null||task.IsCompleted);
+            await Wait(()=>DialogButton("Open working folder") is not null&&
+                window.GetVisualDescendants().OfType<TextBlock>().Any(row=>
+                    row.Text?.Contains("active commit route",StringComparison.Ordinal)==true)||task.IsCompleted);
             Assert.False(task.IsCompleted);
-            Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(),row=>
-                row.Text?.Contains("old edit is still the active commit route",StringComparison.Ordinal)==true);
+            string dialogText=string.Join(" | ",window.GetVisualDescendants().OfType<TextBlock>().Select(row=>row.Text));
+            Assert.True(dialogText.Contains("old edit is still the active commit route",StringComparison.Ordinal),
+                dialogText[^Math.Min(2000,dialogText.Length)..]);
             Assert.Null(DialogButton("Commit"));Assert.Null(DialogButton("Discard…"));
             Assert.Null(DialogButton("Reopen editor"));Assert.Null(DialogButton("Save copy…"));
             DialogButton("Close")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

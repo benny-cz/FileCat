@@ -55,12 +55,19 @@ public sealed partial class EditSessionStore
                     source.Working.Identity!=link.WorkingIdentity||source.Working.Length!=link.WorkingLength||
                     source.Working.Sha256!=link.WorkingSha256||source.Origin.Digest!=link.OriginDigest)
                     throw new IOException("The old edit no longer matches the adoption evidence.");
-                source.Review(ct);
-                var nativeReview=ReviewWorking(native,new FileCat.Core.FileSystem.LocalFileSystemProvider(),
-                    ct.ThrowIfCancellationRequested);
-                result.Add(nativeReview.State is EditState.Unavailable or EditState.Missing
+                using var root=OpenNativeRoot(ct,false);
+                using var session=root.OpenDirectory(native.Id,native.SessionDirectoryIdentity,ct);
+                RequireStorage(native,root,session);
+                using var files=session.OpenDirectory("files",native.WorkingDirectoryIdentity,ct);
+                string leaf=Path.GetFileName(native.WorkingPath);
+                using var file=files.OpenFile(leaf,native.WorkingIdentity,ct);
+                var observed=files.ObserveSnapshot(file,leaf,ct);
+                bool intact=observed.Version.Length==link.WorkingLength&&
+                    observed.Version.Sha256==link.WorkingSha256&&observed.Origin.Digest==link.OriginDigest;
+                files.Review(ct);session.Review(ct);root.Review(ct);source.Review(ct);
+                result.Add(!intact
                     ? new(native,old,EditLegacyAdoptionCatalogState.NeedsReview,
-                        "The native copy cannot be reviewed completely. Both copies are kept.")
+                        "The native copy no longer matches its adoption evidence. Both copies are kept.")
                     : new(native,old,EditLegacyAdoptionCatalogState.LinkedRetainedCopy,
                         "The old edit remains active; its linked native copy is retained for review."));
             }

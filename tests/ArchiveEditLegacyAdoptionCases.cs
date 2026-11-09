@@ -71,6 +71,15 @@ internal static class ArchiveEditLegacyAdoptionCases
                 Assert.Equal(expected,File.ReadAllBytes(adopted.WorkingPath));
                 return;
             }
+            if(scenario=="native-changed")
+            {
+                File.WriteAllBytes(adopted.WorkingPath,"changed adopted copy"u8.ToArray());
+                var changed=Assert.Single(store.ReviewLegacyAdoptions(legacyOpen,ct));
+                Assert.Equal(EditLegacyAdoptionCatalogState.NeedsReview,changed.State);
+                Assert.Equal(expected,File.ReadAllBytes(old.WorkingPath));
+                Assert.True(File.Exists(adopted.WorkingPath));
+                return;
+            }
             if(scenario=="duplicate")
             {
                 using var second=legacyOpen(oldRoot,old,ct);
