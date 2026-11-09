@@ -1,4 +1,6 @@
 using FileCat.Core.Archives;
+using FileCat.Core.Archives.Unix;
+using FileCat.Core.FileSystem;
 
 namespace FileCat.Core.Edit;
 
@@ -8,10 +10,15 @@ internal sealed partial class UnixEditDirectoryLease
     {
         lock(Gate)
         {
-            using var file=OpenWorkingFile(name,ct);var before=ReviewWorkingFile(file,name,ct);
-            var metadata=ArchiveUnixOuterMetadata.Capture(file.SafeFileHandle,ct);
-            if(ReviewWorkingFile(file,name,ct)!=before||metadata.Native.Length!=before.Length)throw new IOException("The stored edit changed during size review.");
-            return new(before,MetadataCharge(metadata));
+            RequireOpen();Leaf(name);ReviewCore(ct);
+            using var file=UnixArchiveNative.Child(directory,name);
+            if(!isPrivate||UnixFiles.Stat(file) is not {IsRegular:true,Owner:var owner}||owner!=user)
+                throw new IOException("The stored edit is not a creator-owned ordinary file.");
+            var metadata=ArchiveUnixOuterMetadata.Capture(file,ct);
+            using var named=UnixArchiveNative.Child(directory,name);
+            if(UnixFiles.Stat(named)?.Identity!=metadata.Identity||ArchiveUnixOuterMetadata.Capture(file,ct).Digest!=metadata.Digest)
+                throw new IOException("The stored edit changed during size review.");
+            ReviewCore(ct);return new(metadata.Identity.ToString(),metadata.Native.Length,metadata.Digest,MetadataCharge(metadata));
         }
     }
     internal override EditStoredDirectorySize MeasureStoredDirectory(CancellationToken ct)

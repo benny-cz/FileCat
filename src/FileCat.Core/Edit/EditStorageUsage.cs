@@ -1,5 +1,3 @@
-using FileCat.Core.Resources;
-
 namespace FileCat.Core.Edit;
 
 /// <summary>Read-only observed logical bytes and conservatively charged native metadata; never cleanup authority.</summary>
@@ -18,5 +16,5 @@ internal sealed record EditStorageReviewLimits(int Entries=8192,int Sessions=128
     }
 }
 
-internal sealed record EditStoredFileSize(ContentRevision Revision,long MetadataBytes);
+internal sealed record EditStoredFileSize(string Identity,long Length,string Version,long MetadataBytes);
 internal sealed record EditStoredDirectorySize(string Identity,string Version,long MetadataBytes);

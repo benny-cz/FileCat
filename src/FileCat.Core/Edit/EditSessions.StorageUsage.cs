@@ -47,7 +47,7 @@ public sealed partial class EditSessionStore
                 else
                 {
                     if(++entries>limits.Entries)throw Limit();files++;
-                    var file=directory.MeasureStoredFile(name,ct);Charge(file.Revision.Length,file.MetadataBytes);
+                    var file=directory.MeasureStoredFile(name,ct);Charge(file.Length,file.MetadataBytes);
                 }
             }
             if(directory.MeasureStoredDirectory(ct)!=before||!directory.Names(ct,names.Length).Order(StringComparer.Ordinal).SequenceEqual(names))

@@ -3,14 +3,16 @@
 The draft native accounting component measures retained default-stream bytes and conservatively charged native
 metadata through held private namespaces. It includes working files, complete/interrupted captures, state records
 and other ordinary files in the admitted session/capture/file layout. Unknown directory layouts, symlinks,
-unsupported streams, changed native observations and exhausted review bounds refuse a complete result.
+unreviewable native inventories, changed observations and exhausted review bounds refuse a complete result.
 No saved JSON length, prior cleanup state, pathname prefix or age can refund a byte or authorize deletion.
 
 The reader limits the complete traversal to 8,192 namespace entries, 128 sessions/captures, 8 GiB of charged bytes
 and 128 MiB of metadata. These draft edit-store limits are separate from archive job/codec budgets and require
 resource tests before enabling composition. Unix measurement includes bounded ACL/extended-attribute/origin data.
-Windows requires a complete supported stream inventory, counts the exact origin and charges the maximum bounded
-security descriptor. Payloads are not hashed just to measure usage. Native namespace enumeration accepts an
+Windows uses attribute/security handles, so a default-stream data sharing lock need not prevent size observation.
+It counts all streams from a complete bounded native catalogue without treating unfamiliar streams as eligible
+for publication/cleanup, and charges the bounded catalogue/security descriptor. Payloads are not hashed just
+to measure usage. Native namespace enumeration accepts an
 operation-specific count and cancellation token, enforcing the bound while accumulating names.
 
 Accounting is currently a read-only foundation, not durable admission. The next connected implementation must
