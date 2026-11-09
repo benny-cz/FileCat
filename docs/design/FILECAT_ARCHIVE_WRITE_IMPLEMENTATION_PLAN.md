@@ -1033,6 +1033,11 @@ native creation, exclusive immutable record generations and held working-file re
 test factory. Its three-platform focused matrix passes. Native immutable snapshot
 and discard ownership, old-record adoption and application composition remain required; this checkpoint
 does not close §12.1 or enable a write profile.
+The [dual-root adoption prerequisite](../validation/archive-writing/LEGACY_EDIT_ADOPTION_BOUNDARY.md)
+keeps old records under their historical root and new native records in a separate private root,
+with wrong-root records unsupported. It is test-only. Old-folder read-only admission, durable
+copy and active/retained relationship, exact-object retirement and connected three-platform
+qualification remain required before any native factory registration.
 
 The [snapshot follow-up](../validation/archive-writing/ARCHIVE_EDIT_SNAPSHOTS.md) adds retained capture and
 parent-only queued input views and passes its focused three-platform matrix. Complete capture-record,

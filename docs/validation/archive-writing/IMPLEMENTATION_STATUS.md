@@ -7,6 +7,13 @@ their own save path. The shared Mac guest gate passes including two wrong-root r
 Core and Windows test builds have zero warnings; Windows/Ubuntu guest gates and the separate
 read-only old-folder admission/copy/retirement implementation remain open. The product factory
 is still disabled. See [adoption boundary](LEGACY_EDIT_ADOPTION_BOUNDARY.md).
+The v47 Mac connected focused batch passed all 27 gates, including 20 native storage cases.
+Its 17,569,160-byte transport (SHA-256
+`ff22aad28c6cef8477fe3d61f2cb18aee23a69e8a4c08cfcfae8de9b5fe31754`) passed independent
+source/compiler/DLL/PDB/raw-test verification. Windows v47 also passed all 28 gates, including
+15 dual-root storage cases; its 18,937,618-byte transport (SHA-256
+`a7709eaba42c304be46261242e36421aae3166dfb41d5e6db9842c1352d14bc8`) passed the same
+independent checks. Both guests exited their test processes. Ubuntu remains on FZ09.
 
 **9 November: FZ03 strict 7z corpus and instrumentation are staged.** The test-only v14 packet
 adds a direct production strict-catalog target, and a Mac guest replay accepted seven generated

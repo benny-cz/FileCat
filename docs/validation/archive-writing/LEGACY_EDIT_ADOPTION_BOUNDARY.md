@@ -8,7 +8,10 @@ new native sessions only in the native root, discovers both roots, keeps each ve
 route, and marks a record found in the wrong root unsupported. Mac's native test passes these
 composition and misplaced-record cases. This is a prerequisite, not adoption: legacy discard
 still refuses when native storage is present; no old payload is copied or retired, and the
-Windows/Ubuntu connected guest gate is pending.
+Ubuntu connected guest gate is pending. The Mac v47 connected focused batch passed all 27 gates,
+and Windows v47 passed all 28 gates, including their dual-root cases, with independent
+source/compiler/binary/raw-test verification. Both guests exited their test processes. Ubuntu
+remains reserved for its FZ09 long campaign.
 
 The version-1/2 creator uses `CreatePrivateDirectory` for the session folder, ordinary
 `Directory.CreateDirectory` for its `files` child, ordinary `FileStream` creation for the working
