@@ -1,23 +1,30 @@
 # Archive writing implementation status
 
-**9 November: exact marked Unix private creation has a Mac native checkpoint.**
+**9 November: exact marked Unix private creation has a cross-format Mac native checkpoint.**
 Commit `1b5e6129` carries one byte-identical Linux or macOS origin value from complete
 captured evidence to a creator-private new archive, including empty/binary marks and
 mixed marked/unmarked inputs; conflicting marks refuse. Mac guest tests passed 52/53
 focused and 190/192 broad native cases with expected platform skips, including both
 marked publications. Windows guest policy tests passed 25/27 with Unix-only skips, and
 120/259 native storage cases passed under a measured medium-integrity child; both Windows
-zone-only publication cases passed. A separate real standard-user/AppContainer batch is
-running on the VM. Ubuntu's native check is queued and has no result yet. The detailed
+zone-only publication cases passed. The separate real standard-user/AppContainer batch
+passed 475/476 cases with one expected skip and no failure. Commit `05a86d83` extends the
+Mac native matrix to compressed RAR5 and 7z, both password modes and empty/binary marks;
+all 14 marked publication cases passed in a 241/244 selected run. The current-source
+Windows full Core/Remote/App batch is running. Ubuntu's native check is queued and has no result yet. The detailed
 [checkpoint](UNIX_MARKED_CREATION_ORIGIN.md) records source and evidence hashes. No profile
 is enabled, and Unix marked updates remain unfinished.
 
 **9 November: Ubuntu fuzz qualification and dependent queues are being repaired.** The
 RAR5 password long run finished cleanly with 12,003 CPU seconds and no crash artifact,
-but its 60-second short run timed out. The sealer correctly refused the short run, so
-the original adoption, strict, wrapper and later acceptance queues failed without
-running dependent tests. A bounded longer short qualification and a new guarded queue
-are active. After that passes, 7z/RAR strict campaigns can run concurrently in separate
+but its 60-second short run timed out. A separate bounded clean longer short run passed,
+and the sealed long campaign independently verified its canary/replay, binaries, 16,834
+executions, zero crashes and 7,200-second floor (SHA-256
+`7e5710f535c4b479685b94f6ca0a5e71110e49dea1612d6b87c60a7c7068cb54`).
+The first downstream adoption replay hit test-harness stale evidence, a too-long private
+keyring socket path, and then an incremental-build PDB/source mismatch. Those failed
+outputs remain retained. A short isolated keyring probe and a forced source rebuild now
+pass; the guarded adoption resume continues. After adoption, 7z/RAR strict campaigns can run concurrently in separate
 1 GiB units, followed by concurrent gzip/BZip2/Zstd campaigns; each retains its own
 canary, short check, 12,000-second wall run and 7,200 CPU-second floor. Ubuntu AW0 and
 marked creation follow those gates. Queued work is not passing evidence.
