@@ -1,14 +1,30 @@
 # Archive writing implementation status
 
-**9 November: late retained-copy outcome fix and stateful fuzz preparation are in flight.**
+**9 November: first long FZ01 floor verified; stateful FZ09 campaign started.**
+Ubuntu's clean strict-TAR campaign reached 9,708.590486 CPU seconds and 45,447,001
+executions with no crash artifacts. The 2,223,951-byte sealed transport has SHA-256
+`325385e6040e65c17f1e63a43ffca1b7f9f2a1f1d08ff1d951f39813b00a9625` and passed
+independent image, method-coverage, seed and raw-member verification. Ubuntu v40 then passed
+all 28 focused recovery/storage gates and its 54/54 v12 recovery-record replay. The v12
+instrumented image found and replayed the intentional canary; its clean 60-second stateful
+run passed 363,670 executions with both journal and transaction-collector methods exercised.
+The bounded 12,000-second FZ09 `journal-state-nightly-v1` run is active, with no floor yet claimed.
+Mac v44's full Remote and App suites passed; its full Core suite preserved one recorder-test
+race failure in a sealed 25,104,400-byte bundle (SHA-256
+`9654ec8a4ee9038fff5165e2206336d51c7c3e568b33d3d130a0ff507bbf176c`). The race
+is fixed in candidate `bf6690d4cc6775218b7b3777d7618af023b0a1e5`; Mac v45 is running
+its full retry. Windows v43 passed its full suites and independent verifier. Windows v45's
+Core and Remote suites have passed and App is running. No native store or new writer is enabled.
+
+**Earlier 9 November checkpoint: late retained-copy fix and fuzz preparation.**
 Candidate `8d0946ff49c16b1950017f31ec52dff66407ac0e` keeps the result of a running native
 saved-copy publication through late IO shutdown, disposes its receipts and reports a confirmed
-copy while the edit UI is active. The host App/test build has zero warnings; Mac's complete v44
-Core/Remote/App cohort is running, and the Windows packet is staged behind its v43 full cohort.
-Ubuntu remains occupied by FZ01. The test-only v12 FZ09 packet adds the production archive
+copy while the edit UI is active. The host App/test build had zero warnings; Mac's complete v44
+Core/Remote/App cohort and the Windows retry were subsequently run as described above.
+Ubuntu was then occupied by FZ01. The test-only v12 FZ09 packet adds the production archive
 transaction collector to instrumentation, requires it in image preparation, and is staged for
 Ubuntu replay/canary/short-run checks after v40. Its two-hour-per-target and shared campaign
-floors have not started or been claimed. The
+floors were still pending at that checkpoint. The
 [Unix cleanup boundary](UNIX_EDIT_EXACT_REMOVAL_BOUNDARY.md) records why same-user replacements
 still prohibit pathname-based native Discard.
 

@@ -125,14 +125,23 @@ The v12 packet corrects that filter and makes image preparation require the coll
 instrumented Core type report. It is 488,815 bytes / SHA-256
 `758aa0dcc9865ae30eac26d4aa53653243748798868a068aaee4e028699ffb3b`.
 Its replay harness keeps the same seven targets and v11 synthetic corpus. The packet, preparer and
-replay runner are staged on Ubuntu without starting another product process during FZ01. After
-Ubuntu v40 passes, replay, instrumentation, the intentional canary and a short clean run must pass
-before v12 is used for the first native FZ09 long campaign. v10/v11 are retained preparatory
-artifacts, not native qualification results.
+replay runner were staged on Ubuntu while FZ01 ran. Ubuntu v40, replay, instrumentation, the
+intentional canary and a short clean run then passed before the first native FZ09 long campaign
+started. v10/v11 are retained preparatory artifacts, not native qualification results.
 
 Windows independently passed the v12 bounded replay against its sealed v43 Core: 54/54 seeds,
 15 accepted and 39 controlled refusals, with zero crashes. Its raw result SHA-256 is
 `516f2f0ae65c178e100d2724ed5f57b82cfd7a66fef7cb1bc5d5af520a97c3c4`.
+Ubuntu independently passed the same 54/54 v12 replay against its sealed v40 Core, with
+15 accepted, 39 controlled refusals and zero crashes. Its raw result SHA-256 is
+`1fa5690d55f1bfb53b6a8f3e0b682e60c67b75192098fb5097385af15b08ded7`.
+The fresh `fuzz-campaign-v4` image binds that v40 Core and Archives to the v12 packet and
+records `ArchiveTransactionCollector` in both instrumented Core images. An intentional
+two-byte canary crash was discovered and replayed. A 60-second clean `journal-state` run
+finished without artifacts: 363,670 executions, 35 accepted, 363,635 refused, and coverage
+of both `JobJournal::ReadRecords` and `ArchiveTransactionCollector::Read`. The bounded
+12,000-second `journal-state-nightly-v1` campaign is now active on Ubuntu. No FZ09 CPU floor
+is claimed until its terminal result and transport independently pass verification.
 
 A separate guest sealer and host verifier now check the terminal service result, kernel CPU and
 memory observations, managed execution counts, production method coverage, exact image/packet
