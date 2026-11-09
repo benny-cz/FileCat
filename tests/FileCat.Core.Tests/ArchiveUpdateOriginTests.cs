@@ -78,21 +78,22 @@ public sealed class ArchiveUpdateOriginTests
         Assert.Equal(ArchiveWriteReason.PublicationUnavailable, Assert.Throws<ArchiveWriteException>(() =>
             ReviewUnix(original, [Source("input", different)], original, [Source("input", different)], [directory], [directory])).Reason);
         Assert.Equal(ArchiveWriteReason.NeedsReview, Assert.Throws<ArchiveWriteException>(() =>
-            ReviewUnix(original, [Source("input", ArchiveOriginSnapshot.Unavailable(format, ArchiveOriginFailure.AccessDenied))],
-                original, [Source("input", ArchiveOriginSnapshot.Unavailable(format, ArchiveOriginFailure.AccessDenied))])).Reason);
+            ReviewUnix(original, [input], original, [input], evidenceInputOrigin:
+                ArchiveOriginSnapshot.Unavailable(format, ArchiveOriginFailure.AccessDenied))).Reason);
         Assert.Equal(ArchiveWriteReason.NeedsReview, Assert.Throws<ArchiveWriteException>(() =>
             ReviewUnix(original, [input], original, [input], [Directory(different)], [Directory(different)], corrupt: true)).Reason);
     }
 
     private static ArchiveOriginSnapshot ReviewUnix(ArchiveFileObservation original, ArchiveFileObservation[] inputs,
         ArchiveFileObservation expectedOriginal, ArchiveFileObservation[] expected,
-        ArchiveDirectoryObservation[]? directories = null, ArchiveDirectoryObservation[]? expectedDirectories = null, bool corrupt = false)
+        ArchiveDirectoryObservation[]? directories = null, ArchiveDirectoryObservation[]? expectedDirectories = null,
+        bool corrupt = false, ArchiveOriginSnapshot? evidenceInputOrigin = null)
     {
         var scope = new ArchiveOriginEvidenceScope(Guid.NewGuid(), new(ArchiveWriteFormat.Tar), ArchiveOriginOperation.Update,
             inputs.Length + (directories?.Length ?? 0) + 1);
         using var stream = new MemoryStream(); using var writer = new ArchiveOriginEvidenceWriter(stream, scope);
         writer.Append(new(ArchiveOriginSourceKind.OriginalArchive, original.Version, original.Origin));
-        foreach (var input in inputs) writer.Append(new(ArchiveOriginSourceKind.File, input.Version, input.Origin));
+        foreach (var input in inputs) writer.Append(new(ArchiveOriginSourceKind.File, input.Version, evidenceInputOrigin ?? input.Origin));
         foreach (var directory in directories ?? []) writer.Append(new(ArchiveOriginSourceKind.Directory, directory.Version, directory.Origin));
         var info = writer.Complete(); byte[] bytes = stream.ToArray(); if (corrupt) bytes[^1] ^= 1;
         using var view = new MemoryStream(bytes, false);
