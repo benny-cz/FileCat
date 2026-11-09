@@ -56,7 +56,11 @@ independent image, method-coverage, seed and raw-member verification. Ubuntu v40
 all 28 focused recovery/storage gates and its 54/54 v12 recovery-record replay. The v12
 instrumented image found and replayed the intentional canary; its clean 60-second stateful
 run passed 363,670 executions with both journal and transaction-collector methods exercised.
-The bounded 12,000-second FZ09 `journal-state-nightly-v1` run is active, with no floor yet claimed.
+The bounded 12,000-second FZ09 `journal-state-nightly-v1` run completed with 10,134.451051 CPU
+seconds, 38,006,260 executions and zero crash artifacts. Its 2,477,285-byte sealed transport
+(SHA-256 `6472b580af3da8bdafa29346719db1d9c20483e0b1ccb2a31a744c2c15b0a7cb`)
+passed independent source, canary/replay, production coverage and raw-file verification.
+This establishes one FZ09 long target floor; other targets and final release gates remain open.
 Mac v44's full Remote and App suites passed; its full Core suite preserved one recorder-test
 race failure in a sealed 25,104,400-byte bundle (SHA-256
 `9654ec8a4ee9038fff5165e2206336d51c7c3e568b33d3d130a0ff507bbf176c`). The race

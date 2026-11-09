@@ -1,8 +1,8 @@
 # Coverage-guided archive-writing fuzz setup
 
-**9 November 2026, current checkpoint.** The first strict-TAR two-hour FZ01 floor is sealed
-and independently verified below. Ubuntu's 12,000-second stateful FZ09 run is still active;
-its terminal evidence has not been collected. The next test-only packet, `fuzz-harness-v14.tar.gz`
+**9 November 2026, current checkpoint.** The first strict-TAR two-hour FZ01 floor and the
+first stateful FZ09 `journal-state` floor are sealed and independently verified below. The
+next test-only packet, `fuzz-harness-v14.tar.gz`
 (490,767 bytes, SHA-256 `6b9ffe4d8b8bee85733d0b44a1599ec3bf78c99ea01e04df477634df7047c3a6`),
 adds a direct production `StrictSevenZipCatalog.Read` FZ03 target. It instruments the strict
 7z framing, metadata, header and payload decoder types together with the existing TAR target.
@@ -181,8 +181,13 @@ records `ArchiveTransactionCollector` in both instrumented Core images. An inten
 two-byte canary crash was discovered and replayed. A 60-second clean `journal-state` run
 finished without artifacts: 363,670 executions, 35 accepted, 363,635 refused, and coverage
 of both `JobJournal::ReadRecords` and `ArchiveTransactionCollector::Read`. The bounded
-12,000-second `journal-state-nightly-v1` campaign is now active on Ubuntu. No FZ09 CPU floor
-is claimed until its terminal result and transport independently pass verification.
+12,000-second `journal-state-nightly-v1` campaign completed on Ubuntu with 10,134.451051 CPU
+seconds, 38,006,260 executions, 14,079 accepted inputs, 37,992,181 controlled refusals and
+zero crash artifacts. Its 2,477,285-byte, 332-member sealed transport has SHA-256
+`6472b580af3da8bdafa29346719db1d9c20483e0b1ccb2a31a744c2c15b0a7cb` and passed
+the independent host verifier's 7,200-CPU-second floor, source image, canary/replay, short-run,
+production coverage and raw-file checks. This is the first long FZ09 target; other recovery
+targets and campaign/final release gates remain open.
 The canary, exact crash replay and short clean run are themselves bundled with the short-run
 transport: 2,137,119 bytes / SHA-256
 `bfbd3f8c578601b46a447f674a704dd6a8207f191ce78c7ef1b8f1121336cd3a`.
