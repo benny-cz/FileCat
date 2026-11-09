@@ -3,13 +3,13 @@ from pathlib import Path
 from datetime import datetime,timezone
 import importlib.util,json,shutil,subprocess,sys,tarfile,tempfile,time,uuid,xml.etree.ElementTree as ET
 
-FOLDER='awe-storage-v37'
-PACKET='archive-edit-storage-delta-v37.tar.gz'
+FOLDER='awe-storage-v38'
+PACKET='archive-edit-storage-delta-v38.tar.gz'
 def cohort_policy(platform):
-    # Connected read-only recovery UI receives affected gates before the next workflow milestone.
-    # All three predecessors are sealed v36 affected cohorts.
-    return {'win32':('awe-storage-v36','focused'),
-            'darwin':('awe-storage-v36','focused'),
+    # Historical retained-capture recovery receives affected gates before the next workflow milestone.
+    # Ubuntu's last sealed predecessor is v36 while its long FZ01 run occupies the guest.
+    return {'win32':('awe-storage-v37','focused'),
+            'darwin':('awe-storage-v37','focused'),
             'linux':('awe-storage-v36','focused')}[platform]
 
 PREVIOUS_FOLDER,VALIDATION_SCOPE=cohort_policy(sys.platform)
@@ -74,7 +74,7 @@ def tests(task):
     assert VALIDATION_SCOPE in ('focused','full')
     (batch.out/'validation-scope.json').write_text(json.dumps(dict(scope=VALIDATION_SCOPE,
         full_regressions={name:'not-run' if VALIDATION_SCOPE=='focused' else 'required' for name in ('complete-core','complete-remote','complete-app')},
-        expected_new_core_cases=323,production_backend_qualified=False),indent=2))
+        expected_new_core_cases=326,production_backend_qualified=False),indent=2))
     fixture=Path.home()/'AppData/Local/Temp'/(FOLDER+'-native-fixtures') if sys.platform=='win32' else task/FOLDER/'native-fixtures'
     fixture.mkdir();batch.env['FILECAT_EDIT_NATIVE_ROOT']=str(fixture)
     require_space(batch,'focused')
@@ -94,7 +94,7 @@ def tests(task):
         'FullyQualifiedName~WindowsEditStorageAdmissionTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditStorageAdmissionTests',45)
     run('save-copy-intent','FileCat.Core.Tests','FullyQualifiedName~EditSaveCopyIntentTests',14)
     run('save-copy-session','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
-        'FullyQualifiedName~WindowsEditSaveCopySessionTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditSaveCopySessionTests',25)
+        'FullyQualifiedName~WindowsEditSaveCopySessionTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditSaveCopySessionTests',26)
     run('cancellation-fixture','FileCat.Core.Tests','FullyQualifiedName~JobEngineTests.Cancel_leaves_no_partial_destination|FullyQualifiedName~JobEngineTests.Cancellation_fixture_reports_startup_error',2)
     run('comparison-retirement','FileCat.Core.Tests','FullyQualifiedName~ComparisonContentRetirementTests',108)
     run('save-copy-record','FileCat.Core.Tests','FullyQualifiedName~EditSaveCopyRecordTests',25)
@@ -115,7 +115,7 @@ def tests(task):
     run('native-snapshot','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
         'FullyQualifiedName~WindowsEditSnapshotTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditSnapshotTests',35 if sys.platform=='win32' else 34)
     run('capture-recovery','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
-        'FullyQualifiedName~WindowsEditCaptureRecoveryTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditCaptureRecoveryTests',31)
+        'FullyQualifiedName~WindowsEditCaptureRecoveryTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditCaptureRecoveryTests',33)
     run('native-legacy-zip','FileCat.Platform.Windows.Tests' if sys.platform=='win32' else 'FileCat.Core.Tests',
         'FullyQualifiedName~WindowsEditLegacyZipTests' if sys.platform=='win32' else 'FullyQualifiedName~UnixEditLegacyZipTests',18)
     run('origin-policy','FileCat.Core.Tests','FullyQualifiedName~ArchiveCreationOriginTests')
@@ -164,7 +164,7 @@ def review_core_inventory(batch):
     current=ET.parse(batch.out/'results/complete-core.trx').findall('.//t:UnitTestResult',NS)
     spec=importlib.util.spec_from_file_location('edit_inventory',batch.root/'eng/validation/archive-writing/edit_core_inventory.py')
     helper=importlib.util.module_from_spec(spec);spec.loader.exec_module(helper)
-    inventory=helper.review(old,current,323)
+    inventory=helper.review(old,current,326)
     (batch.out/'full-case-inventory.json').write_text(json.dumps(inventory,indent=2))
     helper.require_complete(inventory)
 def seal(task):
