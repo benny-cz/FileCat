@@ -7,13 +7,13 @@ namespace FileCat.Core.Tests;
 
 public sealed partial class UnixArchiveStorageTests
 {
-    [Theory]
-    [InlineData(ArchiveWriteFormat.Rar5, 0, 0)] [InlineData(ArchiveWriteFormat.Rar5, 0, 1)]
-    [InlineData(ArchiveWriteFormat.Rar5, 0, 2)] [InlineData(ArchiveWriteFormat.Rar5, 1, 0)]
-    [InlineData(ArchiveWriteFormat.Rar5, 1, 1)] [InlineData(ArchiveWriteFormat.Rar5, 1, 2)]
-    [InlineData(ArchiveWriteFormat.SevenZip, 0, 0)] [InlineData(ArchiveWriteFormat.SevenZip, 0, 1)]
-    [InlineData(ArchiveWriteFormat.SevenZip, 0, 2)] [InlineData(ArchiveWriteFormat.SevenZip, 2, 0)]
-    [InlineData(ArchiveWriteFormat.SevenZip, 2, 1)] [InlineData(ArchiveWriteFormat.SevenZip, 2, 2)]
+    public static IEnumerable<object[]> CodecUpdateModes()
+    {
+        foreach (var mode in ArchiveRar5NativeCases.Modes()) yield return [ArchiveWriteFormat.Rar5, mode[0], mode[1]];
+        foreach (var mode in ArchiveSevenZipNativeCases.Modes()) yield return [ArchiveWriteFormat.SevenZip, mode[0], mode[1]];
+    }
+
+    [Theory] [MemberData(nameof(CodecUpdateModes))]
     public async Task Rar5_and_7z_update_stages_preserve_exact_native_origin_across_store_compression_and_password_modes(
         ArchiveWriteFormat format, int method, int mode)
     {
