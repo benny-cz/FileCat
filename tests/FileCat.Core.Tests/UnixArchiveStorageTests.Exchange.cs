@@ -1,5 +1,6 @@
 using FileCat.Core.Archives;
 using FileCat.Core.Archives.Unix;
+using FileCat.Core.FileSystem;
 
 namespace FileCat.Core.Tests;
 
@@ -86,5 +87,28 @@ public sealed partial class UnixArchiveStorageTests
         Assert.Equal("poison", File.ReadAllText(poison));
         Assert.Equal("new archive", File.ReadAllText(Path.Combine(root, stageName)));
         Assert.Equal("old archive", File.ReadAllText(displaced));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Unknown_outer_attribute_on_either_object_refuses_exchange(bool onStage)
+    {
+        Native(); using var temp = new TempDir(); string root = Canonical(temp.Path);
+        string target = Path.Combine(root, "original.tar"); File.WriteAllText(target, "old archive");
+        string name = OperatingSystem.IsMacOS() ? "org.filecat.unreviewed" : "user.filecat.unreviewed";
+        if (!onStage) Assert.True(Xattr.Set(target, name, "unreviewed"));
+        using var directory = UnixArchiveDirectory.Open(root);
+        using var original = directory.OpenSource("original.tar", 4096);
+        var old = ((IArchiveRetainedFile)original).Observe(TestContext.Current.CancellationToken);
+        using var stage = Stage(directory); string stageName = stage.KnownName;
+        ((IArchiveRetainedStage)stage).BeginRebuild(4096, TestContext.Current.CancellationToken).Write("new archive"u8);
+        if (onStage) Assert.True(Xattr.Set(stage.DisplayPath, name, "unreviewed"));
+        var sealedStage = ((IArchiveRetainedStage)stage).SealForVerification(TestContext.Current.CancellationToken);
+
+        Assert.Equal(ArchiveWriteReason.UnsupportedFeature,
+            Assert.Throws<ArchiveWriteException>(() => stage.ExchangeRetained(original, sealedStage, old, TestContext.Current.CancellationToken)).Reason);
+        Assert.Equal("old archive", File.ReadAllText(target));
+        Assert.Equal("new archive", File.ReadAllText(Path.Combine(root, stageName)));
     }
 }

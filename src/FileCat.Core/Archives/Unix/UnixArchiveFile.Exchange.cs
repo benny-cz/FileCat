@@ -33,6 +33,8 @@ internal sealed partial class UnixArchiveFile
             ((IArchiveRetainedFile)original).Review(expectedOriginal, ct);
             var stageMetadata = CaptureOuterMetadata(ct);
             var originalMetadata = original.CaptureOuterMetadata(ct);
+            stageMetadata.RequireSupportedExtendedAttributes();
+            originalMetadata.RequireSupportedExtendedAttributes();
             if (stageMetadata.Native.LinkCount != 1 || originalMetadata.Native.LinkCount != 1)
                 throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "Archive exchange requires single-link regular objects.");
             UnixArchiveNative.SyncFile(held);
