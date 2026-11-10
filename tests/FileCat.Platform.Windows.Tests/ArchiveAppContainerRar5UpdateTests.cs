@@ -9,15 +9,15 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed partial class ArchiveAppContainerTests
 {
-    [Theory] [InlineData(0)] [InlineData(1)] [InlineData(2)]
-    public async Task Actual_application_RAR_updates_and_fresh_snapshot_restoration_preserve_identity_bytes_and_origin(int mode)
+    [Theory] [MemberData(nameof(ArchiveRar5NativeCases.Modes), MemberType = typeof(ArchiveRar5NativeCases))]
+    public async Task Actual_application_RAR_updates_and_fresh_snapshot_restoration_preserve_identity_bytes_and_origin(int method, int mode)
     {
         _ = Probe();
         if (Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_TXF_NATIVE") != "1") Assert.Skip("Run explicit NTFS restoration qualification.");
         string? assets = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_APP_ASSETS");
         Assert.True(assets is not null && Path.IsPathFullyQualified(assets)); ArchiveAppContainer.ProvisionRuntimeReadAccess(assets!);
         string executable = Path.Combine(assets!, "FileCat.exe"), root = Directory.CreateTempSubdirectory("filecat-rar-update-").FullName;
-        var ct = TestContext.Current.CancellationToken; var workers = new List<ArchiveAppContainer>(); var profile = ArchiveRar5NativeCases.Profile(3, mode);
+        var ct = TestContext.Current.CancellationToken; var workers = new List<ArchiveAppContainer>(); var profile = ArchiveRar5NativeCases.Profile(method, mode);
         using var password = mode == 0 ? null : new ArchiveJobPassword(ArchiveRar5NativeCases.Password);
         try
         {
@@ -80,7 +80,7 @@ public sealed partial class ArchiveAppContainerTests
             Assert.Equal(6, workers.Count); Assert.All(workers, worker => { Assert.True(worker.HasExited); Assert.Equal(0u, worker.ExitCode); });
             if (Environment.GetEnvironmentVariable("FILECAT_RAR_NATIVE_EXPORT_ROOT") is { } export)
             {
-                string output = Path.Combine(export, "windows-update-mode-" + mode);
+                string output = Path.Combine(export, "windows-update-method-" + method + "-mode-" + mode);
                 ArchiveRar5NativeCases.Export(output, "source", originalBytes, originalPlan.Expected);
                 ArchiveRar5NativeCases.Export(output, "updated", updatedBytes, updatedManifest);
                 ArchiveRar5NativeCases.Export(output, "restored", File.ReadAllBytes(path), originalPlan.Expected);

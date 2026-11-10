@@ -9,15 +9,15 @@ namespace FileCat.Platform.Windows.Tests;
 
 public sealed partial class ArchiveAppContainerTests
 {
-    [Theory] [InlineData(0)] [InlineData(1)] [InlineData(2)]
-    public async Task Actual_application_7z_updates_and_fresh_snapshot_restoration_preserve_identity_bytes_and_origin(int mode)
+    [Theory] [MemberData(nameof(ArchiveSevenZipNativeCases.Modes), MemberType = typeof(ArchiveSevenZipNativeCases))]
+    public async Task Actual_application_7z_updates_and_fresh_snapshot_restoration_preserve_identity_bytes_and_origin(int method, int mode)
     {
         _ = Probe();
         if (Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_TXF_NATIVE") != "1") Assert.Skip("Run explicit NTFS restoration qualification.");
         string? assets = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_APP_ASSETS");
         Assert.True(assets is not null && Path.IsPathFullyQualified(assets)); ArchiveAppContainer.ProvisionRuntimeReadAccess(assets!);
         string executable = Path.Combine(assets!, "FileCat.exe"), root = Directory.CreateTempSubdirectory("filecat-sevenzip-update-").FullName;
-        var ct = TestContext.Current.CancellationToken; var workers = new List<ArchiveAppContainer>(); var profile = ArchiveSevenZipNativeCases.Profile(2, mode);
+        var ct = TestContext.Current.CancellationToken; var workers = new List<ArchiveAppContainer>(); var profile = ArchiveSevenZipNativeCases.Profile(method, mode);
         using var password = mode == 0 ? null : new ArchiveJobPassword(ArchiveSevenZipNativeCases.Password);
         try
         {
@@ -80,7 +80,7 @@ public sealed partial class ArchiveAppContainerTests
             Assert.Equal(6, workers.Count); Assert.All(workers, worker => { Assert.True(worker.HasExited); Assert.Equal(0u, worker.ExitCode); });
             if (Environment.GetEnvironmentVariable("FILECAT_7Z_NATIVE_EXPORT_ROOT") is { } export)
             {
-                string output = Path.Combine(export, "windows-update-mode-" + mode);
+                string output = Path.Combine(export, "windows-update-method-" + method + "-mode-" + mode);
                 ArchiveSevenZipNativeCases.Export(output, "source", originalBytes, originalPlan.Expected);
                 ArchiveSevenZipNativeCases.Export(output, "updated", updatedBytes, updatedManifest);
                 ArchiveSevenZipNativeCases.Export(output, "restored", File.ReadAllBytes(path), originalPlan.Expected);
