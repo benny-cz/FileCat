@@ -50,5 +50,5 @@ Each step is preceded by a durable `CleanupIntent` record and followed by `Clean
   reports for review. That process already holds the same authority over the user's files, so FileCat grants it nothing
   new (§7.4). Non-hostile processes do not write into this private folder.
 - A retained or uncertain object is never cleaned by pathname, age or prefix. Recovery must re-observe identities first.
-- This record covers private stage directories only. Sidecars of new archives currently stay in the public folder and are
-  still retained there; moving creation into the private folder is separate follow-up work.
+- This record covers private stage directories only. Since commit `8872044c` new archives are prepared there too, so
+  their sidecars are destroyed by the same rules; nothing is ever removed from the public archive folder.

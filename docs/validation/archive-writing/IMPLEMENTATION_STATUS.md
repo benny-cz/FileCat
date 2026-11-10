@@ -1,5 +1,31 @@
 # Archive writing implementation status
 
+**10 November: Unix creation moves into the private stage folder; all three platforms pass the archive regression.**
+Commit `8872044c` prepares a new Unix archive's stage and sidecars in the same `0700` private stage folder as an update,
+then moves the verified stage into the reviewed archive folder with one no-replace rename between the two held folder
+descriptors (`renameat2(RENAME_NOREPLACE)` / `renameatx_np(RENAME_EXCL)`). A binding of the same open file description
+serves the published review. The shared creation transaction and cleanup catalog are reused: the review names its
+destination folder, the catalog accepts sidecars in the private folder, sidecars are destroyed exactly, and the empty
+folder is removed before `Completed`, so a new archive leaves no FileCat file beside it. `UnixArchiveCreationCleanupRecovery`
+reopens an interrupted creation cleanup by recorded identities (wired into the application review). Real creation
+processes are killed around every cleanup record (catalog, each intent and unlink, folder removal, final commit) and
+recover to exact cleanup; crashes before the catalog (ready, publishing, claimed but unrecorded) keep every object and
+refuse automatic cleanup.
+
+The exact tree (packet `65369f8556a606eba929550272a8f58e850618cd9604e0180758dd32cfcb6706`, tree `af61c112`) passed the
+complete `Archive`/`Journal` subsets with zero failures and only platform skips: Mac Core 2,765/2,855 and App 232/266
+(evidence `18254704d1bb195d6e2ce2f1dcf5ac728025e1f787c10646cbf2deb247b807b4`); Ubuntu Core 2,826/2,855 and App 232/266,
+including the confined lane under `systemd-run --user` with freshly published application and probe bundles (evidence
+`4ca140ffe426e0aa1449fc94f380c7924d9f777a3a22bb3b0a0ad4cee35471f3`); Windows 11 Core 2,461/2,915, Platform 565/597 and
+App 411/415 with the native AppContainer/NTFS lanes enabled through the extended Windows runner (published bundles,
+`FILECAT_ARCHIVE_CONTAINMENT=1`, `FILECAT_ARCHIVE_TXF_NATIVE=1`), as `Admin` with a UAC-filtered token (evidence
+`81035eed9a8e7b0a80213b1606cebcd031452aac51e7479240b599cae0e7bd14`). Earlier attempts in this series are retained: the
+first found that `fcntl(F_DUPFD_CLOEXEC)` passed its variadic argument in a register on Darwin ARM64 (fixed with the
+stack-slot convention already used for `openat`) and that the creation catalog required sidecars directly in the archive
+folder (fixed); it also exposed a move test that assumed a case-sensitive file system, false on default macOS volumes
+(now skipped there). The second failed only one test assumption: a completed cleanup catalog already resolves the
+creation even before the final transaction record.
+
 **10 November: Unix exchange recovery reaches the application; confined Linux application workers pass; linked folders fixed.**
 Commit `48f5ed22` wires `ArchiveExchangeCleanupReview` into the interrupted-recovery UI: inspection observes both names
 and the remaining private objects without writing, and approval runs the production `UnixArchiveExchangeRecovery`

@@ -44,7 +44,8 @@ jobs, the metadata/refusal cases and 16 real externally killed process points pa
 
 - Preparation-phase crashes (before `Reserved`) still leave the private folder and its recorded stage/sidecars for review;
   a fresh recovery action for preparation-only transactions is separate work.
-- Unix creation still stages and retains its sidecars in the public folder and publishes creator-private `0600` files.
+- Unix creation now prepares in the same private folder and is published by a no-replace move (commit `8872044c`); new
+  archives are still creator-private `0600` files.
 - The application recovery review (`ArchiveExchangeCleanupReview`) and the confined Linux worker roles in the application
   binary are implemented and validated (see the implementation status, commit `48f5ed22`). Source removal (F6) on Unix,
   a hard-link warning instead of refusal, and all release gates (fuzz, packages, accessibility, final review) remain open.
