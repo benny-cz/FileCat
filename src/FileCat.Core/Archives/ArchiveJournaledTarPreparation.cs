@@ -62,10 +62,10 @@ internal static class ArchiveJournaledContainerPreparation
                 var verifiedName = reserve(nonce, ArchiveArtifactKind.Manifest, expectedLength);
                 var assessedName = plan.Source is null ? null : reserve(nonce, ArchiveArtifactKind.Manifest, assessedLength);
                 var metadataName = original is not null ? null : reserve(nonce, ArchiveArtifactKind.Manifest, ArchiveCreationMetadata.MaximumBytes);
-                // A creator-private stage folder below the archive folder publishes into that reviewed folder.
+                // A creator-private stage folder below the archive folder publishes into that reviewed folder, for a new
+                // archive by an exclusive move and for an update by the recorded two-folder exchange.
                 string destination = stageName.PublicParentIdentity ?? stageName.ParentIdentity;
-                if (stageName.PublicParentIdentity is not null && original is null ||
-                    original is not null && original.Reviewed.ParentIdentity != destination ||
+                if (original is not null && original.Reviewed.ParentIdentity != destination ||
                     inputs.Values.Any(b => b.Reviewed.ParentIdentity == destination && string.Equals(b.Reviewed.LeafName, targetLeaf, pathComparison)) ||
                     plan.Directories.Values.Any(d => d.Reviewed.Version.Identity == destination || d.Reviewed.Version.Identity == stageName.ParentIdentity ||
                         d.Reviewed.ParentIdentity == destination && string.Equals(d.Reviewed.LeafName, targetLeaf, pathComparison)))

@@ -3,10 +3,11 @@ using FileCat.Core.Jobs;
 namespace FileCat.Core.Archives.Unix;
 
 /// <summary>
-/// Unregistered Unix qualification candidate. New archives are claimed without replacement in the reviewed folder;
-/// existing archives are rebuilt in a creator-private stage folder beside them and published by one journaled atomic
-/// two-directory exchange (UnixArchiveExchangeUpdate), then cleaned exactly. Worker roles are supplied by the caller:
-/// application composition must pass only qualified confined launchers for this RID.
+/// Unregistered Unix qualification candidate. Every transaction is prepared in a creator-private stage folder below the
+/// reviewed archive folder. A new archive is moved into that folder by one no-replace rename (ArchiveNewFilePublication);
+/// an existing archive is replaced by one journaled atomic two-folder exchange (UnixArchiveExchangeUpdate). The private
+/// objects are then destroyed exactly and the empty folder removed. Worker roles are supplied by the caller: application
+/// composition must pass only qualified confined launchers for this RID.
 /// </summary>
 internal static class UnixArchiveJobBackend
 {
@@ -57,9 +58,8 @@ internal sealed class UnixArchiveJobScope : IArchiveJobNativeScope<UnixArchiveFi
 
     public ArchiveArtifactReservation Reserve(Guid nonce, ArchiveArtifactKind kind, long maximum)
     {
-        if (original is null) return target.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum);
         if (privateDirectory is null) { privateDirectory = target.CreatePrivateStageDirectory(nonce, ct); privateNonce = nonce; }
-        else if (privateNonce != nonce) throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "One update scope prepares one transaction.");
+        else if (privateNonce != nonce) throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "One archive scope prepares one transaction.");
         return privateDirectory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum);
     }
 
@@ -70,12 +70,13 @@ internal sealed class UnixArchiveJobScope : IArchiveJobNativeScope<UnixArchiveFi
     public ArchiveJobPublication Publish(JobJournal journal, ArchivePreparedContainer<UnixArchiveFile> prepared,
         IReadOnlyDictionary<int, ArchiveRetainedBinding> inputs, CancellationToken token)
     {
+        if (privateDirectory is null) throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "The transaction has no private stage folder.");
         if (original is null)
         {
-            var created = ArchiveNewFilePublication.PublishAsync(journal, prepared, inputs, target.CreateArtifact, token).GetAwaiter().GetResult();
+            // Exclusive move into the archive folder, then exact destruction of the sidecars and removal of the empty folder.
+            var created = ArchiveNewFilePublication.PublishAsync(journal, prepared, inputs, Create, token, cleanup: !retainArtifacts).GetAwaiter().GetResult();
             return new(created.Published, created.Facts.UnresolvedArtifacts) { CleanupNeedsReview = !created.Cleanup.IsResolved };
         }
-        if (privateDirectory is null) throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "The update has no private stage folder.");
         try { update = UnixArchiveExchangeUpdate.Publish(journal, prepared, target, privateDirectory, original, inputs, token); }
         catch when (!retainArtifacts && NotPublished(journal, prepared))
         {

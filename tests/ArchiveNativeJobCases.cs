@@ -59,6 +59,13 @@ internal static class ArchiveNativeJobCases
         Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Committed);
         Assert.DoesNotContain(job.Issues, issue => issue.Severity == IssueSeverity.Error);
     }
+    /// <summary>A production scope that cleans its transaction objects exactly finishes without any retained-file warning.</summary>
+    internal static async Task Completed(Job job)
+    {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken); deadline.CancelAfter(TimeSpan.FromSeconds(180));
+        while (!job.State.IsFinished()) await Task.Delay(10, deadline.Token);
+        Assert.True(job.State == JobState.Completed, job.State + ": " + string.Join(" | ", job.Issues.Select(issue => issue.Message)));
+    }
     internal static ArchiveWriteManifest Expected(string journalPath, ArchiveWriteProfile profile, CancellationToken ct)
     {
         var facts = Assert.Single(JournalRecovery.ReadArchiveTransactions(journalPath).Transactions);

@@ -23,7 +23,11 @@ public sealed partial class UnixArchiveStorageTests
         var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), journals, new([backend]));
         manager.DecisionRequested += pending => Assert.Fail("No decision is expected: " + pending.Request.Message);
         using (var password = mode == 0 ? null : new ArchiveJobPassword(ArchiveNativeJobCases.Password))
-            await ArchiveNativeJobCases.Finished(manager.SubmitArchive(new(target, null, changes, Profile: profile), password));
+            await ArchiveNativeJobCases.Completed(manager.SubmitArchive(new(target, null, changes, Profile: profile), password));
+        // Creation also prepared in a private stage folder: only the new archive is left beside the sources.
+        Assert.Equal(new[] { "saved" + Extension(format) }, Directory.GetFiles(root).Select(Path.GetFileName).ToArray());
+        Assert.Empty(Directory.GetDirectories(root, ArchiveExchangeUpdateFacts.PrivateDirectoryPrefix + "*"));
+        Assert.Equal((UnixFileMode)0x180, File.GetUnixFileMode(target));
         File.SetUnixFileMode(target, (UnixFileMode)0x1a0); // 0640 must survive the update.
         string added = Path.Combine(root, "added.bin"); File.WriteAllBytes(added, "added by the update"u8.ToArray());
         File.SetUnixFileMode(added, (UnixFileMode)0x180); File.SetLastWriteTimeUtc(added, DateTime.UnixEpoch.AddSeconds(1700000002).AddTicks(7));
@@ -51,14 +55,15 @@ public sealed partial class UnixArchiveStorageTests
         var files = fresh.Manifest.Members.Where(member => member.Type == ArchiveMemberType.File).ToArray();
         Assert.Contains(files, member => member.Name == "added.bin" && member.Length == 19);
         foreach (var (name, bytes) in expected) Assert.Contains(files, member => member.Name == name && member.Length == bytes.Length);
-        // The creation job above still retains its public-folder sidecars (Unix creation cleanup is separate work);
-        // the update job's own journal must be fully resolved by the exact private cleanup.
-        foreach (string updateJournal in Directory.GetFiles(journals).Where(path => !creationJournals.Contains(path)))
+        // Both journals are resolved by the exact private cleanup: the creation's sidecars and the update's objects.
+        foreach (string journal in Directory.GetFiles(journals))
         {
-            var updateFacts = JournalRecovery.ReadArchiveTransactions(updateJournal);
-            Assert.False(updateFacts.RequiresReview, updateJournal);
-            Assert.Equal(ArchiveExchangeUpdatePhase.Completed, Assert.Single(updateFacts.ExchangeUpdates).Phase);
+            var facts = JournalRecovery.ReadArchiveTransactions(journal);
+            Assert.False(facts.RequiresReview, journal);
+            if (creationJournals.Contains(journal)) Assert.True(Assert.Single(facts.CreationCleanups).IsResolved);
+            else Assert.Equal(ArchiveExchangeUpdatePhase.Completed, Assert.Single(facts.ExchangeUpdates).Phase);
         }
+        Assert.Empty(JournalRecovery.Scan(journals, keepFinished: 0, maxAge: TimeSpan.Zero));
         Assert.All(children, child => { Assert.True(child.Reaped); Assert.True(child.Disposed); });
     }
 
@@ -72,7 +77,7 @@ public sealed partial class UnixArchiveStorageTests
             (nonce, _) => Child.Start(nonce, "archive-transform-v2"), (nonce, _) => Child.Start(nonce, "archive-verify-v2"));
         string journals = Path.Combine(root, "journals"), target = Path.Combine(root, "saved.tar");
         var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), journals, new([backend]));
-        await ArchiveNativeJobCases.Finished(manager.SubmitArchive(new(target, null, changes, Profile: profile), null));
+        await ArchiveNativeJobCases.Completed(manager.SubmitArchive(new(target, null, changes, Profile: profile), null));
         var assessor = new ArchiveAssessmentClient((nonce, _) => Child.Start(nonce, "archive-assess-v2"), protocolVersion: 2);
         var reviewed = await new ArchiveTargetReviewer(UnixArchiveTargetReadLease.Open, assessor).ReviewAsync(target, profile, null, ct);
         File.SetUnixFileMode(target, (UnixFileMode)0x1a0); // A metadata change after review must refuse the queued update.
@@ -101,7 +106,7 @@ public sealed partial class UnixArchiveStorageTests
         manager.DecisionRequested += pending => Assert.Fail("No decision is expected: " + pending.Request.Message);
         var created = manager.SubmitArchive(new(Path.Combine(link, "saved.tar"), null, changes, Profile: profile), null);
         Assert.Equal(Path.Combine(real, "saved.tar"), created.Request.Archive!.ArchivePath);
-        await ArchiveNativeJobCases.Finished(created);
+        await ArchiveNativeJobCases.Completed(created);
         Assert.True(File.Exists(Path.Combine(real, "saved.tar")));
         Assert.Equal(real, new FileInfo(link).LinkTarget);
 
@@ -143,7 +148,7 @@ public sealed partial class UnixArchiveStorageTests
         var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), journals, new([backend]));
         manager.DecisionRequested += pending => Assert.Fail("No decision is expected: " + pending.Request.Message);
         using (var password = mode == 0 ? null : new ArchiveJobPassword(ArchiveNativeJobCases.Password))
-            await ArchiveNativeJobCases.Finished(manager.SubmitArchive(new(target, null, changes, Profile: profile), password));
+            await ArchiveNativeJobCases.Completed(manager.SubmitArchive(new(target, null, changes, Profile: profile), password));
         File.SetUnixFileMode(target, (UnixFileMode)0x1a0);
         string added = Path.Combine(root, "added.bin"); File.WriteAllBytes(added, "added by the update"u8.ToArray());
         File.SetUnixFileMode(added, (UnixFileMode)0x180); File.SetLastWriteTimeUtc(added, DateTime.UnixEpoch.AddSeconds(1700000002).AddTicks(7));

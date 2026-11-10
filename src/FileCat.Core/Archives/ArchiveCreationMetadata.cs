@@ -12,6 +12,11 @@ internal abstract class ArchiveCreatePublicationReview
     internal ArchiveFileObservation Stage { get; }
     internal ArchiveCreationBackend Backend { get; }
     internal string TargetLeaf { get; }
+    /// <summary>
+    /// The reviewed folder that receives the archive when the stage was prepared in a creator-private stage folder below it;
+    /// null when the stage is claimed within its own folder.
+    /// </summary>
+    internal string? DestinationParentIdentity { get; init; }
     internal ReadOnlySpan<byte> Witness => witness;
     protected ArchiveCreatePublicationReview(object issuer, ArchiveFileObservation stage, string targetLeaf, ArchiveCreationBackend backend, byte[] witness)
     {

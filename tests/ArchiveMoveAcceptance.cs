@@ -20,6 +20,10 @@ public abstract class ArchiveMoveAcceptance
         string source = Path.Combine(template!, Guid.NewGuid().ToString("N")); System.IO.Directory.CreateDirectory(source);
         try
         {
+            // macOS volumes are case-insensitive by default: "Case" and "case" would be one file there.
+            File.WriteAllText(Path.Combine(source, "CaseProbe"), "");
+            bool insensitive = File.Exists(Path.Combine(source, "caseprobe")); File.Delete(Path.Combine(source, "CaseProbe"));
+            if (insensitive) Assert.Skip("This case needs a case-sensitive source folder.");
             string first = Path.Combine(source, parents ? "Root/payload" : "Case");
             string second = Path.Combine(source, parents ? "root/payload" : "case");
             System.IO.Directory.CreateDirectory(Path.GetDirectoryName(first)!); System.IO.Directory.CreateDirectory(Path.GetDirectoryName(second)!);

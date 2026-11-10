@@ -124,6 +124,10 @@ internal static unsafe partial class UnixArchiveNative
         }
         finally { AclFree(acl); }
     }
+    /// <summary>A second close-on-exec descriptor of the same open file description (fcntl F_DUPFD_CLOEXEC).</summary>
+    internal static SafeFileHandle Duplicate(SafeFileHandle file) => Handle(Mac && RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+        // fcntl is variadic: Darwin ARM64 passes the variadic argument on the stack, after eight register slots.
+        ? FcntlMacArm64(Fd(file), 67, 0, 0, 0, 0, 0, 0, 0) : Fcntl(Fd(file), Mac ? 67 : 1030, 0));
     internal static void SyncDirectory(SafeFileHandle directory)
     { if (Fsync(Fd(directory)) != 0) throw Unavailable(); } // Successful fsync, not universal power-loss qualification.
     internal static int Fd(SafeFileHandle file) => checked((int)file.DangerousGetHandle()); // Caller retains/serializes ownership.
@@ -159,6 +163,8 @@ internal static unsafe partial class UnixArchiveNative
     private static partial int Fsync(int fd);
     [LibraryImport("libc", EntryPoint = "fcntl", SetLastError = true)]
     private static partial int Fcntl(int fd, int command, nint value);
+    [LibraryImport("libc", EntryPoint = "fcntl", SetLastError = true)]
+    private static partial int FcntlMacArm64(int fd, int command, nint x2, nint x3, nint x4, nint x5, nint x6, nint x7, nint value);
     [LibraryImport("libc", EntryPoint = "getuid")]
     private static partial uint GetUid();
     [LibraryImport("libc", EntryPoint = "geteuid")]

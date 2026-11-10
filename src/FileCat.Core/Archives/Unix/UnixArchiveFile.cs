@@ -140,7 +140,12 @@ internal sealed partial class UnixArchiveFile : Stream, IArchiveCreatePublicatio
     private static ArchiveWriteException Budget() => new(ArchiveWriteReason.BudgetExceeded, "The Unix archive request exceeds its physical byte bound.");
     private static ArchiveWriteException Changed() => new(ArchiveWriteReason.SourceChanged, "The held Unix archive content or metadata changed; retain it for review.");
     protected override void Dispose(bool disposing)
-    { lock (parent.Gate) { if (!disposed) { disposed = true; held.Dispose(); parent.ReleaseChild(); } } base.Dispose(disposing); }
+    {
+        UnixArchiveFile? moved = null;
+        lock (parent.Gate) { if (!disposed) { disposed = true; held.Dispose(); if (!privateSlotReleased) parent.ReleaseChild(); moved = createdPublic; } }
+        moved?.Dispose();
+        base.Dispose(disposing);
+    }
     [LibraryImport("libc", EntryPoint = "renameat2", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int RenameLinux(int sourceParent, string source, int destinationParent, string destination, uint flags);
     [LibraryImport("libc", EntryPoint = "renameatx_np", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]

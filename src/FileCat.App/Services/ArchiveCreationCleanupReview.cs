@@ -26,6 +26,7 @@ internal sealed class ArchiveCreationCleanupReview : IArchiveRetainedCleanupRevi
             cleanup = new(lease); var present = new List<string>(); var absent = new List<string>();
             for (int i = cleanup.Facts.ReviewedCount; i < cleanup.Facts.Artifacts.Count; i++)
                 (lease.HasArtifact(i) ? present : absent).Add(cleanup.Facts.Artifacts[i].Path);
+            if (lease.FolderToRemove is { } folder) present.Add(folder + Path.DirectorySeparatorChar); // Removed once empty.
             FilesToRemove = present.AsReadOnly(); ObservedAbsent = absent.AsReadOnly();
         }
         catch { lease.Dispose(); throw; }

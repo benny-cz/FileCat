@@ -53,9 +53,9 @@ internal static class ArchiveNewFilePublication
             var catalog = ArchiveCreationCleanupFacts.Begin(facts, published, ordered.Select((sidecar, index) =>
                 ArchiveContentCleanupArtifact.Capture(facts.Sidecars[index].Path,
                     facts.Sidecars[index].Role == ArchiveSidecarRole.OriginEvidence ? ArchiveArtifactKind.Provenance : ArchiveArtifactKind.Manifest,
-                    sidecar.Observation)).ToArray());
+                    sidecar.Observation)).ToArray(), review.DestinationParentIdentity);
             journal.ArchiveCreationCleanup(catalog);
-            if (cleanup && ordered.All(sidecar => sidecar.File is IArchiveContentUpdateStage))
+            if (cleanup && ordered.All(sidecar => sidecar.File is IArchiveContentUpdateStage or IArchiveOwnedCleanupFile))
             {
                 using var owned = new ArchiveCreationCleanup(new LiveLease<T>(journal, catalog, prepared.Stage, published, ordered));
                 try { catalog = owned.Execute(ct); }
@@ -121,14 +121,19 @@ internal static class ArchiveNewFilePublication
         public void ReviewTarget(CancellationToken ct) => target.Review(published, ct);
         public bool HasArtifact(int index) => !removed[index];
         public void ReviewArtifact(int index, CancellationToken ct)
-            => ((IArchiveContentUpdateStage)files[index].File).ReviewOwnedCleanup(catalog.Artifacts[index], published.ParentIdentity, ct);
+        {
+            if (files[index].File is IArchiveContentUpdateStage windows) windows.ReviewOwnedCleanup(catalog.Artifacts[index], published.ParentIdentity, ct);
+            else ((IArchiveOwnedCleanupFile)files[index].File).ReviewOwnedCleanup(catalog.Artifacts[index], published.ParentIdentity, ct);
+        }
         public void DeleteArtifact(int index, CancellationToken ct)
         {
-            ((IArchiveContentUpdateStage)files[index].File).DeleteOwnedCleanup(catalog.Artifacts[index], published.ParentIdentity, ct);
+            if (files[index].File is IArchiveContentUpdateStage windows) windows.DeleteOwnedCleanup(catalog.Artifacts[index], published.ParentIdentity, ct);
+            else ((IArchiveOwnedCleanupFile)files[index].File).DestroyOwnedCleanup(catalog.Artifacts[index], published.ParentIdentity, ct);
             removed[index] = true;
         }
         public void RequireArtifactAbsent(int index)
         { if (!removed[index]) throw Unsupported(); } // Exact native unlink succeeded; no pathname absence inference.
+        public void FinishArtifacts(CancellationToken ct) { if (target is IArchivePrivateCreationStage stage) stage.RemovePrivateStageFolder(ct); }
         public void Dispose() { } // Prepared/metadata owners retain responsibility for disposing all leases.
     }
 }

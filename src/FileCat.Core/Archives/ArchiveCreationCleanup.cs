@@ -12,6 +12,26 @@ internal interface IArchiveCreationCleanupLease : IDisposable
     void ReviewArtifact(int index, CancellationToken ct);
     void DeleteArtifact(int index, CancellationToken ct);
     void RequireArtifactAbsent(int index);
+    /// <summary>After every artifact is recorded deleted or absent and before Completed: release native containers.</summary>
+    void FinishArtifacts(CancellationToken ct) { }
+    /// <summary>A private stage folder removed by <see cref="FinishArtifacts"/> once it is empty; null when there is none.</summary>
+    string? FolderToRemove => null;
+}
+
+/// <summary>
+/// A recorded creation sidecar that its native layer reviews and destroys exactly, for example a Unix object in a
+/// creator-private stage folder (content through the held descriptor, then the re-observed name).
+/// </summary>
+internal interface IArchiveOwnedCleanupFile
+{
+    void ReviewOwnedCleanup(ArchiveContentCleanupArtifact expected, string destinationParentIdentity, CancellationToken ct);
+    void DestroyOwnedCleanup(ArchiveContentCleanupArtifact expected, string destinationParentIdentity, CancellationToken ct);
+}
+
+/// <summary>A creation stage published out of a creator-private stage folder removes that folder once it is empty.</summary>
+internal interface IArchivePrivateCreationStage
+{
+    void RemovePrivateStageFolder(CancellationToken ct);
 }
 
 internal sealed class ArchiveCreationCleanup : IDisposable
@@ -60,6 +80,7 @@ internal sealed class ArchiveCreationCleanup : IDisposable
                 lease.ReviewTarget(CancellationToken.None);
             }
             for (int i = 0; i < Facts.Artifacts.Count; i++) lease.RequireArtifactAbsent(i);
+            lease.FinishArtifacts(CancellationToken.None);
             lease.ReviewTarget(CancellationToken.None); Append(ArchiveCreationCleanupPhase.Completed); return Facts;
         }
         catch

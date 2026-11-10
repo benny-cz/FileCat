@@ -11,6 +11,9 @@ internal sealed partial class UnixArchiveFile
     }
     private ArchiveFileObservation ObserveRetained(CancellationToken ct)
     {
+        UnixArchiveFile? moved;
+        lock (parent.Gate) { Live(); moved = createdPublic; }
+        if (moved is not null) return moved.ObserveRetained(ct); // Moved into the archive folder: observe it there.
         lock (parent.Gate)
         {
             Live(); parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
@@ -24,6 +27,9 @@ internal sealed partial class UnixArchiveFile
     Stream IArchiveRetainedFile.OpenReadView(ArchiveFileObservation expected, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(expected);
+        UnixArchiveFile? moved;
+        lock (parent.Gate) { Live(); moved = createdPublic; }
+        if (moved is not null) return ((IArchiveRetainedFile)moved).OpenReadView(expected, ct);
         lock (parent.Gate)
         {
             Live(); ct.ThrowIfCancellationRequested(); parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);

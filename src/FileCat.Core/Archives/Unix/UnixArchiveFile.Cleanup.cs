@@ -49,6 +49,7 @@ internal sealed partial class UnixArchiveFile
             UnixArchiveNative.SyncDirectory(parent.Handle);
             if (links != 0)
                 throw Review("Another object replaced FileCat's private transaction name during cleanup and was removed; the emptied object remains linked elsewhere.");
+            disposed = true; held.Dispose(); parent.ReleaseChild();
         }
     }
 

@@ -44,9 +44,11 @@ public sealed class ArchiveCreationCleanupFacts
     }
 
     internal static ArchiveCreationCleanupFacts Begin(ArchiveTransactionFacts preparation, ArchiveFileObservation published,
-        IReadOnlyList<ArchiveContentCleanupArtifact> artifacts)
+        IReadOnlyList<ArchiveContentCleanupArtifact> artifacts, string? destinationParentIdentity = null)
     {
-        if (published.ParentIdentity != preparation.ParentIdentity || published.LeafName != Path.GetFileName(preparation.ArchivePath)) throw Invalid();
+        // A stage prepared in a private stage folder is published into that folder's reviewed parent.
+        if (published.ParentIdentity != (destinationParentIdentity ?? preparation.ParentIdentity) ||
+            published.LeafName != Path.GetFileName(preparation.ArchivePath)) throw Invalid();
         var facts = new ArchiveCreationCleanupFacts(preparation.Nonce, 1, ArchiveCreationCleanupPhase.Cataloged, Scope(preparation),
             published.Version, published.MetadataDigest, published.Origin.Digest, 0, 0, 0, artifacts);
         facts.ValidateAfter(preparation, null); return facts;
@@ -90,12 +92,16 @@ public sealed class ArchiveCreationCleanupFacts
         if (preparation.RecordVersion != ArchiveTransactionFacts.SchemaVersion || preparation.Original is not null ||
             preparation.Nonce != Nonce || preparation.Published != Target || preparation.VerifiedStage != Target || Scope(preparation) != ScopeSha256 ||
             preparation.SecuritySnapshotSha256 is null || preparation.Sidecars.Count != Artifacts.Count) throw Invalid();
+        // Sidecars live beside the archive, or in this transaction's private stage folder directly below the archive folder.
+        string archiveFolder = Path.GetDirectoryName(preparation.ArchivePath)!, stageFolder = Path.GetDirectoryName(preparation.StagePath)!;
+        string sidecarFolder = stageFolder != archiveFolder && Path.GetDirectoryName(stageFolder) == archiveFolder &&
+            Path.GetFileName(stageFolder).StartsWith(ArchiveExchangeUpdateFacts.PrivateDirectoryPrefix, StringComparison.Ordinal) ? stageFolder : archiveFolder;
         for (int i = 0; i < Artifacts.Count; i++)
         {
             var sidecar = preparation.Sidecars[i]; var artifact = Artifacts[i];
             if (sidecar.Version is null || artifact.Path != sidecar.Path || artifact.Version != sidecar.Version ||
                 artifact.Kind != (sidecar.Role == ArchiveSidecarRole.OriginEvidence ? ArchiveArtifactKind.Provenance : ArchiveArtifactKind.Manifest) ||
-                Path.GetDirectoryName(artifact.Path) != Path.GetDirectoryName(preparation.ArchivePath) || artifact.Path == preparation.ArchivePath) throw Invalid();
+                Path.GetDirectoryName(artifact.Path) != sidecarFolder || artifact.Path == preparation.ArchivePath) throw Invalid();
         }
     }
 

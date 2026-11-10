@@ -155,6 +155,28 @@ internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestin
             throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "The archive name identifies a different object; retain both objects.");
     }
     internal void CheckPrivate(SafeFileHandle held) => UnixArchiveNative.RequirePrivate(held, user);
+    /// <summary>The reviewed archive folder of a creator-private stage folder; null for any other folder.</summary>
+    internal UnixArchiveDirectory? PrivateStageParent => privateStageParent;
+    /// <summary>
+    /// Bind a held stage that was just moved into this folder under <paramref name="leaf"/>. The binding shares the stage's
+    /// open file description (a duplicate descriptor), so no pathname reopen can substitute another object.
+    /// </summary>
+    internal UnixArchiveFile AdoptMovedStage(SafeFileHandle stage, string leaf, FileIdentity identity, long maximumLength)
+    {
+        UnixArchiveNative.Leaf(leaf);
+        lock (Gate)
+        {
+            RequireCapacity();
+            var held = UnixArchiveNative.Duplicate(stage);
+            try
+            {
+                if (UnixFiles.Stat(held) is not { IsRegular: true } facts || facts.Identity != identity) throw UnixArchiveNative.Unavailable();
+                RequireName(leaf, identity);
+                var file = new UnixArchiveFile(this, held, leaf, identity, maximumLength, artifact: false, writable: false); children++; return file;
+            }
+            catch { held.Dispose(); throw; }
+        }
+    }
     internal void CheckCreationNamespace() => UnixArchiveNative.RequireCreationDirectory(directory, user);
     internal void RequirePrivateStageOf(UnixArchiveDirectory publicParent)
     {

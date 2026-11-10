@@ -47,7 +47,9 @@ public sealed class ArchiveCreationWorkflowTests
         var job = Assert.Single(f.Services.Jobs.Jobs); await Wait(() => job.State.IsFinished()); Dispatcher.UIThread.RunJobs();
         Assert.Equal(JobState.Completed, job.State); Assert.Equal("", passwordBox.Text); Assert.Equal("", repeatBox.Text);
         var definition = ArchiveCreationFormat.All.Single(value => value.Format == format);
-        string output = Path.Combine(f.Files, "a" + definition.Extension); Assert.Equal(output, job.Request.Archive!.ArchivePath);
+        string output = Path.Combine(f.Files, "a" + definition.Extension);
+        // Native jobs record the archive in its actual folder: a linked folder such as macOS /var is resolved.
+        Assert.Equal(format == ArchiveWriteFormat.Zip ? output : ArchiveLocalPath.ResolveParent(output), job.Request.Archive!.ArchivePath);
         Assert.Equal("alpha", File.ReadAllText(Path.Combine(f.Files, "a.txt")));
         if (format == ArchiveWriteFormat.Zip)
         { Assert.Null(job.Request.Archive.Profile); using var zip = ZipFile.OpenRead(output); Assert.NotNull(zip.GetEntry("a.txt")); }
@@ -126,7 +128,7 @@ public sealed class ArchiveCreationWorkflowTests
         Assert.Equal(Location.FileSystem(other), source.Location);
         Assert.True(source.Listing.TryGetFocused(out var focused)); Assert.Equal("b.txt", focused.Name);
         Assert.Equal(Path.Combine(f.Files, "a.txt"), Assert.Single(job.Request.Archive!.Changes).SourcePath);
-        Assert.StartsWith(f.Files, job.Request.Archive.ArchivePath, StringComparison.Ordinal);
+        Assert.StartsWith(legacyZip ? f.Files : ArchiveLocalPath.ResolveDirectory(f.Files), job.Request.Archive.ArchivePath, StringComparison.Ordinal);
     }
 
     [AvaloniaTheory]
