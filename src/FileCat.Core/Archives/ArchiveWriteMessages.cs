@@ -45,6 +45,23 @@ public static class ArchiveWriteMessages
         return error;
     }
 
+    /// <summary>Marks a refusal raised before any object was created, so no artifact review or reconciliation applies.</summary>
+    internal const string NothingCreatedKey = "FileCat.ArchiveNothingCreated";
+
+    /// <summary>
+    /// The destination folder refused FileCat's first private object (permissions, a read-only mount or medium). Raised only
+    /// where that creation failed, so a denied source file is never reported as a denied destination.
+    /// </summary>
+    internal static ArchiveWriteException DestinationDenied(string folder, Exception? inner = null)
+    {
+        string name = Path.GetFileName(Path.TrimEndingDirectorySeparator(folder));
+        var error = new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, "The destination folder refused a new file: " + folder, inner!);
+        error.Data[UserMessageKey] = $"FileCat is not allowed to create files in “{(name.Length == 0 ? folder : name)}”. Nothing was changed. " +
+            "Choose another folder, or change this folder's permissions first.";
+        error.Data[NothingCreatedKey] = true;
+        return error;
+    }
+
     internal const string OutOfSpace =
         "The drive ran out of space before the archive was saved, so no archive was changed. Free up space or choose another destination, then try again.";
 

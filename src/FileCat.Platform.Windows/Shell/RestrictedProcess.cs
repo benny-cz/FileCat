@@ -577,6 +577,10 @@ internal sealed unsafe partial class RestrictedProcess : IDisposable
                 vars["LOCALAPPDATA"] = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
                 vars["APPDATA"] = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 vars["TEMP"] = vars["TMP"] = Path.GetTempPath();
+                // The boundary denies the time-zone registry, and .NET then throws SecurityException wherever local time
+                // is needed (its ZIP reader converts every DOS time through it). Archive workers take every local offset
+                // from the parent, so their runtime's own zone is UTC and is never looked up.
+                vars["DOTNET_SYSTEM_TIMEZONE_INVARIANT"] = "1";
             }
         }
         vars["DOTNET_EnableDiagnostics"] = "0";

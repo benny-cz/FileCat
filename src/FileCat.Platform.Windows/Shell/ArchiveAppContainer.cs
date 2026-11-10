@@ -87,11 +87,37 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("The archive AppContainer requires Windows.");
         if (!Path.IsPathFullyQualified(executable) || cpuLimit < TimeSpan.FromSeconds(1) || cpuLimit > TimeSpan.FromHours(2))
             throw new ArgumentException("A fixed worker executable and finite CPU allowance are required.");
+        using var setup = new ProfileSetup();
         using var profile = Profile.Open();
         profile.DenyProfileWrites();
         return new ArchiveAppContainer(RestrictedProcess.Start(executable, arguments, lowIntegrity: true,
             ArchiveWritePolicy.MaxWorkerMemoryBytes, inheritParentEnvironment: false, appContainerSid: profile.Sid,
             cpuTimeTicks: cpuLimit.Ticks));
+    }
+
+    /// <summary>
+    /// Several FileCat processes (and threads) can start archive workers at once, and each start opens the shared per-user
+    /// profile and rewrites its protective ACL and integrity labels. Windows' profile API is not safe against concurrent
+    /// creation of one profile: in parallel runs it answered E_UNEXPECTED, or let another process derive the identity before
+    /// the profile folder existed. One per-session named mutex serializes that setup; it is held only while the profile is
+    /// opened and protected and the worker is created, never while a worker runs.
+    /// </summary>
+    private sealed class ProfileSetup : IDisposable
+    {
+        private const string Name = @"Local\FileCat.ArchiveWriter.v1.ProfileSetup";
+        private readonly Mutex mutex = new(false, Name);
+        private readonly bool owned;
+        internal ProfileSetup()
+        {
+            try { owned = mutex.WaitOne(TimeSpan.FromSeconds(60)); }
+            catch (AbandonedMutexException) { owned = true; } // A process that ended during setup; the setup is idempotent.
+            if (!owned)
+            {
+                mutex.Dispose();
+                throw new IOException("Another FileCat process did not finish preparing the archive worker profile.");
+            }
+        }
+        public void Dispose() { try { if (owned) mutex.ReleaseMutex(); } finally { mutex.Dispose(); } }
     }
 
     /// <summary>
@@ -109,6 +135,7 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
         // Do not propagate a runtime-read grant into a link target or accidentally grant the shared CLR folder.
         // Installation must still pin/audit this trusted bundle; this check is not a package signature proof.
         _ = CollectRealTree(assets, 10000);
+        using var setup = new ProfileSetup();
         using var profile = Profile.Open();
         profile.GrantDirectoryRead(assets, inherit: true);
         profile.DenyProfileWrites();
@@ -116,7 +143,7 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
 
     internal static string ProfileDirectory
     {
-        get { using var profile = Profile.Open(); return profile.DirectoryPath(); }
+        get { using var setup = new ProfileSetup(); using var profile = Profile.Open(); return profile.DirectoryPath(); }
     }
 
     public void Kill() { lock (_lifetimeGate) { if (!_fullyDisposed) _process.Kill(); } }
@@ -225,7 +252,8 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
             var paths = CollectRealTree(directory.FullName, 4096);
             directory.SetAccessControl(acl);
             // Existing children can have explicit low labels. Set each one rather than assuming inheritance
-            // replaced its prior label. No worker is running while this trusted setup occurs.
+            // replaced its prior label. The setup is serialized (ProfileSetup); a worker another process already runs only
+            // ever meets the same or stricter labels and denies here.
             foreach (string path in paths) SetProfileIntegrity(path);
         }
         public void Dispose() => FreeSid(Sid);

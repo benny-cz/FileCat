@@ -20,7 +20,8 @@ internal sealed class ArchiveSelectionForest : IArchiveSelectionTree, IArchiveSe
     public bool CanRemoveSources => !disposed && trees.Count != 0 && trees.All(tree => tree is IArchiveSelectionRemoval { CanRemoveSources: true });
 
     internal static ArchiveCapturedSelection Capture(IReadOnlyList<ArchiveSelectionSource> requests,
-        Func<string, IArchiveSelectionTree> open, CancellationToken ct, long retainedNameChars = 0, long retainedHeapBytes = 0)
+        Func<string, IArchiveSelectionTree> open, CancellationToken ct, long retainedNameChars = 0, long retainedHeapBytes = 0,
+        Action<string>? visiting = null)
     {
         ArgumentNullException.ThrowIfNull(open);
         var forest = new ArchiveSelectionForest();
@@ -74,13 +75,14 @@ internal sealed class ArchiveSelectionForest : IArchiveSelectionTree, IArchiveSe
             }
             for (int i = 0; i < rootParents.Length; i++) forest.owners.Add(i + 1, parents[rootParents[i]]);
             // Capture takes exclusive ownership, including on failure.
-            return Transfer(forest, roots, ct);
+            return Transfer(forest, roots, ct, visiting);
         }
         catch { forest.Dispose(); throw; }
     }
 
-    private static ArchiveCapturedSelection Transfer(ArchiveSelectionForest forest, ArchiveSelectionRoot[] roots, CancellationToken ct)
-        => ArchiveCapturedSelection.Capture(forest, roots, ct);
+    private static ArchiveCapturedSelection Transfer(ArchiveSelectionForest forest, ArchiveSelectionRoot[] roots, CancellationToken ct,
+        Action<string>? visiting)
+        => ArchiveCapturedSelection.Capture(forest, roots, ct, visiting);
 
     public ArchiveSelectionEntry InspectRoot(string leaf, CancellationToken ct) => throw Invalid();
     public ArchiveSelectionEntry InspectRoot(ArchiveSelectionRoot root, CancellationToken ct)

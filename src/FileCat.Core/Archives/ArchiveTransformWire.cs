@@ -53,6 +53,7 @@ public static class ArchiveTransformWire
         ArchiveRar5TransformPlan rar => Rar5OutputBound(rar, ct),
         ArchiveSevenZipTransformPlan seven => SevenZipOutputBound(seven, ct),
         ArchiveStandaloneTransformPlan standalone => ArchiveStandaloneTransformPlan.OutputBound(standalone),
+        ArchiveZipTransformPlan zip => ArchiveZipTransformPlan.OutputBound(zip, ct),
         _ => throw Fault(),
     };
 
@@ -76,7 +77,7 @@ public static class ArchiveTransformWire
             if (id is null) return null;
             if (inputs.Count == ArchiveWritePolicy.MaxMembers) throw ArchiveWriteBudget.Limit();
             var input = captures[id.Value]; int alias = inputs.Count + 1;
-            inputs.Add(alias, new(alias, input.Length, input.Sha256, input.ModifiedTimestamp, input.Mode)); captured.Add(alias, id.Value); return alias;
+            inputs.Add(alias, new(alias, input.Length, input.Sha256, input.ModifiedTimestamp, input.Mode, input.LocalOffsetMinutes)); captured.Add(alias, id.Value); return alias;
         }
     }
 
@@ -216,7 +217,10 @@ public static class ArchiveTransformWire
         {
             ct.ThrowIfCancellationRequested();
             records.Write(ArchiveControlRecord.TransformInput, Encode(w =>
-            { w.Write((ushort)2); w.Write(input.Id); w.Write(input.Length); Digest(w, input.Sha256); w.Write(input.ModifiedTimestamp.Seconds); w.Write(input.ModifiedTimestamp.Nanoseconds); w.Write(input.Mode); }));
+            {
+                w.Write((ushort)3); w.Write(input.Id); w.Write(input.Length); Digest(w, input.Sha256); w.Write(input.ModifiedTimestamp.Seconds);
+                w.Write(input.ModifiedTimestamp.Nanoseconds); w.Write(input.Mode); w.Write(input.LocalOffsetMinutes);
+            }));
             progress?.Invoke();
         }
         foreach (var edit in request.Edits)
@@ -235,9 +239,10 @@ public static class ArchiveTransformWire
             ct.ThrowIfCancellationRequested();
             records.Write(ArchiveControlRecord.TransformAddition, Encode(w =>
             {
-                w.Write((ushort)2); Text(w, addition.Name); w.Write((int)addition.Type); w.Write(addition.InputId ?? 0);
+                w.Write((ushort)3); Text(w, addition.Name); w.Write((int)addition.Type); w.Write(addition.InputId ?? 0);
                 w.Write(addition.DirectoryMetadata is not null);
-                if (addition.DirectoryMetadata is { } metadata) { w.Write(metadata.Modified.Seconds); w.Write(metadata.Modified.Nanoseconds); w.Write(metadata.Mode); }
+                if (addition.DirectoryMetadata is { } metadata)
+                { w.Write(metadata.Modified.Seconds); w.Write(metadata.Modified.Nanoseconds); w.Write(metadata.Mode); w.Write(metadata.LocalOffsetMinutes); }
             }));
             progress?.Invoke();
         }
@@ -249,7 +254,7 @@ public static class ArchiveTransformWire
         {
             ct.ThrowIfCancellationRequested(); var reader = new Packet(records.Read(ArchiveControlRecord.TransformRequest)); reader.Schema(3);
             var profile = reader.Profile();
-            if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip or ArchiveWriteFormat.Gzip or ArchiveWriteFormat.Bzip2 or ArchiveWriteFormat.Zstd)) throw Fault();
+            if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip or ArchiveWriteFormat.Gzip or ArchiveWriteFormat.Bzip2 or ArchiveWriteFormat.Zstd or ArchiveWriteFormat.Zip)) throw Fault();
             ArchiveAssessmentRequest? source = reader.Flag() ? new(profile, reader.Long(), reader.Digest()) : null;
             if (source is not null) ArchiveAssessmentWire.Validate(source);
             int inputCount = reader.Count(), editCount = reader.Count(), additionCount = reader.Count(); long bound = reader.Long(); reader.End();
@@ -259,11 +264,11 @@ public static class ArchiveTransformWire
             for (int i = 0; i < inputCount; i++)
             {
                 ct.ThrowIfCancellationRequested(); byte[] data = records.Read(ArchiveControlRecord.TransformInput); budget.AddMetadata(data.Length, 0);
-                var packet = new Packet(data); packet.Schema(2); int id = packet.Integer(); long length = packet.Long(); string hash = packet.Digest();
-                var modified = new ArchiveTimestamp(packet.Long(), packet.Integer()); int mode = packet.Integer(); packet.End();
+                var packet = new Packet(data); packet.Schema(3); int id = packet.Integer(); long length = packet.Long(); string hash = packet.Digest();
+                var modified = new ArchiveTimestamp(packet.Long(), packet.Integer()); int mode = packet.Integer(), offset = packet.Integer(); packet.End();
                 if (id != i + 1 || length is < 0 or > ArchiveWritePolicy.MaxPayloadBytes) throw Fault();
                 ArchiveWriteBudget.Reserve(inputBytes, length, ArchiveWritePolicy.MaxLogicalBytes); inputBytes += length;
-                inputs.Add(id, new(id, length, hash, modified, mode));
+                inputs.Add(id, new(id, length, hash, modified, mode, offset)); // explicit: a worker never reads time-zone data
             }
             var used = new HashSet<int>(); var keys = new HashSet<ArchiveMemberKey>(); var edits = new List<ArchiveTransformEdit>();
             for (int i = 0; i < editCount; i++)
@@ -280,10 +285,10 @@ public static class ArchiveTransformWire
             for (int i = 0; i < additionCount; i++)
             {
                 ct.ThrowIfCancellationRequested(); byte[] data = records.Read(ArchiveControlRecord.TransformAddition); budget.AddMetadata(data.Length, 0);
-                var packet = new Packet(data); packet.Schema(2); string name = packet.Text(budget); var type = (ArchiveMemberType)packet.Integer();
+                var packet = new Packet(data); packet.Schema(3); string name = packet.Text(budget); var type = (ArchiveMemberType)packet.Integer();
                 int? id = Input(packet.Integer()); bool directory = packet.Flag();
                 if ((type == ArchiveMemberType.Directory) != directory || directory && id is not null) throw Fault();
-                ArchiveTransformDirectoryMetadata? metadata = directory ? new(new(packet.Long(), packet.Integer()), packet.Integer()) : null;
+                ArchiveTransformDirectoryMetadata? metadata = directory ? new(new(packet.Long(), packet.Integer()), packet.Integer(), packet.Integer()) : null;
                 packet.End(); additions.Add(metadata is not null ? new(name, metadata) : new(name, type, id));
             }
             if (used.Count != inputs.Count) throw Fault();
@@ -318,7 +323,7 @@ public static class ArchiveTransformWire
     private static ArchiveWriteException Fault() => new(ArchiveWriteReason.ProtocolViolation, "The archive worker's transform contract is invalid.");
     internal static int MinimumOutputLength(ArchiveWriteFormat format) => format switch
     { ArchiveWriteFormat.Tar => 1024, ArchiveWriteFormat.TarGzip => 20, ArchiveWriteFormat.TarBzip2 => 14, ArchiveWriteFormat.TarZstd => 9, ArchiveWriteFormat.Rar5 => 24, ArchiveWriteFormat.SevenZip => 32,
-      ArchiveWriteFormat.Gzip => 20, ArchiveWriteFormat.Bzip2 => 14, ArchiveWriteFormat.Zstd => 9, _ => throw Fault() };
+      ArchiveWriteFormat.Gzip => 20, ArchiveWriteFormat.Bzip2 => 14, ArchiveWriteFormat.Zstd => 9, ArchiveWriteFormat.Zip => 22, _ => throw Fault() };
 
     private ref struct Packet(ReadOnlySpan<byte> data)
     {

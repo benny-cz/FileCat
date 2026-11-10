@@ -135,23 +135,40 @@ internal sealed class WindowsArchiveSelectionTree : IArchiveSelectionTree, IArch
     }
     private Parent OpenParent(ArchiveSelectionNode node, CancellationToken ct)
     {
-        if (node.Parent is null) { ct.ThrowIfCancellationRequested(); root.RequireSelectionRoot(); return new(root, false); }
-        // Pin the parent path against rename/delete, then check each selected ancestor before granting reads.
-        string path = Path.Combine(root.DisplayPath, node.Parent.NativeRelativePath.Replace('/', Path.DirectorySeparatorChar));
-        var parent = WindowsArchiveDirectory.Open(path);
+        ct.ThrowIfCancellationRequested(); RequireRoot();
+        if (node.Parent is null) return new(root, false);
+        // Pin the folders below the held selection root against rename/delete, checking each selected ancestor as it is
+        // opened, before granting reads. The root's own lease pins its path (this replaced a fresh pin of the whole path
+        // from the drive root plus a separate verification walk: about thirty opens per file access, AT18 on Windows).
+        var chain = new List<ArchiveSelectionNode>();
+        for (var current = node.Parent; current is not null; current = current.Parent) chain.Add(current);
+        chain.Reverse();
+        var parent = root.OpenBelow(chain.ConvertAll(folder => folder.Entry.Leaf), (i, handle) =>
+        {
+            ct.ThrowIfCancellationRequested(); WindowsArchiveNative.SourceDirectory(handle);
+            if (ProtectedHexFile.Identity(handle).ToString() != chain[i].Entry.Identity) throw ArchiveCapturedSelection.Changed();
+        });
         try
         {
-            using var verified = OpenDirectory(node.Parent, ct);
-            if (parent.Identity.ToString() != node.Parent.Entry.Identity || ProtectedHexFile.Identity(verified) != parent.Identity) throw ArchiveCapturedSelection.Changed();
-            ct.ThrowIfCancellationRequested(); return new(parent, true);
+            if (parent.Identity.ToString() != node.Parent.Entry.Identity) throw ArchiveCapturedSelection.Changed();
+            ct.ThrowIfCancellationRequested(); RequireRoot(); return new(parent, true);
         }
         catch { parent.Dispose(); throw; }
+    }
+    // The held root is checked on every access; the fresh full-path check (one open per component from the drive root) at
+    // most once a second, since the root's lease keeps every name of its path bound while it is held.
+    private long rootVerifiedAt = -1;
+    private void RequireRoot()
+    {
+        long now = Environment.TickCount64, last = Interlocked.Read(ref rootVerifiedAt);
+        if (last < 0 || now - last >= 1000) { root.RequireSelectionRoot(); Interlocked.Exchange(ref rootVerifiedAt, now); }
+        else root.RequireHeldSelectionRoot();
     }
     private SafeFileHandle OpenDirectory(ArchiveSelectionNode node, CancellationToken ct)
     {
         lock (root.Gate)
         {
-            ct.ThrowIfCancellationRequested(); root.RequireSelectionRoot();
+            ct.ThrowIfCancellationRequested(); RequireRoot();
             var ancestors = new Stack<ArchiveSelectionNode>();
             for (var current = node; current is not null; current = current.Parent) ancestors.Push(current);
             SafeFileHandle? held = null;
@@ -165,7 +182,7 @@ internal sealed class WindowsArchiveSelectionTree : IArchiveSelectionTree, IArch
                     catch { child.Dispose(); throw; }
                     held?.Dispose(); held = child;
                 }
-                root.RequireSelectionRoot(); return held ?? throw ArchiveCapturedSelection.Changed();
+                RequireRoot(); return held ?? throw ArchiveCapturedSelection.Changed();
             }
             catch { held?.Dispose(); throw; }
         }

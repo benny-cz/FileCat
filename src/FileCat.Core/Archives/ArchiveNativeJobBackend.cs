@@ -48,7 +48,7 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         Func<string, CancellationToken, IArchiveTargetReadLease>? openReview = null)
     {
         if (format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or
-            ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip) && !ArchiveStandalone.IsStandalone(format))
+            ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip or ArchiveWriteFormat.Zip) && !ArchiveStandalone.IsStandalone(format))
             throw new ArgumentException("A shared container profile is required.");
         Format = format; this.availability = availability ?? throw new ArgumentNullException(nameof(availability));
         this.open = open ?? throw new ArgumentNullException(nameof(open)); this.assessor = assessor ?? throw new ArgumentNullException(nameof(assessor));
@@ -104,7 +104,17 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         if (request.ReviewedManifestDigest is { } catalog && source?.Manifest.Digest != catalog) throw Changed();
         job.SetArchivePhase(ArchiveJobPhase.Preparing);
         job.Checkpoint();
-        using var selection = planning.CaptureInputs(native.OpenInputTree,ct);
+        // Reading or packing many files can take minutes (AT18): the operation center names the file being read, at most
+        // four times a second, so long Preparing and Rebuilding phases visibly advance. The name is display only.
+        long nextShown = 0;
+        void Reading(string name)
+        {
+            long now = Environment.TickCount64;
+            if (now < Interlocked.Read(ref nextShown)) return;
+            Interlocked.Exchange(ref nextShown, now + 250); job.SetCurrent(name);
+        }
+        using var selection = planning.CaptureInputs(native.OpenInputTree, ct, Reading);
+        job.SetCurrent(request.ArchivePath); // Between the phases the archive itself is what is being worked on.
         using var empty = selection is null ? new ArchiveCapturedInputs() : null;
         if (empty is not null) { empty.RetainSelection(planning.RetainedNameChars, planning.RetainedHeapBytes); empty.Seal(ct); }
         var captured = selection?.Inputs ?? empty!;
@@ -136,7 +146,12 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         {
             preparation = ArchiveJournaledContainerPreparation.PrepareAsync(execution.Journal, request.ArchivePath, plan,
                 native.Original, activeInputs.Bindings, native.Reserve, native.Create, transform, verifier, ct, password: execution.Password,
-                phase: value => job.SetArchivePhase(value)).GetAwaiter().GetResult();
+                phase: value =>
+                {
+                    // Checking reads the new archive, so it is again the current item; Rebuilding names each file it packs.
+                    if (value != ArchiveJobPhase.Rebuilding) job.SetCurrent(request.ArchivePath);
+                    job.SetArchivePhase(value);
+                }, reading: Reading).GetAwaiter().GetResult();
             job.Checkpoint();
         }
         catch

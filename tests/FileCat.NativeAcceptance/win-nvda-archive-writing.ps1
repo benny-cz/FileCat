@@ -230,6 +230,7 @@ try {
     # 3. Inside a.txt.gz, folder, rename and delete are refused with the reason.
     $script:result.Stage = 'inside the compressed file'
     Activate $main
+    Key 0x09; Start-Sleep -Milliseconds 600  # Tab: the archives were created in the other panel's folder
     FocusRow 'a.txt.gz'; Key 0x0D  # Enter opens it
     Await { @(Descendants $main | Where-Object { $_.Current.ClassName -eq 'FileList' -and $_.Current.Name -like '*a.txt.gz*' }).Count } 'the compressed file listing' 15 | Out-Null
     Start-Sleep -Milliseconds 800

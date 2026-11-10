@@ -130,6 +130,33 @@ static int RunProbe(string[] requests, long? cancellationHandle = null)
                 return 0;
             }
 
+        case "archive-zip-reader":
+            {
+                // What the ZIP worker profile needs from its runtime inside the boundary: the local time zone (.NET's ZIP
+                // reader converts each DOS time through it) and the ZIP reader itself on a small in-memory archive.
+                string Try(Func<string> action)
+                {
+                    try { return "ok:" + action(); }
+                    catch (Exception ex) { return ex.GetType().FullName + ": " + ex.Message; }
+                }
+                string zone = Try(() => TimeZoneInfo.Local.Id + " " + TimeZoneInfo.Local.GetUtcOffset(DateTimeOffset.FromUnixTimeSeconds(1700000000)));
+                string reader = Try(() =>
+                {
+                    using var buffer = new MemoryStream();
+                    using (var writer = new System.IO.Compression.ZipArchive(buffer, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+                    {
+                        var entry = writer.CreateEntry("a.txt", System.IO.Compression.CompressionLevel.NoCompression);
+                        entry.LastWriteTime = new DateTimeOffset(2023, 11, 14, 22, 13, 20, TimeSpan.Zero);
+                        using var stream = entry.Open(); stream.WriteByte((byte)'a');
+                    }
+                    buffer.Position = 0;
+                    using var archive = new System.IO.Compression.ZipArchive(buffer, System.IO.Compression.ZipArchiveMode.Read);
+                    return archive.Entries.Count + " " + archive.Entries[0].FullName + " " + archive.Entries[0].LastWriteTime.ToString("O");
+                });
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { zone, reader }));
+                return 0;
+            }
+
         case "archive-memory":
             {
                 if (!OperatingSystem.IsWindows()) return 2;

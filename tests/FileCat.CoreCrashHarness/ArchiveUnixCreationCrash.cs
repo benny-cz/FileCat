@@ -76,8 +76,10 @@ internal static class ArchiveUnixCreationCrash
     }
 
     /// <summary>Forwards every journal call to the real stream and stops around one transaction or cleanup record.</summary>
-    private sealed class CheckpointStream : FileStream
+    internal sealed class CheckpointStream : FileStream
     {
+        /// <summary>The line announcing the checkpoint; the update discard harness names its own process.</summary>
+        internal static string Prefix { get; set; } = "archive-unix-creation-checkpoint:";
         private readonly FileStream inner; private readonly Point stop; private (string Record, string Phase, int Reviewed)? pending;
         private CheckpointStream(FileStream inner, Point stop) : base(inner.SafeFileHandle, FileAccess.Write, 1, false)
         { this.inner = inner; this.stop = stop; }
@@ -118,7 +120,7 @@ internal static class ArchiveUnixCreationCrash
         }
         internal static void Wait(string point)
         {
-            Console.WriteLine("archive-unix-creation-checkpoint:" + point); Console.Out.Flush(); Console.ReadLine();
+            Console.WriteLine(Prefix + point); Console.Out.Flush(); Console.ReadLine();
             throw new InvalidOperationException("The test must terminate this actual process externally.");
         }
     }

@@ -104,6 +104,38 @@ public sealed class LocalIconFileLease : IDisposable
         }
     }
 
+    private LocalIconFileLease() { }
+
+    /// <summary>
+    /// The folders below an already held anchor folder, each opened relative to the one before it, never through a link,
+    /// and held without delete sharing like the components of a full-path lease. Together with the anchor's lease this
+    /// pins the same names a lease of the full path would, without opening the anchor's path again. Every component is
+    /// given to <paramref name="verify"/> before the next is opened; the caller keeps the anchor alive.
+    /// </summary>
+    internal static LocalIconFileLease Below(SafeFileHandle anchor, IReadOnlyList<string> leaves, Action<int, SafeFileHandle> verify)
+    {
+        var lease = new LocalIconFileLease();
+        try
+        {
+            SafeFileHandle parent = anchor;
+            for (int i = 0; i < leaves.Count; i++)
+            {
+                var next = OpenOrThrow(parent, leaves[i], Traverse | ReadAttributes | Synchronize, ShareRead | ShareWrite, Open,
+                    DirectoryFile | OpenReparsePoint, "Open local path");
+                try
+                {
+                    if (IsLinkTag(GetReparseTag(next))) throw new IOException("The path contains a link.");
+                    verify(i, next);
+                }
+                catch { next.Dispose(); throw; }
+                lease._handles.Add(next);
+                parent = next;
+            }
+            return lease;
+        }
+        catch { lease.Dispose(); throw; }
+    }
+
     /// <summary>A file, for its icon or thumbnail (<see cref="ForIcons"/>).</summary>
     public static LocalIconFileLease? TryOpen(string path) => TryOpen(path, ForIcons);
 

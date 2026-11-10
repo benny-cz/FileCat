@@ -48,6 +48,28 @@ public sealed partial class WindowsArchiveStorageTests
         Assert.ThrowsAny<IOException>(() => { using var view = binding.File.OpenReadView(binding.Reviewed, ct); _ = view.ReadByte(); });
         if (ancestor) Assert.ThrowsAny<IOException>(() => { foreach (var directory in selection.Inputs.Directories.Values) directory.Review(ct); });
     }
+    // Each access pins only the folders below the held selection root (AT18 on Windows): inputs three folders deep are
+    // captured and reopened with their exact content, and once they are closed no folder stays pinned.
+    [Fact]
+    public void Nested_inputs_reopen_through_folders_pinned_below_the_root_and_release_them()
+    {
+        RequireWindows(); var ct = TestContext.Current.CancellationToken; using var fixture = new Fixture();
+        string deep = Directory.CreateDirectory(Path.Combine(fixture.Root, "tree", "a", "b")).FullName;
+        for (int i = 0; i < 50; i++) File.WriteAllBytes(Path.Combine(i % 2 == 0 ? deep : Path.GetDirectoryName(deep)!, $"file{i:00}"), [(byte)i, 7]);
+        using (var selection = WindowsArchiveSelectionTree.Capture(fixture.Root, ["tree"], ct))
+        {
+            Assert.Equal(50, selection.Inputs.Bindings.Count);
+            foreach (var binding in selection.Inputs.Bindings.Values)
+            {
+                using var view = binding.File.OpenReadView(binding.Reviewed, ct);
+                Assert.Equal(2, view.Length); view.ReadByte(); Assert.Equal(7, view.ReadByte());
+            }
+            foreach (var directory in selection.Inputs.Directories.Values) directory.Review(ct);
+        }
+        Directory.Move(Path.Combine(fixture.Root, "tree", "a"), Path.Combine(fixture.Root, "tree", "a-moved"));
+        Directory.Move(Path.Combine(fixture.Root, "tree"), Path.Combine(fixture.Root, "tree-moved"));
+    }
+
     [Fact]
     public void Recursive_native_enumeration_handles_multiple_batches_with_bounded_lazy_handles()
     {

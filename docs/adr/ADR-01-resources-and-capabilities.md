@@ -32,3 +32,11 @@ renames, and refresh (ADR-02 store, PI-10 tests).
 
 - There is no generic copy for every node pair; each pair is a deliberate executor.
 - Capability combinations stay per location, so a read-only archive inside a writable ZIP is expressible.
+
+## Clarification: archive mutation (2026-11-10)
+
+"Archives have no mutation" above means that no archive provider exposes a writable stream or directory operation. ZIP
+archives change only through archive jobs (ADR-07's staged rebuild), never through the provider. The proposed archive
+writing amendment keeps that rule for every other format: a change is a typed archive job (add, replace, delete, rename,
+create folder, explicit move into the archive) that rebuilds and verifies the whole archive, the provider states the
+capability and its specific unavailable reason per location, and an unsupported pair is still refused with a sentence.

@@ -11,6 +11,21 @@ namespace FileCat.Platform.Windows.Archives;
 internal sealed partial class WindowsArchiveDirectory
 {
     internal void RequireSelectionRoot() { lock (Gate) { EnsureOpen(); RequireCapacity(); VerifyNamespace(); } }
+    /// <summary>
+    /// The per-access check of a held selection root: still open, under its lease bound, and its held handle still the same
+    /// object on the same volume (a dismounted volume fails these queries). Its lease holds every name of its path without
+    /// delete sharing, so that path cannot name another object while it is held; the full fresh-path check
+    /// (<see cref="RequireSelectionRoot"/>) is the caller's periodic confirmation.
+    /// </summary>
+    internal void RequireHeldSelectionRoot()
+    {
+        lock (Gate)
+        {
+            EnsureOpen(); RequireCapacity();
+            if (ProtectedHexFile.Identity(Handle) != Identity || WindowsArchiveNative.Volume(Handle) != Volume)
+                throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "The retained archive directory changed; preserve its objects for review.");
+        }
+    }
     internal static void ValidateSelectionLeaf(string leaf) => ValidateLeaf(leaf);
     internal void CaptureSourceDirectory(ArchiveCapturedInputs inputs, int id, string leaf, CancellationToken ct)
     {

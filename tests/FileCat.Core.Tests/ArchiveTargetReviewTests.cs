@@ -113,6 +113,7 @@ public sealed class ArchiveTargetReviewTests
         {
             ArchiveWriteFormat.Rar5 => (ArchiveContainerTransformPlan)ArchiveRar5TransformPlan.Create(profile, null, inputs, [], added, Ct),
             ArchiveWriteFormat.SevenZip => ArchiveSevenZipTransformPlan.Create(profile, null, inputs, [], added, Ct),
+            ArchiveWriteFormat.Zip => ArchiveZipTransformPlan.Create(profile, null, inputs, [], added, Ct),
             _ => ArchiveTarTransformPlan.Create(profile, null, inputs, [], added, Ct),
         }).Expected;
     }

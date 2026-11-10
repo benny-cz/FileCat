@@ -49,8 +49,31 @@ before anything is written.
   wrote. Input reads reuse cleared buffers; a consumer clears the bytes it was given before a buffer is reused, and
   cancellation never clears a buffer the OS may still be using.
 
-## Still to measure
+## Measured after the changes
 
-Windows (the AppContainer and TxF route), payload extremes (an incompressible 512 MiB payload through TAR.GZ and a
-standalone .zst, and 256 MiB of zeros, which the 1000:1 expansion rule refuses), and the timings and peaks of the final
-candidate on all three platforms.
+The limit run (99,999 members created, assessed, the 100,000th added, one more refused before anything is written) with
+real worker processes, opt-in lane `FILECAT_ARCHIVE_SCALE=1`:
+
+| Candidate | Create | Assess | Update | Managed heap (sampled, includes garbage) | Result |
+|---|---|---|---|---|---|
+| Mac, p4 (before) | 975.5 s | — | stopped by the 20-minute guard | — | Failed |
+| Mac, v14d | 519.7 s | 19.2 s | 153.1 s | 106 MiB before, 696 MiB peak | Passed |
+| Mac, v14e | 518.1 s | 19.3 s | 151.4 s | 99 MiB before, 702 MiB peak | Passed |
+| Ubuntu VM, v14d | 541.3 s | 129.4 s | 534.0 s | 49 MiB before, 722 MiB peak | Passed |
+
+The archive is 204,543,488 bytes. Phases on the Mac (create): Preparing 220 s, Rebuilding 110 s, Checking 120 s, Saving
+69 s; (update): reading the archive 18 s, Preparing 31 s, Rebuilding 69 s, Checking 33 s, Saving and finishing 1 s. The
+Ubuntu VM's worker phases run about four times slower than the Mac's while its capture is faster; the update spends
+120 s reading the archive, 266 s rebuilding and 133 s checking. The sampled heap includes uncollected garbage (it drops to
+97 MiB at the next phase), so it is an upper bound of retained state, not a measurement of it; the charged retained
+ceiling of 512 MiB is the admission bound. The Ubuntu peak working set (2,139 MiB) is the whole test process with other
+tests running in parallel and is not attributable to the job. Descriptor counts return to their starting value.
+
+The payload extremes first ran into an AW7 defect: the review of an existing `.zst` (and every standalone file) refused
+before it could be replaced, because the review's preservation check built a change-free plan, which a compressed file
+cannot have. The review now admits the one payload and its wrapper directly (fixed in v14e; the scale lane and a new
+always-on native test cover it). On the Mac (v14e) a 512 MiB incompressible payload then took 30.7 s into a new TAR.GZ,
+43.8 s for the added 64 MiB file, 12.7 s into a new standalone `.zst` and 7.1 s for the replacement, and 256 MiB of zeros
+(beyond 1000:1) was refused by the fresh verification in 1.5 s with nothing published or left beside the inputs.
+Windows (AppContainer workers and the NTFS transaction route) and Ubuntu's runs after the fix are recorded in the
+implementation status with the final candidate.

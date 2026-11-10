@@ -6,10 +6,16 @@ namespace FileCat.Core.Archives.Unix;
 
 internal static unsafe partial class UnixArchiveNative
 {
-    internal static SafeFileHandle CreateEditDirectory(SafeFileHandle parent, string leaf, uint user, CancellationToken ct)
+    internal static SafeFileHandle CreateEditDirectory(SafeFileHandle parent, string leaf, uint user, CancellationToken ct, string? folder = null)
     {
         Leaf(leaf); ct.ThrowIfCancellationRequested();
-        if (EditMkdirAt(Fd(parent), leaf, 0x1c0) != 0) throw Unavailable();
+        if (EditMkdirAt(Fd(parent), leaf, 0x1c0) != 0)
+        {
+            // EPERM, EACCES or EROFS: the folder refused the entry, so nothing exists that needs review.
+            int errno = Marshal.GetLastPInvokeError();
+            if (folder is not null && errno is 1 or 13 or 30) throw ArchiveWriteMessages.DestinationDenied(folder);
+            throw Unavailable();
+        }
         // This new directory is empty: no working bytes are written until its inherited ACL is removed and reviewed.
         var child = ChildDirectory(parent, leaf);
         try

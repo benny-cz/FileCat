@@ -13,7 +13,7 @@ namespace FileCat.Core.Tests;
 public sealed class ArchiveEditSessionTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
-    public static IEnumerable<object[]> Profiles() => ArchiveNativeJobCases.Profiles();
+    public static IEnumerable<object[]> Profiles() => ArchiveNativeJobCases.EditProfiles();
 
     [Theory,MemberData(nameof(Profiles))]
     public void Native_storage_schema_survives_verified_archive_acknowledgement(ArchiveWriteFormat format,int mode)
@@ -160,6 +160,7 @@ public sealed class ArchiveEditSessionTests
             ArchiveWriteFormat.Gzip or ArchiveWriteFormat.Bzip2 or ArchiveWriteFormat.Zstd => ArchiveStandaloneTransformPlan.Create(profile, null, inputs, [], additions, Ct),
             ArchiveWriteFormat.Rar5 => (ArchiveContainerTransformPlan)ArchiveRar5TransformPlan.Create(profile, null, inputs, [], additions, Ct),
             ArchiveWriteFormat.SevenZip => ArchiveSevenZipTransformPlan.Create(profile, null, inputs, [], additions, Ct),
+            ArchiveWriteFormat.Zip => ArchiveZipTransformPlan.Create(profile, null, inputs, [], additions, Ct),
             _ => ArchiveTarTransformPlan.Create(profile, null, inputs, [], additions, Ct),
         }).Expected;
     }

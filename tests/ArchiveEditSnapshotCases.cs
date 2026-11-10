@@ -19,7 +19,7 @@ internal static class ArchiveEditSnapshotCases
             "stale-record","working-directory-replaced","snapshot-directory-replaced","snapshot-file-replaced","snapshot-bytes-changed",
             "snapshot-origin-changed","view-after-dispose","request-binding","cleanup-extra-file","cleanup-extra-capture-child",
             "cleanup-record-replaced","cleanup-record-bytes-changed","cleanup-record-origin-changed","cleanup-reused-path","capture-quota","capture-byte-quota"})yield return [value];
-        foreach(var profile in ArchiveNativeJobCases.Profiles())yield return [$"plan-{(int)(ArchiveWriteFormat)profile[0]}-{profile[1]}"];
+        foreach(var profile in ArchiveNativeJobCases.EditProfiles())yield return [$"plan-{(int)(ArchiveWriteFormat)profile[0]}-{profile[1]}"];
     }
     internal static void Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open,IFileSystemOperations? nativeFiles=null)
     {
@@ -244,6 +244,7 @@ internal static class ArchiveEditSnapshotCases
         {
             ArchiveWriteFormat.Rar5=>(ArchiveContainerTransformPlan)ArchiveRar5TransformPlan.Create(profile,null,inputs,[],additions,ct),
             ArchiveWriteFormat.SevenZip=>ArchiveSevenZipTransformPlan.Create(profile,null,inputs,[],additions,ct),
+            ArchiveWriteFormat.Zip=>ArchiveZipTransformPlan.Create(profile,null,inputs,[],additions,ct),
             _=>ArchiveTarTransformPlan.Create(profile,null,inputs,[],additions,ct),
         }).Expected;
     }

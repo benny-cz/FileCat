@@ -86,6 +86,21 @@ public sealed partial class ArchiveCapturedInputsTests
             .Review(source, selection, selection.Inputs, Ct)).Reason);
     }
 
+    // Progress during a long capture: every observed member is named just before it is read; an excluded link is not.
+    [Fact]
+    public void Capture_names_each_member_it_reads_for_progress()
+    {
+        using var temp = new TempDir(); var request = new ArchivePlan(Path.Combine(temp.Path, "target"), null,
+            [new(ArchiveChangeKind.AddFile, "first", Path.Combine(temp.Path, "a")), new(ArchiveChangeKind.AddFile, "second", Path.Combine(temp.Path, "b")),
+                new(ArchiveChangeKind.AddFile, "skipped", Path.Combine(temp.Path, "link"))], Profile: new(ArchiveWriteFormat.Tar));
+        var planning = new ArchiveJobPlanning(request, Ct); var tree = new Tree { Root = name => new(name,
+            name == "link" ? ArchiveSelectionKind.Link : ArchiveSelectionKind.File, name) };
+        var named = new List<string>();
+        using var selection = planning.CaptureInputs(_ => tree, Ct, named.Add)!;
+        Assert.Equal(new[] { "a", "b" }, named.Order(StringComparer.Ordinal)); // The source files being read, not the link.
+        Assert.Equal(named.Order(StringComparer.Ordinal), selection.Members.Select(member => member.Name).Order(StringComparer.Ordinal));
+    }
+
     [Fact]
     public void Job_exclusion_review_uses_the_captured_selection_count()
     {

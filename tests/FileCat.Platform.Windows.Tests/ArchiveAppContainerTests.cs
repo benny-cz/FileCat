@@ -84,6 +84,43 @@ public sealed partial class ArchiveAppContainerTests
         Assert.Equal(65u, actual.ExitCode);
     }
 
+    // Several threads (and processes) start workers at once; the shared profile's setup is serialized. v18 ran two test
+    // processes in parallel and Windows' profile API answered E_UNEXPECTED, or one process found no profile folder yet.
+    [Fact]
+    public async Task Workers_started_at_the_same_time_all_get_the_protected_profile()
+    {
+        string probe = Probe();
+        var starts = Enumerable.Range(0, 8).Select(_ => Task.Factory.StartNew(() => Run().GetAwaiter().GetResult(),
+            CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default)).ToArray();
+        int[] codes = await Task.WhenAll(starts).WaitAsync(TimeSpan.FromMinutes(3), TestContext.Current.CancellationToken);
+        Assert.All(codes, code => Assert.Equal(0, code));
+
+        async Task<int> Run()
+        {
+            await using var worker = ArchiveAppContainer.Start(probe, "exit0", TimeSpan.FromSeconds(30));
+            var deadline = DateTime.UtcNow.AddSeconds(60);
+            while (!worker.HasExited && DateTime.UtcNow < deadline) await Task.Delay(10);
+            return worker.HasExited ? unchecked((int)worker.ExitCode) : -1;
+        }
+    }
+
+    // The ZIP worker profile compares its strict catalog with .NET's ZIP reader inside the worker, and that reader converts
+    // each DOS time through the local time zone. Both must work inside the boundary (v15b: ZIP jobs stopped on Windows only).
+    [Fact]
+    public async Task The_local_time_zone_and_the_zip_reader_work_inside_the_boundary()
+    {
+        string probe = Probe();
+        await using var worker = ArchiveAppContainer.Start(probe, "archive-zip-reader", TimeSpan.FromSeconds(30));
+        using var output = new StreamReader(worker.Output);
+        string json = await output.ReadToEndAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+        while (!worker.HasExited) await Task.Delay(10, TestContext.Current.CancellationToken);
+        Assert.True(worker.ExitCode == 0, $"exit=0x{worker.ExitCode:X8}; output={json}; error={await worker.ErrorForQualification}");
+        using var result = JsonDocument.Parse(json);
+        TestContext.Current.TestOutputHelper?.WriteLine(json);
+        Assert.StartsWith("ok:", result.RootElement.GetProperty("zone").GetString(), StringComparison.Ordinal);
+        Assert.StartsWith("ok:1 a.txt", result.RootElement.GetProperty("reader").GetString(), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task No_capabilities_or_user_files_network_registry_children_or_profile_writes_are_granted()
     {

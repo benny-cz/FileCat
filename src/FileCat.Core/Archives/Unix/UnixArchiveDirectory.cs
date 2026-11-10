@@ -79,14 +79,15 @@ internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestin
             {
                 // CreateEditDirectory uses mkdirat on the pinned parent and removes inherited Mac ACL entries
                 // before any child bytes can be written. The pinned child, not a later path reopen, is adopted.
-                var pinned = UnixArchiveNative.CreateEditDirectory(directory, leaf, user, ct);
+                var pinned = UnixArchiveNative.CreateEditDirectory(directory, leaf, user, ct, DisplayPath);
                 stage = new UnixArchiveDirectory(path, pinned, user, this);
                 if (stage.Volume != Volume) throw UnixArchiveNative.Unavailable();
                 UnixArchiveNative.SyncDirectory(stage.Handle);
                 UnixArchiveNative.SyncDirectory(directory);
                 return stage;
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArchiveWriteException or OperationCanceledException)
+            catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or ArchiveWriteException or OperationCanceledException) &&
+                !ex.Data.Contains(ArchiveWriteMessages.NothingCreatedKey))
             {
                 stage?.Dispose(); // The directory name is retained for reconciliation, never unlinked here.
                 throw new UnixArchiveArtifactCreationException(path, ex);

@@ -27,6 +27,7 @@ public sealed partial class ArchiveCapturedInputsTests
         {
             ArchiveWriteFormat.Rar5 => ArchiveRar5TransformPlan.Create(profile, null, inputs, [], additions, Ct),
             ArchiveWriteFormat.SevenZip => ArchiveSevenZipTransformPlan.Create(profile, null, inputs, [], additions, Ct),
+            ArchiveWriteFormat.Zip => ArchiveZipTransformPlan.Create(profile, null, inputs, [], additions, Ct),
             _ => ArchiveTarTransformPlan.Create(profile, null, inputs, [], additions, Ct),
         };
     }
@@ -227,7 +228,7 @@ public sealed partial class ArchiveCapturedInputsTests
         {
             string folder = Path.Combine(export, $"format-{format}-mode-{mode}"); Directory.CreateDirectory(folder);
             string extension = format switch { ArchiveWriteFormat.Tar => ".tar", ArchiveWriteFormat.TarGzip => ".tar.gz", ArchiveWriteFormat.TarBzip2 => ".tar.bz2",
-                ArchiveWriteFormat.TarZstd => ".tar.zst", ArchiveWriteFormat.Rar5 => ".rar", _ => ".7z" };
+                ArchiveWriteFormat.TarZstd => ".tar.zst", ArchiveWriteFormat.Rar5 => ".rar", ArchiveWriteFormat.Zip => ".zip", _ => ".7z" };
             Write("source", original, initial.Expected); Write("rebuilt", rebuilt, plan.Expected);
             void Write(string leaf, byte[] bytes, ArchiveWriteManifest manifest)
             {

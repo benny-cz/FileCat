@@ -40,9 +40,13 @@ try {
     @{ RunId = $RunId; Packet = $Packet; Sha256 = $Sha256.ToLowerInvariant(); Filter = $Filter; Projects = $Projects; User = $User; Env = $Env;
        Started = (Get-Date).ToUniversalTime().ToString('o');
        Os = (Get-CimInstance Win32_OperatingSystem | Select-Object -ExpandProperty Caption) + ' ' + [Environment]::OSVersion.Version;
-       Sdk = (& $Dotnet --version) } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $run 'machine.json')
+       Sdk = (& $Dotnet --version); Cpus = [Environment]::ProcessorCount;
+       # Timings depend on on-access scanning; the state is recorded (read only), never changed by this runner.
+       Defender = $(try { $m = Get-MpComputerStatus; @{ RealTime = $m.RealTimeProtectionEnabled; OnAccess = $m.OnAccessProtectionEnabled;
+           Behavior = $m.BehaviorMonitorEnabled; Exclusions = @((Get-MpPreference).ExclusionPath) } } catch { 'unavailable' }) } |
+        ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $run 'machine.json')
     $child = @'
-param([string]$Run, [string]$Packet, [string]$Filter, [string]$Projects, [string]$Dotnet, [string]$Env)
+param([string]$Run, [string]$Packet, [string]$Filter, [string]$Projects, [string]$Dotnet, [string]$Env, [int]$HangMinutes = 20)
 $ErrorActionPreference = 'Stop'
 try {
     Add-Type -Namespace FcToken -Name Native -MemberDefinition @"
@@ -72,25 +76,55 @@ try {
     # Windows PowerShell 5.1 turns a native command's stderr line into an ErrorRecord; under Stop that would end the run at
     # the first failing test's output. Native outcomes are judged by exit codes and TRX files instead.
     $ErrorActionPreference = 'Continue'
+    # A test project may name a shard after '#': PATH.csproj#ClassA+ClassB runs only tests whose name contains one of them,
+    # PATH.csproj#!ClassA+ClassB every other test; each shard is its own test process with its own TRX and exit code.
+    # FileCat's archive-worker gate is per process, so shards let worker-heavy classes use more than one CPU. A parallel:on
+    # entry runs all test processes at the same time once every build has finished (default: one after another).
+    $parallel = $false; $built = @{}; $tests = @()
     foreach ($entry in $Projects.Split(',')) {
+        if ($entry -eq 'parallel:on') { $parallel = $true; continue }
         # build: only builds; publish: makes a self-contained win-x64 bundle in {run}\publish\NAME; otherwise build and test.
-        $mode = 'test'; $project = $entry
+        $mode = 'test'; $project = $entry; $spec = ''
         if ($entry.StartsWith('build:')) { $mode = 'build'; $project = $entry.Substring(6) }
         elseif ($entry.StartsWith('publish:')) { $mode = 'publish'; $project = $entry.Substring(8) }
+        elseif ($entry.Contains('#')) { $spec = $entry.Substring($entry.IndexOf('#') + 1); $project = $entry.Substring(0, $entry.IndexOf('#')) }
         $path = Join-Path $src $project; $name = [IO.Path]::GetFileNameWithoutExtension($project)
         if ($mode -eq 'publish') {
             & $Dotnet publish $path -c Release -r win-x64 --self-contained true -o (Join-Path $Run "publish\$name") --disable-build-servers -p:NuGetAudit=false -m:4 -v:minimal *> (Join-Path $Run "publish-$name.log")
             if ($LASTEXITCODE -ne 0) { throw "Publish failed: $name" }
             continue
         }
-        & $Dotnet build $path -c Release --disable-build-servers -p:NuGetAudit=false -m:4 -v:minimal *> (Join-Path $Run "build-$name.log")
-        if ($LASTEXITCODE -ne 0) { throw "Build failed: $name" }
+        if (-not $built.ContainsKey($path)) {
+            & $Dotnet build $path -c Release --disable-build-servers -p:NuGetAudit=false -m:4 -v:minimal *> (Join-Path $Run "build-$name.log")
+            if ($LASTEXITCODE -ne 0) { throw "Build failed: $name" }
+            $built[$path] = $true
+        }
         if ($mode -eq 'build') { continue }
+        $testFilter = $Filter
+        if ($spec) {
+            $negated = $spec.StartsWith('!'); if ($negated) { $spec = $spec.Substring(1) }
+            if ($spec -notmatch '^[A-Za-z0-9_.]+(\+[A-Za-z0-9_.]+)*$') { throw "Bad shard: $spec" }
+            $parts = $spec.Split('+')
+            if ($negated) { $shard = '(' + (($parts | ForEach-Object { "FullyQualifiedName!~$_" }) -join '&') + ')'; $name = "$name-not-" + ($parts -join '-') }
+            else { $shard = '(' + (($parts | ForEach-Object { "FullyQualifiedName~$_" }) -join '|') + ')'; $name = "$name-" + ($parts -join '-') }
+            $testFilter = if ($Filter -eq '*') { $shard } else { "($Filter)&$shard" }
+        }
         $arguments = @('test', $path, '-c', 'Release', '--no-build', '--no-restore', '--disable-build-servers', '-p:NuGetAudit=false',
             '--logger', "trx;LogFileName=$name.trx", '--results-directory', (Join-Path $Run 'results'), '--blame-hang-timeout', "$($HangMinutes)m", '--blame-hang-dump-type', 'mini')
-        if ($Filter -ne '*') { $arguments += @('--filter', $Filter) }
-        & $Dotnet @arguments *> (Join-Path $Run "test-$name.log")
-        $exits[$name] = $LASTEXITCODE
+        if ($testFilter -ne '*') { $arguments += @('--filter', $testFilter) }
+        "test ${name}: $testFilter" | Add-Content -LiteralPath (Join-Path $Run 'tests.txt')
+        $tests += ,@($name, $arguments)
+    }
+    if ($parallel) {
+        # Each job is its own PowerShell process with this process's environment; it returns the test run's exit code.
+        $jobs = @{}
+        foreach ($t in $tests) {
+            $jobs[$t[0]] = Start-Job -ArgumentList $Dotnet, $t[1], (Join-Path $Run "test-$($t[0]).log") -ScriptBlock {
+                param($dotnet, $arguments, $log) $list = [string[]]@($arguments); & $dotnet @list *> $log; $LASTEXITCODE }
+        }
+        foreach ($name in @($jobs.Keys)) { $exits[$name] = [int](@(Receive-Job -Job $jobs[$name] -Wait -AutoRemoveJob)[-1]) }
+    } else {
+        foreach ($t in $tests) { $arguments = $t[1]; & $Dotnet @arguments *> (Join-Path $Run "test-$($t[0]).log"); $exits[$t[0]] = $LASTEXITCODE }
     }
     $ErrorActionPreference = 'Stop'
     $suites = @{}; $failed = @(); $ok = $true
@@ -114,7 +148,7 @@ try {
 }
 '@
     [IO.File]::WriteAllText((Join-Path $run 'child.ps1'), $child)
-    $launcher = "@echo off`r`nC:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$run\child.ps1`" -Run `"$run`" -Packet `"$Packet`" -Filter `"$Filter`" -Projects `"$Projects`" -Dotnet `"$Dotnet`" -Env `"$Env`" > `"$run\child.out`" 2>&1`r`n"
+    $launcher = "@echo off`r`nC:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$run\child.ps1`" -Run `"$run`" -Packet `"$Packet`" -Filter `"$Filter`" -Projects `"$Projects`" -Dotnet `"$Dotnet`" -Env `"$Env`" -HangMinutes $HangMinutes > `"$run\child.out`" 2>&1`r`n"
     [IO.File]::WriteAllText((Join-Path $run 'child.cmd'), $launcher)
     & schtasks.exe /create /tn $task /tr "`"$run\child.cmd`"" /sc once /st 23:59 /ru $User /it /rl LIMITED /f *> (Join-Path $run 'task.log')
     if ($LASTEXITCODE -ne 0) { throw 'Could not create the interactive limited task.' }

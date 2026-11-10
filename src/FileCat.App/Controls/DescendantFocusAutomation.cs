@@ -173,6 +173,31 @@ internal static class AtSpiLayoutNames
 }
 
 /// <summary>
+/// Orca said nothing when Up or Down changed the value of a closed combo box (heard while choosing an archive format):
+/// Avalonia's AT-SPI bridge raises no event for that change. On Linux the new value of a focused, closed combo box is
+/// sent as a polite announcement from its window. Programmatic changes to a combo box without keyboard focus stay silent,
+/// and an open list is left to Orca's own item focus announcements.
+/// </summary>
+internal static class ComboBoxAnnouncements
+{
+    internal static void Install()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        Avalonia.Controls.Primitives.SelectingItemsControl.SelectionChangedEvent.AddClassHandler<ComboBox>((box, e) =>
+        {
+            if (!box.IsKeyboardFocusWithin || box.IsDropDownOpen || e.AddedItems.Count == 0) return;
+            if (TopLevel.GetTopLevel(box) is not Window window ||
+                ControlAutomationPeer.CreatePeerForElement(window) is not DescendantFocusWindowAutomationPeer { AtSpi: { } bridge }) return;
+            // Every chooser in FileCat lists strings or records that name themselves; a control or an object without its own
+            // text (only its type name) is not announced rather than read out as a type name.
+            object? item = box.SelectionBoxItem ?? e.AddedItems[0];
+            string? text = item is Control ? null : item?.ToString();
+            if (!string.IsNullOrWhiteSpace(text) && text != item!.GetType().ToString()) bridge.Announce(text, AutomationLiveSetting.Polite);
+        });
+    }
+}
+
+/// <summary>
 /// Screen readers hear a live region only when a platform bridge raises its live-region event, and each of
 /// Avalonia's bridges did so only for an element an assistive client had already visited: the Windows bridge creates
 /// an element's UI Automation node, and the macOS bridge its native element, on first visit, while the AT-SPI bridge

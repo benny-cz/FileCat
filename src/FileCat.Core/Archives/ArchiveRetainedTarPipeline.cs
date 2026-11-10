@@ -27,7 +27,8 @@ internal static class ArchiveRetainedContainerPipeline
         ArchiveRetainedBinding? original, IReadOnlyDictionary<int, ArchiveRetainedBinding> captured,
         IArchiveRetainedStage stage, ArchiveTransformClient transform, ArchiveVerificationClient verifier, CancellationToken ct,
         Action? beforeRebuild = null, Action<ArchiveFileObservation>? beforeVerification = null, Action? beforeFinalizing = null,
-        Func<ArchiveFileObservation, ArchiveFileObservation>? finalizeMetadata = null, ArchiveJobPassword? password = null)
+        Func<ArchiveFileObservation, ArchiveFileObservation>? finalizeMetadata = null, ArchiveJobPassword? password = null,
+        Action<string>? reading = null)
     {
         ArgumentNullException.ThrowIfNull(plan); ArgumentNullException.ThrowIfNull(captured); ArgumentNullException.ThrowIfNull(stage);
         ArgumentNullException.ThrowIfNull(transform); ArgumentNullException.ThrowIfNull(verifier);
@@ -63,7 +64,8 @@ internal static class ArchiveRetainedContainerPipeline
             }, ct).ConfigureAwait(false);
             Stream output = await Task.Run(() => { beforeRebuild?.Invoke(); return stage.BeginRebuild(invocation.Request.OutputLengthBound, ct); }, ct).ConfigureAwait(false);
             await transform.RebuildAsync(invocation, output,
-                () => original!.File.OpenReadView(original.Reviewed, ct), id => inputs[id].File.OpenReadView(inputs[id].Reviewed, ct), ct, password?.CreateGrant()).ConfigureAwait(false);
+                () => original!.File.OpenReadView(original.Reviewed, ct),
+                id => { reading?.Invoke(inputs[id].Reviewed.LeafName); return inputs[id].File.OpenReadView(inputs[id].Reviewed, ct); }, ct, password?.CreateGrant()).ConfigureAwait(false);
             if (beforeFinalizing is not null) await Task.Run(beforeFinalizing, ct).ConfigureAwait(false);
             // The worker has exited/reaped before the native write capability is irreversibly closed and flushed.
             var sealedState = await Task.Run(() => stage.SealForVerification(ct), ct).ConfigureAwait(false);

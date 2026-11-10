@@ -26,7 +26,8 @@ internal static class ArchiveJournaledContainerPreparation
         ArchiveContainerTransformPlan plan, ArchiveRetainedBinding? original, IReadOnlyDictionary<int, ArchiveRetainedBinding> captured,
         Func<Guid, ArchiveArtifactKind, long, ArchiveArtifactReservation> reserve, Func<ArchiveArtifactReservation, T> create,
         ArchiveTransformClient transform, ArchiveVerificationClient verifier, CancellationToken ct, long knownSnapshotBytes = 0,
-        ArchiveJobPassword? password = null, Action<Jobs.ArchiveJobPhase>? phase = null) where T : class, IArchiveRetainedStage
+        ArchiveJobPassword? password = null, Action<Jobs.ArchiveJobPhase>? phase = null, Action<string>? reading = null)
+        where T : class, IArchiveRetainedStage
     {
         ArgumentNullException.ThrowIfNull(journal); ArgumentNullException.ThrowIfNull(plan); ArgumentNullException.ThrowIfNull(captured);
         ArgumentNullException.ThrowIfNull(reserve); ArgumentNullException.ThrowIfNull(create); ArgumentNullException.ThrowIfNull(transform); ArgumentNullException.ThrowIfNull(verifier);
@@ -130,7 +131,7 @@ internal static class ArchiveJournaledContainerPreparation
                         inputs.OrderBy(p => p.Key).Select(p => p.Value.Reviewed), ct,
                         plan.Directories.OrderBy(p => p.Key).Select(p => p.Value.Reviewed));
                     return publication.ApplyCreationOrigin(sealedStage, origin, ct);
-                } : null, password: password).ConfigureAwait(false);
+                } : null, password: password, reading: reading).ConfigureAwait(false);
             await Task.Run(() =>
             {
                 Keep(ArchiveJournaledSidecar.WriteVerifiedManifest(journal, facts!, setup.Verified, create, verified.Verification, ct));

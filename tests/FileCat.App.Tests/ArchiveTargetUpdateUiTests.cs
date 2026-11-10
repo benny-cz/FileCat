@@ -135,6 +135,7 @@ public sealed class ArchiveTargetUpdateUiTests
                 new("folder/old", ArchiveMemberType.File, 1), new("kept", ArchiveMemberType.File, 1), new("same", ArchiveMemberType.File, 1)] : [new("kept", ArchiveMemberType.File, 1)];
             var expected = (Format switch { ArchiveWriteFormat.Rar5 => (ArchiveContainerTransformPlan)ArchiveRar5TransformPlan.Create(actual, null, inputs, [], added, token),
                 ArchiveWriteFormat.SevenZip => ArchiveSevenZipTransformPlan.Create(actual, null, inputs, [], added, token),
+                ArchiveWriteFormat.Zip => ArchiveZipTransformPlan.Create(actual, null, inputs, [], added, token),
                 _ => ArchiveTarTransformPlan.Create(actual, null, inputs, [], added, token) }).Expected;
             var members = expected.Members.ToList();
             if (MemberCatalog) { var original = members.Single(member => member.Name == "same"); members.Add(new(original.Name, original.Type, 1, original.Length, original.Sha256, original.Metadata)); }

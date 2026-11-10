@@ -74,13 +74,16 @@ internal sealed class ArchiveCapturedSelection : IDisposable
 
     internal static ArchiveCapturedSelection Capture(IArchiveSelectionTree source, IReadOnlyList<string> selectedRoots, CancellationToken ct)
         => CaptureCore(source, () => LegacyRoots(selectedRoots), ct);
-    internal static ArchiveCapturedSelection Capture(IArchiveSelectionTree source, IReadOnlyList<ArchiveSelectionRoot> selectedRoots, CancellationToken ct)
-        => CaptureCore(source, () => selectedRoots, ct);
-    private static ArchiveCapturedSelection CaptureCore(IArchiveSelectionTree source, Func<IReadOnlyList<ArchiveSelectionRoot>> roots, CancellationToken ct)
+    /// <param name="visiting">Told each member name just before its object is observed (progress only; never trusted).</param>
+    internal static ArchiveCapturedSelection Capture(IArchiveSelectionTree source, IReadOnlyList<ArchiveSelectionRoot> selectedRoots, CancellationToken ct,
+        Action<string>? visiting = null)
+        => CaptureCore(source, () => selectedRoots, ct, visiting);
+    private static ArchiveCapturedSelection CaptureCore(IArchiveSelectionTree source, Func<IReadOnlyList<ArchiveSelectionRoot>> roots, CancellationToken ct,
+        Action<string>? visiting = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         var result = new ArchiveCapturedSelection(source);
-        try { result.Walk(roots(), ct); return result; }
+        try { result.Walk(roots(), ct, visiting); return result; }
         catch { result.Dispose(); throw; }
     }
 
@@ -97,7 +100,7 @@ internal sealed class ArchiveCapturedSelection : IDisposable
         }
         return result;
     }
-    private void Walk(IReadOnlyList<ArchiveSelectionRoot> selectedRoots, CancellationToken ct)
+    private void Walk(IReadOnlyList<ArchiveSelectionRoot> selectedRoots, CancellationToken ct, Action<string>? visiting)
     {
         ArgumentNullException.ThrowIfNull(selectedRoots); ct.ThrowIfCancellationRequested();
         if (selectedRoots.Count is <= 0 or > ArchiveWritePolicy.MaxMembers) throw Invalid();
@@ -130,6 +133,7 @@ internal sealed class ArchiveCapturedSelection : IDisposable
         {
             ct.ThrowIfCancellationRequested(); int input = checked(++id);
             Inputs.RetainSelection(0, 128); nodes.Add(input, node);
+            visiting?.Invoke(node.MemberName);
             if (node.Entry.Kind == ArchiveSelectionKind.File)
             {
                 source.CaptureFile(Inputs, input, node, ct);

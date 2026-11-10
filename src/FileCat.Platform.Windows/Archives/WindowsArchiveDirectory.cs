@@ -64,6 +64,40 @@ internal sealed partial class WindowsArchiveDirectory : IDisposable, IArchiveDes
     public static WindowsArchiveDirectory Open(string path) => new(path);
     internal static WindowsArchiveDirectory OpenLegacyReadOnly(string path) => new(path,readControl:true);
 
+    // A folder below a held anchor: the anchor's lease pins its own path, this lease pins the folders below it.
+    private WindowsArchiveDirectory(WindowsArchiveDirectory anchor, LocalIconFileLease below, string displayPath)
+    {
+        directory = below; DisplayPath = displayPath; owner = anchor.owner; privateSecurity = anchor.privateSecurity;
+        try
+        {
+            // No link is followed below the anchor, so this is the anchor's volume; it is still read, never assumed.
+            Volume = WindowsArchiveNative.Volume(Handle);
+            if (Volume != anchor.Volume) throw new IOException("A folder below the archive directory is on another volume.");
+            Identity = ProtectedHexFile.Identity(Handle);
+        }
+        catch { directory.Dispose(); throw; }
+    }
+
+    /// <summary>
+    /// Opens the folder <paramref name="leaves"/> below this held folder without opening this folder's own path again: each
+    /// component is opened relative to the one before it, never through a link, and held without delete sharing, exactly as
+    /// <see cref="Open"/> holds a full path, while this folder's lease keeps holding the names above it. Every component is
+    /// passed to <paramref name="verify"/> as it is opened (with its position), before the next one is opened. The anchor
+    /// must stay open while the result is used.
+    /// </summary>
+    internal WindowsArchiveDirectory OpenBelow(IReadOnlyList<string> leaves, Action<int, SafeFileHandle> verify)
+    {
+        ArgumentNullException.ThrowIfNull(leaves); ArgumentNullException.ThrowIfNull(verify);
+        if (leaves.Count == 0) throw new ArgumentException("At least one folder below the anchor is required.", nameof(leaves));
+        foreach (string leaf in leaves) ValidateLeaf(leaf);
+        lock (Gate)
+        {
+            EnsureOpen();
+            var below = LocalIconFileLease.Below(Handle, leaves, verify);
+            return new(this, below, Path.Combine(DisplayPath, Path.Combine([.. leaves])));
+        }
+    }
+
     ArchiveSpaceReview IArchiveDestinationSpace.ReviewSpace(string expectedParentIdentity, ArchiveSpaceEstimate estimate, CancellationToken ct)
     {
         lock (Gate)
@@ -99,7 +133,13 @@ internal sealed partial class WindowsArchiveDirectory : IDisposable, IArchiveDes
             int status = TryOpen(Handle, leaf, GenericRead | GenericWrite | Delete | Synchronize | 0x20000 /* READ_CONTROL */,
                 ShareRead, Create, NonDirectoryFile | OpenReparsePoint, out var handle,
                 (uint)FileAttributes.Normal, privateSecurity);
-            if (status < 0) { handle.Dispose(); throw Error(status, "Create the exact exclusive private archive artifact reservation"); }
+            if (status < 0)
+            {
+                handle.Dispose();
+                // STATUS_ACCESS_DENIED or STATUS_MEDIA_WRITE_PROTECTED: the folder refused the file, so nothing exists to review.
+                if (status is unchecked((int)0xC0000022) or unchecked((int)0xC00000A2)) throw ArchiveWriteMessages.DestinationDenied(DisplayPath);
+                throw Error(status, "Create the exact exclusive private archive artifact reservation");
+            }
             // Never retry with an unrecorded name or clean up an uncertain post-create object.
             try { return Adopt(handle, leaf, reservation.MaximumLength, artifact: true, writable: true, mayRename: true, createdKind: (WindowsArchiveArtifactKind)reservation.Kind); }
             catch (Exception ex) { throw new WindowsArchiveArtifactCreationException(Path.Combine(DisplayPath, leaf), ex); }

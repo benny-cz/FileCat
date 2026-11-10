@@ -49,7 +49,7 @@ public sealed class ArchiveTransformWireTests
         switch (field)
         {
             case "schema": header[0] = 1; break;
-            case "format": BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(2), (int)ArchiveWriteFormat.Zip); break; // ZIP has no transform worker.
+            case "format": BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(2), (int)ArchiveWriteFormat.Rar5); break; // RAR5 exists only as a version-2 profile.
             case "unknown-format": BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(2), -1); break;
             case "version": BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(6), 2); break;
             case "level": BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(10), 3); break;

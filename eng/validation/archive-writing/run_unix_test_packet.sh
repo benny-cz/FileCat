@@ -9,6 +9,10 @@
 #   An env:NAME=VALUE entry exports a test variable (also into the systemd --user service), for example
 #   env:FILECAT_ARCHIVE_SMALL_VOLUME=/home/benny/FileCatValidation/small-volume for an owned small tmpfs.
 #   A hang:MINUTES entry (1-600) replaces the default 20-minute per-test hang guard, for opt-in scale lanes such as AT18.
+#   A test PROJECT may name a shard after "#": PATH.csproj#ClassA+ClassB runs only tests whose name contains one of them,
+#   PATH.csproj#!ClassA+ClassB runs every other test; each shard is its own test process with its own trx and exit code.
+#   FileCat's archive-worker gate is per process, so shards let worker-heavy test classes use more than one CPU.
+#   A parallel:on entry runs all test processes at the same time after every build has finished (default: one by one).
 #   FILTER is a dotnet test --filter expression; "*" runs the complete project inventory.
 # Writes $ROOT/RUN_ID/{status.txt,summary.json,machine.txt,*.log,results/*.trx} and RUN_ID-evidence.tar.gz.
 # Refuses (exit 3) while another FileCat/.NET test process from a different owner directory is running.
@@ -54,20 +58,26 @@ export DOTNET_ROOT PATH="$DOTNET_ROOT:$PATH" DOTNET_CLI_TELEMETRY_OPTOUT=1 MSBUI
 if [ $LABEL = ubuntu ]; then NICE=(nice -n 5); else NICE=(env); fi
 EXTRA_ENVS=()
 HANG=20m
+PARALLEL=0
 for P in "${PROJECTS[@]}"; do
   case "$P" in
     env:*) KV=${P#env:}; [[ "$KV" =~ ^[A-Z][A-Z0-9_]*=[^[:space:]]*$ ]] || { echo "bad env entry" >&2; exit 2; }
       export "$KV"; EXTRA_ENVS+=("$KV"); echo "env=$KV" >>"$D/machine.txt" ;;
     hang:*) M=${P#hang:}; [[ "$M" =~ ^[1-9][0-9]{0,2}$ ]] && [ "$M" -le 600 ] || { echo "bad hang entry" >&2; exit 2; }
       HANG="${M}m"; echo "hang=$HANG" >>"$D/machine.txt" ;;
+    parallel:*) case "${P#parallel:}" in on) PARALLEL=1 ;; off) PARALLEL=0 ;; *) echo "bad parallel entry" >&2; exit 2 ;; esac
+      echo "parallel=${P#parallel:}" >>"$D/machine.txt" ;;
   esac
 done
-RUNNER=("${NICE[@]}")
+USE_SYSTEMD=0
+BUILT="|"
+TAB=$'\t'
+TESTS=()
 i=0
 for P in "${PROJECTS[@]}"; do
   i=$((i+1))
   case "$P" in
-    env:*|hang:*) continue ;;
+    env:*|hang:*|parallel:*) continue ;;
     build:*) P=${P#build:}; name=$(basename "$P" .csproj)
       "${NICE[@]}" "$DOTNET_ROOT/dotnet" build "$D/src/$P" -c Release --disable-build-servers -p:NuGetAudit=false -m:$JOBS -v:minimal >"$D/build-$name.log" 2>&1
       continue ;;
@@ -83,17 +93,49 @@ for P in "${PROJECTS[@]}"; do
           ENVS+=(FILECAT_ARCHIVE_LINUX_PROBE="$D/publish/FileCat.WorkerProbe/FileCat.WorkerProbe"); fi
         export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
         export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
-        RUNNER=(systemd-run --user --wait --pipe --collect --quiet -p Nice=5 --unit="filecat-aw-claude-$RUN_ID-pub$i" /usr/bin/env "${ENVS[@]}")
+        USE_SYSTEMD=1
       fi
       continue ;;
   esac
-  name=$(basename "$P" .csproj)
-  "${NICE[@]}" "$DOTNET_ROOT/dotnet" build "$D/src/$P" -c Release --disable-build-servers -p:NuGetAudit=false -m:$JOBS -v:minimal >"$D/build-$name.log" 2>&1
-  args=(test "$D/src/$P" -c Release --no-build --no-restore --disable-build-servers -p:NuGetAudit=false
-        --logger "trx;LogFileName=$name.trx" --results-directory "$D/results" --blame-hang-timeout "$HANG" --blame-hang-dump-type mini)
-  [ "$FILTER" = "*" ] || args+=(--filter "$FILTER")
-  set +e; "${RUNNER[@]}" "$DOTNET_ROOT/dotnet" "${args[@]}" </dev/null >"$D/test-$name.log" 2>&1; echo $? >"$D/exit-$name.txt"; set -e
+  # A test project, optionally one shard of it; each project is built once, before any test process starts.
+  csproj=${P%%#*}; spec=""; [ "$csproj" = "$P" ] || spec=${P#*#}
+  name=$(basename "$csproj" .csproj); shard=""
+  if [ -n "$spec" ]; then
+    neg=0; case "$spec" in '!'*) neg=1; spec=${spec#!} ;; esac
+    [[ "$spec" =~ ^[A-Za-z0-9_.]+(\+[A-Za-z0-9_.]+)*$ ]] || { echo "bad shard entry" >&2; exit 2; }
+    IFS='+' read -r -a parts <<<"$spec"
+    if [ $neg = 1 ]; then shard=$(printf 'FullyQualifiedName!~%s&' "${parts[@]}"); shard="(${shard%&})"; name="$name-not-${spec//+/-}"
+    else shard=$(printf 'FullyQualifiedName~%s|' "${parts[@]}"); shard="(${shard%|})"; name="$name-${spec//+/-}"; fi
+  fi
+  case "$BUILT" in *"|$csproj|"*) ;; *)
+    "${NICE[@]}" "$DOTNET_ROOT/dotnet" build "$D/src/$csproj" -c Release --disable-build-servers -p:NuGetAudit=false -m:$JOBS -v:minimal \
+      >"$D/build-$(basename "$csproj" .csproj).log" 2>&1
+    BUILT="$BUILT$csproj|" ;;
+  esac
+  f="$FILTER"
+  if [ -n "$shard" ]; then if [ "$FILTER" = "*" ]; then f="$shard"; else f="($FILTER)&$shard"; fi; fi
+  TESTS+=("$csproj$TAB$name$TAB$f")
 done
+run_test() {
+  local csproj=$1 name=$2 f=$3 idx=$4
+  local args=(test "$D/src/$csproj" -c Release --no-build --no-restore --disable-build-servers -p:NuGetAudit=false
+        --logger "trx;LogFileName=$name.trx" --results-directory "$D/results" --blame-hang-timeout "$HANG" --blame-hang-dump-type mini)
+  [ "$f" = "*" ] || args+=(--filter "$f")
+  local runner=("${NICE[@]}")
+  if [ $USE_SYSTEMD = 1 ]; then
+    runner=(systemd-run --user --wait --pipe --collect --quiet -p Nice=5 --unit="filecat-aw-claude-$RUN_ID-test$idx" /usr/bin/env "${ENVS[@]}")
+  fi
+  echo "test $name: $f" >>"$D/machine.txt"
+  "${runner[@]}" "$DOTNET_ROOT/dotnet" "${args[@]}" </dev/null >"$D/test-$name.log" 2>&1; echo $? >"$D/exit-$name.txt"
+}
+set +e
+idx=0; pids=""
+for t in ${TESTS[@]+"${TESTS[@]}"}; do
+  idx=$((idx+1)); IFS="$TAB" read -r c n f <<<"$t"
+  if [ $PARALLEL = 1 ]; then run_test "$c" "$n" "$f" $idx & pids="$pids $!"; else run_test "$c" "$n" "$f" $idx; fi
+done
+for p in $pids; do wait "$p"; done
+set -e
 date -u +%Y-%m-%dT%H:%M:%SZ >"$D/finished.txt"
 python3 - "$D" <<'PY'
 import json, sys, xml.etree.ElementTree as ET

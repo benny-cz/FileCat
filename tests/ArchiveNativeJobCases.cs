@@ -11,9 +11,11 @@ internal static class ArchiveNativeJobCases
     public static IEnumerable<object[]> Profiles()
     {
         foreach (var format in new[] { ArchiveWriteFormat.Tar, ArchiveWriteFormat.TarGzip, ArchiveWriteFormat.TarBzip2, ArchiveWriteFormat.TarZstd,
-            ArchiveWriteFormat.Rar5, ArchiveWriteFormat.SevenZip })
+            ArchiveWriteFormat.Rar5, ArchiveWriteFormat.SevenZip, ArchiveWriteFormat.Zip })
         for (int mode = 0; mode <= (format is ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip ? 2 : 0); mode++) yield return [format, mode];
     }
+    /// <summary>Edit sessions keep ZIP on the existing route until a ZIP route is qualified (every ZIP-format record is legacy).</summary>
+    public static IEnumerable<object[]> EditProfiles() => Profiles().Where(row => (ArchiveWriteFormat)row[0] != ArchiveWriteFormat.Zip);
     internal static ArchiveWriteProfile Profile(ArchiveWriteFormat format, int mode) => format switch
     {
         ArchiveWriteFormat.Rar5 => ArchiveWriteProfile.ForRar5(encryption: mode == 0 ? null : new((ArchiveEncryptionMode)mode)),
@@ -54,8 +56,10 @@ internal static class ArchiveNativeJobCases
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken); deadline.CancelAfter(TimeSpan.FromSeconds(120));
         while (!job.State.IsFinished()) await Task.Delay(10, deadline.Token);
-        // Native recovery evidence is deliberately retained in this unregistered component.
-        Assert.True(job.State == JobState.CompletedWithIssues, job.State + ": " + string.Join(" | ", job.Issues.Select(issue => issue.Message)));
+        // Native recovery evidence is deliberately retained in this unregistered component. A failure names each issue's
+        // technical details too: the plain message alone cannot tell which worker or step refused (v15b on Windows).
+        Assert.True(job.State == JobState.CompletedWithIssues,
+            job.State + ": " + string.Join(" | ", job.Issues.Select(issue => issue.Message + " [" + issue.Details + "]")));
         Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Committed);
         Assert.DoesNotContain(job.Issues, issue => issue.Severity == IssueSeverity.Error);
     }
@@ -94,7 +98,7 @@ internal static class ArchiveNativeJobCases
         if (Environment.GetEnvironmentVariable(exportVariable) is not { } export) return;
         string directory = Path.Combine(export, $"format-{profile.Format}-mode-{(int)profile.Encryption.Mode}"); Directory.CreateDirectory(directory);
         string extension = profile.Format switch { ArchiveWriteFormat.Tar => ".tar", ArchiveWriteFormat.TarGzip => ".tar.gz", ArchiveWriteFormat.TarBzip2 => ".tar.bz2",
-            ArchiveWriteFormat.TarZstd => ".tar.zst", ArchiveWriteFormat.Rar5 => ".rar", _ => ".7z" };
+            ArchiveWriteFormat.TarZstd => ".tar.zst", ArchiveWriteFormat.Rar5 => ".rar", ArchiveWriteFormat.Zip => ".zip", _ => ".7z" };
         File.WriteAllBytes(Path.Combine(directory, name + extension), bytes);
         File.WriteAllText(Path.Combine(directory, name + ".json"), JsonSerializer.Serialize(new { synthetic_public_vector = true,
             password = Password, format = (int)profile.Format, mode = (int)profile.Encryption.Mode,

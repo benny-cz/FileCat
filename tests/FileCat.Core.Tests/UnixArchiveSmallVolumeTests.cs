@@ -150,4 +150,63 @@ public sealed partial class UnixArchiveStorageTests
             catch (IOException error) when (ArchiveWriteMessages.IsOutOfSpace(error)) { }
         }
     }
+
+    // AT08 quota on a real volume: free space (statvfs) does not count the user's disk quota, so the space review passes and
+    // the stage write itself meets EDQUOT. FILECAT_ARCHIVE_QUOTA_VOLUME names a folder on a volume with ample free space
+    // where the test user's hard block quota is about 40 MiB (an ext4 loop image mounted with usrquota on Ubuntu). The jobs
+    // must fail with the full-drive text, never publish, keep the original byte-identical and discard their own files, which
+    // also returns the quota.
+    [Fact]
+    public async Task A_disk_quota_reached_during_the_rebuild_fails_with_the_space_message_and_keeps_the_original()
+    {
+        Native();
+        string? volume = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_QUOTA_VOLUME");
+        if (string.IsNullOrEmpty(volume)) Assert.Skip("Set FILECAT_ARCHIVE_QUOTA_VOLUME to a folder where the user's disk quota is about 40 MiB.");
+        var ct = TestContext.Current.CancellationToken;
+        string folder = Path.Combine(Canonical(volume), "at08q-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder); File.SetUnixFileMode(folder, (UnixFileMode)0x1c0);
+        using var sources = new TempDir(); string root = Canonical(sources.Path);
+        try
+        {
+            string small = Path.Combine(root, "small.txt"); File.WriteAllText(small, "small"); File.SetLastWriteTimeUtc(small, DateTime.UnixEpoch.AddSeconds(1700000000));
+            string big = Path.Combine(root, "big.bin"); var bytes = new byte[48 << 20]; new Random(811).NextBytes(bytes); File.WriteAllBytes(big, bytes);
+            File.SetLastWriteTimeUtc(big, DateTime.UnixEpoch.AddSeconds(1700000001));
+            // The review must see room for the whole job, so only the quota can stop the write.
+            long available = FileSystemCapacity.Query(folder)?.AvailableBytes ?? throw new IOException("The quota volume reports no capacity.");
+            Assert.True(available > (256L << 20), $"The quota volume needs more than 256 MiB free; it has {available >> 20} MiB.");
+            var profile = new ArchiveWriteProfile(ArchiveWriteFormat.Tar);
+            var backend = UnixArchiveJobBackend.Create(profile.Format, (nonce, _) => Child.Start(nonce, "archive-assess-v2"),
+                (nonce, _) => Child.Start(nonce, "archive-transform-v2"), (nonce, _) => Child.Start(nonce, "archive-verify-v2"));
+            string journals = Path.Combine(root, "journals");
+            var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), journals, new([backend]));
+            string target = Path.Combine(folder, "kept.tar"), created = Path.Combine(folder, "new.tar");
+            await ArchiveNativeJobCases.Completed(manager.SubmitArchive(new(target, null, [new(ArchiveChangeKind.AddFile, "small.txt", small)], Profile: profile), null));
+            byte[] original = File.ReadAllBytes(target);
+            var assessor = new ArchiveAssessmentClient((nonce, _) => Child.Start(nonce, "archive-assess-v2"), protocolVersion: 2);
+            var reviewed = await new ArchiveTargetReviewer(UnixArchiveTargetReadLease.Open, assessor).ReviewAsync(target, profile, null, ct);
+            foreach (var submit in new Func<Job>[]
+            {
+                () => manager.SubmitArchive(reviewed.CreatePlan([new(ArchiveChangeKind.AddFile, "big.bin", big)]), null),
+                () => manager.SubmitArchive(new(created, null, [new(ArchiveChangeKind.AddFile, "big.bin", big)], Profile: profile), null),
+            })
+            {
+                var job = submit();
+                using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct))
+                {
+                    deadline.CancelAfter(TimeSpan.FromSeconds(120));
+                    while (!job.State.IsFinished()) await Task.Delay(10, deadline.Token);
+                }
+                string issues = string.Join(" | ", job.Issues.Select(issue => issue.Message + " [" + issue.Details + "]"));
+                Assert.True(job.State == JobState.Failed, job.State + ": " + issues);
+                Assert.True(job.Issues.Any(issue => issue.Message == ArchiveWriteMessages.OutOfSpace), issues);
+                // Removing its own files frees the quota, so the live discard completes and nothing waits for review.
+                Assert.DoesNotContain(job.Issues, issue => issue.Message.Contains("kept them for review", StringComparison.Ordinal));
+            }
+            Assert.Equal(original, File.ReadAllBytes(target));
+            Assert.False(File.Exists(created));
+            Assert.Equal(new[] { "kept.tar" }, Directory.GetFileSystemEntries(folder).Select(Path.GetFileName));
+            Assert.Empty(JournalRecovery.Scan(journals, keepFinished: 0, maxAge: TimeSpan.Zero));
+        }
+        finally { Directory.Delete(folder, recursive: true); }
+    }
 }

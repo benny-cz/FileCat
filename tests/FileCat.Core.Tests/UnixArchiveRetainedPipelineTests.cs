@@ -150,11 +150,14 @@ public sealed partial class UnixArchiveStorageTests
         Native(); var ct = TestContext.Current.CancellationToken; using var temp = new TempDir(); string root = Canonical(temp.Path), inputPath = Path.Combine(root, "input");
         Payload(inputPath, empty ? [] : "before"u8.ToArray()); using var directory = UnixArchiveDirectory.Open(root); using var input = directory.OpenSource("input"); var state = Observe(input);
         var plan = ArchiveTarTransformPlan.Create(null, [state.Input(1)], [], [new("file", ArchiveMemberType.File, 1)], ct);
-        using var stage = Stage(directory, ArchiveTransformWire.OutputBound(plan.Expected, ct)); Child? verifier = null;
+        using var stage = Stage(directory, ArchiveTransformWire.OutputBound(plan.Expected, ct)); Child? verifier = null; var read = new List<string>();
         var failure = await Assert.ThrowsAsync<ArchiveWriteException>(() => ArchiveRetainedContainerPipeline.RebuildAndVerifyAsync(plan, null,
             new Dictionary<int, ArchiveRetainedBinding> { [1] = new(input, state) }, stage, new((nonce, _) => Child.Start(nonce, "archive-transform")),
-            new((nonce, _) => { File.WriteAllBytes(inputPath, empty ? [1] : "after!"u8.ToArray()); return verifier = Child.Start(nonce, "archive-verify"); }), ct));
+            new((nonce, _) => { File.WriteAllBytes(inputPath, empty ? [1] : "after!"u8.ToArray()); return verifier = Child.Start(nonce, "archive-verify"); }), ct,
+            reading: name => { lock (read) read.Add(name); }));
         Assert.Equal(ArchiveWriteReason.SourceChanged, failure.Reason); Assert.True(verifier!.Reaped); Assert.False(stage.CanWrite); Assert.True(File.Exists(stage.DisplayPath));
+        // Progress: the worker's read of the input names the file being packed (an empty input may never be read).
+        if (!empty) Assert.Equal("input", Assert.Single(read.Distinct()));
     }
 
     [Theory]

@@ -220,6 +220,7 @@ internal sealed class ArchiveCapturedInputs : IDisposable
                 ArchiveWriteFormat.SevenZip => ArchiveSevenZipTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this, directoryMerges, retainedHeapBytes),
                 ArchiveWriteFormat.Gzip or ArchiveWriteFormat.Bzip2 or ArchiveWriteFormat.Zstd => directories.Count != 0 || directoryMerges is { Count: > 0 }
                     ? throw ArchiveStandalone.OneFileOnly() : ArchiveStandaloneTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this),
+                ArchiveWriteFormat.Zip => ArchiveZipTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this, directoryMerges, retainedHeapBytes),
                 _ => ArchiveTarTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this, directoryMerges, retainedHeapBytes),
             };
         }

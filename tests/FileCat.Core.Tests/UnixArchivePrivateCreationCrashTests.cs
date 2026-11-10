@@ -81,8 +81,11 @@ public sealed partial class UnixArchiveStorageTests
         Assert.Equal("created by a crashed process", File.ReadAllText(source));
     }
 
-    private static async Task KillCreationProcess(string root, string point, CancellationToken ct)
+    // The update discard process (--archive-unix-update-discard-crash) shares this checkpoint protocol under its own name.
+    private static async Task KillCreationProcess(string root, string point, CancellationToken ct, string process = "creation")
     {
+        string mode = process == "creation" ? "--archive-unix-creation-crash" : "--archive-unix-update-discard-crash";
+        string announced = process == "creation" ? "archive-unix-creation-checkpoint:" : "archive-unix-update-discard-checkpoint:";
         var checkout = new DirectoryInfo(AppContext.BaseDirectory);
         while (checkout is not null && !File.Exists(Path.Combine(checkout.FullName, "FileCat.slnx"))) checkout = checkout.Parent;
         Assert.NotNull(checkout);
@@ -93,22 +96,22 @@ public sealed partial class UnixArchiveStorageTests
         string runtime = new DirectoryInfo(RuntimeEnvironment.GetRuntimeDirectory()).Parent!.Parent!.Parent!.FullName;
         var start = new ProcessStartInfo(Path.Combine(runtime, "dotnet"))
         { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (string argument in new[] { harness, "--archive-unix-creation-crash", root, point, probe }) start.ArgumentList.Add(argument);
-        using var process = Process.Start(start)!;
-        var errors = process.StandardError.ReadToEndAsync(ct);
+        foreach (string argument in new[] { harness, mode, root, point, probe }) start.ArgumentList.Add(argument);
+        using var child = Process.Start(start)!;
+        var errors = child.StandardError.ReadToEndAsync(ct);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct); timeout.CancelAfter(TimeSpan.FromSeconds(120));
         try
         {
-            string? actual = await process.StandardOutput.ReadLineAsync(timeout.Token);
+            string? actual = await child.StandardOutput.ReadLineAsync(timeout.Token);
             string expected = point.StartsWith("discard:", StringComparison.Ordinal) ? point["discard:".Length..] : point;
-            Assert.True(actual is not null && actual.StartsWith("archive-unix-creation-checkpoint:" + expected, StringComparison.Ordinal),
-                "Missing checkpoint " + point + ": " + actual + (process.HasExited ? " stderr: " + await errors : ""));
-            Assert.False(process.HasExited); process.Kill(entireProcessTree: true); await process.WaitForExitAsync(timeout.Token);
-            Assert.NotEqual(0, process.ExitCode);
+            Assert.True(actual is not null && actual.StartsWith(announced + expected, StringComparison.Ordinal),
+                "Missing checkpoint " + point + ": " + actual + (child.HasExited ? " stderr: " + await errors : ""));
+            Assert.False(child.HasExited); child.Kill(entireProcessTree: true); await child.WaitForExitAsync(timeout.Token);
+            Assert.NotEqual(0, child.ExitCode);
         }
         finally
         {
-            if (!process.HasExited) { process.Kill(entireProcessTree: true); await process.WaitForExitAsync(CancellationToken.None); }
+            if (!child.HasExited) { child.Kill(entireProcessTree: true); await child.WaitForExitAsync(CancellationToken.None); }
         }
     }
 }

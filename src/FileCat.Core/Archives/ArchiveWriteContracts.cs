@@ -219,6 +219,17 @@ public sealed class ArchiveWriteBudget
         PaxPairs += pairs;
     }
 
+    /// <summary>
+    /// An archive-wide record set read as a whole (a ZIP central directory): it counts against the aggregate metadata and
+    /// retained-heap bounds, not the per-entry metadata limit, which would cap such an archive at about 1 MiB of directory.
+    /// </summary>
+    internal void AddAggregateMetadata(long encodedBytes, long retainedHeapBytes)
+    {
+        Reserve(MetadataBytes, encodedBytes, ArchiveWritePolicy.MaxMetadataBytes);
+        Reserve(RetainedHeapBytes, retainedHeapBytes, ArchiveWritePolicy.MaxRetainedHeapBytes);
+        MetadataBytes += encodedBytes; RetainedHeapBytes += retainedHeapBytes;
+    }
+
     internal void RetainCapturedInputs(ArchiveCapturedInputCost cost)
     {
         // Per-entry limits were checked during capture. Transfer aggregate retained costs before allocating

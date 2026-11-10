@@ -35,10 +35,19 @@ public sealed partial class UnixArchiveStorageTests
         Assert.Equal(ArchiveWritePolicy.MaxMembers - 1, members);
         Assert.Equal(498, Directory.GetDirectories(tree).Length);
         var profile = new ArchiveWriteProfile(ArchiveWriteFormat.Tar);
+        // The phase each retained peak was seen in; with FILECAT_ARCHIVE_SCALE_RETAINED=1 every phase change also logs the
+        // retained heap after a full collection (slower, for a solo measurement run).
+        string phaseNow = "start", peakPhase = "start"; bool retainedAtPhases = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_SCALE_RETAINED") == "1";
         var backend = UnixArchiveJobBackend.Create(profile.Format, (nonce, _) => Child.Start(nonce, "archive-assess-v2"),
             (nonce, _) => Child.Start(nonce, "archive-transform-v2"), (nonce, _) => Child.Start(nonce, "archive-verify-v2"));
         var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), Path.Combine(root, "journals"), new([backend]));
-        string target = Path.Combine(root, "scale.tar"); int descriptors = Descriptors();
+        string target = Path.Combine(root, "scale.tar");
+        // A small job first, so the descriptors and heap the runtime opens lazily on its first job (thread pool, event
+        // queues, pipes) are part of the baseline; measured alone, they otherwise read as growth of the measured jobs.
+        string warm = Path.Combine(root, "warm.txt"); File.WriteAllText(warm, "warm-up"); File.SetLastWriteTimeUtc(warm, DateTime.UnixEpoch.AddSeconds(1700000000));
+        await Finish("warm-up", manager.SubmitArchive(new(Path.Combine(root, "warm.tar"), null, [new(ArchiveChangeKind.AddFile, "warm.txt", warm)], Profile: profile), null));
+        File.Delete(Path.Combine(root, "warm.tar")); File.Delete(warm);
+        int descriptors = Descriptors();
         // The managed heap's high-water mark while the jobs run (sampled), compared with the charged retained-heap ceiling.
         GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
         long heapBefore = GC.GetTotalMemory(false), heapPeak = heapBefore, workingSetBefore = Process.GetCurrentProcess().PeakWorkingSet64;
@@ -47,6 +56,15 @@ public sealed partial class UnixArchiveStorageTests
             long heap = GC.GetTotalMemory(false), seen;
             while (heap > (seen = Interlocked.Read(ref heapPeak)) && Interlocked.CompareExchange(ref heapPeak, heap, seen) != seen) { }
         }, null, 0, 20);
+        // What is actually retained: a full collection every 15 s (the sampled heap above also counts uncollected garbage).
+        // Other test classes may run in this process at the same time, so this is reported, not asserted.
+        long retainedPeak = heapBefore;
+        using var retainedSampler = new Timer(_ =>
+        {
+            long retained = GC.GetTotalMemory(true), seen;
+            while (retained > (seen = Interlocked.Read(ref retainedPeak)))
+                if (Interlocked.CompareExchange(ref retainedPeak, retained, seen) == seen) { Volatile.Write(ref peakPhase, Volatile.Read(ref phaseNow)); break; }
+        }, null, 15_000, 15_000);
 
         var clock = Stopwatch.StartNew();
         await Finish("create", manager.SubmitArchive(new(target, null, [new(ArchiveChangeKind.AddFolder, "tree", tree)], Profile: profile), null));
@@ -80,9 +98,10 @@ public sealed partial class UnixArchiveStorageTests
         GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
         int after = Descriptors();
         var process = Process.GetCurrentProcess(); process.Refresh();
-        sampler.Dispose();
+        sampler.Dispose(); retainedSampler.Dispose();
         string report = $"AT18 members={members + 1} archiveBytes={size} create={created.TotalSeconds:F1}s assess={assessed.TotalSeconds:F1}s " +
             $"update={updated.TotalSeconds:F1}s heapBefore={heapBefore >> 20}MiB heapPeak={Interlocked.Read(ref heapPeak) >> 20}MiB " +
+            $"retainedPeak={Interlocked.Read(ref retainedPeak) >> 20}MiB (in {Volatile.Read(ref peakPhase)}) " +
             $"chargedCeiling={ArchiveWritePolicy.MaxRetainedHeapBytes >> 20}MiB peakWorkingSet={workingSetBefore >> 20}->{process.PeakWorkingSet64 >> 20}MiB heapAfter={GC.GetTotalMemory(false) >> 20}MiB " +
             $"descriptors={descriptors}->{after} refusal=\"{string.Join(" | ", refused.Issues.Select(issue => issue.Message))}\"";
         TestContext.Current.TestOutputHelper?.WriteLine(report); Console.WriteLine(report);
@@ -95,13 +114,24 @@ public sealed partial class UnixArchiveStorageTests
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct); deadline.CancelAfter(TimeSpan.FromMinutes(30));
             while (!job.State.IsFinished())
             {
-                if (job.ArchivePhase != phase) { phase = job.ArchivePhase; Log($"{name} phase={phase} at {watch.Elapsed.TotalSeconds:F1}s heap={GC.GetTotalMemory(false) >> 20}MiB"); }
+                if (job.ArchivePhase != phase)
+                {
+                    phase = job.ArchivePhase; Volatile.Write(ref phaseNow, $"{name}:{phase}");
+                    Log($"{name} phase={phase} at {watch.Elapsed.TotalSeconds:F1}s heap={GC.GetTotalMemory(false) >> 20}MiB" +
+                        (retainedAtPhases ? $" retained={GC.GetTotalMemory(true) >> 20}MiB" : ""));
+                }
                 await Task.Delay(10, deadline.Token);
             }
             Log($"{name} {job.State} at {watch.Elapsed.TotalSeconds:F1}s");
             Assert.True(job.State == JobState.Completed, job.State + ": " + string.Join(" | ", job.Issues.Select(issue => issue.Message)));
         }
-        static void Log(string line) { line = "AT18 " + line; TestContext.Current.TestOutputHelper?.WriteLine(line); Console.WriteLine(line); }
+        static void Log(string line)
+        {
+            line = "AT18 " + line; TestContext.Current.TestOutputHelper?.WriteLine(line); Console.WriteLine(line);
+            // A test host stopped by the hang guard loses its captured output; this file, when named, keeps every phase line.
+            if (Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_SCALE_LOG") is { Length: > 0 } progress)
+                File.AppendAllText(progress, DateTime.UtcNow.ToString("O") + " " + line + Environment.NewLine);
+        }
         static int Descriptors() => OperatingSystem.IsLinux() ? Directory.GetFileSystemEntries("/proc/self/fd").Length
             : Directory.Exists("/dev/fd") ? Directory.GetFileSystemEntries("/dev/fd").Length : -1;
     }

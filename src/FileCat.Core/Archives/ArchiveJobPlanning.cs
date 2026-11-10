@@ -56,9 +56,9 @@ internal sealed class ArchiveJobPlanning
         Sources = sources.AsReadOnly(); RetainedNameChars = budget.NameChars; RetainedHeapBytes = budget.RetainedHeapBytes;
     }
 
-    internal ArchiveCapturedSelection? CaptureInputs(Func<string,IArchiveSelectionTree> open,CancellationToken ct)
+    internal ArchiveCapturedSelection? CaptureInputs(Func<string,IArchiveSelectionTree> open,CancellationToken ct,Action<string>? visiting=null)
         =>Sources.Count==0?null:ArchiveSelectionForest.Capture(Sources,
-            directory=>plan.EditInput is { } input?input.OpenTree(directory,ct):open(directory),ct,RetainedNameChars,RetainedHeapBytes);
+            directory=>plan.EditInput is { } input?input.OpenTree(directory,ct):open(directory),ct,RetainedNameChars,RetainedHeapBytes,visiting);
 
     internal ArchiveWorkflowReview Review(ArchiveAssessment? source, ArchiveCapturedSelection? selection,
         ArchiveCapturedInputs captured, CancellationToken ct)

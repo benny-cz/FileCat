@@ -38,10 +38,11 @@ public sealed class ArchiveVerificationClient
         {
             ArgumentNullException.ThrowIfNull(sealedStage); ArgumentNullException.ThrowIfNull(expected); ArgumentNullException.ThrowIfNull(openPinnedStage);
             // Each endpoint uses complete strict framing/content observations; tolerant browsing cannot verify output.
-            if (expected.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip or ArchiveWriteFormat.Gzip or ArchiveWriteFormat.Bzip2 or ArchiveWriteFormat.Zstd))
+            if (expected.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip or ArchiveWriteFormat.Gzip or ArchiveWriteFormat.Bzip2 or ArchiveWriteFormat.Zstd or ArchiveWriteFormat.Zip))
                 throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This archive verification profile has not been implemented.");
             if (expected.Profile.Format == ArchiveWriteFormat.Rar5) _ = ArchiveRar5Features.Decode(expected.Features);
             else if (expected.Profile.Format == ArchiveWriteFormat.SevenZip) ArchiveSevenZipEncoding.ValidateFeatures(expected.Members, ArchiveSevenZipFeatures.Decode(expected.Features));
+            else if (expected.Profile.Format == ArchiveWriteFormat.Zip) ArchiveZipFeatures.Validate(expected.Features);
             else if (ArchiveStandalone.IsStandalone(expected.Profile.Format))
             {
                 ArchiveStandalone.Validate(expected.Profile, expected.Features);
