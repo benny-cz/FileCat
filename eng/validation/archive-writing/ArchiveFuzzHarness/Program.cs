@@ -49,7 +49,13 @@ if(args is ["instrument",var targetAssembly,var typeReport])
             name.StartsWith("FileCat.Core.Jobs.JobJournal",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Core.Archives.ArchiveTransactionCollector",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Core.Archives.ArchiveAssessmentWire",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Archives.ArchiveWriteBudget",StringComparison.Ordinal),Options.Value).ToArray();
+            name.StartsWith("FileCat.Core.Archives.ArchiveWriteBudget",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Core.Archives.ArchiveWorkerProtocol",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Core.Archives.ArchiveWorkerRecords",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Core.Archives.ArchiveWorkerSession",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Core.Archives.ArchiveAssessmentClient",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Core.Archives.ArchiveVerificationClient",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Core.Archives.ArchiveIoAuthority",StringComparison.Ordinal),Options.Value).ToArray();
     File.WriteAllText(typeReport,JsonSerializer.Serialize(types));
     if(!types.Contains("FileCat.Core.Archives.ArchiveWritePolicy")||!types.Contains("FileCat.Core.Edit.EditSessionStore")||
         !types.Contains("FileCat.Core.Edit.EditSaveCopyIntent")||!types.Contains("FileCat.Core.Edit.EditSaveCopyRecord")||
@@ -81,7 +87,9 @@ if(args is ["instrument-tar",var tarAssembly,var tarTypeReport])
             name.StartsWith("FileCat.Archives.Writing.ZstdFrameHeader",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Archives.Rar.Rar5ReadPasswordSession",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Archives.Writing.Rar5EncryptionPrimitives",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.ArchiveCryptoWorkBudget",StringComparison.Ordinal),Options.Value).ToArray();
+            name.StartsWith("FileCat.Archives.Writing.ArchiveCryptoWorkBudget",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Writing.ArchiveAssessmentWorker",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Archives.Writing.ArchiveTransformWorker",StringComparison.Ordinal),Options.Value).ToArray();
     File.WriteAllText(tarTypeReport,JsonSerializer.Serialize(types));
     if(!types.Contains("FileCat.Archives.Writing.StrictTarCatalog")||!types.Contains("FileCat.Archives.TarHeaderGuard")||
         !types.Contains("FileCat.Archives.Writing.StrictSevenZipCatalog")||
@@ -133,6 +141,41 @@ if(args is ["replay-record",var recordTarget,var inputPath])
     };
     Console.WriteLine(JsonSerializer.Serialize(new{target=recordTarget,accepted}));return 0;
 }
+if(args is ["replay-worker",var workerTarget,var workerInput])
+{
+    if(workerTarget is not ("worker-frames" or "verify-output" or "create-inputs" or "update-changes" or "stream-faults" or
+        "member-keys" or "repeated-cancel"))
+        throw new ArgumentException("Unknown worker replay target.");
+    using var file=new FileStream(workerInput,FileMode.Open,FileAccess.Read,FileShare.Read);
+    if(file.Length>1048576)throw new ArgumentException("Worker replay exceeds 1 MiB.");
+    byte[] bytes=new byte[checked((int)file.Length)];file.ReadExactly(bytes);
+    if(file.ReadByte()!=-1)throw new IOException("Worker replay file changed during its bounded read.");
+    bool accepted;
+    try{accepted=workerTarget switch
+    {
+        "worker-frames"=>WorkerFrames.Exercise(bytes),"verify-output"=>VerifyOutput.Exercise(bytes),
+        "create-inputs"=>CreateInputs.Exercise(bytes),"update-changes"=>UpdateChanges.Exercise(bytes),"stream-faults"=>StreamFaults.Exercise(bytes),
+        "member-keys"=>MemberKeys.Exercise(bytes),_=>RepeatedCancellation.Exercise(bytes),
+    };}
+    catch(ArchiveWriteException){accepted=false;} // A typed refusal, as in the native and structured lanes.
+    Console.WriteLine(JsonSerializer.Serialize(new{target=workerTarget,accepted}));return 0;
+}
+if(args is ["make-worker-seeds",var workerSeedDirectory])
+{
+    // Real transcripts of the actual in-process worker roles (FZ08) and the exact fixture archives (FZ07).
+    if(!Path.IsPathFullyQualified(workerSeedDirectory)||Directory.Exists(workerSeedDirectory))throw new ArgumentException("Seeds need a new absolute folder.");
+    Directory.CreateDirectory(Path.Combine(workerSeedDirectory,"worker-frames"));Directory.CreateDirectory(Path.Combine(workerSeedDirectory,"verify-output"));
+    foreach(var(name,seed)in WorkerFrames.Seeds())File.WriteAllBytes(Path.Combine(workerSeedDirectory,"worker-frames",name),seed);
+    for(int i=0;i<WorkerFixtures.Archives.Length;i++)
+        File.WriteAllBytes(Path.Combine(workerSeedDirectory,"verify-output",$"stage-{i}.bin"),[(byte)i,..WorkerFixtures.Archives[i]]);
+    foreach(var(folder,seeds)in new[]{("create-inputs",WriterSeeds.Create()),("update-changes",WriterSeeds.Update()),("stream-faults",WriterSeeds.Faults()),
+        ("member-keys",StatefulSeeds.Keys()),("repeated-cancel",StatefulSeeds.Repeats())})
+    {
+        Directory.CreateDirectory(Path.Combine(workerSeedDirectory,folder));
+        foreach(var(name,seed)in seeds)File.WriteAllBytes(Path.Combine(workerSeedDirectory,folder,name),seed);
+    }
+    Console.WriteLine(JsonSerializer.Serialize(Directory.GetDirectories(workerSeedDirectory).ToDictionary(d=>Path.GetFileName(d),d=>Directory.GetFiles(d).Length)));return 0;
+}
 if(args is ["structured-mutation",var mutationTarget,var mutationSeeds,var mutationSeconds,var mutationSeed,var mutationReport])
     return StructuredMutation.Run(mutationTarget,mutationSeeds,mutationSeconds,mutationSeed,mutationReport);
 if(args.Length!=0)throw new ArgumentException("Fuzz targets receive input through the bounded native driver, not command-line paths.");
@@ -140,7 +183,8 @@ if(args.Length!=0)throw new ArgumentException("Fuzz targets receive input throug
 Stats.Target=Environment.GetEnvironmentVariable("FILECAT_FUZZ_TARGET")??"digest";
 if(Stats.Target is not ("digest" or "tar-strict" or "session-record" or "capture-record" or "save-copy-intent" or
     "save-copy-receipt" or "journal-record" or "journal-state" or "manifest-member" or "sevenzip-strict" or "rar5-strict" or
-    "sevenzip-password" or "rar5-password" or "gzip-strict" or "bzip2-strict" or "zstd-strict"))
+    "sevenzip-password" or "rar5-password" or "gzip-strict" or "bzip2-strict" or "zstd-strict" or "worker-frames" or "verify-output" or
+    "create-inputs" or "update-changes" or "stream-faults" or "member-keys" or "repeated-cancel"))
     throw new ArgumentException("Unknown fuzz target.");
 Stats.CanaryPrefixMode=Environment.GetEnvironmentVariable("FILECAT_FUZZ_CANARY_PREFIX_MODE")=="1";
 if(Stats.CanaryPrefixMode&&Stats.Target!="digest")throw new ArgumentException("The canary input transform is digest-only.");
@@ -162,10 +206,18 @@ static void Exercise(ReadOnlySpan<byte> data)
     try
     {
         if(Stats.Target is "session-record" or "capture-record" or "save-copy-intent" or "save-copy-receipt" or
-            "journal-record" or "journal-state" or "manifest-member")
+            "journal-record" or "journal-state" or "manifest-member" or "worker-frames" or "verify-output" or
+            "create-inputs" or "update-changes" or "stream-faults" or "member-keys" or "repeated-cancel")
         {
             bool accepted=Stats.Target switch
             {
+                "worker-frames"=>WorkerFrames.Exercise(data),
+                "verify-output"=>VerifyOutput.Exercise(data),
+                "create-inputs"=>CreateInputs.Exercise(data),
+                "update-changes"=>UpdateChanges.Exercise(data),
+                "stream-faults"=>StreamFaults.Exercise(data),
+                "member-keys"=>MemberKeys.Exercise(data),
+                "repeated-cancel"=>RepeatedCancellation.Exercise(data),
                 "session-record"=>Session.Exercise(data),
                 "capture-record"=>Capture.Exercise(data),
                 "save-copy-intent"=>Intent.Exercise(data),

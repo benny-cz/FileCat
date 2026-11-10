@@ -1,5 +1,32 @@
 # Coverage-guided archive-writing fuzz setup
 
+**10 November, harness targets for FZ04–FZ08, FZ11 and FZ12 implemented (no campaign yet).**
+Seven new test-only targets call the real public parent conversations through the real `ArchiveWorkerSession`; only the
+process boundary is replaced, by the real worker roles running in-process over pipes
+([`WorkerTargets.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/WorkerTargets.cs),
+[`WriterTargets.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/WriterTargets.cs),
+[`StatefulTargets.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/StatefulTargets.cs)):
+
+| Plan | Target | Input and oracle |
+| --- | --- | --- |
+| FZ04 | `member-keys` | Edits whose key has a stale or forged catalog revision, name, type or occurrence. A key that names no member of the pinned catalog must be refused; accepted plans are written, verified, independently decoded, and untouched members are preserved with all TAR metadata. |
+| FZ05 | `create-inputs` | Arbitrary names, lengths, payloads, modes and times for TAR, TAR.GZ, TAR.BZ2 and TAR.ZST creation. The real writer's stage must pass the real fresh verifier; TAR and TAR.GZ output must also decode identically with `System.Formats.Tar`/`GZipStream`. |
+| FZ06 | `update-changes` | Fixture source plus delete/replace/rename edits and additions; same verification and independent decoding, plus byte- and metadata-exact preservation of every member no edit names. |
+| FZ07 | `verify-output` | Mutated staged bytes against a fixed expected manifest. Whatever the fresh verifier accepts must decode with an independent TAR reader to exactly the fixture's names, types, lengths, contents, mode, owner IDs/names and time. |
+| FZ08 | `worker-frames` | Hostile worker output (correctly framed scripts derived from real worker transcripts, or raw bytes) against the parent assessment and fresh-verification conversations; only typed refusals or receipts for the exact request are allowed. |
+| FZ11 | `stream-faults` | Short reads, early end, `IOException` and nonseekable sources at the assessment, verification and transform-input boundaries, and failing stage writes/flushes/length changes. Success must equal the unfaulted result; a stage failure must never yield a receipt. |
+| FZ12 | `repeated-cancel` | Up to eight assessment/verification/transform conversations in one process, cancelled at an arbitrary read. Each succeeds exactly or ends cancelled; the worker queue is free after each; a final clean assessment is unchanged. |
+
+`make-worker-seeds` writes the seed corpus: real transcripts of the in-process worker roles for FZ08, the fixture archives
+for FZ07, and complete valid requests for the others. `replay-worker`, the native libFuzzer entry
+([`run_fuzz_guest.py`](../../../eng/validation/archive-writing/run_fuzz_guest.py), 10-second watchdog; 60 seconds for
+`repeated-cancel`) and the portable `structured-mutation` lane accept all seven. On the development host only, every seed
+replayed as expected and 30–60-second structured smokes ran 26,143 to 743,391 executions per target with no oracle
+failure. Those smokes are not evidence. Still open: the harness found two of its own defects before any product
+finding (a stage wrapper that was not readable/seekable, and typed member-key refusals not counted as refusals in replay);
+the seal/verify scripts need entries for these targets; canary, short and long native campaigns, structured replay on
+each RID, FZ09 transition targets, FZ10 and the per-family and shared 24-CPU-hour totals belong to the final candidate.
+
 **10 November, structured-mutation platform floors passed on all three desktop RIDs.**
 The portable test-only lane
 [`StructuredMutation.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/StructuredMutation.cs)

@@ -25,7 +25,7 @@ qualify anything; each item closes only with its own evidence entry in the statu
 | 5 | Re-run never-executed Ubuntu queued checks (marked creation `05a86d83`, exact-origin update stage `320f43c6`, restoration preparation `aee8a384`, AW0/R22 benchmark) and a current full Ubuntu regression; soak the unexplained worker-monitor refusals | AT19, R22 | Open |
 | 6 | Worker-backed ZIP transform and global (cross-job) budgets | AW2 task 5, §9.2 | Open |
 | 7 | Missing fuzz targets FZ04–FZ08, FZ10–FZ12 and write-side targets; FZ09 parser floors; per-family 24 CPU-hour and shared 24 CPU-hour totals on the final candidate | §13.3, §13.6 | Open; read-side floors and three-RID structured replay exist |
-| 8 | UX completion: operation-center phases and "Finishing safely", all-surface command matrix, §11.7 microcopy, restoration action, native edit-store composition, member/edit edge cases | §11, §12 | Open |
+| 8 | UX completion: operation-center phases and "Finishing safely", all-surface command matrix, §11.7 microcopy, restoration action, native edit-store composition, member/edit edge cases | §11, §12 | Open; concrete list in [UX_GAP_AUDIT.md](UX_GAP_AUDIT.md) (A1–A16, B1–B9, C) |
 | 9 | Accessibility and rendering: NVDA, Orca, VoiceOver; 100–200 % scaling, 640×480, themes; 50 ms UI budget | §11.8, AT16 | Open |
 | 10 | AT08 disk-full/partial-IO faults, AT18 scale/resource measurements | AT08, AT18, §9.2 | Open |
 | 11 | Documentation: README, ADR-07/06/01 amendments, help text, release notes, downgrade note | §2.2, §16.2 | Open |

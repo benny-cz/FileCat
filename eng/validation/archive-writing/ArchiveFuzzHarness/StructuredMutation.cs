@@ -13,7 +13,8 @@ internal static class StructuredMutation
     [
         "tar-strict", "sevenzip-strict", "rar5-strict", "sevenzip-password", "rar5-password",
         "gzip-strict", "bzip2-strict", "zstd-strict", "session-record", "capture-record",
-        "save-copy-intent", "save-copy-receipt", "journal-record", "journal-state", "manifest-member"
+        "save-copy-intent", "save-copy-receipt", "journal-record", "journal-state", "manifest-member",
+        "worker-frames", "verify-output", "create-inputs", "update-changes", "stream-faults", "member-keys", "repeated-cancel"
     ];
 
     internal static int Run(string target, string seedDirectory, string secondsText, string randomSeedText, string reportPath)
@@ -123,6 +124,13 @@ internal static class StructuredMutation
                 "journal-record" => Journal.Exercise(input),
                 "journal-state" => JournalState.Exercise(input),
                 "manifest-member" => ManifestMember.Exercise(input),
+                "worker-frames" => WorkerFrames.Exercise(input),
+                "verify-output" => VerifyOutput.Exercise(input),
+                "create-inputs" => CreateInputs.Exercise(input),
+                "update-changes" => UpdateChanges.Exercise(input),
+                "stream-faults" => StreamFaults.Exercise(input),
+                "member-keys" => MemberKeys.Exercise(input),
+                "repeated-cancel" => RepeatedCancellation.Exercise(input),
                 _ => Format.Exercise(input, target)
             };
         }
