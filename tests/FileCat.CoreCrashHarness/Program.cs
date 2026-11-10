@@ -29,6 +29,9 @@ if (args is ["--archive-sidecar-crash", var sidecarRoot, var sidecarRole, var si
 if (args is ["--archive-creation-crash", var creationRoot, var creationPoint, var creationAssembly, var creationProbe])
     return await ArchiveCreationCrash.Run(creationRoot, creationPoint, creationAssembly, creationProbe);
 
+if (args is ["--archive-unix-exchange-crash", var exchangeRoot, var exchangePoint, var exchangeProbe])
+    return await ArchiveUnixExchangeCrash.Run(exchangeRoot, exchangePoint, exchangeProbe);
+
 if (args is ["--archive-creation-cleanup-crash", var creationCleanupRoot, var creationCleanupPoint, var creationCleanupAssembly])
     return ArchiveCreationCleanupCrash.Run(creationCleanupRoot, creationCleanupPoint, creationCleanupAssembly);
 

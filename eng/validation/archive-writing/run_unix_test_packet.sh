@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build and run filtered tests from one hash-pinned source packet on a disposable Unix test machine.
-# Usage: run_unix_test_packet.sh RUN_ID PACKET SHA256 FILTER PROJECT [PROJECT...]
+# Usage: run_unix_test_packet.sh RUN_ID PACKET SHA256 FILTER PROJECT [PROJECT...]   (prefix build: to only build a project)
 #   PROJECT paths are relative to the packet root (for example tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj).
 #   FILTER is a dotnet test --filter expression; "*" runs the complete project inventory.
 # Writes $ROOT/RUN_ID/{status.txt,summary.json,machine.txt,*.log,results/*.trx} and RUN_ID-evidence.tar.gz.
@@ -19,12 +19,12 @@ case "$(uname -s)" in
   Linux) DOTNET_ROOT="$HOME/FileCatValidation/archive-writing-42829297/dotnet"; LABEL=ubuntu; JOBS=4 ;;
   *) exit 2 ;;
 esac
-ancestors() { local p=$BASHPID; while [ -n "$p" ] && [ "$p" -gt 1 ]; do echo "$p"; p=$(ps -o ppid= -p "$p" | tr -d ' '); done; }
 others() {
-  local mine=" $(ancestors | tr '\n' ' ') "
+  # Exclude this runner and its own subshells by script name (macOS bash 3.2 has no BASHPID).
   for pid in $(pgrep -f 'FileCat\.(App|Core\.Tests|Remote\.Tests|App\.Tests|Rendering\.Tests)|testhost|vstest\.console|ArchiveFuzzHarness|FileCat\.ArchiveWorker' || true); do
-    case "$mine" in *" $pid "*) continue ;; esac
-    ps -o pid=,args= -p "$pid" | grep -v -- "$D" || true
+    args=$(ps -o args= -p "$pid" 2>/dev/null || true)
+    case "$args" in *run_unix_test_packet.sh*|"") continue ;; esac
+    echo "$pid $args" | grep -v -- "$D" || true
   done
 }
 if [ -n "$(others)" ]; then echo "another tester owns this machine:" >&2; others >&2; exit 3; fi
@@ -47,7 +47,13 @@ export DOTNET_ROOT PATH="$DOTNET_ROOT:$PATH" DOTNET_CLI_TELEMETRY_OPTOUT=1 MSBUI
 if [ $LABEL = ubuntu ]; then NICE=(nice -n 5); else NICE=(env); fi
 i=0
 for P in "${PROJECTS[@]}"; do
-  i=$((i+1)); name=$(basename "$P" .csproj)
+  i=$((i+1))
+  case "$P" in
+    build:*) P=${P#build:}; name=$(basename "$P" .csproj)
+      "${NICE[@]}" "$DOTNET_ROOT/dotnet" build "$D/src/$P" -c Release --disable-build-servers -p:NuGetAudit=false -m:$JOBS -v:minimal >"$D/build-$name.log" 2>&1
+      continue ;;
+  esac
+  name=$(basename "$P" .csproj)
   "${NICE[@]}" "$DOTNET_ROOT/dotnet" build "$D/src/$P" -c Release --disable-build-servers -p:NuGetAudit=false -m:$JOBS -v:minimal >"$D/build-$name.log" 2>&1
   args=(test "$D/src/$P" -c Release --no-build --no-restore --disable-build-servers -p:NuGetAudit=false
         --logger "trx;LogFileName=$name.trx" --results-directory "$D/results" --blame-hang-timeout 20m)

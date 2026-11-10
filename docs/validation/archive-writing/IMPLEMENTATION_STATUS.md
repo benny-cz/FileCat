@@ -1,5 +1,30 @@
 # Archive writing implementation status
 
+**10 November: journaled Unix existing-archive updates pass with exact cleanup and real crash recovery.**
+The new unregistered Unix route ([design](UNIX_EXCHANGE_UPDATE.md), [cleanup decision](UNIX_PRIVATE_CLEANUP_DECISION.md))
+admits only originals whose promised outer metadata it can reproduce, prepares the stage and sidecars in a `0700`
+private folder below the archive folder, applies the original's group, permissions, ACL, preservable flags and macOS
+birth time there, and publishes with one recorded `renameat2(RENAME_EXCHANGE)` / `renameatx_np(RENAME_SWAP)`
+(`archive-exchange-update` facts). A refused native call is proven atomic (`NotPublished`); other anomalies are
+`NeedsReview`. Reconciled private objects are then destroyed exactly: content through the held descriptor, name with
+pre/post identity checks, then the empty folder. `UnixArchiveExchangeRecovery` reopens an unfinished journal under
+`flock`, re-observes both names by recorded identity, records only what it sees and resumes exact cleanup.
+Source packet SHA-256 `521bed92f316aca294bfc1debf9735cb912d1bc508657beba459c37d1a096631` (tree `356d5dbd`) passed the
+Unix storage subset on Ubuntu 285/289 and Mac 287/289, with only other platforms' cases skipped and zero failures. Each
+platform executed all ten create-then-update jobs (TAR, TAR.GZ, TAR.BZ2, TAR.ZST, RAR5 and 7z with every password mode,
+mode `0640` preserved, no private folder left), the metadata/refusal cases (including a macOS ACL deny entry and a
+read-only folder that refuses the swap) and all 16 real externally killed process points: after `Reserved`,
+`MetadataApplied`, `ExchangeIntent`, between the swap and its record, after `Exchanged`, before and after each of five
+exact cleanup steps, and between folder removal and `Completed`. After each kill the archive was exactly the old or the
+new version and recovery reached `Completed` with no leftover files. Evidence bundle SHA-256: Ubuntu
+`8136596a99e46e8f7e6b1d11ce337ea393dc75500dcdb0cf24559d0576c852af`, Mac
+`32b4286d244df99d0ce0958e5bcbfc69b2a5563f23f7e335a3061cec09f98721`. Earlier packets in this series retained their
+failures: the first update packets were refused by the preparation's same-folder stage rule (fixed by reservations that
+carry the reviewed public parent identity), and one assertion wrongly required the creation job's journal, which still
+retains Unix creation sidecars, to be resolved. Not yet covered: preparation-phase crashes before `Reserved`, Unix
+creation in the private folder, the application recovery action and confined Linux application workers (wired, not yet
+validated), and every release gate.
+
 **10 November: unregistered two-parent Unix exchange primitive passes on Mac and Ubuntu.**
 `UnixArchiveFile.ExchangeRetainedAcrossParents` swaps one sealed private stage, held in a pinned
 `0700` stage directory created below the reviewed target parent, with the held public original through

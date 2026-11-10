@@ -6,7 +6,7 @@ using Microsoft.Win32.SafeHandles;
 namespace FileCat.Core.Archives.Unix;
 
 /// <summary>Parent-owned bounded held-inode stream. Disposal retains evidence. No handle is granted to a codec/worker.</summary>
-internal sealed partial class UnixArchiveFile : Stream, IArchiveCreatePublicationStage
+internal sealed partial class UnixArchiveFile : Stream, IArchiveCreatePublicationStage, IUnixArchiveExchangeStage
 {
     private readonly UnixArchiveDirectory parent;
     private readonly SafeFileHandle held;
@@ -21,7 +21,7 @@ internal sealed partial class UnixArchiveFile : Stream, IArchiveCreatePublicatio
     internal string DisplayPath => Path.Combine(parent.DisplayPath, KnownName);
     internal UnixArchiveFile(UnixArchiveDirectory parent, SafeFileHandle held, string leaf, FileIdentity identity, long maximum, bool artifact, bool writable, UnixArchiveArtifactKind? createdKind = null)
     { this.parent = parent; this.held = held; KnownName = leaf; Identity = identity; this.maximum = maximum; this.artifact = artifact; this.writable = writable; createdWritable = writable; this.createdKind = createdKind; }
-    public override bool CanRead { get { lock (parent.Gate) return !disposed && !crossParentTerminal; } }
+    public override bool CanRead { get { lock (parent.Gate) return !disposed && !crossParentTerminal && !removed; } }
     public override bool CanSeek => CanRead;
     public override bool CanWrite { get { lock (parent.Gate) return !disposed && !crossParentTerminal && writable; } }
     public override long Length { get { lock (parent.Gate) { Live(); return Validate().Size; } } }
@@ -132,6 +132,8 @@ internal sealed partial class UnixArchiveFile : Stream, IArchiveCreatePublicatio
         if (crossParentTerminal)
             throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview,
                 "This held archive participated in a cross-directory exchange; reconcile both names before reopening either binding.");
+        if (removed)
+            throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "This transaction object's name was removed; it cannot be used again.");
     }
     private void Writeable() { Live(); if (!writable) throw new NotSupportedException("The held Unix archive is read-only."); }
     private void Range(long offset, int count) { if (offset < 0 || offset > maximum || count < 0 || count > maximum - offset) throw Budget(); }

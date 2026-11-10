@@ -91,6 +91,43 @@ public sealed class JobJournal : IDisposable
         }
     }
 
+    /// <summary>Durably record the Unix two-directory exchange recipe before each visible step.</summary>
+    internal void ArchiveExchangeUpdate(ArchiveExchangeUpdateFacts facts)
+    {
+        ArgumentNullException.ThrowIfNull(facts);
+        // A retained recovery writer may only record observed outcomes and exact cleanup, never a new intent.
+        if (_archiveRecoveryOnly && facts.Phase is ArchiveExchangeUpdatePhase.Reserved or ArchiveExchangeUpdatePhase.MetadataApplied or ArchiveExchangeUpdatePhase.ExchangeIntent)
+            throw new InvalidOperationException("Recovery cannot record a new exchange intent.");
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished) throw new InvalidOperationException("A finished journal cannot record an archive exchange update.");
+            if (_archiveRecoveryOnly) _archiveRecoveryLeaseReview?.Invoke();
+            _archiveTransactions.ValidateNextExchange(facts);
+            try { Write(facts.ToJson(), sync: true); }
+            catch { RequireRecovery(); throw; }
+            _archiveTransactions.AcceptExchange(facts);
+        }
+    }
+    internal ArchiveExchangeUpdateFacts CurrentArchiveExchangeUpdate(Guid nonce)
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_archiveRecoveryOnly || _finished) throw new InvalidOperationException("No current live archive exchange writer.");
+            var facts = _archiveTransactions.CurrentExchange(nonce); _archiveTransactions.RequireCurrentExchange(facts); return facts;
+        }
+    }
+    internal void RequireCurrentArchiveExchangeUpdate(ArchiveExchangeUpdateFacts facts)
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished || _manualRecovery) throw new InvalidOperationException("The archive journal requires review or is finished.");
+            _archiveTransactions.RequireCurrentExchange(facts);
+        }
+    }
+
     internal void ArchiveCreationCleanup(ArchiveCreationCleanupFacts facts)
     {
         ArgumentNullException.ThrowIfNull(facts);
@@ -387,7 +424,7 @@ public sealed class JobJournal : IDisposable
 
     private void Write(JsonObject record, bool sync)
     {
-        if (_archiveRecoveryOnly && record["t"]?.GetValue<string>() is not ("archive-content-recovery" or "archive-content-restoration" or "archive-creation-cleanup" or "end"))
+        if (_archiveRecoveryOnly && record["t"]?.GetValue<string>() is not ("archive-content-recovery" or "archive-content-restoration" or "archive-creation-cleanup" or "archive-exchange-update" or "end"))
             throw new InvalidOperationException("This retained recovery writer only appends reconciliation and closure records.");
         var json = record.ToJsonString();
         var bytes = Encoding.UTF8.GetBytes(json);

@@ -30,16 +30,17 @@ internal sealed partial class UnixArchiveFile
         {
             Live(); original.Live(); ct.ThrowIfCancellationRequested();
             if (!artifact || !createdWritable || createdKind != UnixArchiveArtifactKind.Stage || !rebuildClaimed ||
-                !verificationSealed || evidenceClaimed || writable || namespaceChanged ||
+                !verificationSealed || !updateMetadataApplied || evidenceClaimed || writable || namespaceChanged ||
                 original.artifact || original.writable || original.namespaceChanged)
                 throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest,
-                    "Cross-directory exchange requires one sealed private stage and one unchanged held original.");
+                    "Cross-directory exchange requires one sealed stage carrying the original's reviewed metadata and one unchanged held original.");
             parent.RequirePrivateStageOf(original.parent);
             original.parent.CheckCreationNamespace();
             parent.CheckCreationNamespace();
             original.parent.RequireName(original.KnownName, original.Identity);
             parent.RequireName(KnownName, Identity);
-            parent.CheckPrivate(held);
+            // The stage now carries the original's permissions; its creator-private parent (checked above) is the
+            // namespace boundary until the exchange. The exact applied metadata is part of the reviewed observation.
             ((IArchiveRetainedFile)this).Review(expectedStage, ct);
             ((IArchiveRetainedFile)original).Review(expectedOriginal, ct);
             var stageMetadata = CaptureOuterMetadata(ct);
@@ -64,8 +65,16 @@ internal sealed partial class UnixArchiveFile
                     ? RenameMac(sourceDescriptor, stageName, targetDescriptor, targetName, 2 /* RENAME_SWAP */)
                     : RenameLinux(sourceDescriptor, stageName, targetDescriptor, targetName, 2 /* RENAME_EXCHANGE */);
                 if (result != 0)
-                    throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview,
-                        "The cross-directory exchange failed or its effect is uncertain (errno " + Marshal.GetLastPInvokeError() + "); retain both held objects and names.");
+                {
+                    // A failed rename call is atomic. Prove both names still bind their original objects; only then is
+                    // this a definite refusal with both bindings still usable. Anything else stays uncertain.
+                    int errno = Marshal.GetLastPInvokeError();
+                    original.parent.VerifyNamespace(); parent.VerifyNamespace();
+                    original.parent.RequireName(targetName, original.Identity);
+                    parent.RequireName(stageName, Identity);
+                    attempted = false;
+                    throw new UnixArchiveExchangeNotPerformedException(errno);
+                }
                 // Cancellation cannot hide a possible namespace effect. Recheck both held inodes and the exact
                 // opposite-parent names, then sync both parents before returning a terminal receipt.
                 original.parent.VerifyNamespace(); parent.VerifyNamespace();

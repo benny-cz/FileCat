@@ -460,13 +460,15 @@ public sealed record ArchiveTransactionRecovery(IReadOnlyList<ArchiveTransaction
     public IReadOnlyList<ArchiveContentRecoveryFacts> ContentRecoveries { get; init; } = [];
     public IReadOnlyList<ArchiveContentRestorationFacts> ContentRestorations { get; init; } = [];
     public IReadOnlyList<ArchiveCreationCleanupFacts> CreationCleanups { get; init; } = [];
+    public IReadOnlyList<ArchiveExchangeUpdateFacts> ExchangeUpdates { get; init; } = [];
     public bool IsCreationResolved(Guid nonce) => CreationCleanups.Any(cleanup => cleanup.Nonce == nonce && cleanup.IsResolved);
+    public bool IsExchangeResolved(Guid nonce) => ExchangeUpdates.Any(exchange => exchange.Nonce == nonce && exchange.IsResolved);
     public bool IsContentResolved(Guid nonce) => ContentRecoveries.Any(recovery => recovery.Nonce == nonce && recovery.IsResolved) ||
         ContentUpdates.Any(content => content.Nonce == nonce && content.Phase == ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts) &&
         ContentCleanups.Any(cleanup => cleanup.Nonce == nonce && cleanup.IsResolved);
     public bool RequiresReview => HasRecords && (Problem is not null || ContentUpdates.Any(t => !IsContentResolved(t.Nonce)) ||
-        CreationCleanups.Any(cleanup => !cleanup.IsResolved) ||
-        Transactions.Any(t => !t.IsResolved && !IsContentResolved(t.Nonce) && !IsCreationResolved(t.Nonce)));
+        CreationCleanups.Any(cleanup => !cleanup.IsResolved) || ExchangeUpdates.Any(exchange => !exchange.IsResolved) ||
+        Transactions.Any(t => !t.IsResolved && !IsContentResolved(t.Nonce) && !IsCreationResolved(t.Nonce) && !IsExchangeResolved(t.Nonce)));
 }
 
 internal sealed class ArchiveTransactionCollector
@@ -478,6 +480,7 @@ internal sealed class ArchiveTransactionCollector
     private readonly Dictionary<Guid, ArchiveContentRecoveryFacts> recovery = [];
     private readonly Dictionary<Guid, ArchiveContentRestorationFacts> restoration = [];
     private readonly Dictionary<Guid, ArchiveCreationCleanupFacts> creationCleanup = [];
+    private readonly Dictionary<Guid, ArchiveExchangeUpdateFacts> exchange = [];
     private bool hasRecords;
     private bool damaged;
     private bool legacy;
@@ -490,12 +493,13 @@ internal sealed class ArchiveTransactionCollector
             hasRecords && damaged ? "The archive transaction journal contains damaged or incomplete records." : null))
         { ContentUpdates = Array.AsReadOnly(content.Values.ToArray()), ContentCleanups = Array.AsReadOnly(cleanup.Values.ToArray()),
             ContentRecoveries = Array.AsReadOnly(recovery.Values.ToArray()), ContentRestorations = Array.AsReadOnly(restoration.Values.ToArray()),
-            CreationCleanups = Array.AsReadOnly(creationCleanup.Values.ToArray()) };
+            CreationCleanups = Array.AsReadOnly(creationCleanup.Values.ToArray()), ExchangeUpdates = Array.AsReadOnly(exchange.Values.ToArray()) };
     public void DamagedRecord() => damaged = true;
     public void ValidateNext(ArchiveTransactionFacts facts)
     {
         if (problem is not null || damaged) throw new InvalidOperationException("The archive transaction journal is not writable.");
         if (content.ContainsKey(facts.Nonce)) throw new InvalidOperationException("A content-update recipe has frozen this preparation.");
+        if (exchange.ContainsKey(facts.Nonce)) throw new InvalidOperationException("An exchange-update recipe has frozen this preparation.");
         if (creationCleanup.TryGetValue(facts.Nonce, out var cleanup))
         {
             if (facts.Phase is not (ArchiveTransactionPhase.Committed or ArchiveTransactionPhase.CommittedWithRetainedArtifacts) ||
@@ -517,6 +521,20 @@ internal sealed class ArchiveTransactionCollector
     }
     internal void AcceptContent(ArchiveContentUpdateFacts facts)
     { ValidateNextContent(facts); content[facts.Nonce] = facts; hasRecords = true; }
+    internal void ValidateNextExchange(ArchiveExchangeUpdateFacts facts)
+    {
+        if (problem is not null || damaged) throw new InvalidOperationException("The archive transaction journal is not writable.");
+        if (content.ContainsKey(facts.Nonce) || creationCleanup.ContainsKey(facts.Nonce))
+            throw new InvalidOperationException("Another publication recipe already owns this preparation.");
+        facts.ValidateAfter(Current(facts.Nonce), exchange.GetValueOrDefault(facts.Nonce));
+    }
+    internal void AcceptExchange(ArchiveExchangeUpdateFacts facts)
+    { ValidateNextExchange(facts); exchange[facts.Nonce] = facts; hasRecords = true; }
+    internal void RequireCurrentExchange(ArchiveExchangeUpdateFacts facts)
+    {
+        if (problem is not null || damaged || !ReferenceEquals(exchange.GetValueOrDefault(facts.Nonce), facts))
+            throw new InvalidOperationException("The supplied exchange-update facts are not the current durable facts.");
+    }
     internal void RequireCurrentContent(ArchiveContentUpdateFacts facts)
     {
         if (problem is not null || damaged || !ReferenceEquals(content.GetValueOrDefault(facts.Nonce), facts))
@@ -573,11 +591,14 @@ internal sealed class ArchiveTransactionCollector
     { ValidateNextRestoration(facts); restoration[facts.Nonce] = facts; hasRecords = true; }
     internal void RequireCurrent(ArchiveTransactionFacts facts)
     {
-        if (problem is not null || damaged || content.ContainsKey(facts.Nonce) || !ReferenceEquals(latest.GetValueOrDefault(facts.Nonce), facts))
+        if (problem is not null || damaged || content.ContainsKey(facts.Nonce) || exchange.ContainsKey(facts.Nonce) ||
+            !ReferenceEquals(latest.GetValueOrDefault(facts.Nonce), facts))
             throw new InvalidOperationException("The supplied archive facts are not the current durable parent facts.");
     }
     internal ArchiveTransactionFacts Current(Guid nonce) => latest.GetValueOrDefault(nonce) ??
         throw new InvalidOperationException("The archive transaction has no durable parent facts.");
+    internal ArchiveExchangeUpdateFacts CurrentExchange(Guid nonce) => exchange.GetValueOrDefault(nonce) ??
+        throw new InvalidOperationException("The archive exchange update has no durable facts.");
     internal ArchiveContentUpdateFacts CurrentContent(Guid nonce) => content.GetValueOrDefault(nonce) ??
         throw new InvalidOperationException("The archive content update has no durable parent facts.");
     public void Read(string type, JsonObject node)
@@ -632,6 +653,11 @@ internal sealed class ArchiveTransactionCollector
             {
                 if (headerVersion != ArchiveTransactionFacts.SchemaVersion) throw new ArgumentException("The cleanup header is unsupported.");
                 AcceptCleanup(ArchiveContentCleanupFacts.Parse(node)); return;
+            }
+            if (type == ArchiveExchangeUpdateFacts.RecordType)
+            {
+                if (headerVersion != ArchiveTransactionFacts.SchemaVersion) throw new ArgumentException("The exchange-update header is unsupported.");
+                AcceptExchange(ArchiveExchangeUpdateFacts.Parse(node)); return;
             }
             if (type == ArchiveContentUpdateFacts.RecordType)
             {

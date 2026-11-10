@@ -97,7 +97,7 @@ internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestin
         lock (Gate)
         {
             RequireCapacity(); VerifyNamespace();
-            return new(this, nonce, (ArchiveArtifactKind)kind, DisplayPath, Identity.ToString(), maximumLength);
+            return new(this, nonce, (ArchiveArtifactKind)kind, DisplayPath, Identity.ToString(), maximumLength, privateStageParent?.Identity.ToString());
         }
     }
     internal UnixArchiveFile CreateArtifact(ArchiveArtifactReservation reservation)

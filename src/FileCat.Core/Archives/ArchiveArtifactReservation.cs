@@ -12,11 +12,14 @@ internal sealed class ArchiveArtifactReservation
     internal Guid Nonce { get; }
     internal ArchiveArtifactKind Kind { get; }
     internal string ParentIdentity { get; }
+    /// <summary>Set only by a creator-private stage folder: the identity of the reviewed archive folder that contains it.</summary>
+    internal string? PublicParentIdentity { get; }
     internal string Path { get; }
     internal string LeafName { get; }
     internal long MaximumLength { get; }
 
-    internal ArchiveArtifactReservation(object issuer, Guid nonce, ArchiveArtifactKind kind, string directory, string parentIdentity, long maximumLength)
+    internal ArchiveArtifactReservation(object issuer, Guid nonce, ArchiveArtifactKind kind, string directory, string parentIdentity, long maximumLength,
+        string? publicParentIdentity = null)
     {
         ArgumentNullException.ThrowIfNull(issuer);
         if (nonce == Guid.Empty || !Enum.IsDefined(kind) || maximumLength < 0 ||
@@ -24,6 +27,14 @@ internal sealed class ArchiveArtifactReservation
             throw new ArgumentException("Invalid archive artifact reservation.");
         if (!System.IO.Path.IsPathFullyQualified(directory)) throw new ArgumentException("An absolute artifact directory is required.");
         ArchiveTransactionFacts.ValidateText(parentIdentity, 4096);
+        if (publicParentIdentity is not null)
+        {
+            ArchiveTransactionFacts.ValidateText(publicParentIdentity, 4096);
+            if (publicParentIdentity == parentIdentity ||
+                !(System.IO.Path.GetFileName(directory)?.StartsWith(ArchiveExchangeUpdateFacts.PrivateDirectoryPrefix, StringComparison.Ordinal) ?? false))
+                throw new ArgumentException("A private stage reservation requires its own folder below the reviewed archive folder.");
+        }
+        PublicParentIdentity = publicParentIdentity;
         string suffix = kind switch { ArchiveArtifactKind.Stage => "stage", ArchiveArtifactKind.Manifest => "manifest", _ => "origin" };
         this.issuer = issuer; Nonce = nonce; Kind = kind; ParentIdentity = parentIdentity; MaximumLength = maximumLength;
         LeafName = $".filecat-archive-{nonce:N}-{Guid.NewGuid():N}.{suffix}";
@@ -62,7 +73,8 @@ internal static class ArchiveJournaledStage
             reservation.Kind != ArchiveArtifactKind.Stage || reserved.Nonce != reservation.Nonce ||
             reserved.StagePath != reservation.Path || reserved.ParentIdentity != reservation.ParentIdentity ||
             reserved.StageMaximumLength != reservation.MaximumLength ||
-            !string.Equals(System.IO.Path.GetDirectoryName(reserved.ArchivePath), System.IO.Path.GetDirectoryName(reservation.Path), comparison))
+            !string.Equals(System.IO.Path.GetDirectoryName(reserved.ArchivePath),
+                System.IO.Path.GetDirectoryName(reservation.PublicParentIdentity is null ? reservation.Path : System.IO.Path.GetDirectoryName(reservation.Path)), comparison))
             throw new ArgumentException("The durable stage reservation differs from its native creation authority.");
         journal.ArchiveTransaction(reserved);
         T? stage = null;

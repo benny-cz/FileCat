@@ -19,6 +19,7 @@ public sealed partial class UnixArchiveStorageTests
         using var stage = Stage(privateParent); string stageName = stage.KnownName;
         ((IArchiveRetainedStage)stage).BeginRebuild(4096, TestContext.Current.CancellationToken).Write("new archive"u8);
         var sealedStage = ((IArchiveRetainedStage)stage).SealForVerification(TestContext.Current.CancellationToken);
+        sealedStage = stage.ApplyUpdateMetadata(sealedStage, original, old, old.Origin, TestContext.Current.CancellationToken);
 
         var receipt = stage.ExchangeRetainedAcrossParents(original, sealedStage, old, TestContext.Current.CancellationToken);
 
@@ -55,6 +56,7 @@ public sealed partial class UnixArchiveStorageTests
         using var stage = Stage(privateParent); string stageName = stage.KnownName;
         ((IArchiveRetainedStage)stage).BeginRebuild(4096, TestContext.Current.CancellationToken).Write("new archive"u8);
         var sealedStage = ((IArchiveRetainedStage)stage).SealForVerification(TestContext.Current.CancellationToken);
+        sealedStage = stage.ApplyUpdateMetadata(sealedStage, original, old, old.Origin, TestContext.Current.CancellationToken);
         File.AppendAllText(targetPath, " changed");
 
         Assert.Equal(ArchiveWriteReason.SourceChanged,
