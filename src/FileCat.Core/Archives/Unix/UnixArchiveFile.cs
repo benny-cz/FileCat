@@ -14,16 +14,16 @@ internal sealed partial class UnixArchiveFile : Stream, IArchiveCreatePublicatio
     private readonly bool artifact, createdWritable;
     private readonly UnixArchiveArtifactKind? createdKind;
     private bool rebuildClaimed, evidenceClaimed, verificationSealed;
-    private bool writable, disposed, namespaceChanged;
+    private bool writable, disposed, namespaceChanged, crossParentTerminal;
     private long position;
     internal FileIdentity Identity { get; }
     internal string KnownName { get; private set; }
     internal string DisplayPath => Path.Combine(parent.DisplayPath, KnownName);
     internal UnixArchiveFile(UnixArchiveDirectory parent, SafeFileHandle held, string leaf, FileIdentity identity, long maximum, bool artifact, bool writable, UnixArchiveArtifactKind? createdKind = null)
     { this.parent = parent; this.held = held; KnownName = leaf; Identity = identity; this.maximum = maximum; this.artifact = artifact; this.writable = writable; createdWritable = writable; this.createdKind = createdKind; }
-    public override bool CanRead { get { lock (parent.Gate) return !disposed; } }
+    public override bool CanRead { get { lock (parent.Gate) return !disposed && !crossParentTerminal; } }
     public override bool CanSeek => CanRead;
-    public override bool CanWrite { get { lock (parent.Gate) return !disposed && writable; } }
+    public override bool CanWrite { get { lock (parent.Gate) return !disposed && !crossParentTerminal && writable; } }
     public override long Length { get { lock (parent.Gate) { Live(); return Validate().Size; } } }
     public override long Position
     {
@@ -126,7 +126,13 @@ internal sealed partial class UnixArchiveFile : Stream, IArchiveCreatePublicatio
         // checks it there; no assumption is made that Unix sharing modes exclude another writer or rename.
         return info;
     }
-    private void Live() => ObjectDisposedException.ThrowIf(disposed, this);
+    private void Live()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (crossParentTerminal)
+            throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview,
+                "This held archive participated in a cross-directory exchange; reconcile both names before reopening either binding.");
+    }
     private void Writeable() { Live(); if (!writable) throw new NotSupportedException("The held Unix archive is read-only."); }
     private void Range(long offset, int count) { if (offset < 0 || offset > maximum || count < 0 || count > maximum - offset) throw Budget(); }
     private static ArchiveWriteException Budget() => new(ArchiveWriteReason.BudgetExceeded, "The Unix archive request exceeds its physical byte bound.");

@@ -13,6 +13,7 @@ internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestin
 {
     internal readonly object Gate = new();
     private readonly SafeFileHandle directory;
+    private readonly UnixArchiveDirectory? privateStageParent;
     private readonly uint user;
     private int children;
     private bool disposed;
@@ -31,9 +32,9 @@ internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestin
         }
         catch { directory.Dispose(); throw; }
     }
-    private UnixArchiveDirectory(string path, SafeFileHandle pinned, uint owner)
+    private UnixArchiveDirectory(string path, SafeFileHandle pinned, uint owner, UnixArchiveDirectory creatorParent)
     {
-        user = owner; DisplayPath = path; directory = pinned;
+        user = owner; DisplayPath = path; directory = pinned; privateStageParent = creatorParent;
         try
         {
             Identity = UnixFiles.Stat(directory)?.Identity ?? throw UnixArchiveNative.Unavailable();
@@ -64,7 +65,7 @@ internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestin
                 // CreateEditDirectory uses mkdirat on the pinned parent and removes inherited Mac ACL entries
                 // before any child bytes can be written. The pinned child, not a later path reopen, is adopted.
                 var pinned = UnixArchiveNative.CreateEditDirectory(directory, leaf, user, ct);
-                stage = new UnixArchiveDirectory(path, pinned, user);
+                stage = new UnixArchiveDirectory(path, pinned, user, this);
                 if (stage.Volume != Volume) throw UnixArchiveNative.Unavailable();
                 UnixArchiveNative.SyncDirectory(stage.Handle);
                 UnixArchiveNative.SyncDirectory(directory);
@@ -155,6 +156,22 @@ internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestin
     }
     internal void CheckPrivate(SafeFileHandle held) => UnixArchiveNative.RequirePrivate(held, user);
     internal void CheckCreationNamespace() => UnixArchiveNative.RequireCreationDirectory(directory, user);
+    internal void RequirePrivateStageOf(UnixArchiveDirectory publicParent)
+    {
+        if (!ReferenceEquals(privateStageParent, publicParent) || Volume != publicParent.Volume || user != publicParent.user)
+            throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest,
+                "The private stage directory is not a child of this reviewed archive destination.");
+        VerifyNamespace(); publicParent.VerifyNamespace();
+        string leaf = Path.GetFileName(DisplayPath);
+        if (Path.GetDirectoryName(DisplayPath) != publicParent.DisplayPath ||
+            !leaf.StartsWith(".filecat-archive-stage-", StringComparison.Ordinal))
+            throw UnixArchiveNative.Unavailable();
+        using var named = UnixArchiveNative.ChildDirectory(publicParent.Handle, leaf);
+        if (UnixFiles.Stat(named)?.Identity != Identity)
+            throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview,
+                "The private archive stage directory changed; retain both namespaces.");
+        UnixArchiveNative.RequireEditDirectory(directory, user);
+    }
     private void RequireCapacity()
     {
         ObjectDisposedException.ThrowIf(disposed, this);

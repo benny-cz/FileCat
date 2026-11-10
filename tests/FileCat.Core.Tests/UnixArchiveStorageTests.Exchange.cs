@@ -7,6 +7,66 @@ namespace FileCat.Core.Tests;
 public sealed partial class UnixArchiveStorageTests
 {
     [Fact]
+    public void Cross_directory_exchange_retains_the_original_privately_and_terminates_both_old_bindings()
+    {
+        Native(); using var temp = new TempDir(); string root = Canonical(temp.Path);
+        File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
+        string targetPath = Path.Combine(root, "original.tar"); File.WriteAllText(targetPath, "old archive");
+        using var target = UnixArchiveDirectory.Open(root);
+        using var original = target.OpenSource("original.tar", 4096);
+        var old = ((IArchiveRetainedFile)original).Observe(TestContext.Current.CancellationToken);
+        using var privateParent = target.CreatePrivateStageDirectory(Guid.NewGuid(), TestContext.Current.CancellationToken);
+        using var stage = Stage(privateParent); string stageName = stage.KnownName;
+        ((IArchiveRetainedStage)stage).BeginRebuild(4096, TestContext.Current.CancellationToken).Write("new archive"u8);
+        var sealedStage = ((IArchiveRetainedStage)stage).SealForVerification(TestContext.Current.CancellationToken);
+
+        var receipt = stage.ExchangeRetainedAcrossParents(original, sealedStage, old, TestContext.Current.CancellationToken);
+
+        Assert.Equal(target.Identity.ToString(), receipt.PublicParentIdentity);
+        Assert.Equal(privateParent.Identity.ToString(), receipt.PrivateParentIdentity);
+        Assert.Equal("original.tar", receipt.PublicLeaf);
+        Assert.Equal(stageName, receipt.PrivateLeaf);
+        Assert.Equal(sealedStage.Version, receipt.Published);
+        Assert.Equal(old.Version, receipt.Retired);
+        Assert.Equal("new archive", File.ReadAllText(targetPath));
+        Assert.Equal("old archive", File.ReadAllText(Path.Combine(privateParent.DisplayPath, stageName)));
+        Assert.False(stage.CanRead);
+        Assert.False(original.CanRead);
+        Assert.Equal(ArchiveWriteReason.NeedsReview,
+            Assert.Throws<ArchiveWriteException>(() => ((IArchiveRetainedFile)stage).Observe(TestContext.Current.CancellationToken)).Reason);
+        Assert.Equal(ArchiveWriteReason.NeedsReview,
+            Assert.Throws<ArchiveWriteException>(() => ((IArchiveRetainedFile)original).Observe(TestContext.Current.CancellationToken)).Reason);
+        using var reopenedPublic = target.OpenSource("original.tar", 4096);
+        using var reopenedPrivate = privateParent.OpenSource(stageName, 4096);
+        Assert.Equal(sealedStage.Version, reopenedPublic.CaptureVersion(TestContext.Current.CancellationToken));
+        Assert.Equal(old.Version, reopenedPrivate.CaptureVersion(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void Cross_directory_exchange_refuses_changed_original_before_moving_either_name()
+    {
+        Native(); using var temp = new TempDir(); string root = Canonical(temp.Path);
+        File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
+        string targetPath = Path.Combine(root, "original.tar"); File.WriteAllText(targetPath, "old archive");
+        using var target = UnixArchiveDirectory.Open(root);
+        using var original = target.OpenSource("original.tar", 4096);
+        var old = ((IArchiveRetainedFile)original).Observe(TestContext.Current.CancellationToken);
+        using var privateParent = target.CreatePrivateStageDirectory(Guid.NewGuid(), TestContext.Current.CancellationToken);
+        using var stage = Stage(privateParent); string stageName = stage.KnownName;
+        ((IArchiveRetainedStage)stage).BeginRebuild(4096, TestContext.Current.CancellationToken).Write("new archive"u8);
+        var sealedStage = ((IArchiveRetainedStage)stage).SealForVerification(TestContext.Current.CancellationToken);
+        File.AppendAllText(targetPath, " changed");
+
+        Assert.Equal(ArchiveWriteReason.SourceChanged,
+            Assert.Throws<ArchiveWriteException>(() => stage.ExchangeRetainedAcrossParents(original, sealedStage, old,
+                TestContext.Current.CancellationToken)).Reason);
+        Assert.True(stage.CanRead);
+        Assert.True(original.CanRead);
+        Assert.Equal("old archive changed", File.ReadAllText(targetPath));
+        Assert.Equal("new archive", File.ReadAllText(Path.Combine(privateParent.DisplayPath, stageName)));
+    }
+
+    [Fact]
     public void Private_stage_directory_is_pinned_on_the_target_volume_and_retains_its_artifact()
     {
         Native(); using var temp = new TempDir(); string root = Canonical(temp.Path);

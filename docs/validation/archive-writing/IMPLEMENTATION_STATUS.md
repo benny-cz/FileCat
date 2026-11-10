@@ -1,5 +1,22 @@
 # Archive writing implementation status
 
+**10 November: unregistered two-parent Unix exchange primitive passes on Mac and Ubuntu.**
+`UnixArchiveFile.ExchangeRetainedAcrossParents` swaps one sealed private stage, held in a pinned
+`0700` stage directory created below the reviewed target parent, with the held public original through
+`renameat2(RENAME_EXCHANGE)` / `renameatx_np(RENAME_SWAP)` on two directory descriptors. It locks the
+pair in a fixed order, rechecks both parents, names, identities, versions, outer metadata and link
+counts, syncs both parents, and returns a receipt. After any native attempt both old child bindings
+become terminal (`NeedsReview` on reuse), so no live object keeps an outdated parent lock. A source
+packet of this exact worktree (SHA-256 `b3ee1516bbe3bbdd257a8e5dd1a5d3d7843ecda03560cdd4326c22cd88d24cb5`,
+tree `cc4b6450`) passed the Unix storage subset: Mac 255/257 and Ubuntu 254/257, with only other
+platforms' native cases skipped, zero failures, and both new exchange cases executed and passed.
+Evidence bundle SHA-256: Mac `38f43ad77f20749a7ea0d910b89bcd45f5ad48331feb3436eea388c880639c71`,
+Ubuntu `f920ff10c4dc8f6a6eeca15f6f25658bf75faa08d6f281117383a8d0d7265b45`. They were produced by the
+new reusable [`make_source_packet.sh`](../../../eng/validation/archive-writing/make_source_packet.sh) and
+[`run_unix_test_packet.sh`](../../../eng/validation/archive-writing/run_unix_test_packet.sh). This is a native
+primitive only: the two-parent journal, outer-metadata application, recovery, cleanup and production
+Unix update route remain open, and no profile is enabled.
+
 **10 November: structured-mutation platform floors pass on Windows, macOS and Ubuntu.**
 Five concurrent one-hour lanes (7z/RAR5 strict and password readers plus journal state) of the
 portable structured-mutation harness completed on all three desktop RIDs with no failure:
