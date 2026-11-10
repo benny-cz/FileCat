@@ -1,6 +1,6 @@
 # Archive writing implementation status
 
-**10 November: current Mac and Windows RAR5/7z update matrices pass; bounded Windows full retry is running.**
+**10 November: current Mac and Windows RAR5/7z update matrices and Windows full regressions pass.**
 The frozen `320f43c6` Mac source passed complete Core 8,724/8,931, Remote
 2,638/2,669 and App 2,770/2,963 suites, with 431 expected skips in total and
 zero failures. The 7,576,222-byte evidence transport SHA-256 is
@@ -36,8 +36,15 @@ frozen `92c47e6b` Windows matrix passed all 39/39 actual application cases:
 18 RAR5 and 21 7z, no skips or failures. Its evidence transport SHA-256 is
 `fe17859e01c8bde949a40926020e4a230becf938ace6bb01920c79ee7f7a1127`;
 the raw rows and updated source-file hashes match the frozen packet. The
-bounded full Core/Remote/App retry with VSTest hang tracing is running; no pass
-is claimed yet. Ubuntu's five strict fuzz campaigns and
+bounded full `320f43c6` Core/Remote/App retry with VSTest hang tracing passed
+8,162/8,936, 2,405/2,669 and 2,879/2,963 respectively, with 1,122 expected
+skips and zero failures. Its evidence transport SHA-256 is
+`386172899176f8e151bc7605c6700c3bd495f3cec3fa39f2d9e99248155b539c`.
+The independent verifier counted every raw TRX row, matched source files and
+packet hash, checked the non-admin account and loaded profile, and found the
+RAR5/7z native F6 cases passing. The first stalled attempt remains a failed
+run, not a pass. Windows has started the next guarded Unix exchange platform
+test from the strengthened source. Ubuntu's five strict fuzz campaigns and
 their dependent native/codec queues remain active; no long-campaign pass is
 claimed yet.
 
