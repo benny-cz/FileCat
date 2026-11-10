@@ -1,5 +1,42 @@
 # Coverage-guided archive-writing fuzz setup
 
+**10 November, structured-mutation platform floors passed on all three desktop RIDs.**
+The portable test-only lane
+[`StructuredMutation.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/StructuredMutation.cs)
+replays bounded deterministic byte, truncation and boundary mutations of a frozen synthetic corpus
+against the production `sevenzip-strict`, `rar5-strict`, `sevenzip-password`, `rar5-password` and
+`journal-state` entry points. It complements, and does not replace, the Linux coverage-guided
+libFuzzer lane: it has no coverage feedback and earns no per-target 7,200-CPU-second floor. All three
+runs used the same frozen harness packet (SHA-256
+`ca7a04047cf09c5a32dab64cf42bcc64fd15f88aba97b47d9512387cc2288297`) and seed packet (SHA-256
+`c36d2e822b2505c04f77e96d23844e742da475803c7c2ce0224d344ae8f1297b`), five concurrent
+one-hour lanes, and the plan's 4-CPU-hour (14,400 s) additional-RID floor. Windows ran under the
+real standard account `fcarchive42829297`; the Unix runs used
+[`run_structured_mutation_unix.py`](../../../eng/validation/archive-writing/run_structured_mutation_unix.py)
+as the ordinary guest user.
+
+| RID / product source | CPU seconds | 7z strict calls | RAR5 strict calls | 7z password calls | RAR5 password calls | Journal-state calls | Bundle SHA-256 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| win-x64, `320f43c6` | 17,818.312 | 49,517,652 | 21,568,377 | 674,139 | 56,468 | 271,628,108 | `5ef91fff1e52e9a01d2fc78ce1a8a0dc608aa69c63bf502d5d91078c28fbd54f` |
+| osx-arm64, `320f43c6` | 18,018.843 | 80,130,793 | 60,265,439 | 794,871 | 15,392 | 976,723,181 | `7b7dbe9d4ce069f1edde550df4e9842ebbed24ac8c3be1db9f6bb3d0add365e3` |
+| linux-x64, `34d98b51` | 18,072.139 | 46,875,554 | 15,079,096 | 722,833 | 16,229 | 308,532,315 | `4927f650e3a976c6504861345e52b15b36f40b3fd932e7659784c27fc677d31c` |
+
+Every lane reported completion, no failure and no reproducer; no lane was under 3,553 CPU seconds.
+The independent host verifier
+[`verify_structured_mutation_evidence.py`](../../../eng/validation/archive-writing/verify_structured_mutation_evidence.py)
+checked each bundle's PASS status, both frozen packet identities, the harness `Program.cs` and
+`StructuredMutation.cs` hashes against the committed sources, all five lanes and the CPU floor. Product
+DLL hashes in each bundle match the guest-built `FileCat.Core.dll` of the named source tree
+(`85b49a4a…`, `eac4a585…`, `aaf42d83…`). Between those product commits and `06f70594` only Unix
+storage files changed, so the exercised parser and journal paths are unchanged. Peak private bytes stayed
+at or below 126,038,016 on Linux and 69,206,016 on Windows; macOS reported zero because
+`Process.PrivateMemorySize64` is unavailable there, so that run is not memory evidence. A first Windows
+attempt (`v1`) refused before its long lanes because its smoke check required more calls than seeds and
+the 2-second `rar5-password` smoke only covered its 38 seeds (password derivation cost); `v2` corrected
+the check to `calls >= seeds` against the identical frozen packets and passed. The `v1` failure is
+retained. These floors cover the platform structured-replay gate for these five targets only; the other
+targets, the per-format-family 24-CPU-hour totals and the shared-state 24-CPU-hour total remain open.
+
 **10 November, gzip/BZip2/Zstd long campaigns passed independent verification.**
 All three Ubuntu `fuzz-campaign-v7` drivers completed their bounded
 12,000-second wall runs with no crash artifact. The host-side transport verifier

@@ -1,5 +1,14 @@
 # Archive writing implementation status
 
+**10 November: structured-mutation platform floors pass on Windows, macOS and Ubuntu.**
+Five concurrent one-hour lanes (7z/RAR5 strict and password readers plus journal state) of the
+portable structured-mutation harness completed on all three desktop RIDs with no failure:
+17,818, 18,019 and 18,072 CPU seconds respectively, each above the 14,400-second additional-RID
+floor. Windows ran as the real standard account. The independent verifier bound each bundle to the
+frozen harness/corpus packets and the committed harness sources; bundle hashes and per-lane counts are
+in [the fuzz record](FUZZ_CAMPAIGN_SETUP.md). This is structured replay without coverage feedback; it
+does not earn per-target coverage-guided floors or the per-family 24-CPU-hour totals.
+
 **10 November: all three wrapper long fuzz targets have verified floors.**
 Ubuntu gzip-strict, bzip2-strict and zstd-strict each completed a bounded
 12,000-second driver run with zero crash artifacts. Independent host

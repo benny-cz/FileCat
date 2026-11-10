@@ -133,6 +133,8 @@ if(args is ["replay-record",var recordTarget,var inputPath])
     };
     Console.WriteLine(JsonSerializer.Serialize(new{target=recordTarget,accepted}));return 0;
 }
+if(args is ["structured-mutation",var mutationTarget,var mutationSeeds,var mutationSeconds,var mutationSeed,var mutationReport])
+    return StructuredMutation.Run(mutationTarget,mutationSeeds,mutationSeconds,mutationSeed,mutationReport);
 if(args.Length!=0)throw new ArgumentException("Fuzz targets receive input through the bounded native driver, not command-line paths.");
 
 Stats.Target=Environment.GetEnvironmentVariable("FILECAT_FUZZ_TARGET")??"digest";
