@@ -10,10 +10,82 @@ marked publications. Windows guest policy tests passed 25/27 with Unix-only skip
 zone-only publication cases passed. The separate real standard-user/AppContainer batch
 passed 475/476 cases with one expected skip and no failure. Commit `05a86d83` extends the
 Mac native matrix to compressed RAR5 and 7z, both password modes and empty/binary marks;
-all 14 marked publication cases passed in a 241/244 selected run. The current-source
-Windows full Core/Remote/App batch is running. Ubuntu's native check is queued and has no result yet. The detailed
+all 14 marked publication cases passed in a 241/244 selected run. The Windows standard-user
+full Core/Remote/App batch now passes as recorded below. Ubuntu's native check is queued and has no result yet. The detailed
 [checkpoint](UNIX_MARKED_CREATION_ORIGIN.md) records source and evidence hashes. No profile
 is enabled, and Unix marked updates remain unfinished.
+
+**10 November: Windows complete regressions and current-source origin policy pass under a standard account.**
+The frozen `05a86d83` guest source passed full Core 8,151/8,921, Remote 2,405/2,669 and
+App 2,879/2,963, with 770, 264 and 84 expected skips respectively and zero failures.
+The real `fcarchive42829297` account had no Administrators membership and its profile
+was loaded. The original Core attempt's two test-output ACL failures remain in the bundle;
+the scoped test-bin permission correction and all three accepted reruns are preserved.
+The 10,498,140-byte evidence transport has SHA-256
+`d3f1f0aabd5cbb0815dd74866cd252bf571ae93778f9f0d4c8900dd25e29994d`.
+After that suite exited, the guest built commit `47cff5f4` with zero warnings/errors and
+passed all 48 focused origin policy cases under the same standard account. Its 14,585-byte
+transport has SHA-256 `36a454fb188f77d4b4e15c06fffab97aa14faf1ba8987dc20f7ca624f9742316`.
+Both transports' raw TRX counts, account facts and frozen source-packet hashes were checked
+independently; the later source files match the committed checkout after CRLF conversion.
+The VM ended these batches without FileCat/test processes. The subsequent `47cff5f4`
+native storage/AppContainer matrix passed 475/476 cases under the same standard account,
+with one expected platform skip and both actual zone-only publication cases passing.
+Its 121,017-byte transport has SHA-256
+`70b5fb1ed493cac0e84823bb9ec004e89e5a0b755d451003205a0d1691cfa2df`;
+raw rows, source packet, App/probe binary hashes, account and clean process exit were checked.
+The first runner's transcribed source hash refused before build or test; that preflight is
+retained, and the corrected runner's hash was mechanically compared with the packet before
+launch. The same current source then passed all 34 native creation/member/edit/cleanup UI
+cases under the standard account. The first UI copy omitted the solution-layout crash
+fixture: 30 passed, four cleanup cases failed `Assert.NotNull`. A fresh full rerun with
+the exact solution and native harness layout passed 34/34; both raw inventories are in the
+25,300-byte transport (SHA-256
+`27db5f2f6d2d802b940aa9dffb6cbfd3f4b5b55859747535b89fb53796abe044`).
+Its packet, binary hashes, account, loaded profile and clean process exit were checked.
+
+**10 November: Mac full regressions and latest Unix origin native checks pass.**
+The frozen `9c0b2a46` source passed full Core 8,723/8,930, Remote 2,638/2,669 and
+App 2,770/2,963, with 207, 31 and 193 expected skips and zero failures. The sealed
+Mac transport has SHA-256 `3a04445fe2d3deca89cd7afc7d9fe96d513c8e8dd62c7a879adf9451c57e236c`.
+The queued latest `47cff5f4` source then passed 266/269 native/policy cases with three
+expected skips, including all 14 marked TAR/RAR5/7z creation and eight private snapshot
+cases; its 70 KiB transport SHA-256 is
+`2ba48d35682a800b35382988d4265fa384d3ed2a5a5d9df59202c49654bf8a3d`.
+The host checked raw TRX rows, case counts, source-packet/file hashes and guest idle facts.
+No FileCat/test process remains on Mac; the requested keep-awake helper remains active.
+
+**10 November: Ubuntu adoption and strict-format fuzz resume.**
+The final adoption candidate `0ee71ae1` passed focused Core 15/15, focused UI 7/10
+(three platform skips), full Core 8,703/8,888, Remote 2,543/2,669 and App 2,772/2,963,
+all with zero failures. Its 24,626,377-byte transport SHA-256 is
+`749ca46869e36583915a63d49cb962064aa1ffbeadc34890fbd15ca0c8fcebb2`;
+the independent verifier checked its source map, compiler/binary inventory and raw TRX.
+The separate legacy discard recheck passed 58/58. The original post-fuzz queue then
+stopped in a test-only seed preflight: the pinned Mac transport contains two verified
+root metadata records in addition to `seeds/`. The repaired preflight admits exactly
+those records, installs only manifest-listed seeds, and has launched fresh sevenzip/RAR5
+strict campaigns. Benchmark, native marked creation and latest Unix-origin checks are
+guarded behind that repaired fuzz chain. No long-campaign pass is claimed yet.
+
+The independent wrapper chain was overlapped with the two strict campaigns to use more
+of Ubuntu's eight CPUs. Gzip's short run passed, while the BZip2 short run produced a
+229-byte crash input (SHA-256
+`0b8498e331cf04004c2fbbe1df1aa281d2b61ec82299b7179fe29aa4a37da01f`).
+A one-input Ubuntu replay reproduced an uncaught `IndexOutOfRangeException` in the
+vendored BZip2 move-to-front decoder. The failed run and original runner are retained.
+Commit `d0114807` maps that decoder error to `InvalidArchive` at the strict-reader
+boundary and adds the exact crash input as a regression. The committed source passed
+the focused TAR/BZip2 pipeline on Mac, Windows (real standard account) and Ubuntu:
+36 passed, two expected skips, zero failures on each platform. The Mac, Windows and
+Ubuntu evidence transports have SHA-256 respectively
+`0e14b826be4ce47280cbf97c94213ac1fdd30d8df5d4ea9910bece86a692f9de`,
+`a824aa24090d822e80f10ccd87df3e13b271d8e35523cad9765d6d0fb80a76e6`, and
+`f6e033bda5967ea659c4412e848357d38f2378db38b68f36d4c7bee88252ac54`.
+On Ubuntu, a one-input replay against a fresh instrumented image of the fixed source
+returned one controlled refusal, no crash artifact and a successful process exit.
+The new three-target wrapper campaign is active against that image. No FZ02 long-campaign
+pass is claimed yet.
 
 **10 November: marked Unix restoration preparation has an exact-origin checkpoint.**
 `aee8a384` derives one exact opaque mark from the retained original and snapshot evidence,
