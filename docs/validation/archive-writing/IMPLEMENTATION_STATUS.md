@@ -1,5 +1,37 @@
 # Archive writing implementation status
 
+**10 November: latest Mac RAR5/7z update matrix passes; Windows native and bounded full retries are queued.**
+The frozen `320f43c6` Mac source passed complete Core 8,724/8,931, Remote
+2,638/2,669 and App 2,770/2,963 suites, with 431 expected skips in total and
+zero failures. The 7,576,222-byte evidence transport SHA-256 is
+`c3ff59b259f8335a5c6f05a4aa38bd887515121d85c25163f7233c4210030439`.
+The independent verifier counted each raw TRX row, checked frozen-source hashes,
+confirmed the disk image detached, and observed no remaining FileCat/test process.
+The frozen `b98a4a43` Unix marked update cohort passed its 12/12 selected
+RAR5/7z cases (transport SHA-256
+`a803ba9a0f1cc999d68c8c2c3ab5938bc07cd18b7f02e59557f7b1b1f7262879`).
+The expanded `45bce961` matrix then passed all 39 method/password cases after
+a forced rebuild (transport SHA-256
+`73a1fa4db24009240f4461d24ba18fc69e56fdac3fb3ac7ec442bad2aade6155`).
+Its raw TRX has 39 passed rows, no failure or skip; the source-file hashes match
+the frozen packet. Two earlier Mac matrix attempts are retained as harness
+failures: one compared checkout line endings to packet bytes, and the other used
+an incremental build that ran the older 12-case DLL. Neither is counted as a
+39-case pass. The Mac remains test-idle with the requested until-reboot wake
+assertion.
+
+The Windows `320f43c6` full Core attempt stopped progressing after its
+five-minute log marker. A managed heap dump and thread stacks show the xUnit
+controller waiting with no active managed test frame. After over 40 minutes, the
+exact owned Core test PID was verified by executable path and stopped. The failed
+run and dump remain retained; no full Windows pass is claimed from it. This
+released a guarded real-standard-user native archive batch from frozen
+`b98a4a43` source. A 39-case Windows RAR5/7z matrix from `92c47e6b` source and
+a bounded full-suite retry with VSTest hang tracing are queued behind it. These
+queued runs are not evidence of a pass. Ubuntu's five strict fuzz campaigns and
+their dependent native/codec queues remain active; no long-campaign pass is
+claimed yet.
+
 **9 November: exact marked Unix private creation has a cross-format Mac native checkpoint.**
 Commit `1b5e6129` carries one byte-identical Linux or macOS origin value from complete
 captured evidence to a creator-private new archive, including empty/binary marks and
