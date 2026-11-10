@@ -1,5 +1,63 @@
 # Archive writing implementation status
 
+**10 November: an unpublished save is discarded exactly; F6 moves into Unix archives; legacy edit cleanup is bound (R21);
+the operation center stays usable during a format scan; AT08 on a small NTFS volume. All three platforms pass; AT18 open.**
+Commit `38e56944`:
+
+- **Discard of unpublished transactions (plan §7.1 "safe owned cleanup").** A failure or cancellation before publication
+  no longer leaves the stage, its manifests and an unresolvable "needs review" entry behind. A durable `archive-discard`
+  catalog freezes the preparation facts and lists every recorded object and every reserved name that never received an
+  identity; each destruction is preceded by `DeleteIntent` and followed by `Deleted` or `Absent`, the empty private folder
+  is removed by `rmdir`, and `Completed` releases a new, discardable preparation hold (other journal holds stay hard).
+  Only facts that prove publication never started qualify (a preparation phase, ReadyToPublish, or a new archive's review
+  record written before its claim). Unix destroys sealed sidecars by recorded version and partial objects as scratch in
+  the creator-private folder (identity, owner, single link; content through the held descriptor first); Windows reopens
+  each artifact by its recorded NTFS identity and deletes it through that handle. The job runs the discard live; a crash
+  or a refused discard leaves a reviewed "Remove unfinished files" action in Interrupted operations (opening the review
+  writes nothing). A completely full APFS volume can refuse even the removal; the job then says the files were kept,
+  with the reason, and recovery finishes once space returns. See the revision in UNIX_PRIVATE_CLEANUP_DECISION.md.
+- **F6 move into native Unix archives (plan §11.6.1).** After verified publication each source is re-reviewed through its
+  held descriptor, renamed aside to an exclusive name in its own folder (`RENAME_NOREPLACE` on Linux, `RENAME_EXCL` on
+  macOS) and unlinked only when that name binds the held object; another object that took the original name is put back,
+  a folder goes only by `rmdir` once empty, a skipped or changed input is never removed, and a hard-linked original is
+  refused at capture with a plain message naming it.
+- **R21 (legacy edit cleanup).** Commit and save-copy snapshots, failed session creation, record-publication temporaries,
+  the save-copy stage and legacy Discard no longer delete bare pathnames: Windows deletes through handles bound to the
+  recorded identity or verified directory handles; Unix removes only in a folder no other user can change (group write
+  only for the user's own private group) while the name binds the recorded identity; anything else is kept and logged
+  with its path.
+- **UX:** A4 (the operation center stays above a format scan's backdrop and usable, Ctrl+J moves between them, panel
+  commands stay blocked, the progress bar is named), A16 ("Archive edit kept" offers Save copy or "Show working copy"),
+  B8 (post-commit read-back "Check saved archive"), the full-drive and hard-link messages, pluralized move summaries.
+- **AT08 on Windows:** a 200 MB NTFS VHDX: the space review refuses before any object exists; a drive filled during the
+  rebuild fails with the full-drive text, and the live discard leaves nothing beside the original.
+
+The exact tree (packet `8cef6248a4e426b9408abc007f9e00c713cc4842cac37b7b85daf4036499c2fa`, tree `936dff54`) passed the
+`Archive`/`Journal`/`EditSession`/`EditCommit`/`BackingArchiveTarget`/`JobProgressView` subsets with only platform skips
+and one failure, the opt-in AT18 scale test described below: Mac Core 2,886/2,977 and App 452/497 with the 200 MB APFS
+image (evidence `077140858c267276e5ec0befca781ba1fcd17fba3ffd222001fd8ed7f0155249`); Ubuntu Core 2,947/2,977 and App
+462/497 with the loop-mounted ext4 image and confined application workers (evidence
+`f2ef8cffb7f22e155291c6871ddeef5adf58aaf403ffe8dc0f78d03fb518af4e`); Windows 11 Core 2,495/2,976, Platform 569/601 and
+App 480/497 with the native AppContainer/TxF lanes and the `S:` VHDX, as `Admin` with a UAC-filtered token, zero failures
+(evidence `757645add5ef26a0a12d0d749c1fe9b099b5695ce42d3a0a44b322f8c8819c40`). The previous Windows attempt (packet v10,
+evidence `d3d7afa47ee9f0953a16e34fc1c7eeb06e4eb65537c514fa37e5ea77e5565e12`) failed only in the unchanged
+`An_unrelated_inheritable_file_handle_is_not_granted`: its final `File.Delete` met a sharing violation because children
+that other tests start in parallel with ordinary inheritance also received the test's deliberately inheritable handle.
+The test now withdraws inheritance once the worker exists and retries its own deletion (next candidate).
+
+**AT18 is open.** The new scale test (opt-in, `FILECAT_ARCHIVE_SCALE=1`) first failed on its own arithmetic (100,300
+members instead of 99,999). Corrected (packet `1d2766fc211bfc202b81fe8479b4d5adcfb094a90bfc0df218cd4f65f8a98b8a`), it
+found a real limit: creating a TAR at 99,999 members is refused as over budget on both Unix machines (Mac evidence
+`15e693dba024b0ea2ccf9714b651340f4427a78ff69f7fa28a814efbeff6223b`, Ubuntu
+`d187848752f35ecd628cbff1e9e7aac2c42e25c01b205f75c0f0fd9bba620986`). The conservative per-object heap charges of capture,
+planning, review and the TAR plan (about 3 KiB per member plus names) exceed the 192 MiB retained-heap ceiling well before
+the 100,000-member policy limit, so that limit was unreachable. A measurement build with a 512 MiB ceiling (packet
+`46babe1a9bb0da3766746a73635279fd3e5e2b1243200f758e7fc4f4a73a90bf`) creates and assesses the archive on both machines,
+and the update adding the 100,000th member then exceeded the test helper's 180-second job deadline (Mac
+`a406a4f97b40d2a3df401eecf7fb75a29bd109c8fb0a9085e1bdbb357121e3aa`, Ubuntu
+`607bf10d4f4c5a45c7137eb6c488160decee371142a892511615dd0531a79257`). Both are being resolved with measured heap peaks and
+phase timings before AT18 is recorded; the shipped ceiling stays 192 MiB until then.
+
 **10 November: archive phases, plan microcopy and full-drive handling; AT08 on real small volumes; all three platforms pass.**
 Commit `2acacfe3` shows the plan's phases in Operations (Preparing, Reading archive, Rebuilding, Checking, Saving,
 Finishing safely) with Cancel unavailable at the short publication boundary, and gives every controlled archive refusal
