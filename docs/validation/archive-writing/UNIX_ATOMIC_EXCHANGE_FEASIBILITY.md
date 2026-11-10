@@ -13,6 +13,38 @@ directions, checks missing-target failure, and removes its own fixtures.
 | macOS arm64, Darwin 27.0.0 | `renameatx_np(..., RENAME_SWAP)` | Existing original/stage exchanged atomically; identity/bytes matched the opposite name; swapping back restored them; missing name returned `ENOENT`. |
 | Ubuntu x64, Linux 7.0.0-42-generic | `renameat2(..., RENAME_EXCHANGE)` | The same existing-file, reversal and `ENOENT` checks passed. |
 
+The subsequent [cross-directory probe](../../../eng/validation/archive-writing/probe_unix_crossdir_exchange.py)
+(SHA-256 `36822272f916c766dd20bbbf09d3358fcd515e78df4b9e8e136797d5aced2b9e`)
+used separate pinned directory descriptors on the same task volume. Its fresh
+stage was in a `0700` private directory and its original was in a separate
+directory; both files had ordinary `0644` mode. The exact
+`renameat2(RENAME_EXCHANGE)` and `renameatx_np(RENAME_SWAP)` calls succeeded on
+Ubuntu ext4 and Mac APFS respectively. Each public name then held the stage's
+identity and bytes while the private stage name held the original's identity
+and bytes. Swapping back restored both; an absent public name returned `ENOENT`.
+The probe synced **both** directory descriptors after each successful exchange
+and removed only its own fixtures. This is native feasibility evidence for a
+private staging parent; it is not a production transaction or a durability
+claim across power loss. The local Mac `renameatx_np(2)` manual and the
+[Linux rename manual](https://man7.org/linux/man-pages/man2/rename.2.html)
+describe the native exchange operations. The conclusion that a private parent
+can keep a mode-adjusted stage unreadable before publication is an inference
+from the tested directory permissions and the held parent design; it still
+requires adversarial live validation and a complete security policy.
+
+**Next design candidate:** reserve and pin a private sibling directory on the
+same volume, prepare the stage there, apply/review the admitted original outer
+security metadata before exchange, and journal *both* parent identities and
+exact leaf names. After the atomic cross-directory exchange, reconcile the
+public stage and privately retained original using their held handles, then
+sync both parents and append the observed result. Recovery must inspect both
+names and identities without automatic path cleanup or reverse exchange. The
+current one-parent `ArchiveTransactionFacts` and unregistered same-directory
+`ExchangeRetained` primitive do not encode this candidate. The public target
+name remains vulnerable to an equivalent-user substitution between review and
+the native call, because neither syscall is conditional on its expected inode.
+That adversarial publication gate remains open.
+
 The Mac's installed SDK defines `RENAME_SWAP` as `0x00000002`; its installed
 `renameatx_np(2)` manual says the source and target are atomically swapped on
 filesystems that support the operation. Both live guest calls succeeded on
