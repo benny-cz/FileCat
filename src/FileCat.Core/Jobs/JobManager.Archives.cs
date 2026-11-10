@@ -55,7 +55,7 @@ public sealed partial class JobManager
                 }
             }
             if (moveSources is not null) sources = Array.AsReadOnly(moveSources);
-            operation = new(plan with { ArchivePath = Path.GetFullPath(plan.ArchivePath), Changes = Array.AsReadOnly(changes) }, password);
+            operation = new(plan with { ArchivePath = Archives.ArchiveLocalPath.ResolveParent(plan.ArchivePath), Changes = Array.AsReadOnly(changes) }, password);
         }
         catch { password?.Dispose(); throw; }
         return Submit(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = operation.Plan, Sources = sources, Mode = mode, Description = description },

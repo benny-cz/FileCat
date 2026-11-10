@@ -178,6 +178,9 @@ public sealed class AppServices : IDisposable
         = OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveCleanupRecovery.OpenCurrentLease : null;
     internal Func<string, Guid, CancellationToken, Core.Archives.IArchiveCreationCleanupLease>? ArchiveCreationCleanupLease { get; set; }
         = OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveCreationCleanupRecovery.OpenCurrentLease : null;
+    // Unix exchange updates: a fresh exclusive journal/folder scope; inspection and cleanup re-observe every object.
+    internal Func<string, Guid, CancellationToken, Core.Archives.Unix.UnixArchiveExchangeRecovery>? ArchiveExchangeRecovery { get; set; }
+        = OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? (path, nonce, ct) => Core.Archives.Unix.UnixArchiveExchangeRecovery.Open(path, nonce, ct) : null;
 
     /// <summary>SFTP connections (leases, host keys, secrets); the main window supplies the prompts.</summary>
     public Remote.Sftp.SftpConnections Sftp { get; }

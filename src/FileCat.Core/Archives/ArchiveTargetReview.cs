@@ -78,7 +78,7 @@ internal sealed class ArchiveTargetReviewer(Func<string, CancellationToken, IArc
             expectedSourceSha256 = expectedSourceSha256.ToUpperInvariant();
             ArchiveWritePolicy.ValidateDigest(expectedSourceSha256);
         }
-        path = System.IO.Path.GetFullPath(path);
+        path = ArchiveLocalPath.ResolveParent(path); // Unix native leases pin link-free folders; the archive name itself is not followed.
         using var lease = open(path, ct);
         var observed = lease.File.Observe(ct);
         if (expectedSourceSha256 is not null && !string.Equals(observed.Version.Sha256, expectedSourceSha256, StringComparison.OrdinalIgnoreCase))

@@ -54,7 +54,8 @@ internal static class ArchiveNativeJobCases
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken); deadline.CancelAfter(TimeSpan.FromSeconds(120));
         while (!job.State.IsFinished()) await Task.Delay(10, deadline.Token);
-        Assert.Equal(JobState.CompletedWithIssues, job.State); // Native recovery evidence is deliberately retained in this unregistered component.
+        // Native recovery evidence is deliberately retained in this unregistered component.
+        Assert.True(job.State == JobState.CompletedWithIssues, job.State + ": " + string.Join(" | ", job.Issues.Select(issue => issue.Message)));
         Assert.Contains(job.Issues, issue => issue.Outcome == StepOutcome.Committed);
         Assert.DoesNotContain(job.Issues, issue => issue.Severity == IssueSeverity.Error);
     }

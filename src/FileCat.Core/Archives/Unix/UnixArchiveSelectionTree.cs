@@ -7,7 +7,7 @@ namespace FileCat.Core.Archives.Unix;
 internal sealed class UnixArchiveSelectionTree : IArchiveSelectionTree
 {
     private readonly UnixArchiveDirectory root;
-    private UnixArchiveSelectionTree(string path) => root = UnixArchiveDirectory.Open(path);
+    private UnixArchiveSelectionTree(string path) => root = UnixArchiveDirectory.Open(ArchiveLocalPath.ResolveDirectory(path));
     internal static IArchiveSelectionTree Open(string path) => new UnixArchiveSelectionTree(path);
     internal static ArchiveCapturedSelection Capture(string path, IReadOnlyList<string> roots, CancellationToken ct)
         => ArchiveCapturedSelection.Capture(new UnixArchiveSelectionTree(path), roots, ct);

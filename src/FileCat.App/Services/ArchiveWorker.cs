@@ -12,6 +12,42 @@ internal static class ArchiveWorker
     public static bool IsArgument(string argument) => argument is Argument or VerificationArgument or TransformArgument or
         SecretArgument or SecretVerificationArgument or SecretTransformArgument;
 
+    /// <summary>
+    /// Linux confined lane: the trusted launcher attaches the delegated cgroup, CPU limit, no-new-privileges and descriptor
+    /// policy, then executes this binary again in worker mode, which installs seccomp and Landlock before the fixed role reads
+    /// one byte of archive input. Only the six fixed roles with this task's nonce are accepted.
+    /// </summary>
+    public static bool IsLinuxArgument(string argument) => OperatingSystem.IsLinux() &&
+        argument is FileCat.Core.Archives.Linux.LinuxArchiveIsolation.LauncherArgument or FileCat.Core.Archives.Linux.LinuxArchiveIsolation.WorkerArgument;
+
+    public static int RunLinux(string[] args)
+    {
+        if (!OperatingSystem.IsLinux()) return 64;
+        if (args[0] == FileCat.Core.Archives.Linux.LinuxArchiveIsolation.LauncherArgument)
+            return FileCat.Core.Archives.Linux.LinuxArchiveIsolation.RunLauncher(args);
+        try
+        {
+            return FileCat.Core.Archives.Linux.LinuxArchiveIsolation.RunWorker(args, startup =>
+            {
+                string[] request = args[4..^2];
+                if (request.Length != 2 || request[1] != startup.Nonce.ToString("D")) return 64;
+                Func<Stream, Stream, CancellationToken, int>? role = request[0] switch
+                {
+                    "archive-assess" => (input, output, ct) => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunAfterIsolation(input, output, startup.Nonce, ct),
+                    "archive-assess-v2" => (input, output, ct) => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunAfterIsolation(input, output, startup.Nonce, ct, 2),
+                    "archive-transform" => (input, output, ct) => FileCat.Archives.Writing.ArchiveTransformWorker.RunAfterIsolation(input, output, startup.Nonce, ct),
+                    "archive-transform-v2" => (input, output, ct) => FileCat.Archives.Writing.ArchiveTransformWorker.RunAfterIsolation(input, output, startup.Nonce, ct, 2),
+                    "archive-verify" => (input, output, ct) => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, startup.Nonce, ct),
+                    "archive-verify-v2" => (input, output, ct) => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, startup.Nonce, ct, 2),
+                    _ => null,
+                };
+                return role is null ? 64 : FileCat.Core.Archives.ArchiveWorkerCancellation.Run(startup.CancellationDescriptor, role);
+            });
+        }
+        catch (Exception ex) when (ex is IOException or ArgumentException or PlatformNotSupportedException or UnauthorizedAccessException)
+        { Console.Error.WriteLine("The confined Linux archive worker could not start."); return 65; }
+    }
+
     public static int Run(string[] args)
     {
         if (args.Length != 5 || !IsArgument(args[0]) || !Guid.TryParseExact(args[1], "D", out Guid nonce) || nonce == Guid.Empty || args[2].Length != 16 ||

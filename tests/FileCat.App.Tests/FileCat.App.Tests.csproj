@@ -17,6 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\FileCat.App\FileCat.App.csproj" />
     <ProjectReference Include="..\FileCat.CoreCrashHarness\FileCat.CoreCrashHarness.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\FileCat.WorkerProbe\FileCat.WorkerProbe.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

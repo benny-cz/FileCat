@@ -21,8 +21,9 @@ internal sealed partial class UnixArchiveRecoveryJournal : IDisposable
     private UnixArchiveRecoveryJournal(string path, string? expectedSha256, CancellationToken ct)
     {
         if (!Path.IsPathFullyQualified(path)) throw new ArgumentException("An absolute recovery journal is required.");
-        parentPath = Path.GetDirectoryName(path) ?? throw new ArgumentException("A journal folder is required.");
-        leaf = Path.GetFileName(path);
+        // The journal folder may be reached through a link (macOS /var, Fedora Atomic /home); pin the folder it actually is.
+        parentPath = ArchiveLocalPath.ResolveDirectory(Path.GetDirectoryName(path) ?? throw new ArgumentException("A journal folder is required."));
+        leaf = Path.GetFileName(path); path = Path.Combine(parentPath, leaf);
         parent = UnixArchiveNative.PinDirectory(parentPath);
         try
         {

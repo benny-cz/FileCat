@@ -17,6 +17,15 @@ internal static class InterruptedRecoveryReport
         var facts = job.ArchiveTransactions;
         if (facts.Problem is not null)
             return "Archive recovery records are incomplete or unsupported. Keep the current archive and retained files; Review report lists the recorded locations.";
+        var exchanges = facts.ExchangeUpdates.Where(t => !t.IsResolved).ToArray();
+        if (exchanges.Any(t => t.Phase == ArchiveExchangeUpdatePhase.NeedsReview))
+            return "FileCat could not confirm which version of the archive is current. Both available versions were kept; open Review report for their locations.";
+        if (exchanges.Any(t => t.Phase is ArchiveExchangeUpdatePhase.Reserved or ArchiveExchangeUpdatePhase.MetadataApplied or ArchiveExchangeUpdatePhase.ExchangeIntent))
+            return "An archive update was interrupted before its outcome was recorded. Review checks which version is current, keeps it and removes only that update's private files.";
+        if (exchanges.Length != 0)
+            return exchanges.Any(t => t.WasPublished)
+                ? "The archive was updated. The previous version and this update's private files are still kept; review removes them exactly."
+                : "The archive was not changed. This update's unpublished private files are still kept; review removes them exactly.";
         var restorations = facts.ContentRestorations.Where(t => !facts.IsContentResolved(t.Nonce)).ToArray();
         if (restorations.Any(t => t.Phase != ArchiveContentRestorationPhase.Committed))
             return "An archive restoration was interrupted. Keep the current archive and retained versions; open Review report for the linked restore job and recorded locations.";

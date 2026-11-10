@@ -1,7 +1,11 @@
 #!/bin/bash
 # Build and run filtered tests from one hash-pinned source packet on a disposable Unix test machine.
-# Usage: run_unix_test_packet.sh RUN_ID PACKET SHA256 FILTER PROJECT [PROJECT...]   (prefix build: to only build a project)
+# Usage: run_unix_test_packet.sh RUN_ID PACKET SHA256 FILTER PROJECT [PROJECT...]
 #   PROJECT paths are relative to the packet root (for example tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj).
+#   Prefix build: to only build a project, or publish: to publish it self-contained for this machine's RID into
+#   RUN_ID/publish/NAME (group/other write removed). On Linux a published FileCat.App or FileCat.WorkerProbe enables the
+#   confined native lane (FILECAT_ARCHIVE_LINUX_NATIVE/_APP/_PROBE) and test projects then run in a transient
+#   systemd --user service, because each worker's delegated cgroup must share the user manager's subtree.
 #   FILTER is a dotnet test --filter expression; "*" runs the complete project inventory.
 # Writes $ROOT/RUN_ID/{status.txt,summary.json,machine.txt,*.log,results/*.trx} and RUN_ID-evidence.tar.gz.
 # Refuses (exit 3) while another FileCat/.NET test process from a different owner directory is running.
@@ -15,8 +19,8 @@ mkdir -p "$ROOT"; chmod 700 "$ROOT"
 D="$ROOT/$RUN_ID"
 test ! -e "$D" && test ! -e "$D-evidence.tar.gz" || { echo "run directory exists" >&2; exit 2; }
 case "$(uname -s)" in
-  Darwin) DOTNET_ROOT="$HOME/.dotnet"; LABEL=mac; JOBS=6 ;;
-  Linux) DOTNET_ROOT="$HOME/FileCatValidation/archive-writing-42829297/dotnet"; LABEL=ubuntu; JOBS=4 ;;
+  Darwin) DOTNET_ROOT="$HOME/.dotnet"; LABEL=mac; JOBS=6; RID=osx-arm64 ;;
+  Linux) DOTNET_ROOT="$HOME/FileCatValidation/archive-writing-42829297/dotnet"; LABEL=ubuntu; JOBS=4; RID=linux-x64 ;;
   *) exit 2 ;;
 esac
 others() {
@@ -45,6 +49,7 @@ export DOTNET_ROOT PATH="$DOTNET_ROOT:$PATH" DOTNET_CLI_TELEMETRY_OPTOUT=1 MSBUI
 { uname -a; if [ $LABEL = mac ]; then sw_vers; sysctl -n hw.logicalcpu; else lsb_release -d; nproc; fi
   "$DOTNET_ROOT/dotnet" --version; df -h "$D" | tail -1; echo "packet=$EXPECTED"; echo "filter=$FILTER"; } >"$D/machine.txt" 2>&1
 if [ $LABEL = ubuntu ]; then NICE=(nice -n 5); else NICE=(env); fi
+RUNNER=("${NICE[@]}")
 i=0
 for P in "${PROJECTS[@]}"; do
   i=$((i+1))
@@ -52,13 +57,28 @@ for P in "${PROJECTS[@]}"; do
     build:*) P=${P#build:}; name=$(basename "$P" .csproj)
       "${NICE[@]}" "$DOTNET_ROOT/dotnet" build "$D/src/$P" -c Release --disable-build-servers -p:NuGetAudit=false -m:$JOBS -v:minimal >"$D/build-$name.log" 2>&1
       continue ;;
+    publish:*) P=${P#publish:}; name=$(basename "$P" .csproj)
+      "${NICE[@]}" "$DOTNET_ROOT/dotnet" publish "$D/src/$P" -c Release -r $RID --self-contained true -o "$D/publish/$name"         --disable-build-servers -p:NuGetAudit=false -m:$JOBS -v:minimal >"$D/publish-$name.log" 2>&1
+      chmod -R go-w "$D/publish/$name"
+      { du -sb "$D/publish/$name" 2>/dev/null || du -sk "$D/publish/$name"; find "$D/publish/$name" -type f | wc -l; } >"$D/publish-$name.size"
+      if [ $LABEL = ubuntu ]; then
+        ENVS=(DOTNET_ROOT="$DOTNET_ROOT" PATH="$DOTNET_ROOT:/usr/bin:/bin" DOTNET_CLI_TELEMETRY_OPTOUT=1 MSBUILDDISABLENODEREUSE=1
+              DOTNET_NOLOGO=1 FILECAT_ARCHIVE_LINUX_NATIVE=1)
+        if [ -x "$D/publish/FileCat.App/FileCat" ]; then ENVS+=(FILECAT_ARCHIVE_LINUX_APP="$D/publish/FileCat.App/FileCat"); fi
+        if [ -x "$D/publish/FileCat.WorkerProbe/FileCat.WorkerProbe" ]; then
+          ENVS+=(FILECAT_ARCHIVE_LINUX_PROBE="$D/publish/FileCat.WorkerProbe/FileCat.WorkerProbe"); fi
+        export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+        export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
+        RUNNER=(systemd-run --user --wait --pipe --collect --quiet -p Nice=5 --unit="filecat-aw-claude-$RUN_ID-pub$i" /usr/bin/env "${ENVS[@]}")
+      fi
+      continue ;;
   esac
   name=$(basename "$P" .csproj)
   "${NICE[@]}" "$DOTNET_ROOT/dotnet" build "$D/src/$P" -c Release --disable-build-servers -p:NuGetAudit=false -m:$JOBS -v:minimal >"$D/build-$name.log" 2>&1
   args=(test "$D/src/$P" -c Release --no-build --no-restore --disable-build-servers -p:NuGetAudit=false
         --logger "trx;LogFileName=$name.trx" --results-directory "$D/results" --blame-hang-timeout 20m)
   [ "$FILTER" = "*" ] || args+=(--filter "$FILTER")
-  set +e; "${NICE[@]}" "$DOTNET_ROOT/dotnet" "${args[@]}" >"$D/test-$name.log" 2>&1; echo $? >"$D/exit-$name.txt"; set -e
+  set +e; "${RUNNER[@]}" "$DOTNET_ROOT/dotnet" "${args[@]}" </dev/null >"$D/test-$name.log" 2>&1; echo $? >"$D/exit-$name.txt"; set -e
 done
 date -u +%Y-%m-%dT%H:%M:%SZ >"$D/finished.txt"
 python3 - "$D" <<'PY'

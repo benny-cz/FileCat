@@ -83,6 +83,48 @@ public sealed partial class UnixArchiveStorageTests
         Assert.Empty(Directory.GetDirectories(root, ArchiveExchangeUpdateFacts.PrivateDirectoryPrefix + "*"));
     }
 
+    [Fact]
+    public async Task Native_jobs_reached_through_a_linked_folder_create_and_update_the_archive_in_its_actual_folder()
+    {
+        // macOS /tmp and /var, /home on Fedora Atomic desktops and linked project folders are ordinary places to work.
+        Native(); using var temp = new TempDir(); string root = Canonical(temp.Path); var ct = TestContext.Current.CancellationToken;
+        File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
+        string real = Path.Combine(root, "real"), link = Path.Combine(root, "link");
+        Directory.CreateDirectory(real); File.SetUnixFileMode(real, (UnixFileMode)0x1c0); File.CreateSymbolicLink(link, real);
+        ArchiveNativeJobCases.Fixture(real);
+        var changes = new ArchiveChange[] { new(ArchiveChangeKind.AddFile, "first", Path.Combine(link, "a/payload")),
+            new(ArchiveChangeKind.AddFolder, "tree", Path.Combine(link, "a/tree")) };
+        var profile = new ArchiveWriteProfile(ArchiveWriteFormat.Tar);
+        var backend = UnixArchiveJobBackend.Create(profile.Format, (nonce, _) => Child.Start(nonce, "archive-assess-v2"),
+            (nonce, _) => Child.Start(nonce, "archive-transform-v2"), (nonce, _) => Child.Start(nonce, "archive-verify-v2"));
+        var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), Path.Combine(root, "journals"), new([backend]));
+        manager.DecisionRequested += pending => Assert.Fail("No decision is expected: " + pending.Request.Message);
+        var created = manager.SubmitArchive(new(Path.Combine(link, "saved.tar"), null, changes, Profile: profile), null);
+        Assert.Equal(Path.Combine(real, "saved.tar"), created.Request.Archive!.ArchivePath);
+        await ArchiveNativeJobCases.Finished(created);
+        Assert.True(File.Exists(Path.Combine(real, "saved.tar")));
+        Assert.Equal(real, new FileInfo(link).LinkTarget);
+
+        string added = Path.Combine(real, "added.bin"); File.WriteAllBytes(added, "added through the link"u8.ToArray());
+        File.SetUnixFileMode(added, (UnixFileMode)0x180); File.SetLastWriteTimeUtc(added, DateTime.UnixEpoch.AddSeconds(1700000002));
+        var assessor = new ArchiveAssessmentClient((nonce, _) => Child.Start(nonce, "archive-assess-v2"), protocolVersion: 2);
+        var reviewed = await new ArchiveTargetReviewer(UnixArchiveTargetReadLease.Open, assessor).ReviewAsync(Path.Combine(link, "saved.tar"), profile, null, ct);
+        var job = manager.SubmitArchive(reviewed.CreatePlan([new(ArchiveChangeKind.AddFile, "added.bin", Path.Combine(link, "added.bin"))]), null);
+        Assert.Equal(Path.Combine(real, "saved.tar"), job.Request.Archive!.ArchivePath);
+        using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct))
+        {
+            deadline.CancelAfter(TimeSpan.FromSeconds(120));
+            while (!job.State.IsFinished()) await Task.Delay(10, deadline.Token);
+        }
+        Assert.True(job.State == JobState.Completed, string.Join(" | ", job.Issues.Select(issue => issue.Message)));
+        byte[] after = File.ReadAllBytes(Path.Combine(real, "saved.tar"));
+        var fresh = await assessor.AssessAsync(new(profile, after.Length, Hash(after)), () => new MemoryStream(after, false), ct);
+        Assert.Equal(new[] { "added.bin", "first", "tree/sub/file" }, fresh.Manifest.Members
+            .Where(member => member.Type == ArchiveMemberType.File).Select(member => member.Name).Order(StringComparer.Ordinal));
+        Assert.Empty(Directory.GetDirectories(real, ArchiveExchangeUpdateFacts.PrivateDirectoryPrefix + "*"));
+        Assert.Equal(real, new FileInfo(link).LinkTarget);
+    }
+
     [Theory, MemberData(nameof(ArchiveNativeJobCases.Profiles), MemberType = typeof(ArchiveNativeJobCases))]
     public async Task Confined_Linux_application_workers_create_and_update_archives_through_the_private_exchange(ArchiveWriteFormat format, int mode)
     {

@@ -49,6 +49,19 @@ public sealed partial class UnixArchiveStorageTests
         if (swapped) Assert.Equal(facts.Stage.Sha256, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(visible)));
         Assert.True(interrupted.RequiresReview);
 
+        // The review inspection only observes: it classifies the names and lists the remaining objects, writing nothing.
+        // It runs in its own recovery session; the journal (exclusively flocked while a session is open) is compared after.
+        string journalBefore = Hash(File.ReadAllBytes(job.JournalPath));
+        using (var inspecting = UnixArchiveExchangeRecovery.Open(job.JournalPath, facts.Nonce, ct))
+        {
+            var inspection = inspecting.Inspect(ct);
+            Assert.Equal(swapped, inspection.Published);
+            Assert.Equal(facts.CleanupCount - facts.CleanedCount, inspection.Present.Count + inspection.Absent.Count);
+            Assert.Equal(point.StartsWith("before:Cleaned:", StringComparison.Ordinal) ? 1 : 0, inspection.Absent.Count);
+            Assert.All(inspection.Present, path => Assert.True(File.Exists(path), path));
+        }
+        Assert.Equal(journalBefore, Hash(File.ReadAllBytes(job.JournalPath)));
+
         using (var recovery = UnixArchiveExchangeRecovery.Open(job.JournalPath, facts.Nonce, ct))
         {
             var resolved = recovery.Resume(ct);

@@ -11,7 +11,8 @@ public sealed partial class MainViewModel
     private async Task<bool> CleanupArchiveRetainedAsync(InterruptedJob job, RecoveryActionScope scope)
     {
         bool creation = ArchiveCreationCleanupReview.CanOffer(job);
-        if (!(creation ? Services.ArchiveCreationCleanupLease is not null : Services.ArchiveCleanupLease is not null && ArchiveCleanupReview.CanOffer(job)))
+        bool exchange = !creation && Services.ArchiveExchangeRecovery is not null && ArchiveExchangeCleanupReview.CanOffer(job);
+        if (!(creation ? Services.ArchiveCreationCleanupLease is not null : exchange || Services.ArchiveCleanupLease is not null && ArchiveCleanupReview.CanOffer(job)))
         { Notify(ArchiveReviewRequired, true); return false; }
         IArchiveRetainedCleanupReview? review = null; bool approved = false, closed = false;
         RecoveryReviewRecord? record = null;
@@ -23,6 +24,8 @@ public sealed partial class MainViewModel
             await MutationIoAsync(job.JournalPath, () => review = creation
                 ? new ArchiveCreationCleanupReview(Services.ArchiveCreationCleanupLease!(job.JournalPath,
                     job.ArchiveTransactions.Transactions[0].Nonce, scope.StopSource.Token), job.ArchiveTransactions.Transactions[0].ArchivePath)
+                : exchange ? new ArchiveExchangeCleanupReview(Services.ArchiveExchangeRecovery!(job.JournalPath,
+                    job.ArchiveTransactions.Transactions[0].Nonce, scope.StopSource.Token), scope.StopSource.Token)
                 : new ArchiveCleanupReview(Services.ArchiveCleanupLease!(job.JournalPath,
                     job.ArchiveTransactions.Transactions[0].Nonce, scope.StopSource.Token)), scope.Check);
             if (review is null) throw new IOException("The native archive cleanup review did not open.");
