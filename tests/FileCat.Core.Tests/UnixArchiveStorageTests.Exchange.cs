@@ -10,6 +10,7 @@ public sealed partial class UnixArchiveStorageTests
     public void Held_stage_and_original_exchange_atomically_and_retire_the_exact_original()
     {
         Native(); using var temp = new TempDir(); string root = Canonical(temp.Path);
+        File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
         string target = Path.Combine(root, "original.tar"); File.WriteAllText(target, "old archive");
         using var directory = UnixArchiveDirectory.Open(root);
         using var original = directory.OpenSource("original.tar", 4096);
@@ -34,6 +35,7 @@ public sealed partial class UnixArchiveStorageTests
     public void Changed_original_refuses_exchange_before_either_name_moves()
     {
         Native(); using var temp = new TempDir(); string root = Canonical(temp.Path);
+        File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
         string target = Path.Combine(root, "original.tar"); File.WriteAllText(target, "old archive");
         using var directory = UnixArchiveDirectory.Open(root);
         using var original = directory.OpenSource("original.tar", 4096);
@@ -53,6 +55,7 @@ public sealed partial class UnixArchiveStorageTests
     public void Stopped_but_unsealed_rebuild_cannot_exchange_an_original()
     {
         Native(); using var temp = new TempDir(); string root = Canonical(temp.Path);
+        File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
         string target = Path.Combine(root, "original.tar"); File.WriteAllText(target, "old archive");
         using var directory = UnixArchiveDirectory.Open(root);
         using var original = directory.OpenSource("original.tar", 4096);
@@ -72,6 +75,7 @@ public sealed partial class UnixArchiveStorageTests
     public void Symlink_substitution_refuses_exchange_without_following_its_target()
     {
         Native(); using var temp = new TempDir(); string root = Canonical(temp.Path);
+        File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
         string target = Path.Combine(root, "original.tar"); File.WriteAllText(target, "old archive");
         using var directory = UnixArchiveDirectory.Open(root);
         using var original = directory.OpenSource("original.tar", 4096);
@@ -95,6 +99,7 @@ public sealed partial class UnixArchiveStorageTests
     public void Unknown_outer_attribute_on_either_object_refuses_exchange(bool onStage)
     {
         Native(); using var temp = new TempDir(); string root = Canonical(temp.Path);
+        File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
         string target = Path.Combine(root, "original.tar"); File.WriteAllText(target, "old archive");
         string name = OperatingSystem.IsMacOS() ? "org.filecat.unreviewed" : "user.filecat.unreviewed";
         if (!onStage) Assert.True(Xattr.Set(target, name, "unreviewed"));
