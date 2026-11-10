@@ -87,6 +87,32 @@ returned one controlled refusal, no crash artifact and a successful process exit
 The new three-target wrapper campaign is active against that image. No FZ02 long-campaign
 pass is claimed yet.
 
+The same frozen `d0114807` source then passed complete Windows Core 8,162/8,936, Remote
+2,405/2,669 and App 2,879/2,963 runs under the real standard account; Mac passed Core
+8,724/8,931, Remote 2,638/2,669 and App 2,770/2,963. All six suites had zero failures;
+the remaining cases were expected skips. The 6,355,978-byte Windows transport SHA-256 is
+`4f4c53838c3adaafd82081a5f03c2bc671b7ddee89c99817f86853bbfd1f58fb` and the
+7,542,105-byte Mac transport SHA-256 is
+`951ff1799b7812a1b2d275b42daf5d0dfb5cc1887a9fbfd92ddcb6d357142521`.
+Independent verification counted every raw TRX row, including the BZip2 crash regression,
+matched source files to the frozen packet and normalized committed blobs, checked the
+Windows standard account and Mac disk-image detachment, and confirmed clean guest exit.
+
+**10 November: exact Unix origin reaches the verified native update stage.**
+Commit `320f43c6` now rereads the complete sealed origin sidecar against the retained
+original, captured files and directories before applying one exact opaque Unix mark to
+the private existing-archive rebuild stage. The native stage is then freshly verified;
+conflicting marks refuse. The real Mac focused run passed 51/51 cases, including all eight
+marked TAR/TGZ/TBZ2/TZST update cases, with no test process left behind. Its evidence
+transport SHA-256 is `341f895b269b8a9a857fd18f76da2b8366d7d51f218dcab457fcd7e16ebe34c4`;
+raw TRX rows and source-packet hashes were checked. Windows passed 84/86 focused origin
+and BZip2 cases under the standard account, with two expected Unix-only skips and zero
+failures; its transport SHA-256 is
+`336b44c7920393b958d9b658a3b7772b456a45020bf42a9e31f4b7da80994d31`.
+Ubuntu's matching native replay is queued after the active fuzz chain. Complete
+current-commit Windows and Mac regressions are running. Existing Unix target replacement,
+retired-object recovery and production registration remain unfinished.
+
 **10 November: marked Unix restoration preparation has an exact-origin checkpoint.**
 `aee8a384` derives one exact opaque mark from the retained original and snapshot evidence,
 and applies it only to a creator-owned private Unix stage. `9c0b2a46` corrects an invalid
