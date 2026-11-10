@@ -9,6 +9,23 @@ internal sealed partial class UnixArchiveFile
         ArgumentNullException.ThrowIfNull(expected); var actual = ObserveRetained(ct);
         if (!actual.Matches(expected)) throw Changed();
     }
+    void IArchiveRetainedFile.ReviewMetadata(ArchiveFileObservation expected, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(expected);
+        UnixArchiveFile? moved;
+        lock (parent.Gate) { Live(); moved = createdPublic; }
+        if (moved is not null) { ((IArchiveRetainedFile)moved).ReviewMetadata(expected, ct); return; }
+        lock (parent.Gate)
+        {
+            // The outer metadata digest covers device, inode, length, owner, mode, links, mtime, ctime, birth, flags, ACL,
+            // provenance and extended attributes; a write changes ctime, which no unprivileged process can set back.
+            Live(); ct.ThrowIfCancellationRequested(); parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
+            var metadata = CaptureOuterMetadata(ct); if (metadata.Native.LinkCount != 1) throw ArchiveWriteMessages.HardLinked(DisplayPath);
+            if (expected.Version.Identity != Identity.ToString() || Length != expected.Version.Length ||
+                !RetainedObservation(expected.Version, metadata).Matches(expected)) throw Changed();
+            parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
+        }
+    }
     private ArchiveFileObservation ObserveRetained(CancellationToken ct)
     {
         UnixArchiveFile? moved;

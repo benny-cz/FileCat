@@ -128,11 +128,17 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
     public override string GetDeviceKey(Location location) => PathUtil.GetDeviceKey(OutermostFile(location));
 
     public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate | LocationCapabilities.ReadContent |
-        (MutationState(location).Available ? LocationCapabilities.TransferTarget | LocationCapabilities.CreateDirectory |
-            (MemberMutationProblem(location) is null ? LocationCapabilities.Delete | LocationCapabilities.Rename | LocationCapabilities.ExternalEdit : LocationCapabilities.None) : LocationCapabilities.None);
+        (!MutationState(location).Available ? LocationCapabilities.None
+            // AW7: a standalone stream takes one explicit replacement (F5 of one file) or a sole-payload edit commit, nothing else.
+            : IsStandaloneTarget(location) ? LocationCapabilities.TransferTarget |
+                (MemberMutationProblem(location) is null ? LocationCapabilities.ExternalEdit : LocationCapabilities.None)
+            : LocationCapabilities.TransferTarget | LocationCapabilities.CreateDirectory |
+                (MemberMutationProblem(location) is null ? LocationCapabilities.Delete | LocationCapabilities.Rename | LocationCapabilities.ExternalEdit : LocationCapabilities.None));
 
     public override string ExplainUnavailable(Location location, LocationCapabilities capability) => capability switch
     {
+        LocationCapabilities.CreateDirectory or LocationCapabilities.CreateFile or LocationCapabilities.Delete or LocationCapabilities.Rename or LocationCapabilities.Recycle
+            when IsStandaloneTarget(location) && MutationState(location).Available => ArchiveStandalone.MemberChangesUnavailable,
         LocationCapabilities.Delete or LocationCapabilities.Rename or LocationCapabilities.ExternalEdit when MutationState(location).Available && MemberMutationProblem(location) is { } problem => problem,
         LocationCapabilities.CreateDirectory or LocationCapabilities.CreateFile or LocationCapabilities.Delete or LocationCapabilities.Rename or
             LocationCapabilities.TransferTarget or LocationCapabilities.ExternalEdit or LocationCapabilities.Recycle =>

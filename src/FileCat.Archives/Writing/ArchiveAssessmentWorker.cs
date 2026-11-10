@@ -30,7 +30,7 @@ public static class ArchiveAssessmentWorker
         {
             send.Write(output, ArchiveWorkerMessage.Hello, ArchiveAssessmentWire.HelloFor(verification, protocolVersion));
             var request = ArchiveAssessmentWire.ReadRequest(incoming.Read(ArchiveControlRecord.AssessmentRequest));
-            if (request.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip))
+            if (!ArchiveStandalone.IsStandalone(request.Profile.Format) && request.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip))
                 throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This worker profile has not been implemented.");
             using var passwords = request.Profile.Format == ArchiveWriteFormat.Rar5
                 ? Rar5WorkerPasswords.Receive(receive, input, request.Profile, verification ? ArchiveWorkerRole.Verify : ArchiveWorkerRole.Assess,
@@ -62,6 +62,8 @@ public static class ArchiveAssessmentWorker
             {
                 manifest = sevenPassword is null ? ObserveSevenZip(default) : sevenPassword.UseOnce(ObserveSevenZip);
             }
+            else if (ArchiveStandalone.IsStandalone(request.Profile.Format))
+                manifest = StandaloneRewriteEngine.Assess(source, request.Profile, ct); // AW7: one strictly decoded payload.
             else
             {
                 TarWriteCatalog catalog; byte os = 255, block = 9, zstdChecksum = 1; byte? flags = null;

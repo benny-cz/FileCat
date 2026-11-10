@@ -50,7 +50,7 @@ internal sealed class ArchiveCleanupReview : IArchiveRetainedCleanupReview
             job.StagingDirectories.Count == 0 && job.FillDirectories.Count == 0 && !job.FillDirectoriesCut && job.ManifestPath is null &&
             facts.Transactions[0].RecordVersion == ArchiveTransactionFacts.SchemaVersion &&
             facts.Transactions[0].Profile.Format is ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or
-                ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip;
+                ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip or ArchiveWriteFormat.Gzip or ArchiveWriteFormat.Bzip2 or ArchiveWriteFormat.Zstd;
     }
     internal static bool CanOffer(InterruptedJob job) => CommonScope(job) && job.ArchiveTransactions.ContentUpdates.Count == 1 &&
         job.ArchiveTransactions.ContentCleanups.Count == 1 && job.ArchiveTransactions.CreationCleanups.Count == 0 &&

@@ -218,6 +218,8 @@ internal sealed class ArchiveCapturedInputs : IDisposable
             {
                 ArchiveWriteFormat.Rar5 => ArchiveRar5TransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this, directoryMerges, retainedHeapBytes),
                 ArchiveWriteFormat.SevenZip => ArchiveSevenZipTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this, directoryMerges, retainedHeapBytes),
+                ArchiveWriteFormat.Gzip or ArchiveWriteFormat.Bzip2 or ArchiveWriteFormat.Zstd => directories.Count != 0 || directoryMerges is { Count: > 0 }
+                    ? throw ArchiveStandalone.OneFileOnly() : ArchiveStandaloneTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this),
                 _ => ArchiveTarTransformPlan.CreateCaptured(profile, source, frozenInputs!, edits, additions, Cost, ct, this, directoryMerges, retainedHeapBytes),
             };
         }
@@ -282,6 +284,16 @@ internal sealed class ArchiveCapturedInputs : IDisposable
         }
         public void Review(ArchiveFileObservation expected, CancellationToken ct)
         { RequireExpected(expected); _ = Observe(ct); }
+        public void ReviewMetadata(ArchiveFileObservation expected, CancellationToken ct)
+        {
+            RequireExpected(expected); owner.Live(sealedRequired: true);
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, owner.stopToken);
+            using var permit = ArchiveCapturedInputLeases.Rent(cancellation.Token);
+            using T file = open() ?? throw Invalid();
+            if (SourceLength(file) != captured.Version.Length || file.ObjectIdentity != ObjectIdentity) throw Changed();
+            file.ReviewMetadata(captured, cancellation.Token);
+            owner.Live(sealedRequired: true); cancellation.Token.ThrowIfCancellationRequested();
+        }
         public Stream OpenReadView(ArchiveFileObservation expected, CancellationToken ct)
         {
             RequireExpected(expected); owner.Live(sealedRequired: true);

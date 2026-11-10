@@ -8,6 +8,7 @@
 #   systemd --user service, because each worker's delegated cgroup must share the user manager's subtree.
 #   An env:NAME=VALUE entry exports a test variable (also into the systemd --user service), for example
 #   env:FILECAT_ARCHIVE_SMALL_VOLUME=/home/benny/FileCatValidation/small-volume for an owned small tmpfs.
+#   A hang:MINUTES entry (1-600) replaces the default 20-minute per-test hang guard, for opt-in scale lanes such as AT18.
 #   FILTER is a dotnet test --filter expression; "*" runs the complete project inventory.
 # Writes $ROOT/RUN_ID/{status.txt,summary.json,machine.txt,*.log,results/*.trx} and RUN_ID-evidence.tar.gz.
 # Refuses (exit 3) while another FileCat/.NET test process from a different owner directory is running.
@@ -52,10 +53,13 @@ export DOTNET_ROOT PATH="$DOTNET_ROOT:$PATH" DOTNET_CLI_TELEMETRY_OPTOUT=1 MSBUI
   "$DOTNET_ROOT/dotnet" --version; df -h "$D" | tail -1; echo "packet=$EXPECTED"; echo "filter=$FILTER"; } >"$D/machine.txt" 2>&1
 if [ $LABEL = ubuntu ]; then NICE=(nice -n 5); else NICE=(env); fi
 EXTRA_ENVS=()
+HANG=20m
 for P in "${PROJECTS[@]}"; do
   case "$P" in
     env:*) KV=${P#env:}; [[ "$KV" =~ ^[A-Z][A-Z0-9_]*=[^[:space:]]*$ ]] || { echo "bad env entry" >&2; exit 2; }
       export "$KV"; EXTRA_ENVS+=("$KV"); echo "env=$KV" >>"$D/machine.txt" ;;
+    hang:*) M=${P#hang:}; [[ "$M" =~ ^[1-9][0-9]{0,2}$ ]] && [ "$M" -le 600 ] || { echo "bad hang entry" >&2; exit 2; }
+      HANG="${M}m"; echo "hang=$HANG" >>"$D/machine.txt" ;;
   esac
 done
 RUNNER=("${NICE[@]}")
@@ -63,7 +67,7 @@ i=0
 for P in "${PROJECTS[@]}"; do
   i=$((i+1))
   case "$P" in
-    env:*) continue ;;
+    env:*|hang:*) continue ;;
     build:*) P=${P#build:}; name=$(basename "$P" .csproj)
       "${NICE[@]}" "$DOTNET_ROOT/dotnet" build "$D/src/$P" -c Release --disable-build-servers -p:NuGetAudit=false -m:$JOBS -v:minimal >"$D/build-$name.log" 2>&1
       continue ;;
@@ -86,7 +90,7 @@ for P in "${PROJECTS[@]}"; do
   name=$(basename "$P" .csproj)
   "${NICE[@]}" "$DOTNET_ROOT/dotnet" build "$D/src/$P" -c Release --disable-build-servers -p:NuGetAudit=false -m:$JOBS -v:minimal >"$D/build-$name.log" 2>&1
   args=(test "$D/src/$P" -c Release --no-build --no-restore --disable-build-servers -p:NuGetAudit=false
-        --logger "trx;LogFileName=$name.trx" --results-directory "$D/results" --blame-hang-timeout 20m)
+        --logger "trx;LogFileName=$name.trx" --results-directory "$D/results" --blame-hang-timeout "$HANG" --blame-hang-dump-type mini)
   [ "$FILTER" = "*" ] || args+=(--filter "$FILTER")
   set +e; "${RUNNER[@]}" "$DOTNET_ROOT/dotnet" "${args[@]}" </dev/null >"$D/test-$name.log" 2>&1; echo $? >"$D/exit-$name.txt"; set -e
 done

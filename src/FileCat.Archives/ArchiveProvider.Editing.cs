@@ -17,6 +17,11 @@ public sealed partial class ArchiveProvider
             var node = index.FindFile(item.Parent.Path, item.Name, item.Ordinal);
             if (node?.Tag is not { Kind: MemberKind.File, UnsafeReason: null } tag)
                 throw new IOException("This archive entry is not a regular member that can be edited directly.");
+            // AW7: the displayed name of a standalone stream's one member is derived from the outer file name. The native
+            // assessment and every plan use the synthetic member, so a rename of the outer file never changes an edit.
+            if (ArchiveStandalone.IsStandalone(target.Profile.Format))
+                return ReferenceEquals(StandaloneSingleFile(index), tag) ? ArchiveStandalone.MemberName
+                    : throw new IOException("A compressed file's only member is its whole contents.");
             return tag.FullName;
         }
     }
@@ -31,11 +36,23 @@ public sealed partial class ArchiveProvider
         lock (_cacheLock)
         {
             var index = GetIndex(root, ct); RequireEditRevision(index, target);
+            if (ArchiveStandalone.IsStandalone(target.Profile.Format))
+            {
+                if (rawPath != ArchiveStandalone.MemberName || StandaloneSingleFile(index) is not { } single)
+                    throw new IOException("A compressed file's only member is its whole contents.");
+                ct.ThrowIfCancellationRequested(); return index.Extract(single, _tempDirectory);
+            }
             var matches = index.Children.Values.SelectMany(nodes => nodes).Where(node => node.Tag?.FullName == rawPath).Take(2).ToArray();
             if (matches.Length != 1 || matches[0].Tag is not { Kind: MemberKind.File, UnsafeReason: null } tag)
                 throw new IOException("Direct editing needs one exact regular member. Extract the selected occurrence with F5 instead.");
             ct.ThrowIfCancellationRequested(); return index.Extract(tag, _tempDirectory);
         }
+    }
+
+    private static ArchiveMemberTag? StandaloneSingleFile(ArchiveIndex index)
+    {
+        var nodes = index.Children.Values.SelectMany(items => items).Where(node => node.Tag is not null).Take(2).ToArray();
+        return nodes is [{ Tag: { Kind: MemberKind.File, UnsafeReason: null } tag }] ? tag : null;
     }
 
     private static void RequireEditRevision(ArchiveIndex index, ArchiveTargetReview target)
@@ -50,6 +67,7 @@ public sealed partial class ArchiveProvider
         ArchiveWriteFormat.Tar => ArchiveKind.Tar, ArchiveWriteFormat.TarGzip => ArchiveKind.TarGzip,
         ArchiveWriteFormat.TarBzip2 => ArchiveKind.TarBzip2, ArchiveWriteFormat.TarZstd => ArchiveKind.TarZstd,
         ArchiveWriteFormat.Rar5 => ArchiveKind.Rar, ArchiveWriteFormat.SevenZip => ArchiveKind.SevenZip,
+        ArchiveWriteFormat.Gzip => ArchiveKind.Gzip, ArchiveWriteFormat.Bzip2 => ArchiveKind.Bzip2, ArchiveWriteFormat.Zstd => ArchiveKind.Zstd,
         _ => throw new NotSupportedException("This edit profile has no native archive member reader."),
     };
 }

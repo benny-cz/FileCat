@@ -49,17 +49,40 @@ public sealed class ArchiveWorkerTransportSecretTests
     public async Task Cancellation_does_not_wipe_an_OS_write_buffer_until_that_write_returns()
     {
         using var target = new BlockedOutput(); using var transport = new ArchiveWorkerTransport(Stream.Null, target, CancellationToken.None);
-        Task writer = Task.Run(() => transport.Output.Write(new byte[] { 1, 2, 3, 4 }), TestContext.Current.CancellationToken);
+        // A frame reaches the OS at its flush; until then the transport holds it.
+        Task writer = Task.Run(() => { transport.Output.Write(new byte[] { 1, 2, 3, 4 }); transport.Output.Flush(); }, TestContext.Current.CancellationToken);
         try
         {
             Assert.True(target.Entered.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
             transport.Dispose();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => writer.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken));
-            Assert.Equal(new byte[] { 1, 2, 3, 4 }, target.Buffer);
+            Assert.Equal(new byte[] { 1, 2, 3, 4 }, target.Buffer.AsSpan(0, target.Count).ToArray());
             target.Release.Set();
             Assert.True(SpinWait.SpinUntil(() => target.Buffer!.All(value => value == 0), TimeSpan.FromSeconds(5)));
         }
         finally { target.Release.Set(); }
+    }
+
+    // AT18: a protocol frame (header, payload, flush) is one write and one flush of the OS stream, not three handoffs.
+    [Fact]
+    public void A_protocol_frame_reaches_the_OS_as_one_write_and_one_flush()
+    {
+        using var output = new CountingOutput(); using var transport = new ArchiveWorkerTransport(Stream.Null, output, CancellationToken.None);
+        var protocol = new ArchiveWorkerProtocol(Guid.NewGuid(), 1 << 20);
+        for (int frame = 0; frame < 3; frame++) protocol.Write(transport.Output, ArchiveWorkerMessage.Progress, new byte[] { 1, 2, 3 });
+        Assert.Equal(new[] { ArchiveWorkerProtocol.HeaderBytes + 3, ArchiveWorkerProtocol.HeaderBytes + 3, ArchiveWorkerProtocol.HeaderBytes + 3 }, output.Writes);
+        Assert.Equal(3, output.Flushes);
+    }
+
+    private sealed class CountingOutput : Stream
+    {
+        internal readonly List<int> Writes = []; internal int Flushes;
+        public override void Write(byte[] buffer, int offset, int count) { lock (Writes) Writes.Add(count); }
+        public override void Flush() => Interlocked.Increment(ref Flushes);
+        public override bool CanRead => false; public override bool CanWrite => true; public override bool CanSeek => false;
+        public override long Length => throw new NotSupportedException(); public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException(); public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     private sealed class ObservedInput : Stream
@@ -100,9 +123,9 @@ public sealed class ArchiveWorkerTransportSecretTests
     }
     private sealed class BlockedOutput : Stream
     {
-        internal readonly ManualResetEventSlim Entered = new(), Release = new(); internal byte[]? Buffer;
+        internal readonly ManualResetEventSlim Entered = new(), Release = new(); internal byte[]? Buffer; internal int Count;
         public override void Write(byte[] buffer, int offset, int count)
-        { Assert.Equal(0, offset); Assert.Equal(buffer.Length, count); Buffer = buffer; Entered.Set(); Release.Wait(); }
+        { Assert.Equal(0, offset); Assert.InRange(count, 1, buffer.Length); Buffer = buffer; Count = count; Entered.Set(); Release.Wait(); }
         public override bool CanRead => false; public override bool CanWrite => true; public override bool CanSeek => false;
         public override long Length => throw new NotSupportedException(); public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
         public override void Flush() { } public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();

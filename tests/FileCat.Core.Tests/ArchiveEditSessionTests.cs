@@ -68,6 +68,24 @@ public sealed class ArchiveEditSessionTests
         Assert.DoesNotContain(ArchiveNativeJobCases.Password, json); Assert.DoesNotContain("SafeFileHandle", json);
     }
 
+    // AW7: a compressed file's one member has the synthetic raw name in the record and every plan, and is shown by the name
+    // it had when the edit started; a commit is exactly one replacement of that member.
+    [Theory, InlineData(ArchiveWriteFormat.Gzip), InlineData(ArchiveWriteFormat.Bzip2), InlineData(ArchiveWriteFormat.Zstd)]
+    public void A_compressed_file_session_edits_the_synthetic_member_and_shows_the_name_it_started_with(ArchiveWriteFormat format)
+    {
+        using var f = new Fixture(new(format));
+        var record = f.Store.CreateArchive(f.Source, "report.txt", Ct);
+        Assert.True(record.IsSupported); Assert.True(record.IsNativeArchive); Assert.Equal(ArchiveStandalone.MemberName, record.MemberPath);
+        Assert.Equal("report.txt", record.MemberDisplay); Assert.Equal("report.txt", record.DisplayName);
+        Assert.Equal("report.txt in " + record.ArchivePath, record.DisplayContainer);
+        var loaded = Assert.Single(f.Store.LoadAll()); Assert.Equal(record, loaded); Assert.Equal("report.txt", loaded.MemberDisplay);
+        Assert.Equal(CommitCheck.Ready, EditSessionStore.ReviewArchive(record, f.Source.Target));
+        File.WriteAllText(record.WorkingPath, "edited compressed contents");
+        using var copy = f.Store.PrepareCommit(record, f.Temp.Path, Ct);
+        var change = Assert.Single(EditSessionStore.CommitArchivePlan(record, f.Source.Target, copy, false).Changes);
+        Assert.Equal((ArchiveChangeKind.Replace, ArchiveStandalone.MemberName, (int?)0, copy.Path), (change.Kind, change.MemberPath, change.Ordinal, change.SourcePath));
+    }
+
     [Theory, InlineData("outer-bytes"), InlineData("outer-identity"), InlineData("parent"), InlineData("outer-metadata"),
         InlineData("member-bytes"), InlineData("member-metadata"), InlineData("missing"), InlineData("duplicate")]
     public void Changed_archive_requires_explicit_rebase_and_changed_member_never_becomes_an_add(string change)
@@ -136,9 +154,10 @@ public sealed class ArchiveEditSessionTests
     private static ArchiveWriteManifest MakeManifest(ArchiveWriteProfile profile, byte[] bytes, ArchiveTimestamp time)
     {
         ArchiveTransformInput[] inputs = [new(1, bytes.Length, Convert.ToHexString(SHA256.HashData(bytes)), time)];
-        ArchiveTransformAddition[] additions = [new("notes.txt", ArchiveMemberType.File, 1)];
+        ArchiveTransformAddition[] additions = [new(ArchiveStandalone.IsStandalone(profile.Format) ? ArchiveStandalone.MemberName : "notes.txt", ArchiveMemberType.File, 1)];
         return (profile.Format switch
         {
+            ArchiveWriteFormat.Gzip or ArchiveWriteFormat.Bzip2 or ArchiveWriteFormat.Zstd => ArchiveStandaloneTransformPlan.Create(profile, null, inputs, [], additions, Ct),
             ArchiveWriteFormat.Rar5 => (ArchiveContainerTransformPlan)ArchiveRar5TransformPlan.Create(profile, null, inputs, [], additions, Ct),
             ArchiveWriteFormat.SevenZip => ArchiveSevenZipTransformPlan.Create(profile, null, inputs, [], additions, Ct),
             _ => ArchiveTarTransformPlan.Create(profile, null, inputs, [], additions, Ct),

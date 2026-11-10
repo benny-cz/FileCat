@@ -13,7 +13,23 @@ public sealed partial class ArchiveProvider
             [ArchiveKind.Tar] = new(ArchiveWriteFormat.Tar), [ArchiveKind.TarGzip] = new(ArchiveWriteFormat.TarGzip),
             [ArchiveKind.TarBzip2] = new(ArchiveWriteFormat.TarBzip2), [ArchiveKind.TarZstd] = new(ArchiveWriteFormat.TarZstd),
             [ArchiveKind.Rar] = ArchiveWriteProfile.ForRar5(), [ArchiveKind.SevenZip] = ArchiveWriteProfile.ForSevenZip(new(ArchiveSevenZipCodec.Lzma2), compressionLevel: 3),
+            // AW7: one payload per standalone stream. The profile is only a request; assessment admits the actual wrapper.
+            [ArchiveKind.Gzip] = new(ArchiveWriteFormat.Gzip), [ArchiveKind.Bzip2] = new(ArchiveWriteFormat.Bzip2), [ArchiveKind.Zstd] = new(ArchiveWriteFormat.Zstd),
         };
+
+    /// <summary>
+    /// Whether <paramref name="location"/> is inside a standalone .gz/.bz2/.zst file FileCat could write (AW7): its one virtual
+    /// member is replaced or edited only as a whole, and it has no folders or other members.
+    /// </summary>
+    public bool IsStandaloneTarget(Location location) =>
+        TryGetWriteTarget(location, out _, out var profile) && ArchiveStandalone.IsStandalone(profile.Format);
+
+    /// <summary>The name shown for a standalone file's one member: the outer name without its suffix (display only).</summary>
+    public static string StandaloneMemberDisplayName(string archivePath, ArchiveWriteFormat format)
+    {
+        string name = Path.GetFileName(archivePath), suffix = ArchiveStandalone.Suffix(format);
+        return name.Length > suffix.Length && name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) ? name[..^suffix.Length] : name + ".data";
+    }
 
     // Trusted composition supplies a cheap capability probe. Actual bytes require a fresh complete native review.
     internal Func<ArchivePlan, ArchiveJobAvailability>? MutationAvailability { get; set; }
@@ -42,6 +58,8 @@ public sealed partial class ArchiveProvider
             (PathUtil.IsUncPath(container.Path) || container.Path.StartsWith("\\\\?\\UNC\\", StringComparison.OrdinalIgnoreCase)))
             return "Archives on network shares are read-only: safe saving on shares is not qualified.";
         if (!TryGetWriteTarget(location, out _, out _)) return "FileCat cannot write this archive format.";
+        if (IsStandaloneTarget(location) && !MutationState(location).Available)
+            return "Replacing compressed contents is not available here yet: its worker and safe-save support are not qualified on this system.";
         var state = MutationState(location);
         if (state.Available) return "This archive can't be changed right now.";
         return ReferenceEquals(state, ArchiveJobAvailability.Unqualified) || state.Reason is null

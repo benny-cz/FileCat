@@ -17,6 +17,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FileCat.App.Tests/FileCat.App.Tests.csproj" />
+    <Project Path="tests/FileCat.ArchiveQualificationHost/FileCat.ArchiveQualificationHost.csproj" />
     <Project Path="tests/FileCat.Core.Tests/FileCat.Core.Tests.csproj" />
     <Project Path="tests/FileCat.CoreCrashHarness/FileCat.CoreCrashHarness.csproj" />
     <Project Path="tests/FileCat.NativeAcceptance/FileCat.NativeAcceptance.csproj" />

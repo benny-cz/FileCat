@@ -120,7 +120,7 @@ internal static class UnixArchiveExchangeUpdate
             prepared.Sidecars.Single(sidecar => sidecar.Observation.Version == evidence.Version).File).ToArray();
         try
         {
-            ct.ThrowIfCancellationRequested(); ReviewInputs(ct); ReviewSidecars(ct);
+            ct.ThrowIfCancellationRequested(); ReviewInputs(ct, reopen: false); ReviewSidecars(ct);
             ((IArchiveRetainedFile)original).Review(baseline, ct);
             var originalMetadata = original.CaptureOuterMetadata(ct);
             if (originalMetadata.Digest != baseline.MetadataDigest) throw Changed();
@@ -137,7 +137,8 @@ internal static class UnixArchiveExchangeUpdate
                 prepared.Verified.Stage, catalog));
             var applied = prepared.Stage.ApplyUpdateMetadata(prepared.Verified.Stage, original, baseline, requiredOrigin, ct);
             Append(facts!.Advance(ArchiveExchangeUpdatePhase.MetadataApplied, applied: applied.MetadataDigest));
-            ReviewInputs(ct); ReviewSidecars(ct); ct.ThrowIfCancellationRequested();
+            // The one input recheck: identity, length and outer metadata immediately before the exchange.
+            ReviewInputs(ct, reopen: true); ReviewSidecars(ct); ct.ThrowIfCancellationRequested();
             Append(facts!.Advance(ArchiveExchangeUpdatePhase.ExchangeIntent));
             attempted = true;
             UnixArchiveCrossDirectoryReceipt receipt;
@@ -187,15 +188,15 @@ internal static class UnixArchiveExchangeUpdate
         }
 
         void Append(ArchiveExchangeUpdateFacts next) { journal.ArchiveExchangeUpdate(next); facts = next; }
-        void ReviewInputs(CancellationToken cancellation)
+        void ReviewInputs(CancellationToken cancellation, bool reopen)
         {
             foreach (var (id, binding) in captured)
             {
                 cancellation.ThrowIfCancellationRequested();
                 if (binding is null || !prepared.Verified.Inputs.TryGetValue(id, out var expected) || !binding.Reviewed.Matches(expected)) throw Invalid();
-                binding.File.Review(expected, cancellation);
+                if (reopen) binding.File.ReviewMetadata(expected, cancellation);
             }
-            foreach (var directory in prepared.Verified.Directories.Values) directory.Review(cancellation);
+            if (reopen) foreach (var directory in prepared.Verified.Directories.Values) directory.Review(cancellation);
         }
         void ReviewSidecars(CancellationToken cancellation)
         {

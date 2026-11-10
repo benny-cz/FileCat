@@ -73,6 +73,38 @@ public sealed class ArchiveTargetReviewTests
         Assert.Throws<ArchiveWriteException>(() => review.ReviewMemberChanges([new(ArchiveChangeKind.Rename, "folder/", NewMemberPath: "outside/")], Ct));
     }
 
+    // AW7 found by the AT18 Mac run: a compressed file has no change-free plan, so the review must admit its one payload and
+    // wrapper directly; its one update is a replacement, and member changes get the compressed-file explanation.
+    [Theory]
+    [InlineData(ArchiveWriteFormat.Gzip)] [InlineData(ArchiveWriteFormat.Bzip2)] [InlineData(ArchiveWriteFormat.Zstd)]
+    public async Task A_compressed_file_is_reviewed_for_its_one_replacement_and_refuses_member_changes(ArchiveWriteFormat format)
+    {
+        using var temp = new TempDir(); string leaf = "notes.txt" + ArchiveStandalone.Suffix(format), path = System.IO.Path.Combine(temp.Path, leaf);
+        var profile = new ArchiveWriteProfile(format); Scripted? child = null;
+        var manifest = ArchiveStandalone.Manifest(profile, 4096, new string('B', 64), ArchiveStandalone.Features(profile));
+        var lease = new Lease(leaf, () => child!.Disposed);
+        var reviewer = new ArchiveTargetReviewer((_, _) => lease, new((nonce, _) => child = new(Script(nonce, manifest)), protocolVersion: 2));
+        var result = await reviewer.ReviewAsync(path, profile, null, Ct);
+        Assert.True(lease.Disposed); Assert.Equal(1, lease.Reviews); Assert.Equal(manifest.Digest, result.Assessment.Manifest.Digest);
+        string replacement = temp.File("replacement.txt", "new contents");
+        var plan = result.CreatePlan([new(ArchiveChangeKind.Replace, ArchiveStandalone.MemberName, replacement)]);
+        Assert.Equal(ArchiveChangeKind.Replace, Assert.Single(plan.Changes).Kind); Assert.Equal(manifest.Digest, plan.ReviewedManifestDigest);
+        foreach (var change in new ArchiveChange[] { new(ArchiveChangeKind.Delete, ArchiveStandalone.MemberName),
+            new(ArchiveChangeKind.Rename, ArchiveStandalone.MemberName, NewMemberPath: "renamed"), new(ArchiveChangeKind.CreateFolderEntry, "folder/") })
+        {
+            var refused = Assert.Throws<ArchiveWriteException>(() => result.ReviewMemberChanges([change], Ct));
+            Assert.Equal(ArchiveStandalone.MemberChangesUnavailable, refused.Message);
+        }
+        // A wrapper outside the admitted profile (gzip extra flags 9) is still refused by the review, never relaxed.
+        if (format == ArchiveWriteFormat.Gzip)
+        {
+            var foreign = new ArchiveWriteManifest(profile, manifest.Members.ToArray(), new byte[] { 5, 3, 9 }); lease.Disposed = false;
+            var other = new ArchiveTargetReviewer((_, _) => lease, new((nonce, _) => child = new(Script(nonce, foreign)), protocolVersion: 2));
+            var error = await Assert.ThrowsAsync<ArchiveWriteException>(() => other.ReviewAsync(path, profile, null, Ct));
+            Assert.Equal(ArchiveWriteReason.UnsupportedFeature, error.Reason);
+        }
+    }
+
     private static ArchiveWriteManifest Manifest(ArchiveWriteProfile profile)
     {
         ArchiveTransformInput[] inputs = [new(1, 1, new string('B', 64), new ArchiveTimestamp(1700000000, 100))];

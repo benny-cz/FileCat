@@ -144,7 +144,7 @@ if(args is ["replay-record",var recordTarget,var inputPath])
 if(args is ["replay-worker",var workerTarget,var workerInput])
 {
     if(workerTarget is not ("worker-frames" or "verify-output" or "create-inputs" or "update-changes" or "stream-faults" or
-        "member-keys" or "repeated-cancel"))
+        "member-keys" or "repeated-cancel" or "standalone-streams"))
         throw new ArgumentException("Unknown worker replay target.");
     using var file=new FileStream(workerInput,FileMode.Open,FileAccess.Read,FileShare.Read);
     if(file.Length>1048576)throw new ArgumentException("Worker replay exceeds 1 MiB.");
@@ -155,7 +155,7 @@ if(args is ["replay-worker",var workerTarget,var workerInput])
     {
         "worker-frames"=>WorkerFrames.Exercise(bytes),"verify-output"=>VerifyOutput.Exercise(bytes),
         "create-inputs"=>CreateInputs.Exercise(bytes),"update-changes"=>UpdateChanges.Exercise(bytes),"stream-faults"=>StreamFaults.Exercise(bytes),
-        "member-keys"=>MemberKeys.Exercise(bytes),_=>RepeatedCancellation.Exercise(bytes),
+        "member-keys"=>MemberKeys.Exercise(bytes),"standalone-streams"=>StandaloneStreams.Exercise(bytes),_=>RepeatedCancellation.Exercise(bytes),
     };}
     catch(ArchiveWriteException){accepted=false;} // A typed refusal, as in the native and structured lanes.
     Console.WriteLine(JsonSerializer.Serialize(new{target=workerTarget,accepted}));return 0;
@@ -169,7 +169,7 @@ if(args is ["make-worker-seeds",var workerSeedDirectory])
     for(int i=0;i<WorkerFixtures.Archives.Length;i++)
         File.WriteAllBytes(Path.Combine(workerSeedDirectory,"verify-output",$"stage-{i}.bin"),[(byte)i,..WorkerFixtures.Archives[i]]);
     foreach(var(folder,seeds)in new[]{("create-inputs",WriterSeeds.Create()),("update-changes",WriterSeeds.Update()),("stream-faults",WriterSeeds.Faults()),
-        ("member-keys",StatefulSeeds.Keys()),("repeated-cancel",StatefulSeeds.Repeats())})
+        ("member-keys",StatefulSeeds.Keys()),("repeated-cancel",StatefulSeeds.Repeats()),("standalone-streams",StandaloneStreams.Seeds())})
     {
         Directory.CreateDirectory(Path.Combine(workerSeedDirectory,folder));
         foreach(var(name,seed)in seeds)File.WriteAllBytes(Path.Combine(workerSeedDirectory,folder,name),seed);
@@ -184,7 +184,7 @@ Stats.Target=Environment.GetEnvironmentVariable("FILECAT_FUZZ_TARGET")??"digest"
 if(Stats.Target is not ("digest" or "tar-strict" or "session-record" or "capture-record" or "save-copy-intent" or
     "save-copy-receipt" or "journal-record" or "journal-state" or "manifest-member" or "sevenzip-strict" or "rar5-strict" or
     "sevenzip-password" or "rar5-password" or "gzip-strict" or "bzip2-strict" or "zstd-strict" or "worker-frames" or "verify-output" or
-    "create-inputs" or "update-changes" or "stream-faults" or "member-keys" or "repeated-cancel"))
+    "create-inputs" or "update-changes" or "stream-faults" or "member-keys" or "repeated-cancel" or "standalone-streams"))
     throw new ArgumentException("Unknown fuzz target.");
 Stats.CanaryPrefixMode=Environment.GetEnvironmentVariable("FILECAT_FUZZ_CANARY_PREFIX_MODE")=="1";
 if(Stats.CanaryPrefixMode&&Stats.Target!="digest")throw new ArgumentException("The canary input transform is digest-only.");
@@ -207,7 +207,7 @@ static void Exercise(ReadOnlySpan<byte> data)
     {
         if(Stats.Target is "session-record" or "capture-record" or "save-copy-intent" or "save-copy-receipt" or
             "journal-record" or "journal-state" or "manifest-member" or "worker-frames" or "verify-output" or
-            "create-inputs" or "update-changes" or "stream-faults" or "member-keys" or "repeated-cancel")
+            "create-inputs" or "update-changes" or "stream-faults" or "member-keys" or "repeated-cancel" or "standalone-streams")
         {
             bool accepted=Stats.Target switch
             {
@@ -218,6 +218,7 @@ static void Exercise(ReadOnlySpan<byte> data)
                 "stream-faults"=>StreamFaults.Exercise(data),
                 "member-keys"=>MemberKeys.Exercise(data),
                 "repeated-cancel"=>RepeatedCancellation.Exercise(data),
+                "standalone-streams"=>StandaloneStreams.Exercise(data),
                 "session-record"=>Session.Exercise(data),
                 "capture-record"=>Capture.Exercise(data),
                 "save-copy-intent"=>Intent.Exercise(data),

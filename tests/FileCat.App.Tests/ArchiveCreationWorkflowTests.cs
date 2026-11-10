@@ -47,7 +47,8 @@ public sealed partial class ArchiveCreationWorkflowTests
         var job = Assert.Single(f.Services.Jobs.Jobs); await Wait(() => job.State.IsFinished()); Dispatcher.UIThread.RunJobs();
         Assert.Equal(JobState.Completed, job.State); Assert.Equal("", passwordBox.Text); Assert.Equal("", repeatBox.Text);
         var definition = ArchiveCreationFormat.All.Single(value => value.Format == format);
-        string output = Path.Combine(f.Files, "a" + definition.Extension);
+        // A compressed single file keeps the whole file name (a.txt.gz); an archive uses the stem (a.tar.gz).
+        string output = Path.Combine(f.Files, (definition.IsStandalone ? "a.txt" : "a") + definition.Extension);
         // Native jobs record the archive in its actual folder: a linked folder such as macOS /var is resolved.
         Assert.Equal(format == ArchiveWriteFormat.Zip ? output : ArchiveLocalPath.ResolveParent(output), job.Request.Archive!.ArchivePath);
         Assert.Equal("alpha", File.ReadAllText(Path.Combine(f.Files, "a.txt")));
@@ -169,7 +170,9 @@ public sealed partial class ArchiveCreationWorkflowTests
         }
     }
 
-    public static IEnumerable<object[]> NativeProfiles() => Profiles().Where(row => (ArchiveWriteFormat)row[0] != ArchiveWriteFormat.Zip);
+    // Multi-member creation and "Add" flows; the standalone formats have their own replacement workflow (ArchiveStandaloneUiTests).
+    public static IEnumerable<object[]> NativeProfiles() => Profiles().Where(row => (ArchiveWriteFormat)row[0] != ArchiveWriteFormat.Zip &&
+        !ArchiveStandalone.IsStandalone((ArchiveWriteFormat)row[0]));
 
     [AvaloniaTheory, MemberData(nameof(NativeProfiles))]
     public async Task Actual_confined_application_workers_create_from_the_real_format_and_password_dialog(ArchiveWriteFormat format, int mode)

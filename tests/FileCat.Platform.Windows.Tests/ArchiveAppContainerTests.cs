@@ -248,6 +248,9 @@ public sealed partial class ArchiveAppContainerTests
             Assert.Equal("private inherited-handle positive control", File.ReadAllText(sentinel));
             await using var worker = ArchiveAppContainer.Start(probe, "archive-handle " + raw.ToInt64().ToString(System.Globalization.CultureInfo.InvariantCulture),
                 TimeSpan.FromSeconds(30));
+            // Inheritance is decided at process creation. Children that other tests start in parallel with ordinary
+            // inheritance would otherwise also receive this deliberately inheritable handle and keep the sentinel open.
+            Assert.True(SetHandleInformation(raw, 1, 0));
             using var output = new StreamReader(worker.Output);
             string result = await output.ReadToEndAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
             while (!worker.HasExited) await Task.Delay(10, TestContext.Current.CancellationToken);
@@ -258,7 +261,7 @@ public sealed partial class ArchiveAppContainerTests
             Assert.True(worker.ExitCode is 0 or 0xC0000008, $"exit=0x{worker.ExitCode:X8}; output={result}");
             Assert.DoesNotContain(identity, result);
         }
-        finally { File.Delete(sentinel); }
+        finally { FileCat.Tests.TestCleanup.DeleteFile(sentinel); }
     }
 
     [Fact]

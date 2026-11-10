@@ -52,6 +52,7 @@ public static class ArchiveTransformWire
         ArchiveTarTransformPlan => OutputBound(plan.Expected, ct),
         ArchiveRar5TransformPlan rar => Rar5OutputBound(rar, ct),
         ArchiveSevenZipTransformPlan seven => SevenZipOutputBound(seven, ct),
+        ArchiveStandaloneTransformPlan standalone => ArchiveStandaloneTransformPlan.OutputBound(standalone),
         _ => throw Fault(),
     };
 
@@ -248,7 +249,7 @@ public static class ArchiveTransformWire
         {
             ct.ThrowIfCancellationRequested(); var reader = new Packet(records.Read(ArchiveControlRecord.TransformRequest)); reader.Schema(3);
             var profile = reader.Profile();
-            if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip)) throw Fault();
+            if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip or ArchiveWriteFormat.Gzip or ArchiveWriteFormat.Bzip2 or ArchiveWriteFormat.Zstd)) throw Fault();
             ArchiveAssessmentRequest? source = reader.Flag() ? new(profile, reader.Long(), reader.Digest()) : null;
             if (source is not null) ArchiveAssessmentWire.Validate(source);
             int inputCount = reader.Count(), editCount = reader.Count(), additionCount = reader.Count(); long bound = reader.Long(); reader.End();
@@ -316,7 +317,8 @@ public static class ArchiveTransformWire
     private static void Digest(BinaryWriter writer, string digest) => writer.Write(Convert.FromHexString(digest));
     private static ArchiveWriteException Fault() => new(ArchiveWriteReason.ProtocolViolation, "The archive worker's transform contract is invalid.");
     internal static int MinimumOutputLength(ArchiveWriteFormat format) => format switch
-    { ArchiveWriteFormat.Tar => 1024, ArchiveWriteFormat.TarGzip => 20, ArchiveWriteFormat.TarBzip2 => 14, ArchiveWriteFormat.TarZstd => 9, ArchiveWriteFormat.Rar5 => 24, ArchiveWriteFormat.SevenZip => 32, _ => throw Fault() };
+    { ArchiveWriteFormat.Tar => 1024, ArchiveWriteFormat.TarGzip => 20, ArchiveWriteFormat.TarBzip2 => 14, ArchiveWriteFormat.TarZstd => 9, ArchiveWriteFormat.Rar5 => 24, ArchiveWriteFormat.SevenZip => 32,
+      ArchiveWriteFormat.Gzip => 20, ArchiveWriteFormat.Bzip2 => 14, ArchiveWriteFormat.Zstd => 9, _ => throw Fault() };
 
     private ref struct Packet(ReadOnlySpan<byte> data)
     {

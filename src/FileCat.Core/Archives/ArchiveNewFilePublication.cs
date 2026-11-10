@@ -29,14 +29,15 @@ internal static class ArchiveNewFilePublication
         ArchiveSealedSidecar<T>? metadataSidecar = null; bool claimAttempted = false;
         try
         {
-            ReviewInputs(ct); ReviewSidecars(ct); ReviewOrigin(ct);
+            ReviewInputs(ct, reopen: false); ReviewSidecars(ct); ReviewOrigin(ct);
             var review = stage.ReviewCreate(prepared.Verified.Stage, leaf, ct);
             var metadata = new ArchiveCreationMetadata(facts, review);
             metadataSidecar = ArchiveJournaledSidecar.WriteCreationMetadata(journal, facts, prepared.CreationMetadata, create, metadata, ct);
             facts = metadataSidecar.Facts;
-            stage.Review(prepared.Verified.Stage, ct); ReviewInputs(ct); ReviewSidecars(ct);
+            stage.Review(prepared.Verified.Stage, ct); ReviewInputs(ct, reopen: false); ReviewSidecars(ct);
             Append(facts.AdvanceCreationPublication(ArchiveTransactionPhase.ReadyToPublish, security: metadata.Sha256));
-            stage.Review(prepared.Verified.Stage, ct); ReviewInputs(ct); ReviewSidecars(ct); ct.ThrowIfCancellationRequested();
+            // The one input recheck: identity, length and outer metadata (provenance included) immediately before the claim.
+            stage.Review(prepared.Verified.Stage, ct); ReviewInputs(ct, reopen: true); ReviewSidecars(ct); ct.ThrowIfCancellationRequested();
             Append(facts.AdvanceCreationPublication(ArchiveTransactionPhase.Publishing));
             ct.ThrowIfCancellationRequested(); claimAttempted = true;
             stage.ClaimNewName(leaf, review, ct);
@@ -44,7 +45,7 @@ internal static class ArchiveNewFilePublication
             // manufacturing a NotCommitted result or authorizing rollback over another occupant/mark.
             var published = stage.ReviewPublished(leaf, review, CancellationToken.None);
             Append(facts.AdvanceCreationPublication(ArchiveTransactionPhase.Reconciling, published: published.Version));
-            ReviewInputs(CancellationToken.None); ReviewSidecars(CancellationToken.None);
+            ReviewInputs(CancellationToken.None, reopen: false); ReviewSidecars(CancellationToken.None);
             published = stage.ReviewPublished(leaf, review, CancellationToken.None);
             Append(facts.AdvanceCreationPublication(ArchiveTransactionPhase.Cleaning));
             var sidecars = prepared.Sidecars.Concat([metadataSidecar]).ToArray();
@@ -83,16 +84,16 @@ internal static class ArchiveNewFilePublication
         finally { metadataSidecar?.Dispose(); }
 
         void Append(ArchiveTransactionFacts next) { journal.ArchiveTransaction(next); facts = next; }
-        void ReviewInputs(CancellationToken cancellation)
+        void ReviewInputs(CancellationToken cancellation, bool reopen)
         {
             if (inputs.Count != prepared.Verified.Inputs.Count) throw Unsupported();
             foreach (var (id, binding) in inputs)
             {
                 cancellation.ThrowIfCancellationRequested();
                 if (binding is null || !prepared.Verified.Inputs.TryGetValue(id, out var expected) || !binding.Reviewed.Matches(expected)) throw Unsupported();
-                binding.File.Review(expected, cancellation);
+                if (reopen) binding.File.ReviewMetadata(expected, cancellation);
             }
-            foreach (var directory in prepared.Verified.Directories.Values) directory.Review(cancellation);
+            if (reopen) foreach (var directory in prepared.Verified.Directories.Values) directory.Review(cancellation);
         }
         void ReviewSidecars(CancellationToken cancellation)
         {

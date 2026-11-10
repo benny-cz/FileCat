@@ -43,5 +43,6 @@
     <InternalsVisibleTo Include="PageEngineFaultHarness" />
     <InternalsVisibleTo Include="FileCat.Rendering.Tests" />
     <InternalsVisibleTo Include="FileCat.Screenshots" />
+    <InternalsVisibleTo Include="FileCat.ArchiveQualificationHost" />
   </ItemGroup>
 </Project>

@@ -7,6 +7,7 @@ internal sealed class ArchiveOwnedSourceFile<T>(T file, IDisposable? parent) : S
     public string ObjectIdentity => file.ObjectIdentity;
     public ArchiveFileObservation Observe(CancellationToken ct) => file.Observe(ct);
     public void Review(ArchiveFileObservation expected, CancellationToken ct) => file.Review(expected, ct);
+    public void ReviewMetadata(ArchiveFileObservation expected, CancellationToken ct) => file.ReviewMetadata(expected, ct);
     public Stream OpenReadView(ArchiveFileObservation expected, CancellationToken ct) => file.OpenReadView(expected, ct);
     public override bool CanRead => Volatile.Read(ref disposed) == 0 && file.CanRead;
     public override bool CanSeek => CanRead;

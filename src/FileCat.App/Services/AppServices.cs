@@ -259,8 +259,66 @@ public sealed class AppServices : IDisposable
     /// <param name="dataRoot">--data: everything FileCat writes goes below this folder.</param>
     public static AppServices Initialize(string? profile, string? overrideRoot = null, string? dataRoot = null)
     {
-        Current = new AppServices(AppPaths.Resolve(profile, overrideRoot: overrideRoot, dataRoot: dataRoot));
+        Current = new AppServices(AppPaths.Resolve(profile, overrideRoot: overrideRoot, dataRoot: dataRoot), archiveBackends: ProductionArchiveBackends());
         return Current;
+    }
+
+    /// <summary>
+    /// Every native writing format for the qualification host: AppContainer workers from the published application on
+    /// Windows, confined workers on Linux, and on macOS (which has no production worker launcher) the host's own launcher.
+    /// </summary>
+    internal static Core.Archives.ArchiveJobBackends QualificationBackends(string workerExecutable,
+        Func<Guid, string, Core.Archives.IArchiveWorkerProcess>? unixLaunch)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(workerExecutable);
+        Core.Archives.ArchiveWriteFormat[] formats = [Core.Archives.ArchiveWriteFormat.Tar, Core.Archives.ArchiveWriteFormat.TarGzip,
+            Core.Archives.ArchiveWriteFormat.TarBzip2, Core.Archives.ArchiveWriteFormat.TarZstd, Core.Archives.ArchiveWriteFormat.Rar5,
+            Core.Archives.ArchiveWriteFormat.SevenZip, Core.Archives.ArchiveWriteFormat.Gzip, Core.Archives.ArchiveWriteFormat.Bzip2,
+            Core.Archives.ArchiveWriteFormat.Zstd];
+        return new(formats.Select(format =>
+            OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveJobBackend.Create(format, workerExecutable)
+            : OperatingSystem.IsLinux() ? Core.Archives.Linux.LinuxArchiveJobBackend.Create(format, workerExecutable)
+            : unixLaunch is { } launch ? Core.Archives.Unix.UnixArchiveJobBackend.Create(format, (nonce, _) => launch(nonce, "archive-assess-v2"),
+                (nonce, _) => launch(nonce, "archive-transform-v2"), (nonce, _) => launch(nonce, "archive-verify-v2"))
+            : throw new PlatformNotSupportedException("This platform has no qualification worker launcher.")));
+    }
+
+    /// <summary>The qualification host's composition: explicit native backends on an isolated data root (never ordinary startup).</summary>
+    internal static AppServices InitializeForQualification(AppPaths paths, Core.Archives.ArchiveJobBackends archiveBackends)
+    {
+        ArgumentNullException.ThrowIfNull(paths); ArgumentNullException.ThrowIfNull(archiveBackends);
+        Current = new AppServices(paths, archiveBackends: archiveBackends);
+        return Current;
+    }
+
+    /// <summary>
+    /// Plan §16.1: only qualified format/runtime/filesystem routes are registered (see <see cref="Core.Archives.ArchiveWriteRoutes"/>);
+    /// with none qualified this is null and native archive writing stays unavailable, with its reason, while reading continues.
+    /// </summary>
+    internal static Core.Archives.ArchiveJobBackends? ProductionArchiveBackends() =>
+        Core.Archives.ArchiveWriteRoutes.Compose(Core.Archives.ArchiveWriteRoutes.Qualified, System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier,
+            format => OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveJobBackend.Create(format, Environment.ProcessPath!)
+                : OperatingSystem.IsLinux() ? Core.Archives.Linux.LinuxArchiveJobBackend.Create(format, Environment.ProcessPath!)
+                : throw new PlatformNotSupportedException("No production archive worker launcher exists for this platform."),
+            FileSystemOf);
+
+    /// <summary>The filesystem of the mount that holds <paramref name="folder"/>, or null when it cannot be established.</summary>
+    internal static string? FileSystemOf(string folder)
+    {
+        try
+        {
+            string full = Path.GetFullPath(folder);
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            // A mount point contains the folder only at a separator boundary: /home does not contain /home2.
+            var drive = DriveInfo.GetDrives().Where(candidate =>
+            {
+                string mount = Path.TrimEndingDirectorySeparator(candidate.Name);
+                return string.Equals(full, mount, comparison) || full.StartsWith(mount + Path.DirectorySeparatorChar, comparison) ||
+                    Path.EndsInDirectorySeparator(candidate.Name) && full.StartsWith(candidate.Name, comparison);
+            }).MaxBy(candidate => candidate.Name.Length);
+            return drive is { IsReady: true } ? drive.DriveFormat : null;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException) { return null; }
     }
 
     public void ReloadKeymap() => Keymap = new Keymap(Commands, Settings.KeyBindings);

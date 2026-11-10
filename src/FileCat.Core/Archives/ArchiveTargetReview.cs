@@ -46,6 +46,8 @@ internal sealed class ArchiveTargetReview
         var plan = CreatePlan(changes);
         if (plan.Changes.Any(change => change.Kind is not (ArchiveChangeKind.Delete or ArchiveChangeKind.Rename or ArchiveChangeKind.CreateFolderEntry)))
             throw new ArgumentException("Member-only review cannot capture local inputs.", nameof(changes));
+        if (ArchiveStandalone.IsStandalone(Profile.Format))
+            throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, ArchiveStandalone.MemberChangesUnavailable);
         using var empty = new ArchiveCapturedInputs(); empty.Seal(ct);
         _ = new ArchiveJobPlanning(plan, ct).Review(Assessment, null, empty, ct).CreatePlan(false, false, ct);
         return plan;
@@ -106,9 +108,14 @@ internal sealed class ArchiveTargetReviewer(Func<string, CancellationToken, IArc
         lease.File.Review(observed, ct);
         ct.ThrowIfCancellationRequested();
         var reviewed = new ArchiveTargetReview(path, profile, observed, result);
-        // Reading a catalog alone does not prove that the admitted profile can preserve it.
-        using var empty = new ArchiveCapturedInputs(); empty.Seal(ct);
-        _ = new ArchiveJobPlanning(reviewed.CreatePlan([]), ct).Review(result, null, empty, ct).CreatePlan(false, false, ct);
+        // Reading a catalog alone does not prove that the admitted profile can preserve it. A compressed file has no
+        // change-free plan (its one update replaces the payload), so its wrapper and single payload are admitted directly.
+        if (ArchiveStandalone.IsStandalone(profile.Format)) _ = ArchiveStandaloneTransformPlan.AdmitSource(profile, result);
+        else
+        {
+            using var empty = new ArchiveCapturedInputs(); empty.Seal(ct);
+            _ = new ArchiveJobPlanning(reviewed.CreatePlan([]), ct).Review(result, null, empty, ct).CreatePlan(false, false, ct);
+        }
         ct.ThrowIfCancellationRequested();
         return reviewed;
     }

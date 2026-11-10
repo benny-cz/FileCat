@@ -90,7 +90,7 @@ internal sealed class UnixArchiveSelectionTree : IArchiveSelectionTree, IArchive
         if (node.Parent is null) { ct.ThrowIfCancellationRequested(); root.RequireSelectionRoot(); return new(root, false); }
         using var verified = OpenDirectory(node.Parent, ct);
         string path = Path.Combine(root.DisplayPath, node.Parent.NativeRelativePath);
-        var parent = UnixArchiveDirectory.Open(path);
+        var parent = UnixArchiveDirectory.OpenBelow(path, root);
         try
         {
             if (parent.Identity.ToString() != node.Parent.Entry.Identity || UnixFiles.Stat(verified)?.Identity != parent.Identity) throw ArchiveCapturedSelection.Changed();

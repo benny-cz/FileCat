@@ -271,6 +271,35 @@ public sealed partial class MainViewModel
         ? $"folder “{Formatters.SafeName(scope.Path.TrimEnd('/'))}” ({scope.PhysicalEntries:N0} stored entries, including {scope.DirectoryRecords:N0} directory records)"
         : $"“{Formatters.SafeName(scope.Path)}”" + (scope.Copies > 1 ? $" (copy {scope.Occurrence + 1:N0} of {scope.Copies:N0})" : "");
 
+    /// <summary>
+    /// AW7 (plan §8.5, §11.6): F5 of exactly one regular file onto a standalone .gz/.bz2/.zst file explicitly replaces its one
+    /// payload. Several items, a folder or a move never broaden into an addition; they are refused with the TAR alternative.
+    /// </summary>
+    private async Task ReplaceCompressedContentsAsync(JobKind kind, IReadOnlyList<ItemRef> items, Location destination, QueueMode mode,
+        TabViewModel? origin, Location? originLocation)
+    {
+        if (!Services.Archives.TryGetWriteTarget(destination, out string archive, out _)) return;
+        string outer = Formatters.SafeName(System.IO.Path.GetFileName(archive));
+        if (kind == JobKind.Move)
+        { Notify($"Moving into {outer} is not available. Copy one file onto it with F5 to replace its compressed contents; the file stays where it is.", true); return; }
+        if (items.Count != 1 || items[0].IsContainer || items[0].FileSystemPath is null)
+        { Notify($"{outer} is a compressed file and holds exactly one file. To pack several items or a folder, create a TAR archive with compression (Alt+F5).", true); return; }
+        using var command = await PrepareNativeArchiveCommandAsync(destination.WithPath(""));
+        if (command is null) return;
+        string shown = FileCat.Archives.ArchiveProvider.StandaloneMemberDisplayName(command.Target.Path, command.Target.Profile.Format);
+        if (!await Dialogs.ConfirmAsync("Replace compressed contents",
+            $"Replace the contents of {outer} with {Formatters.SafeName(items[0].Name)}? The compressed file keeps its name and still shows its contents as " +
+            $"{Formatters.SafeName(shown)}. The new contents are compressed and verified before they replace the old ones; the old contents are not kept.",
+            "Replace contents")) return;
+        try
+        {
+            var plan = command.Target.CreatePlan([new ArchiveChange(ArchiveChangeKind.Replace, ArchiveStandalone.MemberName, items[0].FileSystemPath)]);
+            SubmitNativeArchiveCommand(command, plan, $"Replace the contents of “{outer}”", origin, originLocation, mode);
+        }
+        catch (Exception error) when (error is IOException or ArgumentException or NotSupportedException)
+        { if (!Services.Io.IsStopped) Notify("Cannot replace the compressed contents: " + Formatters.SafeName(error.Message), true); }
+    }
+
     private async Task AddToNativeArchiveAsync(JobKind kind, IReadOnlyList<ItemRef> items, Location destination, TransferOptions options,
         string? newName, QueueMode mode, TabViewModel? sourceTab, Location? sourceContext)
     {
@@ -279,6 +308,8 @@ public sealed partial class MainViewModel
         var origin = sourceTab ?? ActiveTab; var originLocation = sourceContext ?? origin?.Location;
         // These are captured before password/review dialogs; navigation cannot replace the selection or destination.
         var frozen = items.ToArray(); var folder = destination; string? incomingName = newName;
+        if (Services.Archives.IsStandaloneTarget(destination))
+        { await ReplaceCompressedContentsAsync(kind, frozen, destination, mode, origin, originLocation); return; }
         if (frozen.Select(item => incomingName ?? item.Name).Distinct(StringComparer.Ordinal).Count() != frozen.Length)
         { Notify("Two selected items have the same archive name. Add them from their own folders.", true); return; }
         using var command = await PrepareNativeArchiveCommandAsync(folder, moveSources: kind == JobKind.Move);

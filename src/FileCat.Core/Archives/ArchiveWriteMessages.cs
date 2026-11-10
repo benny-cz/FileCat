@@ -84,6 +84,7 @@ public static class ArchiveWriteMessages
         ArchiveWriteFormat.SevenZip => "7z archive",
         ArchiveWriteFormat.Rar5 => "RAR archive",
         ArchiveWriteFormat.Zip => "ZIP",
+        ArchiveWriteFormat.Gzip or ArchiveWriteFormat.Bzip2 or ArchiveWriteFormat.Zstd => "compressed file",
         _ => "archive",
     };
 }

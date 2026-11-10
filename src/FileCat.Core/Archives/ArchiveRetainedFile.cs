@@ -38,6 +38,13 @@ internal interface IArchiveRetainedFile
     ArchiveFileObservation Observe(CancellationToken ct);
     void Review(ArchiveFileObservation expected, CancellationToken ct);
     Stream OpenReadView(ArchiveFileObservation expected, CancellationToken ct);
+    /// <summary>
+    /// The object is still the reviewed one with the same length and outer metadata (identity, parent, name, times,
+    /// attributes, security and provenance), without hashing its bytes again. Use it only where a worker receipt and the
+    /// fresh verification already bind the content (plan §7.1 ReadyToPublish rechecks provenance and outer metadata);
+    /// capture and source removal keep the complete <see cref="Review"/>. The default performs the complete review.
+    /// </summary>
+    void ReviewMetadata(ArchiveFileObservation expected, CancellationToken ct) => Review(expected, ct);
 }
 
 internal interface IArchiveRetainedArtifact : IArchiveRetainedFile, IDisposable

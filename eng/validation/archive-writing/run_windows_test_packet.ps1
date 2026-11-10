@@ -15,6 +15,7 @@ param(
     [string]$User = 'Admin',
     [string]$Dotnet = 'C:\FileCatValidation\dotnet\dotnet.exe',
     [int]$TimeoutMinutes = 240,
+    [ValidateRange(1, 600)][int]$HangMinutes = 20,
     # Optional 'NAME=value;NAME2=value' test environment; {run} expands to the run folder (for published assets).
     [ValidatePattern('^([A-Z][A-Z0-9_]{0,63}=[^;"]*)?(;[A-Z][A-Z0-9_]{0,63}=[^;"]*)*$')][string]$Env = ''
 
@@ -86,7 +87,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Build failed: $name" }
         if ($mode -eq 'build') { continue }
         $arguments = @('test', $path, '-c', 'Release', '--no-build', '--no-restore', '--disable-build-servers', '-p:NuGetAudit=false',
-            '--logger', "trx;LogFileName=$name.trx", '--results-directory', (Join-Path $Run 'results'), '--blame-hang-timeout', '20m')
+            '--logger', "trx;LogFileName=$name.trx", '--results-directory', (Join-Path $Run 'results'), '--blame-hang-timeout', "$($HangMinutes)m", '--blame-hang-dump-type', 'mini')
         if ($Filter -ne '*') { $arguments += @('--filter', $Filter) }
         & $Dotnet @arguments *> (Join-Path $Run "test-$name.log")
         $exits[$name] = $LASTEXITCODE

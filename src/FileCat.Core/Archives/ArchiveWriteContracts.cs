@@ -126,7 +126,7 @@ public static class ArchiveWritePolicy
     public const long MaxRetainedNameChars = 64L << 20;
     public const int MaxEntryMetadataBytes = 1 << 20;
     public const long MaxMetadataBytes = 128L << 20;
-    public const long MaxRetainedHeapBytes = 192L << 20;
+    public const long MaxRetainedHeapBytes = 512L << 20;
     public const int MaxPaxPairsPerEntry = 1_024;
     public const int MaxPaxPairs = 1_000_000;
     public const long MaxPayloadBytes = 8L << 30;

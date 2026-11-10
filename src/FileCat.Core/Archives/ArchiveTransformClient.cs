@@ -36,7 +36,9 @@ public sealed class ArchiveTransformClient
             long wireBytes = checked(sourceIo + 4 * request.OutputLengthBound + ArchiveWritePolicy.MaxMetadataBytes);
             if (wireBytes > ArchiveWritePolicy.MaxWorkerWireBytes) throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded,
                 "The complete transform exceeds its aggregate worker IO budget.");
-            TimeSpan cpu = ArchiveAssessmentClient.CpuAllowance(Math.Min(ArchiveWritePolicy.MaxPhysicalBytes, originalLength + inputLength));
+            // The parent's own expectation: every output member plus every edited source member costs work, not only bytes.
+            TimeSpan cpu = ArchiveAssessmentClient.CpuAllowance(Math.Min(ArchiveWritePolicy.MaxPhysicalBytes, originalLength + inputLength),
+                checked(invocation.Expected.Members.Count + request.Edits.Count));
             var result = await ArchiveWorkerSession.RunAsync(launch, queue, cpu, TimeSpan.FromSeconds(30), TimeSpan.FromHours(12), Conversation, ct).ConfigureAwait(false);
             if (result.Refusal is { } reason) throw new ArchiveWriteException(reason, "The archive worker refused this transformation. The archive remains unchanged.");
             var receipt = result.Receipt!;

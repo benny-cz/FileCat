@@ -121,7 +121,8 @@ public sealed class StrictSevenZipCatalogTests
     {
         byte[] data = Payload(); using var source = new MemoryStream(Create(data, Options(5, 12), 0, copies: 5));
         var catalog = StrictSevenZipCatalog.Read(source, Ct); Assert.Equal(7, catalog.Members.Count);
-        Assert.True(catalog.PeakDecoderHeapBytes > ArchiveWritePolicy.MaxRetainedHeapBytes);
+        // Five cumulative reservations could not fit the worker envelope, so completing proves each one was released.
+        Assert.True(5 * catalog.PeakDecoderHeapBytes > ArchiveWritePolicy.MaxWorkerMemoryBytes - (64 << 20));
         Assert.True(catalog.PeakDecoderHeapBytes < ArchiveWritePolicy.MaxWorkerMemoryBytes);
         Assert.All(catalog.Members.Take(5), member => Assert.Equal(Sha(data), member.Sha256));
     }

@@ -51,7 +51,7 @@ public sealed partial class UnixArchiveStorageTests
 
         // The review inspection only observes: it classifies the names and lists the remaining objects, writing nothing.
         // It runs in its own recovery session; the journal (exclusively flocked while a session is open) is compared after.
-        string journalBefore = Hash(File.ReadAllBytes(job.JournalPath));
+        string journalBefore = Hash(ReadJournal(job.JournalPath));
         using (var inspecting = UnixArchiveExchangeRecovery.Open(job.JournalPath, facts.Nonce, ct))
         {
             var inspection = inspecting.Inspect(ct);
@@ -60,7 +60,7 @@ public sealed partial class UnixArchiveStorageTests
             Assert.Equal(point.StartsWith("before:Cleaned:", StringComparison.Ordinal) ? 1 : 0, inspection.Absent.Count);
             Assert.All(inspection.Present, path => Assert.True(File.Exists(path), path));
         }
-        Assert.Equal(journalBefore, Hash(File.ReadAllBytes(job.JournalPath)));
+        Assert.Equal(journalBefore, Hash(ReadJournal(job.JournalPath)));
 
         using (var recovery = UnixArchiveExchangeRecovery.Open(job.JournalPath, facts.Nonce, ct))
         {
@@ -76,6 +76,17 @@ public sealed partial class UnixArchiveStorageTests
         Assert.Empty(Directory.GetDirectories(root, ArchiveExchangeUpdateFacts.PrivateDirectoryPrefix + "*"));
         Assert.Equal("owned unchanged exchange sentinel", File.ReadAllText(sentinel));
         Assert.Equal(new[] { "added.bin", "original.tar", "sentinel" }, Directory.GetFiles(root).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+    }
+
+    // .NET reads take a shared flock. A process another test starts at that moment briefly shares the closed session's
+    // descriptor until it executes (close-on-exec), so its exclusive lock can outlive Dispose for a moment (v14d Mac).
+    private static byte[] ReadJournal(string path)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            try { return File.ReadAllBytes(path); }
+            catch (IOException) when (attempt < 40 && File.Exists(path)) { Thread.Sleep(250); }
+        }
     }
 
     private static async Task KillExchangeProcess(string root, string point, CancellationToken ct)

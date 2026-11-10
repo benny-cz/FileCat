@@ -32,8 +32,10 @@ internal sealed partial class UnixArchiveRecoveryJournal : IDisposable
             try
             {
                 identity = UnixFiles.Stat(file)?.Identity ?? throw UnixArchiveNative.Unavailable();
-                // Refuse a journal that a live writer (or another review) still holds.
-                if (Flock(UnixArchiveNative.Fd(file), 2 | 4 /* LOCK_EX | LOCK_NB */) != 0)
+                // Refuse a journal that a live writer (or another review) still holds. A process this FileCat is starting at
+                // the same moment shares a just-closed review's descriptor until it executes (close-on-exec), so the lock
+                // is retried briefly before that refusal.
+                if (!LockExclusive(UnixArchiveNative.Fd(file), ct))
                     throw new IOException("The archive journal is still in use; retain it.");
                 Review();
                 var stream = new FileStream(file, FileAccess.ReadWrite, 64 * 1024, isAsync: false);
@@ -77,6 +79,16 @@ internal sealed partial class UnixArchiveRecoveryJournal : IDisposable
     }
 
     public void Dispose() { try { Journal.Dispose(); } finally { parent.Dispose(); } }
+
+    private static bool LockExclusive(int fd, CancellationToken ct)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            if (Flock(fd, 2 | 4 /* LOCK_EX | LOCK_NB */) == 0) return true;
+            if (attempt == 20) return false;
+            ct.WaitHandle.WaitOne(100); ct.ThrowIfCancellationRequested();
+        }
+    }
 
     [LibraryImport("libc", EntryPoint = "flock", SetLastError = true)]
     private static partial int Flock(int fd, int operation);

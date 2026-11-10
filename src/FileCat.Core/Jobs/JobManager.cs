@@ -393,6 +393,13 @@ public sealed partial class JobManager
                     job.WaitReason = $"Waits for \"{blocker.Title}\": both touch the same items";
                     continue;
                 }
+                if (PreparesArchive(job) && _jobs.FirstOrDefault(j => !ReferenceEquals(j, job) && PreparesArchive(j) &&
+                    (j.State.IsActive() || _starting.Contains(j))) is { } preparing)
+                {
+                    job.WaitingFor = preparing;
+                    job.WaitReason = $"Waits for \"{preparing.Title}\": archive changes are made one at a time";
+                    continue;
+                }
                 if (job.Request.Mode == QueueMode.Queue)
                 {
                     var devBusy = _jobs.FirstOrDefault(j => !ReferenceEquals(j, job) && j.DeviceKey == job.DeviceKey &&
@@ -451,6 +458,11 @@ public sealed partial class JobManager
 
     private static bool ScopesOverlap(string a, string b) =>
         a == GlobalScope || b == GlobalScope || PathUtil.SubtreesOverlap(a, b);
+
+    // A profiled archive job keeps its catalogs, captured inputs and expected manifest in this process, charged up to
+    // ArchiveWritePolicy.MaxRetainedHeapBytes. Running one at a time makes that charge the global bound (plan §9.2: one
+    // active archive worker, queued through the job center). Legacy ZIP updates keep their existing scheduling.
+    private static bool PreparesArchive(Job job) => job.Kind == JobKind.ArchiveUpdate && job.Request.Archive?.Profile is not null;
 
     private void Start(Job job)
     {

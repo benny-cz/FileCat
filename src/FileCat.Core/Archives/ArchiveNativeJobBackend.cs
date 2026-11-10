@@ -48,7 +48,8 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         Func<string, CancellationToken, IArchiveTargetReadLease>? openReview = null)
     {
         if (format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or
-            ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip)) throw new ArgumentException("A shared container profile is required.");
+            ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip) && !ArchiveStandalone.IsStandalone(format))
+            throw new ArgumentException("A shared container profile is required.");
         Format = format; this.availability = availability ?? throw new ArgumentNullException(nameof(availability));
         this.open = open ?? throw new ArgumentNullException(nameof(open)); this.assessor = assessor ?? throw new ArgumentNullException(nameof(assessor));
         this.transform = transform ?? throw new ArgumentNullException(nameof(transform)); this.verifier = verifier ?? throw new ArgumentNullException(nameof(verifier));

@@ -251,4 +251,18 @@ public sealed partial class ArchiveCapturedInputsTests
         var emptyPlan = empty.CreatePlan(new(ArchiveWriteFormat.Tar), null, [], [], Ct);
         Assert.True(emptyPlan.CaptureCost.HeapBytes >= 2048); ArchiveCapturedInputs.RequirePlanCost(emptyPlan, empty.Bindings);
     }
+
+    // AW7: the job route (capture, plan, preparation admission) accepts a standalone stream's one captured payload. Its plan
+    // must carry the owner's own directory map; a shared empty map was refused as "invalid or incomplete" by preparation.
+    [Theory]
+    [InlineData(ArchiveWriteFormat.Gzip)] [InlineData(ArchiveWriteFormat.Bzip2)] [InlineData(ArchiveWriteFormat.Zstd)]
+    public void A_standalone_plan_from_captured_inputs_passes_preparation_admission(ArchiveWriteFormat format)
+    {
+        using var captured = new ArchiveCapturedInputs(); captured.Capture(1, new Source(1).Open, Ct); captured.Seal(Ct);
+        var plan = captured.CreatePlan(new(format), null, [], [new(ArchiveStandalone.MemberName, ArchiveMemberType.File, 1)], Ct);
+        Assert.IsType<ArchiveStandaloneTransformPlan>(plan); Assert.Same(captured, plan.CaptureOwner);
+        ArchiveCapturedInputs.RequirePlanCost(plan, captured.Bindings);
+        Assert.Equal(ArchiveWriteReason.InvalidRequest, Assert.Throws<ArchiveWriteException>(() =>
+            captured.CreatePlan(new(format), null, [], [new("other-name", ArchiveMemberType.File, 1)], Ct)).Reason);
+    }
 }

@@ -82,7 +82,8 @@ public sealed record EditSessionRecord
             !string.IsNullOrEmpty(WorkingDirectoryIdentity)&&!string.IsNullOrEmpty(WorkingIdentity))&&
         (LegacyAdoption is null && !LegacyAdoptionReady || Version==NativeStorageVersion&&LegacyAdoption is { IsValid:true }&&LegacyAdoption.SourceId!=Id) &&
         Kind is ArchiveKind or RemoteKind && (!IsNativeArchive ||
-        ArchiveFormat is ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip &&
+        (ArchiveFormat is ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip ||
+            ArchiveStandalone.IsStandalone(ArchiveFormat) && MemberPath == ArchiveStandalone.MemberName) &&
         ArchiveProfile is not null && ArchiveProfile.Format == ArchiveFormat && MemberOccurrence == 0 &&
         !string.IsNullOrEmpty(ArchiveIdentity) && !string.IsNullOrEmpty(ArchiveParentIdentity) && !string.IsNullOrEmpty(WorkingIdentity) && !string.IsNullOrEmpty(WorkingDirectoryIdentity) &&
         IsDigest(ArchiveMetadataDigest) && IsDigest(MemberCatalogRevision) && IsDigest(MemberMetadataSha256) && IsDigest(BaseSha256) &&
@@ -99,10 +100,17 @@ public sealed record EditSessionRecord
 
     /// <summary>The edited file's own name.</summary>
     public string DisplayName => IsRemote ? RemotePath[(RemotePath.LastIndexOf('/') + 1)..] :
-        MemberPath.Length != 0 ? Path.GetFileName(MemberPath) : Path.GetFileName(WorkingPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        MemberPath.Length != 0 && !IsStandaloneMember ? Path.GetFileName(MemberPath) : Path.GetFileName(WorkingPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+
+    /// <summary>
+    /// The member as the user knows it. A standalone .gz/.bz2/.zst file's one member has the synthetic raw name
+    /// <see cref="ArchiveStandalone.MemberName"/>; it is shown by the name it had when the edit started (AW7).
+    /// </summary>
+    [JsonIgnore] public string MemberDisplay => IsStandaloneMember ? DisplayName : MemberPath;
+    [JsonIgnore] private bool IsStandaloneMember => !IsRemote && ArchiveStandalone.IsStandalone(ArchiveFormat) && MemberPath == ArchiveStandalone.MemberName;
 
     /// <summary>Where it lives: the member in its archive, or the server and path.</summary>
-    public string DisplayContainer => IsRemote ? $"{ServerDisplay}:{RemotePath}" : $"{MemberPath} in {ArchivePath}";
+    public string DisplayContainer => IsRemote ? $"{ServerDisplay}:{RemotePath}" : $"{MemberDisplay} in {ArchivePath}";
 
     /// <summary>What a commit writes to: the archive's file name, or the server.</summary>
     public string DisplayTarget => IsRemote ? ServerDisplay : Path.GetFileName(ArchivePath);

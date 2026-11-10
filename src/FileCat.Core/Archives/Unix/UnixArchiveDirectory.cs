@@ -22,13 +22,13 @@ internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestin
     internal UnixArchiveVolume Volume { get; }
     internal SafeFileHandle Handle => directory; // Only under Gate while a live owner/child exists.
 
-    private UnixArchiveDirectory(string path)
+    private UnixArchiveDirectory(string path, UnixArchiveVolume? sameMountAs = null)
     {
         user = UnixArchiveNative.RequireOrdinaryIdentity(); DisplayPath = path; directory = UnixArchiveNative.PinDirectory(path);
         try
         {
             Identity = UnixFiles.Stat(directory)?.Identity ?? throw UnixArchiveNative.Unavailable();
-            Volume = UnixArchiveVolume.Observe(directory);
+            Volume = sameMountAs is { } known && known.Matches(directory) ? known : UnixArchiveVolume.Observe(directory);
         }
         catch { directory.Dispose(); throw; }
     }
@@ -45,6 +45,21 @@ internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestin
         catch { directory.Dispose(); throw; }
     }
     internal static UnixArchiveDirectory Open(string path) => new(path);
+    /// <summary>
+    /// Opens a folder below <paramref name="pinnedOwner"/>, which stays open meanwhile. While the owner's descriptor pins
+    /// its mount, that mount ID names no other filesystem, so a folder on the same mount shares its observed volume without
+    /// reading mountinfo again (AT18: one mount-table read per input reopen); any other folder is observed in full.
+    /// </summary>
+    internal static UnixArchiveDirectory OpenBelow(string path, UnixArchiveDirectory pinnedOwner)
+    {
+        ArgumentNullException.ThrowIfNull(pinnedOwner);
+        // The owner's descriptor must stay open across the comparison, so the shared mount cannot be released meanwhile.
+        lock (pinnedOwner.Gate)
+        {
+            if (pinnedOwner.disposed) throw new ObjectDisposedException(nameof(UnixArchiveDirectory));
+            return new(path, pinnedOwner.Volume);
+        }
+    }
     /// <summary>
     /// Creates a separate pinned, creator-private stage namespace on this volume. The directory and all later
     /// artifacts are retained if a review or durability step fails; this does not grant exchange or cleanup authority.
@@ -146,7 +161,7 @@ internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestin
         using var fresh = UnixArchiveNative.PinDirectory(DisplayPath);
         if (UnixFiles.Stat(fresh)?.Identity != Identity || UnixFiles.Stat(directory)?.Identity != Identity)
             throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "The archive destination directory changed; retain its artifacts.");
-        if (UnixArchiveVolume.Observe(directory) != Volume) throw UnixArchiveNative.Unavailable();
+        if (!Volume.Matches(directory)) throw UnixArchiveNative.Unavailable();
     }
     internal void RequireName(string leaf, FileIdentity identity)
     {

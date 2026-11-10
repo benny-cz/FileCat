@@ -11,6 +11,18 @@ internal sealed partial class WindowsArchiveFile
         ArgumentNullException.ThrowIfNull(expected); var actual = ObserveRetained(ct);
         if (!actual.Matches(expected)) throw ChangedRetained();
     }
+    void IArchiveRetainedFile.ReviewMetadata(ArchiveFileObservation expected, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(expected);
+        lock (parent.Gate)
+        {
+            EnsureLive(); ct.ThrowIfCancellationRequested(); parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
+            var metadata = CaptureOuterMetadata(ct); if (metadata.LinkCount != 1) throw ArchiveWriteMessages.HardLinked(DisplayPath);
+            if (expected.Version.Identity != Identity.ToString() || Length != expected.Version.Length ||
+                !RetainedObservation(expected.Version, metadata).Matches(expected)) throw ChangedRetained();
+            parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
+        }
+    }
     private ArchiveFileObservation ObserveRetained(CancellationToken ct)
     {
         lock (parent.Gate)

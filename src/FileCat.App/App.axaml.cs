@@ -15,6 +15,13 @@ public partial class App : Application
 {
     public static StartupOptions StartupOptions { get; set; } = new();
 
+    /// <summary>
+    /// Set only by the never-shipped archive qualification host (tests/FileCat.ArchiveQualificationHost) through
+    /// InternalsVisibleTo: the same application with explicitly composed native archive backends, for screen-reader and
+    /// layout qualification runs (plan §16.3 step 1). Ordinary startup cannot set it and registers only qualified routes.
+    /// </summary>
+    internal static Func<StartupOptions, AppServices>? QualificationServices { get; set; }
+
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
@@ -23,7 +30,7 @@ public partial class App : Application
         bool benchmark = StartupOptions.BenchmarkCount > 0;
         // The TV-01 benchmark runs on isolated, temporary state with synthetic listings.
         string? benchmarkRoot = benchmark ? Path.Combine(Path.GetTempPath(), "FileCat-benchmark-" + Guid.NewGuid().ToString("N")) : null;
-        var services = AppServices.Initialize(StartupOptions.Profile, benchmarkRoot, StartupOptions.DataRoot);
+        var services = QualificationServices?.Invoke(StartupOptions) ?? AppServices.Initialize(StartupOptions.Profile, benchmarkRoot, StartupOptions.DataRoot);
         string syntheticRoot = Path.Combine(benchmarkRoot ?? services.Paths.TempDirectory, "synthetic");
         if (benchmark)
         {

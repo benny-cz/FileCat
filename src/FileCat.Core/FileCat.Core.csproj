@@ -13,6 +13,7 @@
     <InternalsVisibleTo Include="FileCat.Archives.Writing" />
     <InternalsVisibleTo Include="FileCat.CoreCrashHarness" />
     <InternalsVisibleTo Include="FileCat.WorkerProbe" />
+    <InternalsVisibleTo Include="FileCat.ArchiveQualificationHost" />
     <InternalsVisibleTo Include="FileCat.ArchiveWorker" />
     <InternalsVisibleTo Include="FileCat.ArchiveVmProbe" />
     <InternalsVisibleTo Include="FileCat.App.Tests" />

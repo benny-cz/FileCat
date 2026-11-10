@@ -261,7 +261,8 @@ public sealed partial class MainViewModel
         string suggestion = Path.Combine(targetFolder, stem + ".zip");
         var formats = ArchiveCreationFormat.All.Where(format => format.DefaultProfile is not { } profile ||
             Services.Jobs.ArchiveAvailability(new(suggestion, null, [], Profile: profile)).Available).ToArray();
-        using var dialog = new ArchiveCreationDialog(suggestion, selected.Value.Summary, formats, Services.Jobs.ArchiveAvailability);
+        using var dialog = new ArchiveCreationDialog(suggestion, selected.Value.Summary, formats, Services.Jobs.ArchiveAvailability,
+            items.Count == 1 && !items[0].IsContainer ? items[0].Name : null);
         using var estimateStop = CancellationTokenSource.CreateLinkedTokenSource(Services.Io.StoppingToken);
         _ = ShowPackEstimateAsync(dialog, items, targetFolder, estimateStop.Token);
         using var stopEstimate = new CancelOnDispose(estimateStop); // Disposed first: stops the count when the dialog ends.
@@ -306,6 +307,19 @@ public sealed partial class MainViewModel
                         existingPassword = dialog.CopyPassword();
                         var reviewed = await ReviewArchiveTargetAsync(choice.Path, existingChoice.Profile!, existingPassword);
                         if (reviewed is null || Services.Io.IsStopped) return;
+                        if (choice.Format.IsStandalone)
+                        {
+                            // AW7 / plan §8.5: an explicit replacement of the one payload, never an addition beside it.
+                            if (!await Dialogs.ConfirmAsync("Replace compressed contents",
+                                $"{Path.GetFileName(choice.Path)} already exists. Replace its compressed contents with {items[0].Name}? The new file is " +
+                                "compressed and verified before it replaces the old one; the old contents are not kept.", "Replace contents")) return;
+                            if (Services.Io.IsStopped) return;
+                            Services.Jobs.SubmitArchive(reviewed.CreatePlan([new ArchiveChange(ArchiveChangeKind.Replace, ArchiveStandalone.MemberName, items[0].FileSystemPath)]),
+                                null, description: $"Replace the contents of “{Path.GetFileName(choice.Path)}”", register: job =>
+                                { if (originLocation is not null) _jobOrigins[job] = (origin, originLocation); });
+                            dialog.CompleteTransfer();
+                            return;
+                        }
                         if (!await Dialogs.ConfirmAsync("Add to this archive",
                             $"Add {selected.Value.Summary} to {Path.GetFileName(choice.Path)}? The complete archive is rebuilt and verified before saving. Existing names are reviewed in the job.", "Add")) return;
                         if (Services.Io.IsStopped) return;
@@ -339,9 +353,12 @@ public sealed partial class MainViewModel
             }
             string? focus = originLocation is { IsFileSystem: true } &&
                 string.Equals(originLocation.Path, Path.GetDirectoryName(choice.Path), StringComparison.Ordinal) ? Path.GetFileName(choice.Path) : null;
-            string description = $"Create {choice.Format.Name} archive “{Path.GetFileName(choice.Path)}”";
-            var changes = items.Select(item => new ArchiveChange(item.IsContainer ? ArchiveChangeKind.AddFolder : ArchiveChangeKind.AddFile,
-                item.Name, item.FileSystemPath)).ToArray();
+            string description = choice.Format.IsStandalone ? $"Compress “{items[0].Name}” to “{Path.GetFileName(choice.Path)}”"
+                : $"Create {choice.Format.Name} archive “{Path.GetFileName(choice.Path)}”";
+            // A compressed file's one payload uses the synthetic member; its shown name always comes from the outer file name.
+            var changes = choice.Format.IsStandalone ? [new ArchiveChange(ArchiveChangeKind.AddFile, ArchiveStandalone.MemberName, items[0].FileSystemPath)]
+                : items.Select(item => new ArchiveChange(item.IsContainer ? ArchiveChangeKind.AddFolder : ArchiveChangeKind.AddFile,
+                    item.Name, item.FileSystemPath)).ToArray();
             if (choice.Profile is null)
             {
                 SubmitArchive(new(choice.Path, null, changes, choice.LegacyLevel), items, Location.FileSystem(Path.GetDirectoryName(choice.Path)!),

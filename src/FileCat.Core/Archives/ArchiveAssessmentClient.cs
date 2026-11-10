@@ -49,14 +49,20 @@ public sealed class ArchiveAssessmentClient
         _launch = launch; _queue = queue; _idle = idle; _wall = wall; _verification = verification; _protocolVersion = protocolVersion;
     }
 
-    public async Task<ArchiveAssessment> AssessAsync(ArchiveAssessmentRequest request, Func<Stream> openPinnedSource, CancellationToken ct, ArchiveWorkerSecretGrant? password = null)
+    public Task<ArchiveAssessment> AssessAsync(ArchiveAssessmentRequest request, Func<Stream> openPinnedSource, CancellationToken ct, ArchiveWorkerSecretGrant? password = null)
+        => AssessAsync(request, openPinnedSource, ct, password, expectedMembers: 0);
+
+    /// <param name="expectedMembers">For fresh verification: the parent's own expected member count, which adds its per-member
+    /// CPU allowance. An assessment of an existing archive passes zero: the parent does not know an untrusted catalog's size.</param>
+    internal async Task<ArchiveAssessment> AssessAsync(ArchiveAssessmentRequest request, Func<Stream> openPinnedSource, CancellationToken ct,
+        ArchiveWorkerSecretGrant? password, int expectedMembers)
     {
         try
         {
             ArchiveAssessmentWire.Validate(request);
             ArchiveWorkerSecretWire.RequireProfileGrant(request.Profile, password, _protocolVersion);
             string binding = ArchiveAssessmentWire.RequestDigest(request);
-            var result = await ArchiveWorkerSession.RunAsync(_launch, _queue, CpuAllowance(request.SourceLength), _idle, _wall, Conversation, ct).ConfigureAwait(false);
+            var result = await ArchiveWorkerSession.RunAsync(_launch, _queue, CpuAllowance(request.SourceLength, expectedMembers), _idle, _wall, Conversation, ct).ConfigureAwait(false);
             if (result.Refusal is { } reason)
                 throw new ArchiveWriteException(reason, "The archive worker refused this assessment. The archive remains unchanged.");
             return result.Assessment!;
@@ -139,9 +145,15 @@ public sealed class ArchiveAssessmentClient
         finally { password?.Dispose(); }
     }
 
-    public static TimeSpan CpuAllowance(long actualInputBytes)
+    /// <summary>
+    /// A worker's CPU allowance from parent-derived actual sizes: 30 s, 2 s per MiB of real input and, where the parent knows
+    /// its own member count (transform and fresh verification), 5 ms per member, so many tiny members are not starved by a
+    /// bytes-only budget (AT18). Capped at 2 hours.
+    /// </summary>
+    public static TimeSpan CpuAllowance(long actualInputBytes, int knownMembers = 0)
     {
         if (actualInputBytes is < 0 or > ArchiveWritePolicy.MaxPhysicalBytes) throw new ArgumentOutOfRangeException(nameof(actualInputBytes));
-        return TimeSpan.FromSeconds(Math.Min(7200, 30 + actualInputBytes / (double)(1 << 20) * 2));
+        if (knownMembers is < 0 or > 2 * ArchiveWritePolicy.MaxMembers) throw new ArgumentOutOfRangeException(nameof(knownMembers));
+        return TimeSpan.FromSeconds(Math.Min(7200, 30 + actualInputBytes / (double)(1 << 20) * 2 + knownMembers * 0.005));
     }
 }

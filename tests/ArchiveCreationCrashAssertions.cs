@@ -82,6 +82,16 @@ internal static class ArchiveCreationCrashAssertions
         return facts;
 
         string[] Snapshot() => Directory.GetFiles(root, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
-            .Select(p => Path.GetRelativePath(root, p) + ":" + Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(p)))).ToArray();
+            .Select(p => Path.GetRelativePath(root, p) + ":" + Convert.ToHexString(SHA256.HashData(Read(p)))).ToArray();
+        // Right after the killed process exits, Windows can still hold one of its files for a moment (a sharing violation
+        // that names no product defect); the bytes read must be the bytes the process left.
+        static byte[] Read(string path)
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                try { return File.ReadAllBytes(path); }
+                catch (IOException) when (attempt < 20 && File.Exists(path)) { Thread.Sleep(250); }
+            }
+        }
     }
 }

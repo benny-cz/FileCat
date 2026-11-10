@@ -35,6 +35,31 @@ internal sealed unsafe partial record UnixArchiveVolume(string FileSystem, ulong
         }
         finally { if (retained) handle.DangerousRelease(); }
     }
+    /// <summary>
+    /// Whether a held descriptor is still on this observed volume, without reading mountinfo again. An open descriptor pins
+    /// its mount, and the kernel frees a mount ID only when that mount is destroyed, so the statx mount ID of a held directory
+    /// cannot come to name another filesystem: the type read from mountinfo when this volume was observed still applies.
+    /// The statfs type and flags are rechecked on both platforms (AT18: a namespace recheck per input observation read and
+    /// parsed all of mountinfo into a fresh 1 MiB buffer).
+    /// </summary>
+    internal bool Matches(SafeFileHandle handle)
+    {
+        UnixArchiveNative.RequirePlatform(); bool retained = false;
+        try
+        {
+            handle.DangerousAddRef(ref retained); int fd = UnixArchiveNative.Fd(handle);
+            byte* bytes = stackalloc byte[4096]; new Span<byte>(bytes, 4096).Clear();
+            if (UnixArchiveNative.Mac)
+            {
+                if ((RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? MacStatFs(fd, bytes) : MacStatFs64(fd, bytes)) != 0) return false;
+                return MountId is null && Encoding.ASCII.GetString(new ReadOnlySpan<byte>(bytes + 72, 16)).TrimEnd('\0') == FileSystem &&
+                    *(uint*)(bytes + 64) == Flags;
+            }
+            return MountId is { } mount && StatFs(fd, bytes) == 0 && *(ulong*)bytes == 0xef53 && *(ulong*)(bytes + 80) == Flags &&
+                LinuxMountId(fd) == mount;
+        }
+        finally { if (retained) handle.DangerousRelease(); }
+    }
     internal static string LinuxFileSystem(string mountInfo, ulong mountId)
     {
         if (mountId == 0 || mountInfo.Length > 1 << 20) throw UnixArchiveNative.Unavailable();
@@ -67,10 +92,16 @@ internal sealed unsafe partial record UnixArchiveVolume(string FileSystem, ulong
         int fd = Open("/proc/self/mountinfo", UnixArchiveNative.SafeOpen); using var handle = UnixArchiveNative.Handle(fd);
         byte* stat = stackalloc byte[256];
         if (StatFs(fd, stat) != 0 || *(ulong*)stat != 0x9fa0 /* actual procfs */) throw UnixArchiveNative.Unavailable();
-        byte[] bytes = new byte[(1 << 20) + 1]; int total = 0;
-        while (total < bytes.Length)
+        // Ordinary mount tables are a few kilobytes: grow from 64 KiB to the 1 MiB bound only when needed.
+        byte[] bytes = new byte[64 << 10]; int total = 0;
+        while (true)
         {
             int read = RandomAccess.Read(handle, bytes.AsSpan(total), total); if (read == 0) break; total += read;
+            if (total == bytes.Length)
+            {
+                if (bytes.Length > 1 << 20) break;
+                Array.Resize(ref bytes, Math.Min(bytes.Length * 4, (1 << 20) + 1));
+            }
         }
         if (total > 1 << 20) throw UnixArchiveNative.Unavailable();
         try { return UnixArchiveNative.Utf8.GetString(bytes, 0, total); }

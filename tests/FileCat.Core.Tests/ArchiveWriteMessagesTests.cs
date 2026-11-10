@@ -29,6 +29,9 @@ public sealed class ArchiveWriteMessagesTests
         Assert.Equal("This TAR contains metadata FileCat cannot preserve when saving. It is read-only here. You can still extract supported files with F5.",
             ArchiveWriteMessages.ForUser(Error(ArchiveWriteReason.UnsupportedFeature), ArchiveWriteFormat.TarZstd, ArchiveJobPhase.ReadingArchive));
         Assert.StartsWith("This 7z archive contains metadata", ArchiveWriteMessages.ForUser(Error(ArchiveWriteReason.UnsupportedFeature), ArchiveWriteFormat.SevenZip, null));
+        // AW7: a gzip file with a stored name or timestamp (the gzip tool's default) is a compressed file, not an archive.
+        foreach (var format in new[] { ArchiveWriteFormat.Gzip, ArchiveWriteFormat.Bzip2, ArchiveWriteFormat.Zstd })
+            Assert.StartsWith("This compressed file contains metadata FileCat cannot preserve when saving.", ArchiveWriteMessages.ForUser(Error(ArchiveWriteReason.UnsupportedFeature), format, ArchiveJobPhase.ReadingArchive));
     }
 
     [Fact]

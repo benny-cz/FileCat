@@ -96,6 +96,9 @@ public sealed partial class MainViewModel
             ArchiveWriteFormat.TarZstd => FileCat.Archives.ArchiveKind.TarZstd,
             ArchiveWriteFormat.Rar5 => FileCat.Archives.ArchiveKind.Rar,
             ArchiveWriteFormat.SevenZip => FileCat.Archives.ArchiveKind.SevenZip,
+            ArchiveWriteFormat.Gzip => FileCat.Archives.ArchiveKind.Gzip,
+            ArchiveWriteFormat.Bzip2 => FileCat.Archives.ArchiveKind.Bzip2,
+            ArchiveWriteFormat.Zstd => FileCat.Archives.ArchiveKind.Zstd,
             _ => throw new NotSupportedException("This archive edit profile is unavailable."),
         });
         using var command = await PrepareNativeArchiveCommandAsync(location, requestedProfile: session.ArchiveProfile);
@@ -120,7 +123,7 @@ public sealed partial class MainViewModel
         {
             var answer = await Dialogs.ShowCustomAsync("Archive edit conflict", new Avalonia.Controls.TextBlock
             {
-                Text = $"\"{session.MemberPath}\" changed, disappeared or became ambiguous. Your working copy is kept.",
+                Text = $"\"{Formatters.SafeName(session.MemberDisplay)}\" changed, disappeared or became ambiguous. Your working copy is kept.",
                 TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxWidth = 640,
             }, [new("Cancel", "cancel", IsCancel: true), new("Save my copy…", "copy", IsDefault: true)]);
             if (answer as string == "copy") await SaveSessionCopyAsync(session);
@@ -128,7 +131,7 @@ public sealed partial class MainViewModel
         }
         bool rebase = check == CommitCheck.ArchiveChanged;
         if (rebase && !await Dialogs.ConfirmAsync("The archive changed",
-            $"The complete current archive was checked. \"{session.MemberPath}\" still has the same bytes and metadata. Apply this edit to the current archive?",
+            $"The complete current archive was checked. \"{Formatters.SafeName(session.MemberDisplay)}\" still has the same bytes and metadata. Apply this edit to the current archive?",
             "Apply edit to the current archive")) return;
         CheckSessionAction(); var copy = await PrepareEditCommitAsync(session);
         ArchiveJobPassword? readback = null; Job? admitted = null;

@@ -39,6 +39,9 @@ public static class ArchiveTransformWorker
             {
                 manifest = sevenPassword is null ? RebuildSevenZip(default) : sevenPassword.UseOnce(RebuildSevenZip);
             }
+            else if (ArchiveStandalone.IsStandalone(request.Profile.Format))
+                manifest = StandaloneRewriteEngine.Rebuild(source, request.Source?.SourceSha256, request.Profile, stage,
+                    request.Edits, request.Additions, request.Inputs.Values.ToArray(), Open, ct);
             else
             {
                 var edits = request.Edits.Select(e => new TarWriteEdit(e.Kind, e.Key, e.NewName, e.InputId)).ToArray();

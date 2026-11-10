@@ -158,18 +158,19 @@ internal static class ArchiveJournaledContainerPreparation
             {
                 if (original.Reviewed.Version.Length != plan.Source!.SourceLength || original.Reviewed.Version.Sha256 != plan.Source.SourceSha256 ||
                     !identities.Add(original.Reviewed.Version.Identity)) throw Invalid();
-                original.File.Review(original.Reviewed, ct);
+                original.File.ReviewMetadata(original.Reviewed, ct);
             }
+            // Structural checks only: capture observed every input completely, the transform checks each input as it opens
+            // it, and publication rechecks them once immediately before its claim (plan §7.1 ReadyToPublish). Reopening
+            // every input at each preparation step cost one pass over all of them per step (AT18).
             foreach (var (id, binding) in inputs)
             {
                 ct.ThrowIfCancellationRequested();
                 if (binding is null || !plan.Inputs.TryGetValue(id, out var expected) || binding.Reviewed.Input(id) != expected || !identities.Add(binding.Reviewed.Version.Identity)) throw Invalid();
-                binding.File.Review(binding.Reviewed, ct);
             }
             foreach (var directory in plan.Directories.Values)
             {
                 ct.ThrowIfCancellationRequested(); if (!identities.Add(directory.Reviewed.Version.Identity)) throw Invalid();
-                directory.Review(ct);
             }
         }
     }

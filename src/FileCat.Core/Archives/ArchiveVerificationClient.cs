@@ -38,13 +38,20 @@ public sealed class ArchiveVerificationClient
         {
             ArgumentNullException.ThrowIfNull(sealedStage); ArgumentNullException.ThrowIfNull(expected); ArgumentNullException.ThrowIfNull(openPinnedStage);
             // Each endpoint uses complete strict framing/content observations; tolerant browsing cannot verify output.
-            if (expected.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip))
+            if (expected.Profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip or ArchiveWriteFormat.Gzip or ArchiveWriteFormat.Bzip2 or ArchiveWriteFormat.Zstd))
                 throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "This archive verification profile has not been implemented.");
             if (expected.Profile.Format == ArchiveWriteFormat.Rar5) _ = ArchiveRar5Features.Decode(expected.Features);
             else if (expected.Profile.Format == ArchiveWriteFormat.SevenZip) ArchiveSevenZipEncoding.ValidateFeatures(expected.Members, ArchiveSevenZipFeatures.Decode(expected.Features));
+            else if (ArchiveStandalone.IsStandalone(expected.Profile.Format))
+            {
+                ArchiveStandalone.Validate(expected.Profile, expected.Features);
+                if (expected.Members is not [{ Name: ArchiveStandalone.MemberName, Type: ArchiveMemberType.File, Occurrence: 0 }])
+                    throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "A compressed file's expectation must describe exactly one payload.");
+            }
             else ArchiveTarFeatures.Validate(expected.Profile, expected.Features);
             ct.ThrowIfCancellationRequested();
-            var observed = await worker.AssessAsync(new(expected.Profile, sealedStage.Length, sealedStage.Sha256), openPinnedStage, ct, password).ConfigureAwait(false);
+            var observed = await worker.AssessAsync(new(expected.Profile, sealedStage.Length, sealedStage.Sha256), openPinnedStage, ct, password,
+                expected.Members.Count).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
             if (observed.SourceLength != sealedStage.Length || observed.SourceSha256 != sealedStage.Sha256 ||
                 observed.Manifest.Digest != expected.Digest || observed.Manifest.ContentDigest != expected.ContentDigest ||

@@ -17,7 +17,7 @@ internal static class ArchiveJournaledSnapshotPreparation
         ArchiveJobPassword.Require(profile, password);
         if (password is not null && (!assessor.UsesSecretProtocol || !verifier.UsesSecretProtocol))
             throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "Password-bearing restoration requires fixed protocol-2 worker factories.");
-        if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip) ||
+        if (profile.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip or ArchiveWriteFormat.Gzip or ArchiveWriteFormat.Bzip2 or ArchiveWriteFormat.Zstd) ||
             target.Reviewed.Version.Identity == snapshot.Reviewed.Version.Identity ||
             !string.Equals(Path.GetFileName(archivePath), target.Reviewed.LeafName, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)) throw Invalid();
         ReviewInputs();

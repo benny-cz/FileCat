@@ -83,7 +83,7 @@ internal static class ArchiveContentUpdate
         bool commitAttempted = false, transferred = false;
         try
         {
-            ct.ThrowIfCancellationRequested(); ReviewInputs(ct); ReviewSidecars(ct);
+            ct.ThrowIfCancellationRequested(); ReviewInputs(ct, reopen: false); ReviewSidecars(ct);
             ((IArchiveRetainedFile)original).Review(baseline, ct);
             var requiredOrigin = ReviewOrigin(ct);
             var reservation = original.ReserveContentSnapshot(preparation.Nonce, prepared.Space.Estimate, ct);
@@ -93,7 +93,7 @@ internal static class ArchiveContentUpdate
             snapshot = create(reservation);
             string policy = snapshot.ReviewContentSnapshotCreation(reservation, ct);
             Append(facts!.Advance(ArchiveContentUpdatePhase.SnapshotCreated, snapshotIdentity: snapshot.ObjectIdentity, creationPolicy: policy));
-            Current(); ReviewInputs(ct); ReviewSidecars(ct);
+            Current(); ReviewInputs(ct, reopen: false); ReviewSidecars(ct);
             transaction = original.BeginContentTransaction(baseline, preparation.Nonce, nativeTimeout, ct);
             Append(facts!.Advance(ArchiveContentUpdatePhase.TransactionOpened, transactionId: transaction.TransactionId));
             Current();
@@ -110,16 +110,17 @@ internal static class ArchiveContentUpdate
             cleanupFiles.Add(snapshot); cleanupRows.Add(ArchiveContentCleanupArtifact.Capture(facts!.SnapshotPath, ArchiveArtifactKind.Stage, retained));
             var cleanup = ArchiveContentCleanupFacts.Reserve(preparation, facts!, cleanupRows);
             journal.ArchiveContentCleanup(cleanup); // Includes the sealed snapshot metadata, before private target mutation.
-            Current(); ReviewInputs(ct); ReviewSidecars(ct);
+            Current(); ReviewInputs(ct, reopen: false); ReviewSidecars(ct);
             if (ReviewOrigin(ct).Digest != requiredOrigin.Digest) throw Invalid();
             var ready = transaction.PrepareOutput(prepared.Stage, prepared.Verified, requiredOrigin, ct);
             Append(facts!.Advance(ArchiveContentUpdatePhase.Ready, privateOutput: ready.PrivateOutput));
-            Current(); ReviewInputs(ct); ReviewSidecars(ct); ct.ThrowIfCancellationRequested();
+            // The one input recheck: identity, length and outer metadata immediately before the commit intent.
+            Current(); ReviewInputs(ct, reopen: true); ReviewSidecars(ct); ct.ThrowIfCancellationRequested();
             Append(facts!.Advance(ArchiveContentUpdatePhase.CommitIntent));
             Current(); ct.ThrowIfCancellationRequested(); commitAttempted = true;
             var published = transaction.Commit(ready, ct);
             // Cancellation cannot hide a possible public effect or authorize a second transaction over it.
-            ReviewInputs(CancellationToken.None); ReviewSidecars(CancellationToken.None);
+            ReviewInputs(CancellationToken.None, reopen: false); ReviewSidecars(CancellationToken.None);
             published = transaction.ReviewPublished(ready, CancellationToken.None);
             Append(facts!.Advance(ArchiveContentUpdatePhase.CommittedWithRetainedArtifacts, published: published.Version));
             transferred = true;
@@ -155,16 +156,16 @@ internal static class ArchiveContentUpdate
 
         void Append(ArchiveContentUpdateFacts next) { journal.ArchiveContentUpdate(next); facts = next; }
         void Current() => journal.RequireCurrentArchiveContentUpdate(facts!);
-        void ReviewInputs(CancellationToken cancellation)
+        void ReviewInputs(CancellationToken cancellation, bool reopen)
         {
             if (inputs.Count != prepared.Verified.Inputs.Count) throw Invalid();
             foreach (var (id, binding) in inputs)
             {
                 cancellation.ThrowIfCancellationRequested();
                 if (binding is null || !prepared.Verified.Inputs.TryGetValue(id, out var expected) || !binding.Reviewed.Matches(expected)) throw Invalid();
-                binding.File.Review(expected, cancellation);
+                if (reopen) binding.File.ReviewMetadata(expected, cancellation);
             }
-            foreach (var directory in prepared.Verified.Directories.Values) directory.Review(cancellation);
+            if (reopen) foreach (var directory in prepared.Verified.Directories.Values) directory.Review(cancellation);
         }
         void ReviewSidecars(CancellationToken cancellation)
         {

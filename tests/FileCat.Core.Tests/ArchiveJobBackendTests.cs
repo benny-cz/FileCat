@@ -102,6 +102,38 @@ public sealed class ArchiveJobBackendTests
         Assert.Equal(original, File.ReadAllBytes(plan.ArchivePath));
     }
 
+    [Fact]
+    public async Task Profiled_archive_jobs_run_one_at_a_time_while_ordinary_jobs_keep_running()
+    {
+        using var temp = new TempDir(); using var entered = new ManualResetEventSlim(); using var release = new ManualResetEventSlim();
+        int active = 0, peak = 0;
+        var backend = new Backend(ArchiveWriteFormat.Tar, execution =>
+        {
+            int now = Interlocked.Increment(ref active);
+            for (int seen = Volatile.Read(ref peak); seen < now; seen = Volatile.Read(ref peak))
+                if (Interlocked.CompareExchange(ref peak, now, seen) == seen) break;
+            try { entered.Set(); Assert.True(release.Wait(TimeSpan.FromSeconds(15))); }
+            finally { Interlocked.Decrement(ref active); }
+            execution.Job.AddTotals(1, 0); execution.Job.ItemDone();
+        });
+        var manager = Manager(temp, backend); var profile = new ArchiveWriteProfile(ArchiveWriteFormat.Tar);
+        var first = manager.SubmitArchive(new(Path.Combine(temp.Dir("one"), "first.tar"), null, [], Profile: profile), description: "Pack first");
+        Assert.True(entered.Wait(TimeSpan.FromSeconds(15)));
+        // Different folders: nothing but the one-at-a-time rule holds the second job back.
+        var second = manager.SubmitArchive(new(Path.Combine(temp.Dir("two"), "second.tar"), null, [], Profile: profile), description: "Pack second");
+        Assert.Equal(JobState.Queued, second.State); Assert.Same(first, second.WaitingFor);
+        Assert.Equal("Waits for \"Pack first\": archive changes are made one at a time", second.WaitReason);
+        var folder = manager.Submit(new JobRequest { Kind = JobKind.CreateDirectory, Destination = Location.FileSystem(temp.Dir("three")), NewName = "made" });
+        await Finished(folder);
+        Assert.Equal(JobState.Completed, folder.State); Assert.True(Directory.Exists(Path.Combine(temp.Path, "three", "made")));
+        Assert.Equal(JobState.Queued, second.State);
+        release.Set();
+        await Finished(first); await Finished(second);
+        Assert.Equal(JobState.Completed, first.State); Assert.Equal(JobState.Completed, second.State);
+        Assert.Equal(2, backend.Calls); Assert.Equal(1, Volatile.Read(ref peak));
+        Assert.Null(second.WaitReason);
+    }
+
     [Theory, MemberData(nameof(Profiles))]
     public void Queue_cancellation_erases_only_the_owned_password_without_starting_a_worker(int format, int mode)
     {

@@ -16,7 +16,16 @@ internal sealed record ArchiveCreationFormat(ArchiveWriteFormat Format, string N
         new(ArchiveWriteFormat.TarBzip2, "TAR + bzip2", ".tar.bz2", ".tbz2", ".tbz"),
         new(ArchiveWriteFormat.TarZstd, "TAR + Zstandard", ".tar.zst", ".tzst"),
         new(ArchiveWriteFormat.SevenZip, "7z", ".7z"), new(ArchiveWriteFormat.Rar5, "RAR5", ".rar"),
+        // AW7: "Compress file". One regular file becomes one compressed stream named after it (report.txt.gz).
+        new(ArchiveWriteFormat.Gzip, "gzip (compress one file)", ".gz"), new(ArchiveWriteFormat.Bzip2, "bzip2 (compress one file)", ".bz2"),
+        new(ArchiveWriteFormat.Zstd, "Zstandard (compress one file)", ".zst"),
     ];
+    internal bool IsStandalone => ArchiveStandalone.IsStandalone(Format);
+    /// <summary>The TAR format with the same compression, offered when a standalone format cannot hold the selection.</summary>
+    internal string TarAlternative => Format switch
+    {
+        ArchiveWriteFormat.Gzip => "TAR + gzip", ArchiveWriteFormat.Bzip2 => "TAR + bzip2", ArchiveWriteFormat.Zstd => "TAR + Zstandard", _ => Name,
+    };
     internal ArchiveWriteProfile? DefaultProfile => Format switch
     {
         ArchiveWriteFormat.Zip => null,
@@ -42,6 +51,8 @@ internal sealed class ArchiveCreationDialog : IDisposable
     private readonly TextBlock problem, preview, estimate;
     private readonly Func<ArchivePlan, ArchiveJobAvailability> availability;
     private bool updating, generatedPath = true;
+    private readonly string generatedStem;
+    private readonly string? singleFileName;
     private string? externalProblem;
     internal bool ExistingTarget { get; private set; }
     internal StackPanel Content { get; }
@@ -49,10 +60,14 @@ internal sealed class ArchiveCreationDialog : IDisposable
     internal ArchiveCreationSelection? Selection { get; private set; }
     internal bool CanConfirm => Selection is not null && externalProblem is null;
 
+    /// <param name="singleFileName">The name of the one selected regular file, or null when several items or a folder are packed;
+    /// only then can a standalone compressed file be created.</param>
     internal ArchiveCreationDialog(string suggestedPath, string selectedSummary, IReadOnlyList<ArchiveCreationFormat> formats,
-        Func<ArchivePlan, ArchiveJobAvailability> availability)
+        Func<ArchivePlan, ArchiveJobAvailability> availability, string? singleFileName = null)
     {
-        this.availability = availability;
+        this.availability = availability; this.singleFileName = singleFileName;
+        string? known = KnownSuffix(suggestedPath);
+        generatedStem = known is null ? suggestedPath : suggestedPath[..^known.Length];
         path = new() { Text = suggestedPath, MinWidth = 240 };
         format = Box("Archive format", formats); format.SelectedIndex = 0;
         level = Box("Compression", Array.Empty<object>());
@@ -124,10 +139,10 @@ internal sealed class ArchiveCreationDialog : IDisposable
         {
             if (generatedPath)
             {
-                string current = path.Text ?? "";
-                var previous = ArchiveCreationFormat.All.SelectMany(item => item.Aliases.Prepend(item.Extension))
-                    .OrderByDescending(suffix => suffix.Length).FirstOrDefault(suffix => current.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
-                path.Text = (previous is null ? current : current[..^previous.Length]) + selected.Extension;
+                // A compressed file keeps the whole file name (report.txt.gz); an archive uses the stem (report.zip).
+                string stem = selected.IsStandalone && singleFileName is not null
+                    ? Path.Combine(Path.GetDirectoryName(generatedStem) ?? "", singleFileName) : generatedStem;
+                path.Text = stem + selected.Extension;
             }
             level.ItemsSource = selected.Format switch
             {
@@ -151,7 +166,7 @@ internal sealed class ArchiveCreationDialog : IDisposable
         bool seven = selected.Format == ArchiveWriteFormat.SevenZip, encryptedFormat = seven || selected.Format == ArchiveWriteFormat.Rar5;
         protectionRow.IsVisible = encryptedFormat && !ExistingTarget;
         advanced.IsVisible = seven;
-        compressionRow.IsVisible = selected.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarBzip2) &&
+        compressionRow.IsVisible = selected.Format is not (ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.Bzip2) &&
             (!seven || Value<ArchiveSevenZipCodec>(codec) != ArchiveSevenZipCodec.Copy);
         dictionaryRow.IsVisible = seven && Value<ArchiveSevenZipCodec>(codec) is ArchiveSevenZipCodec.Lzma or ArchiveSevenZipCodec.Lzma2;
         deltaRow.IsVisible = seven && Value<ArchiveSevenZipFilter>(filter) == ArchiveSevenZipFilter.Delta;
@@ -165,6 +180,8 @@ internal sealed class ArchiveCreationDialog : IDisposable
         try
         {
             string destination = ResolvePath(path.Text ?? "", selected);
+            if (selected.IsStandalone && singleFileName is null)
+                throw new ArgumentException($"A compressed file holds exactly one file. To pack several items or a folder, choose {selected.TarAlternative}.");
             int effort = Value<int>(level);
             int distance = checked((int)(delta.Value ?? 1));
             if (seven && Value<ArchiveSevenZipFilter>(filter) == ArchiveSevenZipFilter.Delta && delta.Value != distance)
@@ -179,7 +196,7 @@ internal sealed class ArchiveCreationDialog : IDisposable
                     headerCompression: Value<ArchiveSevenZipHeaderCompression>(header)),
                     Value<ArchiveSevenZipCodec>(codec) == ArchiveSevenZipCodec.Copy ? 0 : effort,
                     Value<ArchiveSevenZipCodec>(codec) is ArchiveSevenZipCodec.Lzma or ArchiveSevenZipCodec.Lzma2 ? Value<int>(dictionary) : 8 << 20, encryption),
-                ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarBzip2 => new(selected.Format),
+                ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.Bzip2 => new(selected.Format),
                 _ => new(selected.Format, compressionLevel: effort),
             };
             if (mode != ArchiveEncryptionMode.None)
@@ -204,9 +221,15 @@ internal sealed class ArchiveCreationDialog : IDisposable
         if (string.IsNullOrWhiteSpace(text)) throw new ArgumentException("Choose an archive filename.");
         string full = Path.GetFullPath(PathUtil.ExpandUserInput(text.Trim()));
         if (Path.GetFileName(full).Length == 0) throw new ArgumentException("Choose an archive filename.");
+        string? known = KnownSuffix(full);
+        // A compressed single file named like a TAR archive (notes.tar.gz) would be read back as an archive it is not.
+        if (format.IsStandalone && known is not null && !format.Aliases.Prepend(format.Extension).Contains(known, StringComparer.OrdinalIgnoreCase))
+        {
+            var tar = ArchiveCreationFormat.All.First(item => item.Aliases.Prepend(item.Extension).Contains(known, StringComparer.OrdinalIgnoreCase));
+            throw new ArgumentException($"The name ends in {known}, which names a {tar.Name} archive. Choose {tar.Name}, or give the compressed file a name ending in {format.Extension}.");
+        }
         if (format.Aliases.Prepend(format.Extension).Any(suffix => full.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))) return full;
-        string suffix = ArchiveCreationFormat.All.SelectMany(item => item.Aliases.Prepend(item.Extension))
-            .OrderByDescending(value => value.Length).FirstOrDefault(value => full.EndsWith(value, StringComparison.OrdinalIgnoreCase)) ?? Path.GetExtension(full);
+        string suffix = known ?? Path.GetExtension(full);
         if (suffix.Length != 0)
         {
             var typed = ArchiveCreationFormat.All.FirstOrDefault(item => item.Aliases.Prepend(item.Extension).Contains(suffix, StringComparer.OrdinalIgnoreCase));
@@ -215,6 +238,8 @@ internal sealed class ArchiveCreationDialog : IDisposable
         }
         return full + format.Extension;
     }
+    private static string? KnownSuffix(string path) => ArchiveCreationFormat.All.SelectMany(item => item.Aliases.Prepend(item.Extension))
+        .OrderByDescending(value => value.Length).FirstOrDefault(value => path.EndsWith(value, StringComparison.OrdinalIgnoreCase));
     internal ArchiveJobPassword? TakePassword()
     {
         if (Selection is null) throw new InvalidOperationException("Archive creation options are invalid.");
