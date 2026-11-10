@@ -1,6 +1,6 @@
 # Archive writing implementation status
 
-**10 November: latest Mac RAR5/7z update matrix passes; Windows native and bounded full retries are queued.**
+**10 November: current Mac and Windows RAR5/7z update matrices pass; bounded Windows full retry is running.**
 The frozen `320f43c6` Mac source passed complete Core 8,724/8,931, Remote
 2,638/2,669 and App 2,770/2,963 suites, with 431 expected skips in total and
 zero failures. The 7,576,222-byte evidence transport SHA-256 is
@@ -24,11 +24,20 @@ The Windows `320f43c6` full Core attempt stopped progressing after its
 five-minute log marker. A managed heap dump and thread stacks show the xUnit
 controller waiting with no active managed test frame. After over 40 minutes, the
 exact owned Core test PID was verified by executable path and stopped. The failed
-run and dump remain retained; no full Windows pass is claimed from it. This
-released a guarded real-standard-user native archive batch from frozen
-`b98a4a43` source. A 39-case Windows RAR5/7z matrix from `92c47e6b` source and
-a bounded full-suite retry with VSTest hang tracing are queued behind it. These
-queued runs are not evidence of a pass. Ubuntu's five strict fuzz campaigns and
+run and dump remain retained; no full Windows pass is claimed from it. The
+released real-standard-user native archive batch from frozen `b98a4a43` source
+passed 551/558 cases with seven expected skips and zero failures. All three
+RAR5 and three 7z actual application update/restoration cases passed. Its
+evidence transport SHA-256 is
+`d3e78665d388c77a384f90e7ddc238cac745c3121dd5a3ee8187594dacb3d51f`.
+The raw TRX rows, non-admin account and loaded profile, packet/source hashes,
+and successful standard-user exit were independently checked. The subsequent
+frozen `92c47e6b` Windows matrix passed all 39/39 actual application cases:
+18 RAR5 and 21 7z, no skips or failures. Its evidence transport SHA-256 is
+`fe17859e01c8bde949a40926020e4a230becf938ace6bb01920c79ee7f7a1127`;
+the raw rows and updated source-file hashes match the frozen packet. The
+bounded full Core/Remote/App retry with VSTest hang tracing is running; no pass
+is claimed yet. Ubuntu's five strict fuzz campaigns and
 their dependent native/codec queues remain active; no long-campaign pass is
 claimed yet.
 
