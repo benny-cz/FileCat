@@ -36,6 +36,18 @@ def verify(image,run,target,minimum_cpu_seconds):
     result=json.loads(file('runs/'+run+'/result.json'))
     prep=json.loads(file('preparation.json'))
     final=result['final_properties'];report=result['managed_report']
+    if 'post_run_recovery' in result:
+        recovery=result['post_run_recovery']
+        failure=file('runs/'+run+'/finalizer-failure.log')
+        supervisor=file('runs/'+run+'/original-supervisor.py')
+        assert target=='zstd-strict' and recovery=={
+            'reason':'supervisor atomic-report stat race after driver exit',
+            'failure_log_sha256':sha(failure),
+            'driver_log_sha256':sha(file('runs/'+run+'/driver.log')),
+            'per_second_observations_lost':True}
+        assert b'FileNotFoundError' in failure and b'reports/managed.json.tmp' in failure
+        assert b'sum(f.stat().st_size for f in run.rglob' in supervisor
+        assert result['observations']==[] and 'launch' not in result
     assert result['terminal'] and not result.get('output_budget_failure') and not result['artifacts']
     assert result['target']==report['Target']==target and result['phase']=='clean'
     assert final['MainPID']=='0' and final['Result']=='success' and final['ExecMainStatus']=='0'

@@ -1,5 +1,35 @@
 # Coverage-guided archive-writing fuzz setup
 
+**10 November, gzip/BZip2/Zstd long campaigns passed independent verification.**
+All three Ubuntu `fuzz-campaign-v7` drivers completed their bounded
+12,000-second wall runs with no crash artifact. The host-side transport verifier
+checked their raw members, exact instrumented product images, canary and
+replay, structured seeds, production methods, managed-call counts, terminal
+cgroup outcome and the 7,200-CPU-second floor:
+
+| Target | Kernel CPU seconds | Executions | Accepted | Transport SHA-256 |
+| --- | ---: | ---: | ---: | --- |
+| gzip-strict | 10,839.053064 | 16,642,135 | 7,649 | `844855e5a0f0e46406d5ab551718f7debaf4ec267e56e5a6fbbcb935aaae0e00` |
+| bzip2-strict | 12,734.511204 | 5,004,086 | 2,658 | `155a43a93369ce5c9e1baf483d5901b457cdf3189ee12e0862a35c30271a55b2` |
+| zstd-strict | 7,581.796526 | 63,219,077 | 1,862,658 | `521d5fb9fe82f0529596a7a07775341370ff691f8564fee69c7f7a083d4879fa` |
+
+Zstd's native driver and cgroup finished successfully, but its test supervisor
+raised `FileNotFoundError` while measuring the output tree: the managed worker
+atomically replaced `reports/managed.json.tmp` between `is_file()` and `stat()`.
+The original failed wrapper queue and supervisor log (SHA-256
+`8a82dc533c2a384d114cd76779f5eb59d872af015ea537c85305ff6abf70fd76`)
+remain retained. The narrow
+[`recover_fuzz_finalizer_guest.py`](../../../eng/validation/archive-writing/recover_fuzz_finalizer_guest.py)
+checked the exact command/image hashes, 12,001-second driver completion,
+63,219,077 managed calls, zero crash artifacts, 7,581.796526 cgroup CPU
+seconds and hard memory limit, then wrote the previously missing result with
+an explicit recovery marker. The original strict sealer and independent host
+verifier accepted the resulting transport. The in-memory per-second resource
+samples were lost; the hard cgroup policy, final CPU/memory accounting, driver
+log and report are retained. The source-controlled supervisor now tolerates
+only a file disappearing during this live size walk. These are three wrapper
+targets, not completion of all required fuzz targets or final product gates.
+
 **10 November, strict 7z and RAR5 long campaigns passed.** The two independent
 Ubuntu `fuzz-campaign-v5` native runs completed their bounded 12,000-second wall
 campaigns with zero crash artifacts. The sealed sevenzip-strict target recorded
@@ -18,8 +48,8 @@ separately running gzip/bzip2/zstd campaigns were still active. Dependent
 native queues failed from that false prerequisite, without executing their
 tests. A new guarded native batch uses the three exact wrapper fuzz cgroups as
 the only allowed concurrent processes, runs with reduced CPU priority, and
-keeps its own source and evidence. The three wrapper long campaigns remain
-active; no result is claimed for them yet.
+keeps its own source and evidence. The three wrapper long campaigns
+subsequently sealed as recorded above.
 
 **9 November, FZ02 setup checkpoint.** The next test-only harness adds direct production
 `StrictGzipReadStream`, `StrictBzip2ReadStream` and `StrictZstdReadStream` targets. It

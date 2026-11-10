@@ -1,5 +1,22 @@
 # Archive writing implementation status
 
+**10 November: all three wrapper long fuzz targets have verified floors.**
+Ubuntu gzip-strict, bzip2-strict and zstd-strict each completed a bounded
+12,000-second driver run with zero crash artifacts. Independent host
+verification accepted 10,839.053064, 12,734.511204 and 7,581.796526 kernel
+CPU seconds respectively, all above the 7,200-second floor. Their transport
+SHA-256 values are `844855e5a0f0e46406d5ab551718f7debaf4ec267e56e5a6fbbcb935aaae0e00`,
+`155a43a93369ce5c9e1baf483d5901b457cdf3189ee12e0862a35c30271a55b2`
+and `521d5fb9fe82f0529596a7a07775341370ff691f8564fee69c7f7a083d4879fa`.
+Zstd's original supervisor failed after the driver exited because an atomic
+temporary report file disappeared during the output-size walk. Its failed
+queue remains recorded. A narrow evidence recovery from the retained cgroup,
+driver, exact image and managed report was marked in the result, then passed
+the original strict sealer and independent verifier. Per-second in-memory
+samples from that run were lost; final hard-cgroup accounting remains. The
+test-only supervisor race is fixed. Other fuzz targets and final qualification
+remain open; [details](FUZZ_CAMPAIGN_SETUP.md).
+
 **10 November: pinned private Unix stage-directory increment passes on all three test machines.**
 The unregistered `UnixArchiveDirectory.CreatePrivateStageDirectory` creates a
 fresh `0700` directory through the held target parent, checks the ordinary
@@ -47,12 +64,8 @@ parent permitted group/other namespace writes; the production primitive
 correctly refused that parent. The failed transport is retained. Commit
 `6222dc55` makes each exchange fixture parent private, and the fresh rerun
 passes. This is focused native evidence, not full Ubuntu regression or
-qualification of a production update route. The three wrapper fuzz campaigns
-remain active. On Windows, the full strengthened-source App suite and queued
-Unix metadata guard still precede a newly queued full Windows platform and
-rendering batch. That batch uses the latest fixture source, fresh published
-native assets, a real standard account, and six-way builds; it has no result
-yet.
+qualification of a production update route. The wrapper fuzz campaigns and
+Windows platform/rendering follow-up subsequently completed as recorded above.
 
 **10 November: strengthened-source full regressions pass on Mac and Windows.**
 Mac's frozen `eaf621f1` source passed complete Core 8,767/8,974, Remote
@@ -130,8 +143,8 @@ present and skipped by their platform guards. Its independently checked
 transport SHA-256 is
 `6e52fa18ca5e92b5de3063120c1661d34b5383921de3d2bc396a2316915c44a9`.
 An earlier runner incorrectly required 50 Windows passes and rejected its clean
-20/212 result; that harness failure is retained. Windows is now running the
-complete Core/Remote/App regression on the same strengthened source. Ubuntu's
+20/212 result; that harness failure is retained. The later complete
+Core/Remote/App regression on the strengthened source passed as recorded above. Ubuntu's
 strict 7z and RAR5 native fuzz campaigns have now earned independently checked
 8,323.744031 and 9,618.853456 CPU-second floors with zero crash artifacts.
 Their evidence transport SHA-256 values are
@@ -139,8 +152,8 @@ Their evidence transport SHA-256 values are
 and `eb07cd5b0cd09ee3bd0915eae51f25e57b15ef3a3c622e1c9398e68c7ad8e2f3`.
 The old post-fuzz queue falsely failed its global-idle check while the three
 independent wrapper fuzz workers were still running, cascading FAIL through
-dependent native queues. A fresh guarded Ubuntu native batch is running beside
-those workers; the three wrapper long results remain open.
+dependent native queues. The fresh guarded Ubuntu native batch and the three
+wrapper long campaigns later passed as recorded above.
 
 **9 November: exact marked Unix private creation has a cross-format Mac native checkpoint.**
 Commit `1b5e6129` carries one byte-identical Linux or macOS origin value from complete

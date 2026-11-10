@@ -31,6 +31,16 @@ def properties(unit):
     return dict(line.split("=", 1) for line in output.splitlines() if "=" in line)
 
 
+def live_file_sizes(root):
+    """Ignore only files atomically replaced while a managed report is being written."""
+    for path in root.rglob("*"):
+        try:
+            if path.is_file():
+                yield path, path.stat().st_size
+        except FileNotFoundError:
+            continue
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
@@ -203,7 +213,7 @@ def main():
     while time.monotonic() < deadline:
         p = properties(unit)
         facts["observations"].append({"elapsed": round(time.monotonic() - (deadline - args.seconds - 40), 3), **p})
-        if sum(f.stat().st_size for f in run.rglob("*") if f.is_file()) > 256 * 1048576:
+        if sum(size for _, size in live_file_sizes(run)) > 256 * 1048576:
             output_budget_failure = True
             break
         if p.get("MainPID") == "0" and p.get("SubState") in ("exited", "failed", "dead"):
@@ -216,7 +226,7 @@ def main():
     facts["artifacts"] = [{"name": p.name, "bytes": p.stat().st_size,
                            "sha256": sha(p)} for p in sorted((run / "crashes").iterdir())]
     facts["managed_report"] = json.loads((run / "reports" / "managed.json").read_text()) if (run / "reports" / "managed.json").exists() else None
-    facts["files"] = {str(p.relative_to(run)): p.stat().st_size for p in run.rglob("*") if p.is_file()}
+    facts["files"] = {str(path.relative_to(run)): size for path, size in live_file_sizes(run)}
     (run / "result.json").write_text(json.dumps(facts, indent=2))
     subprocess.run(["sudo", "-S", "-p", "", "systemctl", "stop", unit],
                    input=(args.sudo_password + "\n").encode(), capture_output=True, timeout=20)
