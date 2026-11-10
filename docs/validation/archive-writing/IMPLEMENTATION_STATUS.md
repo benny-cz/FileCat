@@ -1,5 +1,68 @@
 # Archive writing implementation status
 
+**10 November: AW7 standalone .gz/.bz2/.zst writing (release R3); AT18 passes at the 100,000-member limit on Mac and
+Ubuntu; one profiled archive job prepares at a time; routes compose only qualified profiles (none yet).** Commit `93cf0572`:
+
+- **AW7 (plan §8.5, §11.6, capability table).** A standalone stream holds one payload under the synthetic member
+  `content`; the name shown inside it comes from the outer file name (`report.txt.gz` shows `report.txt`), so renaming the
+  outer file never changes a plan, and a name stored inside a gzip header is never used. Planning admits exactly one regular
+  input for a new file or exactly one replacement of that member, and refuses every other shape (a second file, a folder,
+  rename, delete, an addition beside the payload, a stale revision) before any object exists; the transform wire, worker
+  roles, fresh verification, journaled preparation, publication, discard, recovery and edit sessions are the shared ones.
+  gzip keeps the same metadata-neutral admission as TAR.GZ (a stored name or timestamp, as `gzip` writes by default, stays
+  read-only), and a replacement keeps the operating-system byte and compression flag; bzip2 keeps its block size; Zstandard
+  requires one checksummed frame. Empty payloads produce valid streams in every format. In the app: the Pack dialog offers
+  "gzip/bzip2/Zstandard (compress one file)" and names the result after the whole file (`a.txt.gz`); several items or a
+  folder get "A compressed file holds exactly one file. To pack several items or a folder, choose TAR + gzip."; a name such
+  as `notes.tar.gz` is refused for a compressed single file; an existing target becomes an explicit "Replace compressed
+  contents"; F5 of exactly one file onto an opened compressed file asks the same question, while several items, a folder or
+  F6 are refused with the TAR alternative; F7, F2 and F8 inside it are unavailable with the reason; F4 edits and commits the
+  sole payload, and the session shows the member by the name it started with.
+- **AT18 (plan §9.2 review in [AT18_SCALE_REVIEW.md](AT18_SCALE_REVIEW.md)).** The limit run (99,999 members created through
+  real workers, assessed, the 100,000th added, one more refused before anything is written) now passes: Mac create 518 s,
+  assess 19 s, update 151 s; Ubuntu VM create 541 s, assess 129 s, update 534 s. What made it fail before: the heap charges
+  made the limit unreachable, every input recheck re-hashed the input (and re-read `/proc/self/mountinfo` on Linux), the
+  worker's CPU allowance had no per-member term, and the transport spent about 1.5 ms of CPU per tiny member. A held folder's
+  mount is now rechecked by `statfs` type/flags and the `statx` mount ID instead of mountinfo, and the transport buffers a
+  frame into one write and one flush and reuses cleared input buffers. Payload extremes on the Mac: a 512 MiB incompressible
+  file into a new TAR.GZ in 30.7 s and into a new `.zst` in 12.7 s; 256 MiB of zeros (beyond 1000:1) refused by fresh
+  verification in 1.5 s with nothing published.
+- **Cross-job admission (AW2 task 5, §9.2).** Profiled archive jobs prepare one at a time ("Waits for "…": archive changes
+  are made one at a time"), so the global retained-heap bound is one job's charge; ordinary jobs keep running beside them.
+  With the existing limits (one archive worker, eight waiting, 16 input leases) the cross-job budgets are complete.
+- **Availability composition (§16.1, §16.3).** `ArchiveWriteRoutes` registers only listed format/runtime/file-system routes,
+  each with a typed refusal (format, runtime, file system, unknown destination), rechecked at execution; the list is empty,
+  so nothing new is enabled. A test-only qualification host composes every backend for interface runs (Orca, NVDA).
+- **Input rechecks.** Capture observes every input completely (identity, metadata and content SHA-256), the transform's
+  receipt and the fresh verifier bind the archive's bytes to those digests, and F6 removal re-reviews content before it
+  removes anything. The later prepublication passes (plan §7.1 ReadyToPublish: provenance and outer metadata) now check each
+  input's identity, length and complete outer-metadata digest without hashing its bytes again; before, each of about six
+  passes re-read and re-hashed every input, which made a 100,000-file creation spend most of its time re-reading inputs.
+- **CPU allowance.** A worker's allowance was 30 s plus 2 s per MiB of real input, so 100,000 tiny inputs received about
+  31 s and the transform worker was stopped. Transform and fresh verification now add 5 ms per member of the parent's own
+  expectation (capped at 2 hours as before); assessment of an existing archive keeps the byte-based allowance.
+- **Retained-heap ceiling.** 512 MiB charged instead of 192 MiB. Every per-object charge is unchanged, so the model stays
+  an upper bound; at 100,000 members the charges came to about 3 KiB per member plus names while the sampled managed heap
+  (which includes uncollected garbage) peaked near 700 MiB on both Unix machines and fell to about 100 MiB at the next phase.
+- **Fuzzing.** A new `standalone-streams` target (FZ02 and FZ05–FZ07 for AW7) in the harness, the structured-mutation lane
+  and the guest runner: creation, replacement, forbidden change shapes, mutated stages and hostile streams, with the
+  runtime's zlib and FileCat's own `.bz2`/`.zst` reader as oracles. Its sixteen seeds replay as expected; a two-minute
+  development smoke ran 60,531 calls without an oracle failure (not evidence; the campaign belongs to the final candidate).
+
+The exact tree (packet `3e54a84d9d252720df58c6f01b44d5009b27889f22e344842a64f752e9a881e3`, tree `e8d63efa`) passed the
+`Archive`/`Journal`/`EditSession`/`EditCommit`/`BackingArchiveTarget`/`JobProgressView`/`JobEngine`/`UndoLifecycle`
+subsets on the Mac with the AT18 lane and the APFS small volume, zero failures: Core 2,982/3,076 and App 473/523
+(evidence `b9af90c1b0dc7eaa2a45cf80ab56fff422997a8f07e3306e21e334e157ebe5c0`). Ubuntu ran the same product source as
+packet `2dfa32d1e79574c1b1f0512eacfd454b9e0276219c8f7e829fab751c5e49c517` (tree `73c3fef3`, which differs only in one App
+test): Core 3,045/3,076 and App 483/523 with the confined application workers, one failure, the bzip2 case of the real-worker
+standalone UI test, which pressed F4 on a listing not yet refreshed after the job (the test now activates the panel,
+refreshes and waits for the row; evidence `39a144c00636c375fa811d756644cb98183bfcfec5b2e7729e5002542710682f`). Windows ran
+packet `c7d3623a84d4cb8162e86201818f06b335a0739abe96c436b15db27fa7325c39` (tree `25e56c0b`), before the AW7 review fix:
+Core 2,540/3,023, App 489/512 and Platform 566/599 with four failures, the three real-worker standalone UI cases and the
+payload-extremes `.zst` replacement, all the review defect fixed here (evidence
+`21b2b558dc0e3726d9ad1cda831ff41b9fb9d8dd7a25a75bc48b7064599d3465`). The next commit's candidate contains this code
+unchanged and carries its Windows and Ubuntu evidence.
+
 **10 November: an unpublished save is discarded exactly; F6 moves into Unix archives; legacy edit cleanup is bound (R21);
 the operation center stays usable during a format scan; AT08 on a small NTFS volume. All three platforms pass; AT18 open.**
 Commit `38e56944`:
