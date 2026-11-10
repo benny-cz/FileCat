@@ -45,7 +45,8 @@ mkdir -m 700 "$D"; mkdir "$D/src" "$D/results"
 finish() {
   local code=$?
   [ -f "$D/status.txt" ] || echo FAIL >"$D/status.txt"
-  if [ -n "$(pgrep -f "$D" || true)" ]; then echo "leftover processes" >>"$D/status.txt"; pkill -f "$D" || true; fi
+  # Only processes running from inside the run folder: a sibling path such as RUN_ID.log in a caller's arguments is not ours.
+  if [ -n "$(pgrep -f "$D/" || true)" ]; then echo "leftover processes" >>"$D/status.txt"; pkill -f "$D/" || true; fi
   tar -czf "$D-evidence.tar.gz" -C "$ROOT" --exclude="$RUN_ID/src" "$RUN_ID" || true
   exit $code
 }

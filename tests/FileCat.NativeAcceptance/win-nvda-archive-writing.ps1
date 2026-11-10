@@ -139,7 +139,10 @@ $fixture = Join-Path $validation ('ArchiveWritingFixture\' + [Guid]::NewGuid().T
 $data = Join-Path $fixture 'data'; $left = Join-Path $fixture 'left'; $right = Join-Path $fixture 'right'; $config = Join-Path $fixture 'nvda-config'
 New-Item -ItemType Directory -Force -Path $data, $left, $right, $config | Out-Null
 [IO.File]::WriteAllText((Join-Path $left 'a.txt'), "alpha`n")
-[IO.File]::WriteAllText((Join-Path $left 'b.txt'), "beta`n")
+# 256 MiB of incompressible data, so each packing phase lasts seconds and reaches the screen reader: two tiny files
+# finished within milliseconds on Windows, and so did 48 MiB: only the final result was announced (v19 runs 2 and 3).
+$payload = New-Object byte[] (256MB); (New-Object Random 7).NextBytes($payload)
+[IO.File]::WriteAllBytes((Join-Path $left 'b.txt'), $payload)
 foreach ($file in 'a.txt', 'b.txt') { [IO.File]::SetLastWriteTimeUtc((Join-Path $left $file), [DateTime]::new(2023, 11, 14, 22, 13, 20, [DateTimeKind]::Utc)) }
 [IO.File]::WriteAllText((Join-Path $config 'nvda.ini'), @"
 [general]
@@ -180,7 +183,9 @@ try {
 
     # 1. Two marked files: the dialog, its fields, the one-file refusal and a TAR + gzip pack with phase announcements.
     $script:result.Stage = 'two files'
-    FocusRow 'a.txt'; Key 0x2D $true; Key 0x2D $true  # Insert marks a.txt and b.txt
+    # Ctrl+A marks both files. Insert would not: NVDA keeps Insert as its own modifier and passes only a quick double
+    # press through, so two presses marked one file (first v19 run).
+    FocusRow 'a.txt'; Chord @(0x11, 0x41)
     [void](TakeSpeech)
     Chord @(0x12, 0x74)  # Alt+F5
     $dialog = Await { In $main 'Create archive dialog' } 'the Create archive dialog'

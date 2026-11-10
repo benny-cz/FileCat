@@ -60,6 +60,11 @@ real worker processes, opt-in lane `FILECAT_ARCHIVE_SCALE=1`:
 | Mac, v14d | 519.7 s | 19.2 s | 153.1 s | 106 MiB before, 696 MiB peak | Passed |
 | Mac, v14e | 518.1 s | 19.3 s | 151.4 s | 99 MiB before, 702 MiB peak | Passed |
 | Ubuntu VM, v14d | 541.3 s | 129.4 s | 534.0 s | 49 MiB before, 722 MiB peak | Passed |
+| Mac, v15c (other suites in parallel) | 507.9 s | 19.2 s | 149.9 s | 102 MiB before, 712 MiB peak; retained 506 MiB | Passed |
+| Ubuntu VM, v15c (other suites in parallel) | 544.8 s | 131.1 s | 611.4 s | 51 MiB before, 791 MiB peak; retained 294 MiB | Passed |
+| Windows 11 VM, v15b (AppContainer, TxF) | 2,176.3 s | 310.7 s | 1,117.7 s | 13 MiB before, 511 MiB peak; retained 257 MiB | Passed |
+| Mac, v15c, alone | 478.8 s | 19.2 s | 146.0 s | 16 MiB before, 713 MiB peak; retained 492 MiB | Descriptor bound exceeded by one (no warm-up) |
+| Ubuntu VM, v18, alone, warm-up | 519.8 s | 126.2 s | 575.0 s | under 1 MiB before, 621 MiB peak; retained 243 MiB (checking) | Passed |
 
 The archive is 204,543,488 bytes. Phases on the Mac (create): Preparing 220 s, Rebuilding 110 s, Checking 120 s, Saving
 69 s; (update): reading the archive 18 s, Preparing 31 s, Rebuilding 69 s, Checking 33 s, Saving and finishing 1 s. The
@@ -75,5 +80,28 @@ cannot have. The review now admits the one payload and its wrapper directly (fix
 always-on native test cover it). On the Mac (v14e) a 512 MiB incompressible payload then took 30.7 s into a new TAR.GZ,
 43.8 s for the added 64 MiB file, 12.7 s into a new standalone `.zst` and 7.1 s for the replacement, and 256 MiB of zeros
 (beyond 1000:1) was refused by the fresh verification in 1.5 s with nothing published or left beside the inputs.
-Windows (AppContainer workers and the NTFS transaction route) and Ubuntu's runs after the fix are recorded in the
-implementation status with the final candidate.
+Ubuntu (v15c) took 75.3 s for the incompressible TAR.GZ, 92.6 s for the added file, 29.9 s for the new `.zst`, 20.1 s for
+its replacement, and refused the zeros in 2.9 s.
+
+## Retained heap and the charge model
+
+"Retained" is the managed heap after a full collection, sampled every 15 seconds (and, with
+`FILECAT_ARCHIVE_SCALE_RETAINED=1`, at every phase change); it includes whatever else runs in the test process, so only the
+runs alone measure the job. On Ubuntu (v18, alone) creation retained 212–223 MiB at its phase changes and 243 MiB at the
+sampled peak, while checking: about 2.4 KiB per member, below the charges of about 3 KiB per member plus names, so there
+the charged 512 MiB bounds what is retained. On the Mac (v15c, alone) the sampled peak was 492 MiB with a 16 MiB baseline,
+about 4.8 KiB per member: above the charges. That run predates the phase attribution, so the macOS-specific part (a
+larger origin record per input is the first suspect) is being measured before either the charges or the code change; the
+shipped ceiling stays as reviewed, and macOS writing cannot be qualified under the current plan anyway (platform position).
+Measured alone, the first job also opens the runtime's own descriptors, which exceeded the descriptor bound by one; both
+scale tests now run a small warm-up job before taking their baselines.
+
+## Windows
+
+Windows creation took 2,176 s in the VM, four times the Mac's: 1,056 s were the capture alone. Each access to a captured
+input pinned the selection root's full path from the drive root three times (a new lease and two namespace checks, about
+thirty opens per access for a tree in the temporary folder), and every input is accessed several times. From v17 the
+folders below the held root are pinned relative to it, each verified against its captured identity, and the root's full
+path is re-pinned at most once a second: its lease holds every name of that path without delete sharing, so it cannot
+change while held, and the held handle is checked on every access. The VM's numbers above predate this change and were
+taken with Defender's real-time scanning on for creation and assessment; the measurement on the changed code is open.

@@ -1,5 +1,106 @@
 # Archive writing implementation status
 
+**10 November: worker ZIP profile with eight review defects fixed; destination denial and disk quota on real volumes (AT08);
+update-preparation crash recovery on Unix; Windows ZIP workers, profile race and capture speed fixed; Orca and NVDA runs
+(NVDA does not yet hear phases).** Commit `c1c7787c`:
+
+- **ZIP worker profile (AW2 task 5, [design](ZIP_WORKER_PROFILE_DESIGN.md)).** A strict catalog reads an existing ZIP once
+  from its end region: one end-of-central-directory candidate, an exact ZIP64 record and locator when used, central and
+  local headers that agree, data descriptors disambiguated by the next offset, only the ZIP64, extended-timestamp, NTFS and
+  Unix-owner extras, ASCII or flagged UTF-8 names under the archive naming rules, Stored/Deflate only, every payload decoded
+  under the expansion bound with SHA-256 and CRC-32, and the whole catalog compared with the runtime's own ZIP reader. The
+  revision is a digest of every byte the catalog relies on. The rebuild copies unchanged members raw, writes new payloads
+  with data descriptors (stored at level "store"), canonical extras and ZIP64 only where needed; the fresh verifier reads
+  the stage with the same strict catalog. Each captured input carries the local clock offset for its DOS time, so the
+  worker never reads time-zone data. ZIP keeps its legacy production route (R0) until a worker route is qualified, and
+  edit sessions keep it legacy; the native job matrix, the legacy comparison (identical files; the worker also records the
+  captured folder) and a new `zip-archives` fuzz target cover the profile. An independent adversarial review of the new
+  code found eight defects, each fixed with a regression case: a
+  decoy end record in the archive comment that .NET's reader (which takes the last end signature) would follow to other
+  members, now refused together with any record signature after the chosen end record; links, devices, FIFOs, sockets,
+  reparse points and attributes that contradict the name admitted as plain files, now refused (Unix tools would recreate
+  them as such); every central directory over 1 MiB refused by the per-entry metadata limit (about 10,000–20,000 members),
+  now an aggregate charge (a 12,000-member directory is admitted); a malformed Unix-owner field that crashed the worker
+  with an index error, now a refusal; the writer dropping the UTF-8 flag for an ASCII name whose comment holds a control
+  character, so fresh verification refused its own output; a saturated disk number that .NET cannot open, now refused;
+  names over ZIP's 65,535-byte header field crashing the writer, now refused by the plan with a plain reason; and folder
+  entries carrying padded compressed bytes beyond the output bound, now limited to Java's empty Deflate stream. Edit
+  matching in the writer is now linear.
+- **AT08 destination denial.** A folder that refuses FileCat's first object (EACCES/EPERM/EROFS on Unix,
+  STATUS_ACCESS_DENIED/STATUS_MEDIA_WRITE_PROTECTED on Windows) now says "FileCat is not allowed to create files in
+  “folder”. Nothing was changed." instead of a generic worker refusal, leaves the folder empty and no journal for review.
+- **AT08 disk quota.** On an ext4 loop volume with a 40 MiB user quota (Ubuntu) the space review passes, because free space
+  does not count quotas, and the stage write meets EDQUOT: creation and update fail with the full-drive text, the original
+  stays byte-identical and the discard returns the quota. On an NTFS volume with a 100 MiB enforced quota (Windows) the
+  caller's available space includes the quota, so the review refuses before any object exists. macOS has no per-user
+  volume quota to test.
+- **Preparation-phase crashes of an update (Unix).** A real update process is killed after `Rebuilding` and around every
+  discard record (catalog, each intent and removal of the stage and three sidecars, completion); recovery reopens the
+  private folder by identity and removes exactly those objects, with the original untouched. Creation already had this.
+- **Accessibility.** Orca said nothing when a closed combo box changed value; on Linux the new value of a focused, closed
+  combo box is now announced politely. The Orca journey through the qualification host passes on Ubuntu 24.04 (Orca
+  46.1): the Create archive dialog and its path are spoken, every format is heard while choosing, the one-file
+  refusal and the disabled Pack are heard, TAR + gzip packs with "Preparing"/"Rebuilding" announced, `a.txt.gz` keeps the
+  whole name, and F7, F2 and F8 inside it are refused aloud with the reason. The Create dialog fits 640×480 at 100–200 %
+  text (`ArchiveDialogViewportTests`). NVDA 2026.3.1 (portable, from the signed NV Access download) on the Windows 11
+  VM through the same host with AppContainer workers speaks the dialog and its path, every format while choosing, the
+  one-file refusal ("A compressed file holds exactly one file. To pack several items or a folder, choose TAR + gzip.")
+  and the result ("Create TAR + gzip archive “left.tar.gz”: Archive created: 2 entries verified and saved."). **Open:**
+  NVDA does not speak the archive phases, even when packing a 256 MiB file lasts seconds; Orca does. NVDA speaks every
+  UIA live-region event it receives and Avalonia raises one on each name change of a live element, so the phase region
+  (a 1×1 transparent text in the operation strip) is most likely not placed in its window when the event arrives; a UIA
+  event trace is the next step. The journey's later stages are not yet confirmed with NVDA. The runner now marks with
+  Ctrl+A (NVDA keeps Insert as its own key) and packs a 256 MiB file.
+- **Progress in long phases.** Preparing (reading the selection) and Rebuilding (the worker reading each input) name the
+  file being read in the operation center, at most four times a second; Checking and Saving name the archive.
+- **Windows sandbox.** .NET's ZIP reader converts every DOS time through the local time zone, which the AppContainer's
+  registry boundary denies (`SecurityException`), so every ZIP job's worker stopped on Windows only (v15b). Archive
+  workers now run with .NET's invariant time zone (`DOTNET_SYSTEM_TIMEZONE_INVARIANT=1`, UTC without a registry lookup,
+  as Linux workers already run with `TZ=UTC`); a boundary probe test asserts both the zone and the reader work inside.
+  Running test processes in parallel showed that two processes starting workers at once race on the shared per-user
+  profile (Windows answered E_UNEXPECTED, or one found no profile folder yet); its setup is now serialized by a
+  per-session named mutex, held only while the profile is opened and protected, and eight concurrent starts are tested.
+- **Windows capture speed (AT18).** Each access to a captured input re-pinned the selection root's full path from the
+  drive root three times (about thirty opens per access in a temporary folder). Folders below the held root are now
+  pinned relative to it, each verified against its captured identity as it opens, and the root's own path is re-pinned
+  at most once a second: its lease holds every name of that path without delete sharing, so the path cannot change
+  while it is held, and the held handle is still checked on every access.
+- **Validation tooling.** The Unix and Windows runners can split a test project into concurrent processes
+  (`PATH.csproj#Class`, `#!Class`, `parallel:on`; FileCat's worker gate is per process), which cut Ubuntu runs from
+  12.6 to 7.6 minutes and Mac runs to under 6; the Windows runner records Defender's state read-only. The AT18 tests
+  warm up with a small job before taking their baselines and attribute each retained peak to a phase.
+
+The exact tree (packet `697fc128dd18d6a7e220f1aca2d8cd31eabd53270d9fed9d1a940a096a726114`, tree `3f3ea32b`) passed the
+`Archive`/`Journal`/`EditSession`/`EditCommit`/`BackingArchiveTarget`/`JobProgressView`/`JobEngine`/`UndoLifecycle`/
+`DialogViewport` subsets with zero failures and only platform skips, every machine running its test projects as
+concurrent shards: Mac Core 3,060/3,156 and App 514/564 with the APFS small volume in 5.6 minutes (evidence
+`5c9a87abbd70a015e9c3a88143a3d7fbf3055006c05814ec7167f2e2e7a25940`); Ubuntu Core 3,123/3,156 and App 525/564 with the
+ext4 small and quota volumes and the confined application workers in 6.6 minutes (evidence
+`3aec920bd5acfc1c8bacb69748dfaaff01eb259414302a462c4a408f3218b324`); Windows 11 Core 2,653/3,156, Platform 580/616 and
+App 543/564 with the AppContainer/TxF lanes and the `S:` small and `Q:` quota volumes, as `Admin` with a UAC-filtered
+token and Defender's real-time protection off, in 10.5 minutes (evidence
+`899b621cba90dd7fb6fe10bcb0854b0713fc2cae862493f8568420b8363be7b1`).
+
+Earlier candidates of this change, retained: v15c (the ZIP profile before the review) passed on the Mac (Core 3,036/3,129,
+App 514/564, evidence `d3682487c88b5f9da5235a025d62562e383ccff5a8fabbee320ee4d6ee86f606`) and Ubuntu (Core 3,098/3,129,
+App 525/564, evidence `ab010add6574efe314cbb24aba0e2f7377959446a32ebe2007a5aae2251dfcca`), both with the AT18 lane; v15b on
+Windows passed Core, App and AT18 but its three AppContainer ZIP cases stopped the worker (the time zone above; evidence
+`9c0f958820f35c7cc669e63cbcaddd596518864e3ba650872f161e5377a3f418`); v16 to v18 passed on Ubuntu (v16 sequential in 12.6
+minutes and in parallel shards in 7.6, evidence `c7509c3ed79749b3ab821dffc2a639a15d8cbaf3381ec2feb0b5765c93be53b1`), and v18
+passed on the Mac (evidence `09b9a15b5cb65a6aa2b0cde5860bacb09066b184299e6eb9173d1dac9e5d8c4b`) and Ubuntu (evidence
+`bf08151b81d3af4fdd5b9a6d0fd97ccbc3329aa31583a1d4170c72e21a896074`), while Windows v18 found the profile race in one App
+and one Platform TAR.ZST case (evidence `f429733949948c0595904fcd865d2133d30210cca837a1a259076cd7cc666895`).
+
+**AT18 measurements** (details in [AT18_SCALE_REVIEW.md](AT18_SCALE_REVIEW.md)): Windows 11 VM (v15b, AppContainer workers,
+TxF publication; creation and assessment with Defender's real-time scanning on) create 2,176 s, assess 311 s, update
+1,118 s, retained peak 257 MiB, handles 432→449; the 100,001st member refused with the plain limit text. Mac (v15c, measured
+alone) create 479 s, assess 19 s, update 146 s, retained peak 492 MiB; Ubuntu (v18, alone, retained heap read at every
+phase change) create 520 s, assess 126 s, update 575 s, 212–223 MiB retained at creation's phase changes and a peak of
+243 MiB while checking. On Ubuntu the charges (about 3 KiB per member) stay above what is retained; the Mac's peak is
+above them and is being attributed to its phase before the charges or the code change. A Mac run alone also exceeded the
+descriptor bound by one, because the runtime opened its own descriptors during the first measured job; the tests now
+warm up first.
+
 **10 November: AW7 standalone .gz/.bz2/.zst writing (release R3); AT18 passes at the 100,000-member limit on Mac and
 Ubuntu; one profiled archive job prepares at a time; routes compose only qualified profiles (none yet).** Commit `93cf0572`:
 
