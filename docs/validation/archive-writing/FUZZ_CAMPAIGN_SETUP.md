@@ -1,5 +1,26 @@
 # Coverage-guided archive-writing fuzz setup
 
+**10 November, strict 7z and RAR5 long campaigns passed.** The two independent
+Ubuntu `fuzz-campaign-v5` native runs completed their bounded 12,000-second wall
+campaigns with zero crash artifacts. The sealed sevenzip-strict target recorded
+8,323.744031 kernel CPU seconds, 59,195,865 executions (336,756 accepted),
+with transport SHA-256
+`58a087e4cf774c6df6b923ba6a5a6a3dcf8d89bf6573c9c77880322e5dca34ad`.
+The rar5-strict target recorded 9,618.853456 kernel CPU seconds, 32,556,207
+executions (109,531 accepted), with transport SHA-256
+`eb07cd5b0cd09ee3bd0915eae51f25e57b15ef3a3c622e1c9398e68c7ad8e2f3`.
+The independent host verifier checked every raw transport member, exact packet
+and instrumented image hashes, canary crash and replay, structured seed sets,
+production method coverage, terminal status and the 7,200-CPU-second floor for
+each target. These are two format targets, not a complete release fuzz gate.
+The old post-fuzz queue then failed at its final global-idle check because the
+separately running gzip/bzip2/zstd campaigns were still active. Dependent
+native queues failed from that false prerequisite, without executing their
+tests. A new guarded native batch uses the three exact wrapper fuzz cgroups as
+the only allowed concurrent processes, runs with reduced CPU priority, and
+keeps its own source and evidence. The three wrapper long campaigns remain
+active; no result is claimed for them yet.
+
 **9 November, FZ02 setup checkpoint.** The next test-only harness adds direct production
 `StrictGzipReadStream`, `StrictBzip2ReadStream` and `StrictZstdReadStream` targets. It
 drains each accepted stream to physical EOF, limits encoded input to 1 MiB and decoded
@@ -36,8 +57,8 @@ the 12,000-second wall campaign with 11,687.566561 CPU seconds, 5,855,094 execut
 memory peak. Its 2,898,774-byte source/image/canary/seed/raw-result transport (SHA-256
 `4d8ef4f653df31023dc234ab65dd52d6e0f8cb2a264c25630f0350f1aa1e7791`) passed
 independent verification against the 7,200 CPU-second target floor. This is one long password
-target, not the complete per-format floor. The RAR5 password campaign is running; no result
-is claimed for it yet.
+target, not the complete per-format floor. At that checkpoint the RAR5 password
+campaign was running; its later result is recorded separately.
 
 **9 November 2026, current checkpoint.** The first strict-TAR two-hour FZ01 floor and the
 first stateful FZ09 `journal-state` floor are sealed and independently verified below. The
@@ -258,7 +279,7 @@ folder so a newer product build cannot change the campaign candidate. Both 29-fi
 canary crashed with exit 77 and its exact replay reproduced exit 77 without a new artifact.
 The 60-second clean `sevenzip-password-short-v5` run completed 43,022 executions: 116
 accepted, 42,906 controlled refusals, zero crash artifacts. Its bounded 12,000-second follow-up
-earned the verified long target floor recorded above. The RAR5 password long campaign is active;
+earned the verified long target floor recorded above. The RAR5 password long campaign was active at that checkpoint;
 its result and the remaining FZ targets are still open.
 
 The next test-only harness packet `fuzz-harness-v7.tar.gz` is 484,533 bytes, SHA-256

@@ -51,9 +51,16 @@ transport SHA-256 is
 `6e52fa18ca5e92b5de3063120c1661d34b5383921de3d2bc396a2316915c44a9`.
 An earlier runner incorrectly required 50 Windows passes and rejected its clean
 20/212 result; that harness failure is retained. Windows is now running the
-complete Core/Remote/App regression on the same strengthened source. Ubuntu's five strict fuzz campaigns and
-their dependent native/codec queues remain active; no long-campaign pass is
-claimed yet.
+complete Core/Remote/App regression on the same strengthened source. Ubuntu's
+strict 7z and RAR5 native fuzz campaigns have now earned independently checked
+8,323.744031 and 9,618.853456 CPU-second floors with zero crash artifacts.
+Their evidence transport SHA-256 values are
+`58a087e4cf774c6df6b923ba6a5a6a3dcf8d89bf6573c9c77880322e5dca34ad`
+and `eb07cd5b0cd09ee3bd0915eae51f25e57b15ef3a3c622e1c9398e68c7ad8e2f3`.
+The old post-fuzz queue falsely failed its global-idle check while the three
+independent wrapper fuzz workers were still running, cascading FAIL through
+dependent native queues. A fresh guarded Ubuntu native batch is running beside
+those workers; the three wrapper long results remain open.
 
 **9 November: exact marked Unix private creation has a cross-format Mac native checkpoint.**
 Commit `1b5e6129` carries one byte-identical Linux or macOS origin value from complete
