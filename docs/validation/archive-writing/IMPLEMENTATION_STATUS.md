@@ -13,7 +13,13 @@ platforms' native cases skipped, zero failures, and both new exchange cases exec
 Evidence bundle SHA-256: Mac `38f43ad77f20749a7ea0d910b89bcd45f5ad48331feb3436eea388c880639c71`,
 Ubuntu `f920ff10c4dc8f6a6eeca15f6f25658bf75faa08d6f281117383a8d0d7265b45`. They were produced by the
 new reusable [`make_source_packet.sh`](../../../eng/validation/archive-writing/make_source_packet.sh) and
-[`run_unix_test_packet.sh`](../../../eng/validation/archive-writing/run_unix_test_packet.sh). This is a native
+[`run_unix_test_packet.sh`](../../../eng/validation/archive-writing/run_unix_test_packet.sh). The same packet built
+on the Windows 11 VM through the new [`run_windows_test_packet.ps1`](../../../eng/validation/archive-writing/run_windows_test_packet.ps1)
+in `Admin`'s interactive session with a UAC-filtered token (elevation type 3): 20/257 passed, 237 Unix-only
+skips, zero failures (evidence SHA-256 `5c0cdd1db38db2ef5058d3a416641ccbbd816e6f6024f515273eeece20d20ebd`).
+At the owner's request the VM now signs in as `Admin`; earlier evidence used the standard account
+`fcarchive42829297`. A first Windows attempt as `filecatdsa_r2` failed before building because the copied SDK
+had an empty DACL (runner setup error, retained). This is a native
 primitive only: the two-parent journal, outer-metadata application, recovery, cleanup and production
 Unix update route remain open, and no profile is enabled.
 
