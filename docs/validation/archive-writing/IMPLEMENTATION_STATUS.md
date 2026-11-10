@@ -1,5 +1,40 @@
 # Archive writing implementation status
 
+**10 November: Unix exchange recovery reaches the application; confined Linux application workers pass; linked folders fixed.**
+Commit `48f5ed22` wires `ArchiveExchangeCleanupReview` into the interrupted-recovery UI: inspection observes both names
+and the remaining private objects without writing, and approval runs the production `UnixArchiveExchangeRecovery`
+(observed outcome, exact private cleanup, folder removal, journal closed). The application binary now dispatches the
+confined Linux launcher and worker roles. Validation of that exact tree (source packet SHA-256
+`2ce83c840dc605741010ce84ad59875309fa9b025ee8ec0f6d3cd06f3515dca6`, tree `9efcca0b`) passed the Unix storage subset and
+the new App lane: Mac Core 300/313 and App 4/4, Ubuntu Core 298/313 and App 4/4, only other platforms' cases skipped,
+zero failures (evidence SHA-256 Mac `a7d596845db0e397af2afe1dc10ab4bc9efec3836d726d29fda7634e8fe7f44f`, Ubuntu
+`670c8daa21c0cfad614b250c2fcb45476f252d38f6111d42b418c587e141ff4a`). The App lane kills a real update process at four
+exchange points and drives the real approval dialog: approve after the intent (not published), approve and cancel after
+the exchange (backup warning shown, cancel leaves journal and files byte-identical), and approve after an interrupted
+unlink (one already-absent file reported and recorded).
+
+The preceding packet (`85d4be1638abc80f676d08dee52fa940c54058312e4dc7a6d859fe8f2e3e8c9d`, tree `03d837e0`) published the
+self-contained application (133 MB, 257 files) and worker probe on Ubuntu 24.04.5 and ran the tests inside a transient
+`systemd --user` service: all 67 executed `LinuxArchive*` confinement cases and all ten confined application-worker
+create-then-update jobs (TAR, TAR.GZ, TAR.BZ2, TAR.ZST, RAR5 and 7z with every password mode) passed (evidence
+`ccd0fd69300799347097cae4bb49c735d0a0f6e51ef27b7e264a726d013275f7`). A first attempt from a plain SSH session failed
+every confined worker with `EACCES`, because an SSH session's processes are not below the user manager that owns the
+delegated cgroups; the runner now uses `systemd-run --user`. That packet's other failures were test defects, retained
+and fixed in `48f5ed22`: two assertions read the journal while recovery held its exclusive `flock`, and on the Mac the
+review could not open because the journal folder path contained the `/var` link.
+
+That last failure exposed a product bug: Unix native routes pin link-free folders, so an archive or source reached through
+a linked folder (macOS `/tmp` and `/var`, `/home` on Fedora Atomic desktops, linked project folders) was refused.
+`ArchiveLocalPath` now resolves the parent folder once at submission, review, source capture and journal reopening; the
+archive name itself is never followed. A new job test creates and updates an archive through a linked folder.
+
+The Windows 11 VM ran the archive/journal/edit regression of packet
+`5b4c42a8bd5a4bb69e93adadb6ddcbfe1fcf519d3b6e499680cfdba8cbd56532` (tree `0ac49cb4`, the exchange commit plus the then
+uncommitted application wiring) as `Admin` with a UAC-filtered token (elevation type 3, no enabled Administrators):
+2,900 tests, 2,461 passed, 439 platform skips, zero failures (evidence
+`a40c1e7a744782dce02727f35d01902553f2db1190265817bac45494ee932dec`). It predates the linked-folder change, which is a
+no-op on Windows (`Path.GetFullPath` as before).
+
 **10 November: journaled Unix existing-archive updates pass with exact cleanup and real crash recovery.**
 The new unregistered Unix route ([design](UNIX_EXCHANGE_UPDATE.md), [cleanup decision](UNIX_PRIVATE_CLEANUP_DECISION.md))
 admits only originals whose promised outer metadata it can reproduce, prepares the stage and sidecars in a `0700`

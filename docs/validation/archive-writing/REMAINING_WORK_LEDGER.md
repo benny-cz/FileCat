@@ -20,7 +20,7 @@ qualify anything; each item closes only with its own evidence entry in the statu
 |---|---|---|---|
 | 1 | Unix replacement transaction: two-parent journal facts, outer metadata application (mode/gid/ACL/xattr/flags/birth where representable), exchange integration, reconciliation, recovery classification, process-kill matrix | §7.1–7.6, AW2, AT06–AT10 | Implemented and passing on Mac/Ubuntu (16 kill points); preparation-phase crash cleanup open |
 | 2 | Unix cleanup policy: exact-content destruction through held descriptors, name removal limited to the creator-private directory with pre/post identity checks, honest retention otherwise | §7.6, INV-19, R04, R21 | Decided ([record](UNIX_PRIVATE_CLEANUP_DECISION.md)) and implemented for update transactions; creation sidecars still retained |
-| 3 | Production Unix job scope (create/update/move) and Linux confined worker roles wired into all pipelines | AW1, AW2, §10.2 | Open |
+| 3 | Production Unix job scope (create/update/move) and Linux confined worker roles wired into all pipelines | AW1, AW2, §10.2 | Update scope, application worker roles and recovery review done (`48f5ed22`); creation in the private folder in progress; move (F6) open |
 | 4 | R21: legacy edit-session cleanup by pathname (Windows bound deletion, Unix retain-and-report) | R21, AT10/AT14 | Open (shipped legacy code) |
 | 5 | Re-run never-executed Ubuntu queued checks (marked creation `05a86d83`, exact-origin update stage `320f43c6`, restoration preparation `aee8a384`, AW0/R22 benchmark) and a current full Ubuntu regression; soak the unexplained worker-monitor refusals | AT19, R22 | Open |
 | 6 | Worker-backed ZIP transform and global (cross-job) budgets | AW2 task 5, §9.2 | Open |
