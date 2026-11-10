@@ -84,6 +84,8 @@ public sealed partial class UnixArchiveStorageTests
         if (!update) File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
         byte[] input = "native retained payload"u8.ToArray(); Payload(Path.Combine(root, "payload"), input);
         if (!update) File.SetUnixFileMode(Path.Combine(root, "payload"), (UnixFileMode)0xfed);
+        byte[] updateMark = [0, 255, 9];
+        if (update) SetCreationSourceMark(Path.Combine(root, "payload"), updateMark);
         ArchiveNativeTimestampFixture.SetModified(Path.Combine(root, "payload"));
         using var directory = UnixArchiveDirectory.Open(root); using var captured = directory.OpenSource("payload"); var inputState = Observe(captured);
         UnixArchiveFile? original = null; ArchiveRetainedBinding? source = null; ArchiveAssessment? assessment = null;
@@ -97,6 +99,7 @@ public sealed partial class UnixArchiveStorageTests
                     ArchiveWriteFormat.TarZstd => new SharpCompress.Compressors.ZStandard.CompressionStream(data, leaveOpen: true), _ => null })
                 using (var writer = new TarWriter(gzip ?? (Stream)data, TarEntryFormat.Pax))
                 { using var content = new MemoryStream("before"u8.ToArray()); writer.WriteEntry(new PaxTarEntry(TarEntryType.RegularFile, "old") { DataStream = content }); }
+                SetCreationSourceMark(Path.Combine(root, "original.tar"), updateMark);
                 original = directory.OpenSource("original.tar"); var observed = Observe(original); source = new(original, observed);
                 assessment = await new ArchiveAssessmentClient((nonce, _) => Child.Start(nonce)).AssessAsync(new(profile, observed.Version.Length, observed.Version.Sha256),
                     () => ((IArchiveRetainedFile)original).OpenReadView(observed, ct), ct);
@@ -114,6 +117,12 @@ public sealed partial class UnixArchiveStorageTests
                 new((nonce, _) => { ArchiveJournaledTarAssertions.Phase(journal, ArchiveTransactionPhase.Verifying); return verifier = Child.Start(nonce, "archive-verify"); }), ct);
             var stage = prepared.Stage; var result = prepared.Verified; string retained = stage.DisplayPath;
             ArchiveJournaledTarAssertions.Complete(prepared, journal, plan, ct);
+            if (update)
+            {
+                Assert.Equal(updateMark, result.Stage.Origin.Bytes.ToArray());
+                using var held = File.OpenHandle(retained);
+                Assert.Equal(updateMark, ArchiveUnixOrigin.Read(held, ct).Bytes.ToArray());
+            }
             Assert.Equal(update ? 0x1a4 : 0x1ed, inputState.Input(7).Mode);
             Assert.Equal(new ArchiveTimestamp(1700000000, 123456789), inputState.Input(7).ModifiedTimestamp);
             var addedMetadata = result.Verification.ObservedManifest.Members.Single(m => m.Name == "added").Metadata.ToArray();

@@ -17,7 +17,8 @@ internal sealed class ArchivePreparedContainer<T>(T stage, ArchiveVerifiedNative
 
 /// <summary>
 /// Unregistered container preparation with private native sidecars and journal phase ordering. No publication, cleanup,
-/// replacement or ReadyToPublish claim. Creation origin is applied before verification; capture/global budgets and final platform qualification remain gates.
+/// replacement or ReadyToPublish claim. Exact Unix update origin and creation origin are applied before verification;
+/// capture/global budgets and final platform qualification remain gates.
 /// </summary>
 internal static class ArchiveJournaledContainerPreparation
 {
@@ -89,7 +90,7 @@ internal static class ArchiveJournaledContainerPreparation
                     Keep(ArchiveJournaledSidecar.WriteManifest(journal, facts, assessedName, create, ArchiveManifestPurpose.AssessedSource, plan.Source!.Manifest, ct));
                 Keep(ArchiveJournaledSidecar.WriteManifest(journal, facts, expectedName, create, ArchiveManifestPurpose.ExpectedOutput, plan.Expected, ct));
                 Keep(ArchiveJournaledSidecar.WriteOrigin(journal, facts, originName, create, originScope, records, ct));
-                return (Verified: verifiedName, Metadata: metadataName);
+                return (Verified: verifiedName, Metadata: metadataName, Origin: originScope);
 
                 void CheckReservation(ArchiveArtifactReservation name, ArchiveArtifactKind kind, long bound)
                 {
@@ -109,6 +110,17 @@ internal static class ArchiveJournaledContainerPreparation
                     var origin = ArchiveCreationOrigin.Review(evidence.File.OpenReadView(evidence.Observation, ct), new(version.Length, version.Sha256),
                         new(facts!.Nonce, facts.Profile, ArchiveOriginOperation.Create, checked(inputs.Count + plan.Directories.Count)),
                         inputs.OrderBy(p => p.Key).Select(p => p.Value.Reviewed), sealedStage.Origin.Format, ct,
+                        plan.Directories.OrderBy(p => p.Key).Select(p => p.Value.Reviewed));
+                    return publication.ApplyCreationOrigin(sealedStage, origin, ct);
+                } : original is not null && !OperatingSystem.IsWindows() ? sealedStage =>
+                {
+                    ReviewInputs(); ReviewSidecars();
+                    if (stage is not IArchiveCreatePublicationStage publication) throw Invalid();
+                    var evidence = sidecars.Single(s => s.Observation.Version.Identity == facts!.OriginEvidenceIdentity);
+                    var version = evidence.Observation.Version;
+                    var origin = ArchiveUpdateOrigin.ReviewUnixExact(evidence.File.OpenReadView(evidence.Observation, ct),
+                        new(version.Length, version.Sha256), setup.Origin, original.Reviewed,
+                        inputs.OrderBy(p => p.Key).Select(p => p.Value.Reviewed), ct,
                         plan.Directories.OrderBy(p => p.Key).Select(p => p.Value.Reviewed));
                     return publication.ApplyCreationOrigin(sealedStage, origin, ct);
                 } : null, password: password).ConfigureAwait(false);
