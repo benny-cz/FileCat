@@ -136,7 +136,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         LocationCapabilities.Delete or LocationCapabilities.Rename or LocationCapabilities.ExternalEdit when MutationState(location).Available && MemberMutationProblem(location) is { } problem => problem,
         LocationCapabilities.CreateDirectory or LocationCapabilities.CreateFile or LocationCapabilities.Delete or LocationCapabilities.Rename or
             LocationCapabilities.TransferTarget or LocationCapabilities.ExternalEdit or LocationCapabilities.Recycle =>
-            "This archive is read-only here. Copy (extract) members with F5 to work with them in a folder.",
+            ReadOnlyReason(location) + " Copy (extract) members with F5 to work with them in a folder.",
         LocationCapabilities.MoveSource => "Moving members out of this archive is not supported here. Copy (extract) them with F5.",
         _ => base.ExplainUnavailable(location, capability),
     };

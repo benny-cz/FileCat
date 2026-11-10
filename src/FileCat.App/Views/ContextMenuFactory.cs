@@ -18,7 +18,7 @@ public static class ContextMenuFactory
         var caps = provider.GetCapabilities(location);
         string? unavailable = MainViewModel.LocationWriteBlockReason(tab, location);
         bool canPaste = unavailable is null && location.IsFileSystem && (caps & LocationCapabilities.TransferTarget) != 0;
-        bool canCreate = location.Scheme is Schemes.FileSystem or Schemes.Zip or Schemes.Sftp or Schemes.Mtp &&
+        bool canCreate = location.Scheme is Schemes.FileSystem or Schemes.Zip or Schemes.Archive or Schemes.Sftp or Schemes.Mtp &&
                          (caps & LocationCapabilities.CreateDirectory) != 0 && unavailable is null;
         var items = new List<Control>();
         void Add(string id, bool enabled, string? reason = null)
@@ -43,7 +43,7 @@ public static class ContextMenuFactory
         Add(CommandIds.MakeDirectory, canCreate,
             unavailable ?? ((caps & LocationCapabilities.CreateDirectory) == 0
                 ? provider.ExplainUnavailable(location, LocationCapabilities.CreateDirectory)
-                : "Create a folder in a file-system, ZIP, SFTP, or device location."));
+                : "Create a folder in a file-system, archive, SFTP, or device location."));
         items.Add(new Separator());
         Add(CommandIds.Refresh, true);
         if (location.IsFileSystem) Add(CommandIds.OpenTerminal, true);

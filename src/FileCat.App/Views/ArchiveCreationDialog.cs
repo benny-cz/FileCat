@@ -39,7 +39,7 @@ internal sealed class ArchiveCreationDialog : IDisposable
     private readonly Control compressionRow, protectionRow, protectionRows, confirmationRow, dictionaryRow, deltaRow;
     private readonly TextBlock passwordHelp;
     private readonly Expander advanced;
-    private readonly TextBlock problem, preview;
+    private readonly TextBlock problem, preview, estimate;
     private readonly Func<ArchivePlan, ArchiveJobAvailability> availability;
     private bool updating, generatedPath = true;
     private string? externalProblem;
@@ -81,6 +81,9 @@ internal sealed class ArchiveCreationDialog : IDisposable
         AutomationProperties.SetName(confirmation, "Confirm archive password"); AutomationProperties.SetName(delta, "Delta distance");
         problem = Text("");
         AutomationProperties.SetLiveSetting(problem, AutomationLiveSetting.Polite);
+        // Plan §11.2 step 6: checked source count and estimated extra space, or an honest unknown, before submission.
+        estimate = Text("Checking what will be packed…"); estimate.Classes.Add("muted");
+        AutomationProperties.SetName(estimate, "Size and space estimate");
         preview = Text("");
         compressionRow = Row("Compression:", level);
         protectionRow = Row("Protection:", protection);
@@ -93,7 +96,7 @@ internal sealed class ArchiveCreationDialog : IDisposable
                 dictionaryRow, deltaRow, Row("Header compression:", header) } } };
         Content = new() { Spacing = 8, Children = { Text("Pack " + selectedSummary + " into:"), path,
             Row("Format:", format), compressionRow, advanced, protectionRow, protectionRows,
-            preview, problem, new Expander { Header = "What is included", Content = Text(
+            preview, estimate, problem, new Expander { Header = "What is included", Content = Text(
                 "Regular files and folders are checked before writing; links are not followed. Unsupported inputs are reviewed or refused. " +
                 "An archive is not a complete backup of file permissions and security metadata. Creating it needs additional free disk space.") } } };
         // TextChanged is queued, so it cannot distinguish an automatic suffix change from an edit once
@@ -204,7 +207,12 @@ internal sealed class ArchiveCreationDialog : IDisposable
         if (format.Aliases.Prepend(format.Extension).Any(suffix => full.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))) return full;
         string suffix = ArchiveCreationFormat.All.SelectMany(item => item.Aliases.Prepend(item.Extension))
             .OrderByDescending(value => value.Length).FirstOrDefault(value => full.EndsWith(value, StringComparison.OrdinalIgnoreCase)) ?? Path.GetExtension(full);
-        if (suffix.Length != 0) throw new ArgumentException($"The name ends in {suffix}, but the selected format is {format.Name}. Change the extension or choose another format.");
+        if (suffix.Length != 0)
+        {
+            var typed = ArchiveCreationFormat.All.FirstOrDefault(item => item.Aliases.Prepend(item.Extension).Contains(suffix, StringComparer.OrdinalIgnoreCase));
+            throw new ArgumentException($"The name ends in {suffix}, but the selected format is {format.Name}. " +
+                (typed is null ? "Change the extension." : $"Change the extension or choose {typed.Name}."));
+        }
         return full + format.Extension;
     }
     internal ArchiveJobPassword? TakePassword()
@@ -233,6 +241,8 @@ internal sealed class ArchiveCreationDialog : IDisposable
     private static ComboBox Box(string name, System.Collections.IEnumerable choices)
     { var box = new ComboBox { ItemsSource = choices, SelectedIndex = 0, MinWidth = 210 }; AutomationProperties.SetName(box, name); return box; }
     private static TextBlock Text(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 };
+    internal string EstimateText => estimate.Text ?? string.Empty;
+    internal void ShowEstimate(string text) => estimate.Text = text;
     private static Control Row(string label, Control control) => new WrapPanel { ItemSpacing = 8, LineSpacing = 4,
         Children = { new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center }, control } };
 }

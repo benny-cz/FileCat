@@ -59,7 +59,26 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
     }
     public void Execute(ArchiveJobExecution execution)
     {
+        try { ExecuteCore(execution); }
+        catch (ArchiveWriteException error) when (!error.Data.Contains(ArchiveWriteMessages.UserMessageKey))
+        {
+            // The phase is known only here: never say "not saved" once publication may have begun (plan §11.7).
+            error.Data[ArchiveWriteMessages.UserMessageKey] = ArchiveWriteMessages.ForUser(error, execution.Plan.Profile?.Format, execution.Job.ArchivePhase);
+            throw;
+        }
+        catch (IOException error) when (error is not ArchiveWriteException && !error.Data.Contains(ArchiveWriteMessages.UserMessageKey) &&
+            ArchiveWriteMessages.ForUser(error, execution.Job.ArchivePhase) is not null)
+        {
+            error.Data[ArchiveWriteMessages.UserMessageKey] = ArchiveWriteMessages.ForUser(error, execution.Job.ArchivePhase);
+            throw;
+        }
+        finally { execution.Job.DeferCancellation(false); execution.Job.SetArchivePhase(null); }
+    }
+
+    private void ExecuteCore(ArchiveJobExecution execution)
+    {
         var job = execution.Job; var request = execution.Plan; var ct = job.Token;
+        job.SetArchivePhase(ArchiveJobPhase.Preparing);
         job.Checkpoint(); ArchiveJobPassword.Require(request.Profile!, execution.Password);
         var planning = new ArchiveJobPlanning(request, ct);
         using var native = open(request, ct);
@@ -67,11 +86,13 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         ArchiveAssessment? source = null;
         if (native.Original is { } original)
         {
+            job.SetArchivePhase(ArchiveJobPhase.ReadingArchive);
             job.SetCurrent(request.ArchivePath);
             source = assessor.AssessAsync(new(request.Profile!, original.Reviewed.Version.Length, original.Reviewed.Version.Sha256),
                 () => original.File.OpenReadView(original.Reviewed, ct), ct, execution.Password?.CreateGrant()).GetAwaiter().GetResult();
         }
         if (request.ReviewedManifestDigest is { } catalog && source?.Manifest.Digest != catalog) throw Changed();
+        job.SetArchivePhase(ArchiveJobPhase.Preparing);
         job.Checkpoint();
         using var selection = planning.CaptureInputs(native.OpenInputTree,ct);
         using var empty = selection is null ? new ArchiveCapturedInputs() : null;
@@ -82,15 +103,10 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         if (native.Original is { } target && captured.Bindings.Values.Any(input => input.Reviewed.Version.Identity == target.Reviewed.Version.Identity))
             throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "The archive itself cannot be selected as a source.");
         var review = planning.Review(source, selection, captured, ct);
-        bool replace = request.AddConflictPolicy is not null ? ReviewAdditionConflicts() : Confirm(review.ReplacementNames, "Replace archive members?",
-            $"Replace {review.ReplacedOccurrences:N0} existing entries under {review.ReplacementNames:N0} names?\n" + ArchiveJobReviewText.Samples(review.ReplacementSamples),
-            "archive-replace", "Replace reviewed entries");
-        bool exclude = Confirm(review.ExcludedCount, "Leave unsupported source items out?",
-            $"{review.ExcludedCount:N0} links, special files or unrepresentable names will be left out of the archive. Their originals stay where they are.\n" +
-            ArchiveJobReviewText.Samples(selection?.ExclusionSamples.Select(sample => sample.MemberName) ?? []), "archive-exclusions", "Continue with listed exclusions");
-        bool precision = Confirm(review.InputTimePrecisionChanges, "Use 7z timestamp precision?",
-            $"{review.InputTimePrecisionChanges:N0} added timestamps have finer precision than 7z's 100 ns units. Each is stored at the earlier 100 ns instant. The input files retain their exact timestamps.",
-            "archive-7z-precision", "Use 100 ns precision");
+        // Plan §11.1/§11.3: one combined review of replacements, exclusions and format precision, not a question each.
+        bool replace = request.AddConflictPolicy is not null ? ReviewAdditionConflicts() : true;
+        ConfirmTogether(includeReplacements: request.AddConflictPolicy is null);
+        const bool exclude = true, precision = true; // Proceeding accepted every listed item; otherwise the job was canceled.
         job.Checkpoint();
         using var selected = request.AddConflictPolicy is null ? null : review.CreateSelectedPlan(replace, exclude, ct, precision);
         var plan = selected?.Plan ?? review.CreatePlan(replace, exclude, ct, precision);
@@ -106,24 +122,44 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
             job.SetCurrent(null); return;
         }
         using var prepared = ArchiveJournaledContainerPreparation.PrepareAsync(execution.Journal, request.ArchivePath, plan,
-            native.Original, activeInputs.Bindings, native.Reserve, native.Create, transform, verifier, ct, password: execution.Password).GetAwaiter().GetResult();
+            native.Original, activeInputs.Bindings, native.Reserve, native.Create, transform, verifier, ct, password: execution.Password,
+            phase: value => job.SetArchivePhase(value)).GetAwaiter().GetResult();
         job.Checkpoint();
+        // The short publication boundary: the interface offers no Cancel here (plan §11.5).
+        job.DeferCancellation(true); job.SetArchivePhase(ArchiveJobPhase.Saving);
         var published = native.Publish(execution.Journal, prepared, activeInputs.Bindings, ct);
+        job.SetArchivePhase(ArchiveJobPhase.FinishingSafely);
         job.RecordArchiveEditPublication(new(request.ArchivePath, request.Profile!, published.Published, plan.Expected.Digest));
         // Publication may have committed immediately before cancellation. Always record the visible result first.
         job.AddTotals(checked(1L + review.ExcludedCount + skippedNames), 0); job.ItemDone();
         for (int i = 0; i < review.ExcludedCount; i++) job.ItemSkipped();
         for (int i = 0; i < skippedNames; i++) job.ItemSkipped();
         string action = native.Original is null ? "Archive created" : "Archive updated";
-        job.SetSummary(action + (review.ExcludedCount == 0 ? "." : $"; {review.ExcludedCount:N0} unsupported source items excluded.") +
+        // Plan §11.3: planned, skipped, verified and committed counts, in one summary.
+        int verified = plan.Expected.Members.Count, requested = request.Changes.Count;
+        string entries = verified == 1 ? "1 entry" : $"{verified:N0} entries";
+        string counted = native.Original is null ? $"{action}: {entries} verified and saved"
+            : $"{action}: {(requested == 1 ? "1 requested change" : $"{requested:N0} requested changes")}; {entries} verified and saved";
+        job.SetSummary(counted + (review.ExcludedCount switch { 0 => ".", 1 => "; 1 unsupported source item excluded.",
+            _ => $"; {review.ExcludedCount:N0} unsupported source items excluded." }) +
             (skippedNames == 0 ? "" : $" {skippedNames:N0} incoming entries skipped; existing members kept."));
         if (request.MoveSources)
             ArchiveNativeMoveSources.Remove(job, execution.Journal, request, selection!, (full, token) => native.ReviewPublication(published, full, token),
                 selected?.CommittedInputs);
         published = native.CleanupPublication(execution.Journal, published, ct);
-        if (published.RetainedArtifacts.Count != 0)
-            job.AddIssue(new(IssueSeverity.Warning, request.ArchivePath,
-                action + $". {published.RetainedArtifacts.Count:N0} transaction artifacts are retained for recovery and reviewed cleanup.", StepOutcome.Committed));
+        if (published.RetainedArtifacts.Count is int retained and > 0)
+        {
+            // Plan §11.7: a definite commit with retained files says so, and shows where (issue details offer "Reveal locally").
+            string first = published.RetainedArtifacts[0];
+            job.AddIssue(new(IssueSeverity.Warning, first,
+                (native.Original is null ? "The archive was created. " : "The archive was updated. ") +
+                (retained == 1 ? "A transaction file could not be safely removed and was kept here for review."
+                    : $"{retained:N0} transaction files could not be safely removed and were kept for review; the first is here."), StepOutcome.Committed)
+            {
+                TargetPath = first, TargetIsLocal = true, CommittedEffect = action + ".",
+                Certainty = "The archive is saved. Only the kept transaction files remain; recovery offers their reviewed cleanup.",
+            });
+        }
         else if (published.CleanupNeedsReview)
             job.AddIssue(new(IssueSeverity.Warning, request.ArchivePath,
                 action + ". Cleanup outcomes are recorded, but the final archive review is incomplete. Recovery remains open.", StepOutcome.Committed));
@@ -131,6 +167,7 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
             job.AddIssue(new(IssueSeverity.Warning, request.ArchivePath, action + " before cancellation was observed.", StepOutcome.Committed));
         job.SetCurrent(null);
 
+        static string ReplaceLabel(long count) => count == 1 ? "Replace 1 existing member" : $"Replace {count:N0} existing members";
         bool ReviewAdditionConflicts()
         {
             if (request.AddConflictPolicy == ArchiveAddConflictPolicy.Skip || review.ReplacementNames + review.MandatorySkippedNames == 0) return false;
@@ -144,21 +181,45 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
                 "Skipped originals stay where they are. Choose Skip to keep all existing members.\n" +
                 ArchiveJobReviewText.Samples(review.ReplacementSamples.Concat(review.MandatorySkipSamples)), request.ArchivePath,
                 "archive-add-conflicts-" + (source?.CatalogRevision ?? job.Id.ToString("N")), actions)
-            { InitialAction = DecisionAction.Skip, ProceedLabel = "Replace reviewed unique names" });
+            { InitialAction = DecisionAction.Skip, ProceedLabel = ReplaceLabel(replaceable) });
             if (answer.Action == DecisionAction.Skip) return false;
             if (answer.Action == DecisionAction.Proceed && replaceable != 0) return true;
             job.Cancel(); job.Checkpoint(); return false;
         }
 
-        bool Confirm(int count, string title, string message, string kind, string label)
+        void ConfirmTogether(bool includeReplacements)
         {
-            if (count == 0) return true;
+            var parts = new List<(string Title, string Text, string Kind, string Label)>(); var samples = new List<string>();
+            if (includeReplacements && review.ReplacementNames > 0)
+            {
+                parts.Add(("Replace archive members?",
+                    $"Replace {(review.ReplacedOccurrences == 1 ? "1 existing entry" : $"{review.ReplacedOccurrences:N0} existing entries")} under " +
+                    $"{(review.ReplacementNames == 1 ? "1 name" : $"{review.ReplacementNames:N0} names")}.",
+                    "archive-replace", ReplaceLabel(review.ReplacedOccurrences)));
+                samples.AddRange(review.ReplacementSamples);
+            }
+            if (review.ExcludedCount > 0)
+            {
+                parts.Add(("Leave unsupported source items out?",
+                    $"{review.ExcludedCount:N0} links, special files or unrepresentable names will be left out of the archive. Their originals stay where they are.",
+                    "archive-exclusions", "Continue with listed exclusions"));
+                samples.AddRange(selection?.ExclusionSamples.Select(sample => sample.MemberName) ?? []);
+            }
+            if (review.InputTimePrecisionChanges > 0)
+                parts.Add(("Use 7z timestamp precision?",
+                    $"{review.InputTimePrecisionChanges:N0} added timestamps have finer precision than 7z's 100 ns units. Each is stored at the earlier 100 ns instant. The input files retain their exact timestamps.",
+                    "archive-7z-precision", "Use 100 ns precision"));
+            if (parts.Count == 0) return;
             job.Checkpoint();
-            var answer = job.Ask(new ConfirmRequest(title, message, request.ArchivePath,
-                kind + "-" + (source?.CatalogRevision ?? job.Id.ToString("N")), [DecisionAction.CancelJob, DecisionAction.Proceed])
+            bool single = parts.Count == 1; bool replacing = includeReplacements && review.ReplacementNames > 0;
+            string title = single ? parts[0].Title : "Review this archive change";
+            string text = (single ? parts[0].Text : string.Join("\n", parts.Select(part => "• " + part.Text))) +
+                (samples.Count == 0 ? "" : "\n" + ArchiveJobReviewText.Samples(samples));
+            string kind = (single ? parts[0].Kind : "archive-review") + "-" + (source?.CatalogRevision ?? job.Id.ToString("N"));
+            string label = single ? parts[0].Label : replacing ? ReplaceLabel(review.ReplacedOccurrences) + " and continue" : "Continue with these changes";
+            var answer = job.Ask(new ConfirmRequest(title, text, request.ArchivePath, kind, [DecisionAction.CancelJob, DecisionAction.Proceed])
             { InitialAction = DecisionAction.CancelJob, ProceedLabel = label });
             if (answer.Action != DecisionAction.Proceed) { job.Cancel(); job.Checkpoint(); }
-            return true;
         }
     }
     private static void RequireOriginal(ArchivePlan plan, ArchiveRetainedBinding? original)

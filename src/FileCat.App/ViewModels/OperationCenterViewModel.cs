@@ -29,9 +29,25 @@ public sealed partial class JobViewModel : ObservableObject
     public override string ToString() => string.IsNullOrEmpty(StateText) ? Title : $"{Title}, {StateText}";
 
     public string CancelLabel => SyncGroup is null ? "Cancel" : "Cancel this step";
-    public string CancelTooltip => SyncGroup is null
+    /// <summary>The plan's publication boundary (§11.5): no Cancel while an archive update is being saved and finished.</summary>
+    public const string FinishingSafelyHelp = "Finishing this archive update safely.";
+    [ObservableProperty] private bool _canCancel = true;
+    [ObservableProperty] private string _cancelTooltip = DefaultCancelTooltip(null);
+    /// <summary>Spoken once per archive phase change (plan §11.5); never per member.</summary>
+    [ObservableProperty] private string _phaseAnnouncement = string.Empty;
+    private ArchiveJobPhase? _announcedPhase;
+    private static string DefaultCancelTooltip(SyncGroup? group) => group is null
         ? "Stops at the next safe step; completed steps are kept"
         : "Cancels only this step. Other synchronization steps stay visible; pending removals wait for review if a transfer stops.";
+    internal static string ArchivePhaseText(ArchiveJobPhase phase) => phase switch
+    {
+        ArchiveJobPhase.Preparing => "Preparing",
+        ArchiveJobPhase.ReadingArchive => "Reading archive",
+        ArchiveJobPhase.Rebuilding => "Rebuilding",
+        ArchiveJobPhase.Checking => "Checking",
+        ArchiveJobPhase.Saving => "Saving",
+        _ => "Finishing safely",
+    };
 
     /// <summary>The progress shown and the time left (release issue I26), on this view's own clock.</summary>
     private readonly ProgressEstimator _progress = new();
@@ -85,6 +101,8 @@ public sealed partial class JobViewModel : ObservableObject
     [ObservableProperty] private bool _canRetryElevated;
     /// <summary>A finished check of checksums and signatures whose results are still kept (D-57): they can be shown again.</summary>
     [ObservableProperty] private bool _canShowResults;
+    /// <summary>Plan §11.2 step 7: opening a newly created archive is an explicit action after it finished.</summary>
+    [ObservableProperty] private bool _canOpenArchive;
     [ObservableProperty] private bool _hasIssues;
     [ObservableProperty] private bool _needsDecision;
     [ObservableProperty] private string _severity = "info";
@@ -138,6 +156,9 @@ public sealed partial class JobViewModel : ObservableObject
         };
         CanRetryElevated = OperatingSystem.IsWindows() && Platform.Windows.Elevation.ElevationPlanBuilder.OffersRetry(j);
         CanShowResults = IsFinished && j.Kind is (JobKind.VerifyChecksums or JobKind.VerifyBeside) && j.VerificationReport is not null;
+        // State only: whether the file is still there is checked when the action runs, never on this refresh path.
+        CanOpenArchive = j.State is JobState.Completed or JobState.CompletedWithIssues && j.Kind == JobKind.ArchiveUpdate &&
+            j.Request.Archive is { Baseline: null, NativeBaseline: null, MoveSources: false };
         int issues = j.IssueCount;
         HasIssues = issues > 0;
         Severity = j.State == JobState.Failed || j.ItemsFailed > 0 ? "error" : j.State == JobState.CompletedWithIssues ? "warning" : j.State == JobState.Completed ? "ok" : "info";
@@ -216,6 +237,15 @@ public sealed partial class JobViewModel : ObservableObject
         bool verifying = currentItem.EndsWith(verifyingSuffix, StringComparison.Ordinal);
         PercentText = IsActive && !IsIndeterminate ? $"{Math.Floor(Percent):0}%"
             : j.State == JobState.Completed ? "100%" : string.Empty;
+        var archivePhase = j.Kind == JobKind.ArchiveUpdate ? j.ArchivePhase : null;
+        bool deferred = j.CancellationDeferred && !j.State.IsFinished();
+        CanCancel = !deferred;
+        CancelTooltip = deferred ? FinishingSafelyHelp : DefaultCancelTooltip(SyncGroup);
+        if (archivePhase != _announcedPhase && j.State == JobState.Running)
+        {
+            _announcedPhase = archivePhase;
+            if (archivePhase is { } announced) PhaseAnnouncement = $"{Title}: {ArchivePhaseText(announced)}";
+        }
         PhaseText = j.State switch
         {
             JobState.Queued => j.WaitReason ?? "Waiting for its turn",
@@ -224,6 +254,7 @@ public sealed partial class JobViewModel : ObservableObject
             JobState.Stopping => "Stopping — waiting for a safe point",
             JobState.AwaitingDecision => "Waiting for your decision",
             JobState.Running when j.IsPaused => "Pausing",
+            JobState.Running when archivePhase is { } phase => ArchivePhaseText(phase),
             JobState.Running when verifying => "Verifying",
             JobState.Running when estimate.Note == ProgressNote.Finishing => "Finishing",
             JobState.Running when !j.TotalsFinal && bd == 0 && id == 0 => "Counting what to do",

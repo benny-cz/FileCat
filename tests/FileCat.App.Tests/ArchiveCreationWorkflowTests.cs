@@ -24,7 +24,7 @@ using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.Tests;
 
-public sealed class ArchiveCreationWorkflowTests
+public sealed partial class ArchiveCreationWorkflowTests
 {
     private const string Secret = "  Public creation é e\u0301 🔐  ";
     public static IEnumerable<object[]> Profiles()
@@ -89,7 +89,7 @@ public sealed class ArchiveCreationWorkflowTests
         string manual = Path.Combine(f.Files, "manual.zip"); f.Input("Archive path").Text = manual;
         f.SelectFormat(ArchiveWriteFormat.SevenZip); Assert.Equal(manual, f.Input("Archive path").Text);
         await Wait(() => f.Button("Pack")?.IsEffectivelyEnabled == false);
-        Assert.Contains("ends in .zip", f.Text()); Assert.Empty(f.Services.Jobs.Jobs);
+        Assert.Contains("ends in .zip", f.Text()); Assert.Contains("Change the extension or choose ZIP.", f.Text()); Assert.Empty(f.Services.Jobs.Jobs);
         f.Input("Archive path").Text = Path.Combine(f.Files, "manual.7z");
         await Wait(() => f.Button("Pack")?.IsEffectivelyEnabled == true); f.Click("Cancel"); await f.Complete(operation);
     }

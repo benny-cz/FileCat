@@ -705,7 +705,7 @@ public sealed partial class MainViewModel
         {
             case JobState.Completed:
                 if (job.Kind == JobKind.ArchiveTest) Notify($"{job.Title}: {job.Summary}.");
-                else if (job.Request.Archive is { MoveSources: true }) Notify($"{job.Title}: {job.Summary}");
+                else if (job.Request.Archive is not null) Notify($"{job.Title}: {job.Summary}");
                 else if (job.Kind is JobKind.Copy or JobKind.Move or JobKind.Recycle or JobKind.Delete or JobKind.Extract)
                     Notify($"{job.Title}: done{(job.BytesDone > 0 && job.Kind is not (JobKind.Recycle or JobKind.Delete) ? $" ({Formatters.SizeWithUnit(job.BytesDone)})" : "")}.");
                 break;
@@ -715,7 +715,10 @@ public sealed partial class MainViewModel
                     job.State == JobState.Failed || job.ItemsFailed > 0);
                 break;
             case JobState.Canceled:
-                Notify($"{job.Title}: canceled. {job.Summary}. Steps already completed were kept.");
+                string summary = job.Summary.TrimEnd('.', ' ');
+                if (job.Request.Archive is not null && job.Issues.Any(issue => issue.Outcome == StepOutcome.Committed))
+                    Notify($"{job.Title}: {summary}. The cancellation arrived after the archive was saved; the saved archive is kept.");
+                else Notify($"{job.Title}: canceled.{(summary.Length == 0 ? "" : " " + summary + ".")} Steps already completed were kept.");
                 break;
         }
         UpdateJobActivity();

@@ -107,6 +107,8 @@ public sealed partial class UnixArchiveStorageTests
         var created = manager.SubmitArchive(new(Path.Combine(link, "saved.tar"), null, changes, Profile: profile), null);
         Assert.Equal(Path.Combine(real, "saved.tar"), created.Request.Archive!.ArchivePath);
         await ArchiveNativeJobCases.Completed(created);
+        // Plan §11.3: the summary counts what was verified and saved.
+        Assert.Matches(@"^Archive created: \d+ entries verified and saved\.$", created.Summary);
         Assert.True(File.Exists(Path.Combine(real, "saved.tar")));
         Assert.Equal(real, new FileInfo(link).LinkTarget);
 
@@ -122,6 +124,7 @@ public sealed partial class UnixArchiveStorageTests
             while (!job.State.IsFinished()) await Task.Delay(10, deadline.Token);
         }
         Assert.True(job.State == JobState.Completed, string.Join(" | ", job.Issues.Select(issue => issue.Message)));
+        Assert.Matches(@"^Archive updated: 1 requested change; \d+ entries verified and saved\.$", job.Summary);
         byte[] after = File.ReadAllBytes(Path.Combine(real, "saved.tar"));
         var fresh = await assessor.AssessAsync(new(profile, after.Length, Hash(after)), () => new MemoryStream(after, false), ct);
         Assert.Equal(new[] { "added.bin", "first", "tree/sub/file" }, fresh.Manifest.Members

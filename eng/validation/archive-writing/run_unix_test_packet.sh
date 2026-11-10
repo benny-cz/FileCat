@@ -6,6 +6,8 @@
 #   RUN_ID/publish/NAME (group/other write removed). On Linux a published FileCat.App or FileCat.WorkerProbe enables the
 #   confined native lane (FILECAT_ARCHIVE_LINUX_NATIVE/_APP/_PROBE) and test projects then run in a transient
 #   systemd --user service, because each worker's delegated cgroup must share the user manager's subtree.
+#   An env:NAME=VALUE entry exports a test variable (also into the systemd --user service), for example
+#   env:FILECAT_ARCHIVE_SMALL_VOLUME=/home/benny/FileCatValidation/small-volume for an owned small tmpfs.
 #   FILTER is a dotnet test --filter expression; "*" runs the complete project inventory.
 # Writes $ROOT/RUN_ID/{status.txt,summary.json,machine.txt,*.log,results/*.trx} and RUN_ID-evidence.tar.gz.
 # Refuses (exit 3) while another FileCat/.NET test process from a different owner directory is running.
@@ -49,11 +51,19 @@ export DOTNET_ROOT PATH="$DOTNET_ROOT:$PATH" DOTNET_CLI_TELEMETRY_OPTOUT=1 MSBUI
 { uname -a; if [ $LABEL = mac ]; then sw_vers; sysctl -n hw.logicalcpu; else lsb_release -d; nproc; fi
   "$DOTNET_ROOT/dotnet" --version; df -h "$D" | tail -1; echo "packet=$EXPECTED"; echo "filter=$FILTER"; } >"$D/machine.txt" 2>&1
 if [ $LABEL = ubuntu ]; then NICE=(nice -n 5); else NICE=(env); fi
+EXTRA_ENVS=()
+for P in "${PROJECTS[@]}"; do
+  case "$P" in
+    env:*) KV=${P#env:}; [[ "$KV" =~ ^[A-Z][A-Z0-9_]*=[^[:space:]]*$ ]] || { echo "bad env entry" >&2; exit 2; }
+      export "$KV"; EXTRA_ENVS+=("$KV"); echo "env=$KV" >>"$D/machine.txt" ;;
+  esac
+done
 RUNNER=("${NICE[@]}")
 i=0
 for P in "${PROJECTS[@]}"; do
   i=$((i+1))
   case "$P" in
+    env:*) continue ;;
     build:*) P=${P#build:}; name=$(basename "$P" .csproj)
       "${NICE[@]}" "$DOTNET_ROOT/dotnet" build "$D/src/$P" -c Release --disable-build-servers -p:NuGetAudit=false -m:$JOBS -v:minimal >"$D/build-$name.log" 2>&1
       continue ;;
@@ -63,7 +73,7 @@ for P in "${PROJECTS[@]}"; do
       { du -sb "$D/publish/$name" 2>/dev/null || du -sk "$D/publish/$name"; find "$D/publish/$name" -type f | wc -l; } >"$D/publish-$name.size"
       if [ $LABEL = ubuntu ]; then
         ENVS=(DOTNET_ROOT="$DOTNET_ROOT" PATH="$DOTNET_ROOT:/usr/bin:/bin" DOTNET_CLI_TELEMETRY_OPTOUT=1 MSBUILDDISABLENODEREUSE=1
-              DOTNET_NOLOGO=1 FILECAT_ARCHIVE_LINUX_NATIVE=1)
+              DOTNET_NOLOGO=1 FILECAT_ARCHIVE_LINUX_NATIVE=1 "${EXTRA_ENVS[@]}")
         if [ -x "$D/publish/FileCat.App/FileCat" ]; then ENVS+=(FILECAT_ARCHIVE_LINUX_APP="$D/publish/FileCat.App/FileCat"); fi
         if [ -x "$D/publish/FileCat.WorkerProbe/FileCat.WorkerProbe" ]; then
           ENVS+=(FILECAT_ARCHIVE_LINUX_PROBE="$D/publish/FileCat.WorkerProbe/FileCat.WorkerProbe"); fi

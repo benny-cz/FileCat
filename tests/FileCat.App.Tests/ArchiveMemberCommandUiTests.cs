@@ -81,6 +81,22 @@ public sealed class ArchiveMemberCommandUiTests
         await Wait(() => f.Button("Remove") is not null); Assert.Contains("copy 2 of 2", f.Text()); f.Click("Remove"); await f.Complete(command);
         await Wait(() => f.Services.Jobs.Jobs.Single().State.IsFinished());
         Assert.Equal(1, Assert.Single(backend.Plan!.Changes).Ordinal); Assert.Equal(0, backend.ActiveLeases);
+        // Plan §11.4: focus never lands on the other copy that shares the removed name.
+        await Wait(() => f.Vm.ActiveTab.Listing.TryGetFocused(out var focused) && focused.Name == "kept");
+    }
+
+    [AvaloniaFact]
+    public async Task F4_on_a_duplicate_name_explains_and_offers_extraction_before_any_password_prompt()
+    {
+        var backend = new Backend(ArchiveWriteFormat.Rar5, 1) { MemberCatalog = true }; using var f = await Fixture.Open(customBackends: new([backend]));
+        f.Vm.ActiveTab!.Navigate(Setup(f, backend.Format));
+        await Wait(() => f.Vm.ActiveTab.Listing.State == ListingState.Complete && f.Vm.ActiveTab.Listing.FocusName("same"));
+        var edit = f.Vm.ExecuteAsync(CommandIds.Edit);
+        await Wait(() => f.Button("Extract this copy…") is not null);
+        Assert.Contains("Several members have this name.", f.Text());
+        Assert.Null(f.Button("Unlock")); // No review or password happened first.
+        f.Click("Cancel"); await f.Complete(edit);
+        Assert.Empty(f.Services.Jobs.Jobs); Assert.Equal(0, backend.ActiveLeases);
     }
 
     [AvaloniaFact]

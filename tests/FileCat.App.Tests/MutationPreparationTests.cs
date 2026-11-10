@@ -224,6 +224,9 @@ public sealed class MutationPreparationTests(ITestOutputHelper output)
                 Emit("archive-admission-draft-retained", f, new { operation, outcome });
                 return;
             }
+            // The archive path names the existing ZIP: it is changed only after an explicit "Add to this archive".
+            await Wait(() => task.IsCompleted || f.Button("Add") is not null);
+            Assert.False(task.IsCompleted); f.Click("Add");
         }
         await Wait(() => task.IsCompleted || f.Button(operation == "delete" ? "Delete" : "Create") is not null);
         bool shown = !task.IsCompleted; if (shown) f.Click("Cancel"); await task.WaitAsync(TimeSpan.FromSeconds(15));

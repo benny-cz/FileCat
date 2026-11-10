@@ -140,7 +140,11 @@ public sealed partial class ArchiveAppContainerTests
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct); deadline.CancelAfter(TimeSpan.FromSeconds(30));
             while (!job.State.IsFinished()) await Task.Delay(10, deadline.Token);
             Assert.Equal(JobState.Failed, job.State); Assert.Equal(sentinel, File.ReadAllBytes(target));
-            Assert.Contains(job.Issues, issue => issue.Message.Contains("native identity", StringComparison.Ordinal));
+            // A missing baseline is refused as a request; a changed archive gets the plan's text with the cause as details.
+            Assert.Contains(job.Issues, issue => changed == "missing"
+                ? issue.Message.Contains("native identity", StringComparison.Ordinal) && issue.Details is null
+                : issue.Message.StartsWith("The archive changed while this update was being prepared. Your changes were not saved.", StringComparison.Ordinal) &&
+                    issue.Details?.Contains("native identity", StringComparison.Ordinal) == true);
             Assert.Throws<ObjectDisposedException>(() => password.CreateGrant());
             Assert.DoesNotContain(Directory.GetFiles(root), path => Path.GetFileName(path).StartsWith(".filecat-", StringComparison.Ordinal));
         }

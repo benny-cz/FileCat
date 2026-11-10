@@ -246,6 +246,8 @@ public sealed record JobIssue(IssueSeverity Severity, string Path, string Messag
         : $"{Severity}: {Message} Path: {Path}";
     /// <summary>Error class from <see cref="ErrorText.Classify"/> ("access", "sharing", …) when known.</summary>
     public string? Cause { get; init; }
+    /// <summary>The technical detail behind a plain-language message, when they differ.</summary>
+    public string? Details { get; init; }
     /// <summary>Explicit source and target identities, when the operation can establish them.</summary>
     public string? SourcePath { get; init; }
     public string? TargetPath { get; init; }

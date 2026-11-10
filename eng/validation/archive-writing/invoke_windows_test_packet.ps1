@@ -11,7 +11,8 @@ param(
     [string]$OutDir = (Join-Path $PSScriptRoot '..\..\..\.tmp'),
     [string]$Vmx = 'V:\Virtual Machines\Jamf\Windows 10 x64\Windows 10 x64.vmx',
     [string]$VmPassword = 'a', [string]$GuestUser = 'admin', [string]$GuestPassword = 'a',
-    [int]$TimeoutMinutes = 240
+    [int]$TimeoutMinutes = 240,
+    [string]$Env = ''
 )
 $ErrorActionPreference = 'Stop'
 $vmrun = 'C:\Program Files\VMware\VMware Workstation\vmrun.exe'
@@ -23,7 +24,7 @@ Guest @('CopyFileFromHostToGuest', $Vmx, $PacketPath, $guestPacket)
 Guest @('CopyFileFromHostToGuest', $Vmx, (Join-Path $PSScriptRoot 'run_windows_test_packet.ps1'), 'C:\FileCatValidation\aw-claude\packets\run_windows_test_packet.ps1')
 $launcher = Join-Path ([IO.Path]::GetTempPath()) "fc-run-$RunId.cmd"
 $line = "@echo off`r`nC:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\FileCatValidation\aw-claude\packets\run_windows_test_packet.ps1 " +
-    "-RunId $RunId -Packet `"$guestPacket`" -Sha256 $sha -Filter `"$Filter`" -Projects `"$Projects`" -TimeoutMinutes $TimeoutMinutes > C:\FileCatValidation\aw-claude\$RunId-wrapper.txt 2>&1`r`n"
+    "-RunId $RunId -Packet `"$guestPacket`" -Sha256 $sha -Filter `"$Filter`" -Projects `"$Projects`" -TimeoutMinutes $TimeoutMinutes -Env `"$Env`" > C:\FileCatValidation\aw-claude\$RunId-wrapper.txt 2>&1`r`n"
 [IO.File]::WriteAllText($launcher, $line)
 Guest @('CopyFileFromHostToGuest', $Vmx, $launcher, "C:\FileCatValidation\aw-claude\packets\run-$RunId.cmd")
 Remove-Item -LiteralPath $launcher

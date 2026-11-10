@@ -117,4 +117,39 @@ public sealed class ArchiveTransformClientTests
             () => throw new InvalidOperationException(), _ => throw new InvalidOperationException(), Ct));
         Assert.Equal(ArchiveWriteReason.ProtocolViolation, failure.Reason); Assert.Equal(0, stage.Length); Assert.True(child!.Disposed);
     }
+
+    // AT08: a stage write that fails midway (disk full, quota, device error) never yields a receipt. The parent proxy only
+    // writes the stage here; durability is the native stage's own sync when it is sealed, which refuses on failure.
+    [Fact]
+    public async Task A_stage_write_failure_midway_refuses_without_a_receipt()
+    {
+        const string failure = "write";
+        byte[] payload = new byte[256 << 10]; new Random(4242).NextBytes(payload);
+        var invocation = ArchiveTransformWire.Prepare(ArchiveTarTransformPlan.Create(null, [Input(5, payload)], [], [new("big.bin", ArchiveMemberType.File, 5)], Ct), Ct);
+        using var backing = new MemoryStream(); using var stage = new FailingStage(backing, failure); Child? child = null;
+        var error = await Assert.ThrowsAnyAsync<IOException>(() => new ArchiveTransformClient((nonce, _) => child = Child.Start(nonce, "archive-transform"))
+            .RebuildAsync(invocation, stage, () => throw new InvalidOperationException("No archive grant exists."), _ => new MemoryStream(payload, writable: false), Ct));
+        Assert.True(stage.Failed, "The injected stage failure was never reached.");
+        Assert.True(child!.Reaped); Assert.True(child.Disposed);
+        Assert.IsType<ArchiveWriteException>(error); // A typed refusal, never a raw device error escaping as success or crash.
+    }
+
+    private sealed class FailingStage(MemoryStream inner, string failure) : Stream
+    {
+        internal bool Failed { get; private set; }
+        private long written;
+        public override bool CanRead => true; public override bool CanSeek => true; public override bool CanWrite => true;
+        public override long Length => inner.Length; public override long Position { get => inner.Position; set => inner.Position = value; }
+        public override int Read(byte[] buffer, int offset, int count) => inner.Read(buffer, offset, count);
+        public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
+        public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            // Fail midway, as a full disk does: some bytes are already in place.
+            if (failure == "write" && written + buffer.Length > 64 << 10) { Failed = true; throw new IOException("There is not enough space on the disk.", unchecked((int)0x80070070)); }
+            inner.Write(buffer); written += buffer.Length;
+        }
+        public override void Flush() { if (failure == "flush" && written > 0) { Failed = true; throw new IOException("The device is not ready."); } inner.Flush(); }
+        public override void SetLength(long value) { if (failure == "length") { Failed = true; throw new IOException("Disk quota exceeded."); } inner.SetLength(value); }
+    }
 }

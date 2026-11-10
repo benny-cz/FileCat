@@ -26,7 +26,7 @@ internal static class ArchiveJournaledContainerPreparation
         ArchiveContainerTransformPlan plan, ArchiveRetainedBinding? original, IReadOnlyDictionary<int, ArchiveRetainedBinding> captured,
         Func<Guid, ArchiveArtifactKind, long, ArchiveArtifactReservation> reserve, Func<ArchiveArtifactReservation, T> create,
         ArchiveTransformClient transform, ArchiveVerificationClient verifier, CancellationToken ct, long knownSnapshotBytes = 0,
-        ArchiveJobPassword? password = null) where T : class, IArchiveRetainedStage
+        ArchiveJobPassword? password = null, Action<Jobs.ArchiveJobPhase>? phase = null) where T : class, IArchiveRetainedStage
     {
         ArgumentNullException.ThrowIfNull(journal); ArgumentNullException.ThrowIfNull(plan); ArgumentNullException.ThrowIfNull(captured);
         ArgumentNullException.ThrowIfNull(reserve); ArgumentNullException.ThrowIfNull(create); ArgumentNullException.ThrowIfNull(transform); ArgumentNullException.ThrowIfNull(verifier);
@@ -101,8 +101,12 @@ internal static class ArchiveJournaledContainerPreparation
                 }
             }, ct).ConfigureAwait(false);
             var verified = await ArchiveRetainedContainerPipeline.RebuildAndVerifyAsync(plan, original, inputs, stage!, transform, verifier, ct,
-                beforeRebuild: () => { ReviewSidecars(); Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Rebuilding)); },
-                beforeVerification: sealedStage => { ReviewSidecars(); Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Verifying, finalizedStage: sealedStage.Version)); },
+                beforeRebuild: () => { ReviewSidecars(); Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Rebuilding)); phase?.Invoke(Jobs.ArchiveJobPhase.Rebuilding); },
+                beforeVerification: sealedStage =>
+                {
+                    ReviewSidecars(); Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Verifying, finalizedStage: sealedStage.Version));
+                    phase?.Invoke(Jobs.ArchiveJobPhase.Checking);
+                },
                 beforeFinalizing: () => Append(facts!.AdvancePreparation(ArchiveTransactionPhase.Finalizing)),
                 finalizeMetadata: original is null ? sealedStage =>
                 {

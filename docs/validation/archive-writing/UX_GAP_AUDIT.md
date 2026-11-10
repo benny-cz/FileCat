@@ -6,6 +6,39 @@ closes with its own change and test. Ordinary startup still registers no native 
 (`src/FileCat.App/Services/AppServices.cs`), so every native item is reachable only through explicit composition today;
 legacy ZIP is the only live writer. Paths below are relative to `src/`. "No test" means no App or Core test asserts it.
 
+## Progress
+
+Addressed after the audit (each with the test that pins it; the native lanes still need the platform runs recorded in the
+implementation status before any of this counts as qualification evidence):
+
+| Item | Change | Test |
+|---|---|---|
+| A1 | `ArchiveJobPhase` (Preparing, Reading archive, Rebuilding, Checking, Saving, Finishing safely) set by the native backend and shown on the operation row | `JobProgressViewTests.Archive_writes_show_their_phases_…` |
+| A2 | Cancel is withdrawn during Saving and Finishing safely with the help text "Finishing this archive update safely."; a cancel that still arrives after commit is reported as such | same; `MainViewModel.Operations` cancel toast |
+| A3 | One polite announcement per phase change; archive jobs announce their final result | same |
+| A5 | One combined review when replacements, exclusions and 7z time precision coincide; a single condition keeps its own question | `UnixArchiveStorageTests.One_combined_review_lists_replacements_and_exclusions_together` |
+| A6 | Summary counts requested changes and entries verified and saved | `UnixArchiveStorageTests.Native_jobs_reached_through_a_linked_folder_…` |
+| A7 | The Create dialog shows a bounded, cancellable count of what will be packed and the space needed against what the drive has (or that it could not be checked), before submission; links are not followed | `ArchiveCreationEstimateTests` |
+| A8 | Packing onto an existing ZIP asks "Add to this archive"; Cancel returns to the dialog and keeps the file | `ArchiveZipExistingTargetTests` |
+| A9 | "Open archive" on a finished creation's row | `ArchiveOpenCreatedTests` |
+| A10 | Native F8 focuses the nearest surviving row, never another copy of a removed name | `ArchiveMemberCommandUiTests.Wrong_password_can_retry_and_duplicate_removal_…` |
+| A12 | Specific read-only reasons (nested, network share, unsupported format, not yet qualified, backend reason) | `ArchiveProviderWritingTests.Read_only_archives_explain_the_specific_reason_…` |
+| A13 | F4 on a duplicate name explains before any review or password and offers "Extract this copy…" | `ArchiveMemberCommandUiTests.F4_on_a_duplicate_name_…` |
+| A14 | Background "Create folder" works in writable native archives, like F7 | `ArchiveContextMenuTests` |
+| A15 | Retained files after a commit: plain message, the first path as the issue location and "Reveal locally" in issue details | native backend issue |
+| A16 | A canceled check after a committed edit says the commit happened and that its new state was not confirmed (only when the job outcome proves the commit) | `MainViewModel.EditSessions` |
+| B1 | `ArchiveWriteMessages` maps refusals to §11.7 text, never claiming "not saved" once saving may have begun; technical text kept as issue details | `ArchiveWriteMessagesTests` |
+| B2 | Space refusal states needed and available amounts and the next step | `ArchiveWriteMessagesTests.Insufficient_space_…` |
+| B3, B4, B5, B6, B7, B9 | Duplicate-edit sentence, platform Trash wording, "Replace N existing members", "…or choose ZIP.", late-cancel toast, escaped session paths | `ArchiveCreationWorkflowTests` (suffix), `ArchiveMemberNativeUiTests` (replace label) |
+| B8 | "Apply edit to the current archive", "Add to this archive", "Pack into archive…", generic F4 hint | — |
+
+A11 needs no separate state: the write revision is computed while the listing is built, so a listing is either still
+loading or complete with its revision; "Refresh this archive…" appears only when writing became available after the
+listing was built, and a refresh is exactly the remedy.
+
+Still open: A4 (pre-queue reviews run in a modal overlay, so the operation center is not reachable during that scan), the
+remaining A16 dialogs ("Archive edit kept" offers only Save copy), the post-commit read-back title (B8), and every C item.
+
 ## A. Missing or partial behavior
 
 | # | Plan | Current behavior | Test |

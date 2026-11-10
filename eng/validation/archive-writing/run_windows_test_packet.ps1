@@ -14,7 +14,10 @@ param(
     [Parameter(Mandatory)][string]$Projects,
     [string]$User = 'Admin',
     [string]$Dotnet = 'C:\FileCatValidation\dotnet\dotnet.exe',
-    [int]$TimeoutMinutes = 240
+    [int]$TimeoutMinutes = 240,
+    # Optional 'NAME=value;NAME2=value' test environment; {run} expands to the run folder (for published assets).
+    [ValidatePattern('^([A-Z][A-Z0-9_]{0,63}=[^;"]*)?(;[A-Z][A-Z0-9_]{0,63}=[^;"]*)*$')][string]$Env = ''
+
 )
 $ErrorActionPreference = 'Stop'
 $root = 'C:\FileCatValidation\aw-claude'
@@ -33,12 +36,12 @@ try {
     if ((Get-FileHash -LiteralPath $Packet -Algorithm SHA256).Hash -ne $Sha256.ToUpperInvariant()) { throw 'Packet hash mismatch.' }
     if (-not (Test-Path -LiteralPath $Dotnet -PathType Leaf)) { throw "SDK missing: $Dotnet" }
     New-Item -ItemType Directory -Path $run, (Join-Path $run 'results') | Out-Null
-    @{ RunId = $RunId; Packet = $Packet; Sha256 = $Sha256.ToLowerInvariant(); Filter = $Filter; Projects = $Projects; User = $User;
+    @{ RunId = $RunId; Packet = $Packet; Sha256 = $Sha256.ToLowerInvariant(); Filter = $Filter; Projects = $Projects; User = $User; Env = $Env;
        Started = (Get-Date).ToUniversalTime().ToString('o');
        Os = (Get-CimInstance Win32_OperatingSystem | Select-Object -ExpandProperty Caption) + ' ' + [Environment]::OSVersion.Version;
        Sdk = (& $Dotnet --version) } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $run 'machine.json')
     $child = @'
-param([string]$Run, [string]$Packet, [string]$Filter, [string]$Projects, [string]$Dotnet)
+param([string]$Run, [string]$Packet, [string]$Filter, [string]$Projects, [string]$Dotnet, [string]$Env)
 $ErrorActionPreference = 'Stop'
 try {
     Add-Type -Namespace FcToken -Name Native -MemberDefinition @"
@@ -60,17 +63,35 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Packet extraction failed.' }
     $env:DOTNET_ROOT = Split-Path $Dotnet; $env:PATH = $env:DOTNET_ROOT + ';' + $env:PATH
     $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'; $env:MSBUILDDISABLENODEREUSE = '1'; $env:DOTNET_NOLOGO = '1'
+    foreach ($pair in @($Env -split ';' | Where-Object { $_ })) {
+        $key, $value = $pair -split '=', 2
+        [Environment]::SetEnvironmentVariable($key, $value.Replace('{run}', $Run), 'Process')
+    }
     $exits = @{}
-    foreach ($project in $Projects.Split(',')) {
+    # Windows PowerShell 5.1 turns a native command's stderr line into an ErrorRecord; under Stop that would end the run at
+    # the first failing test's output. Native outcomes are judged by exit codes and TRX files instead.
+    $ErrorActionPreference = 'Continue'
+    foreach ($entry in $Projects.Split(',')) {
+        # build: only builds; publish: makes a self-contained win-x64 bundle in {run}\publish\NAME; otherwise build and test.
+        $mode = 'test'; $project = $entry
+        if ($entry.StartsWith('build:')) { $mode = 'build'; $project = $entry.Substring(6) }
+        elseif ($entry.StartsWith('publish:')) { $mode = 'publish'; $project = $entry.Substring(8) }
         $path = Join-Path $src $project; $name = [IO.Path]::GetFileNameWithoutExtension($project)
+        if ($mode -eq 'publish') {
+            & $Dotnet publish $path -c Release -r win-x64 --self-contained true -o (Join-Path $Run "publish\$name") --disable-build-servers -p:NuGetAudit=false -m:4 -v:minimal *> (Join-Path $Run "publish-$name.log")
+            if ($LASTEXITCODE -ne 0) { throw "Publish failed: $name" }
+            continue
+        }
         & $Dotnet build $path -c Release --disable-build-servers -p:NuGetAudit=false -m:4 -v:minimal *> (Join-Path $Run "build-$name.log")
         if ($LASTEXITCODE -ne 0) { throw "Build failed: $name" }
+        if ($mode -eq 'build') { continue }
         $arguments = @('test', $path, '-c', 'Release', '--no-build', '--no-restore', '--disable-build-servers', '-p:NuGetAudit=false',
             '--logger', "trx;LogFileName=$name.trx", '--results-directory', (Join-Path $Run 'results'), '--blame-hang-timeout', '20m')
         if ($Filter -ne '*') { $arguments += @('--filter', $Filter) }
         & $Dotnet @arguments *> (Join-Path $Run "test-$name.log")
         $exits[$name] = $LASTEXITCODE
     }
+    $ErrorActionPreference = 'Stop'
     $suites = @{}; $failed = @(); $ok = $true
     foreach ($trx in Get-ChildItem (Join-Path $Run 'results') -Filter '*.trx') {
         [xml]$x = Get-Content -LiteralPath $trx.FullName -Raw
@@ -92,7 +113,7 @@ try {
 }
 '@
     [IO.File]::WriteAllText((Join-Path $run 'child.ps1'), $child)
-    $launcher = "@echo off`r`nC:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$run\child.ps1`" -Run `"$run`" -Packet `"$Packet`" -Filter `"$Filter`" -Projects `"$Projects`" -Dotnet `"$Dotnet`" > `"$run\child.out`" 2>&1`r`n"
+    $launcher = "@echo off`r`nC:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$run\child.ps1`" -Run `"$run`" -Packet `"$Packet`" -Filter `"$Filter`" -Projects `"$Projects`" -Dotnet `"$Dotnet`" -Env `"$Env`" > `"$run\child.out`" 2>&1`r`n"
     [IO.File]::WriteAllText((Join-Path $run 'child.cmd'), $launcher)
     & schtasks.exe /create /tn $task /tr "`"$run\child.cmd`"" /sc once /st 23:59 /ru $User /it /rl LIMITED /f *> (Join-Path $run 'task.log')
     if ($LASTEXITCODE -ne 0) { throw 'Could not create the interactive limited task.' }
@@ -117,7 +138,7 @@ try {
 } finally {
     & schtasks.exe /delete /tn $task /f *> $null
     if (Test-Path -LiteralPath $run) {
-        $items = Get-ChildItem -LiteralPath $run -Force | Where-Object { $_.Name -ne 'src' }
+        $items = Get-ChildItem -LiteralPath $run -Force | Where-Object { $_.Name -notin @('src', 'publish') }
         Compress-Archive -Path $items.FullName -DestinationPath $evidence -Force
     }
 }

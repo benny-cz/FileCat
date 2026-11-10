@@ -9,6 +9,24 @@ namespace FileCat.Core.Tests;
 
 public sealed class ArchiveProviderWritingTests
 {
+    [Fact]
+    public void Read_only_archives_explain_the_specific_reason_without_reading_the_archive()
+    {
+        using var temp = new TempDir();
+        var provider = new ArchiveProvider(Path.Combine(temp.Path, "scratch"), new ProviderRegistry());
+        string tar = Path.Combine(temp.Path, "never-created.tar");
+        // Not qualified here: the writer and safe-save support are named, and extraction is offered.
+        string unqualified = provider.ExplainUnavailable(ArchiveProvider.ForFile(tar), LocationCapabilities.CreateDirectory);
+        Assert.StartsWith("Writing this archive format is not available here yet", unqualified);
+        Assert.EndsWith("Copy (extract) members with F5 to work with them in a folder.", unqualified);
+        // A backend's own reason is shown as given.
+        provider.MutationAvailability = _ => new ArchiveJobAvailability(false, "This volume does not support safe saving.");
+        Assert.StartsWith("This volume does not support safe saving.", provider.ExplainUnavailable(ArchiveProvider.ForFile(tar), LocationCapabilities.Delete));
+        // A format FileCat does not write.
+        Assert.StartsWith("FileCat cannot write this archive format.",
+            provider.ExplainUnavailable(ArchiveProvider.ForFile(Path.Combine(temp.Path, "image.iso")), LocationCapabilities.TransferTarget));
+    }
+
     [Theory, InlineData(false), InlineData(true)]
     public async Task Writable_listing_revisions_cover_folders_and_exact_duplicates_without_changing_default_capabilities(bool writable)
     {

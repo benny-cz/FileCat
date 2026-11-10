@@ -113,7 +113,7 @@ public sealed class ArchiveMemberNativeUiTests
                 await Wait(() => f.Button("Skip") is not null || job.State.IsFinished());
                 Assert.True(f.Button("Skip") is not null, "Conflict review was not shown: " + job.State + ": " + job.Summary + " " + JobIssue.Summarize(job.Issues) + " UI: " + f.Text());
                 Assert.True(f.Button("Skip")!.IsDefault);
-                f.Click(approved ? "Replace reviewed unique names" : "Skip");
+                f.Click(approved ? "Replace 1 existing member" : "Skip");
                 await decision;
             }
             await Finished(job); profile = job.Request.Archive!.Profile!; current = await ReadBack(); await RefreshTarget();

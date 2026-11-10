@@ -21,8 +21,11 @@ internal static class ArchiveEditEvidence
     internal static ArchiveManifestMember UniqueMember(ArchiveTargetReview target, string rawPath)
     {
         var matches = target.Assessment.Manifest.Members.Where(member => member.Name == rawPath).Take(2).ToArray();
-        if (matches.Length != 1 || matches[0].Type != ArchiveMemberType.File || matches[0].Occurrence != 0)
-            throw new IOException("Direct editing needs a unique regular archive member. Extract the selected copy with F5 instead.");
+        if (matches.Length == 0) throw new IOException("The archive no longer contains this member.");
+        if (matches.Length > 1 || matches[0].Occurrence != 0)
+            throw new IOException("Several members have this name. Extract the selected copy to edit it; direct commit is unavailable for duplicate names.");
+        if (matches[0].Type != ArchiveMemberType.File)
+            throw new IOException("Direct editing needs a regular archive member. Extract the selected copy with F5 instead.");
         if (matches[0].Length > EditSessionStore.MaxMemberBytes)
             throw new IOException("Files over 1 GiB are not edited through sessions; extract this member with F5 instead.");
         return matches[0];

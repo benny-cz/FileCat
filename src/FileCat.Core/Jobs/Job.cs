@@ -81,6 +81,17 @@ public sealed partial class Job
     /// <summary>Raised (on any thread) when state, decision, or issues change. Progress is polled.</summary>
     public event Action<Job>? Changed;
 
+    private int _archivePhase = -1, _cancellationDeferred;
+    /// <summary>The current step of an archive write (plan §11.5), polled like progress; null outside one.</summary>
+    public ArchiveJobPhase? ArchivePhase { get { int value = Volatile.Read(ref _archivePhase); return value < 0 ? null : (ArchiveJobPhase)value; } }
+    /// <summary>
+    /// True during an archive's short publication boundary. The interface then offers no Cancel ("Finishing this archive
+    /// update safely."); a cancellation that still arrives (for example at exit) is reported with the actual outcome.
+    /// </summary>
+    public bool CancellationDeferred => Volatile.Read(ref _cancellationDeferred) != 0;
+    internal void SetArchivePhase(ArchiveJobPhase? phase) => Volatile.Write(ref _archivePhase, phase is { } value ? (int)value : -1);
+    internal void DeferCancellation(bool deferred) => Volatile.Write(ref _cancellationDeferred, deferred ? 1 : 0);
+
     public JobState State => _state;
     public string? CurrentItem => _currentItem;
     public long BytesTotal => Interlocked.Read(ref _bytesTotal);

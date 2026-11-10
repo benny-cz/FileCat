@@ -50,8 +50,20 @@ internal sealed record ArchiveSpaceReview
     }
     internal void RequireAvailable()
     {
-        if (Capacity is { } capacity && capacity.AvailableBytes < Estimate.AdditionalBytes)
-            throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The archive destination has insufficient available space for the full stage, evidence, known snapshots and 64 MiB safety margin.");
+        if (Capacity is not { } capacity || capacity.AvailableBytes >= Estimate.AdditionalBytes) return;
+        // Plan §11.7: both amounts and the next step; the estimate (stage, evidence, snapshots, 64 MiB margin) is an upper bound.
+        string text = $"Saving this archive needs up to {Amount(Estimate.AdditionalBytes)} of additional space. About {Amount(capacity.AvailableBytes)} is available. " +
+            "Choose another destination or free space first.";
+        var error = new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, text);
+        error.Data[ArchiveWriteMessages.UserMessageKey] = text;
+        throw error;
+    }
+    internal static string Amount(long bytes)
+    {
+        if (bytes < 1024) return bytes == 1 ? "1 byte" : bytes.ToString("N0", System.Globalization.CultureInfo.CurrentCulture) + " bytes";
+        double value = bytes; int unit = 0; string[] units = ["bytes", "KiB", "MiB", "GiB", "TiB", "PiB"];
+        while (value >= 1024 && unit < units.Length - 1) { value /= 1024; unit++; }
+        return value.ToString(value < 10 ? "0.#" : "0", System.Globalization.CultureInfo.CurrentCulture) + " " + units[unit];
     }
 }
 

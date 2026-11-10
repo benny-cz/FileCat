@@ -313,7 +313,7 @@ public sealed partial class MainViewModel
             var sessions = await LoadEditSessionsAsync();
             if (sessions.Count == 0)
             {
-                Notify("No edits are open. F4 on a member of a ZIP archive or on a file on a server starts one.");
+                Notify("No edits are open. F4 on a file inside an archive or on a server starts one.");
                 return;
             }
             var items = new List<ChoiceItem>();
@@ -360,7 +360,7 @@ public sealed partial class MainViewModel
                 var unsupportedAnswer = await Dialogs.ShowCustomAsync("Unsupported edit session", new TextBlock
                 {
                     Text = (session.UnsupportedReason ?? "This edit session requires a different FileCat version.") +
-                        "\nWorking copy: " + session.WorkingPath + "\nWorking folder: " + directory,
+                        "\nWorking copy: " + Formatters.SafeName(session.WorkingPath) + "\nWorking folder: " + Formatters.SafeName(directory),
                     TextWrapping = TextWrapping.Wrap, MaxWidth = 640,
                 }, [new("Close", "close", IsCancel: true, IsDefault: true), new("Open working folder", "folder")]);
                 CheckSessionAction();
@@ -411,7 +411,7 @@ public sealed partial class MainViewModel
             {
                 HorizontalAlignment = HorizontalAlignment.Left,
                 TextWrapping = TextWrapping.Wrap, MaxWidth = 640, Classes = { "muted" },
-                Text = $"{Describe(state)}. Working copy: {session.WorkingPath}" +
+                Text = $"{Describe(state)}. Working copy: {Formatters.SafeName(session.WorkingPath)}" +
                        (session.LastCommitUtc is { } at ? $". Last committed {at.ToLocalTime():g}." : "."),
             });
             var buttons = new List<DialogButton> { new("Close", "close", IsCancel: true), new("Discard…", "discard", IsDanger: true), new("Save copy…", "copy") };
@@ -787,7 +787,16 @@ public sealed partial class MainViewModel
             _announcedEdits.Remove(session.Id);
             Notify($"Committed \"{session.DisplayName}\" to {session.DisplayTarget}. The edit stays open for more changes; discard it when you are done.");
         }
-        catch (OperationCanceledException) { TraceEditCommit($"ack-canceled:active={EditSessionsActive}"); }
+        catch (OperationCanceledException)
+        {
+            TraceEditCommit($"ack-canceled:active={EditSessionsActive}");
+            // Plan §12.2: the commit itself happened; say so, and that its new state was not confirmed (never silent).
+            bool committed = job.State == JobState.Completed ||
+                session.IsNativeArchive && job.State == JobState.CompletedWithIssues && job.ArchiveEditPublication is not null;
+            if (EditSessionsActive && committed)
+                Notify($"\"{session.DisplayName}\" was committed to {session.DisplayTarget}, but checking the saved result was canceled. " +
+                    "The edit stays open with its previous state; review it in Edits before making more changes.", true);
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
             TraceEditCommit($"ack-error:{ex.GetType().Name}");

@@ -33,10 +33,34 @@ public sealed partial class MainViewModel
 
     private async Task EditNativeArchiveMemberAsync(ItemRef item)
     {
+        // Plan §11.6: a duplicate name is explained up front, before any review or password, with extraction offered.
+        if (HasDuplicateName(item))
+        {
+            var answer = await Dialogs.ShowCustomAsync("Edit archive member", new Avalonia.Controls.TextBlock
+            {
+                Text = "Several members have this name. Extract the selected copy to edit it; direct commit is unavailable for duplicate names.",
+                TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxWidth = 560,
+            }, [new DialogButton("Cancel", "cancel", IsCancel: true, IsDefault: true), new DialogButton("Extract this copy…", "extract")]);
+            if (answer as string == "extract") await TransferAsync(JobKind.Copy, [item]);
+            return;
+        }
         try { await PrepareNativeArchiveEditAsync(item); }
         catch (OperationCanceledException) { }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         { if (EditSessionsActive) Notify("Cannot edit this archive member: " + Formatters.SafeName(error.Message), true); }
+    }
+
+    private bool HasDuplicateName(ItemRef item)
+    {
+        if (item.Ordinal > 0) return true;
+        if (ActiveTab?.Listing is not { } listing) return false;
+        int same = 0;
+        for (int i = 0; i < listing.VisibleCount; i++)
+        {
+            var entry = listing.GetVisible(i);
+            if (entry.Kind == item.Kind && string.Equals(entry.Name, item.Name, StringComparison.Ordinal) && ++same > 1) return true;
+        }
+        return false;
     }
 
     private async Task PrepareNativeArchiveEditAsync(ItemRef item)
@@ -100,7 +124,7 @@ public sealed partial class MainViewModel
         bool rebase = check == CommitCheck.ArchiveChanged;
         if (rebase && !await Dialogs.ConfirmAsync("The archive changed",
             $"The complete current archive was checked. \"{session.MemberPath}\" still has the same bytes and metadata. Apply this edit to the current archive?",
-            "Apply edit to current archive")) return;
+            "Apply edit to the current archive")) return;
         CheckSessionAction(); var copy = await PrepareEditCommitAsync(session);
         ArchiveJobPassword? readback = null; Job? admitted = null;
         try

@@ -33,6 +33,22 @@ public sealed partial class ArchiveProvider
         path = container.Path; profile = selected; return true;
     }
 
+    /// <summary>Why this archive cannot be changed here, specifically (plan §11.6), without reading the archive.</summary>
+    internal string ReadOnlyReason(Location location)
+    {
+        if (location.Scheme == Schemes.Archive && location.Container is { IsFileSystem: false })
+            return "Archives inside other archives are read-only.";
+        if (location.Container is { IsFileSystem: true } container && OperatingSystem.IsWindows() &&
+            (PathUtil.IsUncPath(container.Path) || container.Path.StartsWith("\\\\?\\UNC\\", StringComparison.OrdinalIgnoreCase)))
+            return "Archives on network shares are read-only: safe saving on shares is not qualified.";
+        if (!TryGetWriteTarget(location, out _, out _)) return "FileCat cannot write this archive format.";
+        var state = MutationState(location);
+        if (state.Available) return "This archive can't be changed right now.";
+        return ReferenceEquals(state, ArchiveJobAvailability.Unqualified) || state.Reason is null
+            ? "Writing this archive format is not available here yet: its worker and safe-save support are not qualified on this system."
+            : state.Reason;
+    }
+
     private ArchiveJobAvailability MutationState(Location location) =>
         TryGetWriteTarget(location, out string path, out var profile)
             ? MutationAvailability?.Invoke(new(path, null, [], Profile: profile)) ?? ArchiveJobAvailability.Unqualified

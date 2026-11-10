@@ -109,9 +109,10 @@ internal static unsafe partial class UnixArchiveNative
     internal static void RequireCreationDirectory(SafeFileHandle directory, uint user)
     {
         var facts = UnixFiles.Stat(directory);
-        if (facts is not { IsDirectory: true } || facts.Value.Owner != user || (facts.Value.Mode & 0x12 /* group/other write */) != 0)
+        if (facts is not { IsDirectory: true } || facts.Value.Owner != user || (facts.Value.Mode & 0x2 /* other write */) != 0 ||
+            (facts.Value.Mode & 0x10 /* group write */) != 0 && !UserPrivateGroupFolder(directory))
             throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
-                "Private archive creation requires a creator-owned destination without group/other namespace write access.");
+                "Archive writing needs a folder you own that no other user or shared group can change.");
         if (!Mac) return; // POSIX named/group ACL permissions are limited by the mode's group mask.
         nint acl = GetAcl(Fd(directory), 0x100);
         if (acl == 0) { if (Marshal.GetLastPInvokeError() == 2) return; throw Unavailable(); }
@@ -124,6 +125,42 @@ internal static unsafe partial class UnixArchiveNative
         }
         finally { AclFree(acl); }
     }
+    /// <summary>
+    /// Debian, Ubuntu and Fedora give each user a private primary group and a 002 umask, so folders a user creates are
+    /// group-writable by that group alone. Such a folder is as private as a 0755 one when its group is the process's own
+    /// primary group, is named after the user, lists no other member, and no extended ACL widens access. Anything else,
+    /// and every macOS folder (shared groups such as staff), keeps group write refused.
+    /// </summary>
+    private static bool UserPrivateGroupFolder(SafeFileHandle directory)
+    {
+        if (Mac) return false;
+        ArchiveUnixOuterMetadata metadata;
+        try { metadata = ArchiveUnixOuterMetadata.CaptureDirectory(directory); }
+        catch (Exception ex) when (ex is ArchiveWriteException or IOException or UnauthorizedAccessException or ArgumentException) { return false; }
+        if (metadata.AclPresent || metadata.Native.Group != GetEgid()) return false;
+        string user = Environment.UserName;
+        int length = 16 * 1024;
+        while (length <= 1 << 20)
+        {
+            byte* buffer = (byte*)NativeMemory.Alloc((nuint)length);
+            try
+            {
+                GroupEntry entry; GroupEntry* found = null;
+                int error = GetGroup(metadata.Native.Group, &entry, buffer, (nuint)length, &found);
+                if (error == 34 /* ERANGE */) { length *= 4; continue; }
+                if (error != 0 || found == null || Marshal.PtrToStringUTF8((nint)entry.Name) != user) return false;
+                for (byte** member = entry.Members; member != null && *member != null; member++)
+                    if (Marshal.PtrToStringUTF8((nint)(*member)) != user) return false;
+                return true;
+            }
+            finally { NativeMemory.Free(buffer); }
+        }
+        return false;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct GroupEntry { internal byte* Name; internal byte* Password; internal uint Gid; internal byte** Members; }
+    [LibraryImport("libc", EntryPoint = "getgrgid_r")]
+    private static partial int GetGroup(uint gid, GroupEntry* group, byte* buffer, nuint length, GroupEntry** result);
     /// <summary>A second close-on-exec descriptor of the same open file description (fcntl F_DUPFD_CLOEXEC).</summary>
     internal static SafeFileHandle Duplicate(SafeFileHandle file) => Handle(Mac && RuntimeInformation.ProcessArchitecture == Architecture.Arm64
         // fcntl is variadic: Darwin ARM64 passes the variadic argument on the stack, after eight register slots.

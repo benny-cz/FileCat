@@ -505,7 +505,10 @@ public sealed partial class JobManager
         catch (Exception ex)
         {
             AppLog.Error($"Job {job.ShortId} failed", ex);
-            job.AddIssue(new JobIssue(IssueSeverity.Error, string.Empty, ex.Message, StepOutcome.Failed));
+            // Archive refusals carry the plan's user text; the technical message stays available as details.
+            if (ex.Data[Archives.ArchiveWriteMessages.UserMessageKey] is string message && message != ex.Message)
+                job.AddIssue(new JobIssue(IssueSeverity.Error, job.Request.Archive?.ArchivePath ?? string.Empty, message, StepOutcome.Failed) { Details = ex.Message });
+            else job.AddIssue(new JobIssue(IssueSeverity.Error, string.Empty, ex.Message, StepOutcome.Failed));
             final = JobState.Failed;
         }
         finally { ReleaseArchiveOperation(job); ReleaseReadLeases(job); }

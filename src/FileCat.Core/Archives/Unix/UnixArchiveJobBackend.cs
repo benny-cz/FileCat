@@ -63,9 +63,13 @@ internal sealed class UnixArchiveJobScope : IArchiveJobNativeScope<UnixArchiveFi
         return privateDirectory.ReserveArtifact(nonce, (UnixArchiveArtifactKind)kind, maximum);
     }
 
-    public UnixArchiveFile Create(ArchiveArtifactReservation reservation) =>
-        privateDirectory is not null && reservation.ParentIdentity == privateDirectory.Identity.ToString()
-            ? privateDirectory.CreateArtifact(reservation) : target.CreateArtifact(reservation);
+    private bool createdInPrivateDirectory;
+    public UnixArchiveFile Create(ArchiveArtifactReservation reservation)
+    {
+        if (privateDirectory is null || reservation.ParentIdentity != privateDirectory.Identity.ToString()) return target.CreateArtifact(reservation);
+        createdInPrivateDirectory = true; // From here the folder holds recorded transaction objects; only exact cleanup removes them.
+        return privateDirectory.CreateArtifact(reservation);
+    }
 
     public ArchiveJobPublication Publish(JobJournal journal, ArchivePreparedContainer<UnixArchiveFile> prepared,
         IReadOnlyDictionary<int, ArchiveRetainedBinding> inputs, CancellationToken token)
@@ -108,7 +112,15 @@ internal sealed class UnixArchiveJobScope : IArchiveJobNativeScope<UnixArchiveFi
         finally
         {
             try { original?.Dispose(); }
-            finally { try { privateDirectory?.Dispose(); } finally { target.Dispose(); } }
+            finally
+            {
+                // A refusal before the first object (for example insufficient space) leaves the new folder empty and
+                // unrecorded: remove it rather than leave a hidden folder beside the archive. rmdir refuses anything else.
+                if (privateDirectory is not null && !createdInPrivateDirectory && update is null)
+                    try { privateDirectory.RemoveEmptyPrivateStageDirectory(CancellationToken.None); }
+                    catch (Exception error) when (error is ArchiveWriteException or IOException or UnauthorizedAccessException or ObjectDisposedException) { }
+                try { privateDirectory?.Dispose(); } finally { target.Dispose(); }
+            }
         }
     }
 }

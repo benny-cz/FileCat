@@ -262,6 +262,9 @@ public sealed partial class MainViewModel
         var formats = ArchiveCreationFormat.All.Where(format => format.DefaultProfile is not { } profile ||
             Services.Jobs.ArchiveAvailability(new(suggestion, null, [], Profile: profile)).Available).ToArray();
         using var dialog = new ArchiveCreationDialog(suggestion, selected.Value.Summary, formats, Services.Jobs.ArchiveAvailability);
+        using var estimateStop = CancellationTokenSource.CreateLinkedTokenSource(Services.Io.StoppingToken);
+        _ = ShowPackEstimateAsync(dialog, items, targetFolder, estimateStop.Token);
+        using var stopEstimate = new CancelOnDispose(estimateStop); // Disposed first: stops the count when the dialog ends.
         while (!Services.Io.IsStopped)
         {
             // A refused destination keeps the form and password draft. Each overlay owns a fresh wrapper;
@@ -303,7 +306,7 @@ public sealed partial class MainViewModel
                         existingPassword = dialog.CopyPassword();
                         var reviewed = await ReviewArchiveTargetAsync(choice.Path, existingChoice.Profile!, existingPassword);
                         if (reviewed is null || Services.Io.IsStopped) return;
-                        if (!await Dialogs.ConfirmAsync("Add to existing archive",
+                        if (!await Dialogs.ConfirmAsync("Add to this archive",
                             $"Add {selected.Value.Summary} to {Path.GetFileName(choice.Path)}? The complete archive is rebuilt and verified before saving. Existing names are reviewed in the job.", "Add")) return;
                         if (Services.Io.IsStopped) return;
                         if (reviewed.Profile.Encryption.Mode == ArchiveEncryptionMode.None) { existingPassword?.Dispose(); existingPassword = null; }
@@ -325,6 +328,11 @@ public sealed partial class MainViewModel
                     }
                     finally { existingPassword?.Dispose(); }
                 }
+                // Plan §11.2 step 5: an existing ZIP is changed only after an explicit "Add to this archive", never silently.
+                if (!await Dialogs.ConfirmAsync("Add to this archive",
+                    $"{Path.GetFileName(choice.Path)} already exists. Add {selected.Value.Summary} to it? Choose Cancel to pick another filename; the existing archive is kept.",
+                    "Add")) continue;
+                if (Services.Io.IsStopped) return;
                 await AddToArchiveTransferAsync(JobKind.Copy, items, ZipProvider.ForFile(choice.Path), new TransferOptions(),
                     null, QueueMode.Start, origin, originLocation);
                 return;
@@ -395,4 +403,38 @@ public sealed partial class MainViewModel
         if (ActiveTab is { } tab) Track(job, tab);
         Notify("Testing… the result shows here when it is done (details: Ctrl+J).");
     }
+
+    /// <summary>Plan §11.2 step 7: show a newly created archive in the active panel, after checking it is still there.</summary>
+    internal async Task OpenCreatedArchiveAsync(Job job)
+    {
+        if (job.Request.Archive is not { } plan || ActiveTab is not { } tab) return;
+        string path = plan.ArchivePath;
+        bool exists;
+        try { exists = await Services.Io.Run(PathUtil.GetDeviceKey(path), Core.Threading.IoPriority.Normal, _ => File.Exists(path)); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or OperationCanceledException) { exists = false; }
+        if (!exists) { Notify("The archive is no longer at " + Formatters.SafeName(path) + ".", true); return; }
+        bool native = Services.Archives.IsContainer(Path.GetFileName(path));
+        tab.Navigate(native ? FileCat.Archives.ArchiveProvider.ForFile(path) : ZipProvider.ForFile(path));
+    }
+
+    /// <summary>
+    /// Plan §11.2 step 6: count what will be packed and compare an upper bound of the space needed with what the drive has,
+    /// off the UI thread and without following links. Bounded; an incomplete count or unknown capacity is said so.
+    /// </summary>
+    private async Task ShowPackEstimateAsync(ArchiveCreationDialog dialog, IReadOnlyList<ItemRef> items, string folder, CancellationToken ct)
+    {
+        try
+        {
+            string text = await Services.Io.Run(PathUtil.GetDeviceKey(items[0].FileSystemPath!), Core.Threading.IoPriority.Background, token =>
+            {
+                using var both = CancellationTokenSource.CreateLinkedTokenSource(ct, token);
+                return PackEstimate.Measure(items.Select(item => (item.FileSystemPath!, item.IsContainer)).ToArray(), folder, both.Token);
+            }, ct);
+            if (!ct.IsCancellationRequested) dialog.ShowEstimate(text);
+        }
+        catch (Exception error) when (error is OperationCanceledException or IOException or UnauthorizedAccessException)
+        { if (!ct.IsCancellationRequested) dialog.ShowEstimate("The size of the selection could not be checked."); }
+    }
+
+    private readonly struct CancelOnDispose(CancellationTokenSource source) : IDisposable { public void Dispose() => source.Cancel(); }
 }

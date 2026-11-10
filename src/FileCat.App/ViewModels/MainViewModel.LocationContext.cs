@@ -47,7 +47,7 @@ public sealed partial class MainViewModel
                     await PasteAsync(tab);
                     break;
                 case CommandIds.MakeDirectory:
-                    if (location.Scheme is not (Schemes.FileSystem or Schemes.Zip or Schemes.Sftp or Schemes.Mtp) ||
+                    if (location.Scheme is not (Schemes.FileSystem or Schemes.Zip or Schemes.Archive or Schemes.Sftp or Schemes.Mtp) ||
                         (caps & LocationCapabilities.CreateDirectory) == 0)
                     {
                         Notify(provider.ExplainUnavailable(location, LocationCapabilities.CreateDirectory), true);

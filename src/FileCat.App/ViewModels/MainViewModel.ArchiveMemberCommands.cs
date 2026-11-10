@@ -147,6 +147,17 @@ public sealed partial class MainViewModel
 
     private sealed record NativeMemberScopes(ArchiveMemberCommandScope[] Values);
 
+    /// <summary>The nearest row after (then before) the focus whose name is not among the removed names.</summary>
+    private static string? SurvivingNeighbor(TabViewModel? tab, IReadOnlySet<string> removed)
+    {
+        if (tab is null) return null;
+        var listing = tab.Listing; int count = listing.VisibleCount, at = listing.FocusedIndex;
+        if (at < 0) return null;
+        for (int i = at + 1; i < count; i++) if (listing.GetVisible(i).Name is var name && !removed.Contains(name)) return name;
+        for (int i = at - 1; i >= 0; i--) if (listing.GetVisible(i).Name is var name && !removed.Contains(name)) return name;
+        return null;
+    }
+
     private async Task DeleteNativeArchiveMembersAsync(Location folder, IReadOnlyList<ItemRef> items)
     {
         if (items.Count == 0) return;
@@ -180,10 +191,13 @@ public sealed partial class MainViewModel
             long total = scopes.Values.Sum(scope => (long)scope.PhysicalEntries);
             string samples = ArchiveJobReviewText.Samples(scopes.Values.Take(8).Select(NativeScopeText));
             if (!await Dialogs.ConfirmAsync("Remove from archive", $"Remove {total:N0} stored entries from {System.IO.Path.GetFileName(command.Target.Path)}? " +
-                "Selected folders include all their descendants and stored directory records. Removed members do not go to the Recycle Bin. " +
+                "Selected folders include all their descendants and stored directory records. Removed members do not go to " + RecycleText.Destination + ". " +
                 "The whole archive will be rebuilt and checked.\n" + samples, "Remove", danger: true)) return;
             var reviewed = await ReviewNativeMemberChangesAsync(command, scopes.Values.Select(scope => scope.Change(ArchiveChangeKind.Delete)).ToArray());
-            if (reviewed?.Plan is { } plan) SubmitNativeArchiveCommand(command, plan, $"Remove {total:N0} entries from “{System.IO.Path.GetFileName(command.Target.Path)}”", origin, folder);
+            // Plan §11.4: focus the nearest surviving row, never another copy that shares a removed name.
+            string? neighbor = SurvivingNeighbor(origin, frozen.Select(item => item.Name).ToHashSet(StringComparer.Ordinal));
+            if (reviewed?.Plan is { } plan) SubmitNativeArchiveCommand(command, plan, $"Remove {total:N0} entries from “{System.IO.Path.GetFileName(command.Target.Path)}”",
+                origin, folder, focus: neighbor);
         }
         catch (Exception error) when (error is IOException or ArgumentException or NotSupportedException)
         { if (!Services.Io.IsStopped) Notify("Cannot remove these archive members: " + Formatters.SafeName(error.Message), true); }
