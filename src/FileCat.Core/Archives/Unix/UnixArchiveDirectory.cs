@@ -31,7 +31,52 @@ internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestin
         }
         catch { directory.Dispose(); throw; }
     }
+    private UnixArchiveDirectory(string path, SafeFileHandle pinned, uint owner)
+    {
+        user = owner; DisplayPath = path; directory = pinned;
+        try
+        {
+            Identity = UnixFiles.Stat(directory)?.Identity ?? throw UnixArchiveNative.Unavailable();
+            Volume = UnixArchiveVolume.Observe(directory);
+            VerifyNamespace();
+            UnixArchiveNative.RequireEditDirectory(directory, user);
+        }
+        catch { directory.Dispose(); throw; }
+    }
     internal static UnixArchiveDirectory Open(string path) => new(path);
+    /// <summary>
+    /// Creates a separate pinned, creator-private stage namespace on this volume. The directory and all later
+    /// artifacts are retained if a review or durability step fails; this does not grant exchange or cleanup authority.
+    /// </summary>
+    internal UnixArchiveDirectory CreatePrivateStageDirectory(Guid nonce, CancellationToken ct = default)
+    {
+        if (nonce == Guid.Empty) throw new ArgumentException("A fresh stage-directory nonce is required.", nameof(nonce));
+        lock (Gate)
+        {
+            RequireCapacity(); ct.ThrowIfCancellationRequested();
+            if (UnixArchiveNative.RequireOrdinaryIdentity() != user) throw UnixArchiveNative.Unavailable();
+            VerifyNamespace(); CheckCreationNamespace();
+            string leaf = ".filecat-archive-stage-" + nonce.ToString("N");
+            string path = Path.Combine(DisplayPath, leaf);
+            UnixArchiveDirectory? stage = null;
+            try
+            {
+                // CreateEditDirectory uses mkdirat on the pinned parent and removes inherited Mac ACL entries
+                // before any child bytes can be written. The pinned child, not a later path reopen, is adopted.
+                var pinned = UnixArchiveNative.CreateEditDirectory(directory, leaf, user, ct);
+                stage = new UnixArchiveDirectory(path, pinned, user);
+                if (stage.Volume != Volume) throw UnixArchiveNative.Unavailable();
+                UnixArchiveNative.SyncDirectory(stage.Handle);
+                UnixArchiveNative.SyncDirectory(directory);
+                return stage;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArchiveWriteException or OperationCanceledException)
+            {
+                stage?.Dispose(); // The directory name is retained for reconciliation, never unlinked here.
+                throw new UnixArchiveArtifactCreationException(path, ex);
+            }
+        }
+    }
     ArchiveSpaceReview IArchiveDestinationSpace.ReviewSpace(string expectedParentIdentity, ArchiveSpaceEstimate estimate, CancellationToken ct)
     {
         lock (Gate)

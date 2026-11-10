@@ -7,6 +7,35 @@ namespace FileCat.Core.Tests;
 public sealed partial class UnixArchiveStorageTests
 {
     [Fact]
+    public void Private_stage_directory_is_pinned_on_the_target_volume_and_retains_its_artifact()
+    {
+        Native(); using var temp = new TempDir(); string root = Canonical(temp.Path);
+        File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
+        using var target = UnixArchiveDirectory.Open(root);
+        using var stageDirectory = target.CreatePrivateStageDirectory(Guid.NewGuid(), TestContext.Current.CancellationToken);
+        Assert.NotEqual(target.Identity, stageDirectory.Identity);
+        Assert.Equal(target.Volume, stageDirectory.Volume);
+        Assert.Equal((UnixFileMode)0x1c0, File.GetUnixFileMode(stageDirectory.DisplayPath));
+        using var stage = Stage(stageDirectory);
+        stage.Write("new archive"u8);
+        var version = stage.Seal(TestContext.Current.CancellationToken);
+        Assert.Equal("new archive", File.ReadAllText(stage.DisplayPath));
+        using var reopened = UnixArchiveDirectory.Open(stageDirectory.DisplayPath);
+        Assert.Equal(stageDirectory.Identity, reopened.Identity);
+        Assert.Equal(version, stage.CaptureVersion(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void Empty_nonce_refuses_private_stage_directory_before_creating_a_name()
+    {
+        Native(); using var temp = new TempDir(); string root = Canonical(temp.Path);
+        File.SetUnixFileMode(root, (UnixFileMode)0x1c0);
+        using var target = UnixArchiveDirectory.Open(root);
+        Assert.Throws<ArgumentException>(() => target.CreatePrivateStageDirectory(Guid.Empty, TestContext.Current.CancellationToken));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(root));
+    }
+
+    [Fact]
     public void Held_stage_and_original_exchange_atomically_and_retire_the_exact_original()
     {
         Native(); using var temp = new TempDir(); string root = Canonical(temp.Path);

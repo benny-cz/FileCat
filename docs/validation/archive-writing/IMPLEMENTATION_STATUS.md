@@ -1,5 +1,40 @@
 # Archive writing implementation status
 
+**10 November: pinned private Unix stage-directory increment passes on all three test machines.**
+The unregistered `UnixArchiveDirectory.CreatePrivateStageDirectory` creates a
+fresh `0700` directory through the held target parent, checks the ordinary
+identity and same volume, clears inherited Mac ACL entries through the existing
+native helper, and syncs both parent directories. The exact final source passed
+Mac storage 253/255 and Ubuntu storage 252/255 cases, with expected platform
+skips and zero failures. The independently verified evidence transport SHA-256
+values are `3dcf322db09a50d0f52ac5606451bc94243933281accc41ed5f98c83bead0cb0`
+and `0ac60095e6aeaebe0619435636305a0d6694f695d4c2263d74d4ecd58928533d`.
+Windows rebuilt that same frozen source and passed 20/216 storage cases under
+the real standard account, with 196 expected Unix-only skips and no failures;
+its evidence transport SHA-256 is
+`f7797110e1821db85b995012c968143d0fa39ba96909d522ab44ac9c9cdfca04`.
+All raw rows, source hashes and account facts were checked. The first Mac
+runner stopped before executing tests because Bash 3.2 rejects its empty
+command array under `set -u`; the corrected runner and original failure log
+are retained. The first successful Mac/Ubuntu source was then rerun after the
+final pre-creation identity check. This is a storage prerequisite, not a
+two-parent exchange transaction, journal, cleanup or enabled update route.
+
+**10 November: full Windows platform and rendering suites pass.**
+The frozen `6222dc55` source passed 1,336/1,423 Windows platform cases and
+24/24 rendering cases under a real standard account, with 87 expected platform
+skips and zero failures. Its evidence transport SHA-256 is
+`adaa397e8fa1ec4335723b8700fe7f30093bfd1dbe0c9eb4e357290f0fa68384`.
+The raw TRX rows include actual RAR5 and 7z AppContainer create/update and
+restoration cases. The first full platform run failed 257 cases because its
+fresh worker assets lived under the administrator profile, where the standard
+account could not grant AppContainer read access. The second runner stopped
+before tests because its corrected asset variable was assigned before its
+output path. Both failed bundles are retained. The third run placed freshly
+published assets under the standard account's profile and passed both complete
+suites. These failures were test setup errors; the successful raw cases do not
+close the remaining package/RID/security/fuzz gates.
+
 **10 November: the corrected Ubuntu native exchange and codec batch passes.**
 The frozen `6222dc55` fixture source passed 271/274 selected Core cases and
 199/233 archive App cases, with 37 expected skips and zero failures. The raw
@@ -39,8 +74,11 @@ cases, with 194 expected Unix-only skips and zero failures; both new metadata
 guard cases were present and skipped by their platform guards. Its verified
 transport SHA-256 is
 `e58fd1ce4731e69c90b28da719e56fb06b4be327b56050f28e2ee1c1bbf6039e`.
-The matching Mac guard batch and the new Windows platform/rendering batch are
-still running; these results do not qualify a Unix update profile.
+The matching Mac guard batch subsequently passed 251/253 storage cases, with
+two expected platform skips and zero failures. Both new metadata rejection
+cases passed. Its independently checked transport SHA-256 is
+`f81b4884b416baf2cd7a6748d8de38d0ab8aa16f7840da9149fa3334659c705a`.
+These results do not qualify a Unix update profile.
 
 **10 November: current Mac and Windows RAR5/7z update matrices and Windows full regressions pass.**
 The frozen `320f43c6` Mac source passed complete Core 8,724/8,931, Remote

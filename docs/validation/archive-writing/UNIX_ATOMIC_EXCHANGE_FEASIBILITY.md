@@ -45,13 +45,33 @@ name remains vulnerable to an equivalent-user substitution between review and
 the native call, because neither syscall is conditional on its expected inode.
 That adversarial publication gate remains open.
 
-The existing `UnixArchiveFile` also binds each held child to one immutable
-parent and uses that parent's lock for all observation and disposal. A
-cross-directory swap changes both children's parent namespace. Simply swapping
-their parent references after the syscall would let concurrent callers enter
-the wrong lock. The implementation therefore needs a pair-owned lease or an
-equivalent stable synchronization/ownership design before using this syscall
-from product code. The Python probe does not exercise that C# lease lifecycle.
+The existing `UnixArchiveFile` binds each held child to one immutable parent
+and uses that parent's lock for observation and disposal. A cross-directory
+swap changes both children's parent namespace. Simply swapping their parent
+references after the syscall would let concurrent callers enter the wrong
+lock. One design is a pair-owned lease. Another is a terminal exchange receipt:
+keep each original parent as its handle owner, prohibit normal child operations
+after the native call, and reconcile both names and held objects under both
+parent locks before reopening either binding through recovery. The latter
+avoids rebinding a live child's lock, but still needs deterministic pair-lock
+ordering and a durable journal. Neither design has been implemented or
+qualified by the Python probe.
+
+The next unregistered native-storage increment creates a pinned `0700`
+private stage directory below the reviewed target parent through `mkdirat`.
+It reuses the edit-directory ACL clearing and identity checks, requires the
+same ordinary Unix identity before creation, verifies the newly opened
+directory on the target volume, and syncs both the new and target directories.
+It retains the directory on failure. This creates the private namespace needed
+for a cross-directory candidate, but does not apply the original file's full
+outer metadata or authorize a swap, cleanup or update profile.
+The final frozen source passed the full Unix storage subset on Mac (253/255)
+and Ubuntu (252/255), with expected platform skips, and rebuilt/passed its
+Windows platform guard under a real standard account (20/216, 196 Unix-only
+skips). The independently checked transport SHA-256 values are
+`3dcf322db09a50d0f52ac5606451bc94243933281accc41ed5f98c83bead0cb0`,
+`0ac60095e6aeaebe0619435636305a0d6694f695d4c2263d74d4ecd58928533d`
+and `f7797110e1821db85b995012c968143d0fa39ba96909d522ab44ac9c9cdfca04`.
 
 The Mac's installed SDK defines `RENAME_SWAP` as `0x00000002`; its installed
 `renameatx_np(2)` manual says the source and target are atomically swapped on
