@@ -17,6 +17,19 @@ public sealed class ArchiveTarBzip2PipelineTests
     { using var output = new MemoryStream(); using (var encoder = new StrictBzip2WriteStream(output, block, Ct)) encoder.Write(b); return output.ToArray(); }
     private static byte[] Decode(byte[] b)
     { using var source = new MemoryStream(b, false); using var decoder = new StrictBzip2ReadStream(source, Ct); using var output = new MemoryStream(); decoder.CopyTo(output); Assert.True(source.CanRead); return output.ToArray(); }
+
+    [Fact]
+    public void Fuzzed_move_to_front_index_is_a_controlled_invalid_archive_refusal()
+    {
+        // Ubuntu FZ02 bzip2-short-v6, crash artifact SHA-256 0B8498E3...; 229 bytes.
+        byte[] encoded = Convert.FromBase64String(
+            "QlpoOTFBWSZTWXUgvkAAACd/gH/v//////////////////+gAIoZMgaaZGp6ZTTRjRNMEaMmCMmAEaMBGARpowRgBPUPQBBgABNMEaMmCMmAEaMBGARpowRgBPUPQBBjAJgACYAgAAAAAAAAAAAAAAAAAAAAEAAACwEI6ePoEIaIRGKMkSj8BCYkrhT8Sjj5FKpWW9W59JgHMvYMWTPn6GnT1NVq5ewYsmbRq2buHORa1exZtW7l34+bVu5d7y731kJaaDExQVkmU1l1IL4CAAAnf4B///////////////8l1/KF/w==");
+        Assert.Equal("0B8498E331CF04004C2FBBE1DF1AA281D2B61EC82299B7179FE29AA4A37DA01F", Hash(encoded));
+        using var source = new MemoryStream(encoded, false);
+        Assert.Equal(ArchiveWriteReason.InvalidArchive,
+            Assert.Throws<ArchiveWriteException>(() => new StrictBzip2ReadStream(source, Ct)).Reason);
+        Assert.True(source.CanRead);
+    }
     private static Task<ArchiveAssessment> Assess(byte[] b) => new ArchiveAssessmentClient((n, _) => Child.Start(n))
         .AssessAsync(new(Profile, b.Length, Hash(b)), () => new MemoryStream(b, false), Ct);
     private static ArchiveTransformInput Input(byte[] b) => new(7, b.Length, Hash(b), new ArchiveTimestamp(1700000000, 123456789), 0x1ed);

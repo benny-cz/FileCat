@@ -33,7 +33,10 @@ internal sealed class StrictBzip2ReadStream : Stream
             BlockSize = (byte)(header[3] - '0'); // Validate before the codec allocates its block-dependent arrays.
             decoder = CBZip2InputStream.Create(encoded, decompressConcatenated: false, leaveOpen: true, tolerateTruncatedStream: false);
         }
-        catch (SharpCompressException ex) { encoded.Dispose(); throw Invalid(ex); }
+        // The vendored decoder indexes move-to-front tables from encoded symbols.
+        // A damaged symbol can escape its own validation as an array bounds error.
+        catch (Exception ex) when (ex is SharpCompressException or IndexOutOfRangeException)
+        { encoded.Dispose(); throw Invalid(ex); }
         catch { encoded.Dispose(); throw; }
     }
     public override int Read(byte[] b, int o, int c) => Read(b.AsSpan(o, c));
@@ -44,7 +47,8 @@ internal sealed class StrictBzip2ReadStream : Stream
         try
         {
             int n;
-            try { n = decoder.Read(buffer); } catch (SharpCompressException ex) { throw Invalid(ex); }
+            try { n = decoder.Read(buffer); }
+            catch (Exception ex) when (ex is SharpCompressException or IndexOutOfRangeException) { throw Invalid(ex); }
             if (n > ArchiveWritePolicy.MaxPhysicalBytes - produced) throw Limit();
             produced += n;
             if (produced > 64L << 20 && produced > physicalLength * 1000) throw Limit();
