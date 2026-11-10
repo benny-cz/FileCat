@@ -1,5 +1,47 @@
 # Archive writing implementation status
 
+**10 November: the corrected Ubuntu native exchange and codec batch passes.**
+The frozen `6222dc55` fixture source passed 271/274 selected Core cases and
+199/233 archive App cases, with 37 expected skips and zero failures. The raw
+Core rows include all six Unix exchange cases and all 39 RAR5/7z update-stage
+method/password cases. The independently inspected evidence transport SHA-256
+is `10817d187830549a5d385ac28706ee15180ff0fa023e68caffd2f42af402179b`;
+its source-file hashes match the frozen guard and fixture overlays. The prior
+`34d98b51` Ubuntu run failed four exchange tests because the test's temporary
+parent permitted group/other namespace writes; the production primitive
+correctly refused that parent. The failed transport is retained. Commit
+`6222dc55` makes each exchange fixture parent private, and the fresh rerun
+passes. This is focused native evidence, not full Ubuntu regression or
+qualification of a production update route. The three wrapper fuzz campaigns
+remain active. On Windows, the full strengthened-source App suite and queued
+Unix metadata guard still precede a newly queued full Windows platform and
+rendering batch. That batch uses the latest fixture source, fresh published
+native assets, a real standard account, and six-way builds; it has no result
+yet.
+
+**10 November: strengthened-source full regressions pass on Mac and Windows.**
+Mac's frozen `eaf621f1` source passed complete Core 8,767/8,974, Remote
+2,638/2,669 and App 2,770/2,963 suites, with 431 expected skips and zero
+failures. The independently verified evidence transport SHA-256 is
+`7538442b64bf0d422f3c14980a34ac38b0237b826a5e23f96fdff4be1521b2e9`;
+the verifier checked the source packet and overlay, all raw test rows, four
+exchange cases, image detach and process cleanup. A first Mac runner attempt
+stopped at setup because the Remote restore assets were absent; the successful
+fresh runner performed restore. The verifier's first Windows-host invocation
+also needed a test-only POSIX-path correction before accepting the same sealed
+transport. Windows passed complete Core 8,162/8,940, Remote 2,405/2,669 and
+App 2,879/2,963 suites under the real standard account, with 1,126 expected
+skips and zero failures. Its independently checked evidence transport SHA-256
+is `d70e5e46006aaeb4caabbc2ad9592ba99d402f2056dae93000de82050b20d801`.
+The raw rows, source hashes, account/profile and native F6 cases were checked.
+The subsequent frozen `34d98b51` Windows Unix storage run passed 20/214
+cases, with 194 expected Unix-only skips and zero failures; both new metadata
+guard cases were present and skipped by their platform guards. Its verified
+transport SHA-256 is
+`e58fd1ce4731e69c90b28da719e56fb06b4be327b56050f28e2ee1c1bbf6039e`.
+The matching Mac guard batch and the new Windows platform/rendering batch are
+still running; these results do not qualify a Unix update profile.
+
 **10 November: current Mac and Windows RAR5/7z update matrices and Windows full regressions pass.**
 The frozen `320f43c6` Mac source passed complete Core 8,724/8,931, Remote
 2,638/2,669 and App 2,770/2,963 suites, with 431 expected skips in total and

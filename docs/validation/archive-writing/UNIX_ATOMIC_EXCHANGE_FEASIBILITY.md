@@ -45,6 +45,14 @@ name remains vulnerable to an equivalent-user substitution between review and
 the native call, because neither syscall is conditional on its expected inode.
 That adversarial publication gate remains open.
 
+The existing `UnixArchiveFile` also binds each held child to one immutable
+parent and uses that parent's lock for all observation and disposal. A
+cross-directory swap changes both children's parent namespace. Simply swapping
+their parent references after the syscall would let concurrent callers enter
+the wrong lock. The implementation therefore needs a pair-owned lease or an
+equivalent stable synchronization/ownership design before using this syscall
+from product code. The Python probe does not exercise that C# lease lifecycle.
+
 The Mac's installed SDK defines `RENAME_SWAP` as `0x00000002`; its installed
 `renameatx_np(2)` manual says the source and target are atomically swapped on
 filesystems that support the operation. Both live guest calls succeeded on
@@ -98,3 +106,14 @@ qualification is claimed from the Mac and Windows results alone.
 The Windows native update uses a different transactional-data recipe. This
 Unix primitive does not enable an update profile or relax the separate recovery,
 metadata, crash, confinement and all-platform acceptance requirements.
+
+The frozen `34d98b51` metadata-guard source initially produced four Ubuntu
+exchange failures because the test fixture's temporary parent was writable by
+group/other. The primitive correctly rejected that parent before the intended
+case assertion. Commit `6222dc55` confines each fixture parent to mode `0700`.
+A fresh Ubuntu native batch then passed 271/274 selected Core cases and 199/233
+archive App cases, with expected skips and no failures. All six exchange cases
+and all 39 RAR5/7z method/password update-stage cases passed. The evidence
+transport SHA-256 is
+`10817d187830549a5d385ac28706ee15180ff0fa023e68caffd2f42af402179b`.
+This still does not prove a durable two-parent update transaction.
