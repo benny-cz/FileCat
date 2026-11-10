@@ -43,8 +43,9 @@ internal static class ArchiveNativeMoveSources
                 else job.RootFailed(i);
             }
             int kept = checked(selection.Members.Count - removed.Count + selection.ExcludedCount);
-            job.SetSummary(kept == 0 ? $"Archive saved; moved {files:N0} original files and {directories:N0} folders."
-                : $"Archive saved; removed {files:N0} original files and {directories:N0} folders; {kept:N0} source items were not confirmed removed" +
+            job.SetSummary(kept == 0 ? $"Archive saved; moved {Count(files, "original file")} and {Count(directories, "folder")}."
+                : $"Archive saved; removed {Count(files, "original file")} and {Count(directories, "folder")}; {Count(kept, "source item")} " +
+                    (kept == 1 ? "was" : "were") + " not confirmed removed" +
                     (job.IsCancellationRequested ? "; move canceled." : "."));
         }
 
@@ -65,10 +66,15 @@ internal static class ArchiveNativeMoveSources
                 BlockParents(node); job.ItemSkipped(); settled++;
                 Warn(path, "The source folder contains an excluded item or a child not confirmed moved."); return;
             }
-            int step = journal.Intent("archive-native-move-delete", path, request.ArchivePath);
+            // Where the platform renames a file aside before removing it, that exact name is journaled first, so an
+            // interrupted move's report says where the original is (plan §11.6.1: never lose an original).
+            string? aside = member.Type == ArchiveMemberType.File && selection.RemovesThroughAsideName
+                ? ".filecat-move-" + Guid.NewGuid().ToString("N") : null;
+            int step = journal.Intent("archive-native-move-delete", path, request.ArchivePath,
+                aside is null ? null : Path.Combine(Path.GetDirectoryName(path)!, aside));
             try
             {
-                selection.RemoveCaptured(member.Id, job.Token);
+                selection.RemoveCaptured(member.Id, job.Token, aside);
             }
             catch (OperationCanceledException) { journal.Done(step, StepOutcome.CanceledBeforeChange); throw; }
             catch (Exception error) when (Expected(error))
@@ -85,5 +91,6 @@ internal static class ArchiveNativeMoveSources
         void Warn(string path, string reason) => job.AddIssue(new(IssueSeverity.Warning, path,
             "Archive saved; " + reason, StepOutcome.Committed));
     }
+    private static string Count(int count, string noun) => count == 1 ? "1 " + noun : $"{count:N0} {noun}s";
     private static bool Expected(Exception error) => error is IOException or UnauthorizedAccessException or NotSupportedException or Win32Exception;
 }

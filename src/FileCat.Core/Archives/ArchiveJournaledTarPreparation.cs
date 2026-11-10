@@ -141,7 +141,8 @@ internal static class ArchiveJournaledContainerPreparation
         }
         catch
         {
-            if (facts is not null) journal.RequireRecovery();
+            // Unpublished: the original is untouched. The job may now discard this transaction's own objects exactly.
+            if (facts is not null) journal.RequirePreparationReview();
             if (stage is not null) { try { stage.StopWrites(); } finally { stage.Dispose(); } }
             foreach (var sidecar in sidecars) sidecar.Dispose();
             throw;

@@ -29,6 +29,10 @@ public sealed class JobJournal : IDisposable
     private bool _disposed;
     private bool _finished;
     private bool _manualRecovery;
+    // A failed preparation whose own recorded objects an exact discard may still remove. Unlike _manualRecovery,
+    // a completed discard of that transaction releases it; every other archive writer treats both alike.
+    private bool _preparationHold;
+    private bool Held => _manualRecovery || _preparationHold;
     private bool _archiveRecoveryOnly;
     private Action? _archiveRecoveryLeaseReview;
     private readonly ArchiveTransactionCollector _archiveTransactions = new();
@@ -41,9 +45,66 @@ public sealed class JobJournal : IDisposable
 
     public string Path { get; }
     /// <summary>A temporary rename could not be reconciled; do not append an end record that hides recovery.</summary>
-    public bool NeedsRecovery { get { lock (_lock) return _manualRecovery || _archiveTransactions.RequiresReview; } }
+    public bool NeedsRecovery { get { lock (_lock) return Held || _archiveTransactions.RequiresReview; } }
     /// <summary>Keep this journal open when an operation left a temporary item that must be reviewed after restart.</summary>
     public void RequireRecovery() { lock (_lock) _manualRecovery = true; }
+    /// <summary>A preparation failed before publication: keep the journal for review unless its exact discard completes.</summary>
+    internal void RequirePreparationReview() { lock (_lock) _preparationHold = true; }
+
+    /// <summary>
+    /// Durably record the exact discard of an unpublished transaction. Permitted after a failed preparation (the
+    /// preparation hold) but not after any other unresolved condition; a completed discard releases that hold.
+    /// </summary>
+    internal void ArchiveDiscard(ArchiveDiscardFacts facts)
+    {
+        ArgumentNullException.ThrowIfNull(facts);
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished || _manualRecovery) throw new InvalidOperationException("The discard journal requires fresh review.");
+            if (_archiveRecoveryOnly) _archiveRecoveryLeaseReview?.Invoke();
+            _archiveTransactions.ValidateNextDiscard(facts);
+            try { Write(facts.ToJson(), sync: true); } catch { RequireRecovery(); throw; }
+            _archiveTransactions.AcceptDiscard(facts);
+            if (facts.IsResolved) _preparationHold = false;
+        }
+    }
+    internal ArchiveDiscardFacts? CurrentArchiveDiscard(Guid nonce)
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished || _manualRecovery) throw new InvalidOperationException("The discard journal requires fresh review.");
+            if (_archiveRecoveryOnly) _archiveRecoveryLeaseReview?.Invoke();
+            var facts = _archiveTransactions.CurrentDiscard(nonce);
+            if (facts is not null) _archiveTransactions.RequireCurrentDiscard(facts);
+            return facts;
+        }
+    }
+    internal void RequireCurrentArchiveDiscard(ArchiveDiscardFacts facts)
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished || _manualRecovery) throw new InvalidOperationException("The discard journal requires fresh review.");
+            if (_archiveRecoveryOnly) _archiveRecoveryLeaseReview?.Invoke();
+            _archiveTransactions.RequireCurrentDiscard(facts);
+        }
+    }
+    /// <summary>The single transaction this live journal may discard: unpublished, without another recipe; else null.</summary>
+    internal ArchiveTransactionFacts? DiscardableArchiveTransaction()
+    {
+        lock (_lock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_finished || _manualRecovery) return null;
+            var snapshot = _archiveTransactions.Snapshot;
+            if (snapshot.Problem is not null || snapshot.ContentUpdates.Count != 0 || snapshot.ExchangeUpdates.Count != 0 || snapshot.CreationCleanups.Count != 0)
+                return null;
+            var open = snapshot.Transactions.Where(facts => !facts.IsResolved && !snapshot.IsDiscardResolved(facts.Nonce)).ToArray();
+            return open.Length == 1 && ArchiveDiscardFacts.IsDiscardable(open[0]) ? open[0] : null;
+        }
+    }
 
     /// <summary>
     /// Persist complete versioned archive facts before the corresponding visible mutation. An incomplete write keeps
@@ -86,7 +147,7 @@ public sealed class JobJournal : IDisposable
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_finished || _manualRecovery) throw new InvalidOperationException("The archive journal requires review or is finished.");
+            if (_finished || Held) throw new InvalidOperationException("The archive journal requires review or is finished.");
             _archiveTransactions.RequireCurrentContent(facts);
         }
     }
@@ -123,7 +184,7 @@ public sealed class JobJournal : IDisposable
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_finished || _manualRecovery) throw new InvalidOperationException("The archive journal requires review or is finished.");
+            if (_finished || Held) throw new InvalidOperationException("The archive journal requires review or is finished.");
             _archiveTransactions.RequireCurrentExchange(facts);
         }
     }
@@ -146,7 +207,7 @@ public sealed class JobJournal : IDisposable
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_finished || _manualRecovery) throw new InvalidOperationException("The creation cleanup journal requires fresh review.");
+            if (_finished || Held) throw new InvalidOperationException("The creation cleanup journal requires fresh review.");
             _archiveRecoveryLeaseReview?.Invoke(); _archiveTransactions.RequireCurrentCreationCleanup(facts);
         }
     }
@@ -156,7 +217,7 @@ public sealed class JobJournal : IDisposable
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_finished || _manualRecovery) throw new InvalidOperationException("The creation cleanup journal requires fresh review.");
+            if (_finished || Held) throw new InvalidOperationException("The creation cleanup journal requires fresh review.");
             _archiveRecoveryLeaseReview?.Invoke();
             var facts = _archiveTransactions.Snapshot.CreationCleanups.Single(facts => facts.Nonce == nonce);
             _archiveTransactions.RequireCurrentCreationCleanup(facts); return facts;
@@ -181,7 +242,7 @@ public sealed class JobJournal : IDisposable
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_finished || _manualRecovery) throw new InvalidOperationException("The archive journal requires review or is finished.");
+            if (_finished || Held) throw new InvalidOperationException("The archive journal requires review or is finished.");
             _archiveTransactions.RequireCurrentCleanup(facts);
         }
     }
@@ -202,7 +263,7 @@ public sealed class JobJournal : IDisposable
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!_archiveRecoveryOnly || _finished || _manualRecovery) throw new InvalidOperationException("No current writable archive reconciliation scope.");
+            if (!_archiveRecoveryOnly || _finished || Held) throw new InvalidOperationException("No current writable archive reconciliation scope.");
             _archiveRecoveryLeaseReview?.Invoke(); _archiveTransactions.RequireCurrentRecovery(facts);
         }
     }
@@ -213,7 +274,7 @@ public sealed class JobJournal : IDisposable
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!_archiveRecoveryOnly || _finished || _manualRecovery) throw new InvalidOperationException("Restoration requires the retained unfinished archive journal writer.");
+            if (!_archiveRecoveryOnly || _finished || Held) throw new InvalidOperationException("Restoration requires the retained unfinished archive journal writer.");
             _archiveTransactions.ValidateNextRestoration(facts);
             try { Write(facts.ToJson(), sync: true); } catch { RequireRecovery(); throw; }
             _archiveTransactions.AcceptRestoration(facts);
@@ -225,7 +286,7 @@ public sealed class JobJournal : IDisposable
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_archiveRecoveryOnly || _finished || _manualRecovery) throw new InvalidOperationException("No current live archive content writer.");
+            if (_archiveRecoveryOnly || _finished || Held) throw new InvalidOperationException("No current live archive content writer.");
             var facts = _archiveTransactions.CurrentContent(nonce); _archiveTransactions.RequireCurrentContent(facts); return facts;
         }
     }
@@ -236,7 +297,7 @@ public sealed class JobJournal : IDisposable
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_finished || _manualRecovery) throw new InvalidOperationException("The archive journal requires review or is finished.");
+            if (_finished || Held) throw new InvalidOperationException("The archive journal requires review or is finished.");
             _archiveTransactions.RequireCurrent(facts);
         }
     }
@@ -245,7 +306,7 @@ public sealed class JobJournal : IDisposable
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_finished || _manualRecovery) throw new InvalidOperationException("The archive journal requires review or is finished.");
+            if (_finished || Held) throw new InvalidOperationException("The archive journal requires review or is finished.");
             var facts = _archiveTransactions.Current(nonce); _archiveTransactions.RequireCurrent(facts); return facts;
         }
     }
@@ -264,7 +325,8 @@ public sealed class JobJournal : IDisposable
             if (claimAttempted) paths = paths.Append(facts.ArchivePath);
             var next = facts.AdvanceCreationPublication(ArchiveTransactionPhase.NeedsReview,
                 unresolved: paths.Distinct(StringComparer.Ordinal).ToArray());
-            ArchiveTransaction(next); _manualRecovery = true; return next;
+            // Before the claim nothing was published: the record lists only FileCat's own objects, so an exact discard may follow.
+            ArchiveTransaction(next); if (claimAttempted) _manualRecovery = true; else _preparationHold = true; return next;
         }
     }
 
@@ -424,7 +486,7 @@ public sealed class JobJournal : IDisposable
 
     private void Write(JsonObject record, bool sync)
     {
-        if (_archiveRecoveryOnly && record["t"]?.GetValue<string>() is not ("archive-content-recovery" or "archive-content-restoration" or "archive-creation-cleanup" or "archive-exchange-update" or "end"))
+        if (_archiveRecoveryOnly && record["t"]?.GetValue<string>() is not ("archive-content-recovery" or "archive-content-restoration" or "archive-creation-cleanup" or "archive-exchange-update" or "archive-discard" or "end"))
             throw new InvalidOperationException("This retained recovery writer only appends reconciliation and closure records.");
         var json = record.ToJsonString();
         var bytes = Encoding.UTF8.GetBytes(json);
@@ -585,7 +647,7 @@ public sealed class JobJournal : IDisposable
         lock (_lock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!_archiveRecoveryOnly || _finished || _manualRecovery) throw new InvalidOperationException("No current retained archive recovery writer.");
+            if (!_archiveRecoveryOnly || _finished || Held) throw new InvalidOperationException("No current retained archive recovery writer.");
             _archiveRecoveryLeaseReview?.Invoke(); return _archiveTransactions.Snapshot;
         }
     }

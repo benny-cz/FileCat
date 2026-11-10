@@ -8,9 +8,10 @@ namespace FileCat.App.ViewModels;
 
 public sealed partial class MainViewModel
 {
-    private async Task<ArchiveTargetReview?> ReviewArchiveTargetAsync(string path, ArchiveWriteProfile profile, ArchiveJobPassword? password, string? expectedSourceSha256 = null)
-        => await RunArchivePreparationAsync(path, "Check archive for update",
-            "Reading the complete archive and checking whether its contents and metadata can be preserved.",
+    private async Task<ArchiveTargetReview?> ReviewArchiveTargetAsync(string path, ArchiveWriteProfile profile, ArchiveJobPassword? password,
+        string? expectedSourceSha256 = null, string title = "Check archive for update",
+        string message = "Reading the complete archive and checking whether its contents and metadata can be preserved.")
+        => await RunArchivePreparationAsync(path, title, message,
             ct => Services.Jobs.ReviewArchiveUpdateAsync(path, profile, password, ct, preserveEncryption: true, expectedSourceSha256: expectedSourceSha256).GetAwaiter().GetResult());
 
     private async Task<T?> RunArchivePreparationAsync<T>(string path, string title, string message, Func<CancellationToken, T> work) where T : class
@@ -24,12 +25,18 @@ public sealed partial class MainViewModel
         {
             if (!task.IsCompleted)
             {
+                string checking = "Checking " + System.IO.Path.GetFileName(path);
+                var progress = new ProgressBar { IsIndeterminate = true, MinWidth = 240, HorizontalAlignment = HorizontalAlignment.Stretch };
+                Avalonia.Automation.AutomationProperties.SetName(progress, checking);
                 var body = new StackPanel { Spacing = 10, Children = {
-                    new TextBlock { Text = "Checking " + System.IO.Path.GetFileName(path), TextWrapping = TextWrapping.Wrap, MaxWidth = 620 },
+                    new TextBlock { Text = checking, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 },
                     new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 },
-                    new ProgressBar { IsIndeterminate = true, MinWidth = 240, HorizontalAlignment = HorizontalAlignment.Stretch },
+                    progress,
+                    new TextBlock { Text = "Operations stay available meanwhile (Ctrl+J).", TextWrapping = TextWrapping.Wrap, MaxWidth = 620, Classes = { "muted" } },
                 } };
-                dialog = Dialogs.ShowCustomAsync(title, body, [new DialogButton("Cancel", "cancel", IsCancel: true, IsDefault: true)], closer: closer);
+                // Plan §11.5: the operation center stays usable while this format scan is pending.
+                dialog = Dialogs.ShowCustomAsync(title, body, [new DialogButton("Cancel", "cancel", IsCancel: true, IsDefault: true)], closer: closer,
+                    behavior: new DialogBehavior { KeepOperationsUsable = true });
                 if (await Task.WhenAny(task, dialog) == dialog) stop.Cancel();
             }
             var result = await task; // RunOwned retains this owner through worker cancellation, exit and native close.

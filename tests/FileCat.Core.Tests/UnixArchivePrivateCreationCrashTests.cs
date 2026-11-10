@@ -100,7 +100,8 @@ public sealed partial class UnixArchiveStorageTests
         try
         {
             string? actual = await process.StandardOutput.ReadLineAsync(timeout.Token);
-            Assert.True(actual is not null && actual.StartsWith("archive-unix-creation-checkpoint:" + point, StringComparison.Ordinal),
+            string expected = point.StartsWith("discard:", StringComparison.Ordinal) ? point["discard:".Length..] : point;
+            Assert.True(actual is not null && actual.StartsWith("archive-unix-creation-checkpoint:" + expected, StringComparison.Ordinal),
                 "Missing checkpoint " + point + ": " + actual + (process.HasExited ? " stderr: " + await errors : ""));
             Assert.False(process.HasExited); process.Kill(entireProcessTree: true); await process.WaitForExitAsync(timeout.Token);
             Assert.NotEqual(0, process.ExitCode);

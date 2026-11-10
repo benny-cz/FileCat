@@ -9,17 +9,21 @@ using FileCat.Core.Jobs;
 // new-file publication and exact cleanup; only the journal stream is wrapped so the process can stop immediately before or
 // after one durable record. The test kills this process externally at that point. Production code has no crash hooks.
 //   point: before|after:T:<ArchiveTransactionPhase> | before|after:C:<ArchiveCreationCleanupPhase>[:reviewedCount] | end
+//   A "discard:" prefix makes the transform launch fail after Rebuilding and runs the scope's exact discard instead, so the
+//   point may also be before|after:D:<ArchiveDiscardPhase>[:reviewedCount].
 internal static class ArchiveUnixCreationCrash
 {
     internal static async Task<int> Run(string root, string point, string probe)
     {
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return 64;
         if (!Path.IsPathFullyQualified(root) || !Directory.Exists(root) || !Path.IsPathFullyQualified(probe) || !File.Exists(probe)) return 64;
+        bool discard = point.StartsWith("discard:", StringComparison.Ordinal); if (discard) point = point["discard:".Length..];
         var stop = Point.Parse(point); var ct = CancellationToken.None; var profile = new ArchiveWriteProfile(ArchiveWriteFormat.Tar);
         string target = Path.Combine(root, "created.tar");
         var workers = new List<ArchiveCreationCrash.Worker>();
         ArchiveCreationCrash.Worker Start(Guid nonce, string role) { var worker = ArchiveCreationCrash.Worker.Start(probe, nonce, role); lock (workers) workers.Add(worker); return worker; }
-        var transform = new ArchiveTransformClient((nonce, _) => Start(nonce, "archive-transform-v2"), protocolVersion: 2);
+        var transform = new ArchiveTransformClient((nonce, _) => discard ? throw new IOException("Injected transform launch failure.")
+            : Start(nonce, "archive-transform-v2"), protocolVersion: 2);
         var verifier = new ArchiveVerificationClient((nonce, _) => Start(nonce, "archive-verify-v2"), protocolVersion: 2);
         var request = new ArchivePlan(target, null, [new(ArchiveChangeKind.AddFile, "kept.txt", Path.Combine(root, "source.txt"))], Profile: profile);
         var job = new Job(new JobRequest { Kind = JobKind.ArchiveUpdate, Archive = request }, "owned unix creation crash", "owned", [], []);
@@ -30,6 +34,18 @@ internal static class ArchiveUnixCreationCrash
         using var selection = planning.CaptureInputs(scope.OpenInputTree, ct) ?? throw new InvalidOperationException("No captured input.");
         var review = planning.Review(null, selection, selection.Inputs, ct);
         var plan = review.CreatePlan(false, true, ct, true);
+        if (discard)
+        {
+            try
+            {
+                using var failed = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, request.ArchivePath, plan, null,
+                    selection.Inputs.Bindings, scope.Reserve, scope.Create, transform, verifier, ct);
+            }
+            catch (IOException) { scope.DiscardUnpublished(journal, ct); }
+            if (stop.Kind == "end") CheckpointStream.Wait(point);
+            Console.WriteLine("archive-unix-creation-unreached:" + point);
+            return 65;
+        }
         using var prepared = await ArchiveJournaledContainerPreparation.PrepareAsync(journal, request.ArchivePath, plan, null,
             selection.Inputs.Bindings, scope.Reserve, scope.Create, transform, verifier, ct);
         var published = scope.Publish(journal, prepared, selection.Inputs.Bindings, ct);
@@ -45,10 +61,14 @@ internal static class ArchiveUnixCreationCrash
         {
             if (text == "end") return new("end", "", null, -1);
             string[] parts = text.Split(':');
-            if (parts.Length is < 3 or > 4 || parts[0] is not ("before" or "after") || parts[1] is not ("T" or "C") ||
-                (parts[1] == "T" ? !Enum.TryParse<ArchiveTransactionPhase>(parts[2], out _) : !Enum.TryParse<ArchiveCreationCleanupPhase>(parts[2], out _)) ||
-                parts.Length == 4 && parts[1] != "C")
-                throw new ArgumentException("Use before|after:T:Phase, before|after:C:Phase[:reviewed] or end.");
+            if (parts.Length is < 3 or > 4 || parts[0] is not ("before" or "after") || parts[1] is not ("T" or "C" or "D") ||
+                (parts[1] switch
+                {
+                    "T" => !Enum.TryParse<ArchiveTransactionPhase>(parts[2], out _),
+                    "C" => !Enum.TryParse<ArchiveCreationCleanupPhase>(parts[2], out _),
+                    _ => !Enum.TryParse<ArchiveDiscardPhase>(parts[2], out _),
+                }) || parts.Length == 4 && parts[1] == "T")
+                throw new ArgumentException("Use before|after:T:Phase, before|after:C|D:Phase[:reviewed] or end.");
             return new(parts[0], parts[1], parts[2], parts.Length == 4 ? int.Parse(parts[3], System.Globalization.CultureInfo.InvariantCulture) : -1);
         }
         internal bool Matches(string kind, string record, string phase, int reviewed) =>
@@ -92,6 +112,7 @@ internal static class ArchiveUnixCreationCrash
             {
                 "archive-transaction" => ("T", node["phase"]!.GetValue<string>(), -1),
                 ArchiveCreationCleanupFacts.RecordType => ("C", node["phase"]!.GetValue<string>(), node["reviewed"]!.GetValue<int>()),
+                ArchiveDiscardFacts.RecordType => ("D", node["phase"]!.GetValue<string>(), node["reviewed"]!.GetValue<int>()),
                 _ => null,
             };
         }

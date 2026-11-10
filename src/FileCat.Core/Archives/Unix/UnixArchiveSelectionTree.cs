@@ -4,8 +4,10 @@ using Microsoft.Win32.SafeHandles;
 namespace FileCat.Core.Archives.Unix;
 
 /// <summary>One retained pane root, bounded transient traversal, lazy parent/file leases; no per-member FD.</summary>
-internal sealed class UnixArchiveSelectionTree : IArchiveSelectionTree
+internal sealed class UnixArchiveSelectionTree : IArchiveSelectionTree, IArchiveSelectionRemoval
 {
+    public bool CanRemoveSources => true;
+    public bool RemovesThroughAsideName => true;
     private readonly UnixArchiveDirectory root;
     private UnixArchiveSelectionTree(string path) => root = UnixArchiveDirectory.Open(ArchiveLocalPath.ResolveDirectory(path));
     internal static IArchiveSelectionTree Open(string path) => new UnixArchiveSelectionTree(path);
@@ -56,6 +58,21 @@ internal sealed class UnixArchiveSelectionTree : IArchiveSelectionTree
             root.RequireSelectionRoot();
         }
         finally { held.Dispose(); }
+    }
+    // Plan §11.6.1: each removal reopens the captured object through its verified parent chain; see RemoveCapturedSource.
+    public void RemoveFile(ArchiveSelectionNode node, ArchiveFileObservation expected, CancellationToken ct, string? asideLeaf = null)
+    {
+        if (node.Entry.Kind != ArchiveSelectionKind.File || node.Entry.Identity != expected.Version.Identity) throw ArchiveCapturedSelection.Changed();
+        using var parent = OpenParent(node, ct);
+        using var file = parent.Owner.OpenSource(node.Entry.Leaf, ArchiveWritePolicy.MaxPayloadBytes);
+        if (((IArchiveRetainedFile)file).ObjectIdentity != node.Entry.Identity) throw ArchiveCapturedSelection.Changed();
+        file.RemoveCapturedSource(expected, ct, asideLeaf);
+    }
+    public void RemoveDirectory(ArchiveSelectionNode node, ArchiveDirectoryObservation expected, CancellationToken ct)
+    {
+        if (node.Entry.Kind != ArchiveSelectionKind.Directory || node.Entry.Identity != expected.Version.Identity) throw ArchiveCapturedSelection.Changed();
+        using var parent = OpenParent(node, ct);
+        parent.Owner.RemoveCapturedDirectory(node.Entry.Leaf, expected, ct);
     }
     private ArchiveOwnedSourceFile<UnixArchiveFile> OpenFile(ArchiveSelectionNode node, CancellationToken ct)
     {

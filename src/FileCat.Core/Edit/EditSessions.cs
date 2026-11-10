@@ -148,10 +148,14 @@ public sealed class EditCommitCopy : IDisposable
     public string Sha256 { get; }
     public uint Crc32 { get; }
     public long Length { get; }
-    internal EditCommitCopy(string path, string sha256, uint crc32, long length)
+    private readonly IFileSystemOperations? _files;
+    private readonly string? _identity;
+    internal EditCommitCopy(string path, string sha256, uint crc32, long length, IFileSystemOperations? files = null)
     {
         Path = path; Sha256 = sha256; Crc32 = crc32; Length = length;
         _pin = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        // Recorded while pinned: Dispose removes only this object (risk R21).
+        _files = files; _identity = files?.GetFileIdentity(path);
     }
     internal EditCommitCopy(NativeEditSnapshot snapshot,uint crc32)
     {Native=snapshot;Path=snapshot.SourcePath;Sha256=snapshot.Expected.Version.Sha256;Length=snapshot.Expected.Version.Length;Crc32=crc32;}
@@ -161,10 +165,11 @@ public sealed class EditCommitCopy : IDisposable
         var pin=Interlocked.Exchange(ref _pin,null);
         if(pin is null)return; // A previously closed copy has no authority over a later pathname replacement.
         pin.Dispose();
-        // This GUID folder contains only this owned snapshot; the published working copy is elsewhere.
-        if (File.Exists(Path)) File.Delete(Path);
-        string directory = System.IO.Path.GetDirectoryName(Path)!;
-        if (Directory.Exists(directory)) Directory.Delete(directory);
+        // This GUID folder contains only this owned snapshot; the published working copy is elsewhere. Remove the exact
+        // snapshot (a replaced name is kept and logged), then the folder once empty.
+        if (_files is null) { Diagnostics.AppLog.Warn("FileCat kept its edit snapshot " + Path + ": it has no file-operations owner."); return; }
+        if (EditPrivateCleanup.DeleteOwnedFile(_files, Path, _identity) is null)
+            EditPrivateCleanup.RemoveEmptyFolder(System.IO.Path.GetDirectoryName(Path)!);
     }
 }
 
@@ -420,8 +425,7 @@ public sealed partial class EditSessionStore
         }
         catch
         {
-            try { Directory.Delete(dir, recursive: true); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            EditPrivateCleanup.DeleteOwnedFolder(fs, dir); // A folder it cannot prove is kept and logged.
             throw;
         }
     }
@@ -574,12 +578,12 @@ public sealed partial class EditSessionStore
         for (int attempt = 0; attempt < 6; attempt++)
         {
             string temp = Path.Combine(dir, RecordFile + "." + Guid.NewGuid().ToString("N") + ".tmp");
-            bool created = false;
+            bool created = false; string? tempIdentity = null;
             try
             {
                 using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                 {
-                    created = true;
+                    created = true; tempIdentity = fs.GetFileIdentity(temp);
                     stream.Write(bytes);
                 }
                 fs.Move(temp, destination, replaceExisting: true);
@@ -594,7 +598,7 @@ public sealed partial class EditSessionStore
                 // A refused replacement must not leave session metadata in
                 // disposable sibling files. A cleanup denial is itself a
                 // failure, rather than permission to create more copies.
-                if (created && File.Exists(temp)) File.Delete(temp);
+                if (created && EditPrivateCleanup.DeleteOwnedFile(fs, temp, tempIdentity) is { } kept) throw new IOException(kept);
             }
         }
         throw new IOException("The edit record could not be published.");
@@ -685,12 +689,11 @@ public sealed partial class EditSessionStore
             File.SetLastWriteTimeUtc(path, source.ModifiedUtc);
             if (fs.ReadOriginMark(record.WorkingPath) is { } mark) PreserveOriginMark(path, mark);
             ct.ThrowIfCancellationRequested();
-            return new EditCommitCopy(path, copy.Sha256, copy.Crc, copy.Length);
+            return new EditCommitCopy(path, copy.Sha256, copy.Crc, copy.Length, fs);
         }
         catch
         {
-            try { if (File.Exists(path)) File.Delete(path); Directory.Delete(directory); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            EditPrivateCleanup.DeleteOwnedFolder(fs, directory);
             throw;
         }
     }
@@ -712,12 +715,11 @@ public sealed partial class EditSessionStore
             var bytes = WriteWorkingCopy(source, path, default, check: check);
             check();
             if (fs.ReadOriginMark(record.WorkingPath) is { } mark) PreserveOriginMark(path, mark);
-            check(); return new EditCommitCopy(path, bytes.Sha256, bytes.Crc, bytes.Length);
+            check(); return new EditCommitCopy(path, bytes.Sha256, bytes.Crc, bytes.Length, fs);
         }
         catch
         {
-            try { if (File.Exists(path)) File.Delete(path); Directory.Delete(directory); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            EditPrivateCleanup.DeleteOwnedFolder(fs, directory);
             throw;
         }
     }
@@ -729,9 +731,11 @@ public sealed partial class EditSessionStore
         check();
         if(copy.Native is not null)throw new NotSupportedException("The private edit snapshot is kept until native save-copy destination publication is qualified.");
         string staged = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(destination))!, ".filecat-edit-copy-" + Guid.NewGuid().ToString("N") + ".tmp");
+        string? stagedIdentity = null;
         try
         {
             files.CopyFile(copy.Path, staged, new FileCopyOptions { FlushDestination = true }, null, default);
+            stagedIdentity = files.GetFileIdentity(staged);
             check();
             VerifySaveCopy(copy, staged, check);
             check();
@@ -740,8 +744,13 @@ public sealed partial class EditSessionStore
         }
         finally
         {
-            // Never remove the destination. Even a failed copy may have created only part of this owned stage.
-            if (File.Exists(staged)) files.DeleteFile(staged);
+            // Never remove the destination. A failed copy may have left part of this stage: remove only that exact object
+            // (handle-bound where available); in a shared folder on Unix it is kept and named instead (risk R21).
+            if (files.GetFileIdentity(staged) is not null)
+            {
+                string? kept = EditPrivateCleanup.DeleteOwnedFile(files, staged, stagedIdentity, inFileCatData: false);
+                if (kept is not null) Diagnostics.AppLog.Warn(kept);
+            }
         }
     }
 
@@ -839,7 +848,7 @@ public sealed partial class EditSessionStore
         if (!record.IsSupported) throw new NotSupportedException("Unsupported edit-session directories are kept for manual recovery.");
         if(nativeOpen is not null||record.StorageRootIdentity.Length!=0)
             throw new NotSupportedException("This edit needs native cleanup ownership before it can be discarded. Its working files are kept.");
-        Directory.Delete(SessionDirectory(record), recursive: true);
+        if (EditPrivateCleanup.DeleteOwnedFolder(fs, SessionDirectory(record)) is { } kept) throw new IOException(kept);
     }
 
     public string SessionDirectory(EditSessionRecord record)

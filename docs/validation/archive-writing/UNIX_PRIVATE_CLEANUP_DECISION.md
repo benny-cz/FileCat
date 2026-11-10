@@ -52,3 +52,30 @@ Each step is preceded by a durable `CleanupIntent` record and followed by `Clean
 - A retained or uncertain object is never cleaned by pathname, age or prefix. Recovery must re-observe identities first.
 - This record covers private stage directories only. Since commit `8872044c` new archives are prepared there too, so
   their sidecars are destroyed by the same rules; nothing is ever removed from the public archive folder.
+
+## Revision: discard of transactions that never reached publication
+
+Plan §7.1 lets a failure in Reserved, Rebuilding, Finalizing or Verifying end in "no publication; safe owned cleanup or
+NeedsReview". Retaining every object after each cancellation or refusal left a partial stage (as large as the archive)
+and its manifests in the private folder and an interrupted entry with no action, on every platform. The discard closes
+that gap under these additional rules:
+
+1. Only facts that durably prove publication never started qualify: a preparation phase or ReadyToPublish (Publishing is
+   recorded before any visible step), or a new archive whose review record was written before its claim (that record
+   lists only FileCat's own objects, never the archive name). A transaction with an exchange, content or cleanup recipe
+   never qualifies. The job only discards live when its journal holds no other unresolved condition.
+2. A durable `archive-discard` catalog freezes the preparation facts it was derived from (no later transaction record is
+   accepted) and lists every object with its recorded identity, plus every reserved name that never received one.
+   Opening a review writes nothing; the catalog is recorded only when the discard runs.
+3. An unrecorded reserved name must be absent, before and after: an occupied one may be an object whose creation was
+   never recorded, so everything is kept for review.
+4. A sealed sidecar is destroyed exactly as above (identity, owner, single link and its recorded SHA-256). A partial
+   stage or unsealed sidecar has no recorded version; inside this transaction's own creator-private folder its recorded
+   identity, this user as owner and a single link bind it (`UnixArchiveFile.DestroyScratch`), and the same order applies:
+   content through the held descriptor, then the re-observed name, then a link count of zero.
+5. `DeleteIntent` precedes each destruction and `Deleted` or `Absent` follows it; `rmdir` of the private folder must
+   succeed (it refuses anything left over, recorded or not) before `Completed`. Any refusal records `NeedsReview` and keeps
+   the rest; recovery reopens the folder and each object by recorded identity and may retry from the catalog.
+
+On Windows the objects live beside the archive; each is reopened by its recorded NTFS identity and deleted through that
+handle (POSIX disposition), so no name is ever removed by path.

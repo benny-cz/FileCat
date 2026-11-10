@@ -103,6 +103,21 @@ internal static class WindowsArchiveJobBackend
             return new(published.Published, Array.AsReadOnly(update.CleanupFacts.Artifacts.Skip(update.CleanupFacts.DeletedCount).Select(artifact => artifact.Path).ToArray()))
                 { CleanupNeedsReview = !update.CleanupFacts.IsResolved };
         }
+        public (bool Kept, string? Location, string? Reason) DiscardUnpublished(JobJournal journal, CancellationToken ct)
+        {
+            var preparation = journal.DiscardableArchiveTransaction();
+            if (preparation is null) return (journal.NeedsRecovery, null, null);
+            if (retainArtifacts || update is not null) return (true, preparation.StagePath, null);
+            try
+            {
+                using var discard = new ArchiveTransactionDiscard(WindowsArchiveDiscard.Live(journal, preparation, directory));
+                discard.Execute(ct);
+                return (journal.NeedsRecovery, null, null);
+            }
+            catch (Exception error) when (error is ArchiveWriteException or IOException or UnauthorizedAccessException or InvalidOperationException or
+                ArgumentException or ObjectDisposedException or Win32Exception)
+            { return (true, preparation.StagePath, error.Message); }
+        }
         public void Dispose()
         {
             try { if (ownsPublicationTarget) publicationTarget?.Dispose(); }

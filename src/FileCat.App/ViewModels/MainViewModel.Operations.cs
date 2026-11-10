@@ -40,7 +40,8 @@ public sealed partial class MainViewModel
         var oc = new OperationCenterViewModel(Services.Jobs, Services.Providers.Display);
         oc.CanReviewArchiveCleanup = job => Services.ArchiveCleanupLease is not null && ArchiveCleanupReview.CanOffer(job) ||
             Services.ArchiveCreationCleanupLease is not null && ArchiveCreationCleanupReview.CanOffer(job) ||
-            Services.ArchiveExchangeRecovery is not null && ArchiveExchangeCleanupReview.CanOffer(job);
+            Services.ArchiveExchangeRecovery is not null && ArchiveExchangeCleanupReview.CanOffer(job) ||
+            Services.ArchiveDiscardLease is not null && ArchiveDiscardReview.CanOffer(job);
         Services.Jobs.DecisionRequested += d => Services.Ui.Post(() => EnqueueDecision(d));
         Services.Jobs.JobFinished += job => Services.Ui.Post(() => OnJobFinished(job));
         Services.Jobs.JobAdded += _ => Services.Ui.Post(UpdateJobActivity);

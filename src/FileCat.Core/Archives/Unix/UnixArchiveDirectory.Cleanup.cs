@@ -39,6 +39,34 @@ internal sealed partial class UnixArchiveDirectory
     /// Remove this private stage directory from its reviewed public parent once it is empty. rmdir refuses a non-empty
     /// directory, so any foreign or retained entry keeps the directory and is reported for review.
     /// </summary>
+    internal bool IsPrivateStageDirectory => privateStageParent is not null;
+
+    /// <summary>
+    /// Plan §11.6.1: remove a moved source folder after its children. The name must still bind the captured folder, and
+    /// rmdir refuses one that is not empty, so a folder with a skipped, changed, new or undeleted child is always kept. A
+    /// racing replacement can at most be another empty folder; no content can be lost.
+    /// </summary>
+    internal void RemoveCapturedDirectory(string leaf, ArchiveDirectoryObservation expected, CancellationToken ct)
+    {
+        UnixArchiveNative.Leaf(leaf); ArgumentNullException.ThrowIfNull(expected);
+        lock (Gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this); ct.ThrowIfCancellationRequested(); VerifyNamespace();
+            using (var child = UnixArchiveNative.ChildDirectory(directory, leaf))
+                if (UnixFiles.Stat(child)?.Identity.ToString() != expected.Version.Identity)
+                    throw new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The source folder was replaced; it was kept.");
+            int flags = UnixArchiveNative.Mac ? 0x80 /* AT_REMOVEDIR */ : 0x200 /* AT_REMOVEDIR */;
+            if (RemoveAt(UnixArchiveNative.Fd(directory), leaf, flags) != 0)
+            {
+                int error = Marshal.GetLastPInvokeError();
+                throw error is 39 or 66 or 17 /* ENOTEMPTY (Linux, macOS) or EEXIST */
+                    ? new ArchiveWriteException(ArchiveWriteReason.SourceChanged, "The source folder still contains items that were not moved; it was kept.")
+                    : new IOException("The source folder could not be removed (errno " + error + "); it was kept.");
+            }
+            UnixArchiveNative.SyncDirectory(directory);
+        }
+    }
+
     internal void RemoveEmptyPrivateStageDirectory(CancellationToken ct)
     {
         var publicParent = privateStageParent ??

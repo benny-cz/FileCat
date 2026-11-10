@@ -12,7 +12,10 @@ public sealed partial class MainViewModel
     {
         bool creation = ArchiveCreationCleanupReview.CanOffer(job);
         bool exchange = !creation && Services.ArchiveExchangeRecovery is not null && ArchiveExchangeCleanupReview.CanOffer(job);
-        if (!(creation ? Services.ArchiveCreationCleanupLease is not null : exchange || Services.ArchiveCleanupLease is not null && ArchiveCleanupReview.CanOffer(job)))
+        // A change that never reached publication: only FileCat's own unfinished files remain, discarded exactly.
+        bool discard = !creation && !exchange && Services.ArchiveDiscardLease is not null && ArchiveDiscardReview.CanOffer(job);
+        if (!(creation ? Services.ArchiveCreationCleanupLease is not null
+            : exchange || discard || Services.ArchiveCleanupLease is not null && ArchiveCleanupReview.CanOffer(job)))
         { Notify(ArchiveReviewRequired, true); return false; }
         IArchiveRetainedCleanupReview? review = null; bool approved = false, closed = false;
         RecoveryReviewRecord? record = null;
@@ -26,22 +29,24 @@ public sealed partial class MainViewModel
                     job.ArchiveTransactions.Transactions[0].Nonce, scope.StopSource.Token), job.ArchiveTransactions.Transactions[0].ArchivePath)
                 : exchange ? new ArchiveExchangeCleanupReview(Services.ArchiveExchangeRecovery!(job.JournalPath,
                     job.ArchiveTransactions.Transactions[0].Nonce, scope.StopSource.Token), scope.StopSource.Token)
+                : discard ? new ArchiveDiscardReview(Services.ArchiveDiscardLease!(job.JournalPath,
+                    job.ArchiveTransactions.Transactions[0].Nonce, scope.StopSource.Token))
                 : new ArchiveCleanupReview(Services.ArchiveCleanupLease!(job.JournalPath,
                     job.ArchiveTransactions.Transactions[0].Nonce, scope.StopSource.Token)), scope.Check);
             if (review is null) throw new IOException("The native archive cleanup review did not open.");
-            string details = "Keep this archive: " + Formatters.SafeName(review.ArchivePath) + "\n\n" + review.TargetDescription +
+            string details = review.ArchiveHeading + Formatters.SafeName(review.ArchivePath) + "\n\n" + review.TargetDescription +
                 $"\n\nPermanently remove {Formatters.Plural(review.FilesToRemove.Count, "retained file", "retained files")}:\n" +
                 InterruptedJobText.Bullets(review.FilesToRemove) +
                 (review.ObservedAbsent.Count == 0 ? "" : $"\n\n{review.ObservedAbsent.Count:N0} retained file(s) were already absent; their absence will be recorded.");
             string[] warnings = review.RemovesBackup
                 ? ["Removal includes the backup from before this operation. You will no longer be able to restore from that backup."] : [];
             scope.SetPhase(RecoveryActionPhase.AwaitingApproval, "Awaiting approval to keep the archive and remove retained files…");
-            const string action = "Keep archive and clean up";
+            string action = review.ActionLabel;
             approved = Dialogs is OverlayDialogService overlay
-                ? await overlay.ConfirmWithCancellationAsync("Review archive cleanup", details, action, danger: true,
-                    scope.StopSource.Token, ["Keep current archive", $"Remove {review.FilesToRemove.Count:N0} retained files"],
+                ? await overlay.ConfirmWithCancellationAsync(review.Title, details, action, danger: true,
+                    scope.StopSource.Token, [review.KeepSummary, $"Remove {review.FilesToRemove.Count:N0} retained files"],
                     summaryHeading: "Cleanup summary", detailsHeading: "Reviewed retained files", collapseDetails: false, warnings: warnings)
-                : await Dialogs.ConfirmAsync("Review archive cleanup", details + (warnings.Length == 0 ? "" : "\n\n" + warnings[0]), action, danger: true);
+                : await Dialogs.ConfirmAsync(review.Title, details + (warnings.Length == 0 ? "" : "\n\n" + warnings[0]), action, danger: true);
             scope.Check(); if (!approved) return false;
             scope.SetPhase(RecoveryActionPhase.Applying, "Cleaning up reviewed retained files; the archive is kept…");
             var location = Location.FileSystem(review.ArchivePath);
@@ -60,7 +65,7 @@ public sealed partial class MainViewModel
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException)
             { reportProblem = Formatters.SafeName(error.Message); }
             scope.SetPhase(RecoveryActionPhase.Completed, "Archive cleanup finished; the review report is retained.");
-            Notify(reportProblem is null ? "Kept the reviewed archive and finished cleanup of its retained files."
+            Notify(reportProblem is null ? review.CompletedText
                 : "Archive cleanup finished and tracking is closed. The saved report could not be updated: " + reportProblem, reportProblem is not null);
             return true;
         }

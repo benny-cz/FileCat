@@ -40,7 +40,9 @@ internal interface IArchiveSelectionRetainedCost
 internal interface IArchiveSelectionRemoval
 {
     bool CanRemoveSources { get; }
-    void RemoveFile(ArchiveSelectionNode node, ArchiveFileObservation expected, CancellationToken ct);
+    /// <summary>True when a file is first renamed aside (to the caller's <c>asideLeaf</c> in its own folder) before removal.</summary>
+    bool RemovesThroughAsideName => false;
+    void RemoveFile(ArchiveSelectionNode node, ArchiveFileObservation expected, CancellationToken ct, string? asideLeaf = null);
     void RemoveDirectory(ArchiveSelectionNode node, ArchiveDirectoryObservation expected, CancellationToken ct);
 }
 
@@ -66,6 +68,7 @@ internal sealed class ArchiveCapturedSelection : IDisposable
     internal IReadOnlyList<ArchiveSelectionExclusion> ExclusionSamples { get; private set; } = [];
     internal int ExcludedCount => exclusionCounts.Sum();
     internal bool CanRemoveSources => source is IArchiveSelectionRemoval { CanRemoveSources: true };
+    internal bool RemovesThroughAsideName => source is IArchiveSelectionRemoval { RemovesThroughAsideName: true };
     internal int Excluded(ArchiveSelectionExclusionReason reason) => exclusionCounts[(int)reason];
     private ArchiveCapturedSelection(IArchiveSelectionTree source) => this.source = source;
 
@@ -178,12 +181,12 @@ internal sealed class ArchiveCapturedSelection : IDisposable
         return nodes.TryGetValue(id, out var node) ? node : throw Invalid();
     }
     internal bool HasExcludedDescendants(int id) => excludedAncestors.Contains(CapturedNode(id));
-    internal void RemoveCaptured(int id, CancellationToken ct)
+    internal void RemoveCaptured(int id, CancellationToken ct, string? asideLeaf = null)
     {
         ct.ThrowIfCancellationRequested(); var node = CapturedNode(id);
         if (source is not IArchiveSelectionRemoval { CanRemoveSources: true } removal)
             throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, "Native removal is unavailable for these captured sources.");
-        if (node.Entry.Kind == ArchiveSelectionKind.File) removal.RemoveFile(node, Inputs.Bindings[id].Reviewed, ct);
+        if (node.Entry.Kind == ArchiveSelectionKind.File) removal.RemoveFile(node, Inputs.Bindings[id].Reviewed, ct, asideLeaf);
         else if (node.Entry.Kind == ArchiveSelectionKind.Directory) removal.RemoveDirectory(node, Inputs.Directories[id].Reviewed, ct);
         else throw Invalid();
     }

@@ -60,6 +60,26 @@ internal sealed partial class WindowsArchiveFile : IArchiveContentUpdateSource, 
         }
     }
     /// <summary>The recovery coordinator must durably record intent under its exclusive retained journal first.</summary>
+    /// <summary>
+    /// Discard of an unpublished transaction's own artifact, reopened by its recorded identity in the held archive folder:
+    /// private security, the same name and (for a sealed sidecar) the recorded version, then deletion of the exact held
+    /// object through its handle. A partial stage has no recorded version; its identity and private security bind it.
+    /// </summary>
+    internal void DeleteDiscarded(ArchiveObjectVersion? expected, CancellationToken ct)
+    {
+        lock (parent.Gate)
+        {
+            EnsureLive(); ct.ThrowIfCancellationRequested();
+            if (!artifact || createdWritable || writable || namespaceChanged || !mayRename)
+                throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "Discard requires the exact recorded private artifact.");
+            parent.VerifyNamespace(); parent.RequireName(KnownName, Identity); parent.CheckPrivate(handle);
+            if (expected is not null && ObserveRetained(ct).Version != expected) throw ChangedRetained();
+            WindowsArchiveNative.DeleteExact(handle);
+            // POSIX disposition unlinks when this deleting handle closes.
+            removed = true; handle.Dispose();
+        }
+    }
+    internal bool IsRemoved { get { lock (parent.Gate) return removed; } }
     internal void DeleteRecoveredCleanup(ArchiveContentCleanupArtifact expected, string parentIdentity, CancellationToken ct)
     {
         lock (parent.Gate)

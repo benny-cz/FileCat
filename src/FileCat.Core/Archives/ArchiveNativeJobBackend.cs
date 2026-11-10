@@ -21,6 +21,13 @@ internal interface IArchiveJobNativeScope<T> : IDisposable where T : class, IArc
     void ReviewPublication(ArchiveJobPublication published, bool verifyBytes, CancellationToken ct)
         => throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, "The native published archive cannot be pinned for source removal.");
     ArchiveJobPublication CleanupPublication(JobJournal journal, ArchiveJobPublication published, CancellationToken ct) => published;
+    /// <summary>
+    /// After a failure or cancellation before publication (the original is untouched): exactly discard this transaction's
+    /// own recorded objects through the scope's held folders. Kept is true when objects remain for review, with a location
+    /// to show when one is known and the reason when the discard itself stopped. A backend without exact discard keeps everything.
+    /// </summary>
+    (bool Kept, string? Location, string? Reason) DiscardUnpublished(JobJournal journal, CancellationToken ct) =>
+        (journal.NeedsRecovery, journal.DiscardableArchiveTransaction()?.StagePath, null);
 }
 
 /// <summary>Shared real job execution. Application registration still requires all platform/profile gates.</summary>
@@ -60,9 +67,11 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
     public void Execute(ArchiveJobExecution execution)
     {
         try { ExecuteCore(execution); }
-        catch (ArchiveWriteException error) when (!error.Data.Contains(ArchiveWriteMessages.UserMessageKey))
+        catch (ArchiveWriteException error) when (!error.Data.Contains(ArchiveWriteMessages.UserMessageKey) ||
+            execution.Job.ArchivePhase is ArchiveJobPhase.Saving or ArchiveJobPhase.FinishingSafely)
         {
-            // The phase is known only here: never say "not saved" once publication may have begun (plan §11.7).
+            // The phase is known only here: never say "not saved" once publication may have begun (plan §11.7), even when a
+            // lower layer attached its own text.
             error.Data[ArchiveWriteMessages.UserMessageKey] = ArchiveWriteMessages.ForUser(error, execution.Plan.Profile?.Format, execution.Job.ArchivePhase);
             throw;
         }
@@ -121,13 +130,34 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
             job.AddIssue(new(IssueSeverity.Warning, request.ArchivePath, job.Summary, StepOutcome.Skipped));
             job.SetCurrent(null); return;
         }
-        using var prepared = ArchiveJournaledContainerPreparation.PrepareAsync(execution.Journal, request.ArchivePath, plan,
-            native.Original, activeInputs.Bindings, native.Reserve, native.Create, transform, verifier, ct, password: execution.Password,
-            phase: value => job.SetArchivePhase(value)).GetAwaiter().GetResult();
-        job.Checkpoint();
+        ArchivePreparedContainer<T>? preparation = null;
+        try
+        {
+            preparation = ArchiveJournaledContainerPreparation.PrepareAsync(execution.Journal, request.ArchivePath, plan,
+                native.Original, activeInputs.Bindings, native.Reserve, native.Create, transform, verifier, ct, password: execution.Password,
+                phase: value => job.SetArchivePhase(value)).GetAwaiter().GetResult();
+            job.Checkpoint();
+        }
+        catch
+        {
+            // Nothing was published and the original is untouched: close every object, then discard exactly what this
+            // transaction created (plan §7.1 "safe owned cleanup"). Whatever cannot be proven is kept and reported.
+            preparation?.Dispose();
+            DiscardUnpublished(native, execution);
+            throw;
+        }
+        using var prepared = preparation;
         // The short publication boundary: the interface offers no Cancel here (plan §11.5).
         job.DeferCancellation(true); job.SetArchivePhase(ArchiveJobPhase.Saving);
-        var published = native.Publish(execution.Journal, prepared, activeInputs.Bindings, ct);
+        ArchiveJobPublication published;
+        try { published = native.Publish(execution.Journal, prepared, activeInputs.Bindings, ct); }
+        catch
+        {
+            // Durable facts decide: only a transaction that provably never started publishing (no Publishing record, no
+            // claim, no exchange or content recipe) is discarded; anything else stays recorded for review.
+            if (execution.Journal.DiscardableArchiveTransaction() is not null) { prepared.Dispose(); DiscardUnpublished(native, execution); }
+            throw;
+        }
         job.SetArchivePhase(ArchiveJobPhase.FinishingSafely);
         job.RecordArchiveEditPublication(new(request.ArchivePath, request.Profile!, published.Published, plan.Expected.Digest));
         // Publication may have committed immediately before cancellation. Always record the visible result first.
@@ -167,6 +197,19 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
             job.AddIssue(new(IssueSeverity.Warning, request.ArchivePath, action + " before cancellation was observed.", StepOutcome.Committed));
         job.SetCurrent(null);
 
+        static void DiscardUnpublished(IArchiveJobNativeScope<T> native, ArchiveJobExecution execution)
+        {
+            (bool kept, string? location, string? reason) = (true, null, null);
+            // The job's own failure is what the user must see; an unexpected discard error only keeps the files.
+            try { (kept, location, reason) = native.DiscardUnpublished(execution.Journal, CancellationToken.None); }
+            catch (Exception error) when (error is not OutOfMemoryException) { reason = error.Message; }
+            if (!kept) return;
+            // For example a completely full copy-on-write volume (APFS) can refuse even the removal; recovery retries it later.
+            execution.Job.AddIssue(new(IssueSeverity.Warning, location ?? execution.Plan.ArchivePath,
+                "The archive was not changed. FileCat could not safely remove its unfinished temporary files and kept them for review; " +
+                "Interrupted operations offers their reviewed removal.", StepOutcome.CanceledBeforeChange)
+            { TargetPath = location, TargetIsLocal = location is null ? null : true, Details = reason });
+        }
         static string ReplaceLabel(long count) => count == 1 ? "Replace 1 existing member" : $"Replace {count:N0} existing members";
         bool ReviewAdditionConflicts()
         {

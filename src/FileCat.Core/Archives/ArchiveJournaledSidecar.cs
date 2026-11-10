@@ -121,7 +121,7 @@ internal static class ArchiveJournaledSidecar
         }
         catch
         {
-            journal.RequireRecovery();
+            journal.RequirePreparationReview();
             if (file is not null) { try { file.StopWrites(); } finally { file.Dispose(); } }
             throw;
         }

@@ -17,7 +17,7 @@ internal sealed partial class UnixArchiveFile
         lock (parent.Gate)
         {
             Live(); parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
-            var before = CaptureOuterMetadata(ct); if (before.Native.LinkCount != 1) throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "A retained archive binding requires a single-link regular object.");
+            var before = CaptureOuterMetadata(ct); if (before.Native.LinkCount != 1) throw ArchiveWriteMessages.HardLinked(DisplayPath);
             var version = CaptureVersion(ct); var after = CaptureOuterMetadata(ct);
             parent.VerifyNamespace(); parent.RequireName(KnownName, Identity);
             if (before.Digest != after.Digest) throw Changed();

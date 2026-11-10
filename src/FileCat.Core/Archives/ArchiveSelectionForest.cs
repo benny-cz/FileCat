@@ -109,8 +109,9 @@ internal sealed class ArchiveSelectionForest : IArchiveSelectionTree, IArchiveSe
         => Owner(file).CaptureFile(inputs, id, file, ct);
     public void CaptureDirectory(ArchiveCapturedInputs inputs, int id, ArchiveSelectionNode directory, CancellationToken ct)
         => Owner(directory).CaptureDirectory(inputs, id, directory, ct);
-    public void RemoveFile(ArchiveSelectionNode node, ArchiveFileObservation expected, CancellationToken ct)
-        => (Owner(node) as IArchiveSelectionRemoval ?? throw Invalid()).RemoveFile(node, expected, ct);
+    public bool RemovesThroughAsideName => !disposed && trees.Count != 0 && trees.All(tree => tree is IArchiveSelectionRemoval { RemovesThroughAsideName: true });
+    public void RemoveFile(ArchiveSelectionNode node, ArchiveFileObservation expected, CancellationToken ct, string? asideLeaf = null)
+        => (Owner(node) as IArchiveSelectionRemoval ?? throw Invalid()).RemoveFile(node, expected, ct, asideLeaf);
     public void RemoveDirectory(ArchiveSelectionNode node, ArchiveDirectoryObservation expected, CancellationToken ct)
         => (Owner(node) as IArchiveSelectionRemoval ?? throw Invalid()).RemoveDirectory(node, expected, ct);
     public void ReviewDestination(string path, string identity, IReadOnlySet<string> selectedDirectories, CancellationToken ct)

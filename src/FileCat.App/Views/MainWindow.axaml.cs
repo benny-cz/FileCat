@@ -75,6 +75,7 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         {
             AnnounceRestoredRowIfCurrent(list);
         });
+        _dialogs.OperationsRegion = OperationsPane;
         vm.Dialogs = _dialogs;
         vm.View = this;
         // The user's first key press or click ends the quiet startup: connections may ask questions from then on.
@@ -830,6 +831,13 @@ public partial class MainWindow : Window, IViewActions, IWorkspaceViewportProvid
         {
             _vm.ReconcileKeyBar(KeyMapper.ToMods(KeyMapper.AfterModifierKey(e.Key, e.KeyModifiers, pressed: true)));
             return;
+        }
+        // Plan §11.5: a dialog that keeps the operation center usable (a format scan) lets its shortcut move between them.
+        if (_dialogs.OperationsUsable && KeyMapper.ToChord(e.Key, e.KeyModifiers) is { } operationsChord &&
+            _vm.Services.Keymap.Resolve(operationsChord, CommandContext.Global) == CommandIds.Operations)
+        {
+            _vm.Operations.IsOpen = true; Dispatcher.UIThread.Post(() => _dialogs.ToggleOperationsFocus(), DispatcherPriority.Input);
+            e.Handled = true; return;
         }
         if (_dialogs.IsOpen || ActivePanelView()?.List.IsRenaming == true) return;
         // The command search keeps its keys: Enter runs, F2 changes a shortcut, Esc returns to the panel.

@@ -80,7 +80,7 @@ public sealed partial class UnixArchiveStorageTests
             string big = Path.Combine(root, "big.bin"); var bytes = new byte[16 << 20]; new Random(809).NextBytes(bytes); File.WriteAllBytes(big, bytes);
             File.SetLastWriteTimeUtc(big, DateTime.UnixEpoch.AddSeconds(1700000001));
             var profile = new ArchiveWriteProfile(ArchiveWriteFormat.Tar);
-            string filler = Path.Combine(folder, "filler.bin"); bool armed = false; int fills = 0;
+            string filler = Path.Combine(folder, "filler.bin"); bool armed = false; int fills = 0; var outcomes = new List<string>();
             var backend = UnixArchiveJobBackend.Create(profile.Format, (nonce, _) => Child.Start(nonce, "archive-assess-v2"), (nonce, _) =>
             {
                 // The transform worker starts after the space review and before the first stage byte is written.
@@ -109,14 +109,28 @@ public sealed partial class UnixArchiveStorageTests
                 string issues = string.Join(" | ", job.Issues.Select(issue => issue.Message + " [" + issue.Details + "]"));
                 Assert.True(job.State == JobState.Failed, job.State + ": " + issues);
                 Assert.True(job.Issues.Any(issue => issue.Message == ArchiveWriteMessages.OutOfSpace), issues);
-                File.Delete(filler); // Room again for the next case; the failed transaction's own files stay recorded.
+                // The exact discard runs while the drive is still full. A copy-on-write volume (APFS) may refuse even the
+                // removal; then the files are kept and said so, with a location, and the journal stays open for recovery.
+                bool kept = job.Issues.Any(issue => issue.Message.Contains("kept them for review", StringComparison.Ordinal));
+                if (kept) Assert.Contains(job.Issues, issue => issue.TargetPath is not null && issue.TargetPath.StartsWith(folder, StringComparison.Ordinal));
+                outcomes.Add(issues);
+                File.Delete(filler); // Room again for the next case.
+            }
+            // With space back, the reviewed recovery finishes any discard the full drive refused.
+            foreach (var interrupted in JournalRecovery.Scan(Path.Combine(root, "journals"), keepFinished: 0, maxAge: TimeSpan.Zero))
+            {
+                var facts = Assert.Single(JournalRecovery.ReadArchiveTransactions(interrupted.JournalPath).Transactions);
+                using var discard = new ArchiveTransactionDiscard(UnixArchiveDiscard.OpenRecovery(interrupted.JournalPath, facts.Nonce, ct));
+                Assert.True(discard.Execute(ct).IsResolved, string.Join(" || ", outcomes));
+                discard.Finish("Recovery finished the discard once space was available.");
             }
             Assert.Equal(2, fills);
             Assert.Equal(original, File.ReadAllBytes(target));
             Assert.False(File.Exists(created));
-            // Nothing is published or left in the archive folder itself; only the transactions' private stage folders remain.
-            foreach (string entry in Directory.GetFileSystemEntries(folder).Where(entry => Path.GetFileName(entry) != "kept.tar"))
-                Assert.True(Directory.Exists(entry) && Path.GetFileName(entry).StartsWith(".filecat-archive-stage-", StringComparison.Ordinal), entry);
+            // Nothing was published, and each unpublished transaction discarded its own partial stage, sidecars and private
+            // folder exactly (plan §7.1), so the folder is as it was and no journal is left for review.
+            Assert.True(new[] { "kept.tar" }.SequenceEqual(Directory.GetFileSystemEntries(folder).Select(Path.GetFileName)), string.Join(" || ", outcomes));
+            Assert.Empty(JournalRecovery.Scan(Path.Combine(root, "journals"), keepFinished: 0, maxAge: TimeSpan.Zero));
         }
         finally { Directory.Delete(folder, recursive: true); }
 

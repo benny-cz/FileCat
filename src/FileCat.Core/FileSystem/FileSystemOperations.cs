@@ -181,6 +181,13 @@ public interface IFileSystemOperations
     BoundDeletion? DeleteReviewedFile(string path, string? expectedIdentity, string expectedSha256,
         long expectedLength, CancellationToken ct);
 
+    /// <summary>
+    /// Deletes a file FileCat itself created, whose identity it recorded, through a handle bound to that identity (its
+    /// bytes may be partial). Null means this adapter has no handle-bound deletion; callers must not fall back to a bare
+    /// pathname outside a folder only FileCat can change (risk R21).
+    /// </summary>
+    BoundDeletion? DeleteOwnedFile(string path, string expectedIdentity) => null;
+
     BoundTreeDeletion? DeleteReviewedTree(string path, IReadOnlyList<BoundDeletionEntry> reviewed,
         Action checkpoint, CancellationToken ct);
 
@@ -305,6 +312,8 @@ public class PortableFileOperations : IFileSystemOperations
 
     public virtual BoundDeletion? DeleteReviewedFile(string path, string? expectedIdentity, string expectedSha256,
         long expectedLength, CancellationToken ct) => null;
+
+    public virtual BoundDeletion? DeleteOwnedFile(string path, string expectedIdentity) => null;
 
     public virtual BoundTreeDeletion? DeleteReviewedTree(string path, IReadOnlyList<BoundDeletionEntry> reviewed,
         Action checkpoint, CancellationToken ct) => null;

@@ -131,6 +131,12 @@ internal static unsafe partial class UnixArchiveNative
     /// primary group, is named after the user, lists no other member, and no extended ACL widens access. Anything else,
     /// and every macOS folder (shared groups such as staff), keeps group write refused.
     /// </summary>
+    /// <summary>Path form of <see cref="UserPrivateGroupFolder(SafeFileHandle)"/> for a folder pinned without following links.</summary>
+    internal static bool IsUserPrivateGroupFolder(string folder)
+    {
+        try { using var held = PinDirectory(folder); return UserPrivateGroupFolder(held); }
+        catch (Exception ex) when (ex is ArchiveWriteException or IOException or UnauthorizedAccessException or ArgumentException) { return false; }
+    }
     private static bool UserPrivateGroupFolder(SafeFileHandle directory)
     {
         if (Mac) return false;

@@ -15,6 +15,12 @@ internal interface IArchiveRetainedCleanupReview : IDisposable
     void Execute(CancellationToken ct);
     void Finish();
     string Report(string outcome);
+    // Dialog wording; a discard of a never-saved change keeps nothing new and may concern an archive that never existed.
+    string Title => "Review archive cleanup";
+    string ArchiveHeading => "Keep this archive: ";
+    string KeepSummary => "Keep current archive";
+    string ActionLabel => "Keep archive and clean up";
+    string CompletedText => "Kept the reviewed archive and finished cleanup of its retained files.";
 }
 
 /// <summary>Owns one native review through approval and exact cleanup. Displayed paths confer no authority.</summary>

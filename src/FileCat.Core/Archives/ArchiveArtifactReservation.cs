@@ -90,7 +90,8 @@ internal static class ArchiveJournaledStage
         }
         catch
         {
-            journal.RequireRecovery();
+            // The stage may exist under its reserved name without a recorded identity: a discard then refuses.
+            journal.RequirePreparationReview();
             if (stage is not null) { try { stage.StopWrites(); } finally { stage.Dispose(); } }
             throw;
         }

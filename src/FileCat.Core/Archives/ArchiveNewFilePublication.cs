@@ -71,7 +71,8 @@ internal static class ArchiveNewFilePublication
         }
         catch
         {
-            journal.RequireRecovery();
+            // Before the claim the archive name was never touched; the review record then permits an exact discard.
+            if (claimAttempted) journal.RequireRecovery(); else journal.RequirePreparationReview();
             try
             {
                 facts = journal.RecordArchiveCreationReview(facts.Nonce, claimAttempted);

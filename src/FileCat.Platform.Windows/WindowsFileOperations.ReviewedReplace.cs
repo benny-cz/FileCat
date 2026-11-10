@@ -79,6 +79,32 @@ public partial class WindowsFileOperations
         long expectedLength, CancellationToken ct)
         => DeleteReviewedFileCore(path, expectedIdentity, expectedSha256, expectedLength, ct, null);
 
+    /// <summary>R21: FileCat's own file, opened by name in its held folder, deleted only while it is the recorded object.</summary>
+    public override BoundDeletion? DeleteOwnedFile(string path, string expectedIdentity)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        if (string.IsNullOrEmpty(expectedIdentity) || !IsReplaceVolume(path))
+            return new BoundDeletion(false, true, "The owned file has no usable local identity on this volume.");
+        string full = Path.GetFullPath(path);
+        using var parent = LocalIconFileLease.TryOpenDirectory(Path.GetDirectoryName(full)!, LeaseLinks.Refuse, removable: true);
+        if (parent is null) return new BoundDeletion(false, true, "The owned file's folder is linked or cannot be held.");
+        try
+        {
+            using var file = OpenOrThrow(parent.LastHandle, Path.GetFileName(full), ReadAttributes | Delete | Synchronize,
+                ShareRead, Open, NonDirectoryFile | OpenReparsePoint, "Open owned file for deletion");
+            if (IsLink(file)) return new BoundDeletion(false, true, "The owned file's name is now a link.");
+            var identity = ProtectedHexFile.Identity(file);
+            if (!string.Equals($"{identity.VolumeSerial:X16}:{identity.FileId}", expectedIdentity, StringComparison.OrdinalIgnoreCase))
+                return new BoundDeletion(false, true, "Another object now has the owned file's name.");
+            DeleteOpen(file);
+            return new BoundDeletion(true, false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)
+        {
+            return new BoundDeletion(false, false, "The owned file could not be deleted through its handle: " + ex.Message);
+        }
+    }
+
     internal BoundDeletion? DeleteReviewedFileCore(string path, string? expectedIdentity, string expectedSha256,
         long expectedLength, CancellationToken ct, Action? beforeDelete)
     {

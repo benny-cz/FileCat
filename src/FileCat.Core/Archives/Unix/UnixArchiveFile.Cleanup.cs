@@ -39,18 +39,50 @@ internal sealed partial class UnixArchiveFile
                 if (Ftruncate(fd, 0) != 0) throw Review("The transaction object's content could not be removed (errno " + Marshal.GetLastPInvokeError() + "); retain it.");
                 UnixArchiveNative.SyncFile(held);
             }
-            // Content is gone from the exact object. Finish name removal without cancellation.
-            if (Validate().Size != 0) throw Review("The transaction object was rewritten during cleanup; retain it.");
-            parent.RequireName(KnownName, Identity);
-            if (UnlinkAt(UnixArchiveNative.Fd(parent.Handle), KnownName, 0) != 0)
-                throw Review("The emptied transaction object's name could not be removed (errno " + Marshal.GetLastPInvokeError() + "); retain it.");
-            removed = true;
-            ulong links = ArchiveUnixOuterMetadata.Capture(held).Native.LinkCount;
-            UnixArchiveNative.SyncDirectory(parent.Handle);
-            if (links != 0)
-                throw Review("Another object replaced FileCat's private transaction name during cleanup and was removed; the emptied object remains linked elsewhere.");
-            disposed = true; held.Dispose(); parent.ReleaseChild();
+            RemoveEmptiedName();
         }
+    }
+
+    /// <summary>
+    /// Discard of an unpublished transaction's own scratch object (a partial stage or unsealed sidecar) that has no recorded
+    /// version. It must be a cleanup-owned object reopened by its recorded identity inside FileCat's creator-private stage
+    /// folder: this user, a single link, a regular file. Content is destroyed through the held descriptor first, then the
+    /// re-observed name is removed and the held object must have no link left (same order as <see cref="DestroyOwned"/>).
+    /// </summary>
+    internal void DestroyScratch(CancellationToken ct)
+    {
+        lock (parent.Gate)
+        {
+            Live(); ct.ThrowIfCancellationRequested();
+            if (!cleanupOwned || writable || !parent.IsPrivateStageDirectory)
+                throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "Only a recorded object in FileCat's private stage folder can be discarded as scratch.");
+            parent.VerifyNamespace(); parent.CheckCreationNamespace(); parent.RequireName(KnownName, Identity);
+            var metadata = CaptureOuterMetadata(ct);
+            if (metadata.Native.LinkCount != 1 || metadata.Native.Owner != UnixArchiveNative.GetEuid())
+                throw Review("The recorded transaction object has another owner or link; retain it.");
+            if (metadata.Native.Length != 0)
+            {
+                if (Ftruncate(UnixArchiveNative.Fd(held), 0) != 0)
+                    throw Review("The transaction object's content could not be removed (errno " + Marshal.GetLastPInvokeError() + "); retain it.");
+                UnixArchiveNative.SyncFile(held);
+            }
+            RemoveEmptiedName();
+        }
+    }
+
+    // Content is gone from the exact object. Finish name removal without cancellation.
+    private void RemoveEmptiedName()
+    {
+        if (Validate().Size != 0) throw Review("The transaction object was rewritten during cleanup; retain it.");
+        parent.RequireName(KnownName, Identity);
+        if (UnlinkAt(UnixArchiveNative.Fd(parent.Handle), KnownName, 0) != 0)
+            throw Review("The emptied transaction object's name could not be removed (errno " + Marshal.GetLastPInvokeError() + "); retain it.");
+        removed = true;
+        ulong links = ArchiveUnixOuterMetadata.Capture(held).Native.LinkCount;
+        UnixArchiveNative.SyncDirectory(parent.Handle);
+        if (links != 0)
+            throw Review("Another object replaced FileCat's private transaction name during cleanup and was removed; the emptied object remains linked elsewhere.");
+        disposed = true; held.Dispose(); parent.ReleaseChild();
     }
 
     private static ArchiveWriteException Review(string message) => new(ArchiveWriteReason.NeedsReview, message);

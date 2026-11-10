@@ -36,6 +36,15 @@ public static class ArchiveWriteMessages
         };
     }
 
+    /// <summary>A file with another hard link is not archived or updated: its other names would silently diverge.</summary>
+    internal static ArchiveWriteException HardLinked(string path)
+    {
+        var error = new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "A retained archive binding requires a single-link regular object: " + path);
+        error.Data[UserMessageKey] = $"\u201c{Path.GetFileName(path)}\u201d has another hard link (a second name for the same file), which FileCat does not " +
+            "archive or update. Nothing was changed.";
+        return error;
+    }
+
     internal const string OutOfSpace =
         "The drive ran out of space before the archive was saved, so no archive was changed. Free up space or choose another destination, then try again.";
 

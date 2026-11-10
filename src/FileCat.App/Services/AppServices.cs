@@ -179,6 +179,10 @@ public sealed class AppServices : IDisposable
     internal Func<string, Guid, CancellationToken, Core.Archives.IArchiveCreationCleanupLease>? ArchiveCreationCleanupLease { get; set; }
         = OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveCreationCleanupRecovery.OpenCurrentLease
         : OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? Core.Archives.Unix.UnixArchiveCreationCleanupRecovery.OpenCurrentLease : null;
+    // A change that never reached publication: a fresh exclusive journal and folder scope; objects bound by recorded identity.
+    internal Func<string, Guid, CancellationToken, Core.Archives.IArchiveDiscardLease>? ArchiveDiscardLease { get; set; }
+        = OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveDiscard.OpenRecovery
+        : OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? Core.Archives.Unix.UnixArchiveDiscard.OpenRecovery : null;
     // Unix exchange updates: a fresh exclusive journal/folder scope; inspection and cleanup re-observe every object.
     internal Func<string, Guid, CancellationToken, Core.Archives.Unix.UnixArchiveExchangeRecovery>? ArchiveExchangeRecovery { get; set; }
         = OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? (path, nonce, ct) => Core.Archives.Unix.UnixArchiveExchangeRecovery.Open(path, nonce, ct) : null;

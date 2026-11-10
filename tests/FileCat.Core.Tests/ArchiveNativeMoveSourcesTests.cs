@@ -15,7 +15,7 @@ public sealed partial class ArchiveCapturedInputsTests
         public void CaptureFile(ArchiveCapturedInputs inputs, int id, ArchiveSelectionNode node, CancellationToken ct) => inner.CaptureFile(inputs, id, node, ct);
         public void CaptureDirectory(ArchiveCapturedInputs inputs, int id, ArchiveSelectionNode node, CancellationToken ct) => inner.CaptureDirectory(inputs, id, node, ct);
         public void ReviewDestination(string path, string id, IReadOnlySet<string> selected, CancellationToken ct) => inner.ReviewDestination(path, id, selected, ct);
-        public void RemoveFile(ArchiveSelectionNode node, ArchiveFileObservation expected, CancellationToken ct) { ct.ThrowIfCancellationRequested(); remove(node); }
+        public void RemoveFile(ArchiveSelectionNode node, ArchiveFileObservation expected, CancellationToken ct, string? asideLeaf = null) { ct.ThrowIfCancellationRequested(); remove(node); }
         public void RemoveDirectory(ArchiveSelectionNode node, ArchiveDirectoryObservation expected, CancellationToken ct) { ct.ThrowIfCancellationRequested(); remove(node); }
         public void Dispose() => inner.Dispose();
     }

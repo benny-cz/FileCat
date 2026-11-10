@@ -44,6 +44,39 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         public required Action OnEscape;
         public required Action OnImplicitDismiss;
         public bool DismissOnBackdrop;
+        public bool KeepOperationsUsable;
+    }
+
+    /// <summary>The operation center that a dialog with <see cref="DialogBehavior.KeepOperationsUsable"/> leaves interactive.</summary>
+    public Control? OperationsRegion { get; set; }
+    private int? _operationsZIndex;
+    /// <summary>True while the topmost dialog leaves the operation center usable.</summary>
+    public bool OperationsUsable => _sessions.Count > 0 && _sessions[^1].KeepOperationsUsable && OperationsRegion is not null;
+
+    private bool InOperations(Visual source, Session session) =>
+        session.KeepOperationsUsable && OperationsRegion is { } region && IsInCardOrPopup(source, region);
+
+    // Raise the operation center above the backdrop only while the topmost dialog allows it.
+    private void UpdateOperationsRegion()
+    {
+        if (OperationsRegion is not { } region) return;
+        if (OperationsUsable) { _operationsZIndex ??= region.ZIndex; region.ZIndex = host.ZIndex + 1; }
+        else if (_operationsZIndex is { } original) { region.ZIndex = original; _operationsZIndex = null; }
+    }
+
+    /// <summary>Moves the keyboard between the operation center and the dialog that leaves it usable.</summary>
+    public bool ToggleOperationsFocus()
+    {
+        if (!OperationsUsable || OperationsRegion is not { } region) return false;
+        var top = _sessions[^1]; var focused = TopLevel.GetTopLevel(host)?.FocusManager?.GetFocusedElement();
+        if (focused is Visual visual && IsInCardOrPopup(visual, region))
+        {
+            if (CanFocus(top.InitialFocus)) Controls.ListKeys.Focus(top.InitialFocus);
+            return true;
+        }
+        var target = region.GetVisualDescendants().OfType<InputElement>().FirstOrDefault(element => element.Focusable && element.IsEffectivelyVisible && element.IsEffectivelyEnabled);
+        if (target is not null) target.Focus(NavigationMethod.Tab);
+        return true;
     }
 
     // Open dialogs, the topmost last, and the window whose Esc reaches them wherever the keyboard is.
@@ -78,7 +111,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         if (e.Handled || e.Key != Key.Escape || e.KeyModifiers != KeyModifiers.None || _sessions.Count == 0) return;
         var top = _sessions[^1];
         if (e.Source is Visual source && (ReferenceEquals(source, top.Layer) ||
-            IsInCardOrPopup(source, top))) return;
+            IsInCardOrPopup(source, top) || InOperations(source, top))) return;
         e.Handled = true;
         top.OnImplicitDismiss();
     }
@@ -87,6 +120,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     {
         if (_sessions.Count == 0 || e.Source is not Visual source) return;
         var top = _sessions[^1];
+        if (InOperations(source, top)) return;
         // ComboBox popups in an in-window modal do not reliably light-dismiss when a
         // press lands on another control or the non-dismissing backdrop. Close only
         // choosers outside the pressed target; a press on the chooser or its popup
@@ -107,7 +141,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
     {
         if (sender is not TopLevel root || _sessions.Count == 0 || e.Source is not Visual source) return;
         var currentSession = _sessions[^1];
-        if (currentSession.Layer.IsVisualAncestorOf(source) || IsInCardOrPopup(source, currentSession)) return;
+        if (currentSession.Layer.IsVisualAncestorOf(source) || IsInCardOrPopup(source, currentSession) || InOperations(source, currentSession)) return;
         long focusRevision = _focusRevision;
         Dispatcher.UIThread.Post(() =>
         {
@@ -135,6 +169,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             OnEscape = onEscape,
             OnImplicitDismiss = behavior?.OnImplicitDismiss ?? onEscape,
             DismissOnBackdrop = behavior?.DismissOnBackdrop ?? true,
+            KeepOperationsUsable = behavior?.KeepOperationsUsable == true,
         };
         if (_escapeRoot is null && TopLevel.GetTopLevel(host) is { } root)
         {
@@ -215,6 +250,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         host.IsVisible = true;
         _open++;
         _sessions.Add(session);
+        UpdateOperationsRegion();
         // A headless or partially themed host can have no backdrop brush. Keep the
         // modal layer in the pointer hit tree after styles have had a layout pass.
         Dispatcher.UIThread.Post(() =>
@@ -294,6 +330,7 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
         bool wasCurrent = IsCurrent(s);
         if (!_sessions.Remove(s)) return;
         host.Children.Remove(s.Layer);
+        UpdateOperationsRegion();
         _open = Math.Max(0, _open - 1);
         host.IsVisible = host.Children.Count > 0;
         long revision = ++_focusRevision;

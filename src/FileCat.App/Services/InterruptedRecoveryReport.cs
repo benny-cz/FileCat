@@ -26,6 +26,10 @@ internal static class InterruptedRecoveryReport
             return exchanges.Any(t => t.WasPublished)
                 ? "The archive was updated. The previous version and this update's private files are still kept; review removes them exactly."
                 : "The archive was not changed. This update's unpublished private files are still kept; review removes them exactly.";
+        if (ArchiveDiscardReview.CanOffer(job))
+            return facts.Discards.Any(t => t.Phase == ArchiveDiscardPhase.NeedsReview)
+                ? "An archive change stopped before it was saved, and removing its unfinished files needs review. The archive was not changed by it; review checks the files again."
+                : "An archive change stopped before it was saved, so the archive was not changed by it. FileCat's unfinished files for it are still kept; review removes them exactly.";
         var restorations = facts.ContentRestorations.Where(t => !facts.IsContentResolved(t.Nonce)).ToArray();
         if (restorations.Any(t => t.Phase != ArchiveContentRestorationPhase.Committed))
             return "An archive restoration was interrupted. Keep the current archive and retained versions; open Review report for the linked restore job and recorded locations.";

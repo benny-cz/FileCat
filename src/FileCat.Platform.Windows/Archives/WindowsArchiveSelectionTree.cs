@@ -67,7 +67,8 @@ internal sealed class WindowsArchiveSelectionTree : IArchiveSelectionTree, IArch
         inputs.RetainSelection(64, 384); // Dictionary entry and the current digest after our own child deletions.
         removalDirectories.Add(directory, initial?.RemovalMetadataDigest ?? throw ArchiveCapturedSelection.Changed());
     }
-    public void RemoveFile(ArchiveSelectionNode node, ArchiveFileObservation expected, CancellationToken ct)
+    // Handle-bound deletion: no aside name is used, so none is ever journaled for Windows.
+    public void RemoveFile(ArchiveSelectionNode node, ArchiveFileObservation expected, CancellationToken ct, string? asideLeaf = null)
     {
         if (node.Entry.Kind != ArchiveSelectionKind.File || node.Entry.Identity != expected.Version.Identity) throw ArchiveCapturedSelection.Changed();
         using var parent = OpenParent(node, ct);

@@ -104,6 +104,11 @@ public sealed record DialogBehavior
     public Avalonia.Size? PreferredSize { get; init; }
     /// <summary>Esc and the title-bar close button use this action; explicit buttons keep their own behavior.</summary>
     public Action? OnImplicitDismiss { get; init; }
+    /// <summary>
+    /// Plan §11.5: while this dialog is on top the operation center stays above its backdrop and usable (pointer, focus and
+    /// its shortcut), for example during a format scan. Panel commands remain blocked.
+    /// </summary>
+    public bool KeepOperationsUsable { get; init; }
 }
 
 /// <summary>Overlay dialogs owned by the main window. Enter confirms; Esc follows each dialog's close behavior.</summary>

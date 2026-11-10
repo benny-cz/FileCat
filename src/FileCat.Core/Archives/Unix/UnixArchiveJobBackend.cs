@@ -20,7 +20,7 @@ internal static class UnixArchiveJobBackend
         return new ArchiveNativeJobBackend<UnixArchiveFile>(format,
             availability ?? (_ => OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? ArchiveJobAvailability.Ready : ArchiveJobAvailability.Unqualified),
             (plan, ct) => new UnixArchiveJobScope(plan, ct, retainArtifacts),
-            new(assess, protocolVersion: 2), new(transform, protocolVersion: 2), new(verify, protocolVersion: 2), supportsSourceRemoval: false,
+            new(assess, protocolVersion: 2), new(transform, protocolVersion: 2), new(verify, protocolVersion: 2), supportsSourceRemoval: true,
             openReview: UnixArchiveTargetReadLease.Open);
     }
 }
@@ -35,11 +35,16 @@ internal sealed class UnixArchiveJobScope : IArchiveJobNativeScope<UnixArchiveFi
     private UnixArchiveDirectory? privateDirectory;
     private Guid privateNonce;
     private UnixArchiveExchangeUpdateResult<UnixArchiveFile>? update;
+    private readonly string leaf;
+    // A move removes sources only while this reader still binds the verified publication (plan §11.6.1).
+    private UnixArchiveFile? publicationTarget;
+    private ArchiveFileObservation? publishedObservation;
+    private string? publicationPinFailure;
     public ArchiveRetainedBinding? Original { get; }
 
     internal UnixArchiveJobScope(ArchivePlan plan, CancellationToken ct, bool retainArtifacts)
     {
-        this.ct = ct; this.retainArtifacts = retainArtifacts; ct.ThrowIfCancellationRequested();
+        this.ct = ct; this.retainArtifacts = retainArtifacts; ct.ThrowIfCancellationRequested(); leaf = Path.GetFileName(plan.ArchivePath);
         target = UnixArchiveDirectory.Open(Path.GetDirectoryName(plan.ArchivePath) ?? throw new ArgumentException("A target directory is required."));
         try
         {
@@ -79,6 +84,7 @@ internal sealed class UnixArchiveJobScope : IArchiveJobNativeScope<UnixArchiveFi
         {
             // Exclusive move into the archive folder, then exact destruction of the sidecars and removal of the empty folder.
             var created = ArchiveNewFilePublication.PublishAsync(journal, prepared, inputs, Create, token, cleanup: !retainArtifacts).GetAwaiter().GetResult();
+            PinPublication(created.Published);
             return new(created.Published, created.Facts.UnresolvedArtifacts) { CleanupNeedsReview = !created.Cleanup.IsResolved };
         }
         try { update = UnixArchiveExchangeUpdate.Publish(journal, prepared, target, privateDirectory, original, inputs, token); }
@@ -89,7 +95,46 @@ internal sealed class UnixArchiveJobScope : IArchiveJobNativeScope<UnixArchiveFi
             catch (Exception cleanup) when (cleanup is ArchiveWriteException or IOException or UnauthorizedAccessException or InvalidOperationException) { }
             throw;
         }
+        PinPublication(update.Published!);
         return new(update.Published!, update.RetainedArtifacts);
+    }
+
+    private void PinPublication(ArchiveFileObservation published)
+    {
+        publishedObservation = published;
+        try
+        {
+            publicationTarget = target.OpenSource(leaf, published.Version.Length);
+            if (((IArchiveRetainedFile)publicationTarget).ObjectIdentity != published.Version.Identity)
+            { publicationTarget.Dispose(); publicationTarget = null; publicationPinFailure = "Another object now has the archive name."; }
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        { publicationPinFailure = error.Message; } // Publication committed; a move then keeps its originals.
+    }
+
+    public void ReviewPublication(ArchiveJobPublication published, bool verifyBytes, CancellationToken token)
+    {
+        if (publicationTarget is null || !ReferenceEquals(published.Published, publishedObservation))
+            throw new ArchiveWriteException(ArchiveWriteReason.NeedsReview, "The published archive no longer has its live native move reader. " + publicationPinFailure);
+        var file = (IArchiveRetainedFile)publicationTarget;
+        if (verifyBytes) file.Review(published.Published, token);
+        else { using var view = file.OpenReadView(published.Published, token); }
+    }
+
+    public (bool Kept, string? Location, string? Reason) DiscardUnpublished(JobJournal journal, CancellationToken token)
+    {
+        var preparation = journal.DiscardableArchiveTransaction();
+        if (preparation is null) return (journal.NeedsRecovery, privateDirectory?.DisplayPath, null);
+        if (retainArtifacts || privateDirectory is null) return (true, privateDirectory?.DisplayPath ?? preparation.StagePath, null);
+        try
+        {
+            using var discard = new ArchiveTransactionDiscard(UnixArchiveDiscard.Live(journal, preparation, privateDirectory));
+            discard.Execute(token);
+            return (journal.NeedsRecovery, null, null);
+        }
+        catch (Exception error) when (error is ArchiveWriteException or IOException or UnauthorizedAccessException or InvalidOperationException or
+            ArgumentException or ObjectDisposedException)
+        { return (true, privateDirectory.DisplayPath, error.Message); }
     }
 
     private static bool NotPublished(JobJournal journal, ArchivePreparedContainer<UnixArchiveFile> prepared)
@@ -108,7 +153,7 @@ internal sealed class UnixArchiveJobScope : IArchiveJobNativeScope<UnixArchiveFi
 
     public void Dispose()
     {
-        try { update?.Dispose(); }
+        try { publicationTarget?.Dispose(); update?.Dispose(); }
         finally
         {
             try { original?.Dispose(); }

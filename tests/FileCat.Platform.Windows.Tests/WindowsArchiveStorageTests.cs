@@ -21,7 +21,8 @@ public sealed partial class WindowsArchiveStorageTests
     {
         public string Root { get; } = Directory.CreateTempSubdirectory("filecat-archive-storage-").FullName;
         public string PathOf(string leaf) => Path.Combine(Root, leaf);
-        public void Dispose() => Directory.Delete(Root, recursive: true);
+        // A killed process (or a scanner) may release its handles a moment after exit on Windows.
+        public void Dispose() => FileCat.Tests.TestCleanup.DeleteTree(Root);
     }
 
     private static string Digest(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes));

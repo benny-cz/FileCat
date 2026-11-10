@@ -102,12 +102,17 @@ public sealed partial class MainViewModel
         if (command is null)
         {
             CheckSessionAction();
+            // Plan §12.2: an archive that is missing, moved, unsupported or no longer writable keeps the working copy and the
+            // session, and offers Save copy and a fresh, manually chosen workflow (the working copy, ready to copy anywhere).
             var answer = await Dialogs.ShowCustomAsync("Archive edit kept", new Avalonia.Controls.TextBlock
             {
-                Text = "The archive was not prepared for this commit. Your working copy is kept; you can save it to a folder.",
+                Text = $"{Formatters.SafeName(Path.GetFileName(session.ArchivePath))} was not prepared for this commit: the check was stopped, or the " +
+                    "archive is missing, moved, unsupported or no longer writable. Your working copy and edit session are kept. Save a copy, or " +
+                    "show the working copy to copy it into an archive or folder you choose.",
                 TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxWidth = 640,
-            }, [new("Cancel", "cancel", IsCancel: true), new("Save my copy…", "copy", IsDefault: true)]);
+            }, [new("Cancel", "cancel", IsCancel: true), new("Show working copy", "show"), new("Save my copy…", "copy", IsDefault: true)]);
             if (answer as string == "copy") await SaveSessionCopyAsync(session);
+            else if (answer as string == "show") ShowSessionWorkingCopy(session);
             return;
         }
         var check = EditSessionStore.ReviewArchive(session, command.Target);
@@ -148,10 +153,20 @@ public sealed partial class MainViewModel
         }
     }
 
+    /// <summary>Selects the session's working copy in the active panel; the session itself is unchanged.</summary>
+    internal void ShowSessionWorkingCopy(EditSessionRecord session)
+    {
+        if (ActiveTab is not { } tab || Path.GetDirectoryName(session.WorkingPath) is not { } folder) return;
+        tab.Navigate(Location.FileSystem(folder), Path.GetFileName(session.WorkingPath));
+        Notify("Your working copy is selected. Copy it (F5) into an archive or folder you choose; the edit session stays open.");
+    }
+
     private async Task AcknowledgeNativeArchiveEditAsync(Job job, SessionCommit commit)
     {
         var published = job.ArchiveEditPublication ?? throw new IOException("No native publication receipt is available. The previous edit baseline is kept.");
-        var reviewed = await ReviewArchiveTargetAsync(published.Path, published.Profile, commit.ReadbackPassword);
+        // Plan §12.2 "Commit completed": read back what was actually published before the baseline moves.
+        var reviewed = await ReviewArchiveTargetAsync(published.Path, published.Profile, commit.ReadbackPassword, title: "Check saved archive",
+            message: "Reading the complete saved archive to confirm your edit before updating the saved edit baseline.");
         CheckSessionAction();
         if (reviewed is null) throw new OperationCanceledException();
         var acknowledged = await RunArchivePreparationAsync(published.Path, "Confirm archive edit",

@@ -11,6 +11,7 @@ using FileCat.Core.Commands;
 using FileCat.Core.Edit;
 using FileCat.Core.Jobs;
 using FileCat.Core.Listing;
+using FileCat.Core.Resources;
 using FileCat.Core.State;
 using FileCat.Platform.Windows.Archives;
 using FileCat.Platform.Windows.Shell;
@@ -77,6 +78,44 @@ public sealed class ArchiveEditNativeUiTests
             f.Input("Existing archive password").Text = ArchiveTargetUpdateUiTests.Secret; f.Click("Unlock");
         }
     }
+    // Plan §12.2: an archive that is missing, moved, unsupported or no longer writable keeps the working copy and the session
+    // and offers Save copy and a fresh, manually chosen workflow; nothing is queued.
+    [AvaloniaFact]
+    public async Task A_moved_archive_keeps_the_edit_and_offers_save_copy_or_the_working_copy()
+    {
+        if (!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_TXF_NATIVE") != "1")
+            Assert.Skip("Run the explicit standard-user native edit UI lane.");
+        string assets = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_APP_ASSETS") ?? throw new InvalidOperationException("Current native assets required.");
+        ArchiveAppContainer.ProvisionRuntimeReadAccess(assets); string executable = Path.Combine(assets, "FileCat.exe");
+        using var f = await Fixture.Open(customBackends: new([WindowsArchiveJobBackend.Create(ArchiveWriteFormat.Tar, executable)]), nativeWindowsOriginMarks: true);
+        f.Services.Settings.Editor = new ToolDefinition { Executable = Path.Combine(f.Root, "owned-missing-editor.exe") };
+        File.SetLastWriteTimeUtc(Path.Combine(f.Files, "a.txt"), DateTime.UnixEpoch.AddSeconds(1700000000));
+        var create = f.Vm.ExecuteAsync(CommandIds.Pack); await f.Ready(); f.SelectFormat(ArchiveWriteFormat.Tar);
+        await Wait(() => f.Button("Pack")?.IsEnabled == true); f.Click("Pack"); await f.Complete(create);
+        var creation = Assert.Single(f.Services.Jobs.Jobs); await Finished(creation);
+        string path = creation.Request.Archive!.ArchivePath;
+        var tab = f.Vm.ActiveTab!; var archive = ArchiveProvider.ForFile(path); tab.Navigate(archive);
+        await Wait(() => tab.Location == archive && !f.Vm.Dialogs.IsOpen && tab.Listing.State == ListingState.Complete && tab.Listing.FocusName("a.txt"));
+        var edit = f.Vm.ExecuteAsync(CommandIds.Edit); await f.Complete(edit);
+        var session = Assert.Single(f.Services.EditSessions.LoadAll());
+        File.WriteAllText(session.WorkingPath, "kept archive edit");
+        tab.Navigate(Location.FileSystem(f.Root)); await Wait(() => tab.Listing.State == ListingState.Complete);
+        File.Move(path, path + ".moved");
+        var commit = (Task)typeof(MainViewModel).GetMethod("CommitSessionAsync", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(f.Vm, [session])!;
+        await Wait(() => f.Button("Show working copy") is not null || commit.IsCompleted);
+        Assert.True(f.Button("Show working copy") is not null, "No kept-edit choice: " + f.Vm.Notification + " UI: " + f.Text());
+        Assert.NotNull(f.Button("Save my copy…")); Assert.NotNull(f.Button("Cancel"));
+        Assert.Contains("Your working copy and edit session are kept.", f.Text());
+        f.Click("Show working copy"); await f.Complete(commit);
+        string folder = Path.GetDirectoryName(session.WorkingPath)!;
+        await Wait(() => tab.Location == Location.FileSystem(folder) && tab.Listing.State == ListingState.Complete);
+        Assert.True(tab.Listing.FocusName(Path.GetFileName(session.WorkingPath)));
+        Assert.Single(f.Services.Jobs.Jobs); // Nothing was queued.
+        var kept = Assert.Single(f.Services.EditSessions.LoadAll()); Assert.Equal(session.WorkingPath, kept.WorkingPath);
+        Assert.Equal("kept archive edit", File.ReadAllText(kept.WorkingPath));
+        Assert.False(File.Exists(path));
+    }
+
     private static async Task Finished(Job job)
     {
         await Wait(() => job.State.IsFinished());
