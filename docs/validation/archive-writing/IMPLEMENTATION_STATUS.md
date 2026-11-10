@@ -1,5 +1,46 @@
 # Archive writing implementation status
 
+**10 November: archive phases, plan microcopy and full-drive handling; AT08 on real small volumes; all three platforms pass.**
+Commit `2acacfe3` shows the plan's phases in Operations (Preparing, Reading archive, Rebuilding, Checking, Saving,
+Finishing safely) with Cancel unavailable at the short publication boundary, and gives every controlled archive refusal
+the §11.7 text, phase-aware so that nothing says "not saved" once saving may have begun; the technical message stays as
+issue details. A full drive or quota (ENOSPC/EDQUOT, `ERROR_DISK_FULL`, `ERROR_HANDLE_DISK_FULL`,
+`ERROR_DISK_QUOTA_EXCEEDED`) that surfaces through any writing step now says so ("The drive ran out of space before the
+archive was saved, so no archive was changed. Free up space or choose another destination, then try again.") instead of
+the generic worker refusal it produced before. Also: one combined review of replacements and exclusions, an explicit "Add
+to this archive" before an existing ZIP is changed, a bounded pack estimate, "Open archive" after creation, the context
+menu entry, duplicate-name editing guidance, confined Linux application workers, user-private-group folders, and removal
+of an empty private stage folder left by a refusal before any object existed.
+
+AT08 now runs on real small volumes, enabled by the Unix runner's new `env:NAME=VALUE` entries: a 200 MB APFS disk image
+attached with ownership honoured on macOS 26 and a 200 MB ext4 image loop-mounted on Ubuntu 24.04 (Linux writing admits
+only ext4, so tmpfs cannot stand in). On both, the space review refuses creation and update before any object exists,
+with both amounts in the message, the original byte-identical and the folder unchanged; and a drive filled by another
+writer after the review (between the review and the worker's first stage write) fails the job with the full-drive text,
+publishes nothing and leaves the original byte-identical.
+
+The exact tree (packet `08d2b401617c7de54fd3f9cfa80417c638d3bcec43f1bb90ad2f80b6b373f9ad`, tree `45754c31`) passed the
+`Archive`/`Journal`/`EditSession`/`BackingArchiveTarget`/`JobProgressView` subsets with zero failures and only platform
+skips: Mac Core 2,843/2,933 and App 407/451 (evidence `fc62629735c9d945672e046e8b9029a74d115b5673eb4d962f609ba235811060`);
+Ubuntu Core 2,904/2,933 and App 417/451, including all ten confined application-worker jobs under `systemd-run --user`
+(evidence `0b2499f31aa9dfed3104d6436752fcc5db56bb8dcc11263316ecad67920d0697`); Windows 11 Core 2,475/2,933, Platform
+565/597 and App 437/451 with the native AppContainer/NTFS lanes, as `Admin` with a UAC-filtered token (evidence
+`e1f3e394a0ae8eb506f5445fd473e773ab94ecc0f161bdd510a09a8fbdaa4bd8`).
+
+The two attempts before it are retained. Packet `1ab44e8f16cf3b6d79b0933281e9fecbb583937a4ca655c64cf5e4f09598322d`
+(tree `bee0c678`) passed on the Mac (Core 2,778/2,868, App 255/299, evidence
+`f860b4fdb2c9f8590c18c2d246b92a7d86d278654e86c3781910a4407a837def`); on Ubuntu three confined 7z application cases timed
+out (evidence `9c769b1215e453a2bd58734de680423e529a22f254fc0cf6708e36295f028548`; fixed with whole-second fixture times and
+job diagnostics in the timeout text), and the Windows runner aborted on xUnit's standard error under Windows PowerShell
+5.1 (evidence `885cd08a76ae550d5f7625473625140c68fcf240a7901a28cc67a0fc61d58865`; the native loop now runs with
+`ErrorActionPreference=Continue`). Packet `de516bec07caf9039af93a89c88f82f1293611dee2aa37728d6f75bc5cb2dc61` (tree
+`7a6078b8`) found the same three failures everywhere (Mac `1ae0d3660545f31be2c6b1d29dea391d3ef33b42e5088b3176df67e1c5690212`,
+Ubuntu `e0aec88b839672ec433f56b10dfdbac6de328c936aa87aafee256856a8a0c19e`, Windows
+`a6d9276edef13c1bf829b61b122265fdd46d9e0a821dcf895c7c058c0220412b`): a product regression in the same change set (editing
+a member that had disappeared indexed an empty match instead of reporting the change), a new test that expected `Completed`
+where an accepted exclusion correctly ends `CompletedWithIssues` (its summary now also says "1 unsupported source item"),
+and an older pack test unaware of the new "Add to this archive" question.
+
 **10 November: Unix creation moves into the private stage folder; all three platforms pass the archive regression.**
 Commit `8872044c` prepares a new Unix archive's stage and sidecars in the same `0700` private stage folder as an update,
 then moves the verified stage into the reviewed archive folder with one no-replace rename between the two held folder
