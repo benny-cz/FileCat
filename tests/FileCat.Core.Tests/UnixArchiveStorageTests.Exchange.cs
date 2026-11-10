@@ -49,6 +49,25 @@ public sealed partial class UnixArchiveStorageTests
     }
 
     [Fact]
+    public void Stopped_but_unsealed_rebuild_cannot_exchange_an_original()
+    {
+        Native(); using var temp = new TempDir(); string root = Canonical(temp.Path);
+        string target = Path.Combine(root, "original.tar"); File.WriteAllText(target, "old archive");
+        using var directory = UnixArchiveDirectory.Open(root);
+        using var original = directory.OpenSource("original.tar", 4096);
+        var old = ((IArchiveRetainedFile)original).Observe(TestContext.Current.CancellationToken);
+        using var stage = Stage(directory); string stageName = stage.KnownName;
+        ((IArchiveRetainedStage)stage).BeginRebuild(4096, TestContext.Current.CancellationToken).Write("unverified"u8);
+        ((IArchiveRetainedArtifact)stage).StopWrites();
+        var unsealed = ((IArchiveRetainedFile)stage).Observe(TestContext.Current.CancellationToken);
+
+        Assert.Equal(ArchiveWriteReason.InvalidRequest,
+            Assert.Throws<ArchiveWriteException>(() => stage.ExchangeRetained(original, unsealed, old, TestContext.Current.CancellationToken)).Reason);
+        Assert.Equal("old archive", File.ReadAllText(target));
+        Assert.Equal("unverified", File.ReadAllText(Path.Combine(root, stageName)));
+    }
+
+    [Fact]
     public void Symlink_substitution_refuses_exchange_without_following_its_target()
     {
         Native(); using var temp = new TempDir(); string root = Canonical(temp.Path);

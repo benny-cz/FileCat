@@ -95,7 +95,8 @@ internal sealed partial class UnixArchiveFile
         lock (parent.Gate)
         {
             if (!rebuildClaimed) throw new InvalidOperationException("The native stage was not claimed for rebuilding.");
-            var version = Seal(ct); var observed = ObserveRetained(ct); if (observed.Version != version) throw Changed(); return observed;
+            var version = Seal(ct); var observed = ObserveRetained(ct); if (observed.Version != version) throw Changed();
+            verificationSealed = true; return observed;
         }
     }
     void IArchiveRetainedArtifact.StopWrites() { lock (parent.Gate) writable = false; }

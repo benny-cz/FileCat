@@ -13,7 +13,7 @@ internal sealed partial class UnixArchiveFile : Stream, IArchiveCreatePublicatio
     private readonly long maximum;
     private readonly bool artifact, createdWritable;
     private readonly UnixArchiveArtifactKind? createdKind;
-    private bool rebuildClaimed, evidenceClaimed;
+    private bool rebuildClaimed, evidenceClaimed, verificationSealed;
     private bool writable, disposed, namespaceChanged;
     private long position;
     internal FileIdentity Identity { get; }

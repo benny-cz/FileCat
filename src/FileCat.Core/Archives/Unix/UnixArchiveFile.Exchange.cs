@@ -21,7 +21,7 @@ internal sealed partial class UnixArchiveFile
         lock (parent.Gate)
         {
             Live(); original.Live(); ct.ThrowIfCancellationRequested();
-            if (!artifact || !createdWritable || createdKind != UnixArchiveArtifactKind.Stage || !rebuildClaimed ||
+            if (!artifact || !createdWritable || createdKind != UnixArchiveArtifactKind.Stage || !rebuildClaimed || !verificationSealed ||
                 evidenceClaimed || writable || namespaceChanged || original.artifact || original.writable || original.namespaceChanged ||
                 KnownName == original.KnownName)
                 throw new ArchiveWriteException(ArchiveWriteReason.InvalidRequest, "Archive exchange requires one sealed private stage and one unchanged held original.");
