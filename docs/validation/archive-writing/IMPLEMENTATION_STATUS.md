@@ -43,8 +43,15 @@ skips and zero failures. Its evidence transport SHA-256 is
 The independent verifier counted every raw TRX row, matched source files and
 packet hash, checked the non-admin account and loaded profile, and found the
 RAR5/7z native F6 cases passing. The first stalled attempt remains a failed
-run, not a pass. Windows has started the next guarded Unix exchange platform
-test from the strengthened source. Ubuntu's five strict fuzz campaigns and
+run, not a pass. Windows then rebuilt the strengthened `eaf621f1` Unix exchange
+source and passed 20/212 native storage cases under the standard account, with
+192 expected Unix-only skips and zero failures. All four exchange cases were
+present and skipped by their platform guards. Its independently checked
+transport SHA-256 is
+`6e52fa18ca5e92b5de3063120c1661d34b5383921de3d2bc396a2316915c44a9`.
+An earlier runner incorrectly required 50 Windows passes and rejected its clean
+20/212 result; that harness failure is retained. Windows is now running the
+complete Core/Remote/App regression on the same strengthened source. Ubuntu's five strict fuzz campaigns and
 their dependent native/codec queues remain active; no long-campaign pass is
 claimed yet.
 

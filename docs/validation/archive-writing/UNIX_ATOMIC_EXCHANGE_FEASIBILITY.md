@@ -49,9 +49,19 @@ The strengthened source passed 249/251 cases with the same two skips; all
 four exchange cases passed, including unsealed-stage refusal (evidence SHA-256
 `83ff32f1f4df7c4aea6a8d44cf7382f671c19c90bfc9f192f620e28ee3d42999`).
 The host independently counted raw TRX rows and checked the frozen packet and
-overlay hashes; the Mac ended without FileCat/test processes. Ubuntu and
-Windows matching tests remain queued, and no cross-platform qualification is
-claimed from the Mac result alone.
+overlay hashes; the Mac ended without FileCat/test processes. The strengthened
+source also rebuilt on the Windows VM with zero errors or warnings and passed
+20/212 storage cases under a real standard account, with 192 expected Unix-only
+skips and no failures. All four exchange cases were present and skipped by their
+platform guards. The independently checked transport SHA-256 is
+`6e52fa18ca5e92b5de3063120c1661d34b5383921de3d2bc396a2316915c44a9`;
+its raw TRX rows, packet/source hashes, loaded non-admin profile and clean child
+exit were verified. The first Windows runner rejected its otherwise clean 20/212
+result because its inventory threshold incorrectly required 50 Windows passes;
+that harness failure remains retained and is not counted as a pass. The VM ended
+without FileCat/test processes, and a new complete regression batch on the same
+source is running. Ubuntu matching tests remain queued. No cross-platform
+qualification is claimed from the Mac and Windows results alone.
 
 The Windows native update uses a different transactional-data recipe. This
 Unix primitive does not enable an update profile or relax the separate recovery,
