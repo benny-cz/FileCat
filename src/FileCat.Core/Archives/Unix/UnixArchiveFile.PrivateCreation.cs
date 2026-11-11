@@ -35,7 +35,12 @@ internal sealed partial class UnixArchiveFile : IArchiveOwnedCleanupFile, IArchi
             int result = UnixArchiveNative.Mac
                 ? RenameMac(UnixArchiveNative.Fd(parent.Handle), privateLeaf, UnixArchiveNative.Fd(destination.Handle), leaf, 4 /* RENAME_EXCL */)
                 : RenameLinux(UnixArchiveNative.Fd(parent.Handle), privateLeaf, UnixArchiveNative.Fd(destination.Handle), leaf, 1 /* RENAME_NOREPLACE */);
-            if (result != 0) throw new IOException("The exclusive archive name could not be claimed (errno " + Marshal.GetLastPInvokeError() + ").");
+            if (result != 0)
+            {
+                int error = Marshal.GetLastPInvokeError();
+                if (error == 17 /* EEXIST: another object has the name; the no-replace rename changed nothing */) throw ArchiveWriteMessages.NameTaken(leaf);
+                throw new IOException("The exclusive archive name could not be claimed (errno " + error + ").");
+            }
             // The held object left the private folder. Never hide that, even if the reconciliation below fails.
             KnownName = leaf; namespaceChanged = true;
             parent.ReleaseChild(); privateSlotReleased = true;

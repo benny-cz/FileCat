@@ -304,14 +304,18 @@ internal static class LiveRegions
     }
 
     /// <summary>
-    /// A peer whose parent was looked up while its control was hidden keeps that empty link once shown, and NVDA drops
-    /// the live-region event of a UI Automation element it cannot place in its window. Listing the children from the
-    /// window down links the control again.
+    /// A peer whose parent was looked up while its control or an ancestor was hidden keeps that empty link once shown
+    /// (Avalonia caches it as known), and UI Automation, NVDA with it, drops the event of an element it cannot place in its
+    /// window by walking up its parents. The gap can be anywhere above the live element: the operation strip is hidden
+    /// until the first operation, so its archive phases went unheard although the phase text's own parent was set.
+    /// Listing the children from the window down links every control on the path again.
     /// </summary>
     private static void Link(Control control, Region region)
     {
-        if (region.Peer.GetParent() is not null || TopLevel.GetTopLevel(control) is not Window window) return;
-        foreach (var ancestor in AutomationPaths.FromWindow(ControlAutomationPeer.CreatePeerForElement(window), region.Peer) ?? [])
+        if (TopLevel.GetTopLevel(control) is not Window window) return;
+        var root = ControlAutomationPeer.CreatePeerForElement(window);
+        if (AutomationPaths.Reaches(region.Peer, root)) return;
+        foreach (var ancestor in AutomationPaths.FromWindow(root, region.Peer) ?? [])
             ancestor.GetChildren();
     }
 }
@@ -567,6 +571,15 @@ internal static class AutomationPaths
             return path;
         }
         return null;
+    }
+
+    /// <summary>True when the peer's own parent links lead up to the root, as UI Automation walks them to place an event.</summary>
+    internal static bool Reaches(AutomationPeer peer, AutomationPeer root)
+    {
+        int depth = 0;
+        for (var current = peer.GetParent(); current is not null && depth++ < MaximumDepth; current = current.GetParent())
+            if (ReferenceEquals(current, root)) return true;
+        return false;
     }
 
     private static AutomationPeer? ParentOf(AutomationPeer peer)

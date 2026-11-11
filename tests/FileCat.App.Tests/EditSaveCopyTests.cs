@@ -227,7 +227,7 @@ public sealed class EditSaveCopyTests(ITestOutputHelper output)
         {
             var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(); await (Task)typeof(MainWindow).GetField("_interruptedStartup", Fields)!.GetValue(window)!;
             using var source = new MemoryContentSource("notes.txt", "base"u8.ToArray()); var session = services.EditSessions.CreateRemote("owned-unused", "owned", "/notes.txt", source, source.GetRevision()!.Value, null);
-            string target = Path.Join(root, "destination.txt"); File.WriteAllText(target, "previous destination"); var gate = new Gate(held); var files = new Files(gate, outcome);
+            string target = Path.Join(root, "destination.txt"); File.WriteAllText(target, "previous destination"); var gate = new Gate(held); var files = new Files(gate, outcome, OperatingSystem.IsWindows() ? new FileCat.Platform.Windows.WindowsFileOperations() : services.Platform.FileOperations);
             var provider = new Provider(services.Providers.Get(Schemes.FileSystem), session.WorkingPath, gate, outcome); services.Providers.Register(provider);
             var picker = DispatchProxy.Create<IStorageProvider, StorageProxy>(); var proxy = (StorageProxy)(object)picker;
             var f = new Fixture { Services = services, Vm = vm, Window = window, Root = root, Session = session, Gate = gate, Provider = provider, Target = target, PickerProxy = proxy, Files = files, Original = services.Platform };
@@ -244,9 +244,14 @@ public sealed class EditSaveCopyTests(ITestOutputHelper output)
         public void Dispose() { Gate.Release.Set(); Answer(); typeof(AppServices).GetField("<Platform>k__BackingField", Fields)!.SetValue(Services, Original); AccessibilityTests.Close(Services, Window, Root); Gate.Release.Dispose(); }
     }
     private sealed class TestPlatform : PortablePlatform { public TestPlatform(Files files) => FileOperations = files; }
-    private sealed class Files(Gate gate, string outcome) : PortableFileOperations
+    // Faults are injected into copy and move; identities and handle-bound deletion of FileCat's own stage come from the
+    // platform's real adapter, as in production (without them the R21 cleanup keeps the stage and logs it). Headless tests
+    // run on the portable platform, so on Windows that is the Windows adapter the application composes.
+    private sealed class Files(Gate gate, string outcome, IFileSystemOperations real) : PortableFileOperations
     {
         public string? Snapshot;
+        public override string? GetFileIdentity(string path) => real.GetFileIdentity(path);
+        public override BoundDeletion? DeleteOwnedFile(string path, string expectedIdentity) => real.DeleteOwnedFile(path, expectedIdentity);
         public override void CopyFile(string source, string destination, FileCopyOptions options, CopyProgressCallback? progress, CancellationToken ct)
         {
             Snapshot = source; gate.Invoke("copy");

@@ -742,7 +742,10 @@ public sealed partial class EditSessionStore
         string? stagedIdentity = null;
         try
         {
-            files.CopyFile(copy.Path, staged, new FileCopyOptions { FlushDestination = true }, null, default);
+            // The stage's identity is read by name as soon as the copy ends, after a failure as after success, so a partial
+            // stage is removed under the same rules as a complete one (risk R21); an unreadable identity keeps it.
+            try { files.CopyFile(copy.Path, staged, new FileCopyOptions { FlushDestination = true }, null, default); }
+            catch { stagedIdentity = StageIdentity(files, staged); throw; }
             stagedIdentity = files.GetFileIdentity(staged);
             check();
             VerifySaveCopy(copy, staged, check);
@@ -760,6 +763,12 @@ public sealed partial class EditSessionStore
                 if (kept is not null) Diagnostics.AppLog.Warn(kept);
             }
         }
+    }
+
+    private static string? StageIdentity(IFileSystemOperations files, string staged)
+    {
+        try { return files.GetFileIdentity(staged); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return null; }
     }
 
     private static void VerifySaveCopy(EditCommitCopy copy, string path, Action check)

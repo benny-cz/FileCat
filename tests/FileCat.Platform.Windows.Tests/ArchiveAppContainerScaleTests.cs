@@ -22,8 +22,8 @@ public sealed partial class ArchiveAppContainerTests
         string? assets = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_APP_ASSETS"); Assert.True(assets is not null && Path.IsPathFullyQualified(assets));
         ArchiveAppContainer.ProvisionRuntimeReadAccess(assets!); string executable = Path.Combine(assets!, "FileCat.exe");
         var ct = TestContext.Current.CancellationToken;
-        // The phase each retained peak was seen in; FILECAT_ARCHIVE_SCALE_RETAINED=1 also logs the retained heap at every
-        // phase change (a full collection each time, for a solo measurement run).
+        // The phase each live peak was seen in; FILECAT_ARCHIVE_SCALE_RETAINED=1 also logs the live bytes at every phase
+        // change (two compacting full collections each time, for a solo measurement run).
         string phaseNow = "start", peakPhase = "start"; bool retainedAtPhases = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_SCALE_RETAINED") == "1";
         string root = Directory.CreateTempSubdirectory("filecat-native-at18-").FullName;
         try
@@ -51,18 +51,18 @@ public sealed partial class ArchiveAppContainerTests
             await Finish("warm-up", manager.SubmitArchive(new(Path.Combine(root, "warm.tar"), null, [new(ArchiveChangeKind.AddFile, "warm.txt", warm)], Profile: profile), null));
             File.Delete(Path.Combine(root, "warm.tar")); File.Delete(warm);
             int handles = Process.GetCurrentProcess().HandleCount;
-            GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+            long liveBefore = Live();
             long heapBefore = GC.GetTotalMemory(false), heapPeak = heapBefore;
             using var sampler = new Timer(_ =>
             {
                 long heap = GC.GetTotalMemory(false), seen;
                 while (heap > (seen = Interlocked.Read(ref heapPeak)) && Interlocked.CompareExchange(ref heapPeak, heap, seen) != seen) { }
             }, null, 0, 20);
-            // What is actually retained: a full collection every 15 s; reported, not asserted (other tests share the process).
-            long retainedPeak = heapBefore;
+            // What is actually live: compacting full collections every 15 s; reported, not asserted (other tests share the process).
+            long retainedPeak = liveBefore;
             using var retainedSampler = new Timer(_ =>
             {
-                long retained = GC.GetTotalMemory(true), seen;
+                long retained = Live(), seen;
                 while (retained > (seen = Interlocked.Read(ref retainedPeak)))
                     if (Interlocked.CompareExchange(ref retainedPeak, retained, seen) == seen) { Volatile.Write(ref peakPhase, Volatile.Read(ref phaseNow)); break; }
             }, null, 15_000, 15_000);
@@ -98,7 +98,7 @@ public sealed partial class ArchiveAppContainerTests
             var process = Process.GetCurrentProcess(); process.Refresh();
             string report = $"AT18 members={members + 1} archiveBytes={size} create={created.TotalSeconds:F1}s assess={assessed.TotalSeconds:F1}s " +
                 $"update={updated.TotalSeconds:F1}s heapBefore={heapBefore >> 20}MiB heapPeak={Interlocked.Read(ref heapPeak) >> 20}MiB " +
-                $"retainedPeak={Interlocked.Read(ref retainedPeak) >> 20}MiB (in {Volatile.Read(ref peakPhase)}) " +
+                $"liveBefore={liveBefore >> 20}MiB livePeak={Interlocked.Read(ref retainedPeak) >> 20}MiB (in {Volatile.Read(ref peakPhase)}) " +
                 $"chargedCeiling={ArchiveWritePolicy.MaxRetainedHeapBytes >> 20}MiB peakWorkingSet={process.PeakWorkingSet64 >> 20}MiB " +
                 $"handles={handles}->{process.HandleCount} refusal=\"{string.Join(" | ", refused.Issues.Select(issue => issue.Message))}\"";
             Log(report);
@@ -106,6 +106,14 @@ public sealed partial class ArchiveAppContainerTests
         }
         finally { FileCat.Tests.TestCleanup.DeleteTree(root); }
 
+        // Live bytes: what survives a compacting full collection. GC.GetTotalMemory(true) after an ordinary full collection
+        // also counted free space between survivors (about half of it on macOS in the AT18 breakdown), so it is not used.
+        static long Live()
+        {
+            GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true); GC.WaitForPendingFinalizers();
+            GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
+            return GC.GetGCMemoryInfo(GCKind.FullBlocking).PromotedBytes;
+        }
         async Task Finish(string name, Job job)
         {
             var watch = Stopwatch.StartNew(); ArchiveJobPhase? phase = null; var nextProgress = TimeSpan.FromMinutes(1);
@@ -116,7 +124,7 @@ public sealed partial class ArchiveAppContainerTests
                 {
                     phase = job.ArchivePhase; Volatile.Write(ref phaseNow, $"{name}:{phase}");
                     Log($"{name} phase={phase} at {watch.Elapsed.TotalSeconds:F1}s heap={GC.GetTotalMemory(false) >> 20}MiB" +
-                        (retainedAtPhases ? $" retained={GC.GetTotalMemory(true) >> 20}MiB" : ""));
+                        (retainedAtPhases ? $" live={Live() >> 20}MiB" : ""));
                 }
                 if (watch.Elapsed >= nextProgress) { nextProgress += TimeSpan.FromMinutes(1); Log($"{name} still {phase} at {watch.Elapsed.TotalSeconds:F0}s items={job.ItemsDone}/{job.ItemsTotal} bytes={job.BytesDone}"); }
                 await Task.Delay(10, deadline.Token);

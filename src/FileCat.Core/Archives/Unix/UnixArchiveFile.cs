@@ -94,7 +94,12 @@ internal sealed partial class UnixArchiveFile : Stream, IArchiveCreatePublicatio
             ct.ThrowIfCancellationRequested();
             int result = UnixArchiveNative.Mac ? RenameMac(UnixArchiveNative.Fd(parent.Handle), KnownName, UnixArchiveNative.Fd(parent.Handle), leaf, 4 /* EXCL */)
                 : RenameLinux(UnixArchiveNative.Fd(parent.Handle), KnownName, UnixArchiveNative.Fd(parent.Handle), leaf, 1 /* NOREPLACE */);
-            if (result != 0) throw new IOException("The exclusive archive name could not be claimed (errno " + Marshal.GetLastPInvokeError() + ").");
+            if (result != 0)
+            {
+                int error = Marshal.GetLastPInvokeError();
+                if (error == 17 /* EEXIST: another object has the name; the no-replace rename changed nothing */) throw ArchiveWriteMessages.NameTaken(leaf);
+                throw new IOException("The exclusive archive name could not be claimed (errno " + error + ").");
+            }
             KnownName = leaf; namespaceChanged = true; // The syscall happened. Never hide this fact if post-review/durability fails.
             try
             {

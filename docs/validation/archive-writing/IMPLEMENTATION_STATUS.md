@@ -1,5 +1,66 @@
 # Archive writing implementation status
 
+**11 November: full suites found two regressions of this branch, both fixed; NVDA now hears archive phases; FZ10
+publication-race target; AT18 memory measured as live bytes, the same 243 MiB peak on all three platforms.** Commit `COMMIT`:
+
+- **Save-copy stage cleanup (regression of `38e56944`, R21).** The bound cleanup removed FileCat's save-copy stage only
+  when the stage's identity had been recorded, and the identity was read only after a successful copy, so a copy that
+  failed after writing part of the stage left `.filecat-edit-copy-….tmp` beside the destination (Ubuntu's full App suite;
+  the branch's base `42829297` passes the same 47 cases there). The identity is now read by name as soon as the copy
+  ends, after a failure as after success (the same observation the success path always made), so a partial stage is
+  removed under the same rules as a complete one: on Unix only in a folder no other user can change while the name binds
+  that identity, on Windows through a handle bound to it; anything else is kept and logged. New tests remove a partial
+  stage in a private Unix folder, keep it in a shared one, and remove it through a bound handle with the Windows adapter.
+  The App tests' fault-injecting adapter now takes file identities and bound deletion from the platform's real adapter,
+  as production does; without them every Windows destination-failure case would have kept its stage.
+- **User-private-group folders.** `A_group_writable_destination_keeps_the_copy_unpublished` predates the rule from
+  `2acacfe3` that a folder writable only by the user's own private group is private (Debian, Ubuntu, Fedora), so it
+  published on Ubuntu. It now makes the folder writable by a group the user shares with others, or by everyone when the
+  user is in no such group, and asserts the folder no longer counts as private; the copy stays unpublished.
+- **NVDA and archive phases.** A UI Automation trace of a 256 MiB pack in the Windows VM saw no event at all from the
+  operation strip's phase text, while the final notification raised its name-change and live-region events. Avalonia
+  raises both for every phase, but UI Automation places an event by walking up the element's parents, and the strip is
+  hidden until the first operation: a parent lookup while it was hidden left the strip's own peer without a parent
+  (Avalonia caches that as known), and FileCat's repair only covered a missing parent directly above the live element.
+  The repair now walks the whole chain to the window and relinks it from the window down when it does not arrive. A
+  headless test reproduces the gap (no phase reaches the window, with the old check) and passes with the fix. In the VM,
+  the trace on the fixed build sees Preparing, Rebuilding, Checking and Saving, each placed in the window, and the NVDA
+  2026.3.1 journey now passes completely: dialog and path, every format, the one-file refusal, "Rebuilding", "Checking"
+  and "Saving" while packing (NVDA's speech for the returning focus took the place of "Preparing"), the gzip file, and F7,
+  F2 and F8 refused inside it (report SHA-256 `CAEF035D…`, host `71A1D450…`, worker `5706233E…`).
+- **FZ10 `publication-races`** (fuzz setup record): the real Unix job route with up to six actions of another program
+  of the same user around every durable transaction, cleanup and discard record; no version is lost, no concurrent
+  version is displaced silently, nothing torn reaches the name. FZ10_RESULTS
+- **New-archive name taken at the claim.** A file appearing at a new archive's name between the review and the claim was
+  refused correctly (no-replace rename) but reported as `errno 17` (Unix) or a generic "already exists" (Windows). Both
+  now say "Another file named “…” appeared while the archive was being prepared. That file was kept and the new archive was
+  not saved. Choose another name, then try again." on both Unix claim paths (from the private stage folder and within the
+  archive's own folder) and on Windows; the shared `existing-target` case asserts the text on all three platforms.
+- **AT18 memory ([review](AT18_SCALE_REVIEW.md)).** The tests' "retained" figure, `GC.GetTotalMemory(true)` after an
+  ordinary full collection, can also count heap space that holds no live object (free space the collector has not
+  compacted), and on macOS it did: the Mac's 492 MiB was not live state. An opt-in breakdown of 20,101 members read 3,303 bytes per member after
+  capture on the Mac and 1,682 on Ubuntu, but the bytes surviving a compacting collection were 1,682 on both, a census of
+  everything reachable from the captured selection sums to the same figure, and releasing the job returns the heap to its
+  baseline. Live bytes per member, Mac and Ubuntu alike: capture 1,682, planning +213, the worker request +214, against
+  charges of about 2,450 for capture and 1,100 for planning. The AT18 tests now sample live bytes (two compacting
+  collections every 15 seconds); at the member limit the Mac (create 518.9 s, assess 19.2 s, update 150.9 s) and Ubuntu
+  (535.8 s, 128.8 s, 540.7 s) both peak at 243 MiB of live state while checking, under the charged 512 MiB.
+- **Windows AT18 on the v17 capture.** Creation 1,108.7 s (capture 351.7 s, 1,056 s before), assessment 275.9 s,
+  update 1,073.9 s, peak 243 MiB while checking, handles 360→370; Defender's real-time protection was off (by the VM's
+  owner), so the comparison with v15b is not one to one.
+- **R22 on Ubuntu (open).** The opt-in archive benchmark's ZIP extraction (20,000 notes of about 1 KiB and four 64 MiB
+  files, F5 into a folder) takes 5.4 times the runtime's own extractor against the 4× budget, on this branch (7.2 s
+  against 1.35 s) and on its base `42829297` (8.3 s against 1.5 s); only Windows (2.52×) and the Mac (3.71×) had been
+  graded. Under strace the extracting thread makes about 58 system calls per file where the runtime's extractor makes a
+  handful: 17.7 `statx`, 8.1 `lstat`, 7.1 `fstat`, 6.7 `lseek`, 3.1 `geteuid`, 2 `flock`, one each of open, rename,
+  `utimensat`, `readlink` and `fadvise`. The six source-container checks per file account for twelve `statx` and the
+  per-file destination hold and existence lookup for most `lstat` calls; attributing the rest, and the managed time, comes
+  before any change to these safety checks.
+- **Not caused by this branch.** `SecretStoreTests` fails in the Ubuntu VM's test service because the keyring's default
+  alias names a `login` collection that does not exist there; this branch does not touch that code.
+
+EVIDENCE_PARAGRAPH
+
 **10 November: worker ZIP profile with eight review defects fixed; destination denial and disk quota on real volumes (AT08);
 update-preparation crash recovery on Unix; Windows ZIP workers, profile race and capture speed fixed; Orca and NVDA runs
 (NVDA does not yet hear phases).** Commit `c1c7787c`:

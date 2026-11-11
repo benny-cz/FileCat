@@ -45,6 +45,20 @@ public static class ArchiveWriteMessages
         return error;
     }
 
+    /// <summary>
+    /// Another object took a new archive's name between the review and the exclusive claim. The claim is a no-replace rename
+    /// that the system refused, so nothing at that name changed and the new archive was never published; the transaction's
+    /// own objects stay for its discard. Saving had begun, so the text states exactly that instead of the generic outcome.
+    /// </summary>
+    internal static ArchiveWriteException NameTaken(string leaf, Exception? inner = null)
+    {
+        var error = new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
+            $"Another file named “{leaf}” appeared while the archive was being prepared. That file was kept and the new archive " +
+            "was not saved. Choose another name, then try again.", inner!);
+        error.Data[UserMessageKey] = error.Message;
+        return error;
+    }
+
     /// <summary>Marks a refusal raised before any object was created, so no artifact review or reconciliation applies.</summary>
     internal const string NothingCreatedKey = "FileCat.ArchiveNothingCreated";
 

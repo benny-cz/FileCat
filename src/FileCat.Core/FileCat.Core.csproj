@@ -12,6 +12,8 @@
     <InternalsVisibleTo Include="FileCat.Archives" />
     <InternalsVisibleTo Include="FileCat.Archives.Writing" />
     <InternalsVisibleTo Include="FileCat.CoreCrashHarness" />
+    <!-- Test tooling: FZ10 drives the internal Unix archive job route (eng/validation/archive-writing). -->
+    <InternalsVisibleTo Include="FileCat.ArchiveFuzzHarness" />
     <InternalsVisibleTo Include="FileCat.WorkerProbe" />
     <InternalsVisibleTo Include="FileCat.ArchiveQualificationHost" />
     <InternalsVisibleTo Include="FileCat.ArchiveWorker" />

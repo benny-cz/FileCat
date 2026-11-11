@@ -1,5 +1,31 @@
 # Coverage-guided archive-writing fuzz setup
 
+**11 November, FZ10 `publication-races` target implemented (no campaign yet).**
+[`PublicationTargets.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/PublicationTargets.cs) runs the real
+Unix archive job route (`UnixArchiveJobBackend` through `IArchiveJobBackend.Execute`: review, capture, journaled
+preparation with the in-process worker roles, exchange or creation claim, reconciliation, exact cleanup or discard) on a
+fresh link-free fixture, a TAR update of a three-member original or a new TAR. The journal stream is wrapped, as the crash
+harness does, and immediately before and after each durable transaction, creation-cleanup and discard record the input
+applies up to six actions of another program of the same user: replace or move away the archive (its old version moves
+to a kept folder), append to it, change its time, create a file at a free archive name, put a file into or rename
+FileCat's private stage folder, open the folder to everyone, swap FileCat's stage for another file, hard-link the
+archive, or put a symbolic link at its name. The oracle: only typed refusals escape; no version another program wrote is
+lost, and the original only when the update was published; a version FileCat moved from the archive name is never a
+silent success; a job that stopped before `Publishing` never leaves its output at the name; the name never holds bytes
+nobody wrote completely; a reported success leaves its complete output somewhere. FileCat.Core now names the harness as a
+friend assembly (test tooling, as for the crash harness). `make-worker-seeds` writes 181 seeds (each action alone at
+eight points for creation and update, plus pairs around publication); the native libFuzzer and `replay-worker` entries
+accept the target. On the Mac (packet `d8a5f5a2…`, then the corrected fixture) all 181 seeds replayed with no oracle
+violation: 61 published and 120 refused. The first replay found a harness defect, not a product one: the fixture used
+macOS `/var/…` (a link) where `JobManager.SubmitArchive` resolves the folder once, so every creation was refused with
+ENOTDIR; the harness now resolves paths as submission does. The same replay showed that a file appearing at a new
+archive's name just before the claim was refused correctly but reported as a raw `errno 17`; the claim on Unix and on
+Windows now reports "Another file named “…” appeared while the archive was being prepared. That file was kept and the
+new archive was not saved." (shared creation-publication case `existing-target` asserts it on Linux, macOS and Windows).
+The target covers the Unix exchange and creation routes only; Windows TxF publication races stay with the Windows
+restoration and crash matrices. Seal/verify entries, the native campaign and the 24 CPU-hour totals remain for the
+final candidate.
+
 **10 November, harness targets for FZ04–FZ08, FZ11 and FZ12 implemented (no campaign yet).**
 Seven new test-only targets call the real public parent conversations through the real `ArchiveWorkerSession`; only the
 process boundary is replaced, by the real worker roles running in-process over pipes

@@ -65,6 +65,9 @@ real worker processes, opt-in lane `FILECAT_ARCHIVE_SCALE=1`:
 | Windows 11 VM, v15b (AppContainer, TxF) | 2,176.3 s | 310.7 s | 1,117.7 s | 13 MiB before, 511 MiB peak; retained 257 MiB | Passed |
 | Mac, v15c, alone | 478.8 s | 19.2 s | 146.0 s | 16 MiB before, 713 MiB peak; retained 492 MiB | Descriptor bound exceeded by one (no warm-up) |
 | Ubuntu VM, v18, alone, warm-up | 519.8 s | 126.2 s | 575.0 s | under 1 MiB before, 621 MiB peak; retained 243 MiB (checking) | Passed |
+| Windows 11 VM, v19 (capture of v17), alone, warm-up, Defender real-time protection off | 1,108.7 s | 275.9 s | 1,073.9 s | 0 MiB before, 552 MiB peak; retained 243 MiB (create, checking) | Passed |
+| Mac, v19m5, alone, warm-up, live bytes | 518.9 s | 19.2 s | 150.9 s | 0 MiB before, 689 MiB peak; live 243 MiB (create, checking) | Passed |
+| Ubuntu VM, v19m5, alone, warm-up, live bytes | 535.8 s | 128.8 s | 540.7 s | 0 MiB before, 597 MiB peak; live 243 MiB (create, checking) | Passed |
 
 The archive is 204,543,488 bytes. Phases on the Mac (create): Preparing 220 s, Rebuilding 110 s, Checking 120 s, Saving
 69 s; (update): reading the archive 18 s, Preparing 31 s, Rebuilding 69 s, Checking 33 s, Saving and finishing 1 s. The
@@ -85,16 +88,29 @@ its replacement, and refused the zeros in 2.9 s.
 
 ## Retained heap and the charge model
 
-"Retained" is the managed heap after a full collection, sampled every 15 seconds (and, with
-`FILECAT_ARCHIVE_SCALE_RETAINED=1`, at every phase change); it includes whatever else runs in the test process, so only the
-runs alone measure the job. On Ubuntu (v18, alone) creation retained 212–223 MiB at its phase changes and 243 MiB at the
-sampled peak, while checking: about 2.4 KiB per member, below the charges of about 3 KiB per member plus names, so there
-the charged 512 MiB bounds what is retained. On the Mac (v15c, alone) the sampled peak was 492 MiB with a 16 MiB baseline,
-about 4.8 KiB per member: above the charges. That run predates the phase attribution, so the macOS-specific part (a
-larger origin record per input is the first suspect) is being measured before either the charges or the code change; the
-shipped ceiling stays as reviewed, and macOS writing cannot be qualified under the current plan anyway (platform position).
-Measured alone, the first job also opens the runtime's own descriptors, which exceeded the descriptor bound by one; both
-scale tests now run a small warm-up job before taking their baselines.
+Until v19 the tests reported "retained" heap as `GC.GetTotalMemory(true)` after an ordinary full collection. That figure
+can also count heap space that holds no live object (free space the collector has not compacted), and on macOS it did:
+the Mac's "retained" peak of 492 MiB (v15c) was not live state. An opt-in breakdown
+(`Retained_bytes_per_member_after_capture_plan_and_worker_request`, `FILECAT_ARCHIVE_SCALE_BREAKDOWN=1`, a selection of
+20,101 members) settled it. After capture the Mac's `GetTotalMemory(true)` read 3,303 bytes per member and Ubuntu's
+1,682, but the bytes surviving a compacting full collection (`GCMemoryInfo.PromotedBytes`) were 1,682 on both, a census of
+everything reachable from the captured selection sums to the same 1,682 bytes, and releasing the job returns the heap to
+its baseline (0–1 byte per member) on both. From v19m5 the AT18 tests sample live bytes that way (two compacting full
+collections every 15 seconds and, with `FILECAT_ARCHIVE_SCALE_RETAINED=1`, at every phase change); they include whatever
+else runs in the test process, so only the runs alone measure the job.
+
+Live bytes per member, identical on the Mac and Ubuntu: capture 1,682 (strings 982 of them: three SHA-256 hex digests,
+the object and parent identities, the leaf, the member name and the native relative path; then the selection node, file
+observation, input descriptor, object version, origin record, binding and lazy-open closure), planning +213, the worker
+request +214, 2,110 in all. Capture is charged about 2,450 bytes per file member (selection entry and node 954 + 128, the
+input record 768, the observed strings at two bytes per character) and planning about 1,100 (input 256, addition 96, the
+expected member 640 plus its name and metadata), so the charges stay well above what is live. At the member limit
+(v19m5, alone) the Mac and Ubuntu both held 212, 211 and 223 MiB of live state at creation's phase changes and peaked at
+243 MiB while checking, about 2.5 KiB per member and under half the charged 512 MiB ceiling; Windows (v19, alone, still
+the earlier measure, which on Linux equals the live one) peaked at the same 243 MiB while checking. Measured alone, the
+first job also opens the runtime's own descriptors, which exceeded the descriptor bound by one; both scale tests now run a
+small warm-up job before taking their baselines, and descriptors (Unix) and handles (Windows, 360→370) return to their
+starting value or within the bound.
 
 ## Windows
 
@@ -103,5 +119,11 @@ input pinned the selection root's full path from the drive root three times (a n
 thirty opens per access for a tree in the temporary folder), and every input is accessed several times. From v17 the
 folders below the held root are pinned relative to it, each verified against its captured identity, and the root's full
 path is re-pinned at most once a second: its lease holds every name of that path without delete sharing, so it cannot
-change while held, and the held handle is checked on every access. The VM's numbers above predate this change and were
-taken with Defender's real-time scanning on for creation and assessment; the measurement on the changed code is open.
+change while held, and the held handle is checked on every access. The v15b numbers predate this change and were taken
+with Defender's real-time scanning on for creation and assessment.
+
+On the changed code (v19, AppContainer workers, TxF publication, Defender's real-time protection turned off on the VM by
+its owner, so not comparable one to one) creation took 1,108.7 s: Preparing 351.7 s (the capture, 1,056 s before),
+Rebuilding 236.3 s, Checking 425.5 s and Saving 95.2 s; assessment 275.9 s; the update 1,073.9 s, of which reading the
+archive 297.6 s, Rebuilding 449.6 s and Checking 311.1 s. The workers' phases remain two to four times slower than the
+Mac's in this VM.

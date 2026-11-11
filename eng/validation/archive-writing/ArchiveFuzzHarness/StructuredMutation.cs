@@ -15,7 +15,7 @@ internal static class StructuredMutation
         "gzip-strict", "bzip2-strict", "zstd-strict", "session-record", "capture-record",
         "save-copy-intent", "save-copy-receipt", "journal-record", "journal-state", "manifest-member",
         "worker-frames", "verify-output", "create-inputs", "update-changes", "stream-faults", "member-keys", "repeated-cancel",
-        "standalone-streams", "zip-archives"
+        "standalone-streams", "zip-archives", "publication-races"
     ];
 
     internal static int Run(string target, string seedDirectory, string secondsText, string randomSeedText, string reportPath)
@@ -134,6 +134,7 @@ internal static class StructuredMutation
                 "repeated-cancel" => RepeatedCancellation.Exercise(input),
                 "standalone-streams" => StandaloneStreams.Exercise(input),
                 "zip-archives" => ZipArchives.Exercise(input),
+                "publication-races" => PublicationRaces.Exercise(input),
                 _ => Format.Exercise(input, target)
             };
         }

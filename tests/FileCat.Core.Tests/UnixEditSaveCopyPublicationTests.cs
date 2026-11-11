@@ -27,6 +27,19 @@ public sealed class UnixEditSaveCopyPublicationTests
                     (nonce,_)=>directory.ReserveArtifact(nonce,UnixArchiveArtifactKind.Manifest,FileCat.Core.Edit.EditSaveCopyRecord.MaximumBytes),
                     reservation=>directory.CreateArtifact(reservation));}
             catch{directory.Dispose();throw;}
-        });
+        },SharedGroupWritable);
+    }
+    // Debian, Ubuntu and Fedora give each user a private group, and a folder writable by that group alone is as private as
+    // 0755 (UnixArchiveNative.RequireCreationDirectory). The folder therefore becomes writable by a group the user shares
+    // with others, or, for a user in no such group, by everyone.
+    private static void SharedGroupWritable(string folder)
+    {
+        const UnixFileMode groupWrite=UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute|UnixFileMode.GroupWrite;
+        File.SetUnixFileMode(folder,groupWrite);
+        if(!UnixArchiveNative.IsUserPrivateGroupFolder(folder))return;
+        if(UnixArchiveStorageTests.SharedSupplementaryGroup() is { } shared)
+        {Assert.Equal(0,UnixArchiveStorageTests.Chown(folder,uint.MaxValue,shared));File.SetUnixFileMode(folder,groupWrite);}
+        else File.SetUnixFileMode(folder,groupWrite|UnixFileMode.OtherWrite);
+        Assert.False(UnixArchiveNative.IsUserPrivateGroupFolder(folder));
     }
 }

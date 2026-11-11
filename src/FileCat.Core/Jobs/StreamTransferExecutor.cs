@@ -32,6 +32,11 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
     : ExecutorBase(job, fs, journal), IHonorsTransferFilter, IHonorsReadBackVerification
 {
     private const int BufferSize = 1024 * 1024;
+    // One copy buffer for the whole job (items are copied one at a time): a fresh 1 MiB array per item is a large-object
+    // allocation, zeroed every time, and for thousands of small archive members it drove full collections that stalled
+    // extraction (R22). Every read writes only the bytes it returned, so an earlier item's bytes never reach a copy.
+    private byte[]? _buffer;
+    private byte[] CopyBuffer => _buffer ??= new byte[BufferSize];
 
     /// <summary>1980-01-01: a content revision that states an earlier "time" states a version counter or nothing.</summary>
     private const long MinimumFileTimeTicks = 624_511_296_000_000_000;
@@ -500,7 +505,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
                     // become one; if it already had, nothing is written there (AC-20).
                     if (Fs.HeldDirectoryRedirected(directoryLease))
                         throw new IOException("The destination folder became a link before anything was written; nothing was written through it.");
-                    var buffer = new byte[BufferSize];
+                    var buffer = CopyBuffer;
                     var pace = new TransferPace();
                     while (true)
                     {
@@ -729,7 +734,7 @@ internal sealed class StreamTransferExecutor(Job job, IFileSystemOperations fs, 
         }
         CheckVersion();
         using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
-        var buffer = new byte[BufferSize];
+        var buffer = CopyBuffer; // The copy that read into it has finished.
         long offset = 0;
         while (true)
         {

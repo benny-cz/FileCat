@@ -49,7 +49,7 @@ def main():
                                               "gzip-strict", "bzip2-strict", "zstd-strict", "session-record", "capture-record", "save-copy-intent",
                                               "save-copy-receipt", "journal-record", "journal-state", "manifest-member",
                                               "worker-frames", "verify-output", "create-inputs", "update-changes", "stream-faults",
-                                              "member-keys", "repeated-cancel", "standalone-streams", "zip-archives"), default="digest")
+                                              "member-keys", "repeated-cancel", "standalone-streams", "zip-archives", "publication-races"), default="digest")
     parser.add_argument("--seconds", type=int, required=True)
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--run-id", required=True)
@@ -154,7 +154,7 @@ def main():
         extension = "*.tar" if args.target == "tar-strict" else "*.7z" if args.target.startswith("sevenzip-") else "*.rar" if args.target.startswith("rar5-") else \
                     "*.gz" if args.target == "gzip-strict" else "*.bz2" if args.target == "bzip2-strict" else "*.zst" if args.target == "zstd-strict" else \
                     "*.bin" if args.target in ("manifest-member", "worker-frames", "verify-output", "create-inputs", "update-changes",
-                                               "stream-faults", "member-keys", "repeated-cancel", "standalone-streams", "zip-archives") else "*.json"
+                                               "stream-faults", "member-keys", "repeated-cancel", "standalone-streams", "zip-archives", "publication-races") else "*.json"
         for index, source in enumerate(sorted(p for p in folder.glob(extension) if p.name != "manifest.json")):
             if index >= 64 or not source.is_file() or source.is_symlink():
                 raise ValueError("Extra corpus has an unreviewable entry")
@@ -169,7 +169,7 @@ def main():
     native = [str(driver), "-runs=1" if replay else f"-max_total_time={args.seconds}",
               "-timeout=10" if args.target in ("sevenzip-password", "rar5-password", "worker-frames", "verify-output", "create-inputs",
                                                 "update-changes", "stream-faults", "member-keys", "standalone-streams", "zip-archives") else
-              "-timeout=60" if args.target == "repeated-cancel" else "-timeout=2",
+              "-timeout=60" if args.target in ("repeated-cancel", "publication-races") else "-timeout=2",
               "-rss_limit_mb=900", "-max_len=2" if args.canary_two_byte else "-max_len=1048576", f"-seed={args.seed}",
               "-print_final_stats=1", f"-artifact_prefix={run / 'crashes'}/",
               f"--target_path={managed}", f"--target_arg={harness}", str(run / ("replay-input" if replay else "corpus"))]

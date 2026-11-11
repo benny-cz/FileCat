@@ -24,8 +24,9 @@ internal static class ArchiveEditSaveCopyPublicationCases
         "repeat-preparation","wrong-receipt-parent","ready-record-substitution","post-publish-replaced","witness-other-stage","witness-stale","platform-name"}
         .Select(value=>new object[]{value});
 
+    /// <param name="unqualify">Makes the destination folder changeable by others for "unqualified-namespace" (default: group write).</param>
     internal static void Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open,IFileSystemOperations files,
-        Func<string,long,EditCopyPublicationDestination> create)
+        Func<string,long,EditCopyPublicationDestination> create,Action<string>? unqualify=null)
     {
         var ct=TestContext.Current.CancellationToken;
         string parent=Path.GetFullPath(Environment.GetEnvironmentVariable("FILECAT_EDIT_NATIVE_ROOT")??Path.GetTempPath());
@@ -58,7 +59,11 @@ internal static class ArchiveEditSaveCopyPublicationCases
                 if(scenario=="post-publish-replaced")Mutate(()=>{File.Move(target,target+".retained");File.WriteAllText(target,"other target owns this name");});
             });
             var prepared=EditSaveCopyPreparation.Prepare(source,output,destination.Reservation,destination.Space,ct);
-            if(scenario=="unqualified-namespace")File.SetUnixFileMode(folder,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute|UnixFileMode.GroupWrite);
+            if(scenario=="unqualified-namespace")
+            {
+                if(unqualify is not null)unqualify(folder);
+                else File.SetUnixFileMode(folder,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute|UnixFileMode.GroupWrite);
+            }
             if(scenario=="late-save")File.WriteAllText(record.WorkingPath,"later edit stays local");
             if(scenario=="name-collision")File.WriteAllText(target,"other target owns this name");
             if(scenario=="source-changed")Mutate(()=>File.WriteAllText(copy.Path,"changed captured bytes"));

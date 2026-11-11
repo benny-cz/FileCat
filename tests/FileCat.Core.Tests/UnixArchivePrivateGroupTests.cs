@@ -72,7 +72,7 @@ public sealed partial class UnixArchiveStorageTests
         return fields.Length == 4 && fields[0] == user && fields[3].Split(',', StringSplitOptions.RemoveEmptyEntries).All(member => member == user);
     }
 
-    private static uint? SharedSupplementaryGroup()
+    internal static uint? SharedSupplementaryGroup()
     {
         uint primary = uint.Parse(RunOutput("id", "-g").Trim(), System.Globalization.CultureInfo.InvariantCulture);
         foreach (string text in RunOutput("id", "-G").Split(' ', StringSplitOptions.RemoveEmptyEntries))

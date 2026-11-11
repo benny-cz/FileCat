@@ -118,7 +118,8 @@ public sealed partial class UnixArchiveStorageTests
         Native(); using var temp = new TempDir(); string root = Canonical(temp.Path); using var directory = UnixArchiveDirectory.Open(root); using var file = Stage(directory);
         file.Write("verified"u8); var version = Seal(file); var metadata = Metadata(file); string old = file.DisplayPath, final = Path.Combine(root, "result.tar");
         File.WriteAllText(final, "late occupant");
-        Assert.Throws<IOException>(() => file.RenameNoReplace("result.tar", version, metadata, TestContext.Current.CancellationToken));
+        // The no-replace claim changed nothing and says so plainly (a typed refusal, not a raw errno).
+        Assert.Equal(ArchiveWriteReason.PublicationUnavailable, Assert.Throws<ArchiveWriteException>(() => file.RenameNoReplace("result.tar", version, metadata, TestContext.Current.CancellationToken)).Reason);
         Assert.Equal(old, file.DisplayPath); Assert.Equal("late occupant", File.ReadAllText(final)); Assert.True(File.Exists(old));
         File.Delete(final); file.RenameNoReplace("result.tar", version, metadata, TestContext.Current.CancellationToken);
         Assert.False(File.Exists(old)); Assert.Equal("verified", File.ReadAllText(final)); Assert.Equal(version, Version(file));

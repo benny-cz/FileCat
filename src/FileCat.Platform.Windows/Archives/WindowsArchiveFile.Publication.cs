@@ -60,7 +60,10 @@ internal sealed partial class WindowsArchiveFile
         {
             review.RequireIssuer(this); if (review is not CreationReview native || namespaceChanged || leaf != review.TargetLeaf) throw PublicationChanged();
             WindowsArchiveNative.RequireCreationStreams(handle, review.Stage.Version.Length, review.Stage.Origin);
-            RenameNoReplace(leaf, review.Stage.Version, native.Metadata, ct);
+            // ERROR_FILE_EXISTS / ERROR_ALREADY_EXISTS: another object has the name; the no-replace rename changed nothing.
+            try { RenameNoReplace(leaf, review.Stage.Version, native.Metadata, ct); }
+            catch (IOException error) when (error is not ArchiveWriteException && error.HResult is unchecked((int)0x80070050) or unchecked((int)0x800700B7))
+            { throw ArchiveWriteMessages.NameTaken(leaf, error); }
         }
     }
     ArchiveFileObservation IArchiveCreatePublicationStage.ReviewPublished(string leaf, ArchiveCreatePublicationReview review, CancellationToken ct)

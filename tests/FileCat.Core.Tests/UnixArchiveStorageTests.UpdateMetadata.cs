@@ -186,7 +186,7 @@ public sealed partial class UnixArchiveStorageTests
     }
 
     [LibraryImport("libc", EntryPoint = "chown", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
-    private static partial int Chown(string path, uint owner, uint group);
+    internal static partial int Chown(string path, uint owner, uint group);
     [LibraryImport("libc", EntryPoint = "ioctl", SetLastError = true)]
     private static partial int IoctlFlags(int fd, nuint request, ref ulong value);
 }

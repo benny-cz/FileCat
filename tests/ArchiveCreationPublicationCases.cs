@@ -36,7 +36,14 @@ internal static class ArchiveCreationPublicationCases
         Assert.True(journal.NeedsRecovery); Assert.NotEmpty(facts.UnresolvedArtifacts); Assert.Null(facts.Published);
         if (failure == "after-claim") { Assert.True(File.Exists(target)); Assert.False(File.Exists(prepared.Facts.StagePath)); Assert.Equal(prepared.Verified.Stage.Version, ((IArchiveRetainedFile)prepared.Stage).Observe(ct).Version); }
         else { Assert.True(File.Exists(prepared.Facts.StagePath)); Assert.Equal(failure == "existing-target", File.Exists(target)); }
-        if (failure == "existing-target") Assert.Equal("existing occupant"u8.ToArray(), File.ReadAllBytes(target));
+        if (failure == "existing-target")
+        {
+            // The no-replace claim was refused: the other file stays and the user is told exactly that, not a system error.
+            Assert.Equal("existing occupant"u8.ToArray(), File.ReadAllBytes(target));
+            var refusal = Assert.IsType<ArchiveWriteException>(error); Assert.Equal(ArchiveWriteReason.PublicationUnavailable, refusal.Reason);
+            Assert.Equal("Another file named “result.tar” appeared while the archive was being prepared. That file was kept and the new " +
+                "archive was not saved. Choose another name, then try again.", refusal.Data[ArchiveWriteMessages.UserMessageKey]);
+        }
         Assert.Equal(failure is "changed-input" or "metadata-change" or "unsafe-directory" ? 0 : 1, claims);
         Assert.Throws<IOException>(() => journal.Finish(JobState.Completed, "uncertain creation cannot disappear"));
     }
