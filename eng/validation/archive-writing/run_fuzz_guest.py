@@ -49,7 +49,8 @@ def main():
                                               "gzip-strict", "bzip2-strict", "zstd-strict", "session-record", "capture-record", "save-copy-intent",
                                               "save-copy-receipt", "journal-record", "journal-state", "manifest-member",
                                               "worker-frames", "verify-output", "create-inputs", "update-changes", "stream-faults",
-                                              "member-keys", "repeated-cancel", "standalone-streams", "zip-archives", "publication-races"), default="digest")
+                                              "member-keys", "repeated-cancel", "standalone-streams", "zip-archives", "publication-races",
+                                              "sevenzip-writer", "rar5-writer"), default="digest")
     parser.add_argument("--seconds", type=int, required=True)
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--run-id", required=True)
@@ -100,7 +101,7 @@ def main():
     unit = "filecat-archive-fuzz-" + args.run_id
     run = root / "runs" / args.run_id
     run.mkdir(parents=True, exist_ok=False)
-    for name in ("corpus", "crashes", "reports", "tmp"):
+    for name in ("corpus", "crashes", "reports", "tmp", "dumps"):
         (run / name).mkdir()
     (run / "corpus" / "valid").write_bytes(b"\0" * 1024 if args.target == "tar-strict" else
                                             b"7z\xbc\xaf\x27\x1c" if args.target in ("sevenzip-strict", "sevenzip-password") else
@@ -151,12 +152,15 @@ def main():
         if folder.parent != root or not folder.is_dir():
             raise ValueError("Extra corpus must be a direct synthetic seed directory within this image")
         total = 0
-        extension = "*.tar" if args.target == "tar-strict" else "*.7z" if args.target.startswith("sevenzip-") else "*.rar" if args.target.startswith("rar5-") else \
-                    "*.gz" if args.target == "gzip-strict" else "*.bz2" if args.target == "bzip2-strict" else "*.zst" if args.target == "zstd-strict" else \
-                    "*.bin" if args.target in ("manifest-member", "worker-frames", "verify-output", "create-inputs", "update-changes",
-                                               "stream-faults", "member-keys", "repeated-cancel", "standalone-streams", "zip-archives", "publication-races") else "*.json"
+        # Structured request targets first: the 7z and RAR5 writer targets take request bytes, not archives.
+        extension = "*.bin" if args.target in ("manifest-member", "worker-frames", "verify-output", "create-inputs", "update-changes",
+                                               "stream-faults", "member-keys", "repeated-cancel", "standalone-streams", "zip-archives",
+                                               "publication-races", "sevenzip-writer", "rar5-writer") else \
+                    "*.tar" if args.target == "tar-strict" else "*.7z" if args.target.startswith("sevenzip-") else "*.rar" if args.target.startswith("rar5-") else \
+                    "*.gz" if args.target == "gzip-strict" else "*.bz2" if args.target == "bzip2-strict" else "*.zst" if args.target == "zstd-strict" else "*.json"
         for index, source in enumerate(sorted(p for p in folder.glob(extension) if p.name != "manifest.json")):
-            if index >= 64 or not source.is_file() or source.is_symlink():
+            # 256 synthetic seeds: the publication-race generator emits one per operation, fault and stage.
+            if index >= 256 or not source.is_file() or source.is_symlink():
                 raise ValueError("Extra corpus has an unreviewable entry")
             size = source.stat().st_size
             total += size
@@ -169,7 +173,8 @@ def main():
     native = [str(driver), "-runs=1" if replay else f"-max_total_time={args.seconds}",
               "-timeout=10" if args.target in ("sevenzip-password", "rar5-password", "worker-frames", "verify-output", "create-inputs",
                                                 "update-changes", "stream-faults", "member-keys", "standalone-streams", "zip-archives") else
-              "-timeout=60" if args.target in ("repeated-cancel", "publication-races") else "-timeout=2",
+              # A protected container request pays a 2^19-round key derivation in each worker role and in the oracle.
+              "-timeout=60" if args.target in ("repeated-cancel", "publication-races", "sevenzip-writer", "rar5-writer") else "-timeout=2",
               "-rss_limit_mb=900", "-max_len=2" if args.canary_two_byte else "-max_len=1048576", f"-seed={args.seed}",
               "-print_final_stats=1", f"-artifact_prefix={run / 'crashes'}/",
               f"--target_path={managed}", f"--target_arg={harness}", str(run / ("replay-input" if replay else "corpus"))]
@@ -189,6 +194,10 @@ def main():
                "-p", "StandardError=append:" + str(run / "driver.log"),
                "--setenv=DOTNET_ROOT=" + str(parent / "dotnet"),
                "--setenv=DOTNET_EnableDiagnostics=0",
+               # A native-level fault of the managed child leaves a crash report (all thread stacks) and a small dump.
+               "--setenv=DOTNET_DbgEnableMiniDump=1", "--setenv=DOTNET_DbgMiniDumpType=1",
+               "--setenv=DOTNET_EnableCrashReport=1", "--setenv=DOTNET_DbgMiniDumpName=" + str(run / "dumps" / "core.%p"),
+               # The runtime reads this value as hexadecimal: a 512 MiB managed heap inside the 1 GiB unit.
                "--setenv=DOTNET_GCHeapHardLimit=20000000",
                "--setenv=FILECAT_FUZZ_REPORT=" + str(run / "reports" / "managed.json"),
                "--setenv=FILECAT_FUZZ_TARGET=" + args.target,
@@ -202,7 +211,8 @@ def main():
              "seed": args.seed, "command": command, "sha256": {
                  "driver": sha(driver), "managed": sha(managed),
                  "core": sha(core), "harness": sha(harness),
-                 "archives": sha(image / "FileCat.Archives.dll") if (image / "FileCat.Archives.dll").exists() else None},
+                 "archives": sha(image / "FileCat.Archives.dll") if (image / "FileCat.Archives.dll").exists() else None,
+                 "codecs": sha(image / "FileCat.SharpCompress.dll") if (image / "FileCat.SharpCompress.dll").exists() else None},
              "observations": []}
     (run / "command.json").write_text(json.dumps(facts, indent=2))
     launch = subprocess.run(command, input=(args.sudo_password + "\n").encode(),

@@ -41,72 +41,67 @@ if(args is ["patch-canary",var originalPath,var patchedPath])
 }
 if(args is ["instrument",var targetAssembly,var typeReport])
 {
+    // Every Core type the write-side targets reach: the guards, planning, worker protocol, transform conversation,
+    // journaled preparation, native jobs, publication, discard and recovery records (all of FileCat.Core.Archives,
+    // including its Unix and Linux routes), the edit-session store and the job journal.
     var types=Fuzzer.Instrument(targetAssembly,
-        name=>name.StartsWith("FileCat.Core.Archives.ArchiveWritePolicy",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Edit.EditSessionStore",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Edit.EditSaveCopyIntent",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Edit.EditSaveCopyRecord",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Jobs.JobJournal",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Archives.ArchiveTransactionCollector",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Archives.ArchiveAssessmentWire",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Archives.ArchiveWriteBudget",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Archives.ArchiveWorkerProtocol",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Archives.ArchiveWorkerRecords",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Archives.ArchiveWorkerSession",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Archives.ArchiveAssessmentClient",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Archives.ArchiveVerificationClient",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Core.Archives.ArchiveIoAuthority",StringComparison.Ordinal),Options.Value).ToArray();
+        name=>name.StartsWith("FileCat.Core.Archives.",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Core.Edit.",StringComparison.Ordinal)||
+            name.StartsWith("FileCat.Core.Jobs.JobJournal",StringComparison.Ordinal),Options.Value).ToArray();
     File.WriteAllText(typeReport,JsonSerializer.Serialize(types));
-    if(!types.Contains("FileCat.Core.Archives.ArchiveWritePolicy")||!types.Contains("FileCat.Core.Edit.EditSessionStore")||
-        !types.Contains("FileCat.Core.Edit.EditSaveCopyIntent")||!types.Contains("FileCat.Core.Edit.EditSaveCopyRecord")||
-        !types.Contains("FileCat.Core.Jobs.JobJournal")||
-        !types.Contains("FileCat.Core.Archives.ArchiveTransactionCollector")||
-        !types.Contains("FileCat.Core.Archives.ArchiveAssessmentWire")||
-        !types.Contains("FileCat.Core.Archives.ArchiveWriteBudget"))
-        throw new InvalidOperationException("Production guard or recovery record parser was not instrumented.");
+    string[] required=["FileCat.Core.Archives.ArchiveWritePolicy","FileCat.Core.Edit.EditSessionStore",
+        "FileCat.Core.Edit.EditSaveCopyIntent","FileCat.Core.Edit.EditSaveCopyRecord","FileCat.Core.Jobs.JobJournal",
+        "FileCat.Core.Archives.ArchiveTransactionCollector","FileCat.Core.Archives.ArchiveAssessmentWire",
+        "FileCat.Core.Archives.ArchiveWriteBudget","FileCat.Core.Archives.ArchiveTransformWire",
+        "FileCat.Core.Archives.ArchiveTransformClient","FileCat.Core.Archives.ArchiveTarTransformPlan",
+        "FileCat.Core.Archives.ArchiveZipTransformPlan","FileCat.Core.Archives.ArchiveWorkerProtocol",
+        "FileCat.Core.Archives.ArchiveNativeJobBackend`1","FileCat.Core.Archives.ArchiveNewFilePublication"];
+    if(required.Except(types).ToArray() is { Length: >0 } missing)
+        throw new InvalidOperationException("Production Core write code was not instrumented: "+string.Join(", ",missing));
     Console.WriteLine(JsonSerializer.Serialize(new{instrumented_types=types.Length,production_guard=true,production_recovery=true}));return 0;
 }
 if(args is ["instrument-tar",var tarAssembly,var tarTypeReport])
 {
+    // The whole writing namespace: strict readers, rewrite engines, encoders, catalogs and worker roles, plus the read
+    // guards and password sessions the strict readers share.
     var types=Fuzzer.Instrument(tarAssembly,
-        name=>name.StartsWith("FileCat.Archives.Writing.StrictTarCatalog",StringComparison.Ordinal)||
+        name=>name.StartsWith("FileCat.Archives.Writing.",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Archives.TarHeaderGuard",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.StrictSevenZipCatalog",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.StrictSevenZipFraming",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.SevenZipStrictMetadata",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.SevenZipStrictHeaderReader",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.StrictSevenZipFolderDecoder",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.StrictSevenZipHeaderDecoder",StringComparison.Ordinal)||
             name.StartsWith("FileCat.Archives.SevenZipReadPasswordSession",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.SevenZipEncryptionPrimitives",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.StrictRar5Catalog",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.StrictRar5Framing",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.StrictGzipReadStream",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.StrictBzip2ReadStream",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.StrictZstdReadStream",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.ZstdFrameHeader",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Rar.Rar5ReadPasswordSession",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.Rar5EncryptionPrimitives",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.ArchiveCryptoWorkBudget",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.ArchiveAssessmentWorker",StringComparison.Ordinal)||
-            name.StartsWith("FileCat.Archives.Writing.ArchiveTransformWorker",StringComparison.Ordinal),Options.Value).ToArray();
+            name.StartsWith("FileCat.Archives.Rar.Rar5ReadPasswordSession",StringComparison.Ordinal),Options.Value).ToArray();
     File.WriteAllText(tarTypeReport,JsonSerializer.Serialize(types));
-    if(!types.Contains("FileCat.Archives.Writing.StrictTarCatalog")||!types.Contains("FileCat.Archives.TarHeaderGuard")||
-        !types.Contains("FileCat.Archives.Writing.StrictSevenZipCatalog")||
-        !types.Contains("FileCat.Archives.Writing.StrictSevenZipFraming")||
-        !types.Contains("FileCat.Archives.Writing.SevenZipStrictMetadata")||
-        !types.Contains("FileCat.Archives.Writing.SevenZipStrictHeaderReader")||
-        !types.Contains("FileCat.Archives.Writing.StrictRar5Catalog")||
-        !types.Contains("FileCat.Archives.Writing.StrictRar5Framing")||
-        !types.Contains("FileCat.Archives.Writing.StrictGzipReadStream")||
-        !types.Contains("FileCat.Archives.Writing.StrictBzip2ReadStream")||
-        !types.Contains("FileCat.Archives.Writing.StrictZstdReadStream")||
-        !types.Contains("FileCat.Archives.Writing.ZstdFrameHeader")||
-        !types.Contains("FileCat.Archives.SevenZipReadPasswordSession")||
-        !types.Contains("FileCat.Archives.Rar.Rar5ReadPasswordSession")||
-        !types.Contains("FileCat.Archives.Writing.ArchiveCryptoWorkBudget"))
-        throw new InvalidOperationException("Production strict TAR/7z/RAR5 scanners were not instrumented.");
+    string[] required=["FileCat.Archives.Writing.StrictTarCatalog","FileCat.Archives.TarHeaderGuard",
+        "FileCat.Archives.Writing.StrictSevenZipCatalog","FileCat.Archives.Writing.StrictSevenZipFraming",
+        "FileCat.Archives.Writing.SevenZipStrictMetadata","FileCat.Archives.Writing.SevenZipStrictHeaderReader",
+        "FileCat.Archives.Writing.StrictRar5Catalog","FileCat.Archives.Writing.StrictRar5Framing",
+        "FileCat.Archives.Writing.StrictGzipReadStream","FileCat.Archives.Writing.StrictBzip2ReadStream",
+        "FileCat.Archives.Writing.StrictZstdReadStream","FileCat.Archives.Writing.ZstdFrameHeader",
+        "FileCat.Archives.SevenZipReadPasswordSession","FileCat.Archives.Rar.Rar5ReadPasswordSession",
+        "FileCat.Archives.Writing.ArchiveCryptoWorkBudget","FileCat.Archives.Writing.ArchiveTransformWorker",
+        "FileCat.Archives.Writing.ArchiveAssessmentWorker","FileCat.Archives.Writing.TarRewriteEngine",
+        "FileCat.Archives.Writing.ZipRewriteEngine","FileCat.Archives.Writing.SevenZipRewriteEngine",
+        "FileCat.Archives.Writing.Rar5RewriteEngine","FileCat.Archives.Writing.StandaloneRewriteEngine",
+        "FileCat.Archives.Writing.StrictZipCatalog"];
+    if(required.Except(types).ToArray() is { Length: >0 } missing)
+        throw new InvalidOperationException("Production archive write code was not instrumented: "+string.Join(", ",missing));
     Console.WriteLine(JsonSerializer.Serialize(new{instrumented_types=types.Length,production_tar=true,production_sevenzip=true,production_rar5=true}));return 0;
+}
+if(args is ["instrument-codecs",var codecAssembly,var codecTypeReport])
+{
+    // The vendored codec code the strict readers and the writers drive. These locations feed the fuzzer's coverage only:
+    // the preparer instruments them without the per-branch method callback, which would dominate codec loops.
+    var types=Fuzzer.Instrument(codecAssembly,
+        name=>name.StartsWith("SharpCompress.Compressors.",StringComparison.Ordinal)||
+            name.StartsWith("SharpCompress.Crypto.",StringComparison.Ordinal)||
+            name.StartsWith("SharpCompress.Algorithms.",StringComparison.Ordinal),Options.Value).ToArray();
+    File.WriteAllText(codecTypeReport,JsonSerializer.Serialize(types));
+    string[] required=["SharpCompress.Compressors.LZMA.LzmaStream","SharpCompress.Compressors.LZMA.Encoder",
+        "SharpCompress.Compressors.BZip2.CBZip2InputStream","SharpCompress.Compressors.BZip2.CBZip2OutputStream",
+        "SharpCompress.Compressors.Deflate.DeflateStream","SharpCompress.Compressors.PPMd.PpmdStream",
+        "SharpCompress.Compressors.ZStandard.Unsafe.Methods"];
+    if(required.Except(types).ToArray() is { Length: >0 } missing)
+        throw new InvalidOperationException("Vendored codec code was not instrumented: "+string.Join(", ",missing));
+    Console.WriteLine(JsonSerializer.Serialize(new{instrumented_types=types.Length,vendored_codecs=true}));return 0;
 }
 if(args is ["replay-format",var formatTarget,var formatInput])
 {
@@ -144,7 +139,8 @@ if(args is ["replay-record",var recordTarget,var inputPath])
 if(args is ["replay-worker",var workerTarget,var workerInput])
 {
     if(workerTarget is not ("worker-frames" or "verify-output" or "create-inputs" or "update-changes" or "stream-faults" or
-        "member-keys" or "repeated-cancel" or "standalone-streams" or "zip-archives" or "publication-races"))
+        "member-keys" or "repeated-cancel" or "standalone-streams" or "zip-archives" or "publication-races" or
+        "sevenzip-writer" or "rar5-writer"))
         throw new ArgumentException("Unknown worker replay target.");
     using var file=new FileStream(workerInput,FileMode.Open,FileAccess.Read,FileShare.Read);
     if(file.Length>1048576)throw new ArgumentException("Worker replay exceeds 1 MiB.");
@@ -156,10 +152,11 @@ if(args is ["replay-worker",var workerTarget,var workerInput])
         "worker-frames"=>WorkerFrames.Exercise(bytes),"verify-output"=>VerifyOutput.Exercise(bytes),
         "create-inputs"=>CreateInputs.Exercise(bytes),"update-changes"=>UpdateChanges.Exercise(bytes),"stream-faults"=>StreamFaults.Exercise(bytes),
         "member-keys"=>MemberKeys.Exercise(bytes),"standalone-streams"=>StandaloneStreams.Exercise(bytes),"zip-archives"=>ZipArchives.Exercise(bytes),
-        "publication-races"=>PublicationRaces.Exercise(bytes),_=>RepeatedCancellation.Exercise(bytes),
+        "publication-races"=>PublicationRaces.Exercise(bytes),"sevenzip-writer"=>ContainerWriters.Exercise(bytes,rar:false),
+        "rar5-writer"=>ContainerWriters.Exercise(bytes,rar:true),_=>RepeatedCancellation.Exercise(bytes),
     };}
     catch(ArchiveWriteException){accepted=false;} // A typed refusal, as in the native and structured lanes.
-    Console.WriteLine(JsonSerializer.Serialize(new{target=workerTarget,accepted}));return 0;
+    Console.WriteLine(JsonSerializer.Serialize(new{target=workerTarget,accepted,oracle_skipped=Stats.OracleSkipped}));return 0;
 }
 if(args is ["make-worker-seeds",var workerSeedDirectory])
 {
@@ -170,7 +167,8 @@ if(args is ["make-worker-seeds",var workerSeedDirectory])
     for(int i=0;i<WorkerFixtures.Archives.Length;i++)
         File.WriteAllBytes(Path.Combine(workerSeedDirectory,"verify-output",$"stage-{i}.bin"),[(byte)i,..WorkerFixtures.Archives[i]]);
     foreach(var(folder,seeds)in new[]{("create-inputs",WriterSeeds.Create()),("update-changes",WriterSeeds.Update()),("stream-faults",WriterSeeds.Faults()),
-        ("member-keys",StatefulSeeds.Keys()),("repeated-cancel",StatefulSeeds.Repeats()),("standalone-streams",StandaloneStreams.Seeds()),("zip-archives",ZipArchives.Seeds()),("publication-races",PublicationRaces.Seeds())})
+        ("member-keys",StatefulSeeds.Keys()),("repeated-cancel",StatefulSeeds.Repeats()),("standalone-streams",StandaloneStreams.Seeds()),("zip-archives",ZipArchives.Seeds()),("publication-races",PublicationRaces.Seeds()),
+        ("sevenzip-writer",ContainerWriters.Seeds(rar:false)),("rar5-writer",ContainerWriters.Seeds(rar:true))})
     {
         Directory.CreateDirectory(Path.Combine(workerSeedDirectory,folder));
         foreach(var(name,seed)in seeds)File.WriteAllBytes(Path.Combine(workerSeedDirectory,folder,name),seed);
@@ -186,7 +184,7 @@ if(Stats.Target is not ("digest" or "tar-strict" or "session-record" or "capture
     "save-copy-receipt" or "journal-record" or "journal-state" or "manifest-member" or "sevenzip-strict" or "rar5-strict" or
     "sevenzip-password" or "rar5-password" or "gzip-strict" or "bzip2-strict" or "zstd-strict" or "worker-frames" or "verify-output" or
     "create-inputs" or "update-changes" or "stream-faults" or "member-keys" or "repeated-cancel" or "standalone-streams" or "zip-archives" or
-    "publication-races"))
+    "publication-races" or "sevenzip-writer" or "rar5-writer"))
     throw new ArgumentException("Unknown fuzz target.");
 Stats.CanaryPrefixMode=Environment.GetEnvironmentVariable("FILECAT_FUZZ_CANARY_PREFIX_MODE")=="1";
 if(Stats.CanaryPrefixMode&&Stats.Target!="digest")throw new ArgumentException("The canary input transform is digest-only.");
@@ -197,7 +195,13 @@ if(Stats.Target is "tar-strict" or "sevenzip-strict" or "rar5-strict" or "sevenz
 Stats.Report=Environment.GetEnvironmentVariable("FILECAT_FUZZ_REPORT");
 if(Stats.Report is not null&&(!Path.IsPathFullyQualified(Stats.Report)||!Directory.Exists(Path.GetDirectoryName(Stats.Report))))
     throw new ArgumentException("The supervisor must select an existing absolute report directory.");
-SharpFuzz.Common.Trace.OnBranch=(_,name)=>{if(Stats.Methods.Count<128)Stats.Methods.Add(name);};
+// One flag per instrumented location keeps the per-branch cost to an array check; a method is named when its first
+// location runs. Worker roles run instrumented code on other threads, so additions are serialized.
+SharpFuzz.Common.Trace.OnBranch=(id,name)=>
+{
+    if(Stats.Seen[id&0xffff])return;
+    lock(Stats.Methods){Stats.Seen[id&0xffff]=true;if(Stats.Methods.Count<Stats.MaximumMethods)Stats.Methods.Add(name);}
+};
 try{Fuzzer.LibFuzzer.Run(Exercise);return 0;}
 finally{Stats.Publish();}
 
@@ -210,7 +214,7 @@ static void Exercise(ReadOnlySpan<byte> data)
         if(Stats.Target is "session-record" or "capture-record" or "save-copy-intent" or "save-copy-receipt" or
             "journal-record" or "journal-state" or "manifest-member" or "worker-frames" or "verify-output" or
             "create-inputs" or "update-changes" or "stream-faults" or "member-keys" or "repeated-cancel" or "standalone-streams" or "zip-archives" or
-            "publication-races")
+            "publication-races" or "sevenzip-writer" or "rar5-writer")
         {
             bool accepted=Stats.Target switch
             {
@@ -223,6 +227,8 @@ static void Exercise(ReadOnlySpan<byte> data)
                 "repeated-cancel"=>RepeatedCancellation.Exercise(data),
                 "standalone-streams"=>StandaloneStreams.Exercise(data),"zip-archives"=>ZipArchives.Exercise(data),
                 "publication-races"=>PublicationRaces.Exercise(data),
+                "sevenzip-writer"=>ContainerWriters.Exercise(data,rar:false),
+                "rar5-writer"=>ContainerWriters.Exercise(data,rar:true),
                 "session-record"=>Session.Exercise(data),
                 "capture-record"=>Capture.Exercise(data),
                 "save-copy-intent"=>Intent.Exercise(data),
@@ -400,19 +406,35 @@ static class Session
         : "/tmp/filecat-fuzz-session/0123456789abcdef0123456789abcdef";
     private static readonly MethodInfo Parser=typeof(FileCat.Core.Edit.EditSessionStore).GetMethod("ParseRecord",BindingFlags.Static|BindingFlags.NonPublic)
         ??throw new InvalidOperationException("Production edit-session parser is unavailable.");
+    // Both production modes: the session listing, and the storage chain review that also admits a copied old edit still
+    // awaiting its durable adoption. A record supported in one mode is the same record in the other.
     internal static bool Exercise(ReadOnlySpan<byte> data)
     {
-        FileCat.Core.Edit.EditSessionRecord record;
-        try{record=(FileCat.Core.Edit.EditSessionRecord)Parser.Invoke(null,[data.ToArray(),Directory])!;}
+        var bytes=data.ToArray();
+        var listed=Parse(bytes,false);var reviewed=Parse(bytes,true);
+        if(listed.IsSupported!=reviewed.IsSupported||listed.IsSupported&&listed.WorkingPath!=reviewed.WorkingPath)
+            throw new InvalidOperationException("The listing and the chain review disagree about a supported edit record.");
+        bool supported=Check(listed,false);
+        return Check(reviewed,true)||supported;
+    }
+    private static FileCat.Core.Edit.EditSessionRecord Parse(byte[] bytes,bool allowPendingAdoption)
+    {
+        try{return (FileCat.Core.Edit.EditSessionRecord)Parser.Invoke(null,[bytes,Directory,allowPendingAdoption])!;}
         catch(TargetInvocationException error)when(error.InnerException is not null)
         {ExceptionDispatchInfo.Capture(error.InnerException).Throw();throw;}
-        if(record.IsSupported)
+    }
+    private static bool Check(FileCat.Core.Edit.EditSessionRecord record,bool allowPendingAdoption)
+    {
+        if(record.IsSupported||allowPendingAdoption&&record.IsPendingAdoption)
         {
             if(record.Version is not (1 or FileCat.Core.Edit.EditSessionRecord.CurrentVersion or FileCat.Core.Edit.EditSessionRecord.NativeStorageVersion)||
                 !Path.GetFullPath(record.WorkingPath).StartsWith(Directory+Path.DirectorySeparatorChar,StringComparison.Ordinal))
                 throw new InvalidOperationException("A supported edit record escaped its bounded session namespace.");
+            if(record.IsPendingAdoption&&(record.Version!=FileCat.Core.Edit.EditSessionRecord.NativeStorageVersion||record.LegacyRetiring))
+                throw new InvalidOperationException("A pending adoption record has an impossible shape.");
             return true;
         }
+        // Outside the chain review a pending adoption is never handed out as a usable record.
         if(record.UnsupportedReason is null||record.Id!="0123456789abcdef0123456789abcdef"||
             !Path.GetFullPath(record.WorkingPath).StartsWith(Directory,StringComparison.Ordinal))
             throw new InvalidOperationException("An unsupported edit record lost its recovery location.");
@@ -422,7 +444,9 @@ static class Session
 
 static class Stats
 {
-    internal static long Calls,Accepted,Refused;
+    internal static long Calls,Accepted,Refused,OracleSkipped;
+    internal const int MaximumMethods=2048;
+    internal static readonly bool[] Seen=new bool[65536];
     internal static readonly HashSet<string> Methods=new(StringComparer.Ordinal);
     internal static string Module="",ModuleSha256="",SecondaryModule="",SecondaryModuleSha256="",Target="";
     internal static bool CanaryPrefixMode;
@@ -430,8 +454,9 @@ static class Stats
     internal static void Publish()
     {
         if(Report is null)return;
-        var summary=JsonSerializer.Serialize(new{Calls,Accepted,Refused,Target,CanaryPrefixMode,Module,ModuleSha256,
-            SecondaryModule,SecondaryModuleSha256,production_methods=Methods.Order().ToArray()});
+        string[] methods;lock(Methods)methods=Methods.Order(StringComparer.Ordinal).ToArray();
+        var summary=JsonSerializer.Serialize(new{Calls,Accepted,Refused,OracleSkipped,Target,CanaryPrefixMode,Module,ModuleSha256,
+            SecondaryModule,SecondaryModuleSha256,production_methods=methods});
         File.WriteAllText(Report+".tmp",summary);File.Move(Report+".tmp",Report,overwrite:true);
     }
 }
@@ -503,7 +528,7 @@ static class Format
         }
         if(target is "sevenzip-password" or "rar5-password")PasswordSession=BindPassword(assembly,target=="sevenzip-password");
     }
-    private static Func<string,IDisposable> BindPassword(Assembly assembly,bool seven)
+    internal static Func<string,IDisposable> BindPassword(Assembly assembly,bool seven,long maximumRounds=1L<<22)
     {
         var budget=assembly.GetType("FileCat.Archives.Writing.ArchiveCryptoWorkBudget",throwOnError:true)!;
         var budgetCtor=budget.GetConstructor(BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic,null,
@@ -517,7 +542,7 @@ static class Format
         var thunk=new ReflectionEmit.DynamicMethod("FileCatFuzzPasswordSession",typeof(IDisposable),[typeof(string)],typeof(Format).Module,true);
         var il=thunk.GetILGenerator();var token=il.DeclareLocal(typeof(CancellationToken));
         il.Emit(ReflectionEmit.OpCodes.Ldarg_0);il.Emit(ReflectionEmit.OpCodes.Call,asSpan);
-        il.Emit(ReflectionEmit.OpCodes.Ldc_I8,1L<<22);il.Emit(ReflectionEmit.OpCodes.Ldc_I8,2L<<30);
+        il.Emit(ReflectionEmit.OpCodes.Ldc_I8,maximumRounds);il.Emit(ReflectionEmit.OpCodes.Ldc_I8,2L<<30);
         il.Emit(ReflectionEmit.OpCodes.Newobj,budgetCtor);
         il.Emit(ReflectionEmit.OpCodes.Ldloca_S,token);il.Emit(ReflectionEmit.OpCodes.Initobj,typeof(CancellationToken));
         il.Emit(ReflectionEmit.OpCodes.Ldloc,token);il.Emit(ReflectionEmit.OpCodes.Newobj,constructor);

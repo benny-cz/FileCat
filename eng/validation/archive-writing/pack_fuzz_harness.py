@@ -28,7 +28,7 @@ def main():
                  "make_rar5_fuzz_seeds.py", "make_wrapper_fuzz_seeds.py",
                  "replay_wrapper_guest.py",
                  "prepare_fuzz_guest.py", "prepare_fuzz_candidate_guest.py", "run_fuzz_guest.py",
-                 "seal_fuzz_campaign_guest.py", "pack_fuzz_harness.py"):
+                 "seal_fuzz_campaign_guest.py", "seal_fuzz_candidate_guest.py", "pack_fuzz_harness.py"):
         contents.append((project.parent / name, "source/" + name))
     for path, _ in contents:
         if not path.is_file():

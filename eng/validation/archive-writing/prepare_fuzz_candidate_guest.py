@@ -109,7 +109,9 @@ def main():
                 "FileCat.Core.Edit.EditSaveCopyRecord", "FileCat.Core.Jobs.JobJournal",
                 "FileCat.Core.Archives.ArchiveTransactionCollector",
                 "FileCat.Core.Archives.ArchiveAssessmentWire", "FileCat.Core.Archives.ArchiveWriteBudget",
-                "FileCat.Core.Archives.ArchiveWritePolicy"}.issubset(core_types):
+                "FileCat.Core.Archives.ArchiveWritePolicy", "FileCat.Core.Archives.ArchiveTransformWire",
+                "FileCat.Core.Archives.ArchiveTarTransformPlan", "FileCat.Core.Archives.ArchiveWorkerProtocol",
+                "FileCat.Core.Archives.ArchiveNewFilePublication"}.issubset(core_types):
             raise ValueError("Production recovery parser/write guard was not instrumented")
         with (root / f"instrument-tar-{phase}.log").open("x") as log:
             subprocess.run([str(dotnet), str(root / phase / "FileCat.ArchiveFuzzHarness.dll"),
@@ -130,8 +132,25 @@ def main():
                 "FileCat.Archives.Writing.ZstdFrameHeader",
                 "FileCat.Archives.SevenZipReadPasswordSession",
                 "FileCat.Archives.Rar.Rar5ReadPasswordSession",
-                "FileCat.Archives.Writing.ArchiveCryptoWorkBudget"}.issubset(types):
-            raise ValueError("Strict TAR, wrapper, 7z or RAR5 scanner was not instrumented")
+                "FileCat.Archives.Writing.ArchiveCryptoWorkBudget",
+                "FileCat.Archives.Writing.TarRewriteEngine",
+                "FileCat.Archives.Writing.ZipRewriteEngine",
+                "FileCat.Archives.Writing.SevenZipRewriteEngine",
+                "FileCat.Archives.Writing.Rar5RewriteEngine",
+                "FileCat.Archives.Writing.StandaloneRewriteEngine"}.issubset(types):
+            raise ValueError("Strict TAR, wrapper, 7z or RAR5 scanner or a rewrite engine was not instrumented")
+        # The vendored codecs feed coverage only, so they are instrumented without the per-branch method callback.
+        codec_env = {key: value for key, value in env.items() if key != "SHARPFUZZ_ENABLE_ON_BRANCH_CALLBACK"}
+        with (root / f"instrument-codecs-{phase}.log").open("x") as log:
+            subprocess.run([str(dotnet), str(root / phase / "FileCat.ArchiveFuzzHarness.dll"),
+                            "instrument-codecs", str(root / phase / "FileCat.SharpCompress.dll"),
+                            str(root / f"instrumented-types-codecs-{phase}.json")],
+                           env=codec_env, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=300)
+        codecs = json.loads((root / f"instrumented-types-codecs-{phase}.json").read_text())
+        if not {"SharpCompress.Compressors.LZMA.LzmaStream", "SharpCompress.Compressors.BZip2.CBZip2InputStream",
+                "SharpCompress.Compressors.Deflate.DeflateStream", "SharpCompress.Compressors.PPMd.PpmdStream",
+                "SharpCompress.Compressors.ZStandard.Unsafe.Methods"}.issubset(codecs):
+            raise ValueError("The vendored codec code was not instrumented")
     facts = {"candidate": head, "checkout": str(checkout), "prior_image": args.prior,
              "packet_sha256": sha(packet), "product_core_sha256": sha(product / "FileCat.Core.dll"),
              "product_archives_sha256": sha(product / "FileCat.Archives.dll"),
@@ -140,13 +159,16 @@ def main():
              "images": {phase: {name: {"bytes": (root / phase / name).stat().st_size,
                                          "sha256": sha(root / phase / name)}
                                 for name in ("FileCat.Core.dll", "FileCat.Archives.dll",
-                                             "FileCat.ArchiveFuzzHarness.dll")}
+                                             "FileCat.SharpCompress.dll", "FileCat.ArchiveFuzzHarness.dll")}
                         for phase in ("clean", "canary")},
              "instrumented_tar_types": {
                  phase: json.loads((root / f"instrumented-types-tar-{phase}.json").read_text())
                  for phase in ("clean", "canary")},
              "instrumented_core_types": {
                  phase: json.loads((root / f"instrumented-types-core-{phase}.json").read_text())
+                 for phase in ("clean", "canary")},
+             "instrumented_codec_types": {
+                 phase: json.loads((root / f"instrumented-types-codecs-{phase}.json").read_text())
                  for phase in ("clean", "canary")}}
     (root / "preparation.json").write_text(json.dumps(facts, indent=2))
     print(json.dumps({key: value for key, value in facts.items() if not key.startswith("instrumented")}))

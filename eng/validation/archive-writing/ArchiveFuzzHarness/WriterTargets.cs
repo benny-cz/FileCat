@@ -31,17 +31,21 @@ static class WriterRun
     private const ushort Version = ArchiveWorkerProtocol.SecretVersion;
 
     /// <summary>Rebuild through the real transform role, then require the real fresh verifier to accept the stage.</summary>
-    internal static byte[] RebuildAndVerify(ArchiveTransformInvocation invocation, Func<Stream> original, Func<int, Stream> input, Func<Stream, Stream>? wrapStage = null)
+    /// <remarks>A protected profile gets one single-use password grant per worker conversation.</remarks>
+    internal static byte[] RebuildAndVerify(ArchiveTransformInvocation invocation, Func<Stream> original, Func<int, Stream> input, Func<Stream, Stream>? wrapStage = null,
+        string? password = null)
     {
         using var stage = new MemoryStream();
         using (var target = wrapStage?.Invoke(stage) ?? new NonClosing(stage))
+        using (var grant = password is null ? null : new ArchiveWorkerSecretGrant(password))
             new ArchiveTransformClient((nonce, _) => InProcessWorker.Transform(nonce, Version), WorkerFixtures.Queue, Version)
-                .RebuildAsync(invocation, target, original, input, CancellationToken.None).GetAwaiter().GetResult();
+                .RebuildAsync(invocation, target, original, input, CancellationToken.None, grant).GetAwaiter().GetResult();
         byte[] bytes = stage.ToArray();
         try
         {
+            using var grant = password is null ? null : new ArchiveWorkerSecretGrant(password);
             var verified = new ArchiveVerificationClient((nonce, _) => new InProcessWorker(nonce, verification: true, Version), WorkerFixtures.Queue, Version)
-                .VerifyAsync(WorkerFixtures.Version(bytes), invocation.Expected, () => new MemoryStream(bytes, false), CancellationToken.None).GetAwaiter().GetResult();
+                .VerifyAsync(WorkerFixtures.Version(bytes), invocation.Expected, () => new MemoryStream(bytes, false), CancellationToken.None, grant).GetAwaiter().GetResult();
             if (verified.ManifestDigest != invocation.Expected.Digest) throw new InvalidOperationException("Writer oracle: verification returned another manifest.");
         }
         catch (ArchiveWriteException error)
