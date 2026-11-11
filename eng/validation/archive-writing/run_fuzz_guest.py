@@ -184,11 +184,17 @@ def main():
                "-p", "RemainAfterExit=yes", "-p", "MemoryMax=1073741824",
                "-p", "MemorySwapMax=0", "-p", f"RuntimeMaxSec={args.seconds + 30}",
                "-p", "TasksMax=64", "-p", "NoNewPrivileges=yes",
+               # PrivateDevices= alone leaves inherited capabilities, which the archive route's ordinary-identity check
+               # rightly refuses (every publication-race input was refused); an empty bounding set clears them.
+               "-p", "CapabilityBoundingSet=",
                "-p", "PrivateNetwork=yes", "-p", "PrivateDevices=yes",
                "-p", "PrivateTmp=yes", "-p", "PrivateIPC=yes",
                "-p", "ProtectSystem=strict", "-p", "ProtectHome=read-only",
                "-p", "KillMode=control-group", "-p", "LimitCORE=0",
-               "-p", "LimitNOFILE=512", "-p", "LimitFSIZE=16777216",
+               # The runtime's write-xor-execute allocator backs all JIT code with one growing memory file, which this limit
+               # also caps: at 16 MiB the widely instrumented images ran out of executable memory within seconds. The run
+               # folder's 256 MiB output budget below still bounds what the unit writes.
+               "-p", "LimitNOFILE=512", "-p", "LimitFSIZE=1073741824",
                "-p", "ReadWritePaths=" + str(run),
                "-p", "StandardOutput=append:" + str(run / "driver.log"),
                "-p", "StandardError=append:" + str(run / "driver.log"),

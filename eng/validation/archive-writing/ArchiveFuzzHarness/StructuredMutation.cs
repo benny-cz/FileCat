@@ -15,7 +15,7 @@ internal static class StructuredMutation
         "gzip-strict", "bzip2-strict", "zstd-strict", "session-record", "capture-record",
         "save-copy-intent", "save-copy-receipt", "journal-record", "journal-state", "manifest-member",
         "worker-frames", "verify-output", "create-inputs", "update-changes", "stream-faults", "member-keys", "repeated-cancel",
-        "standalone-streams", "zip-archives", "publication-races"
+        "standalone-streams", "zip-archives", "publication-races", "sevenzip-writer", "rar5-writer"
     ];
 
     internal static int Run(string target, string seedDirectory, string secondsText, string randomSeedText, string reportPath)
@@ -34,8 +34,8 @@ internal static class StructuredMutation
         var files = Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly)
             .Where(path => !Path.GetFileName(path).Equals("manifest.json", StringComparison.Ordinal))
             .Order(StringComparer.Ordinal).ToArray();
-        if (files.Length is < 1 or > 64 || Directory.EnumerateDirectories(directory).Any())
-            throw new ArgumentException("The corpus must contain 1..64 ordinary seed files without child directories.");
+        if (files.Length is < 1 or > 256 || Directory.EnumerateDirectories(directory).Any())
+            throw new ArgumentException("The corpus must contain 1..256 ordinary seed files without child directories.");
         var corpus = new List<byte[]>();
         var inventory = new List<object>();
         long total = 0;
@@ -62,15 +62,21 @@ internal static class StructuredMutation
         long maxPrivateBytes = 0;
         bool finished = false;
         string? failure = null;
+        // Live managed heap after each published interval: growth across executions is a leak finding (FZ12).
+        var heap = new List<object>(); TimeSpan published = TimeSpan.Zero;
         void Publish()
         {
             process.Refresh();
             maxPrivateBytes = Math.Max(maxPrivateBytes, process.PrivateMemorySize64);
+            published = timer.Elapsed;
+            if (heap.Count == 256) heap.RemoveAt(128);
+            heap.Add(new { calls, seconds = Math.Round(timer.Elapsed.TotalSeconds, 1), live_bytes = GC.GetTotalMemory(true),
+                committed_bytes = GC.GetGCMemoryInfo().TotalCommittedBytes });
             var value = new { target, random_seed = randomSeed, requested_wall_seconds = seconds,
                 elapsed_wall_seconds = timer.Elapsed.TotalSeconds,
                 process_cpu_seconds = (process.TotalProcessorTime - initialCpu).TotalSeconds,
-                calls, accepted, refused, max_private_bytes = maxPrivateBytes,
-                seed_inventory = inventory, complete = finished, failure };
+                calls, accepted, refused, max_private_bytes = maxPrivateBytes, oracle_skipped = Stats.OracleSkipped,
+                managed_heap = heap, seed_inventory = inventory, complete = finished, failure };
             File.WriteAllText(report + ".tmp", JsonSerializer.Serialize(value));
             File.Move(report + ".tmp", report, true);
         }
@@ -96,7 +102,7 @@ internal static class StructuredMutation
                     throw;
                 }
                 calls++;
-                if ((calls & 4095) == 0) Publish();
+                if ((calls & 4095) == 0 || timer.Elapsed - published > TimeSpan.FromSeconds(15)) Publish();
             }
             finished = true;
             Publish();
@@ -114,6 +120,7 @@ internal static class StructuredMutation
 
     private static bool Exercise(string target, byte[] input)
     {
+        Heap.Settle();
         try
         {
             return target switch
@@ -135,6 +142,8 @@ internal static class StructuredMutation
                 "standalone-streams" => StandaloneStreams.Exercise(input),
                 "zip-archives" => ZipArchives.Exercise(input),
                 "publication-races" => PublicationRaces.Exercise(input),
+                "sevenzip-writer" => ContainerWriters.Exercise(input, rar: false),
+                "rar5-writer" => ContainerWriters.Exercise(input, rar: true),
                 _ => Format.Exercise(input, target)
             };
         }

@@ -155,7 +155,11 @@ if(args is ["replay-worker",var workerTarget,var workerInput])
         "publication-races"=>PublicationRaces.Exercise(bytes),"sevenzip-writer"=>ContainerWriters.Exercise(bytes,rar:false),
         "rar5-writer"=>ContainerWriters.Exercise(bytes,rar:true),_=>RepeatedCancellation.Exercise(bytes),
     };}
-    catch(ArchiveWriteException){accepted=false;} // A typed refusal, as in the native and structured lanes.
+    catch(ArchiveWriteException error) // A typed refusal, as in the native and structured lanes.
+    {
+        accepted=false;
+        if(Environment.GetEnvironmentVariable("FILECAT_FUZZ_EXPLAIN")=="1")Console.Error.WriteLine(error);
+    }
     Console.WriteLine(JsonSerializer.Serialize(new{target=workerTarget,accepted,oracle_skipped=Stats.OracleSkipped}));return 0;
 }
 if(args is ["make-worker-seeds",var workerSeedDirectory])
@@ -216,6 +220,7 @@ static void Exercise(ReadOnlySpan<byte> data)
             "create-inputs" or "update-changes" or "stream-faults" or "member-keys" or "repeated-cancel" or "standalone-streams" or "zip-archives" or
             "publication-races" or "sevenzip-writer" or "rar5-writer")
         {
+            Heap.Settle();
             bool accepted=Stats.Target switch
             {
                 "worker-frames"=>WorkerFrames.Exercise(data),
@@ -428,6 +433,7 @@ static class Session
         if(record.IsSupported||allowPendingAdoption&&record.IsPendingAdoption)
         {
             if(record.Version is not (1 or FileCat.Core.Edit.EditSessionRecord.CurrentVersion or FileCat.Core.Edit.EditSessionRecord.NativeStorageVersion)||
+                Path.EndsInDirectorySeparator(record.WorkingPath)||
                 !Path.GetFullPath(record.WorkingPath).StartsWith(Directory+Path.DirectorySeparatorChar,StringComparison.Ordinal))
                 throw new InvalidOperationException("A supported edit record escaped its bounded session namespace.");
             if(record.IsPendingAdoption&&(record.Version!=FileCat.Core.Edit.EditSessionRecord.NativeStorageVersion||record.LegacyRetiring))
@@ -439,6 +445,19 @@ static class Session
             !Path.GetFullPath(record.WorkingPath).StartsWith(Directory,StringComparison.Ordinal))
             throw new InvalidOperationException("An unsupported edit record lost its recovery location.");
         return false;
+    }
+}
+
+/// <summary>
+/// The writer targets allocate whole encoder and decoder dictionaries per input, and one process runs thousands of inputs
+/// (a production worker handles one archive per process). Before the committed heap nears the unit's managed limit, return
+/// that garbage to the system with a compacting collection; one input's own allocation still meets the limit unchanged.
+/// </summary>
+static class Heap
+{
+    internal static void Settle()
+    {
+        if(GC.GetGCMemoryInfo().TotalCommittedBytes>256L<<20)GC.Collect(2,GCCollectionMode.Aggressive,blocking:true,compacting:true);
     }
 }
 
