@@ -99,6 +99,9 @@ internal static class ZipRewriteEngine
         var output = new Output(stage);
         var written = new List<Written>(planned.Count);
         byte[] buffer = new byte[ArchiveIoAuthority.MaximumReadBytes];
+        // One descriptor buffer for every new payload: a stackalloc inside the member loop is released only when this method
+        // returns, so the frame grew with each added file and tens of thousands of them exhausted the worker thread's stack.
+        Span<byte> descriptor = stackalloc byte[24];
         try
         {
             foreach (var item in planned)
@@ -160,7 +163,7 @@ internal static class ZipRewriteEngine
                     }
                     long compressed = output.Written - start;
                     if (compressed > ArchiveZipTransformPlan.DeflateBound(input.Length)) throw ArchiveWriteBudget.Limit();
-                    Span<byte> descriptor = stackalloc byte[24]; int size = zip64 ? 24 : 16;
+                    int size = zip64 ? 24 : 16;
                     BinaryPrimitives.WriteUInt32LittleEndian(descriptor, StrictZipCatalog.DescriptorSignature);
                     BinaryPrimitives.WriteUInt32LittleEndian(descriptor[4..], crc);
                     if (zip64) { BinaryPrimitives.WriteInt64LittleEndian(descriptor[8..], compressed); BinaryPrimitives.WriteInt64LittleEndian(descriptor[16..], input.Length); }
