@@ -8,6 +8,20 @@
   overrun bytes, so PPMd + Swap 7z archives, including FileCat's own, read back with a changed tail and failed FileCat's
   CRC check, while real 7-Zip reads them (`d7287a35`, vendored SharpCompress, recorded in its changes file). Each has a
   regression test that fails without the fix; the Mac passed 216/216 in the edit-session and 7z writing classes.
+- **A third defect, found beside the campaign and fixed after the candidate.** The ZIP rewrite allocated each new
+  payload's data descriptor on the stack inside its member loop, so the frame grew per added or replaced file until the
+  rebuild returned; tens of thousands of files (requests admit 100,000) overflow a 1–1.5 MiB worker stack and end the
+  process (`1f51bd15`; the regression test's 20,000 files kill the old engine on a 256 KiB thread). Only `zip-archives`
+  reaches the changed method, and its collected corpus replays with identical results at the fixed commit. A new opt-in
+  AT18 theory writes and strictly reads 100,000 members with every writer engine on a 1 MiB thread (`48a321ad`); all
+  ten profiles pass in linear time on the host.
+- **Windows path checks of session records and saved-copy intents** were never reached by the earlier Windows
+  structured lanes, whose Linux seeds name Unix roots (none of 70 million inputs accepted; the Windows floor without the
+  two targets is still 4.753 CPU-hours). Seeds rewritten for Windows (`86f03a28`) reach them: 155,246 and 27,825
+  accepted inputs in 30 minutes each, no failure. An 85-input probe of Windows spellings found every non-canonical form
+  refused, and Windows-only theories pin them (`8197bad8`).
+- **Interim corpus replay** (38,230 inputs from every short run and the first four long runs): no failure on macOS arm64
+  (27 targets) or Windows x64 (26 targets).
 - **Fuzz coverage widened.** All of Core's archive, edit-session and journal code, the whole writing namespace and the
   vendored codecs are now instrumented; new `sevenzip-writer` and `rar5-writer` targets cover the 7z and RAR5 writers
   against independent readers. All 27 targets passed canary, replay and short runs on image `fuzz-candidate-v4`.
@@ -25,7 +39,8 @@
   VHD-backed `S:` on `C:`'s disk and fails the same way on the base commit (see the v21d entry). Evidence
   `full-v22a-mac` `72f0bab5…`, `full-v22a-win` `70cefeb4…`. The Ubuntu suite follows the campaign.
 - **Running.** 47 sealed-and-verified runs, 25 CPU-hours per format family and 25.3 shared (plan: 24), on the 12-vCPU
-  Ubuntu VM. Completion, host verification of every transport and the final corpus replay on each RID remain open.
+  Ubuntu VM; 11 runs are sealed and verified on the host so far. Completion, host verification of every transport and,
+  at the fixed commit, the final corpus replay on each RID and the ZIP family's floor remain open.
 
 **11 November, packaging dry run (row 12, §16.1, AT20).** Commit `d44c3d86`, packaged from a clean checkout of exactly
 that commit on each system:

@@ -28,6 +28,23 @@
   marker), so PPMd + Swap2/Swap4 archives, including ones FileCat writes, read back with a changed tail and FileCat's
   CRC check called them damaged; real 7-Zip 24.01 tests and extracts them. `d7287a35` ends that coder's output at the
   folder's recorded unpack size in both decoder registries (`THIRD-PARTY-CHANGES.md` records it).
+- **A third product defect, found beside the campaign** (fixed after the candidate, `1f51bd15`). A host build's CA2014
+  warning led to the ZIP rewrite: each new or replaced payload's data descriptor was a `stackalloc` inside the member loop,
+  released only when the rebuild returns, so the frame grew by 32 bytes per payload. Requests admit 100,000 members
+  (3.2 MB), beyond a 1–1.5 MiB worker thread stack, and a stack overflow ends the process. One buffer before the loop now
+  serves every descriptor. The regression test rebuilds 20,000 one-byte files on a 256 KiB thread: the old engine dies
+  with `STATUS_STACK_OVERFLOW` inside `Rebuild`, the fixed one finishes and the strict catalog reads every member back;
+  the host passed the 1,182 tests of the ZIP, 7z and TAR pipeline classes. No fuzz input could reach it (inputs are at
+  most 1 MiB with a few members per plan). The image's method reports show that only `zip-archives` reaches
+  `ZipRewriteEngine`, so every other target ran code identical to the fixed commit's; `zip-archives` replays its
+  collected corpus (2,752 inputs) at the fixed commit with the same 2,160 accepted and 592 refused, no failure. The
+  member limit now has an opt-in AT18 test for every writer engine
+  ([`ArchiveWriterScaleTests.cs`](../../../tests/FileCat.Core.Tests/ArchiveWriterScaleTests.cs), `48a321ad`):
+  10,000 and 100,000 one-byte members written and strictly read back on a 1 MiB thread, in linear time. On the host at
+  100,000 members, write plus read: ZIP 2.8 s (stored) and 5.6 s (Deflate), TAR 3.0, TAR.GZ 5.6, TAR.BZ2 21.3, TAR.ZST
+  2.8, 7z copy 9.9, 7z LZMA2 91.8, RAR5 store 4.2 and normal 63.9 s. RAR5 normal makes 27.4 MB of one-byte files
+  (store: 4.4 MB), because every block carries its complete fixed code table; per-file automatic store selection is the
+  RAR5 encoder's documented open item ([RAR5_CSHARP_ENCODER.md](RAR5_CSHARP_ENCODER.md)), not a new finding.
 - **Harness and runner defects found on the way** (not product): the units' 16 MiB `LimitFSIZE` also caps the
   runtime's write-xor-execute memory file that holds all JIT code, so widely instrumented images ran out of executable
   memory within seconds and the runtime failed fast with out-of-memory; this was also the unreproducible create-inputs
@@ -62,13 +79,40 @@
   alone reached 3.945 CPU-hours, so a second pass was added. The corpus-replay tools
   ([`collect_fuzz_corpora_guest.py`](../../../eng/validation/archive-writing/collect_fuzz_corpora_guest.py), the two
   `run_corpus_replay_*` scripts, [`verify_corpus_replay.py`](../../../eng/validation/archive-writing/verify_corpus_replay.py))
-  replayed the interim corpus on macOS (27 targets, 28,903 inputs, no failure); the final corpora follow the campaign.
+  replayed a first interim corpus on macOS (27 targets, 28,903 inputs, no failure); the final corpora follow the campaign.
+- **Windows seeds for path-bearing records.** The image's seeds and the campaign's corpus are Linux: session records and
+  saved-copy intents name the harness's Unix session and destination roots, which the Windows harness refuses before any
+  path check. Every win-x64 pass above therefore exercised only that refusal for these two targets (38.7 and 31.1 million
+  inputs, none accepted); without them the Windows floor is still 4.753 CPU-hours.
+  [`sample_corpus_seeds.py`](../../../eng/validation/archive-writing/sample_corpus_seeds.py) `--windows` (`86f03a28`)
+  rewrites those roots, separators included, as `make_session_fuzz_seeds.py --platform windows` writes them; a
+  30-minute pass per target from the rewritten corpus sample accepted 155,246 of 57.8 million session records and 27,825
+  of 55.4 million intents, with no oracle failure (`xrid-win-62f0a457-winpaths1`, `cd0b9247…`). An 85-input probe of
+  Windows spellings through the harness on the VM (`\\?\`, `\\.\`, `\\localhost\C$`, 8.3 names, drive and folder case,
+  trailing dots and spaces, dot segments, doubled separators, drive-relative and driveless paths) found every
+  non-canonical form refused, as the parsers' rules predict; Windows-only theories now pin those forms (`8197bad8`).
+  Alternate data streams and a `CON` leaf inside the session folder parse as usable working paths: FileCat never writes
+  such working names (`SafeNames`) and both stay inside the session folder.
+- **Interim corpus replay.** `corpora-interim-1` (`4d5a29f1…`: every short run and the first four sealed long runs,
+  38,230 inputs) replayed with no failure on macOS arm64 (27 targets, 38,230 inputs, 1.95 CPU-hours,
+  `replay-interim1-mac`, `0e456304…`) and Windows x64 (26 targets, 37,425 inputs, 0.71 CPU-hours,
+  `replay-interim1-win`, `0908bcbf…`), both checked by `verify_corpus_replay.py`. The two RIDs accept and refuse the same
+  inputs except the path-bearing records above. The replay runners now take several targets at once, largest folders
+  first (`ba2bc7f5`). `rar5-writer` dominates (6,795 CPU-seconds on the M1, 2,121 on the VM): a quarter of its update
+  requests are protected and derive PBKDF2 keys with 2^19 rounds several times each; the same inputs take 0.14 s each
+  with protection cleared.
+- **Slow units.** Each `rar5-writer` long run saved one slow-unit report, a protected update over libFuzzer's 10-second
+  report threshold under instrumentation (4.7 s uninstrumented on the M1). The image's own sealer refused such runs; the
+  repository's sealer (`1d2dc830…`), which records slow units as reports and still refuses any crash, leak, OOM or
+  timeout, sealed both, and the host verifier accepts either sealer.
 - **FZ10 on Windows.** [`ArchiveAppContainerPublicationRaceTests.cs`](../../../tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerPublicationRaceTests.cs)
   runs the same publication-race oracle against the actual confined application worker and NTFS recipes (new-file
   publication and the transactional same-object update): every action at every early durable point for creation and
   update, a disturbance-free control that must publish, and a seeded random lane. Windows VM, standard token: 179/179;
   seed 42829402 published 121 of 200 random rounds and refused 79, all within the oracle (`fz10win-b`, `19793f36…`).
-- **Open.** Campaign completion, sealing and host verification; the final corpora's replay on each shipping RID.
+- **Open.** Campaign completion, sealing and host verification. Because `1f51bd15` changed product code after the
+  candidate, the final corpora's replay on each shipping RID and at least the ZIP family's floor are repeated at the
+  fixed commit.
 
 **11 November, FZ10 `publication-races` target implemented (no campaign yet).**
 [`PublicationTargets.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/PublicationTargets.cs) runs the real
