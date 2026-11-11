@@ -25,6 +25,12 @@ def simple(name):
     return name.replace("-", "").isalnum()
 
 
+def failing(names):
+    """libFuzzer also saves an input slower than -report_slow_units (10 s) and keeps fuzzing; that is a report, not a
+    failure. Every other saved input (crash, timeout, out-of-memory, leak) fails the run."""
+    return [name for name in names if not name.startswith("slow-unit-")]
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=Path, required=True)
@@ -53,7 +59,7 @@ def main():
     result, canary, replay, short = [json.loads((run / "result.json").read_text()) for run in runs]
     final = result["final_properties"]
     report = result["managed_report"]
-    if not result["terminal"] or result.get("output_budget_failure") or result["artifacts"] or \
+    if not result["terminal"] or result.get("output_budget_failure") or failing(a["name"] for a in result["artifacts"]) or \
             result["phase"] != "clean" or result["target"] != args.target or \
             final["MainPID"] != "0" or final["Result"] != "success" or final["ExecMainStatus"] != "0" or \
             int(final["CPUUsageNSec"]) < args.minimum_cpu_seconds * 10**9 or \
@@ -67,10 +73,11 @@ def main():
             report["ModuleSha256"].lower() != result["sha256"]["core"]:
         raise ValueError("The fuzz run does not match its prepared image")
     if (canary["phase"], canary["target"], replay["phase"], replay["target"]) != ("canary", "digest", "canary", "digest") or \
-            (short["phase"], short["target"]) != ("clean", args.target) or not short["terminal"] or short["artifacts"]:
+            (short["phase"], short["target"]) != ("clean", args.target) or not short["terminal"] or \
+            failing(a["name"] for a in short["artifacts"]):
         raise ValueError("A qualification run has another phase or target")
     for run in runs[:1] + runs[3:]:
-        if any((run / "crashes").iterdir()) or any((run / "dumps").iterdir()):
+        if failing(path.name for path in (run / "crashes").iterdir()) or any((run / "dumps").iterdir()):
             raise ValueError("A crash artifact or dump was found after result collection")
     seeds = root / ("seeds-" + args.target)
     members = [packet, root / "preparation.json"]
@@ -94,6 +101,7 @@ def main():
     index = json.dumps({"image": args.image, "run": args.run, "target": args.target,
                         "minimum_cpu_seconds": args.minimum_cpu_seconds, "qualification_runs": list(qualifications),
                         "candidate": prep["candidate"], "sealer_sha256": sha(Path(__file__).resolve()),
+                        "slow_units": sorted(path.name for run in runs[:1] + runs[3:] for path in (run / "crashes").iterdir()),
                         "files": rows}, indent=2).encode()
     with tarfile.open(output, "x:gz", compresslevel=1) as archive:
         for path, row in zip(members, rows):

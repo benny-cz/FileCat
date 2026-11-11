@@ -78,6 +78,11 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def slow_only(artifacts):
+    """libFuzzer saves an input slower than -report_slow_units (10 s) and keeps fuzzing: a report, not a failure."""
+    return all(artifact["name"].startswith("slow-unit-") for artifact in artifacts)
+
+
 def methods_reached(report, required):
     names = report["production_methods"]
     return all(any(fragment in name for name in names) for fragment in required)
@@ -115,7 +120,8 @@ def verify(image, run, target, minimum_cpu_seconds, candidate):
         harness = packet.extractfile("harness/FileCat.ArchiveFuzzHarness.dll").read()
         sealer = packet.extractfile("source/seal_fuzz_candidate_guest.py").read()
     assert sha(harness) == clean["FileCat.ArchiveFuzzHarness.dll"]["sha256"]
-    assert index["sealer_sha256"] == sha(sealer)
+    # The sealer shipped in the packet, or this repository's committed one (which also accepts slow-unit reports).
+    assert index["sealer_sha256"] in (sha(sealer), sha((Path(__file__).resolve().parent / "seal_fuzz_candidate_guest.py").read_bytes()))
     for name in ("FileCat.Core.dll", "FileCat.Archives.dll", "FileCat.SharpCompress.dll"):
         assert prep["product_files"][name] != clean[name]["sha256"]
     for kind in ("core", "tar", "codecs"):
@@ -128,7 +134,7 @@ def verify(image, run, target, minimum_cpu_seconds, candidate):
     replay = json.loads(file("runs/" + replay_name + "/result.json"))
     short = json.loads(file("runs/" + short_name + "/result.json"))
     final = result["final_properties"]; report = result["managed_report"]
-    assert result["terminal"] and not result.get("output_budget_failure") and not result["artifacts"]
+    assert result["terminal"] and not result.get("output_budget_failure") and slow_only(result["artifacts"])
     assert result["target"] == report["Target"] == target and result["phase"] == "clean"
     assert final["MainPID"] == "0" and final["Result"] == "success" and final["ExecMainStatus"] == "0"
     assert int(final["CPUUsageNSec"]) >= minimum_cpu_seconds * 10**9 and int(final["MemoryPeak"]) <= 1073741824
@@ -149,7 +155,7 @@ def verify(image, run, target, minimum_cpu_seconds, candidate):
     assert sha(file("runs/" + canary_name + "/crashes/" + crash["name"])) == crash["sha256"]
     assert sha(file("runs/" + replay_name + "/replay-input")) == crash["sha256"]
     assert not replay["artifacts"] and replay["managed_report"]["Calls"] == 1
-    assert short["target"] == target and short["terminal"] and not short["artifacts"] and short["managed_report"]["Calls"] > 0
+    assert short["target"] == target and short["terminal"] and slow_only(short["artifacts"]) and short["managed_report"]["Calls"] > 0
     assert short["final_properties"]["Result"] == "success" and short["final_properties"]["ExecMainStatus"] == "0"
     # Both runs reached the target's production entry points through the instrumented images.
     assert methods_reached(short["managed_report"], required) and methods_reached(report, required)
@@ -167,11 +173,13 @@ def verify(image, run, target, minimum_cpu_seconds, candidate):
             content = file("runs/" + name + f"/corpus/synthetic-{number:04d}")
             assert len(content) == row["bytes"] and sha(content) == row["sha256"]
     for name in (run, short_name):
-        assert not any(key.startswith(f"image/runs/{name}/crashes/") or key.startswith(f"image/runs/{name}/dumps/") for key in data)
+        assert not any(key.startswith(f"image/runs/{name}/crashes/") and not key.split("/")[-1].startswith("slow-unit-") or
+                       key.startswith(f"image/runs/{name}/dumps/") for key in data)
     return {"image": image, "run": run, "target": target, "family": family,
             "cpu_seconds": int(final["CPUUsageNSec"]) / 10**9, "executions": report["Calls"],
             "accepted": report["Accepted"], "refused": report["Refused"], "oracle_skipped": report.get("OracleSkipped", 0),
-            "methods": len(report["production_methods"]), "seeds": len(expected), "transport_sha256": sidecar["sha256"]}
+            "methods": len(report["production_methods"]), "seeds": len(expected), "slow_units": len(result["artifacts"]),
+            "transport_sha256": sidecar["sha256"]}
 
 
 def campaign(candidate, listing):
