@@ -182,6 +182,9 @@ static class ContainerWriters
     /// <summary>The oracle's files in archive order; directories are not compared. A codec the oracle lacks skips the check.</summary>
     private static (string Name, byte[] Payload)[]? Read(byte[] bytes, bool rar, string? password)
     {
+        // Replay triage only: keep each archive the oracle reads for an independent tool.
+        if (Environment.GetEnvironmentVariable("FILECAT_FUZZ_DUMP") is { Length: > 0 } dump && Path.IsPathFullyQualified(dump))
+            File.WriteAllBytes(Path.Combine(dump, "stage-" + WorkerFixtures.Sha(bytes)[..16] + (rar ? ".rar" : ".7z")), bytes);
         try { return rar ? ReadRar(bytes, password) : ReadSevenZip(bytes, password); }
         catch (NotSupportedException) when (!rar) { Interlocked.Increment(ref Stats.OracleSkipped); return null; } // The browse reader may lack a writer-qualified filter or codec.
         catch (Exception error) when (error is not InvalidOperationException)
@@ -233,8 +236,12 @@ static class ContainerWriters
     {
         if (actual is null) return;
         if (expected.Length != actual.Length || expected.Zip(actual).Any(p => p.First.Name != p.Second.Name || !p.First.Payload.AsSpan().SequenceEqual(p.Second.Payload)))
-            throw new InvalidOperationException("Writer oracle: the " + what + " reads as other members or bytes.");
+            throw new InvalidOperationException("Writer oracle: the " + what + " reads as other members or bytes. Expected " + Describe(expected) +
+                "; the independent reader returned " + Describe(actual) + ".");
     }
+
+    private static string Describe((string Name, byte[] Payload)[] files) => "[" + string.Join(", ", files.Take(12).Select(file =>
+        $"{file.Name} ({file.Payload.Length} bytes, SHA-256 {WorkerFixtures.Sha(file.Payload)[..12]})")) + (files.Length > 12 ? ", …]" : "]");
 
     /// <summary>Every codec, a filter sample, both header modes and both protections for create, each update shape, a mutation.</summary>
     internal static IEnumerable<(string Name, byte[] Seed)> Seeds(bool rar)
