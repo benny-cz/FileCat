@@ -52,8 +52,23 @@
   at the same commit on macOS arm64 and Windows x64 (the §13.6 platform floor of 4 CPU-hours per additional RID), with
   [`run_structured_lanes_unix.sh`](../../../eng/validation/archive-writing/run_structured_lanes_unix.sh) and
   [`run_structured_lanes_windows.ps1`](../../../eng/validation/archive-writing/run_structured_lanes_windows.ps1).
-- **Open.** Campaign completion, sealing and host verification; the final corpora's `replay-corpus` pass on each
-  shipping RID; Windows TxF publication races.
+- **Other RIDs (§13.6 platform floor, 4 CPU-hours each).** At `62f0a457`, every target ran as structured mutation from
+  the image's exact seed folders: macOS 27 (arm64, M1) 27 targets, 6.471 CPU-hours, 772,679,582 inputs; Windows 11
+  x64 (the 8-vCPU VM, `C:\FileCatValidation\dotnet` SDK) 26 targets in two passes with distinct random seeds (the
+  Unix publication route excluded), 5.179 CPU-hours, 396,046,683 inputs; no failure and no oracle skip on either.
+  [`verify_structured_lanes.py`](../../../eng/validation/archive-writing/verify_structured_lanes.py) checks each
+  report against the seed archive (`fuzz-candidate-v4-seeds.tar.gz`, `c0411ae6…`) and the floor; transports
+  `xrid-mac-62f0a457` (`20c51562…`), `xrid-win-62f0a457` (`17777749…`) and `-b` (`810e0c6a…`). The first Windows pass
+  alone reached 3.945 CPU-hours, so a second pass was added. The corpus-replay tools
+  ([`collect_fuzz_corpora_guest.py`](../../../eng/validation/archive-writing/collect_fuzz_corpora_guest.py), the two
+  `run_corpus_replay_*` scripts, [`verify_corpus_replay.py`](../../../eng/validation/archive-writing/verify_corpus_replay.py))
+  replayed the interim corpus on macOS (27 targets, 28,903 inputs, no failure); the final corpora follow the campaign.
+- **FZ10 on Windows.** [`ArchiveAppContainerPublicationRaceTests.cs`](../../../tests/FileCat.Platform.Windows.Tests/ArchiveAppContainerPublicationRaceTests.cs)
+  runs the same publication-race oracle against the actual confined application worker and NTFS recipes (new-file
+  publication and the transactional same-object update): every action at every early durable point for creation and
+  update, a disturbance-free control that must publish, and a seeded random lane. Windows VM, standard token: 179/179;
+  seed 42829402 published 121 of 200 random rounds and refused 79, all within the oracle (`fz10win-b`, `19793f36…`).
+- **Open.** Campaign completion, sealing and host verification; the final corpora's replay on each shipping RID.
 
 **11 November, FZ10 `publication-races` target implemented (no campaign yet).**
 [`PublicationTargets.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/PublicationTargets.cs) runs the real

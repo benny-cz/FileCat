@@ -14,9 +14,12 @@
 - **Test-environment faults fixed.** The fuzz units' file-size cap also capped .NET's JIT-code memory, PrivateDevices
   left capabilities that FileCat's identity check refuses, and in-process roles kept LZMA tables in thread-pool caches;
   none was a product defect.
+- **Other RIDs.** Structured mutation from the image's exact seeds passed on macOS arm64 (27 targets, 6.471
+  CPU-hours) and Windows x64 (26 targets, 5.179 CPU-hours in two passes), with no failure; the per-RID floor is 4.
+- **Windows publication races (FZ10).** A new Windows lane runs the publication-race oracle against the confined
+  worker and NTFS recipes: 179/179 on the VM's standard token, and 121 of 200 seeded random rounds published.
 - **Running.** 47 sealed-and-verified runs, 25 CPU-hours per format family and 25.3 shared (plan: 24), on the 12-vCPU
-  Ubuntu VM; structured-mutation lanes on macOS arm64 and Windows x64. Completion, host verification of every
-  transport, corpus replay on each RID and Windows TxF publication races remain open.
+  Ubuntu VM. Completion, host verification of every transport and the final corpus replay on each RID remain open.
 
 **11 November, packaging dry run (row 12, §16.1, AT20).** Commit `d44c3d86`, packaged from a clean checkout of exactly
 that commit on each system:
