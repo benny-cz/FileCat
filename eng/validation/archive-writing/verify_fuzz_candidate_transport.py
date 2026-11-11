@@ -5,7 +5,9 @@
 packet binding, the clean image, the canary and replay proof, the short run, exact synthetic seeds, required production
 methods, instrumented types and the CPU floor. `campaign CANDIDATE LIST.json` verifies every listed transport and the plan's
 format-release floors (13.6): at least 24 CPU-hours per format family and for the shared stateful/protocol/recovery
-targets, and at least 2 CPU-hours in each target. Test tooling, not an application dependency.
+targets, and at least 2 CPU-hours in each target. `campaign CANDIDATE LIST.json TARGET...` holds only the named targets and
+their families to the floors (a family repeated on a later candidate after a change to its code). Test tooling, not an
+application dependency.
 """
 
 import hashlib
@@ -184,13 +186,20 @@ def verify(image, run, target, minimum_cpu_seconds, candidate):
             "transport_sha256": sidecar["sha256"]}
 
 
-def campaign(candidate, listing):
+def campaign(candidate, listing, only=()):
     rows = [verify(item["image"], item["run"], item["target"], item["minimum_cpu_seconds"], candidate)
             for item in json.loads(Path(listing).read_text())]
     assert len({(row["image"], row["run"]) for row in rows}) == len(rows)
-    by_target = {target: sum(row["cpu_seconds"] for row in rows if row["target"] == target) for target in TARGETS}
+    unknown = sorted(set(only) - set(TARGETS))
+    assert not unknown, f"unknown targets: {unknown}"
+    held = {target: TARGETS[target] for target in (only or TARGETS)}
+    families = {family for family, _, _ in held.values()}
+    # A subset campaign covers whole families: every target of a named family is held to its floor.
+    held = {target: value for target, value in TARGETS.items() if value[0] in families}
+    assert all(row["target"] in held for row in rows), "a listed run is outside the named targets"
+    by_target = {target: sum(row["cpu_seconds"] for row in rows if row["target"] == target) for target in held}
     by_family = {}
-    for target, (family, _, _) in TARGETS.items():
+    for target, (family, _, _) in held.items():
         by_family[family] = by_family.get(family, 0) + by_target[target]
     short = sorted(target for target, seconds in by_target.items() if seconds < TARGET_FLOOR)
     low = sorted(family for family, seconds in by_family.items() if seconds < FAMILY_FLOOR)
@@ -204,7 +213,7 @@ def campaign(candidate, listing):
 if __name__ == "__main__":
     if sys.argv[1:2] == ["verify"] and len(sys.argv) == 7:
         print(json.dumps(verify(sys.argv[2], sys.argv[3], sys.argv[4], int(sys.argv[5]), sys.argv[6]), indent=2))
-    elif sys.argv[1:2] == ["campaign"] and len(sys.argv) == 4:
-        print(json.dumps(campaign(sys.argv[2], sys.argv[3]), indent=2))
+    elif sys.argv[1:2] == ["campaign"] and len(sys.argv) >= 4:
+        print(json.dumps(campaign(sys.argv[2], sys.argv[3], sys.argv[4:]), indent=2))
     else:
-        raise SystemExit("usage: verify IMAGE RUN TARGET MINIMUM_CPU_SECONDS CANDIDATE | campaign CANDIDATE LIST.json")
+        raise SystemExit("usage: verify IMAGE RUN TARGET MINIMUM_CPU_SECONDS CANDIDATE | campaign CANDIDATE LIST.json [TARGET...]")

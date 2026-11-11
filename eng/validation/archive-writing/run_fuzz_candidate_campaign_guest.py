@@ -7,8 +7,10 @@ prepare_fuzz_candidate_guest.py from candidate 62f0a457, with its harness packet
 seal_fuzz_candidate_guest.py at its planned floor; verify_fuzz_candidate_transport.py re-checks every transport and the
 family floors on the host. The scheduler runs this folder's run_fuzz_guest.py and sealer.
 
-plan [--image NAME --packet PATH]:    read each target's short run, chunk its CPU allocation into runs of at most CHUNK
-       CPU-hours, size each run's wall time from the short run's CPU rate with a margin, and write campaign-plan.json.
+plan [--image NAME --packet PATH --targets A,B --seed-base N]:    read each target's short run, chunk its CPU
+       allocation into runs of at most CHUNK CPU-hours, size each run's wall time from the short run's CPU rate with a
+       margin, and write campaign-plan.json; --targets plans only the named targets (a family repeated after a change
+       to its code), and a new image takes a new --seed-base so its runs do not repeat the earlier mutation sequences.
 run SLOTS [--image NAME --packet PATH]:    keep SLOTS units busy, longest first; seal each finished run at its planned CPU
        floor; record campaign-status.json.
 """
@@ -35,6 +37,8 @@ def option(name, default):
 
 I = T / option("--image", "fuzz-candidate-v4")
 PACKET = pathlib.Path(option("--packet", str(T / "fuzz-candidate-62f0a457-harness.tar.gz")))
+ONLY = [target for target in option("--targets", "").split(",") if target]
+SEED_BASE = int(option("--seed-base", "20261801"))
 HOUR = 3600
 CHUNK = 4.3
 MARGIN = 1.18
@@ -52,8 +56,14 @@ ALLOCATION = {
 
 
 def plan():
-    runs, seed = [], 20261801
+    runs, seed = [], SEED_BASE
+    unknown = sorted(set(ONLY) - set(ALLOCATION))
+    if unknown:
+        raise SystemExit(f"unknown targets: {unknown}")
     for target, hours in ALLOCATION.items():
+        if ONLY and target not in ONLY:
+            seed += math.ceil(hours / CHUNK)  # each run keeps the seed it has in the complete plan
+            continue
         short = json.loads((I / "runs" / f"{target}-short-c4" / "result.json").read_text())
         if short["artifacts"] or short["final_properties"]["Result"] != "success":
             raise SystemExit(f"{target}: its short run is not clean")
@@ -118,4 +128,4 @@ if __name__ == "__main__":
     elif len(arguments) == 2 and arguments[0] == "run":
         run(int(arguments[1]))
     else:
-        raise SystemExit("usage: plan | run SLOTS, each with optional --image NAME --packet PATH")
+        raise SystemExit("usage: plan [--targets A,B --seed-base N] | run SLOTS, each with optional --image NAME --packet PATH")
