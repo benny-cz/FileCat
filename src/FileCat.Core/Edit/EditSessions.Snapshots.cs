@@ -44,7 +44,7 @@ public sealed partial class EditSessionStore
             Check();allocation.Review(ct);string rootIdentity=root.Identity;
             var snapshot=new NativeEditSnapshot(capture,files,output,observed,records.ToArray(),record,admission,
                 token=>OpenCaptureMutation(rootIdentity,token));
-            var result=new EditCommitCopy(snapshot,bytes.Crc);admission.Transfer();return result;
+            var result=new EditCommitCopy(snapshot,bytes.Crc,TrackLiveCapture(record.Id));admission.Transfer();return result;
         }
         catch
         {
@@ -52,6 +52,15 @@ public sealed partial class EditSessionStore
             throw; // All uncertain artifacts remain in the recorded session namespace.
         }
     }
+
+    // Sessions whose native commit capture is live in this process, counted until each copy is disposed.
+    private readonly Dictionary<string,int> liveCaptures=new(StringComparer.Ordinal);
+    private Action TrackLiveCapture(string session)
+    {
+        lock(liveCaptures)liveCaptures[session]=liveCaptures.GetValueOrDefault(session)+1;
+        return ()=>{lock(liveCaptures){if(liveCaptures.TryGetValue(session,out int count)){if(count<=1)liveCaptures.Remove(session);else liveCaptures[session]=count-1;}}};
+    }
+    internal bool HasLiveCapture(string session){lock(liveCaptures)return liveCaptures.ContainsKey(session);}
 
     private EditStorageMutation OpenCaptureMutation(string expectedRoot,CancellationToken ct)
     {

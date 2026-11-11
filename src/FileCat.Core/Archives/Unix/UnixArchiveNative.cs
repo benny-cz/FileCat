@@ -104,8 +104,15 @@ internal static unsafe partial class UnixArchiveNative
     }
     internal static void SyncFile(SafeFileHandle file)
     {
-        if (Fsync(Fd(file)) != 0 || Mac && Fcntl(Fd(file), 51 /* FULLFSYNC */, 0) != 0) throw Unavailable();
+        if (Fsync(Fd(file)) != 0 || Mac && Fcntl(Fd(file), 51 /* FULLFSYNC */, 0) != 0) throw SyncFailed(Marshal.GetLastPInvokeError());
     }
+    /// <summary>
+    /// A failed fsync keeps the system's error as its cause (AT08): a full drive or quota that the file system reports only
+    /// when the data is written out (delayed allocation) is then the full-drive refusal, and an I/O error the drive-error
+    /// one; the backend words both by phase. The message is the wording for a failure once saving may have begun.
+    /// </summary>
+    internal static ArchiveWriteException SyncFailed(int errno) => new(ArchiveWriteReason.PublicationUnavailable, ArchiveWriteMessages.DriveErrorDuringSave,
+        new IOException("fsync failed (errno " + errno.ToString(CultureInfo.InvariantCulture) + ").") { HResult = errno });
     internal static void RequireCreationDirectory(SafeFileHandle directory, uint user)
     {
         var facts = UnixFiles.Stat(directory);
@@ -172,10 +179,17 @@ internal static unsafe partial class UnixArchiveNative
         // fcntl is variadic: Darwin ARM64 passes the variadic argument on the stack, after eight register slots.
         ? FcntlMacArm64(Fd(file), 67, 0, 0, 0, 0, 0, 0, 0) : Fcntl(Fd(file), Mac ? 67 : 1030, 0));
     internal static void SyncDirectory(SafeFileHandle directory)
-    { if (Fsync(Fd(directory)) != 0) throw Unavailable(); } // Successful fsync, not universal power-loss qualification.
+    { if (Fsync(Fd(directory)) != 0) throw SyncFailed(Marshal.GetLastPInvokeError()); } // Successful fsync, not universal power-loss qualification.
     internal static int Fd(SafeFileHandle file) => checked((int)file.DangerousGetHandle()); // Caller retains/serializes ownership.
-    internal static SafeFileHandle Handle(int fd) => fd < 0 ? throw new IOException("The native Unix archive open failed (errno " + Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture) + ").") : new((nint)fd, ownsHandle: true);
-    internal static ArchiveWriteException Unavailable() => new(ArchiveWriteReason.PublicationUnavailable, "The native Unix archive storage/permission control is unavailable; retain existing evidence.");
+    internal static SafeFileHandle Handle(int fd) => fd < 0 ? throw OpenFailed(Marshal.GetLastPInvokeError()) : new((nint)fd, ownsHandle: true);
+    // The raw errno is kept as HResult, as .NET keeps it, so a device or space error is recognized for the user's text.
+    private static IOException OpenFailed(int errno) =>
+        new("The native Unix archive open failed (errno " + errno.ToString(CultureInfo.InvariantCulture) + ").", errno);
+    internal static ArchiveWriteException Unavailable() => new(ArchiveWriteReason.PublicationUnavailable, UnavailableText);
+    /// <summary>The same refusal for a failed system call, with its errno kept as the HResult of the inner exception.</summary>
+    internal static ArchiveWriteException Unavailable(int errno) => new(ArchiveWriteReason.PublicationUnavailable, UnavailableText,
+        new IOException("The native call failed (errno " + errno.ToString(CultureInfo.InvariantCulture) + ").", errno));
+    private const string UnavailableText = "The native Unix archive storage/permission control is unavailable; retain existing evidence.";
     [LibraryImport("libc", EntryPoint = "open", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int Open(string path, int flags, uint mode);
     [LibraryImport("libc", EntryPoint = "openat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]

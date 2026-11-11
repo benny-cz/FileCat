@@ -84,9 +84,85 @@ public sealed class ArchiveWriteMessagesTests
         // Quota counts as full; other device errors keep their own text.
         int quota = OperatingSystem.IsWindows() ? unchecked((int)0x8007050F) : OperatingSystem.IsMacOS() ? 69 : 122;
         Assert.True(ArchiveWriteMessages.IsOutOfSpace(new AggregateException(new IOException("quota", quota))));
-        Assert.Null(ArchiveWriteMessages.ForUser(new IOException("The device is not ready.", OperatingSystem.IsWindows() ? unchecked((int)0x80070015) : 5), ArchiveJobPhase.Rebuilding));
+        // A Unix I/O error (EIO) is the drive-error text; Windows' device codes keep their own text.
+        Assert.Equal(OperatingSystem.IsWindows() ? null : ArchiveWriteMessages.DriveError,
+            ArchiveWriteMessages.ForUser(new IOException("The device is not ready.", OperatingSystem.IsWindows() ? unchecked((int)0x80070015) : 5), ArchiveJobPhase.Rebuilding));
         Assert.Equal("FileCat stopped processing this archive safely. No replacement was published.",
             ArchiveWriteMessages.ForUser(new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, "x", new IOException("broken pipe", 32)), ArchiveWriteFormat.Tar, ArchiveJobPhase.Rebuilding));
+    }
+
+    /// <summary>
+    /// AT08: an I/O error from the drive (a stage write, or the fsync that seals it) says so, with "no archive was changed"
+    /// only before saving; once saving may have begun the text asks for a review. A full drive or quota that only the
+    /// fsync reports (delayed allocation) is the full-drive text. Unix only: the code is errno.
+    /// </summary>
+    [Fact]
+    public void A_drive_error_says_so_and_a_full_drive_reported_by_fsync_is_a_full_drive()
+    {
+        if (OperatingSystem.IsWindows()) { Assert.Skip("Unix errno codes."); return; }
+        var eio = FileCat.Core.Archives.Unix.UnixArchiveNative.SyncFailed(5);
+        Assert.Equal(ArchiveWriteReason.PublicationUnavailable, eio.Reason);
+        foreach (var phase in new ArchiveJobPhase?[] { null, ArchiveJobPhase.Preparing, ArchiveJobPhase.Rebuilding, ArchiveJobPhase.Checking })
+            Assert.Equal(ArchiveWriteMessages.DriveError, ArchiveWriteMessages.ForUser(eio, ArchiveWriteFormat.Tar, phase));
+        Assert.Equal(ArchiveWriteMessages.DriveErrorDuringSave, ArchiveWriteMessages.ForUser(eio, ArchiveWriteFormat.Tar, ArchiveJobPhase.Saving));
+        // A worker's stage write that met EIO, and a file system that turned read-only after one.
+        var worker = new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, "x", new IOException("Input/output error", 5));
+        Assert.Equal(ArchiveWriteMessages.DriveError, ArchiveWriteMessages.ForUser(worker, ArchiveWriteFormat.Tar, ArchiveJobPhase.Rebuilding));
+        // A read-only file system is not a drive error (a medium mounted read-only gives it too); the destination refusal
+        // words it without advising a permission change.
+        Assert.False(ArchiveWriteMessages.IsDriveError(new AggregateException(new IOException("Read-only file system", 30))));
+        Assert.Equal("“media” is on a drive that is read-only now. Nothing was changed. Choose another folder, or check the drive and make it writable first.",
+            ArchiveWriteMessages.DestinationDenied("/mnt/media", readOnly: true).Data[ArchiveWriteMessages.UserMessageKey]);
+        int quota = OperatingSystem.IsMacOS() ? 69 : 122;
+        foreach (int code in new[] { 28, quota })
+            Assert.Equal(ArchiveWriteMessages.OutOfSpace,
+                ArchiveWriteMessages.ForUser(FileCat.Core.Archives.Unix.UnixArchiveNative.SyncFailed(code), ArchiveWriteFormat.Tar, ArchiveJobPhase.Checking));
+        Assert.False(ArchiveWriteMessages.IsDriveError(new IOException("broken pipe", 32)));
+        Assert.DoesNotContain("errno", ArchiveWriteMessages.ForUser(eio, ArchiveWriteFormat.Tar, ArchiveJobPhase.Saving), StringComparison.Ordinal);
+        // A raw wrapper around it (the real failing volume: a stage folder whose creation could not be made durable).
+        var wrapped = new IOException("The created private archive artifact requires review: /x", eio);
+        Assert.Equal(ArchiveWriteMessages.DriveError, ArchiveWriteMessages.ForUser(wrapped, ArchiveJobPhase.Preparing));
+        Assert.Null(ArchiveWriteMessages.ForUser(wrapped, ArchiveJobPhase.Saving));
+        // The stage folder's own mkdirat that met EIO (measured on the failing ext4 volume): its errno survives the review
+        // wrapper. A refusal without a system error keeps the wrapper's own text.
+        var mkdir = new FileCat.Core.Archives.Unix.UnixArchiveArtifactCreationException("/x/.filecat-archive-stage-0",
+            FileCat.Core.Archives.Unix.UnixArchiveNative.Unavailable(5));
+        Assert.Equal(ArchiveWriteMessages.DriveError, ArchiveWriteMessages.ForUser(mkdir, ArchiveJobPhase.Preparing));
+        Assert.Null(ArchiveWriteMessages.ForUser(new FileCat.Core.Archives.Unix.UnixArchiveArtifactCreationException("/x",
+            FileCat.Core.Archives.Unix.UnixArchiveNative.Unavailable()), ArchiveJobPhase.Preparing));
+        Assert.Equal(ArchiveWriteMessages.OutOfSpace, ArchiveWriteMessages.ForUser(new FileCat.Core.Archives.Unix.UnixArchiveArtifactCreationException("/x",
+            FileCat.Core.Archives.Unix.UnixArchiveNative.Unavailable(28)), ArchiveJobPhase.Preparing));
+    }
+
+    /// <summary>
+    /// A refusal at the publication boundary that the journal proves never published anything (the space review just
+    /// before the content snapshot, a refused exchange) is worded as one before saving; without that proof the saving text
+    /// stands. Found when a drive filled between the rebuild and the snapshot on a small NTFS volume.
+    /// </summary>
+    [Fact]
+    public void A_refusal_proven_unpublished_during_saving_keeps_the_text_before_saving()
+    {
+        var review = new ArchiveSpaceReview("parent", new ArchiveSpaceEstimate(0, 112L << 20, 1L << 20, 0),
+            new FileSystemCapacitySnapshot("volume", 1L << 20));
+        var space = Assert.Throws<ArchiveWriteException>(review.RequireAvailable);
+        var changed = Error(ArchiveWriteReason.SourceChanged);
+        foreach (var error in new[] { space, changed })
+        {
+            Assert.Equal(ArchiveJobPhase.Saving, ArchiveWriteMessages.WordingPhase(ArchiveJobPhase.Saving, error));
+            error.Data[ArchiveWriteMessages.NothingPublishedKey] = true;
+            Assert.Null(ArchiveWriteMessages.WordingPhase(ArchiveJobPhase.Saving, error));
+        }
+        // The space review keeps its own text (the job leaves a refusal's own text alone before saving); a changed source
+        // says nothing was saved instead of asking to review two versions.
+        Assert.StartsWith("Saving this archive needs up to", (string)space.Data[ArchiveWriteMessages.UserMessageKey]!, StringComparison.Ordinal);
+        Assert.Equal("The archive changed while this update was being prepared. Your changes were not saved. Refresh and review the update again.",
+            ArchiveWriteMessages.ForUser(changed, ArchiveWriteFormat.Tar, ArchiveWriteMessages.WordingPhase(ArchiveJobPhase.Saving, changed)));
+        var full = new IOException("No space left on device", OperatingSystem.IsWindows() ? unchecked((int)0x80070070) : 28);
+        Assert.Null(ArchiveWriteMessages.ForUser(full, ArchiveWriteMessages.WordingPhase(ArchiveJobPhase.Saving, full)));
+        full.Data[ArchiveWriteMessages.NothingPublishedKey] = true;
+        Assert.Equal(ArchiveWriteMessages.OutOfSpace, ArchiveWriteMessages.ForUser(full, ArchiveWriteMessages.WordingPhase(ArchiveJobPhase.Saving, full)));
+        // Once finishing began the archive was saved; the marker is never set there, and without it nothing changes.
+        Assert.Equal(ArchiveJobPhase.FinishingSafely, ArchiveWriteMessages.WordingPhase(ArchiveJobPhase.FinishingSafely, Error(ArchiveWriteReason.NeedsReview)));
     }
 
     [Fact]

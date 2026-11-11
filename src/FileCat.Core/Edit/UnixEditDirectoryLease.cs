@@ -129,12 +129,20 @@ internal sealed partial class UnixEditDirectoryLease : EditDirectoryLease
     {
         lock(Gate)
         {
+            // Only a reviewed discard removes (UnixEditDirectoryLease.Discard.cs); other snapshot cleanup keeps its artifact.
+            if(discard){RemoveReviewedFile(file,name,expected,ct);return;}
             ReviewCore(ct); // No unlink is attempted; retaining an artifact does not need another full payload read.
             throw new IOException("The private commit snapshot is kept for native cleanup review: "+Path);
         }
     }
     internal override void RemoveEmpty(CancellationToken ct)
-    {lock(Gate){RequireNoChildren();ReviewCore(ct);throw new IOException("The private edit directory is kept for cleanup review: "+Path);}}
+    {
+        lock(Gate)
+        {
+            if(discard){RemoveReviewedFolder(ct);return;}
+            RequireNoChildren();ReviewCore(ct);throw new IOException("The private edit directory is kept for cleanup review: "+Path);
+        }
+    }
     internal override string Identify(SafeFileHandle file)
     {UnixArchiveNative.RequirePrivate(file,user);return UnixFiles.Stat(file)!.Value.Identity.ToString();}
     internal override void PublishNewFile(FileStream file,string source,string target,EditFileVersion expected,CancellationToken ct)

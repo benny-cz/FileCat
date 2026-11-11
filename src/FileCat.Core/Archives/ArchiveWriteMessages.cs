@@ -20,6 +20,7 @@ public static class ArchiveWriteMessages
             return error.Reason == ArchiveWriteReason.PublicationUnavailable ? error.Message : Ambiguous;
         // A full drive surfaces through whichever step was writing (the stage, a sidecar or the worker transport).
         if (IsOutOfSpace(error)) return OutOfSpace;
+        if (IsDriveError(error)) return DriveError;
         return error.Reason switch
         {
             ArchiveWriteReason.SourceChanged =>
@@ -63,15 +64,33 @@ public static class ArchiveWriteMessages
     internal const string NothingCreatedKey = "FileCat.ArchiveNothingCreated";
 
     /// <summary>
+    /// Marks a failure during saving that the journal proves never published anything: the original is untouched, so the
+    /// text is the one before saving, never "could not confirm which version".
+    /// </summary>
+    internal const string NothingPublishedKey = "FileCat.ArchiveNothingPublished";
+
+    /// <summary>
+    /// The phase that decides the wording. A refusal at the publication boundary that durable facts prove never published
+    /// anything (for example the space review just before the content snapshot, or a refused exchange) is worded as one
+    /// before saving: the original is untouched, so "could not confirm which version" would be false.
+    /// </summary>
+    internal static ArchiveJobPhase? WordingPhase(ArchiveJobPhase? phase, Exception error) =>
+        error.Data[NothingPublishedKey] is true ? null : phase;
+
+    /// <summary>
     /// The destination folder refused FileCat's first private object (permissions, a read-only mount or medium). Raised only
     /// where that creation failed, so a denied source file is never reported as a denied destination.
     /// </summary>
-    internal static ArchiveWriteException DestinationDenied(string folder, Exception? inner = null)
+    internal static ArchiveWriteException DestinationDenied(string folder, Exception? inner = null, bool readOnly = false)
     {
         string name = Path.GetFileName(Path.TrimEndingDirectorySeparator(folder));
         var error = new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, "The destination folder refused a new file: " + folder, inner!);
-        error.Data[UserMessageKey] = $"FileCat is not allowed to create files in “{(name.Length == 0 ? folder : name)}”. Nothing was changed. " +
-            "Choose another folder, or change this folder's permissions first.";
+        // A read-only drive or medium (EROFS, a write-protected medium): its permissions are not what refused.
+        error.Data[UserMessageKey] = readOnly
+            ? $"“{(name.Length == 0 ? folder : name)}” is on a drive that is read-only now. Nothing was changed. " +
+              "Choose another folder, or check the drive and make it writable first."
+            : $"FileCat is not allowed to create files in “{(name.Length == 0 ? folder : name)}”. Nothing was changed. " +
+              "Choose another folder, or change this folder's permissions first.";
         error.Data[NothingCreatedKey] = true;
         return error;
     }
@@ -84,7 +103,10 @@ public static class ArchiveWriteMessages
     /// plan's text, and only before saving began; anything else keeps its own message.
     /// </summary>
     internal static string? ForUser(IOException error, ArchiveJobPhase? phase) =>
-        phase is ArchiveJobPhase.Saving or ArchiveJobPhase.FinishingSafely || !IsOutOfSpace(error) ? null : OutOfSpace;
+        phase is ArchiveJobPhase.Saving or ArchiveJobPhase.FinishingSafely ? null
+            : IsOutOfSpace(error) ? OutOfSpace
+            // A drive error under a step's own wrapper, such as a stage folder whose creation could not be made durable.
+            : IsDriveError(error) ? DriveError : null;
 
     /// <summary>
     /// True when the exception or one of its causes carries the operating system's out-of-space or quota error:
@@ -105,6 +127,31 @@ public static class ArchiveWriteMessages
     private static bool IsOutOfSpaceCode(int code) => OperatingSystem.IsWindows()
         ? code is unchecked((int)0x80070070) or unchecked((int)0x80070027) or unchecked((int)0x8007050F)
         : code == 28 /* ENOSPC */ || code == (OperatingSystem.IsMacOS() ? 69 : 122) /* EDQUOT */;
+
+    /// <summary>AT08: the drive itself failed (a write or flush returned an I/O error) before the archive was saved.</summary>
+    internal const string DriveError =
+        "The drive reported an error before the archive was saved, so no archive was changed. Check the drive, then try again.";
+
+    /// <summary>The same once saving may have begun: what is at the archive path is not known to be complete.</summary>
+    internal const string DriveErrorDuringSave =
+        "The drive reported an error while the archive was being saved. Check the drive, and review the archive before continuing.";
+
+    /// <summary>
+    /// True when the exception or one of its causes carries a Unix device error, EIO (raw errno in
+    /// <see cref="Exception.HResult"/>, as .NET and FileCat's native layer keep it). A read-only file system (EROFS) is not
+    /// one: a medium mounted read-only gives it too, and the destination refusal words it.
+    /// </summary>
+    internal static bool IsDriveError(Exception? error)
+    {
+        if (OperatingSystem.IsWindows()) return false;
+        for (int depth = 0; error is not null && depth < 8; depth++)
+        {
+            if (error is IOException { HResult: 5 /* EIO */ }) return true;
+            if (error is AggregateException aggregate && aggregate.InnerExceptions.Any(IsDriveError)) return true;
+            error = error.InnerException;
+        }
+        return false;
+    }
 
     private const string Ambiguous =
         "FileCat could not confirm which version is now at the archive path. Both available versions were kept. Review these files before continuing.";

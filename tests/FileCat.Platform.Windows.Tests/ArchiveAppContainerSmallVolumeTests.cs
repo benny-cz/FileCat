@@ -51,7 +51,9 @@ public sealed partial class ArchiveAppContainerTests
             Assert.Equal(new[] { "filler.bin", "kept.7z" }, Directory.GetFileSystemEntries(folder).Select(Path.GetFileName).Order(StringComparer.OrdinalIgnoreCase));
             File.Delete(filler);
 
-            // 2. The drive fills during the rebuild: the job fails with the full-drive text and its own files are discarded.
+            // 2. The drive fills during the rebuild: the job fails with the full-drive text and its own files are discarded. On a
+            // slow machine the rebuild can finish before the fill; then the space review before the content snapshot refuses
+            // with its own text, also before anything was published (never "could not confirm which version").
             reviewed = await manager.ReviewArchiveUpdateAsync(target, profile, null, ct);
             var update = manager.SubmitArchive(reviewed.CreatePlan([new(ArchiveChangeKind.AddFile, "big.bin", big)]), null);
             using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct))
@@ -62,7 +64,9 @@ public sealed partial class ArchiveAppContainerTests
             }
             await Finish(update);
             if (update.State != JobState.Failed) Assert.Skip("The rebuild finished before the drive could be filled; " + update.State + ": " + Issues(update));
-            Assert.True(update.Issues.Any(issue => issue.Message == ArchiveWriteMessages.OutOfSpace), Issues(update));
+            Assert.True(update.Issues.Any(issue => issue.Message == ArchiveWriteMessages.OutOfSpace ||
+                issue.Message.StartsWith("Saving this archive needs up to", StringComparison.Ordinal)), Issues(update));
+            Assert.DoesNotContain(update.Issues, issue => issue.Message.Contains("could not confirm which version", StringComparison.Ordinal));
             File.Delete(filler);
             Assert.Equal(original, File.ReadAllBytes(target));
             // NTFS can remove while full, so the live discard leaves nothing; a kept transaction would be named in the issues.

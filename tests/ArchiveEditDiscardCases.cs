@@ -78,10 +78,6 @@ internal static class ArchiveEditDiscardCases
             if(scenario=="record-time")File.SetLastWriteTimeUtc(Path.Combine(session,"session.json"),DateTime.UnixEpoch.AddSeconds(1700000000));
             var reviewed=new EditWorkingReview(scenario=="missing"?EditState.Missing:EditState.Modified,
                 scenario=="missing"?null:Convert.ToHexString(SHA256.HashData(Read(record.WorkingPath))));
-            if(!OperatingSystem.IsWindows())
-            {
-                var before=Snapshot();Assert.Throws<NotSupportedException>(()=>store.DiscardReviewed(record,reviewed,ct));Assert.Equal(before,Snapshot());return;
-            }
             if(scenario=="open-editor")editor=new FileStream(record.WorkingPath,FileMode.Open,FileAccess.ReadWrite,FileShare.ReadWrite|FileShare.Delete);
             if(scenario=="mapped-editor")
             {
@@ -98,7 +94,8 @@ internal static class ArchiveEditDiscardCases
             if(scenario=="record-missing")File.Delete(Path.Combine(session,"session.json"));
             if(scenario=="marker-changed")Change(Path.Combine(session,"creation.json"),"WorkingPath",Path.Combine(fixture,"another.txt"));
             if(scenario=="marker-unknown")Change(Path.Combine(session,"creation.json"),"Unknown",true);
-            if(scenario=="marker-origin")Assert.True(fs.WriteOriginMark(Path.Combine(session,"creation.json"),"[ZoneTransfer]\r\nZoneId=3\r\n"));
+            // With a source URL, which Linux records (a zone alone has no Linux origin value).
+            if(scenario=="marker-origin")Assert.True(fs.WriteOriginMark(Path.Combine(session,"creation.json"),"[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.test/marker\r\n"));
             if(scenario=="extra-session")File.WriteAllText(Path.Combine(session,"unexpected.txt"),"keep unexpected session data");
             if(scenario=="extra-working")File.WriteAllText(Path.Combine(Path.GetDirectoryName(record.WorkingPath)!,"editor.bak"),"keep editor backup");
             if(scenario=="replaced-session")
@@ -112,12 +109,17 @@ internal static class ArchiveEditDiscardCases
             var selected=scenario=="no-factory"?new EditSessionStore(store.Root,fs):store;
             var error=Record.Exception(()=>result=selected.DiscardReviewed(record,reviewed,stop.Token,Check));
             TestContext.Current.TestOutputHelper?.WriteLine(error?.ToString()??result?.ToString()??"No discard result.");
+            // Windows' file sharing and Linux's write lease see an editor that holds or maps the working copy; macOS has
+            // neither (its leases need a privilege), so there the discard proceeds and the editor keeps its unlinked copy.
+            bool seesEditors=!OperatingSystem.IsMacOS();
             bool success=scenario is "working" or "empty" or "missing" or "revision" or "record-time" or "origin" or "complete-capture" or
-                "old-capture" or "interrupted-empty" or "interrupted-partial" or "saved-intent";
+                "old-capture" or "interrupted-empty" or "interrupted-partial" or "saved-intent"||!seesEditors&&scenario is "open-editor" or "mapped-editor";
             if(success)
             {
                 Assert.Null(error);Assert.NotNull(result);Assert.True(result.Complete,result.Issue);Assert.False(Directory.Exists(session));
                 if(scenario=="saved-intent")Assert.Equal("keep this separate saved file",File.ReadAllText(Path.Combine(fixture,"saved.txt")));
+                // An editor's mapping of the discarded copy keeps working (no truncation under it).
+                if(scenario=="mapped-editor"){view!.Write(0,(byte)'x');view.Flush();Assert.Equal((byte)'x',view.ReadByte(0));}
                 Assert.Empty(store.LoadAll());
             }
             else if(scenario=="mapped-editor")

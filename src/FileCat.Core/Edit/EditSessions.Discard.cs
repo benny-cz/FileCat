@@ -30,6 +30,8 @@ public sealed partial class EditSessionStore
             Discard(record);return new(true,true);
         }
         if(nativeOpen is null)throw new NotSupportedException("FileCat cannot safely discard this edit in the current session. Its files are kept.");
+        // A commit of this edit is reading its captured copy in this process: no platform's file sharing shows that on macOS.
+        if(HasLiveCapture(record.Id))throw new IOException("This edit is being committed. Discard it after that operation finishes. Its files are kept.");
         if(reviewed.State==EditState.Unavailable||reviewed.State!=EditState.Missing&&
             (reviewed.Sha256 is not {Length:64} digest||!digest.All(char.IsAsciiHexDigit)))
             throw new IOException("Review the complete working copy before discarding this edit. Its files are kept.");

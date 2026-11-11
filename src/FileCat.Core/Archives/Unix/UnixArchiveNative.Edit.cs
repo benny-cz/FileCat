@@ -13,8 +13,9 @@ internal static unsafe partial class UnixArchiveNative
         {
             // EPERM, EACCES or EROFS: the folder refused the entry, so nothing exists that needs review.
             int errno = Marshal.GetLastPInvokeError();
-            if (folder is not null && errno is 1 or 13 or 30) throw ArchiveWriteMessages.DestinationDenied(folder);
-            throw Unavailable();
+            if (folder is not null && errno is 1 or 13 or 30) throw ArchiveWriteMessages.DestinationDenied(folder, readOnly: errno == 30);
+            // EIO and the rest: whether the entry exists is not known, so it is retained for review, with the errno kept.
+            throw Unavailable(errno);
         }
         // This new directory is empty: no working bytes are written until its inherited ACL is removed and reviewed.
         var child = ChildDirectory(parent, leaf);
@@ -31,7 +32,7 @@ internal static unsafe partial class UnixArchiveNative
                 }
                 finally { AclFree(acl); }
             }
-            if (EditChmod(Fd(child), 0x1c0) != 0) throw Unavailable();
+            if (EditChmod(Fd(child), 0x1c0) != 0) throw Unavailable(Marshal.GetLastPInvokeError());
             RequireEditDirectory(child, user);
             EnumerateSelection(child, _ => throw Unavailable(), ct);
             ct.ThrowIfCancellationRequested(); return child;

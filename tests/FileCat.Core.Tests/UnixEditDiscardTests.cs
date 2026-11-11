@@ -5,7 +5,8 @@ namespace FileCat.Core.Tests;
 [Collection("Native edit snapshot reservations")]
 public sealed class UnixEditDiscardTests
 {
-    [Theory,InlineData("working"),InlineData("missing"),InlineData("complete-capture")]
-    public void Unavailable_native_discard_never_uses_path_deletion(string scenario)
-    {if(OperatingSystem.IsWindows())Assert.Skip("Unix native refusal required.");ArchiveEditDiscardCases.Run(scenario,UnixEditDirectoryLease.OpenRoot,new UnixFileOperations());}
+    public static IEnumerable<object[]> Scenarios()=>ArchiveEditDiscardCases.Scenarios();
+    [Theory,MemberData(nameof(Scenarios))]
+    public void Explicit_discard_keeps_unreviewed_objects_and_reports_partial_cleanup(string scenario)
+    {if(OperatingSystem.IsWindows())Assert.Skip("Native Unix discard required.");ArchiveEditDiscardCases.Run(scenario,UnixEditDirectoryLease.OpenRoot,new UnixFileOperations());}
 }

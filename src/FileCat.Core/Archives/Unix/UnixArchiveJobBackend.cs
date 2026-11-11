@@ -88,9 +88,12 @@ internal sealed class UnixArchiveJobScope : IArchiveJobNativeScope<UnixArchiveFi
             return new(created.Published, created.Facts.UnresolvedArtifacts) { CleanupNeedsReview = !created.Cleanup.IsResolved };
         }
         try { update = UnixArchiveExchangeUpdate.Publish(journal, prepared, target, privateDirectory, original, inputs, token); }
-        catch when (!retainArtifacts && NotPublished(journal, prepared))
+        catch (Exception error) when (NotPublished(journal, prepared))
         {
-            // The original is untouched. Remove this transaction's own private files now; a failure keeps them for review.
+            // The journal records that the exchange never happened: the original is untouched, and the refusal is worded as
+            // one before saving. Remove this transaction's own private files now; a failure keeps them for review.
+            error.Data[ArchiveWriteMessages.NothingPublishedKey] = true;
+            if (retainArtifacts) throw;
             try { using var refused = UnixArchiveExchangeUpdate.NotPublished(journal, prepared, privateDirectory); refused.Cleanup(journal, CancellationToken.None); }
             catch (Exception cleanup) when (cleanup is ArchiveWriteException or IOException or UnauthorizedAccessException or InvalidOperationException) { }
             throw;

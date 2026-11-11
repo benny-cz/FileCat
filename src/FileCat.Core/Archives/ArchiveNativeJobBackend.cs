@@ -69,21 +69,24 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
     {
         try { ExecuteCore(execution); }
         catch (ArchiveWriteException error) when (!error.Data.Contains(ArchiveWriteMessages.UserMessageKey) ||
-            execution.Job.ArchivePhase is ArchiveJobPhase.Saving or ArchiveJobPhase.FinishingSafely)
+            Phase(execution, error) is ArchiveJobPhase.Saving or ArchiveJobPhase.FinishingSafely)
         {
             // The phase is known only here: never say "not saved" once publication may have begun (plan §11.7), even when a
             // lower layer attached its own text.
-            error.Data[ArchiveWriteMessages.UserMessageKey] = ArchiveWriteMessages.ForUser(error, execution.Plan.Profile?.Format, execution.Job.ArchivePhase);
+            error.Data[ArchiveWriteMessages.UserMessageKey] = ArchiveWriteMessages.ForUser(error, execution.Plan.Profile?.Format, Phase(execution, error));
             throw;
         }
         catch (IOException error) when (error is not ArchiveWriteException && !error.Data.Contains(ArchiveWriteMessages.UserMessageKey) &&
-            ArchiveWriteMessages.ForUser(error, execution.Job.ArchivePhase) is not null)
+            ArchiveWriteMessages.ForUser(error, Phase(execution, error)) is not null)
         {
-            error.Data[ArchiveWriteMessages.UserMessageKey] = ArchiveWriteMessages.ForUser(error, execution.Job.ArchivePhase);
+            error.Data[ArchiveWriteMessages.UserMessageKey] = ArchiveWriteMessages.ForUser(error, Phase(execution, error));
             throw;
         }
         finally { execution.Job.DeferCancellation(false); execution.Job.SetArchivePhase(null); }
     }
+
+    private static ArchiveJobPhase? Phase(ArchiveJobExecution execution, Exception error) =>
+        ArchiveWriteMessages.WordingPhase(execution.Job.ArchivePhase, error);
 
     private void ExecuteCore(ArchiveJobExecution execution)
     {
@@ -167,11 +170,15 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
         job.DeferCancellation(true); job.SetArchivePhase(ArchiveJobPhase.Saving);
         ArchiveJobPublication published;
         try { published = native.Publish(execution.Journal, prepared, activeInputs.Bindings, ct); }
-        catch
+        catch (Exception error)
         {
             // Durable facts decide: only a transaction that provably never started publishing (no Publishing record, no
             // claim, no exchange or content recipe) is discarded; anything else stays recorded for review.
-            if (execution.Journal.DiscardableArchiveTransaction() is not null) { prepared.Dispose(); DiscardUnpublished(native, execution); }
+            if (execution.Journal.DiscardableArchiveTransaction() is not null)
+            {
+                error.Data[ArchiveWriteMessages.NothingPublishedKey] = true;
+                prepared.Dispose(); DiscardUnpublished(native, execution);
+            }
             throw;
         }
         job.SetArchivePhase(ArchiveJobPhase.FinishingSafely);

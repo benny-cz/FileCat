@@ -165,11 +165,12 @@ public sealed class EditCommitCopy : IDisposable
         // Recorded while pinned: Dispose removes only this object (risk R21).
         _files = files; _identity = files?.GetFileIdentity(path);
     }
-    internal EditCommitCopy(NativeEditSnapshot snapshot,uint crc32)
-    {Native=snapshot;Path=snapshot.SourcePath;Sha256=snapshot.Expected.Version.Sha256;Length=snapshot.Expected.Version.Length;Crc32=crc32;}
+    private Action? _released;
+    internal EditCommitCopy(NativeEditSnapshot snapshot,uint crc32,Action? released=null)
+    {Native=snapshot;Path=snapshot.SourcePath;Sha256=snapshot.Expected.Version.Sha256;Length=snapshot.Expected.Version.Length;Crc32=crc32;_released=released;}
     public void Dispose()
     {
-        if(Native is { } native){native.Dispose();return;}
+        if(Native is { } native){try{native.Dispose();}finally{Interlocked.Exchange(ref _released,null)?.Invoke();}return;}
         var pin=Interlocked.Exchange(ref _pin,null);
         if(pin is null)return; // A previously closed copy has no authority over a later pathname replacement.
         pin.Dispose();

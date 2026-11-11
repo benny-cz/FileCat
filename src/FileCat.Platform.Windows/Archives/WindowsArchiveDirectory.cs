@@ -137,7 +137,8 @@ internal sealed partial class WindowsArchiveDirectory : IDisposable, IArchiveDes
             {
                 handle.Dispose();
                 // STATUS_ACCESS_DENIED or STATUS_MEDIA_WRITE_PROTECTED: the folder refused the file, so nothing exists to review.
-                if (status is unchecked((int)0xC0000022) or unchecked((int)0xC00000A2)) throw ArchiveWriteMessages.DestinationDenied(DisplayPath);
+                if (status is unchecked((int)0xC0000022) or unchecked((int)0xC00000A2))
+                    throw ArchiveWriteMessages.DestinationDenied(DisplayPath, readOnly: status == unchecked((int)0xC00000A2));
                 throw Error(status, "Create the exact exclusive private archive artifact reservation");
             }
             // Never retry with an unrecorded name or clean up an uncertain post-create object.
