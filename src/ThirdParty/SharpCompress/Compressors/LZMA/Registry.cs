@@ -8,6 +8,7 @@ using SharpCompress.Compressors.Filters;
 using SharpCompress.Compressors.LZMA.Utilities;
 using SharpCompress.Compressors.PPMd;
 using SharpCompress.Compressors.ZStandard;
+using SharpCompress.IO;
 
 namespace SharpCompress.Compressors.LZMA;
 
@@ -81,11 +82,13 @@ internal static partial class DecoderRegistry
             case K_B_ZIP2:
                 return BZip2Stream.Create(inStreams.Single(), CompressionMode.Decompress, true);
             case K_PPMD:
-                return PpmdStream.Create(
+                // FileCat: 7z PPMd has no end marker, so its coder output is exactly the recorded unpack size. A following
+                // filter must see the end there, or it transforms an incomplete final unit with decoder overrun bytes.
+                return BoundCoderOutput(PpmdStream.Create(
                     new PpmdProperties(info.NotNull()),
                     inStreams.Single(),
                     false
-                );
+                ), limit);
             case K_DEFLATE:
                 return new DeflateStream(inStreams.Single(), CompressionMode.Decompress);
             case K_ZSTD:
@@ -94,4 +97,7 @@ internal static partial class DecoderRegistry
                 throw new NotSupportedException();
         }
     }
+
+    internal static Stream BoundCoderOutput(Stream decoder, long limit) =>
+        limit < 0 ? decoder : new ReadOnlySubStream(decoder, limit, leaveOpen: false);
 }

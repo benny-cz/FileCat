@@ -81,14 +81,15 @@ internal static partial class DecoderRegistry
                     )
                     .ConfigureAwait(false);
             case K_PPMD:
-                return await PpmdStream
+                // FileCat: as the synchronous registry, the 7z PPMd coder output ends at its recorded unpack size.
+                return BoundCoderOutput(await PpmdStream
                     .CreateAsync(
                         new PpmdProperties(info.NotNull()),
                         inStreams.Single(),
                         false,
                         cancellationToken
                     )
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false), limit);
             case K_DEFLATE:
                 return new DeflateStream(inStreams.Single(), CompressionMode.Decompress);
             case K_ZSTD:

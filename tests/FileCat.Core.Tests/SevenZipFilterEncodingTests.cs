@@ -85,6 +85,29 @@ public sealed class SevenZipFilterEncodingTests
         }
     }
 
+    // 7z PPMd has no end marker: the browse reader must end that coder's output at its recorded unpack size, or the next
+    // filter transforms an incomplete final unit with decoder overrun bytes. Found by the sevenzip-writer fuzz target: a
+    // 61-byte Swap4 member read back with a changed last byte, and FileCat's CRC check would report the archive damaged.
+    [Theory]
+    [MemberData(nameof(Filters))]
+    public void Ppmd_filter_graphs_read_back_exactly_through_the_browse_reader(int filterId, int distance)
+    {
+        var filter = (SevenZipFilter)filterId;
+        foreach (byte[] data in new[] { "a container payload, a container payload, a container payload"u8.ToArray(), Corpus() })
+        {
+            using var stage = new MemoryStream();
+            var entry = new SevenZipWriteEntry("filtered.bin", ArchiveMemberType.File, new(1700000000, 0), 0x1a4, 0);
+            var descriptor = new SevenZipInputDescriptor(0, data.Length, Convert.ToHexString(SHA256.HashData(data)));
+            var manifest = SevenZipArchiveWriter.Create(stage, [entry], new Dictionary<int, SevenZipInputDescriptor> { [0] = descriptor },
+                _ => new MemoryStream(data, false), new(SevenZipCodec.Ppmd7, ModelOrder: 6, ModelMemoryBytes: 1 << 20, Filter: filter,
+                    DeltaDistance: distance), Ct);
+            Assert.Equal(2, Assert.Single(manifest.Members).Content!.Coders.Count);
+            using var dir = new TempDir(); string path = Path.Combine(dir.Path, "filtered.7z"); File.WriteAllBytes(path, stage.ToArray());
+            using var reader = SharpArchiveReader.Open(path); var member = Assert.Single(reader.List(message => Assert.Fail(message), Ct));
+            using var decoded = reader.Open(member.Index, Ct); Assert.Equal(descriptor.Sha256, Convert.ToHexString(SHA256.HashData(decoded)));
+        }
+    }
+
     [Theory]
     [InlineData(2, 2048)]
     [InlineData(2, 65536)]

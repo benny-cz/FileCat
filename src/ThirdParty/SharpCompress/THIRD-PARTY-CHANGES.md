@@ -135,3 +135,9 @@ reads the member (`SevenZipMemberStream` in `src/FileCat.Archives/ArchiveFormats
   code; contracts and the separate native test oracle use individually pinned public-domain SDK sources listed
   in `eng/validation/archive-writing/sevenzip-feasibility/lzma-end-sdk-sources.json`. No SDK decoder source is
   imported into the production assembly, and no package or codec licence is changed.
+
+- `Compressors/LZMA/Registry.cs` and `Compressors/LZMA/DecoderRegistry.Async.cs`: the 7z decoder graph ends a PPMd
+  coder's output at the unpack size its folder records, as 7-Zip does. 7z PPMd has no end marker, so a following
+  Swap or branch filter otherwise read decoder overrun bytes and transformed an incomplete final unit; FileCat's
+  member CRC check then reported such valid archives damaged, including PPMd + Swap 7z archives FileCat wrote.
+  Found by the `sevenzip-writer` fuzz target on 11 November 2026; `SevenZipFilterEncodingTests` covers every filter.
