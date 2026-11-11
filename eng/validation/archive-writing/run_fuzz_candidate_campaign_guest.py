@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Plan and run the long native fuzz campaign on one candidate image (test tooling, not evidence by itself).
 
-The constants below name the image this scheduler ran on 11 November 2026: fuzz-candidate-v4, prepared by
-prepare_fuzz_candidate_guest.py from candidate 62f0a457. Each finished run is sealed by seal_fuzz_candidate_guest.py
-at its planned floor; verify_fuzz_candidate_transport.py re-checks every transport and the family floors on the host.
+The defaults name the image this scheduler ran on 11 November 2026: fuzz-candidate-v4, prepared by
+prepare_fuzz_candidate_guest.py from candidate 62f0a457, with its harness packet; a later image passes --image NAME and
+--packet PATH (its run ids keep the -long-c4- form the sealer and verifier expect). Each finished run is sealed by
+seal_fuzz_candidate_guest.py at its planned floor; verify_fuzz_candidate_transport.py re-checks every transport and the
+family floors on the host. The scheduler runs this folder's run_fuzz_guest.py and sealer.
 
-plan:  read each target's short run, chunk its CPU allocation into runs of at most CHUNK CPU-hours, size each run's wall
-       time from the short run's CPU rate with a margin, and write campaign-plan.json.
-run:   keep SLOTS units busy, longest first; seal each finished run at its planned CPU floor; record campaign-status.json.
+plan [--image NAME --packet PATH]:    read each target's short run, chunk its CPU allocation into runs of at most CHUNK
+       CPU-hours, size each run's wall time from the short run's CPU rate with a margin, and write campaign-plan.json.
+run SLOTS [--image NAME --packet PATH]:    keep SLOTS units busy, longest first; seal each finished run at its planned CPU
+       floor; record campaign-status.json.
 """
 import json
 import math
@@ -17,9 +20,21 @@ import sys
 import time
 
 T = pathlib.Path.home() / "FileCatValidation/archive-writing-42829297"
-I = T / "fuzz-candidate-v4"
-S = pathlib.Path.home() / "FileCatValidation/aw-claude/fuzz-src/eng/validation/archive-writing"
-PACKET = T / "fuzz-candidate-62f0a457-harness.tar.gz"
+S = pathlib.Path(__file__).resolve().parent
+arguments = sys.argv[1:]
+
+
+def option(name, default):
+    if name not in arguments:
+        return default
+    at = arguments.index(name)
+    value = arguments[at + 1]
+    del arguments[at:at + 2]
+    return value
+
+
+I = T / option("--image", "fuzz-candidate-v4")
+PACKET = pathlib.Path(option("--packet", str(T / "fuzz-candidate-62f0a457-harness.tar.gz")))
 HOUR = 3600
 CHUNK = 4.3
 MARGIN = 1.18
@@ -98,7 +113,9 @@ def run(slots):
 
 
 if __name__ == "__main__":
-    if sys.argv[1] == "plan":
+    if arguments == ["plan"]:
         plan()
+    elif len(arguments) == 2 and arguments[0] == "run":
+        run(int(arguments[1]))
     else:
-        run(int(sys.argv[2]))
+        raise SystemExit("usage: plan | run SLOTS, each with optional --image NAME --packet PATH")
