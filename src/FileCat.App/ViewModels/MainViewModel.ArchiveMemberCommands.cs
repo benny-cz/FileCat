@@ -80,7 +80,7 @@ public sealed partial class MainViewModel
     {
         var password = new TextBox { PasswordChar = '•', MinWidth = 260 };
         AutomationProperties.SetName(password, "Existing archive password");
-        var problem = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 620 };
+        var problem = new TextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 620, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left };
         bool valid = false;
         void Validate()
         {
@@ -95,10 +95,10 @@ public sealed partial class MainViewModel
         password.PropertyChanged += (_, change) => { if (change.Property == TextBox.TextProperty) Validate(); };
         Validate();
         var body = new StackPanel { Spacing = 10, Children = {
-            new TextBlock { Text = System.IO.Path.GetFileName(path), TextWrapping = TextWrapping.Wrap, MaxWidth = 620 },
+            new TextBlock { Text = System.IO.Path.GetFileName(path), TextWrapping = TextWrapping.Wrap, MaxWidth = 620, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left },
             new TextBlock { Text = retry ? "The password did not unlock a verifiable archive. Try again, or cancel to leave it unchanged."
                 : reading ? "Enter the password to browse and extract this archive. It is kept only while its tabs or borrowed content remain open."
-                : "Enter the existing password to check this archive. Its protection will be preserved.", TextWrapping = TextWrapping.Wrap, MaxWidth = 620 },
+                : "Enter the existing password to check this archive. Its protection will be preserved.", TextWrapping = TextWrapping.Wrap, MaxWidth = 620, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left },
             password, problem,
         } };
         try

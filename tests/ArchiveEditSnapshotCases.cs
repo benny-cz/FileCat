@@ -96,7 +96,7 @@ internal static class ArchiveEditSnapshotCases
                     Assert.ThrowsAny<IOException>(()=>store.PrepareCommit(record,fixture,ct));
                     Assert.Equal(EditSnapshotAdmission.MaximumCopies,Directory.GetDirectories(session,"commit-*").Length);
                     var released=copies[0];copies.RemoveAt(0);var error=Record.Exception(released.Dispose);
-                    if(OperatingSystem.IsWindows())Assert.Null(error);else Assert.IsAssignableFrom<IOException>(error);
+                    Assert.Null(error); // Every platform removes its own reviewed capture.
                     copies.Add(store.PrepareCommit(record,fixture,ct));
                 }
                 finally{foreach(var item in copies){var error=Record.Exception(item.Dispose);Assert.True(error is null or IOException,error?.ToString());}}
@@ -119,7 +119,7 @@ internal static class ArchiveEditSnapshotCases
             if(scenario=="view-after-dispose")
             {
                 using var view=native.OpenRead(native.Expected,ct);var error=Record.Exception(copy.Dispose);
-                if(OperatingSystem.IsWindows())Assert.Null(error);else Assert.IsAssignableFrom<IOException>(error);
+                Assert.Null(error);
                 Assert.ThrowsAny<IOException>(()=>view.ReadByte());copy.Dispose();Assert.Equal(bytes,File.ReadAllBytes(record.WorkingPath));return;
             }
             if(scenario.StartsWith("cleanup-",StringComparison.Ordinal))
@@ -127,8 +127,7 @@ internal static class ArchiveEditSnapshotCases
                 if(scenario=="cleanup-reused-path")
                 {
                     var first=Record.Exception(copy.Dispose);
-                    if(OperatingSystem.IsWindows()){Assert.Null(first);Assert.False(Directory.Exists(captureRoot));}
-                    else{Assert.IsAssignableFrom<IOException>(first);File.Move(copy.Path,copy.Path+".retained");}
+                    Assert.Null(first);Assert.False(Directory.Exists(captureRoot));
                     Directory.CreateDirectory(Path.GetDirectoryName(copy.Path)!);File.WriteAllText(copy.Path,"unrelated later occupant");retainCapture=true;
                     copy.Dispose();Assert.Equal("unrelated later occupant",File.ReadAllText(copy.Path));return;
                 }
@@ -213,7 +212,7 @@ internal static class ArchiveEditSnapshotCases
             if(copy is not null)
             {
                 var error=Record.Exception(copy.Dispose);
-                if(OperatingSystem.IsWindows()&&!retainCapture){Assert.Null(error);Assert.False(Directory.Exists(capturePath));Assert.False(File.Exists(copy.Path));}
+                if(!retainCapture){Assert.Null(error);Assert.False(Directory.Exists(capturePath));Assert.False(File.Exists(copy.Path));}
                 else{Assert.True(error is null or IOException,error?.ToString());Assert.True(Directory.Exists(capturePath));}
             }
             string full=Path.GetFullPath(fixture);

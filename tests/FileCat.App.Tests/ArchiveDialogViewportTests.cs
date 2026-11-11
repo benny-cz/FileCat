@@ -76,6 +76,40 @@ public sealed class ArchiveDialogViewportTests
         finally { AccessibilityTests.Close(services, window, root); }
     }
 
+
+    /// <summary>
+    /// In a wide window a long path widens the dialog past its text width: the text lines still start where the path box
+    /// starts. A stretched block narrower than its row was centered (theme captures showed "Pack … into:" and the
+    /// filename 50 px right of the path).
+    /// </summary>
+    [AvaloniaFact]
+    public async Task The_create_dialog_text_starts_where_its_path_box_starts_in_a_wide_window()
+    {
+        var (services, vm, window, root) = AccessibilityTests.OpenMainWindow(width: 1200, height: 800);
+        try
+        {
+            window.Styles.Add(new StyleInclude(new Uri("avares://FileCat/")) { Source = new Uri("avares://FileCat/Themes/Styles.axaml") });
+            await Until(() => vm.ActiveTab!.Listing.State == ListingState.Complete);
+            Assert.True(vm.ActiveTab!.Listing.FocusName("a.txt"));
+            var operation = vm.ExecuteAsync(CommandIds.Pack);
+            await Until(() => window.GetVisualDescendants().OfType<DialogCard>().Any(card =>
+                card.GetVisualDescendants().OfType<TextBox>().Any(t => AutomationProperties.GetName(t) == "Archive path")));
+            var path = Input(window, "Archive path");
+            path.Text = Path.Combine(root, "files", string.Join(Path.DirectorySeparatorChar, Enumerable.Repeat("a long folder name", 12)), "archive.zip");
+            Layout(window);
+            var card = Assert.Single(window.GetVisualDescendants().OfType<DialogCard>());
+            Assert.True(path.Bounds.Width > 640, "The path box did not widen the dialog: " + path.Bounds.Width);
+            var lines = card.GetVisualDescendants().OfType<TextBlock>().Where(t =>
+                t.Text?.StartsWith("Pack ", StringComparison.Ordinal) == true || t.Text?.StartsWith("Filename: ", StringComparison.Ordinal) == true).ToArray();
+            Assert.Equal(2, lines.Length);
+            foreach (var line in lines)
+                Assert.InRange(line.TranslatePoint(default, card)!.Value.X - path.TranslatePoint(default, card)!.Value.X, -1, 1);
+            Buttons(window).Single(b => b.Content as string == "Cancel").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            await operation.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
+        }
+        finally { AccessibilityTests.Close(services, window, root); }
+    }
+
     private static IEnumerable<Button> Buttons(Window window) => window.GetVisualDescendants().OfType<Button>().Where(b => b.IsVisible);
     private static ComboBox Combo(Window window, string name)
     {

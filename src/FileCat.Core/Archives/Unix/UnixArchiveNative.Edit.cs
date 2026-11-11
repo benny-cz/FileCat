@@ -57,9 +57,17 @@ internal static unsafe partial class UnixArchiveNative
     }
     internal static void PublishEditFile(SafeFileHandle directory,string source,string target)
     {
+        if(RenameExclusive(directory,source,target)!=0)
+            throw new IOException("The new edit record name could not be claimed without replacement.",Marshal.GetLastPInvokeError());
+    }
+    /// <summary>
+    /// Renames within one held directory without ever replacing the target (renameat2 RENAME_NOREPLACE, renameatx_np
+    /// RENAME_EXCL). 0, or -1 with the errno as the last P/Invoke error.
+    /// </summary>
+    internal static int RenameExclusive(SafeFileHandle directory,string source,string target)
+    {
         Leaf(source);Leaf(target);
-        int result=Mac?EditRenameMac(Fd(directory),source,Fd(directory),target,4):EditRenameLinux(Fd(directory),source,Fd(directory),target,1);
-        if(result!=0)throw new IOException("The new edit record name could not be claimed without replacement.",Marshal.GetLastPInvokeError());
+        return Mac?EditRenameMac(Fd(directory),source,Fd(directory),target,4):EditRenameLinux(Fd(directory),source,Fd(directory),target,1);
     }
     [LibraryImport("libc", EntryPoint="mkdirat", StringMarshalling=StringMarshalling.Utf8, SetLastError=true)]
     private static partial int EditMkdirAt(int parent, string leaf, uint mode);

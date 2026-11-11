@@ -132,25 +132,31 @@ public sealed partial class EditSessionStore
             return UnsupportedSession(session.Path,"This edit's initial state record has an invalid revision. Its working folder is kept.");
         // Review the complete chain, with an aggregate budget. A valid tail cannot hide a damaged ancestor.
         if(revision>4096)return UnsupportedSession(session.Path,"This edit's revision history exceeds the review budget. Its working folder is kept.");
-        var latest=anchor;bool wasReady=anchor.LegacyAdoptionReady;
+        var latest=anchor;
         string previousHash=Digest(anchorBytes);long reviewedBytes=anchorBytes.Length;
         history?.Add(previousHash,anchor with{StoredRecordSha256=previousHash});
         for(long current=1;current<=revision;current++)
         {
             ct.ThrowIfCancellationRequested();byte[] bytes=ReadRecordBytes(session,RevisionName(current),ct);reviewedBytes+=bytes.Length;
             if(reviewedBytes>32L*1024*1024)return UnsupportedSession(session.Path,"This edit's revision history exceeds the review budget. Its working folder is kept.");
-            latest=ParseRecord(bytes,session.Path,allowPendingAdoption:true);
+            var prior=latest;latest=ParseRecord(bytes,session.Path,allowPendingAdoption:true);
             if(!latest.IsSupported&&!latest.IsPendingAdoption)return latest;
             if(latest.StorageRevision!=current||latest.PreviousRecordSha256!=previousHash||
-                latest.Id!=anchor.Id||latest.Kind!=anchor.Kind||latest.WorkingPath!=anchor.WorkingPath||latest.LegacyAdoption!=anchor.LegacyAdoption||
-                wasReady&&!latest.LegacyAdoptionReady||latest.StorageRootIdentity!=anchor.StorageRootIdentity||
+                latest.Id!=anchor.Id||latest.Kind!=anchor.Kind||latest.WorkingPath!=anchor.WorkingPath||!AdoptionTransition(prior,latest)||
+                latest.StorageRootIdentity!=anchor.StorageRootIdentity||
                 latest.SessionDirectoryIdentity!=anchor.SessionDirectoryIdentity||latest.WorkingDirectoryIdentity!=anchor.WorkingDirectoryIdentity)
                 return UnsupportedSession(session.Path,"This edit's state record has a broken revision link. Its working folder is kept.");
-            wasReady=latest.LegacyAdoptionReady;previousHash=Digest(bytes);
+            previousHash=Digest(bytes);
             history?.Add(previousHash,latest with{StoredRecordSha256=previousHash});
         }
         RequireStorage(latest,root,session);return latest with{StoredRecordSha256=previousHash};
     }
+    // An adoption relationship keeps its evidence and never returns to pending: pending to ready, ready to retiring and back
+    // (a cancelled retirement, while the old edit is intact), and from retiring (its old folder removed) to no relationship
+    // at all, which is final. An ordinary revision keeps it as it is.
+    private static bool AdoptionTransition(EditSessionRecord current,EditSessionRecord next)=>
+        current.LegacyAdoption==next.LegacyAdoption&&(!current.LegacyAdoptionReady||next.LegacyAdoptionReady)||
+        current.LegacyRetiring&&next.LegacyAdoption is null&&!next.LegacyAdoptionReady&&!next.LegacyRetiring;
     private EditSessionRecord SaveNativeRevision(EditSessionRecord record)
     {
         using var root=OpenNativeRoot(default,false);using var allocation=EditStorageAdmission.Acquire(root,default);
@@ -161,7 +167,7 @@ public sealed partial class EditSessionStore
         var current=ReadNativeLatest(anchor,anchorBytes,root,session);
         if(!current.IsSupported&&!current.IsPendingAdoption||string.IsNullOrEmpty(record.StoredRecordSha256)||
             current.StoredRecordSha256!=record.StoredRecordSha256||current.StorageRevision!=record.StorageRevision||
-            current.LegacyAdoption!=record.LegacyAdoption||current.LegacyAdoptionReady&&!record.LegacyAdoptionReady)
+            !AdoptionTransition(current,record))
             throw new IOException("This edit record changed since it was reviewed. Reload it before saving a new state.");
         var next=record with{StorageRevision=checked(current.StorageRevision+1),PreviousRecordSha256=current.StoredRecordSha256};
         byte[] bytes=JsonSerializer.SerializeToUtf8Bytes(next,Json);

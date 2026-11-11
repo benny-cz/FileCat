@@ -46,7 +46,7 @@ internal static class ArchiveEditLegacyAdoptionCrashCases
                     string error=await child.StandardError.ReadToEndAsync(timeout.Token);
                     Assert.Fail("The child exited before its adoption boundary: "+error);
                 }
-                Assert.Equal(point,File.ReadAllText(marker));
+                Assert.Equal(point,await ReadMarker(marker,timeout.Token));
             }
             finally
             {
@@ -70,5 +70,17 @@ internal static class ArchiveEditLegacyAdoptionCrashCases
             }
         }
         finally{TestCleanup.DeleteTree(fixture);}
+    }
+
+    // The child closes its marker before publishing the name, but another program (an indexer or a malware scanner) may
+    // still hold the new file for a moment on Windows; a sharing violation is retried, anything else is not.
+    private static async Task<string> ReadMarker(string marker,CancellationToken ct)
+    {
+        for(int attempt=0;;attempt++)
+        {
+            try{return File.ReadAllText(marker);}
+            catch(IOException error)when(OperatingSystem.IsWindows()&&(error.HResult&0xFFFF)==32&&attempt<200)
+            {await Task.Delay(25,ct);}
+        }
     }
 }

@@ -35,50 +35,75 @@ public sealed partial class EditSessionStore
         if(reviewed.State==EditState.Unavailable||reviewed.State!=EditState.Missing&&
             (reviewed.Sha256 is not {Length:64} digest||!digest.All(char.IsAsciiHexDigit)))
             throw new IOException("Review the complete working copy before discarding this edit. Its files are kept.");
+        return DiscardNative(record,reviewed,null,ct,check);
+    }
+
+    /// <summary>Whether this store can remove a reviewed retained commit copy of a native edit (the restart recovery action).</summary>
+    public bool SupportsRetainedCaptureRemoval=>nativeOpen is not null;
+
+    /// <summary>
+    /// The restart recovery action for one retained commit copy (a "commit-" folder that a stopped commit or cleanup left):
+    /// after a fresh exact review of the edit's record history and of that copy (its records, its payload, or an
+    /// interrupted copy's partial payload), removes only that copy, object by object, as a discard does. The edit, its
+    /// working copy and every other retained copy stay. A copy that a saved copy still refers to, or that does not match
+    /// its records, is kept for review.
+    /// </summary>
+    public EditDiscardResult RemoveRetainedCapture(EditSessionRecord record,string captureDirectory,CancellationToken ct=default,Action? check=null)
+    {
+        RefuseElevatedSession();ct.ThrowIfCancellationRequested();check?.Invoke();
+        if(nativeOpen is null||!record.IsSupported||record.StorageRootIdentity.Length==0)
+            throw new NotSupportedException("This edit has no native retained copies that FileCat can remove. Its files are kept.");
+        string full=Path.TrimEndingDirectorySeparator(Path.GetFullPath(captureDirectory)),name=Path.GetFileName(full);
+        if(name.Length!=39||!name.StartsWith("commit-",StringComparison.Ordinal)||!Guid.TryParseExact(name.AsSpan(7),"N",out _)||
+            Path.GetFileName(Path.GetDirectoryName(full))!=record.Id)
+            throw new IOException("This folder is not a retained copy of this edit. Its files are kept.");
+        if(HasLiveCapture(record.Id))
+            throw new IOException("This edit is being committed. Remove its retained copies after that operation finishes. Their files are kept.");
+        return DiscardNative(record,null,name,ct,check);
+    }
+
+    // A whole reviewed native edit (capture null), or only one of its retained commit copies.
+    private EditDiscardResult DiscardNative(EditSessionRecord record,EditWorkingReview? reviewed,string? capture,CancellationToken ct,Action? check)
+    {
         using var root=OpenNativeRoot(ct,false);
         if(root.Identity!=record.StorageRootIdentity)throw new IOException("The edit store was replaced. Its files are kept.");
         if(!root.CanDiscardReviewedSession)throw new NotSupportedException("FileCat cannot safely discard this edit on this system. Its files are kept.");
         using var admission=EditStorageAdmission.Acquire(root,ct);
-        using var session=root.OpenDiscardDirectory(record.Id,record.SessionDirectoryIdentity,ct);
+        // Removing one retained copy needs removal authority only for that copy, which the session grants per child.
+        using var session=capture is null?root.OpenDiscardDirectory(record.Id,record.SessionDirectoryIdentity,ct):
+            root.OpenDirectory(record.Id,record.SessionDirectoryIdentity,ct);
         RequireStorage(record,root,session);
         bool attempted=false;int entries=0;long payloadBytes=0,recordBytes=0;
         void Check(){ct.ThrowIfCancellationRequested();check?.Invoke();admission.Review(ct);}
         try
         {
-            Check();var tree=ReviewSession();Check();
-            Remove(session,tree);return new(true,true);
+            Check();
+            if(capture is null){var tree=ReviewSession();Check();Remove(session,tree);}
+            else
+            {
+                var node=ReviewOneCapture(capture);Check();
+                using var held=session.OpenDiscardDirectory(capture,node.Identity,ct);Remove(held,node);
+            }
+            return new(true,true);
         }
         catch(Exception error)when(error is IOException or UnauthorizedAccessException or NotSupportedException or
             OperationCanceledException or JsonException or ArgumentException or InvalidOperationException)
         {
             if(error is OperationCanceledException&&!attempted)throw;
-            string message=attempted?"Discard stopped after attempting to remove reviewed data. Remaining files are kept at "+session.Path:
-                "The edit could not be discarded safely. Its files are kept at "+session.Path;
+            string at=capture is null?session.Path:Path.Combine(session.Path,capture);
+            string message=capture is null
+                ?attempted?"Discard stopped after attempting to remove reviewed data. Remaining files are kept at "+at:
+                    "The edit could not be discarded safely. Its files are kept at "+at
+                :attempted?"Removing the retained copy stopped part way. Its remaining files are kept at "+at:
+                    "The retained copy could not be removed safely. Its files are kept at "+at;
             return new(false,attempted,message+". "+error.Message);
         }
 
         DiscardNode ReviewSession()
         {
             var node=Node(session,record.Id);var names=node.Names;
-            var anchorFile=Read(session,RecordFile,true);var anchor=ParseRecord(anchorFile.Bytes!,session.Path);
-            if(!anchor.IsSupported||anchor.Version!=EditSessionRecord.NativeStorageVersion||anchor.StorageRevision!=0||
-                anchor.PreviousRecordSha256.Length!=0)throw new IOException("The initial edit record cannot be reviewed.");
-            RequireRecord(anchor);
-            var history=new Dictionary<string,EditSessionRecord>(StringComparer.Ordinal);
-            string previous=Digest(anchorFile.Bytes!);history.Add(previous,anchor with{StoredRecordSha256=previous});
-            node.Files.Add(anchorFile);
-            if(record.StorageRevision>4096)throw new IOException("The edit history exceeds the discard review budget.");
             var expectedNames=new HashSet<string>(StringComparer.Ordinal){RecordFile,CreationMarker,"files"};
-            for(long revision=1;revision<=record.StorageRevision;revision++)
-            {
-                Check();string name=RevisionName(revision);expectedNames.Add(name);var file=Read(session,name,true);
-                var state=ParseRecord(file.Bytes!,session.Path);RequireRecord(state);
-                if(state.StorageRevision!=revision||state.PreviousRecordSha256!=previous)
-                    throw new IOException("The edit history changed before discard.");
-                previous=Digest(file.Bytes!);history.Add(previous,state with{StoredRecordSha256=previous});node.Files.Add(file);
-            }
-            if(previous!=record.StoredRecordSha256)throw new IOException("The edit state changed. Reload it before discarding.");
-            var marker=Read(session,CreationMarker,true);RequireMarker(marker.Bytes!);node.Files.Add(marker);
+            var history=ReviewHistory(node,expectedNames);
             string[] captures=names.Where(name=>name.StartsWith("commit-",StringComparison.Ordinal)).ToArray();
             if(captures.Length>MaximumRecoveryCaptures)throw new IOException("The retained copies exceed the discard review budget.");
             foreach(string name in captures)
@@ -94,7 +119,7 @@ public sealed partial class EditSessionStore
             {
                 if(files.Identity!=record.WorkingDirectoryIdentity)throw new IOException("The working directory was replaced.");
                 var working=Node(files,"files");string leaf=Path.GetFileName(record.WorkingPath);
-                if(reviewed.State==EditState.Missing)
+                if(reviewed!.State==EditState.Missing)
                 {if(working.Names.Length!=0)throw new IOException("The missing working copy was replaced while discard was reviewed.");}
                 else
                 {
@@ -105,6 +130,47 @@ public sealed partial class EditSessionStore
                 node.Children.Add(working);
             }
             RequireNames(session,node.Names);return node;
+        }
+        // The anchor, every revision and the creation marker, chained to the record the user reviewed. With a node (a
+        // whole-edit discard) they are also removed; for one retained copy they only bind it to a state of this edit.
+        Dictionary<string,EditSessionRecord> ReviewHistory(DiscardNode? node,HashSet<string> expectedNames)
+        {
+            // An adopted edit starts from a pending anchor; its later states follow the forward-only adoption transitions.
+            var anchorFile=Read(session,RecordFile,true,removing:node is not null);var anchor=ParseRecord(anchorFile.Bytes!,session.Path,allowPendingAdoption:true);
+            if(!(anchor.IsSupported||anchor.IsPendingAdoption)||anchor.Version!=EditSessionRecord.NativeStorageVersion||anchor.StorageRevision!=0||
+                anchor.PreviousRecordSha256.Length!=0)throw new IOException("The initial edit record cannot be reviewed.");
+            RequireRecord(anchor);
+            var history=new Dictionary<string,EditSessionRecord>(StringComparer.Ordinal);
+            string previous=Digest(anchorFile.Bytes!);history.Add(previous,anchor with{StoredRecordSha256=previous});
+            node?.Files.Add(anchorFile);
+            if(record.StorageRevision>4096)throw new IOException("The edit history exceeds the discard review budget.");
+            var prior=anchor;
+            for(long revision=1;revision<=record.StorageRevision;revision++)
+            {
+                Check();string name=RevisionName(revision);expectedNames.Add(name);var file=Read(session,name,true,removing:node is not null);
+                var state=ParseRecord(file.Bytes!,session.Path,allowPendingAdoption:true);RequireRecord(state);
+                if(state.StorageRevision!=revision||state.PreviousRecordSha256!=previous||!AdoptionTransition(prior,state))
+                    throw new IOException("The edit history changed before discard.");
+                prior=state;previous=Digest(file.Bytes!);history.Add(previous,state with{StoredRecordSha256=previous});node?.Files.Add(file);
+            }
+            if(previous!=record.StoredRecordSha256)throw new IOException("The edit state changed. Reload it before discarding.");
+            var marker=Read(session,CreationMarker,true,removing:node is not null);RequireMarker(marker.Bytes!);node?.Files.Add(marker);
+            return history;
+        }
+        DiscardNode ReviewOneCapture(string name)
+        {
+            var listed=Node(session,record.Id).Names;
+            if(!listed.Contains(name,StringComparer.Ordinal))throw new IOException("The retained copy is no longer in this edit's folder.");
+            // As for the read-only review: only the edit's current record speaks for it.
+            if(listed.Contains(RevisionName(record.StorageRevision+1),StringComparer.Ordinal))
+                throw new IOException("The edit record changed. Reload it before removing its retained copies.");
+            var history=ReviewHistory(null,new HashSet<string>(StringComparer.Ordinal));
+            using var held=session.OpenStorageDirectory(name,ct);
+            var node=ReviewCaptureForDiscard(held,name,history);
+            // A saved copy's intent is that copy's recovery evidence (an interrupted Save copy is resumed or reviewed from it).
+            if(node.Names.Contains(EditSaveCopyIntent.FileName,StringComparer.Ordinal))
+                throw new IOException("A saved copy refers to this retained copy and needs its own review first.");
+            return node;
         }
         DiscardNode ReviewCaptureForDiscard(EditDirectoryLease capture,string name,Dictionary<string,EditSessionRecord> history)
         {
@@ -140,7 +206,7 @@ public sealed partial class EditSessionStore
         }
         void RequireRecord(EditSessionRecord value)
         {
-            if(!value.IsSupported||value.Version!=EditSessionRecord.NativeStorageVersion||value.Id!=record.Id||value.Kind!=record.Kind||
+            if(!(value.IsSupported||value.IsPendingAdoption)||value.Version!=EditSessionRecord.NativeStorageVersion||value.Id!=record.Id||value.Kind!=record.Kind||
                 value.StorageRootIdentity!=root.Identity||value.SessionDirectoryIdentity!=session.Identity||
                 value.WorkingDirectoryIdentity!=record.WorkingDirectoryIdentity||value.WorkingPath!=record.WorkingPath)
                 throw new IOException("The edit record does not identify this native working namespace.");
@@ -159,7 +225,7 @@ public sealed partial class EditSessionStore
             Check();if(++entries>8192)throw new IOException("The edit namespace exceeds the discard entry budget.");
             return new(name,directory.Identity,directory.Names(ct,8192-entries).ToArray());
         }
-        DiscardFile Read(EditDirectoryLease directory,string name,bool metadata,int maximum=MaxRecordBytes)
+        DiscardFile Read(EditDirectoryLease directory,string name,bool metadata,int maximum=MaxRecordBytes,bool removing=true)
         {
             Check();if(++entries>8192)throw new IOException("The edit namespace exceeds the discard entry budget.");
             using var file=directory.OpenFile(name,null,ct);
@@ -177,7 +243,8 @@ public sealed partial class EditSessionStore
                 bytes=new byte[checked((int)expected.Version.Length)];file.ReadExactly(bytes);
                 if(file.ReadByte()!=-1||Digest(bytes)!=expected.Version.Sha256)throw new IOException("An edit record changed during review.");
             }
-            directory.ReviewRemoval(file,name,expected,ct);Check();return new(name,expected,bytes);
+            // Only a file this action removes is probed for removal (another reader of a kept record is no obstacle).
+            if(removing)directory.ReviewRemoval(file,name,expected,ct);Check();return new(name,expected,bytes);
         }
         void Remove(EditDirectoryLease directory,DiscardNode node)
         {

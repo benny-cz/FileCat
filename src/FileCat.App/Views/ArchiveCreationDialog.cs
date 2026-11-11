@@ -268,7 +268,8 @@ internal sealed class ArchiveCreationDialog : IDisposable
     private static T Value<T>(ComboBox box) => ((Choice<T>)box.SelectedItem!).Value;
     private static ComboBox Box(string name, System.Collections.IEnumerable choices)
     { var box = new ComboBox { ItemsSource = choices, SelectedIndex = 0, MinWidth = 210 }; AutomationProperties.SetName(box, name); return box; }
-    private static TextBlock Text(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 };
+    // Left-aligned: a stretched block narrower than the dialog (its long path box) would otherwise be centered.
+    private static TextBlock Text(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap, MaxWidth = 620, HorizontalAlignment = HorizontalAlignment.Left };
     internal string EstimateText => estimate.Text ?? string.Empty;
     internal void ShowEstimate(string text) => estimate.Text = text;
     private static Control Row(string label, Control control) => new WrapPanel { ItemSpacing = 8, LineSpacing = 4,

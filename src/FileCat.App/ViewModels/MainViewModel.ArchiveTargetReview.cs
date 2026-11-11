@@ -32,10 +32,10 @@ public sealed partial class MainViewModel
                 var progress = new ProgressBar { IsIndeterminate = true, MinWidth = 240, HorizontalAlignment = HorizontalAlignment.Stretch, Focusable = true };
                 Avalonia.Automation.AutomationProperties.SetName(progress, checking);
                 var body = new StackPanel { Spacing = 10, Children = {
-                    new TextBlock { Text = checking, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 },
-                    new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 },
+                    new TextBlock { Text = checking, TextWrapping = TextWrapping.Wrap, MaxWidth = 620, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left },
+                    new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, MaxWidth = 620, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left },
                     progress,
-                    new TextBlock { Text = "Operations stay available meanwhile (Ctrl+J).", TextWrapping = TextWrapping.Wrap, MaxWidth = 620, Classes = { "muted" } },
+                    new TextBlock { Text = "Operations stay available meanwhile (Ctrl+J).", TextWrapping = TextWrapping.Wrap, MaxWidth = 620, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left, Classes = { "muted" } },
                 } };
                 // Plan §11.5: the operation center stays usable while this format scan is pending.
                 dialog = Dialogs.ShowCustomAsync(title, body, [new DialogButton("Cancel", "cancel", IsCancel: true)], initialFocus: progress, closer: closer,

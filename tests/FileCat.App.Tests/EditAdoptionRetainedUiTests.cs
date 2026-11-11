@@ -18,10 +18,10 @@ namespace FileCat.App.Tests;
 public sealed class EditAdoptionRetainedUiTests
 {
     [AvaloniaTheory]
-    [InlineData(false),InlineData(true)]
-    public async Task Copied_old_edit_stays_active_and_native_copy_has_review_only_actions(bool changedNative)
+    [InlineData("review"),InlineData("changed"),InlineData("retire")]
+    public async Task Copied_old_edit_stays_active_and_native_copy_has_review_only_actions_until_retired(string mode)
     {
-        var ct=TestContext.Current.CancellationToken;
+        var ct=TestContext.Current.CancellationToken;bool changedNative=mode=="changed";
         string parent=Path.GetFullPath(Environment.GetEnvironmentVariable("FILECAT_EDIT_NATIVE_ROOT")??Path.GetTempPath());
         if(OperatingSystem.IsMacOS()&&parent.StartsWith("/var/",StringComparison.Ordinal))parent="/private"+parent;
         string fixture=Directory.CreateDirectory(Path.Combine(parent,"filecat-adoption-ui-"+Guid.NewGuid().ToString("N"))).FullName;
@@ -41,10 +41,13 @@ public sealed class EditAdoptionRetainedUiTests
             var oldStore=new EditSessionStore(paths.EditSessionsDirectory,services.Platform.FileOperations);
             using var content=new MemoryContentSource("owned.txt","old server bytes"u8.ToArray());
             var old=oldStore.CreateRemote("server","server","/owned.txt",content,content.GetRevision()!.Value,null,ct);
-            using var source=OperatingSystem.IsWindows()
+            EditSessionRecord adopted;
+            // The admission lease holds the old working file open; it ends with the copy, as in the application, so the
+            // retirement's open-file check (a Linux lease, Windows sharing) sees no other holder.
+            using(var source=OperatingSystem.IsWindows()
                 ?(ILegacyEditSource)WindowsLegacyEditSource.Open(paths.EditSessionsDirectory,old,ct)
-                :UnixLegacyEditSource.Open(paths.EditSessionsDirectory,old,ct);
-            var adopted=services.EditSessions.CopyLegacyForAdoption(source,ct);
+                :UnixLegacyEditSource.Open(paths.EditSessionsDirectory,old,ct))
+                adopted=services.EditSessions.CopyLegacyForAdoption(source,ct);
             if(changedNative)File.WriteAllBytes(adopted.WorkingPath,"changed after adoption"u8.ToArray());
             Assert.Equal(old.Id,services.EditSessions.FindRemote("server","/owned.txt")!.Id);
             string? startup=await vm.RestoreEditSessionsAsync();
@@ -62,6 +65,24 @@ public sealed class EditAdoptionRetainedUiTests
             Assert.Null(DialogButton("Reopen editor"));Assert.Null(DialogButton("Save copy…"));
             Assert.NotNull(DialogButton("Open original folder"));
             Assert.Contains("Original edit folder:",dialogText,StringComparison.Ordinal);
+            // Retirement is offered only while the link is intact (plan §12.1).
+            Assert.Equal(!changedNative,DialogButton("Retire original folder…") is not null);
+            if(mode=="retire")
+            {
+                string oldFolder=Path.Combine(paths.EditSessionsDirectory,old.Id);
+                DialogButton("Retire original folder…")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await Wait(()=>DialogButton("Retire") is not null||task.IsCompleted);
+                Assert.False(task.IsCompleted);Assert.True(Directory.Exists(oldFolder));
+                DialogButton("Retire")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await task.WaitAsync(TimeSpan.FromSeconds(15),ct);
+                Assert.False(Directory.Exists(oldFolder));
+                var now=Assert.Single(services.EditSessions.LoadAll());
+                Assert.Equal(adopted.Id,now.Id);Assert.Null(now.LegacyAdoption);
+                Assert.Equal(adopted.Id,services.EditSessions.FindRemote("server","/owned.txt")!.Id);
+                Assert.Equal("old server bytes",File.ReadAllText(now.WorkingPath));
+                Assert.Empty(AccessibilityTests.Unnamed(window));
+                return;
+            }
             DialogButton("Close")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await task.WaitAsync(TimeSpan.FromSeconds(15),ct);
             Assert.True(File.Exists(old.WorkingPath));Assert.True(File.Exists(adopted.WorkingPath));

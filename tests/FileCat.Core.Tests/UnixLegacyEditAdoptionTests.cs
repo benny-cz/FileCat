@@ -22,4 +22,13 @@ public sealed class UnixLegacyEditAdoptionTests
         ArchiveEditLegacyAdoptionCases.Run(scenario,new UnixFileOperations(),UnixEditDirectoryLease.OpenRoot,
             (root,record,ct)=>UnixLegacyEditSource.Open(root,record,ct));
     }
+
+    public static IEnumerable<object[]> RetirementScenarios()=>ArchiveEditLegacyRetirementCases.Scenarios();
+    [Theory,MemberData(nameof(RetirementScenarios))]
+    public void Retiring_the_old_folder_removes_only_its_recorded_objects_and_resumes(string scenario)
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(),"Unix native edit admission required.");
+        ArchiveEditLegacyRetirementCases.Run(scenario,new UnixFileOperations(),UnixEditDirectoryLease.OpenRoot,
+            (root,record,ct)=>UnixLegacyEditSource.Open(root,record,ct),UnixLegacyEditRemoval.Remove);
+    }
 }

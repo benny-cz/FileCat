@@ -119,4 +119,92 @@ internal static class ArchiveEditCaptureRecoveryCases
             Directory.Delete(fixture,true);
         }
     }
+
+    internal static IEnumerable<object[]> RemovalScenarios()
+    {
+        foreach(string scenario in new[]{"complete","interrupted-empty","interrupted-partial","two-copies","extra-child","extra-file",
+            "payload-changed","payload-replaced","stale-record","wrong-folder","live-capture","cancel"})yield return [scenario];
+    }
+
+    /// <summary>
+    /// The restart recovery action: one reviewed retained copy is removed object by object; the edit, its working copy and
+    /// every other retained copy stay. A copy that does not match its records is kept, with nothing removed.
+    /// </summary>
+    internal static void RunRemoval(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open)
+    {
+        var ct=TestContext.Current.CancellationToken;string parent=Environment.GetEnvironmentVariable("FILECAT_EDIT_NATIVE_ROOT")??Path.GetTempPath();
+        if(OperatingSystem.IsMacOS()&&parent.StartsWith("/var/",StringComparison.Ordinal))parent="/private"+parent;
+        parent=Path.GetFullPath(parent);Directory.CreateDirectory(parent);
+        string fixture=Directory.CreateDirectory(Path.Combine(parent,"filecat-capture-removal-"+Guid.NewGuid().ToString("N"))).FullName;
+        EditCommitCopy? live=null;
+        try
+        {
+            var store=new EditSessionStore(Path.Combine(fixture,"sessions"),new PortableFileOperations(),open);
+            Assert.True(store.SupportsRetainedCaptureRemoval);
+            using var source=new MemoryContentSource("owned.txt","complete recovery source"u8.ToArray());
+            var record=store.CreateRemote("owned","owned","/owned.txt",source,source.GetRevision()!.Value,null,ct);
+            string session=store.SessionDirectory(record);
+            string Retain()
+            {
+                // A capture whose cleanup stopped: an unexpected child keeps it, and is then taken away again.
+                var copy=store.PrepareCommit(record,fixture,ct);string capture=Path.GetDirectoryName(Path.GetDirectoryName(copy.Path))!;
+                string sentinel=Path.Combine(capture,"keep-for-restart.txt");File.WriteAllText(sentinel,"kept");
+                Assert.IsAssignableFrom<IOException>(Record.Exception(copy.Dispose));File.Delete(sentinel);return capture;
+            }
+            string capture=Retain(),payload=Path.Combine(capture,"files","owned.txt"),receipt=Path.Combine(capture,"captured.json");
+            string? other=scenario=="two-copies"?Retain():null;
+            if(scenario=="interrupted-empty"){File.Delete(receipt);File.Delete(payload);}
+            else if(scenario=="interrupted-partial"){File.Delete(receipt);File.WriteAllText(payload,"partial captured bytes");}
+            else if(scenario=="extra-child")File.WriteAllText(Path.Combine(capture,"foreign.txt"),"unrelated child");
+            else if(scenario=="extra-file")File.WriteAllText(Path.Combine(capture,"files","foreign.txt"),"unrelated payload sibling");
+            else if(scenario=="payload-changed")File.WriteAllText(payload,"modified captured bytes");
+            else if(scenario=="payload-replaced"){File.Move(payload,Path.Combine(fixture,"preserved-payload"));File.WriteAllText(payload,"complete recovery source");}
+            if(scenario=="stale-record")_=store.Save(record with{LastCommitUtc=DateTime.UnixEpoch.AddSeconds(1700000001)});
+            var before=Files();
+            var restarted=new EditSessionStore(store.Root,new PortableFileOperations(),open);
+            if(scenario=="wrong-folder")
+            {
+                Assert.ThrowsAny<IOException>(()=>restarted.RemoveRetainedCapture(record,Path.Combine(fixture,Path.GetFileName(capture)),ct));
+                Assert.ThrowsAny<IOException>(()=>restarted.RemoveRetainedCapture(record,Path.Combine(session,"files"),ct));
+                Assert.Equal(before,Files());return;
+            }
+            if(scenario=="live-capture")
+            {
+                live=restarted.PrepareCommit(record,fixture,ct);
+                Assert.ThrowsAny<IOException>(()=>restarted.RemoveRetainedCapture(record,capture,ct));
+                Assert.True(Directory.Exists(capture));return;
+            }
+            if(scenario=="cancel")
+            {
+                using var stop=new CancellationTokenSource();stop.Cancel();
+                Assert.ThrowsAny<OperationCanceledException>(()=>restarted.RemoveRetainedCapture(record,capture,stop.Token));
+                Assert.Equal(before,Files());return;
+            }
+            var result=restarted.RemoveRetainedCapture(record,capture,ct);
+            if(scenario is "complete" or "interrupted-empty" or "interrupted-partial" or "two-copies")
+            {
+                Assert.True(result.Complete,result.Issue);Assert.False(Directory.Exists(capture));
+                Assert.Equal(other is null?0:1,Directory.GetDirectories(session,"commit-*").Length);
+                if(other is not null)Assert.True(File.Exists(Path.Combine(other,"captured.json")));
+                var reviews=restarted.ReviewRetainedCaptures(record,ct);Assert.Equal(other is null?0:1,reviews.Count);
+                // The edit itself is untouched and still commits: a later capture and its own cleanup work.
+                Assert.Equal("complete recovery source",File.ReadAllText(record.WorkingPath));
+                var again=restarted.PrepareCommit(record,fixture,ct);Assert.Null(Record.Exception(again.Dispose));
+            }
+            else
+            {
+                Assert.False(result.Complete);Assert.False(result.MayHaveRemovedFiles,result.Issue);
+                Assert.Contains("kept",result.Issue,StringComparison.Ordinal);Assert.Equal(before,Files());
+            }
+            string[] Files()=>Directory.EnumerateFiles(fixture,"*",SearchOption.AllDirectories).Order(StringComparer.Ordinal)
+                .Select(path=>Path.GetRelativePath(fixture,path)+":"+Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)))).ToArray();
+        }
+        finally
+        {
+            if(live is not null)Assert.Null(Record.Exception(live.Dispose));
+            if(!Path.GetFullPath(fixture).StartsWith(Path.TrimEndingDirectorySeparator(parent)+Path.DirectorySeparatorChar,StringComparison.Ordinal)||
+                !Path.GetFileName(fixture).StartsWith("filecat-capture-removal-",StringComparison.Ordinal))throw new IOException("Unexpected removal fixture root.");
+            Directory.Delete(fixture,true);
+        }
+    }
 }

@@ -272,11 +272,7 @@ internal static class ArchiveEditStorageAdmissionCases
         try
         {
             await started.Task.WaitAsync(TimeSpan.FromSeconds(10),ct);
-            if(scenario=="cleanup-admission"&&!OperatingSystem.IsWindows())
-            {
-                Assert.IsAssignableFrom<IOException>(await pending.WaitAsync(TimeSpan.FromSeconds(10),ct));
-                Assert.Equal(original,ReadShared(copy.Path));return;
-            }
+            // A capture's own cleanup waits for the storage admission on every system (Unix removes captures too now).
             await Task.Delay(150,ct);Assert.False(pending.IsCompleted);Assert.False(File.Exists(intentPath));
             if(scenario=="intent-cancel-wait")
             {

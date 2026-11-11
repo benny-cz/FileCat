@@ -19,11 +19,12 @@ namespace FileCat.Core.Edit;
 /// unlinked copy until it closes it.</item>
 /// <item>A folder is removed only once empty and while its name still binds the reviewed folder.</item>
 /// </list>
-/// Anything that does not match is kept and reported.
+/// The same rules remove a commit capture (the private snapshot FileCat created for one commit, CreateDirectory with
+/// removable) once its commit is done. Anything that does not match is kept and reported.
 /// </summary>
 internal sealed partial class UnixEditDirectoryLease
 {
-    private bool discard;
+    private bool discard, capture;
 
     internal override bool CanDiscardReviewedSession => isPrivate;
     internal override bool CanRemoveOwnedDirectories => isPrivate && discard;
@@ -71,43 +72,35 @@ internal sealed partial class UnixEditDirectoryLease
             if (!ObserveSnapshot(file, name, ct, expected.Version.Length).Matches(expected))
                 throw new IOException("The reviewed edit file changed. Its files are kept.");
             // Reviewed files that another program holds are refused before anything is removed, as Windows' sharing refuses
-            // them during review; the removal takes the lease again right before each name goes.
-            if (OperatingSystem.IsLinux()) { Lease(UnixArchiveNative.Fd(file.SafeFileHandle)); _ = Fcntl(UnixArchiveNative.Fd(file.SafeFileHandle), 1024, 2 /* F_UNLCK */); }
+            // them during review; the removal takes the lease again and reviews the content under it.
+            if (UnixExactRemoval.TakeLease(file.SafeFileHandle, What(name)) is { } refused) throw Kept(refused);
+            UnixExactRemoval.ReleaseLease(file.SafeFileHandle);
         }
     }
 
-    // A Linux write lease is granted only while no other descriptor or mapping holds the file (no other reader or writer).
-    private static void Lease(int fd)
-    {
-        if (Fcntl(fd, 1024 /* F_SETLEASE */, 1 /* F_WRLCK */) == 0) return;
-        int errno = Marshal.GetLastPInvokeError();
-        throw new IOException(errno == 11 /* EAGAIN */
-            ? "The working copy is open in another program. Close it, then discard again. Its files are kept."
-            : "FileCat could not check whether another program has the working copy open (errno " +
-              errno.ToString(CultureInfo.InvariantCulture) + "). Its files are kept.");
-    }
+    // What the user is told about: the working copy of their edit, or FileCat's own temporary commit copy.
+    private string What(string name) => capture ? "FileCat's temporary commit copy" : "“" + name + "”";
+    private IOException Kept(string why) => new(char.ToUpperInvariant(why[0]) + why[1..] + "." +
+        (capture ? " It is kept for cleanup review at " + Path : " Its files are kept."));
 
-    // The discard removal of one reviewed file (DeleteSnapshot in a lease opened for discard).
+    // The removal of one reviewed file (DeleteSnapshot in a lease opened for discard or created removable). The Linux lease
+    // is taken first and the complete content is reviewed under it, so no save can land unseen before the name goes.
     private void RemoveReviewedFile(FileStream file, string name, ArchiveFileObservation expected, CancellationToken ct)
     {
         RequireOpen(); Leaf(name); ReviewCore(ct);
-        var held = file.SafeFileHandle; int fd = UnixArchiveNative.Fd(held); bool leased = false;
+        var held = file.SafeFileHandle; bool leased = false;
         try
         {
-            if (OperatingSystem.IsLinux()) { Lease(fd); leased = true; }
+            if (UnixExactRemoval.TakeLease(held, What(name)) is { } refused) throw Kept(refused);
+            leased = true;
+            if (!ObserveSnapshot(file, name, ct, expected.Version.Length).Matches(expected))
+                throw new IOException("The reviewed edit file changed. Its files are kept.");
             if (UnixFiles.Stat(held) is not { IsRegular: true } facts || facts.Identity.ToString() != expected.Version.Identity ||
-                UnixFiles.StatChild(directory, name)?.Identity != facts.Identity || ArchiveUnixOuterMetadata.Capture(held).Native.LinkCount != 1)
+                ArchiveUnixOuterMetadata.Capture(held).Native.LinkCount != 1)
                 throw new IOException("The reviewed edit file was replaced. Its files are kept.");
-            ct.ThrowIfCancellationRequested();
-            if (UnlinkAt(UnixArchiveNative.Fd(directory), name, 0) != 0)
-                throw new IOException("The reviewed edit file could not be removed (errno " +
-                    Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture) + "). Its files are kept.");
-            ulong links = ArchiveUnixOuterMetadata.Capture(held).Native.LinkCount;
-            UnixArchiveNative.SyncDirectory(directory);
-            if (links != 0)
-                throw new IOException("Another file took the reviewed edit file's name during discard and was removed; the reviewed copy is kept under another name.");
+            if (UnixExactRemoval.Unlink(directory, name, held, expected.Version.Identity, What(name), ct) is { } kept) throw Kept(kept);
         }
-        finally { if (leased) _ = Fcntl(fd, 1024, 2 /* F_UNLCK */); }
+        finally { if (leased) UnixExactRemoval.ReleaseLease(held); }
     }
 
     // The discard removal of this reviewed, now empty folder (RemoveEmpty in a lease opened for discard).
@@ -117,17 +110,10 @@ internal sealed partial class UnixEditDirectoryLease
         if (parent is null || leaf is null) throw new IOException("The edit store's own folder is never removed.");
         if (Names(ct, 8).Count != 0) throw new IOException("The private edit folder is not empty. Its files are kept.");
         parent.ReviewRetained(ct);
-        if (UnixFiles.StatChild(parent.Handle, leaf)?.Identity.ToString() != Identity) throw new IOException("The reviewed edit folder was replaced. Its files are kept.");
         ct.ThrowIfCancellationRequested();
-        if (UnlinkAt(UnixArchiveNative.Fd(parent.Handle), leaf, OperatingSystem.IsMacOS() ? 0x80 : 0x200 /* AT_REMOVEDIR */) != 0)
-            throw new IOException("The reviewed edit folder could not be removed (errno " +
-                Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture) + "). Its files are kept.");
-        if (UnixFiles.StatChild(parent.Handle, leaf)?.Identity.ToString() == Identity) throw new IOException("The reviewed edit folder is still present. Its files are kept.");
-        UnixArchiveNative.SyncDirectory(parent.Handle);
+        if (UnixExactRemoval.RemoveFolder(parent.Handle, leaf, Identity, "the reviewed edit folder") is { } kept) throw Kept(kept);
+        // As on Windows, the removed folder's lease ends here, so its parent no longer counts it as a live child and can be
+        // removed next (a commit capture removes "files", then itself).
+        Dispose();
     }
-
-    [LibraryImport("libc", EntryPoint = "fcntl", SetLastError = true)]
-    private static partial int Fcntl(int fd, int command, int argument);
-    [LibraryImport("libc", EntryPoint = "unlinkat", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
-    private static partial int UnlinkAt(int directory, string leaf, int flags);
 }

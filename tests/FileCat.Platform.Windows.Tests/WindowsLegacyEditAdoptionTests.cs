@@ -21,4 +21,13 @@ public sealed class WindowsLegacyEditAdoptionTests
         ArchiveEditLegacyAdoptionCases.Run(scenario,new WindowsFileOperations(),WindowsEditDirectoryLease.OpenRoot,
             (root,record,ct)=>WindowsLegacyEditSource.Open(root,record,ct));
     }
+
+    public static IEnumerable<object[]> RetirementScenarios()=>ArchiveEditLegacyRetirementCases.Scenarios();
+    [Theory,MemberData(nameof(RetirementScenarios))]
+    public void Retiring_the_old_folder_removes_only_its_recorded_objects_and_resumes(string scenario)
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows(),"Windows native edit admission required.");
+        ArchiveEditLegacyRetirementCases.Run(scenario,new WindowsFileOperations(),WindowsEditDirectoryLease.OpenRoot,
+            (root,record,ct)=>WindowsLegacyEditSource.Open(root,record,ct),WindowsLegacyEditRemoval.Remove);
+    }
 }

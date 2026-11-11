@@ -66,6 +66,12 @@ public sealed record EditSessionRecord
     public string SessionDirectoryIdentity { get; init; } = "";
     [JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] public EditLegacyAdoption? LegacyAdoption { get; init; }
     [JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingDefault)] public bool LegacyAdoptionReady { get; init; }
+    /// <summary>
+    /// The user chose to retire the old folder of this ready adopted copy: from this revision on, this copy is the edit and
+    /// the old folder's reviewed objects may be removed (UNIX_PRIVATE_CLEANUP_DECISION.md). A later revision drops the
+    /// relationship once the old folder is gone.
+    /// </summary>
+    [JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingDefault)] public bool LegacyRetiring { get; init; }
     public long StorageRevision { get; init; }
     public string PreviousRecordSha256 { get; init; } = "";
     [JsonIgnore] internal string StoredRecordSha256 { get; init; } = "";
@@ -81,6 +87,7 @@ public sealed record EditSessionRecord
         (Version!=NativeStorageVersion||!string.IsNullOrEmpty(StorageRootIdentity)&&!string.IsNullOrEmpty(SessionDirectoryIdentity)&&
             !string.IsNullOrEmpty(WorkingDirectoryIdentity)&&!string.IsNullOrEmpty(WorkingIdentity))&&
         (LegacyAdoption is null && !LegacyAdoptionReady || Version==NativeStorageVersion&&LegacyAdoption is { IsValid:true }&&LegacyAdoption.SourceId!=Id) &&
+        (!LegacyRetiring || LegacyAdoption is not null && LegacyAdoptionReady) &&
         Kind is ArchiveKind or RemoteKind && (!IsNativeArchive ||
         (ArchiveFormat is ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip ||
             ArchiveStandalone.IsStandalone(ArchiveFormat) && MemberPath == ArchiveStandalone.MemberName) &&
@@ -319,12 +326,25 @@ public sealed partial class EditSessionStore
     }
 
     public EditSessionRecord? Find(string archivePath, string memberPath) =>
-        LoadAll().Where(s => s.IsSupported && s.IsLegacyZip && string.Equals(s.ArchivePath, Path.GetFullPath(archivePath), StringComparison.OrdinalIgnoreCase) &&
-                             s.MemberPath == memberPath).OrderBy(s=>s.LegacyAdoption is null?0:1).FirstOrDefault();
+        Active(LoadAll()).Where(s => s.IsSupported && s.IsLegacyZip && string.Equals(s.ArchivePath, Path.GetFullPath(archivePath), StringComparison.OrdinalIgnoreCase) &&
+                             s.MemberPath == memberPath).OrderBy(Route).FirstOrDefault();
 
     public EditSessionRecord? FindRemote(string profileId, string remotePath) =>
-        LoadAll().Where(s => s.IsSupported && s.IsRemote && s.ProfileId == profileId && s.RemotePath == remotePath)
-            .OrderBy(s=>s.LegacyAdoption is null?0:1).FirstOrDefault();
+        Active(LoadAll()).Where(s => s.IsSupported && s.IsRemote && s.ProfileId == profileId && s.RemotePath == remotePath)
+            .OrderBy(Route).FirstOrDefault();
+
+    /// <summary>
+    /// The edits that speak for themselves: an old record whose adopted copy is retiring its folder is no longer the edit
+    /// (the copy is), even while its objects wait for their exact removal.
+    /// </summary>
+    public static IReadOnlyList<EditSessionRecord> Active(IReadOnlyList<EditSessionRecord> rows)
+    {
+        var retiring=rows.Where(row=>row.LegacyRetiring&&row.LegacyAdoption is not null).Select(row=>row.LegacyAdoption!.SourceId)
+            .ToHashSet(StringComparer.Ordinal);
+        return retiring.Count==0?rows:rows.Where(row=>!(row.StorageRootIdentity.Length==0&&retiring.Contains(row.Id))).ToArray();
+    }
+    // The old edit stays the route while its adopted copy is only retained; a retiring copy is the route.
+    private static int Route(EditSessionRecord row)=>row.LegacyAdoption is null||row.LegacyRetiring?0:1;
 
     /// <summary>
     /// Copies a server file into a new private working copy, marked as coming from the server, with the revision it was

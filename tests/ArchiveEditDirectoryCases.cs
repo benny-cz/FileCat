@@ -41,13 +41,13 @@ internal static class ArchiveEditDirectoryCases
                     Assert.ThrowsAny<IOException>(()=>files.RemoveEmpty(ct));
                     Assert.Equal("keep the unrelated child",File.ReadAllText(System.IO.Path.Combine(files.Path,"unrelated")));
                 }
-                else if(OperatingSystem.IsWindows())
+                else
                 {
+                    // Every system removes a folder it created removable once empty (Unix under the private cleanup rule).
                     files.RemoveEmpty(ct);Assert.False(Directory.Exists(files.Path));
                     Directory.CreateDirectory(files.Path);File.WriteAllText(System.IO.Path.Combine(files.Path,"later"),"later directory occupant");
                     files.Dispose();Assert.Equal("later directory occupant",File.ReadAllText(System.IO.Path.Combine(files.Path,"later")));
                 }
-                else{Assert.ThrowsAny<IOException>(()=>files.RemoveEmpty(ct));Assert.True(Directory.Exists(files.Path));}
             }
             else if(scenario=="bounded-inspection")
             {

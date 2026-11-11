@@ -22,9 +22,10 @@ namespace FileCat.App.Tests;
 public sealed class EditRetainedCopyUiTests
 {
     [AvaloniaTheory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Fresh_native_capture_can_be_reviewed_or_saved_as_an_exclusive_copy(bool save)
+    [InlineData("close")]
+    [InlineData("save")]
+    [InlineData("remove")]
+    public async Task Fresh_native_capture_can_be_reviewed_saved_as_an_exclusive_copy_or_removed(string mode)
     {
         var ct=TestContext.Current.CancellationToken;
         string parent=Path.GetFullPath(Environment.GetEnvironmentVariable("FILECAT_EDIT_NATIVE_ROOT")??Path.GetTempPath());
@@ -77,12 +78,22 @@ public sealed class EditRetainedCopyUiTests
             Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(),t=>t.Text?.Contains(digest,StringComparison.Ordinal)==true&&
                 t.Text.Contains(capture,StringComparison.Ordinal));
             Assert.NotNull(DialogButton("Save verified copy…"));
+            Assert.NotNull(DialogButton("Remove retained copy…"));
             Assert.True(File.Exists(retainedPath));
-            DialogButton(save?"Save verified copy…":"Close")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            bool save=mode=="save",remove=mode=="remove";
+            DialogButton(save?"Save verified copy…":remove?"Remove retained copy…":"Close")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            if(remove)
+            {
+                // The restart recovery action asks first, then reviews the copy again and removes only it.
+                await Wait(()=>DialogButton("Remove") is not null||task.IsCompleted);
+                Assert.False(task.IsCompleted);Assert.True(File.Exists(retainedPath));
+                DialogButton("Remove")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            }
             await task.WaitAsync(TimeSpan.FromSeconds(15),ct);
             Assert.Equal(save,File.Exists(target));
             if(save)Assert.Equal("retained recovery bytes",File.ReadAllText(target));
-            Assert.Equal("retained recovery bytes",File.ReadAllText(retainedPath));
+            if(remove){Assert.False(Directory.Exists(capture));Assert.Empty(services.EditSessions.ReviewRetainedCaptures(record,ct));}
+            else Assert.Equal("retained recovery bytes",File.ReadAllText(retainedPath));
             Assert.Equal("retained recovery bytes",File.ReadAllText(record.WorkingPath));
             Assert.Empty(AccessibilityTests.Unnamed(window));
         }

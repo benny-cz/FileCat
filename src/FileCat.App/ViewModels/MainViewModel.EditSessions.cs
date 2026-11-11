@@ -94,8 +94,9 @@ public sealed partial class MainViewModel
         catch (OperationCanceledException) { return null; }
     }
 
+    // An old record whose adopted copy is retiring its folder is no longer the edit (the copy is).
     private Task<IReadOnlyList<EditSessionRecord>> LoadEditSessionsAsync(Action? check = null) =>
-        MutationIoAsync(Services.EditSessions.Root, Services.EditSessions.LoadAll, check ?? CheckSessionAction);
+        MutationIoAsync(Services.EditSessions.Root, () => EditSessionStore.Active(Services.EditSessions.LoadAll()), check ?? CheckSessionAction);
 
     private Task<bool> HasRetainedCaptureHintAsync(EditSessionRecord session) =>
         MutationIoAsync(Services.EditSessions.Root,
@@ -379,7 +380,10 @@ public sealed partial class MainViewModel
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
                 { /* An unavailable source is a retained recovery state, not permission to use the copy. */ }
                 CheckSessionAction();
-                string relationText = relation?.State == EditLegacyAdoptionCatalogState.LinkedRetainedCopy
+                bool linked = relation?.State == EditLegacyAdoptionCatalogState.LinkedRetainedCopy;
+                string relationText = session.LegacyRetiring
+                    ? "This copy is the edit. Its original folder is being retired; finish retiring it to use this edit again."
+                    : linked
                     ? "The old edit is still the active commit route. This linked native copy is retained for review."
                     : "The link to the old edit needs review. " +
                       (relation?.Reason ?? "The original could not be reviewed. Both copies are kept.");
@@ -392,6 +396,8 @@ public sealed partial class MainViewModel
                     new("Open working folder", "folder")
                 };
                 if (oldDirectory is not null) actions.Add(new("Open original folder", "original"));
+                if (session.LegacyRetiring) { actions.Add(new("Finish retiring original…", "retire")); actions.Add(new("Cancel retirement…", "unretire")); }
+                else if (linked) actions.Add(new("Retire original folder…", "retire"));
                 var retainedAnswer = await Dialogs.ShowCustomAsync("Retained adopted edit", new TextBlock
                 {
                     Text = relationText + "\nWorking copy: " + Formatters.SafeName(session.WorkingPath) +
@@ -402,6 +408,8 @@ public sealed partial class MainViewModel
                 CheckSessionAction();
                 if (retainedAnswer as string == "folder") Services.Shell.Open(directory);
                 if (retainedAnswer as string == "original" && oldDirectory is not null) Services.Shell.Open(oldDirectory);
+                if (retainedAnswer as string == "retire") await RetireOriginalFolderAsync(session);
+                if (retainedAnswer as string == "unretire") await CancelRetirementAsync(session);
                 return;
             }
             var state = await ReadEditStateAsync(session);
@@ -476,6 +484,10 @@ public sealed partial class MainViewModel
             if (selected.State == EditCaptureRecoveryState.Complete && selected.SavedCopy is null &&
                 Services.EditSessions.SupportsRecoveredNativeCopy)
                 actions.Add(new("Save verified copy…", "save"));
+            // A copy that a saved copy refers to is that copy's recovery evidence; anything unverified stays for review.
+            if (selected.State is EditCaptureRecoveryState.Complete or EditCaptureRecoveryState.Interrupted && selected.SavedCopy is null &&
+                Services.EditSessions.SupportsRetainedCaptureRemoval)
+                actions.Add(new("Remove retained copy…", "remove"));
             var answer = await Dialogs.ShowCustomAsync("Retained edit copy", new TextBlock
             {
                 Text = detail, TextWrapping = TextWrapping.Wrap, MaxWidth = 640,
@@ -483,10 +495,103 @@ public sealed partial class MainViewModel
             CheckSessionAction();
             if (answer as string == "folder") Services.Shell.Open(selected.Directory);
             else if (answer as string == "save") await SaveRecoveredSessionCopyAsync(session, selected);
+            else if (answer as string == "remove") await RemoveRetainedSessionCopyAsync(session, selected);
         }
         catch (OperationCanceledException) { }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         { if (EditSessionsActive) Notify("The retained copies could not be reviewed: " + Formatters.SafeName(error.Message), true); }
+    }
+
+    private static string? RemoveLegacyFolder(EditLegacyRemoval request, bool probe, CancellationToken ct) =>
+        OperatingSystem.IsWindows()
+            ? FileCat.Platform.Windows.Archives.WindowsLegacyEditRemoval.Remove(request, probe, ct)
+            : UnixLegacyEditRemoval.Remove(request, probe, ct);
+
+    /// <summary>
+    /// Plan §12.1: the adopted copy becomes the edit and its original folder is removed, object by object, after FileCat
+    /// checks it again. Anything changed or unexpected in the original folder is kept and named.
+    /// </summary>
+    private async Task RetireOriginalFolderAsync(EditSessionRecord session)
+    {
+        // The original edit must not commit (rewriting its record) while its folder is retired: both ids are held.
+        string? original = session.LegacyAdoption?.SourceId;
+        if (!EditSessionsActive || original is null) return;
+        if (_sessionActions.Contains(original) || _sessionCommits.Values.Any(c => c.Session.Id == original))
+        {
+            Notify("The original edit is being committed or changed. Retire its folder after that finishes.", true);
+            return;
+        }
+        if (!_sessionActions.Add(session.Id)) return;
+        _sessionActions.Add(original);
+        try
+        {
+            if (!session.LegacyRetiring && !await Dialogs.ConfirmAsync("Retire original folder",
+                $"Make this copy the edit of \"{session.DisplayName}\" and remove its original folder? FileCat checks the original " +
+                "again and removes only what it copied. Close any editor that still shows the original working copy first.",
+                "Retire", danger: true))
+                return;
+            CheckSessionAction();
+            var result = await MutationIoAsync(Services.EditSessions.Root,
+                () => Services.EditSessions.RetireLegacyFolder(session, OpenLegacyAdoptionSource, RemoveLegacyFolder, check: CheckSessionAction),
+                CheckSessionAction);
+            if (!EditSessionsActive) return;
+            if (result.Complete) Notify("The original folder was removed. This copy is now the edit.");
+            else Notify(Formatters.SafeName(result.Issue ?? "The original folder was kept for review."), true);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
+        { if (EditSessionsActive) Notify("The original folder was kept: " + Formatters.SafeName(error.Message), true); }
+        finally { _sessionActions.Remove(session.Id); _sessionActions.Remove(original); }
+    }
+
+    /// <summary>
+    /// A retirement whose original folder could not be removed (the original working copy was saved again, its record
+    /// replaced) can be stopped while the original edit is intact: the original is the edit again; nothing is removed.
+    /// </summary>
+    private async Task CancelRetirementAsync(EditSessionRecord session)
+    {
+        if (!EditSessionsActive || !_sessionActions.Add(session.Id)) return;
+        try
+        {
+            if (!await Dialogs.ConfirmAsync("Cancel retirement",
+                $"Make the original edit of \"{session.DisplayName}\" the edit again? This copy is kept for review; nothing is removed.",
+                "Use original"))
+                return;
+            CheckSessionAction();
+            await MutationIoAsync(Services.EditSessions.Root, () => Services.EditSessions.CancelLegacyRetirement(session), CheckSessionAction);
+            if (EditSessionsActive) Notify("The original edit is the edit again. Its copy is kept for review.");
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
+        { if (EditSessionsActive) Notify("The retirement continues: " + Formatters.SafeName(error.Message), true); }
+        finally { _sessionActions.Remove(session.Id); }
+    }
+
+    /// <summary>
+    /// The restart recovery action for one retained copy: FileCat reviews it again and removes only that copy. The edit,
+    /// its working copy and its other retained copies stay.
+    /// </summary>
+    private async Task RemoveRetainedSessionCopyAsync(EditSessionRecord session, EditCaptureRecovery selected)
+    {
+        if (!EditSessionsActive || !_sessionActions.Add(session.Id)) return;
+        try
+        {
+            string kind = selected.State == EditCaptureRecoveryState.Complete ? "verified retained copy" : "interrupted copy";
+            if (!await Dialogs.ConfirmAsync("Remove retained copy",
+                $"Remove this {kind} of \"{session.DisplayName}\"? FileCat checks it again and removes only this copy. " +
+                "The edit and its working copy stay.", "Remove", danger: true))
+                return;
+            CheckSessionAction();
+            var result = await MutationIoAsync(Services.EditSessions.Root,
+                () => Services.EditSessions.RemoveRetainedCapture(session, selected.Directory, check: CheckSessionAction), CheckSessionAction);
+            if (!EditSessionsActive) return;
+            if (result.Complete) Notify("The retained copy was removed. The edit is kept.");
+            else Notify(Formatters.SafeName(result.Issue ?? "The retained copy was kept for review."), true);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
+        { if (EditSessionsActive) Notify("The retained copy was kept: " + Formatters.SafeName(error.Message), true); }
+        finally { _sessionActions.Remove(session.Id); }
     }
 
     private async Task SaveRecoveredSessionCopyAsync(EditSessionRecord session, EditCaptureRecovery selected)

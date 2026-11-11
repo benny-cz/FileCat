@@ -60,7 +60,8 @@ internal sealed partial class UnixEditDirectoryLease : EditDirectoryLease
         {
             RequireOpen();Leaf(name);ReviewCore(ct);
             var created=UnixArchiveNative.CreateEditDirectory(directory,name,user,ct);
-            var result=new UnixEditDirectoryLease(System.IO.Path.Combine(Path,name),created,user,true,this,name);
+            // A removable folder (a commit capture) may later remove its own reviewed entries, as a discard does.
+            var result=new UnixEditDirectoryLease(System.IO.Path.Combine(Path,name),created,user,true,this,name){discard=removable,capture=removable};
             try { ReviewCore(ct);return result; } catch { result.Dispose();throw; }
         }
     }
@@ -101,8 +102,9 @@ internal sealed partial class UnixEditDirectoryLease : EditDirectoryLease
             // read/write bits on a replacement; those bits confer no access through this private namespace.
             var metadata=ArchiveUnixOuterMetadata.Capture(file.SafeFileHandle,ct);var facts=metadata.Native;
             if(facts.LinkCount!=1||facts.Length>EditSessionStore.MaxMemberBytes)throw new IOException("The working file is linked or exceeds its byte budget.");
-            using var named=UnixArchiveNative.Child(directory,name);
-            if(UnixFiles.Stat(named)?.Identity!=facts.Identity)throw new IOException("The editor replaced the working file during its review.");
+            // The name binding is read without opening the name: under a Linux removal lease another open of the file (even
+            // this process's own) is refused and would start a break of that lease.
+            if(UnixFiles.StatChild(directory,name)?.Identity!=facts.Identity)throw new IOException("The editor replaced the working file during its review.");
             ReviewCore(ct);
             Int128 ticks=(Int128)DateTime.UnixEpoch.Ticks+(Int128)facts.Modified.Seconds*TimeSpan.TicksPerSecond+facts.Modified.Nanoseconds/100;
             if(ticks<DateTime.MinValue.Ticks||ticks>DateTime.MaxValue.Ticks)throw new IOException("The editor's modification time is outside the supported range.");
@@ -129,7 +131,8 @@ internal sealed partial class UnixEditDirectoryLease : EditDirectoryLease
     {
         lock(Gate)
         {
-            // Only a reviewed discard removes (UnixEditDirectoryLease.Discard.cs); other snapshot cleanup keeps its artifact.
+            // Only a lease opened for a reviewed discard or created removable (a commit capture) removes; other cleanup keeps
+            // (UnixEditDirectoryLease.Discard.cs). The removal reviews the complete content itself, under the Linux lease.
             if(discard){RemoveReviewedFile(file,name,expected,ct);return;}
             ReviewCore(ct); // No unlink is attempted; retaining an artifact does not need another full payload read.
             throw new IOException("The private commit snapshot is kept for native cleanup review: "+Path);

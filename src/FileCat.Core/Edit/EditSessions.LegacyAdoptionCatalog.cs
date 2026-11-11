@@ -88,7 +88,7 @@ public sealed partial class EditSessionStore
             Version=old.Version,Id=old.Id,CreatedUtc=old.CreatedUtc,WorkingPath=old.WorkingPath,
             WorkingIdentity=old.WorkingIdentity,WorkingDirectoryIdentity=old.WorkingDirectoryIdentity,
             StorageRootIdentity=old.StorageRootIdentity,SessionDirectoryIdentity=old.SessionDirectoryIdentity,
-            LegacyAdoption=old.LegacyAdoption,LegacyAdoptionReady=old.LegacyAdoptionReady,
+            LegacyAdoption=old.LegacyAdoption,LegacyAdoptionReady=old.LegacyAdoptionReady,LegacyRetiring=old.LegacyRetiring,
             StorageRevision=old.StorageRevision,PreviousRecordSha256=old.PreviousRecordSha256,
             StoredRecordSha256=old.StoredRecordSha256
         };

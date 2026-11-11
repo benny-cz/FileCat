@@ -38,6 +38,7 @@
     <Compile Include="..\ArchiveEditDualRootCases.cs" Link="ArchiveEditDualRootCases.cs" />
     <Compile Include="..\ArchiveEditLegacyAdoptionCases.cs" Link="ArchiveEditLegacyAdoptionCases.cs" />
     <Compile Include="..\ArchiveEditLegacyAdoptionCrashCases.cs" Link="ArchiveEditLegacyAdoptionCrashCases.cs" />
+    <Compile Include="..\ArchiveEditLegacyRetirementCases.cs" Link="ArchiveEditLegacyRetirementCases.cs" />
     <Compile Include="..\ArchiveEditSnapshotCases.cs" Link="ArchiveEditSnapshotCases.cs" />
     <Compile Include="..\ArchiveEditSaveCopyPreparationCases.cs" Link="ArchiveEditSaveCopyPreparationCases.cs" />
     <Compile Include="..\ArchiveEditSaveCopyPublicationCases.cs" Link="ArchiveEditSaveCopyPublicationCases.cs" />
