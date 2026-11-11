@@ -1,5 +1,158 @@
 # Archive writing implementation status
 
+**11 November, last: commit captures cleaned up on Unix; retained copies and old edit folders removed on request;
+dialog text aligned.** Commit `92073c0e` (plan §12.1, R21, AT16):
+
+- **Commit captures on Unix.** Each native commit takes a private capture (`commit-<id>`: records and the reviewed
+  payload). On Unix its cleanup kept everything ("kept for native cleanup review"), so every commit left a copy. The
+  folders a capture creates may now remove their own reviewed entries under the cleanup rule, with a complete content
+  review right before each name goes (as Windows does). The first run found that a removed folder's lease stayed open
+  on Unix, so its parent counted a live child and kept itself; the lease now ends with the folder, as on Windows. The
+  shared snapshot matrix expects removal on every system.
+- **Restart recovery action.** A retained copy that a stopped commit or cleanup left can be removed from its review
+  ("Remove retained copy…", danger, confirmed): a fresh review of the edit's record chain and of that copy, then removal
+  of only that copy; the edit, its working copy and other copies stay, and a copy a saved copy refers to is kept. Twelve
+  shared cases (complete, interrupted with and without a payload, two copies, extra child or file, changed or replaced
+  payload, an out-of-date record, a wrong folder, a live commit, cancellation) and the UI path.
+- **Old-folder retirement (§12.1).** An adopted copy retires its old folder ("Retire original folder…"): the adoption
+  review and an exact-removal probe first (Linux lease, Windows sharing), then a durable retiring revision that makes
+  the copy the edit, then the old objects one by one, each bound to the identity and bytes recorded at adoption, then a
+  revision that drops the relationship. A stop resumes; a changed old copy or an extra file is kept and named; "Cancel
+  retirement…" returns to the old edit while it is intact. Thirteen shared cases (three need Unix, one of them Linux)
+  and the UI path; discard now accepts the history of an adopted edit. The
+  application still composes only the legacy store.
+- **Independent review of the deletion code, and its fixes.** A separate review of this candidate's removal code found:
+  on Unix the content was hashed before the Linux lease was taken (an in-place save in that gap would be removed); an
+  atomic save renamed onto the name between the name check and `unlinkat` would be the file removed; a lease break
+  signals SIGIO, which ends the process by default, so another program opening a file during a lease could end FileCat
+  (this also held for the committed discard); any lookup error on the old folder counted as "already removed"; a
+  retirement that could not finish had no way back; and native identity errors escaped as exceptions. Every Unix file
+  removal now takes the lease first (SIGIO ignored), reviews the content under it, sets the name aside by an exclusive
+  rename and removes it only if that name binds the held object with the lease unbroken, restoring it otherwise; only
+  ENOENT counts as removed; a retirement can be cancelled while the old edit is intact; the application holds the old
+  edit's commit off during a retirement; a failed final record after a complete removal says so; the Windows remover
+  also requires a single link. New cases stage an atomic save at the moment of removal and (Linux) another program
+  opening the file during the lease: both keep the file, FileCat survives the break, and the opener reads intact bytes.
+- **Theme captures (§11.8).** The shipped Create dialog in all eight themes is legible; the captures showed its text
+  lines 50 px right of a widened path box (a stretched block narrower than its row is centered). They are left-aligned
+  now, with a wide-window layout case that fails at 51 px without the fix.
+- **A test race on Windows.** The adoption kill test read the child's marker while another program (the VM's scanner or
+  indexer) briefly held the newly renamed file; it now retries a sharing violation.
+- **What the reruns found.** The first Linux run of the reworked removal failed everywhere it removed a file: the
+  working-file review checked the name's binding by reopening the file, and under FileCat's own lease Linux refuses that
+  non-blocking open (errno 11) and starts a break of the lease. The binding is now read with `fstatat`, without opening
+  the file. Mac had passed (no leases). On Windows a test helper read the old folder without sharing while the staged
+  editor held a file open for writing; it now reads with sharing. Two older Unix cases still expected a removable
+  folder and a capture to be kept (`remove-empty`, `cleanup-admission`); they expect removal now, as on Windows.
+- **Validation (v21l, then v21m; Windows one lane at a time).** Focused first: Mac and Ubuntu passed 341 edit, discard,
+  capture, adoption and retirement cases and 6 UI cases (v21k). Full v21l: Mac Core 344 + 8,716, Remote 2,638,
+  Rendering 23, App 2,810 passed, no failure; Ubuntu Core 355 + 8,778, Remote 2,543, Rendering 23, App 2,822 passed
+  (`SecretStoreTests` only for the VM keyring); Windows Core 8,297, Platform 243 + 1,165, Remote 2,405, Rendering 24,
+  App 2,914 passed. Besides the known link case (`DeviceReadTests`), two Windows cases failed: the elevation
+  download-mark case, because another program briefly held a new download's `Zone.Identifier` stream, and the 64-source
+  TAR.BZ2 LPAC verification, whose worker ran out of its time allowance while the Ubuntu VM's full run loaded the same
+  host; both passed alone (5/5). v21m turns the retirement cases that need Unix into skips elsewhere (they had returned
+  early as passes): Mac 27 passed and 1 skipped, Ubuntu 28, Windows 25 passed and 3 skipped.
+
+**11 November, later still: a failing drive is named; refusals that provably published nothing keep their text; Unix
+edits are discarded exactly.** Commit `aa9d8a13` (AT08, plan §11.7, §12.1, R21):
+
+- **A real failing drive (AT08).** `fault_volume.sh` (root, test machines only) puts ext4 on a device-mapper target over a
+  loop image and, on request, swaps in dm-flakey `error_writes` (reads keep working), then back with `e2fsck -fy` and a
+  fresh mount. Measured on Ubuntu 24.04.5: the first new folder's `mkdir` returns EIO, ext4 aborts its journal, and
+  every later change returns EROFS. FileCat's stage-folder creation turned that EIO into a refusal without its errno, so
+  the job showed its raw wrapper ("The created private archive artifact requires review: …"). Native opens, the stage
+  folder's `mkdirat` and `fsync` now keep the errno, and a drive error says "The drive reported an error before the
+  archive was saved, so no archive was changed. Check the drive, then try again." (once saving may have begun: "…while
+  the archive was being saved. Check the drive, and review the archive before continuing."). A file system that turned
+  read-only, or a write-protected medium on Windows, is worded as a read-only drive, not as a permission problem.
+  `A_drive_that_fails_writes_refuses_with_the_drive_text_and_keeps_the_original` fails the drive during an update and
+  checks the text, the original byte for byte (also after the check and remount), the reviewed recovery discard and a
+  clean folder: 14/14 with the message tests (v21c), and inside the full v21d storage shard.
+- **Saving-phase wording.** The overloaded Windows run below showed a small NTFS volume refusing at the space review
+  before the content snapshot, at the start of Saving, with "FileCat could not confirm which version is now at the
+  archive path. Both available versions were kept." The journal proved nothing was published and the stage was
+  discarded. A refusal that durable facts prove unpublished (that review, a refused Unix exchange) now keeps the text
+  before saving; the small-volume case accepts either full-drive refusal and never the unconfirmed text.
+- **Reviewed discard of native edits on Unix (§12.1, R21).** The archive transactions' private cleanup rules
+  ([decision](UNIX_PRIVATE_CLEANUP_DECISION.md)) now apply to edit sessions: a file's name is removed only while it
+  binds the held, reviewed object, which must then have no link left (no truncation: an editor may have it mapped); on
+  Linux a write lease first proves that no other program has it open, as Windows' sharing refuses an open editor;
+  folders only once empty and still bound. All 40 discard scenarios run on Unix with platform expectations (Mac v21a
+  760 passed in the edit classes, Ubuntu v21a 40/40). A discard is refused while a commit of the same edit is reading
+  its capture in this process (macOS shows no sharing for it).
+- **Windows: lanes one at a time.** The v20g Windows run started every lane at once on the 8 GB, 8-vCPU VM: Core took
+  42 minutes instead of 9, and 41 Core, 56 Platform, 1 Remote, 1 Rendering and many App cases failed on worker time
+  allowances and fixed test deadlines. It is not evidence; the run was stopped and repeated sequentially on v21d.
+- **Validation (v21d, all lanes; Windows one lane at a time).** Mac: Core 344 + 8,691, Remote 2,638, Rendering 23, App
+  2,807 passed, no failure. Ubuntu: Core 355 (with the failing-drive case) + 8,753, Remote 2,543, Rendering 23, App
+  2,819 passed; `SecretStoreTests` fails only for the VM keyring, as before. Windows (standard user, one lane at a
+  time): Core 8,297, Platform 244 + 1,140, Remote 2,405, Rendering 24, App 2,911 passed. Two Platform failures:
+  `DeviceReadTests.A_folder_reached_through_a_link_is_placed_where_the_link_leads` (this VM's VHD-backed `S:`, failing
+  the same way on the base commit) and the adoption kill test at its first boundary, which read the child's marker
+  while another program briefly held the renamed file (a sharing violation; the test retries it from the next commit).
+
+**11 November, later: archive dialogs speak their values, counts and reasons; keyboard users reach a waiting decision;
+the 50 ms UI budget measured live on Windows and Ubuntu.** Commit `e89f9814` (UX audit C, plan §11.8, AT16):
+
+- **Values of closed combo boxes on Windows.** NVDA said nothing when Down chose "Protect contents" in the closed
+  password-protection box: Avalonia 12.1's UI Automation bridge raises no value change (its property map has no entry
+  for the value), as its AT-SPI bridge raised none for Orca (answered earlier with an announcement). The box's own node
+  now raises UI Automation's value change through the bridge's raise function, which disables itself if that member
+  goes away. NVDA now says "Protect contents", then the polite problem "Enter a password or choose No password."
+- **Format details by name.** The 7z options and "What is included" expanders are named. Both journeys hear, by Tab:
+  Compression, "7z options" (both readers call the expanded header "pressed"), 7z compression method, preprocessing,
+  dictionary and header compression, Password protection, Protect contents, Archive password, Confirm archive password.
+- **Unavailable reasons.** A disabled menu-bar command shows its reason while disabled and carries it as help text; the
+  keyboard reference marks an unavailable command "Unavailable: <reason>".
+- **Held Enter.** "Replace compressed contents" (the old contents are not kept) opened on Replace in both routes (Pack
+  onto an existing compressed file, F5 onto one): it now opens on Cancel. The format-scan modal's only button, Cancel,
+  was the default, so the Enter that asked for a check (still repeating while held) cancelled it: no button is the
+  default now, focus starts on the named progress ("Checking <archive>"), and Escape cancels. The actual-worker
+  standalone lane presses Enter twice on both replacement questions and finds the contents unchanged.
+- **In-job questions.** A screen reader reads the focused button of an in-job question, not its message, so counts and
+  examples went unheard: the choice focused first now speaks them (the first example included). Archive reviews cover
+  the whole operation and no longer offer "Do the same for similar items". The collision message counts in the
+  singular for one name, and "Add 1 items" reads "Add 1 item".
+- **Keyboard path to a waiting decision.** Background work never takes the keyboard; its notice says "Choose Review
+  decision in Operations (Ctrl+J)". Both journeys found that Ctrl+J only showed the drawer and Tab switched panels, so
+  no keyboard user could reach "Review decision…"; with an operation row focused, panel keys (Enter, Delete, F8) also
+  acted on the panel's file. From the keyboard Ctrl+J now takes the keyboard into Operations, on the waiting decision
+  first; there Tab cycles, only global shortcuts act, Esc returns to the panel and Ctrl+J closes Operations.
+- **Journeys (v20f).** Stage 0 (format details) and stage 4 (copying a.txt into the TAR + gzip archive that holds it:
+  the notice, Ctrl+J, Space on "Review decision…", the question with Skip focused saying "1 incoming name can replace an
+  existing file. Choose Skip to keep all existing members. Example: "a.txt"", Escape cancels, the archive unchanged)
+  join the earlier stages. Orca's row navigation now ignores a row spoken before Home took effect (a panel's late focus
+  announcement had stopped it on ".."). NVDA 2026.3.1 passes every stage (report `E6F28F6A…`, host `71A1D450…`, worker
+  `5706233E…`); Orca 46.1 passes every stage (report `5d583a91…`, host `25d3cea3…`).
+- **50 ms UI budget, live.** The qualification host's `--ui-budget` probe (a 10 ms UI-thread timer) notes every gap
+  over 50 ms with its time; drivers on Windows and Ubuntu attribute gaps to idle, navigation, packing 20,000 small files
+  as TAR + gzip with keys going, opening that archive and adding a file to it. Ubuntu (13,287 ticks): no gap in any
+  window; the five gaps were four within 1.6 s of launch and one of 62 ms when the Create dialog first opened. Windows
+  (13,581 ticks): none in 160 s of packing (1,007 key presses) or while opening; in the add window two gaps of 65 and
+  62 ms, of which 59 and 51 ms were garbage-collection pauses; launch (five, up to 2 s) and the Create dialog's first
+  opening (84 ms, and 56 ms mostly collection) account for the rest (reports `A73B7733…`, `f4b4ab17…`). In the VM, Windows
+  maintenance (scheduled defrag and disk cleanup, plus servicing) kept the virtual disk at 60–90 MB/s and NVDA needed
+  over two minutes to start; the runner now ends the running defrag and cleanup instances first (nothing is
+  reconfigured) and waits up to 150 s.
+- **Ubuntu queued checks.** The never-executed exact-commit queues are superseded by the current-code full regression
+  v19m9 on Ubuntu 24.04.5: marked creation 87 passed, exact-origin update stage 10, restoration preparation 8.
+- **Worker-monitor refusals.** No failed Ubuntu result since v15c involved a worker refusal (v15c, v16 and its parallel
+  run, v17, v18, v19, v19m7, v19m9, unix-create-v3); `soak_worker_monitor.sh` now replays the TAR pipelines, worker
+  lifecycle and native storage classes of a built run repeatedly, three shards at once: six iterations on the v20g
+  build (23 minutes) gave 3,060 passes, no failure and no worker refusal. The cause of the two early refusals stays
+  unknown; nothing here claims a fix for it.
+- **Validation (v20g; the corrected standalone steps rerun).** Mac: Core 344 + 8,652, Remote 2,638, Rendering 23, App
+  2,804 passed. Ubuntu: Core 354 + 8,714 (`SecretStoreTests`, the VM keyring), Remote 2,543, Rendering 23, App 2,816.
+  On both, the three actual-worker standalone cases failed first: the new F5 step clicked Copy before the dialog
+  enabled it; with the step waiting for an enabled button the class passes 7/7 (three Windows-only skips) on both.
+  FZ10 `publication-races` replay passes on both (61 published, 120 refused). Windows VM: the v20g run
+  started every lane at once and is not evidence (see the entry above); the one-lane-at-a-time v21d run of the next
+  commit's tree, which contains this one, is.
+- **Not caused by this branch.** This development host runs elevated, and FileCat refuses user-profile edit sessions as
+  administrator, so 194 App tests in the rerun classes fail here identically on the committed parent `48f503c6` and on
+  this candidate; the Windows VM's standard-user lane, the reference, runs them.
+
 **11 November: full suites on all three platforms, two regressions of this branch fixed; NVDA hears archive phases;
 Ubuntu extraction within its budget (R22); FZ10 publication-race target; AT18 memory measured as live bytes.** Commit
 `a49f2b54`:

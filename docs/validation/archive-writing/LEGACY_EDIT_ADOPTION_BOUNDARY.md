@@ -145,3 +145,22 @@ parameterized UI case. The test processes exited. The later full-target catalog 
 and original-folder review UI are undergoing a combined three-platform batch; these earlier
 results do not qualify those newer bytes. Old-folder retirement, production composition,
 Ubuntu replay and the wider release gates remain open.
+
+11 November, later. **Exact old-folder retirement** is implemented (`EditSessions.LegacyRetirement.cs`,
+`UnixLegacyEditRemoval`, `WindowsLegacyEditRemoval`; [decision](UNIX_PRIVATE_CLEANUP_DECISION.md)). The adopted item's
+review offers "Retire original folder…" while the link is intact. Nothing changes until the adoption review passes again
+and a probe shows that every recorded old object can be removed (Windows opens each sharing only reads, so an editor
+that has the old working copy open for writing refuses it; Linux takes a write lease; macOS cannot tell, and the
+confirmation asks to close the old editor first). A durable retiring revision then makes the adopted copy the edit: the
+old record no longer speaks for it (lookup and the session list skip it), and the item offers "Finish retiring
+original…". The old working file, its folder, the old record and the session folder are removed one by one, each bound
+to the identity recorded at adoption, a file only with its recorded bytes; a later revision drops the relationship and
+the copy is an ordinary native edit (commit, reopen, discard). A stop resumes from the retiring revision; a changed old
+working copy or an extra file is kept and named, so no edit is lost; while the old record and working copy are there,
+"Cancel retirement…" makes the old edit the edit again and removes nothing. Every file goes through the shared exact
+removal (Linux lease before the content review, the name set aside and removed only while it binds the held object,
+SIGIO ignored; [decision](UNIX_PRIVATE_CLEANUP_DECISION.md)). Thirteen shared cases (complete, edited old copy, extra
+file, open editor, stop after the intent, stop after the working file, a change or an extra file after the intent, a
+record that is not adopted, cancel; on Unix an unreadable old folder and an atomic save at the moment of removal; on
+Linux another program opening the file during the lease), with the UI path in `EditAdoptionRetainedUiTests`. The
+application factory still composes only the legacy store; registering the native store remains open.

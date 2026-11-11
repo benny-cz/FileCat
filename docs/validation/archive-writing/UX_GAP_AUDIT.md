@@ -37,7 +37,20 @@ A11 needs no separate state: the write revision is computed while the listing is
 loading or complete with its revision; "Refresh this archive…" appears only when writing became available after the
 listing was built, and a refresh is exactly the remedy.
 
-Still open: every C item (the live screen-reader, scaling and theme runs).
+C items addressed on 11 November (live runs recorded in the implementation status):
+
+| Item | Change | Test |
+|---|---|---|
+| C menu bar | A disabled menu-bar command shows its reason while disabled and carries it as help text; the keyboard reference says "Unavailable: <reason>" for an unavailable command | `MenuUnavailableReasonTests`, `KeyboardReferenceTests` |
+| C Create dialog | The 7z options and "What is included" expanders are named; NVDA and Orca hear compression, "7z options" (expanded is "pressed" for both), the four 7z rows, password protection, "Protect contents" and both password fields | journey stage 0 (`win-nvda-archive-writing.ps1`, `linux-orca-archive-writing.py`) |
+| C combo boxes | Up or Down in a closed combo box was silent with NVDA (Avalonia's Windows bridge raises no value change): the box's node now raises UI Automation's value change, as Linux already sent an announcement | `DescendantFocusAutomationTests.A_keyboard_change_of_a_closed_combo_box_raises_its_value_change_on_Windows`; NVDA stage 0 hears "Protect contents" |
+| C held Enter | "Replace compressed contents" (old contents not kept) opens on Cancel in both routes; the format-scan modal has no default button and starts on its named progress, so the Enter that asked for it cannot cancel it; Escape cancels | `ArchiveScanOperationsTests`; `ArchiveStandaloneUiTests` (held Enter cancels both replacement questions; actual-worker lanes) |
+| C in-job review | The choice focused first speaks the counts and the first example (a screen reader reads the focused button, not the message); a whole-operation archive review offers no "do the same" checkbox; the collision message counts in the singular for one | `BackgroundDecisionTests`; journey stage 4 (Ctrl+J, "Review decision…", the question with Skip focused, Escape cancels, archive unchanged) |
+| C Operations keyboard | A waiting decision's notice says "Choose Review decision in Operations (Ctrl+J)", but Ctrl+J only showed the drawer and Tab switched panels, so NVDA and Orca users could not reach "Review decision…"; and with a job row focused, panel keys (Enter, Delete, F8) acted on the panel's file. From the keyboard Ctrl+J now takes the keyboard into Operations (the waiting decision first); there Tab cycles, only global shortcuts act, Esc returns to the panel and Ctrl+J closes Operations | `BackgroundDecisionTests.Ctrl_J_takes_the_keyboard_to_a_waiting_decision_and_back` |
+| C UI budget | `--ui-budget` in the qualification host notes every UI-thread gap over 50 ms with its time; drivers for Windows and Ubuntu attribute gaps to idle, navigation, a 20,000-file pack, opening the archive and adding to it. Ubuntu: no gap in any archive window; Windows: none while packing (160 s) or opening, two in the add window of 65 and 62 ms of which 59 and 51 ms were garbage-collection pauses; startup and the first opening of a dialog account for the rest | `win-ui-budget-archive.ps1`, `linux-ui-budget-archive.py` |
+| C themes | `eng/Screenshots` (Debug) rendered the Create dialog as shipped (ZIP, the only writable route) in all eight themes: every label, field, button and the danger/accent fills legible, including High Contrast and DOS Commander. The captures showed the "Pack … into:" line, the filename and the estimate 50 px right of the path box whenever a long path widened the dialog (a stretched text block narrower than its row is centered); those lines, and the other archive dialogs' text, are now left-aligned | `ArchiveDialogViewportTests.The_create_dialog_text_starts_where_its_path_box_starts_in_a_wide_window` (fails at 51 px without the fix); contrast of every palette in `ThemePickerTests` |
+
+Still open from C: macOS VoiceOver, moot while macOS writing cannot be qualified.
 
 ## A. Missing or partial behavior
 

@@ -79,3 +79,67 @@ that gap under these additional rules:
 
 On Windows the objects live beside the archive; each is reopened by its recorded NTFS identity and deleted through that
 handle (POSIX disposition), so no name is ever removed by path.
+
+## Revision: reviewed discard of native edit sessions (11 November)
+
+The same rule now removes a native edit session that the user explicitly discards (`UnixEditDirectoryLease.Discard.cs`),
+in FileCat's creator-private edit namespace. Only leases opened for that reviewed discard remove anything; ordinary
+snapshot cleanup keeps its artifacts as before. Two differences from transaction cleanup, both because the working copy
+belongs to an editor the user may still have open:
+
+1. Content is not truncated before the name goes. An editor may have the working copy mapped, and truncation under a
+   mapping faults that editor. The name is removed only while it still binds the held, reviewed object (identity, this
+   user, a single link), and afterwards the held object must have no link left; otherwise the result is reported and
+   nothing else is touched. A folder is removed only once empty and while its name still binds the reviewed folder.
+2. An open editor is refused where the system can show it. Windows' file sharing refuses during review. On Linux a write
+   lease (`F_SETLEASE` with `F_WRLCK`) is granted only while no other descriptor or mapping holds the file: every
+   reviewed file is probed during review, before anything is removed, and the lease is taken again right before each
+   name goes ("The working copy is open in another program. Close it, then discard again. Its files are kept."). macOS
+   cannot show it: its `F_SETLEASE` refuses an ordinary process (`EPERM`, measured on macOS 27.0.1 for a file no one
+   else had open), so there the discard proceeds and an editor that still holds the working copy keeps its own
+   unlinked copy until it closes it. Within FileCat, a commit that is still reading a captured copy of the edit is
+   refused on every system ("This edit is being committed. Discard it after that operation finishes.").
+
+The shared matrix of 40 discard cases runs on Unix now, with only the open- and mapped-editor outcomes differing on
+macOS; it passed on macOS (v21a, all 40) and Ubuntu (v21a, all 40).
+
+## Revision: commit captures, retained copies and old edit folders (11 November, later)
+
+Three more removals use the same rule, each only for objects FileCat created and recorded:
+
+1. **A commit capture** (the private snapshot of one commit, `commit-<id>` with its records and payload) is removed once
+   its commit is done, through the leases that created it. Its own cleanup reviews each file's complete content
+   immediately before the name goes, as Windows does for every removal, because nothing else reviewed it since the
+   commit read it. Ordinary snapshot cleanup no longer keeps captures on Unix.
+2. **A retained copy** that a stopped commit or cleanup left is removed only by the user's explicit "Remove retained
+   copy…" after a fresh review of the edit's record chain and of that copy (its records, its payload or an interrupted
+   copy's partial payload). A copy that a saved copy still refers to is kept: it is that copy's recovery evidence.
+3. **The old folder of an adopted edit** is removed only by the user's explicit retirement, after the adoption review
+   and a probe that every recorded object can be removed (on Linux, a write lease proves no other program has the old
+   working file open). A durable revision then makes the adopted copy the edit before anything is removed; the old
+   working file, its folder, the old record and the 0700 session folder follow, each only while its name binds the
+   identity recorded at adoption and, for a file, only with its recorded bytes: an old working copy changed since the
+   copy is kept so no edit is lost. The session folder's own name is removed only from a root no other user can
+   change. A stop resumes from the durable revision; anything unexpected is kept and named.
+
+## Revision: the last moment of a removal (11 November, after an independent review)
+
+An independent review of the code above found that the window between the content review and the removal was open on
+Unix: the content was hashed before the Linux lease was taken, so an editor that saved in place and closed the file in
+that gap would have its save removed; an editor's atomic save (a new file renamed onto the name) between the name check
+and `unlinkat` would have been the file removed; and a lease break signals SIGIO, whose default action ends the process
+(.NET installs no handler for it), so another program opening the file during a lease could have ended FileCat. Every
+Unix file removal here (discard, commit-capture cleanup, retirement) now goes through one sequence
+(`UnixExactRemoval`):
+
+1. On Linux the write lease is taken first; SIGIO is ignored for the process. The complete content is reviewed under
+   the lease, so a save cannot land unseen: another program's open waits and starts a lease break.
+2. The lease must be unbroken and the name must still bind the held object. The name is then set aside by an exclusive
+   rename to a private name, and only if that name binds the held object, with the lease still unbroken, is it unlinked.
+   Otherwise the name is restored, so an atomic save that took it, or an open that arrived meanwhile, keeps its file.
+3. Only a child that is not there (ENOENT) counts as already removed; any other failure to open it keeps everything.
+
+macOS still has no lease for an ordinary process: an editor that keeps the file open can write after the review; the
+confirmations ask to close it first, and macOS writing is not qualified (platform position). A retirement that cannot
+finish because the old working copy was saved again, or its record replaced, can be cancelled while the old record and
+working copy are there: the old edit is the edit again and nothing is removed.
