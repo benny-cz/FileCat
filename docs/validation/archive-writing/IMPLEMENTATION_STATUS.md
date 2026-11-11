@@ -1,5 +1,32 @@
 # Archive writing implementation status
 
+**11 November, packaging dry run (row 12, §16.1, AT20).** Commit `d44c3d86`, packaged from a clean checkout of exactly
+that commit on each system:
+
+- **It found a blocker.** Archive writing extended FileCat's SharpCompress fork and its inventory
+  (`licenses/sharpcompress/COMPONENTS.md`, `SHA256SUMS`), but `eng/publish.ps1`, `eng/package-linux.sh` and
+  `eng/package-macos.sh` still pinned the earlier notice set, so none of them could build a package from this branch
+  ("licenses/sharpcompress/SHA256SUMS differs from the reviewed notice set"). The new inventory entries match the
+  files' own headers (public-domain LZMA SDK 26.05 ports, FileCat's own PPMd7 encoding adapter and swap filter); no
+  license text and no package dependency changed. The three scripts now pin `b036603d…`; release evidence E-I14
+  records the amendment, which needs the same hosted-CI acceptance before release.
+- **Windows (host).** Setup payload, portable and framework-dependent builds: 125 dependency notices verified in each,
+  the SharpCompress notice set accepted, exact-payload SBOMs of 399, 395 and 207 files (34 reviewed packages).
+  Portable zip `e8954397…`, framework-dependent zip `40f44ffe…`.
+- **Ubuntu 24.04.5.** Tarball `9a5e8889…`, `.deb` `d3a919d5…`, AppImage `aa296ff2…` with its runtime source, three
+  SBOMs (33 reviewed packages; the AppImage's lists 411 files). `appimagetool` 1.9.1 was the VM's existing copy with
+  the pinned checksum; nothing was downloaded. The release register validator passes (628 IDs, 981 evidence entries,
+  82 acceptance cases).
+- **macOS 27 (arm64).** App zip `1c133721…`, SBOM of 389 files; `codesign --verify --deep --strict` passes and the
+  unpacked app starts (`FileCat 1.0.0-dev`). Ad-hoc signed only, not notarized.
+- **Payload inspection.** No `deps.json` and no folder holds the upstream SharpCompress package, fuzz instrumentation,
+  a test framework, a compiler or a CLI oracle; the only executables are FileCat's three and the runtime's
+  `createdump`. The archive worker roles ship inside `FileCat.Archives.dll`, run by `FileCat.exe` with a worker
+  argument. The dedicated worker package (`FileCat.ArchiveWorker` over `FileCat.Archives.Writing`, the same sources
+  without the browsing readers) is built but not packaged; the route decisions must state which one ships.
+- **Still open for row 12.** The final candidate's packages, signing (a trusted Windows signing provider, macOS
+  notarization), installed and portable route tests, and the release manifest.
+
 **11 November, last: commit captures cleaned up on Unix; retained copies and old edit folders removed on request;
 dialog text aligned.** Commit `92073c0e` (plan §12.1, R21, AT16):
 
