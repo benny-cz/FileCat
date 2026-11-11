@@ -18,6 +18,12 @@
   CPU-hours) and Windows x64 (26 targets, 5.179 CPU-hours in two passes), with no failure; the per-RID floor is 4.
 - **Windows publication races (FZ10).** A new Windows lane runs the publication-race oracle against the confined
   worker and NTFS recipes: 179/179 on the VM's standard token, and 121 of 200 seeded random rounds published.
+- **Regression at `9f716c75`** (both fixes, Windows FZ10 test). Mac: Core 344 + 8,731, Remote 2,638, Rendering 23,
+  App 2,810 passed, no failure; one new skip is a Linux-only lease scenario added in C3. Windows VM (standard token,
+  one lane at a time): Core 8,313, Platform 422 + 1,163, Remote 2,405, Rendering 24, App 2,914 passed; the one failure
+  is `DeviceReadTests.A_folder_reached_through_a_link_is_placed_where_the_link_leads`, which finds this VM's
+  VHD-backed `S:` on `C:`'s disk and fails the same way on the base commit (see the v21d entry). Evidence
+  `full-v22a-mac` `72f0bab5…`, `full-v22a-win` `70cefeb4…`. The Ubuntu suite follows the campaign.
 - **Running.** 47 sealed-and-verified runs, 25 CPU-hours per format family and 25.3 shared (plan: 24), on the 12-vCPU
   Ubuntu VM. Completion, host verification of every transport and the final corpus replay on each RID remain open.
 
