@@ -1,5 +1,23 @@
 # Archive writing implementation status
 
+**11 November, native fuzz campaign on candidate `62f0a457` (row 7, §13.3, §13.6).** Details in
+[FUZZ_CAMPAIGN_SETUP.md](FUZZ_CAMPAIGN_SETUP.md):
+
+- **Two product defects found and fixed.** The edit-record parser accepted a record whose working path is its own
+  session folder as a usable edit (`37ffe408`). The 7z browse reader let a filter after a PPMd coder read the decoder's
+  overrun bytes, so PPMd + Swap 7z archives, including FileCat's own, read back with a changed tail and failed FileCat's
+  CRC check, while real 7-Zip reads them (`d7287a35`, vendored SharpCompress, recorded in its changes file). Each has a
+  regression test that fails without the fix; the Mac passed 216/216 in the edit-session and 7z writing classes.
+- **Fuzz coverage widened.** All of Core's archive, edit-session and journal code, the whole writing namespace and the
+  vendored codecs are now instrumented; new `sevenzip-writer` and `rar5-writer` targets cover the 7z and RAR5 writers
+  against independent readers. All 27 targets passed canary, replay and short runs on image `fuzz-candidate-v4`.
+- **Test-environment faults fixed.** The fuzz units' file-size cap also capped .NET's JIT-code memory, PrivateDevices
+  left capabilities that FileCat's identity check refuses, and in-process roles kept LZMA tables in thread-pool caches;
+  none was a product defect.
+- **Running.** 47 sealed-and-verified runs, 25 CPU-hours per format family and 25.3 shared (plan: 24), on the 12-vCPU
+  Ubuntu VM; structured-mutation lanes on macOS arm64 and Windows x64. Completion, host verification of every
+  transport, corpus replay on each RID and Windows TxF publication races remain open.
+
 **11 November, packaging dry run (row 12, §16.1, AT20).** Commit `d44c3d86`, packaged from a clean checkout of exactly
 that commit on each system:
 

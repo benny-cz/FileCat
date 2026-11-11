@@ -1,5 +1,60 @@
 # Coverage-guided archive-writing fuzz setup
 
+**11 November, candidate campaign on `62f0a457` running (row 7, §13.3, §13.6).** One image, one candidate, every target:
+
+- **Image `fuzz-candidate-v4`.** [`prepare_fuzz_candidate_guest.py`](../../../eng/validation/archive-writing/prepare_fuzz_candidate_guest.py)
+  built it on the Ubuntu VM from a clean checkout of exactly `62f0a457` (product source identical to `d7287a35`): the
+  product build's files are hashed into `preparation.json`, the harness packet is `2ad17f19…` (the checkout's own
+  harness build), and only the reviewed native libFuzzer driver comes from the earlier `fuzz-canary-v2` image.
+  Instrumentation now covers what §13 lists: all of `FileCat.Core.Archives` with the edit-session store and job
+  journal (528 types: guards, planning, worker protocol, transform conversation, journaled preparation, native jobs,
+  publication, discard and recovery records), the whole `FileCat.Archives.Writing` namespace (201 types: strict readers,
+  rewrite engines, encoders, catalogs, worker roles) with the read guards and password sessions, and the vendored codecs
+  (`SharpCompress.Compressors`, `Crypto`, `Algorithms`: 315 types, including the unsafe Zstandard port). Codec locations
+  feed coverage only; they are instrumented without the per-branch method callback. Earlier images covered the strict
+  readers and the recovery parsers only. Method reports keep one flag per location (no longer cut at 128 names).
+- **27 targets.** The 25 existing ones plus `sevenzip-writer` and `rar5-writer`
+  ([`ContainerWriterTargets.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/ContainerWriterTargets.cs)):
+  create, update, stale/unknown/unused/unsafe change refusal and mutated-stage verification through the real plans,
+  worker roles (single-use password grants for protected profiles, a quarter of requests) and fresh verifier, compared
+  with each format's separate browse reader (FZ05–FZ07, FZ13). On v4 the two-byte canary was found (933 calls) and its
+  replay reproduced exit 77; every target's 120-second short run finished clean and reached its required production
+  methods (for example 1,550 named methods for `publication-races`, 965 for `sevenzip-writer`).
+- **Product defects the new image found** (both fixed, with regression tests that fail without the fix; Mac 216/216 in
+  the edit-session and 7z writing, filter and PPMd classes):
+  `session-record` — the edit-record parser accepted a record whose working path is its session folder (the recovery
+  helper's fallback value) as a usable edit; `37ffe408` requires a file strictly inside the folder.
+  `sevenzip-writer` — the 7z browse reader passed a following filter the PPMd coder's overrun bytes (7z PPMd has no end
+  marker), so PPMd + Swap2/Swap4 archives, including ones FileCat writes, read back with a changed tail and FileCat's
+  CRC check called them damaged; real 7-Zip 24.01 tests and extracts them. `d7287a35` ends that coder's output at the
+  folder's recorded unpack size in both decoder registries (`THIRD-PARTY-CHANGES.md` records it).
+- **Harness and runner defects found on the way** (not product): the units' 16 MiB `LimitFSIZE` also caps the
+  runtime's write-xor-execute memory file that holds all JIT code, so widely instrumented images ran out of executable
+  memory within seconds and the runtime failed fast with out-of-memory; this was also the unreproducible create-inputs
+  crash of the first candidate image, never seen in 2.1 million executions outside a unit. The cap is now 1 GiB.
+  `PrivateDevices=` left inherited capabilities, so FileCat's ordinary-identity check refused every publication-race
+  input (58,542 of 58,542); an empty `CapabilityBoundingSet=` clears them. The session-record target still called the
+  parser's old signature; the seed cap (64) was below `publication-races`' 181 seeds; and the in-process roles ran on
+  thread-pool threads whose shared-array-pool caches kept the LZMA encoder's match-finder tables (95–280 MiB that a
+  full collection could not free on Linux), so each role now gets its own thread, as each real role gets its own
+  process: the live heap stays at 2–8 MiB. Every unit now leaves a .NET crash report if the managed child faults.
+- **Campaign.** [`run_fuzz_candidate_campaign_guest.py`](../../../eng/validation/archive-writing/run_fuzz_candidate_campaign_guest.py)
+  sizes 47 runs from each short run's CPU rate (18% margin) and keeps 11 hardened units busy, longest first, on the
+  12-vCPU VM. Planned floors: 25 CPU-hours for each format family (TAR: `tar-strict`, `member-keys`, `create-inputs`,
+  `update-changes`, `verify-output`; compressed streams: `gzip-`, `bzip2-`, `zstd-strict`, `standalone-streams`; 7z:
+  `sevenzip-strict`, `-password`, `-writer`; RAR5: `rar5-strict`, `-password`, `-writer`; ZIP: `zip-archives`) and 25.3
+  for the eleven shared stateful, protocol and recovery targets, every target at least 2.3 (§13.6: 24 and 2). Each
+  finished run is sealed on the guest by
+  [`seal_fuzz_candidate_guest.py`](../../../eng/validation/archive-writing/seal_fuzz_candidate_guest.py) with its canary,
+  replay and short runs, the clean binaries, type reports and the target's seed folder;
+  [`verify_fuzz_candidate_transport.py`](../../../eng/validation/archive-writing/verify_fuzz_candidate_transport.py)
+  re-derives every check on the host and the family floors (`campaign` mode). The same seeds run as structured mutation
+  at the same commit on macOS arm64 and Windows x64 (the §13.6 platform floor of 4 CPU-hours per additional RID), with
+  [`run_structured_lanes_unix.sh`](../../../eng/validation/archive-writing/run_structured_lanes_unix.sh) and
+  [`run_structured_lanes_windows.ps1`](../../../eng/validation/archive-writing/run_structured_lanes_windows.ps1).
+- **Open.** Campaign completion, sealing and host verification; the final corpora's `replay-corpus` pass on each
+  shipping RID; Windows TxF publication races.
+
 **11 November, FZ10 `publication-races` target implemented (no campaign yet).**
 [`PublicationTargets.cs`](../../../eng/validation/archive-writing/ArchiveFuzzHarness/PublicationTargets.cs) runs the real
 Unix archive job route (`UnixArchiveJobBackend` through `IArchiveJobBackend.Execute`: review, capture, journaled
