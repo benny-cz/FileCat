@@ -121,7 +121,9 @@ def verify(image, run, target, minimum_cpu_seconds, candidate):
         sealer = packet.extractfile("source/seal_fuzz_candidate_guest.py").read()
     assert sha(harness) == clean["FileCat.ArchiveFuzzHarness.dll"]["sha256"]
     # The sealer shipped in the packet, or this repository's committed one (which also accepts slow-unit reports).
-    assert index["sealer_sha256"] in (sha(sealer), sha((Path(__file__).resolve().parent / "seal_fuzz_candidate_guest.py").read_bytes()))
+    # Hashed as the Linux guest sealed it: a Windows checkout of this repository may hold the script with CRLF endings.
+    current = (Path(__file__).resolve().parent / "seal_fuzz_candidate_guest.py").read_bytes().replace(b"\r\n", b"\n")
+    assert index["sealer_sha256"] in (sha(sealer), sha(current))
     for name in ("FileCat.Core.dll", "FileCat.Archives.dll", "FileCat.SharpCompress.dll"):
         assert prep["product_files"][name] != clean[name]["sha256"]
     for kind in ("core", "tar", "codecs"):
