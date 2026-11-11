@@ -1,7 +1,8 @@
 # Archive writing implementation status
 
-**11 November: full suites found two regressions of this branch, both fixed; NVDA now hears archive phases; FZ10
-publication-race target; AT18 memory measured as live bytes, the same 243 MiB peak on all three platforms.** Commit `COMMIT`:
+**11 November: full suites on all three platforms, two regressions of this branch fixed; NVDA hears archive phases;
+Ubuntu extraction within its budget (R22); FZ10 publication-race target; AT18 memory measured as live bytes.** Commit
+`a49f2b54`:
 
 - **Save-copy stage cleanup (regression of `38e56944`, R21).** The bound cleanup removed FileCat's save-copy stage only
   when the stage's identity had been recorded, and the identity was read only after a successful copy, so a copy that
@@ -11,8 +12,9 @@ publication-race target; AT18 memory measured as live bytes, the same 243 MiB pe
   removed under the same rules as a complete one: on Unix only in a folder no other user can change while the name binds
   that identity, on Windows through a handle bound to it; anything else is kept and logged. New tests remove a partial
   stage in a private Unix folder, keep it in a shared one, and remove it through a bound handle with the Windows adapter.
-  The App tests' fault-injecting adapter now takes file identities and bound deletion from the platform's real adapter,
-  as production does; without them every Windows destination-failure case would have kept its stage.
+  The App tests' fault-injecting adapter now takes file identities and bound deletion from the adapter production uses
+  (on Windows `WindowsFileOperations`); without them the Windows destination-failure and shutdown cases kept their
+  stage (seven failures in the intermediate v19m7 Windows App suite).
 - **User-private-group folders.** `A_group_writable_destination_keeps_the_copy_unpublished` predates the rule from
   `2acacfe3` that a folder writable only by the user's own private group is private (Debian, Ubuntu, Fedora), so it
   published on Ubuntu. It now makes the folder writable by a group the user shares with others, or by everyone when the
@@ -30,7 +32,10 @@ publication-race target; AT18 memory measured as live bytes, the same 243 MiB pe
   F2 and F8 refused inside it (report SHA-256 `CAEF035D…`, host `71A1D450…`, worker `5706233E…`).
 - **FZ10 `publication-races`** (fuzz setup record): the real Unix job route with up to six actions of another program
   of the same user around every durable transaction, cleanup and discard record; no version is lost, no concurrent
-  version is displaced silently, nothing torn reaches the name. FZ10_RESULTS
+  version is displaced silently, nothing torn reaches the name. Its 181 seeds (each action alone at eight points for
+  creation and update, plus pairs around publication) replay without an oracle violation on the Mac and Ubuntu: 61
+  published and 120 refused on each. Writing it found two things: the claim message below, and a fixture defect (macOS
+  `/var` is a link, which `JobManager.SubmitArchive` resolves at submission and the harness had not).
 - **New-archive name taken at the claim.** A file appearing at a new archive's name between the review and the claim was
   refused correctly (no-replace rename) but reported as `errno 17` (Unix) or a generic "already exists" (Windows). Both
   now say "Another file named “…” appeared while the archive was being prepared. That file was kept and the new archive was
@@ -38,8 +43,9 @@ publication-race target; AT18 memory measured as live bytes, the same 243 MiB pe
   archive's own folder) and on Windows; the shared `existing-target` case asserts the text on all three platforms.
 - **AT18 memory ([review](AT18_SCALE_REVIEW.md)).** The tests' "retained" figure, `GC.GetTotalMemory(true)` after an
   ordinary full collection, can also count heap space that holds no live object (free space the collector has not
-  compacted), and on macOS it did: the Mac's 492 MiB was not live state. An opt-in breakdown of 20,101 members read 3,303 bytes per member after
-  capture on the Mac and 1,682 on Ubuntu, but the bytes surviving a compacting collection were 1,682 on both, a census of
+  compacted), and on macOS it did: the Mac's 492 MiB was not live state. An opt-in breakdown of 20,101 members read
+  3,303 bytes per member after capture on the Mac and 1,682 on Ubuntu, but the bytes surviving a compacting collection
+  were 1,682 on both, a census of
   everything reachable from the captured selection sums to the same figure, and releasing the job returns the heap to its
   baseline. Live bytes per member, Mac and Ubuntu alike: capture 1,682, planning +213, the worker request +214, against
   charges of about 2,450 for capture and 1,100 for planning. The AT18 tests now sample live bytes (two compacting
@@ -48,18 +54,41 @@ publication-race target; AT18 memory measured as live bytes, the same 243 MiB pe
 - **Windows AT18 on the v17 capture.** Creation 1,108.7 s (capture 351.7 s, 1,056 s before), assessment 275.9 s,
   update 1,073.9 s, peak 243 MiB while checking, handles 360→370; Defender's real-time protection was off (by the VM's
   owner), so the comparison with v15b is not one to one.
-- **R22 on Ubuntu (open).** The opt-in archive benchmark's ZIP extraction (20,000 notes of about 1 KiB and four 64 MiB
-  files, F5 into a folder) takes 5.4 times the runtime's own extractor against the 4× budget, on this branch (7.2 s
-  against 1.35 s) and on its base `42829297` (8.3 s against 1.5 s); only Windows (2.52×) and the Mac (3.71×) had been
-  graded. Under strace the extracting thread makes about 58 system calls per file where the runtime's extractor makes a
-  handful: 17.7 `statx`, 8.1 `lstat`, 7.1 `fstat`, 6.7 `lseek`, 3.1 `geteuid`, 2 `flock`, one each of open, rename,
-  `utimensat`, `readlink` and `fadvise`. The six source-container checks per file account for twelve `statx` and the
-  per-file destination hold and existence lookup for most `lstat` calls; attributing the rest, and the managed time, comes
-  before any change to these safety checks.
+- **R22 on Ubuntu: archive extraction 5.4× → 3.21×.** The opt-in archive benchmark's ZIP extraction (20,000 notes of
+  about 1 KiB and four large files, F5 into a folder) took 5.4 times the runtime's own extractor against the 4× budget,
+  on this branch (7.2 s against 1.35 s) and on its base `42829297` (8.3 s against 1.5 s); only Windows (2.52×) and the
+  Mac (3.71×) had been graded. With 1 MiB instead of 64 MiB large files it was no better (8.5 s against 1.0 s), so the
+  cost was per file, not per byte. Measured in the VM: about 58 system calls per extracted file (12 `statx` from the six
+  source-container checks, 6 `statx`, 7 `lseek` and 6 `fstat` from the ZIP reader's source checks, the destination
+  lookups), but the extracting thread was on the CPU only a third of the time: scheduler traces showed about 1,000 waits
+  scattered through managed code, the runtime suspending it for collections, and 550 disk waits in the job journal. The
+  collections came from the copy loop allocating a fresh 1 MiB buffer for every item, a large-object allocation zeroed
+  each time, 20 GB for 20,000 notes. The transfer executor now keeps one copy buffer per job (items are copied one at a
+  time and every write uses only the bytes its read returned). Six runs on the Ubuntu VM: 2.97–3.56×, every one within the
+  budget; the candidate's benchmark: Ubuntu ZIP 3.9 s against 1.2 s (3.21×) and TAR.GZ 1.82×, Mac ZIP 6.8 s against
+  2.4 s (2.88×, 3.71× before) and TAR.GZ 1.95× (evidence `830b52f0…`, `dfa1efa2…`). The benchmark also now composes the
+  adapter the application ships (`UnixFileOperations` on Linux and macOS).
+  The remaining per-file system calls and the journal's per-folder durable records are recorded for a later reduction;
+  ordinary local copies allocate the same per-file buffer in `PortableFileOperations.CopyFile`.
 - **Not caused by this branch.** `SecretStoreTests` fails in the Ubuntu VM's test service because the keyring's default
-  alias names a `login` collection that does not exist there; this branch does not touch that code.
+  alias names a `login` collection that does not exist there; this branch does not touch that code. On Windows,
+  `DeviceReadTests.A_folder_reached_through_a_link_is_placed_where_the_link_leads` picks another fixed volume and in this
+  VM finds the VHD-backed `S:`, whose file lies on `C:`'s disk; the base commit `42829297` fails it the same way in the
+  same VM (evidence `c4f6e0fd81cc48d83422214b2c22f38133987bb5433e01f1e9199cd2f4629baa`).
 
-EVIDENCE_PARAGRAPH
+The exact tree (packet `ca022d2d9e4c7366f9972748ae9f738f3cace4a750b6d44d38e91839d24d82c5`, tree `4428c4c9`) ran the complete
+test projects on all three platforms, each as concurrent shards. The Mac passed everything: Core 8,652 and 344, App 2,803,
+Remote 2,638, Rendering 23, with platform skips only (evidence `f33fb4c2a246b59473f590fbdb207ef67926470d24b31b454ab5579e3d15a488`).
+Ubuntu, with the ext4 small and quota volumes and the confined application workers, passed everything but
+`SecretStoreTests` (above): Core 8,714 and 354, App 2,815, Remote 2,543, Rendering 23 (evidence
+`4437d25fd8cb592f421869ce70d067182193e28ab23a9f75acd312fb10723d8a`). Windows 11, as `Admin` with a UAC-filtered token, with the AppContainer/TxF lanes and the `S:` small and `Q:` quota volumes, passed everything but one device-topology test outside archive writing: Core 8,296, Platform 244 and 1,141, App 2,906, Remote 2,405, Rendering 24 (evidence `b83150ff73c7efa0e87b97f57772bad032215f8b6c9457318dc80db67b257870`). The FZ10 seeds replayed on the same
+packet on the Mac and Ubuntu, and the archive benchmark passed on both (evidence above).
+
+Intermediate candidates, retained: v19m7 found the remaining failures fixed here (the Unix and Linux `existing-target`
+expectations, the Windows save-copy adapter) and, on Windows under the full parallel load, four timing-sensitive tests
+outside archive writing (a RAR update whose worker exceeded its time allowance, the registry import budget, a page view
+and the picture grid), which all passed on this candidate; v19m8 then failed only the claim test that still expected a raw
+`IOException` (evidence on the machines: `full-v19m7-*`, `full-v19m8-mac`).
 
 **10 November: worker ZIP profile with eight review defects fixed; destination denial and disk quota on real volumes (AT08);
 update-preparation crash recovery on Unix; Windows ZIP workers, profile race and capture speed fixed; Orca and NVDA runs

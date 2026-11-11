@@ -15,8 +15,9 @@ silent success; a job that stopped before `Publishing` never leaves its output a
 nobody wrote completely; a reported success leaves its complete output somewhere. FileCat.Core now names the harness as a
 friend assembly (test tooling, as for the crash harness). `make-worker-seeds` writes 181 seeds (each action alone at
 eight points for creation and update, plus pairs around publication); the native libFuzzer and `replay-worker` entries
-accept the target. On the Mac (packet `d8a5f5a2…`, then the corrected fixture) all 181 seeds replayed with no oracle
-violation: 61 published and 120 refused. The first replay found a harness defect, not a product one: the fixture used
+accept the target, and so do `run_fuzz_guest.py` (60-second input timeout) and the portable `structured-mutation` lane.
+On the exact candidate (packet v19m9) all 181 seeds replayed with no oracle violation on the Mac and on Ubuntu: 61
+published and 120 refused on each. The first replay (Mac, v19m6) found a harness defect, not a product one: the fixture used
 macOS `/var/…` (a link) where `JobManager.SubmitArchive` resolves the folder once, so every creation was refused with
 ENOTDIR; the harness now resolves paths as submission does. The same replay showed that a file appearing at a new
 archive's name just before the claim was refused correctly but reported as a raw `errno 17`; the claim on Unix and on
