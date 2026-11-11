@@ -118,6 +118,44 @@ internal static class StructuredMutation
         }
     }
 
+    /// <summary>
+    /// Cross-RID regression replay: every file of one target's corpus (a native campaign's final corpus and its seeds) runs
+    /// once in this process. Typed refusals count as refused; any other exception is a failure with its file, type and
+    /// message. Exit status 1 when anything failed.
+    /// </summary>
+    internal static int ReplayCorpus(string target, string corpusDirectory, string reportPath)
+    {
+        if (!Targets.Contains(target, StringComparer.Ordinal)) throw new ArgumentException("Choose a known target.");
+        string directory = Path.GetFullPath(corpusDirectory), report = Path.GetFullPath(reportPath);
+        if (!Directory.Exists(directory) || !Directory.Exists(Path.GetDirectoryName(report)) || File.Exists(report))
+            throw new ArgumentException("The corpus directory and a fresh report path's parent must exist.");
+        var files = Directory.EnumerateFiles(directory, "*", SearchOption.TopDirectoryOnly).Order(StringComparer.Ordinal).ToArray();
+        if (files.Length is < 1 or > 200_000) throw new ArgumentException("The corpus must hold 1..200,000 files.");
+        if (target.EndsWith("-strict", StringComparison.Ordinal) || target.EndsWith("-password", StringComparison.Ordinal))
+            Format.Bind(target);
+        using var process = Process.GetCurrentProcess();
+        TimeSpan initialCpu = process.TotalProcessorTime; var timer = Stopwatch.StartNew();
+        long accepted = 0, refused = 0, bytes = 0; var failures = new List<object>();
+        using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (string file in files)
+        {
+            var info = new FileInfo(file);
+            if ((info.Attributes & FileAttributes.ReparsePoint) != 0 || info.Length > 1048576)
+                throw new ArgumentException("A corpus entry is a link or exceeds 1 MiB: " + Path.GetFileName(file));
+            byte[] input = File.ReadAllBytes(file); bytes += input.Length;
+            digest.AppendData(System.Text.Encoding.UTF8.GetBytes(Path.GetFileName(file) + "\n")); digest.AppendData(SHA256.HashData(input));
+            try { if (Exercise(target, input)) accepted++; else refused++; }
+            catch (Exception error) when (failures.Count < 64)
+            { failures.Add(new { file = Path.GetFileName(file), type = error.GetType().FullName, message = error.Message }); }
+        }
+        var value = new { target, files = files.Length, bytes, corpus_sha256 = Convert.ToHexString(digest.GetHashAndReset()),
+            accepted, refused, failures, os = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier,
+            elapsed_wall_seconds = timer.Elapsed.TotalSeconds, process_cpu_seconds = (process.TotalProcessorTime - initialCpu).TotalSeconds };
+        File.WriteAllText(report, JsonSerializer.Serialize(value));
+        Console.WriteLine(JsonSerializer.Serialize(new { target, files = files.Length, accepted, refused, failed = failures.Count }));
+        return failures.Count == 0 ? 0 : 1;
+    }
+
     private static bool Exercise(string target, byte[] input)
     {
         Heap.Settle();
