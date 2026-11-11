@@ -62,11 +62,14 @@ sealed class InProcessWorker : IArchiveWorkerProcess
         var toWorker = new Pipe(); var fromWorker = new Pipe();
         Input = toWorker.Writer.AsStream(); Output = fromWorker.Reader.AsStream();
         Stream workerInput = toWorker.Reader.AsStream(), workerOutput = fromWorker.Writer.AsStream();
-        run = Task.Run(() =>
+        // Each role gets its own thread, as each real role gets its own process: the large LZMA match-finder tables its
+        // encoders return to the shared array pool stay in that thread's cache and are released when the thread ends,
+        // instead of accumulating in thread-pool threads across thousands of in-process conversations.
+        run = Task.Factory.StartNew(() =>
         {
             try { return role(workerInput, workerOutput, nonce, CancellationToken.None, version); }
             finally { workerOutput.Dispose(); workerInput.Dispose(); }
-        });
+        }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
     }
     public bool HasExited => run.IsCompleted;
     public uint ExitCode => run.IsCompletedSuccessfully ? unchecked((uint)run.Result) : 70u;

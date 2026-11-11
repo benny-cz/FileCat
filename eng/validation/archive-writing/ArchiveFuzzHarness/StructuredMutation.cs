@@ -148,8 +148,11 @@ internal static class StructuredMutation
             catch (Exception error) when (failures.Count < 64)
             { failures.Add(new { file = Path.GetFileName(file), type = error.GetType().FullName, message = error.Message }); }
         }
+        long liveAfter = GC.GetTotalMemory(true); var gcInfo = GC.GetGCMemoryInfo(GCKind.FullBlocking);
         var value = new { target, files = files.Length, bytes, corpus_sha256 = Convert.ToHexString(digest.GetHashAndReset()),
-            accepted, refused, failures, os = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier,
+            accepted, refused, failures, live_bytes_after = liveAfter, committed_bytes_after = gcInfo.TotalCommittedBytes,
+            generation_bytes_after = gcInfo.GenerationInfo.ToArray().Select(g => g.SizeAfterBytes).ToArray(),
+            os = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier,
             elapsed_wall_seconds = timer.Elapsed.TotalSeconds, process_cpu_seconds = (process.TotalProcessorTime - initialCpu).TotalSeconds };
         File.WriteAllText(report, JsonSerializer.Serialize(value));
         Console.WriteLine(JsonSerializer.Serialize(new { target, files = files.Length, accepted, refused, failed = failures.Count }));
