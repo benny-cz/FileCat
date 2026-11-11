@@ -97,7 +97,6 @@ def verify(image, run, target, minimum_cpu_seconds, candidate):
     index = json.loads(data.pop("index.json"))
     assert (index["image"], index["run"], index["target"], index["minimum_cpu_seconds"], index["candidate"]) == \
         (image, run, target, minimum_cpu_seconds, candidate)
-    assert index["sealer_sha256"] == sha((Path(__file__).resolve().parent / "seal_fuzz_candidate_guest.py").read_bytes())
     rows = {row["path"]: row for row in index["files"]}
     assert set(rows) == set(data) and sum(len(value) for value in data.values()) <= 256 * 1048576
     for name, value in data.items():
@@ -110,10 +109,13 @@ def verify(image, run, target, minimum_cpu_seconds, candidate):
     clean = prep["images"]["clean"]
     for name in ("FileCat.Core.dll", "FileCat.Archives.dll", "FileCat.SharpCompress.dll", "FileCat.ArchiveFuzzHarness.dll"):
         assert clean[name]["sha256"] == sha(file("clean/" + name)) and clean[name]["bytes"] == len(file("clean/" + name))
-    # The packet holds exactly the image's harness; the instrumented product copies differ from the recorded product files.
+    # The packet holds exactly the image's harness and the sealer that sealed this transport; the instrumented product
+    # copies differ from the recorded product files.
     with tarfile.open(fileobj=io.BytesIO(packets[0]), mode="r:gz") as packet:
         harness = packet.extractfile("harness/FileCat.ArchiveFuzzHarness.dll").read()
+        sealer = packet.extractfile("source/seal_fuzz_candidate_guest.py").read()
     assert sha(harness) == clean["FileCat.ArchiveFuzzHarness.dll"]["sha256"]
+    assert index["sealer_sha256"] == sha(sealer)
     for name in ("FileCat.Core.dll", "FileCat.Archives.dll", "FileCat.SharpCompress.dll"):
         assert prep["product_files"][name] != clean[name]["sha256"]
     for kind in ("core", "tar", "codecs"):
