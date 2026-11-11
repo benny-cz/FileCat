@@ -9,7 +9,8 @@ namespace FileCat.ArchiveQualificationHost;
 
 /// <summary>
 /// Never shipped. Usage: FileCat.ArchiveQualificationHost --data &lt;throwaway folder&gt; --worker &lt;published FileCat executable&gt;
-/// [FileCat arguments]. The interface is the application's own; only its archive backends are composed explicitly. On macOS,
+/// [--ui-budget &lt;report.json&gt;] [FileCat arguments]. The interface is the application's own; only its archive backends are
+/// composed explicitly, and <c>--ui-budget</c> adds the UI-thread budget probe (<see cref="UiBudgetProbe"/>). On macOS,
 /// which has no production worker launcher, the host starts itself as the worker (no worker isolation there: these runs
 /// qualify the interface, not containment).
 /// </summary>
@@ -21,12 +22,18 @@ internal static class QualificationHost
     private static int Main(string[] args)
     {
         if (args.Length > 0 && args[0] == WorkerArgument) return RunWorker(args[1..]);
-        string? data = null, worker = null; var rest = new List<string>();
+        string? data = null, worker = null, budget = null; var rest = new List<string>();
         for (int i = 0; i < args.Length; i++)
         {
             if (args[i] == "--data" && i + 1 < args.Length) data = args[++i];
             else if (args[i] == "--worker" && i + 1 < args.Length) worker = args[++i];
+            else if (args[i] == "--ui-budget" && i + 1 < args.Length) budget = args[++i];
             else rest.Add(args[i]);
+        }
+        if (budget is not null && !Path.IsPathFullyQualified(budget))
+        {
+            Console.Error.WriteLine("--ui-budget needs a full report path.");
+            return 2;
         }
         string self = Environment.ProcessPath ?? throw new InvalidOperationException("The host executable path is unknown.");
         if (data is null || !Path.IsPathFullyQualified(data) || !OperatingSystem.IsMacOS() && (worker is null || !File.Exists(worker)))
@@ -42,7 +49,9 @@ internal static class QualificationHost
         App.App.QualificationServices = startup => AppServices.InitializeForQualification(
             Core.State.AppPaths.Resolve(startup.Profile, dataRoot: startup.DataRoot),
             AppServices.QualificationBackends(worker ?? self, OperatingSystem.IsMacOS() ? (nonce, role) => SelfWorker.Start(self, nonce, role) : null));
-        return App.Program.BuildAvaloniaApp().StartWithClassicDesktopLifetime([.. rest]);
+        var builder = App.Program.BuildAvaloniaApp();
+        if (budget is not null) builder = builder.AfterSetup(_ => UiBudgetProbe.Start(budget));
+        return builder.StartWithClassicDesktopLifetime([.. rest]);
     }
 
     // The fixed worker roles, as the production worker and the test probe dispatch them.

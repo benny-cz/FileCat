@@ -865,6 +865,10 @@ public sealed class OverlayDialogService(Panel host, Func<IInputElement?> fallba
             }),
         };
         Avalonia.Automation.AutomationProperties.SetName(list, "Commands and current shortcuts");
+        // Menus skip disabled commands in keyboard navigation, so this list is where a keyboard or screen reader user learns
+        // why a command is unavailable: the reason is each such item's help text, not only the detail line below it.
+        list.ContainerPrepared += (_, e) => Avalonia.Automation.AutomationProperties.SetHelpText(e.Container,
+            e.Container.DataContext is KeyboardHelpEntry { Enabled: false } entry ? "Unavailable: " + (entry.UnavailableReason ?? "not available here") : null);
         var detail = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "muted" }, MinHeight = 24 };
         var count = new TextBlock { Classes = { "muted", "small" } };
         var run = new Button { Content = "Run command", Classes = { "primary" }, IsDefault = !remapOnly, IsVisible = !remapOnly };

@@ -340,6 +340,12 @@ public sealed record ConfirmRequest(string Title, string Message, string Path, s
     /// <summary>Button text for <see cref="DecisionAction.Proceed"/> (what proceeding does, in plain words).</summary>
     public string? ProceedLabel { get; init; }
 
+    /// <summary>
+    /// Whether the answer may apply to later questions of the same class in this operation. False for a question that
+    /// covers the whole operation at once, such as an archive review, where "do the same" has nothing to apply to.
+    /// </summary>
+    public bool OffersApplyToAll { get; init; } = true;
+
     public override string ClassKey => "confirm-" + ConfirmClass;
 }
 

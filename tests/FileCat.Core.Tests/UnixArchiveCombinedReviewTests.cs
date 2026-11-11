@@ -50,5 +50,7 @@ public sealed partial class UnixArchiveStorageTests
         Assert.Contains("Replace 1 existing entry under 1 name.", review.Message);
         Assert.Contains("will be left out of the archive", review.Message);
         Assert.Equal("Replace 1 existing member and continue", Assert.IsType<ConfirmRequest>(review).ProceedLabel);
+        // One review covers the whole operation: there is nothing for "do the same" to apply to.
+        Assert.False(Assert.IsType<ConfirmRequest>(review).OffersApplyToAll);
     }
 }

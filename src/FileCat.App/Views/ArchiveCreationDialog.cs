@@ -109,11 +109,14 @@ internal sealed class ArchiveCreationDialog : IDisposable
         advanced = new() { Header = "7z options", HorizontalAlignment = HorizontalAlignment.Stretch,
             Content = new StackPanel { Spacing = 8, Children = { Row("Method:", codec), Row("Preprocessing:", filter),
                 dictionaryRow, deltaRow, Row("Header compression:", header) } } };
+        var included = new Expander { Header = "What is included", Content = Text(
+            "Regular files and folders are checked before writing; links are not followed. Unsupported inputs are reviewed or refused. " +
+            "An archive is not a complete backup of file permissions and security metadata. Creating it needs additional free disk space.") };
+        // Screen readers name an unnamed expander by its type ("Expander panel" in Orca); give each its header's words.
+        AutomationProperties.SetName(advanced, "7z options"); AutomationProperties.SetName(included, "What is included");
         Content = new() { Spacing = 8, Children = { Text("Pack " + selectedSummary + " into:"), path,
             Row("Format:", format), compressionRow, advanced, protectionRow, protectionRows,
-            preview, estimate, problem, new Expander { Header = "What is included", Content = Text(
-                "Regular files and folders are checked before writing; links are not followed. Unsupported inputs are reviewed or refused. " +
-                "An archive is not a complete backup of file permissions and security metadata. Creating it needs additional free disk space.") } } };
+            preview, estimate, problem, included } };
         // TextChanged is queued, so it cannot distinguish an automatic suffix change from an edit once
         // the updating scope has ended. Property changes are synchronous and keep that ownership exact.
         path.PropertyChanged += (_, change) =>

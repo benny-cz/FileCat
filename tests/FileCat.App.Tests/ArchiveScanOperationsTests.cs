@@ -40,6 +40,13 @@ public sealed class ArchiveScanOperationsTests
         Assert.True(operations.ZIndex > overlay.ZIndex, "The operation center must be above the scan's backdrop.");
         var progress = f.Window.GetVisualDescendants().OfType<ProgressBar>().Single(bar => bar.IsEffectivelyVisible && bar.IsIndeterminate);
         Assert.Equal("Checking owned.tar", Avalonia.Automation.AutomationProperties.GetName(progress));
+        // Plan §11.8: focus starts on the named progress and no button is the default, so Enter, held from the command
+        // that started the scan, does not cancel it.
+        await Settle();
+        Assert.Same(progress, Focused()); Assert.False(Assert.IsType<Button>(f.Button("Cancel")).IsDefault);
+        f.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        f.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null); await Settle();
+        Assert.True(dialogs.IsOpen); Assert.False(command.IsCompleted); Assert.Equal(1, Volatile.Read(ref scans));
 
         // The operation center's shortcut opens it and moves the keyboard there; the scan stays open.
         f.Window.KeyPress(Key.J, RawInputModifiers.Control, PhysicalKey.J, null); await Settle();
@@ -52,8 +59,8 @@ public sealed class ArchiveScanOperationsTests
         f.Window.KeyPress(Key.J, RawInputModifiers.Control, PhysicalKey.J, null); await Settle();
         Assert.True(Focused() is Visual inDialog && overlay.IsVisualAncestorOf(inDialog), "Focus: " + Focused());
 
-        // Cancelling the scan restores the normal layering.
-        Assert.IsType<Button>(f.Button("Cancel")).RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        // Escape cancels the scan (a pre-publication dialog) and restores the normal layering.
+        f.Window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
         await f.Complete(command);
         Assert.False(dialogs.IsOpen); Assert.False(dialogs.OperationsUsable); Assert.Equal(before, operations.ZIndex);
 

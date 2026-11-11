@@ -173,28 +173,40 @@ internal static class AtSpiLayoutNames
 }
 
 /// <summary>
-/// Orca said nothing when Up or Down changed the value of a closed combo box (heard while choosing an archive format):
-/// Avalonia's AT-SPI bridge raises no event for that change. On Linux the new value of a focused, closed combo box is
-/// sent as a polite announcement from its window. Programmatic changes to a combo box without keyboard focus stay silent,
-/// and an open list is left to Orca's own item focus announcements.
+/// Screen readers said nothing when Up or Down changed the value of a closed combo box (Orca while choosing an archive
+/// format, NVDA while choosing password protection): neither Avalonia's AT-SPI bridge nor its UI Automation bridge
+/// raises an event for that change. For a focused, closed combo box, Linux gets the new value as a polite announcement
+/// from its window, and Windows gets UI Automation's value-changed event for the box, which NVDA speaks as it does for a
+/// native combo box. Programmatic changes to a combo box without keyboard focus stay silent, and an open list is left to
+/// the screen readers' own item focus announcements.
 /// </summary>
 internal static class ComboBoxAnnouncements
 {
+    private static int s_installed;
+
     internal static void Install()
     {
-        if (!OperatingSystem.IsLinux()) return;
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsWindows()) return;
+        if (Interlocked.Exchange(ref s_installed, 1) != 0) return;
         Avalonia.Controls.Primitives.SelectingItemsControl.SelectionChangedEvent.AddClassHandler<ComboBox>((box, e) =>
         {
             if (!box.IsKeyboardFocusWithin || box.IsDropDownOpen || e.AddedItems.Count == 0) return;
-            if (TopLevel.GetTopLevel(box) is not Window window ||
-                ControlAutomationPeer.CreatePeerForElement(window) is not DescendantFocusWindowAutomationPeer { AtSpi: { } bridge }) return;
-            // Every chooser in FileCat lists strings or records that name themselves; a control or an object without its own
-            // text (only its type name) is not announced rather than read out as a type name.
-            object? item = box.SelectionBoxItem ?? e.AddedItems[0];
-            string? text = item is Control ? null : item?.ToString();
-            if (!string.IsNullOrWhiteSpace(text) && text != item!.GetType().ToString()) bridge.Announce(text, AutomationLiveSetting.Polite);
+            if (Text(box.SelectionBoxItem ?? e.AddedItems[0]) is not { } text) return;
+            if (OperatingSystem.IsWindows())
+                UiaValueChanges.Raise(ControlAutomationPeer.CreatePeerForElement(box), e.RemovedItems.Count > 0 ? Text(e.RemovedItems[0]) : null, text);
+            else if (TopLevel.GetTopLevel(box) is Window window &&
+                     ControlAutomationPeer.CreatePeerForElement(window) is DescendantFocusWindowAutomationPeer { AtSpi: { } bridge })
+                bridge.Announce(text, AutomationLiveSetting.Polite);
         });
     }
+
+    /// <summary>
+    /// Every chooser in FileCat lists strings or records that name themselves; a control or an object without its own
+    /// text (only its type name) is not announced rather than read out as a type name.
+    /// </summary>
+    private static string? Text(object? item) =>
+        item is null or Control || item.ToString() is not { } text || string.IsNullOrWhiteSpace(text) || text == item.GetType().ToString()
+            ? null : text;
 }
 
 /// <summary>
@@ -375,6 +387,51 @@ internal static class NativeLiveRegionBridges
         {
             s_macDisabled = true;
             Core.Diagnostics.AppLog.Warn("Live regions on macOS fall back to Avalonia's default behavior: " + (ex.InnerException?.Message ?? ex.Message));
+        }
+    }
+}
+
+/// <summary>
+/// UI Automation's value-changed event, which Avalonia 12.1's Windows bridge never raises: its map from Avalonia's
+/// automation properties to UI Automation's has no entry for the value. The event is raised for a peer's node through
+/// the bridge's own <c>UiaCoreProviderApi.UiaRaiseAutomationPropertyChangedEvent</c>; it disables itself if that member is
+/// missing or fails, leaving Avalonia's unmodified behavior.
+/// </summary>
+internal static class UiaValueChanges
+{
+    internal const string ApiType = "Avalonia.Win32.Automation.Interop.UiaCoreProviderApi, Avalonia.Win32.Automation";
+    internal const string RaiseMethod = "UiaRaiseAutomationPropertyChangedEvent";
+    /// <summary>UIA_ValueValuePropertyId.</summary>
+    internal const int ValuePropertyId = 30045;
+    private static readonly Lazy<MethodInfo?> s_raise = new(() => RaiseMember(Type.GetType(ApiType)));
+    private static bool s_disabled;
+
+    /// <summary>Sees each raised event: the node, the previous value, the value and UI Automation's result (tests).</summary>
+    internal static Action<object, string?, string?, int>? Raised { get; set; }
+
+    /// <summary>The raise function, if it still takes a provider interface, the property id and two values.</summary>
+    internal static MethodInfo? RaiseMember(Type? api) =>
+        api?.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static).FirstOrDefault(method =>
+            method.Name == RaiseMethod && method.ReturnType == typeof(int) &&
+            method.GetParameters() is [{ ParameterType.IsInterface: true }, { ParameterType: var id }, { ParameterType: var previous }, { ParameterType: var value }] &&
+            id == typeof(int) && previous == typeof(object) && value == typeof(object));
+
+    /// <summary>Raises the value change from the peer's node, which the bridge creates if no client has reached it yet.</summary>
+    internal static void Raise(AutomationPeer peer, string? previous, string? value)
+    {
+        if (s_disabled) return;
+        try
+        {
+            if (s_raise.Value is not { } raise) throw new MissingMethodException(ApiType, RaiseMethod);
+            if (NativeLiveRegionBridges.TrackOnWindows(peer) is not { } node) return;
+            int result = (int)raise.Invoke(null, [node, ValuePropertyId, previous, value])!;
+            Raised?.Invoke(node, previous, value, result);
+            if (result < 0) Core.Diagnostics.AppLog.Warn($"UI Automation did not take a value change (0x{result:X8}).");
+        }
+        catch (Exception ex)
+        {
+            s_disabled = true;
+            Core.Diagnostics.AppLog.Warn("Value changes on Windows fall back to Avalonia's default behavior: " + (ex.InnerException?.Message ?? ex.Message));
         }
     }
 }

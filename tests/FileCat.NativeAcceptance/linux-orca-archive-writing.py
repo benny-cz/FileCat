@@ -7,11 +7,14 @@ archive backends that ordinary startup keeps unavailable; WORKER_PATH is the pub
 workers. Both, and REPORT.json, must be below ~/FileCatValidation. FILECAT_NATIVE_SUDO_PASSWORD authorizes only the owned
 uinput key helper and is removed before Orca or FileCat starts. The journey mirrors win-nvda-archive-writing.ps1:
 
+0. For one file, 7z's compression, options and password rows are spoken by name as Tab reaches them; Escape cancels.
 1. Two marked files, Alt+F5: Orca speaks the Create archive dialog and its path; Tab reaches "Archive format"; choosing
    gzip speaks "A compressed file holds exactly one file" and leaves Pack unavailable; TAR + gzip names a .tar.gz and
    packing it announces at least one archive phase.
 2. One file as gzip is named after the whole file (a.txt.gz).
 3. Inside a.txt.gz, F7, F2 and F8 are refused with the compressed-file reason, and the file stays.
+4. Copying a.txt into the TAR + gzip archive that holds it: the in-job collision question is spoken from its focused
+   choice (Skip) with the count and an example; Escape cancels the operation and the archive is unchanged.
 
 The runner judges only what Orca sent to speech ("SPEECH OUTPUT"), starts and stops its own Orca and FileCat, and
 refuses to start when another Orca or FileCat runs.
@@ -150,14 +153,29 @@ def main():
             raise AssertionError(f"{label}: Orca did not say {wanted}: {heard!r}")
 
         def focus_row(name):
-            # Only a row announcement ("name, file, …") identifies the row: notifications also name files.
+            # Only a row announcement ("name, file, …") identifies the row: notifications also name files. A row spoken
+            # before Home took effect is stale (a panel's focus announcement can arrive after the next key; v20d stage 4
+            # stopped on such an "a.txt" while the cursor was on ".."): rows count from the first row's announcement
+            # ("…, 1 of N.") on, or once Home has had time to say nothing (the cursor was already there).
             row = re.compile(rf"^{re.escape(name)}, ")
+            top = re.compile(r", 1 of \d+\.$")
             speech.take(); send("home")
-            for _ in range(14):
-                if any(row.search(phrase) for phrase in speech.take()):
-                    return
+            at_top, settle = False, time.monotonic() + 1.5
+            for _ in range(20):
+                for phrase in speech.take():
+                    at_top = at_top or bool(top.search(phrase))
+                    if at_top and row.search(phrase):
+                        return
+                if not at_top and time.monotonic() < settle:
+                    time.sleep(0.3)
+                    continue
+                at_top = True
                 send("down"); time.sleep(0.3)
             raise AssertionError(f"The cursor never reached {name}")
+
+        def focused_name():
+            node = next((node for node in descendants(app) if node.get_state_set().contains(Atspi.StateType.FOCUSED)), None)
+            return node.get_name() if node is not None else None
 
         def dialog(title):
             return wait_for(lambda: next((node for node in descendants(app) if node.get_name() == f"{title} dialog" and showing(node)), None),
@@ -179,6 +197,31 @@ def main():
             return hear((label, *also), f"format {label}")
 
         activate()
+        # 0. Format details by name (plan 11.8, UX audit C): for one file, 7z's compression, its options and the password
+        #    rows are spoken as Tab reaches them; Escape then cancels the dialog before anything is written. Orca reads the
+        #    options' header as a toggle button: "pressed" is its word for expanded, and the "not pressed" it says on reaching
+        #    the header must not pass for it.
+        report["stage"] = "format details"
+        focus_row("a.txt"); speech.take(); send("alt+f5")
+        dialog("Create archive")
+        hear(("Create archive", "Archive path"), "details dialog opened")
+        send("tab"); hear("Archive format", "details format box reached")
+        choose(5, "down", "7z")
+        expanded = re.compile(r"(?<!not )\bpressed\b")
+        for key, expected in (("tab", "Compression"), ("tab", "7z options"), ("space", expanded), ("tab", "7z compression method"),
+                              ("tab", "7z preprocessing"), ("tab", "7z dictionary"), ("tab", "7z header compression"),
+                              ("tab", "Password protection"), ("down", "Protect contents"), ("tab", "Archive password"),
+                              ("tab", "Confirm archive password")):
+            send(key)
+            if isinstance(expected, str):
+                hear(expected, f"{expected} spoken")
+            else:
+                hear((), "7z options expanded (pressed) spoken", pattern=expected)
+        send("escape")
+        wait_for(lambda: not any(node.get_name() == "Create archive dialog" and showing(node) for node in descendants(app)),
+                 "the canceled dialog to close", seconds=10)
+        time.sleep(0.6)
+
         # 1. Two marked files.
         report["stage"] = "two files"
         focus_row("a.txt"); send("insert"); send("insert")
@@ -193,6 +236,7 @@ def main():
         if not packs or any(node.get_state_set().contains(Atspi.StateType.ENABLED) for node in packs):
             raise AssertionError(f"Pack stayed available for two files as one compressed file: {report['packButtons']}")
         choose(5, "up", "TAR + gzip")
+        send("tab"); hear("Compression", "selected compression spoken"); send("shift+tab")
         tar_path = Path(text_of(wait_for(lambda: named(create, "text", "Archive path") or named(create, "entry", "Archive path"), "the path box")))
         report["tarPath"] = str(tar_path)
         if not tar_path.name.endswith(".tar.gz"):
@@ -228,6 +272,42 @@ def main():
             send("escape")
         if not gzip_path.is_file():
             raise AssertionError("The compressed file disappeared")
+
+        # 4. Copying a.txt into the TAR + gzip archive that already holds it (plan 11.8 collision choice): the in-job
+        #    question is spoken from its focused choice (Skip, the default) with the count and an example; Escape cancels
+        #    the operation and the archive stays as it was.
+        report["stage"] = "collision review"
+        tar_hash = shared["sha256"](tar_path)
+        send("backspace")  # up from a.txt.gz to its folder
+        time.sleep(0.8)
+        focus_row(tar_path.name); send("enter")
+        wait_for(lambda: any(node.get_role_name() == "list" and tar_path.name in node.get_name() and showing(node) for node in descendants(app)),
+                 "the TAR + gzip listing", seconds=20)
+        time.sleep(0.8)
+        send("tab")  # back to the source panel
+        focus_row("a.txt"); speech.take(); send("f5")
+        dialog("Copy")
+        time.sleep(0.8)
+        send("enter")  # copies into the archive
+        # Background work never takes the keyboard: the operation says a decision waits in Operations (Ctrl+J), where
+        # Tab reaches "Review decision…" and Space opens the question with its first choice focused.
+        hear("a decision is required", "decision waiting announced", seconds=120)
+        send("ctrl+j")
+        time.sleep(0.8)
+        review = "Review decision…"
+        for _ in range(12):
+            if focused_name() == review:
+                break
+            send("tab")
+        else:
+            raise AssertionError(f"Tab never reached {review} (at {focused_name()!r})")
+        speech.take(); send("space")
+        report["collisionSpeech"] = hear(("Names already in the archive", "Skip", "can replace an existing file", "a.txt"),
+                                         "collision choice spoken", seconds=30)
+        send("escape")  # cancels the operation
+        time.sleep(2.5)
+        if shared["sha256"](tar_path) != tar_hash:
+            raise AssertionError("Escape changed the TAR + gzip archive")
         report["passed"] = True
         report["stage"] = "done"
     except Exception as error:  # The report records what failed; the exit code still fails.

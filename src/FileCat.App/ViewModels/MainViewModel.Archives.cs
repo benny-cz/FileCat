@@ -309,10 +309,11 @@ public sealed partial class MainViewModel
                         if (reviewed is null || Services.Io.IsStopped) return;
                         if (choice.Format.IsStandalone)
                         {
-                            // AW7 / plan §8.5: an explicit replacement of the one payload, never an addition beside it.
+                            // AW7 / plan §8.5: an explicit replacement of the one payload, never an addition beside it. The old
+                            // contents are not kept, so Enter (still repeating from Pack, if held) cancels (plan §11.8).
                             if (!await Dialogs.ConfirmAsync("Replace compressed contents",
                                 $"{Path.GetFileName(choice.Path)} already exists. Replace its compressed contents with {items[0].Name}? The new file is " +
-                                "compressed and verified before it replaces the old one; the old contents are not kept.", "Replace contents")) return;
+                                "compressed and verified before it replaces the old one; the old contents are not kept.", "Replace contents", danger: true)) return;
                             if (Services.Io.IsStopped) return;
                             Services.Jobs.SubmitArchive(reviewed.CreatePlan([new ArchiveChange(ArchiveChangeKind.Replace, ArchiveStandalone.MemberName, items[0].FileSystemPath)]),
                                 null, description: $"Replace the contents of “{Path.GetFileName(choice.Path)}”", register: job =>

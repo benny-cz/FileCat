@@ -289,6 +289,30 @@ public partial class OperationsView : UserControl
 
     private OperationCenterViewModel? Center => DataContext as OperationCenterViewModel;
 
+    /// <summary>Whether keyboard focus is on a control of Operations (the strip or the open drawer).</summary>
+    internal bool ContainsFocus(object? focused) => focused is Visual visual && (ReferenceEquals(visual, this) || this.IsVisualAncestorOf(visual));
+
+    /// <summary>
+    /// Ctrl+J from the keyboard (plan §11.5, §11.8): the keyboard goes to "Review decision…" of the first operation that
+    /// waits for a decision (selected first, as the decision notice tells keyboard users to go there), otherwise to the
+    /// selected operation in the list, otherwise to the first control of Operations. False when nothing could take focus.
+    /// </summary>
+    internal bool FocusForKeyboard()
+    {
+        if (Center is not { } center) return false;
+        if (center.Jobs.FirstOrDefault(job => job.NeedsDecision) is { } waiting)
+        {
+            center.Selected = waiting;
+            UpdateLayout();
+            if (DetailsReviewDecision is { IsEffectivelyVisible: true, IsEffectivelyEnabled: true } review && review.Focus(NavigationMethod.Tab))
+                return true;
+        }
+        if (HistoryList is { IsEffectivelyVisible: true, ItemCount: > 0 } list && Controls.ListKeys.Focus(list)) return true;
+        return this.GetVisualDescendants().OfType<InputElement>()
+            .FirstOrDefault(element => element.Focusable && element.IsEffectivelyVisible && element.IsEffectivelyEnabled) is { } first &&
+            first.Focus(NavigationMethod.Tab);
+    }
+
     private MainViewModel? Main => TopLevel.GetTopLevel(this)?.DataContext as MainViewModel;
 
     private static JobViewModel? JobOf(object? sender) => (sender as Control)?.DataContext as JobViewModel;

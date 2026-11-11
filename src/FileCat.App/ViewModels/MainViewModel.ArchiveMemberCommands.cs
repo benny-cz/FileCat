@@ -287,10 +287,11 @@ public sealed partial class MainViewModel
         using var command = await PrepareNativeArchiveCommandAsync(destination.WithPath(""));
         if (command is null) return;
         string shown = FileCat.Archives.ArchiveProvider.StandaloneMemberDisplayName(command.Target.Path, command.Target.Profile.Format);
+        // The old contents are not kept: Enter cancels (plan §11.8).
         if (!await Dialogs.ConfirmAsync("Replace compressed contents",
             $"Replace the contents of {outer} with {Formatters.SafeName(items[0].Name)}? The compressed file keeps its name and still shows its contents as " +
             $"{Formatters.SafeName(shown)}. The new contents are compressed and verified before they replace the old ones; the old contents are not kept.",
-            "Replace contents")) return;
+            "Replace contents", danger: true)) return;
         try
         {
             var plan = command.Target.CreatePlan([new ArchiveChange(ArchiveChangeKind.Replace, ArchiveStandalone.MemberName, items[0].FileSystemPath)]);
@@ -329,7 +330,7 @@ public sealed partial class MainViewModel
             var plan = command.Target.CreatePlan(changes, moveSources: kind == JobKind.Move) with
             { AddConflictPolicy = options.Conflicts switch { ConflictPolicy.Skip => ArchiveAddConflictPolicy.Skip, ConflictPolicy.Replace => ArchiveAddConflictPolicy.Replace, _ => ArchiveAddConflictPolicy.Ask } };
             SubmitNativeArchiveCommand(command, plan,
-                $"{(kind == JobKind.Move ? "Move" : "Add")} {frozen.Length:N0} items to “{System.IO.Path.GetFileName(command.Target.Path)}”", origin, originLocation, mode);
+                $"{(kind == JobKind.Move ? "Move" : "Add")} {Formatters.Plural(frozen.Length, "item", "items")} to “{System.IO.Path.GetFileName(command.Target.Path)}”", origin, originLocation, mode);
         }
         catch (Exception error) when (error is IOException or ArgumentException or NotSupportedException)
         { if (!Services.Io.IsStopped) Notify("Cannot add these archive inputs: " + Formatters.SafeName(error.Message), true); }

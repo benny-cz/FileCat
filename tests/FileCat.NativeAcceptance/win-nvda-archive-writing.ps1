@@ -7,11 +7,14 @@ param(
 
 # Archive-writing accessibility (plan section 11.8, AT16; UX_GAP_AUDIT C) with NVDA, through the never-shipped qualification host
 # (the real interface with native archive backends composed explicitly; AppContainer workers from the published app):
+#   0. For one file, 7z's compression, options and password rows are spoken by name as Tab reaches them.
 #   1. Pack with two marked files: the Create archive dialog, its path, format and compression controls are spoken by name;
 #      choosing "gzip (compress one file)" speaks the polite problem text that offers TAR + gzip; TAR + gzip packs and the
 #      operation's archive phases are announced.
 #   2. Pack with one file as "gzip (compress one file)": the generated name keeps the whole file name (a.txt.gz).
 #   3. Inside a.txt.gz, F7, F2 and F8 are refused and NVDA hears why.
+#   4. Copying a.txt into the TAR + gzip archive that holds it: the in-job collision question is spoken from its focused
+#      choice (Skip) with the count and an example; Escape cancels the operation and the archive is unchanged.
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
@@ -167,10 +170,11 @@ $script:result.ReleasedBefore = @(ReleaseModifiers)
 try {
     $reader = Start-Process -FilePath $nvda -ArgumentList @(
         "--log-file=$script:nvdaLog", '--log-level=12', "--config-path=$config", '--disable-addons') -PassThru -WindowStyle Hidden
+    # NVDA needed 75 s to initialize while Windows servicing (TiWorker) loaded the disk; only readiness is awaited here.
     Await {
         if ($reader.HasExited) { throw 'Owned NVDA exited before initialization' }
         if ((Test-Path -LiteralPath $script:nvdaLog) -and (Select-String -LiteralPath $script:nvdaLog -Pattern 'NVDA initialized' -SimpleMatch -Quiet)) { $true }
-    } 'NVDA initialization' 30 | Out-Null
+    } 'NVDA initialization' 150 | Out-Null
 
     $script:result.Stage = 'start'
     $app = Start-Process -FilePath $hostExe -WorkingDirectory (Split-Path $hostExe) -PassThru -ArgumentList @(
@@ -180,6 +184,28 @@ try {
     $main = $AE::FromHandle($app.MainWindowHandle)
     $script:result.Dpi = [FileCatArchiveInput]::GetDpiForWindow($app.MainWindowHandle)
     Activate $main
+
+    # 0. Format details by name (plan 11.8, UX audit C): for one file, 7z's compression, its options and the password rows
+    #    are spoken as Tab reaches them; Escape then cancels the dialog before anything is written. NVDA, like Orca, reads
+    #    the options' header as a toggle button: 'pressed' (quoted, so that 'not pressed' does not match) is its word for
+    #    expanded.
+    $script:result.Stage = 'format details'
+    FocusRow 'a.txt'; [void](TakeSpeech)
+    Chord @(0x12, 0x74)  # Alt+F5
+    $details = Await { In $main 'Create archive dialog' } 'the Create archive dialog'
+    Start-Sleep -Milliseconds 1200; [void](TakeSpeech)
+    ChooseFormat $details '7z'
+    (In $details 'Archive format' 'ComboBox').SetFocus(); Start-Sleep -Milliseconds 700; [void](TakeSpeech)
+    $script:result.FormatDetails = [ordered]@{}
+    foreach ($step in @(@(0x09, 'Compression'), @(0x09, '7z options'), @(0x20, "'pressed'"), @(0x09, '7z compression method'),
+            @(0x09, '7z preprocessing'), @(0x09, '7z dictionary'), @(0x09, '7z header compression'), @(0x09, 'Password protection'),
+            @(0x28, 'Protect contents'), @(0x09, 'Archive password'), @(0x09, 'Confirm archive password'))) {
+        Key ([byte]$step[0]) ($step[0] -eq 0x28)
+        $script:result.FormatDetails[$step[1]] = @(Hear $step[1])
+    }
+    Key 0x1B  # Escape
+    Await { if (-not (In $main 'Create archive dialog')) { $true } } 'the canceled dialog to close' | Out-Null
+    Start-Sleep -Milliseconds 600
 
     # 1. Two marked files: the dialog, its fields, the one-file refusal and a TAR + gzip pack with phase announcements.
     $script:result.Stage = 'two files'
@@ -204,8 +230,10 @@ try {
     ChooseFormat $dialog 'TAR + gzip'
     $script:result.TarPath = PathValue $dialog
     if (-not $script:result.TarPath.EndsWith('.tar.gz')) { throw "TAR + gzip did not name a .tar.gz: $($script:result.TarPath)" }
-    Key 0x09; Start-Sleep -Milliseconds 600
-    $script:result.CompressionSpeech = @(TakeSpeech)
+    # The selected compression is spoken when Tab reaches it from the format box.
+    (In $dialog 'Archive format' 'ComboBox').SetFocus(); Start-Sleep -Milliseconds 700; [void](TakeSpeech)
+    Key 0x09
+    $script:result.CompressionSpeech = @(Hear 'Compression')
     $pack = Await { $b = In $dialog 'Pack' 'Button'; if ($b.Current.IsEnabled) { $b } } 'an available Pack button'
     $pack.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     Await { Test-Path -LiteralPath $script:result.TarPath } 'the packed TAR + gzip archive' 120 | Out-Null
@@ -248,6 +276,41 @@ try {
         Key 0x1B; Start-Sleep -Milliseconds 400
     }
     if (-not (Test-Path -LiteralPath $script:result.GzipPath)) { throw 'The compressed file disappeared' }
+
+    # 4. Copying a.txt into the TAR + gzip archive that already holds it (plan 11.8 collision choice): the in-job question
+    #    is spoken from its focused choice (Skip, the default) with the count and an example; Escape cancels the operation
+    #    and the archive stays as it was.
+    $script:result.Stage = 'collision review'
+    $tarName = [IO.Path]::GetFileName($script:result.TarPath)
+    $tarHash = (Get-FileHash -LiteralPath $script:result.TarPath -Algorithm SHA256).Hash
+    Key 0x08; Start-Sleep -Milliseconds 800  # Backspace: up from a.txt.gz to its folder
+    FocusRow $tarName; Key 0x0D
+    Await { @(Descendants $main | Where-Object { $_.Current.ClassName -eq 'FileList' -and $_.Current.Name -like "*$tarName*" }).Count } 'the TAR + gzip listing' 20 | Out-Null
+    Start-Sleep -Milliseconds 800
+    Key 0x09; Start-Sleep -Milliseconds 600  # Tab: back to the source panel
+    FocusRow 'a.txt'; [void](TakeSpeech)
+    Key 0x74  # F5
+    Await { In $main 'Copy dialog' } 'the Copy dialog' | Out-Null
+    Start-Sleep -Milliseconds 800
+    Key 0x0D  # Enter copies into the archive
+    # Background work never takes the keyboard: the operation says a decision waits in Operations (Ctrl+J), where Tab
+    # reaches 'Review decision...' and Space opens the question with its first choice focused.
+    $script:result.DecisionNotice = @(Hear 'a decision is required' 120)
+    Chord @(0x11, 0x4A)  # Ctrl+J
+    Start-Sleep -Milliseconds 800
+    $review = 'Review decision' + [char]0x2026
+    for ($i = 0; $i -lt 12 -and (Focused) -ne $review; $i++) { Key 0x09 }
+    if ((Focused) -ne $review) { throw "Tab never reached the Review decision button (at '$(Focused)')" }
+    [void](TakeSpeech); Key 0x20  # Space
+    $script:result.CollisionSpeech = @(Hear 'can replace an existing file' 30)
+    foreach ($phrase in 'Names already in the archive', 'Skip', 'a.txt') {
+        if (-not @($script:result.CollisionSpeech | Where-Object { $_.Contains($phrase) }).Count) {
+            throw "The collision choice did not speak '$phrase': $($script:result.CollisionSpeech -join ' / ')"
+        }
+    }
+    Key 0x1B  # Escape cancels the operation
+    Start-Sleep -Milliseconds 2500
+    if ((Get-FileHash -LiteralPath $script:result.TarPath -Algorithm SHA256).Hash -ne $tarHash) { throw 'Escape changed the TAR + gzip archive' }
     $script:result.Passed = $true
     $script:result.Stage = 'done'
 }

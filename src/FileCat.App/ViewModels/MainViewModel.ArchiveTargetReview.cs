@@ -26,7 +26,10 @@ public sealed partial class MainViewModel
             if (!task.IsCompleted)
             {
                 string checking = "Checking " + System.IO.Path.GetFileName(path);
-                var progress = new ProgressBar { IsIndeterminate = true, MinWidth = 240, HorizontalAlignment = HorizontalAlignment.Stretch };
+                // Plan §11.8: the Enter that asked for this check repeats while held, and with Cancel as the default it
+                // cancelled the check at once. No button is the default; focus starts on the named progress, which is what
+                // a screen reader then reads, and Escape or Cancel (Tab) ends the check.
+                var progress = new ProgressBar { IsIndeterminate = true, MinWidth = 240, HorizontalAlignment = HorizontalAlignment.Stretch, Focusable = true };
                 Avalonia.Automation.AutomationProperties.SetName(progress, checking);
                 var body = new StackPanel { Spacing = 10, Children = {
                     new TextBlock { Text = checking, TextWrapping = TextWrapping.Wrap, MaxWidth = 620 },
@@ -35,7 +38,7 @@ public sealed partial class MainViewModel
                     new TextBlock { Text = "Operations stay available meanwhile (Ctrl+J).", TextWrapping = TextWrapping.Wrap, MaxWidth = 620, Classes = { "muted" } },
                 } };
                 // Plan §11.5: the operation center stays usable while this format scan is pending.
-                dialog = Dialogs.ShowCustomAsync(title, body, [new DialogButton("Cancel", "cancel", IsCancel: true, IsDefault: true)], closer: closer,
+                dialog = Dialogs.ShowCustomAsync(title, body, [new DialogButton("Cancel", "cancel", IsCancel: true)], initialFocus: progress, closer: closer,
                     behavior: new DialogBehavior { KeepOperationsUsable = true });
                 if (await Task.WhenAny(task, dialog) == dialog) stop.Cancel();
             }

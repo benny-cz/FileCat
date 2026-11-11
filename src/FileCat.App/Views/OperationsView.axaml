@@ -5,7 +5,8 @@
              xmlns:services="using:FileCat.App.Services"
              xmlns:controls="using:FileCat.App.Controls"
              x:Class="FileCat.App.Views.OperationsView"
-             x:DataType="vm:OperationCenterViewModel">
+             x:DataType="vm:OperationCenterViewModel"
+             KeyboardNavigation.TabNavigation="Cycle">
   <StackPanel>
     <!-- Compact strip: the most relevant operation -->
     <Border Classes="status" IsVisible="{Binding HasVisibleWork}" BorderBrush="{DynamicResource FcBorder}" BorderThickness="0,1,0,0">
@@ -209,7 +210,7 @@
                     ToolTip.Tip="Removes finished reports and unused Undo steps from this session; review is required for useful records" />
             <Button Classes="flat" Content="Fit height" Click="OnFitDrawerHeight"
                     ToolTip.Tip="Size Operations to its visible jobs and report; restores automatic sizing after a manual resize" />
-            <Button Classes="primary" Content="Review decision…" FontWeight="SemiBold" Padding="10,4"
+            <Button x:Name="DetailsReviewDecision" Classes="primary" Content="Review decision…" FontWeight="SemiBold" Padding="10,4"
                     IsVisible="{Binding NeedsDecision}" Click="OnReviewDecision"
                     ToolTip.Tip="Review this operation's waiting decision" />
             <Button Content="Pause" IsVisible="{Binding CanPause}" Click="OnPause" />

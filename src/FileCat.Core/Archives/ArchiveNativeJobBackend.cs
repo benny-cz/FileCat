@@ -234,13 +234,20 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
             int replaceable = review.ReplacementNames - review.DuplicateReplacementNames;
             var actions = replaceable == 0 ? new[] { DecisionAction.CancelJob, DecisionAction.Skip }
                 : new[] { DecisionAction.CancelJob, DecisionAction.Skip, DecisionAction.Proceed };
+            var skipped = new List<string>();
+            if (review.DuplicateReplacementNames > 0)
+                skipped.Add(review.DuplicateReplacementNames == 1 ? "1 duplicated name" : $"{review.DuplicateReplacementNames:N0} duplicated names");
+            if (review.MandatorySkippedNames > 0)
+                skipped.Add(review.MandatorySkippedNames == 1 ? "1 file/folder conflict" : $"{review.MandatorySkippedNames:N0} file/folder conflicts");
+            string replaceText = replaceable == 0 ? "" : replaceable == 1 ? "1 incoming name can replace an existing file. "
+                : $"{replaceable:N0} incoming names can replace one existing file each. ";
+            string skipText = skipped.Count == 0 ? "" :
+                $"{string.Join(" and ", skipped)} will be skipped either way; skipped originals stay where they are. ";
             var answer = job.Ask(new ConfirmRequest("Names already in the archive",
-                $"{replaceable:N0} incoming names can replace one existing file each. " +
-                $"{review.DuplicateReplacementNames:N0} duplicated names and {review.MandatorySkippedNames:N0} file/folder conflicts will be skipped. " +
-                "Skipped originals stay where they are. Choose Skip to keep all existing members.\n" +
+                replaceText + skipText + "Choose Skip to keep all existing members.\n" +
                 ArchiveJobReviewText.Samples(review.ReplacementSamples.Concat(review.MandatorySkipSamples)), request.ArchivePath,
                 "archive-add-conflicts-" + (source?.CatalogRevision ?? job.Id.ToString("N")), actions)
-            { InitialAction = DecisionAction.Skip, ProceedLabel = ReplaceLabel(replaceable) });
+            { InitialAction = DecisionAction.Skip, ProceedLabel = ReplaceLabel(replaceable), OffersApplyToAll = false });
             if (answer.Action == DecisionAction.Skip) return false;
             if (answer.Action == DecisionAction.Proceed && replaceable != 0) return true;
             job.Cancel(); job.Checkpoint(); return false;
@@ -277,7 +284,7 @@ internal sealed class ArchiveNativeJobBackend<T> : IArchiveJobBackend where T : 
             string kind = (single ? parts[0].Kind : "archive-review") + "-" + (source?.CatalogRevision ?? job.Id.ToString("N"));
             string label = single ? parts[0].Label : replacing ? ReplaceLabel(review.ReplacedOccurrences) + " and continue" : "Continue with these changes";
             var answer = job.Ask(new ConfirmRequest(title, text, request.ArchivePath, kind, [DecisionAction.CancelJob, DecisionAction.Proceed])
-            { InitialAction = DecisionAction.CancelJob, ProceedLabel = label });
+            { InitialAction = DecisionAction.CancelJob, ProceedLabel = label, OffersApplyToAll = false });
             if (answer.Action != DecisionAction.Proceed) { job.Cancel(); job.Checkpoint(); }
         }
     }

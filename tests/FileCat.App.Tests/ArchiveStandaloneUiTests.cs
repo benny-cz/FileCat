@@ -2,7 +2,9 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -108,6 +110,16 @@ public sealed class ArchiveStandaloneUiTests
         Assert.Equal("alpha", Read(path, format)); Assert.Equal("alpha", File.ReadAllText(Path.Combine(f.Files, "a.txt")));
         Assert.Empty(JournalRecovery.Scan(f.Services.Paths.JournalDirectory));
 
+        // Packing onto the existing compressed file asks to replace its contents after checking it; Enter, still
+        // repeating from Pack if held, cancels that question and the contents stay.
+        Assert.True(f.Vm.ActiveTab!.Listing.FocusName("a.txt"));
+        var again = f.Vm.ExecuteAsync(CommandIds.Pack); await f.Ready(); f.SelectFormat(format);
+        // The job records the resolved path (macOS: /private/var); the dialog shows the folder as the panel names it.
+        Assert.Equal(Path.GetFileName(path), Path.GetFileName(f.Input("Archive path").Text));
+        await Wait(() => f.Button("Pack")?.IsEffectivelyEnabled == true); f.Click("Pack");
+        await HeldEnterCancelsReplacement(f, again);
+        Assert.Single(f.Services.Jobs.Jobs); Assert.Equal("alpha", Read(path, format));
+
         // Inside the compressed file: its one member carries the outer name; nothing else can be created, renamed or removed.
         var source = f.Vm.Workspace.Panels[0].ActiveTab!; var target = f.Vm.Workspace.Panels[1].ActiveTab!;
         var archive = ArchiveProvider.ForFile(path);
@@ -128,8 +140,13 @@ public sealed class ArchiveStandaloneUiTests
         Assert.Contains("holds exactly one file", f.Vm.Notification);
         for (int i = 0; i < source.Listing.VisibleCount; i++) source.Listing.SetMark(i, false);
 
-        // F5 of one file: an explicit replacement of the compressed contents.
+        // F5 of one file: an explicit replacement of the compressed contents. Enter cancels the question; the button replaces.
         Assert.True(source.Listing.FocusName("b.txt"));
+        var declined = f.Vm.ExecuteAsync(CommandIds.Copy);
+        // Copy is enabled once the destination is checked; a click before that does nothing.
+        await Wait(() => f.Button("Copy")?.IsEffectivelyEnabled == true || declined.IsCompleted); f.Click("Copy");
+        await HeldEnterCancelsReplacement(f, declined);
+        Assert.Single(f.Services.Jobs.Jobs); Assert.Equal("alpha", Read(path, format));
         await Transfer(f, "Replace contents");
         var replacement = f.Services.Jobs.Jobs.Last(); Assert.NotSame(creation, replacement); await Finished(replacement);
         var replaced = Assert.Single(replacement.Request.Archive!.Changes);
@@ -182,6 +199,49 @@ public sealed class ArchiveStandaloneUiTests
         var member = Assert.Single(reader.List(_ => { }, CancellationToken.None));
         Assert.Equal(Path.GetFileName(path)[..^ArchiveStandalone.Suffix(format).Length], member.Path);
         using var content = new StreamReader(reader.Open(member.Index, CancellationToken.None)); return content.ReadToEnd();
+    }
+
+    /// <summary>
+    /// Plan §11.8: replacing compressed contents keeps no old copy, so its question opens on Cancel and Enter cancels it.
+    /// Two Enter presses without a release stand for an Enter held from the command that led here.
+    /// </summary>
+    private static async Task HeldEnterCancelsReplacement(Fixture f, Task command)
+    {
+        var questionClock = Stopwatch.StartNew();
+        while (f.Button("Replace contents") is null && !command.IsCompleted)
+        {
+            Dispatcher.UIThread.RunJobs(); f.Window.UpdateLayout();
+            if (questionClock.Elapsed > TimeSpan.FromSeconds(90))
+                throw new TimeoutException("No replacement question. UI: " + f.Text() + " | Buttons: " +
+                    string.Join(", ", f.Window.GetVisualDescendants().OfType<Button>().Where(b => b.IsEffectivelyVisible).Select(b => b.Content as string ?? "?")) +
+                    " | Notice: " + f.Vm.Notification + " | Jobs: " + string.Join(", ", f.Services.Jobs.Jobs.Select(job => job.Title + " " + job.State)));
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        Assert.False(command.IsCompleted, "No replacement question. UI: " + f.Text() + " Notice: " + f.Vm.Notification);
+        var replace = f.Button("Replace contents")!; var cancel = Assert.IsType<Button>(f.Button("Cancel"));
+        Assert.False(replace.IsDefault); Assert.Contains("danger", replace.Classes); Assert.True(cancel.IsDefault);
+        var focusClock = Stopwatch.StartNew();
+        while (!ReferenceEquals(f.Window.FocusManager?.GetFocusedElement(), cancel))
+        {
+            Dispatcher.UIThread.RunJobs();
+            if (focusClock.Elapsed > TimeSpan.FromSeconds(30))
+            {
+                object? focused = f.Window.FocusManager?.GetFocusedElement();
+                string where = focused switch
+                {
+                    Button button => "button " + button.Content,
+                    Control control => control.GetType().Name + " " + Avalonia.Automation.AutomationProperties.GetName(control) +
+                        " in " + string.Join("/", control.GetVisualAncestors().OfType<Control>().Take(6).Select(a => a.GetType().Name)),
+                    null => "nothing",
+                    _ => focused.GetType().Name,
+                };
+                throw new TimeoutException("Focus did not reach the replacement question's Cancel; it is on " + where + ". UI: " + f.Text());
+            }
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+        f.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        f.Window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        await f.Complete(command);
     }
 
     private static async Task Finished(Job job)

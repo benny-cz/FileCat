@@ -55,6 +55,7 @@ public sealed class KeyboardReferenceTests
             search.Text = "F6";
             await Task.Delay(20, TestContext.Current.CancellationToken);
             Assert.Single(list.ItemsSource!.Cast<KeyboardHelpEntry>());
+            Assert.Null(Avalonia.Automation.AutomationProperties.GetHelpText(host.GetVisualDescendants().OfType<ListBoxItem>().Single()));
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             Assert.Equal(new KeyboardReferenceChoice("file.move", ChangeShortcut: false), await task);
             Assert.False(dialogs.IsOpen);
@@ -65,6 +66,9 @@ public sealed class KeyboardReferenceTests
             var disabledRun = host.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Run command"));
             Assert.False(disabledRun.IsEnabled);
             Assert.Contains(host.GetVisualDescendants().OfType<TextBlock>(), t => t.Text?.Contains("No active workspace", StringComparison.Ordinal) == true);
+            // Menus skip disabled commands, so a screen reader hears the reason from the list item itself.
+            Assert.Equal("Unavailable: No active workspace",
+                Avalonia.Automation.AutomationProperties.GetHelpText(host.GetVisualDescendants().OfType<ListBoxItem>().Single()));
             var secondSearch = host.GetVisualDescendants().OfType<TextBox>().Single(x => x.PlaceholderText == "Search command, shortcut, or command ID");
             secondSearch.Focus();
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
