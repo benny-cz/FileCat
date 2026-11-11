@@ -14,7 +14,8 @@
 #   FileCat's archive-worker gate is per process, so shards let worker-heavy test classes use more than one CPU.
 #   A parallel:on entry runs all test processes at the same time after every build has finished (default: one by one).
 #   FILTER is a dotnet test --filter expression; "*" runs the complete project inventory.
-# Writes $ROOT/RUN_ID/{status.txt,summary.json,machine.txt,*.log,results/*.trx} and RUN_ID-evidence.tar.gz.
+# Writes $ROOT/RUN_ID/{status.txt,summary.json,machine.txt,*.log,results/*.trx} and RUN_ID-evidence.tar.gz (without src/ and
+# publish/; publish-sha256.txt lists the published files).
 # Refuses (exit 3) while another FileCat/.NET test process from a different owner directory is running.
 set -euo pipefail
 RUN_ID=$1; PACKET=$2; EXPECTED=$3; FILTER=$4; shift 4
@@ -47,7 +48,10 @@ finish() {
   [ -f "$D/status.txt" ] || echo FAIL >"$D/status.txt"
   # Only processes running from inside the run folder: a sibling path such as RUN_ID.log in a caller's arguments is not ours.
   if [ -n "$(pgrep -f "$D/" || true)" ]; then echo "leftover processes" >>"$D/status.txt"; pkill -f "$D/" || true; fi
-  tar -czf "$D-evidence.tar.gz" -C "$ROOT" --exclude="$RUN_ID/src" "$RUN_ID" || true
+  # Published apps are rebuilt from the pinned packet, so the evidence keeps each published file's SHA-256 instead of
+  # 200+ MiB of binaries per run (the Windows runner also leaves src and publish out).
+  if [ -d "$D/publish" ]; then (cd "$D/publish" && find . -type f -exec shasum -a 256 {} + | LC_ALL=C sort -k2) >"$D/publish-sha256.txt" || true; fi
+  tar -czf "$D-evidence.tar.gz" -C "$ROOT" --exclude="$RUN_ID/src" --exclude="$RUN_ID/publish" "$RUN_ID" || true
   exit $code
 }
 trap finish EXIT
