@@ -12,6 +12,7 @@ public sealed class EditSessionRecoveryRecordTests
         InlineData("array"), InlineData("truncated"), InlineData("deep"), InlineData("oversized"), InlineData("invalid-utf8"),
         InlineData("null-member"), InlineData("null-baseline"), InlineData("null-working"), InlineData("null-remote"),
         InlineData("outside-working"), InlineData("relative-working"), InlineData("nul-working"), InlineData("traversal-working"),
+        InlineData("folder-working"), InlineData("folder-separator-working"),
         InlineData("invalid-utf8-name"),InlineData("invalid-utf8-id"),InlineData("invalid-utf8-working"),
         InlineData("unpaired-high-id"),InlineData("unpaired-low-id"),InlineData("unpaired-name")]
     public void Unreadable_or_future_record_shapes_remain_visible_without_mutating_working_files(string shape)
@@ -37,6 +38,9 @@ public sealed class EditSessionRecoveryRecordTests
             case "relative-working": node["WorkingPath"]="owned.txt";break;
             case "nul-working": node["WorkingPath"]=directory+Path.DirectorySeparatorChar+"bad\0.txt";break;
             case "traversal-working": node["WorkingPath"]=Path.Combine(directory,"..","outside.txt");break;
+            // The session folder itself is the recovery fallback location, never a working file (found by native fuzzing).
+            case "folder-working": node["WorkingPath"]=directory;break;
+            case "folder-separator-working": node["WorkingPath"]=directory+Path.DirectorySeparatorChar;break;
         }
         byte[] bytes=shape switch
         {

@@ -278,11 +278,16 @@ public sealed partial class EditSessionStore
     private static EditSessionRecord UnsupportedSession(string directory, string reason, int version = int.MaxValue, string? working = null) =>
         new() { Version = version, Id = Path.GetFileName(directory), WorkingPath = SafeRecoveryPath(directory, working), UnsupportedReason = reason };
 
+    // A usable record's working copy is a file strictly inside its own session folder, never the folder itself: that is
+    // only the recovery fallback location.
+    private static bool IsWorkingFile(string directory, string working) =>
+        SafeRecoveryPath(directory, working) is var safe && safe == working && safe != directory;
+
     private static string SafeRecoveryPath(string directory, string? working)
     {
         try
         {
-            if (working is not null && Path.IsPathFullyQualified(working) && Path.GetFullPath(working).StartsWith(
+            if (working is not null && Path.IsPathFullyQualified(working) && !Path.EndsInDirectorySeparator(working) && Path.GetFullPath(working).StartsWith(
                 Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory)) + Path.DirectorySeparatorChar, StringComparison.Ordinal)) return Path.GetFullPath(working);
         }
         catch (ArgumentException) { }
@@ -313,8 +318,7 @@ public sealed partial class EditSessionStore
                 if (record is not null)
                 {
                     record = record with { Version = version };
-                    if ((record.IsSupported || allowPendingAdoption && record.IsPendingAdoption) &&
-                        SafeRecoveryPath(directory, record.WorkingPath) == record.WorkingPath)
+                    if ((record.IsSupported || allowPendingAdoption && record.IsPendingAdoption) && IsWorkingFile(directory, record.WorkingPath))
                         return version == 1 && !record.IsRemote ? record with { ArchiveFormat = ArchiveWriteFormat.Zip, ArchiveProfile = null } : record;
                 }
             }
