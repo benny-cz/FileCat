@@ -19,12 +19,16 @@ def main():
     names = ("FileCat.ArchiveFuzzHarness.dll", "FileCat.ArchiveFuzzHarness.pdb",
              "FileCat.ArchiveFuzzHarness.deps.json", "FileCat.ArchiveFuzzHarness.runtimeconfig.json",
              "SharpFuzz.dll", "SharpFuzz.Common.dll", "dnlib.dll")
-    source = ("Program.cs", "ArchiveFuzzHarness.csproj", "packages.lock.json", "toolchain.json")
+    # Every harness source file, so the packet records all targets (the worker, writer, stateful, standalone, ZIP and
+    # publication targets live beside Program.cs).
+    source = tuple(sorted(path.name for path in project.glob("*.cs"))) + \
+        ("ArchiveFuzzHarness.csproj", "packages.lock.json", "toolchain.json")
     contents = [(output / n, "harness/" + n) for n in names] + [(project / n, "source/" + n) for n in source]
     for name in ("make_session_fuzz_seeds.py", "make_tar_fuzz_seeds.py", "make_sevenzip_fuzz_seeds.py",
                  "make_rar5_fuzz_seeds.py", "make_wrapper_fuzz_seeds.py",
                  "replay_wrapper_guest.py",
-                 "prepare_fuzz_guest.py", "run_fuzz_guest.py", "pack_fuzz_harness.py"):
+                 "prepare_fuzz_guest.py", "prepare_fuzz_candidate_guest.py", "run_fuzz_guest.py",
+                 "seal_fuzz_campaign_guest.py", "pack_fuzz_harness.py"):
         contents.append((project.parent / name, "source/" + name))
     for path, _ in contents:
         if not path.is_file():
