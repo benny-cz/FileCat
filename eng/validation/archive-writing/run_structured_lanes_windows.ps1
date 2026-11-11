@@ -1,6 +1,6 @@
 # Cross-RID structured mutation lanes on Windows (test tooling): build product + harness at the candidate from a source
 # packet, then run every target's structured mutation for SecondsEach, Lanes targets at a time, on the image's seeds.
-param([string]$Work, [string]$Packet, [string]$PacketSha256, [string]$Seeds, [int]$SecondsEach, [int]$Lanes)
+param([string]$Work, [string]$Packet, [string]$PacketSha256, [string]$Seeds, [int]$SecondsEach, [int]$Lanes, [int]$SeedBase = 42840001)
 $ErrorActionPreference = 'Stop'
 $log = Join-Path (Split-Path $Work) ((Split-Path $Work -Leaf) + '-lanes.log')
 function Say($text) { Add-Content -Path $log -Value ((Get-Date).ToUniversalTime().ToString('s') + 'Z ' + $text) }
@@ -24,7 +24,8 @@ try {
     $harness = "$Work\src\eng\validation\archive-writing\ArchiveFuzzHarness\bin\Release\net10.0\FileCat.ArchiveFuzzHarness.dll"
     Say 'built'
     $env:DOTNET_GCHeapHardLimit = '20000000'
-    $seed = 42840001; $running = @()
+    # A later pass needs another base: the same random seed repeats the same mutation sequence.
+    $seed = $SeedBase; $running = @()
     foreach ($folder in Get-ChildItem -Directory "$Work\seeds" | Where-Object Name -like 'seeds-*' | Sort-Object Name) {
         $target = $folder.Name.Substring(6)
         if ($target -eq 'publication-races') { Say 'skip publication-races: the Unix publication route'; continue }
