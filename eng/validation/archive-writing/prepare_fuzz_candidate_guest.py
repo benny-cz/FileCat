@@ -54,8 +54,12 @@ def main():
         raise ValueError("The checkout is not at the named candidate")
     if git(checkout, "status", "--porcelain", "--untracked-files=no"):
         raise ValueError("The candidate checkout has uncommitted changes")
+    # Build src/FileCat.Archives with -p:CopyLocalLockFileAssemblies=true so its package dependencies sit beside it.
     product = checkout / "src" / "FileCat.Archives" / "bin" / "Release" / "net10.0"
     harness = checkout / "eng" / "validation" / "archive-writing" / "ArchiveFuzzHarness" / "bin" / "Release" / "net10.0"
+    missing = [name for name in PRODUCT if not (product / name).is_file()]
+    if missing:
+        raise FileNotFoundError("The candidate product build lacks " + ", ".join(missing))
     prior = task / args.prior
     tools = json.loads((prior / "tool-artifacts.json").read_text())
     for name in ("libfuzzer-dotnet", "driver.cc", "LICENSE"):
