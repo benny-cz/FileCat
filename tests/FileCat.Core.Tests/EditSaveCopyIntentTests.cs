@@ -55,4 +55,43 @@ public sealed class EditSaveCopyIntentTests
         if(scenario=="invalid-utf8")bytes[2]=0xff;
         Assert.ThrowsAny<IOException>(()=>EditSaveCopyIntent.Decode(bytes));
     }
+
+    // A destination is its canonical drive-letter path; other Windows spellings of a folder are refused (win-x64 structured
+    // mutation reached these only once its seeds named a Windows destination).
+    [Theory,InlineData("canonical",true),InlineData("drive-root",true),InlineData("extended",false),InlineData("device",false),
+        InlineData("unc-loopback",false),InlineData("forward-slashes",false),InlineData("trailing-separator",false),
+        InlineData("trailing-dot",false),InlineData("trailing-space",false),InlineData("dot-segment",false),
+        InlineData("dotdot",false),InlineData("double-separator",false),InlineData("drive-relative",false),
+        InlineData("rooted-no-drive",false)]
+    public void Windows_spellings_of_a_destination_folder_are_refused(string shape,bool accepted)
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows(),"Windows path spellings.");
+        var nonce=Guid.Parse("11111111-1111-1111-1111-111111111111");string digest=new('A',64);
+        string prefix=".filecat-archive-"+nonce.ToString("N")+"-";
+        string destination=Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.Combine(Path.GetTempPath(),"copy-intent")));
+        var intent=new EditSaveCopyIntent(1,nonce,new string('2',32),digest,"capture-1","source-1",113,digest,digest,digest,
+            1700000000,700,destination,"parent-1","saved.txt",prefix+new string('a',32)+".stage",prefix+new string('b',32)+".manifest",
+            prefix+new string('c',32)+".manifest");
+        string spelled=shape switch
+        {
+            "canonical"=>destination,
+            "drive-root"=>destination[..3],
+            "extended"=>@"\\?\"+destination,
+            "device"=>@"\\.\"+destination,
+            "unc-loopback"=>@"\\localhost\"+destination[..1]+"$"+destination[2..],
+            "forward-slashes"=>destination.Replace('\\','/'),
+            "trailing-separator"=>destination+@"\",
+            "trailing-dot"=>destination+".",
+            "trailing-space"=>destination+" ",
+            "dot-segment"=>destination+@"\.\inner",
+            "dotdot"=>destination+@"\..\other",
+            "double-separator"=>destination+@"\\inner",
+            "drive-relative"=>destination[..2]+destination[3..],
+            _=>destination[2..],
+        };
+        var node=JsonNode.Parse(intent.Encode())!.AsObject();node["DestinationDirectory"]=spelled;
+        byte[] bytes=Encoding.UTF8.GetBytes(node.ToJsonString());
+        if(accepted)Assert.Equal(intent with{DestinationDirectory=spelled},EditSaveCopyIntent.Decode(bytes));
+        else Assert.ThrowsAny<IOException>(()=>EditSaveCopyIntent.Decode(bytes));
+    }
 }

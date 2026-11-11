@@ -65,6 +65,53 @@ public sealed class EditSessionRecoveryRecordTests
         Assert.True(loaded.WorkingPath==directory||loaded.WorkingPath==working);
     }
 
+    // The store writes one canonical path; every other Windows spelling of the same file (or of a file elsewhere) stays an
+    // unsupported record that keeps its folder. Native fuzzing ran on Linux, and win-x64 structured mutation reached these
+    // forms only once its seeds named the Windows session root.
+    [Theory, InlineData("canonical",true), InlineData("forward-slashes",false), InlineData("mixed-slashes",false),
+        InlineData("drive-case",false), InlineData("folder-case",false), InlineData("extended",false), InlineData("device",false),
+        InlineData("unc-loopback",false), InlineData("trailing-dot",false), InlineData("trailing-space",false),
+        InlineData("dot-segment",false), InlineData("dotdot-inside",false), InlineData("double-separator",false),
+        InlineData("drive-relative",false), InlineData("rooted-no-drive",false), InlineData("other-drive",false)]
+    public void Windows_spellings_of_a_working_file_are_not_usable_edits(string shape,bool usable)
+    {
+        Assert.SkipWhen(!OperatingSystem.IsWindows(),"Windows path spellings.");
+        using var root=new TempDir();string id=Guid.NewGuid().ToString("N");
+        string directory=Directory.CreateDirectory(Path.Combine(root.Path,id)).FullName;
+        string working=Path.Combine(directory,"owned.txt");File.WriteAllText(working,"keep the complete working bytes");
+        string drive=directory[..1];
+        string spelled=shape switch
+        {
+            "canonical"=>working,
+            "forward-slashes"=>working.Replace('\\','/'),
+            "mixed-slashes"=>directory+"/owned.txt",
+            "drive-case"=>(char.IsUpper(drive[0])?drive.ToLowerInvariant():drive.ToUpperInvariant())+working[1..],
+            "folder-case"=>directory[..^id.Length].ToUpperInvariant()+id+@"\owned.txt",
+            "extended"=>@"\\?\"+working,
+            "device"=>@"\\.\"+working,
+            "unc-loopback"=>@"\\localhost\"+drive+"$"+working[2..],
+            "trailing-dot"=>working+".",
+            "trailing-space"=>working+" ",
+            "dot-segment"=>directory+@"\.\owned.txt",
+            "dotdot-inside"=>directory+@"\..\"+id+@"\owned.txt",
+            "double-separator"=>directory+@"\\owned.txt",
+            "drive-relative"=>drive+":"+working[3..],
+            "rooted-no-drive"=>working[2..],
+            _=>(drive[0] is 'Z' or 'z'?"Y":"Z")+working[1..],
+        };
+        Assert.True(shape=="canonical"||spelled!=working,shape);
+        var record=new EditSessionRecord { Id=id,WorkingPath=spelled,MemberPath="owned.txt",ArchivePath=Path.Combine(root.Path,"owned.zip") };
+        byte[] bytes=JsonSerializer.SerializeToUtf8Bytes(record);
+        string path=Path.Combine(directory,"session.json");File.WriteAllBytes(path,bytes);
+        var store=new EditSessionStore(root.Path,new PortableFileOperations());var loaded=Assert.Single(store.LoadAll());
+        Assert.Equal(id,loaded.Id);Assert.Equal(directory,store.SessionDirectory(loaded));
+        if(usable){Assert.True(loaded.IsSupported,loaded.UnsupportedReason);Assert.Equal(working,loaded.WorkingPath);return;}
+        Assert.False(loaded.IsSupported);Assert.NotEmpty(loaded.UnsupportedReason!);
+        Assert.Throws<NotSupportedException>(()=>store.Save(loaded));Assert.Throws<NotSupportedException>(()=>store.Discard(loaded));
+        Assert.Equal(bytes,File.ReadAllBytes(path));Assert.Equal("keep the complete working bytes",File.ReadAllText(working));
+        Assert.True(loaded.WorkingPath==directory||loaded.WorkingPath==working,loaded.WorkingPath);
+    }
+
     [Theory,InlineData(false),InlineData(true)]
     public void An_unpublished_folder_does_not_appear_as_a_broken_session(bool hasWorkingFile)
     {
