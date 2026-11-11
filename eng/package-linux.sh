@@ -69,7 +69,7 @@ echo "9b872a8a070b8ad329c4bd380fb1bf0000f564c75023ec8e1e6803f15364b9e9  $PUB/lic
 # byte for byte: SHA256SUMS has its reviewed hash and lists exactly the folder's other files.
 cp -R "$ROOT/licenses/sharpcompress" "$PUB/licenses/"
 ( cd "$PUB/licenses/sharpcompress" \
-  && echo "da9014fb8d4af0cab6ba4e19e1bd03bd88ea4f649e4dc1ac45cdd105c532ce8b  SHA256SUMS" | sha256sum -c - >/dev/null \
+  && echo "b036603dac3e8d14a520defdb0545da9db8f384808f97cfbdf877e70cb05807c  SHA256SUMS" | sha256sum -c - >/dev/null \
   && sha256sum -c SHA256SUMS >/dev/null \
   && [ "$(find . -type f ! -name SHA256SUMS | sed 's|^\./||' | LC_ALL=C sort)" = "$(cut -c67- SHA256SUMS | LC_ALL=C sort)" ] ) \
   || { echo "licenses/sharpcompress differs from its pinned notice set." >&2; exit 2; }
