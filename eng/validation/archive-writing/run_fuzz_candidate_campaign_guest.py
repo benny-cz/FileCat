@@ -42,6 +42,10 @@ SEED_BASE = int(option("--seed-base", "20261801"))
 HOUR = 3600
 CHUNK = 4.3
 MARGIN = 1.18
+# Wall time is sized as if each unit earns at most one CPU-second per second. On v4 (11 units, 12 vCPUs) the
+# multithreaded zip-archives runs earned 0.74 CPU-s per second against a short-run rate of 1.38 and ended below their
+# floor; single-threaded targets kept their short-run rate. A new plan therefore never counts on more than 1.0.
+RATE_CAP = 1.0
 # CPU-hours per target: every family reaches 25 or more (plan floor 24), every target 2.3 or more (floor 2).
 ALLOCATION = {
     "tar-strict": 5.0, "member-keys": 5.0, "create-inputs": 5.0, "update-changes": 5.0, "verify-output": 5.0,
@@ -75,7 +79,7 @@ def plan():
         count = math.ceil(hours / CHUNK)
         floor = math.ceil(hours * HOUR / count)
         for number in range(1, count + 1):
-            seconds = min(86000, math.ceil(floor / min(rate, 1.6) * MARGIN))
+            seconds = min(86000, math.ceil(floor / min(rate, RATE_CAP) * MARGIN))
             runs.append({"target": target, "run": f"{target}-long-c4-{number}", "seconds": seconds, "seed": seed,
                          "minimum_cpu_seconds": floor, "rate": round(rate, 3), "reuse": reuse})
             seed += 1
