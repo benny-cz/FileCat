@@ -17,6 +17,7 @@ run SLOTS [--image NAME --packet PATH]:    keep SLOTS units busy, longest first;
 import json
 import math
 import pathlib
+import shutil
 import subprocess
 import sys
 import time
@@ -98,7 +99,8 @@ def run(slots):
     pending = [row for row in runs if row["run"] not in status]
     active = {}
     while pending or active:
-        while pending and len(active) < slots:
+        # Each run keeps its corpus and logs until it is sealed: never start one with less than 5 GiB free.
+        while pending and len(active) < slots and shutil.disk_usage(I).free >= 5 << 30:
             row = pending.pop(0)
             log = (I / f"log-{row['run']}.txt").open("w")
             command = ["python3", "-I", str(S / "run_fuzz_guest.py"), "--root", str(I), "--phase", "clean",
@@ -109,6 +111,8 @@ def run(slots):
             active[row["run"]] = (row, subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT), log)
             status[row["run"]] = {"state": "running", "started": time.time()}
             status_path.write_text(json.dumps(status, indent=2))
+        if pending and len(active) < slots and shutil.disk_usage(I).free < 5 << 30:
+            print(time.strftime("%H:%M:%S"), "waiting for 5 GiB free before", pending[0]["run"], flush=True)
         time.sleep(30)
         for name, (row, process, log) in list(active.items()):
             if process.poll() is None:

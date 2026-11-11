@@ -33,6 +33,12 @@ if ($busy) {
     'POSTPONED: ' + (($busy | ForEach-Object { "$($_.Name):$($_.Id)" }) -join ',') | Set-Content -LiteralPath $status
     exit 3
 }
+# A run extracts, builds and publishes 3+ GB beside earlier evidence: refuse rather than fill the system drive.
+$free = ([IO.DriveInfo]::new([IO.Path]::GetPathRoot($root))).AvailableFreeSpace
+if ($free -lt 10GB) {
+    ('REFUSED: {0:N1} GB free on {1}, 10 GB needed' -f ($free / 1GB), [IO.Path]::GetPathRoot($root)) | Set-Content -LiteralPath $status
+    exit 4
+}
 try {
     if ((Get-FileHash -LiteralPath $Packet -Algorithm SHA256).Hash -ne $Sha256.ToUpperInvariant()) { throw 'Packet hash mismatch.' }
     if (-not (Test-Path -LiteralPath $Dotnet -PathType Leaf)) { throw "SDK missing: $Dotnet" }

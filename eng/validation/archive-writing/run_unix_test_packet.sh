@@ -40,6 +40,9 @@ others() {
   done
 }
 if [ -n "$(others)" ]; then echo "another tester owns this machine:" >&2; others >&2; exit 3; fi
+# A run extracts, builds and publishes 3+ GiB beside earlier evidence: refuse rather than fill the machine's disk.
+FREE_KIB=$(df -Pk "$ROOT" | awk 'NR == 2 {print $4}')
+[ "${FREE_KIB:-0}" -ge $((10 * 1024 * 1024)) ] || { echo "less than 10 GiB free under $ROOT" >&2; exit 4; }
 ACTUAL=$(python3 -c 'import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],"rb").read()).hexdigest())' "$PACKET")
 [ "$ACTUAL" = "$EXPECTED" ] || { echo "packet hash mismatch" >&2; exit 2; }
 mkdir -m 700 "$D"; mkdir "$D/src" "$D/results"
