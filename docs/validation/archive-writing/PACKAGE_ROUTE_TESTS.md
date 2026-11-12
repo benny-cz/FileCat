@@ -53,7 +53,15 @@ payload after the normalization, with the caller's umask, so it was still group-
 now set `umask 022` first, and the Linux script checks each staged payload (tarball, .deb, AppImage) right before it
 builds it (`05d7f62c`).
 
-**Second rerun, `05d7f62c`:** pending.
+**Second rerun, `05d7f62c`: modes clean, the .deb still refused, and a third defect found.** Every file and folder of
+the package now has 644 or 755, yet the .deb lane still failed. A direct check of the installed bundle
+(`The_installed_deb_is_a_worker_location`, `22dd2fca`) named the reason: "The Linux archive bundle exceeds its inventory
+limit." The packaged dependency notices nest nine folders deep (`licenses/dependencies/upstream/<org>/<repo>/<commit>/…`),
+and the bundle walk stopped at eight. Test publishes carry no notices, so only a package could show this. The walk now
+allows 16, as on Windows; its 16,384-entry bound still caps it (`2d828d05`). The worker checks its bundle itself as well,
+so the package must be rebuilt at the fixed commit.
+
+**Third rerun, `2d828d05`:** pending.
 
 ## Windows (installed layout and portable)
 
