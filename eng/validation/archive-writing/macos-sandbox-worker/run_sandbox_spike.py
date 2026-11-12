@@ -51,6 +51,8 @@ def build():
     os.makedirs(WORK, exist_ok=True)
     source = os.path.join(WORK, "source")
     shutil.copytree(os.path.join(HERE, "SandboxProbe"), source)
+    # Kept as a template in the repository (every tracked project there needs a dependency lock); built outside it.
+    os.rename(os.path.join(source, "SandboxProbe.csproj.in"), os.path.join(source, "SandboxProbe.csproj"))
     app = os.path.join(WORK, "Spike.app")
     macos = os.path.join(app, "Contents", "MacOS")
     publish = run([DOTNET, "publish", source, "-c", "Release", "-r", "osx-arm64", "--self-contained", "true", "-o", macos,
