@@ -190,7 +190,8 @@ try {
 } finally {
     & schtasks.exe /delete /tn $task /f *> $null
     if (Test-Path -LiteralPath $run) {
-        $items = Get-ChildItem -LiteralPath $run -Force | Where-Object { $_.Name -notin @('src', 'publish') }
+        # Evidence keeps logs and results, never the source, a publish or an unpacked package (expand:ZIP).
+        $items = Get-ChildItem -LiteralPath $run -Force | Where-Object { $_.Name -notin @('src', 'publish', 'expand') }
         Compress-Archive -Path $items.FullName -DestinationPath $evidence -Force
     }
 }

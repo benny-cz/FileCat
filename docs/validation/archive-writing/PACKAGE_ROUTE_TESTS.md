@@ -13,14 +13,17 @@ dry runs of the procedure the release candidate repeats after the independent re
   application packages, which the worker's LPAC AppContainer needs. Nothing else is needed.
 - **Windows, portable copy.** A user's own folder grants AppContainers nothing, and only tests had granted the worker
   access. Now, at the first worker start, a portable copy (with its marker) in a folder the current user owns grants
-  FileCat's worker identity read access to that folder, and logs it (`68c287bf`). Any other folder the worker cannot read
-  makes writing unavailable, with that reason.
+  FileCat's worker identity read access to its runtime, and logs it (`68c287bf`). Any other folder the worker cannot read
+  makes writing unavailable, with that reason. The independent review found that this first grant covered the whole
+  folder (its `Data` state, and anything beside a copy unpacked into Downloads); it now covers exactly the runtime files
+  `FileCat.deps.json` names, and the portable lane is repeated with it.
 - **Windows, framework-dependent build.** It has no runtime of its own for a confined worker, so writing is unavailable
   and the reason says so (`7bc4944a`).
 - **Linux AppImage.** The AppImage mounts its image on squashfs over FUSE, which is not a qualified place for the confined
   worker (the bundle must be on ext4). For this release, writing from the AppImage is unavailable. The reason says to
   install the .deb or to extract the AppImage into an ext4 folder (`e843439e`). On Linux and macOS, availability now
-  reports such bundle problems up front, as on Windows, instead of failing at the worker start.
+  reports such bundle problems up front, as on Windows, instead of failing at the worker start. After the review, only a
+  bundle inside the AppImage's mount (`APPDIR`) is refused for it, not a .deb started from a process an AppImage started.
 
 ## macOS app (passed)
 
@@ -61,7 +64,9 @@ and the bundle walk stopped at eight. Test publishes carry no notices, so only a
 allows 16, as on Windows; its 16,384-entry bound still caps it (`2d828d05`). The worker checks its bundle itself as well,
 so the package must be rebuilt at the fixed commit.
 
-**Third rerun, `2d828d05`:** pending.
+**Third rerun, `2d828d05`: passed.** The .deb installed into `/opt/filecat`; its route lane passed 12 of 12 (the 10
+creation and Add rows, the ZIP lane and the refused ZIP), and its bundle check passed. The AppImage, mounted on
+`fuse.FileCat-1.0.0-dev-x86_64.AppImage`, was refused with the AppImage reason. The lanes repeat at the fixed candidate.
 
 ## Windows (installed layout and portable)
 
@@ -76,4 +81,8 @@ its receipts, the compile log and the three SBOMs are kept with the evidence. On
 Program Files (no FileCat installation existed there), runs the route tests against the installed copy, then uninstalls
 it and checks that the program folder is gone.
 
-Results: pending.
+Results, all passed: the installed layout (`7bc4944a`) 12 of 12; the portable copy (`7bc4944a`, the first, whole-folder
+grant) 12 of 12; the real installer (`573d093a`): silent install (exit 0, 401 files, the program folder inheriting read and
+execute for restricted application packages), route lane 12 of 12, silent uninstall (exit 0, program folder removed). The
+Windows full regression ran first on the VM and passed every suite (App 2,925, Core 8,354, Windows platform 1,583, Remote
+2,405, Rendering 24). The portable lane repeats with the exact runtime grant.

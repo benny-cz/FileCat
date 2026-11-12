@@ -841,7 +841,7 @@ public sealed partial class EditSessionStore
     /// <summary>The update that writes the working copy back; <paramref name="rebase"/> accepts the archive's current version.</summary>
     public ArchivePlan CommitPlan(EditSessionRecord record, bool rebase) =>
         new(record.ArchivePath, rebase ? ArchiveBaseline.Of(record.ArchivePath) : record.Baseline,
-            [new ArchiveChange(ArchiveChangeKind.Replace, record.MemberPath, record.WorkingPath)]);
+            [new ArchiveChange(ArchiveChangeKind.Replace, record.MemberPath, record.WorkingPath)]) { LegacyEditCommit = true };
 
     internal IRetainedEditUpload? RemoteCommitInput(EditSessionRecord record,EditCommitCopy copy)
     {
@@ -853,7 +853,7 @@ public sealed partial class EditSessionStore
     {
         copy.Native?.RequireSession(record);
         var plan=new ArchivePlan(record.ArchivePath,review.Baseline??throw new IOException("The reviewed archive is unavailable."),
-            [new ArchiveChange(ArchiveChangeKind.Replace,record.MemberPath,copy.Path)]){EditInput=copy.Native};
+            [new ArchiveChange(ArchiveChangeKind.Replace,record.MemberPath,copy.Path)]){EditInput=copy.Native,LegacyEditCommit=true};
         copy.Native?.RequireRequest(plan);return plan;
     }
 

@@ -50,16 +50,19 @@ public sealed class ArchiveProviderWritingTests
             Assert.Single(sink.Warnings); Assert.Contains("duplicate", sink.Warnings[0]);
             Assert.Equal(new[] { 0, 1 }, sink.Items.Where(entry => entry.Name == "same").Select(entry => provider.GetItemRef(location, entry).Ordinal));
             Assert.Equal(writable, provider.GetCapabilities(location).HasFlag(LocationCapabilities.TransferTarget));
-            foreach (var entry in sink.Items)
+            // Rows carry one listing token; the listing never read the whole archive for it. A command resolves the token
+            // to the archive's SHA-256 through the listing's own handle (ArchiveListingRevision).
+            var revisions = sink.Items.Select(entry => provider.GetItemRef(location, entry)).Select(item =>
             {
-                var item = provider.GetItemRef(location, entry);
-                if (writable)
-                {
-                    Assert.Null(item.ArchiveMutationProblem);
-                    Assert.Equal(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))), item.ArchiveRevision);
-                }
-                else Assert.Null(item.ArchiveRevision);
+                Assert.Null(item.ArchiveMutationProblem); return item.ArchiveRevision;
+            }).Distinct().ToArray();
+            if (writable)
+            {
+                string token = Assert.Single(revisions)!; Assert.True(ArchiveListingRevision.IsToken(token));
+                Assert.Equal(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))),
+                    provider.ResolveListingRevision(token, TestContext.Current.CancellationToken));
             }
+            else Assert.Equal(new string?[] { null }, revisions);
             Assert.Equal(writable, provider.GetCapabilities(location).HasFlag(LocationCapabilities.Delete));
             Assert.True(provider.CachedDirectoryHint(location.WithPath("folder")));
         }

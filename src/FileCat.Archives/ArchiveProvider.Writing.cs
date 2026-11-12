@@ -77,8 +77,8 @@ public sealed partial class ArchiveProvider
         foreach (var index in _cache.Values)
         {
             if (!string.Equals(index.ContainerPath, location.Container?.Path, StringComparison.Ordinal) || index.ContainerSession != location.Session) continue;
-            if (!index.WriteRevisionAttempted) return "Refresh this archive before changing its members.";
-            return index.WriteRevisionProblem;
+            if (index.Revision is not { } revision) return "Refresh this archive before changing its members.";
+            return revision.Problem;
         }
         return null;
     }
@@ -96,6 +96,4 @@ public sealed partial class ArchiveProvider
         return null;
     }
 
-    private static string HashListingRevision(FileStream witness, long length, CancellationToken ct) =>
-        ArchiveListingRevision.Hash(witness, length, ct);
 }

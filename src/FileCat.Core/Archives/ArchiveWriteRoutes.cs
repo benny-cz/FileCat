@@ -68,13 +68,18 @@ internal static class ArchiveWriteRoutes
     {
         public ArchiveWriteFormat Format => inner.Format;
         public ArchiveTargetReviewer? TargetReviewer => inner.TargetReviewer;
+        public bool Covers(ArchivePlan plan) => Refusal(plan) == ArchiveWriteRouteRefusal.None;
         public ArchiveJobAvailability Availability(ArchivePlan plan)
+        {
+            var refusal = Refusal(plan);
+            return refusal == ArchiveWriteRouteRefusal.None ? inner.Availability(plan) : new(false, Reason(refusal));
+        }
+        private ArchiveWriteRouteRefusal Refusal(ArchivePlan plan)
         {
             ArgumentNullException.ThrowIfNull(plan);
             // Only an absolute target names a folder; anything else has an unknown file system and is refused.
             string? folder = Path.IsPathFullyQualified(plan.ArchivePath) ? Path.GetDirectoryName(plan.ArchivePath) : null;
-            var refusal = Check(routes, Format, runtimeIdentifier, string.IsNullOrEmpty(folder) ? null : fileSystemOf(folder));
-            return refusal == ArchiveWriteRouteRefusal.None ? inner.Availability(plan) : new(false, Reason(refusal));
+            return Check(routes, Format, runtimeIdentifier, string.IsNullOrEmpty(folder) ? null : fileSystemOf(folder));
         }
         public void Execute(ArchiveJobExecution execution)
         {

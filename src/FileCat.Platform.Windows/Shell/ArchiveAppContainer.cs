@@ -122,79 +122,110 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
     }
 
     /// <summary>
-    /// Plan §16.1, installed and portable routes: the worker's restricted AppContainer must read the application folder it
-    /// runs from. An installed copy under Program Files inherits read access for restricted application packages. A
-    /// portable copy (with its marker) in a folder the current user owns can be granted read access for this worker
-    /// identity alone (<see cref="EnsureRuntimeReadAccess"/>). Anywhere else writing is unavailable, with this reason.
+    /// Plan §16.1, installed and portable routes: the worker's restricted AppContainer must read the runtime it loads from
+    /// the application's folder. An installed copy under Program Files inherits read access for restricted application
+    /// packages. A portable copy (with its marker) in a folder the current user owns grants this worker identity read access
+    /// to exactly that runtime (<see cref="EnsureRuntimeReadAccess"/>): never the folder as a whole, which holds the portable
+    /// state (its Data folder) and, unpacked into Downloads say, the user's own files. Anywhere else writing is unavailable,
+    /// with this reason.
     /// </summary>
     public static string? RuntimeAccessProblem(string executable)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
-        string folder = Path.GetDirectoryName(Path.GetFullPath(executable))!;
+        string full = Path.GetFullPath(executable), folder = Path.GetDirectoryName(full)!;
         // The framework-dependent build loads the shared .NET runtime, which its confined worker is not granted.
         if (!File.Exists(Path.Combine(folder, "coreclr.dll")))
             return "Archive writing needs the self-contained FileCat (its installer or portable copy); this framework-dependent copy cannot confine its archive workers.";
-        if (RuntimeReadable(folder) || PortableOwned(folder)) return null;
+        if (RuntimeReadable(full) || PortableOwned(folder)) return null;
         return "The archive worker cannot read FileCat's own files in " + folder + ". Install FileCat, or run a portable copy from a folder you own.";
     }
 
     /// <summary>
-    /// Before a worker starts: a portable copy in a folder its user owns grants read access for the worker identity on that
-    /// folder once (logged); an installed copy needs nothing. Throws, with the reason, when the worker could not read it.
+    /// Before a worker starts: a portable copy in a folder its user owns grants the worker identity read access to its
+    /// runtime files once (logged); an installed copy needs nothing. Throws, with the reason, when the worker could not read it.
     /// </summary>
     public static void EnsureRuntimeReadAccess(string executable)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
-        string folder = Path.GetDirectoryName(Path.GetFullPath(executable))!;
-        if (RuntimeReadable(folder)) return;
-        if (!PortableOwned(folder)) throw new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, RuntimeAccessProblem(executable)!);
-        ProvisionRuntimeReadAccess(folder);
-        FileCat.Core.Diagnostics.AppLog.Info("Granted FileCat's archive worker identity read access to this portable copy's folder: " + folder);
-        if (!RuntimeReadable(folder)) throw new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, RuntimeAccessProblem(executable)!);
+        string full = Path.GetFullPath(executable), folder = Path.GetDirectoryName(full)!;
+        if (RuntimeReadable(full)) return;
+        if (!PortableOwned(folder)) throw new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, RuntimeAccessProblem(full)!);
+        ProvisionRuntimeReadAccess(folder, Path.GetFileName(full));
+        FileCat.Core.Diagnostics.AppLog.Info("Granted FileCat's archive worker identity read access to this portable copy's runtime files " +
+            "(not its Data folder or anything else beside them): " + folder);
+        if (!RuntimeReadable(full)) throw new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, RuntimeAccessProblem(full)!);
     }
 
-    // Folders found readable stay so for this process; availability is asked on keypresses.
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> readableFolders = new(StringComparer.OrdinalIgnoreCase);
+    // Runtimes found readable stay so for this process; availability is asked on keypresses.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> readableRuntimes = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly SecurityIdentifier RestrictedPackages = new("S-1-15-2-2"); // ALL RESTRICTED APPLICATION PACKAGES
+    // What a folder on the way to a runtime file grants the worker: to pass through it and read its attributes, not to list it.
+    private const FileSystemRights FolderRights = FileSystemRights.Traverse | FileSystemRights.ReadAttributes | FileSystemRights.Synchronize;
+    private const int GenericRead = unchecked((int)0x80000000), GenericExecute = 0x20000000, GenericAll = 0x10000000;
 
-    // The worker loads its runtime from these files; each must grant read and execute to this worker identity or to all
-    // restricted application packages, and deny neither.
-    private static bool RuntimeReadable(string folder)
+    private static bool RuntimeReadable(string executable)
     {
-        if (readableFolders.ContainsKey(folder)) return true;
-        if (!ReadableNow(folder)) return false;
-        readableFolders.TryAdd(folder, true); return true;
+        if (readableRuntimes.ContainsKey(executable)) return true;
+        if (!ReadableNow(executable)) return false;
+        readableRuntimes.TryAdd(executable, true); return true;
     }
 
-    private static bool ReadableNow(string folder)
+    // Every file the worker loads (RuntimeInventory) must grant read and execute to this worker identity or to all
+    // restricted application packages, and every folder on the way traverse; none may deny them to any identity the worker
+    // carries (generic rights included). An entry that applies only to children (inherit-only) is not checked on the object.
+    // The worker start rechecks all of it for real; this answer only says whether writing is offered.
+    private static bool ReadableNow(string executable)
     {
         int hr = DeriveAppContainerSidFromAppContainerName(ProfileName, out nint sid);
         if (hr < 0 || sid == 0) return false;
         try
         {
-            var package = new SecurityIdentifier(sid);
-            var restricted = new SecurityIdentifier("S-1-15-2-2"); // ALL RESTRICTED APPLICATION PACKAGES
-            foreach (string name in new[] { "coreclr.dll", "FileCat.Core.dll" })
+            string folder = Path.GetDirectoryName(executable)!;
+            var granted = new[] { new SecurityIdentifier(sid), RestrictedPackages };
+            var identities = new HashSet<SecurityIdentifier>(granted);
+            using (var current = WindowsIdentity.GetCurrent())
             {
-                string path = Path.Combine(folder, name);
-                if (!File.Exists(path)) return false;
-                var rules = new FileInfo(path).GetAccessControl(AccessControlSections.Access).GetAccessRules(true, true, typeof(SecurityIdentifier));
-                bool allowed = false;
-                foreach (FileSystemAccessRule rule in rules)
-                {
-                    if (!rule.IdentityReference.Equals(package) && !rule.IdentityReference.Equals(restricted)) continue;
-                    if (rule.AccessControlType == AccessControlType.Deny && (rule.FileSystemRights & FileSystemRights.ReadAndExecute) != 0) return false;
-                    if (rule.AccessControlType == AccessControlType.Allow && (rule.FileSystemRights & FileSystemRights.ReadAndExecute) == FileSystemRights.ReadAndExecute) allowed = true;
-                }
-                if (!allowed) return false;
+                if (current.User is { } user) identities.Add(user);
+                foreach (var group in current.Groups ?? new IdentityReferenceCollection()) if (group is SecurityIdentifier id) identities.Add(id);
             }
+            var inventory = RuntimeInventory(folder, Path.GetFileName(executable));
+            var folders = new SortedSet<string>(StringComparer.OrdinalIgnoreCase) { folder };
+            foreach (string relative in inventory)
+                for (string? parent = Path.GetDirectoryName(relative); !string.IsNullOrEmpty(parent); parent = Path.GetDirectoryName(parent))
+                    folders.Add(Path.Combine(folder, parent));
+            foreach (string path in folders)
+                if (!Grants(new DirectoryInfo(path).GetAccessControl(AccessControlSections.Access), granted, identities, FolderRights)) return false;
+            foreach (string relative in inventory)
+                if (!Grants(new FileInfo(Path.Combine(folder, relative)).GetAccessControl(AccessControlSections.Access), granted, identities,
+                    FileSystemRights.ReadAndExecute)) return false;
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException) { return false; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or
+            System.Text.Json.JsonException or KeyNotFoundException) { return false; }
         finally { FreeSid(sid); }
     }
 
+    private static bool Grants(FileSystemSecurity security, SecurityIdentifier[] granted, HashSet<SecurityIdentifier> identities, FileSystemRights needed)
+    {
+        bool allowed = false;
+        foreach (FileSystemAccessRule rule in security.GetAccessRules(true, true, typeof(SecurityIdentifier)))
+        {
+            if ((rule.PropagationFlags & PropagationFlags.InheritOnly) != 0 || rule.IdentityReference is not SecurityIdentifier who) continue;
+            int rights = (int)rule.FileSystemRights;
+            if (rule.AccessControlType == AccessControlType.Deny)
+            {
+                if (identities.Contains(who) && (rights & ((int)needed | GenericRead | GenericExecute | GenericAll)) != 0) return false;
+                continue;
+            }
+            if (Array.IndexOf(granted, who) < 0) continue;
+            if ((rights & (int)needed) == (int)needed || (rights & GenericAll) != 0 ||
+                (rights & (GenericRead | GenericExecute)) == (GenericRead | GenericExecute)) allowed = true;
+        }
+        return allowed;
+    }
+
     // A portable copy (its marker beside the executable) in a folder the current user owns: no other account's files are
-    // changed by granting the worker read access there.
+    // changed by granting the worker read access to its runtime.
     private static bool PortableOwned(string folder)
     {
         try
@@ -208,11 +239,79 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException) { return false; }
     }
 
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string[]> inventories = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
-    /// Provision only the installed self-contained worker bundle. No archive/source/destination directory
-    /// is granted. The launcher does not silently alter ACLs to make a failed worker start succeed.
+    /// The files a self-contained worker loads from <paramref name="folder"/>, relative to it: every runtime, native and
+    /// resource asset its deps file names (a published copy holds them flat in the folder, resources in their culture's
+    /// folder), with the host <paramref name="image"/> and its deps and runtimeconfig files. Each must be a regular file
+    /// inside the folder, never a link; nothing else in the folder belongs to it.
     /// </summary>
-    public static void ProvisionRuntimeReadAccess(string workerAssetDirectory)
+    internal static IReadOnlyList<string> RuntimeInventory(string folder, string image)
+    {
+        string root = Path.GetFullPath(folder);
+        if (inventories.TryGetValue(Path.Combine(root, image), out var known)) return known;
+        string stem = Path.GetFileNameWithoutExtension(image);
+        if (!SimpleName(image) || stem.Length == 0 || !string.Equals(Path.GetExtension(image), ".exe", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("The worker image must be an executable file name.", nameof(image));
+        var files = new SortedSet<string>(StringComparer.OrdinalIgnoreCase) { image, stem + ".deps.json", stem + ".runtimeconfig.json" };
+        var deps = new FileInfo(Path.Combine(root, stem + ".deps.json"));
+        if (!deps.Exists || deps.Length > 16L << 20) throw new IOException("FileCat's runtime manifest is missing or unexpectedly large.");
+        using (var document = System.Text.Json.JsonDocument.Parse(File.ReadAllBytes(deps.FullName), new System.Text.Json.JsonDocumentOptions { MaxDepth = 16 }))
+        {
+            var manifest = document.RootElement;
+            string target = manifest.GetProperty("runtimeTarget").GetProperty("name").GetString() ?? throw new IOException("FileCat's runtime manifest names no target.");
+            foreach (var library in manifest.GetProperty("targets").GetProperty(target).EnumerateObject())
+                foreach (string kind in new[] { "runtime", "native", "resources" })
+                {
+                    if (!library.Value.TryGetProperty(kind, out var assets) || assets.ValueKind != System.Text.Json.JsonValueKind.Object) continue;
+                    foreach (var asset in assets.EnumerateObject())
+                    {
+                        string name = asset.Name[(asset.Name.LastIndexOf('/') + 1)..];
+                        string? culture = kind == "resources" && asset.Value.TryGetProperty("locale", out var locale) ? locale.GetString() : null;
+                        if (!SimpleName(name) || culture is not null && !SimpleName(culture))
+                            throw new IOException("FileCat's runtime manifest names a file outside its folder.");
+                        string published = culture is null ? name : Path.Combine(culture, name);
+                        // A published copy places assets flat (resources by culture); a layout that kept the asset's own path is
+                        // accepted too, provided it stays inside the folder.
+                        string asNamed = asset.Name.Replace('/', Path.DirectorySeparatorChar);
+                        files.Add(!File.Exists(Path.Combine(root, published)) && Inside(root, asNamed) && File.Exists(Path.Combine(root, asNamed)) ? asNamed : published);
+                    }
+                }
+        }
+        if (files.Count > 10_000) throw new IOException("FileCat's runtime manifest names unexpectedly many files.");
+        foreach (string relative in files)
+        {
+            string path = Path.Combine(root, relative);
+            if (!Inside(root, relative)) throw new IOException("FileCat's runtime manifest names a file outside its folder.");
+            for (string? parent = Path.GetDirectoryName(relative); !string.IsNullOrEmpty(parent); parent = Path.GetDirectoryName(parent))
+                if ((File.GetAttributes(Path.Combine(root, parent)) & FileAttributes.ReparsePoint) != 0)
+                    throw new IOException("FileCat's runtime folder contains a link.");
+            if (!File.Exists(path)) throw new IOException("FileCat's runtime is incomplete: " + relative + " is missing.");
+            if ((File.GetAttributes(path) & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != 0)
+                throw new IOException("FileCat's runtime contains a link: " + relative + ".");
+        }
+        return inventories.GetOrAdd(Path.Combine(root, image), files.ToArray());
+    }
+
+    private static bool SimpleName(string name) => name.Length > 0 && name is not "." and not ".." && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
+
+    private static bool Inside(string root, string relative)
+    {
+        if (Path.IsPathRooted(relative)) return false;
+        string full = Path.GetFullPath(Path.Combine(root, relative));
+        return full.StartsWith(root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Grants this worker identity read and execute on exactly the self-contained runtime <paramref name="image"/> loads
+    /// from <paramref name="workerAssetDirectory"/> (see <see cref="RuntimeInventory"/>), each file by its own entry that
+    /// nothing inherits, and traverse only on the folders on the way. A grant an earlier build put on the whole folder for
+    /// this identity is withdrawn. No archive, source or destination folder is granted, and the launcher does not silently
+    /// alter ACLs to make a failed worker start succeed. Installation must still pin and audit this trusted bundle; this is
+    /// not a package signature proof.
+    /// </summary>
+    public static void ProvisionRuntimeReadAccess(string workerAssetDirectory, string image = "FileCat.exe")
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         string assets = Path.GetFullPath(workerAssetDirectory);
@@ -220,12 +319,16 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
             (File.GetAttributes(assets) & FileAttributes.ReparsePoint) != 0 || !File.Exists(Path.Combine(assets, "coreclr.dll")) ||
             !File.Exists(Path.Combine(assets, "FileCat.Core.dll")))
             throw new ArgumentException("A real self-contained worker asset directory is required.");
-        // Do not propagate a runtime-read grant into a link target or accidentally grant the shared CLR folder.
-        // Installation must still pin/audit this trusted bundle; this check is not a package signature proof.
-        _ = CollectRealTree(assets, 10000);
+        var inventory = RuntimeInventory(assets, image);
+        var folders = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string relative in inventory)
+            for (string? parent = Path.GetDirectoryName(relative); !string.IsNullOrEmpty(parent); parent = Path.GetDirectoryName(parent))
+                folders.Add(parent);
         using var setup = new ProfileSetup();
         using var profile = Profile.Open();
-        profile.GrantDirectoryRead(assets, inherit: true);
+        profile.GrantFolderTraverse(assets, withdrawInherited: true);
+        foreach (string folder in folders) profile.GrantFolderTraverse(Path.Combine(assets, folder), withdrawInherited: false);
+        foreach (string relative in inventory) profile.GrantFileRead(Path.Combine(assets, relative));
         profile.DenyProfileWrites();
     }
 
@@ -293,15 +396,28 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
             return new Profile(sid);
         }
 
-        public void GrantDirectoryRead(string path, bool inherit)
+        // Traverse a folder on the way to runtime files; nothing inherits it. withdrawInherited removes this identity's
+        // inheritable grants there (an earlier build granted the whole application folder).
+        public void GrantFolderTraverse(string path, bool withdrawInherited)
         {
             var directory = new DirectoryInfo(path);
             if ((directory.Attributes & FileAttributes.ReparsePoint) != 0) throw new IOException("Runtime grants cannot follow a directory link.");
-            var acl = directory.GetAccessControl();
-            acl.AddAccessRule(new FileSystemAccessRule(Identity, FileSystemRights.ReadAndExecute,
-                inherit ? InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit : InheritanceFlags.None,
-                PropagationFlags.None, AccessControlType.Allow));
+            var acl = directory.GetAccessControl(AccessControlSections.Access);
+            if (withdrawInherited)
+                foreach (FileSystemAccessRule rule in acl.GetAccessRules(true, false, typeof(SecurityIdentifier)))
+                    if (rule.IdentityReference.Equals(Identity) && rule.InheritanceFlags != InheritanceFlags.None) acl.RemoveAccessRuleSpecific(rule);
+            acl.AddAccessRule(new FileSystemAccessRule(Identity, FolderRights, InheritanceFlags.None, PropagationFlags.None, AccessControlType.Allow));
             directory.SetAccessControl(acl);
+        }
+
+        // Read and execute one regular runtime file (never a link, which would carry the grant to its target).
+        public void GrantFileRead(string path)
+        {
+            var file = new FileInfo(path);
+            if ((file.Attributes & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != 0) throw new IOException("Runtime grants apply only to regular files.");
+            var acl = file.GetAccessControl(AccessControlSections.Access);
+            acl.AddAccessRule(new FileSystemAccessRule(Identity, FileSystemRights.ReadAndExecute, InheritanceFlags.None, PropagationFlags.None, AccessControlType.Allow));
+            file.SetAccessControl(acl);
         }
 
         public string DirectoryPath()

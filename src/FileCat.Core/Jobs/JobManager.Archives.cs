@@ -7,6 +7,8 @@ public sealed partial class JobManager
 {
     internal ArchiveJobAvailability ArchiveAvailability(ArchivePlan plan) => _archiveBackends.Availability(plan);
     internal bool CanReviewArchive(ArchivePlan plan) => _archiveBackends.CanReview(plan);
+    /// <summary>Whether a route is composed for the plan's format and target, whether or not its worker can run now.</summary>
+    internal bool CoversArchive(ArchivePlan plan) => _archiveBackends.Covers(plan);
 
     // The caller retains password ownership through review and either disposes it or transfers it to SubmitArchive.
     internal Task<ArchiveTargetReview> ReviewArchiveUpdateAsync(string path, ArchiveWriteProfile profile, ArchiveJobPassword? password,

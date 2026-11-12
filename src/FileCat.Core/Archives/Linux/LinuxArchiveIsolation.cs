@@ -151,15 +151,30 @@ internal static unsafe partial class LinuxArchiveIsolation
         catch (Exception ex) when (ex is IOException or ArgumentException or PlatformNotSupportedException or UnauthorizedAccessException) { return ex.Message; }
     });
 
+    /// <summary>Whether <paramref name="root"/> (the bundle's real folder) lies in the AppImage mount this process runs from.</summary>
+    internal static bool InAppImage(string root)
+    {
+        if (Environment.GetEnvironmentVariable("APPIMAGE") is not { Length: > 0 } ||
+            Environment.GetEnvironmentVariable("APPDIR") is not { Length: > 0 } appDir || !Path.IsPathFullyQualified(appDir)) return false;
+        string mount;
+        try { mount = UnixFiles.RealPath(appDir) ?? appDir; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { mount = appDir; }
+        mount = mount.TrimEnd('/');
+        return mount.Length > 0 && (root == mount || root.StartsWith(mount + "/", StringComparison.Ordinal));
+    }
+
     internal static (string Root, long Bytes) ValidateBundle(string executable)
     {
         if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException();
         if (!Path.IsPathFullyQualified(executable) || UnixFiles.RealPath(executable) != executable)
             throw LinuxArchiveNative.Unavailable("The Linux archive executable must be an exact local package path.");
         string root = Path.GetDirectoryName(executable)!;
-        // The AppImage runtime sets APPIMAGE for the application it runs from its mounted image (squashfs over FUSE), which
-        // is not a qualified place for the confined worker. Say so before any filesystem check fails less helpfully.
-        if (Environment.GetEnvironmentVariable("APPIMAGE") is { Length: > 0 })
+        // The AppImage runtime runs its application from the image it mounts (squashfs over FUSE) at APPDIR, which is not a
+        // qualified place for the confined worker. Say so before any filesystem check fails less helpfully. Only a bundle
+        // inside APPDIR is the AppImage's: the runtime also exports APPDIR and APPIMAGE to every process its application
+        // starts, so a FileCat installed from the .deb but started from such a process is not the AppImage (review finding
+        // of 12 November 2026).
+        if (InAppImage(root))
             throw LinuxArchiveNative.Unavailable("Archive writing is not available from the AppImage: its mounted image is not a qualified place for " +
                 "the confined archive worker. Install FileCat's .deb package, or extract the AppImage (--appimage-extract) into a folder on an ext4 drive.");
         using (var held = LinuxArchiveNative.OpenDirectory(root))

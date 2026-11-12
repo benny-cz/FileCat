@@ -35,6 +35,9 @@ public sealed partial class MainViewModel
 
     private async Task EditNativeArchiveMemberAsync(ItemRef item)
     {
+        // An edit of this member started on the old ZIP route (before a ZIP route was composed) is still that edit: show or
+        // reopen it, never start a second, conflicting one (review finding of 12 November 2026; release text, Downgrade).
+        if (item.Parent.Scheme == Schemes.Zip && await ReopenLegacyZipEditAsync(item)) return;
         // Plan §11.6: a duplicate name is explained up front, before any review or password, with extraction offered.
         if (HasDuplicateName(item))
         {
@@ -50,6 +53,21 @@ public sealed partial class MainViewModel
         catch (OperationCanceledException) { }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         { if (EditSessionsActive) Notify("Cannot edit this archive member: " + Formatters.SafeName(error.Message), true); }
+    }
+
+    /// <summary>Shows or reopens an old-route ZIP edit of this member; false when there is none. Never creates one.</summary>
+    private async Task<bool> ReopenLegacyZipEditAsync(ItemRef item)
+    {
+        if (item.Parent.Container is not { IsFileSystem: true }) return false;
+        string archive = ArchiveFile(item.Parent), member = MemberPath(item);
+        EditSessionRecord? existing;
+        try { existing = await MutationIoAsync(archive, () => Services.EditSessions.Find(archive, member), CheckSessionAction); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return false; }
+        if (existing is null) return false;
+        await PrepareEditSessionAsync(item, "zip:" + archive + "/" + member, () => Services.EditSessions.Find(archive, member),
+            (_, _) => throw new IOException("The earlier edit of this member is no longer open. Press F4 again to start a new edit."),
+            $"Opening the earlier edit of \"{item.Name}\"…");
+        return true;
     }
 
     private bool HasDuplicateName(ItemRef item)
@@ -76,7 +94,7 @@ public sealed partial class MainViewModel
             "Checking the exact unique member and its complete source revision.", ct =>
         {
             scope.Check();
-            string raw = item.Parent.Scheme == Schemes.Zip ? Services.Zip.ReviewedMemberPath(command.Target, item)
+            string raw = item.Parent.Scheme == Schemes.Zip ? Services.Zip.ReviewedMemberPath(command.Target, item, ct)
                 : Services.Archives.ReviewedMemberPath(command.Target, item, command.Password, ct);
             _ = ArchiveEditEvidence.UniqueMember(command.Target, raw); scope.Check(); return new NativeEditSelection(raw);
         });

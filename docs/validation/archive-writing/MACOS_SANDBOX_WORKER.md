@@ -9,28 +9,41 @@
 **Launcher.** `FileCatArchiveWorker` is a small C program (`src/FileCat.App/MacOS`) with an embedded Info.plist
 (`io.github.benny-cz.filecat.archive-worker`). Its only entitlement is `com.apple.security.app-sandbox`. MSBuild compiles
 it and signs it ad hoc on a Mac building for macOS. The output is deterministic: two publishes produced the same SHA-256.
-`eng/package-macos.sh` signs it again after the bundle's deep signature and checks that it alone carries the entitlement.
+`eng/package-macos.sh` signs it again after the bundle's deep signature and checks that it carries exactly that one
+entitlement (an added `network.client` or user-folder entitlement fails the package) and that the main executable has none.
 Before it executes anything, the launcher:
 
 - accepts only the fixed launch facts (mode, worker image, nonce, parent, CPU seconds, request, cancellation descriptor);
 - refuses unless the system placed it in its container, so a build that lost the entitlement runs nothing;
 - checks its parent, and that its standard streams and the cancellation descriptor are pipes, the latter read-only;
 - closes every other inherited descriptor and checks that exactly four remain;
-- sets `RLIMIT_NPROC` 0 (the sandbox itself allows new processes), `RLIMIT_CORE` 0 and the CPU allowance;
-- checks that the worker image is a regular file beside it, in a folder no other user can change;
-- gives up its bootstrap port, so the worker can look up no system service;
+- sets `RLIMIT_NPROC` 0 (the sandbox itself allows new processes), `RLIMIT_CORE` 0, `RLIMIT_FSIZE` 0 and the CPU
+  allowance. The container is the one place the sandbox lets the worker write; with no file size allowed it can create
+  only empty files there, and writing data ends it (on Linux the worker writes nowhere);
+- checks that the worker image is a regular file beside it, in a folder writable by no one but its owner, who is root,
+  the user running it, or the account that owns the launcher (an app another user installed in /Applications);
+- gives up its bootstrap port, so the worker can look up no Mach service by name. The host port stays, as in every
+  process, so the IOKit user clients the App Sandbox allows remain reachable;
 - executes the application in worker mode. The image keeps the sandbox, the limits and the missing port across exec.
 
 **Worker.** `FileCat --archive-mac-worker` (`MacArchiveIsolation`) checks every one of those facts again before its role
-reads a byte: the container, the loader environment, the three limits, the null bootstrap port, and the descriptors. It
-also checks that the sandbox refuses its user's home folder and a loopback bind. Then it watches its parent with `kqueue`
+reads a byte: the container, the loader environment, the four limits, the null bootstrap port, and the descriptors. It
+also checks that the sandbox refuses its user's home folder, the Downloads, Pictures, Music, Movies, Desktop and Documents
+folders, a loopback bind and an outbound loopback connection (refused by the sandbox, not by the port). Then it watches its parent with `kqueue`
 (`NOTE_EXIT`) and exits as soon as the parent does. Any failed check ends it with exit 65 before input.
 
 **Parent.** `MacArchiveProcess` refuses to start a worker from a root process. It starts the launcher with a fixed
 environment: diagnostics off, invariant globalization, a 384 MiB managed heap limit, UTC, the C locale and no `PATH`. It
 owns the cancellation pipe and caps standard error at 64 KiB. Every 5 ms it samples the worker's physical footprint
 (`proc_pid_rusage`) and stops the worker above 768 MiB, the Linux worker's memory limit. The job then fails with the
-memory-budget reason. This is the owner's re-scoped memory gate: a sampled bound, not a ceiling.
+memory-budget reason. This is the owner's re-scoped memory gate: a sampled bound, not a ceiling. The sampler is a thread of
+FileCat's own process, so whatever pauses that process (a garbage collection, the system suspending it) pauses sampling,
+and the overshoot then has no fixed bound. The parent checks the launcher, the image and their folder with the same
+ownership rule as the launcher.
+
+The independent review of 12 November 2026 found no way past this boundary. It asked for the exact entitlement check, the
+connect and user-folder checks, the container write limit, the ownership rule for apps another user installed, and less
+sweeping comments; all are in place (see the implementation status).
 
 ## Evidence
 

@@ -50,6 +50,8 @@ internal sealed class ArchiveCreationDialog : IDisposable
     private readonly Expander advanced;
     private readonly TextBlock problem, preview, estimate;
     private readonly Func<ArchivePlan, ArchiveJobAvailability> availability;
+    // Whether a ZIP route is composed for a destination, whether or not its worker can run now (ZIP design, Interface).
+    private readonly Func<ArchivePlan, bool> composes;
     private bool updating, generatedPath = true;
     private readonly string generatedStem;
     private readonly string? singleFileName;
@@ -63,9 +65,10 @@ internal sealed class ArchiveCreationDialog : IDisposable
     /// <param name="singleFileName">The name of the one selected regular file, or null when several items or a folder are packed;
     /// only then can a standalone compressed file be created.</param>
     internal ArchiveCreationDialog(string suggestedPath, string selectedSummary, IReadOnlyList<ArchiveCreationFormat> formats,
-        Func<ArchivePlan, ArchiveJobAvailability> availability, string? singleFileName = null)
+        Func<ArchivePlan, ArchiveJobAvailability> availability, string? singleFileName = null, Func<ArchivePlan, bool>? composes = null)
     {
         this.availability = availability; this.singleFileName = singleFileName;
+        this.composes = composes ?? (plan => availability(plan).Available);
         string? known = KnownSuffix(suggestedPath);
         generatedStem = known is null ? suggestedPath : suggestedPath[..^known.Length];
         path = new() { Text = suggestedPath, MinWidth = 240 };
@@ -192,10 +195,11 @@ internal sealed class ArchiveCreationDialog : IDisposable
             var encryption = mode == ArchiveEncryptionMode.None ? ArchiveEncryptionOptions.None : new ArchiveEncryptionOptions(mode);
             ArchiveWriteProfile? profile = selected.Format switch
             {
-                // ZIP takes the worker profile where a ZIP route is composed for this destination, and its existing route
-                // elsewhere. The worker's levels: 0 normal Deflate, 1 fastest, 3 stored.
+                // ZIP takes the worker profile where a ZIP route is composed for this destination (refused below with the
+                // worker's reason when it cannot run here), and its existing route elsewhere. The worker's levels: 0 normal
+                // Deflate, 1 fastest, 3 stored.
                 ArchiveWriteFormat.Zip => new ArchiveWriteProfile(ArchiveWriteFormat.Zip, compressionLevel: effort switch { 0 => 3, 1 => 1, _ => 0 }) is var zip &&
-                    availability(new(destination, null, [], Profile: zip)).Available ? zip : null,
+                    composes(new(destination, null, [], Profile: zip)) ? zip : null,
                 ArchiveWriteFormat.Rar5 => ArchiveWriteProfile.ForRar5((ArchiveRar5Compression)effort, encryption),
                 ArchiveWriteFormat.SevenZip => ArchiveWriteProfile.ForSevenZip(new(Value<ArchiveSevenZipCodec>(codec), Value<ArchiveSevenZipFilter>(filter),
                     deltaDistance: Value<ArchiveSevenZipFilter>(filter) == ArchiveSevenZipFilter.Delta ? distance : 1,

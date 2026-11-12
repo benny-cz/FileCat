@@ -20,7 +20,7 @@ public sealed partial class ArchiveAppContainerTests
         string? assets = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_PROBE_ASSETS");
         if (assets is null || !Path.IsPathFullyQualified(assets) || !File.Exists(Path.Combine(assets, "coreclr.dll")))
             Assert.Fail("Supply a dedicated self-contained FileCat.WorkerProbe bundle.");
-        ArchiveAppContainer.ProvisionRuntimeReadAccess(assets);
+        ArchiveAppContainer.ProvisionRuntimeReadAccess(assets, "FileCat.WorkerProbe.exe");
         return Path.Combine(assets, "FileCat.WorkerProbe.exe");
     }
 

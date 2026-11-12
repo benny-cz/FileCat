@@ -29,15 +29,18 @@ stay read-only.
 files, the network or other programs:
 
 - Windows: a restricted AppContainer. The installed FileCat needs nothing more. A portable copy grants that worker read
-  access to its own folder the first time it writes an archive (only in a folder you own). The framework-dependent build
-  cannot write archives.
-- Linux: a confined worker (cgroup, seccomp, Landlock), from the .deb package. The AppImage cannot write archives: its
+  access to its own program files the first time it writes an archive (only in a folder you own; never its Data folder
+  or anything else beside it). The framework-dependent build cannot run the worker.
+- Linux: a confined worker (cgroup, seccomp, Landlock), from the .deb package. The AppImage cannot run the worker: its
   mounted image is not a place the confined worker may run from. Install the .deb, or extract the AppImage
   (`--appimage-extract`) into a folder on an ext4 drive.
 - macOS: an App Sandbox worker with no access to system services. macOS lets an ordinary app set no hard memory limit, so
   FileCat watches the worker's memory and stops it above its budget; a very fast allocation can briefly exceed the budget
   before it is stopped. The system keeps an empty folder for the worker in `~/Library/Containers`
   (`io.github.benny-cz.filecat.archive-worker`); you can delete it after removing FileCat.
+
+Where a copy cannot run its worker, archive writing on drives the release covers is unavailable there and says why; ZIP
+archives on drives no route covers keep the old ZIP route, on every copy.
 
 **Costs and limits.** A change rewrites the whole archive and needs free space for a second copy; there is no undo; at most
 100,000 members and 8 GiB per member; another hard link to the archive keeps the old content.

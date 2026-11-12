@@ -128,8 +128,11 @@ codesign --force --sign - --timestamp=none --identifier io.github.benny-cz.filec
   --entitlements "$ROOT/src/FileCat.App/MacOS/archive-worker-launcher.entitlements" "$LAUNCHER"
 codesign --force --sign - --timestamp=none "$APP"
 codesign --verify --deep --strict "$APP"
-codesign -d --entitlements - --xml "$LAUNCHER" 2>/dev/null | grep -q "<key>com.apple.security.app-sandbox</key><true/>" \
-  || { echo "The archive worker launcher lost its App Sandbox entitlement." >&2; exit 2; }
+# Exactly that entitlement and no other: a signature that added, say, network.client or a user-folder entitlement would
+# give the worker what its sandbox exists to deny (review finding of 12 November 2026).
+LAUNCHER_ENTITLEMENTS="$(codesign -d --entitlements - --xml "$LAUNCHER" 2>/dev/null | plutil -convert json -o - - 2>/dev/null || true)"
+[ "$LAUNCHER_ENTITLEMENTS" = '{"com.apple.security.app-sandbox":true}' ] \
+  || { echo "The archive worker launcher must carry exactly the App Sandbox entitlement; it has: ${LAUNCHER_ENTITLEMENTS:-none}" >&2; exit 2; }
 [ "$(codesign -d --entitlements - --xml "$APP/Contents/MacOS/FileCat" 2>/dev/null | grep -c app-sandbox)" = 0 ] \
   || { echo "Only the archive worker launcher may carry the App Sandbox entitlement." >&2; exit 2; }
 

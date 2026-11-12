@@ -77,6 +77,12 @@ public sealed record ArchivePlan(string ArchivePath, ArchiveBaseline? Baseline, 
     internal string? ReviewedManifestDigest { get; init; }
     /// <summary>An explicit local move: remove only successfully archived, unchanged sources after verified publication.</summary>
     public bool MoveSources { get; init; }
+    /// <summary>
+    /// The commit of a ZIP edit session made without a worker profile (before a ZIP route was composed): it keeps the old
+    /// ZIP route. Every other profile-less ZIP change is refused where a ZIP route is composed.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool LegacyEditCommit { get; init; }
     /// <summary>Reviewed addition conflicts. Null retains the original explicit all-or-cancel planner contract.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public ArchiveAddConflictPolicy? AddConflictPolicy { get; init; }

@@ -9,6 +9,12 @@ internal interface IArchiveJobBackend
     ArchiveWriteFormat Format { get; }
     ArchiveJobAvailability Availability(ArchivePlan plan);
     ArchiveTargetReviewer? TargetReviewer => null;
+    /// <summary>
+    /// Whether this backend's route covers the plan's target (its runtime and filesystem), whether or not its worker can run
+    /// now. Where a ZIP route covers an archive, its changes take that route or are refused with the backend's reason; they
+    /// never fall back to the old ZIP route (ZIP worker profile design, Interface).
+    /// </summary>
+    bool Covers(ArchivePlan plan) => true;
     // Return only after all workers, borrowed secret grants and native transaction/cleanup leases have settled.
     void Execute(ArchiveJobExecution execution);
 }
@@ -46,6 +52,10 @@ internal sealed class ArchiveJobBackends
     internal ArchiveJobAvailability Availability(ArchivePlan plan) =>
         plan.Profile is { } profile && backends.TryGetValue(profile.Format, out var backend)
             ? backend.Availability(plan) : ArchiveJobAvailability.Unqualified;
+
+    /// <summary>Whether a route is composed for the plan's format and target, available now or not.</summary>
+    internal bool Covers(ArchivePlan plan) =>
+        plan.Profile is { } profile && backends.TryGetValue(profile.Format, out var backend) && backend.Covers(plan);
 
     internal bool CanReview(ArchivePlan plan) => Availability(plan).Available && plan.Profile is { } profile &&
         backends.TryGetValue(profile.Format, out var backend) && backend.TargetReviewer is not null;

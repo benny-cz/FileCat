@@ -40,7 +40,7 @@ public sealed partial class MacArchiveProcessTests(ITestOutputHelper diagnostics
             diagnostics.WriteLine(output);
             using var facts = JsonDocument.Parse(output); var root = facts.RootElement;
             foreach (string denied in new[] { "readDenied", "listDenied", "writeDenied", "metadataDenied", "tmpWriteDenied", "connectDenied",
-                "bindDenied", "udpDenied", "dnsDenied", "processStartDenied" })
+                "bindDenied", "udpDenied", "dnsDenied", "processStartDenied", "containerWriteDenied" })
                 Assert.True(root.GetProperty(denied).GetBoolean(), denied);
             Assert.True(root.GetProperty("assetRead").GetBoolean());
             Assert.Equal(35, root.GetProperty("posixSpawnErrno").GetInt32()); // EAGAIN: no new process under RLIMIT_NPROC 0

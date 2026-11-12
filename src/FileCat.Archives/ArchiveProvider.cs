@@ -181,8 +181,10 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
             bool nested = node.Tag is { Kind: MemberKind.File } && (IsContainer(node.Name) || zip?.IsContainer(node.Name) == true);
             var e = new EntryData(node.Name, node.IsDirectory ? EntryKind.Directory : EntryKind.File, node.IsDirectory ? -1 : node.Size, node.Modified)
             {
-                Tag = !index.WriteRevisionAttempted ? node.Tag : node.Tag is { } tag ? tag with { ArchiveRevision = index.WriteRevision, ArchiveMutationProblem = index.WriteRevisionProblem }
-                    : index.WriteRevisionAttempted ? new DirectoryRevision(index.WriteRevision, index.WriteRevisionProblem) : null,
+                // Rows carry the listing's revision token; a member command resolves it (ArchiveListingRevision).
+                Tag = index.Revision is not { } revision ? node.Tag
+                    : node.Tag is { } tag ? tag with { ArchiveRevision = revision.Token, ArchiveMutationProblem = revision.Problem }
+                    : new DirectoryRevision(revision.Token, revision.Problem),
                 Flags = (node.Tag?.Encrypted == true ? EntryFlags.Protected : EntryFlags.None) |
                         (node.Tag is { UnsafeReason: not null } or { Kind: MemberKind.Special } ? EntryFlags.Unavailable : EntryFlags.None) |
                         (node.Tag?.Kind is MemberKind.SymbolicLink or MemberKind.HardLink ? EntryFlags.Link : EntryFlags.None) |
@@ -275,10 +277,10 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
             {
                 if (!cached.CanReuse) throw new IOException("The archive source has no change token for cache reuse.");
                 if (password is not null && !cached.PasswordUnlocked) throw new IOException("Unlock this archive with a new reader.");
-                if (!cached.WriteRevisionAttempted && MutationState(root).Available) throw new IOException("Refresh the newly writable archive's revision.");
-                if (requireRevision && !cached.WriteRevisionAttempted) throw new IOException("Read the complete revision before preparing an edit.");
                 cached.VerifySource();
                 cached.VerifyVolumePaths();
+                // A writable route (or an edit) after this index was built: its listings carry a revision token from now on.
+                if (requireRevision || MutationState(root).Available) cached.RequireRevision();
                 cached.Touch();
                 return cached;
             }
@@ -332,24 +334,14 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
             index.ContainerSession = root.Session;
             index.ContainerLocation = root;
             index.SourceIdentity = sourceIdentity;
-            if (requireRevision || MutationState(root).Available)
-            {
-                index.WriteRevisionAttempted = true;
-                if (before is null) index.WriteRevisionProblem = "This location cannot identify a stable archive listing for member changes.";
-                else if (volumes.Length > 1) index.WriteRevisionProblem = "Members of a multi-volume archive are read-only.";
-                else if (!index.CompleteListing) index.WriteRevisionProblem = "This listing has archive warnings and cannot safely identify members for changes.";
-                else
-                {
-                    try { index.WriteRevision = HashListingRevision(witness, fi.Length, ct); }
-                    catch (IOException) { index.WriteRevisionProblem = "The complete archive could not be read for member changes. Refresh it and try again."; }
-                }
-            }
             string? after = SourceChangeToken.FromHandle(witness.SafeFileHandle);
             if (before is not null && before != after)
                 throw new IOException("The archive source changed while its catalog was being built.");
-            index.KeepWitness(witness, after);
+            index.KeepWitness(witness, after, stableListing: before is not null);
             witness = null;
             index.KeepVolumes(volumes, GetSourceIdentity, kind == ArchiveKind.Rar ? path : null);
+            // Only a token: a listing reads what it shows, never the whole archive (ArchiveListingRevision).
+            if (requireRevision || MutationState(root).Available) index.RequireRevision();
             index.VerifySource();
             index.VerifyVolumePaths();
             index.KeepSource(source);
@@ -502,11 +494,16 @@ internal sealed class ArchiveIndex : IDisposable
         _volumePathIdentity = pathIdentity;
         _rarEntryPath = rarEntryPath;
     }
-    public void KeepWitness(FileStream witness, string? changeToken)
+    public void KeepWitness(FileStream witness, string? changeToken, bool stableListing = true)
     {
         _witness = witness;
+        _witnessHandle = witness.SafeFileHandle;
         _openedChangeToken = changeToken;
+        _stableListing = stableListing;
     }
+    private Microsoft.Win32.SafeHandles.SafeFileHandle? _witnessHandle;
+    // Whether the source had a change token when its catalog was started (not only when it was finished).
+    private bool _stableListing;
     public void VerifySource()
     {
         // Direct readers and filesystems without a token still permit one admitted read. The provider
@@ -539,9 +536,46 @@ internal sealed class ArchiveIndex : IDisposable
     internal Location? ContainerLocation { get; set; }
     internal string? SourceIdentity { get; set; }
     internal bool PasswordUnlocked { get; set; }
-    internal bool WriteRevisionAttempted { get; set; }
-    internal string? WriteRevision { get; set; }
-    internal string? WriteRevisionProblem { get; set; }
+    private ArchiveListingRevision? _revision;
+    /// <summary>
+    /// Where this archive can be written: the revision token its listings carry, resolved by a member command through the
+    /// witness handle (never while listing). Null elsewhere.
+    /// </summary>
+    internal ArchiveListingRevision? Revision => Volatile.Read(ref _revision);
+
+    /// <summary>Gives this index its listing revision (once; cheap: nothing is read). Call after the witness is kept.</summary>
+    internal ArchiveListingRevision RequireRevision()
+    {
+        if (Volatile.Read(ref _revision) is { } existing) return existing;
+        var handle = _witnessHandle ?? throw new InvalidOperationException("The archive witness is not kept yet.");
+        string? problem = _openedChangeToken is null || !_stableListing ? "This location cannot identify a stable archive listing for member changes."
+            : _volumes.Length > 1 ? "Members of a multi-volume archive are read-only."
+            : !CompleteListing ? "This listing has archive warnings and cannot safely identify members for changes." : null;
+        var created = new ArchiveListingRevision(handle,
+            () => _openedChangeToken is not null && SourceChangeToken.FromHandle(handle) == _openedChangeToken, problem);
+        return Interlocked.CompareExchange(ref _revision, created, null) ?? created;
+    }
+
+    /// <summary>Keeps this index's archive open until disposed, even if the cache drops the index meanwhile; null once closing.</summary>
+    internal IDisposable? TryLease()
+    {
+        lock (_lock)
+        {
+            if (_closing || _closed) return null;
+            _leases++;
+            return new IndexLease(this);
+        }
+    }
+
+    private sealed class IndexLease(ArchiveIndex owner) : IDisposable
+    {
+        private ArchiveIndex? _owner = owner;
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _owner, null) is not { } index) return;
+            lock (index._lock) { if (--index._leases == 0 && index._closing && index.ViewCount == 0) index.Close(); }
+        }
+    }
     public void KeepSource(ArchiveSourceLease source) => _source = source.Retain();
     private readonly long _archiveLength;
 

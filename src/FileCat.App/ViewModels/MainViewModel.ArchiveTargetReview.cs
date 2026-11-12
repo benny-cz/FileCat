@@ -3,16 +3,32 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using FileCat.Core.Archives;
 using FileCat.Core.Threading;
+using Location = FileCat.Core.Resources.Location;
 
 namespace FileCat.App.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    /// <param name="expectedSourceSha256">The revision the change must apply to: a SHA-256, or a listing's revision token, which
+    /// is resolved here (the listing's archive is read then, through its own handle) for the listing <paramref name="listing"/>.</param>
     private async Task<ArchiveTargetReview?> ReviewArchiveTargetAsync(string path, ArchiveWriteProfile profile, ArchiveJobPassword? password,
         string? expectedSourceSha256 = null, string title = "Check archive for update",
-        string message = "Reading the complete archive and checking whether its contents and metadata can be preserved.")
-        => await RunArchivePreparationAsync(path, title, message,
-            ct => Services.Jobs.ReviewArchiveUpdateAsync(path, profile, password, ct, preserveEncryption: true, expectedSourceSha256: expectedSourceSha256).GetAwaiter().GetResult());
+        string message = "Reading the complete archive and checking whether its contents and metadata can be preserved.", Location? listing = null)
+        => await RunArchivePreparationAsync(path, title, message, ct =>
+        {
+            string? expected = ResolveListingRevision(listing, expectedSourceSha256, ct);
+            return Services.Jobs.ReviewArchiveUpdateAsync(path, profile, password, ct, preserveEncryption: true, expectedSourceSha256: expected).GetAwaiter().GetResult();
+        });
+
+    /// <summary>
+    /// A listing row's revision for a native review: a revision token is resolved by the listing's provider to the SHA-256
+    /// of the archive that listing showed (review finding of 12 November 2026); any other value already is that SHA-256.
+    /// </summary>
+    private string? ResolveListingRevision(Location? listing, string? revision, CancellationToken ct) =>
+        !ArchiveListingRevision.IsToken(revision) ? revision
+        : listing?.Scheme == Core.Resources.Schemes.Zip ? Services.Zip.ResolveListingRevision(revision!, ct)
+        : listing?.Scheme == Core.Resources.Schemes.Archive ? Services.Archives.ResolveListingRevision(revision!, ct)
+        : throw new IOException(ArchiveListingRevision.Closed);
 
     private async Task<T?> RunArchivePreparationAsync<T>(string path, string title, string message, Func<CancellationToken, T> work) where T : class
     {

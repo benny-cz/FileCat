@@ -30,7 +30,7 @@ internal static class ArchiveContentRestorationCrash
         var workerType = assembly.GetType("FileCat.Platform.Windows.Shell.ArchiveAppContainer", true)!;
         string assets = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_PROBE_ASSETS") ?? throw new IOException("Supply complete confined probe assets.");
         if (!Path.IsPathFullyQualified(assets)) throw new IOException("Confined probe assets must be absolute.");
-        workerType.GetMethod("ProvisionRuntimeReadAccess", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!.Invoke(null, [assets]);
+        workerType.GetMethod("ProvisionRuntimeReadAccess", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!.Invoke(null, [assets, "FileCat.WorkerProbe.exe"]);
         var children = new List<object>();
         using var cancellation = new CancellationTokenSource();
         try

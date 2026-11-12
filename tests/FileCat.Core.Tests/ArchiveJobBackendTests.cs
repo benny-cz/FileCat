@@ -102,6 +102,47 @@ public sealed class ArchiveJobBackendTests
         Assert.Equal(original, File.ReadAllBytes(plan.ArchivePath));
     }
 
+    // ZIP design, Interface (review finding of 12 November 2026): where a ZIP route covers a ZIP, a change prepared for
+    // the old route is refused, whatever the worker's state; a ZIP edit session made before the route keeps committing
+    // through the old route, and a ZIP the route does not cover keeps it too.
+    [Fact]
+    public async Task Where_a_ZIP_route_is_composed_a_change_for_the_old_route_is_refused_but_a_legacy_edit_commit_is_kept()
+    {
+        using var temp = new TempDir();
+        string covered = temp.Dir("covered"), elsewhere = temp.Dir("elsewhere");
+        var backends = ArchiveWriteRoutes.Compose([new(ArchiveWriteFormat.Zip, "test-rid", "qualified", "evidence")], "test-rid",
+            format => new Backend(format) { Status = new(false, "The worker cannot run from here.") },
+            folder => folder == covered ? "qualified" : "other")!;
+        var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), temp.Dir("journals"), backends);
+        string Zip(string folder, string name)
+        {
+            string path = Path.Combine(folder, name);
+            using (var archive = System.IO.Compression.ZipFile.Open(path, System.IO.Compression.ZipArchiveMode.Create))
+                using (var writer = new StreamWriter(archive.CreateEntry("member.txt").Open())) writer.Write("before");
+            return path;
+        }
+        string source = Path.Combine(temp.Path, "after.txt"); File.WriteAllText(source, "after");
+        async Task<Job> Replace(string archive, bool legacyEdit)
+        {
+            var job = manager.Submit(new JobRequest
+            {
+                Kind = JobKind.ArchiveUpdate,
+                Archive = new ArchivePlan(archive, ArchiveBaseline.Of(archive), [new ArchiveChange(ArchiveChangeKind.Replace, "member.txt", source)])
+                { LegacyEditCommit = legacyEdit },
+            });
+            await Finished(job); return job;
+        }
+        string refusedZip = Zip(covered, "refused.zip"); byte[] original = File.ReadAllBytes(refusedZip);
+        var refused = await Replace(refusedZip, legacyEdit: false);
+        Assert.Equal(JobState.Failed, refused.State); Assert.Equal(original, File.ReadAllBytes(refusedZip));
+        Assert.Contains(refused.Issues, issue => issue.Message.Contains("prepared for the old ZIP route", StringComparison.Ordinal));
+        Assert.Equal(JobState.Completed, (await Replace(Zip(covered, "edit.zip"), legacyEdit: true)).State);
+        Assert.Equal(JobState.Completed, (await Replace(Zip(elsewhere, "plain.zip"), legacyEdit: false)).State);
+        // The marker is part of the journaled request, so a restarted commit keeps its route.
+        Assert.Contains("\"LegacyEditCommit\":true", JsonSerializer.Serialize(new ArchivePlan("a.zip", null, []) { LegacyEditCommit = true }));
+        Assert.DoesNotContain("LegacyEditCommit", JsonSerializer.Serialize(new ArchivePlan("a.zip", null, [])));
+    }
+
     [Fact]
     public async Task Profiled_archive_jobs_run_one_at_a_time_while_ordinary_jobs_keep_running()
     {

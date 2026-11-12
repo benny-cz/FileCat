@@ -61,7 +61,10 @@ public sealed class ArchiveZipWorkerRouteTests
         var zip = Synthetic(f); f.Vm.ActiveTab!.Navigate(zip);
         await Wait(() => f.Vm.ActiveTab.Listing.State == ListingState.Complete && f.Vm.ActiveTab.Listing.FocusName("kept"));
         var row = f.Vm.ActiveTab.Listing.GetItemRef(f.Vm.ActiveTab.Listing.FocusedStoreIndex);
-        Assert.Equal(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(zip.Container!.Path))), row.ArchiveRevision);
+        // The row carries the listing's token; the command resolves it to the archive's SHA-256 (ArchiveListingRevision).
+        Assert.True(ArchiveListingRevision.IsToken(row.ArchiveRevision));
+        Assert.Equal(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(zip.Container!.Path))),
+            f.Services.Zip.ResolveListingRevision(row.ArchiveRevision!, TestContext.Current.CancellationToken));
         var command = f.Vm.ExecuteAsync(CommandIds.DeletePermanent); await Wait(() => f.Button("Remove") is not null);
         Assert.Contains("1 stored entries", f.Text()); f.Click("Remove"); await f.Complete(command);
         await Finished(f);
@@ -104,6 +107,90 @@ public sealed class ArchiveZipWorkerRouteTests
         var change = Assert.Single(backend.Plan!.Changes); Assert.Equal(ArchiveChangeKind.AddFile, change.Kind);
         Assert.Equal("a.txt", change.MemberPath); Assert.Equal(Path.Combine(f.Files, "a.txt"), change.SourcePath);
         Assert.Equal(ArchiveWriteFormat.Zip, backend.Plan.Profile!.Format); Assert.Equal(ArchiveAddConflictPolicy.Ask, backend.Plan.AddConflictPolicy);
+    }
+
+    // Review finding of 12 November 2026: a ZIP route composed here whose worker cannot run (an AppImage, a framework-
+    // dependent build, a portable copy in a folder the user does not own) refuses ZIP changes with the worker's reason. The
+    // old in-process route is never taken instead, and the archive is not touched.
+    [AvaloniaFact]
+    public async Task A_composed_ZIP_route_whose_worker_cannot_run_refuses_with_its_reason_and_never_takes_the_old_route()
+    {
+        const string why = "Archive writing is not available from the AppImage (test).";
+        using var f = await Fixture.Open(customBackends: new([new Unavailable(ArchiveWriteFormat.Zip, why)]));
+        var zip = Synthetic(f); byte[] original = File.ReadAllBytes(zip.Container!.Path); var tab = f.Vm.ActiveTab!;
+        tab.Navigate(zip); await Wait(() => tab.Listing.State == ListingState.Complete && tab.Listing.FocusName("kept"));
+        async Task Refused(string command)
+        {
+            // Repeated identical notices are counted on one entry, so a new refusal is a new entry or a new occurrence.
+            var before = f.Vm.CurrentNotification;
+            await f.Complete(f.Vm.ExecuteAsync(command));
+            await Wait(() => f.Vm.CurrentNotification is { } now && (before is null || now.Id != before.Id || now.Occurrences != before.Occurrences));
+            Assert.Contains(why, f.Vm.CurrentNotification!.Message); Assert.True(f.Vm.CurrentNotification.IsError);
+            Assert.Empty(f.Services.Jobs.Jobs); Assert.Equal(original, File.ReadAllBytes(zip.Container!.Path));
+        }
+        await Refused(CommandIds.DeletePermanent);
+        await Refused(CommandIds.MakeDirectory);
+        await Refused(CommandIds.Edit);
+
+        // Pack to a new ZIP: the dialog says why instead of creating it through the old route.
+        tab.Navigate(Location.FileSystem(f.Files)); await Wait(() => tab.Listing.State == ListingState.Complete && tab.Listing.FocusName("a.txt"));
+        var pack = f.Vm.ExecuteAsync(CommandIds.Pack); await f.Ready(); f.SelectFormat(ArchiveWriteFormat.Zip);
+        await Wait(() => f.Text().Contains(why, StringComparison.Ordinal));
+        Assert.False(f.Button("Pack")!.IsEffectivelyEnabled);
+        f.Click("Cancel"); await f.Complete(pack);
+        Assert.Empty(f.Services.Jobs.Jobs); Assert.Empty(Directory.GetFiles(f.Files, "*.zip"));
+    }
+
+    // Review finding of 12 November 2026: an edit started on the old ZIP route before a ZIP route was composed stays that
+    // edit. F4 on its member shows it (modified here: its commit, discard and copy actions) instead of reviewing the archive
+    // and starting a second edit of the same member, whose commit would conflict with the first.
+    [AvaloniaFact]
+    public async Task F4_shows_an_edit_started_on_the_old_ZIP_route_instead_of_starting_a_second_one()
+    {
+        if (Environment.IsPrivilegedProcess) Assert.Skip("Edit sessions refuse an elevated token; run unelevated.");
+        var backend = new Backend(ArchiveWriteFormat.Zip, 0) { MemberCatalog = true }; using var f = await Fixture.Open(customBackends: new([backend]));
+        var zip = Synthetic(f); var tab = f.Vm.ActiveTab!;
+        var legacy = f.Services.EditSessions.Create(f.Services.Zip, new FileCat.Core.Resources.ItemRef(zip, "kept", FileCat.Core.Resources.EntryKind.File),
+            TestContext.Current.CancellationToken);
+        Assert.True(legacy.IsLegacyZip); File.AppendAllText(legacy.WorkingPath, " edited before the route");
+        tab.Navigate(zip); await Wait(() => tab.Listing.State == ListingState.Complete && tab.Listing.FocusName("kept"));
+        var edit = f.Vm.ExecuteAsync(CommandIds.Edit);
+        await Wait(() => f.Button("Discard…") is not null);
+        Assert.Equal(0, backend.Assessments);
+        Assert.Equal(legacy.Id, Assert.Single(f.Services.EditSessions.LoadAll()).Id);
+        f.Click("Close"); await f.Complete(edit);
+        Assert.Empty(f.Services.Jobs.Jobs);
+    }
+
+    // Windows Send to → Compressed (zipped) folder, handed to FileCat: the same route rule as Pack.
+    [AvaloniaFact]
+    public async Task Send_to_a_compressed_folder_takes_the_ZIP_route_where_one_is_composed()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows Send to.");
+        var backend = new ArchiveCreationWorkflowTests.RecordingBackend(ArchiveWriteFormat.Zip);
+        using (var f = await Fixture.Open(customBackends: new([backend])))
+        {
+            f.Vm.PackFromWindowsSendTo([Path.Combine(f.Files, "a.txt")], f.Vm.ActiveTab!);
+            var job = Assert.Single(f.Services.Jobs.Jobs); await Wait(() => job.State.IsFinished());
+            Assert.Equal(JobState.Completed, job.State);
+            Assert.Equal(new ArchiveWriteProfile(ArchiveWriteFormat.Zip, compressionLevel: 0), job.Request.Archive!.Profile);
+            Assert.Equal(Path.Combine(f.Files, "a.zip"), backend.Plan!.ArchivePath);
+        }
+        const string why = "The archive worker cannot read FileCat's own files here (test).";
+        using (var f = await Fixture.Open(customBackends: new([new Unavailable(ArchiveWriteFormat.Zip, why)])))
+        {
+            f.Vm.PackFromWindowsSendTo([Path.Combine(f.Files, "a.txt")], f.Vm.ActiveTab!);
+            await Wait(() => f.Vm.CurrentNotification is not null);
+            Assert.Contains(why, f.Vm.CurrentNotification!.Message);
+            Assert.Empty(f.Services.Jobs.Jobs); Assert.Empty(Directory.GetFiles(f.Files, "*.zip"));
+        }
+    }
+
+    private sealed class Unavailable(ArchiveWriteFormat format, string reason) : IArchiveJobBackend
+    {
+        public ArchiveWriteFormat Format => format;
+        public ArchiveJobAvailability Availability(ArchivePlan plan) => new(false, reason);
+        public void Execute(ArchiveJobExecution execution) => throw new InvalidOperationException("An unavailable backend never runs.");
     }
 
     // A real ZIP whose members match the scripted backend's catalog: folder/, folder/old, kept and two "same".

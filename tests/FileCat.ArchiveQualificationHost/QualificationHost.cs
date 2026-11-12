@@ -36,7 +36,8 @@ internal static class QualificationHost
         Directory.CreateDirectory(data);
         // On Windows the worker runs in FileCat's archive AppContainer, which may read only a provisioned bundle; an
         // installer grants that once, and this test-only host does it for the published worker it is given.
-        if (OperatingSystem.IsWindows()) Platform.Windows.Shell.ArchiveAppContainer.ProvisionRuntimeReadAccess(Path.GetDirectoryName(worker)!);
+        if (OperatingSystem.IsWindows())
+            Platform.Windows.Shell.ArchiveAppContainer.ProvisionRuntimeReadAccess(Path.GetDirectoryName(worker)!, Path.GetFileName(worker));
         App.App.StartupOptions = StartupOptions.Parse([.. rest, "--data", data]);
         App.App.QualificationServices = startup => AppServices.InitializeForQualification(
             Core.State.AppPaths.Resolve(startup.Profile, dataRoot: startup.DataRoot),

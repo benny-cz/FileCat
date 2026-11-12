@@ -66,19 +66,21 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     public override string Scheme => Schemes.Zip;
 
     /// <summary>
-    /// Trusted composition's cheap capability probe (as for the native archive provider). Where it reports the ZIP worker
-    /// profile available for an archive, that archive's changes go through the bounded worker (ledger rows 6 and 13), and
-    /// its listings carry the revision the native member commands check. Elsewhere the existing route (release R0) stays.
+    /// Trusted composition's route test (ZIP worker profile design, Interface): whether a ZIP route is composed for an
+    /// archive's runtime and filesystem, whether or not its worker can run now. Where one is, that archive's changes go
+    /// through the bounded worker (ledger rows 6 and 13) or are refused with the worker's reason (from an AppImage, say),
+    /// never through the existing route, and its listings carry the revision token native member commands resolve.
+    /// Elsewhere the existing route (release R0) stays.
     /// </summary>
-    internal Func<ArchivePlan, ArchiveJobAvailability>? MutationAvailability { get; set; }
+    internal Func<ArchivePlan, bool>? RouteComposed { get; set; }
 
     /// <summary>The profile a ZIP route is probed with; a command still reviews the actual archive before it is planned.</summary>
     internal static ArchiveWriteProfile WorkerProfile { get; } = new(ArchiveWriteFormat.Zip);
 
-    /// <summary>Whether this ZIP, a file in a folder, is changed through the worker profile here.</summary>
+    /// <summary>Whether this ZIP, a file in a folder, is changed through the worker profile here (or not at all).</summary>
     public bool UsesWorkerRoute(Location location) =>
         location.Container is { IsFileSystem: true } container && Path.IsPathFullyQualified(container.Path) &&
-        MutationAvailability?.Invoke(new(container.Path, null, [], Profile: WorkerProfile)).Available == true;
+        RouteComposed?.Invoke(new(container.Path, null, [], Profile: WorkerProfile)) == true;
 
     // ---- IContainerDetector ------------------------------------------------------------------------------
 
@@ -237,7 +239,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         if (index.ReadOnly) return "The archive file is read-only; clear its read-only attribute to change it.";
         if (index.HasEncrypted) return "The archive has encrypted members, which FileCat cannot re-create, so it cannot be changed here. Extract what you need with F5.";
         // Through the worker profile (a composed ZIP route), a listing that cannot identify its members keeps them read-only.
-        if (index.WriteRevisionAttempted && index.WriteRevisionProblem is { } problem) return problem;
+        if (index.Revision?.Problem is { } problem) return problem;
         return null;
     }
 
@@ -311,9 +313,10 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
             ct.ThrowIfCancellationRequested();
             var e = new EntryData(node.Name, node.IsDirectory ? EntryKind.Directory : EntryKind.File, node.IsDirectory ? -1 : node.Size, node.Modified)
             {
-                Tag = !index.WriteRevisionAttempted ? node.Tag
-                    : node.Tag is { } member ? member with { ArchiveRevision = index.WriteRevision, ArchiveMutationProblem = index.WriteRevisionProblem }
-                    : new ZipDirectoryRevision(index.WriteRevision, index.WriteRevisionProblem),
+                // Rows carry the listing's revision token; a member command resolves it (ArchiveListingRevision).
+                Tag = index.Revision is not { } revision ? node.Tag
+                    : node.Tag is { } member ? member with { ArchiveRevision = revision.Token, ArchiveMutationProblem = revision.Problem }
+                    : new ZipDirectoryRevision(revision.Token, revision.Problem),
                 Flags = (node.Tag?.Encrypted == true ? EntryFlags.Protected : EntryFlags.None) |
                         (node.Tag?.UnsafeReason is not null ? EntryFlags.Unavailable : EntryFlags.None) |
                         (!node.IsDirectory && (IsContainer(node.Name) || OtherArchives?.IsContainer(node.Name) == true) ? EntryFlags.Container : EntryFlags.None),
@@ -371,16 +374,34 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
 
     // ---- Native edits (a composed ZIP route) ------------------------------------------------------------------
 
+    /// <summary>
+    /// The SHA-256 of the archive a listing showed, for the native review of a member command: read now, through that
+    /// listing's own handle, outside the provider's lock and cancellable (see <see cref="ArchiveListingRevision"/>).
+    /// </summary>
+    internal string ResolveListingRevision(string token, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(token);
+        ZipIndex? index; IDisposable? lease;
+        lock (_cacheLock)
+        {
+            index = _cache.Values.FirstOrDefault(value => value.Revision?.Token == token);
+            lease = index?.TryLease();
+        }
+        if (index?.Revision is not { } revision || lease is null) throw new IOException(ArchiveListingRevision.Closed);
+        using (lease) return revision.Resolve(ct);
+    }
+
     /// <summary>The raw name of the one regular member <paramref name="item"/> shows, checked against the edit's review.</summary>
-    internal string ReviewedMemberPath(ArchiveTargetReview target, ItemRef item)
+    internal string ReviewedMemberPath(ArchiveTargetReview target, ItemRef item, CancellationToken ct)
     {
         var root = item.Parent.WithPath("");
         if (root.Container is not { IsFileSystem: true } container || Path.GetFullPath(container.Path) != target.Path)
             throw new IOException("An edit needs a member of the reviewed outer archive.");
         using var source = ZipPath(root);
-        lock (_cacheLock)
+        var (index, lease) = HoldEditIndex(root, source);
+        using (lease)
         {
-            var index = GetIndex(root, source); RequireEditRevision(index, target);
+            RequireEditRevision(index, target, ct);
             var node = index.FindFile(item.Parent.Path, item.Name, item.Ordinal);
             if (node?.Tag is not { Encrypted: false, UnsafeReason: null } tag)
                 throw new IOException("This archive entry is not a regular member that can be edited directly.");
@@ -391,22 +412,41 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     /// <summary>The content of the one regular member named <paramref name="rawPath"/> in the reviewed archive.</summary>
     internal IContentSource OpenReviewedMember(ArchiveTargetReview target, string rawPath, CancellationToken ct)
     {
-        var root = ForFile(target.Path);
-        using var source = ZipPath(root);
+        // An open listing of the reviewed archive, in whatever names encoding it was opened with, serves the edit: the
+        // archive is not read again for a new index of its own.
+        Location root;
         lock (_cacheLock)
+            root = _cache.Values.Where(index => index.Revision?.Known == target.Assessment.SourceSha256 && index.ListingRoot is not null)
+                .Select(index => index.ListingRoot!).FirstOrDefault(location => location.Container?.Path is { } path &&
+                    PathUtil.SafetyComparer.Equals(Path.GetFullPath(path), target.Path)) ?? ForFile(target.Path);
+        using var source = ZipPath(root);
+        var (index, lease) = HoldEditIndex(root, source);
+        using (lease)
         {
-            var index = GetIndex(root, source); RequireEditRevision(index, target);
+            RequireEditRevision(index, target, ct);
             var matches = index.Children.Values.SelectMany(nodes => nodes).Where(node => node.Tag?.FullName == rawPath).Take(2).ToArray();
             if (matches.Length != 1 || matches[0].Tag is not { Encrypted: false, UnsafeReason: null } tag)
                 throw new IOException("Direct editing needs one exact regular member. Extract the selected occurrence with F5 instead.");
+            // The lease keeps the index open through extraction, whatever the cache does meanwhile.
             ct.ThrowIfCancellationRequested(); return index.Extract(tag, _tempDirectory);
         }
     }
 
-    private static void RequireEditRevision(ZipIndex index, ArchiveTargetReview target)
+    // The archive's current index, with its revision, held open by a lease: the revision is then read outside the lock.
+    private (ZipIndex Index, IDisposable Lease) HoldEditIndex(Location root, ArchiveSourceLease source)
     {
-        if (index.SourceIdentity != target.Native.Version.Identity || index.WriteRevision != target.Assessment.SourceSha256 ||
-            index.WriteRevisionProblem is not null || !index.CompleteListing)
+        lock (_cacheLock)
+        {
+            var index = GetIndex(root, source);
+            index.RequireRevision();
+            return (index, index.TryLease() ?? throw new IOException("The archive was closed; open it again."));
+        }
+    }
+
+    private static void RequireEditRevision(ZipIndex index, ArchiveTargetReview target, CancellationToken ct)
+    {
+        if (index.SourceIdentity != target.Native.Version.Identity || !index.CompleteListing || index.Revision is not { } revision ||
+            revision.Resolve(ct) != target.Assessment.SourceSha256)
             throw new IOException("The archive member reader does not match the complete native edit assessment. Refresh and try again.");
     }
 
@@ -430,8 +470,9 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         {
             try
             {
-                if (!cached.WriteRevisionAttempted && UsesWorkerRoute(location)) throw new IOException("Read the newly writable archive's revision.");
                 cached.VerifySource();
+                // A route composed after this index was built: its listings carry a revision token from now on.
+                if (UsesWorkerRoute(location)) cached.RequireRevision();
                 cached.Touch();
                 return cached;
             }
@@ -449,7 +490,9 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         var index = ZipIndex.Build(path, location.Session is { Length: > 0 } enc ? Encoding.GetEncoding(enc) : null,
             handle => OpenedSourceIdentity.RequireMatch(handle, sourceIdentity, GetOpenedSourceIdentity));
         index.SourceIdentity = sourceIdentity;
-        if (UsesWorkerRoute(location)) index.ReadWriteRevision(CancellationToken.None);
+        index.ListingRoot = location.WithPath(string.Empty);
+        // Only a token: a listing reads the central directory, never the whole archive (ArchiveListingRevision).
+        if (UsesWorkerRoute(location)) index.RequireRevision();
         index.KeepSource(source);
         _cache[key] = index;
         // Archives opened before are kept for going back into them: eight at most, and their indexes together within
@@ -490,6 +533,9 @@ internal sealed class ZipIndex : IDisposable
 {
     private readonly object _lock = new();
     private readonly FileStream _stream;
+    // Taken once while the index is built: reading a FileStream's handle flushes its read buffer, which must never happen
+    // while another thread reads members through that stream. Checks and the revision use this handle at explicit offsets.
+    private readonly Microsoft.Win32.SafeHandles.SafeFileHandle _handle;
     private readonly ZipArchive _archive;
     private readonly List<ZipArchiveEntry> _entries;
     private readonly string? _openedChangeToken;
@@ -501,6 +547,7 @@ internal sealed class ZipIndex : IDisposable
     {
         CompleteListing = completeListing;
         _stream = stream;
+        _handle = stream.SafeFileHandle;
         _archive = archive;
         _entries = entries;
         Children = children;
@@ -519,15 +566,14 @@ internal sealed class ZipIndex : IDisposable
     public long EstimatedBytes { get; }
     public void VerifySource()
     {
-        if (_openedChangeToken is not null && SourceChangeToken.FromHandle(_stream.SafeFileHandle) != _openedChangeToken)
+        if (_openedChangeToken is not null && SourceChangeToken.FromHandle(_handle) != _openedChangeToken)
             throw new IOException("The archive source changed while it was being read.");
     }
 
     public void VerifyPath(Func<string, string?> pathIdentity,
         Func<Microsoft.Win32.SafeHandles.SafeFileHandle, string?> openedIdentity)
     {
-        var handle = _stream.SafeFileHandle;
-        string? opened = openedIdentity(handle);
+        string? opened = openedIdentity(_handle);
         string? path = pathIdentity(_stream.Name);
         if (opened is { Length: > 0 } && path is { Length: > 0 } && path != opened ||
             _openedChangeToken is not null && SourceChangeToken.FromPath(_stream.Name) != _openedChangeToken)
@@ -564,27 +610,42 @@ internal sealed class ZipIndex : IDisposable
     internal bool CompleteListing { get; }
     /// <summary>The source identity the index was opened for, as its provider names it.</summary>
     internal string? SourceIdentity { get; set; }
-    internal bool WriteRevisionAttempted { get; private set; }
-    /// <summary>The SHA-256 of the complete archive read through this index's own handle (see ArchiveListingRevision).</summary>
-    internal string? WriteRevision { get; private set; }
-    internal string? WriteRevisionProblem { get; private set; }
+    /// <summary>The archive's root location this index was built for (its names encoding included).</summary>
+    internal Location? ListingRoot { get; set; }
 
-    /// <summary>Reads the listing revision native member commands check, or why members cannot be changed from it.</summary>
-    internal void ReadWriteRevision(CancellationToken ct)
+    private ArchiveListingRevision? _revision;
+    /// <summary>
+    /// Where a ZIP route is composed: the revision token this index's listings carry, resolved by a member command through
+    /// this index's own handle (never while listing). Null elsewhere.
+    /// </summary>
+    internal ArchiveListingRevision? Revision => Volatile.Read(ref _revision);
+
+    /// <summary>Gives this index its listing revision (once; cheap: nothing is read).</summary>
+    internal ArchiveListingRevision RequireRevision()
     {
-        WriteRevisionAttempted = true;
-        if (_openedChangeToken is null) { WriteRevisionProblem = "This location cannot identify a stable archive listing for member changes."; return; }
-        if (!CompleteListing) { WriteRevisionProblem = "This listing is incomplete and cannot safely identify members for changes."; return; }
-        try
+        if (Volatile.Read(ref _revision) is { } existing) return existing;
+        string? problem = _openedChangeToken is null ? "This location cannot identify a stable archive listing for member changes."
+            : !CompleteListing ? "This listing is incomplete and cannot safely identify members for changes." : null;
+        var created = new ArchiveListingRevision(_handle,
+            () => _openedChangeToken is not null && SourceChangeToken.FromHandle(_handle) == _openedChangeToken, problem);
+        return Interlocked.CompareExchange(ref _revision, created, null) ?? created;
+    }
+
+    /// <summary>Keeps this index's archive open until disposed, even if the cache drops the index meanwhile; null once closing.</summary>
+    internal IDisposable? TryLease()
+    {
+        lock (_lock)
         {
-            lock (_lock) WriteRevision = ArchiveListingRevision.Hash(_stream, _stream.Length, ct);
-            VerifySource();
+            if (_closing) return null;
+            _leases++;
+            return new IndexLease(this);
         }
-        catch (IOException)
-        {
-            WriteRevision = null;
-            WriteRevisionProblem = "The complete archive could not be read for member changes. Refresh it and try again.";
-        }
+    }
+
+    private sealed class IndexLease(ZipIndex owner) : IDisposable
+    {
+        private ZipIndex? _owner = owner;
+        public void Dispose() => Interlocked.Exchange(ref _owner, null)?.Returned();
     }
 
     public static ZipIndex Build(string path, Encoding? nameEncoding) => Build(path, nameEncoding, null);

@@ -73,6 +73,18 @@ static class Program
         string status = Git(repo, "status --porcelain=v1 --untracked-files=all");
         bool clean = status.Length == 0;
         if (!clean && !allowDirty) throw new InvalidOperationException("The checkout has uncommitted changes; a release manifest names a clean commit.");
+        // The routes, protocol, profiles and schemas below are read from the FileCat.Core this tool was built with. They
+        // speak for the release only when that build, and every payload, comes from the commit named here.
+        string? toolSource = SourceCommit(typeof(ArchiveWriteProfile).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
+        if (!string.Equals(toolSource, commit, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"This tool's FileCat.Core was built from {toolSource ?? "an unnamed source"}, not {commit}. Build the tool from the checkout it describes.");
+        foreach (var payload in payloads)
+        {
+            string core = Path.Combine(payload.Folder, "FileCat.Core.dll");
+            string? built = File.Exists(core) ? SourceCommit(FileVersionInfo.GetVersionInfo(core).ProductVersion) : null;
+            if (!string.Equals(built, commit, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"The {payload.Rid} payload was built from {built ?? "an unnamed source"}, not {commit}.");
+        }
 
         var manifest = new JsonObject
         {
@@ -196,13 +208,27 @@ static class Program
     private static string Rid(string rid) => rid is "win-x64" or "win-arm64" or "linux-x64" or "linux-arm64" or "osx-arm64"
         ? rid : throw new ArgumentException("Unknown runtime identifier: " + rid);
 
+    // The commit an assembly's informational version names ("1.0.0+<40 hex>"), or null.
+    private static string? SourceCommit(string? informational)
+    {
+        int plus = informational?.LastIndexOf('+') ?? -1;
+        string? commit = plus < 0 ? null : informational![(plus + 1)..];
+        return commit is { Length: 40 } && commit.All(Uri.IsHexDigit) ? commit.ToLowerInvariant() : null;
+    }
+
     private static string Git(string repo, string arguments)
     {
         var start = new ProcessStartInfo("git") { WorkingDirectory = repo, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
         foreach (string argument in arguments.Split(' ')) start.ArgumentList.Add(argument);
         using var process = Process.Start(start) ?? throw new InvalidOperationException("git did not start.");
-        string text = process.StandardOutput.ReadToEnd(); process.StandardError.ReadToEnd();
-        if (!process.WaitForExit(60_000)) { process.Kill(); throw new InvalidOperationException("git did not finish."); }
+        // Both streams drain at once: git blocked on a full error pipe would otherwise never finish its output.
+        var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
+        if (!process.WaitForExit(60_000))
+        {
+            try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
+            throw new InvalidOperationException("git did not finish.");
+        }
+        string text = output.GetAwaiter().GetResult(); _ = error.GetAwaiter().GetResult();
         if (process.ExitCode != 0) throw new InvalidOperationException("git " + arguments + " failed.");
         return text;
     }

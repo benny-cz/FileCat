@@ -78,6 +78,8 @@ internal static unsafe partial class MacArchiveIsolation
             throw Unavailable("The archive worker could still start processes.");
         if (GetRlimit(4 /* CORE */, &limit) != 0 || limit.Current != 0 || limit.Maximum != 0)
             throw Unavailable("The archive worker could still write a core file.");
+        if (GetRlimit(1 /* FSIZE */, &limit) != 0 || limit.Current != 0 || limit.Maximum != 0)
+            throw Unavailable("The archive worker could still write files in its container.");
     }
 
     private static void VerifyBootstrap()
@@ -146,6 +148,26 @@ internal static unsafe partial class MacArchiveIsolation
         }
         catch (SocketException ex) when (ex.SocketErrorCode == SocketError.AccessDenied) { }
         catch (SocketException) { throw Unavailable("The archive worker's network denial could not be established."); }
+        // Outbound connections are a separate entitlement (network.client) that a re-signed launcher could carry: the
+        // sandbox refuses the attempt (EPERM) before any port is reached, where an allowed one is refused or connects.
+        try
+        {
+            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            socket.Connect(new IPEndPoint(IPAddress.Loopback, 1));
+            throw Unavailable("The archive worker can connect to the network.");
+        }
+        catch (SocketException ex) when (ex.SocketErrorCode == SocketError.AccessDenied) { }
+        catch (SocketException) { throw Unavailable("The archive worker can connect to the network."); }
+        // The user folders other entitlements open (downloads, pictures, music, movies) stay closed, like the home folder.
+        foreach (string folder in new[] { "Downloads", "Pictures", "Music", "Movies", "Desktop", "Documents" })
+            try
+            {
+                using var entries = Directory.EnumerateFileSystemEntries(Path.Combine(user, folder)).GetEnumerator();
+                entries.MoveNext();
+                throw Unavailable("The archive worker can read its user's " + folder + " folder.");
+            }
+            catch (UnauthorizedAccessException) { }
+            catch (DirectoryNotFoundException) { }
     }
 
     // Exits as soon as the parent does, even when the role is busy or blocked: the parent's own stop then cannot reach it.

@@ -89,11 +89,19 @@ plan and job as the other worker formats:
 - F7, F2 and F8 inside a ZIP.
 - F4 edits and their commits. The session records the ZIP profile.
 
-The ZIP provider keeps browsing and extraction. Its listings then carry the revision these commands check: the SHA-256 of
-the archive, read through the listing's own handle. A listing that cannot identify its members keeps them read-only and
+A composed route decides, not the worker's state: where the route covers the archive but its worker cannot run there (the
+AppImage, a framework-dependent build, a portable copy in a folder the user does not own, a macOS app without its
+launcher), each change is refused with the worker's reason. It never falls back to `ZipUpdateExecutor`, and the job
+manager refuses any profile-less ZIP change such a route covers, except the commit of an edit session made before the
+switch. Windows "Send to → Compressed folder" follows the same rule as Pack.
+
+The ZIP provider keeps browsing and extraction. Its listings then carry a revision token, which costs nothing: a listing
+reads the central directory only. The first command that needs the revision resolves the token to the SHA-256 of the
+archive, read then through the listing's own handle, outside the provider's lock and cancellable, and only while the
+listing's change token still holds (`ArchiveListingRevision`; the native formats' listings do the same). A listing that cannot identify its members keeps them read-only and
 says why. A ZIP that the strict catalog refuses stays read-only, and the command says why in ZIP's own words ("This ZIP
 contains metadata FileCat cannot preserve when saving"). An edit session made before the switch has no worker profile and
-keeps committing through `ZipUpdateExecutor`.
+keeps committing through `ZipUpdateExecutor`; F4 on its member shows or reopens it rather than starting a second edit.
 
 Where no ZIP route is composed, the existing route (release R0) is unchanged. Today that is everywhere, because no route
 is listed.

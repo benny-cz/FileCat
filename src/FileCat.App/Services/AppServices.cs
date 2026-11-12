@@ -103,8 +103,9 @@ public sealed class AppServices : IDisposable
             : new Core.Jobs.JobManager(Platform.FileOperations, Providers, paths.JournalDirectory, archiveBackends);
         Archives.MutationAvailability = plan => Jobs.CanReviewArchive(plan) ? Jobs.ArchiveAvailability(plan)
             : Core.Archives.ArchiveJobAvailability.Unqualified;
-        // A ZIP route composed here moves ZIP changes to the worker profile; without one, ZIP keeps its existing route.
-        Zip.MutationAvailability = Archives.MutationAvailability;
+        // A ZIP route composed here moves ZIP changes to the worker profile, available or refused with its reason; without
+        // one, ZIP keeps its existing route.
+        Zip.RouteComposed = Jobs.CoversArchive;
         // SFTP (P6): FileCat's own known_hosts beside its state, seeded read-only by OpenSSH's.
         // FTP and FTPS (P8) share the remote stack; FTPS certificates the OS does not accept are pinned only on request.
         Sftp = new Remote.Sftp.SftpConnections(FindRemoteProfile,

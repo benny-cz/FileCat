@@ -57,9 +57,28 @@ public sealed partial class MainViewModel
         }
         var changes = items.Select(i => new ArchiveChange(i.IsContainer ? ArchiveChangeKind.AddFolder : ArchiveChangeKind.AddFile,
             i.Name, i.FileSystemPath)).ToList();
+        string description = $"Pack {Formatters.Plural(items.Count, "item", "items")} into \"{Path.GetFileName(archive)}\"";
+        // Where a ZIP route is composed for this folder, the new ZIP takes the worker profile (normal Deflate, as before) or
+        // is refused with the worker's reason; the existing route stays only where no ZIP route is composed.
+        var worker = new ArchivePlan(archive, null, changes, Profile: new ArchiveWriteProfile(ArchiveWriteFormat.Zip, compressionLevel: 0));
+        if (Services.Jobs.CoversArchive(worker))
+        {
+            if (Services.Jobs.ArchiveAvailability(worker) is { Available: false } refused)
+            { Notify("Cannot pack this selection: " + (refused.Reason ?? "Writing ZIP archives is unavailable here."), true); return; }
+            try
+            {
+                Services.Jobs.SubmitArchive(worker, description: description, register: job =>
+                {
+                    if (origin.Location is { } context) _jobOrigins[job] = (origin, context);
+                    _focusAfter[job] = Path.GetFileName(archive);
+                });
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+            { Notify("Cannot pack this selection: " + Formatters.SafeName(error.Message), true); }
+            return;
+        }
         SubmitArchive(new ArchivePlan(archive, null, changes, CompressionLevel.Optimal), items, Location.FileSystem(folder),
-            $"Pack {Formatters.Plural(items.Count, "item", "items")} into \"{Path.GetFileName(archive)}\"",
-            Path.GetFileName(archive), origin);
+            description, Path.GetFileName(archive), origin);
     }
 
     private static string ArchiveFile(Location zip) => zip.Container?.Path ?? throw new InvalidOperationException("Not an archive location.");
@@ -262,7 +281,7 @@ public sealed partial class MainViewModel
         var formats = ArchiveCreationFormat.All.Where(format => format.DefaultProfile is not { } profile ||
             Services.Jobs.ArchiveAvailability(new(suggestion, null, [], Profile: profile)).Available).ToArray();
         using var dialog = new ArchiveCreationDialog(suggestion, selected.Value.Summary, formats, Services.Jobs.ArchiveAvailability,
-            items.Count == 1 && !items[0].IsContainer ? items[0].Name : null);
+            items.Count == 1 && !items[0].IsContainer ? items[0].Name : null, Services.Jobs.CoversArchive);
         using var estimateStop = CancellationTokenSource.CreateLinkedTokenSource(Services.Io.StoppingToken);
         _ = ShowPackEstimateAsync(dialog, items, targetFolder, estimateStop.Token);
         using var stopEstimate = new CancelOnDispose(estimateStop); // Disposed first: stops the count when the dialog ends.

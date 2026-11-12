@@ -5,12 +5,43 @@ namespace FileCat.Archives;
 
 public sealed partial class ArchiveProvider
 {
+    /// <summary>
+    /// The SHA-256 of the archive a listing showed, for the native review of a member command: read now, through that
+    /// listing's own witness handle, outside the provider's lock and cancellable (see <see cref="ArchiveListingRevision"/>).
+    /// </summary>
+    internal string ResolveListingRevision(string token, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(token);
+        ArchiveIndex? index; IDisposable? lease;
+        lock (_cacheLock)
+        {
+            index = _cache.Values.FirstOrDefault(value => value.Revision?.Token == token);
+            lease = index?.TryLease();
+        }
+        if (index?.Revision is not { } revision || lease is null) throw new IOException(ArchiveListingRevision.Closed);
+        using (lease) return revision.Resolve(ct);
+    }
+
+    // An edit reads the archive's revision (once, if no command read it yet) before taking the provider's lock; a lease
+    // keeps the index open meanwhile. Under the lock only the known revision is compared.
+    private void ResolveEditRevision(Location root, CancellationToken ct)
+    {
+        ArchiveIndex index; IDisposable lease;
+        lock (_cacheLock)
+        {
+            index = GetIndex(root, ct);
+            lease = index.TryLease() ?? throw new IOException("The archive was closed; open it again.");
+        }
+        using (lease) index.RequireRevision().Resolve(ct);
+    }
+
     internal string ReviewedMemberPath(ArchiveTargetReview target, ItemRef item, ArchiveJobPassword? password, CancellationToken ct)
     {
         var root = item.Parent.WithPath("");
         if (root.Container is not { IsFileSystem: true } container || Path.GetFullPath(container.Path) != target.Path)
             throw new IOException("An edit needs a member of the reviewed outer archive.");
         using var view = OpenReadView(root, password, ct, requireRevision: true);
+        ResolveEditRevision(root, ct);
         lock (_cacheLock)
         {
             var index = GetIndex(root, ct); RequireEditRevision(index, target);
@@ -33,6 +64,7 @@ public sealed partial class ArchiveProvider
             root = _cache.Values.FirstOrDefault(index => index.ContainerPath == target.Path)?.ContainerLocation ??
                 ForFile(target.Path, ReaderKind(target.Profile.Format));
         using var view = OpenReadView(root, password, ct, requireRevision: true);
+        ResolveEditRevision(root, ct);
         lock (_cacheLock)
         {
             var index = GetIndex(root, ct); RequireEditRevision(index, target);
@@ -57,8 +89,8 @@ public sealed partial class ArchiveProvider
 
     private static void RequireEditRevision(ArchiveIndex index, ArchiveTargetReview target)
     {
-        if (index.SourceIdentity != target.Native.Version.Identity || index.WriteRevision != target.Assessment.SourceSha256 ||
-            index.WriteRevisionProblem is not null || !index.CompleteListing)
+        if (index.SourceIdentity != target.Native.Version.Identity || index.Revision is not { Problem: null } revision ||
+            revision.Known != target.Assessment.SourceSha256 || !index.CompleteListing)
             throw new IOException("The archive member reader does not match the complete native edit assessment. Refresh and try again.");
     }
 

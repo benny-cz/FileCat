@@ -54,12 +54,39 @@ public sealed class ArchiveWriteRoutesTests
         Assert.Equal(2, asked.Count);
     }
 
+    // ZIP design, Interface (review finding of 12 November 2026): a composed route covers its runtime's qualified
+    // filesystems whether or not its worker can run now. Where it covers a ZIP, the ZIP is changed through the worker or
+    // refused with the worker's reason (an AppImage, a framework-dependent build), never through the old route.
+    [Fact]
+    public void A_route_covers_its_qualified_filesystems_whether_or_not_its_worker_can_run()
+    {
+        string ntfs = Path.Combine(Path.GetTempPath(), "ntfs-volume"), stick = Path.Combine(Path.GetTempPath(), "fat-stick");
+        ArchiveWriteRoutes.Route[] routes = [new(ArchiveWriteFormat.Zip, "linux-x64", "ext4", "evidence-zip")];
+        const string why = "Archive writing is not available from the AppImage.";
+        var backends = ArchiveWriteRoutes.Compose(routes, "linux-x64", format => new Refusing(format, why), folder => folder == ntfs ? "ext4" : "vfat")!;
+        var covered = Plan(ArchiveWriteFormat.Zip, Path.Combine(ntfs, "a.zip"));
+        Assert.True(backends.Covers(covered));
+        Assert.Equal(new ArchiveJobAvailability(false, why), backends.Availability(covered));
+        Assert.False(backends.Covers(Plan(ArchiveWriteFormat.Zip, Path.Combine(stick, "a.zip"))));
+        Assert.False(backends.Covers(Plan(ArchiveWriteFormat.Zip, "a.zip")));
+        Assert.False(backends.Covers(Plan(ArchiveWriteFormat.Tar, Path.Combine(ntfs, "a.tar"))));
+        Assert.False(backends.Covers(new ArchivePlan(Path.Combine(ntfs, "a.zip"), null, [])));
+        Assert.False(ArchiveJobBackends.Empty.Covers(covered));
+    }
+
     private static ArchivePlan Plan(ArchiveWriteFormat format, string path) => new(path, null, [], Profile: new(format));
 
     private sealed class Ready(ArchiveWriteFormat format) : IArchiveJobBackend
     {
         public ArchiveWriteFormat Format => format;
         public ArchiveJobAvailability Availability(ArchivePlan plan) => ArchiveJobAvailability.Ready;
+        public void Execute(ArchiveJobExecution execution) => throw new InvalidOperationException("Not executed in this test.");
+    }
+
+    private sealed class Refusing(ArchiveWriteFormat format, string reason) : IArchiveJobBackend
+    {
+        public ArchiveWriteFormat Format => format;
+        public ArchiveJobAvailability Availability(ArchivePlan plan) => new(false, reason);
         public void Execute(ArchiveJobExecution execution) => throw new InvalidOperationException("Not executed in this test.");
     }
 }

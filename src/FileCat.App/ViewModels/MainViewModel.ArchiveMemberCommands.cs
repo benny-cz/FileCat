@@ -62,7 +62,7 @@ public sealed partial class MainViewModel
             {
                 try
                 {
-                    var target = await ReviewArchiveTargetAsync(path, profile, password, expectedRevision);
+                    var target = await ReviewArchiveTargetAsync(path, profile, password, expectedRevision, listing: folder);
                     if (target is null) return null;
                     var members = await RunArchivePreparationAsync(path, "Review archive members",
                         "Checking exact member identities and recursive folder scopes.", ct => new ArchiveMemberCommandReview(target.Assessment, ct));

@@ -37,8 +37,13 @@ internal static unsafe partial class MacArchiveProbe
             if (spawned == 0) { int status; WaitPid(child, &status, 0); }
         }
         finally { Marshal.FreeHGlobal(path); }
+        // The container is the one place the sandbox lets the worker write; the launcher's zero file-size limit leaves it
+        // only empty files. Ignored here, the limit's signal (which would end the worker) becomes a failed write to report.
+        Signal(25 /* SIGXFSZ */, 1 /* SIG_IGN */);
+        string home = Environment.GetEnvironmentVariable("HOME") ?? "/nonexistent";
         Console.WriteLine(JsonSerializer.Serialize(new
         {
+            containerWriteDenied = WriteLimited(Path.Combine(home, "probe-write-" + Environment.ProcessId + ".bin")),
             assetRead = File.ReadAllBytes(typeof(MacArchiveIsolation).Assembly.Location).Length > 0,
             readDenied = Denied(() => File.ReadAllBytes(file)),
             listDenied = Denied(() => Directory.GetFileSystemEntries(folder)),
@@ -104,6 +109,18 @@ internal static unsafe partial class MacArchiveProbe
         if (Console.ReadLine() == "die") Exit(90); // Deliberately bypasses disposal.
         worker.DisposeAsync().AsTask().GetAwaiter().GetResult(); return 0;
     }
+
+    // A write that the sandbox refuses, or that the zero file-size limit stops (EFBIG); an empty file it left is removed.
+    private static bool WriteLimited(string path)
+    {
+        try { File.WriteAllText(path, "data"); return false; }
+        catch (UnauthorizedAccessException) { return true; }
+        catch (IOException) { return true; }
+        finally { try { File.Delete(path); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { } }
+    }
+
+    [LibraryImport("libc", EntryPoint = "signal")]
+    private static partial nint Signal(int signal, nint handler);
 
     private static bool Denied(Action action)
     {

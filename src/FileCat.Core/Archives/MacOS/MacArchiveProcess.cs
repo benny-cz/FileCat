@@ -14,8 +14,10 @@ namespace FileCat.Core.Archives.MacOS;
 /// ceiling, so, as the owner's re-scoped gate allows, the parent samples the worker's physical footprint every
 /// <see cref="SampleInterval"/> and stops the worker when it exceeds its budget. This is a sampled bound, not a ceiling:
 /// between two samples the worker can exceed the budget by what it allocates in that time (about 12 MiB at 800 MiB/s in
-/// the spike; up to about 120 MiB for a worker filling memory as fast as the machine allows at 10 ms). Managed
-/// allocations meet the runtime's own heap limit first (DOTNET_GCHeapHardLimit, half the budget).
+/// the spike; up to about 120 MiB for a worker filling memory as fast as the machine allows at 10 ms). The monitor is a
+/// thread of this process, so anything that stops this process's threads (a garbage collection pause, the machine
+/// suspending this process) also pauses sampling: the overshoot then has no fixed bound. Managed allocations meet the
+/// worker runtime's own heap limit first (DOTNET_GCHeapHardLimit, half the budget).
 /// </summary>
 internal sealed partial class MacArchiveProcess : IArchiveWorkerProcess
 {
@@ -122,11 +124,16 @@ internal sealed partial class MacArchiveProcess : IArchiveWorkerProcess
         if (image is not ("FileCat" or "FileCat.WorkerProbe"))
             throw MacArchiveIsolation.Unavailable("The macOS archive worker runs only in FileCat's own executable.");
         string launcher = Path.Combine(folder, MacArchiveIsolation.LauncherFileName);
+        // Owned by root, by this user, or by the account that owns the application this process runs (an app another user
+        // dragged into /Applications belongs to that user, and whoever runs it already trusts that account), and writable
+        // by no one else.
         uint user = GetUid();
+        uint? installer = Environment.ProcessPath is { } running ? UnixFiles.Stat(running)?.Owner : null;
         foreach (string path in new[] { folder, executable, launcher })
         {
             var info = UnixFiles.Stat(path) ?? throw MacArchiveIsolation.Unavailable("The macOS archive worker launcher is missing from this application.");
-            if (info.IsLink || (info.Owner != 0 && info.Owner != user) || (info.Mode & 0x12) != 0 || (path == folder ? !info.IsDirectory : !info.IsRegular))
+            if (info.IsLink || (info.Owner != 0 && info.Owner != user && info.Owner != installer) || (info.Mode & 0x12) != 0 ||
+                (path == folder ? !info.IsDirectory : !info.IsRegular))
                 throw MacArchiveIsolation.Unavailable("The macOS archive worker launcher is not a private part of this application.");
         }
         return (image, launcher);

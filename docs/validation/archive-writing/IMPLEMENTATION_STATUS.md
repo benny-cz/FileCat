@@ -1,5 +1,31 @@
 # Archive writing implementation status
 
+**12 November, independent review and its fixes (row 14).** A reviewer read today's changes (`3c239903` to `9ceb9027`)
+against the code. It found no way past the macOS sandbox boundary, and seven defects, all fixed:
+
+1. Where a ZIP route was composed but its worker could not run (the AppImage, a framework-dependent build, a portable copy
+   in a folder the user does not own), ZIP changes silently took the old in-process route. The route now decides by
+   composition, `IArchiveJobBackend.Covers`: such a change is refused with the worker's reason, the job manager refuses
+   any profile-less ZIP change a route covers (except a legacy edit commit, `ArchivePlan.LegacyEditCommit`), and Windows
+   "Send to → Compressed folder" follows Pack.
+2. The Windows portable grant gave the worker inherited read access to the whole folder: the portable `Data` state and,
+   unpacked into Downloads, the user's files. It now grants exactly the runtime files `FileCat.deps.json` names (with the
+   host, deps and runtimeconfig files), each by its own entry, and traverse only on their folders; an earlier whole-folder
+   grant is withdrawn. Availability checks every runtime file, deny entries with generic rights and inherit-only entries.
+3. A ZIP listing on the worker route hashed the whole archive under the provider's global lock, uncancellable. Listings
+   now carry a token; the first command resolves it to the SHA-256 through the listing's own handle, outside the lock and
+   cancellable, while the listing's change token still holds (`ArchiveListingRevision`). The native formats do the same.
+   The ZIP index no longer reads its FileStream's handle from other threads (that flushed a buffer another read used).
+4. F4 on the worker route skipped an edit session started on the old route. It now shows or reopens that session.
+5. macOS: the package checks the launcher's entitlements exactly; the worker also checks an outbound connect and the user
+   folders; `RLIMIT_FSIZE` 0 limits the container to empty files; an app another user installed is accepted; two comments
+   no longer overstate the boundary.
+6. Linux: the AppImage refusal applies only to a bundle inside `APPDIR`, not to a .deb started from an AppImage's process.
+7. The release manifest refuses a tool or payload built from another commit than the one it names, and reads git's two
+   streams at once.
+
+Re-validation on the three machines: in progress.
+
 **12 November, macOS archive workers in the App Sandbox (route decision, rows 3 and 13).** A C launcher with its own
 Info.plist and only the App Sandbox entitlement removes process creation, inherited descriptors and the bootstrap port,
 then executes the application in worker mode. The worker checks those facts and the sandbox's denials before input and
