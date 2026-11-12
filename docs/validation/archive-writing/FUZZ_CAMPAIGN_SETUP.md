@@ -17,7 +17,13 @@
   and the families are judged on actual CPU. Single-threaded targets kept their rates. New plans count on at most one
   CPU-second per second (`c3eb3847`).
 - **Final corpus.** `corpora-final-v4.tar.gz` (`d4f93db3…`): 465,380 inputs over 27 targets (127,730 for
-  `zip-archives`), replayed at the fixed commit on macOS, Windows and Linux.
+  `zip-archives`). Replayed at the fixed commit on every shipping RID with no failure, each report matching its
+  folder's file count and digest (`verify_corpus_replay.py`): macOS arm64 27 targets, 2.495 CPU-hours
+  (`replay-final-mac`, `c67ef85e…`); linux-x64 with the uninstrumented harness 27 targets, 4.128
+  (`replay-final-ubuntu`, `1b7f6ea6…`); Windows x64 26 targets, 453,231 inputs, 2.722 (`replay-final-win`,
+  `4ae569c8…`; the Unix publication route skipped). Accepted and refused counts agree between the RIDs except two of
+  12,149 publication-race inputs (macOS against Linux, whose exchange semantics differ; the oracle passed both) and
+  the Unix-rooted session records and intents that Windows refuses before any path check.
 - **Fixed commit `489177af`.** Its product source equals `1f51bd15` (the ZIP stack fix); later commits change tests and
   tooling only.
   - Full regressions. macOS `full-v23a-mac` passes (Core 344 + 8,732, App 2,810, Remote 2,638, Rendering 23;
@@ -47,7 +53,7 @@
   the runner resets such a unit first (`96b63086`). Unix test evidence keeps published files' hashes instead of the
   binaries (`d72445df`); test runners refuse below 10 GiB free and the scheduler waits below 5 GiB (`c6f1df11`);
   subset planning and per-family verification (`489177af`).
-- **Open.** The ZIP family's 24 CPU-hours at `489177af` and the final corpus replay on each RID (both running).
+- **Open.** The ZIP family's 24 CPU-hours at `489177af` (running).
 
 **11 November, candidate campaign on `62f0a457` running (row 7, §13.3, §13.6).** One image, one candidate, every target:
 
