@@ -1,5 +1,11 @@
 # Archive writing implementation status
 
+**12 November, route decision recorded (rows 6, 12, 13).** The owner chose the first release routes: win-x64 on NTFS,
+linux-x64 on ext4 and osx-arm64 on APFS, every native format and ZIP through the worker profile, native edit storage on all
+three, and listing only after the independent review (row 14). For macOS the owner re-scoped the memory gate to footprint
+monitoring with termination; FileCat takes the App Sandbox helper of the plan's two macOS options. The
+[decision record](RELEASE_ROUTE_DECISION.md) lists what must hold before the listing. Nothing is listed by it.
+
 **12 November, native edit store composed behind its qualification gate (rows 4, 8, 13).** `NativeEditStorage` lists the
 runtimes and filesystems on which ordinary startup composes the native, private edit store (its own `edit-sessions-native`
 root beside the legacy folder, the platform's private leases); none is listed, so startup keeps the legacy store and probes
