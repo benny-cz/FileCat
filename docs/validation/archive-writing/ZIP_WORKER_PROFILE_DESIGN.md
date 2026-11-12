@@ -99,9 +99,14 @@ The ZIP provider keeps browsing and extraction. Its listings then carry a revisi
 as the central directory is read. Where writing is available, and while a panel shows the listing (not a search, a
 comparison or a transfer walking the archive), the archive is read in the background to its SHA-256: through the listing's
 own file (on Windows through a file object of its own), while the listing's change token holds, outside the provider's
-lock, at low I/O priority, and stopped when no panel shows the listing. A later command finds that revision read, bound to
-what the listing showed as tightly as when the listing itself read the whole archive. A command that comes first reads the
-archive itself, at normal priority, and stops with the command. A change any read sees is final for that listing, and a
+lock, at low I/O priority, on a thread of its own that takes the listing's lease itself. It stops 10 seconds after no
+panel shows the listing (a panel moving between the archive's folders keeps it going), when the listing's index closes,
+or when a command reads the archive itself, and none starts while a command reads. Esc while the listing loads or
+refreshes stops it as well. A panel holds the listing's revision weakly, so an index the cache dropped is not kept in
+memory by a panel. A later command finds that revision read, bound to what the listing showed as tightly as when the
+listing itself read the whole archive. A command that comes first reads the archive itself, at normal priority, and
+stops with the command. A change token of another shape (on Windows, a change journal's USN missing for the moment)
+proves neither sameness nor a change, and the command can be tried again. A change any read sees is final for that listing, and a
 refresh lists the archive anew. An archive over 1 GiB is read when the first
 change needs it instead, and until then only its change token binds the command to the listing. A revision once read
 outlives the listing's index (`ArchiveListingRevision`; the native formats' listings do the same). A listing that cannot identify its members keeps them read-only and

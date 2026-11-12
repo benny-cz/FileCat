@@ -672,7 +672,7 @@ internal sealed class ZipIndex : IDisposable
         string? problem = _openedChangeToken is null ? "This location cannot identify a stable archive listing for member changes."
             : !CompleteListing ? "This listing is incomplete and cannot safely identify members for changes." : null;
         var created = new ArchiveListingRevision(_handle,
-            () => (SourceChangeToken.FromHandle(_handle) ?? throw new IOException("The archive's change token cannot be read now.")) == _openedChangeToken,
+            () => SourceChangeToken.Holds(SourceChangeToken.FromHandle(_handle), _openedChangeToken),
             TryLease, problem, resolved, MarkStale);
         var kept = Interlocked.CompareExchange(ref _revision, created, null) ?? created;
         if (_closing) kept.Close();

@@ -53,7 +53,9 @@ public sealed partial class ArchiveProvider
                         throw new ArchiveReadPasswordRequiredException();
                     return new(location);
                 }
-                // A credential-bearing index must be tied to the exact opened file on every reuse.
+                // A credential-bearing index must be tied to the exact opened file on every reuse. One a revision read
+                // found changed meanwhile says so (a refresh lists the archive anew).
+                if (index.Stale) throw new IOException(ArchiveListingRevision.Changed);
                 if (!index.CanReuse)
                     throw new IOException("This location cannot retain a stable password session. Extract the archive to a local folder and open it there.");
                 if (!index.AcquireView()) throw new IOException("The password session was closed. Open the archive again.");

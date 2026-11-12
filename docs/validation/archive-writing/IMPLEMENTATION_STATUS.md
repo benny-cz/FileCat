@@ -41,20 +41,6 @@ and four problems, all fixed in the next commit:
 - **A test comment claimed journal behaviour that does not exist.** It now checks that the edit store's commit plans
   carry the marker.
 
-A fourth reviewer read `12f924d5`. It found no lock, lease or handle defect. It did find that the shared-read state machine
-still had edge cases:
-- A change seen once stuck to a reused index, so a refresh did not help.
-- On Linux before 5.15, restoring the priority could fail.
-- A command could inherit a read that had just been stopped.
-- A background read outlived the panel that showed it.
-
-The next commit replaces the shared read with two kinds of read that never share. While a panel shows the listing, one
-background read runs at low priority. It stops when no panel shows the listing (the panel's listing pipeline ends it),
-when the index closes, or when a command starts reading; its thread ends with it, so no priority is restored. A command
-that finds no revision read yet reads the archive itself, at normal priority, stops with the command, and is kept open
-by its caller's lease. A change any read sees marks the listing's index stale, so a refresh lists the archive anew with
-a new token. A change token that cannot be read at the moment is an error to try again, not a change.
-
 A third reviewer read `1fd1f5b6`, the background reads. It found seven defects, all fixed in the next commit:
 
 - Every enumeration started a read, not only a panel's listing; a Find over archives started one per archive. Only a
@@ -72,6 +58,42 @@ A third reviewer read `1fd1f5b6`, the background reads. It found seven defects, 
 New tests cover the read's lifetime on a real file: the size limits, closing while nothing or a command waits, a command
 giving up, a change seen once, and the deny entry kept on Windows. A closing index now releases the revision outside its
 own lock, which avoids a lock-order inversion.
+
+A fourth reviewer read `12f924d5`. It found no lock, lease or handle defect. It did find that the shared-read state machine
+still had edge cases:
+- A change seen once stuck to a reused index, so a refresh did not help.
+- On Linux before 5.15, restoring the priority could fail.
+- A command could inherit a read that had just been stopped.
+- A background read outlived the panel that showed it.
+
+The next commit replaces the shared read with two kinds of read that never share. While a panel shows the listing, one
+background read runs at low priority. It stops when no panel shows the listing (the panel's listing pipeline ends it),
+when the index closes, or when a command starts reading; its thread ends with it, so no priority is restored. A command
+that finds no revision read yet reads the archive itself, at normal priority, stops with the command, and is kept open
+by its caller's lease. A change any read sees marks the listing's index stale, so a refresh lists the archive anew with
+a new token. A change token that cannot be read at the moment is an error to try again, not a change.
+
+A fifth reviewer read `c1e93b58`. It found no way to bind a command to a listing other than the one shown, and five
+problems, all fixed in the next commit:
+
+- Moving to another folder of the same archive ended the shown listing's read, and the next listing started it again
+  from the beginning. A read now stops 10 seconds after the last panel stopped showing the listing; a listing of the same
+  archive shown within that time keeps it going.
+- A panel's showing held the revision, and through it the index's catalog, after the cache had dropped that index. It
+  now holds the revision weakly; only a running read keeps it.
+- Starting a read took the index's lease under the revision's lock, and that lease waits for the index's own lock; a
+  panel's tab closing on the UI thread could wait behind a member being decompressed. The read's own thread now takes
+  the lease.
+- A listing shown while a command read the archive started a second read. None starts while a command reads.
+- On Windows a change token that lost its USN part for a moment (a journal query that failed) counted as a change, final
+  for the listing. A token of another shape now proves neither and is an error to try again
+  (`SourceChangeToken.Holds`). A password-protected archive found changed meanwhile says so, rather than that it cannot
+  keep a password session.
+
+Esc while a listing loads or refreshes ends its read as well, after the same grace; a command then reads the archive
+itself. The tests now prove each stop on its own (closing, a command, hiding, the grace's end, being shown again), that
+a panel's showing does not keep the revision in memory, and that the listing pipeline ends a shown listing's work on a
+refresh, a navigation and a closed tab.
 
 Two timing-fragile tests outside archive writing failed once each, under parallel load. One was the keyboard reference
 test, which waited a fixed 20 ms for the dialog; it now waits for the parts it uses. The other was a Windows icon test,

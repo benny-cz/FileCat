@@ -10,8 +10,9 @@ namespace FileCat.Core.Archives;
 /// The command's native review then refuses the change when the archive it assesses has another SHA-256.
 /// <para>Two kinds of read, never shared. While a panel shows the listing, and the archive is at most the provider's
 /// background limit, one read runs in the background on a thread of its own, at low I/O priority, through a file object of
-/// its own on Windows (so member reads never queue behind it); it stops when no panel shows the listing any more, when
-/// the listing's index closes, or when a command starts reading. It binds a later command to what the listing showed as
+/// its own on Windows (so member reads never queue behind it); it stops a grace period after no panel shows the listing
+/// any more (a panel moving between the archive's folders keeps it going), when the listing's index closes, or when a
+/// command starts reading, and none starts while a command reads. It binds a later command to what the listing showed as
 /// tightly as when the listing itself read the whole archive. A command that finds no revision read yet reads the archive
 /// itself, on its own thread, at normal priority, and stops with the command; its caller keeps the listing's file open.
 /// Above the background limit only that command's read binds it, and until then the change token alone (a writer that
@@ -37,7 +38,7 @@ internal sealed class ArchiveListingRevision
     private readonly object gate = new();
     private readonly SemaphoreSlim commands = new(1, 1);
     private string? known, seenChange;
-    private int shown;
+    private int shown, reading, backgroundReads;
     private bool closed, began;
     private CancellationTokenSource? background;
 
@@ -65,24 +66,44 @@ internal sealed class ArchiveListingRevision
     internal string? Known => Volatile.Read(ref known);
     /// <summary>Whether any read of this listing's revision began (tests and diagnostics).</summary>
     internal bool ReadBegan { get { lock (gate) return began; } }
+    /// <summary>How many background reads were started (tests and diagnostics).</summary>
+    internal int BackgroundReads { get { lock (gate) return backgroundReads; } }
+    /// <summary>Whether a background read was told to stop and has not ended yet (tests and diagnostics).</summary>
+    internal bool BackgroundStopping { get { lock (gate) return background is { IsCancellationRequested: true }; } }
 
     /// <summary>Whether a listing row's revision is a token to resolve (rather than a revision a provider already read).</summary>
     internal static bool IsToken(string? revision) => revision is not null && revision.StartsWith(TokenPrefix, StringComparison.Ordinal);
 
     /// <summary>
+    /// How long a background read goes on after the last panel stopped showing the listing: long enough for a panel moving to
+    /// another folder of the same archive (its new listing shows the same revision again), short of keeping a read running
+    /// for a panel that left the archive.
+    /// </summary>
+    internal TimeSpan HiddenGrace { get; set; } = TimeSpan.FromSeconds(10);
+
+    /// <summary>
     /// A panel shows this listing: while any does, its revision is read in the background (once, unless the archive is
-    /// larger than <paramref name="limit"/>). Dispose the result when the panel stops showing it.
+    /// larger than <paramref name="limit"/>, and not while a command reads it). Dispose the result when the panel stops
+    /// showing it.
     /// </summary>
     internal IDisposable Show(long limit)
     {
         long length = Problem is null ? Length() : -1;
+        CancellationTokenSource? start = null;
         lock (gate)
         {
-            shown++;
-            // A read that was just stopped (the panel moved on and came back) may still be finishing: start a new one.
-            if (length >= 0 && length <= limit && known is null && seenChange is null && !closed &&
-                (background is null || background.IsCancellationRequested)) ReadInBackground();
+            bool wasHidden = shown++ == 0;
+            if (background is { IsCancellationRequested: false } running)
+            {
+                // Shown again within the grace (another folder of the same archive): the read in progress goes on.
+                if (wasHidden) running.CancelAfter(Timeout.Infinite);
+            }
+            else if (length >= 0 && length <= limit && known is null && seenChange is null && !closed && reading == 0)
+            {
+                start = new CancellationTokenSource(); background = start; began = true; backgroundReads++;
+            }
         }
+        if (start is not null) ReadInBackground(start);
         return new Showing(this);
     }
 
@@ -99,9 +120,10 @@ internal sealed class ArchiveListingRevision
         {
             if (Volatile.Read(ref seenChange) is { } seen) throw new IOException(seen);
             if (Volatile.Read(ref known) is { } read) return read;
-            // A background read gives way: this command reads the archive itself, at normal priority, and stops with it.
-            lock (gate) { background?.Cancel(); began = true; }
-            return Read(ct);
+            // A background read gives way, and none starts while this command reads the archive itself, at normal priority.
+            lock (gate) { background?.Cancel(); reading++; began = true; }
+            try { return Read(ct); }
+            finally { lock (gate) reading--; }
         }
         finally { commands.Release(); }
     }
@@ -112,47 +134,57 @@ internal sealed class ArchiveListingRevision
         lock (gate) { closed = true; background?.Cancel(); }
     }
 
+    // The gate is never held while waiting for anything else: a panel's tab closing (on the UI thread) only takes it briefly.
     private void Hide()
     {
-        lock (gate) if (--shown == 0) background?.Cancel();
+        lock (gate)
+        {
+            if (--shown > 0 || background is not { IsCancellationRequested: false } running) return;
+            if (HiddenGrace <= TimeSpan.Zero) running.Cancel(); else running.CancelAfter(HiddenGrace);
+        }
     }
 
+    // Weak: a panel still showing a listing whose index has left the cache must not keep that index's catalog in memory. A
+    // running read keeps its revision, and so its index, alive by itself.
     private sealed class Showing(ArchiveListingRevision owner) : IDisposable
     {
-        private ArchiveListingRevision? _owner = owner;
-        public void Dispose() => Interlocked.Exchange(ref _owner, null)?.Hide();
+        private WeakReference<ArchiveListingRevision>? _owner = new(owner);
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _owner, null) is { } weak && weak.TryGetTarget(out var revision)) revision.Hide();
+        }
     }
 
-    // Under the gate. The read keeps the listing's file open with its own lease, which it returns when it ends.
-    private void ReadInBackground()
+    private void ReadInBackground(CancellationTokenSource cancel)
     {
-        var held = lease();
-        if (held is null) return;
-        var cancel = new CancellationTokenSource();
         try
         {
-            Task.Factory.StartNew(() =>
-            {
-                try
-                {
-                    using (held)
-                    {
-                        BackgroundIo.LowerThisThread(); // A thread of its own, which ends with the read: nothing to restore.
-                        Read(cancel.Token);
-                    }
-                }
-                catch (Exception error) when (error is IOException or OperationCanceledException) { } // A command reads again.
-                finally
-                {
-                    lock (gate) if (ReferenceEquals(background, cancel)) background = null;
-                    cancel.Dispose();
-                }
-            }, CancellationToken.None, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
-            background = cancel; began = true;
+            Task.Factory.StartNew(() => ReadInBackgroundNow(cancel), CancellationToken.None,
+                TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
         }
         catch (Exception error) when (error is TaskSchedulerException or OutOfMemoryException or InvalidOperationException)
         {
-            held.Dispose(); cancel.Dispose();
+            lock (gate) if (ReferenceEquals(background, cancel)) background = null;
+            cancel.Dispose();
+        }
+    }
+
+    // On a thread of its own, which ends with the read (nothing to restore). The lease, which keeps the listing's file open,
+    // is taken here: the index's lock may be busy for a while (a viewer decompressing a member), and nothing waits for this.
+    private void ReadInBackgroundNow(CancellationTokenSource cancel)
+    {
+        try
+        {
+            using var held = lease();
+            if (held is null || cancel.IsCancellationRequested) return;
+            BackgroundIo.LowerThisThread();
+            Read(cancel.Token);
+        }
+        catch (Exception error) when (error is IOException or OperationCanceledException) { } // A command reads again.
+        finally
+        {
+            lock (gate) if (ReferenceEquals(background, cancel)) background = null;
+            cancel.Dispose();
         }
     }
 

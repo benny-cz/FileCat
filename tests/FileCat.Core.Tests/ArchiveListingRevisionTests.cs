@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using FileCat.Core.Archives;
@@ -36,11 +37,48 @@ public sealed partial class ArchiveListingRevisionTests
     {
         using var temp = new TempDir(); using var file = Plain(temp);
         var probe = new Probe(file, hold: true);
+        probe.Revision.HiddenGrace = TimeSpan.Zero;
         var showing = probe.Revision.Show(long.MaxValue);
-        Assert.True(probe.Revision.ReadBegan);
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
         showing.Dispose(); probe.Release();
         Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, 10_000), "The hidden listing's read kept going.");
-        Assert.Null(probe.Revision.Known);
+        Assert.Null(probe.Revision.Known); Assert.Equal(0, probe.Resolved);
+    }
+
+    [Fact]
+    public void A_hidden_listing_s_background_read_stops_once_its_grace_ends_and_a_later_showing_reads_again()
+    {
+        using var temp = new TempDir(); using var file = Plain(temp);
+        var probe = new Probe(file, hold: true);
+        probe.Revision.HiddenGrace = TimeSpan.FromMilliseconds(50);
+        var showing = probe.Revision.Show(long.MaxValue);
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
+        showing.Dispose();
+        Assert.True(SpinWait.SpinUntil(() => probe.Revision.BackgroundStopping, 10_000), "The grace never ended.");
+        probe.Release();
+        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, 10_000));
+        Assert.Null(probe.Revision.Known); Assert.Equal(0, probe.Resolved);
+        using var again = probe.Revision.Show(long.MaxValue);
+        Assert.True(SpinWait.SpinUntil(() => probe.Revision.Known is not null, 10_000));
+        Assert.Equal(Sha(file), probe.Revision.Known); Assert.Equal(2, probe.Revision.BackgroundReads);
+    }
+
+    [Fact]
+    public void A_listing_shown_again_within_the_grace_keeps_its_one_background_read()
+    {
+        using var temp = new TempDir(); using var file = Plain(temp);
+        var probe = new Probe(file, hold: true);
+        probe.Revision.HiddenGrace = TimeSpan.FromSeconds(1);
+        var first = probe.Revision.Show(long.MaxValue);
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
+        first.Dispose(); // The panel moves to another folder of the archive...
+        using var second = probe.Revision.Show(long.MaxValue); // ...whose listing shows the same revision.
+        Thread.Sleep(TimeSpan.FromSeconds(2)); // Past the grace: being shown again called it off.
+        Assert.False(probe.Revision.BackgroundStopping, "The read stopped although the listing was shown again.");
+        probe.Release();
+        Assert.True(SpinWait.SpinUntil(() => probe.Revision.Known is not null, 10_000));
+        Assert.Equal(Sha(file), probe.Revision.Known);
+        Assert.Equal(1, probe.Revision.BackgroundReads); Assert.Equal(1, probe.Taken); Assert.Equal(1, probe.Resolved);
     }
 
     [Fact]
@@ -48,24 +86,38 @@ public sealed partial class ArchiveListingRevisionTests
     {
         using var temp = new TempDir(); using var file = Plain(temp);
         var probe = new Probe(file, hold: true);
+        probe.Revision.HiddenGrace = TimeSpan.Zero;
         using var first = probe.Revision.Show(long.MaxValue);
         var second = probe.Revision.Show(long.MaxValue);
         second.Dispose(); probe.Release();
         Assert.True(SpinWait.SpinUntil(() => probe.Revision.Known is not null, 10_000));
-        Assert.Equal(Sha(file), probe.Revision.Known); Assert.Equal(1, probe.Taken);
+        Assert.Equal(Sha(file), probe.Revision.Known);
+        Assert.Equal(1, probe.Taken); Assert.Equal(1, probe.Revision.BackgroundReads);
     }
 
     [Fact]
-    public void Closing_the_listing_stops_its_background_read_but_not_a_command_s_own_read()
+    public void Closing_the_listing_stops_its_background_read_and_none_begins_again()
     {
         using var temp = new TempDir(); using var file = Plain(temp);
         var probe = new Probe(file, hold: true);
         using var showing = probe.Revision.Show(long.MaxValue);
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
+        probe.Revision.Close(); probe.Release();
+        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, 10_000), "Closing the listing did not stop its read.");
+        Assert.Null(probe.Revision.Known); Assert.Equal(0, probe.Resolved);
+        using (probe.Revision.Show(long.MaxValue)) Assert.Equal(1, probe.Revision.BackgroundReads);
+    }
+
+    [Fact]
+    public void Closing_the_listing_does_not_stop_a_command_s_own_read()
+    {
+        using var temp = new TempDir(); using var file = Plain(temp);
+        var probe = new Probe(file, hold: true);
         var command = Command(probe.Revision, Ct);
-        Assert.True(SpinWait.SpinUntil(() => probe.Entered >= 2, 5000), "Both reads should be waiting on the change token.");
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
         probe.Revision.Close(); probe.Release();
         Assert.Equal(Sha(file), Await(command));
-        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, 10_000));
+        Assert.Equal(1, probe.Resolved); Assert.Equal(0, probe.Revision.BackgroundReads);
     }
 
     [Fact]
@@ -79,12 +131,27 @@ public sealed partial class ArchiveListingRevisionTests
         Assert.True(SpinWait.SpinUntil(() => probe.Entered == 2, 5000));
         probe.Release();
         Assert.Equal(Sha(file), Await(command));
-        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, 10_000), "The background read did not give way.");
-        Assert.Equal(Sha(file), probe.Revision.Known);
+        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, 10_000), "The background read did not end.");
+        // Only the command's read finished: the background read stopped when the command began its own.
+        Assert.Equal(1, probe.Resolved); Assert.Equal(Sha(file), probe.Revision.Known);
     }
 
     [Fact]
-    public void A_command_that_gives_up_stops_its_own_read_and_a_later_command_reads_again()
+    public void A_listing_shown_while_a_command_reads_it_starts_no_second_read()
+    {
+        using var temp = new TempDir(); using var file = Plain(temp);
+        var probe = new Probe(file, hold: true);
+        var command = Command(probe.Revision, Ct);
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
+        using var showing = probe.Revision.Show(long.MaxValue);
+        Assert.Equal(0, probe.Revision.BackgroundReads);
+        probe.Release();
+        Assert.Equal(Sha(file), Await(command));
+        Assert.Equal(0, probe.Taken); Assert.Equal(1, probe.Resolved);
+    }
+
+    [Fact]
+    public void A_command_that_gives_up_stops_its_own_read_and_a_later_showing_or_command_reads_again()
     {
         using var temp = new TempDir(); using var file = Plain(temp);
         var probe = new Probe(file, hold: true);
@@ -93,8 +160,23 @@ public sealed partial class ArchiveListingRevisionTests
         Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
         stop.Cancel(); probe.Release();
         Assert.ThrowsAny<OperationCanceledException>(() => Await(command));
-        Assert.Null(probe.Revision.Known);
+        Assert.Null(probe.Revision.Known); Assert.Equal(0, probe.Resolved);
+        using (probe.Revision.Show(long.MaxValue))
+        {
+            Assert.Equal(1, probe.Revision.BackgroundReads);
+            Assert.True(SpinWait.SpinUntil(() => probe.Revision.Known is not null, 10_000));
+        }
         Assert.Equal(Sha(file), probe.Revision.Resolve(Ct));
+    }
+
+    [Fact]
+    public void A_panel_showing_a_listing_does_not_keep_its_revision_in_memory()
+    {
+        using var temp = new TempDir(); using var file = Plain(temp);
+        var (showing, revision) = ShowAndForget(file);
+        for (int i = 0; i < 5 && Alive(revision); i++) { GC.Collect(); GC.WaitForPendingFinalizers(); }
+        Assert.False(Alive(revision), "A panel's showing kept the revision, and so its index's catalog, in memory.");
+        showing.Dispose(); // Nothing left to hide.
     }
 
     [Fact]
@@ -105,8 +187,8 @@ public sealed partial class ArchiveListingRevisionTests
         Assert.Equal(ArchiveListingRevision.Changed, Assert.Throws<IOException>(() => probe.Revision.Resolve(Ct)).Message);
         probe.Same = true; // The change token restored: the listing still showed something else.
         Assert.Equal(ArchiveListingRevision.Changed, Assert.Throws<IOException>(() => probe.Revision.Resolve(Ct)).Message);
-        using (probe.Revision.Show(long.MaxValue)) Assert.Equal(0, probe.Taken);
-        Assert.Equal(1, probe.Stale); Assert.Null(probe.Revision.Known);
+        using (probe.Revision.Show(long.MaxValue)) Assert.Equal(0, probe.Revision.BackgroundReads);
+        Assert.Equal(1, probe.Stale); Assert.Null(probe.Revision.Known); Assert.Equal(0, probe.Taken);
     }
 
     [Fact]
@@ -128,18 +210,30 @@ public sealed partial class ArchiveListingRevisionTests
 
     private static string Await(Task<string> task) => task.WaitAsync(TimeSpan.FromSeconds(30), Ct).GetAwaiter().GetResult();
 
+    // A panel's showing of a listing whose revision nothing else keeps (its index left the cache).
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static (IDisposable Showing, WeakReference<ArchiveListingRevision> Revision) ShowAndForget(FileStream file)
+    {
+        var revision = new ArchiveListingRevision(file.SafeFileHandle, () => true, () => null, null);
+        return (revision.Show(limit: 0), new WeakReference<ArchiveListingRevision>(revision));
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static bool Alive(WeakReference<ArchiveListingRevision> revision) => revision.TryGetTarget(out _);
+
     // The revision of one file, with its change-token callback and leases observed.
     private sealed class Probe
     {
         private readonly ManualResetEventSlim held = new();
         private readonly bool hold;
         internal volatile bool Same = true, Unreadable;
-        internal int Taken, Returned, Entered, Stale;
+        internal int Taken, Returned, Entered, Stale, Resolved;
         internal ArchiveListingRevision Revision { get; }
         internal Probe(FileStream file, bool hold = false)
         {
             this.hold = hold;
-            Revision = new ArchiveListingRevision(file.SafeFileHandle, Unchanged, Take, null, stale: () => Interlocked.Increment(ref Stale));
+            Revision = new ArchiveListingRevision(file.SafeFileHandle, Unchanged, Take, null,
+                resolved: (_, _) => Interlocked.Increment(ref Resolved), stale: () => Interlocked.Increment(ref Stale));
         }
         internal void Release() => held.Set();
         private bool Unchanged()

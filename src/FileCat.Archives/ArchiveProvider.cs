@@ -511,6 +511,7 @@ internal sealed class ArchiveIndex : IDisposable
     // A revision read saw the archive change: this index is never reused (a refresh lists the archive anew).
     private volatile bool _stale;
     private void MarkStale() => _stale = true;
+    internal bool Stale => _stale;
 
     public void VerifySource()
     {
@@ -561,7 +562,7 @@ internal sealed class ArchiveIndex : IDisposable
             : _volumes.Length > 1 ? "Members of a multi-volume archive are read-only."
             : !CompleteListing ? "This listing has archive warnings and cannot safely identify members for changes." : null;
         var created = new ArchiveListingRevision(handle,
-            () => (SourceChangeToken.FromHandle(handle) ?? throw new IOException("The archive's change token cannot be read now.")) == _openedChangeToken,
+            () => SourceChangeToken.Holds(SourceChangeToken.FromHandle(handle), _openedChangeToken),
             TryLease, problem, resolved, MarkStale);
         var kept = Interlocked.CompareExchange(ref _revision, created, null) ?? created;
         if (_closing || _closed) kept.Close();
