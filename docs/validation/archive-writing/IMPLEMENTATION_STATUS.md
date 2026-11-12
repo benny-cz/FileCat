@@ -1,5 +1,13 @@
 # Archive writing implementation status
 
+**12 November, macOS archive workers in the App Sandbox (route decision, rows 3 and 13).** A C launcher with its own
+Info.plist and only the App Sandbox entitlement removes process creation, inherited descriptors and the bootstrap port,
+then executes the application in worker mode. The worker checks those facts and the sandbox's denials before input and
+exits when its parent does. The parent samples the footprint every 5 ms and stops the worker above 768 MiB, the owner's
+re-scoped gate. On the Mac, run `mac-sbx-v5` at `92a2a2c3` passed 14 boundary tests and 10 real-dialog create-and-add
+flows with real workers. The runs found and fixed a disposal deadlock and codesign's refusal of commented or CRLF
+entitlements. Details and limits: [record](MACOS_SANDBOX_WORKER.md). No route is listed.
+
 **12 November, route decision recorded (rows 6, 12, 13).** The owner chose the first release routes: win-x64 on NTFS,
 linux-x64 on ext4 and osx-arm64 on APFS, every native format and ZIP through the worker profile, native edit storage on all
 three, and listing only after the independent review (row 14). For macOS the owner re-scoped the memory gate to footprint

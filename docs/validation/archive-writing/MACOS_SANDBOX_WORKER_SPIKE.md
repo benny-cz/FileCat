@@ -69,6 +69,8 @@ readable, and a sibling folder is not. Removing the containers afterwards needed
 
 ## Not established here
 
+The production launcher, worker and monitor that followed are recorded in [MACOS_SANDBOX_WORKER.md](MACOS_SANDBOX_WORKER.md).
+
 The production launcher and worker, archive roles under this boundary, the CPU limit's effect, packaging inside
 `FileCat.app` (whose deep signing must not strip the launcher's entitlement), and the owner-signed release candidate
 (Developer ID and hardened runtime). Evidence: `results.json` and the driver log in the ignored

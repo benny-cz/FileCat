@@ -45,8 +45,9 @@ the App Sandbox helper. The worker roles run in a separately signed executable t
 and nothing else. The ordinary-user probe found that such a helper's unrelated reads, writes and network access fail with
 `EPERM`, and that a fork fails with `EAGAIN` under a zero process limit. The virtual-machine route is not pursued for this
 release: it would ship a guest kernel and image, and its provider's footprint exceeds the 1 GiB it was designed to hold.
-The helper still needs its production launcher, the memory monitor, a parent lifeline, packaging inside the app, and the
-denial, lifetime and pressure evidence on the signed candidate.
+The [launcher, the footprint monitor and the parent watch](MACOS_SANDBOX_WORKER.md) exist and pass on the Mac (spike:
+[record](MACOS_SANDBOX_WORKER_SPIKE.md)). Still open: the packaged app's route test, and the denial, lifetime and pressure
+runs on the owner-signed candidate.
 
 ## ZIP
 
@@ -67,8 +68,8 @@ On macOS the roles run in the App Sandbox helper described above.
 1. The release candidate is built from a clean checkout with its packages for every runtime.
 2. Package route tests run from the installed and portable payloads: Windows setup and portable, Linux .deb and
    AppImage, and the macOS app. Each exercises the listed formats with that payload's own workers.
-3. On macOS, the sandboxed launcher and the memory monitor exist and pass their denial, lifetime, cancellation and
-   pressure tests in the packaged app.
+3. On macOS, the sandboxed launcher and the memory monitor pass their denial, lifetime, cancellation and pressure tests
+   in the packaged app (they pass in the published application: [record](MACOS_SANDBOX_WORKER.md)).
 4. The release manifest records the application commit, profile schema, exact source and component hashes, worker
    protocol, runtimes, filesystem routes and evidence IDs (plan §16.1).
 5. The independent review (ledger row 14) closes, and its fixes are re-validated.
