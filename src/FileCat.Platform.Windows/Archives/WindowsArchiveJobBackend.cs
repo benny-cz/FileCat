@@ -7,18 +7,24 @@ using FileCat.Platform.Windows.Shell;
 namespace FileCat.Platform.Windows.Archives;
 
 /// <summary>Unregistered qualification candidate using the actual confined application worker and NTFS recipes.</summary>
-internal static class WindowsArchiveJobBackend
+internal static partial class WindowsArchiveJobBackend
 {
     internal const string Elevated = "Archive writing needs FileCat running without administrator rights.";
-    internal const string LinkedFolder = "Archive writing is not available in this folder: FileCat changes archives only in local " +
-        "folders that are not links, mount points or synced by a cloud service (such as OneDrive).";
+    internal const string LinkedFolder = "Archive writing is not available here: this folder is reached through a link, a junction " +
+        "or a mount point, and FileCat writes archives only in folders reached without one. Open the folder where the link leads " +
+        "(for example the drive a profile folder was moved to) to change archives there.";
+    internal const string CloudFolder = "Archive writing is not available in a folder a cloud service syncs (such as OneDrive, " +
+        "iCloud or Dropbox).";
     internal const string LinkedArchive = "This archive is a link or a cloud file (such as OneDrive), which FileCat does not change. " +
         "Copy it into a local folder to change it.";
     internal const string NoTransactions = "This drive does not support the NTFS transactions FileCat needs to replace an archive " +
         "safely, so its existing archives are read-only here.";
     internal const string NotWritableDrive = "Archive writing is not available on this drive: FileCat writes archives only on " +
         "writable, local NTFS drives.";
-    internal const string NotOpenable = "Archive writing is not available in this folder: FileCat cannot open it for writing.";
+    internal const string NotOpenable = "Archive writing is not available in this folder: FileCat cannot hold it the way it holds a " +
+        "folder it writes in (it is not on a local drive, or access is denied).";
+    internal const string ArchiveNotWritable = "This archive cannot be changed here: it is read-only, or its permissions do not let you " +
+        "write it.";
     private const uint SupportsTransactions = 0x0020_0000; // FILE_SUPPORTS_TRANSACTIONS
 
     /// <summary>
@@ -34,35 +40,61 @@ internal static class WindowsArchiveJobBackend
         if (!Path.IsPathFullyQualified(archivePath) || Path.GetDirectoryName(archivePath) is not { Length: > 0 } folder ||
             Path.GetFileName(archivePath) is not { Length: > 0 } leaf) return LinkedFolder;
         if (!Directory.Exists(folder)) return null; // Nothing to judge yet: the job says what is missing.
-        // A folder OneDrive syncs is a reparse point the folder pins accept as an ordinary folder; FileCat's writing is not
-        // qualified there, so it is refused like a link (as is any other reparse point on the way).
-        if (ReparseFolderOnTheWay(folder)) return LinkedFolder;
+        if (FolderProblem(folder) is { } problem) return problem;
         try
         {
             using var directory = WindowsArchiveDirectory.Open(folder);
             uint? links = directory.ProbeExisting(leaf);
             if (links is null) return null; // A new archive.
             if (links > 1) return ArchiveWriteMessages.HardLinkedText(archivePath);
-            // Every update is published in an NTFS transaction; some volumes (the system drive of recent Windows builds
-            // among them) do not support one.
-            return (directory.Volume.Flags & SupportsTransactions) == 0 ? NoTransactions : null;
+            // Every update is published in an NTFS transaction; some volumes do not support one.
+            if ((directory.Volume.Flags & SupportsTransactions) == 0) return NoTransactions;
+            // Attributes only: the job itself tries to open the original for writing before anything is rebuilt.
+            return (File.GetAttributes(archivePath) & FileAttributes.ReadOnly) != 0 ? ArchiveNotWritable : null;
         }
         catch (ArchiveWriteException error) when (error.Reason == ArchiveWriteReason.BudgetExceeded) { return ArchiveListingRevision.TooLarge; }
         catch (IOException error) when (error.Message == WindowsArchiveNative.NotRegular) { return LinkedArchive; }
         catch (NotSupportedException) { return NotWritableDrive; }
-        catch (UnauthorizedAccessException) { return NotOpenable; }
-        catch (Exception error) when (error is IOException or ArgumentException or System.ComponentModel.Win32Exception) { return LinkedFolder; }
+        // The way to the folder holds no link or cloud folder (checked above): what is left is a folder it cannot hold.
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or
+            System.ComponentModel.Win32Exception) { return NotOpenable; }
     }
 
-    private static bool ReparseFolderOnTheWay(string folder)
+    /// <summary>
+    /// What is on the way to <paramref name="folder"/>: a folder a cloud service syncs (OneDrive, iCloud, Dropbox: a sync root
+    /// of the Windows cloud files API, which the folder pins accept as an ordinary folder but where FileCat's writing is not
+    /// qualified), or a link, a junction or a mount point (the job pins every folder without following one). Windows hides a
+    /// cloud folder's reparse point from ordinary processes, so the sync root is asked for by name; links show by their
+    /// attributes. Nothing is opened, recalled or synced.
+    /// </summary>
+    internal static string? FolderProblem(string folder)
     {
+        if (InCloudSyncRoot(folder)) return CloudFolder;
         for (string? current = folder; !string.IsNullOrEmpty(current); current = Path.GetDirectoryName(current))
         {
-            try { if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) return true; }
+            try
+            {
+                if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) == 0) continue;
+                return new DirectoryInfo(current).LinkTarget is null ? CloudFolder : LinkedFolder;
+            }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException) { } // The pins below decide.
         }
-        return false;
+        return null;
     }
+
+    private static unsafe bool InCloudSyncRoot(string folder)
+    {
+        try
+        {
+            long rootId; uint returned;
+            // CF_SYNC_ROOT_INFO_BASIC: succeeds only for a path inside a registered sync root.
+            return CfGetSyncRootInfoByPath(folder, 0, &rootId, sizeof(long), out returned) == 0;
+        }
+        catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException) { return false; }
+    }
+
+    [System.Runtime.InteropServices.LibraryImport("cldapi.dll", StringMarshalling = System.Runtime.InteropServices.StringMarshalling.Utf16)]
+    private static unsafe partial int CfGetSyncRootInfoByPath(string path, int infoClass, void* buffer, uint length, out uint returned);
 
     internal static IArchiveJobBackend Create(ArchiveWriteFormat format, string executable, bool retainArtifacts = false)
     {
@@ -112,9 +144,12 @@ internal static class WindowsArchiveJobBackend
             {
                 if (plan.Baseline is not null)
                 {
-                    // Refused before anything is rebuilt: the update would end at the transaction it cannot begin.
+                    // Refused before anything is rebuilt: the update would end at the transaction it cannot begin, or at the
+                    // write open of an original it may not write.
                     if ((directory.Volume.Flags & SupportsTransactions) == 0)
                         throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, NoTransactions);
+                    if (!directory.MayWrite(Path.GetFileName(plan.ArchivePath)))
+                        throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, ArchiveNotWritable);
                     original = directory.OpenSource(Path.GetFileName(plan.ArchivePath));
                     Original = new(original, ((IArchiveRetainedFile)original).Observe(ct));
                 }

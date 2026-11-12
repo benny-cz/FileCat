@@ -84,7 +84,7 @@ public static class JobExecutors
                 // Where a ZIP route is composed, every ZIP change takes the worker profile; only an edit session made before
                 // then keeps committing through the old route (release text, Downgrade).
                 if (!r.Archive.LegacyEditCommit && Path.IsPathFullyQualified(r.Archive.ArchivePath) &&
-                    archiveBackends.Covers(new Archives.ArchivePlan(r.Archive.ArchivePath, null, [], Profile: Archives.ZipProvider.WorkerProfile)))
+                    archiveBackends.CoversNow(new Archives.ArchivePlan(r.Archive.ArchivePath, null, [], Profile: Archives.ZipProvider.WorkerProfile)))
                     return new RefusedExecutor(job, fs, journal,
                         "This ZIP is changed through FileCat's archive worker here, but this change was prepared for the old ZIP route. Nothing was changed; make the change again.");
                 return new Archives.ZipUpdateExecutor(job, fs, journal);

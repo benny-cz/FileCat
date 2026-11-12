@@ -15,6 +15,12 @@ internal interface IArchiveJobBackend
     /// never fall back to the old ZIP route (ZIP worker profile design, Interface).
     /// </summary>
     bool Covers(ArchivePlan plan) => true;
+    /// <summary>
+    /// The same answers, asked afresh where a job is decided (a backend may keep answers a short while for the key bar,
+    /// menus and dialogs).
+    /// </summary>
+    bool CoversNow(ArchivePlan plan) => Covers(plan);
+    ArchiveJobAvailability AvailabilityNow(ArchivePlan plan) => Availability(plan);
     // Return only after all workers, borrowed secret grants and native transaction/cleanup leases have settled.
     void Execute(ArchiveJobExecution execution);
 }
@@ -57,6 +63,15 @@ internal sealed class ArchiveJobBackends
     internal bool Covers(ArchivePlan plan) =>
         plan.Profile is { } profile && backends.TryGetValue(profile.Format, out var backend) && backend.Covers(plan);
 
+    /// <summary><see cref="Covers"/>, asked afresh: where a job is decided.</summary>
+    internal bool CoversNow(ArchivePlan plan) =>
+        plan.Profile is { } profile && backends.TryGetValue(profile.Format, out var backend) && backend.CoversNow(plan);
+
+    /// <summary><see cref="Availability"/>, asked afresh: where a job is decided.</summary>
+    internal ArchiveJobAvailability AvailabilityNow(ArchivePlan plan) =>
+        plan.Profile is { } profile && backends.TryGetValue(profile.Format, out var backend)
+            ? backend.AvailabilityNow(plan) : ArchiveJobAvailability.Unqualified;
+
     internal bool CanReview(ArchivePlan plan) => Availability(plan).Available && plan.Profile is { } profile &&
         backends.TryGetValue(profile.Format, out var backend) && backend.TargetReviewer is not null;
 
@@ -93,7 +108,7 @@ internal sealed class ArchiveJobBackends
         public void Execute()
         {
             job.Checkpoint();
-            var available = owner.Availability(operation.Plan);
+            var available = owner.AvailabilityNow(operation.Plan);
             if (!available.Available)
             {
                 new RefusedExecutor(job, fs, journal, available.Reason ?? ArchiveJobAvailability.Unqualified.Reason!).Execute();

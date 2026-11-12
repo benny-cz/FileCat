@@ -15,11 +15,16 @@ internal sealed partial class UnixArchiveFile
         lock (parent.Gate)
         {
             Live(); ct.ThrowIfCancellationRequested();
-            ArchiveUnixUpdateMetadata.RequireAdmissible(CaptureOuterMetadata(ct), UnixArchiveNative.GetEuid());
+            var metadata = CaptureOuterMetadata(ct);
+            ArchiveUnixUpdateMetadata.RequireAdmissible(metadata, UnixArchiveNative.GetEuid());
+            // Known before anything is rebuilt; otherwise found only when the replacement's metadata is applied.
+            if (!parent.KeepsGroup(metadata.Native.Group)) throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, GroupNotKept);
             if (UnixArchiveNative.Mac && MacAclHasDeny(UnixArchiveNative.Fd(held)))
                 throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, MacDenyAcl);
         }
     }
+
+    internal const string GroupNotKept = "This archive's group cannot be kept by the current user, so it is read-only here.";
 
     internal const string MacDenyAcl =
         "This archive has a macOS access-control entry that denies some access. FileCat cannot replace it safely, so it is read-only here.";

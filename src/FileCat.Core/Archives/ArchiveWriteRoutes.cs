@@ -150,13 +150,16 @@ internal static class ArchiveWriteRoutes
     {
         public ArchiveWriteFormat Format => inner.Format;
         public ArchiveTargetReviewer? TargetReviewer => inner.TargetReviewer;
-        public bool Covers(ArchivePlan plan)
+        public bool Covers(ArchivePlan plan) => Covers(plan, fresh: false);
+        public bool CoversNow(ArchivePlan plan) => Covers(plan, fresh: true);
+        private bool Covers(ArchivePlan plan, bool fresh)
         {
             ArgumentNullException.ThrowIfNull(plan);
-            var (fileSystem, problem) = judge.Judge(plan.ArchivePath);
+            var (fileSystem, problem) = judge.Judge(plan.ArchivePath, fresh);
             return Check(routes, Format, runtimeIdentifier, fileSystem) == ArchiveWriteRouteRefusal.None && problem is null;
         }
         public ArchiveJobAvailability Availability(ArchivePlan plan) => Availability(plan, fresh: false);
+        public ArchiveJobAvailability AvailabilityNow(ArchivePlan plan) => Availability(plan, fresh: true);
         private ArchiveJobAvailability Availability(ArchivePlan plan, bool fresh)
         {
             ArgumentNullException.ThrowIfNull(plan);

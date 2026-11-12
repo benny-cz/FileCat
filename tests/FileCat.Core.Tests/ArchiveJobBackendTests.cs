@@ -112,7 +112,8 @@ public sealed class ArchiveJobBackendTests
         string covered = temp.Dir("covered"), elsewhere = temp.Dir("elsewhere");
         var backends = ArchiveWriteRoutes.Compose([new(ArchiveWriteFormat.Zip, "test-rid", "qualified", "evidence")], "test-rid",
             format => new Backend(format) { Status = new(false, "The worker cannot run from here.") },
-            folder => folder == covered ? "qualified" : "other")!;
+            // The route judges a folder as the job resolves it (macOS reaches the temporary folder through /var, a link).
+            folder => folder == ArchiveLocalPath.ResolveDirectory(covered) ? "qualified" : "other")!;
         var manager = new JobManager(new PortableFileOperations(), new ProviderRegistry(), temp.Dir("journals"), backends);
         string Zip(string folder, string name)
         {

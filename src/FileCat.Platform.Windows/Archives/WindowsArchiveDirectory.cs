@@ -199,6 +199,22 @@ internal sealed partial class WindowsArchiveDirectory : IDisposable, IArchiveDes
         }
     }
 
+    /// <summary>
+    /// Whether this process may open the file named <paramref name="leaf"/> for writing: refused for a read-only file or one
+    /// whose permissions do not allow it. Shares everything and writes nothing; a sharing conflict is the job's to meet.
+    /// </summary>
+    internal bool MayWrite(string leaf)
+    {
+        ValidateLeaf(leaf);
+        lock (Gate)
+        {
+            EnsureOpen();
+            int status = TryOpen(Handle, leaf, 0x2 /* FILE_WRITE_DATA */ | Synchronize, ShareAll, NtFile.Open, NonDirectoryFile | OpenReparsePoint, out var handle);
+            handle.Dispose();
+            return status != unchecked((int)0xC0000022) /* STATUS_ACCESS_DENIED */;
+        }
+    }
+
     internal void RequireRecoveryNameAbsent(string leaf)
     {
         ValidateLeaf(leaf);

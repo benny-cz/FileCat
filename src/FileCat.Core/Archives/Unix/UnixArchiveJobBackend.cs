@@ -40,6 +40,8 @@ internal static class UnixArchiveJobBackend
         }
         catch (UnauthorizedAccessException) { return NotOrdinaryUser; }
         catch (ArchiveWriteException error) when (error.Message.StartsWith("Archive writing needs", StringComparison.Ordinal)) { return error.Message; }
+        // A file being written as it is looked at: nothing to say for good; the job reads it again and says what it finds.
+        catch (ArchiveWriteException error) when (error.Reason == ArchiveWriteReason.SourceChanged) { return null; }
         catch (Exception error) when (error is IOException or ArgumentException or NotSupportedException) { return Unavailable; }
     }
 

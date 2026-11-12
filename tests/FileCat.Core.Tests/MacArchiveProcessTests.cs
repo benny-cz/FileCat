@@ -94,8 +94,9 @@ public sealed partial class MacArchiveProcessTests(ITestOutputHelper diagnostics
         Assert.True(over.MemoryLimitExceeded);
         Assert.DoesNotContain("allocated", output);
         // A sampled bound: the overshoot is what this probe (filling memory as fast as the machine allows) adds between two
-        // samples, never unbounded.
-        Assert.InRange(over.PeakFootprint, Budget + 1, Budget + (256L << 20));
+        // samples, never unbounded. Peaks of 266 to 341 MiB were usual; once, under the parallel suite (12 November), the
+        // sampler ran late and the worker reached 543 MiB of the 2,048 it tries to fill before it was stopped.
+        Assert.InRange(over.PeakFootprint, Budget + 1, Budget + (768L << 20));
 
         var under = MacArchiveProcess.Start(probe, Guid.NewGuid(), TimeSpan.FromSeconds(60), ["archive-mac-memory", "64"], Budget);
         await using (under)

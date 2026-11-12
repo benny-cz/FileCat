@@ -238,9 +238,24 @@ internal static unsafe partial class UnixArchiveNative
     [LibraryImport("libc", EntryPoint = "acl_get_perm_np", SetLastError = true)]
     private static partial int AclGetPerm(nint rights, int right);
 
-    // Every right of a Darwin access-control entry (sys/acl.h), but ACL_DELETE (1 << 4).
+    // Every right of a Darwin access-control entry (sys/acl.h), but ACL_DELETE (1 << 4), the generic ones included.
     private static readonly int[] RightsOtherThanDelete =
-        [1 << 1, 1 << 2, 1 << 3, 1 << 5, 1 << 6, 1 << 7, 1 << 8, 1 << 9, 1 << 10, 1 << 11, 1 << 12, 1 << 13, 1 << 20];
+        [1 << 1, 1 << 2, 1 << 3, 1 << 5, 1 << 6, 1 << 7, 1 << 8, 1 << 9, 1 << 10, 1 << 11, 1 << 12, 1 << 13, 1 << 20,
+            1 << 21, 1 << 22, 1 << 23, 1 << 24];
+
+    /// <summary>
+    /// Whether this process may give a file it owns <paramref name="group"/>: its effective group, or one of its
+    /// supplementary groups (a membership the system resolves otherwise, such as a nested macOS group, is not assumed).
+    /// </summary>
+    internal static bool MayGiveGroup(uint group)
+    {
+        if (group == GetEgid()) return true;
+        int count = GetGroups(0, null);
+        if (count is <= 0 or > 65_536) return false;
+        uint[] groups = new uint[count];
+        fixed (uint* values = groups) count = GetGroups(count, values);
+        return count > 0 && groups.AsSpan(0, count).Contains(group);
+    }
     private static bool DeniesOnlyDeletion(nint rights)
     {
         if (AclGetPerm(rights, 1 << 4 /* ACL_DELETE */) != 1) return false;
@@ -260,7 +275,7 @@ internal static unsafe partial class UnixArchiveNative
     [LibraryImport("libc", EntryPoint = "getgid")]
     private static partial uint GetGid();
     [LibraryImport("libc", EntryPoint = "getegid")]
-    private static partial uint GetEgid();
+    internal static partial uint GetEgid();
     [LibraryImport("libc", EntryPoint = "issetugid")]
     private static partial int IsSetugid();
     [LibraryImport("libc", EntryPoint = "getgroups", SetLastError = true)]

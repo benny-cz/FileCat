@@ -211,10 +211,24 @@ internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestin
             if (facts.IsLink || !facts.IsRegular) return UnixArchiveJobBackend.LinkedArchive;
             if (facts.Size > ArchiveWritePolicy.MaxPhysicalBytes) return ArchiveListingRevision.TooLarge;
             using var held = UnixArchiveNative.Child(directory, leaf);
-            try { ArchiveUnixUpdateMetadata.RequireAdmissible(ArchiveUnixOuterMetadata.Capture(held), UnixArchiveNative.GetEuid()); }
+            var metadata = ArchiveUnixOuterMetadata.Capture(held);
+            try { ArchiveUnixUpdateMetadata.RequireAdmissible(metadata, UnixArchiveNative.GetEuid()); }
             catch (ArchiveWriteException error) when (error.Reason == ArchiveWriteReason.UnsupportedFeature) { return error.Message; }
+            if (!KeepsGroup(metadata.Native.Group)) return UnixArchiveFile.GroupNotKept;
             return UnixArchiveNative.Mac && UnixArchiveFile.MacAclHasDeny(UnixArchiveNative.Fd(held)) ? UnixArchiveFile.MacDenyAcl : null;
         }
+    }
+
+    /// <summary>
+    /// Whether a replacement made here can have <paramref name="group"/>, as the update promises: the group a new file
+    /// here gets (on macOS the folder's own; on Linux the process's, or the folder's where the folder is set-group-ID), or
+    /// one this process may give it.
+    /// </summary>
+    internal bool KeepsGroup(uint group)
+    {
+        var folder = ArchiveUnixOuterMetadata.CaptureDirectory(directory).Native;
+        uint created = UnixArchiveNative.Mac || (folder.Mode & 0x400 /* S_ISGID */) != 0 ? folder.Group : UnixArchiveNative.GetEgid();
+        return group == created || UnixArchiveNative.MayGiveGroup(group);
     }
     internal void RequirePrivateStageOf(UnixArchiveDirectory publicParent)
     {

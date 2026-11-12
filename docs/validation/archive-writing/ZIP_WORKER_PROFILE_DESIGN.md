@@ -116,9 +116,10 @@ keeps committing through `ZipUpdateExecutor`; F4 on its member shows or reopens 
 
 Where no ZIP route is composed, the existing route (release R0) is unchanged: on runtimes and file systems no route
 lists, and in places the worker route cannot write, which the route's own checks find before anything starts: on Windows a
-folder reached through a junction, link or mount point, a OneDrive folder, and a drive without NTFS transactions for an
-existing ZIP; on Linux and macOS a folder another user can change and a ZIP its update admission refuses (another owner,
-extended attributes it cannot keep); everywhere a ZIP with another hard link and an elevated FileCat.
+folder a cloud service syncs, a folder reached through a junction, link or mount point, and for an existing ZIP a drive
+without NTFS transactions or a read-only file; on Linux and macOS a folder another user can change and a ZIP its update
+admission refuses (another owner, a group it cannot keep, flags, extended attributes it cannot keep); everywhere a ZIP
+with another hard link and an elevated FileCat.
 
 ## Evidence required
 
