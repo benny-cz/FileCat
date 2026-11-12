@@ -1,5 +1,54 @@
 # Coverage-guided archive-writing fuzz setup
 
+**12 November, candidate campaign on `62f0a457` complete; fixed commit `489177af` re-qualified (row 7, §13.6).**
+
+- **Campaign result.** All 47 runs finished by 05:02 and every transport passes host verification
+  ([`verify_fuzz_candidate_transport.py`](../../../eng/validation/archive-writing/verify_fuzz_candidate_transport.py)
+  `campaign`, list `fuzz-candidate-v4-campaign-list-sealed.json`): 1,422,309,568 executions, two slow-unit reports (the
+  protected RAR5 updates below), no oracle skip, crash, leak or dump. CPU-hours per family: TAR 25.627, compressed
+  streams 27.972, 7z 27.462, RAR5 29.337, shared stateful/protocol/recovery 29.330, ZIP 15.861; every target 2 or more
+  (lowest `stream-faults` 2.072). ZIP is below 24 (next bullet) and is repeated on the fixed commit, as `1f51bd15`
+  changed its code anyway.
+- **Contention.** The scheduler sized each run's wall time from its short run's uncontended CPU rate. With 11 units on 12
+  vCPUs the multithreaded `zip-archives` units earned 0.74 CPU-seconds per second against a short-run rate of 1.38, and
+  14 runs ended clean below their planned per-run floor (all six `zip-archives`, two `sevenzip-writer`, two
+  `verify-output`, two `create-inputs`, `publication-races`, `stream-faults`). A guest watcher sealed each at the CPU it
+  earned (every other sealer check unchanged); the sealed list carries those floors (`fuzz-candidate-v4-short-runs.json`)
+  and the families are judged on actual CPU. Single-threaded targets kept their rates. New plans count on at most one
+  CPU-second per second (`c3eb3847`).
+- **Final corpus.** `corpora-final-v4.tar.gz` (`d4f93db3…`): 465,380 inputs over 27 targets (127,730 for
+  `zip-archives`), replayed at the fixed commit on macOS, Windows and Linux.
+- **Fixed commit `489177af`.** Its product source equals `1f51bd15` (the ZIP stack fix); later commits change tests and
+  tooling only.
+  - Full regressions. macOS `full-v23a-mac` passes (Core 344 + 8,732, App 2,810, Remote 2,638, Rendering 23;
+    `dae87372…`). Windows VM `full-v23a-win` (Core 8,344, Platform 422 + 1,163, App 2,914, Remote 2,405, Rendering 24;
+    `4d615e83…`) fails only `DeviceReadTests.A_folder_reached_through_a_link_is_placed_where_the_link_leads`, whose
+    expectation ignored that the VM's S: is a VHD whose file lies on C: (`DeviceTopology` rightly counts that disk); the
+    test now compares the link with the volume it leads to (`5b6a5836`) and passes on the VM (`devread-v23c-win`).
+    Ubuntu `full-v23a-ubuntu` (Core 355 + 8,795, App 2,822, Remote 2,543, Rendering 23; `0a420a59…`) fails only
+    `SecretStoreTests`: the VM's keyring has no login collection, and creating one needs the session's keyring daemon to
+    start unlocked at a graphical login (an attempt over ssh was reverted).
+  - Platform floors (structured mutation from the image's exact seeds, checked by `verify_structured_lanes.py`): macOS
+    27 targets, 6.762 CPU-hours (`xrid-mac-489177af`, `3f579846…`); Windows 26 targets, 4.801 (`xrid-win-489177af`,
+    `f77759ec…`; 4.408 without the two record targets whose Unix-rooted seeds only reach the refusal), and the
+    Windows-rooted record pass accepted 115,018 session records and 20,110 intents (`22a3a8cd…`).
+  - Corpus-seeded passes (extra coverage): macOS 27 targets, 25.38 CPU-hours, 1.74 billion inputs (`fd8e5c79…`);
+    Windows 26 targets, 11.70 (`2ff46c7e…`), where a harness fault ended `manifest-member` early (below) and its rerun
+    with the fixed harness ran the full 30 minutes, 369 million inputs (`4ac84b0f…`). From the interim sample at
+    `62f0a457`: macOS 49.66 CPU-hours (`2fed3f34…`), Windows 12.25 (`12b4cf40…`).
+  - Writer scale (AT18, `ArchiveWriterScaleTests`) under the Windows VM's standard token: all ten engine profiles write
+    and strictly read 100,000 members on a 1 MiB thread (7z LZMA2 63.7 s, RAR5 normal 49.8 s, all others under 12 s).
+  - ZIP family: image `fuzz-candidate-v5` at `489177af` qualified (canary found in 11,963 calls, its replay exits 77,
+    27 clean short runs) and runs six `zip-archives` units of 15,000 CPU-seconds each.
+- **Harness and tooling defects found on the way** (not product). Structured lanes replaced their report file without
+  retrying, so on Windows a scanner holding the file ended a lane as a failure, and they published every 4,096 calls
+  (about 23 forced collections a second on fast targets): retried, at most one publish a second (`b1253274`). Transient
+  unit names repeat across images and the canary's failed units stayed loaded, so the first v5 canary could not start:
+  the runner resets such a unit first (`96b63086`). Unix test evidence keeps published files' hashes instead of the
+  binaries (`d72445df`); test runners refuse below 10 GiB free and the scheduler waits below 5 GiB (`c6f1df11`);
+  subset planning and per-family verification (`489177af`).
+- **Open.** The ZIP family's 24 CPU-hours at `489177af` and the final corpus replay on each RID (both running).
+
 **11 November, candidate campaign on `62f0a457` running (row 7, §13.3, §13.6).** One image, one candidate, every target:
 
 - **Image `fuzz-candidate-v4`.** [`prepare_fuzz_candidate_guest.py`](../../../eng/validation/archive-writing/prepare_fuzz_candidate_guest.py)
