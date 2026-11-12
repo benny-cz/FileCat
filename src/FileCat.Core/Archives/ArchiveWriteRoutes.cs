@@ -15,15 +15,55 @@ public enum ArchiveWriteRouteRefusal
 /// <summary>
 /// Plan §16.1 and §16.3: the writing routes this build has qualified, each with the evidence that qualified it. Production
 /// composition registers a native profile only for a listed format and runtime, and the backend admits only a listed
-/// filesystem; everything else keeps reading with a typed reason. This build lists none: a route is added only after every
-/// gate of the remaining-work ledger has closed for it on the actual release candidate, and adding one is a reviewed release
+/// filesystem; everything else keeps reading with a typed reason. A route is added only after every gate of the
+/// remaining-work ledger has closed for it on the actual release candidate, and adding or removing one is a reviewed release
 /// change that its test pins. Tests and qualification lanes compose their own explicit backends instead.
 /// </summary>
 internal static class ArchiveWriteRoutes
 {
     internal sealed record Route(ArchiveWriteFormat Format, string RuntimeIdentifier, string FileSystem, string EvidenceId);
 
-    internal static IReadOnlyList<Route> Qualified { get; } = [];
+    /// <summary>
+    /// The owner's route decision of 12 November 2026 (RELEASE_ROUTE_DECISION.md), listed after the final independent
+    /// review closed (ledger row 14). The file system names are those .NET reports for the folder's mount. A format added
+    /// to the enumeration later is not listed by this: each route is written out.
+    /// </summary>
+    internal static IReadOnlyList<Route> Qualified { get; } =
+    [
+        // Windows x64 on NTFS: every format.
+        new(ArchiveWriteFormat.Zip, "win-x64", "NTFS", ArchiveRouteEvidence.Windows),
+        new(ArchiveWriteFormat.Tar, "win-x64", "NTFS", ArchiveRouteEvidence.Windows),
+        new(ArchiveWriteFormat.TarGzip, "win-x64", "NTFS", ArchiveRouteEvidence.Windows),
+        new(ArchiveWriteFormat.TarBzip2, "win-x64", "NTFS", ArchiveRouteEvidence.Windows),
+        new(ArchiveWriteFormat.TarZstd, "win-x64", "NTFS", ArchiveRouteEvidence.Windows),
+        new(ArchiveWriteFormat.SevenZip, "win-x64", "NTFS", ArchiveRouteEvidence.Windows),
+        new(ArchiveWriteFormat.Gzip, "win-x64", "NTFS", ArchiveRouteEvidence.Windows),
+        new(ArchiveWriteFormat.Bzip2, "win-x64", "NTFS", ArchiveRouteEvidence.Windows),
+        new(ArchiveWriteFormat.Zstd, "win-x64", "NTFS", ArchiveRouteEvidence.Windows),
+        new(ArchiveWriteFormat.Rar5, "win-x64", "NTFS", ArchiveRouteEvidence.Windows),
+        // Linux x64 on ext4: every format.
+        new(ArchiveWriteFormat.Zip, "linux-x64", "ext4", ArchiveRouteEvidence.Linux),
+        new(ArchiveWriteFormat.Tar, "linux-x64", "ext4", ArchiveRouteEvidence.Linux),
+        new(ArchiveWriteFormat.TarGzip, "linux-x64", "ext4", ArchiveRouteEvidence.Linux),
+        new(ArchiveWriteFormat.TarBzip2, "linux-x64", "ext4", ArchiveRouteEvidence.Linux),
+        new(ArchiveWriteFormat.TarZstd, "linux-x64", "ext4", ArchiveRouteEvidence.Linux),
+        new(ArchiveWriteFormat.SevenZip, "linux-x64", "ext4", ArchiveRouteEvidence.Linux),
+        new(ArchiveWriteFormat.Gzip, "linux-x64", "ext4", ArchiveRouteEvidence.Linux),
+        new(ArchiveWriteFormat.Bzip2, "linux-x64", "ext4", ArchiveRouteEvidence.Linux),
+        new(ArchiveWriteFormat.Zstd, "linux-x64", "ext4", ArchiveRouteEvidence.Linux),
+        new(ArchiveWriteFormat.Rar5, "linux-x64", "ext4", ArchiveRouteEvidence.Linux),
+        // macOS arm64 on APFS: every format.
+        new(ArchiveWriteFormat.Zip, "osx-arm64", "apfs", ArchiveRouteEvidence.MacOS),
+        new(ArchiveWriteFormat.Tar, "osx-arm64", "apfs", ArchiveRouteEvidence.MacOS),
+        new(ArchiveWriteFormat.TarGzip, "osx-arm64", "apfs", ArchiveRouteEvidence.MacOS),
+        new(ArchiveWriteFormat.TarBzip2, "osx-arm64", "apfs", ArchiveRouteEvidence.MacOS),
+        new(ArchiveWriteFormat.TarZstd, "osx-arm64", "apfs", ArchiveRouteEvidence.MacOS),
+        new(ArchiveWriteFormat.SevenZip, "osx-arm64", "apfs", ArchiveRouteEvidence.MacOS),
+        new(ArchiveWriteFormat.Gzip, "osx-arm64", "apfs", ArchiveRouteEvidence.MacOS),
+        new(ArchiveWriteFormat.Bzip2, "osx-arm64", "apfs", ArchiveRouteEvidence.MacOS),
+        new(ArchiveWriteFormat.Zstd, "osx-arm64", "apfs", ArchiveRouteEvidence.MacOS),
+        new(ArchiveWriteFormat.Rar5, "osx-arm64", "apfs", ArchiveRouteEvidence.MacOS),
+    ];
 
     internal static ArchiveWriteRouteRefusal Check(IReadOnlyList<Route> routes, ArchiveWriteFormat format, string runtimeIdentifier, string? fileSystem)
     {

@@ -12,12 +12,40 @@ public sealed class ArchiveWriteRoutesTests
     ];
 
     [Fact]
-    public void This_build_qualifies_no_writing_route()
+    public void This_build_lists_exactly_the_owner_s_routes()
     {
-        // Adding a route is a reviewed release decision taken only after every ledger gate closed for it on the release
-        // candidate; this assertion changes with that decision, never as a side effect.
-        Assert.Empty(ArchiveWriteRoutes.Qualified);
-        Assert.Null(ArchiveWriteRoutes.Compose(ArchiveWriteRoutes.Qualified, "win-x64", _ => throw new InvalidOperationException(), _ => "NTFS"));
+        // The owner's route decision of 12 November 2026, listed after the final independent review closed (ledger row 14).
+        // Adding or removing a route is a reviewed release decision: this list changes with it, never as a side effect.
+        ArchiveWriteFormat[] formats =
+        [
+            ArchiveWriteFormat.Zip, ArchiveWriteFormat.Tar, ArchiveWriteFormat.TarGzip, ArchiveWriteFormat.TarBzip2, ArchiveWriteFormat.TarZstd,
+            ArchiveWriteFormat.SevenZip, ArchiveWriteFormat.Gzip, ArchiveWriteFormat.Bzip2, ArchiveWriteFormat.Zstd, ArchiveWriteFormat.Rar5,
+        ];
+        (string Runtime, string FileSystem, string Evidence)[] runtimes =
+            [("win-x64", "NTFS", "AWQ-win-x64-NTFS"), ("linux-x64", "ext4", "AWQ-linux-x64-ext4"), ("osx-arm64", "apfs", "AWQ-osx-arm64-apfs")];
+        var expected = runtimes.SelectMany(runtime => formats.Select(format =>
+            new ArchiveWriteRoutes.Route(format, runtime.Runtime, runtime.FileSystem, runtime.Evidence))).ToArray();
+        Assert.Equal(expected, ArchiveWriteRoutes.Qualified);
+
+        // Elsewhere ordinary startup composes nothing and asks nothing.
+        foreach (string runtime in new[] { "win-arm64", "linux-arm64", "osx-x64", "linux-musl-x64" })
+            Assert.Null(ArchiveWriteRoutes.Compose(ArchiveWriteRoutes.Qualified, runtime, _ => throw new InvalidOperationException(),
+                _ => throw new InvalidOperationException()));
+        // A listed runtime registers all ten formats, each admitted only on its own file system.
+        foreach (var runtime in runtimes)
+        {
+            var created = new List<ArchiveWriteFormat>();
+            Assert.NotNull(ArchiveWriteRoutes.Compose(ArchiveWriteRoutes.Qualified, runtime.Runtime,
+                format => { created.Add(format); return new Ready(format); }, _ => throw new InvalidOperationException()));
+            Assert.Equal(formats, created);
+            Assert.Equal(ArchiveWriteRouteRefusal.None, ArchiveWriteRoutes.Check(ArchiveWriteRoutes.Qualified, ArchiveWriteFormat.Rar5, runtime.Runtime, runtime.FileSystem));
+        }
+        Assert.Equal(ArchiveWriteRouteRefusal.FileSystemNotQualified, ArchiveWriteRoutes.Check(ArchiveWriteRoutes.Qualified, ArchiveWriteFormat.Zip, "win-x64", "FAT32"));
+        Assert.Equal(ArchiveWriteRouteRefusal.FileSystemNotQualified, ArchiveWriteRoutes.Check(ArchiveWriteRoutes.Qualified, ArchiveWriteFormat.Zip, "win-x64", "ReFS"));
+        Assert.Equal(ArchiveWriteRouteRefusal.FileSystemNotQualified, ArchiveWriteRoutes.Check(ArchiveWriteRoutes.Qualified, ArchiveWriteFormat.Tar, "linux-x64", "btrfs"));
+        Assert.Equal(ArchiveWriteRouteRefusal.FileSystemNotQualified, ArchiveWriteRoutes.Check(ArchiveWriteRoutes.Qualified, ArchiveWriteFormat.Tar, "linux-x64", "fuse.FileCat-1.0.0-x86_64.AppImage"));
+        Assert.Equal(ArchiveWriteRouteRefusal.FileSystemNotQualified, ArchiveWriteRoutes.Check(ArchiveWriteRoutes.Qualified, ArchiveWriteFormat.SevenZip, "osx-arm64", "hfs"));
+        Assert.Equal(ArchiveWriteRouteRefusal.RuntimeNotQualified, ArchiveWriteRoutes.Check(ArchiveWriteRoutes.Qualified, ArchiveWriteFormat.Zip, "win-arm64", "NTFS"));
     }
 
     [Theory]

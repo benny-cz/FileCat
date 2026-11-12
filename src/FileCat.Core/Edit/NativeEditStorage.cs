@@ -1,3 +1,4 @@
+using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 
 namespace FileCat.Core.Edit;
@@ -8,14 +9,20 @@ namespace FileCat.Core.Edit;
 /// identity-bound storage in a root of their own beside the legacy folder: new edits are created there, existing ones stay in
 /// the legacy folder and commit through their own route until a reviewed adoption copies them, and an adopted original goes
 /// only through its exact-object retirement. Everywhere else the legacy store stays, and its native-only actions say why they
-/// are unavailable. This build lists none: a runtime is added only after the connected three-platform qualification closed
-/// for it on the release candidate, as a reviewed release change that its test pins (as for <c>ArchiveWriteRoutes</c>).
+/// are unavailable. A runtime is added only after the connected three-platform qualification closed for it on the release
+/// candidate, as a reviewed release change that its test pins (as for <c>ArchiveWriteRoutes</c>).
 /// </summary>
 internal static class NativeEditStorage
 {
     internal sealed record Route(string RuntimeIdentifier, string FileSystem, string EvidenceId);
 
-    internal static IReadOnlyList<Route> Qualified { get; } = [];
+    /// <summary>The owner's route decision of 12 November 2026, listed after the final independent review closed.</summary>
+    internal static IReadOnlyList<Route> Qualified { get; } =
+    [
+        new("win-x64", "NTFS", ArchiveRouteEvidence.Windows),
+        new("linux-x64", "ext4", ArchiveRouteEvidence.Linux),
+        new("osx-arm64", "apfs", ArchiveRouteEvidence.MacOS),
+    ];
 
     /// <summary>Whether native edit storage is qualified for this runtime on this filesystem (null: not established).</summary>
     internal static bool IsQualified(IReadOnlyList<Route> routes, string runtimeIdentifier, string? fileSystem)
@@ -43,8 +50,30 @@ internal static class NativeEditStorage
         // Nothing is probed unless this runtime is listed at all, so an unqualified startup does what it always did. The
         // native root may not exist yet (the store creates it privately on first use): its parent's filesystem will hold it.
         bool listed = routes.Any(route => string.Equals(route.RuntimeIdentifier, runtimeIdentifier, StringComparison.Ordinal));
-        return nativeOpen is not null && listed && IsQualified(routes, runtimeIdentifier, fileSystemOf(Path.GetDirectoryName(native)!))
+        string parent = Path.GetDirectoryName(native)!;
+        return nativeOpen is not null && listed && IsQualified(routes, runtimeIdentifier, fileSystemOf(parent)) && Pinnable(nativeOpen, parent)
             ? new EditSessionStore(legacy, fs, nativeOpen, nativeCopyOpen, null, native)
             : new EditSessionStore(legacy, fs);
+    }
+
+    // The native store pins its root's folder without following links, and creates the root there on first use. A state
+    // folder reached through a link (an AppData moved with a junction, a symbolic link to a home folder, macOS's /tmp), or
+    // one this process may not hold (an elevated FileCat on Windows), keeps the legacy store, which behaves there as it
+    // always did, rather than refusing every new edit. Logged without the path, so support can tell which store is used.
+    private static bool Pinnable(Func<string, bool, CancellationToken, EditDirectoryLease> nativeOpen, string parent)
+    {
+        try
+        {
+            using var lease = nativeOpen(parent, false, CancellationToken.None);
+            if (string.Equals(lease.Path, parent, StringComparison.Ordinal)) return true;
+            FileCat.Core.Diagnostics.AppLog.Warn("Native edit storage is not used: its folder opened at another path.");
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException
+            or System.ComponentModel.Win32Exception)
+        {
+            FileCat.Core.Diagnostics.AppLog.Warn("Native edit storage is not used: its folder cannot be held without following links, " +
+                "or not by this process (" + error.GetType().Name + ").");
+        }
+        return false;
     }
 }

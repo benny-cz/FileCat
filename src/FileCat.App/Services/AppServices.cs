@@ -345,10 +345,16 @@ public sealed class AppServices : IDisposable
                 return string.Equals(full, mount, comparison) || full.StartsWith(mount + Path.DirectorySeparatorChar, comparison) ||
                     Path.EndsInDirectorySeparator(candidate.Name) && full.StartsWith(candidate.Name, comparison);
             }).MaxBy(candidate => candidate.Name.Length);
-            return drive is { IsReady: true } ? drive.DriveFormat : null;
+            return drive is { IsReady: true } ? LocalFileSystem(drive.DriveType, drive.DriveFormat) : null;
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException) { return null; }
     }
+
+    /// <summary>
+    /// A mapped network drive reports its server's file system ("NTFS" for a Windows share), but no route or store is
+    /// qualified on a share: it has none here. A ZIP there keeps the old route, as a UNC path does.
+    /// </summary>
+    internal static string? LocalFileSystem(DriveType type, string format) => type == DriveType.Network ? null : format;
 
     public void ReloadKeymap() => Keymap = new Keymap(Commands, Settings.KeyBindings);
 

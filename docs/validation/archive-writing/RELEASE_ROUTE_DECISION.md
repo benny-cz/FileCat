@@ -77,3 +77,10 @@ On macOS the roles run in the App Sandbox helper described above.
 The listing is then one reviewed change of both lists, each route with its evidence ID, and their pinning tests. Release
 signing (a trusted Windows signing provider, macOS Developer ID and notarization) stays with the owner. The macOS denial
 evidence is repeated on the owner-signed build before release.
+
+## Listed
+
+12 November 2026: every route in the tables above is listed, after the sixth independent review (no High or Medium
+finding; its Low findings fixed in `f4aa66a7`). The evidence IDs are `AWQ-win-x64-NTFS`, `AWQ-linux-x64-ext4` and
+`AWQ-osx-arm64-apfs` ([status](IMPLEMENTATION_STATUS.md)). Where the native edit store's folder cannot be held without
+following links, startup keeps the legacy store there.

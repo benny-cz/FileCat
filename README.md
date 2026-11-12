@@ -141,8 +141,11 @@ make every parser a full sandbox.
 ### Go beyond a local directory
 
 - Browse nested **ZIP, 7z, RAR 1.5–7, TAR/compressed TAR, single compressed files and ISO/UDF**
-  images. Damaged members are reported. ZIP changes rebuild and verify a replacement archive;
-  other archive formats are read-only.
+  images. Damaged members are reported. On Windows x64 (NTFS), Linux x64 (ext4) and macOS (APFS),
+  create and change TAR (plain, gzip, bzip2 and Zstandard), 7z, RAR5 and ZIP archives and single
+  `.gz`, `.bz2` and `.zst` files: a confined worker rebuilds the archive beside the original and
+  checks it before replacing it. An archive FileCat cannot write back exactly stays read-only and
+  says why.
 - Work with **SMB shares, SFTP, FTPS and FTP** from panels, including explicit remote edit
   sessions. Remote uploads use temporary names where supported; FileCat reports providers that
   cannot replace atomically. An SSH terminal opens from an SFTP panel.

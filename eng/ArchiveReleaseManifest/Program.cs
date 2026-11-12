@@ -9,7 +9,8 @@
 //
 // A remote package was built and hashed on its own machine; its entry names the evidence (a package log) that records it.
 //
-// A dirty checkout is refused unless --allow-dirty is given, and then the manifest says so. Nothing is listed or enabled.
+// A dirty checkout is refused unless --allow-dirty is given, and then the manifest says so. The tool lists and enables
+// nothing: it records the build's own route lists, and refuses a listed route whose evidence it does not carry.
 using System.Diagnostics;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -124,6 +125,12 @@ static class Program
         foreach (var package in remote)
             if (!evidence.Any(item => item.Id == (string?)package["evidence"]))
                 throw new ArgumentException("A remote package names evidence this manifest does not carry: " + package["evidence"]);
+        // A listed route stands on its evidence: the manifest carries it under the route's ID, or under IDs below it
+        // ("AWQ-win-x64-NTFS/full" for "AWQ-win-x64-NTFS").
+        foreach (string id in ArchiveWriteRoutes.Qualified.Select(route => route.EvidenceId)
+            .Concat(NativeEditStorage.Qualified.Select(route => route.EvidenceId)).Distinct(StringComparer.Ordinal))
+            if (!evidence.Any(item => item.Id == id || item.Id.StartsWith(id + "/", StringComparison.Ordinal)))
+                throw new ArgumentException("A listed route names evidence this manifest does not carry: " + id);
         File.WriteAllText(output, manifest.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
         Console.WriteLine($"Wrote {output}: commit {commit}, {payloads.Count} payloads, {packages.Count} packages, {evidence.Count} evidence files, " +
             $"{ArchiveWriteRoutes.Qualified.Count} archive routes and {NativeEditStorage.Qualified.Count} edit-storage routes listed.");

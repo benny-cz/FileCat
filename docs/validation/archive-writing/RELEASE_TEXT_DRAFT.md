@@ -1,10 +1,10 @@
-# Archive writing: release text to publish at enablement (draft)
+# Archive writing: release text
 
-Plan §16.2 asks for README, help, capability, release-note and downgrade text in the implementing change. Released
-documentation (README, [CAPABILITIES.md](../../CAPABILITIES.md), in-app help) correctly says that only ZIP is writable,
-and it stays that way until a route is qualified and composed (ledger row 13). This draft holds the text to publish then.
-It follows the [route decision](RELEASE_ROUTE_DECISION.md): Windows x64 on NTFS, Linux x64 on ext4 and macOS on APFS,
-every format, and native edit storage on all three. Delete any sentence for a route that is not listed in the release.
+Plan §16.2 asks for README, help, capability, release-note and downgrade text in the implementing change. The routes of
+the [route decision](RELEASE_ROUTE_DECISION.md) are listed (Windows x64 on NTFS, Linux x64 on ext4 and macOS on APFS,
+every format, and native edit storage on all three), and the listing change published this text in the README and
+[CAPABILITIES.md](../../CAPABILITIES.md) (which the help page shows). The release notes and the downgrade note below are
+for the release's own notes, which the owner publishes with the signed packages.
 
 ## Release notes
 

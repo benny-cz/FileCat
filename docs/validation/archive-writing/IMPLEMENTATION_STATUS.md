@@ -1,5 +1,30 @@
 # Archive writing implementation status
 
+**12 November, the routes listed (rows 11, 13 and 14).** After six independent reviews (the last found no High or Medium
+defect, and its three Low findings are fixed in `f4aa66a7`), the routes of the [owner's decision](RELEASE_ROUTE_DECISION.md)
+are listed in one change: `ArchiveWriteRoutes.Qualified` names all ten formats on win-x64 (NTFS), linux-x64 (ext4) and
+osx-arm64 (APFS), and `NativeEditStorage.Qualified` the same three runtimes. Each route carries its evidence ID
+(`ArchiveRouteEvidence`: `AWQ-win-x64-NTFS`, `AWQ-linux-x64-ext4`, `AWQ-osx-arm64-apfs`); the release manifest refuses a
+listed route whose evidence it does not carry, under that ID or IDs below it. The pinning tests name every route, check
+that other runtimes (win-arm64, linux-arm64) compose nothing and ask nothing, and that other file systems (FAT32, ReFS,
+btrfs, the AppImage's FUSE mount, HFS+) are refused with their reason. The file system names are those .NET reports on
+the three machines (`NTFS`, `ext4`, `apfs`, checked on each).
+
+Listing the native edit store made it the default where it is qualified, so one more case was handled first: the store
+pins its root's folder without following links, so a state folder reached through a link (an AppData moved with a
+junction, a symbolic link to a home folder, macOS's `/tmp`) would have refused every new edit. Startup now opens that
+folder once and keeps the legacy store, which works there, when it cannot be held without following links or by this
+process (an elevated FileCat on Windows); it logs which store it uses, without the path. A test on Linux and macOS
+composes through a real symbolic link and through the real path.
+
+A second case: .NET reports a mapped network drive's file system as its server's (`NTFS` for a Windows share). The
+Windows writer refuses remote volumes only when it runs, so a ZIP on a mapped drive would have left the old route, which
+works there, for a worker route that fails late. A network drive now has no local file system for routes and the edit
+store: a ZIP there keeps the old route and the other formats say why they are read-only, as on a UNC path.
+
+The README and [CAPABILITIES.md](../../CAPABILITIES.md) now carry the [release text](RELEASE_TEXT_DRAFT.md). The final
+re-validation of this change on all three platforms, its package lanes and the release manifest follow below.
+
 **12 November, independent review and its fixes (row 14).** A reviewer read today's changes (`3c239903` to `9ceb9027`)
 against the code. It found no way past the macOS sandbox boundary, and seven defects, all fixed:
 

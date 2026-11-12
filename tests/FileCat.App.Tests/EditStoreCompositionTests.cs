@@ -21,7 +21,7 @@ public sealed class EditStoreCompositionTests
     }
 
     [Fact]
-    public void Ordinary_startup_keeps_the_legacy_edit_store()
+    public void Ordinary_startup_composes_native_storage_where_listed_and_the_legacy_store_elsewhere()
     {
         string fixture = Fixture();
         try
@@ -29,9 +29,13 @@ public sealed class EditStoreCompositionTests
             var paths = AppPaths.Resolve(overrideRoot: fixture);
             var store = AppServices.ProductionEditSessions(paths, new PortableFileOperations());
             Assert.Equal(paths.EditSessionsDirectory, store.Root);
-            Assert.Equal(store.Root, store.NativeRoot);
-            Assert.False(store.SupportsRetainedCaptureRemoval);
-            Assert.False(Directory.Exists(paths.NativeEditSessionsDirectory));
+            // Listed for this runtime and the fixture's file system, and held by an ordinary process (an elevated one, or
+            // root, may not hold the native root's folder): native storage beside the legacy folder. Otherwise the legacy store.
+            bool native = NativeEditStorage.IsQualified(NativeEditStorage.Qualified, RuntimeInformation.RuntimeIdentifier,
+                AppServices.FileSystemOf(paths.LocalDirectory)) && !Environment.IsPrivilegedProcess;
+            Assert.Equal(native ? paths.NativeEditSessionsDirectory : store.Root, store.NativeRoot);
+            Assert.Equal(native, store.SupportsRetainedCaptureRemoval);
+            Assert.False(Directory.Exists(paths.NativeEditSessionsDirectory)); // Created on first use only.
             Assert.Contains(paths.WriteFolders, folder => folder.Folder == paths.NativeEditSessionsDirectory);
         }
         finally { Directory.Delete(fixture, true); }
