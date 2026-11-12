@@ -110,11 +110,13 @@ internal static unsafe partial class MacArchiveProbe
         worker.DisposeAsync().AsTask().GetAwaiter().GetResult(); return 0;
     }
 
-    // A write that the sandbox refuses, or that the zero file-size limit stops (EFBIG); an empty file it left is removed.
+    // A write that the sandbox refuses, or that the zero file-size limit stops (EFBIG, which .NET reports as "Specified file
+    // length was too large for the file system", an ArgumentOutOfRangeException); an empty file it left is removed.
     private static bool WriteLimited(string path)
     {
         try { File.WriteAllText(path, "data"); return false; }
         catch (UnauthorizedAccessException) { return true; }
+        catch (ArgumentOutOfRangeException) { return true; }
         catch (IOException) { return true; }
         finally { try { File.Delete(path); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { } }
     }
