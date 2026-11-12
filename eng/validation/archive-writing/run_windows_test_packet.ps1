@@ -90,6 +90,17 @@ try {
     foreach ($entry in $Projects.Split(',')) {
         if ($entry -eq 'parallel:on') { $parallel = $true; continue }
         # build: only builds; publish: makes a self-contained win-x64 bundle in {run}\publish\NAME; otherwise build and test.
+        # expand:ZIP unpacks a package zip (an absolute path below C:\FileCatValidation) into {run}\expand\NAME as this
+        # standard user, who then owns it, as a portable copy a user unpacks (package route tests).
+        if ($entry.StartsWith('expand:')) {
+            $zip = [IO.Path]::GetFullPath($entry.Substring(7))
+            if (-not $zip.StartsWith('C:\FileCatValidation\', [StringComparison]::OrdinalIgnoreCase) -or
+                -not $zip.EndsWith('.zip', [StringComparison]::OrdinalIgnoreCase) -or -not (Test-Path -LiteralPath $zip -PathType Leaf)) {
+                throw "Bad expand entry: $zip"
+            }
+            Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $Run ('expand\' + [IO.Path]::GetFileNameWithoutExtension($zip))) -Force
+            continue
+        }
         $mode = 'test'; $project = $entry; $spec = ''
         if ($entry.StartsWith('build:')) { $mode = 'build'; $project = $entry.Substring(6) }
         elseif ($entry.StartsWith('publish:')) { $mode = 'publish'; $project = $entry.Substring(8) }
