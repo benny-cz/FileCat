@@ -76,7 +76,8 @@ On macOS the roles run in the App Sandbox helper described above.
 
 The listing is then one reviewed change of both lists, each route with its evidence ID, and their pinning tests. Release
 signing (a trusted Windows signing provider, macOS Developer ID and notarization) stays with the owner. The macOS denial
-evidence is repeated on the owner-signed build before release.
+evidence is repeated on the owner-signed build before release, together with updating an archive the installed,
+quarantined application created itself in Downloads (the eighth review's open check).
 
 ## Listed
 

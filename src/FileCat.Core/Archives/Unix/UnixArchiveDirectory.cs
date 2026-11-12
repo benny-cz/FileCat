@@ -196,19 +196,24 @@ internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestin
     internal void CheckCreationNamespace() => UnixArchiveNative.RequireCreationDirectory(directory, user);
 
     /// <summary>
-    /// For a target probe: the link count of the regular file named <paramref name="leaf"/> here, never following a link;
-    /// null when nothing is there. Throws for a link or anything that is not a regular file. Nothing is held afterwards.
+    /// For a target probe: why the job would refuse to update the file named <paramref name="leaf"/> here, by the same
+    /// update admission it applies before any stage exists (owner, special bits, flags, extended attributes, other hard
+    /// links, a macOS entry that denies access) and the size it changes; null when it would not, or when nothing is there.
+    /// Never follows a link; nothing is held afterwards.
     /// </summary>
-    internal ulong? ProbeExisting(string leaf)
+    internal string? ProbeExisting(string leaf)
     {
         UnixArchiveNative.Leaf(leaf);
         lock (Gate)
         {
             if (disposed) throw new ObjectDisposedException(nameof(UnixArchiveDirectory));
             if (UnixFiles.StatChild(directory, leaf) is not { } facts) return null;
-            if (facts.IsLink || !facts.IsRegular) throw new IOException("The archive is not a regular file.");
+            if (facts.IsLink || !facts.IsRegular) return UnixArchiveJobBackend.LinkedArchive;
+            if (facts.Size > ArchiveWritePolicy.MaxPhysicalBytes) return ArchiveListingRevision.TooLarge;
             using var held = UnixArchiveNative.Child(directory, leaf);
-            return ArchiveUnixOuterMetadata.Capture(held).Native.LinkCount;
+            try { ArchiveUnixUpdateMetadata.RequireAdmissible(ArchiveUnixOuterMetadata.Capture(held), UnixArchiveNative.GetEuid()); }
+            catch (ArchiveWriteException error) when (error.Reason == ArchiveWriteReason.UnsupportedFeature) { return error.Message; }
+            return UnixArchiveNative.Mac && UnixArchiveFile.MacAclHasDeny(UnixArchiveNative.Fd(held)) ? UnixArchiveFile.MacDenyAcl : null;
         }
     }
     internal void RequirePrivateStageOf(UnixArchiveDirectory publicParent)

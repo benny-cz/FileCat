@@ -105,7 +105,8 @@ internal sealed unsafe partial class ArchiveUnixOuterMetadata
             bool known = Native.Format == NativeFormat.Mac ? attribute.Name == "com.apple.quarantine" :
                 attribute.Name is "system.posix_acl_access" or "user.xdg.origin.url";
             if (!known) throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature,
-                "The archive has outer extended attributes that this preservation profile does not support.");
+                "This archive carries extended attributes (such as a browser's download details or Finder tags) that FileCat does not " +
+                "reproduce when saving, so it is read-only here.");
         }
     }
 

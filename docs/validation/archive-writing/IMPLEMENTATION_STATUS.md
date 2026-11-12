@@ -1,5 +1,34 @@
 # Archive writing implementation status
 
+**12 November, the eighth review and its fixes (rows 13 and 14).** An eighth independent reviewer read `2c453079`, the
+target probe. It found no exception escaping a probe, no handle leaked, no access or metadata changed, and no way for
+the deny-only access lists to let another user at the stage, the exchange or an edit folder. It found the probe still
+let through two places the job then refuses, both fixed in the next commit:
+
+- **High: Windows drives without NTFS transactions.** Every update is published in an NTFS transaction; this host's
+  own system drive (a recent Windows build) supports none (`fsutil behavior query disabletxf C:`: "the volume does not
+  support TxF"), while its other drives and the Windows VM do. An update there was rebuilt, verified and then refused,
+  and ended in Interrupted operations. The probe now refuses an existing archive on such a drive (a ZIP keeps the old
+  route), and the job refuses it before anything is rebuilt.
+- **High: Linux and macOS archives the job's update admission refuses.** The job refuses an archive owned by another
+  user, with special permission bits or file flags, or carrying extended attributes it cannot reproduce. Browsers tag
+  every macOS download with one (`com.apple.metadata:kMDItemWhereFroms`), so a ZIP in Downloads passed the probe and was
+  then refused with no old route. The probe now applies that same admission and returns its reason.
+
+Also fixed: on Linux and macOS the probe judged a folder reached through a symbolic link by the link, although the job
+resolves it (`ArchiveLocalPath`), so it now judges the resolved folder too; Windows folders OneDrive syncs (reparse
+points the folder pins accept) are refused, as the text said; the macOS rule accepts only entries that deny deleting the
+folder itself (a deny of adding or removing names would stop the exchange part way); the reasons say what the cause is
+(root, an archive over 80 GiB, a drive that is read-only or not local); every format in the Pack dialog is judged at its
+own name; and one shared judge per composition keeps its answers for two seconds (the key bar, menus and dialogs asked
+the same thing many times a second; a job's execution always asks afresh). New tests: extended attributes on Linux and
+macOS, a deny-adding entry on macOS, a symbolic link to a shared folder, the transaction support of the temporary
+folder's drive on Windows.
+
+Not covered by tests: a OneDrive folder (no test machine has OneDrive), and a macOS archive the installed, quarantined
+application made itself (if macOS gives such files an attribute FileCat cannot keep, updating them would be refused
+with that reason; to check on the owner-signed build).
+
 **12 November, the listing's review and its fixes (rows 13 and 14).** A seventh independent reviewer read the listing
 (`a1cd79be`) and the grace fix (`f4aa66a7`). It found no way to write somewhere unsafe: every misdetection it built
 (junction and mount-point folders, `subst`, symbolic links, macOS firmlinks, ext2/3) still fails closed at the writer's own
@@ -15,8 +44,8 @@ checks. It found that listing would have broken writing in common places instead
   OneDrive (its folders and files are reparse points, checked on this host), a folder another user can change (Linux
   and macOS), and an archive with another hard link. A ZIP in such a place lost the old route, which works there. Each
   writer now answers, before anything starts, whether it can write a place, using its own checks (a few handle opens
-  that share everything and hold nothing). A place it cannot write is not covered: a ZIP there keeps the old route, and
-  the other formats say why. The job checks everything again.
+  that hold nothing; the archive itself is opened for its attributes only, sharing everything). A place it cannot write
+  is not covered: a ZIP there keeps the old route, and the other formats say why. The job checks everything again.
 - **Medium: an elevated FileCat** lost ZIP writing and learned it only when a command ran. Elevation is now one of those
   answers: a ZIP keeps the old route, the other formats say that FileCat must run without administrator rights (or not
   as root).
@@ -37,8 +66,8 @@ checks. It found that listing would have broken writing in common places instead
 - **Low:** three App tests assumed the legacy edit folder and now count both roots (or make their pre-switch edit in the
   legacy folder); two test predicates were tied to elevation or to `/var` and now ask what they depend on; a Windows
   network drive is excluded before anything is asked of it; an x64 build running emulated on Arm64 composes no route;
-  startup logs which edit store it uses either way; the decision record, the ZIP design and the limits (64 GiB in all,
-  an 80 GiB archive) are current.
+  where native edit storage is listed, startup logs which edit store it uses; the decision record, the ZIP design and
+  the limits (64 GiB in all, an 80 GiB archive) are current.
 
 Tests: the probes on real folders (Linux and macOS: a symbolic-link folder, a link and a hard-linked archive, a folder
 others can change, and on macOS a deny-only, an allow and an inheritable access list; Windows: a junction, a hard link,

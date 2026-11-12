@@ -5,9 +5,10 @@ using FileCat.Core.Archives.Unix;
 
 namespace FileCat.Core.Tests;
 
-// Listing review of 12 November 2026: before any job, the Unix writer's own checks decide whether it can write a target at
-// all. Where it cannot, a ZIP keeps its old route and the other formats say why; macOS's home, Desktop, Documents and
-// Downloads folders, whose access list only denies, stay writable.
+// Listing reviews of 12 November 2026: before any job, the Unix writer's own checks decide whether it can write a target at
+// all: the folder as the job resolves it, and an existing archive by the job's own update admission. Where it cannot, a ZIP
+// keeps its old route and the other formats say why; macOS's home, Desktop, Documents and Downloads folders, whose access
+// list only denies deleting the folder itself, stay writable.
 public sealed partial class UnixArchiveTargetProbeTests
 {
     [Fact]
@@ -21,14 +22,16 @@ public sealed partial class UnixArchiveTargetProbeTests
     }
 
     [Fact]
-    public void A_folder_reached_through_a_symbolic_link_is_not_writable()
+    public void A_folder_reached_through_a_symbolic_link_is_judged_where_it_really_is()
     {
         RequireUnix();
-        using var temp = new TempDir(); string folder = Private(temp, "real");
-        string link = Path.Combine(Real(temp.Path), "linked");
-        Directory.CreateSymbolicLink(link, folder);
-        Assert.Equal(UnixArchiveJobBackend.LinkedFolder, UnixArchiveJobBackend.TargetProblem(Path.Combine(link, "a.zip")));
-        Assert.Null(UnixArchiveJobBackend.TargetProblem(Path.Combine(folder, "a.zip")));
+        using var temp = new TempDir(); string folder = Private(temp, "real"), shared = Private(temp, "shared");
+        File.SetUnixFileMode(shared, (UnixFileMode)0x1FF); // 0777
+        string link = Path.Combine(Real(temp.Path), "linked"), sharedLink = Path.Combine(Real(temp.Path), "linked-shared");
+        Directory.CreateSymbolicLink(link, folder); Directory.CreateSymbolicLink(sharedLink, shared);
+        // The job resolves the folder through the link (ArchiveLocalPath), so the probe does too.
+        Assert.Null(UnixArchiveJobBackend.TargetProblem(Path.Combine(link, "a.zip")));
+        Assert.StartsWith("Archive writing needs a folder you own", UnixArchiveJobBackend.TargetProblem(Path.Combine(sharedLink, "a.zip")));
     }
 
     [Fact]
@@ -41,7 +44,25 @@ public sealed partial class UnixArchiveTargetProbeTests
         File.CreateSymbolicLink(Path.Combine(folder, "b.zip"), archive);
         Assert.Equal(UnixArchiveJobBackend.LinkedArchive, UnixArchiveJobBackend.TargetProblem(Path.Combine(folder, "b.zip")));
         Assert.Equal(0, Link(archive, Path.Combine(folder, "c.zip")));
-        Assert.Equal(ArchiveWriteMessages.HardLinkedText(archive), UnixArchiveJobBackend.TargetProblem(archive));
+        Assert.StartsWith("This archive has other hard links", UnixArchiveJobBackend.TargetProblem(archive));
+    }
+
+    // Safari, Chrome and Firefox tag every macOS download (com.apple.metadata:kMDItemWhereFroms), and Linux tools add
+    // user attributes: the job's update admission refuses what it cannot reproduce, so the probe says so first.
+    [Fact]
+    public void An_archive_with_extended_attributes_FileCat_cannot_keep_is_not_writable()
+    {
+        RequireUnix();
+        using var temp = new TempDir(); string folder = Private(temp, "downloads");
+        string archive = Path.Combine(folder, "a.zip");
+        File.WriteAllBytes(archive, new byte[64]);
+        Assert.Null(UnixArchiveJobBackend.TargetProblem(archive));
+        byte[] value = "https://example.invalid/a.zip"u8.ToArray();
+        int set = OperatingSystem.IsMacOS()
+            ? MacSetXattr(archive, "com.apple.metadata:kMDItemWhereFroms", value, (nuint)value.Length, 0, 0)
+            : LinuxSetXattr(archive, "user.filecat.test", value, (nuint)value.Length, 0);
+        if (set != 0) Assert.Skip("This file system takes no user extended attributes (errno " + Marshal.GetLastPInvokeError() + ").");
+        Assert.StartsWith("This archive carries extended attributes", UnixArchiveJobBackend.TargetProblem(archive));
     }
 
     [Fact]
@@ -65,6 +86,9 @@ public sealed partial class UnixArchiveTargetProbeTests
         string allows = Private(temp, "allows");
         Chmod("+a", "group:everyone allow list", allows);
         Assert.StartsWith("Archive writing needs a folder whose access list", UnixArchiveJobBackend.TargetProblem(Path.Combine(allows, "a.zip")));
+        string blocks = Private(temp, "blocks"); // A deny of adding files would stop the exchange part way.
+        Chmod("+a", "group:everyone deny add_file", blocks);
+        Assert.StartsWith("Archive writing needs a folder whose access list", UnixArchiveJobBackend.TargetProblem(Path.Combine(blocks, "a.zip")));
         string inherits = Private(temp, "inherits");
         Chmod("+a", "group:everyone deny delete,file_inherit,directory_inherit", inherits);
         Assert.StartsWith("Archive writing needs a folder whose access list", UnixArchiveJobBackend.TargetProblem(Path.Combine(inherits, "a.zip")));
@@ -111,4 +135,8 @@ public sealed partial class UnixArchiveTargetProbeTests
     private static partial void Free(nint pointer);
     [LibraryImport("libc", EntryPoint = "link", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
     private static partial int Link(string existing, string created);
+    [LibraryImport("libc", EntryPoint = "setxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial int LinuxSetXattr(string path, string name, byte[] value, nuint size, int flags);
+    [LibraryImport("libc", EntryPoint = "setxattr", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
+    private static partial int MacSetXattr(string path, string name, byte[] value, nuint size, uint position, int options);
 }

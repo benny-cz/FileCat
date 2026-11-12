@@ -121,9 +121,9 @@ keep the decision above until the user decides this amendment for each qualified
   with the original retained until the journal records the outcome. Interrupted transactions appear in Interrupted
   operations with exact recovery or discard actions.
 - **Availability.** Only format/runtime/file-system routes listed as qualified are composed in ordinary startup: all ten
-  formats on win-x64 (NTFS), linux-x64 (ext4) and osx-arm64 (APFS). A place the writer cannot write (a folder reached
-  through a link or cloud sync, on Linux and macOS a folder another user can change, an archive with another hard link, an elevated
-  process) is not covered: a ZIP there keeps the route above, and the other formats say why before anything starts.
-- **Limits that stay.** Every change rewrites the whole archive; there is no undo; an archive with another hard link is not
-  changed; retained files after an uncertain outcome are kept and shown, never deleted on a guess.
+  formats on win-x64 (NTFS), linux-x64 (ext4) and osx-arm64 (APFS). A place the writer cannot write (on Windows a folder reached through a link or
+  cloud sync, or a drive without NTFS transactions for an update; on Linux and macOS a folder another user can change, or
+  an archive its update admission refuses; anywhere an archive with another hard link, or an elevated process) is not covered: a ZIP there keeps the route above, and the other formats say why before anything starts.
+- **Limits that stay.** Every change rewrites the whole archive; there is no undo; this route does not change an archive
+  with another hard link (a ZIP keeps the route above, where the other link keeps the old content); retained files after an uncertain outcome are kept and shown, never deleted on a guess.
 

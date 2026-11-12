@@ -35,12 +35,16 @@ public sealed partial class WindowsArchiveTargetProbeTests : IDisposable
     {
         if (!OperatingSystem.IsWindows()) Assert.Skip("Windows.");
         if (WindowsTokenAuthority.IsHighIntegrity) Assert.Skip("The writer refuses an elevated process; run unelevated.");
+        if (new DriveInfo(Path.GetPathRoot(_root)!).DriveFormat != "NTFS") Assert.Skip("The temporary folder is not on NTFS.");
         Assert.Null(WindowsArchiveJobBackend.TargetProblem(Path.Combine(_root, "new.zip")));
         string archive = Path.Combine(_root, "a.zip");
         File.WriteAllBytes(archive, new byte[22]);
-        Assert.Null(WindowsArchiveJobBackend.TargetProblem(archive));
+        // An existing archive is replaced in an NTFS transaction, which some volumes do not support (this host's own system
+        // drive on a recent Windows build): there it is read-only, before anything is rebuilt.
+        string? existing = SupportsTransactions(_root) ? null : WindowsArchiveJobBackend.NoTransactions;
+        Assert.Equal(existing, WindowsArchiveJobBackend.TargetProblem(archive));
         using (File.Open(archive, FileMode.Open, FileAccess.ReadWrite, FileShare.Read)) // Another program writing it is not held up.
-            Assert.Null(WindowsArchiveJobBackend.TargetProblem(archive));
+            Assert.Equal(existing, WindowsArchiveJobBackend.TargetProblem(archive));
 
         string real = Directory.CreateDirectory(Path.Combine(_root, "real")).FullName, junction = Path.Combine(_root, "junction");
         Junction(junction, real);
@@ -65,4 +69,15 @@ public sealed partial class WindowsArchiveTargetProbeTests : IDisposable
     [LibraryImport("kernel32.dll", EntryPoint = "CreateHardLinkW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CreateHardLink(string created, string existing, nint security);
+
+    private static bool SupportsTransactions(string path)
+    {
+        Assert.True(GetVolumeInformation(Path.GetPathRoot(path)!, 0, 0, 0, 0, out uint flags, 0, 0), "GetVolumeInformation failed.");
+        return (flags & 0x0020_0000 /* FILE_SUPPORTS_TRANSACTIONS */) != 0;
+    }
+
+    [LibraryImport("kernel32.dll", EntryPoint = "GetVolumeInformationW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetVolumeInformation(string root, nint name, uint nameSize, nint serial, nint maximumComponent,
+        out uint flags, nint fileSystemName, uint fileSystemNameSize);
 }

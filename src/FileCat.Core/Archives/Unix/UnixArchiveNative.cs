@@ -125,19 +125,20 @@ internal static unsafe partial class UnixArchiveNative
         if (acl == 0) { if (Marshal.GetLastPInvokeError() == 2) return; throw Unavailable(); }
         try
         {
-            // An entry that only denies, and passes nothing on to what is created inside, grants no one anything: macOS puts
-            // "group:everyone deny delete" on the home folder and on Desktop, Documents and Downloads, protecting the folder
-            // itself. An allow entry could let another user change the folder's names, and an inherited one would reach the
-            // private stage folder, so both are refused, as is an access list that cannot be read in full.
+            // macOS puts "group:everyone deny delete" on the home folder and on Desktop, Documents and Downloads: it protects the
+            // folder itself, grants no one anything, and blocks nothing FileCat does inside. Exactly such entries are accepted:
+            // ones that deny only deletion of the folder and pass nothing on. An allow entry could let another user change the
+            // folder's names, an inherited one would reach the private stage folder, and a deny of anything else (adding or
+            // removing names) would stop the exchange or its cleanup part way; all are refused, as is a list not read in full.
             nint entry = 0; int count = 0;
             for (int id = 0 /* ACL_FIRST_ENTRY */; AclEntry(acl, id, &entry) == 0; id = -1 /* ACL_NEXT_ENTRY */)
             {
-                int tag = 0; nint flags = 0;
+                int tag = 0; nint flags = 0, rights = 0;
                 if (++count > 4096 || AclTag(entry, &tag) != 0 || tag != 2 /* ACL_EXTENDED_DENY */ || AclFlagSet(entry, &flags) != 0 ||
                     AclGetFlag(flags, 1 << 5 /* ACL_ENTRY_FILE_INHERIT */) != 0 || AclGetFlag(flags, 1 << 6 /* ACL_ENTRY_DIRECTORY_INHERIT */) != 0 ||
-                    AclGetFlag(flags, 1 << 8 /* ACL_ENTRY_ONLY_INHERIT */) != 0)
+                    AclGetFlag(flags, 1 << 8 /* ACL_ENTRY_ONLY_INHERIT */) != 0 || AclPermSet(entry, &rights) != 0 || !DeniesOnlyDeletion(rights))
                     throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
-                        "Archive writing needs a folder whose access list (ACL) gives no one else access and passes nothing on to new files.");
+                        "Archive writing needs a folder whose access list (ACL) gives no one else access and limits nothing but deleting the folder itself.");
             }
             // Darwin acl_get_entry ends the list with -1/EINVAL; any other end is an access list not read in full.
             if (Marshal.GetLastPInvokeError() != 22) throw Unavailable();
@@ -232,6 +233,20 @@ internal static unsafe partial class UnixArchiveNative
     private static partial int AclTag(nint entry, int* tag);
     [LibraryImport("libc", EntryPoint = "acl_get_flag_np", SetLastError = true)]
     private static partial int AclGetFlag(nint flags, int flag);
+    [LibraryImport("libc", EntryPoint = "acl_get_permset", SetLastError = true)]
+    private static partial int AclPermSet(nint entry, nint* rights);
+    [LibraryImport("libc", EntryPoint = "acl_get_perm_np", SetLastError = true)]
+    private static partial int AclGetPerm(nint rights, int right);
+
+    // Every right of a Darwin access-control entry (sys/acl.h), but ACL_DELETE (1 << 4).
+    private static readonly int[] RightsOtherThanDelete =
+        [1 << 1, 1 << 2, 1 << 3, 1 << 5, 1 << 6, 1 << 7, 1 << 8, 1 << 9, 1 << 10, 1 << 11, 1 << 12, 1 << 13, 1 << 20];
+    private static bool DeniesOnlyDeletion(nint rights)
+    {
+        if (AclGetPerm(rights, 1 << 4 /* ACL_DELETE */) != 1) return false;
+        foreach (int right in RightsOtherThanDelete) if (AclGetPerm(rights, right) != 0) return false;
+        return true;
+    }
     [LibraryImport("libc", EntryPoint = "fsync", SetLastError = true)]
     private static partial int Fsync(int fd);
     [LibraryImport("libc", EntryPoint = "fcntl", SetLastError = true)]

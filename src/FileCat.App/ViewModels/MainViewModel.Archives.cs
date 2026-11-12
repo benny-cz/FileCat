@@ -278,8 +278,9 @@ public sealed partial class MainViewModel
             : Path.GetFileName(Path.GetDirectoryName(items[0].FileSystemPath!)!.TrimEnd('\\', '/'));
         if (string.IsNullOrEmpty(stem)) stem = "archive";
         string suggestion = Path.Combine(targetFolder, stem + ".zip");
+        // Each format is judged at its own name (an existing stem.zip with another hard link says nothing about stem.7z).
         var formats = ArchiveCreationFormat.All.Where(format => format.DefaultProfile is not { } profile ||
-            Services.Jobs.ArchiveAvailability(new(suggestion, null, [], Profile: profile)).Available).ToArray();
+            Services.Jobs.ArchiveAvailability(new(Path.Combine(targetFolder, stem + format.Extension), null, [], Profile: profile)).Available).ToArray();
         using var dialog = new ArchiveCreationDialog(suggestion, selected.Value.Summary, formats, Services.Jobs.ArchiveAvailability,
             items.Count == 1 && !items[0].IsContainer ? items[0].Name : null, Services.Jobs.CoversArchive);
         using var estimateStop = CancellationTokenSource.CreateLinkedTokenSource(Services.Io.StoppingToken);

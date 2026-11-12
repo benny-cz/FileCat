@@ -14,6 +14,12 @@ internal static class WindowsArchiveJobBackend
         "folders that are not links, mount points or synced by a cloud service (such as OneDrive).";
     internal const string LinkedArchive = "This archive is a link or a cloud file (such as OneDrive), which FileCat does not change. " +
         "Copy it into a local folder to change it.";
+    internal const string NoTransactions = "This drive does not support the NTFS transactions FileCat needs to replace an archive " +
+        "safely, so its existing archives are read-only here.";
+    internal const string NotWritableDrive = "Archive writing is not available on this drive: FileCat writes archives only on " +
+        "writable, local NTFS drives.";
+    internal const string NotOpenable = "Archive writing is not available in this folder: FileCat cannot open it for writing.";
+    private const uint SupportsTransactions = 0x0020_0000; // FILE_SUPPORTS_TRANSACTIONS
 
     /// <summary>
     /// Why this writer cannot write <paramref name="archivePath"/> at all, from its own checks, or null when it can: an
@@ -28,15 +34,34 @@ internal static class WindowsArchiveJobBackend
         if (!Path.IsPathFullyQualified(archivePath) || Path.GetDirectoryName(archivePath) is not { Length: > 0 } folder ||
             Path.GetFileName(archivePath) is not { Length: > 0 } leaf) return LinkedFolder;
         if (!Directory.Exists(folder)) return null; // Nothing to judge yet: the job says what is missing.
+        // A folder OneDrive syncs is a reparse point the folder pins accept as an ordinary folder; FileCat's writing is not
+        // qualified there, so it is refused like a link (as is any other reparse point on the way).
+        if (ReparseFolderOnTheWay(folder)) return LinkedFolder;
         try
         {
             using var directory = WindowsArchiveDirectory.Open(folder);
-            return directory.ProbeExisting(leaf) is > 1 ? ArchiveWriteMessages.HardLinkedText(archivePath) : null;
+            uint? links = directory.ProbeExisting(leaf);
+            if (links is null) return null; // A new archive.
+            if (links > 1) return ArchiveWriteMessages.HardLinkedText(archivePath);
+            // Every update is published in an NTFS transaction; some volumes (the system drive of recent Windows builds
+            // among them) do not support one.
+            return (directory.Volume.Flags & SupportsTransactions) == 0 ? NoTransactions : null;
         }
         catch (ArchiveWriteException error) when (error.Reason == ArchiveWriteReason.BudgetExceeded) { return ArchiveListingRevision.TooLarge; }
         catch (IOException error) when (error.Message == WindowsArchiveNative.NotRegular) { return LinkedArchive; }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException
-            or System.ComponentModel.Win32Exception) { return LinkedFolder; }
+        catch (NotSupportedException) { return NotWritableDrive; }
+        catch (UnauthorizedAccessException) { return NotOpenable; }
+        catch (Exception error) when (error is IOException or ArgumentException or System.ComponentModel.Win32Exception) { return LinkedFolder; }
+    }
+
+    private static bool ReparseFolderOnTheWay(string folder)
+    {
+        for (string? current = folder; !string.IsNullOrEmpty(current); current = Path.GetDirectoryName(current))
+        {
+            try { if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) return true; }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { } // The pins below decide.
+        }
+        return false;
     }
 
     internal static IArchiveJobBackend Create(ArchiveWriteFormat format, string executable, bool retainArtifacts = false)
@@ -87,6 +112,9 @@ internal static class WindowsArchiveJobBackend
             {
                 if (plan.Baseline is not null)
                 {
+                    // Refused before anything is rebuilt: the update would end at the transaction it cannot begin.
+                    if ((directory.Volume.Flags & SupportsTransactions) == 0)
+                        throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable, NoTransactions);
                     original = directory.OpenSource(Path.GetFileName(plan.ArchivePath));
                     Original = new(original, ((IArchiveRetainedFile)original).Observe(ct));
                 }

@@ -104,36 +104,72 @@ internal static class ArchiveWriteRoutes
         var formats = routes.Where(route => string.Equals(route.RuntimeIdentifier, runtimeIdentifier, StringComparison.Ordinal))
             .Select(route => route.Format).Distinct().ToArray();
         if (formats.Length == 0) return null;
-        return new(formats.Select(format => (IArchiveJobBackend)new RouteLimited(create(format), routes, runtimeIdentifier, fileSystemOf,
-            targetProblem ?? (_ => null))));
+        var judge = new TargetJudge(routes, runtimeIdentifier, fileSystemOf, targetProblem ?? (_ => null));
+        return new(formats.Select(format => (IArchiveJobBackend)new RouteLimited(create(format), routes, runtimeIdentifier, judge)));
+    }
+
+    /// <summary>
+    /// What a target's place is, for every format of one composition: the file system of its folder (on Unix the folder as
+    /// the job resolves it, through a symbolic link: <see cref="ArchiveLocalPath"/>) and, where a route of this runtime lists
+    /// that file system, why the writer cannot write there. Kept for two seconds, because the key bar, menus and dialogs ask
+    /// about the same archive many times a second; a job's execution always asks afresh.
+    /// </summary>
+    private sealed class TargetJudge(IReadOnlyList<Route> routes, string runtimeIdentifier, Func<string, string?> fileSystemOf,
+        Func<string, string?> targetProblem)
+    {
+        private static readonly long Lifetime = System.Diagnostics.Stopwatch.Frequency * 2;
+        private readonly Dictionary<string, (string? FileSystem, string? Problem, long At)> answers = new(StringComparer.Ordinal);
+
+        internal (string? FileSystem, string? Problem) Judge(string archivePath, bool fresh = false)
+        {
+            // Only an absolute target names a folder; anything else has an unknown file system and is refused.
+            if (!Path.IsPathFullyQualified(archivePath)) return (null, null);
+            long now = System.Diagnostics.Stopwatch.GetTimestamp();
+            if (!fresh)
+                lock (answers)
+                    if (answers.TryGetValue(archivePath, out var known) && now - known.At < Lifetime) return (known.FileSystem, known.Problem);
+            string resolved = ArchiveLocalPath.ResolveParent(archivePath);
+            string? folder = Path.GetDirectoryName(resolved);
+            string? fileSystem = string.IsNullOrEmpty(folder) ? null : fileSystemOf(folder);
+            // The file system first: a target on one no route of this runtime lists (a network drive among them) is never probed.
+            bool listed = fileSystem is not null && routes.Any(route => string.Equals(route.RuntimeIdentifier, runtimeIdentifier, StringComparison.Ordinal) &&
+                string.Equals(route.FileSystem, fileSystem, StringComparison.OrdinalIgnoreCase));
+            string? problem = listed ? targetProblem(resolved) : null;
+            lock (answers)
+            {
+                if (answers.Count >= 256) answers.Clear();
+                answers[archivePath] = (fileSystem, problem, now);
+            }
+            return (fileSystem, problem);
+        }
     }
 
     /// <summary>A qualified backend admitted only on the qualified filesystems of its route, and only where its writer can write.</summary>
-    private sealed class RouteLimited(IArchiveJobBackend inner, IReadOnlyList<Route> routes, string runtimeIdentifier,
-        Func<string, string?> fileSystemOf, Func<string, string?> targetProblem) : IArchiveJobBackend
+    private sealed class RouteLimited(IArchiveJobBackend inner, IReadOnlyList<Route> routes, string runtimeIdentifier, TargetJudge judge)
+        : IArchiveJobBackend
     {
         public ArchiveWriteFormat Format => inner.Format;
         public ArchiveTargetReviewer? TargetReviewer => inner.TargetReviewer;
-        // The file system first: a target on another one (a network drive among them) is never probed.
-        public bool Covers(ArchivePlan plan) => Refusal(plan) == ArchiveWriteRouteRefusal.None && targetProblem(plan.ArchivePath) is null;
-        public ArchiveJobAvailability Availability(ArchivePlan plan)
-        {
-            var refusal = Refusal(plan);
-            if (refusal != ArchiveWriteRouteRefusal.None) return new(false, Reason(refusal));
-            return targetProblem(plan.ArchivePath) is { } problem ? new(false, problem) : inner.Availability(plan);
-        }
-        private ArchiveWriteRouteRefusal Refusal(ArchivePlan plan)
+        public bool Covers(ArchivePlan plan)
         {
             ArgumentNullException.ThrowIfNull(plan);
-            // Only an absolute target names a folder; anything else has an unknown file system and is refused.
-            string? folder = Path.IsPathFullyQualified(plan.ArchivePath) ? Path.GetDirectoryName(plan.ArchivePath) : null;
-            return Check(routes, Format, runtimeIdentifier, string.IsNullOrEmpty(folder) ? null : fileSystemOf(folder));
+            var (fileSystem, problem) = judge.Judge(plan.ArchivePath);
+            return Check(routes, Format, runtimeIdentifier, fileSystem) == ArchiveWriteRouteRefusal.None && problem is null;
+        }
+        public ArchiveJobAvailability Availability(ArchivePlan plan) => Availability(plan, fresh: false);
+        private ArchiveJobAvailability Availability(ArchivePlan plan, bool fresh)
+        {
+            ArgumentNullException.ThrowIfNull(plan);
+            var (fileSystem, problem) = judge.Judge(plan.ArchivePath, fresh);
+            var refusal = Check(routes, Format, runtimeIdentifier, fileSystem);
+            if (refusal != ArchiveWriteRouteRefusal.None) return new(false, Reason(refusal));
+            return problem is not null ? new(false, problem) : inner.Availability(plan);
         }
         public void Execute(ArchiveJobExecution execution)
         {
             ArgumentNullException.ThrowIfNull(execution);
-            // Admission is rechecked at execution: a queued job never inherits an earlier answer.
-            var state = Availability(execution.Plan);
+            // Admission is rechecked at execution, afresh: a queued job never inherits an earlier answer.
+            var state = Availability(execution.Plan, fresh: true);
             if (!state.Available) throw new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, state.Reason ?? ArchiveJobAvailability.Unqualified.Reason!);
             inner.Execute(execution);
         }

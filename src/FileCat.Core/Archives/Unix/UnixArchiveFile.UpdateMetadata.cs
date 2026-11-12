@@ -17,12 +17,14 @@ internal sealed partial class UnixArchiveFile
             Live(); ct.ThrowIfCancellationRequested();
             ArchiveUnixUpdateMetadata.RequireAdmissible(CaptureOuterMetadata(ct), UnixArchiveNative.GetEuid());
             if (UnixArchiveNative.Mac && MacAclHasDeny(UnixArchiveNative.Fd(held)))
-                throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature,
-                    "This archive has a macOS access-control entry that denies some access. FileCat cannot replace it safely, so it is read-only here.");
+                throw new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, MacDenyAcl);
         }
     }
 
-    private static unsafe bool MacAclHasDeny(int fd)
+    internal const string MacDenyAcl =
+        "This archive has a macOS access-control entry that denies some access. FileCat cannot replace it safely, so it is read-only here.";
+
+    internal static unsafe bool MacAclHasDeny(int fd)
     {
         nint acl = MacGetAcl(fd, 0x100 /* ACL_TYPE_EXTENDED */);
         if (acl == 0)
