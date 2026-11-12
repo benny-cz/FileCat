@@ -78,7 +78,13 @@ internal static class StructuredMutation
                 calls, accepted, refused, max_private_bytes = maxPrivateBytes, oracle_skipped = Stats.OracleSkipped,
                 managed_heap = heap, seed_inventory = inventory, complete = finished, failure };
             File.WriteAllText(report + ".tmp", JsonSerializer.Serialize(value));
-            File.Move(report + ".tmp", report, true);
+            // On Windows a scanner (Defender's real-time protection on the test VM) may still hold the previous report open
+            // for a moment; a replace that loses that race is retried instead of ending the lane as a harness failure.
+            for (int attempt = 1; ; attempt++)
+            {
+                try { File.Move(report + ".tmp", report, true); break; }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException && attempt < 20) { Thread.Sleep(25 * attempt); }
+            }
         }
         try
         {
@@ -102,7 +108,9 @@ internal static class StructuredMutation
                     throw;
                 }
                 calls++;
-                if ((calls & 4095) == 0 || timer.Elapsed - published > TimeSpan.FromSeconds(15)) Publish();
+                // Fast targets publish at a 4,096-call boundary at most once a second (each publish takes a full collection
+                // for the heap sample and replaces the report file); slow ones every 15 seconds.
+                if (timer.Elapsed - published > TimeSpan.FromSeconds((calls & 4095) == 0 ? 1 : 15)) Publish();
             }
             finished = true;
             Publish();
