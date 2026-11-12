@@ -103,6 +103,16 @@ internal sealed partial class MacArchiveProcess : IArchiveWorkerProcess
     /// <summary>
     /// The executable and its launcher: exact local paths in one folder, owned by this user or root, writable by no one else.
     /// </summary>
+    // Bundles found valid stay so for this process; availability is asked on keypresses.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string?> bundleProblems = new(StringComparer.Ordinal);
+
+    /// <summary>Why no sandboxed worker can start from <paramref name="executable"/> (for example a missing launcher), or null.</summary>
+    internal static string? BundleProblem(string executable) => bundleProblems.GetOrAdd(executable, path =>
+    {
+        try { ValidateBundle(path); return null; }
+        catch (Exception ex) when (ex is IOException or ArgumentException or PlatformNotSupportedException or UnauthorizedAccessException) { return ex.Message; }
+    });
+
     internal static (string Image, string Launcher) ValidateBundle(string executable)
     {
         if (!OperatingSystem.IsMacOS()) throw new PlatformNotSupportedException();
@@ -217,6 +227,7 @@ internal static class MacArchiveJobBackend
             (nonce, cpu) => Start(nonce, cpu, "archive-assess-v2"),
             (nonce, cpu) => Start(nonce, cpu, "archive-transform-v2"),
             (nonce, cpu) => Start(nonce, cpu, "archive-verify-v2"),
-            _ => OperatingSystem.IsMacOS() ? ArchiveJobAvailability.Ready : ArchiveJobAvailability.Unqualified, retainArtifacts);
+            _ => !OperatingSystem.IsMacOS() ? ArchiveJobAvailability.Unqualified
+                : MacArchiveProcess.BundleProblem(executable) is { } problem ? new(false, problem) : ArchiveJobAvailability.Ready, retainArtifacts);
     }
 }

@@ -18,6 +18,7 @@ internal static class LinuxArchiveJobBackend
             (nonce, cpu) => Start(nonce, cpu, "archive-assess-v2"),
             (nonce, cpu) => Start(nonce, cpu, "archive-transform-v2"),
             (nonce, cpu) => Start(nonce, cpu, "archive-verify-v2"),
-            _ => OperatingSystem.IsLinux() ? ArchiveJobAvailability.Ready : ArchiveJobAvailability.Unqualified, retainArtifacts);
+            _ => !OperatingSystem.IsLinux() ? ArchiveJobAvailability.Unqualified
+                : LinuxArchiveIsolation.BundleProblem(executable) is { } problem ? new(false, problem) : ArchiveJobAvailability.Ready, retainArtifacts);
     }
 }

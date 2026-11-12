@@ -138,6 +138,19 @@ internal static unsafe partial class LinuxArchiveIsolation
     private static void Trace(string phase)
     { if (Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_LINUX_QUAL_DIAGNOSTICS") == "1") Console.Error.WriteLine("Archive qualification: " + phase); }
 
+    // Bundles found valid stay so for this process; availability is asked on keypresses.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string?> bundleProblems = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Why the confined worker cannot run from the application at <paramref name="executable"/>, or null: the same checks a
+    /// worker start makes (ext4, a self-contained bundle, private assets), answered once per process for availability.
+    /// </summary>
+    internal static string? BundleProblem(string executable) => bundleProblems.GetOrAdd(executable, path =>
+    {
+        try { ValidateBundle(path); return null; }
+        catch (Exception ex) when (ex is IOException or ArgumentException or PlatformNotSupportedException or UnauthorizedAccessException) { return ex.Message; }
+    });
+
     internal static (string Root, long Bytes) ValidateBundle(string executable)
     {
         if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException();
@@ -146,7 +159,10 @@ internal static unsafe partial class LinuxArchiveIsolation
         string root = Path.GetDirectoryName(executable)!;
         using (var held = LinuxArchiveNative.OpenDirectory(root))
             if (Unix.UnixArchiveVolume.Observe(held).FileSystem != "ext4")
-                throw LinuxArchiveNative.Unavailable("This Linux archive bundle filesystem has not been qualified.");
+                throw LinuxArchiveNative.Unavailable(Environment.GetEnvironmentVariable("APPIMAGE") is { Length: > 0 }
+                    ? "Archive writing is not available from the AppImage: its mounted image is not a qualified place for the confined archive " +
+                      "worker. Install FileCat's .deb package, or extract the AppImage (--appimage-extract) into a folder on an ext4 drive."
+                    : "This Linux archive bundle filesystem has not been qualified.");
         if (!File.Exists(Path.Combine(root, "libcoreclr.so")) || !File.Exists(Path.Combine(root, "FileCat.Core.dll")) ||
             !File.Exists(Path.Combine(root, "System.Private.CoreLib.dll")))
             throw LinuxArchiveNative.Unavailable("This Linux archive route requires a separately qualified self-contained worker bundle.");
