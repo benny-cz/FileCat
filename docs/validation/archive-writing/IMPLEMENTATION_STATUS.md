@@ -1,5 +1,33 @@
 # Archive writing implementation status
 
+**12 November, the release candidate `3781e7ae` re-validated; routes listed (rows 11 to 14 closed).** After the verification
+review of `04dbc8fa` (one High, a macOS access-list regression the Mac run found too, fixed in `e41e6b2b`; its Low points
+in `3781e7ae`), the candidate passed on all three platforms, each package built from a clean checkout of that commit:
+
+| Platform | Full regression | Package route tests |
+|---|---|---|
+| macOS (M1) | App 2,837, Core 9,147, Remote 2,638, Rendering 23; no failure | App 12 of 12; packaged launcher 14 of 14 |
+| Windows 11 VM | App 2,932, Core 8,396, Windows platform 1,592, Remote 2,405, Rendering 24; no failure | Installed layout 12 of 12; portable 12 of 12, its grant exactly the 247 runtime files |
+| Ubuntu 24.04 | App 2,839, Core 8,647, Remote 2,543, Rendering 23; no failure (see below) | .deb 12 of 12 and its bundle check; the AppImage refused with its reason |
+
+The probe tests ran where they apply: on the Mac every Unix case including the macOS access lists; on the Windows VM the
+ordinary folder, the junction and the hard link, and the OneDrive sync root it has; on this machine the real OneDrive.
+
+On Ubuntu one test hung: `SecretStoreTests.The_system_store_keeps_replaces_and_removes_a_secret`, which stores a secret in
+the system keyring. Every other Core test had passed; the run's guard ended the hung test host after an hour. The cause
+was the VM, not FileCat: a second keyring daemon, started there earlier today to create the login keyring, had left the
+session daemon listing a `login` collection it no longer served, so the secret store waited for an unlock that could not
+come. With one daemon serving an unlocked `login` keyring again, the test passed alone at the same commit (4 of 4). Its
+hang dumps are not kept in the evidence.
+
+The release manifest of the candidate is [release-manifest-3781e7ae.json](release-manifest-3781e7ae.json): commit,
+profiles, record schemas, worker protocol, the 30 listed routes with their evidence IDs (none for edit storage), the
+Windows payload, 14 packages (the Linux and macOS ones hashed on their machines, their package logs as evidence) and 16
+evidence files. Still the owner's: release signing (a trusted Windows signing provider, macOS Developer ID and
+notarization), the macOS denial evidence repeated on the signed build together with updating an archive the installed,
+quarantined app made itself, and the decision on the proposed ADR amendments for released builds. Native edit storage
+is not listed (rows 4 and 8).
+
 **12 November, the ninth review and its fixes (rows 13 and 14).** A ninth independent reviewer read `90806f12`. It found
 no safety break and no over-refusal by the probe beyond the intended places. Fixed in the next commit:
 

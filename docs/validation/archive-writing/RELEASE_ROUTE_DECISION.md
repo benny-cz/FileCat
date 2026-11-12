@@ -86,3 +86,5 @@ High or Medium finding; its Low findings fixed in `f4aa66a7`) and the seventh, o
 fixed. The evidence IDs are `AWQ-win-x64-NTFS`, `AWQ-linux-x64-ext4` and `AWQ-osx-arm64-apfs`
 ([status](IMPLEMENTATION_STATUS.md)). Native edit storage is not listed yet: as the default store it changes what a
 stopped F4 leaves behind, and the application's edit flows have not been qualified against it (ledger rows 4 and 8).
+The release candidate is `3781e7ae`: it passed on all three platforms with its package route tests, and its
+[release manifest](release-manifest-3781e7ae.json) records the routes, packages and evidence.

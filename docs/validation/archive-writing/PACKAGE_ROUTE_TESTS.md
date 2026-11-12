@@ -7,6 +7,15 @@ every native profile, and the ZIP lane (create, F5, F7, F2, F8, F4 with commit, 
 With `FILECAT_ARCHIVE_PACKAGE_ROUTE=1` the tests grant the worker nothing themselves. No route is listed by this; these are
 dry runs of the procedure the release candidate repeats after the independent review.
 
+## The release candidate `3781e7ae`
+
+Every package built by its script from a clean checkout of `3781e7ae`, with the routes listed: the Windows setup payload
+copied into Program Files (12 of 12) and the portable zip unpacked by the standard user (12 of 12; its worker grant names
+exactly the 247 runtime files); the .deb installed into `/opt/filecat` (12 of 12, and its bundle check) and the AppImage
+mounted on FUSE (refused with its reason); the macOS app unpacked with `ditto` (12 of 12, signature verifies, the launcher
+carries exactly its entitlements) and its packaged launcher (14 of 14). Hashes in the
+[release manifest](release-manifest-3781e7ae.json).
+
 ## What the packaging survey changed first
 
 - **Windows, installed copy.** Under Program Files, the installer's folder inherits read access for restricted
