@@ -45,4 +45,6 @@
     <InternalsVisibleTo Include="FileCat.Screenshots" />
     <InternalsVisibleTo Include="FileCat.ArchiveQualificationHost" />
   </ItemGroup>
+  <!-- The macOS archive worker launcher beside the executable (route decision of 12 November 2026). -->
+  <Import Project="MacOS\ArchiveWorkerLauncher.targets" />
 </Project>

@@ -14,6 +14,9 @@ public interface IArchiveWorkerProcess : IAsyncDisposable
     uint ExitCode { get; }
     TimeSpan TotalProcessorTime { get; }
     bool ErrorLimitExceeded { get; }
+    // Where no kernel limit holds the worker's memory (macOS), its parent samples the footprint and stops the worker above
+    // its budget; this reports that stop. Kernel-limited implementations end through their own controls instead.
+    bool MemoryLimitExceeded => false;
     // Scripted/unqualified implementations may fall back to stopping. Qualified native factories override this
     // with the dedicated lifetime channel; they never wait for protocol pipe capacity on a cancellation callback.
     void RequestCancellation() => Kill();

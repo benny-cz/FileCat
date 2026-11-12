@@ -48,6 +48,36 @@ internal static class ArchiveWorker
         { Console.Error.WriteLine("The confined Linux archive worker could not start."); return 65; }
     }
 
+    /// <summary>
+    /// macOS sandboxed lane: the parent starts the App Sandbox launcher beside this executable, which applies the limits the
+    /// sandbox leaves open, gives up its bootstrap port and executes this binary in worker mode. The worker checks every one
+    /// of those facts and the sandbox's denials before the fixed role reads one byte of archive input (MacArchiveIsolation).
+    /// </summary>
+    public static bool IsMacArgument(string argument) => OperatingSystem.IsMacOS() &&
+        argument == FileCat.Core.Archives.MacOS.MacArchiveIsolation.WorkerArgument;
+
+    public static int RunMac(string[] args)
+    {
+        if (!OperatingSystem.IsMacOS()) return 64;
+        try
+        {
+            return FileCat.Core.Archives.MacOS.MacArchiveIsolation.RunWorker(args, startup =>
+            {
+                if (startup.Request.Length != 2 || startup.Request[1] != startup.Nonce.ToString("D")) return 64;
+                Func<Stream, Stream, CancellationToken, int>? role = startup.Request[0] switch
+                {
+                    "archive-assess-v2" => (input, output, ct) => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunAfterIsolation(input, output, startup.Nonce, ct, 2),
+                    "archive-transform-v2" => (input, output, ct) => FileCat.Archives.Writing.ArchiveTransformWorker.RunAfterIsolation(input, output, startup.Nonce, ct, 2),
+                    "archive-verify-v2" => (input, output, ct) => FileCat.Archives.Writing.ArchiveAssessmentWorker.RunVerificationAfterIsolation(input, output, startup.Nonce, ct, 2),
+                    _ => null,
+                };
+                return role is null ? 64 : FileCat.Core.Archives.ArchiveWorkerCancellation.Run(startup.CancellationDescriptor, role);
+            });
+        }
+        catch (Exception ex) when (ex is IOException or ArgumentException or PlatformNotSupportedException or UnauthorizedAccessException)
+        { Console.Error.WriteLine("The sandboxed macOS archive worker could not start: " + ex.Message); return 65; }
+    }
+
     public static int Run(string[] args)
     {
         if (args.Length != 5 || !IsArgument(args[0]) || !Guid.TryParseExact(args[1], "D", out Guid nonce) || nonce == Guid.Empty || args[2].Length != 16 ||

@@ -17,4 +17,6 @@
     <ProjectReference Include="..\..\src\FileCat.Core\FileCat.Core.csproj" />
     <ProjectReference Include="..\..\src\FileCat.Archives\FileCat.Archives.csproj" />
   </ItemGroup>
+  <!-- The application's own macOS sandbox launcher, so the boundary tests start this probe exactly as FileCat starts itself. -->
+  <Import Project="..\..\src\FileCat.App\MacOS\ArchiveWorkerLauncher.targets" />
 </Project>

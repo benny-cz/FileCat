@@ -29,6 +29,7 @@ internal static class ArchiveWorkerSession
             await Finish().ConfigureAwait(false);
             ct.ThrowIfCancellationRequested(); if (Volatile.Read(ref monitorFailure) is { } final) throw final;
             if (process.TotalProcessorTime > cpu) throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The archive worker exceeded its CPU allowance.");
+            if (process.MemoryLimitExceeded) throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The archive worker exceeded its memory allowance.");
             uint exitCode = process.ExitCode; bool diagnosticsExceeded = process.ErrorLimitExceeded;
             if (exitCode != 0 || diagnosticsExceeded)
             {
@@ -40,6 +41,9 @@ internal static class ArchiveWorkerSession
         catch (Exception ex) when (ex is IOException or OperationCanceledException)
         {
             ct.ThrowIfCancellationRequested(); if (Volatile.Read(ref monitorFailure) is { } failure) throw failure;
+            // A footprint stop ends the conversation abruptly; say why rather than that the worker stopped.
+            if (process.MemoryLimitExceeded)
+                throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The archive worker exceeded its memory allowance.", ex);
             if (ex is ArchiveWriteException) throw; throw Unavailable("conversation", ex);
         }
         finally { if (!disposed) await Finish().ConfigureAwait(false); }
@@ -76,8 +80,8 @@ internal static class ArchiveWorkerSession
                     if (process.HasExited) return;
                     if (GraceExpired()) { process.Kill(); return; }
                     if (Stopwatch.GetElapsedTime(began) > wall || Stopwatch.GetElapsedTime(Volatile.Read(ref progress)) > idle ||
-                        process.TotalProcessorTime > cpu || process.ErrorLimitExceeded)
-                        failure = new(ArchiveWriteReason.BudgetExceeded, "The archive worker exceeded its time, CPU or output allowance.");
+                        process.TotalProcessorTime > cpu || process.ErrorLimitExceeded || process.MemoryLimitExceeded)
+                        failure = new(ArchiveWriteReason.BudgetExceeded, "The archive worker exceeded its time, CPU, memory or output allowance.");
                 }
                 catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException) { failure = Unavailable("monitor", ex); }
                 if (failure is not null) { Interlocked.CompareExchange(ref monitorFailure, failure, null); process.Kill(); return; }

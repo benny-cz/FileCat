@@ -102,6 +102,12 @@ for P in "${PROJECTS[@]}"; do
         export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
         export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
         USE_SYSTEMD=1
+      else
+        # The macOS sandboxed lane (route decision of 12 November 2026): each publish carries the sandbox launcher.
+        if [ -x "$D/publish/FileCat.App/FileCat" ] && [ -x "$D/publish/FileCat.App/FileCatArchiveWorker" ]; then
+          export FILECAT_ARCHIVE_MAC_NATIVE=1 FILECAT_ARCHIVE_MAC_APP="$D/publish/FileCat.App/FileCat"; fi
+        if [ -x "$D/publish/FileCat.WorkerProbe/FileCat.WorkerProbe" ] && [ -x "$D/publish/FileCat.WorkerProbe/FileCatArchiveWorker" ]; then
+          export FILECAT_ARCHIVE_MAC_NATIVE=1 FILECAT_ARCHIVE_MAC_PROBE="$D/publish/FileCat.WorkerProbe/FileCat.WorkerProbe"; fi
       fi
       continue ;;
   esac

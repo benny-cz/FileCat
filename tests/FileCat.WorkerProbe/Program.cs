@@ -18,6 +18,24 @@ if (args.Length > 0 && args[0] == FileCat.Core.Archives.Linux.LinuxArchiveIsolat
     catch (Exception ex) when (ex is IOException or ArgumentException or PlatformNotSupportedException or UnauthorizedAccessException)
     { Console.Error.WriteLine(ex.Message); return 65; }
 }
+// macOS: the application's sandbox launcher executes this probe in worker mode; the same checks as FileCat's worker run
+// before any workload (MacArchiveIsolation.RunWorker).
+if (args.Length > 0 && args[0] == FileCat.Core.Archives.MacOS.MacArchiveIsolation.WorkerArgument)
+{
+    try
+    {
+        return FileCat.Core.Archives.MacOS.MacArchiveIsolation.RunWorker(args, startup =>
+        {
+            string[] requests = startup.Request;
+            if (requests[0] is "archive-assess" or "archive-verify" or "archive-transform" or
+                "archive-assess-v2" or "archive-transform-v2" or "archive-verify-v2" &&
+                (requests.Length != 2 || requests[1] != startup.Nonce.ToString("D"))) return 64;
+            return RunProbe(requests, startup.CancellationDescriptor);
+        });
+    }
+    catch (Exception ex) when (ex is IOException or ArgumentException or PlatformNotSupportedException or UnauthorizedAccessException)
+    { Console.Error.WriteLine(ex.Message); return 65; }
+}
 return RunProbe(args);
 
 static int RunProbe(string[] requests, long? cancellationHandle = null)
@@ -50,6 +68,14 @@ static int RunProbe(string[] requests, long? cancellationHandle = null)
             return LinuxArchiveProbe.MainExitGuard();
         case "archive-linux-parent":
             return LinuxArchiveProbe.Parent();
+        case "archive-mac-boundary":
+            return MacArchiveProbe.Boundary(requests);
+        case "archive-mac-memory":
+            return MacArchiveProbe.Memory(requests);
+        case "archive-mac-fd":
+            return MacArchiveProbe.Descriptor(requests);
+        case "archive-mac-parent":
+            return MacArchiveProbe.Parent();
         case "archive-assess":
         case "archive-verify":
         case "archive-transform":

@@ -264,24 +264,25 @@ public sealed class AppServices : IDisposable
     }
 
     /// <summary>
-    /// Every native writing format for the qualification host: AppContainer workers from the published application on
-    /// Windows, confined workers on Linux, and on macOS (which has no production worker launcher) the host's own launcher.
+    /// Every native writing format for the qualification host, through each platform's production boundary: AppContainer
+    /// workers on Windows, confined workers on Linux and sandboxed workers on macOS, all from the published application.
     /// </summary>
-    internal static Core.Archives.ArchiveJobBackends QualificationBackends(string workerExecutable,
-        Func<Guid, string, Core.Archives.IArchiveWorkerProcess>? unixLaunch)
+    internal static Core.Archives.ArchiveJobBackends QualificationBackends(string workerExecutable)
     {
         ArgumentException.ThrowIfNullOrEmpty(workerExecutable);
         Core.Archives.ArchiveWriteFormat[] formats = [Core.Archives.ArchiveWriteFormat.Tar, Core.Archives.ArchiveWriteFormat.TarGzip,
             Core.Archives.ArchiveWriteFormat.TarBzip2, Core.Archives.ArchiveWriteFormat.TarZstd, Core.Archives.ArchiveWriteFormat.Rar5,
             Core.Archives.ArchiveWriteFormat.SevenZip, Core.Archives.ArchiveWriteFormat.Gzip, Core.Archives.ArchiveWriteFormat.Bzip2,
             Core.Archives.ArchiveWriteFormat.Zstd];
-        return new(formats.Select(format =>
-            OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveJobBackend.Create(format, workerExecutable)
-            : OperatingSystem.IsLinux() ? Core.Archives.Linux.LinuxArchiveJobBackend.Create(format, workerExecutable)
-            : unixLaunch is { } launch ? Core.Archives.Unix.UnixArchiveJobBackend.Create(format, (nonce, _) => launch(nonce, "archive-assess-v2"),
-                (nonce, _) => launch(nonce, "archive-transform-v2"), (nonce, _) => launch(nonce, "archive-verify-v2"))
-            : throw new PlatformNotSupportedException("This platform has no qualification worker launcher.")));
+        return new(formats.Select(format => PlatformArchiveBackend(format, workerExecutable)));
     }
+
+    /// <summary>The platform's confined worker backend for one format, with workers from <paramref name="executable"/>.</summary>
+    internal static Core.Archives.IArchiveJobBackend PlatformArchiveBackend(Core.Archives.ArchiveWriteFormat format, string executable) =>
+        OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveJobBackend.Create(format, executable)
+        : OperatingSystem.IsLinux() ? Core.Archives.Linux.LinuxArchiveJobBackend.Create(format, executable)
+        : OperatingSystem.IsMacOS() ? Core.Archives.MacOS.MacArchiveJobBackend.Create(format, executable)
+        : throw new PlatformNotSupportedException("No archive worker launcher exists for this platform.");
 
     /// <summary>The qualification host's composition: explicit native backends on an isolated data root (never ordinary startup).</summary>
     internal static AppServices InitializeForQualification(AppPaths paths, Core.Archives.ArchiveJobBackends archiveBackends)
@@ -297,10 +298,7 @@ public sealed class AppServices : IDisposable
     /// </summary>
     internal static Core.Archives.ArchiveJobBackends? ProductionArchiveBackends() =>
         Core.Archives.ArchiveWriteRoutes.Compose(Core.Archives.ArchiveWriteRoutes.Qualified, System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier,
-            format => OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveJobBackend.Create(format, Environment.ProcessPath!)
-                : OperatingSystem.IsLinux() ? Core.Archives.Linux.LinuxArchiveJobBackend.Create(format, Environment.ProcessPath!)
-                : throw new PlatformNotSupportedException("No production archive worker launcher exists for this platform."),
-            FileSystemOf);
+            format => PlatformArchiveBackend(format, Environment.ProcessPath!), FileSystemOf);
 
     /// <summary>
     /// Ledger rows 4 and 8: the edit store through its qualification gate (<see cref="Core.Edit.NativeEditStorage"/>). Native
