@@ -221,6 +221,11 @@ def main():
                  "codecs": sha(image / "FileCat.SharpCompress.dll") if (image / "FileCat.SharpCompress.dll").exists() else None},
              "observations": []}
     (run / "command.json").write_text(json.dumps(facts, indent=2))
+    # A failed unit of an earlier image's run with the same id stays loaded until reset (the canary and its replay end
+    # failed by design, exit 77), and systemd then refuses to start this run under that name. Resetting changes nothing
+    # for an active unit of the same name, whose start below still fails.
+    subprocess.run(["sudo", "-S", "-p", "", "systemctl", "reset-failed", unit], input=(args.sudo_password + "\n").encode(),
+                   capture_output=True, timeout=20)
     launch = subprocess.run(command, input=(args.sudo_password + "\n").encode(),
                             capture_output=True, timeout=20)
     facts["launch"] = {"returncode": launch.returncode,
