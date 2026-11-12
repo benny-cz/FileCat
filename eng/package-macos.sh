@@ -115,7 +115,18 @@ EOF
 
 # Apple silicon runs only signed code: an ad-hoc signature, no Developer ID and no notarization (not approved yet).
 codesign --force --deep --sign - --timestamp=none "$APP"
+# The archive worker launcher keeps its own identifier and its only entitlement, the App Sandbox (route decision of
+# 12 November 2026): the deep signature above re-signed it without them, so sign it again, then seal the bundle over it.
+LAUNCHER="$APP/Contents/MacOS/FileCatArchiveWorker"
+[ -x "$LAUNCHER" ] || { echo "The archive worker launcher is missing from the published application." >&2; exit 2; }
+codesign --force --sign - --timestamp=none --identifier io.github.benny-cz.filecat.archive-worker \
+  --entitlements "$ROOT/src/FileCat.App/MacOS/archive-worker-launcher.entitlements" "$LAUNCHER"
+codesign --force --sign - --timestamp=none "$APP"
 codesign --verify --deep --strict "$APP"
+codesign -d --entitlements - --xml "$LAUNCHER" 2>/dev/null | grep -q "<key>com.apple.security.app-sandbox</key><true/>" \
+  || { echo "The archive worker launcher lost its App Sandbox entitlement." >&2; exit 2; }
+[ "$(codesign -d --entitlements - --xml "$APP/Contents/MacOS/FileCat" 2>/dev/null | grep -c app-sandbox)" = 0 ] \
+  || { echo "Only the archive worker launcher may carry the App Sandbox entitlement." >&2; exit 2; }
 
 ZIP="$OUT/FileCat-$VERSION-$RID.zip"
 SBOM="$OUT/sbom-$VERSION-$RID-macos-app.spdx.json"

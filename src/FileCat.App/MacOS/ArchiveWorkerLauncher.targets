@@ -4,7 +4,8 @@
     small C launcher carrying only the App Sandbox entitlement and its own embedded Info.plist; it confines the worker
     roles of the executable beside it. It is compiled and ad hoc signed only on a Mac building for macOS. A package signs
     it again with the same identifier and entitlement after signing the bundle (eng/package-macos.sh). Imported by the
-    application and by the worker probe that the boundary tests start.
+    application and by the worker probe that the boundary tests start. The two plists carry no XML comments: codesign's
+    entitlement parser refuses them.
   -->
   <PropertyGroup>
     <FileCatMacArchiveLauncherFolder>$(MSBuildThisFileDirectory)</FileCatMacArchiveLauncherFolder>
