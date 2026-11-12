@@ -38,9 +38,10 @@ internal sealed class ArchiveListingRevision
     private readonly object gate = new();
     private readonly SemaphoreSlim commands = new(1, 1);
     private string? known, seenChange;
-    private int shown, reading, backgroundReads;
+    private int shown, reading, backgroundReads, graceGeneration;
     private bool closed, began;
     private CancellationTokenSource? background;
+    private ITimer? grace;
 
     /// <param name="handle">The listing's own handle. A background read keeps it open with <paramref name="lease"/>; a command's caller keeps it open.</param>
     /// <param name="unchanged">Whether the listing's change token still holds for that handle; throws IOException when it cannot be read now.</param>
@@ -80,6 +81,8 @@ internal sealed class ArchiveListingRevision
     /// for a panel that left the archive.
     /// </summary>
     internal TimeSpan HiddenGrace { get; set; } = TimeSpan.FromSeconds(10);
+    /// <summary>The clock that ends the grace (tests drive their own).</summary>
+    internal TimeProvider Clock { get; set; } = TimeProvider.System;
 
     /// <summary>
     /// A panel shows this listing: while any does, its revision is read in the background (once, unless the archive is
@@ -92,13 +95,10 @@ internal sealed class ArchiveListingRevision
         CancellationTokenSource? start = null;
         lock (gate)
         {
-            bool wasHidden = shown++ == 0;
-            if (background is { IsCancellationRequested: false } running)
-            {
-                // Shown again within the grace (another folder of the same archive): the read in progress goes on.
-                if (wasHidden) running.CancelAfter(Timeout.Infinite);
-            }
-            else if (length >= 0 && length <= limit && known is null && seenChange is null && !closed && reading == 0)
+            // Shown again within the grace (another folder of the same archive): the read in progress goes on.
+            if (shown++ == 0) EndGrace();
+            if (background is not { IsCancellationRequested: false } &&
+                length >= 0 && length <= limit && known is null && seenChange is null && !closed && reading == 0)
             {
                 start = new CancellationTokenSource(); background = start; began = true; backgroundReads++;
             }
@@ -131,7 +131,7 @@ internal sealed class ArchiveListingRevision
     /// <summary>The listing's index closes: a background read stops, and none begins again. A command's read goes on.</summary>
     internal void Close()
     {
-        lock (gate) { closed = true; background?.Cancel(); }
+        lock (gate) { closed = true; background?.Cancel(); EndGrace(); }
     }
 
     // The gate is never held while waiting for anything else: a panel's tab closing (on the UI thread) only takes it briefly.
@@ -140,8 +140,28 @@ internal sealed class ArchiveListingRevision
         lock (gate)
         {
             if (--shown > 0 || background is not { IsCancellationRequested: false } running) return;
-            if (HiddenGrace <= TimeSpan.Zero) running.Cancel(); else running.CancelAfter(HiddenGrace);
+            if (HiddenGrace <= TimeSpan.Zero) { running.Cancel(); return; }
+            EndGrace();
+            grace = Clock.CreateTimer(GraceEnded, new Grace(running, graceGeneration), HiddenGrace, Timeout.InfiniteTimeSpan);
         }
+    }
+
+    // Under the gate. A grace's timer may already have fired when it is ended; its callback then finds another generation.
+    private void EndGrace()
+    {
+        graceGeneration++;
+        grace?.Dispose(); grace = null;
+    }
+
+    private sealed record Grace(CancellationTokenSource Read, int Generation);
+
+    // The grace ended: its read stops, unless the listing was shown again or the read is not the one it was for. Decided
+    // under the gate, so a timer that fired as the listing was shown again stops nothing.
+    private void GraceEnded(object? state)
+    {
+        var ended = (Grace)state!;
+        lock (gate)
+            if (ended.Generation == graceGeneration && shown == 0 && ReferenceEquals(background, ended.Read)) ended.Read.Cancel();
     }
 
     // Weak: a panel still showing a listing whose index has left the cache must not keep that index's catalog in memory. A
@@ -164,7 +184,7 @@ internal sealed class ArchiveListingRevision
         }
         catch (Exception error) when (error is TaskSchedulerException or OutOfMemoryException or InvalidOperationException)
         {
-            lock (gate) if (ReferenceEquals(background, cancel)) background = null;
+            Ended(cancel);
             cancel.Dispose();
         }
     }
@@ -176,15 +196,27 @@ internal sealed class ArchiveListingRevision
         try
         {
             using var held = lease();
-            if (held is null || cancel.IsCancellationRequested) return;
+            // Read meanwhile (by an earlier read that ended as this one began, or a command), or seen changed: nothing to do.
+            if (held is null || cancel.IsCancellationRequested || Volatile.Read(ref known) is not null ||
+                Volatile.Read(ref seenChange) is not null) return;
             BackgroundIo.LowerThisThread();
             Read(cancel.Token);
         }
         catch (Exception error) when (error is IOException or OperationCanceledException) { } // A command reads again.
         finally
         {
-            lock (gate) if (ReferenceEquals(background, cancel)) background = null;
+            Ended(cancel);
             cancel.Dispose();
+        }
+    }
+
+    // Before its token source is disposed: nothing reaches it through background or a grace any more.
+    private void Ended(CancellationTokenSource cancel)
+    {
+        lock (gate)
+        {
+            if (!ReferenceEquals(background, cancel)) return;
+            background = null; EndGrace();
         }
     }
 

@@ -146,7 +146,10 @@ public sealed partial class LinuxArchiveProcessTests(ITestOutputHelper diagnosti
         string output;
         await using (worker)
         {
-            output = await Text(worker); Assert.Equal(137u, worker.ExitCode);
+            // On a loaded machine the kernel first reclaims the worker's file-backed pages, so the kill can come late: once
+            // (the Ubuntu VM on 12 November, while other tests ran ten times slower) after more than 20 s, against about
+            // 1 s otherwise. The kill and its accounting prove the limit, not its speed.
+            output = await Text(worker, TimeSpan.FromSeconds(90)); Assert.Equal(137u, worker.ExitCode);
         }
         Assert.Contains("HEALTHY-64-MIB-TOUCHED", output); Assert.DoesNotContain("DID NOT STOP", output);
         Assert.True(Counter(worker.FinalMemoryEvents, "oom_kill") >= 1);
@@ -245,10 +248,10 @@ public sealed partial class LinuxArchiveProcessTests(ITestOutputHelper diagnosti
         Assert.True(!string.IsNullOrEmpty(path) && Path.IsPathFullyQualified(path) && File.Exists(path), "A published owned self-contained native probe is required.");
         return path!;
     }
-    private async Task<string> Text(LinuxArchiveProcess worker)
+    private async Task<string> Text(LinuxArchiveProcess worker, TimeSpan? wait = null)
     {
         using var reader = new StreamReader(worker.Output, Encoding.UTF8, leaveOpen: true);
-        string result = await reader.ReadToEndAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
+        string result = await reader.ReadToEndAsync(TestContext.Current.CancellationToken).WaitAsync(wait ?? TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
         await Exit(worker); diagnostics.WriteLine("Owned controller: " + worker.ControlPath);
         diagnostics.WriteLine("Worker stderr: " + await worker.ErrorForQualification);
         Assert.True(result.Length < 4096, "Unexpected probe stdout volume."); return result;

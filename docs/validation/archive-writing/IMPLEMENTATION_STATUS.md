@@ -86,14 +86,32 @@ problems, all fixed in the next commit:
   the lease.
 - A listing shown while a command read the archive started a second read. None starts while a command reads.
 - On Windows a change token that lost its USN part for a moment (a journal query that failed) counted as a change, final
-  for the listing. A token of another shape now proves neither and is an error to try again
-  (`SourceChangeToken.Holds`). A password-protected archive found changed meanwhile says so, rather than that it cannot
-  keep a password session.
+  for the listing. Where the parts both tokens carry agree, a token of another shape now proves neither, and the
+  revision read reports an error to try again (`SourceChangeToken.Holds`); parts that differ are still a change. Member
+  reads and cache reuse still treat any other token as a change, which refuses on the safe side. A password-protected
+  archive that a revision read finds changed while its read view opens says so, rather than that it cannot keep a
+  password session (rare: a stale cached index is otherwise rebuilt, and its password asked again).
 
 Esc while a listing loads or refreshes ends its read as well, after the same grace; a command then reads the archive
 itself. The tests now prove each stop on its own (closing, a command, hiding, the grace's end, being shown again), that
 a panel's showing does not keep the revision in memory, and that the listing pipeline ends a shown listing's work on a
 refresh, a navigation and a closed tab.
+
+A sixth reviewer read `717c2cee`. It found no High or Medium defect: the safety property holds, no token source is used
+after disposal, the counters balance and the lock order holds. It found three Low problems, all fixed in the next
+commit:
+
+- A grace timer that had already fired as the listing was shown again could still stop its read (`CancelAfter` cannot
+  recall a timer the timer queue has picked). The grace is now a timer whose callback decides under the revision's lock,
+  and only for its own generation, so being shown again, or a later hiding, makes an earlier timer stop nothing.
+- The grace test slept past a one-second timer, which a stall on a loaded machine could defeat. The grace's clock is now
+  injectable, and the tests fire its timers themselves: after the listing was shown again, and from an earlier hiding.
+- The listing-model test could see a refresh's rows before its provider kept the work it checks. The provider keeps the
+  work before its rows, as the archive providers do.
+
+From its notes: a read that starts now first checks whether the revision was read or seen changed meanwhile; a test
+holds the index's lock while a panel hides and shows the listing, which no longer waits for it; and the sentences above
+on token shapes and the password message now say exactly what the code does.
 
 Two timing-fragile tests outside archive writing failed once each, under parallel load. One was the keyboard reference
 test, which waited a fixed 20 ms for the dialog; it now waits for the parts it uses. The other was a Windows icon test,

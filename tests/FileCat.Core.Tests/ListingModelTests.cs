@@ -115,13 +115,14 @@ public sealed class ListingModelTests : IDisposable
         public override LocationCapabilities GetCapabilities(Location location) => LocationCapabilities.Enumerate;
         public override Task EnumerateAsync(Location location, IEnumerationSink sink, CancellationToken ct)
         {
-            sink.AddBatch([new EntryData("member", EntryKind.File)]);
+            // As the archive providers do, the work is kept before the rows arrive: a refresh can swap its rows in early.
             if (sink.Shown)
             {
                 var work = new Work();
                 lock (_kept) _kept.Add(work);
                 sink.WhileShown(work);
             }
+            sink.AddBatch([new EntryData("member", EntryKind.File)]);
             return Task.CompletedTask;
         }
         public override Location? GetChildLocation(Location parent, in EntryData entry) => null;

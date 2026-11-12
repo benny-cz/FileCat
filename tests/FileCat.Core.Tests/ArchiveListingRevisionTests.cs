@@ -49,12 +49,15 @@ public sealed partial class ArchiveListingRevisionTests
     public void A_hidden_listing_s_background_read_stops_once_its_grace_ends_and_a_later_showing_reads_again()
     {
         using var temp = new TempDir(); using var file = Plain(temp);
-        var probe = new Probe(file, hold: true);
-        probe.Revision.HiddenGrace = TimeSpan.FromMilliseconds(50);
+        var probe = new Probe(file, hold: true); var clock = new ManualClock();
+        probe.Revision.Clock = clock;
         var showing = probe.Revision.Show(long.MaxValue);
         Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
         showing.Dispose();
-        Assert.True(SpinWait.SpinUntil(() => probe.Revision.BackgroundStopping, 10_000), "The grace never ended.");
+        Assert.False(probe.Revision.BackgroundStopping); // Within the grace the read goes on.
+        Assert.Equal(TimeSpan.FromSeconds(10), Assert.Single(clock.Timers).Due);
+        clock.Timers[0].Fire();
+        Assert.True(probe.Revision.BackgroundStopping, "The grace ended, and the hidden listing's read went on.");
         probe.Release();
         Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, 10_000));
         Assert.Null(probe.Revision.Known); Assert.Equal(0, probe.Resolved);
@@ -64,21 +67,64 @@ public sealed partial class ArchiveListingRevisionTests
     }
 
     [Fact]
-    public void A_listing_shown_again_within_the_grace_keeps_its_one_background_read()
+    public void A_listing_shown_again_within_the_grace_keeps_its_one_background_read_even_if_the_timer_already_fired()
     {
         using var temp = new TempDir(); using var file = Plain(temp);
-        var probe = new Probe(file, hold: true);
-        probe.Revision.HiddenGrace = TimeSpan.FromSeconds(1);
+        var probe = new Probe(file, hold: true); var clock = new ManualClock();
+        probe.Revision.Clock = clock;
         var first = probe.Revision.Show(long.MaxValue);
         Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
         first.Dispose(); // The panel moves to another folder of the archive...
         using var second = probe.Revision.Show(long.MaxValue); // ...whose listing shows the same revision.
-        Thread.Sleep(TimeSpan.FromSeconds(2)); // Past the grace: being shown again called it off.
+        var timer = Assert.Single(clock.Timers);
+        Assert.True(timer.Disposed);
+        timer.Fire(); // A timer that had fired as the listing was shown again: it stops nothing.
         Assert.False(probe.Revision.BackgroundStopping, "The read stopped although the listing was shown again.");
         probe.Release();
         Assert.True(SpinWait.SpinUntil(() => probe.Revision.Known is not null, 10_000));
         Assert.Equal(Sha(file), probe.Revision.Known);
         Assert.Equal(1, probe.Revision.BackgroundReads); Assert.Equal(1, probe.Taken); Assert.Equal(1, probe.Resolved);
+    }
+
+    [Fact]
+    public void A_grace_left_from_an_earlier_hiding_does_not_cut_a_later_one_short()
+    {
+        using var temp = new TempDir(); using var file = Plain(temp);
+        var probe = new Probe(file, hold: true); var clock = new ManualClock();
+        probe.Revision.Clock = clock;
+        var first = probe.Revision.Show(long.MaxValue);
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
+        first.Dispose();
+        var second = probe.Revision.Show(long.MaxValue);
+        second.Dispose();
+        Assert.Equal(2, clock.Timers.Count);
+        clock.Timers[0].Fire();
+        Assert.False(probe.Revision.BackgroundStopping, "An earlier hiding's grace stopped the read.");
+        clock.Timers[1].Fire();
+        Assert.True(probe.Revision.BackgroundStopping);
+        probe.Release();
+        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, 10_000));
+        Assert.Null(probe.Revision.Known);
+    }
+
+    [Fact]
+    public void Hiding_or_showing_a_listing_never_waits_for_the_index_its_read_is_waiting_for()
+    {
+        using var temp = new TempDir(); using var file = Plain(temp);
+        var probe = new Probe(file, holdLease: true);
+        var first = probe.Revision.Show(long.MaxValue);
+        Assert.True(SpinWait.SpinUntil(() => probe.Taking == 1, 5000), "The read should be waiting for the index.");
+        // As a panel's tab closing and another opening on the UI thread, while a viewer holds the index's lock.
+        var panel = Task.Factory.StartNew(() =>
+        {
+            first.Dispose();
+            probe.Revision.Show(long.MaxValue).Dispose();
+        }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        bool returned = panel.Wait(TimeSpan.FromSeconds(10), Ct);
+        probe.ReleaseLease();
+        Assert.True(returned, "Hiding or showing the listing waited for the index the read waits for.");
+        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, 10_000));
+        Assert.Equal(1, probe.Revision.BackgroundReads);
     }
 
     [Fact]
@@ -221,21 +267,46 @@ public sealed partial class ArchiveListingRevisionTests
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static bool Alive(WeakReference<ArchiveListingRevision> revision) => revision.TryGetTarget(out _);
 
+    // A clock whose timers fire only when a test says so (and may fire after being disposed, as a real one can).
+    private sealed class ManualClock : TimeProvider
+    {
+        private readonly List<ManualTimer> timers = [];
+        internal IReadOnlyList<ManualTimer> Timers { get { lock (timers) return [.. timers]; } }
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            var timer = new ManualTimer(callback, state, dueTime);
+            lock (timers) timers.Add(timer);
+            return timer;
+        }
+    }
+
+    private sealed class ManualTimer(TimerCallback callback, object? state, TimeSpan due) : ITimer
+    {
+        internal TimeSpan Due { get; private set; } = due;
+        internal bool Disposed { get; private set; }
+        internal void Fire() => callback(state);
+        public bool Change(TimeSpan dueTime, TimeSpan period) { Due = dueTime; return !Disposed; }
+        public void Dispose() => Disposed = true;
+        public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+    }
+
     // The revision of one file, with its change-token callback and leases observed.
     private sealed class Probe
     {
-        private readonly ManualResetEventSlim held = new();
-        private readonly bool hold;
+        private readonly ManualResetEventSlim held = new(), leaseHeld = new();
+        private readonly bool hold, holdLease;
         internal volatile bool Same = true, Unreadable;
-        internal int Taken, Returned, Entered, Stale, Resolved;
+        internal int Taken, Taking, Returned, Entered, Stale, Resolved;
         internal ArchiveListingRevision Revision { get; }
-        internal Probe(FileStream file, bool hold = false)
+        internal Probe(FileStream file, bool hold = false, bool holdLease = false)
         {
-            this.hold = hold;
+            this.hold = hold; this.holdLease = holdLease;
             Revision = new ArchiveListingRevision(file.SafeFileHandle, Unchanged, Take, null,
                 resolved: (_, _) => Interlocked.Increment(ref Resolved), stale: () => Interlocked.Increment(ref Stale));
         }
         internal void Release() => held.Set();
+        // The index's lock, busy (a viewer decompressing a member) until this.
+        internal void ReleaseLease() => leaseHeld.Set();
         private bool Unchanged()
         {
             Interlocked.Increment(ref Entered);
@@ -243,7 +314,12 @@ public sealed partial class ArchiveListingRevisionTests
             if (Unreadable) throw new IOException("The change token cannot be read now (test).");
             return Same;
         }
-        private IDisposable? Take() { Interlocked.Increment(ref Taken); return new Lease(this); }
+        private IDisposable? Take()
+        {
+            Interlocked.Increment(ref Taking);
+            if (holdLease) leaseHeld.Wait(TimeSpan.FromSeconds(30));
+            Interlocked.Increment(ref Taken); return new Lease(this);
+        }
         private sealed class Lease(Probe owner) : IDisposable
         {
             private int done;

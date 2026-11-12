@@ -106,7 +106,7 @@ refreshes stops it as well. A panel holds the listing's revision weakly, so an i
 memory by a panel. A later command finds that revision read, bound to what the listing showed as tightly as when the
 listing itself read the whole archive. A command that comes first reads the archive itself, at normal priority, and
 stops with the command. A change token of another shape (on Windows, a change journal's USN missing for the moment)
-proves neither sameness nor a change, and the command can be tried again. A change any read sees is final for that listing, and a
+proves neither sameness nor a change when the parts both tokens carry agree, and the command can then be tried again. A change any read sees is final for that listing, and a
 refresh lists the archive anew. An archive over 1 GiB is read when the first
 change needs it instead, and until then only its change token binds the command to the listing. A revision once read
 outlives the listing's index (`ArchiveListingRevision`; the native formats' listings do the same). A listing that cannot identify its members keeps them read-only and
