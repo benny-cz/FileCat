@@ -43,6 +43,20 @@ public sealed class ArchiveAppContainerRuntimeAccessTests
         finally { Directory.Delete(root, true); }
     }
 
+    [Fact]
+    public void A_framework_dependent_copy_says_that_it_cannot_confine_its_workers()
+    {
+        if (!OperatingSystem.IsWindows()) Assert.Skip("Windows AppContainer lane.");
+        string root = Path.Combine(Path.GetTempPath(), "filecat-runtime-access-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "FileCat.Core.dll"), "owned fixture"); File.WriteAllText(Path.Combine(root, "FileCat.portable"), "");
+            Assert.Contains("framework-dependent", ArchiveAppContainer.RuntimeAccessProblem(Path.Combine(root, "FileCat.exe")));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     private static IEnumerable<FileSystemAccessRule> Rules(string folder) =>
         new DirectoryInfo(folder).GetAccessControl(AccessControlSections.Access).GetAccessRules(true, true, typeof(SecurityIdentifier)).Cast<FileSystemAccessRule>();
 }

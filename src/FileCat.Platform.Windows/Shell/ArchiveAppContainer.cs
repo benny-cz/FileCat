@@ -131,6 +131,9 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         string folder = Path.GetDirectoryName(Path.GetFullPath(executable))!;
+        // The framework-dependent build loads the shared .NET runtime, which its confined worker is not granted.
+        if (!File.Exists(Path.Combine(folder, "coreclr.dll")))
+            return "Archive writing needs the self-contained FileCat (its installer or portable copy); this framework-dependent copy cannot confine its archive workers.";
         if (RuntimeReadable(folder) || PortableOwned(folder)) return null;
         return "The archive worker cannot read FileCat's own files in " + folder + ". Install FileCat, or run a portable copy from a folder you own.";
     }
