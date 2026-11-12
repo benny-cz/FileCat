@@ -128,7 +128,7 @@ public sealed class AppServices : IDisposable
         // Shell handlers run only in the restricted helper beside FileCat (plan §8.2, TV-16), started on first use.
         if (FileCat.Platform.Windows.Shell.ShellHostClient.FindExecutable() is { } shellHelper)
             ShellPictures = new FileCat.Platform.Windows.Shell.ShellPreviews(new FileCat.Platform.Windows.Shell.ShellHostClient(shellHelper), () => Settings.ShellPicturesOnNetworkAndRemovable);
-        EditSessions = editSessionFactory is null ? new Core.Edit.EditSessionStore(paths.EditSessionsDirectory, Platform.FileOperations)
+        EditSessions = editSessionFactory is null ? ProductionEditSessions(paths, Platform.FileOperations)
             : editSessionFactory(paths,Platform.FileOperations);
         Metadata = new Core.Metadata.MetadataService(Io);
         // Checksums and signatures beside files (D-57): results kept in the cache folder; trusted minisign keys in the keys
@@ -301,6 +301,33 @@ public sealed class AppServices : IDisposable
                 : OperatingSystem.IsLinux() ? Core.Archives.Linux.LinuxArchiveJobBackend.Create(format, Environment.ProcessPath!)
                 : throw new PlatformNotSupportedException("No production archive worker launcher exists for this platform."),
             FileSystemOf);
+
+    /// <summary>
+    /// Ledger rows 4 and 8: the edit store through its qualification gate (<see cref="Core.Edit.NativeEditStorage"/>). Native
+    /// private storage, in its own root beside the legacy folder, only for a qualified runtime and filesystem; with none
+    /// qualified this is the legacy store and the native-only edit actions keep saying why they are unavailable.
+    /// </summary>
+    internal static Core.Edit.EditSessionStore ProductionEditSessions(AppPaths paths, IFileSystemOperations fileOperations) =>
+        ComposeEditSessions(Core.Edit.NativeEditStorage.Qualified, paths, fileOperations);
+
+    internal static Core.Edit.EditSessionStore ComposeEditSessions(IReadOnlyList<Core.Edit.NativeEditStorage.Route> routes, AppPaths paths,
+        IFileSystemOperations fileOperations)
+    {
+        Func<string, bool, CancellationToken, Core.Edit.EditDirectoryLease>? open = null;
+        Func<string, CancellationToken, Core.Edit.EditSaveCopyDestination>? copyOpen = null;
+        if (OperatingSystem.IsWindows())
+        {
+            open = (path, requirePrivate, ct) => FileCat.Platform.Windows.Archives.WindowsEditDirectoryLease.OpenRoot(path, requirePrivate, ct);
+            copyOpen = FileCat.Platform.Windows.Archives.WindowsEditSaveCopyDestination.Open;
+        }
+        else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            open = (path, requirePrivate, ct) => Core.Edit.UnixEditDirectoryLease.OpenRoot(path, requirePrivate, ct);
+            copyOpen = Core.Archives.Unix.UnixEditSaveCopyDestination.Open;
+        }
+        return Core.Edit.NativeEditStorage.Compose(routes, System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier,
+            paths.EditSessionsDirectory, paths.NativeEditSessionsDirectory, fileOperations, FileSystemOf, open, copyOpen);
+    }
 
     /// <summary>The filesystem of the mount that holds <paramref name="folder"/>, or null when it cannot be established.</summary>
     internal static string? FileSystemOf(string folder)
