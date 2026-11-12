@@ -5,7 +5,9 @@
 //
 //   FileCat.ArchiveReleaseManifest --repo <checkout> --out <manifest.json>
 //       [--payload <rid>=<published folder>]... [--package <rid>:<kind>=<file>]... [--evidence <id>=<file>]...
-//       [--allow-dirty]
+//       [--remote-package <rid>:<kind>=<file name>:<sha256>:<bytes>:<evidence id>]... [--allow-dirty]
+//
+// A remote package was built and hashed on its own machine; its entry names the evidence (a package log) that records it.
 //
 // A dirty checkout is refused unless --allow-dirty is given, and then the manifest says so. Nothing is listed or enabled.
 using System.Diagnostics;
@@ -31,7 +33,7 @@ static class Program
     {
         string? repo = null, output = null; bool allowDirty = false;
         var payloads = new List<(string Rid, string Folder)>(); var packages = new List<(string Rid, string Kind, string File)>();
-        var evidence = new List<(string Id, string File)>();
+        var evidence = new List<(string Id, string File)>(); var remote = new List<JsonObject>();
         for (int i = 0; i < args.Length; i++)
         {
             string Next() => i + 1 < args.Length ? args[++i] : throw new ArgumentException(args[i] + " needs a value.");
@@ -48,6 +50,19 @@ static class Program
                         packages.Add((Rid(key[..colon]), key[(colon + 1)..], Path.GetFullPath(value))); break;
                     }
                 case "--evidence": { var (key, value) = Pair(Next()); evidence.Add((key, Path.GetFullPath(value))); break; }
+                case "--remote-package":
+                    {
+                        var (key, value) = Pair(Next()); int colon = key.IndexOf(':'); string[] parts = value.Split(':');
+                        if (colon <= 0 || colon == key.Length - 1 || parts.Length != 4 || parts[1].Length != 64 || !parts[1].All(Uri.IsHexDigit) ||
+                            !long.TryParse(parts[2], out long bytes) || bytes <= 0 || parts[0].Length == 0 || parts[3].Length == 0)
+                            throw new ArgumentException("--remote-package takes <rid>:<kind>=<file name>:<sha256>:<bytes>:<evidence id>.");
+                        remote.Add(new JsonObject
+                        {
+                            ["rid"] = Rid(key[..colon]), ["kind"] = key[(colon + 1)..], ["file"] = parts[0], ["bytes"] = bytes,
+                            ["sha256"] = parts[1].ToLowerInvariant(), ["hashedOn"] = "its build machine", ["evidence"] = parts[3],
+                        });
+                        break;
+                    }
                 default: throw new ArgumentException("Unknown argument: " + args[i]);
             }
         }
@@ -89,10 +104,14 @@ static class Program
                 }).ToArray()),
             },
             ["payloads"] = new JsonArray(payloads.Select(payload => (JsonNode)Payload(payload.Rid, payload.Folder)).ToArray()),
-            ["packages"] = new JsonArray(packages.Select(package => (JsonNode)Described(package.File, new JsonObject { ["rid"] = package.Rid, ["kind"] = package.Kind })).ToArray()),
+            ["packages"] = new JsonArray(packages.Select(package => (JsonNode)Described(package.File, new JsonObject { ["rid"] = package.Rid, ["kind"] = package.Kind }))
+                .Concat(remote).ToArray()),
             ["evidence"] = new JsonArray(evidence.Select(item => (JsonNode)Described(item.File, new JsonObject { ["id"] = item.Id })).ToArray()),
         };
         if (!clean) manifest["application"]!["uncommittedStatus"] = status.Trim();
+        foreach (var package in remote)
+            if (!evidence.Any(item => item.Id == (string?)package["evidence"]))
+                throw new ArgumentException("A remote package names evidence this manifest does not carry: " + package["evidence"]);
         File.WriteAllText(output, manifest.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
         Console.WriteLine($"Wrote {output}: commit {commit}, {payloads.Count} payloads, {packages.Count} packages, {evidence.Count} evidence files, " +
             $"{ArchiveWriteRoutes.Qualified.Count} archive routes and {NativeEditStorage.Qualified.Count} edit-storage routes listed.");
