@@ -46,9 +46,26 @@ files), and the Linux script refuses a payload that is still writable by others 
 too, but only on wording: a storage check refused the FUSE mount before the AppImage's own reason could be given. The
 AppImage reason now comes first.
 
-**Rerun, `092f5d9a`:** pending.
+**Rerun, `092f5d9a`: the AppImage passes; the .deb still failed, on one file.** The AppImage lane passed: with the image
+mounted (`fuse.FileCat-1.0.0-dev-x86_64.AppImage`), writing is unavailable and the reason names the .deb and
+`--appimage-extract`. The .deb lane failed again for the same cause, now on one file: `filecat.desktop` is written into the
+payload after the normalization, with the caller's umask, so it was still group-writable in `/opt/filecat`. Both scripts
+now set `umask 022` first, and the Linux script checks each staged payload (tarball, .deb, AppImage) right before it
+builds it (`05d7f62c`).
+
+**Second rerun, `05d7f62c`:** pending.
 
 ## Windows (installed layout and portable)
 
-Pending. The installed layout is the setup payload copied into Program Files as the installer copies it. Compiling the
-real installer needs Inno Setup, which is not on this machine (its pinned download needs the owner's approval).
+Two lanes run after the Windows full regression: the setup payload copied into Program Files as the installer copies it
+(`7bc4944a`), and the portable zip unpacked by the standard test user (`7bc4944a`). A third lane uses the real installer.
+
+**The real installer.** With the owner's approval, `eng/Acquire-InnoSetup.ps1` downloaded Inno Setup 6.7.1 from its pinned
+URL, verified its size and SHA-256 and all 119 frozen compiler files, and installed it per user into an isolated folder.
+`eng/Compile-WindowsInstaller.ps1` then built `FileCat-1.0.0-win-x64-setup.exe` (`32d7f5e7…e3c5`, 77,039,703 bytes) from a
+clean checkout of `573d093a`. Inno Setup was uninstalled afterwards (no per-user entry or file left on the build machine);
+its receipts, the compile log and the three SBOMs are kept with the evidence. On the VM the lane installs it silently into
+Program Files (no FileCat installation existed there), runs the route tests against the installed copy, then uninstalls
+it and checks that the program folder is gone.
+
+Results: pending.
