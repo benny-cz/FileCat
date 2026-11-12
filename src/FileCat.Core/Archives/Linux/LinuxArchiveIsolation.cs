@@ -172,7 +172,8 @@ internal static unsafe partial class LinuxArchiveIsolation
         var pending = new Queue<(string Path, int Depth)>(); pending.Enqueue((root, 0));
         while (pending.TryDequeue(out var entry))
         {
-            if (++count > 16_384 || entry.Depth > 8) throw LinuxArchiveNative.Unavailable("The Linux archive bundle exceeds its inventory limit.");
+            // Depth 16, as on Windows: the packaged notices nest nine folders deep (licenses/dependencies/upstream/…/<commit>).
+            if (++count > 16_384 || entry.Depth > 16) throw LinuxArchiveNative.Unavailable("The Linux archive bundle exceeds its inventory limit.");
             var info = UnixFiles.Stat(entry.Path) ?? throw LinuxArchiveNative.Unavailable("The Linux archive bundle cannot be inspected.");
             if (info.IsLink || (info.Owner != 0 && info.Owner != uid) || (info.Mode & 0x12) != 0)
                 throw LinuxArchiveNative.Unavailable("The Linux archive bundle has linked or externally writable assets.");
