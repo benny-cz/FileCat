@@ -157,12 +157,14 @@ internal static unsafe partial class LinuxArchiveIsolation
         if (!Path.IsPathFullyQualified(executable) || UnixFiles.RealPath(executable) != executable)
             throw LinuxArchiveNative.Unavailable("The Linux archive executable must be an exact local package path.");
         string root = Path.GetDirectoryName(executable)!;
+        // The AppImage runtime sets APPIMAGE for the application it runs from its mounted image (squashfs over FUSE), which
+        // is not a qualified place for the confined worker. Say so before any filesystem check fails less helpfully.
+        if (Environment.GetEnvironmentVariable("APPIMAGE") is { Length: > 0 })
+            throw LinuxArchiveNative.Unavailable("Archive writing is not available from the AppImage: its mounted image is not a qualified place for " +
+                "the confined archive worker. Install FileCat's .deb package, or extract the AppImage (--appimage-extract) into a folder on an ext4 drive.");
         using (var held = LinuxArchiveNative.OpenDirectory(root))
             if (Unix.UnixArchiveVolume.Observe(held).FileSystem != "ext4")
-                throw LinuxArchiveNative.Unavailable(Environment.GetEnvironmentVariable("APPIMAGE") is { Length: > 0 }
-                    ? "Archive writing is not available from the AppImage: its mounted image is not a qualified place for the confined archive " +
-                      "worker. Install FileCat's .deb package, or extract the AppImage (--appimage-extract) into a folder on an ext4 drive."
-                    : "This Linux archive bundle filesystem has not been qualified.");
+                throw LinuxArchiveNative.Unavailable("This Linux archive bundle filesystem has not been qualified.");
         if (!File.Exists(Path.Combine(root, "libcoreclr.so")) || !File.Exists(Path.Combine(root, "FileCat.Core.dll")) ||
             !File.Exists(Path.Combine(root, "System.Private.CoreLib.dll")))
             throw LinuxArchiveNative.Unavailable("This Linux archive route requires a separately qualified self-contained worker bundle.");

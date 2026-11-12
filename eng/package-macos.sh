@@ -54,6 +54,9 @@ APP="$OUT/FileCat.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp -a "$PUB/." "$APP/Contents/MacOS/"
+# No group or other write in the bundle, whatever the build user's umask: the sandboxed archive worker refuses an
+# executable or launcher anyone but its owner can change. Folders and executables 755, other files 644 (before signing).
+chmod -R u=rwX,go=rX "$APP"
 cp "$ROOT/LICENSE" "$ROOT/THIRD-PARTY-NOTICES.md" "$APP/Contents/Resources/"
 dotnet run --project "$ROOT/eng/DependencyNotices" -c Release -- \
   "$ROOT/licenses/dependencies" "$ROOT/src/FileCat.App/packages.lock.json" "$PUB" "$APP/Contents/Resources/licenses/dependencies"

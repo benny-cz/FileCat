@@ -75,6 +75,10 @@ cp -R "$ROOT/licenses/sharpcompress" "$PUB/licenses/"
   || { echo "licenses/sharpcompress differs from its pinned notice set." >&2; exit 2; }
 install -m 644 "$ROOT/src/FileCat.App/Assets/filecat.png" "$PUB/filecat.png"
 chmod +x "$PUB/FileCat"
+# No package carries group or other write: the confined archive worker refuses a bundle anyone but its owner can change,
+# and the build user's umask may be 002 (Ubuntu's default). Folders and executables 755, other files 644.
+chmod -R u=rwX,go=rX "$PUB"
+if [ -n "$(find "$PUB" -perm /022 -print -quit)" ]; then echo "The payload is still group- or other-writable." >&2; exit 2; fi
 # The icon at every size it is drawn for (the 16- and 24-pixel frames by hand), so that menus and panels need not
 # shrink the large artwork, which reads poorly small.
 ICONS="$OUT/icons-$RID"
