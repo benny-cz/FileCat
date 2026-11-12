@@ -1,6 +1,6 @@
 # Archive writing implementation status
 
-**12 November, campaign complete and fixed commit `489177af` re-qualified (row 7, §13.6).** Details in
+**12 November, fuzz gates complete; fixed commit `489177af` re-qualified (row 7, §13.6).** Details in
 [FUZZ_CAMPAIGN_SETUP.md](FUZZ_CAMPAIGN_SETUP.md):
 
 - **Campaign on `62f0a457`.** All 47 transports pass host verification: 1.42 billion executions, no crash, leak, dump or
@@ -15,7 +15,9 @@
   CPU-hours (plan 4) from the image's exact seeds, plus a Windows-rooted record pass; corpus-seeded passes add 25.4
   (macOS) and 11.7 (Windows) CPU-hours. The writer scale theory passes under the Windows standard token at 100,000
   members for every engine. The final corpus (465,380 inputs) replays with no failure on macOS, Linux and Windows.
-  Running: the ZIP family (image `fuzz-candidate-v5`, six 15,000 CPU-second units).
+  The ZIP family on image `fuzz-candidate-v5` at `489177af`: six transports verified, 33.71 CPU-hours (floor 24),
+  14.06 million executions, no crash, leak, dump or oracle skip. Every §13.6 fuzz floor now holds for the fixed
+  commit.
 - **Test-tooling defects fixed** (no product change): structured lanes ended on a Windows scanner holding their report
   file and published 23 times a second on fast targets (`b1253274`); repeated transient unit names blocked the second
   image's canary (`96b63086`); Unix evidence carried 220 MiB of published apps (`d72445df`); runners now refuse on a

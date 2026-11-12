@@ -1,6 +1,6 @@
 # Coverage-guided archive-writing fuzz setup
 
-**12 November, candidate campaign on `62f0a457` complete; fixed commit `489177af` re-qualified (row 7, §13.6).**
+**12 November, fuzz gates complete: campaign on `62f0a457`, ZIP family and re-qualification at `489177af` (row 7, §13.6).**
 
 - **Campaign result.** All 47 runs finished by 05:02 and every transport passes host verification
   ([`verify_fuzz_candidate_transport.py`](../../../eng/validation/archive-writing/verify_fuzz_candidate_transport.py)
@@ -45,7 +45,12 @@
   - Writer scale (AT18, `ArchiveWriterScaleTests`) under the Windows VM's standard token: all ten engine profiles write
     and strictly read 100,000 members on a 1 MiB thread (7z LZMA2 63.7 s, RAR5 normal 49.8 s, all others under 12 s).
   - ZIP family: image `fuzz-candidate-v5` at `489177af` qualified (canary found in 11,963 calls, its replay exits 77,
-    27 clean short runs) and runs six `zip-archives` units of 15,000 CPU-seconds each.
+    27 clean short runs), then ran six `zip-archives` units planned at one CPU-second per second (`c3eb3847`); each
+    earned about 20,200 CPU-seconds against its 15,000 floor. All six transports pass host verification
+    (`verify_fuzz_candidate_transport.py campaign 489177af… fuzz-candidate-v5-campaign-list.json zip-archives`):
+    33.71 CPU-hours for the family (floor 24), 14,057,629 executions, no crash, leak, dump, slow unit or oracle skip.
+    Only `zip-archives` reaches the code `1f51bd15` changed, so with the other families' floors from `62f0a457`
+    (identical code for every method they reach) every §13.6 format-release floor holds for the fixed commit.
 - **Harness and tooling defects found on the way** (not product). Structured lanes replaced their report file without
   retrying, so on Windows a scanner holding the file ended a lane as a failure, and they published every 4,096 calls
   (about 23 forced collections a second on fast targets): retried, at most one publish a second (`b1253274`). Transient
@@ -53,7 +58,11 @@
   the runner resets such a unit first (`96b63086`). Unix test evidence keeps published files' hashes instead of the
   binaries (`d72445df`); test runners refuse below 10 GiB free and the scheduler waits below 5 GiB (`c6f1df11`);
   subset planning and per-family verification (`489177af`).
-- **Open.** The ZIP family's 24 CPU-hours at `489177af` (running).
+- **Gate status.** Every §13.6 floor is met for the fixed commit: format families (TAR 25.627, compressed streams
+  27.972, 7z 27.462, RAR5 29.337 and shared 29.330 CPU-hours on `62f0a457`; ZIP 33.71 on `489177af`), every target 2
+  or more, the platform floors on macOS and Windows, and the entire regression corpus on every shipping RID. A product
+  change after `489177af` repeats the families whose code it reaches. Not fuzz work: the owner's route decisions,
+  signing, hosted CI and the final independent review.
 
 **11 November, candidate campaign on `62f0a457` running (row 7, §13.3, §13.6).** One image, one candidate, every target:
 
