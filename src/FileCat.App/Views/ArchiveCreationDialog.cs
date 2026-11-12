@@ -192,7 +192,10 @@ internal sealed class ArchiveCreationDialog : IDisposable
             var encryption = mode == ArchiveEncryptionMode.None ? ArchiveEncryptionOptions.None : new ArchiveEncryptionOptions(mode);
             ArchiveWriteProfile? profile = selected.Format switch
             {
-                ArchiveWriteFormat.Zip => null,
+                // ZIP takes the worker profile where a ZIP route is composed for this destination, and its existing route
+                // elsewhere. The worker's levels: 0 normal Deflate, 1 fastest, 3 stored.
+                ArchiveWriteFormat.Zip => new ArchiveWriteProfile(ArchiveWriteFormat.Zip, compressionLevel: effort switch { 0 => 3, 1 => 1, _ => 0 }) is var zip &&
+                    availability(new(destination, null, [], Profile: zip)).Available ? zip : null,
                 ArchiveWriteFormat.Rar5 => ArchiveWriteProfile.ForRar5((ArchiveRar5Compression)effort, encryption),
                 ArchiveWriteFormat.SevenZip => ArchiveWriteProfile.ForSevenZip(new(Value<ArchiveSevenZipCodec>(codec), Value<ArchiveSevenZipFilter>(filter),
                     deltaDistance: Value<ArchiveSevenZipFilter>(filter) == ArchiveSevenZipFilter.Delta ? distance : 1,

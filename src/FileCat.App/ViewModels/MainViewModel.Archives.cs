@@ -121,7 +121,7 @@ public sealed partial class MainViewModel
             return;
         }
         if (items.Count > MaxArchiveBatch) { Notify($"Add at most {MaxArchiveBatch:N0} items at a time.", true); return; }
-        if (destination.Scheme == Schemes.Archive)
+        if (destination.Scheme == Schemes.Archive || ZipWorker(destination))
         {
             await AddToNativeArchiveAsync(kind, items, destination, options, newName, mode, sourceTab, sourceContext);
             return;

@@ -80,9 +80,23 @@ precision), attributes and comments.
 
 ## Interface
 
-The interface keeps ZIP on the existing route (release R0): the ZIP provider, F5 into a ZIP, member commands and edit
-commits still use `ZipUpdateExecutor`. Switching them to the worker profile belongs to qualifying a ZIP route (ledger rows
-6 and 13), together with ZIP's own read-only explanations for the refused rows above.
+The switch follows the [route decision](RELEASE_ROUTE_DECISION.md) and depends only on composition. Where a ZIP route is
+composed for the archive's runtime and filesystem, every ZIP change takes this profile through the same native review,
+plan and job as the other worker formats:
+
+- Pack to a new ZIP, with the dialog's levels mapped to the profile: Normal 0, Fastest 1, No compression 3.
+- Pack into an existing ZIP, and F5 or F6 into a ZIP folder.
+- F7, F2 and F8 inside a ZIP.
+- F4 edits and their commits. The session records the ZIP profile.
+
+The ZIP provider keeps browsing and extraction. Its listings then carry the revision these commands check: the SHA-256 of
+the archive, read through the listing's own handle. A listing that cannot identify its members keeps them read-only and
+says why. A ZIP that the strict catalog refuses stays read-only, and the command says why in ZIP's own words ("This ZIP
+contains metadata FileCat cannot preserve when saving"). An edit session made before the switch has no worker profile and
+keeps committing through `ZipUpdateExecutor`.
+
+Where no ZIP route is composed, the existing route (release R0) is unchanged. Today that is everywhere, because no route
+is listed.
 
 ## Evidence required
 

@@ -441,7 +441,7 @@ public sealed partial class MainViewModel
     {
         var tab = ActiveTab;
         if (tab?.Location is not { } loc || !tab.Listing.TryGetFocused(out var f) || f.Kind == EntryKind.Parent) return;
-        if (loc.Scheme == Schemes.Archive)
+        if (loc.Scheme == Schemes.Archive || ZipWorker(loc))
         {
             await RenameNativeArchiveMemberAsync(tab, loc);
             return;
@@ -481,7 +481,7 @@ public sealed partial class MainViewModel
     {
         var tab = contextTab ?? ActiveTab;
         if (tab?.Location?.Scheme == Schemes.Registry) { await CreateRegistryAsync(); return; }
-        if (tab?.Location is { Scheme: Schemes.Archive } nativeArchiveFolder)
+        if (tab?.Location is { } nativeArchiveFolder && (nativeArchiveFolder.Scheme == Schemes.Archive || ZipWorker(nativeArchiveFolder)))
         {
             await CreateNativeArchiveFolderAsync(tab, nativeArchiveFolder);
             return;
@@ -558,7 +558,7 @@ public sealed partial class MainViewModel
                 await DeleteHiddenDataAsync(tab, items);
                 return;
             }
-            if (loc.Scheme == Schemes.Archive)
+            if (loc.Scheme == Schemes.Archive || ZipWorker(loc))
             {
                 await DeleteNativeArchiveMembersAsync(loc, items.ToList());
                 return;
@@ -934,14 +934,14 @@ public sealed partial class MainViewModel
             Notify("F4 edits files. Folders have no content to edit.");
             return;
         }
+        if (item.Parent.Scheme == Schemes.Archive || ZipWorker(item.Parent))
+        {
+            await EditNativeArchiveMemberAsync(item);
+            return;
+        }
         if (item.Parent.Scheme == Schemes.Zip)
         {
             await EditArchiveMemberAsync(item);
-            return;
-        }
-        if (item.Parent.Scheme == Schemes.Archive)
-        {
-            await EditNativeArchiveMemberAsync(item);
             return;
         }
         if (item.Parent.Scheme == Schemes.Sftp)

@@ -23,11 +23,24 @@ public sealed partial class MainViewModel
         public void Dispose() { secret?.Dispose(); secret = null; }
     }
 
+    /// <summary>
+    /// A ZIP folder whose archive is changed through the worker profile here (a composed ZIP route): its commands take the
+    /// same native review, plan and job as every other worker format. Elsewhere ZIP keeps its existing route.
+    /// </summary>
+    private bool ZipWorker(Location location) => location.Scheme == Schemes.Zip && Services.Zip.UsesWorkerRoute(location);
+
+    private bool TryGetNativeWriteTarget(Location folder, out string path, out ArchiveWriteProfile profile)
+    {
+        if (folder.Scheme != Schemes.Zip) return Services.Archives.TryGetWriteTarget(folder, out path, out profile);
+        path = folder.Container?.Path ?? ""; profile = ZipProvider.WorkerProfile;
+        return ZipWorker(folder);
+    }
+
     private async Task<NativeArchiveCommand?> PrepareNativeArchiveCommandAsync(Location folder, bool moveSources = false, string? expectedRevision = null,
         ArchiveWriteProfile? requestedProfile = null)
     {
-        if (!Services.Archives.TryGetWriteTarget(folder, out string path, out var profile))
-        { Notify(Services.Archives.ExplainUnavailable(folder, LocationCapabilities.TransferTarget), true); return null; }
+        if (!TryGetNativeWriteTarget(folder, out string path, out var profile))
+        { Notify(Services.Providers.For(folder).ExplainUnavailable(folder, LocationCapabilities.TransferTarget), true); return null; }
         if (requestedProfile is not null)
         {
             if (requestedProfile.Format != profile.Format) throw new NotSupportedException("The saved edit profile does not match this archive.");
@@ -70,6 +83,10 @@ public sealed partial class MainViewModel
             return null;
         }
         catch (OperationCanceledException) { return null; }
+        // A controlled refusal says why in the plan's words for this format (§11.7), for example that a ZIP holds metadata
+        // the worker profile cannot preserve and is therefore read-only here; the worker's own message is technical.
+        catch (ArchiveWriteException error)
+        { if (!Services.Io.IsStopped) Notify("Cannot update this archive: " + ArchiveWriteMessages.ForUser(error, profile.Format, null), true); return null; }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException or System.ComponentModel.Win32Exception)
         { if (!Services.Io.IsStopped) Notify("Cannot update this archive: " + Formatters.SafeName(error.Message), true); return null; }
         finally { password?.Dispose(); }

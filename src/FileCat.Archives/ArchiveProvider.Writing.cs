@@ -96,24 +96,6 @@ public sealed partial class ArchiveProvider
         return null;
     }
 
-    private static string HashListingRevision(FileStream witness, long length, CancellationToken ct)
-    {
-        if (length < 0 || length > ArchiveWritePolicy.MaxPhysicalBytes || witness.Length != length)
-            throw new IOException("The archive length is outside the write profile or changed.");
-        using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
-        byte[] bytes = System.Buffers.ArrayPool<byte>.Shared.Rent(ArchiveIoAuthority.MaximumReadBytes);
-        try
-        {
-            long offset = 0;
-            while (offset < length)
-            {
-                ct.ThrowIfCancellationRequested();
-                int read = RandomAccess.Read(witness.SafeFileHandle, bytes.AsSpan(0, (int)Math.Min(bytes.Length, length - offset)), offset);
-                if (read <= 0) throw new IOException("The archive changed while its listing revision was read.");
-                hash.AppendData(bytes, 0, read); offset += read;
-            }
-            ct.ThrowIfCancellationRequested(); return Convert.ToHexString(hash.GetHashAndReset());
-        }
-        finally { System.Buffers.ArrayPool<byte>.Shared.Return(bytes, clearArray: true); }
-    }
+    private static string HashListingRevision(FileStream witness, long length, CancellationToken ct) =>
+        ArchiveListingRevision.Hash(witness, length, ct);
 }

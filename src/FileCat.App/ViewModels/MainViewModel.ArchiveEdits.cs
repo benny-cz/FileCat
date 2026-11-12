@@ -15,7 +15,9 @@ public sealed partial class MainViewModel
     {
         public ArchiveTargetReview Target { get; } = target;
         public ArchiveManifestMember Member { get; } = ArchiveEditEvidence.UniqueMember(target, rawPath);
-        public IContentSource OpenContent(CancellationToken ct) => owner.Services.Archives.OpenReviewedMember(Target, Member.Name, password, ct);
+        public IContentSource OpenContent(CancellationToken ct) => Target.Profile.Format == ArchiveWriteFormat.Zip
+            ? owner.Services.Zip.OpenReviewedMember(Target, Member.Name, ct)
+            : owner.Services.Archives.OpenReviewedMember(Target, Member.Name, password, ct);
         public void ReviewSource(CancellationToken ct)
         {
             owner.CheckSessionAction(); held.Review(Target.Native, ct); owner.CheckSessionAction();
@@ -74,7 +76,8 @@ public sealed partial class MainViewModel
             "Checking the exact unique member and its complete source revision.", ct =>
         {
             scope.Check();
-            string raw = Services.Archives.ReviewedMemberPath(command.Target, item, command.Password, ct);
+            string raw = item.Parent.Scheme == Schemes.Zip ? Services.Zip.ReviewedMemberPath(command.Target, item)
+                : Services.Archives.ReviewedMemberPath(command.Target, item, command.Password, ct);
             _ = ArchiveEditEvidence.UniqueMember(command.Target, raw); scope.Check(); return new NativeEditSelection(raw);
         });
         if (selected is null || !scope.Current) return;
@@ -88,7 +91,8 @@ public sealed partial class MainViewModel
     private async Task CommitNativeArchiveSessionAsync(EditSessionRecord session, TabViewModel? origin)
     {
         if (session.ArchiveProfile is null) throw new NotSupportedException("This session has no supported archive profile.");
-        var location = FileCat.Archives.ArchiveProvider.ForFile(session.ArchivePath, session.ArchiveFormat switch
+        var location = session.ArchiveFormat == ArchiveWriteFormat.Zip ? ZipProvider.ForFile(session.ArchivePath)
+            : FileCat.Archives.ArchiveProvider.ForFile(session.ArchivePath, session.ArchiveFormat switch
         {
             ArchiveWriteFormat.Tar => FileCat.Archives.ArchiveKind.Tar,
             ArchiveWriteFormat.TarGzip => FileCat.Archives.ArchiveKind.TarGzip,

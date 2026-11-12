@@ -76,7 +76,9 @@ public sealed record EditSessionRecord
     public string PreviousRecordSha256 { get; init; } = "";
     [JsonIgnore] internal string StoredRecordSha256 { get; init; } = "";
     [JsonIgnore] public string? UnsupportedReason { get; init; }
-    [JsonIgnore] public bool IsLegacyZip => !IsRemote && (Version == 1 || ArchiveFormat == ArchiveWriteFormat.Zip);
+    // A ZIP session recorded with a worker profile (a composed ZIP route) is native; every ZIP session without one keeps the
+    // route it was made with.
+    [JsonIgnore] public bool IsLegacyZip => !IsRemote && (Version == 1 || ArchiveFormat == ArchiveWriteFormat.Zip && ArchiveProfile is null);
     [JsonIgnore] public bool IsNativeArchive => !IsRemote && !IsLegacyZip;
     [JsonIgnore] public bool IsSupported => HasValidShape && (LegacyAdoption is null || LegacyAdoptionReady);
     [JsonIgnore] internal bool IsPendingAdoption => HasValidShape && LegacyAdoption is not null && !LegacyAdoptionReady;
@@ -89,7 +91,7 @@ public sealed record EditSessionRecord
         (LegacyAdoption is null && !LegacyAdoptionReady || Version==NativeStorageVersion&&LegacyAdoption is { IsValid:true }&&LegacyAdoption.SourceId!=Id) &&
         (!LegacyRetiring || LegacyAdoption is not null && LegacyAdoptionReady) &&
         Kind is ArchiveKind or RemoteKind && (!IsNativeArchive ||
-        (ArchiveFormat is ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip ||
+        (ArchiveFormat is ArchiveWriteFormat.Tar or ArchiveWriteFormat.TarGzip or ArchiveWriteFormat.TarBzip2 or ArchiveWriteFormat.TarZstd or ArchiveWriteFormat.Rar5 or ArchiveWriteFormat.SevenZip or ArchiveWriteFormat.Zip ||
             ArchiveStandalone.IsStandalone(ArchiveFormat) && MemberPath == ArchiveStandalone.MemberName) &&
         ArchiveProfile is not null && ArchiveProfile.Format == ArchiveFormat && MemberOccurrence == 0 &&
         !string.IsNullOrEmpty(ArchiveIdentity) && !string.IsNullOrEmpty(ArchiveParentIdentity) && !string.IsNullOrEmpty(WorkingIdentity) && !string.IsNullOrEmpty(WorkingDirectoryIdentity) &&
