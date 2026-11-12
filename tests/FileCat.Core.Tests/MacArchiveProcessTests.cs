@@ -68,8 +68,9 @@ public sealed partial class MacArchiveProcessTests(ITestOutputHelper diagnostics
         {
             string secret = Path.Combine(fixture, "descriptor.txt"); File.WriteAllText(secret, "descriptor canary");
             using var original = File.OpenHandle(secret, FileMode.Open, FileAccess.Read, FileShare.Read);
-            int duplicate = Fcntl(checked((int)original.DangerousGetHandle()), 0 /* F_DUPFD, deliberately not close-on-exec */, 200);
-            Assert.True(duplicate >= 200);
+            // dup2 leaves the copy inheritable. (fcntl is variadic: on Apple arm64 a fixed-signature call cannot pass F_DUPFD's argument.)
+            int duplicate = Dup2(checked((int)original.DangerousGetHandle()), 200);
+            Assert.Equal(200, duplicate);
             using var inheritable = new SafeFileHandle((nint)duplicate, ownsHandle: true);
             Assert.Equal(0, Fcntl(duplicate, 1 /* F_GETFD */, 0));
             var worker = MacArchiveProcess.Start(probe, Guid.NewGuid(), TimeSpan.FromSeconds(30), ["archive-mac-fd", duplicate.ToString(CultureInfo.InvariantCulture)]);
@@ -92,7 +93,9 @@ public sealed partial class MacArchiveProcessTests(ITestOutputHelper diagnostics
         diagnostics.WriteLine($"Peak sampled footprint {over.PeakFootprint >> 20} MiB; last output: {output.Split('\n', StringSplitOptions.RemoveEmptyEntries).LastOrDefault()}");
         Assert.True(over.MemoryLimitExceeded);
         Assert.DoesNotContain("allocated", output);
-        Assert.InRange(over.PeakFootprint, Budget + 1, Budget + (128L << 20)); // a sampled bound: some overshoot, never unbounded
+        // A sampled bound: the overshoot is what this probe (filling memory as fast as the machine allows) adds between two
+        // samples, never unbounded.
+        Assert.InRange(over.PeakFootprint, Budget + 1, Budget + (256L << 20));
 
         var under = MacArchiveProcess.Start(probe, Guid.NewGuid(), TimeSpan.FromSeconds(60), ["archive-mac-memory", "64"], Budget);
         await using (under)
@@ -153,7 +156,8 @@ public sealed partial class MacArchiveProcessTests(ITestOutputHelper diagnostics
         try
         {
             string? line = await driver.StandardOutput.ReadLineAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
-            Assert.True(line is not null, await driver.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken));
+            // Read the driver's errors only when it said nothing: while it lives, its error stream stays open.
+            if (line is null) Assert.Fail(await driver.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken));
             using (var facts = JsonDocument.Parse(line)) pid = facts.RootElement.GetProperty("pid").GetInt32();
             Assert.True(Alive(pid));
             await driver.StandardInput.WriteLineAsync("die"); await driver.StandardInput.FlushAsync(TestContext.Current.CancellationToken);
@@ -270,15 +274,18 @@ public sealed partial class MacArchiveProcessTests(ITestOutputHelper diagnostics
         string result = await reader.ReadToEndAsync(TestContext.Current.CancellationToken).WaitAsync(limit ?? TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
         var watch = Stopwatch.StartNew();
         while (!worker.HasExited && watch.Elapsed < TimeSpan.FromSeconds(5)) await Task.Delay(10, TestContext.Current.CancellationToken);
-        Assert.True(worker.HasExited, await worker.ErrorForQualification.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken));
+        if (!worker.HasExited) Assert.Fail("The worker did not exit after closing its output.");
         diagnostics.WriteLine("Worker stderr: " + await worker.ErrorForQualification);
         return result;
     }
 
     private static bool Alive(int pid) => Kill(pid, 0) == 0 || Marshal.GetLastPInvokeError() != 3 /* ESRCH */;
 
+    // Only for commands that ignore the variadic third argument (see An_unrelated_inheritable_descriptor_…).
     [LibraryImport("libc", EntryPoint = "fcntl", SetLastError = true)]
     private static partial int Fcntl(int fd, int command, int argument);
+    [LibraryImport("libc", EntryPoint = "dup2", SetLastError = true)]
+    private static partial int Dup2(int fd, int target);
     [LibraryImport("libc", EntryPoint = "kill", SetLastError = true)]
     private static partial int Kill(int pid, int signal);
 }

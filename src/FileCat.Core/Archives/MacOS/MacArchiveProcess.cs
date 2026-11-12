@@ -13,13 +13,15 @@ namespace FileCat.Core.Archives.MacOS;
 /// cancellation pipe, a capped standard error and the memory monitor. macOS gives an ordinary user no hard memory
 /// ceiling, so, as the owner's re-scoped gate allows, the parent samples the worker's physical footprint every
 /// <see cref="SampleInterval"/> and stops the worker when it exceeds its budget. This is a sampled bound, not a ceiling:
-/// between two samples the worker can exceed the budget (by about 12 MiB at 800 MiB/s in the spike).
+/// between two samples the worker can exceed the budget by what it allocates in that time (about 12 MiB at 800 MiB/s in
+/// the spike; up to about 120 MiB for a worker filling memory as fast as the machine allows at 10 ms). Managed
+/// allocations meet the runtime's own heap limit first (DOTNET_GCHeapHardLimit, half the budget).
 /// </summary>
 internal sealed partial class MacArchiveProcess : IArchiveWorkerProcess
 {
     /// <summary>The worker's physical footprint budget, as the Linux worker's memory cgroup limit.</summary>
     internal const long MemoryBudget = 768L << 20;
-    internal static readonly TimeSpan SampleInterval = TimeSpan.FromMilliseconds(10);
+    internal static readonly TimeSpan SampleInterval = TimeSpan.FromMilliseconds(5);
     private readonly Process process;
     private readonly AnonymousPipeServerStream cancellation;
     private readonly long budget;

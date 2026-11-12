@@ -185,6 +185,8 @@ internal static unsafe partial class MacArchiveIsolation
     internal static partial int TaskGetSpecialPort(uint task, int which, out uint port);
     [LibraryImport("libc", EntryPoint = "proc_pidinfo", SetLastError = true)]
     private static partial int ProcPidInfo(int pid, int flavor, ulong argument, void* buffer, int size);
+    // fcntl is variadic: on Apple arm64 its third argument travels on the stack, which this fixed signature does not
+    // provide. Only F_GETFD and F_GETFL are used here; both ignore that argument.
     [LibraryImport("libc", EntryPoint = "fcntl", SetLastError = true)]
     private static partial int Fcntl(int fd, int command, int argument);
     [LibraryImport("libc", EntryPoint = "fstat")]
