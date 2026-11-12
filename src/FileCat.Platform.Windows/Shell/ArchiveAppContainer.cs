@@ -78,6 +78,7 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (nonce == Guid.Empty) throw new ArgumentException("A task nonce is required.", nameof(nonce));
+        EnsureRuntimeReadAccess(executable);
         string privilege = unchecked((ulong)RestrictedProcess.NotifyPrivilege()).ToString("X16", System.Globalization.CultureInfo.InvariantCulture);
         return Start(executable, $"{roleArgument} {nonce:D} {privilege}", cpuLimit);
     }
@@ -118,6 +119,90 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
             }
         }
         public void Dispose() { try { if (owned) mutex.ReleaseMutex(); } finally { mutex.Dispose(); } }
+    }
+
+    /// <summary>
+    /// Plan §16.1, installed and portable routes: the worker's restricted AppContainer must read the application folder it
+    /// runs from. An installed copy under Program Files inherits read access for restricted application packages. A
+    /// portable copy (with its marker) in a folder the current user owns can be granted read access for this worker
+    /// identity alone (<see cref="EnsureRuntimeReadAccess"/>). Anywhere else writing is unavailable, with this reason.
+    /// </summary>
+    public static string? RuntimeAccessProblem(string executable)
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        string folder = Path.GetDirectoryName(Path.GetFullPath(executable))!;
+        if (RuntimeReadable(folder) || PortableOwned(folder)) return null;
+        return "The archive worker cannot read FileCat's own files in " + folder + ". Install FileCat, or run a portable copy from a folder you own.";
+    }
+
+    /// <summary>
+    /// Before a worker starts: a portable copy in a folder its user owns grants read access for the worker identity on that
+    /// folder once (logged); an installed copy needs nothing. Throws, with the reason, when the worker could not read it.
+    /// </summary>
+    public static void EnsureRuntimeReadAccess(string executable)
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        string folder = Path.GetDirectoryName(Path.GetFullPath(executable))!;
+        if (RuntimeReadable(folder)) return;
+        if (!PortableOwned(folder)) throw new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, RuntimeAccessProblem(executable)!);
+        ProvisionRuntimeReadAccess(folder);
+        FileCat.Core.Diagnostics.AppLog.Info("Granted FileCat's archive worker identity read access to this portable copy's folder: " + folder);
+        if (!RuntimeReadable(folder)) throw new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, RuntimeAccessProblem(executable)!);
+    }
+
+    // Folders found readable stay so for this process; availability is asked on keypresses.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> readableFolders = new(StringComparer.OrdinalIgnoreCase);
+
+    // The worker loads its runtime from these files; each must grant read and execute to this worker identity or to all
+    // restricted application packages, and deny neither.
+    private static bool RuntimeReadable(string folder)
+    {
+        if (readableFolders.ContainsKey(folder)) return true;
+        if (!ReadableNow(folder)) return false;
+        readableFolders.TryAdd(folder, true); return true;
+    }
+
+    private static bool ReadableNow(string folder)
+    {
+        int hr = DeriveAppContainerSidFromAppContainerName(ProfileName, out nint sid);
+        if (hr < 0 || sid == 0) return false;
+        try
+        {
+            var package = new SecurityIdentifier(sid);
+            var restricted = new SecurityIdentifier("S-1-15-2-2"); // ALL RESTRICTED APPLICATION PACKAGES
+            foreach (string name in new[] { "coreclr.dll", "FileCat.Core.dll" })
+            {
+                string path = Path.Combine(folder, name);
+                if (!File.Exists(path)) return false;
+                var rules = new FileInfo(path).GetAccessControl(AccessControlSections.Access).GetAccessRules(true, true, typeof(SecurityIdentifier));
+                bool allowed = false;
+                foreach (FileSystemAccessRule rule in rules)
+                {
+                    if (!rule.IdentityReference.Equals(package) && !rule.IdentityReference.Equals(restricted)) continue;
+                    if (rule.AccessControlType == AccessControlType.Deny && (rule.FileSystemRights & FileSystemRights.ReadAndExecute) != 0) return false;
+                    if (rule.AccessControlType == AccessControlType.Allow && (rule.FileSystemRights & FileSystemRights.ReadAndExecute) == FileSystemRights.ReadAndExecute) allowed = true;
+                }
+                if (!allowed) return false;
+            }
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException) { return false; }
+        finally { FreeSid(sid); }
+    }
+
+    // A portable copy (its marker beside the executable) in a folder the current user owns: no other account's files are
+    // changed by granting the worker read access there.
+    private static bool PortableOwned(string folder)
+    {
+        try
+        {
+            if (!File.Exists(Path.Combine(folder, FileCat.Core.State.AppPaths.PortableMarker))) return false;
+            if ((File.GetAttributes(folder) & FileAttributes.ReparsePoint) != 0) return false;
+            var owner = new DirectoryInfo(folder).GetAccessControl(AccessControlSections.Owner).GetOwner(typeof(SecurityIdentifier));
+            using var current = WindowsIdentity.GetCurrent();
+            return owner is not null && owner.Equals(current.User);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException) { return false; }
     }
 
     /// <summary>

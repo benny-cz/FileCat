@@ -12,7 +12,8 @@ internal static class WindowsArchiveJobBackend
     {
         if (!Path.IsPathFullyQualified(executable)) throw new ArgumentException("An absolute application worker is required.", nameof(executable));
         return new ArchiveNativeJobBackend<WindowsArchiveFile>(format,
-            _ => OperatingSystem.IsWindows() ? ArchiveJobAvailability.Ready : ArchiveJobAvailability.Unqualified,
+            _ => !OperatingSystem.IsWindows() ? ArchiveJobAvailability.Unqualified
+                : ArchiveAppContainer.RuntimeAccessProblem(executable) is { } problem ? new(false, problem) : ArchiveJobAvailability.Ready,
             (plan, ct) => new Scope(plan, ct, retainArtifacts),
             new((nonce, cpu) => ArchiveAppContainer.StartAssessment(executable, nonce, cpu, 2), protocolVersion: 2),
             new((nonce, cpu) => ArchiveAppContainer.StartTransform(executable, nonce, cpu, 2), protocolVersion: 2),
