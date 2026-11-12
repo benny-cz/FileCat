@@ -6,7 +6,9 @@ no safety break and no over-refusal by the probe beyond the intended places. Fix
 - **Medium: a Linux or macOS archive whose group the user cannot keep** (for example downloaded with `sudo` and then given
   to the user, group root) was refused only when the replacement's metadata was applied, after the rebuild; a ZIP had
   left its old route for it. The update admission, and so the probe, now checks it first: the group a new file there
-  gets (macOS: the folder's; Linux: the process's, or the folder's when it is set-group-ID) or one the process may give.
+  gets (macOS: the folder's; Linux: the process's, since the private stage folder clears a set-group-ID bit) or one the
+  process may give. Memberships beyond the process's own group list (nested macOS groups) are not assumed: such an
+  archive is refused, not changed late.
 - **Medium: a macOS test regression.** A test composed routes with the temporary folder as given; the judge resolves it
   through macOS's `/var` link. The Mac run of `90806f12` failed it, as the reviewer predicted; fixed.
 - **Low:** the Pack dialog judges every format for the folder alone (an existing file at some default name hid the

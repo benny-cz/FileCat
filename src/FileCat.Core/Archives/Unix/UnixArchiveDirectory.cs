@@ -221,13 +221,12 @@ internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestin
 
     /// <summary>
     /// Whether a replacement made here can have <paramref name="group"/>, as the update promises: the group a new file
-    /// here gets (on macOS the folder's own; on Linux the process's, or the folder's where the folder is set-group-ID), or
-    /// one this process may give it.
+    /// gets in the private stage folder made here (on macOS this folder's own, which the stage folder inherits; on Linux
+    /// the process's, since the stage folder's own permissions clear a set-group-ID bit), or one this process may give it.
     /// </summary>
     internal bool KeepsGroup(uint group)
     {
-        var folder = ArchiveUnixOuterMetadata.CaptureDirectory(directory).Native;
-        uint created = UnixArchiveNative.Mac || (folder.Mode & 0x400 /* S_ISGID */) != 0 ? folder.Group : UnixArchiveNative.GetEgid();
+        uint created = UnixArchiveNative.Mac ? ArchiveUnixOuterMetadata.CaptureDirectory(directory).Native.Group : UnixArchiveNative.GetEgid();
         return group == created || UnixArchiveNative.MayGiveGroup(group);
     }
     internal void RequirePrivateStageOf(UnixArchiveDirectory publicParent)

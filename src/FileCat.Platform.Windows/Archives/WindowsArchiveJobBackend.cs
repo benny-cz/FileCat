@@ -72,11 +72,9 @@ internal static partial class WindowsArchiveJobBackend
         if (InCloudSyncRoot(folder)) return CloudFolder;
         for (string? current = folder; !string.IsNullOrEmpty(current); current = Path.GetDirectoryName(current))
         {
-            try
-            {
-                if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) == 0) continue;
-                return new DirectoryInfo(current).LinkTarget is null ? CloudFolder : LinkedFolder;
-            }
+            // A cloud folder's reparse point is hidden from this process (above); what shows is a link, a junction, a mount
+            // point or another kind of reparse point (a WSL link, a projected folder), all refused like links.
+            try { if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) return LinkedFolder; }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException) { } // The pins below decide.
         }
         return null;
@@ -87,8 +85,11 @@ internal static partial class WindowsArchiveJobBackend
         try
         {
             long rootId; uint returned;
-            // CF_SYNC_ROOT_INFO_BASIC: succeeds only for a path inside a registered sync root.
-            return CfGetSyncRootInfoByPath(folder, 0, &rootId, sizeof(long), out returned) == 0;
+            // CF_SYNC_ROOT_INFO_BASIC: succeeds only for a path inside a registered sync root. The \\?\ form keeps a long
+            // path from failing (and passing as not synced) where long paths are not enabled.
+            string path = folder.StartsWith(@"\\?\", StringComparison.Ordinal) || !Path.IsPathFullyQualified(folder) || folder.StartsWith(@"\\", StringComparison.Ordinal)
+                ? folder : @"\\?\" + folder;
+            return CfGetSyncRootInfoByPath(path, 0, &rootId, sizeof(long), out returned) == 0;
         }
         catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException) { return false; }
     }
