@@ -238,10 +238,11 @@ internal static unsafe partial class UnixArchiveNative
     [LibraryImport("libc", EntryPoint = "acl_get_perm_np", SetLastError = true)]
     private static partial int AclGetPerm(nint rights, int right);
 
-    // Every right of a Darwin access-control entry (sys/acl.h), but ACL_DELETE (1 << 4), the generic ones included.
+    // Every right acl_get_perm_np takes (acl_perm_t in sys/acl.h), but ACL_DELETE (1 << 4). Darwin's generic rights (1 << 21
+    // to 1 << 24) are not among them: asked for one, acl_get_perm_np fails, and every entry would be refused (the Mac run of
+    // 04dbc8fa refused macOS's own "deny delete" that way).
     private static readonly int[] RightsOtherThanDelete =
-        [1 << 1, 1 << 2, 1 << 3, 1 << 5, 1 << 6, 1 << 7, 1 << 8, 1 << 9, 1 << 10, 1 << 11, 1 << 12, 1 << 13, 1 << 20,
-            1 << 21, 1 << 22, 1 << 23, 1 << 24];
+        [1 << 1, 1 << 2, 1 << 3, 1 << 5, 1 << 6, 1 << 7, 1 << 8, 1 << 9, 1 << 10, 1 << 11, 1 << 12, 1 << 13, 1 << 20];
 
     /// <summary>
     /// Whether this process may give a file it owns <paramref name="group"/>: its effective group, or one of its

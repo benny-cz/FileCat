@@ -25,6 +25,11 @@ This machine also has its Downloads, Documents, Music, Pictures and Videos moved
 writable when opened at `D:`, and the message now says so. Its `C:` drive supports no NTFS transactions, so existing
 archives there are read-only, as the probe says; `D:` supports them.
 
+The next commit also took a note of that review too far: it added Darwin's generic access rights to the rights a macOS
+deny entry may not hold, but `acl_get_perm_np` does not take them and fails, so the Mac run of `04dbc8fa` refused macOS's
+own "deny delete" on Desktop, Documents and Downloads (its access-list test failed). The list is back to the rights
+`acl_get_perm_np` takes.
+
 The Mac run of `90806f12` also failed the macOS memory-monitor test once: under the parallel suite the sampler ran late
 and the worker reached 543 MiB against its 256 MiB budget before it was stopped (usual peaks 266 to 341 MiB). That is the
 documented nature of the owner's re-scoped gate (a sampled bound, never a ceiling); the test's allowance was a guess and
