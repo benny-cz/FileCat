@@ -41,6 +41,33 @@ and four problems, all fixed in the next commit:
 - **A test comment claimed journal behaviour that does not exist.** It now checks that the edit store's commit plans
   carry the marker.
 
+A third reviewer read `1fd1f5b6`, the background reads. It found seven defects, all fixed in the next commit:
+
+- Every enumeration started a read, not only a panel's listing; a Find over archives started one per archive. Only a
+  shown listing (`IEnumerationSink.Shown`, set by the panel's listing) now starts one.
+- Closing an index cancelled a read a command waited for, and a cancelled command left its read running at normal
+  priority. A read now stops only when no command waits for it and it is not the shown listing's own read (which drops
+  back to low priority). A resolved index is touched, so it is the last to leave the cache.
+- A change a read saw could be read past on retry. It is now permanent for that listing.
+- On Windows a low-priority read on the listing's own synchronous file object could hold up member reads through it. It
+  now reads through a file object of its own (`ReOpenFile`).
+- A lease leaked if the read's thread could not start. It is now returned.
+- The Windows withdrawal also removed deny entries. It now removes only allow entries.
+- Linux restored the default I/O priority, not the thread's own. It now restores the previous value (macOS likewise).
+
+New tests cover the read's lifetime on a real file: the size limits, closing while nothing or a command waits, a command
+giving up, a change seen once, and the deny entry kept on Windows. A closing index now releases the revision outside its
+own lock, which avoids a lock-order inversion.
+
+Two timing-fragile tests outside archive writing failed once each, under parallel load. One was the keyboard reference
+test, which waited a fixed 20 ms for the dialog; it now waits for the parts it uses. The other was a Windows icon test,
+which is under observation. The Ubuntu VM's ssh session had no login keyring collection, so the system secret store test
+could not pass there; the collection was created on the VM (password `a`), so that test can now run.
+
+Re-validation of `1fd1f5b6`, before the third review: on macOS every suite passed except the keyboard reference test
+above, and the package and packaged-launcher lanes passed (14 of 14). On Ubuntu every suite passed except the keyring
+test, and all package lanes passed.
+
 Re-validation of `9db8a01b`, before the second review:
 - **macOS:** full regression passed: App 2,833, Core 9,102, Remote 2,638, Rendering 23, with 10 sandboxed creation flows
   and the ZIP lanes. The only failure was a probe bug: .NET reports the file-size limit's EFBIG as

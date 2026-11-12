@@ -166,6 +166,9 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
     private const FileSystemRights FolderRights = FileSystemRights.Traverse | FileSystemRights.ReadAttributes | FileSystemRights.Synchronize;
     private const int GenericRead = unchecked((int)0x80000000), GenericExecute = 0x20000000, GenericAll = 0x10000000;
 
+    /// <summary>Whether the worker could read this runtime now, without the per-process memo (tests).</summary>
+    internal static bool RuntimeReadableNow(string executable) => ReadableNow(Path.GetFullPath(executable));
+
     private static bool RuntimeReadable(string executable)
     {
         if (readableRuntimes.ContainsKey(executable)) return true;
@@ -227,7 +230,8 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
         return allowed;
     }
 
-    // Whether the folder carries a grant for this worker identity that its contents inherit (an earlier build's).
+    // Whether the folder carries a grant for this worker identity that its contents inherit (an earlier build's). A deny
+    // entry is not a grant: someone denied the worker access on purpose, and it stays.
     private static bool FolderGrantInherits(string folder)
     {
         int hr = DeriveAppContainerSidFromAppContainerName(ProfileName, out nint sid);
@@ -237,7 +241,8 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
             var package = new SecurityIdentifier(sid);
             foreach (FileSystemAccessRule rule in new DirectoryInfo(folder).GetAccessControl(AccessControlSections.Access)
                 .GetAccessRules(true, false, typeof(SecurityIdentifier)))
-                if (rule.IdentityReference.Equals(package) && rule.InheritanceFlags != InheritanceFlags.None) return true;
+                if (rule.IdentityReference.Equals(package) && rule.AccessControlType == AccessControlType.Allow &&
+                    rule.InheritanceFlags != InheritanceFlags.None) return true;
             return false;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException) { return false; }
@@ -417,7 +422,7 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
         }
 
         // Traverse a folder on the way to runtime files; nothing inherits it. withdrawInherited removes this identity's
-        // inheritable grants there (an earlier build granted the whole application folder).
+        // inheritable grants there (an earlier build granted the whole application folder); deny entries stay.
         public void GrantFolderTraverse(string path, bool withdrawInherited)
         {
             var directory = new DirectoryInfo(path);
@@ -425,7 +430,8 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
             var acl = directory.GetAccessControl(AccessControlSections.Access);
             if (withdrawInherited)
                 foreach (FileSystemAccessRule rule in acl.GetAccessRules(true, false, typeof(SecurityIdentifier)))
-                    if (rule.IdentityReference.Equals(Identity) && rule.InheritanceFlags != InheritanceFlags.None) acl.RemoveAccessRuleSpecific(rule);
+                    if (rule.IdentityReference.Equals(Identity) && rule.AccessControlType == AccessControlType.Allow &&
+                        rule.InheritanceFlags != InheritanceFlags.None) acl.RemoveAccessRuleSpecific(rule);
             acl.AddAccessRule(new FileSystemAccessRule(Identity, FolderRights, InheritanceFlags.None, PropagationFlags.None, AccessControlType.Allow));
             directory.SetAccessControl(acl);
         }

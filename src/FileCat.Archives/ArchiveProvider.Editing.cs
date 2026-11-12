@@ -17,6 +17,7 @@ public sealed partial class ArchiveProvider
         lock (_cacheLock)
         {
             index = _cache.Values.FirstOrDefault(value => value.Revision?.Token == token);
+            index?.Touch(); // In use by a command: the last to leave the cache.
             lease = index?.TryLease();
         }
         if (index?.Revision is not { } revision || lease is null) throw new IOException(ArchiveListingRevision.Closed);

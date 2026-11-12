@@ -45,6 +45,12 @@ public interface IEnumerationSink
     /// provider that bounds what it lists for a folder shown may allow far more (review finding R-M9).
     /// </summary>
     bool Whole => false;
+
+    /// <summary>
+    /// Whether this is a panel's listing, shown to the user, rather than a search, a comparison, an export or a transfer
+    /// walking the folder: a provider starts work only a shown listing needs (an archive's revision read) for these.
+    /// </summary>
+    bool Shown => false;
 }
 
 /// <summary>

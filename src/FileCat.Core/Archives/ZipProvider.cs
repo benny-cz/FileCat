@@ -348,8 +348,9 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         index.VerifySource();
         index.VerifyPath(GetSourceIdentity, GetOpenedSourceIdentity);
         sink.AddBatch(batch.ToArray());
-        // The rows are shown: the revision they carry is read now, in the background (ArchiveListingRevision).
-        if (index.Revision is { Problem: null, Known: null } shown && location.Container is { IsFileSystem: true } container &&
+        // A panel shows the rows: the revision they carry is read now, in the background (ArchiveListingRevision). A search,
+        // a comparison or a transfer walking the archive reads nothing more.
+        if (sink.Shown && index.Revision is { Problem: null, Known: null } shown && location.Container is { IsFileSystem: true } container &&
             MutationAvailability?.Invoke(new(container.Path, null, [], Profile: WorkerProfile)).Available == true)
             shown.ReadInBackground(RevisionReadLimit);
         return Task.CompletedTask;
@@ -409,6 +410,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         lock (_cacheLock)
         {
             index = _cache.Values.FirstOrDefault(value => value.Revision?.Token == token);
+            index?.Touch(); // In use by a command: the last to leave the cache.
             lease = index?.TryLease();
         }
         if (index?.Revision is not { } revision || lease is null) throw new IOException(ArchiveListingRevision.Closed);
@@ -420,6 +422,13 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
     {
         if (_resolvedRevisions.TryGetValue(token, out var known)) return known;
         lock (_cacheLock) return _cache.Values.FirstOrDefault(value => value.Revision?.Token == token)?.Revision?.Known;
+    }
+
+    /// <summary>Whether any read of a listing token's revision began (tests and diagnostics).</summary>
+    internal bool ListingRevisionReadBegan(string token)
+    {
+        if (_resolvedRevisions.ContainsKey(token)) return true;
+        lock (_cacheLock) return _cache.Values.FirstOrDefault(value => value.Revision?.Token == token)?.Revision?.ReadBegan == true;
     }
 
     /// <summary>The raw name of the one regular member <paramref name="item"/> shows, checked against the edit's review.</summary>
@@ -881,14 +890,17 @@ internal sealed class ZipIndex : IDisposable
 
     public void Dispose()
     {
+        ArchiveListingRevision? revision;
         lock (_lock)
         {
             if (_closing) return;
             _closing = true;
-            // A background revision read stops at its next block and returns its lease; the archive then closes.
-            Volatile.Read(ref _revision)?.Close();
+            revision = Volatile.Read(ref _revision);
             if (_leases == 0) Close();
         }
+        // Outside the index lock (the revision takes its own lock, then this one for a lease): a revision read nothing waits
+        // for stops at its next block and returns its lease, and the archive then closes.
+        revision?.Close();
     }
 
     private void Close()

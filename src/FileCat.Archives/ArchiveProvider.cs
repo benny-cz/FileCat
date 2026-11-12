@@ -198,9 +198,10 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         index.VerifySource();
         index.VerifyVolumePaths();
         sink.AddBatch(batch.ToArray());
-        // The rows are shown: the revision they carry is read now, in the background (ArchiveListingRevision). An index
-        // carries a revision only where writing was available when it was built, or for an edit.
-        if (index.Revision is { Problem: null, Known: null } shown) shown.ReadInBackground(RevisionReadLimit);
+        // A panel shows the rows: the revision they carry is read now, in the background (ArchiveListingRevision). An index
+        // carries a revision only where writing was available when it was built, or for an edit; a search, a comparison or
+        // a transfer walking the archive reads nothing more.
+        if (sink.Shown && index.Revision is { Problem: null, Known: null } shown) shown.ReadInBackground(RevisionReadLimit);
         return Task.CompletedTask;
     }
 
@@ -859,14 +860,17 @@ internal sealed class ArchiveIndex : IDisposable
 
     public void Dispose()
     {
+        ArchiveListingRevision? revision;
         lock (_lock)
         {
             if (_closed) return;
             _closing = true;
-            // A background revision read stops at its next block and returns its lease; the archive then closes.
-            Volatile.Read(ref _revision)?.Close();
+            revision = Volatile.Read(ref _revision);
             if (_leases == 0 && ViewCount == 0) Close();
         }
+        // Outside the index lock (the revision takes its own lock, then this one for a lease): a revision read nothing waits
+        // for stops at its next block and returns its lease, and the archive then closes.
+        revision?.Close();
     }
     private void Close()
     {

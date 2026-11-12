@@ -63,7 +63,8 @@ public sealed class ArchiveAppContainerRuntimeAccessTests
                 new DirectoryInfo(earlier).SetAccessControl(acl);
                 Assert.NotEmpty(PackageRules(Path.Combine(earlier, "Data", "settings.json")));
                 string earlierExecutable = Path.Combine(earlier, "FileCat.exe");
-                Assert.Null(ArchiveAppContainer.RuntimeAccessProblem(earlierExecutable));
+                // Readable as it is: the earlier start would have returned here and kept the whole-folder grant.
+                Assert.True(ArchiveAppContainer.RuntimeReadableNow(earlierExecutable));
                 ArchiveAppContainer.EnsureRuntimeReadAccess(earlierExecutable);
                 foreach (string other in Others) Assert.Empty(PackageRules(Path.Combine(earlier, other)));
                 var kept = Assert.Single(PackageRules(earlier));
@@ -72,6 +73,22 @@ public sealed class ArchiveAppContainerRuntimeAccessTests
                 foreach (string runtime in Runtime) Assert.Single(PackageRules(Path.Combine(earlier, runtime)), rule => !rule.IsInherited);
             }
             finally { Directory.Delete(earlier, true); }
+
+            // A copy whose folder denies the worker on purpose: the deny stays, and writing is unavailable there.
+            string denied = Bundle();
+            try
+            {
+                File.WriteAllText(Path.Combine(denied, "FileCat.portable"), "");
+                var acl = new DirectoryInfo(denied).GetAccessControl(AccessControlSections.Access);
+                acl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(package), FileSystemRights.ReadAndExecute,
+                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Deny));
+                new DirectoryInfo(denied).SetAccessControl(acl);
+                Assert.Throws<ArchiveWriteException>(() => ArchiveAppContainer.EnsureRuntimeReadAccess(Path.Combine(denied, "FileCat.exe")));
+                Assert.Contains(PackageRules(denied), rule => rule.AccessControlType == AccessControlType.Deny && !rule.IsInherited &&
+                    rule.InheritanceFlags == (InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit));
+                Assert.False(ArchiveAppContainer.RuntimeReadableNow(Path.Combine(denied, "FileCat.exe")));
+            }
+            finally { Directory.Delete(denied, true); }
         }
         finally { Directory.Delete(root, true); }
     }

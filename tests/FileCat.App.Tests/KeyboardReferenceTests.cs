@@ -22,7 +22,16 @@ public sealed class KeyboardReferenceTests
             var task = dialogs.KeyboardReferenceAsync([
                 new KeyboardHelpEntry("file.copy", "Copy", "Files", "F5", null),
             ], remapOnly: true);
-            await Task.Delay(20, TestContext.Current.CancellationToken);
+            // The overlay attaches its parts over a few layout passes (the search box sits in a templated part); under parallel
+            // test load that takes longer than a fixed delay, so wait for both parts the test uses.
+            var attached = System.Diagnostics.Stopwatch.StartNew();
+            while (!(host.GetVisualDescendants().OfType<Button>().Any(b => Equals(b.Content, "Run command")) &&
+                     host.GetVisualDescendants().OfType<TextBox>().Any(x => x.PlaceholderText == "Find the command to remap")) &&
+                   attached.Elapsed < TimeSpan.FromSeconds(15))
+            {
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            }
             var run = host.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Run command"));
             Assert.False(run.IsVisible);
             var search = host.GetVisualDescendants().OfType<TextBox>().Single(x => x.PlaceholderText == "Find the command to remap");

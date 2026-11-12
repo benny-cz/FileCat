@@ -1472,6 +1472,8 @@ public sealed class ListingModel : IDisposable
 
         private sealed class StoreSink(Pipeline owner) : IEnumerationSink
         {
+            public bool Shown => true;
+
             public void AddBatch(ReadOnlySpan<EntryData> entries)
             {
                 owner.Cts.Token.ThrowIfCancellationRequested();

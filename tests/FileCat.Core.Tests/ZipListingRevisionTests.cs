@@ -91,6 +91,24 @@ public sealed class ZipListingRevisionTests
         finally { provider.Release(path); }
     }
 
+    // Only a panel's listing reads the revision: a search, a comparison or a transfer walking the archive reads nothing
+    // more than the central directory (third review of 12 November 2026).
+    [Fact]
+    public async Task Only_a_shown_listing_reads_its_revision_in_the_background()
+    {
+        using var temp = new TempDir(); string path = Zip(temp, "listed.zip", 64 * 1024);
+        var provider = Provider(temp, background: true); var location = ZipProvider.ForFile(path);
+        try
+        {
+            string token = await Token(provider, location, shown: false);
+            await Task.Delay(200, TestContext.Current.CancellationToken);
+            Assert.False(provider.ListingRevisionReadBegan(token));
+            Assert.Equal(token, await Token(provider, location, shown: true));
+            Assert.True(provider.ListingRevisionReadBegan(token));
+        }
+        finally { provider.Release(path); }
+    }
+
     [Fact]
     public async Task Without_a_composed_route_a_listing_carries_no_revision()
     {
@@ -137,9 +155,9 @@ public sealed class ZipListingRevisionTests
         MutationAvailability = background ? _ => ArchiveJobAvailability.Ready : null,
     };
 
-    private static async Task<string> Token(ZipProvider provider, Location location)
+    private static async Task<string> Token(ZipProvider provider, Location location, bool shown = true)
     {
-        var sink = new Sink(); await provider.EnumerateAsync(location, sink, TestContext.Current.CancellationToken);
+        var sink = new Sink(shown); await provider.EnumerateAsync(location, sink, TestContext.Current.CancellationToken);
         var revisions = sink.Items.Select(entry => provider.GetItemRef(location, entry)).Select(item =>
         {
             Assert.Null(item.ArchiveMutationProblem); return item.ArchiveRevision;
@@ -167,8 +185,9 @@ public sealed class ZipListingRevisionTests
         return path;
     }
 
-    private sealed class Sink : IEnumerationSink
+    private sealed class Sink(bool shown = true) : IEnumerationSink
     {
+        public bool Shown => shown;
         internal readonly List<EntryData> Items = [];
         public void AddBatch(ReadOnlySpan<EntryData> batch) { foreach (var entry in batch) Items.Add(entry); }
         public void ReportIssue(string message) { }
