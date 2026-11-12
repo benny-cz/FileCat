@@ -124,7 +124,11 @@ public sealed class ArchiveZipWorkerNativeUiTests
         string? executable = null;
         if (OperatingSystem.IsWindows() && Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_TXF_NATIVE") == "1" &&
             Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_APP_ASSETS") is { Length: > 0 } assets)
-        { ArchiveAppContainer.ProvisionRuntimeReadAccess(assets); executable = Path.Combine(assets, "FileCat.exe"); }
+        {
+            // A package route lane checks that the installed or portable copy itself lets its workers read it.
+            if (Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_PACKAGE_ROUTE") != "1") ArchiveAppContainer.ProvisionRuntimeReadAccess(assets);
+            executable = Path.Combine(assets, "FileCat.exe");
+        }
         else if (OperatingSystem.IsLinux() && Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_LINUX_NATIVE") == "1")
             executable = Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_LINUX_APP");
         else if (OperatingSystem.IsMacOS() && Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_MAC_NATIVE") == "1")

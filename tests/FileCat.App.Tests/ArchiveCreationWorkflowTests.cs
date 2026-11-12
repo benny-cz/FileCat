@@ -181,7 +181,9 @@ public sealed partial class ArchiveCreationWorkflowTests
             Assert.Skip("Run the explicit standard-user native creation UI lane.");
         var ct=TestContext.Current.CancellationToken;
         string assets=Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_APP_ASSETS")??throw new InvalidOperationException("Actual application assets are required.");
-        ArchiveAppContainer.ProvisionRuntimeReadAccess(assets);string executable=Path.Combine(assets,"FileCat.exe");
+        // A package route lane checks that the installed or portable copy itself lets its workers read it.
+        if(Environment.GetEnvironmentVariable("FILECAT_ARCHIVE_PACKAGE_ROUTE")!="1")ArchiveAppContainer.ProvisionRuntimeReadAccess(assets);
+        string executable=Path.Combine(assets,"FileCat.exe");
         var backends=new ArchiveJobBackends(ArchiveCreationFormat.All.Where(value=>value.Format!=ArchiveWriteFormat.Zip)
             .Select(value=>WindowsArchiveJobBackend.Create(value.Format,executable)));
         using var f=await Fixture.Open(customBackends:backends);
