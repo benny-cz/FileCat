@@ -16,6 +16,7 @@
     <InternalsVisibleTo Include="FileCat.ArchiveFuzzHarness" />
     <InternalsVisibleTo Include="FileCat.WorkerProbe" />
     <InternalsVisibleTo Include="FileCat.ArchiveQualificationHost" />
+    <InternalsVisibleTo Include="FileCat.ArchiveReleaseManifest" />
     <InternalsVisibleTo Include="FileCat.ArchiveWorker" />
     <InternalsVisibleTo Include="FileCat.ArchiveVmProbe" />
     <InternalsVisibleTo Include="FileCat.App.Tests" />
