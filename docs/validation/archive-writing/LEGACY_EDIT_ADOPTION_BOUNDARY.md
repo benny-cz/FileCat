@@ -164,3 +164,16 @@ file, open editor, stop after the intent, stop after the working file, a change 
 record that is not adopted, cancel; on Unix an unreadable old folder and an atomic save at the moment of removal; on
 Linux another program opening the file during the lease), with the UI path in `EditAdoptionRetainedUiTests`. The
 application factory still composes only the legacy store; registering the native store remains open.
+
+12 November. **Production composition behind a qualification gate** (`8c07260a`). `NativeEditStorage` lists the runtimes
+and filesystems on which ordinary startup composes this dual-root native store, each with its evidence, as
+`ArchiveWriteRoutes` does for the archive backends. For a listed runtime whose native root's filesystem qualifies,
+`AppServices` composes the store with the platform's private directory leases (Windows `WindowsEditDirectoryLease`,
+Unix `UnixEditDirectoryLease`) and save-copy destinations, the native root `edit-sessions-native` beside the legacy
+folder (now in the write-folder inventory): new edits are created there, older ones stay in the legacy folder with their
+commit route, and adoption and retirement keep their reviews. Everywhere else, and in this build everywhere, startup keeps
+the legacy store exactly as before and probes nothing. `NativeEditStorageTests` pin the empty list and the gate's rules;
+`EditStoreCompositionTests` drive the real application wiring, where a listed runtime creates a new edit in native storage
+beside an older legacy one and both load. macOS (App 2,812, Core 580), Ubuntu (App 2,824, Core 582) and the Windows VM
+(App 2,916, Core 253, Windows edit platform 332) passed with no failure (`edit-v24a-mac` `32e6e135…`, `edit-v24a-ubuntu`
+`2e70ecd7…`, `edit-v24a-win` `3a146b0d…`). Registering a runtime belongs to the per-route qualification decisions.

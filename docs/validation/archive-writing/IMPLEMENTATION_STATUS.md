@@ -1,5 +1,14 @@
 # Archive writing implementation status
 
+**12 November, native edit store composed behind its qualification gate (rows 4, 8, 13).** `NativeEditStorage` lists the
+runtimes and filesystems on which ordinary startup composes the native, private edit store (its own `edit-sessions-native`
+root beside the legacy folder, the platform's private leases); none is listed, so startup keeps the legacy store and probes
+nothing, as `ArchiveWriteRoutes` keeps the archive backends unregistered (`8c07260a`). Through the real application wiring a
+listed runtime creates new edits in native storage while older ones stay and both load. Passed on macOS, Ubuntu and the
+Windows VM (App suites 2,812 / 2,824 / 2,916, edit and path Core tests 580 / 582 / 253, Windows edit platform tests 332), no
+failure. The plan's remaining items are the owner's: which routes and runtimes to qualify (with the ZIP switch to the
+worker profile, row 6), the final candidate's packages and signing, and the independent review.
+
 **12 November, fuzz gates complete; fixed commit `489177af` re-qualified (row 7, §13.6).** Details in
 [FUZZ_CAMPAIGN_SETUP.md](FUZZ_CAMPAIGN_SETUP.md):
 

@@ -2,7 +2,8 @@
 
 10 November 2026, branch `codex/archive-writing` after `f6d58ec6`. A read-only code audit of plan §11 and §12 against the
 application, made to turn ledger item 8 into concrete work. It is a working list, not qualification evidence; each item
-closes with its own change and test. Ordinary startup still registers no native archive backend or native edit store
+closes with its own change and test. Ordinary startup still registers no native archive backend or native edit store (both are
+composed only through their qualification gates, `ArchiveWriteRoutes` and `NativeEditStorage`, whose lists are empty)
 (`src/FileCat.App/Services/AppServices.cs`), so every native item is reachable only through explicit composition today;
 legacy ZIP is the only live writer. Paths below are relative to `src/`. "No test" means no App or Core test asserts it.
 
