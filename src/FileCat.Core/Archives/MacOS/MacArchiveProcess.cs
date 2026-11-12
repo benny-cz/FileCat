@@ -137,7 +137,9 @@ internal sealed partial class MacArchiveProcess : IArchiveWorkerProcess
 
     public ValueTask DisposeAsync()
     {
-        lock (gate) return new(disposing ??= Finish());
+        // Finish runs outside the gate: for a worker that has already exited it completes synchronously, and it joins the
+        // monitor, which takes the gate on every sample.
+        lock (gate) return new(disposing ??= Task.Run(Finish));
     }
 
     private async Task Finish()
