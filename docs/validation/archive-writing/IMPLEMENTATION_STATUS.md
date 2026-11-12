@@ -1,9 +1,57 @@
 # Archive writing implementation status
 
+**12 November, the listing's review and its fixes (rows 13 and 14).** A seventh independent reviewer read the listing
+(`a1cd79be`) and the grace fix (`f4aa66a7`). It found no way to write somewhere unsafe: every misdetection it built
+(junction and mount-point folders, `subst`, symbolic links, macOS firmlinks, ext2/3) still fails closed at the writer's own
+checks. It found that listing would have broken writing in common places instead, all fixed in the next commit:
+
+- **High: macOS Desktop, Documents and Downloads.** The writer refused any folder with an access list (ACL), and macOS
+  puts `group:everyone deny delete` on the home folder and on Desktop, Documents, Downloads, Music, Pictures and Public
+  (checked on the test Mac). An entry that only denies, and passes nothing on to new files, grants no one anything: such
+  folders are now writable. An allow entry, an inheritable one, or an access list that cannot be read in full is still
+  refused.
+- **High: places the writer cannot write, found only when a command ran.** Routes were judged by the drive's file
+  system alone, but the writer refuses a folder reached through a link, a junction or a mount point, a folder synced by
+  OneDrive (its folders and files are reparse points, checked on this host), a folder another user can change (Linux
+  and macOS), and an archive with another hard link. A ZIP in such a place lost the old route, which works there. Each
+  writer now answers, before anything starts, whether it can write a place, using its own checks (a few handle opens
+  that share everything and hold nothing). A place it cannot write is not covered: a ZIP there keeps the old route, and
+  the other formats say why. The job checks everything again.
+- **Medium: an elevated FileCat** lost ZIP writing and learned it only when a command ran. Elevation is now one of those
+  answers: a ZIP keeps the old route, the other formats say that FileCat must run without administrator rights (or not
+  as root).
+- **Medium: the release text promised that another hard link keeps the old content;** the writer refuses such an
+  archive. The text now says so (a ZIP keeps the old route, where it still holds), as does the proposed ADR-07
+  amendment.
+- **Medium: an existing native edit root that is not this user's private one** (made by another account or computer,
+  as on an external drive or a shared `--data` folder) would have refused every edit and the startup review. Startup now
+  checks it too and keeps the legacy store then.
+- **Native edit storage is not listed after all.** With it as the default, the Ubuntu App suite of `a1cd79be` failed 187
+  edit cases. Some only inject faults into the legacy store's file operations, which the native store does not use; but
+  others show that F4 behaves differently: a stopped F4 keeps its partly made edit for review instead of removing it,
+  and the creation marker that makes a crash recoverable is visible while the copy runs. The application's edit flows
+  were never qualified against the native store as the default, and its own checkpoint lists cancellation and
+  interrupted creation as unfinished, so `NativeEditStorage.Qualified` stays empty (ledger rows 4 and 8). Editing
+  archive members keeps working through the legacy store, as in every run so far. The startup checks above stay, for
+  when it is listed.
+- **Low:** three App tests assumed the legacy edit folder and now count both roots (or make their pre-switch edit in the
+  legacy folder); two test predicates were tied to elevation or to `/var` and now ask what they depend on; a Windows
+  network drive is excluded before anything is asked of it; an x64 build running emulated on Arm64 composes no route;
+  startup logs which edit store it uses either way; the decision record, the ZIP design and the limits (64 GiB in all,
+  an 80 GiB archive) are current.
+
+Tests: the probes on real folders (Linux and macOS: a symbolic-link folder, a link and a hard-linked archive, a folder
+others can change, and on macOS a deny-only, an allow and an inheritable access list; Windows: a junction, a hard link,
+an elevated process, and another program holding the archive open), the route composition with a probe, and the native
+root that is not private. The listing-revision tests now wait up to 60 s for a read: on the Windows VM during the
+parallel Core suite, the background read's first very-low-priority I/O waited past their old 5 s (two failures at
+`c1e93b58`).
+
 **12 November, the routes listed (rows 11, 13 and 14).** After six independent reviews (the last found no High or Medium
 defect, and its three Low findings are fixed in `f4aa66a7`), the routes of the [owner's decision](RELEASE_ROUTE_DECISION.md)
 are listed in one change: `ArchiveWriteRoutes.Qualified` names all ten formats on win-x64 (NTFS), linux-x64 (ext4) and
-osx-arm64 (APFS), and `NativeEditStorage.Qualified` the same three runtimes. Each route carries its evidence ID
+osx-arm64 (APFS) (native edit storage was listed too, then withdrawn by the next commit: see the entry above). Each route
+carries its evidence ID
 (`ArchiveRouteEvidence`: `AWQ-win-x64-NTFS`, `AWQ-linux-x64-ext4`, `AWQ-osx-arm64-apfs`); the release manifest refuses a
 listed route whose evidence it does not carry, under that ID or IDs below it. The pinning tests name every route, check
 that other runtimes (win-arm64, linux-arm64) compose nothing and ask nothing, and that other file systems (FAT32, ReFS,

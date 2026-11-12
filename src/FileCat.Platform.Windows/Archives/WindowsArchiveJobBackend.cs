@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using FileCat.Core.Archives;
 using FileCat.Core.Jobs;
+using FileCat.Core.State;
 using FileCat.Platform.Windows.Shell;
 
 namespace FileCat.Platform.Windows.Archives;
@@ -8,6 +9,36 @@ namespace FileCat.Platform.Windows.Archives;
 /// <summary>Unregistered qualification candidate using the actual confined application worker and NTFS recipes.</summary>
 internal static class WindowsArchiveJobBackend
 {
+    internal const string Elevated = "Archive writing needs FileCat running without administrator rights.";
+    internal const string LinkedFolder = "Archive writing is not available in this folder: FileCat changes archives only in local " +
+        "folders that are not links, mount points or synced by a cloud service (such as OneDrive).";
+    internal const string LinkedArchive = "This archive is a link or a cloud file (such as OneDrive), which FileCat does not change. " +
+        "Copy it into a local folder to change it.";
+
+    /// <summary>
+    /// Why this writer cannot write <paramref name="archivePath"/> at all, from its own checks, or null when it can: an
+    /// unelevated process, a folder held without following links on a local, writable NTFS volume, and an archive that is
+    /// a regular, non-reparse file with one link, within the size FileCat changes. Cheap (a few handle opens), shares
+    /// everything and holds nothing; the job checks all of it again.
+    /// </summary>
+    internal static string? TargetProblem(string archivePath)
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        if (WindowsTokenAuthority.IsHighIntegrity) return Elevated;
+        if (!Path.IsPathFullyQualified(archivePath) || Path.GetDirectoryName(archivePath) is not { Length: > 0 } folder ||
+            Path.GetFileName(archivePath) is not { Length: > 0 } leaf) return LinkedFolder;
+        if (!Directory.Exists(folder)) return null; // Nothing to judge yet: the job says what is missing.
+        try
+        {
+            using var directory = WindowsArchiveDirectory.Open(folder);
+            return directory.ProbeExisting(leaf) is > 1 ? ArchiveWriteMessages.HardLinkedText(archivePath) : null;
+        }
+        catch (ArchiveWriteException error) when (error.Reason == ArchiveWriteReason.BudgetExceeded) { return ArchiveListingRevision.TooLarge; }
+        catch (IOException error) when (error.Message == WindowsArchiveNative.NotRegular) { return LinkedArchive; }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException
+            or System.ComponentModel.Win32Exception) { return LinkedFolder; }
+    }
+
     internal static IArchiveJobBackend Create(ArchiveWriteFormat format, string executable, bool retainArtifacts = false)
     {
         if (!Path.IsPathFullyQualified(executable)) throw new ArgumentException("An absolute application worker is required.", nameof(executable));

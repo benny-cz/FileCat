@@ -11,6 +11,35 @@ namespace FileCat.Core.Archives.Unix;
 /// </summary>
 internal static class UnixArchiveJobBackend
 {
+    internal const string LinkedFolder = "Archive writing is not available in this folder: FileCat changes archives only in local " +
+        "folders reached without symbolic links. Open the folder by its own path, or move the archive.";
+    internal const string LinkedArchive = "This archive is a symbolic link or not an ordinary file, which FileCat does not change.";
+    internal const string NotOrdinaryUser = "Archive writing needs FileCat running as an ordinary user, not as root.";
+
+    /// <summary>
+    /// Why this writer cannot write <paramref name="archivePath"/> at all, from its own checks, or null when it can: an
+    /// ordinary user, a folder held without following links on its qualified volume that no other user can change (on
+    /// macOS, one whose access list only denies, as on the home folder, Desktop, Documents and Downloads), and an archive
+    /// that is a regular file with one link. Cheap (a few system calls) and holds nothing; the job checks all of it again.
+    /// </summary>
+    internal static string? TargetProblem(string archivePath)
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return null;
+        if (!Path.IsPathFullyQualified(archivePath) || Path.GetDirectoryName(archivePath) is not { Length: > 0 } folder ||
+            Path.GetFileName(archivePath) is not { Length: > 0 } leaf) return LinkedFolder;
+        if (!Directory.Exists(folder)) return null; // Nothing to judge yet: the job says what is missing.
+        try
+        {
+            using var directory = UnixArchiveDirectory.Open(folder);
+            directory.CheckCreationNamespace();
+            return directory.ProbeExisting(leaf) is > 1 ? ArchiveWriteMessages.HardLinkedText(archivePath) : null;
+        }
+        catch (UnauthorizedAccessException) { return NotOrdinaryUser; }
+        catch (ArchiveWriteException error) when (error.Message.StartsWith("Archive writing needs", StringComparison.Ordinal)) { return error.Message; }
+        catch (IOException error) when (error.Message == "The archive is not a regular file.") { return LinkedArchive; }
+        catch (Exception error) when (error is IOException or ArgumentException or NotSupportedException) { return LinkedFolder; }
+    }
+
     internal static IArchiveJobBackend Create(ArchiveWriteFormat format,
         Func<Guid, TimeSpan, IArchiveWorkerProcess> assess, Func<Guid, TimeSpan, IArchiveWorkerProcess> transform,
         Func<Guid, TimeSpan, IArchiveWorkerProcess> verify, Func<ArchivePlan, ArchiveJobAvailability>? availability = null,

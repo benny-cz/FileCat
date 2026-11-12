@@ -194,6 +194,23 @@ internal sealed partial class UnixArchiveDirectory : IDisposable, IArchiveDestin
         }
     }
     internal void CheckCreationNamespace() => UnixArchiveNative.RequireCreationDirectory(directory, user);
+
+    /// <summary>
+    /// For a target probe: the link count of the regular file named <paramref name="leaf"/> here, never following a link;
+    /// null when nothing is there. Throws for a link or anything that is not a regular file. Nothing is held afterwards.
+    /// </summary>
+    internal ulong? ProbeExisting(string leaf)
+    {
+        UnixArchiveNative.Leaf(leaf);
+        lock (Gate)
+        {
+            if (disposed) throw new ObjectDisposedException(nameof(UnixArchiveDirectory));
+            if (UnixFiles.StatChild(directory, leaf) is not { } facts) return null;
+            if (facts.IsLink || !facts.IsRegular) throw new IOException("The archive is not a regular file.");
+            using var held = UnixArchiveNative.Child(directory, leaf);
+            return ArchiveUnixOuterMetadata.Capture(held).Native.LinkCount;
+        }
+    }
     internal void RequirePrivateStageOf(UnixArchiveDirectory publicParent)
     {
         if (!ReferenceEquals(privateStageParent, publicParent) || Volume != publicParent.Volume || user != publicParent.user)

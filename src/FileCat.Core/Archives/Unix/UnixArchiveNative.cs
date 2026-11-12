@@ -125,10 +125,22 @@ internal static unsafe partial class UnixArchiveNative
         if (acl == 0) { if (Marshal.GetLastPInvokeError() == 2) return; throw Unavailable(); }
         try
         {
-            nint entry = 0; int result = AclEntry(acl, 0, &entry);
-            if (result != -1 || Marshal.GetLastPInvokeError() != 22)
-                throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
-                    "Private archive creation requires a destination without extended Mac ACL entries until that namespace policy is qualified.");
+            // An entry that only denies, and passes nothing on to what is created inside, grants no one anything: macOS puts
+            // "group:everyone deny delete" on the home folder and on Desktop, Documents and Downloads, protecting the folder
+            // itself. An allow entry could let another user change the folder's names, and an inherited one would reach the
+            // private stage folder, so both are refused, as is an access list that cannot be read in full.
+            nint entry = 0; int count = 0;
+            for (int id = 0 /* ACL_FIRST_ENTRY */; AclEntry(acl, id, &entry) == 0; id = -1 /* ACL_NEXT_ENTRY */)
+            {
+                int tag = 0; nint flags = 0;
+                if (++count > 4096 || AclTag(entry, &tag) != 0 || tag != 2 /* ACL_EXTENDED_DENY */ || AclFlagSet(entry, &flags) != 0 ||
+                    AclGetFlag(flags, 1 << 5 /* ACL_ENTRY_FILE_INHERIT */) != 0 || AclGetFlag(flags, 1 << 6 /* ACL_ENTRY_DIRECTORY_INHERIT */) != 0 ||
+                    AclGetFlag(flags, 1 << 8 /* ACL_ENTRY_ONLY_INHERIT */) != 0)
+                    throw new ArchiveWriteException(ArchiveWriteReason.PublicationUnavailable,
+                        "Archive writing needs a folder whose access list (ACL) gives no one else access and passes nothing on to new files.");
+            }
+            // Darwin acl_get_entry ends the list with -1/EINVAL; any other end is an access list not read in full.
+            if (Marshal.GetLastPInvokeError() != 22) throw Unavailable();
         }
         finally { AclFree(acl); }
     }
@@ -216,6 +228,10 @@ internal static unsafe partial class UnixArchiveNative
     private static partial int AclEntry(nint acl, int kind, nint* entry);
     [LibraryImport("libc", EntryPoint = "acl_free")]
     private static partial int AclFree(nint acl);
+    [LibraryImport("libc", EntryPoint = "acl_get_tag_type", SetLastError = true)]
+    private static partial int AclTag(nint entry, int* tag);
+    [LibraryImport("libc", EntryPoint = "acl_get_flag_np", SetLastError = true)]
+    private static partial int AclGetFlag(nint flags, int flag);
     [LibraryImport("libc", EntryPoint = "fsync", SetLastError = true)]
     private static partial int Fsync(int fd);
     [LibraryImport("libc", EntryPoint = "fcntl", SetLastError = true)]

@@ -144,8 +144,9 @@ make every parser a full sandbox.
   images. Damaged members are reported. On Windows x64 (NTFS), Linux x64 (ext4) and macOS (APFS),
   create and change TAR (plain, gzip, bzip2 and Zstandard), 7z, RAR5 and ZIP archives and single
   `.gz`, `.bz2` and `.zst` files: a confined worker rebuilds the archive beside the original and
-  checks it before replacing it. An archive FileCat cannot write back exactly stays read-only and
-  says why.
+  checks it before replacing it. An archive FileCat cannot write back exactly, or in a place it
+  cannot write safely (a linked or cloud-synced folder), stays read-only and says why; a ZIP there
+  keeps the old route.
 - Work with **SMB shares, SFTP, FTPS and FTP** from panels, including explicit remote edit
   sessions. Remote uploads use temporary names where supported; FileCat reports providers that
   cannot replace atomically. An SSH terminal opens from an SFTP panel.

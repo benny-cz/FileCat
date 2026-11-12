@@ -57,7 +57,7 @@ public sealed class EditSessionPublicationTests(ITestOutputHelper output)
         bool released = Exclusive(f.SourcePath);
         int other = await f.Services.Io.Run("owned-edit-publication-other", IoPriority.Normal, _ => 42).WaitAsync(TimeSpan.FromSeconds(5));
         string? copied = sessions.Count == 1 ? Hash(sessions[0].WorkingPath) : null;
-        int entries = Directory.Exists(f.Services.EditSessions.Root) ? Directory.EnumerateFileSystemEntries(f.Services.EditSessions.Root).Count() : 0;
+        int entries = EditStoreEntries.Count(f.Services.EditSessions);
         output.WriteLine("EDIT_SESSION_PUBLICATION " + JsonSerializer.Serialize(new
         {
             scheme, primary, cleanup, seek, f.Before, After = Hash(f.SourcePath), ArchiveBefore = f.ArchiveBefore, ArchiveAfter = Hash(f.Archive),

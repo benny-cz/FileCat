@@ -29,16 +29,30 @@ public sealed class EditStoreCompositionTests
             var paths = AppPaths.Resolve(overrideRoot: fixture);
             var store = AppServices.ProductionEditSessions(paths, new PortableFileOperations());
             Assert.Equal(paths.EditSessionsDirectory, store.Root);
-            // Listed for this runtime and the fixture's file system, and held by an ordinary process (an elevated one, or
-            // root, may not hold the native root's folder): native storage beside the legacy folder. Otherwise the legacy store.
-            bool native = NativeEditStorage.IsQualified(NativeEditStorage.Qualified, RuntimeInformation.RuntimeIdentifier,
-                AppServices.FileSystemOf(paths.LocalDirectory)) && !Environment.IsPrivilegedProcess;
+            // Listed for this runtime and the fixture's file system, and its folder held by the platform's own lease without
+            // following links (which an elevated process, root, or a folder reached through a link cannot): native storage
+            // beside the legacy folder. Otherwise the legacy store.
+            bool native = NativeEditStorage.IsQualified(NativeEditStorage.Qualified, AppServices.RouteRuntime(),
+                AppServices.FileSystemOf(paths.LocalDirectory)) && Holdable(paths.LocalDirectory);
             Assert.Equal(native ? paths.NativeEditSessionsDirectory : store.Root, store.NativeRoot);
             Assert.Equal(native, store.SupportsRetainedCaptureRemoval);
             Assert.False(Directory.Exists(paths.NativeEditSessionsDirectory)); // Created on first use only.
             Assert.Contains(paths.WriteFolders, folder => folder.Folder == paths.NativeEditSessionsDirectory);
         }
         finally { Directory.Delete(fixture, true); }
+    }
+
+    private static bool Holdable(string folder)
+    {
+        try
+        {
+            using EditDirectoryLease lease = OperatingSystem.IsWindows()
+                ? FileCat.Platform.Windows.Archives.WindowsEditDirectoryLease.OpenRoot(folder, false, TestContext.Current.CancellationToken)
+                : UnixEditDirectoryLease.OpenRoot(folder, false, TestContext.Current.CancellationToken);
+            return lease.Path == folder;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException
+            or System.ComponentModel.Win32Exception) { return false; }
     }
 
     // A qualified runtime: the platform's own private leases keep new edits in the native root, while an edit made before

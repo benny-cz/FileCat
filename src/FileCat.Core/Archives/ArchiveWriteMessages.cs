@@ -41,10 +41,14 @@ public static class ArchiveWriteMessages
     internal static ArchiveWriteException HardLinked(string path)
     {
         var error = new ArchiveWriteException(ArchiveWriteReason.UnsupportedFeature, "A retained archive binding requires a single-link regular object: " + path);
-        error.Data[UserMessageKey] = $"\u201c{Path.GetFileName(path)}\u201d has another hard link (a second name for the same file), which FileCat does not " +
-            "archive or update. Nothing was changed.";
+        error.Data[UserMessageKey] = HardLinkedText(path);
         return error;
     }
+
+    /// <summary>What the user is told about an archive with another hard link (also before any job, by a target probe).</summary>
+    internal static string HardLinkedText(string path) =>
+        $"\u201c{Path.GetFileName(path)}\u201d has another hard link (a second name for the same file), which FileCat does not " +
+            "archive or update. Nothing was changed.";
 
     /// <summary>
     /// Another object took a new archive's name between the review and the exclusive claim. The claim is a no-replace rename

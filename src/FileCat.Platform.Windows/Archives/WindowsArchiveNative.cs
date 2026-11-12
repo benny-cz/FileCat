@@ -42,6 +42,8 @@ internal static unsafe partial class WindowsArchiveNative
         return new(fileSystem, flags, device.Type, device.Characteristics);
     }
 
+    internal const string NotRegular = "A regular, non-reparse archive file is required.";
+
     internal static uint Regular(SafeFileHandle handle, long maximumLength, bool artifact, bool mayRename)
     {
         if (GetFileType(handle) != 1 /* FILE_TYPE_DISK */) throw new IOException("Archive input is not a disk file.");
@@ -52,7 +54,7 @@ internal static unsafe partial class WindowsArchiveNative
         // Initial strict storage deliberately refuses every reparse type, including cloud placeholders. Hydration and
         // their provider-specific metadata require qualification before they can be admitted here.
         if (info.Directory != 0 || info.DeletePending != 0 || NtFile.IsDirectory(basic.FileAttributes) || NtFile.IsReparsePoint(basic.FileAttributes))
-            throw new IOException("A regular, non-reparse archive file is required.");
+            throw new IOException(NotRegular);
         if (info.EndOfFile < 0 || info.EndOfFile > maximumLength) throw new ArchiveWriteException(ArchiveWriteReason.BudgetExceeded, "The archive file exceeds its physical byte limit.");
         if (artifact && info.NumberOfLinks != 1) throw new IOException("A private archive artifact must have exactly one link.");
         if (mayRename && (basic.FileAttributes & (uint)FileAttributes.ReadOnly) != 0)

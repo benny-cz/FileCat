@@ -2,7 +2,7 @@
 
 Plan §16.2 asks for README, help, capability, release-note and downgrade text in the implementing change. The routes of
 the [route decision](RELEASE_ROUTE_DECISION.md) are listed (Windows x64 on NTFS, Linux x64 on ext4 and macOS on APFS,
-every format, and native edit storage on all three), and the listing change published this text in the README and
+every format; native edit storage is not listed yet), and the listing change published this text in the README and
 [CAPABILITIES.md](../../CAPABILITIES.md) (which the help page shows). The release notes and the downgrade note below are
 for the release's own notes, which the owner publishes with the signed packages.
 
@@ -42,8 +42,14 @@ files, the network or other programs:
 Where a copy cannot run its worker, archive writing on drives the release covers is unavailable there and says why; ZIP
 archives on drives no route covers keep the old ZIP route, on every copy.
 
+**Places FileCat does not write.** FileCat says before anything starts when it cannot write an archive's place: a folder
+reached through a link, a junction or a mount point, a folder synced by a cloud service (such as OneDrive, whose files are
+placeholders), on Linux and macOS a folder another user can change, an archive with another hard link, or FileCat running as administrator or
+root. A ZIP there keeps the old ZIP route. On macOS the home folder, Desktop, Documents and Downloads are writable: their
+access list only denies.
+
 **Costs and limits.** A change rewrites the whole archive and needs free space for a second copy; there is no undo; at most
-100,000 members and 8 GiB per member; another hard link to the archive keeps the old content.
+100,000 members, 8 GiB per member, 64 GiB in all and an 80 GiB archive.
 
 ## Downgrade
 

@@ -1,4 +1,3 @@
-using FileCat.Core.Archives;
 using FileCat.Core.FileSystem;
 
 namespace FileCat.Core.Edit;
@@ -16,13 +15,13 @@ internal static class NativeEditStorage
 {
     internal sealed record Route(string RuntimeIdentifier, string FileSystem, string EvidenceId);
 
-    /// <summary>The owner's route decision of 12 November 2026, listed after the final independent review closed.</summary>
-    internal static IReadOnlyList<Route> Qualified { get; } =
-    [
-        new("win-x64", "NTFS", ArchiveRouteEvidence.Windows),
-        new("linux-x64", "ext4", ArchiveRouteEvidence.Linux),
-        new("osx-arm64", "apfs", ArchiveRouteEvidence.MacOS),
-    ];
+    /// <summary>
+    /// None yet. The owner's route decision of 12 November 2026 includes native edit storage on the three routed runtimes,
+    /// but as the default store it changes what F4 does in ways the application's edit tests had never run against (a
+    /// stopped F4 keeps its partly made edit for review instead of removing it; the creation marker that makes a crash
+    /// recoverable is visible while the copy runs), so it is not qualified as the default yet (ledger rows 4 and 8).
+    /// </summary>
+    internal static IReadOnlyList<Route> Qualified { get; } = [];
 
     /// <summary>Whether native edit storage is qualified for this runtime on this filesystem (null: not established).</summary>
     internal static bool IsQualified(IReadOnlyList<Route> routes, string runtimeIdentifier, string? fileSystem)
@@ -51,28 +50,38 @@ internal static class NativeEditStorage
         // native root may not exist yet (the store creates it privately on first use): its parent's filesystem will hold it.
         bool listed = routes.Any(route => string.Equals(route.RuntimeIdentifier, runtimeIdentifier, StringComparison.Ordinal));
         string parent = Path.GetDirectoryName(native)!;
-        return nativeOpen is not null && listed && IsQualified(routes, runtimeIdentifier, fileSystemOf(parent)) && Pinnable(nativeOpen, parent)
-            ? new EditSessionStore(legacy, fs, nativeOpen, nativeCopyOpen, null, native)
-            : new EditSessionStore(legacy, fs);
+        if (nativeOpen is null || !listed || !IsQualified(routes, runtimeIdentifier, fileSystemOf(parent))) return new EditSessionStore(legacy, fs);
+        if (!Holdable(nativeOpen, parent, native)) return new EditSessionStore(legacy, fs);
+        FileCat.Core.Diagnostics.AppLog.Info("Edit sessions: native storage beside the legacy folder.");
+        return new EditSessionStore(legacy, fs, nativeOpen, nativeCopyOpen, null, native);
     }
 
     // The native store pins its root's folder without following links, and creates the root there on first use. A state
     // folder reached through a link (an AppData moved with a junction, a symbolic link to a home folder, macOS's /tmp), or
     // one this process may not hold (an elevated FileCat on Windows), keeps the legacy store, which behaves there as it
-    // always did, rather than refusing every new edit. Logged without the path, so support can tell which store is used.
-    private static bool Pinnable(Func<string, bool, CancellationToken, EditDirectoryLease> nativeOpen, string parent)
+    // always did, rather than refusing every new edit. So does a native root that exists but is not this user's private
+    // one (made by another account or computer, as on an external drive or a shared --data folder): every edit, and the
+    // review of interrupted work at startup, would be refused there. Logged without the path, either way.
+    private static bool Holdable(Func<string, bool, CancellationToken, EditDirectoryLease> nativeOpen, string parent, string native)
     {
         try
         {
-            using var lease = nativeOpen(parent, false, CancellationToken.None);
-            if (string.Equals(lease.Path, parent, StringComparison.Ordinal)) return true;
-            FileCat.Core.Diagnostics.AppLog.Warn("Native edit storage is not used: its folder opened at another path.");
+            using (var lease = nativeOpen(parent, false, CancellationToken.None))
+                if (!string.Equals(lease.Path, parent, StringComparison.Ordinal))
+                {
+                    FileCat.Core.Diagnostics.AppLog.Warn("Edit sessions: the legacy folder is used: the native storage's folder opened at another path.");
+                    return false;
+                }
+            if (!Directory.Exists(native)) return true;
+            using var root = nativeOpen(native, true, CancellationToken.None);
+            if (string.Equals(root.Path, native, StringComparison.Ordinal)) return true;
+            FileCat.Core.Diagnostics.AppLog.Warn("Edit sessions: the legacy folder is used: the native storage opened at another path.");
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException
             or System.ComponentModel.Win32Exception)
         {
-            FileCat.Core.Diagnostics.AppLog.Warn("Native edit storage is not used: its folder cannot be held without following links, " +
-                "or not by this process (" + error.GetType().Name + ").");
+            FileCat.Core.Diagnostics.AppLog.Warn("Edit sessions: the legacy folder is used: the native storage cannot be held without " +
+                "following links, privately, or by this process (" + error.GetType().Name + ").");
         }
         return false;
     }

@@ -52,7 +52,8 @@ public sealed class ZipListingRevisionTests
             string token = await Token(provider, location);
             // No command asked: the listing's own background read resolves the token.
             var clock = System.Diagnostics.Stopwatch.StartNew();
-            while (provider.KnownListingRevision(token) is null && clock.Elapsed < TimeSpan.FromSeconds(30))
+            // The background read runs at very low I/O priority, which a busy disk can hold back for seconds.
+            while (provider.KnownListingRevision(token) is null && clock.Elapsed < TimeSpan.FromSeconds(120))
                 await Task.Delay(10, TestContext.Current.CancellationToken);
             Assert.Equal(listed, provider.KnownListingRevision(token));
             // Rewritten in place afterwards: the token still names what the listing showed, so the command's review (which

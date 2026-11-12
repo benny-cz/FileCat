@@ -102,8 +102,9 @@ TV-07's remaining work is fuzzing the new engines and adding a native-engine wor
 
 Recorded 2026-11-10 from the [archive writing plan](../design/FILECAT_ARCHIVE_WRITE_IMPLEMENTATION_PLAN.md) and its
 [implementation status](../validation/archive-writing/IMPLEMENTATION_STATUS.md). This section describes code that exists on
-the archive-writing branch; it qualifies nothing, and released builds keep the decision above until the user decides this
-amendment for each qualified route.
+the archive-writing branch, where the routes of the owner's
+[route decision](../validation/archive-writing/RELEASE_ROUTE_DECISION.md) of 12 November 2026 are listed; released builds
+keep the decision above until the user decides this amendment for each qualified route.
 
 - **Typed profiles.** New TAR (PAX, or the source's USTAR), TAR.GZ, TAR.BZ2, TAR.ZST, 7z, RAR5, standalone `.gz`, `.bz2` and
   `.zst`, and a worker ZIP profile are explicit format/option records. A request without a profile still means the ZIP
@@ -119,8 +120,10 @@ amendment for each qualified route.
   expected manifest; Windows uses a transacted NTFS replacement and Unix an atomic exchange from a creator-private folder,
   with the original retained until the journal records the outcome. Interrupted transactions appear in Interrupted
   operations with exact recovery or discard actions.
-- **Availability.** Only format/runtime/file-system routes listed as qualified are composed in ordinary startup; that list
-  is empty.
-- **Limits that stay.** Every change rewrites the whole archive; there is no undo; another hard link to the archive keeps
-  the old content; retained files after an uncertain outcome are kept and shown, never deleted on a guess.
+- **Availability.** Only format/runtime/file-system routes listed as qualified are composed in ordinary startup: all ten
+  formats on win-x64 (NTFS), linux-x64 (ext4) and osx-arm64 (APFS). A place the writer cannot write (a folder reached
+  through a link or cloud sync, on Linux and macOS a folder another user can change, an archive with another hard link, an elevated
+  process) is not covered: a ZIP there keeps the route above, and the other formats say why before anything starts.
+- **Limits that stay.** Every change rewrites the whole archive; there is no undo; an archive with another hard link is not
+  changed; retained files after an uncertain outcome are kept and shown, never deleted on a guess.
 

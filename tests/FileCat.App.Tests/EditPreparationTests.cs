@@ -55,7 +55,7 @@ public sealed class EditPreparationTests(ITestOutputHelper output)
             Emit(f, "ended", new { held, action, pending, disposed, sessions = f.Services.EditSessions.LoadAll().Count });
             Assert.True(pending); Assert.Equal(0, disposed); Assert.Equal(notification, f.Vm.Notification);
             Assert.Empty(f.Services.EditSessions.LoadAll());
-            if (Directory.Exists(f.Services.EditSessions.Root)) Assert.Empty(Directory.EnumerateFileSystemEntries(f.Services.EditSessions.Root));
+            Assert.Equal(0, EditStoreEntries.Count(f.Services.EditSessions));
             Assert.All(f.Provider.Sources, s => { Assert.Equal(1, s.Disposals); Assert.False(s.DisposedWhileReading); }); f.AssertUnchanged();
         }
         finally { f.Gate.Release.Set(); if (task is not null) await task.WaitAsync(TimeSpan.FromSeconds(10)); }

@@ -92,27 +92,35 @@ internal static class ArchiveWriteRoutes
     /// The production backends for <paramref name="runtimeIdentifier"/>: one per format with a qualified route, each limited
     /// to its qualified filesystems, or null when none is qualified (the application then writes only legacy ZIP).
     /// </summary>
+    /// <param name="targetProblem">
+    /// Why the writer cannot write this archive path at all (its folder is reached through a link or cloud sync, the archive
+    /// is a link or has other hard links, the process is elevated), from the writer's own checks; null when it can. A target
+    /// with a problem is not covered: a ZIP there keeps its existing route, and other formats say why they are read-only.
+    /// </param>
     internal static ArchiveJobBackends? Compose(IReadOnlyList<Route> routes, string runtimeIdentifier,
-        Func<ArchiveWriteFormat, IArchiveJobBackend> create, Func<string, string?> fileSystemOf)
+        Func<ArchiveWriteFormat, IArchiveJobBackend> create, Func<string, string?> fileSystemOf, Func<string, string?>? targetProblem = null)
     {
         ArgumentNullException.ThrowIfNull(routes); ArgumentNullException.ThrowIfNull(create); ArgumentNullException.ThrowIfNull(fileSystemOf);
         var formats = routes.Where(route => string.Equals(route.RuntimeIdentifier, runtimeIdentifier, StringComparison.Ordinal))
             .Select(route => route.Format).Distinct().ToArray();
         if (formats.Length == 0) return null;
-        return new(formats.Select(format => (IArchiveJobBackend)new RouteLimited(create(format), routes, runtimeIdentifier, fileSystemOf)));
+        return new(formats.Select(format => (IArchiveJobBackend)new RouteLimited(create(format), routes, runtimeIdentifier, fileSystemOf,
+            targetProblem ?? (_ => null))));
     }
 
-    /// <summary>A qualified backend admitted only on the qualified filesystems of its route.</summary>
-    private sealed class RouteLimited(IArchiveJobBackend inner, IReadOnlyList<Route> routes, string runtimeIdentifier, Func<string, string?> fileSystemOf)
-        : IArchiveJobBackend
+    /// <summary>A qualified backend admitted only on the qualified filesystems of its route, and only where its writer can write.</summary>
+    private sealed class RouteLimited(IArchiveJobBackend inner, IReadOnlyList<Route> routes, string runtimeIdentifier,
+        Func<string, string?> fileSystemOf, Func<string, string?> targetProblem) : IArchiveJobBackend
     {
         public ArchiveWriteFormat Format => inner.Format;
         public ArchiveTargetReviewer? TargetReviewer => inner.TargetReviewer;
-        public bool Covers(ArchivePlan plan) => Refusal(plan) == ArchiveWriteRouteRefusal.None;
+        // The file system first: a target on another one (a network drive among them) is never probed.
+        public bool Covers(ArchivePlan plan) => Refusal(plan) == ArchiveWriteRouteRefusal.None && targetProblem(plan.ArchivePath) is null;
         public ArchiveJobAvailability Availability(ArchivePlan plan)
         {
             var refusal = Refusal(plan);
-            return refusal == ArchiveWriteRouteRefusal.None ? inner.Availability(plan) : new(false, Reason(refusal));
+            if (refusal != ArchiveWriteRouteRefusal.None) return new(false, Reason(refusal));
+            return targetProblem(plan.ArchivePath) is { } problem ? new(false, problem) : inner.Availability(plan);
         }
         private ArchiveWriteRouteRefusal Refusal(ArchivePlan plan)
         {

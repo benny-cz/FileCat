@@ -102,6 +102,31 @@ public sealed class ArchiveWriteRoutesTests
         Assert.False(ArchiveJobBackends.Empty.Covers(covered));
     }
 
+    // Listing review of 12 November 2026: where the writer cannot write a target at all (a folder reached through a link or
+    // cloud sync, an archive with other hard links, an elevated process), the route does not cover it: a ZIP keeps its old
+    // route, and the other formats say why before anything starts. The file system is checked first; a target on another
+    // one, a network drive among them, is never probed.
+    [Fact]
+    public void A_target_its_writer_cannot_write_is_not_covered_and_says_why()
+    {
+        string ntfs = Path.Combine(Path.GetTempPath(), "ntfs-volume"), share = Path.Combine(Path.GetTempPath(), "mapped-share");
+        string linked = Path.Combine(ntfs, "OneDrive", "a.zip"), plain = Path.Combine(ntfs, "a.zip");
+        const string why = "Archive writing is not available in this folder (test).";
+        ArchiveWriteRoutes.Route[] routes = [new(ArchiveWriteFormat.Zip, "win-x64", "NTFS", "evidence"), new(ArchiveWriteFormat.Tar, "win-x64", "NTFS", "evidence")];
+        var probed = new List<string>();
+        var backends = ArchiveWriteRoutes.Compose(routes, "win-x64", format => new Ready(format), folder => folder.StartsWith(ntfs, StringComparison.Ordinal) ? "NTFS" : null,
+            path => { probed.Add(path); return path == linked || path == Path.ChangeExtension(linked, ".tar") ? why : null; })!;
+        Assert.False(backends.Covers(Plan(ArchiveWriteFormat.Zip, linked)));
+        Assert.Equal(new ArchiveJobAvailability(false, why), backends.Availability(Plan(ArchiveWriteFormat.Tar, Path.ChangeExtension(linked, ".tar"))));
+        Assert.True(backends.Covers(Plan(ArchiveWriteFormat.Zip, plain)));
+        Assert.True(backends.Availability(Plan(ArchiveWriteFormat.Tar, Path.ChangeExtension(plain, ".tar"))).Available);
+        int asked = probed.Count;
+        Assert.False(backends.Covers(Plan(ArchiveWriteFormat.Zip, Path.Combine(share, "a.zip"))));
+        Assert.Equal(ArchiveWriteRoutes.Reason(ArchiveWriteRouteRefusal.FileSystemNotQualified),
+            backends.Availability(Plan(ArchiveWriteFormat.Tar, Path.Combine(share, "a.tar"))).Reason);
+        Assert.Equal(asked, probed.Count);
+    }
+
     private static ArchivePlan Plan(ArchiveWriteFormat format, string path) => new(path, null, [], Profile: new(format));
 
     private sealed class Ready(ArchiveWriteFormat format) : IArchiveJobBackend

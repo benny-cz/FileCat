@@ -114,8 +114,9 @@ says why. A ZIP that the strict catalog refuses stays read-only, and the command
 contains metadata FileCat cannot preserve when saving"). An edit session made before the switch has no worker profile and
 keeps committing through `ZipUpdateExecutor`; F4 on its member shows or reopens it rather than starting a second edit.
 
-Where no ZIP route is composed, the existing route (release R0) is unchanged. Today that is everywhere, because no route
-is listed.
+Where no ZIP route is composed, the existing route (release R0) is unchanged: on runtimes and file systems no route
+lists, and in places the worker route cannot write (a folder reached through a link or cloud sync, on Linux and macOS a folder another user
+can change, a ZIP with another hard link, an elevated FileCat), which the route's own checks find before anything starts.
 
 ## Evidence required
 

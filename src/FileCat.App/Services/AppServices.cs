@@ -301,8 +301,23 @@ public sealed class AppServices : IDisposable
     /// with none qualified this is null and native archive writing stays unavailable, with its reason, while reading continues.
     /// </summary>
     internal static Core.Archives.ArchiveJobBackends? ProductionArchiveBackends() =>
-        Core.Archives.ArchiveWriteRoutes.Compose(Core.Archives.ArchiveWriteRoutes.Qualified, System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier,
-            format => PlatformArchiveBackend(format, Environment.ProcessPath!), FileSystemOf);
+        Core.Archives.ArchiveWriteRoutes.Compose(Core.Archives.ArchiveWriteRoutes.Qualified, RouteRuntime(),
+            format => PlatformArchiveBackend(format, Environment.ProcessPath!), FileSystemOf, PlatformTargetProblem);
+
+    /// <summary>
+    /// The runtime the routes are listed for: this process's own, unless it runs emulated (an x64 build on an Arm64
+    /// machine), where no route was qualified, so nothing is composed.
+    /// </summary>
+    internal static string RouteRuntime() =>
+        System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture
+            ? System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier
+            : System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier + "-emulated";
+
+    /// <summary>Why this platform's writer cannot write an archive path at all, or null (see the backends' TargetProblem).</summary>
+    internal static string? PlatformTargetProblem(string archivePath) =>
+        OperatingSystem.IsWindows() ? FileCat.Platform.Windows.Archives.WindowsArchiveJobBackend.TargetProblem(archivePath)
+        : OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? Core.Archives.Unix.UnixArchiveJobBackend.TargetProblem(archivePath)
+        : null;
 
     /// <summary>
     /// Ledger rows 4 and 8: the edit store through its qualification gate (<see cref="Core.Edit.NativeEditStorage"/>). Native
@@ -327,7 +342,7 @@ public sealed class AppServices : IDisposable
             open = (path, requirePrivate, ct) => Core.Edit.UnixEditDirectoryLease.OpenRoot(path, requirePrivate, ct);
             copyOpen = Core.Archives.Unix.UnixEditSaveCopyDestination.Open;
         }
-        return Core.Edit.NativeEditStorage.Compose(routes, System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier,
+        return Core.Edit.NativeEditStorage.Compose(routes, RouteRuntime(),
             paths.EditSessionsDirectory, paths.NativeEditSessionsDirectory, fileOperations, FileSystemOf, open, copyOpen);
     }
 
@@ -345,7 +360,9 @@ public sealed class AppServices : IDisposable
                 return string.Equals(full, mount, comparison) || full.StartsWith(mount + Path.DirectorySeparatorChar, comparison) ||
                     Path.EndsInDirectorySeparator(candidate.Name) && full.StartsWith(candidate.Name, comparison);
             }).MaxBy(candidate => candidate.Name.Length);
-            return drive is { IsReady: true } ? LocalFileSystem(drive.DriveType, drive.DriveFormat) : null;
+            // A Windows network drive is excluded before anything is asked of it: an unreachable server would hold up the UI.
+            if (drive is null || OperatingSystem.IsWindows() && drive.DriveType == DriveType.Network) return null;
+            return drive.IsReady ? LocalFileSystem(drive.DriveType, drive.DriveFormat) : null;
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException) { return null; }
     }

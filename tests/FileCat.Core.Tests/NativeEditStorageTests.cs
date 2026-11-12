@@ -6,7 +6,7 @@ namespace FileCat.Core.Tests;
 
 // Remaining-work ledger rows 4 and 8: ordinary startup composes the native edit store only for a qualified runtime and
 // filesystem, and keeps the legacy store everywhere else.
-public sealed class NativeEditStorageTests
+public sealed partial class NativeEditStorageTests
 {
     private static readonly NativeEditStorage.Route[] Example =
     [
@@ -18,17 +18,15 @@ public sealed class NativeEditStorageTests
         throw new InvalidOperationException("An unqualified composition must not open native storage.");
 
     [Fact]
-    public void This_build_lists_native_edit_storage_on_the_owner_s_routes_only()
+    public void This_build_qualifies_native_edit_storage_nowhere()
     {
-        // The owner's route decision of 12 November 2026, listed after the final independent review closed. Adding or
-        // removing a runtime is a reviewed release decision: this list changes with it, never as a side effect.
-        Assert.Equal(new NativeEditStorage.Route[]
-        {
-            new("win-x64", "NTFS", "AWQ-win-x64-NTFS"), new("linux-x64", "ext4", "AWQ-linux-x64-ext4"), new("osx-arm64", "apfs", "AWQ-osx-arm64-apfs"),
-        }, NativeEditStorage.Qualified);
+        // The owner's route decision includes native edit storage, but as the default store it changes what F4 does in ways
+        // the application's edit tests had never run against (listing review of 12 November 2026). Adding a runtime is a
+        // reviewed release decision taken after that qualification: this assertion changes with it, never as a side effect.
+        Assert.Empty(NativeEditStorage.Qualified);
         using var temp = new TempDir();
-        // An unlisted runtime probes nothing: no filesystem query and no lease.
-        var store = NativeEditStorage.Compose(NativeEditStorage.Qualified, "win-arm64",
+        // Ordinary startup probes nothing: no filesystem query and no lease.
+        var store = NativeEditStorage.Compose(NativeEditStorage.Qualified, RuntimeInformation.RuntimeIdentifier,
             Path.Combine(temp.Path, "edit-sessions"), Path.Combine(temp.Path, "edit-sessions-native"), new PortableFileOperations(),
             _ => throw new InvalidOperationException("An unqualified startup must not query the filesystem."), Refuse, null);
         Assert.Equal(store.Root, store.NativeRoot);
@@ -99,8 +97,8 @@ public sealed class NativeEditStorageTests
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) Assert.Skip("Unix symbolic links; Windows refuses links through its own pins.");
         if (Environment.IsPrivilegedProcess) Assert.Skip("Native edit storage refuses root; run as an ordinary user.");
         using var temp = new TempDir();
-        // macOS: the temporary folder is itself reached through /var, a link.
-        string real = OperatingSystem.IsMacOS() && temp.Path.StartsWith("/var/", StringComparison.Ordinal) ? "/private" + temp.Path : temp.Path;
+        // macOS: the temporary folder is itself reached through a link (/var, or /tmp with TMPDIR=/tmp).
+        string real = Real(temp.Path);
         string state = Directory.CreateDirectory(Path.Combine(real, "state")).FullName;
         string link = Path.Combine(real, "linked-state");
         Directory.CreateSymbolicLink(link, state);
@@ -117,6 +115,45 @@ public sealed class NativeEditStorageTests
         Assert.Equal(Path.Combine(state, "edit-sessions-native"), direct.NativeRoot);
         Assert.False(Directory.Exists(Path.Combine(state, "edit-sessions-native"))); // Created on first use only.
     }
+
+    // Listing review of 12 November 2026: a native root made by another account or computer (an external drive, a shared
+    // --data folder) is not this user's private one, so every edit, and startup's review of interrupted work, would be
+    // refused there. The legacy store stays; a private root of this user's is used.
+    [Fact]
+    public void On_Unix_an_existing_native_root_that_is_not_private_keeps_the_legacy_store()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) Assert.Skip("Unix edit storage; Windows refuses the same way through its own lease.");
+        if (Environment.IsPrivilegedProcess) Assert.Skip("Native edit storage refuses root; run as an ordinary user.");
+        using var temp = new TempDir();
+        string state = Directory.CreateDirectory(Path.Combine(Real(temp.Path), "state")).FullName;
+        string native = Directory.CreateDirectory(Path.Combine(state, "edit-sessions-native")).FullName;
+        var routes = new NativeEditStorage.Route[] { new(RuntimeInformation.RuntimeIdentifier, "testfs", "test") };
+        var fs = new PortableFileOperations();
+        EditDirectoryLease Open(string path, bool requirePrivate, CancellationToken ct) =>
+            OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() ? UnixEditDirectoryLease.OpenRoot(path, requirePrivate, ct)
+                : throw new PlatformNotSupportedException();
+        File.SetUnixFileMode(native, (UnixFileMode)0x1FF); // Another account's, or shared: not private.
+        var shared = NativeEditStorage.Compose(routes, RuntimeInformation.RuntimeIdentifier, Path.Combine(state, "edit-sessions"), native, fs,
+            _ => "testfs", Open, null);
+        Assert.Equal(shared.Root, shared.NativeRoot);
+        File.SetUnixFileMode(native, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var own = NativeEditStorage.Compose(routes, RuntimeInformation.RuntimeIdentifier, Path.Combine(state, "edit-sessions"), native, fs,
+            _ => "testfs", Open, null);
+        Assert.Equal(native, own.NativeRoot);
+    }
+
+    private static string Real(string path)
+    {
+        if (OperatingSystem.IsWindows()) return path;
+        nint resolved = RealPath(path, 0);
+        try { return resolved == 0 ? path : Marshal.PtrToStringUTF8(resolved)!; }
+        finally { if (resolved != 0) Free(resolved); }
+    }
+
+    [LibraryImport("libc", EntryPoint = "realpath", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial nint RealPath(string path, nint resolved);
+    [LibraryImport("libc", EntryPoint = "free")]
+    private static partial void Free(nint pointer);
 
     [Fact]
     public void The_filesystem_is_judged_where_the_native_root_will_be_created()

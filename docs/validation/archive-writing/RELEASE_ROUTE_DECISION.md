@@ -1,9 +1,9 @@
 # Decision: the first archive-writing release routes
 
 12 November 2026. The owner answered the open route questions of the [remaining-work ledger](REMAINING_WORK_LEDGER.md)
-(rows 6, 12 and 13). This record states the answers and what follows from them. It lists nothing:
-`ArchiveWriteRoutes.Qualified` and `NativeEditStorage.Qualified` stay empty until the conditions below hold, and adding a
-route stays a reviewed release change that its pinning test records.
+(rows 6, 12 and 13). This record states the answers and what follows from them. The routes were listed once the
+conditions below held (see "Listed" at the end); adding or removing a route stays a reviewed release change that its
+pinning test records.
 
 ## Answers
 
@@ -80,7 +80,8 @@ evidence is repeated on the owner-signed build before release.
 
 ## Listed
 
-12 November 2026: every route in the tables above is listed, after the sixth independent review (no High or Medium
-finding; its Low findings fixed in `f4aa66a7`). The evidence IDs are `AWQ-win-x64-NTFS`, `AWQ-linux-x64-ext4` and
-`AWQ-osx-arm64-apfs` ([status](IMPLEMENTATION_STATUS.md)). Where the native edit store's folder cannot be held without
-following links, startup keeps the legacy store there.
+12 November 2026: every archive-writing route in the tables above is listed, after the sixth independent review (no
+High or Medium finding; its Low findings fixed in `f4aa66a7`) and the seventh, of the listing itself, whose findings are
+fixed. The evidence IDs are `AWQ-win-x64-NTFS`, `AWQ-linux-x64-ext4` and `AWQ-osx-arm64-apfs`
+([status](IMPLEMENTATION_STATUS.md)). Native edit storage is not listed yet: as the default store it changes what a
+stopped F4 leaves behind, and the application's edit flows have not been qualified against it (ledger rows 4 and 8).

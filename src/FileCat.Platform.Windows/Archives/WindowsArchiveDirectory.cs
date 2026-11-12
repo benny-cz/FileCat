@@ -178,6 +178,27 @@ internal sealed partial class WindowsArchiveDirectory : IDisposable, IArchiveDes
             return Adopt(handle, leaf, maximumLength, true, false, true, expected, kind);
         }
     }
+    /// <summary>
+    /// For a target probe: the link count of the regular, non-reparse file named <paramref name="leaf"/> here (a OneDrive
+    /// file is a reparse point), opened for its attributes only, without following a reparse point and sharing everything,
+    /// so no other program is held up; null when nothing is there. Throws for anything else. Nothing is held afterwards.
+    /// </summary>
+    internal uint? ProbeExisting(string leaf)
+    {
+        ValidateLeaf(leaf);
+        lock (Gate)
+        {
+            EnsureOpen();
+            int status = TryOpen(Handle, leaf, ReadAttributes | Synchronize, ShareAll, NtFile.Open, NonDirectoryFile | OpenReparsePoint, out var handle);
+            using (handle)
+            {
+                if (status == NameNotFound) return null;
+                if (status < 0) throw Error(status, "Probe archive target");
+                return WindowsArchiveNative.Regular(handle, ArchiveWritePolicy.MaxPhysicalBytes, artifact: false, mayRename: false);
+            }
+        }
+    }
+
     internal void RequireRecoveryNameAbsent(string leaf)
     {
         ValidateLeaf(leaf);

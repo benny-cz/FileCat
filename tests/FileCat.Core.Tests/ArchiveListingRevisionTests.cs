@@ -39,9 +39,9 @@ public sealed partial class ArchiveListingRevisionTests
         var probe = new Probe(file, hold: true);
         probe.Revision.HiddenGrace = TimeSpan.Zero;
         var showing = probe.Revision.Show(long.MaxValue);
-        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, Patience));
         showing.Dispose(); probe.Release();
-        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, 10_000), "The hidden listing's read kept going.");
+        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, Patience), "The hidden listing's read kept going.");
         Assert.Null(probe.Revision.Known); Assert.Equal(0, probe.Resolved);
     }
 
@@ -52,17 +52,17 @@ public sealed partial class ArchiveListingRevisionTests
         var probe = new Probe(file, hold: true); var clock = new ManualClock();
         probe.Revision.Clock = clock;
         var showing = probe.Revision.Show(long.MaxValue);
-        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, Patience));
         showing.Dispose();
         Assert.False(probe.Revision.BackgroundStopping); // Within the grace the read goes on.
         Assert.Equal(TimeSpan.FromSeconds(10), Assert.Single(clock.Timers).Due);
         clock.Timers[0].Fire();
         Assert.True(probe.Revision.BackgroundStopping, "The grace ended, and the hidden listing's read went on.");
         probe.Release();
-        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, 10_000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, Patience));
         Assert.Null(probe.Revision.Known); Assert.Equal(0, probe.Resolved);
         using var again = probe.Revision.Show(long.MaxValue);
-        Assert.True(SpinWait.SpinUntil(() => probe.Revision.Known is not null, 10_000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Revision.Known is not null, Patience));
         Assert.Equal(Sha(file), probe.Revision.Known); Assert.Equal(2, probe.Revision.BackgroundReads);
     }
 
@@ -73,7 +73,7 @@ public sealed partial class ArchiveListingRevisionTests
         var probe = new Probe(file, hold: true); var clock = new ManualClock();
         probe.Revision.Clock = clock;
         var first = probe.Revision.Show(long.MaxValue);
-        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, Patience));
         first.Dispose(); // The panel moves to another folder of the archive...
         using var second = probe.Revision.Show(long.MaxValue); // ...whose listing shows the same revision.
         var timer = Assert.Single(clock.Timers);
@@ -81,7 +81,7 @@ public sealed partial class ArchiveListingRevisionTests
         timer.Fire(); // A timer that had fired as the listing was shown again: it stops nothing.
         Assert.False(probe.Revision.BackgroundStopping, "The read stopped although the listing was shown again.");
         probe.Release();
-        Assert.True(SpinWait.SpinUntil(() => probe.Revision.Known is not null, 10_000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Revision.Known is not null, Patience));
         Assert.Equal(Sha(file), probe.Revision.Known);
         Assert.Equal(1, probe.Revision.BackgroundReads); Assert.Equal(1, probe.Taken); Assert.Equal(1, probe.Resolved);
     }
@@ -93,7 +93,7 @@ public sealed partial class ArchiveListingRevisionTests
         var probe = new Probe(file, hold: true); var clock = new ManualClock();
         probe.Revision.Clock = clock;
         var first = probe.Revision.Show(long.MaxValue);
-        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, Patience));
         first.Dispose();
         var second = probe.Revision.Show(long.MaxValue);
         second.Dispose();
@@ -103,7 +103,7 @@ public sealed partial class ArchiveListingRevisionTests
         clock.Timers[1].Fire();
         Assert.True(probe.Revision.BackgroundStopping);
         probe.Release();
-        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, 10_000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, Patience));
         Assert.Null(probe.Revision.Known);
     }
 
@@ -113,17 +113,17 @@ public sealed partial class ArchiveListingRevisionTests
         using var temp = new TempDir(); using var file = Plain(temp);
         var probe = new Probe(file, holdLease: true);
         var first = probe.Revision.Show(long.MaxValue);
-        Assert.True(SpinWait.SpinUntil(() => probe.Taking == 1, 5000), "The read should be waiting for the index.");
+        Assert.True(SpinWait.SpinUntil(() => probe.Taking == 1, Patience), "The read should be waiting for the index.");
         // As a panel's tab closing and another opening on the UI thread, while a viewer holds the index's lock.
         var panel = Task.Factory.StartNew(() =>
         {
             first.Dispose();
             probe.Revision.Show(long.MaxValue).Dispose();
         }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-        bool returned = panel.Wait(TimeSpan.FromSeconds(10), Ct);
+        bool returned = panel.Wait(Patience, Ct);
         probe.ReleaseLease();
         Assert.True(returned, "Hiding or showing the listing waited for the index the read waits for.");
-        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, 10_000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, Patience));
         Assert.Equal(1, probe.Revision.BackgroundReads);
     }
 
@@ -136,7 +136,7 @@ public sealed partial class ArchiveListingRevisionTests
         using var first = probe.Revision.Show(long.MaxValue);
         var second = probe.Revision.Show(long.MaxValue);
         second.Dispose(); probe.Release();
-        Assert.True(SpinWait.SpinUntil(() => probe.Revision.Known is not null, 10_000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Revision.Known is not null, Patience));
         Assert.Equal(Sha(file), probe.Revision.Known);
         Assert.Equal(1, probe.Taken); Assert.Equal(1, probe.Revision.BackgroundReads);
     }
@@ -147,9 +147,9 @@ public sealed partial class ArchiveListingRevisionTests
         using var temp = new TempDir(); using var file = Plain(temp);
         var probe = new Probe(file, hold: true);
         using var showing = probe.Revision.Show(long.MaxValue);
-        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, Patience));
         probe.Revision.Close(); probe.Release();
-        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, 10_000), "Closing the listing did not stop its read.");
+        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, Patience), "Closing the listing did not stop its read.");
         Assert.Null(probe.Revision.Known); Assert.Equal(0, probe.Resolved);
         using (probe.Revision.Show(long.MaxValue)) Assert.Equal(1, probe.Revision.BackgroundReads);
     }
@@ -160,7 +160,7 @@ public sealed partial class ArchiveListingRevisionTests
         using var temp = new TempDir(); using var file = Plain(temp);
         var probe = new Probe(file, hold: true);
         var command = Command(probe.Revision, Ct);
-        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, Patience));
         probe.Revision.Close(); probe.Release();
         Assert.Equal(Sha(file), Await(command));
         Assert.Equal(1, probe.Resolved); Assert.Equal(0, probe.Revision.BackgroundReads);
@@ -172,12 +172,12 @@ public sealed partial class ArchiveListingRevisionTests
         using var temp = new TempDir(); using var file = Plain(temp);
         var probe = new Probe(file, hold: true);
         using var showing = probe.Revision.Show(long.MaxValue);
-        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, Patience));
         var command = Command(probe.Revision, Ct);
-        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 2, 5000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 2, Patience));
         probe.Release();
         Assert.Equal(Sha(file), Await(command));
-        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, 10_000), "The background read did not end.");
+        Assert.True(SpinWait.SpinUntil(() => probe.Returned == 1, Patience), "The background read did not end.");
         // Only the command's read finished: the background read stopped when the command began its own.
         Assert.Equal(1, probe.Resolved); Assert.Equal(Sha(file), probe.Revision.Known);
     }
@@ -188,7 +188,7 @@ public sealed partial class ArchiveListingRevisionTests
         using var temp = new TempDir(); using var file = Plain(temp);
         var probe = new Probe(file, hold: true);
         var command = Command(probe.Revision, Ct);
-        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, Patience));
         using var showing = probe.Revision.Show(long.MaxValue);
         Assert.Equal(0, probe.Revision.BackgroundReads);
         probe.Release();
@@ -203,14 +203,14 @@ public sealed partial class ArchiveListingRevisionTests
         var probe = new Probe(file, hold: true);
         using var stop = new CancellationTokenSource();
         var command = Command(probe.Revision, stop.Token);
-        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, 5000));
+        Assert.True(SpinWait.SpinUntil(() => probe.Entered == 1, Patience));
         stop.Cancel(); probe.Release();
         Assert.ThrowsAny<OperationCanceledException>(() => Await(command));
         Assert.Null(probe.Revision.Known); Assert.Equal(0, probe.Resolved);
         using (probe.Revision.Show(long.MaxValue))
         {
             Assert.Equal(1, probe.Revision.BackgroundReads);
-            Assert.True(SpinWait.SpinUntil(() => probe.Revision.Known is not null, 10_000));
+            Assert.True(SpinWait.SpinUntil(() => probe.Revision.Known is not null, Patience));
         }
         Assert.Equal(Sha(file), probe.Revision.Resolve(Ct));
     }
@@ -250,11 +250,16 @@ public sealed partial class ArchiveListingRevisionTests
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    // How long a test waits for a read to move. A background read runs at very low I/O priority: on a busy disk (the
+    // Windows VM during the parallel Core suite, 12 November) its first I/O waited more than 5 s. Each wait ends as soon
+    // as its condition holds, and a held read waits twice as long, so a slow machine never releases it out of turn.
+    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
+
     // A command on a thread of its own, as the application's preparation work runs one.
     private static Task<string> Command(ArchiveListingRevision revision, CancellationToken ct) =>
         Task.Factory.StartNew(() => revision.Resolve(ct), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
-    private static string Await(Task<string> task) => task.WaitAsync(TimeSpan.FromSeconds(30), Ct).GetAwaiter().GetResult();
+    private static string Await(Task<string> task) => task.WaitAsync(Patience, Ct).GetAwaiter().GetResult();
 
     // A panel's showing of a listing whose revision nothing else keeps (its index left the cache).
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -310,14 +315,14 @@ public sealed partial class ArchiveListingRevisionTests
         private bool Unchanged()
         {
             Interlocked.Increment(ref Entered);
-            if (hold) held.Wait(TimeSpan.FromSeconds(30));
+            if (hold) held.Wait(2 * Patience);
             if (Unreadable) throw new IOException("The change token cannot be read now (test).");
             return Same;
         }
         private IDisposable? Take()
         {
             Interlocked.Increment(ref Taking);
-            if (holdLease) leaseHeld.Wait(TimeSpan.FromSeconds(30));
+            if (holdLease) leaseHeld.Wait(2 * Patience);
             Interlocked.Increment(ref Taken); return new Lease(this);
         }
         private sealed class Lease(Probe owner) : IDisposable

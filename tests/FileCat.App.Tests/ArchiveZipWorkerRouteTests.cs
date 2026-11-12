@@ -150,8 +150,9 @@ public sealed class ArchiveZipWorkerRouteTests
         if (Environment.IsPrivilegedProcess) Assert.Skip("Edit sessions refuse an elevated token; run unelevated.");
         var backend = new Backend(ArchiveWriteFormat.Zip, 0) { MemberCatalog = true }; using var f = await Fixture.Open(customBackends: new([backend]));
         var zip = Synthetic(f); var tab = f.Vm.ActiveTab!;
-        var legacy = f.Services.EditSessions.Create(f.Services.Zip, new FileCat.Core.Resources.ItemRef(zip, "kept", FileCat.Core.Resources.EntryKind.File),
-            TestContext.Current.CancellationToken);
+        // Made before the switch, so in the legacy edit folder, whichever store this startup composed.
+        var legacy = new FileCat.Core.Edit.EditSessionStore(f.Services.Paths.EditSessionsDirectory, f.Services.Platform.FileOperations)
+            .Create(f.Services.Zip, new FileCat.Core.Resources.ItemRef(zip, "kept", FileCat.Core.Resources.EntryKind.File), TestContext.Current.CancellationToken);
         Assert.True(legacy.IsLegacyZip); File.AppendAllText(legacy.WorkingPath, " edited before the route");
         tab.Navigate(zip); await Wait(() => tab.Listing.State == ListingState.Complete && tab.Listing.FocusName("kept"));
         var edit = f.Vm.ExecuteAsync(CommandIds.Edit);

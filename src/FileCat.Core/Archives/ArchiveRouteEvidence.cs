@@ -1,7 +1,8 @@
 namespace FileCat.Core.Archives;
 
 /// <summary>
-/// The evidence IDs of the listed archive-writing and edit-storage routes (plan §16.1). The release manifest carries, under
+/// The evidence IDs of the listed archive-writing routes (plan §16.1; edit-storage routes would use the same). The release
+/// manifest carries, under
 /// each ID, the evidence of that runtime's qualification on the release candidate (IDs below it, such as
 /// <c>AWQ-win-x64-NTFS/full</c>): its full regression and its package route lanes. The manifest refuses a route whose
 /// evidence it does not carry.

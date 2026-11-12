@@ -14,13 +14,19 @@ public sealed class ArchiveProductionCompositionTests
         var backends = AppServices.ProductionArchiveBackends();
         Assert.Equal(listed, backends is not null);
         if (backends is null) return;
-        // Every listed format is composed; a folder on an unlisted file system is refused with the route's own reason.
-        string folder = Path.Combine(Path.GetTempPath(), "filecat-route-" + Guid.NewGuid().ToString("N"));
+        // Every listed format is composed. A target is covered where its file system is listed and the writer can write it
+        // (here an elevated host, or macOS's temporary folder reached through /var, cannot); otherwise its reason is given.
+        string target = Path.Combine(Path.GetTempPath(), "filecat-route-" + Guid.NewGuid().ToString("N") + ".archive");
+        bool listedHere = AppServices.FileSystemOf(Path.GetTempPath()) is { } fs && FileCat.Core.Archives.ArchiveWriteRoutes.Qualified
+            .Any(route => route.RuntimeIdentifier == runtime && string.Equals(route.FileSystem, fs, StringComparison.OrdinalIgnoreCase));
+        string? problem = AppServices.PlatformTargetProblem(target);
         foreach (var route in FileCat.Core.Archives.ArchiveWriteRoutes.Qualified.Where(route => route.RuntimeIdentifier == runtime))
-            Assert.True(backends.Covers(new FileCat.Core.Archives.ArchivePlan(Path.Combine(folder, "a"), null, [],
-                Profile: route.Format == FileCat.Core.Archives.ArchiveWriteFormat.Rar5 ? FileCat.Core.Archives.ArchiveWriteProfile.ForRar5() : new(route.Format))) ||
-                AppServices.FileSystemOf(Path.GetTempPath()) is not { } fs || !string.Equals(fs, route.FileSystem, StringComparison.OrdinalIgnoreCase),
-                route.Format + " is listed for this runtime but not composed.");
+        {
+            var plan = new FileCat.Core.Archives.ArchivePlan(target, null, [],
+                Profile: route.Format == FileCat.Core.Archives.ArchiveWriteFormat.Rar5 ? FileCat.Core.Archives.ArchiveWriteProfile.ForRar5() : new(route.Format));
+            Assert.Equal(listedHere && problem is null, backends.Covers(plan));
+            if (listedHere && problem is not null) Assert.Equal(problem, backends.Availability(plan).Reason);
+        }
     }
 
     [Fact]
