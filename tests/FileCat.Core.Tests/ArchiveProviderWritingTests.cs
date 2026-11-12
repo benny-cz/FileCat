@@ -69,8 +69,40 @@ public sealed class ArchiveProviderWritingTests
         finally { provider.Release(path); }
     }
 
-    private sealed class Sink : IEnumerationSink
+    // Only a panel's listing (shown) reads the revision in the background; a search or a transfer walking the archive does
+    // not (third review of 12 November 2026).
+    [Fact]
+    public async Task Only_a_shown_listing_reads_its_revision_in_the_background()
     {
+        using var temp = new TempDir(); string path = Path.Combine(temp.Path, "shown.tar");
+        using (var stream = File.Create(path))
+        using (var writer = new TarWriter(stream, TarEntryFormat.Ustar))
+        using (var bytes = new MemoryStream(new byte[4096]))
+            writer.WriteEntry(new UstarTarEntry(TarEntryType.RegularFile, "member") { DataStream = bytes });
+        // The application supplies file identities; a fixed one here lets the unchanged archive's index be reused.
+        var provider = new ArchiveProvider(Path.Combine(temp.Path, "scratch"), new ProviderRegistry())
+        { MutationAvailability = _ => ArchiveJobAvailability.Ready, GetSourceIdentity = _ => "listed", GetOpenedSourceIdentity = _ => "listed" };
+        var location = ArchiveProvider.ForFile(path);
+        try
+        {
+            var walked = new Sink(); await provider.EnumerateAsync(location, walked, TestContext.Current.CancellationToken);
+            string token = provider.GetItemRef(location, Assert.Single(walked.Items)).ArchiveRevision!;
+            await Task.Delay(200, TestContext.Current.CancellationToken);
+            Assert.False(provider.ListingRevisionReadBegan(token));
+            var shown = new Sink(shown: true); await provider.EnumerateAsync(location, shown, TestContext.Current.CancellationToken);
+            Assert.Equal(token, provider.GetItemRef(location, Assert.Single(shown.Items)).ArchiveRevision);
+            Assert.True(provider.ListingRevisionReadBegan(token));
+            Assert.Equal(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))),
+                provider.ResolveListingRevision(token, TestContext.Current.CancellationToken));
+        }
+        finally { provider.Release(path); }
+    }
+
+    private sealed class Sink(bool shown = false) : IEnumerationSink
+    {
+        public bool Shown => shown;
+        private readonly List<IDisposable> showing = [];
+        public void WhileShown(IDisposable work) { if (shown) showing.Add(work); else work.Dispose(); }
         internal readonly List<EntryData> Items = []; internal readonly List<string> Warnings = [];
         public void AddBatch(ReadOnlySpan<EntryData> batch) { foreach (var entry in batch) Items.Add(entry); }
         public void ReportIssue(string message) => Warnings.Add(message);

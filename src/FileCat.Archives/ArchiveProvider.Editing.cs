@@ -24,6 +24,13 @@ public sealed partial class ArchiveProvider
         using (lease) return revision.Resolve(ct);
     }
 
+    /// <summary>Whether any read of a listing token's revision began (tests and diagnostics).</summary>
+    internal bool ListingRevisionReadBegan(string token)
+    {
+        if (_resolvedRevisions.ContainsKey(token)) return true;
+        lock (_cacheLock) return _cache.Values.FirstOrDefault(value => value.Revision?.Token == token)?.Revision?.ReadBegan == true;
+    }
+
     // An edit reads the archive's revision (once, if no command read it yet) before taking the provider's lock; a lease
     // keeps the index open meanwhile. Under the lock only the known revision is compared.
     private void ResolveEditRevision(Location root, CancellationToken ct)

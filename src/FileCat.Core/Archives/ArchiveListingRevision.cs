@@ -5,18 +5,20 @@ namespace FileCat.Core.Archives;
 
 /// <summary>
 /// What binds a native member command to the listing the user acted on (independent reviews of 12 November 2026).
-/// A listing of an archive whose writing route is composed carries this revision's opaque token. When the listing is
-/// shown in a panel (not when a search, a comparison or a transfer walks the archive), the archive is read once in the
-/// background to its SHA-256: through the listing's own file (on Windows through a file object of its own, so member
-/// reads never queue behind it), while the listing's change token holds, outside every provider lock and at low I/O
-/// priority. A command that needs the revision waits for that read, raising it to normal priority, so the change is bound
-/// to what the listing showed as tightly as when the listing itself read the whole archive; the command's native review
-/// then refuses the change when the archive it assesses has another SHA-256. An archive larger than the provider's
-/// background limit is read when the first command needs it instead, and until then only its change token binds the
-/// command to the listing (a writer that restores the change time on an NTFS volume without a change journal is not
-/// noticed before the review). A read stops when no command waits for it any more and it is not the shown listing's
-/// background read, or when the listing's index closes while no command waits. A change the listing's reads once saw
-/// stays seen. A revision once read outlives the listing's index (its provider remembers it by token).
+/// A listing of an archive whose writing route is composed carries this revision's opaque token; resolving it gives the
+/// SHA-256 of the archive the listing showed, read through the listing's own file while the listing's change token holds.
+/// The command's native review then refuses the change when the archive it assesses has another SHA-256.
+/// <para>Two kinds of read, never shared. While a panel shows the listing, and the archive is at most the provider's
+/// background limit, one read runs in the background on a thread of its own, at low I/O priority, through a file object of
+/// its own on Windows (so member reads never queue behind it); it stops when no panel shows the listing any more, when
+/// the listing's index closes, or when a command starts reading. It binds a later command to what the listing showed as
+/// tightly as when the listing itself read the whole archive. A command that finds no revision read yet reads the archive
+/// itself, on its own thread, at normal priority, and stops with the command; its caller keeps the listing's file open.
+/// Above the background limit only that command's read binds it, and until then the change token alone (a writer that
+/// restores the change time on an NTFS volume without a change journal is not noticed before the review).</para>
+/// <para>A change a read sees is final for this listing, and its index is marked stale, so a refresh lists the archive
+/// anew with a new token; a change token that cannot be read at the moment is an error to try again, not a change. A
+/// revision once read outlives the listing's index (its provider remembers it by token).</para>
 /// </summary>
 internal sealed class ArchiveListingRevision
 {
@@ -26,29 +28,30 @@ internal sealed class ArchiveListingRevision
     internal const string Changed = "The archive changed since it was listed. Refresh it and try again.";
     internal const string Closed = "The archive changed or its listing was closed since these members were selected. Refresh it and try again.";
     internal const string TooLarge = "This archive is larger than FileCat changes (80 GiB), so its members are read-only here. Copy (extract) what you need with F5.";
-    private const string Unreadable = "The complete archive could not be read for member changes. Refresh it and try again.";
+    internal const string Unreadable = "The complete archive could not be read for member changes. Refresh it and try again.";
     private readonly SafeFileHandle handle;
     private readonly Func<bool> unchanged;
     private readonly Func<IDisposable?> lease;
     private readonly Action<string, string>? resolved;
+    private readonly Action? stale;
     private readonly object gate = new();
-    private Task<string>? reading;
-    private CancellationTokenSource? stop;
-    private bool background, closed;
-    private int waiting;
-    private string? seenChange;
-    private volatile bool urgent;
+    private readonly SemaphoreSlim commands = new(1, 1);
+    private string? known, seenChange;
+    private int shown;
+    private bool closed, began;
+    private CancellationTokenSource? background;
 
-    /// <param name="handle">The listing's own handle, kept open by <paramref name="lease"/> while it is read.</param>
-    /// <param name="unchanged">Whether the listing's change token still holds for that handle.</param>
+    /// <param name="handle">The listing's own handle. A background read keeps it open with <paramref name="lease"/>; a command's caller keeps it open.</param>
+    /// <param name="unchanged">Whether the listing's change token still holds for that handle; throws IOException when it cannot be read now.</param>
     /// <param name="lease">Keeps the listing's index (and so the handle) open; null once the index is closing.</param>
     /// <param name="problem">Why this listing cannot bind member changes at all, known while listing; null when it can.</param>
     /// <param name="resolved">Told the token and revision once it is read (the provider remembers it beyond the index).</param>
+    /// <param name="stale">Marks the listing's index stale once a read saw the archive change, so a refresh lists it anew.</param>
     internal ArchiveListingRevision(SafeFileHandle handle, Func<bool> unchanged, Func<IDisposable?> lease, string? problem,
-        Action<string, string>? resolved = null)
+        Action<string, string>? resolved = null, Action? stale = null)
     {
         ArgumentNullException.ThrowIfNull(handle); ArgumentNullException.ThrowIfNull(unchanged); ArgumentNullException.ThrowIfNull(lease);
-        this.handle = handle; this.unchanged = unchanged; this.lease = lease; this.resolved = resolved;
+        this.handle = handle; this.unchanged = unchanged; this.lease = lease; this.resolved = resolved; this.stale = stale;
         // An archive past the write profile's size is never changed: its members say so at once, rather than at each command.
         if (problem is null && Length() > ArchiveWritePolicy.MaxPhysicalBytes) problem = TooLarge;
         Problem = problem;
@@ -59,129 +62,132 @@ internal sealed class ArchiveListingRevision
     /// <summary>Why this listing's members cannot be changed, or null.</summary>
     internal string? Problem { get; }
     /// <summary>The revision once it was read; null before.</summary>
-    internal string? Known => Volatile.Read(ref reading) is { IsCompletedSuccessfully: true } done ? done.Result : null;
-    /// <summary>Whether any read of this listing's revision began (for tests and diagnostics).</summary>
-    internal bool ReadBegan => Volatile.Read(ref reading) is not null;
+    internal string? Known => Volatile.Read(ref known);
+    /// <summary>Whether any read of this listing's revision began (tests and diagnostics).</summary>
+    internal bool ReadBegan { get { lock (gate) return began; } }
 
     /// <summary>Whether a listing row's revision is a token to resolve (rather than a revision a provider already read).</summary>
     internal static bool IsToken(string? revision) => revision is not null && revision.StartsWith(TokenPrefix, StringComparison.Ordinal);
 
-    /// <summary>The listing was shown in a panel: read the revision now in the background, unless the archive is larger than <paramref name="limit"/>.</summary>
-    internal void ReadInBackground(long limit)
+    /// <summary>
+    /// A panel shows this listing: while any does, its revision is read in the background (once, unless the archive is
+    /// larger than <paramref name="limit"/>). Dispose the result when the panel stops showing it.
+    /// </summary>
+    internal IDisposable Show(long limit)
     {
-        if (Problem is not null) return;
-        long length = Length();
-        if (length < 0 || length > limit) return;
+        long length = Problem is null ? Length() : -1;
         lock (gate)
         {
-            if (closed || seenChange is not null) return;
-            background = true;
-            Start(command: false);
+            shown++;
+            // A read that was just stopped (the panel moved on and came back) may still be finishing: start a new one.
+            if (length >= 0 && length <= limit && known is null && seenChange is null && !closed &&
+                (background is null || background.IsCancellationRequested)) ReadInBackground();
         }
+        return new Showing(this);
     }
 
     /// <summary>The SHA-256 of the archive this listing showed: read once, then kept. Throws with the reason it cannot be.</summary>
+    /// <remarks>The caller keeps the listing's file open (an index lease) until this returns.</remarks>
     internal string Resolve(CancellationToken ct)
     {
         if (Problem is { } problem) throw new IOException(problem);
         ct.ThrowIfCancellationRequested();
-        Task<string> task;
-        lock (gate)
-        {
-            if (seenChange is { } change) throw new IOException(change);
-            task = Start(command: true);
-            waiting++; urgent = true; // A command waits now: the read continues at normal priority.
-        }
-        try { return task.WaitAsync(ct).GetAwaiter().GetResult(); }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { throw new IOException(Closed); }
-        finally
-        {
-            lock (gate)
-            {
-                if (--waiting == 0)
-                {
-                    urgent = false;
-                    // Nothing waits any more: only the shown listing's own background read goes on (at low priority again).
-                    if ((!background || closed) && !task.IsCompleted) Cancel();
-                }
-            }
-        }
-    }
-
-    /// <summary>The listing's index closes: a read nothing waits for stops, and no new read begins.</summary>
-    internal void Close()
-    {
-        lock (gate)
-        {
-            closed = true;
-            if (waiting == 0) Cancel();
-        }
-    }
-
-    private void Cancel()
-    {
-        try { stop?.Cancel(); } catch (ObjectDisposedException) { }
-    }
-
-    // Under the gate: the read in progress or done, or a new one. Only a command tries a failed read again (a locked region,
-    // an unreadable sector); nothing reads a closed listing, and a seen change is never read past.
-    private Task<string> Start(bool command)
-    {
-        if (reading is { } current && (!current.IsFaulted || !command)) return current;
-        if (closed) return Task.FromException<string>(new IOException(Closed));
-        var held = lease();
-        if (held is null) return Task.FromException<string>(new IOException(Closed));
-        var cancel = new CancellationTokenSource();
-        Task<string> started;
+        if (Volatile.Read(ref seenChange) is { } change) throw new IOException(change);
+        if (Volatile.Read(ref known) is { } value) return value;
+        commands.Wait(ct);
         try
         {
-            started = Task.Factory.StartNew(() => { using (held) return Read(cancel.Token); }, CancellationToken.None,
-                TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+            if (Volatile.Read(ref seenChange) is { } seen) throw new IOException(seen);
+            if (Volatile.Read(ref known) is { } read) return read;
+            // A background read gives way: this command reads the archive itself, at normal priority, and stops with it.
+            lock (gate) { background?.Cancel(); began = true; }
+            return Read(ct);
+        }
+        finally { commands.Release(); }
+    }
+
+    /// <summary>The listing's index closes: a background read stops, and none begins again. A command's read goes on.</summary>
+    internal void Close()
+    {
+        lock (gate) { closed = true; background?.Cancel(); }
+    }
+
+    private void Hide()
+    {
+        lock (gate) if (--shown == 0) background?.Cancel();
+    }
+
+    private sealed class Showing(ArchiveListingRevision owner) : IDisposable
+    {
+        private ArchiveListingRevision? _owner = owner;
+        public void Dispose() => Interlocked.Exchange(ref _owner, null)?.Hide();
+    }
+
+    // Under the gate. The read keeps the listing's file open with its own lease, which it returns when it ends.
+    private void ReadInBackground()
+    {
+        var held = lease();
+        if (held is null) return;
+        var cancel = new CancellationTokenSource();
+        try
+        {
+            Task.Factory.StartNew(() =>
+            {
+                try
+                {
+                    using (held)
+                    {
+                        BackgroundIo.LowerThisThread(); // A thread of its own, which ends with the read: nothing to restore.
+                        Read(cancel.Token);
+                    }
+                }
+                catch (Exception error) when (error is IOException or OperationCanceledException) { } // A command reads again.
+                finally
+                {
+                    lock (gate) if (ReferenceEquals(background, cancel)) background = null;
+                    cancel.Dispose();
+                }
+            }, CancellationToken.None, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+            background = cancel; began = true;
         }
         catch (Exception error) when (error is TaskSchedulerException or OutOfMemoryException or InvalidOperationException)
         {
             held.Dispose(); cancel.Dispose();
-            started = Task.FromException<string>(new IOException(Unreadable, error));
         }
-        stop = cancel;
-        Volatile.Write(ref reading, started);
-        return started;
     }
 
     private string Read(CancellationToken cancel)
     {
-        BackgroundIo.Previous? lowered = null;
-        // At low priority while nothing waits; raised for a waiting command, lowered again if it gives up.
-        void Pace()
-        {
-            if (!urgent && lowered is null) lowered = BackgroundIo.Lower();
-            else if (urgent && lowered is { } previous) { BackgroundIo.Restore(previous); lowered = null; }
-        }
-        SafeFileHandle? own = BackgroundIo.OwnFileObject(handle);
-        try
-        {
-            Pace();
-            if (!unchanged()) throw Seen();
-            string value;
-            try { value = Hash(own ?? handle, cancel, Pace); }
-            catch (ArchiveChangedWhileReadException) { throw Seen(); }
-            catch (ObjectDisposedException error) { throw new IOException(Closed, error); }
-            catch (IOException error) { throw new IOException(Unreadable, error); }
-            if (!unchanged()) throw Seen();
-            resolved?.Invoke(Token, value);
-            return value;
-        }
-        finally
-        {
-            own?.Dispose();
-            if (lowered is { } previous) BackgroundIo.Restore(previous);
-        }
+        using SafeFileHandle? own = BackgroundIo.OwnFileObject(handle);
+        Check();
+        string value;
+        try { value = Hash(own ?? handle, cancel); }
+        catch (ArchiveChangedWhileReadException) { throw Seen(); }
+        catch (ObjectDisposedException error) { throw new IOException(Closed, error); }
+        catch (IOException error) { throw new IOException(Unreadable, error); }
+        Check();
+        string kept = Interlocked.CompareExchange(ref known, value, null) ?? value;
+        resolved?.Invoke(Token, kept);
+        return kept;
     }
 
-    // The listing no longer shows this archive: every later command is refused too, even if the change token is restored.
+    // The listing's change token must still hold. One that cannot be read at the moment (a network share's hiccup) is an
+    // error the next command tries again, not a change.
+    private void Check()
+    {
+        bool same;
+        try { same = unchanged(); }
+        catch (IOException error) { throw new IOException(Unreadable, error); }
+        if (!same) throw Seen();
+    }
+
+    // The listing no longer shows this archive: every later command on it is refused, even if the change token is restored,
+    // and its index is stale, so a refresh lists the archive anew with a new token.
     private IOException Seen()
     {
-        lock (gate) seenChange ??= Changed;
+        bool first;
+        lock (gate) { first = seenChange is null; seenChange ??= Changed; background?.Cancel(); }
+        if (first) stale?.Invoke();
         return new IOException(Changed);
     }
 
@@ -192,7 +198,7 @@ internal sealed class ArchiveListingRevision
     }
 
     /// <summary>The SHA-256 of the whole file behind <paramref name="witness"/>, read at explicit offsets.</summary>
-    internal static string Hash(SafeFileHandle witness, CancellationToken ct, Action? between = null)
+    internal static string Hash(SafeFileHandle witness, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(witness);
         long length = RandomAccess.GetLength(witness);
@@ -204,7 +210,7 @@ internal sealed class ArchiveListingRevision
             long offset = 0;
             while (offset < length)
             {
-                ct.ThrowIfCancellationRequested(); between?.Invoke();
+                ct.ThrowIfCancellationRequested();
                 int read = RandomAccess.Read(witness, bytes.AsSpan(0, (int)Math.Min(bytes.Length, length - offset)), offset);
                 if (read <= 0) throw new ArchiveChangedWhileReadException();
                 hash.AppendData(bytes, 0, read); offset += read;
@@ -221,55 +227,30 @@ internal sealed class ArchiveListingRevision
 }
 
 /// <summary>
-/// Lowers, and restores exactly, the I/O priority of the calling thread for a read nothing waits for yet (a listing's
-/// revision): Windows background mode, macOS's throttled disk policy, Linux's idle I/O class. Best effort: where the
-/// system offers none, the read runs at normal priority.
+/// For a read nothing waits for yet (a shown listing's revision), on a thread of its own that ends with the read: lowers
+/// that thread's I/O priority (Windows background mode, macOS's throttled disk policy, Linux's idle I/O class), and gives
+/// it a file object of its own on Windows. Best effort: where the system offers neither, the read runs at normal priority
+/// through the listing's own handle.
 /// </summary>
 internal static partial class BackgroundIo
 {
-    /// <summary>What a thread's priority was before <see cref="Lower"/>.</summary>
-    internal sealed record Previous(int Value);
-
-    internal static Previous? Lower()
+    internal static void LowerThisThread()
     {
         try
         {
-            if (OperatingSystem.IsWindows())
-                return SetThreadPriority(GetCurrentThread(), 0x0001_0000 /* THREAD_MODE_BACKGROUND_BEGIN */) ? new Previous(0) : null;
-            if (OperatingSystem.IsMacOS())
-            {
-                int before = GetIoPolicy(0 /* IOPOL_TYPE_DISK */, 1 /* IOPOL_SCOPE_THREAD */);
-                return before >= 0 && SetIoPolicy(0, 1, 3 /* IOPOL_THROTTLE */) == 0 ? new Previous(before) : null;
-            }
-            if (OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture is Architecture.X64 or Architecture.Arm64)
-            {
-                bool x64 = RuntimeInformation.ProcessArchitecture == Architecture.X64;
-                // ioprio_get/ioprio_set(IOPRIO_WHO_PROCESS, 0 = this thread[, IOPRIO_CLASS_IDLE]).
-                long before = Linux.LinuxArchiveNative.Syscall(x64 ? 252 : 31, 1, 0, 0, 0, 0, 0);
-                return before >= 0 && Linux.LinuxArchiveNative.Syscall(x64 ? 251 : 30, 1, 0, 3 << 13, 0, 0, 0) == 0
-                    ? new Previous((int)before) : null;
-            }
-        }
-        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { }
-        return null;
-    }
-
-    internal static void Restore(Previous previous)
-    {
-        try
-        {
-            if (OperatingSystem.IsWindows()) SetThreadPriority(GetCurrentThread(), 0x0002_0000 /* THREAD_MODE_BACKGROUND_END */);
-            else if (OperatingSystem.IsMacOS()) SetIoPolicy(0, 1, previous.Value);
+            if (OperatingSystem.IsWindows()) SetThreadPriority(GetCurrentThread(), 0x0001_0000 /* THREAD_MODE_BACKGROUND_BEGIN */);
+            else if (OperatingSystem.IsMacOS()) SetIoPolicy(0 /* IOPOL_TYPE_DISK */, 1 /* IOPOL_SCOPE_THREAD */, 3 /* IOPOL_THROTTLE */);
             else if (OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture is Architecture.X64 or Architecture.Arm64)
-                Linux.LinuxArchiveNative.Syscall(RuntimeInformation.ProcessArchitecture == Architecture.X64 ? 251 : 30, 1, 0, previous.Value, 0, 0, 0);
+                // ioprio_set(IOPRIO_WHO_PROCESS, 0 = this thread, IOPRIO_CLASS_IDLE).
+                Linux.LinuxArchiveNative.Syscall(RuntimeInformation.ProcessArchitecture == Architecture.X64 ? 251 : 30, 1, 0, 3 << 13, 0, 0, 0);
         }
         catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { }
     }
 
     /// <summary>
-    /// On Windows, a second file object on the same file: synchronous I/O on one file object is serialized, so a slow
-    /// low-priority read through the listing's own handle would hold up member reads through it. Null elsewhere, or when
-    /// the system refuses (the read then uses the listing's handle).
+    /// On Windows, a second file object on the same file: synchronous I/O on one file object is serialized, so a slow read
+    /// through the listing's own handle would hold up member reads through it. Null elsewhere, or when the system refuses
+    /// (the read then uses the listing's handle).
     /// </summary>
     internal static SafeFileHandle? OwnFileObject(SafeFileHandle handle)
     {
@@ -293,6 +274,4 @@ internal static partial class BackgroundIo
     private static partial SafeFileHandle ReOpenFile(SafeFileHandle original, uint access, uint share, uint flags);
     [LibraryImport("libc", EntryPoint = "setiopolicy_np")]
     private static partial int SetIoPolicy(int type, int scope, int policy);
-    [LibraryImport("libc", EntryPoint = "getiopolicy_np")]
-    private static partial int GetIoPolicy(int type, int scope);
 }

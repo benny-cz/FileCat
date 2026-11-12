@@ -185,9 +185,12 @@ public sealed class ZipListingRevisionTests
         return path;
     }
 
+    // A panel's listing keeps what a shown listing starts until the panel moves on; these listings stay shown.
     private sealed class Sink(bool shown = true) : IEnumerationSink
     {
         public bool Shown => shown;
+        private readonly List<IDisposable> showing = [];
+        public void WhileShown(IDisposable work) { if (shown) showing.Add(work); else work.Dispose(); }
         internal readonly List<EntryData> Items = [];
         public void AddBatch(ReadOnlySpan<EntryData> batch) { foreach (var entry in batch) Items.Add(entry); }
         public void ReportIssue(string message) { }

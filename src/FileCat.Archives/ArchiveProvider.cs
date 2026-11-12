@@ -201,7 +201,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         // A panel shows the rows: the revision they carry is read now, in the background (ArchiveListingRevision). An index
         // carries a revision only where writing was available when it was built, or for an edit; a search, a comparison or
         // a transfer walking the archive reads nothing more.
-        if (sink.Shown && index.Revision is { Problem: null, Known: null } shown) shown.ReadInBackground(RevisionReadLimit);
+        if (sink.Shown && index.Revision is { Problem: null, Known: null } shown) sink.WhileShown(shown.Show(RevisionReadLimit));
         return Task.CompletedTask;
     }
 
@@ -508,8 +508,13 @@ internal sealed class ArchiveIndex : IDisposable
     private Microsoft.Win32.SafeHandles.SafeFileHandle? _witnessHandle;
     // Whether the source had a change token when its catalog was started (not only when it was finished).
     private bool _stableListing;
+    // A revision read saw the archive change: this index is never reused (a refresh lists the archive anew).
+    private volatile bool _stale;
+    private void MarkStale() => _stale = true;
+
     public void VerifySource()
     {
+        if (_stale) throw new IOException("The archive changed since it was listed.");
         // Direct readers and filesystems without a token still permit one admitted read. The provider
         // disables cache reuse when no token was captured; it cannot prove a later read is the same source.
         if (_openedChangeToken is not null && (_witness is null || SourceChangeToken.FromHandle(_witness.SafeFileHandle) != _openedChangeToken))
@@ -532,7 +537,7 @@ internal sealed class ArchiveIndex : IDisposable
     }
     // A volume without an opened identity cannot be tied to its path on the next request. Its change token
     // guards the current open handle, but is not sufficient to authorize reuse of a multipart catalog.
-    public bool CanReuse => (!PasswordUnlocked || Volatile.Read(ref _views) >= 0) && _openedChangeToken is not null &&
+    public bool CanReuse => !_stale && (!PasswordUnlocked || Volatile.Read(ref _views) >= 0) && _openedChangeToken is not null &&
         _volumes.All(volume => volume.Token is not null && volume.Identity is { Length: > 0 });
     private ArchiveSourceLease? _source;
     internal string? ContainerPath => _source?.Path;
@@ -556,7 +561,8 @@ internal sealed class ArchiveIndex : IDisposable
             : _volumes.Length > 1 ? "Members of a multi-volume archive are read-only."
             : !CompleteListing ? "This listing has archive warnings and cannot safely identify members for changes." : null;
         var created = new ArchiveListingRevision(handle,
-            () => _openedChangeToken is not null && SourceChangeToken.FromHandle(handle) == _openedChangeToken, TryLease, problem, resolved);
+            () => (SourceChangeToken.FromHandle(handle) ?? throw new IOException("The archive's change token cannot be read now.")) == _openedChangeToken,
+            TryLease, problem, resolved, MarkStale);
         var kept = Interlocked.CompareExchange(ref _revision, created, null) ?? created;
         if (_closing || _closed) kept.Close();
         return kept;

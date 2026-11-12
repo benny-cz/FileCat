@@ -352,7 +352,7 @@ public sealed class ZipProvider : ResourceProvider, IContainerDetector
         // a comparison or a transfer walking the archive reads nothing more.
         if (sink.Shown && index.Revision is { Problem: null, Known: null } shown && location.Container is { IsFileSystem: true } container &&
             MutationAvailability?.Invoke(new(container.Path, null, [], Profile: WorkerProfile)).Available == true)
-            shown.ReadInBackground(RevisionReadLimit);
+            sink.WhileShown(shown.Show(RevisionReadLimit));
         return Task.CompletedTask;
     }
 
@@ -606,9 +606,14 @@ internal sealed class ZipIndex : IDisposable
     public long EstimatedBytes { get; }
     public void VerifySource()
     {
+        if (_stale) throw new IOException("The archive changed since it was listed.");
         if (_openedChangeToken is not null && SourceChangeToken.FromHandle(_handle) != _openedChangeToken)
             throw new IOException("The archive source changed while it was being read.");
     }
+
+    // A revision read saw the archive change: this index is never reused (a refresh lists the archive anew).
+    private volatile bool _stale;
+    private void MarkStale() => _stale = true;
 
     public void VerifyPath(Func<string, string?> pathIdentity,
         Func<Microsoft.Win32.SafeHandles.SafeFileHandle, string?> openedIdentity)
@@ -667,7 +672,8 @@ internal sealed class ZipIndex : IDisposable
         string? problem = _openedChangeToken is null ? "This location cannot identify a stable archive listing for member changes."
             : !CompleteListing ? "This listing is incomplete and cannot safely identify members for changes." : null;
         var created = new ArchiveListingRevision(_handle,
-            () => _openedChangeToken is not null && SourceChangeToken.FromHandle(_handle) == _openedChangeToken, TryLease, problem, resolved);
+            () => (SourceChangeToken.FromHandle(_handle) ?? throw new IOException("The archive's change token cannot be read now.")) == _openedChangeToken,
+            TryLease, problem, resolved, MarkStale);
         var kept = Interlocked.CompareExchange(ref _revision, created, null) ?? created;
         if (_closing) kept.Close();
         return kept;

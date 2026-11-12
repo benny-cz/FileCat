@@ -41,6 +41,20 @@ and four problems, all fixed in the next commit:
 - **A test comment claimed journal behaviour that does not exist.** It now checks that the edit store's commit plans
   carry the marker.
 
+A fourth reviewer read `12f924d5`. It found no lock, lease or handle defect. It did find that the shared-read state machine
+still had edge cases:
+- A change seen once stuck to a reused index, so a refresh did not help.
+- On Linux before 5.15, restoring the priority could fail.
+- A command could inherit a read that had just been stopped.
+- A background read outlived the panel that showed it.
+
+The next commit replaces the shared read with two kinds of read that never share. While a panel shows the listing, one
+background read runs at low priority. It stops when no panel shows the listing (the panel's listing pipeline ends it),
+when the index closes, or when a command starts reading; its thread ends with it, so no priority is restored. A command
+that finds no revision read yet reads the archive itself, at normal priority, stops with the command, and is kept open
+by its caller's lease. A change any read sees marks the listing's index stale, so a refresh lists the archive anew with
+a new token. A change token that cannot be read at the moment is an error to try again, not a change.
+
 A third reviewer read `1fd1f5b6`, the background reads. It found seven defects, all fixed in the next commit:
 
 - Every enumeration started a read, not only a panel's listing; a Find over archives started one per archive. Only a

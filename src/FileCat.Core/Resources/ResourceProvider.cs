@@ -51,6 +51,12 @@ public interface IEnumerationSink
     /// walking the folder: a provider starts work only a shown listing needs (an archive's revision read) for these.
     /// </summary>
     bool Shown => false;
+
+    /// <summary>
+    /// Keeps <paramref name="work"/> while this listing stays shown (a panel's listing, until the panel moves on, refreshes
+    /// into a new listing or closes) and disposes it then; any other enumeration disposes it at once.
+    /// </summary>
+    void WhileShown(IDisposable work) => work.Dispose();
 }
 
 /// <summary>

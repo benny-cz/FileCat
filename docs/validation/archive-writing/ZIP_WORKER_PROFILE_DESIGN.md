@@ -96,12 +96,13 @@ manager refuses any profile-less ZIP change such a route covers, except the comm
 switch. Windows "Send to → Compressed folder" follows the same rule as Pack.
 
 The ZIP provider keeps browsing and extraction. Its listings then carry a revision token, and their rows appear as soon
-as the central directory is read. Where writing is available and a panel shows the listing (not a search, a comparison or
-a transfer walking the archive), the archive is then read in the background to its SHA-256: through the listing's own file
-(on Windows through a file object of its own), while the listing's change token holds, outside the provider's lock and at
-low I/O priority. A command waits for that read and raises its priority, so the change is bound to what the listing showed
-as tightly as when the listing itself read the whole archive. A read stops when nothing needs it any more; a change it
-once saw stays seen. An archive over 1 GiB is read when the first
+as the central directory is read. Where writing is available, and while a panel shows the listing (not a search, a
+comparison or a transfer walking the archive), the archive is read in the background to its SHA-256: through the listing's
+own file (on Windows through a file object of its own), while the listing's change token holds, outside the provider's
+lock, at low I/O priority, and stopped when no panel shows the listing. A later command finds that revision read, bound to
+what the listing showed as tightly as when the listing itself read the whole archive. A command that comes first reads the
+archive itself, at normal priority, and stops with the command. A change any read sees is final for that listing, and a
+refresh lists the archive anew. An archive over 1 GiB is read when the first
 change needs it instead, and until then only its change token binds the command to the listing. A revision once read
 outlives the listing's index (`ArchiveListingRevision`; the native formats' listings do the same). A listing that cannot identify its members keeps them read-only and
 says why. A ZIP that the strict catalog refuses stays read-only, and the command says why in ZIP's own words ("This ZIP
