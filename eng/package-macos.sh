@@ -4,6 +4,8 @@
 #                                 downloaded copy; Open Anyway in System Settings → Privacy & Security runs it)
 # Usage: eng/package-macos.sh [version]      (needs macOS: iconutil, codesign, ditto; and the .NET SDK)
 set -euo pipefail
+# Files the script creates get 644 and folders 755 whatever the caller's umask (see the bundle's chmod below).
+umask 022
 
 VERSION="${1:-1.0.0-dev}"
 PRODUCT_VERSION="${2:-$VERSION}"

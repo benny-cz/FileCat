@@ -6,6 +6,10 @@
 #   FileCat-<ver>-<rid>-appimage-runtime-source.tar.gz   corresponding source of the AppImage runtime (EXT-04)
 # Usage: eng/package-linux.sh [version] [rid]   (rid: linux-x64 or linux-arm64)
 set -euo pipefail
+# Files the script creates get 644 and folders 755 whatever the caller's umask (Ubuntu's default is 002): the confined
+# archive worker refuses a bundle anyone but its owner can change.
+umask 022
+writable_by_others() { [ -n "$(find "$1" -perm /022 ! -type l -print -quit)" ]; }
 
 VERSION="${1:-1.0.0-dev}"
 RID="${2:-linux-x64}"
@@ -78,7 +82,6 @@ chmod +x "$PUB/FileCat"
 # No package carries group or other write: the confined archive worker refuses a bundle anyone but its owner can change,
 # and the build user's umask may be 002 (Ubuntu's default). Folders and executables 755, other files 644.
 chmod -R u=rwX,go=rX "$PUB"
-if [ -n "$(find "$PUB" -perm /022 -print -quit)" ]; then echo "The payload is still group- or other-writable." >&2; exit 2; fi
 # The icon at every size it is drawn for (the 16- and 24-pixel frames by hand), so that menus and panels need not
 # shrink the large artwork, which reads poorly small.
 ICONS="$OUT/icons-$RID"
@@ -111,6 +114,7 @@ rm -f "$TARBALL"
 rm -f "$SBOM_TAR"
 dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
   "$PUB" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" tar "$SOURCE_IDENTITY" "$CREATED_UTC" "$SBOM_TAR"
+if writable_by_others "$PUB"; then echo "The tarball payload is group- or other-writable." >&2; exit 2; fi
 tar -C "$OUT/publish" -czf "$TARBALL" --transform "s,^$RID,FileCat-$VERSION," "$RID"
 
 # 2) Debian package (Ubuntu, Debian): the runtime libraries a self-contained .NET and Avalonia app loads.
@@ -186,6 +190,7 @@ rm -f "$DEB_FILE"
 rm -f "$SBOM_DEB"
 dotnet run --project "$ROOT/eng/ArtifactSbom" -c Release -- \
   "$DEB" "$ROOT/licenses/dependencies/index.json" "$VERSION" "$RID" deb "$SOURCE_IDENTITY" "$CREATED_UTC" "$SBOM_DEB"
+if writable_by_others "$DEB/opt/filecat"; then echo "The .deb payload is group- or other-writable." >&2; exit 2; fi
 dpkg-deb --root-owner-group --build "$DEB" "$DEB_FILE"
 
 # 3) AppImage: one file that runs on most distributions (appimagetool 1.9.1, pinned by checksum; build tool only).
@@ -241,6 +246,7 @@ SBOM_APPIMAGE="$OUT/sbom-$VERSION-$RID-appimage.spdx.json"
 rm -f "$APPIMAGE" "$APPIMAGE.rejected"
 rm -f "$SBOM_APPIMAGE"
 # Runs without FUSE (CI containers).
+if writable_by_others "$APPDIR"; then echo "The AppImage payload is group- or other-writable." >&2; exit 2; fi
 APPIMAGE_EXTRACT_AND_RUN=1 ARCH="$APPIMAGE_ARCH" "$TOOL" --no-appstream --runtime-file "$RUNTIME" "$APPDIR" "$APPIMAGE"
 rm -rf "$APPDIR" "$DEB"
 # The AppImage must start with the reviewed runtime, which its source bundle describes: apart from the digest section,
