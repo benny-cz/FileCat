@@ -148,8 +148,11 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         string full = Path.GetFullPath(executable), folder = Path.GetDirectoryName(full)!;
-        if (RuntimeReadable(full)) return;
-        if (!PortableOwned(folder)) throw new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, RuntimeAccessProblem(full)!);
+        bool owned = PortableOwned(folder);
+        // A copy an earlier build prepared by granting its whole folder (inherited by Data and anything beside the copy) is
+        // prepared again, which withdraws that grant, although the worker could already read it (review of 12 November).
+        if (RuntimeReadable(full) && !(owned && FolderGrantInherits(folder))) return;
+        if (!owned) throw new ArchiveWriteException(ArchiveWriteReason.WorkerUnavailable, RuntimeAccessProblem(full)!);
         ProvisionRuntimeReadAccess(folder, Path.GetFileName(full));
         FileCat.Core.Diagnostics.AppLog.Info("Granted FileCat's archive worker identity read access to this portable copy's runtime files " +
             "(not its Data folder or anything else beside them): " + folder);
@@ -222,6 +225,23 @@ public sealed partial class ArchiveAppContainer : IArchiveWorkerProcess
                 (rights & (GenericRead | GenericExecute)) == (GenericRead | GenericExecute)) allowed = true;
         }
         return allowed;
+    }
+
+    // Whether the folder carries a grant for this worker identity that its contents inherit (an earlier build's).
+    private static bool FolderGrantInherits(string folder)
+    {
+        int hr = DeriveAppContainerSidFromAppContainerName(ProfileName, out nint sid);
+        if (hr < 0 || sid == 0) return false;
+        try
+        {
+            var package = new SecurityIdentifier(sid);
+            foreach (FileSystemAccessRule rule in new DirectoryInfo(folder).GetAccessControl(AccessControlSections.Access)
+                .GetAccessRules(true, false, typeof(SecurityIdentifier)))
+                if (rule.IdentityReference.Equals(package) && rule.InheritanceFlags != InheritanceFlags.None) return true;
+            return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException) { return false; }
+        finally { FreeSid(sid); }
     }
 
     // A portable copy (its marker beside the executable) in a folder the current user owns: no other account's files are

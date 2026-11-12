@@ -12,6 +12,7 @@ public sealed partial class ArchiveProvider
     internal string ResolveListingRevision(string token, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrEmpty(token);
+        if (_resolvedRevisions.TryGetValue(token, out var known)) return known;
         ArchiveIndex? index; IDisposable? lease;
         lock (_cacheLock)
         {
@@ -32,7 +33,7 @@ public sealed partial class ArchiveProvider
             index = GetIndex(root, ct);
             lease = index.TryLease() ?? throw new IOException("The archive was closed; open it again.");
         }
-        using (lease) index.RequireRevision().Resolve(ct);
+        using (lease) index.RequireRevision(RememberRevision).Resolve(ct);
     }
 
     internal string ReviewedMemberPath(ArchiveTargetReview target, ItemRef item, ArchiveJobPassword? password, CancellationToken ct)

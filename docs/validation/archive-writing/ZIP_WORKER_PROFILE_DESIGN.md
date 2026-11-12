@@ -95,10 +95,13 @@ launcher), each change is refused with the worker's reason. It never falls back 
 manager refuses any profile-less ZIP change such a route covers, except the commit of an edit session made before the
 switch. Windows "Send to → Compressed folder" follows the same rule as Pack.
 
-The ZIP provider keeps browsing and extraction. Its listings then carry a revision token, which costs nothing: a listing
-reads the central directory only. The first command that needs the revision resolves the token to the SHA-256 of the
-archive, read then through the listing's own handle, outside the provider's lock and cancellable, and only while the
-listing's change token still holds (`ArchiveListingRevision`; the native formats' listings do the same). A listing that cannot identify its members keeps them read-only and
+The ZIP provider keeps browsing and extraction. Its listings then carry a revision token, and their rows appear as soon
+as the central directory is read. Where writing is available, the archive is then read in the background to its SHA-256:
+through the listing's own handle, while the listing's change token holds, outside the provider's lock, at low I/O
+priority, and stopped when the listing's index closes. A command waits for that read, so the change is bound to what the
+listing showed as tightly as when the listing itself read the whole archive. An archive over 1 GiB is read when the first
+change needs it instead, and until then only its change token binds the command to the listing. A revision once read
+outlives the listing's index (`ArchiveListingRevision`; the native formats' listings do the same). A listing that cannot identify its members keeps them read-only and
 says why. A ZIP that the strict catalog refuses stays read-only, and the command says why in ZIP's own words ("This ZIP
 contains metadata FileCat cannot preserve when saving"). An edit session made before the switch has no worker profile and
 keeps committing through `ZipUpdateExecutor`; F4 on its member shows or reopens it rather than starting a second edit.

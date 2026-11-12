@@ -34,6 +34,19 @@ public sealed partial class ArchiveProvider
     // Trusted composition supplies a cheap capability probe. Actual bytes require a fresh complete native review.
     internal Func<ArchivePlan, ArchiveJobAvailability>? MutationAvailability { get; set; }
 
+    /// <summary>Listings of archives up to this size read their revision in the background as soon as they are shown.</summary>
+    internal long RevisionReadLimit { get; set; } = ArchiveListingRevision.DefaultBackgroundLimit;
+
+    // Revisions already read, by listing token, so rows still on screen resolve after their index left the cache.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _resolvedRevisions = new(StringComparer.Ordinal);
+    private readonly System.Collections.Concurrent.ConcurrentQueue<string> _resolvedOrder = new();
+    private void RememberRevision(string token, string revision)
+    {
+        if (!_resolvedRevisions.TryAdd(token, revision)) return;
+        _resolvedOrder.Enqueue(token);
+        while (_resolvedOrder.Count > 256 && _resolvedOrder.TryDequeue(out var oldest)) _resolvedRevisions.TryRemove(oldest, out _);
+    }
+
     internal bool TryGetWriteTarget(Location location, out string path, out ArchiveWriteProfile profile)
     {
         path = string.Empty; profile = null!;

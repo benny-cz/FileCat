@@ -13,9 +13,8 @@ against the code. It found no way past the macOS sandbox boundary, and seven def
    host, deps and runtimeconfig files), each by its own entry, and traverse only on their folders; an earlier whole-folder
    grant is withdrawn. Availability checks every runtime file, deny entries with generic rights and inherit-only entries.
 3. A ZIP listing on the worker route hashed the whole archive under the provider's global lock, uncancellable. Listings
-   now carry a token; the first command resolves it to the SHA-256 through the listing's own handle, outside the lock and
-   cancellable, while the listing's change token still holds (`ArchiveListingRevision`). The native formats do the same.
-   The ZIP index no longer reads its FileStream's handle from other threads (that flushed a buffer another read used).
+   now carry a token and show their rows at once (`ArchiveListingRevision`). The ZIP index no longer reads its
+   FileStream's handle from other threads (that flushed a buffer another read used). The native formats do the same.
 4. F4 on the worker route skipped an edit session started on the old route. It now shows or reopens that session.
 5. macOS: the package checks the launcher's entitlements exactly; the worker also checks an outbound connect and the user
    folders; `RLIMIT_FSIZE` 0 limits the container to empty files; an app another user installed is accepted; two comments
@@ -24,7 +23,34 @@ against the code. It found no way past the macOS sandbox boundary, and seven def
 7. The release manifest refuses a tool or payload built from another commit than the one it names, and reads git's two
    streams at once.
 
-Re-validation on the three machines: in progress.
+A second reviewer then read the fix commit (`9db8a01b`). It found no remaining legacy route and no lock or lease defect,
+and four problems, all fixed in the next commit:
+
+- **The earlier whole-folder Windows grant stayed.** A copy that build prepared looked readable, so the worker start
+  never withdrew the grant. A portable copy whose folder still carries an inheritable grant for the worker is now
+  prepared again at each worker start, which withdraws it. The test now takes that path, through `EnsureRuntimeReadAccess`.
+- **Binding a command to its listing rested on the change token alone, for as long as the listing stayed open.** On an
+  NTFS volume without a change journal, that token is only the change time, which a writer can restore. As soon as a
+  listing is shown, the archive is now read in the background: outside the lock, at low I/O priority (Windows background
+  mode, macOS throttled, Linux idle class), and stopped when the index closes. A command waits for that read. The binding
+  window is again only the time of the read, as when the listing read the whole archive. Archives over 1 GiB are read
+  when the first change needs them, and the limit is documented. A revision once read outlives its index, so a metadata
+  change or a cache eviction no longer makes rows on screen ask for a refresh.
+- **An archive over the 80 GiB write limit asked for a refresh at every command.** Its members are now read-only, with
+  that reason. A short read counts as a change.
+- **A test comment claimed journal behaviour that does not exist.** It now checks that the edit store's commit plans
+  carry the marker.
+
+Re-validation of `9db8a01b`, before the second review:
+- **macOS:** full regression passed: App 2,833, Core 9,102, Remote 2,638, Rendering 23, with 10 sandboxed creation flows
+  and the ZIP lanes. The only failure was a probe bug: .NET reports the file-size limit's EFBIG as
+  `ArgumentOutOfRangeException`, which the container-write check did not catch. With that fixed (`d3077ded`), the 14
+  boundary tests passed with the published launcher, and again with the packaged app's launcher. That launcher was
+  byte-identical, carried exactly the App Sandbox entitlement, and every denial held, including writes in its container.
+  The package route lane passed 12 of 12.
+- **Ubuntu:** full regression passed: App 2,835, Core 9,162, Remote 2,543, Rendering 23. The only failure was the
+  system keyring test, which failed identically before this work: the VM's ssh session has no login keyring collection.
+  The .deb route lane passed 12 of 12, along with its bundle check and the AppImage refusal under `APPDIR`.
 
 **12 November, macOS archive workers in the App Sandbox (route decision, rows 3 and 13).** A C launcher with its own
 Info.plist and only the App Sandbox entitlement removes process creation, inherited descriptors and the bootstrap port,

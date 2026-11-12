@@ -106,6 +106,7 @@ public sealed class AppServices : IDisposable
         // A ZIP route composed here moves ZIP changes to the worker profile, available or refused with its reason; without
         // one, ZIP keeps its existing route.
         Zip.RouteComposed = Jobs.CoversArchive;
+        Zip.MutationAvailability = Archives.MutationAvailability;
         // SFTP (P6): FileCat's own known_hosts beside its state, seeded read-only by OpenSSH's.
         // FTP and FTPS (P8) share the remote stack; FTPS certificates the OS does not accept are pinned only on request.
         Sftp = new Remote.Sftp.SftpConnections(FindRemoteProfile,

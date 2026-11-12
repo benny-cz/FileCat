@@ -47,19 +47,31 @@ public sealed class ArchiveAppContainerRuntimeAccessTests
                 Assert.Equal(0, (int)(granted.FileSystemRights & (FileSystemRights.Write | FileSystemRights.Delete | FileSystemRights.ChangePermissions)));
             }
             foreach (string other in Others) Assert.Empty(PackageRules(Path.Combine(root, other)));
-            ArchiveAppContainer.EnsureRuntimeReadAccess(executable); // Idempotent: nothing more is added.
+            ArchiveAppContainer.ProvisionRuntimeReadAccess(root); // Preparing again adds nothing.
             Assert.Single(PackageRules(root)); Assert.Single(PackageRules(Path.Combine(root, "FileCat.Core.dll")));
 
-            // A copy an earlier build prepared by granting the whole folder (inherited by Data and everything beside):
-            // preparing again withdraws that grant and keeps the exact one.
-            var acl = new DirectoryInfo(root).GetAccessControl(AccessControlSections.Access);
-            acl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(package), FileSystemRights.ReadAndExecute,
-                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
-            new DirectoryInfo(root).SetAccessControl(acl);
-            Assert.NotEmpty(PackageRules(Path.Combine(root, "Data", "settings.json")));
-            ArchiveAppContainer.ProvisionRuntimeReadAccess(root);
-            foreach (string other in Others) Assert.Empty(PackageRules(Path.Combine(root, other)));
-            Assert.DoesNotContain(PackageRules(root), rule => rule.InheritanceFlags != InheritanceFlags.None);
+            // Another copy, which an earlier build prepared by granting its whole folder (inherited by Data and everything
+            // beside the copy). The worker could read it, but its first worker start in this build withdraws that grant
+            // and keeps only the exact one.
+            string earlier = Bundle();
+            try
+            {
+                File.WriteAllText(Path.Combine(earlier, "FileCat.portable"), "");
+                var acl = new DirectoryInfo(earlier).GetAccessControl(AccessControlSections.Access);
+                acl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(package), FileSystemRights.ReadAndExecute,
+                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+                new DirectoryInfo(earlier).SetAccessControl(acl);
+                Assert.NotEmpty(PackageRules(Path.Combine(earlier, "Data", "settings.json")));
+                string earlierExecutable = Path.Combine(earlier, "FileCat.exe");
+                Assert.Null(ArchiveAppContainer.RuntimeAccessProblem(earlierExecutable));
+                ArchiveAppContainer.EnsureRuntimeReadAccess(earlierExecutable);
+                foreach (string other in Others) Assert.Empty(PackageRules(Path.Combine(earlier, other)));
+                var kept = Assert.Single(PackageRules(earlier));
+                Assert.Equal(InheritanceFlags.None, kept.InheritanceFlags);
+                Assert.Equal(0, (int)(kept.FileSystemRights & FileSystemRights.ListDirectory));
+                foreach (string runtime in Runtime) Assert.Single(PackageRules(Path.Combine(earlier, runtime)), rule => !rule.IsInherited);
+            }
+            finally { Directory.Delete(earlier, true); }
         }
         finally { Directory.Delete(root, true); }
     }

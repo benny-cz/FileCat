@@ -138,9 +138,12 @@ public sealed class ArchiveJobBackendTests
         Assert.Contains(refused.Issues, issue => issue.Message.Contains("prepared for the old ZIP route", StringComparison.Ordinal));
         Assert.Equal(JobState.Completed, (await Replace(Zip(covered, "edit.zip"), legacyEdit: true)).State);
         Assert.Equal(JobState.Completed, (await Replace(Zip(elsewhere, "plain.zip"), legacyEdit: false)).State);
-        // The marker is part of the journaled request, so a restarted commit keeps its route.
-        Assert.Contains("\"LegacyEditCommit\":true", JsonSerializer.Serialize(new ArchivePlan("a.zip", null, []) { LegacyEditCommit = true }));
-        Assert.DoesNotContain("LegacyEditCommit", JsonSerializer.Serialize(new ArchivePlan("a.zip", null, [])));
+        // Only the edit store's commit plans carry the marker; a retried commit is planned by it again.
+        var store = new FileCat.Core.Edit.EditSessionStore(temp.Dir("sessions"), new PortableFileOperations());
+        Assert.True(store.CommitPlan(new FileCat.Core.Edit.EditSessionRecord
+        {
+            ArchivePath = refusedZip, MemberPath = "member.txt", WorkingPath = source, Baseline = ArchiveBaseline.Of(refusedZip),
+        }, rebase: false).LegacyEditCommit);
     }
 
     [Fact]

@@ -198,6 +198,9 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
         index.VerifySource();
         index.VerifyVolumePaths();
         sink.AddBatch(batch.ToArray());
+        // The rows are shown: the revision they carry is read now, in the background (ArchiveListingRevision). An index
+        // carries a revision only where writing was available when it was built, or for an edit.
+        if (index.Revision is { Problem: null, Known: null } shown) shown.ReadInBackground(RevisionReadLimit);
         return Task.CompletedTask;
     }
 
@@ -280,7 +283,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
                 cached.VerifySource();
                 cached.VerifyVolumePaths();
                 // A writable route (or an edit) after this index was built: its listings carry a revision token from now on.
-                if (requireRevision || MutationState(root).Available) cached.RequireRevision();
+                if (requireRevision || MutationState(root).Available) cached.RequireRevision(RememberRevision);
                 cached.Touch();
                 return cached;
             }
@@ -341,7 +344,7 @@ public sealed partial class ArchiveProvider : ResourceProvider, IArchiveSpoolPro
             witness = null;
             index.KeepVolumes(volumes, GetSourceIdentity, kind == ArchiveKind.Rar ? path : null);
             // Only a token: a listing reads what it shows, never the whole archive (ArchiveListingRevision).
-            if (requireRevision || MutationState(root).Available) index.RequireRevision();
+            if (requireRevision || MutationState(root).Available) index.RequireRevision(RememberRevision);
             index.VerifySource();
             index.VerifyVolumePaths();
             index.KeepSource(source);
@@ -538,13 +541,13 @@ internal sealed class ArchiveIndex : IDisposable
     internal bool PasswordUnlocked { get; set; }
     private ArchiveListingRevision? _revision;
     /// <summary>
-    /// Where this archive can be written: the revision token its listings carry, resolved by a member command through the
-    /// witness handle (never while listing). Null elsewhere.
+    /// Where this archive can be written: the revision token its listings carry, read through the witness handle in the
+    /// background once a listing is shown, or by the first command (ArchiveListingRevision). Null elsewhere.
     /// </summary>
     internal ArchiveListingRevision? Revision => Volatile.Read(ref _revision);
 
-    /// <summary>Gives this index its listing revision (once; cheap: nothing is read). Call after the witness is kept.</summary>
-    internal ArchiveListingRevision RequireRevision()
+    /// <summary>Gives this index its listing revision (once; cheap: nothing is read yet). Call after the witness is kept.</summary>
+    internal ArchiveListingRevision RequireRevision(Action<string, string>? resolved = null)
     {
         if (Volatile.Read(ref _revision) is { } existing) return existing;
         var handle = _witnessHandle ?? throw new InvalidOperationException("The archive witness is not kept yet.");
@@ -552,8 +555,10 @@ internal sealed class ArchiveIndex : IDisposable
             : _volumes.Length > 1 ? "Members of a multi-volume archive are read-only."
             : !CompleteListing ? "This listing has archive warnings and cannot safely identify members for changes." : null;
         var created = new ArchiveListingRevision(handle,
-            () => _openedChangeToken is not null && SourceChangeToken.FromHandle(handle) == _openedChangeToken, problem);
-        return Interlocked.CompareExchange(ref _revision, created, null) ?? created;
+            () => _openedChangeToken is not null && SourceChangeToken.FromHandle(handle) == _openedChangeToken, TryLease, problem, resolved);
+        var kept = Interlocked.CompareExchange(ref _revision, created, null) ?? created;
+        if (_closing || _closed) kept.Close();
+        return kept;
     }
 
     /// <summary>Keeps this index's archive open until disposed, even if the cache drops the index meanwhile; null once closing.</summary>
@@ -858,6 +863,8 @@ internal sealed class ArchiveIndex : IDisposable
         {
             if (_closed) return;
             _closing = true;
+            // A background revision read stops at its next block and returns its lease; the archive then closes.
+            Volatile.Read(ref _revision)?.Close();
             if (_leases == 0 && ViewCount == 0) Close();
         }
     }
