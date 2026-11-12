@@ -26,3 +26,5 @@ eng/linux/appimage-runtime/** -text
 eng/validation/fixtures/dependency-notices/** -text
 # Original generated manifest CRLF is part of the pinned fixture bytes.
 eng/validation/fixtures/dependency-notices/*/FileCat.deps.json -whitespace
+# The macOS archive worker launcher's plists are read by codesign and the system as they are: LF only.
+src/FileCat.App/MacOS/** text eol=lf
