@@ -87,7 +87,11 @@ public sealed class SettingsPreservationTests
             var previewButton = window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Preview invocation"));
             Assert.Same(window, TopLevel.GetTopLevel(previewButton));
             previewButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Contains("Checking invocation", preview.Text);
+            // The preview says it is checking while it resolves the program, and says what it found when that returns.
+            // A resolve that finishes inline (a fast or a loaded machine) replaces the first text before the click
+            // returns, so either is this click's own work; the result itself is awaited below.
+            Assert.True(preview.Text!.Contains("Checking invocation", StringComparison.Ordinal) ||
+                preview.Text.Contains("Sample invocation", StringComparison.Ordinal), preview.Text);
             for (int i = 0; i < 100 && !preview.Text!.Contains("Program:", StringComparison.Ordinal); i++)
             {
                 await Task.Delay(20, TestContext.Current.CancellationToken);
