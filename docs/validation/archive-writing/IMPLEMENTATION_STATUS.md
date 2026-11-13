@@ -40,8 +40,9 @@ The two failures of the previous run did not recur: the macOS 7z PPMd case and t
 their full runs (the VM's login keyring was unlocked again first). One new failure appeared, again away from edit
 storage: `PlaceBarHierarchyTests.Compact_panel_header_uses_available_width_and_keeps_overflow_places_reachable`
 asserted `pinnedButton.Bounds.Right <= row.Bounds.Width` on the Windows VM. The test waits for the pinned place to
-leave the overflow and then reads its bounds, so it reads them before the layout pass that follows has set them; the
-class passed 3 of 3 alone at the same commit. Left for its own change: wait for the bounds, not for the overflow.
+leave the overflow, which the measure pass decides, and then read bounds the later arrange pass had not set; the class
+passed 3 of 3 alone at the same commit. Fixed on `codex/archive-writing` in `7e810c13`: the test finishes the layout
+(its jobs, then `UpdateLayout`) before it reads the bounds.
 
 Each of the three full regressions ran with `FILECAT_EDIT_NATIVE_REQUIRED=1`; the package route lanes carry their own
 variables. The Windows installed layout was staged into Program Files before the chain, from the host and
@@ -84,15 +85,20 @@ still skip.
 
 Two tests failed once each, both away from edit storage, and both passed again at the same commit:
 
-- **macOS, one 7z case.** `SevenZipWritingTests.Codecs_create_independent_folders_…(codecId: 6, compressedHeader:
-  True)` threw `ArgumentOutOfRangeException` from `FileStream.Read` under `SourceStream.Read` →
-  `BufferedSubStream.RefillCache` → the PPMd range decoder, reading back the archive it had just written. That reader
-  computes its inner count as `Math.Min(count, Current.Length - Current.Position)`, which goes negative once the file
-  position is past the end — reachable because 7z PPMd has no end marker, so the decoder reads past the declared
-  packed extent. The 7z writing class alone then passed 35 of 35, and the whole Core lane 8,833 of 8,833 run, with 268
-  skipped and no failure, so it is intermittent, and nothing in this commit touches 7z or SharpCompress. Left for its
-  own change with its own regression: clamp that term (a read at or past the end is end of file, not an exception) and
-  check where a folder's declared packed extent can exceed the file it is in.
+- **macOS, one 7z case — a test closing another test's file.**
+  `SevenZipWritingTests.Codecs_create_independent_folders_…(codecId: 6, compressedHeader: True)` threw
+  `ArgumentOutOfRangeException` from `FileStream.Read` under `SourceStream.Read` → `BufferedSubStream.RefillCache` →
+  the PPMd range decoder, reading back the archive it had just written. The cause is in neither 7z nor SharpCompress:
+  `MacArchiveProcessTests.An_unrelated_inheritable_descriptor_is_closed_before_the_worker_starts` called
+  `dup2(original, 200)`, and `dup2` silently closes whatever descriptor 200 already is — in the parallel Core host, this
+  7z case's open archive. Its `FileStream` then read a 17-byte canary file with its position past that end, so
+  `Math.Min(count, Current.Length - Current.Position)` went negative. This run's own results show it: the 7z case failed
+  at 15:54:55.927, inside the descriptor test's 15:54:55.761 to 15:54:55.993. Fixed on `codex/archive-writing` in
+  `17790a26`: that test takes the lowest free descriptor from 200 with `fcntl` `F_DUPFD`, a policy test fails any source
+  that declares `dup2` or `dup3`, and `SourceStream` clamps its remaining count at zero, so a file truncated under a read
+  is reported as damaged instead of throwing. The earlier reading of this failure here — the PPMd decoder reading past
+  its packed extent — was wrong: `BufferedSubStream` bounds every read by what is left of its sub-stream and
+  `SourceStream.Seek` refuses a position past the end, so no decoder can reach that state.
 - **Ubuntu, the system secret store.** `SecretStoreTests.The_system_store_keeps_replaces_and_removes_a_secret`
   reported “Cannot create an item in a locked collection”. The cause was the VM, as the operator saw it rather than as
   sealed evidence (this route carries no chain log): its VMware process died 17 minutes into the chain, its own log
