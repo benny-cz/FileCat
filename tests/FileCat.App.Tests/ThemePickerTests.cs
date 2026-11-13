@@ -141,6 +141,8 @@ public sealed class ThemePickerTests
                     ("FcText", "FcPanel", "FcWindow"),
                     ("FcTextMuted", "FcPanel", "FcWindow"),
                     ("FcActionableDimText", "FcPanel", "FcWindow"),
+                    ("FcTextCompressed", "FcPanel", "FcWindow"),
+                    ("FcTextEncrypted", "FcPanel", "FcWindow"),
                     ("FcFocusText", "FcFocusBackground", "FcPanel"),
                     ("FcOnSearchHit", "FcSearchHit", "FcPanel"),
                     ("FcOnChangedByte", "FcChangedByte", "FcPanel"),

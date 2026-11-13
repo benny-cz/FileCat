@@ -36,10 +36,10 @@ public partial class PanelView : UserControl
         List.OpenRequested += (_, _) => OpenRequested?.Invoke();
         List.RenameRequested += (_, _) => RenameRequested?.Invoke();
         List.MiddleClickRequested += (_, row) => MiddleClick?.Invoke(row);
-        List.ContextMenuRequested += (_, point) => ShowContextMenu(point: point);
+        List.ContextMenuRequested += (_, point) => ShowContextMenu(point: point, extended: List.ContextWithShift);
         List.InspectRequested += (_, report) => _ = ShowInspectionAsync(report);
         AutomationProperties.SetHelpText(List, "Ctrl+Shift+I inspects every full value in the focused row. Shift+F10 opens item actions.");
-        List.BackgroundContextRequested += (_, point) => ShowBackgroundContextMenu(point);
+        List.BackgroundContextRequested += (_, point) => ShowBackgroundContextMenu(point, List.ContextWithShift);
         List.GotFocus += (_, _) => Activated?.Invoke();
         // The number, or the tab strip beside the tabs, moves the whole panel.
         NumberBadge.PointerPressed += (_, e) =>
@@ -1081,15 +1081,34 @@ public partial class PanelView : UserControl
     }
 
     /// <summary>The item context menu: at the pointer for a right click, at the focused row from the keyboard.</summary>
-    public void ShowContextMenu(bool atFocus = false, Avalonia.Point? point = null)
+    /// <param name="extended">Shift was held for the right click: Windows adds its extended verbs, as in Explorer.</param>
+    public void ShowContextMenu(bool atFocus = false, Avalonia.Point? point = null, bool extended = false)
     {
         long request = ++_menuRequest;
         _openItemMenu?.Close();
         _openItemMenu = null;
-        _ = ShowContextMenuAsync(atFocus, point, request);
+        _ = ShowContextMenuAsync(atFocus, point, extended && point is not null, request);
     }
 
-    private void ShowBackgroundContextMenu(Avalonia.Point point)
+    /// <summary>
+    /// Tests: stands in for Windows' own menu of a folder's empty space (folder, screen x, screen y, extended), so each
+    /// of its outcomes can be given on purpose without a desktop.
+    /// </summary>
+    internal static Func<string, int, int, bool, Task<WindowsContextMenu.Outcome>>? NativeBackgroundMenuForTests { get; set; }
+
+    /// <summary>
+    /// Windows' own menus need a desktop window of FileCat's to stand on: not the headless test platform's stand-in, where
+    /// a Shell popup would wait on a desktop no one looks at.
+    /// </summary>
+    internal bool HasNativeWindow() => OperatingSystem.IsWindows() &&
+        TopLevel.GetTopLevel(this)?.TryGetPlatformHandle() is { HandleDescriptor: "HWND", Handle: not 0 };
+
+    /// <summary>
+    /// The menu for a folder's empty space. On Windows, for a folder on disk, it is the folder's own Shell menu, as
+    /// Explorer shows it there (New, Paste, Give access to, installed handlers, Properties), with FileCat's location
+    /// actions one item away; elsewhere, or when that menu is unavailable, FileCat's location actions directly.
+    /// </summary>
+    private void ShowBackgroundContextMenu(Avalonia.Point point, bool extended = false)
     {
         long request = ++_menuRequest;
         _openItemMenu?.Close();
@@ -1097,6 +1116,30 @@ public partial class PanelView : UserControl
         if (TopLevel.GetTopLevel(this)?.DataContext is not MainViewModel vm ||
             Panel is not { ActiveTab: { Location: { } location } tab } panel ||
             !ReferenceEquals(tab, List.Tab)) return;
+        // A folder whose listing failed keeps FileCat's menu, which says why writing there waits for a reread.
+        if (location.IsFileSystem && WindowsContextMenu.CanShowBackground(location.Path) &&
+            MainViewModel.LocationWriteBlockReason(tab, location) is null &&
+            (NativeBackgroundMenuForTests is not null || HasNativeWindow()))
+        {
+            _ = ShowNativeBackgroundMenuAsync(vm, panel, tab, location, point, extended, request);
+            return;
+        }
+        ShowFileCatBackgroundMenu(vm, panel, tab, location, request);
+    }
+
+    /// <summary>
+    /// Whether this window's keyboard focus is still in this panel's list, or nowhere (the window not active while the
+    /// Shell's popup hands the foreground back): not in the path box, the command line, a menu, or another panel.
+    /// </summary>
+    private bool KeyboardStaysInList() => TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() switch
+    {
+        null => true,
+        Visual focused => ReferenceEquals(focused, List) || List.IsVisualAncestorOf(focused),
+        _ => false,
+    };
+
+    private void ShowFileCatBackgroundMenu(MainViewModel vm, PanelViewModel panel, TabViewModel tab, Core.Resources.Location location, long request)
+    {
         var menu = ContextMenuFactory.BuildBackground(vm, panel, tab, location);
         if (request != _menuRequest) return;
         menu.Placement = PlacementMode.Pointer;
@@ -1109,7 +1152,62 @@ public partial class PanelView : UserControl
         menu.Open(List);
     }
 
-    private async Task ShowContextMenuAsync(bool atFocus, Avalonia.Point? point, long request)
+    private async Task ShowNativeBackgroundMenuAsync(MainViewModel vm, PanelViewModel panel, TabViewModel tab,
+        Core.Resources.Location location, Avalonia.Point point, bool extended, long request)
+    {
+        try
+        {
+            var screen = List.PointToScreen(point);
+            var show = NativeBackgroundMenuForTests ?? WindowsContextMenu.ShowBackgroundAsync;
+            // The cursor and marks as the menu opens (it holds the input while open): whatever changes them after it
+            // closes is the user's doing, and wins over renaming a new item.
+            string? cursor = MainViewModel.CursorName(tab.Listing);
+            int marks = tab.Listing.MarkedCount;
+            var outcome = await show(location.Path, screen.X, screen.Y, extended);
+            if (request != _menuRequest) return;
+            switch (outcome.Result)
+            {
+                case WindowsContextMenu.Result.Handled:
+                    return;
+                case WindowsContextMenu.Result.Created when outcome.Created is { } created:
+                    // New → Folder, Text Document, …: the item is selected with its name open for editing, as in Explorer,
+                    // unless the user went on to something else meanwhile: the path box, the command line or search, the
+                    // menu bar, another menu (the keyboard left this list, or a menu opened since), or a rename.
+                    vm.RenameCreatedItem(panel, tab, location, created, cursor, marks,
+                        () => request == _menuRequest && _openItemMenu is null && !List.IsRenaming && KeyboardStaysInList());
+                    return;
+                case WindowsContextMenu.Result.Created:
+                    return;
+                case WindowsContextMenu.Result.Properties:
+                    vm.ShowPropertiesForPath(location.Path);
+                    return;
+                case WindowsContextMenu.Result.ActionFailed:
+                    vm.Notify("Windows could not complete that action.", true);
+                    return;
+                case WindowsContextMenu.Result.Failed:
+                    if (!_nativeMenuWarningShown)
+                    {
+                        _nativeMenuWarningShown = true;
+                        vm.Notify("Windows menu unavailable here; showing FileCat actions.", true);
+                    }
+                    break;
+                case WindowsContextMenu.Result.FileCatActions:
+                    break;
+                default:
+                    return;
+            }
+            // FileCat's own location actions, for the folder this menu was opened for while the tab still shows it.
+            if (!panel.Tabs.Contains(tab) || tab.Listing.IsDisposed || tab.Location != location || !ReferenceEquals(Panel, panel)) return;
+            ShowFileCatBackgroundMenu(vm, panel, tab, location, request);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Core.Diagnostics.AppLog.Error("The folder's context menu failed", ex);
+            vm.Notify("The folder's menu could not open: " + Formatters.SafeName(ex.Message), true);
+        }
+    }
+
+    private async Task ShowContextMenuAsync(bool atFocus, Avalonia.Point? point, bool extended, long request)
     {
         if (TopLevel.GetTopLevel(this)?.DataContext is not MainViewModel vm) return;
         if (Panel is { ActiveTab: { Location: { } current } parentTab } parentPanel &&
@@ -1119,7 +1217,7 @@ public partial class PanelView : UserControl
             if (request == _menuRequest) ShowParentContextMenu(vm, parentPanel, parentTab, current, parent, atFocus, request);
             return;
         }
-        if (OperatingSystem.IsWindows() && Panel?.ActiveTab is { Location.IsFileSystem: true } tab &&
+        if (HasNativeWindow() && Panel?.ActiveTab is { Location.IsFileSystem: true } tab &&
             tab.Listing.MarkedCount <= WindowsContextMenu.MaxItems)
         {
             var paths = tab.Listing.GetSelection().Select(item => item.FileSystemPath).ToArray();
@@ -1128,7 +1226,7 @@ public partial class PanelView : UserControl
                 var anchor = point ?? (List.FocusedRowBounds() is { } bounds
                     ? new Avalonia.Point(bounds.Left + 12, bounds.Bottom) : new Avalonia.Point(0, 0));
                 var screen = List.PointToScreen(anchor);
-                var result = await WindowsContextMenu.ShowAsync(paths!, screen.X, screen.Y);
+                var result = await WindowsContextMenu.ShowAsync(paths!, screen.X, screen.Y, extended);
                 if (request != _menuRequest) return;
                 if (result == WindowsContextMenu.Result.Handled) return;
                 if (result == WindowsContextMenu.Result.Properties)

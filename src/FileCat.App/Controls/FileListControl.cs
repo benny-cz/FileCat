@@ -164,6 +164,7 @@ public sealed partial class FileListControl : Control
     // Brushes resolved from theme tokens.
     private IBrush _bg = Brushes.White, _bgInactive = Brushes.White, _header = Brushes.LightGray, _text = Brushes.Black;
     private IBrush _muted = Brushes.Gray, _dim = Brushes.Gray, _dir = Brushes.Black, _archive = Brushes.Brown, _exec = Brushes.Green, _link = Brushes.Blue;
+    private IBrush _compressed = Brushes.Blue, _encrypted = Brushes.Green;
     private IBrush _markedText = Brushes.Red, _markedBg = Brushes.MistyRose, _focusBg = Brushes.LightBlue, _focusText = Brushes.Black;
     private IBrush _focusBorder = Brushes.Blue, _focusInactive = Brushes.Gray, _grid = Brushes.LightGray, _headerText = Brushes.Black;
     private IBrush _accent = Brushes.Blue, _error = Brushes.Red;
@@ -325,6 +326,12 @@ public sealed partial class FileListControl : Control
     public event EventHandler<string>? InspectRequested;
     /// <summary>A right click on listing whitespace, independent of focused or marked rows.</summary>
     public event EventHandler<Point>? BackgroundContextRequested;
+
+    /// <summary>
+    /// Whether Shift was held for the right click that raised the latest <see cref="ContextMenuRequested"/> or
+    /// <see cref="BackgroundContextRequested"/>: Windows then adds its extended verbs, as Explorer does.
+    /// </summary>
+    public bool ContextWithShift { get; private set; }
 
     /// <summary>Raised when a drag starts; carries the original press, which drag-and-drop requires.</summary>
     public event EventHandler<PointerPressedEventArgs>? DragRequested;
@@ -748,6 +755,8 @@ public sealed partial class FileListControl : Control
         _dir = B("FcTextDirectory", _text);
         _archive = B("FcTextArchive", _text);
         _exec = B("FcTextExecutable", _text);
+        _compressed = B("FcTextCompressed", _text);
+        _encrypted = B("FcTextEncrypted", _text);
         _link = B("FcTextLink", _text);
         _markedText = B("FcTextMarked", Brushes.Red);
         _markedBg = B("FcMarkedBackground", Brushes.Transparent);
@@ -1187,6 +1196,23 @@ public sealed partial class FileListControl : Control
         }
     }
 
+    /// <summary>
+    /// A row's name color: marked, then under the active cursor, then unavailable; then NTFS-encrypted and compressed
+    /// (green and blue as Explorer and Open Salamander draw them, in the theme's shades), which a hidden or system item
+    /// keeps too, its icon being dimmed instead; then hidden, folder, archive, and program colors.
+    /// </summary>
+    internal IBrush NameBrush(in EntryData e, bool marked, bool cursor) =>
+        marked ? _markedText
+        : cursor ? _focusText
+        : e.Has(EntryFlags.Unavailable) ? _dim
+        : e.Has(EntryFlags.Encrypted) ? _encrypted
+        : e.Has(EntryFlags.Compressed) ? _compressed
+        : e.Has(EntryFlags.Hidden) || e.Has(EntryFlags.System) ? _dim
+        : e.IsContainer ? _dir
+        : e.Has(EntryFlags.Container) ? _archive
+        : IconProvider.Classify(e) == IconKind.Executable ? _exec
+        : _text;
+
     private void RenderRow(DrawingContext dc, ListingModel listing, int row, double y, double width, bool focused, bool active)
     {
         var e = listing.GetVisible(row);
@@ -1198,15 +1224,10 @@ public sealed partial class FileListControl : Control
         if (focused && active) dc.FillRectangle(_focusBg, rowRect);
         if (marked) dc.FillRectangle(_markedText, new Rect(0, y + 1, 3, _rowHeight - 2));
 
-        IBrush textBrush = marked ? _markedText
-            : focused && active ? _focusText
-            : e.Has(EntryFlags.Hidden) || e.Has(EntryFlags.System) || e.Has(EntryFlags.Unavailable) ? _dim
-            : e.IsContainer ? _dir
-            : e.Has(EntryFlags.Container) ? _archive
-            : IconProvider.Classify(e) == IconKind.Executable ? _exec
-            : _text;
+        IBrush textBrush = NameBrush(e, marked, focused && active);
         int style = marked ? 1 : focused && active ? 2 : ReferenceEquals(textBrush, _dim) ? 3 : ReferenceEquals(textBrush, _dir) ? 4
-            : ReferenceEquals(textBrush, _archive) ? 5 : ReferenceEquals(textBrush, _exec) ? 6 : 0;
+            : ReferenceEquals(textBrush, _archive) ? 5 : ReferenceEquals(textBrush, _exec) ? 6
+            : ReferenceEquals(textBrush, _compressed) ? 7 : ReferenceEquals(textBrush, _encrypted) ? 8 : 0;
         var typeface = marked ? _boldTypeface : _typeface;
 
         using (dc.PushTransform(Matrix.CreateTranslation(-_horizontalOffset, 0)))
@@ -1610,7 +1631,10 @@ public sealed partial class FileListControl : Control
             ClearNameClick();
             if (point.Properties.IsRightButtonPressed && pos.X >= 0 && pos.X < _horizontalViewport &&
                 pos.Y >= (PictureMode ? 0 : _headerHeight) && pos.Y < Bounds.Height - (_hbar.IsVisible ? HorizontalBarHeight : 0))
+            {
+                ContextWithShift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
                 BackgroundContextRequested?.Invoke(this, pos);
+            }
             e.Handled = true;
             return;
         }
@@ -1623,6 +1647,7 @@ public sealed partial class FileListControl : Control
                 _listing.UnmarkEverything();
                 _listing.SetFocus(row);
             }
+            ContextWithShift = (mods & KeyModifiers.Shift) != 0;
             ContextMenuRequested?.Invoke(this, pos);
             e.Handled = true;
             return;
