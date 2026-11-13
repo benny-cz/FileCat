@@ -8,6 +8,10 @@ public sealed record EditDiscardResult(bool Complete,bool MayHaveRemovedFiles,st
 
 public sealed partial class EditSessionStore
 {
+    // What FileCat may have left in one edit when it ended: the stages of records it was publishing and names an
+    // interrupted removal set aside, which a discard reviews and removes with the edit. A folder with more than this is
+    // kept for review rather than removed object by object.
+    private const int MaximumInterruptedLeftovers=64;
     /// <summary>Bind native discard to current bytes and fresh object ownership; legacy sessions retain their separate composition.</summary>
     public EditDiscardResult DiscardReviewed(EditSessionRecord record,EditWorkingReview reviewed,CancellationToken ct=default,Action? check=null)
     {
@@ -114,6 +118,14 @@ public sealed partial class EditSessionStore
                 expectedNames.Add(name);using var capture=session.OpenStorageDirectory(name,ct);
                 node.Children.Add(ReviewCaptureForDiscard(capture,name,history));
             }
+            // FileCat's own interrupted work, reviewed and removed with the edit: the stage of a record it was
+            // publishing when it ended (a failed revision keeps its stage on purpose), and a name an interrupted exact
+            // removal set aside. Leaving them refused the discard for good and asked the user to delete a file inside
+            // private storage; they are FileCat's objects, each removed through a handle bound to what is reviewed here.
+            string[] leftovers=names.Where(name=>IsRecordStage(name)||IsSetAside(name)).Order(StringComparer.Ordinal).ToArray();
+            if(leftovers.Length>MaximumInterruptedLeftovers)
+                throw new IOException("The files FileCat left in this edit exceed the discard review budget. Its files are kept.");
+            foreach(string name in leftovers){expectedNames.Add(name);node.Files.Add(Read(session,name,IsRecordStage(name)));}
             if(!names.Order(StringComparer.Ordinal).SequenceEqual(expectedNames.Order(StringComparer.Ordinal)))
                 throw Unexpected("This edit's folder",names,expectedNames);
             // Captures go first; the user's reviewed working bytes remain until their preflight and removal finish.
@@ -121,19 +133,19 @@ public sealed partial class EditSessionStore
             {
                 if(files.Identity!=record.WorkingDirectoryIdentity)throw new IOException("The working directory was replaced.");
                 var working=Node(files,"files");string leaf=Path.GetFileName(record.WorkingPath);
-                if(reviewed!.State==EditState.Missing)
-                {
-                    // The copy's name is gone. Anything left in its folder is either FileCat's own interrupted work (a
-                    // set-aside name from a removal that stopped) or a file FileCat did not make; the shared message
-                    // tells them apart and says what to do, where "replaced" said something untrue of both.
-                    if(working.Names.Length!=0)throw Unexpected("The folder \u201cfiles\u201d",working.Names,[]);
-                }
+                // A name an interrupted removal set aside is FileCat's own and goes with the copy; anything else the
+                // folder holds is named by the shared message, which tells a file FileCat never made from its own.
+                string[] aside=working.Names.Where(IsSetAside).Order(StringComparer.Ordinal).ToArray();
+                if(aside.Length>MaximumInterruptedLeftovers)
+                    throw new IOException("The files FileCat left in this edit exceed the discard review budget. Its files are kept.");
+                if(reviewed!.State==EditState.Missing)RequireLayout(working,aside);
                 else
                 {
-                    RequireLayout(working,[leaf]);var file=Read(files,leaf,false);
+                    RequireLayout(working,[leaf,..aside]);var file=Read(files,leaf,false);
                     if(file.Expected.Version.Sha256!=reviewed.Sha256)throw new IOException("The working copy changed while discard was reviewed.");
                     working.Files.Add(file);
                 }
+                foreach(string name in aside)working.Files.Add(Read(files,name,false));
                 node.Children.Add(working);
             }
             RequireNames(session,node.Names);return node;

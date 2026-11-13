@@ -15,7 +15,8 @@ internal static class ArchiveEditDiscardCases
         "cancel-before","cancel-preflight","cancel-partial","late-working","wrong-review","unavailable-review","stale-record",
         "record-changed","record-missing","marker-changed","marker-unknown","marker-origin","extra-session","extra-working",
         "extra-capture","extra-payload","capture-header","capture-receipt","capture-payload","intent-corrupt",
-        "replaced-session","replaced-files","replaced-after-review","changed-after-review","extra-after-review","no-factory"}
+        "replaced-session","replaced-files","replaced-after-review","changed-after-review","extra-after-review","no-factory",
+        "stage-session","aside-working","aside-missing"}
         .Select(value=>new object[]{value});
 
     internal static void Run(string scenario,Func<string,bool,CancellationToken,EditDirectoryLease> open,IFileSystemOperations fs)
@@ -73,11 +74,12 @@ internal static class ArchiveEditDiscardCases
             }
             if(scenario=="revision")record=store.Save(record with{LastCommitUtc=DateTime.UtcNow});
             if(scenario=="stale-record")store.Save(record with{LastCommitUtc=DateTime.UtcNow});
-            if(scenario=="missing")File.Delete(record.WorkingPath);
+            if(scenario is "missing" or "aside-missing")File.Delete(record.WorkingPath);
             if(scenario=="origin")Assert.True(fs.WriteOriginMark(record.WorkingPath,"[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.test/edit\r\nQuarantine=0081;6553f100;FileCat;public-test\r\n"));
             if(scenario=="record-time")File.SetLastWriteTimeUtc(Path.Combine(session,"session.json"),DateTime.UnixEpoch.AddSeconds(1700000000));
-            var reviewed=new EditWorkingReview(scenario=="missing"?EditState.Missing:EditState.Modified,
-                scenario=="missing"?null:Convert.ToHexString(SHA256.HashData(Read(record.WorkingPath))));
+            bool gone=scenario is "missing" or "aside-missing";
+            var reviewed=new EditWorkingReview(gone?EditState.Missing:EditState.Modified,
+                gone?null:Convert.ToHexString(SHA256.HashData(Read(record.WorkingPath))));
             if(scenario=="open-editor")editor=new FileStream(record.WorkingPath,FileMode.Open,FileAccess.ReadWrite,FileShare.ReadWrite|FileShare.Delete);
             if(scenario=="mapped-editor")
             {
@@ -97,6 +99,12 @@ internal static class ArchiveEditDiscardCases
             // With a source URL, which Linux records (a zone alone has no Linux origin value).
             if(scenario=="marker-origin")Assert.True(fs.WriteOriginMark(Path.Combine(session,"creation.json"),"[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.test/marker\r\n"));
             if(scenario=="extra-session")File.WriteAllText(Path.Combine(session,"unexpected.txt"),"keep unexpected session data");
+            // FileCat's own interrupted work, which a discard reviews and removes with the edit: the stage of a record it
+            // was publishing when it ended, and a name an interrupted exact removal set aside (with the copy still there,
+            // or gone with it). Written as FileCat writes its own files, which is what its removal review requires.
+            if(scenario=="stage-session")Own(Path.Combine(session,".record-"+Guid.NewGuid().ToString("N")+".tmp"),"a revision this edit was publishing");
+            if(scenario is "aside-working" or "aside-missing")
+                Own(Path.Combine(Path.GetDirectoryName(record.WorkingPath)!,".filecat-removing-"+Guid.NewGuid().ToString("N")),"what a stopped removal set aside");
             if(scenario=="extra-working")File.WriteAllText(Path.Combine(Path.GetDirectoryName(record.WorkingPath)!,"editor.bak"),"keep editor backup");
             if(scenario=="replaced-session")
             {Directory.Move(session,session+".retained");File.WriteAllText(Path.Combine(Private(session),"replacement.txt"),"keep unrelated replacement");}
@@ -113,7 +121,8 @@ internal static class ArchiveEditDiscardCases
             // neither (its leases need a privilege), so there the discard proceeds and the editor keeps its unlinked copy.
             bool seesEditors=!OperatingSystem.IsMacOS();
             bool success=scenario is "working" or "empty" or "missing" or "revision" or "record-time" or "origin" or "complete-capture" or
-                "old-capture" or "interrupted-empty" or "interrupted-partial" or "saved-intent"||!seesEditors&&scenario is "open-editor" or "mapped-editor";
+                "old-capture" or "interrupted-empty" or "interrupted-partial" or "saved-intent" or "stage-session" or "aside-working" or
+                "aside-missing"||!seesEditors&&scenario is "open-editor" or "mapped-editor";
             if(success)
             {
                 Assert.Null(error);Assert.NotNull(result);Assert.True(result.Complete,result.Issue);Assert.False(Directory.Exists(session));
@@ -165,6 +174,11 @@ internal static class ArchiveEditDiscardCases
     {using var file=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete);using var output=new MemoryStream();file.CopyTo(output);return output.ToArray();}
     private static void Change(string path,string key,JsonNode? value)
     {var record=JsonNode.Parse(File.ReadAllBytes(path))!.AsObject();record[key]=value;File.WriteAllText(path,record.ToJsonString());}
+    private static void Own(string path,string contents)
+    {
+        File.WriteAllText(path,contents);
+        if(!OperatingSystem.IsWindows())File.SetUnixFileMode(path,UnixFileMode.UserRead|UnixFileMode.UserWrite);
+    }
     private static string Private(string path)=>OperatingSystem.IsWindows()?Directory.CreateDirectory(path).FullName:
         Directory.CreateDirectory(path,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute).FullName;
     internal sealed class Faults(string scenario,CancellationTokenSource stop)
